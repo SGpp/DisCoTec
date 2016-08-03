@@ -1,0 +1,6 @@
+/**
+@page module_distributedcombigrid Module sgpp::distributedcombigrid
+
+Parallel and highly scalable implementation of the combination technique.
+ 
+**/
