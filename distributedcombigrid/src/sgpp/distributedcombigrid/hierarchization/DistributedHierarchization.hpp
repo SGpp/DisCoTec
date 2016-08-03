@@ -2396,6 +2396,13 @@ class DistributedHierarchization {
     hierarchize<FG_ELEMENT>(dfg, dims);
   }
 
+
+  template<typename FG_ELEMENT>
+  static void hierarchize( DistributedFullGrid<FG_ELEMENT>& dfg ) {
+    std::vector<bool> dims( dfg.getDimension(), true );
+    hierarchize<FG_ELEMENT>( dfg, dims );
+  }
+
   // inplace dehierarchization
   template <typename FG_ELEMENT>
   static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg, const std::vector<bool>& dims) {

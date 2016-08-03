@@ -97,7 +97,7 @@ class MPISystem {
    */
   inline const CommunicatorType& getGlobalComm() const;
 
-  /**
+  /*distributedcombigrid/examples/gene_distributed/template/gene_new_machine
    * returns the local communicator which contains all ranks within the process group of caller
    */
   inline const CommunicatorType& getLocalComm() const;
@@ -230,6 +230,8 @@ class MPISystem {
    * sends a message to the manager that this rank has failed -> used for FT simulator
    */
   void sendFailedSignal();
+
+  inline bool isInitialized() const;
 
  private:
   explicit MPISystem();
@@ -536,6 +538,10 @@ inline size_t MPISystem::getNumProcs() const {
 }
 
 inline bool MPISystem::isInitialized() const { return initialized_; }
+
+inline bool MPISystem::isInitialized() const{
+  return initialized_;
+}
 
 /*
 // operators
