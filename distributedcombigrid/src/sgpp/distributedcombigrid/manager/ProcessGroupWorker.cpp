@@ -18,6 +18,8 @@
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 
+#include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
+
 namespace combigrid {
 
 ProcessGroupWorker::ProcessGroupWorker() :
@@ -29,6 +31,10 @@ ProcessGroupWorker::ProcessGroupWorker() :
     combiParameters_(),
     combiParametersSet_(false)
 {
+  MASTER_EXCLUSIVE_SECTION {
+    std::string fname ="out/all-betas-"+std::to_string(theMPISystem()->getGlobalRank())+".txt";
+    betasFile_ = std::ofstream( fname, std::ofstream::out );
+  }
 }
 
 ProcessGroupWorker::~ProcessGroupWorker() {
@@ -162,6 +168,40 @@ SignalType ProcessGroupWorker::wait() {
 
     updateCombiParameters();
 
+  } else if (signal == RECOMPUTE) {
+    Task* t;
+
+    // local root receives task
+    MASTER_EXCLUSIVE_SECTION {
+      Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+    }
+
+    // broadcast task to other process of pgroup
+    Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+
+    MPI_Barrier(theMPISystem()->getLocalComm());
+
+    // add task to task storage
+    tasks_.push_back(t);
+
+    status_ = PROCESS_GROUP_BUSY;
+
+    // set currentTask
+    currentTask_ = tasks_.back();
+
+    // initalize task
+    currentTask_->init(theMPISystem()->getLocalComm());
+
+    currentTask_->setZero();
+
+    // fill task with combisolution
+    setCombinedSolutionUniform( currentTask_ );
+
+    // execute task
+    currentTask_->run(theMPISystem()->getLocalComm());
+  } else if ( signal ==  RECOVER_COMM ){
+    theMPISystem()->recoverCommunicators( true );
+    return signal;
   }
 
 
@@ -173,6 +213,20 @@ SignalType ProcessGroupWorker::wait() {
 }
 
 void ProcessGroupWorker::ready() {
+  if( ENABLE_FT ){
+    // with this barrier the local root but also each other process can detect
+    // whether a process in the group has failed
+    int err = simft::Sim_FT_MPI_Barrier( theMPISystem()->getLocalCommFT() );
+
+    if( err == MPI_ERR_PROC_FAILED ){
+      status_ = PROCESS_GROUP_FAIL;
+
+      int globalRank;
+      MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+      std::cout << "rank " << globalRank << " fault detected" << std::endl;
+    }
+  }
+
   if( status_ != PROCESS_GROUP_FAIL ){
     // check if there are unfinished tasks
     for (size_t i = 0; i < tasks_.size(); ++i) {
@@ -182,6 +236,17 @@ void ProcessGroupWorker::ready() {
         // set currentTask
         currentTask_ = tasks_[i];
         currentTask_->run(theMPISystem()->getLocalComm());
+
+        if( ENABLE_FT ){
+          // with this barrier the local root but also each other process can detect
+          // whether a process in the group has failed
+          int err = simft::Sim_FT_MPI_Barrier( theMPISystem()->getLocalCommFT() );
+
+          if( err == MPI_ERR_PROC_FAILED ){
+            status_ = PROCESS_GROUP_FAIL;
+            break;
+          }
+        }
       }
     }
 
@@ -193,11 +258,22 @@ void ProcessGroupWorker::ready() {
   MASTER_EXCLUSIVE_SECTION{
     StatusType status = status_;
 
-    MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), statusTag, theMPISystem()->getGlobalComm());
+    if( ENABLE_FT ){
+      simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), statusTag,
+          theMPISystem()->getGlobalCommFT() );
+    } else{
+      MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), statusTag, theMPISystem()->getGlobalComm());
+    }
   }
 
   // reset current task
   currentTask_ = NULL;
+
+  // if failed proc in this group detected the alive procs go into recovery state
+  if( ENABLE_FT ){
+    if( status_ == PROCESS_GROUP_FAIL )
+      theMPISystem()->recoverCommunicators( false );
+  }
 }
 
 void ProcessGroupWorker::combine() {
@@ -281,6 +357,8 @@ void ProcessGroupWorker::combineUniform() {
     // lokales reduce auf sg ->
     dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
   }
+
+  compareSDCPairs( 4 );
 
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
 
@@ -409,7 +487,106 @@ void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
   DistributedHierarchization::dehierarchize<CombiDataType>( dfg );
 }
 
+void ProcessGroupWorker::compareSDCPairs( int numNearestNeighbors ){
 
+  /* Generate all pairs of grids */
+  std::vector<CombiDataType> allBetas;
+  std::vector<std::vector<Task*>> allPairs;
+
+  generatePairs( numNearestNeighbors, allPairs );
+
+  //  MASTER_EXCLUSIVE_SECTION {
+  //  for (auto pair : allPairs)
+  //    std::cout<<pair[0]->getLevelVector()<<pair[1]->getLevelVector()<<std::endl;
+  //  }
+  for (auto pair : allPairs){
+
+    DistributedFullGrid<CombiDataType>& dfg_s = pair[0]->getDistributedFullGrid();
+    DistributedFullGrid<CombiDataType>& dfg_t = pair[1]->getDistributedFullGrid();
+
+    LevelVector s_level = pair[0]->getLevelVector();
+    LevelVector t_level = pair[1]->getLevelVector();
+
+    DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = new DistributedSparseGridUniform<CombiDataType>(
+        combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
+        combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
+
+    dfg_s.registerUniformSG( *SDCUniDSG );
+    dfg_t.registerUniformSG( *SDCUniDSG );
+
+    dfg_s.addToUniformSG( *SDCUniDSG, 1.0 );
+    dfg_t.addToUniformSG( *SDCUniDSG, -1.0, true );
+
+    LevelVector common_level;
+    for (size_t i = 0; i < s_level.size(); ++i)
+      common_level.push_back( (s_level[i] <= t_level[i]) ? s_level[i] : t_level[i] );
+
+    CombiDataType localBeta(0.0);
+    LevelVector maxSub;
+
+    for (size_t i = 0; i < SDCUniDSG->getNumSubspaces(); ++i){
+      if (SDCUniDSG->getLevelVector(i) <= common_level){
+        // todo: getData or getDataVector?
+        auto subData = SDCUniDSG->getData(i);
+        auto subSize = SDCUniDSG->getDataSize(i);
+        localBeta = std::max( *std::max_element(subData, subData + subSize), localBeta );
+      }
+    }
+    allBetas.push_back( localBeta );
+  }
+
+  CombiCom::BetasReduce( allBetas, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm() );
+
+  MASTER_EXCLUSIVE_SECTION {
+    betasFile_<<allBetas.size()<<std::endl;
+    for ( size_t ind = 0; ind < allBetas.size(); ++ind ){
+      betasFile_<<allPairs[ind][0]->getLevelVector()<<","<<allPairs[ind][1]->getLevelVector()<<","<< allBetas[ind] <<std::endl;
+      std::cout<<allPairs[ind][0]->getLevelVector()<<", "<<allPairs[ind][1]->getLevelVector()<<": "<< allBetas[ind] << std::endl;
+    }
+  }
+}
+
+void ProcessGroupWorker::generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs){
+  std::vector<LevelVector> levels;
+
+  for ( auto tt: tasks_ ){
+    levels.push_back(tt->getLevelVector());
+  }
+  for (Task* s : tasks_ ){
+
+//    std::cout<<"Unsorted levels, s = " << s->getLevelVector() << std::endl;
+//    for(auto tt : levels)
+//      std::cout<<tt<<std::endl;
+
+    std::sort(levels.begin(), levels.end(), [s](LevelVector const& a, LevelVector const& b) {
+      return l1(a - s->getLevelVector()) < l1(b - s->getLevelVector());
+    });
+
+//    std::cout<<"Sorted tasks, s = " << s->getLevelVector() << std::endl;
+//    for(auto tt : levels)
+//      std::cout<<tt<<std::endl;
+
+    int k = 0;
+
+    for( size_t t_i = 1; t_i < levels.size(); ++t_i ){
+      std::vector<Task*> currentPair;
+
+      Task* t = *std::find_if(tasks_.begin(), tasks_.end(),
+          [levels,t_i](Task* const &tt) -> bool { return tt->getLevelVector() == levels[t_i]; });
+
+      currentPair.push_back(t);
+      currentPair.push_back(s);
+
+      if(std::find(allPairs.begin(), allPairs.end(), currentPair) == allPairs.end()){
+        allPairs.push_back({currentPair[1],currentPair[0]});
+        k++;
+      }
+
+      if (k == numNearestNeighbors)
+        break;
+    }
+  }
+}
 //  void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
 //                      real coeff) {
 //    // test if dsg has already been registered

@@ -48,6 +48,10 @@ const bool USE_NONBLOCKING_MPI_COLLECTIVE = true;
  * true to avoid that the ready signal is sent automatically.
  */
 const bool omitReadySignal = false;
+
+
+/* switch on fault tolerance functionality */
+const bool ENABLE_FT = true;
 }
 
 

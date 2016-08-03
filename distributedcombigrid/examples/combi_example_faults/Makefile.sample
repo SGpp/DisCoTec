@@ -1,0 +1,22 @@
+CC=mpic++.mpich
+CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall 
+#CFLAGS+=-DSIMFTMPI
+
+SGPP_DIR=path/to/combi
+
+LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
+
+INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ -I$(SGPP_DIR)/combigrid/src/
+
+LDIR=$(LD_SGPP)
+INC=$(INC_SGPP)
+
+LIBS=-lsgppdistributedcombigrid -lsgppcombigrid -lboost_serialization -lglpk
+
+all: combi_example_faults
+
+combi_example_faults: combi_example_faults.cpp TaskExample.hpp 
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o combi_example_faults combi_example_faults.cpp $(LIBS)
+
+clean:
+	rm -f *.o out/* combi_example_faults

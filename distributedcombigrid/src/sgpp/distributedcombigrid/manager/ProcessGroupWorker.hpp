@@ -13,6 +13,7 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
 
@@ -45,6 +46,19 @@ class ProcessGroupWorker {
 
   void updateCombiParameters();
 
+  /* Computes the difference between all pairs of combination solutions
+   * (or only between neighboring ones if onlyNearestNeighbors = true)
+   * according to the paper on SDC detection. If the difference is large,
+   * a soft fault might have occurred. */
+  void compareSDCPairs( int numNearestNeighbors );
+
+  /* Generates a list of pairs of tasks, so that for each task
+   * that a worker has, we find its K nearest neighbors. The distance
+   * between two tasks is the l1 norm of the difference of their level vectors:
+   * distance(task_s, task_t) = |s - t|_1
+   * */
+  void generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs);
+
  private:
   TaskContainer tasks_; // task storage
 
@@ -61,6 +75,8 @@ class ProcessGroupWorker {
   CombiParameters combiParameters_;
 
   bool combiParametersSet_;
+
+  std::ofstream betasFile_;
 
   void setCombinedSolutionUniform( Task* t );
 };
