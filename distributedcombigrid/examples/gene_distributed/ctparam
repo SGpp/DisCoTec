@@ -1,0 +1,25 @@
+[ct]
+dim = 6
+lmin = 2 1 5 4 4 1  
+lmax = 2 1 5 4 4 1
+leval = 2 1 5 4 4 1
+p = 1 1 4 1 2 1
+ncombi = 100
+readspaces = 1
+fg_file_prefix = bla
+
+[application]
+dt = 0.01
+nsteps = 1
+
+[preproc]
+basename = ginstance
+executable = ./gene_new_machine
+mpi = mpirun.mpich
+sgpplib = /home/heenemo/workspace/combi-gene/lib/sgpp
+tasklib = /home/heenemo/workspace/combi-gene/distributedcombigrid/examples/gene_distributed/lib
+startscript = start.bat
+
+[manager]
+ngroup = 1
+nprocs = 8 

@@ -2559,15 +2559,15 @@ namespace combigrid {
 class DistributedHierarchization {
 
  public:
-  // whereever references possible, use references
-  // here using a reference avoids the possibility of passing a NULL pointer
-  // which would lead to a segfault for sure
-
   // inplace hierarchization
   template<typename FG_ELEMENT>
-  static void hierarchize(DistributedFullGrid<FG_ELEMENT>& dfg) {
+  static void hierarchize( DistributedFullGrid<FG_ELEMENT>& dfg,
+                           std::vector<bool>& dims ) {
+    assert( dfg.getDimension() > 0 );
+    assert( dfg.getDimension() == dims.size() );
+
     // hierarchize first dimension
-    {
+    if( dims[0] ){
       DimType dim = 0;
 
       if (hierCount == 0)
@@ -2597,6 +2597,8 @@ class DistributedHierarchization {
 
     // hierarchize other dimensions
     for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
+      if( !dims[dim] )
+        continue;
 
       if (hierCount == 0)
         theStatsContainer()->setTimerStart(
@@ -2631,11 +2633,22 @@ class DistributedHierarchization {
 
   }
 
+
+  template<typename FG_ELEMENT>
+  static void hierarchize( DistributedFullGrid<FG_ELEMENT>& dfg ) {
+    std::vector<bool> dims( dfg.getDimension(), true );
+    hierarchize<FG_ELEMENT>( dfg, dims );
+  }
+
   // inplace dehierarchization
   template<typename FG_ELEMENT>
-  static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg) {
+  static void dehierarchize( DistributedFullGrid<FG_ELEMENT>& dfg,
+                             std::vector<bool>& dims ) {
+    assert( dfg.getDimension() > 0 );
+    assert( dfg.getDimension() == dims.size() );
+
     // dehierarchize first dimension
-    {
+    if( dims[0] ){
       DimType dim = 0;
 
       if (hierCount == 0)
@@ -2664,6 +2677,8 @@ class DistributedHierarchization {
 
     // dehierarchize other dimensions
     for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
+      if( !dims[dim] )
+          continue;
 
       if (hierCount == 0)
         theStatsContainer()->setTimerStart(
@@ -2692,6 +2707,13 @@ class DistributedHierarchization {
         theStatsContainer()->setTimerStop(
           "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
     }
+  }
+
+
+  template<typename FG_ELEMENT>
+  static void dehierarchize( DistributedFullGrid<FG_ELEMENT>& dfg ) {
+    std::vector<bool> dims( dfg.getDimension(), true );
+    dehierarchize<FG_ELEMENT>( dfg, dims );
   }
 
 };

@@ -48,7 +48,8 @@ SignalType ProcessGroupWorker::wait() {
               signalTag,
               theMPISystem()->getGlobalComm(),
               MPI_STATUS_IGNORE);
-}
+  }
+
   // distribute signal to other processes of pgroup
   MPI_Bcast( &signal, 1, MPI_INT,
              theMPISystem()->getMasterRank(),

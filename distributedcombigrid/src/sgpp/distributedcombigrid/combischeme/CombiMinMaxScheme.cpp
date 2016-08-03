@@ -156,7 +156,7 @@ void CombiMinMaxScheme::computeCombiCoeffsClassical(){
     LevelType l1 = sum(combiSpaces_[i]);
     LevelType p = n_ - l1;
     // Classical combination coefficients
-    coefficients_.push_back(std::pow(-1, p)*boost::math::binomial_coefficient<real>(effDim_ - 1, p) );
+    coefficients_.push_back(std::pow(-1, p)*boost::math::binomial_coefficient<real>(effDim_ - 1, p));
     }
 }
 

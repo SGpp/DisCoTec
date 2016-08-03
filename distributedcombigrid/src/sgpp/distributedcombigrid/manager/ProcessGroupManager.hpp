@@ -85,8 +85,6 @@ class ProcessGroupManager {
 
   MPI_Request statusRequest_;
 
-  std::vector<CombiDataType> allBetas_;
-
   void recvStatus();
 
   /* sets the rank of the process group's master in global comm. should only

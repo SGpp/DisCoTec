@@ -130,7 +130,6 @@ inline real Task::estimateRuntime() const {
   return loadModel_->eval(l_);
 }
 
-
 } /* namespace combigrid */
 
 #endif /* TASK_HPP_ */
