@@ -140,6 +140,7 @@ SignalType ProcessGroupWorker::wait() {
     // t.eval(x)
   } else if (signal == EXIT) {
 
+
   } else if (signal == SYNC_TASKS) {
     MASTER_EXCLUSIVE_SECTION {
       for (size_t i = 0; i < tasks_.size(); ++i) {
@@ -165,10 +166,12 @@ SignalType ProcessGroupWorker::wait() {
 
   }
 
+  // special solution for GENE
+  // todo: find better solution and remove this
+  if( ( signal == RUN_FIRST || signal == RUN_NEXT ) && omitReadySignal )
+    return signal;
 
-  // in the general case: send ready signal.
-  if(!omitReadySignal)
-    ready();
+  ready();
 
   return signal;
 }
@@ -410,43 +413,4 @@ void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
   DistributedHierarchization::dehierarchize<CombiDataType>( dfg );
 }
 
-
-//  void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-//                      real coeff) {
-//    // test if dsg has already been registered
-//    if (&dsg != dsg_)
-//      registerUniformSG(dsg);
-//
-//    // create iterator for each subspace in dfg
-//    typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
-//    typename std::vector<SubspaceIterator> it_sub(
-//      subspaceAssigmentList_.size());
-//
-//    for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
-//      if (subspaceAssigmentList_[subFgId] < 0)
-//        continue;
-//
-//      IndexType subSgId = subspaceAssigmentList_[subFgId];
-//
-//      it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
-//    }
-//
-//    // loop over all grid points
-//    for (size_t i = 0; i < fullgridVector_.size(); ++i) {
-//      // get subspace_fg id
-//      size_t subFgId(assigmentList_[i]);
-//
-//      if (subspaceAssigmentList_[subFgId] < 0)
-//        continue;
-//
-//      IndexType subSgId = subspaceAssigmentList_[subFgId];
-//
-//      assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
-//
-//      // add grid point to subspace, mul with coeff
-//      *it_sub[subFgId] += coeff * fullgridVector_[i];
-//
-//      ++it_sub[subFgId];
-//    }
-//  }
 } /* namespace combigrid */

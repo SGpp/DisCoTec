@@ -5,7 +5,7 @@ SGPP_DIR=$(HOME)/path/to/SGpp
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 
-INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ -I$(SGPP_DIR)/combigrid/src/
+INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ 
 
 LDIR=$(LD_SGPP)
 INC=$(INC_SGPP)
