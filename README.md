@@ -25,7 +25,8 @@ side-effects to other branches.
 master branch.
 * Before merging new features to the master branch, please make sure that they
 are sufficiently commented. The current state of the master branch is not a good
-example for good comment style, so please use the comment style of SG++.
+example for good comment style, so please look at the other modules of SG++ to
+get an impression how the comments should look like.
 * Although the distributed combigrid module is independent of the other modules
 in SG++, it will remain a part of this project. To ensure compability please
 make sure that you only change files in the distributedcombigrid folder. 
@@ -37,4 +38,7 @@ done in SG++ will also be done for this project.
 
 Installation instructions: 
 --------------------------
-to be done ...
+Compile with  
+scons -j 4 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=1 CXX=mpic++.mpich OPT=1 
+
+
