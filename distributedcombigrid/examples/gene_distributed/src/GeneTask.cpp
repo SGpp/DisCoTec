@@ -13,6 +13,7 @@
 #include <fstream>
 #include "CombiGeneConverter.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
+#include "sgpp/distributedcombigrid/fullgrid/MultiArray.hpp"
 
 namespace combigrid
 {
@@ -330,53 +331,145 @@ void GeneTask::setDFG(){
   IndexVector upperBounds = { b[1], b[3], b[5], b[7], b[9], b[11] };
   IndexVector lcpSizes = upperBounds - lowerBounds;
 
-  GeneGridRef lcpData( checkpoint_.getData(),
-                       boost::extents[ lcpSizes[0] ][ lcpSizes[1] ][ lcpSizes[2] ]
-                                     [ lcpSizes[3] ][ lcpSizes[4] ][ lcpSizes[5] ] );
+  MultiArrayRef<GeneComplex,6> lcpData =
+    createMultiArrayRef<GeneComplex,6>( checkpoint_.getData(), lcpSizes );
 
-  // reverse ordering in dfg!
-  IndexVector dfgSizes( dfg_->getLocalSizes().rbegin(), dfg_->getLocalSizes().rend() );
-  assert( dfgSizes >= lcpSizes );
+  MultiArray6 dfgData =
+      createMultiArrayRef<CombiDataType,6>( *dfg_ );
 
-  typedef boost::multi_array_ref<complex, 6> DFGGridRef;
-  DFGGridRef dfgData( dfg_->getData(),
-                       boost::extents[ dfgSizes[0] ][ dfgSizes[1] ][ dfgSizes[2] ]
-                                     [ dfgSizes[3] ][ dfgSizes[4] ][ dfgSizes[5] ] );
+  // so far, parallelization in x direction is not supported. since this is
+  // the innermost dimension, this is not sensible anyway.
+  // parallelization in this dimension would require very expensive communication
+  // in order to change the ordering in this dimension
+  assert( dfg_->getParallelization()[0] == 1 );
 
-  // for most processes a simple linear copy operation would be sufficient
-  // however, if a process is the last process in a dimension, the dfg
-  // has a different size
-  const size_t* lcpShape = lcpData.shape();
-  for( size_t n=0; n < lcpShape[0]; ++n ) //n_spec
-    for( size_t m=0; m < lcpShape[1]; ++m ) //w
-      for( size_t l=0; l < lcpShape[2]; ++l ) //v
-        for( size_t k=0; k < lcpShape[3]; ++k ) //z
-          for( size_t j=0; j < lcpShape[4]; ++j ) //y
-            for( size_t i=0; i < lcpShape[5]; ++i ){ //x
-              dfgData[n][m][l][k][j][i].real( lcpData[n][m][l][k][j][i].r );
-              dfgData[n][m][l][k][j][i].imag( lcpData[n][m][l][k][j][i].i );
-            }
-
-  // todo: change ordering in x direction
-
-  // some checks (in reverse dfg notation!)
+  // some checks
   const IndexVector p( dfg_->getParallelization().rbegin(),
                         dfg_->getParallelization().rend() );
   IndexVector tmp( dfg_->getDimension() );
   dfg_->getPartitionCoords( tmp );
+
+  // get partition coords of the current process in the ordering as
+  // the shape of the multi arrays, i.e. spec, w, v, z, y, x
   IndexVector coords( tmp.rbegin(), tmp.rend() );
 
-  // check grid extents
+  const size_t* dfgShape = dfgData.shape();
+  const size_t* lcpShape = lcpData.shape();
+
   for( DimType d=0; d<dfg_->getDimension(); ++d ){
+    // for the last rank in the dimension w, v, z the number of elements in
+    // dfg and lcp differ
     if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 ) ){
-      assert( dfgSizes[d] == lcpSizes[d] + 1 );
+      assert( dfgShape[d] == lcpShape[d] + 1 );
     } else{
-      assert( dfgSizes[d] == lcpSizes[d] );
+      assert( dfgShape[d] == lcpShape[d] );
     }
   }
 
+  // compute norm of lcp
+  {
+	real mynorm = 0.0;
+	GeneComplex* data = checkpoint_.getData();
+	for( size_t i=0; i<checkpoint_.getSize(); ++i ){
+	  CombiDataType tmp( data[i].r, data[i].i );
+	  mynorm += std::abs( tmp );
+	}
+
+	real norm;
+	MPI_Allreduce( &mynorm, &norm, 1, MPI_DOUBLE, MPI_SUM,
+				 theMPISystem()->getLocalComm() );
+
+	MASTER_EXCLUSIVE_SECTION{
+	  std::cout << "norm before lcp copy " << norm << std::endl;
+	}
+  }
+
+  {
+	  real mynorm = 0.0;
+
+	  for( size_t n=0; n < lcpShape[0]; ++n ){ //n_spec
+		for( size_t m=0; m < lcpShape[1]; ++m ){ //w
+		  for( size_t l=0; l < lcpShape[2]; ++l ){ //v
+			for( size_t k=0; k < lcpShape[3]; ++k ){ //z
+			  for( size_t j=0; j < lcpShape[4]; ++j ){ //y
+				for( size_t i=0; i < lcpShape[5]; ++i ){ //x
+				  CombiDataType tmp;
+				  tmp.real( lcpData[n][m][l][k][j][i].r );
+				  tmp.imag( lcpData[n][m][l][k][j][i].i );
+				  mynorm += std::abs( tmp );
+				}
+			  }
+			}
+		  }
+		}
+	  }
+
+	real norm;
+	MPI_Allreduce( &mynorm, &norm, 1, MPI_DOUBLE, MPI_SUM,
+			 	 	 theMPISystem()->getLocalComm() );
+
+	MASTER_EXCLUSIVE_SECTION{
+		std::cout << "norm of lcpData " << norm << std::endl;
+	}
+  }
+
+  // copy data from local checkpoint to dfg
+  // note that on the last process in some dimensions dfg is larger than the
+  // local checkpoint
+  for( size_t n=0; n < lcpShape[0]; ++n ){ //n_spec
+    for( size_t m=0; m < lcpShape[1]; ++m ){ //w
+      for( size_t l=0; l < lcpShape[2]; ++l ){ //v
+        for( size_t k=0; k < lcpShape[3]; ++k ){ //z
+          for( size_t j=0; j < lcpShape[4]; ++j ){ //y
+            for( size_t i=0; i < lcpShape[5]; ++i ){ //x
+              dfgData[n][m][l][k][j][i].real( lcpData[n][m][l][k][j][i].r );
+              dfgData[n][m][l][k][j][i].imag( lcpData[n][m][l][k][j][i].i );
+            }
+          }
+        }
+      }
+    }
+  }
+
+  {
+	  real mynorm = 0.0;
+
+	  for( size_t n=0; n < dfgShape[0]; ++n ){ //n_spec
+		for( size_t m=0; m < dfgShape[1]; ++m ){ //w
+		  for( size_t l=0; l < dfgShape[2]; ++l ){ //v
+			for( size_t k=0; k < dfgShape[3]; ++k ){ //z
+			  for( size_t j=0; j < dfgShape[4]; ++j ){ //y
+				for( size_t i=0; i < dfgShape[5]; ++i ){ //x
+				  mynorm += std::abs( dfgData[n][m][l][k][j][i] );
+				}
+			  }
+			}
+		  }
+		}
+	  }
+
+	real norm;
+	MPI_Allreduce( &mynorm, &norm, 1, MPI_DOUBLE, MPI_SUM,
+			 	 	 theMPISystem()->getLocalComm() );
+
+	MASTER_EXCLUSIVE_SECTION{
+		std::cout << "norm of dfgData " << norm << std::endl;
+	}
+  }
+
+  // check if last grid point of x is zero
+  if( coords[1] == p[1] - 1 ){
+    for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
+      for( size_t m=0; m < dfgShape[1]; ++m ) //w
+        for( size_t l=0; l < dfgShape[2]; ++l ) //v
+          for( size_t k=0; k < dfgShape[3]; ++k ) //z
+            for( size_t j=0; j < dfgShape[4]; ++j ){ //y
+                assert( dfgData[n][ m ][l][k][j][ dfgShape[5]-1 ]
+                        == complex(0.0) );
+              }
+  }
+
   // check if last grid point of w is zero
-  const size_t* dfgShape = dfgData.shape();
   if( coords[1] == p[1] - 1 ){
     for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
         for( size_t l=0; l < dfgShape[2]; ++l ) //v
@@ -391,7 +484,7 @@ void GeneTask::setDFG(){
   // check if last grid point of v is zero
   if( coords[2] == p[2] - 1 ){
     for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
-      for( size_t m=0; m < lcpShape[1]; ++m ) //w
+      for( size_t m=0; m < dfgShape[1]; ++m ) //w
           for( size_t k=0; k < dfgShape[3]; ++k ) //z
             for( size_t j=0; j < dfgShape[4]; ++j ) //y
               for( size_t i=0; i < dfgShape[5]; ++i ){ //x
@@ -400,6 +493,21 @@ void GeneTask::setDFG(){
               }
   }
 
+  {
+	  // calc norm for debugging
+	  real mynorm = 0.0;
+	  for( auto val : dfg_->getElementVector() ){
+		  mynorm += std::abs( val );
+	  }
+
+	  real norm;
+	  MPI_Allreduce( &mynorm, &norm, 1, MPI_DOUBLE, MPI_SUM,
+					 theMPISystem()->getLocalComm() );
+
+	  MASTER_EXCLUSIVE_SECTION{
+		  std::cout << "norm before boundary adaption " << norm << std::endl;
+	  }
+  }
 
   // adapt z-boundary
   adaptBoundaryZ();
@@ -416,9 +524,41 @@ void GeneTask::adaptBoundaryZ(){
 
 
 void GeneTask::adaptBoundaryZlocal(){
-  // todo
+  MultiArrayRef6 dfgData = createMultiArrayRef<CombiDataType,6>( *dfg_ );
+
+  // calculate offset and factor
+  IndexType xoffset;
+  CombiDataType factor;
+  getOffsetAndFactor( xoffset, factor );
+
+  MASTER_EXCLUSIVE_SECTION{
+    std::cout << "xoffset: " << xoffset
+              << "factor: " << factor << std::endl;
+  }
+
+  const size_t* dfgShape = dfgData.shape();
+  for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
+    for( size_t m=0; m < dfgShape[1]; ++m ) //w
+      for( size_t l=0; l < dfgShape[2]; ++l ) //v
+          for( size_t j=0; j < dfgShape[4]; ++j ) //y
+            for( size_t i=0; i < dfgShape[5] - xoffset ; ++i ){ //x
+                dfgData[n][m][l][ dfgShape[3]-1 ][j][i] =
+                    dfgData[n][m][l][0][j][i + xoffset ];
+            }
+
+  // todo: multiply with factor
 }
 
+
+void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor ){
+  // calculate x offset and factor
+  int N = int( round( shat_ * kymin_ * lx_ ) );
+  int ky0_ind = 1;
+  assert( N == 1);
+
+  xoffset = N;
+  factor = std::pow(-1.0,N);
+}
 
 
 void GeneTask::adaptBoundaryZglobal(){
@@ -438,13 +578,9 @@ void GeneTask::adaptBoundaryZglobal(){
   // for global simulations it is probably different too
   assert( dfg_->getGlobalSizes()[1] == 1 );
 
-  // calculate x offset and factor
-  int N = int( round( shat_ * kymin_ * lx_ ) );
-  int ky0_ind = 1;
-  assert( N == 1);
-
-  IndexType xoffset = N;
-  real factor = std::pow(-1.0,N);
+  IndexType xoffset;
+  CombiDataType factor;
+  getOffsetAndFactor( xoffset, factor );
 
   bool sendingProc = false;
   if( coords[2] == 0 ){
@@ -475,10 +611,6 @@ void GeneTask::adaptBoundaryZglobal(){
     // skip if index out of bounds
     if( gix[0] < 0 || gix[0] > ( dfg_->getGlobalSizes()[0] - 1 ) )
       continue;
-
-    std::cout << "rank " << dfg_->getMpiRank()
-              << "gix " << gix
-              << std::endl;
 
     // find process which has this point (receiving process)
     IndexVector scoords( dfg_->getDimension() );
@@ -518,7 +650,7 @@ void GeneTask::adaptBoundaryZglobal(){
     IndexVector starts = subarrayLowerBounds - dfg_->getLowerBounds();
 
     // convert to mpi notation
-    // also we have to use int as datatype
+    // also we have to use int as type for the indizes
     std::vector<int> csizes(sizes.rbegin(), sizes.rend());
     std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
     std::vector<int> cstarts(starts.rbegin(), starts.rend());
@@ -536,31 +668,10 @@ void GeneTask::adaptBoundaryZglobal(){
       MPI_Isend( dfg_->getData(), 1, mysubarray, r, 0, dfg_->getCommunicator(),
                  &req);
 
-      /*
-      std::cout << "rank " << dfg_->getMpiRank() << " send to "
-                << "rank " << r
-                << " subsizes " << subsizes
-                << " starts " << starts << std::endl;
-                */
-
     } else{
       MPI_Irecv( dfg_->getData(), 1, mysubarray, r, 0, dfg_->getCommunicator(),
                  &req);
-
-      /*
-      std::cout << "rank " << dfg_->getMpiRank() << " recv from "
-                << "rank " << r
-                << "subsizes " << subsizes
-                << " starts " << starts << std::endl;*/
     }
-
-    /*
-    std::cout << "rank " << dfg_->getMpiRank() << "\n"
-              << "subsizes" << subsizes << "\n"
-              << "subarraylb" << subarrayLowerBounds << "\n"
-              << "subarrayub" << subarrayUpperBounds << "\n"
-              << "starts " << starts << std::endl;
-              */
 
     requests.push_back(req);
   }

@@ -89,6 +89,8 @@ private:
 
   void adaptBoundaryZglobal();
 
+  void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor );
+
   // following variables are set in manager and thus need to be included in
   // serialize function
   std::string path_;    // directory in which task should be executed

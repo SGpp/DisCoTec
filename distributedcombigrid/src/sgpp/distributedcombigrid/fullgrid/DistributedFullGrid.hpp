@@ -1,8 +1,3 @@
-/* ****************************************************************************
- * Copyright (C) 2011 Technische Universitaet Muenchen                         *
- * This file is part of the SG++ project. For conditions of distribution and   *
- * use, please see the copyright notice at http://www5.in.tum.de/SGpp          *
- **************************************************************************** */
 // @author Mario Heene
 #ifndef DISTRIBUTEDCOMBIFULLGRID_HPP_
 #define DISTRIBUTEDCOMBIFULLGRID_HPP_
@@ -21,6 +16,7 @@
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+
 
 #define UNIFORM_SG
 
