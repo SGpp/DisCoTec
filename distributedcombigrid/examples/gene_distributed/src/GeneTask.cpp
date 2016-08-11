@@ -584,30 +584,46 @@ void GeneTask::adaptBoundaryZglobal(){
   // for each remote process there may be up to two blocks of data to send
   // or receive
   std::vector< std::vector<IndexType> > transferIndicesBlock1( dfg_->getCommunicatorSize() );
+  std::vector< std::vector<IndexType> > transferIndicesBlock2( dfg_->getCommunicatorSize() );
 
-  IndexType numx = dfg_->getGlobalSizes()[0];
+  // we ignore the last point in x direction
+  IndexType numx = dfg_->getGlobalSizes()[0] - 1;
   assert( xoffset >= 0 && xoffset <= numx ); // otherwise index calculations may not work
 
   for( IndexType xi=lBounds[0]; xi<uBounds[0]; ++xi ){
+    // ignore last global index of x
+    if( xi >= numx )
+      continue;
+
     // create a valid global index vector which has xi
     IndexVector gix ( lBounds );
+
+    int whichBlock = 0;
 
     if( sendingProc ){
       gix[0] = xi - xoffset;
 
-      if( gix[0] < 0 )
+      if( gix[0] < 0 ){
+        whichBlock = 2;
         gix[0] += numx; // avoids unclear definition of modulo operation for negative numbers
+      } else{
+        whichBlock = 1;
+      }
 
       gix[2] = dfg_->getGlobalSizes()[2] - 1;
     }
     else{
-      gix[0] = ( xi + xoffset )%numx;
-      //gix[0] = xi + xoffset;
+      gix[0] = xi + xoffset;
+
+      if( gix[0] >= numx ){
+        whichBlock = 2;
+        gix[0] = ( xi + xoffset )%numx;
+      } else{
+        whichBlock = 1;
+      }
+
       gix[2] = 0;
     }
-
-    //if( !( gix[0] >= 0 && gix[0] < numx ) )
-    //  continue;
 
     // check if index out of bounds
     assert( gix[0] >= 0 && gix[0] < numx );
@@ -618,20 +634,12 @@ void GeneTask::adaptBoundaryZglobal(){
     RankType r = dfg_->getRank( scoords );
 
     // append xi to process' list of x coordinates
-    transferIndicesBlock1[r].push_back( xi );
+    assert( whichBlock == 1 || whichBlock == 2 );
 
-    for( RankType rnk =0; rnk < theMPISystem()->getNumProcs(); ++rnk ){
-      if( rnk == theMPISystem()->getLocalRank() ){
-        if( sendingProc ){
-          std::cout << "rank " << theMPISystem()->getLocalRank()
-                    << " send " << xi << " to rank" << r << std::endl;
-        } else{
-          std::cout << "rank " << theMPISystem()->getLocalRank()
-                    << " recv " << xi << " from rank" << r << std::endl;
-        }
-      }
-      MPI_Barrier( theMPISystem()->getLocalComm() );
-    }
+    if( whichBlock == 1 )
+      transferIndicesBlock1[r].push_back( xi );
+    else if( whichBlock == 2 )
+      transferIndicesBlock2[r].push_back( xi );
   }
 
 
@@ -639,57 +647,63 @@ void GeneTask::adaptBoundaryZglobal(){
 
   std::vector< MPI_Request > requests;
 
-  for( RankType r=0; r<dfg_->getCommunicatorSize(); ++r ){
-    if( transferIndicesBlock1[r].size() == 0 )
-      continue;
+  // first exchange block1 then exchange block2
+  for( size_t block=1; block<=2; ++block ){
+    std::vector< std::vector<IndexType> >& transferIndices =
+        (block==1) ? transferIndicesBlock1 : transferIndicesBlock2;
 
-    // set lower bounds of subarray
-    IndexVector subarrayLowerBounds = dfg_->getLowerBounds();
-    subarrayLowerBounds[0] = transferIndicesBlock1[r][0];
+    for( RankType r=0; r<dfg_->getCommunicatorSize(); ++r ){
+      if( transferIndices[r].size() == 0 )
+        continue;
 
-    // set upper bounds of subarray
-    IndexVector subarrayUpperBounds = dfg_->getUpperBounds();
-    subarrayUpperBounds[0] = transferIndicesBlock1[r].back();
+      // set lower bounds of subarray
+      IndexVector subarrayLowerBounds = dfg_->getLowerBounds();
+      subarrayLowerBounds[0] = transferIndices[r][0];
 
-    if( sendingProc ){
-      subarrayLowerBounds[2] = 0;
-      subarrayUpperBounds[2] = 1;
-    } else{
-      subarrayLowerBounds[2] = dfg_->getGlobalSizes()[2] - 1;
-      subarrayUpperBounds[2] = dfg_->getGlobalSizes()[2];
+      // set upper bounds of subarray
+      IndexVector subarrayUpperBounds = dfg_->getUpperBounds();
+      subarrayUpperBounds[0] = transferIndices[r].back() + 1;
+
+      if( sendingProc ){
+        subarrayLowerBounds[2] = 0;
+        subarrayUpperBounds[2] = 1;
+      } else{
+        subarrayLowerBounds[2] = dfg_->getGlobalSizes()[2] - 1;
+        subarrayUpperBounds[2] = dfg_->getGlobalSizes()[2];
+      }
+
+      // create MPI datatype
+      IndexVector sizes( dfg_->getLocalSizes() );
+      IndexVector subsizes = subarrayUpperBounds - subarrayLowerBounds;
+      // the starts are local indices
+      IndexVector starts = subarrayLowerBounds - dfg_->getLowerBounds();
+
+      // convert to mpi notation
+      // also we have to use int as type for the indizes
+      std::vector<int> csizes(sizes.rbegin(), sizes.rend());
+      std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
+      std::vector<int> cstarts(starts.rbegin(), starts.rend());
+
+      // create subarray view on data
+      MPI_Datatype mysubarray;
+      MPI_Type_create_subarray(static_cast<int>(dfg_->getDimension()),
+                               &csizes[0], &csubsizes[0], &cstarts[0],
+                               MPI_ORDER_C, dfg_->getMPIDatatype(), &mysubarray);
+      MPI_Type_commit(&mysubarray);
+
+      MPI_Request req;
+
+      if( sendingProc ){
+        MPI_Isend( dfg_->getData(), 1, mysubarray, r, block, dfg_->getCommunicator(),
+                   &req);
+
+      } else{
+        MPI_Irecv( dfg_->getData(), 1, mysubarray, r, block, dfg_->getCommunicator(),
+                   &req);
+      }
+
+      requests.push_back(req);
     }
-
-    // create MPI datatype
-    IndexVector sizes( dfg_->getLocalSizes() );
-    IndexVector subsizes = subarrayUpperBounds - subarrayLowerBounds;
-    // the starts are local indices
-    IndexVector starts = subarrayLowerBounds - dfg_->getLowerBounds();
-
-    // convert to mpi notation
-    // also we have to use int as type for the indizes
-    std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-    std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-    std::vector<int> cstarts(starts.rbegin(), starts.rend());
-
-    // create subarray view on data
-    MPI_Datatype mysubarray;
-    MPI_Type_create_subarray(static_cast<int>(dfg_->getDimension()),
-                             &csizes[0], &csubsizes[0], &cstarts[0],
-                             MPI_ORDER_C, dfg_->getMPIDatatype(), &mysubarray);
-    MPI_Type_commit(&mysubarray);
-
-    MPI_Request req;
-
-    if( sendingProc ){
-      MPI_Isend( dfg_->getData(), 1, mysubarray, r, 0, dfg_->getCommunicator(),
-                 &req);
-
-    } else{
-      MPI_Irecv( dfg_->getData(), 1, mysubarray, r, 0, dfg_->getCommunicator(),
-                 &req);
-    }
-
-    requests.push_back(req);
   }
 
   MPI_Waitall( requests.size(), &requests[0], MPI_STATUSES_IGNORE );

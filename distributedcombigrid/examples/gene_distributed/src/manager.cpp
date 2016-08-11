@@ -202,7 +202,7 @@ int main(int argc, char** argv) {
         manager.runnext();
       }
 
-      //manager.combine();
+      manager.combine();
 
       // evaluate solution
       FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
