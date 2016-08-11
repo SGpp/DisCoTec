@@ -334,7 +334,7 @@ void GeneTask::setDFG(){
   MultiArrayRef<GeneComplex,6> lcpData =
     createMultiArrayRef<GeneComplex,6>( checkpoint_.getData(), lcpSizes );
 
-  MultiArray6 dfgData =
+  MultiArrayRef6 dfgData =
       createMultiArrayRef<CombiDataType,6>( *dfg_ );
 
   // so far, parallelization in x direction is not supported. since this is
@@ -357,9 +357,9 @@ void GeneTask::setDFG(){
   const size_t* lcpShape = lcpData.shape();
 
   for( DimType d=0; d<dfg_->getDimension(); ++d ){
-    // for the last rank in the dimension w, v, z the number of elements in
+    // for the last rank in the dimension w(d=1), v(2), z(3), x(5) the number of elements in
     // dfg and lcp differ
-    if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 ) ){
+    if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || d==5 ) ){
       assert( dfgShape[d] == lcpShape[d] + 1 );
     } else{
       assert( dfgShape[d] == lcpShape[d] );
@@ -431,31 +431,7 @@ void GeneTask::setDFG(){
     }
   }
 
-  {
-	  real mynorm = 0.0;
 
-	  for( size_t n=0; n < dfgShape[0]; ++n ){ //n_spec
-		for( size_t m=0; m < dfgShape[1]; ++m ){ //w
-		  for( size_t l=0; l < dfgShape[2]; ++l ){ //v
-			for( size_t k=0; k < dfgShape[3]; ++k ){ //z
-			  for( size_t j=0; j < dfgShape[4]; ++j ){ //y
-				for( size_t i=0; i < dfgShape[5]; ++i ){ //x
-				  mynorm += std::abs( dfgData[n][m][l][k][j][i] );
-				}
-			  }
-			}
-		  }
-		}
-	  }
-
-	real norm;
-	MPI_Allreduce( &mynorm, &norm, 1, MPI_DOUBLE, MPI_SUM,
-			 	 	 theMPISystem()->getLocalComm() );
-
-	MASTER_EXCLUSIVE_SECTION{
-		std::cout << "norm of dfgData " << norm << std::endl;
-	}
-  }
 
   // check if last grid point of x is zero
   if( coords[1] == p[1] - 1 ){
@@ -496,8 +472,9 @@ void GeneTask::setDFG(){
   {
 	  // calc norm for debugging
 	  real mynorm = 0.0;
-	  for( auto val : dfg_->getElementVector() ){
-		  mynorm += std::abs( val );
+	  std::vector<CombiDataType>& data = dfg_->getElementVector();
+	  for( size_t i=0; i<data.size(); ++i ){
+		  mynorm += std::abs( data[i] );
 	  }
 
 	  real norm;
@@ -524,6 +501,10 @@ void GeneTask::adaptBoundaryZ(){
 
 
 void GeneTask::adaptBoundaryZlocal(){
+  // make sure no parallelization in z and x
+  assert( dfg_->getParallelization()[0] == 1 );
+  assert( dfg_->getParallelization()[2] == 1 );
+
   MultiArrayRef6 dfgData = createMultiArrayRef<CombiDataType,6>( *dfg_ );
 
   // calculate offset and factor
@@ -537,13 +518,17 @@ void GeneTask::adaptBoundaryZlocal(){
   }
 
   const size_t* dfgShape = dfgData.shape();
+
+  // we ignore the last point in x direction
+  size_t nkx = dfgShape[5]-1;
+
   for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
     for( size_t m=0; m < dfgShape[1]; ++m ) //w
       for( size_t l=0; l < dfgShape[2]; ++l ) //v
           for( size_t j=0; j < dfgShape[4]; ++j ) //y
-            for( size_t i=0; i < dfgShape[5] - xoffset ; ++i ){ //x
+            for( size_t i=0; i < nkx; ++i ){ //x
                 dfgData[n][m][l][ dfgShape[3]-1 ][j][i] =
-                    dfgData[n][m][l][0][j][i + xoffset ];
+                    dfgData[n][m][l][0][j][ (i + xoffset)%nkx ];
             }
 
   // todo: multiply with factor
@@ -562,6 +547,9 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor ){
 
 
 void GeneTask::adaptBoundaryZglobal(){
+  // make sure at least two processes in z-direction
+  assert( dfg_->getParallelization()[2] > 1 );
+
   // everything in normal dfg notation here except MPI subarrays!
 
   // get parallelization and coordinates of process
@@ -593,7 +581,12 @@ void GeneTask::adaptBoundaryZglobal(){
     return;
   }
 
-  std::vector< std::vector<IndexType> > transferIndices( dfg_->getCommunicatorSize() );
+  // for each remote process there may be up to two blocks of data to send
+  // or receive
+  std::vector< std::vector<IndexType> > transferIndicesBlock1( dfg_->getCommunicatorSize() );
+
+  IndexType numx = dfg_->getGlobalSizes()[0];
+  assert( xoffset >= 0 && xoffset <= numx ); // otherwise index calculations may not work
 
   for( IndexType xi=lBounds[0]; xi<uBounds[0]; ++xi ){
     // create a valid global index vector which has xi
@@ -601,16 +594,23 @@ void GeneTask::adaptBoundaryZglobal(){
 
     if( sendingProc ){
       gix[0] = xi - xoffset;
+
+      if( gix[0] < 0 )
+        gix[0] += numx; // avoids unclear definition of modulo operation for negative numbers
+
       gix[2] = dfg_->getGlobalSizes()[2] - 1;
     }
     else{
-      gix[0] = xi + xoffset;
+      gix[0] = ( xi + xoffset )%numx;
+      //gix[0] = xi + xoffset;
       gix[2] = 0;
     }
 
-    // skip if index out of bounds
-    if( gix[0] < 0 || gix[0] > ( dfg_->getGlobalSizes()[0] - 1 ) )
-      continue;
+    //if( !( gix[0] >= 0 && gix[0] < numx ) )
+    //  continue;
+
+    // check if index out of bounds
+    assert( gix[0] >= 0 && gix[0] < numx );
 
     // find process which has this point (receiving process)
     IndexVector scoords( dfg_->getDimension() );
@@ -618,22 +618,38 @@ void GeneTask::adaptBoundaryZglobal(){
     RankType r = dfg_->getRank( scoords );
 
     // append xi to process' list of x coordinates
-    transferIndices[r].push_back( xi );
+    transferIndicesBlock1[r].push_back( xi );
+
+    for( RankType rnk =0; rnk < theMPISystem()->getNumProcs(); ++rnk ){
+      if( rnk == theMPISystem()->getLocalRank() ){
+        if( sendingProc ){
+          std::cout << "rank " << theMPISystem()->getLocalRank()
+                    << " send " << xi << " to rank" << r << std::endl;
+        } else{
+          std::cout << "rank " << theMPISystem()->getLocalRank()
+                    << " recv " << xi << " from rank" << r << std::endl;
+        }
+      }
+      MPI_Barrier( theMPISystem()->getLocalComm() );
+    }
   }
+
+
+
 
   std::vector< MPI_Request > requests;
 
   for( RankType r=0; r<dfg_->getCommunicatorSize(); ++r ){
-    if( transferIndices[r].size() == 0 )
+    if( transferIndicesBlock1[r].size() == 0 )
       continue;
 
     // set lower bounds of subarray
     IndexVector subarrayLowerBounds = dfg_->getLowerBounds();
-    subarrayLowerBounds[0] = transferIndices[r][0];
+    subarrayLowerBounds[0] = transferIndicesBlock1[r][0];
 
     // set upper bounds of subarray
     IndexVector subarrayUpperBounds = dfg_->getUpperBounds();
-    subarrayUpperBounds[0] = transferIndices[r].back();
+    subarrayUpperBounds[0] = transferIndicesBlock1[r].back();
 
     if( sendingProc ){
       subarrayLowerBounds[2] = 0;

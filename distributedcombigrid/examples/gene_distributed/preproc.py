@@ -136,7 +136,7 @@ for l in scheme.getCombinationDictionary():
     pin = pfilein.read()
     pfilein.close()
     
-    pout = pin.replace('$nx0',str(2**l0+1),1)
+    pout = pin.replace('$nx0',str(2**l0),1)
     pout = pout.replace('$nky0',str(2**l1-1),1)
     pout = pout.replace('$nz0',str(2**l2),1)
     pout = pout.replace('$nv0',str(2**l3),1)
