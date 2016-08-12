@@ -76,7 +76,7 @@ class ProcessGroupWorker {
 
   bool combiParametersSet_;
 
-  std::ofstream betasFile_;
+  //std::ofstream betasFile_;
 
   void setCombinedSolutionUniform( Task* t );
 };

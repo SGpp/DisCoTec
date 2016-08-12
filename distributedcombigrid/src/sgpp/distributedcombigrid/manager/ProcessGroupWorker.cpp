@@ -33,7 +33,7 @@ ProcessGroupWorker::ProcessGroupWorker() :
 {
   MASTER_EXCLUSIVE_SECTION {
     std::string fname ="out/all-betas-"+std::to_string(theMPISystem()->getGlobalRank())+".txt";
-    betasFile_ = std::ofstream( fname, std::ofstream::out );
+    //betasFile_ = std::ofstream( fname, std::ofstream::out );
   }
 }
 
@@ -537,13 +537,13 @@ void ProcessGroupWorker::compareSDCPairs( int numNearestNeighbors ){
 
   CombiCom::BetasReduce( allBetas, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm() );
 
-  MASTER_EXCLUSIVE_SECTION {
-    betasFile_<<allBetas.size()<<std::endl;
-    for ( size_t ind = 0; ind < allBetas.size(); ++ind ){
-      betasFile_<<allPairs[ind][0]->getLevelVector()<<","<<allPairs[ind][1]->getLevelVector()<<","<< allBetas[ind] <<std::endl;
-      std::cout<<allPairs[ind][0]->getLevelVector()<<", "<<allPairs[ind][1]->getLevelVector()<<": "<< allBetas[ind] << std::endl;
-    }
-  }
+  //MASTER_EXCLUSIVE_SECTION {
+    //betasFile_<<allBetas.size()<<std::endl;
+    //for ( size_t ind = 0; ind < allBetas.size(); ++ind ){
+    //  betasFile_<<allPairs[ind][0]->getLevelVector()<<","<<allPairs[ind][1]->getLevelVector()<<","<< allBetas[ind] <<std::endl;
+    //  std::cout<<allPairs[ind][0]->getLevelVector()<<", "<<allPairs[ind][1]->getLevelVector()<<": "<< allBetas[ind] << std::endl;
+    //}
+  //}
 }
 
 void ProcessGroupWorker::generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs){
