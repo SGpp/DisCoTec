@@ -136,6 +136,8 @@ vars.Add(BoolVariable("USE_UMFPACK", "Set if UMFPACK should be used " +
 vars.Add(BoolVariable("BUILD_STATICLIB", "Set if static libraries should be built " +
                                          "instead of shared libraries", False))
 vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing SG++", True))
+vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', '/usr/include')
+vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', '/usr/lib/x86_64-linux-gnu')
 
 # create temporary environment to check which system and compiler we should use
 # (the Environment call without "tools=[]" crashes with MinGW,

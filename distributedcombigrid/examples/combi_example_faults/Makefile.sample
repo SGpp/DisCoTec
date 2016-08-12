@@ -6,12 +6,12 @@ SGPP_DIR=path/to/combi
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 
-INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ -I$(SGPP_DIR)/combigrid/src/
+INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ 
 
 LDIR=$(LD_SGPP)
 INC=$(INC_SGPP)
 
-LIBS=-lsgppdistributedcombigrid -lsgppcombigrid -lboost_serialization -lglpk
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
 
 all: combi_example_faults
 

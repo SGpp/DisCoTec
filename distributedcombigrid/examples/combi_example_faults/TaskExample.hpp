@@ -175,6 +175,10 @@ class TaskExample: public Task {
 
  inline void setStepsTotal( size_t stepsTotal );
 
+ inline void setZero(){
+
+ }
+
  protected:
   /* if there are local variables that have to be initialized at construction
    * you have to do it here. the worker processes will create the task using
