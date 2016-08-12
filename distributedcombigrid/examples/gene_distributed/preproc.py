@@ -24,6 +24,7 @@ config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max nti
 config.lmin = [int(x) for x in parser.get('ct','lmin').split()]
 config.lmax = [int(x) for x in parser.get('ct','lmax').split()]
 config.leval = [int(x) for x in parser.get('ct','leval').split()]
+config.p = [int(x) for x in parser.get('ct','p').split()]
 config.ntimesteps_total = int( parser.get('application', 'nsteps') )
 config.dt_max = float( parser.get('application', 'dt') )
 config.basename = parser.get('preproc','basename')
@@ -88,6 +89,14 @@ else:
 call(["cp","-r","template",config.basename])
 
 # set ct specific parameters in base folder
+p = config.p
+px = p[0]
+py = p[1]
+pz = p[2]
+pv = p[3]
+pw = p[4]
+ps = p[5]
+
 parfile = './' + config.basename + "/parameters"
 pfilein = open(parfile,'r')
 pin = pfilein.read()
@@ -95,6 +104,12 @@ pfilein.close()
 pout = pin.replace('$ngroup',str(config.ngroup))
 pout = pout.replace('$nprocs',str(config.nprocs))
 pout = pout.replace('$istep_omega', str(config.istep_omega))
+pout = pout.replace('$ps',str(ps),1)
+pout = pout.replace('$pv',str(pv),1)
+pout = pout.replace('$pw',str(pw),1)
+pout = pout.replace('$px',str(px),1)
+pout = pout.replace('$py',str(py),1)
+pout = pout.replace('$pz',str(pz),1)
 pfileout = open(parfile,'w')
 pfileout.write(pout)
 pfileout.close()
@@ -141,11 +156,22 @@ for l in scheme.getCombinationDictionary():
     pout = pout.replace('$nz0',str(2**l2),1)
     pout = pout.replace('$nv0',str(2**l3),1)
     pout = pout.replace('$nw0',str(2**l4),1)
+    pout = pout.replace('$nspec',str(l5),1)
+    
+    pout = pout.replace('$ps',str(ps),1)
+    pout = pout.replace('$pv',str(pv),1)
+    pout = pout.replace('$pw',str(pw),1)
+    pout = pout.replace('$px',str(px),1)
+    pout = pout.replace('$py',str(py),1)
+    pout = pout.replace('$pz',str(pz),1)
+
     pout = pout.replace('$ngroup',str(config.ngroup))
     pout = pout.replace('$nprocs',str(config.nprocs))
+    
     pout = pout.replace('$ntimesteps_combi', str(config.ntimesteps_total))
     pout = pout.replace('$istep_omega', str(config.istep_omega))
     pout = pout.replace('$dt_max', str(config.dt_max))
+    
     pout = pout.replace('$read_cp','F')
     pout = pout.replace('$write_cp','T')
     

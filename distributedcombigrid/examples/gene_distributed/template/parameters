@@ -1,16 +1,16 @@
 &parallelization
-n_procs_s =   1
-n_procs_v =   1
-n_procs_w =   2
-n_procs_x =   1
-n_procs_y =   1
-n_procs_z =   4
+n_procs_s =   $ps
+n_procs_v =   $pv
+n_procs_w =   $pw 
+n_procs_x =   $px
+n_procs_y =   $py
+n_procs_z =   $pz
 n_procs_sim = $nprocs
 n_parallel_sims = $ngroup
 /
 
 &box
-n_spec =    1
+n_spec =    $nspec
 nx0    =   $nx0
 nky0   =   $nky0
 nz0    =   $nz0
@@ -68,7 +68,7 @@ beta       =    0.0000000
 debye2     =    0.0000000    
 collision_op = 'none'
 
-init_cond = 'fb'
+init_cond = 'alm'
 
 hyp_z =   0.2500    
 hyp_v =   0.2000    
