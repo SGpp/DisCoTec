@@ -43,3 +43,5 @@ scons -j 4 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CP
 
 (The distributedcombigridmodule is completely independent from the other modules 
 now. It is not necessary any more to compile or link the combigrid module.)
+
+
