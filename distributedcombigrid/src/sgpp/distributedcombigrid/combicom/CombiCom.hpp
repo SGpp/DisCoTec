@@ -9,6 +9,7 @@
 #define COMBICOM_HPP_
 
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
@@ -49,7 +50,7 @@ class CombiCom {
   static void FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm);
 
   template<typename FG_ELEMENT>
-  static void BetasReduce( std::vector<FG_ELEMENT>& betas, RankType r, MPI_Comm comm);
+  static void BetasReduce( std::vector<FG_ELEMENT>& betas, std::vector<FG_ELEMENT>& betasReduced, MPI_Comm comm);
 
   // multiply dfg with coeff and add to dsg. dfg will not be changed
   template<typename FG_ELEMENT>
@@ -279,20 +280,15 @@ inline void CombiCom::FGAllreduce<std::complex<double> >(
                  MPI_DOUBLE_COMPLEX, MPI_SUM, comm);
 }
 template<>
-inline void CombiCom::BetasReduce<double>( std::vector<double>& betas, RankType r, MPI_Comm comm ){
+inline void CombiCom::BetasReduce<double>( std::vector<double>& betas, std::vector<double>& betasReduced,
+                                           MPI_Comm comm ){
 
-  int myrank;
-  MPI_Comm_rank(comm, &myrank);
+  MPI_Op OP_MAX_ABS;
 
-  std::vector<double> recvBetas(betas.size());
+  MPI_Op_create((MPI_User_function *) MPIUtils::MAX_ABS, 1, &OP_MAX_ABS );
 
-  if ( myrank == r ) {
-    MPI_Reduce( MPI_IN_PLACE, &betas[0], static_cast<int>(betas.size()),
-        MPI_DOUBLE, MPI_MAX, r, comm);
-  } else {
-    MPI_Reduce(&betas[0], &recvBetas[0], static_cast<int>(betas.size()),
-        MPI_DOUBLE, MPI_MAX, r, comm);
-  }
+  MPI_Allreduce(betas.data(), betasReduced.data(), static_cast<int>(betas.size()), MPI_DOUBLE, OP_MAX_ABS, comm);
+  MPI_Op_free( &OP_MAX_ABS );
 }
 
 template<typename FG_ELEMENT>
@@ -311,7 +307,8 @@ void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
 }
 
 template<typename FG_ELEMENT>
-void CombiCom::BetasReduce(std::vector<FG_ELEMENT>& betas, RankType r, MPI_Comm comm) {
+void CombiCom::BetasReduce(std::vector<FG_ELEMENT>& betas, std::vector<FG_ELEMENT>& betasReduced,
+                           MPI_Comm comm) {
   assert(!"this type is not yet implemented");
 }
 
