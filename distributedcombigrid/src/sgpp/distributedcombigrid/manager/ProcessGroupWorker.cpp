@@ -555,22 +555,13 @@ void ProcessGroupWorker::compareSDCPairs( int numNearestNeighbors ){
 
     }
 
-//    betasFile_<<allBetas.size()<<std::endl;
-    std::stringstream buf;
-    buf<<allBetas.size()<< std::endl;
     for ( size_t ind = 0; ind < allBetas.size(); ++ind ){
-//      betasFile_<<allPairs[ind][0]->getLevelVector()<<","<<allPairs[ind][1]->getLevelVector()<<","<< allBetas[ind] <<std::endl;
-      buf << allPairs[ind][0]->getLevelVector()<<","<<allPairs[ind][1]->getLevelVector()<<","<< allBetas[ind] <<std::endl;
-      MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
-      MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
-      buf.str("");
-      std::cout<<allPairs[ind][0]->getLevelVector()<<", "<<allPairs[ind][1]->getLevelVector()<<": "<< allBetas[ind] << std::endl;
       betas_[std::make_pair(allPairs[ind][0]->getLevelVector(), allPairs[ind][1]->getLevelVector())] = allBetas[ind];
     }
 
     searchForSDC();
+    MPI_File_close( &betasFile_ );
   }
-  MPI_File_close(&betasFile_);
 }
 
 void ProcessGroupWorker::generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs){
@@ -630,7 +621,9 @@ void ProcessGroupWorker::searchForSDC(){
   if ( n < p )
     return;
 
-  gsl_multifit_robust_workspace *regressionWsp = gsl_multifit_robust_alloc (gsl_multifit_robust_default , n , p );
+  gsl_multifit_robust_workspace *regressionWsp = gsl_multifit_robust_alloc (gsl_multifit_robust_fair , n , p );
+
+  gsl_multifit_robust_maxiter( 1000, regressionWsp );
 
   gsl_matrix *X = gsl_matrix_alloc( n, p );
   gsl_vector *y = gsl_vector_alloc( n );
@@ -638,21 +631,27 @@ void ProcessGroupWorker::searchForSDC(){
   gsl_vector *r = gsl_vector_alloc( n );
   gsl_matrix *cov = gsl_matrix_alloc( p, p );
 
+  // Initialize matrix with zeros
+  gsl_matrix_set_zero( X );
+
   IndexType idx_D1, idx_D2, idx_D12;
-  auto idx = [](int d, int i){
-    std::vector<int> numbers(i);
+
+  // Helper function to compute indices of D12
+  auto idx = [](IndexType d, IndexType i){
+    std::vector<IndexType> numbers(i);
     std::iota(numbers.begin(), numbers.end(),d-i+1);
     return std::accumulate(numbers.begin(), numbers.end(), 0);
   };
 
   int row  = 0;
+  CombiDataType val;
   for( auto const &entry : betas_ ){
     LevelVector key_t = entry.first.first;
     LevelVector key_s = entry.first.second;
     CombiDataType beta = entry.second;
 
-    std::vector<double> ht = {1.0/pow(2,key_t[0]), 1.0/pow(2,key_t[1])};
-    std::vector<double> hs = {1.0/pow(2,key_s[0]), 1.0/pow(2,key_s[1])};
+    std::vector<CombiDataType> ht = {1.0/pow(2.0,key_t[0]), 1.0/pow(2.0,key_t[1])};
+    std::vector<CombiDataType> hs = {1.0/pow(2.0,key_s[0]), 1.0/pow(2.0,key_s[1])};
 
     for( size_t i = 0; i < key_t.size(); ++i ){
       key_t[i] -= lmin[0];
@@ -663,19 +662,22 @@ void ProcessGroupWorker::searchForSDC(){
     gsl_matrix_set( X, row, idx_D1, pow(ht[0],2) );
 
     idx_D1 =  key_s[0];
-    gsl_matrix_set( X, row, idx_D1, pow(-hs[0],2) );
+    val = gsl_matrix_get( X, row, idx_D1 );
+    gsl_matrix_set( X, row, idx_D1, val - pow(hs[0],2) );
 
     idx_D2 = diff + key_t[1];
     gsl_matrix_set( X, row, idx_D2, pow(ht[1],2) );
 
     idx_D2 = diff + key_s[1];
-    gsl_matrix_set( X, row, idx_D2, pow(-hs[1],2) );
+    val = gsl_matrix_get( X, row, idx_D2 );
+    gsl_matrix_set( X, row, idx_D2, val - pow(hs[1],2) );
 
     idx_D12 = 2*diff + idx(diff,key_t[1]) + key_t[0];
     gsl_matrix_set( X, row, idx_D12, pow(ht[0]*ht[1],2) );
 
     idx_D12 = 2*diff + idx(diff,key_s[1]) + key_s[0];
-    gsl_matrix_set( X, row, idx_D12, pow(-hs[0]*hs[1],2) );
+    val = gsl_matrix_get( X, row, idx_D12 );
+    gsl_matrix_set( X, row, idx_D12, val - pow(hs[0]*hs[1],2) );
 
     gsl_vector_set( y, row, beta );
 
@@ -685,25 +687,31 @@ void ProcessGroupWorker::searchForSDC(){
   gsl_multifit_robust( X, y, c, cov, regressionWsp );
   gsl_multifit_robust_residuals( X, y, c, r, regressionWsp );
 
-  // Write coefficients to file
+  // Write pairs and their beta values to file
   std::stringstream buf;
-  buf << " " << c->size << std::endl;
+  buf<<n<< std::endl;
+  row = 0;
+  for ( auto const &entry : betas_ ){
+    LevelVector key_t = entry.first.first;
+    LevelVector key_s = entry.first.second;
+    CombiDataType beta = entry.second;
+    CombiDataType res = r->data[row];
+    buf << key_t <<","<< key_s <<","<< beta << ", "<< res <<std::endl;
+    MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
+    MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
+    buf.str("");
+    std::cout<< key_t <<", "<< key_s <<": "<< beta << ", "<< res << std::endl;
+    row++;
+  }
+  // Write regression coefficients to file
+  buf << c->size << std::endl;
   for( size_t i = 0; i < c->size; ++i){
     buf << c->data[i]<<std::endl;
-    std::cout<<c->data[i]<<std::endl;
     MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
     MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
     buf.str("");
   }
 
-//  row  = 0;
-//  for( auto const &entry : betas_ ){
-//    LevelVector key_t = entry.first.first;
-//    LevelVector key_s = entry.first.second;
-//    CombiDataType beta = entry.second;
-//    std::cout<<key_t<<" "<<key_s<<" "<<beta<<" "<< r->data[row] << std::endl;
-//    row++;
-//  }
   gsl_matrix_free(X);
   gsl_matrix_free(cov);
   gsl_vector_free(y);
