@@ -49,8 +49,6 @@ const bool USE_NONBLOCKING_MPI_COLLECTIVE = true;
  */
 const bool omitReadySignal = false;
 
-
-/* switch on fault tolerance functionality */
 const bool ENABLE_FT = true;
 }
 

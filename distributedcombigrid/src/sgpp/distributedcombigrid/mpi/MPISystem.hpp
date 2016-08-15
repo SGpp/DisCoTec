@@ -2,13 +2,13 @@
 #define MPISYSTEM_HPP
 
 #include <mpi.h>
+//#include <mpi-ext.h>
 #include <ostream>
 #include <vector>
 #include <assert.h>
 
 #include "sgpp/distributedcombigrid/mpi/MPISystemID.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-#include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 #define MASTER_EXCLUSIVE_SECTION if( combigrid::theMPISystem()->isMaster() )
 
@@ -78,14 +78,6 @@ class MPISystem {
 
   inline const CommunicatorType& getGlobalReduceComm() const;
 
-  inline simft::Sim_FT_MPI_Comm getWorldCommFT();
-
-  inline simft::Sim_FT_MPI_Comm getGlobalCommFT();
-
-  inline simft::Sim_FT_MPI_Comm getLocalCommFT();
-
-  inline simft::Sim_FT_MPI_Comm getGlobalReduceCommFT();
-
   inline const RankType& getWorldRank() const;
 
   inline const RankType& getGlobalRank() const;
@@ -127,8 +119,6 @@ class MPISystem {
    */
   void initGlobalReduceCommm();
 
-  void createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm );
-
   void initLocalComm();
 
   void initGlobalComm();
@@ -142,14 +132,6 @@ class MPISystem {
   CommunicatorType localComm_;
 
   CommunicatorType globalReduceComm_;
-
-  simft::Sim_FT_MPI_Comm worldCommFT_;
-
-  simft::Sim_FT_MPI_Comm globalCommFT_;
-
-  simft::Sim_FT_MPI_Comm localCommFT_;
-
-  simft::Sim_FT_MPI_Comm globalReduceCommFT_;
 
   RankType worldRank_;
 
@@ -197,12 +179,6 @@ inline void MPISystem::checkPreconditions() const{
 }
 
 
-inline void MPISystem::checkPreconditionsFT() const{
-  checkPreconditions();
-  assert( ENABLE_FT && "Fault Tolerance not enabled!" );
-}
-
-
 inline const CommunicatorType& MPISystem::getWorldComm() const {
   checkPreconditions();
 
@@ -228,32 +204,6 @@ inline const CommunicatorType& MPISystem::getGlobalReduceComm() const{
   checkPreconditions();
 
   return globalReduceComm_;
-}
-
-inline simft::Sim_FT_MPI_Comm MPISystem::getWorldCommFT(){
-  checkPreconditionsFT();
-
-  return worldCommFT_;
-}
-
-inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalCommFT(){
-  checkPreconditionsFT();
-
-  return globalCommFT_;
-}
-
-
-inline simft::Sim_FT_MPI_Comm MPISystem::getLocalCommFT(){
-  checkPreconditionsFT();
-
-  return localCommFT_;
-}
-
-
-inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalReduceCommFT(){
-  checkPreconditionsFT();
-
-  return globalReduceCommFT_;
 }
 
 

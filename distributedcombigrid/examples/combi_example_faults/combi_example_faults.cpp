@@ -22,7 +22,6 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/LPOptimizationInterpolation.hpp"
-#include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
@@ -37,7 +36,7 @@ BOOST_CLASS_EXPORT(TaskExample)
 
 
 int main(int argc, char** argv) {
-  simft::Sim_FT_MPI_Init(&argc, &argv);
+  MPI_Init(&argc, &argv);
 
   /* number of process groups and number of processes per group */
   size_t ngroup, nprocs;
@@ -188,16 +187,7 @@ int main(int argc, char** argv) {
       signal = pgroup.wait();
   }
 
-  if( ENABLE_FT ){
-    WORLD_MANAGER_EXCLUSIVE_SECTION{
-      std::cout << "Program finished successfully" << std::endl;
-      std::cout << "To avoid problems with hanging killed processes, we exit with "
-                << "MPI_Abort()" << std::endl;
-      MPI_Abort( MPI_COMM_WORLD, 0 );
-    }
-  }
-
-  simft::Sim_FT_MPI_Finalize();
+  MPI_Finalize();
 
   return 0;
 }

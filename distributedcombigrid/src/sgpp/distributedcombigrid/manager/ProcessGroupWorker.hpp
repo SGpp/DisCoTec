@@ -13,7 +13,6 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
-#include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
 

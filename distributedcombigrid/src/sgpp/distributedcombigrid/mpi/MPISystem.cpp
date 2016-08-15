@@ -53,10 +53,6 @@ MPISystem::MPISystem() :
     globalComm_(MPI_COMM_NULL),
     localComm_(MPI_COMM_NULL),
     globalReduceComm_(MPI_COMM_NULL),
-    worldCommFT_(nullptr),
-    globalCommFT_(nullptr),
-    localCommFT_(nullptr),
-    globalReduceCommFT_(nullptr),
     worldRank_(MPI_UNDEFINED),
     globalRank_(MPI_UNDEFINED),
     localRank_(MPI_UNDEFINED),
@@ -95,10 +91,6 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
 
   MPI_Comm_rank( worldComm_, &worldRank_ );
   managerRankWorld_ = worldSize - 1;
-
-  if( ENABLE_FT ){
-    worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
-  }
 
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
@@ -150,14 +142,6 @@ void MPISystem::initLocalComm(){
 
     MPI_Comm_rank( localComm_, &localRank_ );
   }
-
-  theStatsContainer()->setTimerStart("init-local-createFT");
-  if(ENABLE_FT){
-    if( localComm_ != MPI_COMM_NULL){
-      createCommFT( &localCommFT_, localComm_ );
-    }
-  }
-  theStatsContainer()->setTimerStop("init-local-createFT");
 }
 
 
@@ -184,12 +168,6 @@ void MPISystem::initGlobalComm(){
 
     MPI_Comm_rank( globalComm_, &globalRank_ );
   }
-
-  if( ENABLE_FT ){
-    if( globalComm_ != MPI_COMM_NULL){
-      createCommFT( &globalCommFT_, globalComm_ );
-    }
-  }
 }
 
 void MPISystem::initGlobalReduceCommm() {
@@ -211,36 +189,22 @@ void MPISystem::initGlobalReduceCommm() {
     MPI_Comm_split(workerComm, color, key, &globalReduceComm);
 
     globalReduceComm_ = globalReduceComm;
-
-    if( ENABLE_FT ){
-      createCommFT( &globalReduceCommFT_, globalReduceComm_ );
-    }
   }
 }
 
 
-void MPISystem::createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm ){
-  *commFT = new simft::Sim_FT_MPI_Comm_struct;
-  (*commFT)->c_comm = comm;
-  simft::Sim_FT_Initialize_new_comm( commFT, true );
-}
-
-
 void MPISystem::recoverCommunicators( bool groupAlive ){
-  assert( ENABLE_FT && "this funtion is only availabe if FT enabled!" );
-
   // revoke commmworld
   theStatsContainer()->setTimerStart("recoverComm-revoke");
   //WORLD_MANAGER_EXCLUSIVE_SECTION{
-    MPI_Comm_revoke( theMPISystem()->getWorldCommFT() );
+    MPI_Comm_revoke( theMPISystem()->getWorldComm() );
   //}
   theStatsContainer()->setTimerStop("recoverComm-revoke");
 
   // shrink world
   theStatsContainer()->setTimerStart("recoverComm-shrink");
-  simft::Sim_FT_MPI_Comm newCommWorldFT;
-  MPI_Comm_shrink( theMPISystem()->getWorldCommFT(), &newCommWorldFT );
-  MPI_Comm newCommWorld = newCommWorldFT->c_comm;
+  MPI_Comm newCommWorld;
+  MPI_Comm_shrink( theMPISystem()->getWorldComm(), &newCommWorld );
   theStatsContainer()->setTimerStop("recoverComm-shrink");
 
   // split off alive procs. this will be the new WorldComm
@@ -250,7 +214,7 @@ void MPISystem::recoverCommunicators( bool groupAlive ){
   int key = worldRank_;
   MPI_Comm_split( newCommWorld, color, key, &worldComm_ );
 
-  // early exit for dead procs
+  // early exit for procs in process group that has been split off
   if( worldComm_ == MPI_COMM_NULL)
     return;
 
@@ -282,10 +246,6 @@ void MPISystem::recoverCommunicators( bool groupAlive ){
   MPI_Comm_rank( worldComm_, &worldRank_ );
   managerRankWorld_ = worldSize - 1;
 
-  if( worldComm_ != MPI_COMM_NULL ){
-    createCommFT( &worldCommFT_, worldComm_ );
-  }
-
   //initLocalComm();
 
   initGlobalComm();
@@ -308,5 +268,6 @@ void MPISystem::recoverCommunicators( bool groupAlive ){
 }
 
 } // namespace combigrid
+
 
 

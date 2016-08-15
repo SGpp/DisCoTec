@@ -130,10 +130,7 @@ class TaskExample: public Task {
 
     stepsTotal_ += nsteps_;
     this->setFinished(true);
-    if (failNow(globalRank)){
-      std::cout<<"rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
-      simft::Sim_FT_kill_me();
-    }
+
     ++combiStep_;
   }
 

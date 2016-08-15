@@ -8,14 +8,12 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
-#include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
 ProcessGroupManager::ProcessGroupManager( RankType pgroupRootID ) :
         pgroupRootID_(pgroupRootID),
         status_(PROCESS_GROUP_WAIT),
-        statusRequest_(MPI_Request()),
-        statusRequestFT_(nullptr)
+        statusRequest_(MPI_Request())
 {
 }
 
@@ -178,13 +176,8 @@ bool ProcessGroupManager::recompute( Task* t ) {
 
 void ProcessGroupManager::recvStatus(){
   // start non-blocking call to receive status
-  if( ENABLE_FT){
-    simft::Sim_FT_MPI_Irecv( &status_, 1, MPI_INT, pgroupRootID_, statusTag,
-                             theMPISystem()->getGlobalCommFT(), &statusRequestFT_ );
-  } else{
-    MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag, theMPISystem()->getGlobalComm(),
-              &statusRequest_);
-  }
+  MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag, theMPISystem()->getGlobalComm(),
+            &statusRequest_);
 }
 
 

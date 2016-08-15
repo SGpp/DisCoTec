@@ -18,8 +18,6 @@
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 
-#include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
-
 namespace combigrid {
 
 ProcessGroupWorker::ProcessGroupWorker() :
@@ -213,10 +211,18 @@ SignalType ProcessGroupWorker::wait() {
 }
 
 void ProcessGroupWorker::ready() {
+  // todo: probably this will not work with ulfm and real process crashes
+  // if the application is not prepared for fault tolerance, probably it will
+  // just hang when one of the processes crashes. so we never get to this point
+  // if the application code does not handle process faults, i think the only
+  // way to detect a process fault is to do it with the manager.
+  // if this is not possible with ULFM methods, one could introduce a time out,
+  // e.g. all process groups are finished except one, wait two times the
+  // time of the slowest group and then mark the group as failed
   if( ENABLE_FT ){
     // with this barrier the local root but also each other process can detect
     // whether a process in the group has failed
-    int err = simft::Sim_FT_MPI_Barrier( theMPISystem()->getLocalCommFT() );
+    int err = MPI_Barrier( theMPISystem()->getLocalComm() );
 
     if( err == MPI_ERR_PROC_FAILED ){
       status_ = PROCESS_GROUP_FAIL;
@@ -240,7 +246,7 @@ void ProcessGroupWorker::ready() {
         if( ENABLE_FT ){
           // with this barrier the local root but also each other process can detect
           // whether a process in the group has failed
-          int err = simft::Sim_FT_MPI_Barrier( theMPISystem()->getLocalCommFT() );
+          int err = MPI_Barrier( theMPISystem()->getLocalComm() );
 
           if( err == MPI_ERR_PROC_FAILED ){
             status_ = PROCESS_GROUP_FAIL;
@@ -258,22 +264,15 @@ void ProcessGroupWorker::ready() {
   MASTER_EXCLUSIVE_SECTION{
     StatusType status = status_;
 
-    if( ENABLE_FT ){
-      simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), statusTag,
-          theMPISystem()->getGlobalCommFT() );
-    } else{
-      MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), statusTag, theMPISystem()->getGlobalComm());
-    }
+    MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), statusTag, theMPISystem()->getGlobalComm());
   }
 
   // reset current task
   currentTask_ = NULL;
 
   // if failed proc in this group detected the alive procs go into recovery state
-  if( ENABLE_FT ){
-    if( status_ == PROCESS_GROUP_FAIL )
-      theMPISystem()->recoverCommunicators( false );
-  }
+  if( status_ == PROCESS_GROUP_FAIL )
+    theMPISystem()->recoverCommunicators( false );
 }
 
 void ProcessGroupWorker::combine() {
