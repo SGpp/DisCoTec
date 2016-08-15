@@ -162,6 +162,40 @@ SignalType ProcessGroupWorker::wait() {
 
     updateCombiParameters();
 
+  } else if (signal == RECOMPUTE) {
+    Task* t;
+
+    // local root receives task
+    MASTER_EXCLUSIVE_SECTION {
+      Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+    }
+
+    // broadcast task to other process of pgroup
+    Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+
+    MPI_Barrier(theMPISystem()->getLocalComm());
+
+    // add task to task storage
+    tasks_.push_back(t);
+
+    status_ = PROCESS_GROUP_BUSY;
+
+    // set currentTask
+    currentTask_ = tasks_.back();
+
+    // initalize task
+    currentTask_->init(theMPISystem()->getLocalComm());
+
+    currentTask_->setZero();
+
+    // fill task with combisolution
+    setCombinedSolutionUniform( currentTask_ );
+
+    // execute task
+    currentTask_->run(theMPISystem()->getLocalComm());
+//  } else if ( signal ==  RECOVER_COMM ){
+//    theMPISystem()->recoverCommunicators( true );
+//    return signal;
   }
 
 
@@ -271,6 +305,8 @@ void ProcessGroupWorker::combineUniform() {
     dfg.registerUniformSG(*combinedUniDSG_);
   }
 
+  compareSDCPairs( 3 );
+
   for (Task* t : tasks_) {
 
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
@@ -281,6 +317,7 @@ void ProcessGroupWorker::combineUniform() {
     // lokales reduce auf sg ->
     dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
   }
+
 
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
 
@@ -409,6 +446,271 @@ void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
   DistributedHierarchization::dehierarchize<CombiDataType>( dfg );
 }
 
+void ProcessGroupWorker::compareSDCPairs( int numNearestNeighbors ){
+
+  /* Generate all pairs of grids */
+  std::vector<std::vector<Task*>> allPairs;
+
+  generatePairs( numNearestNeighbors, allPairs );
+
+  std::vector<CombiDataType> allBetas;
+  std::vector<LevelVector> allSubs;
+  std::vector<size_t> allJs;
+
+  MPI_File_open(theMPISystem()->getLocalComm(), "out/all-betas-0.txt", MPI_MODE_CREATE|MPI_MODE_RDWR, MPI_INFO_NULL, &betasFile_ );
+
+  for (auto pair : allPairs){
+
+    DistributedFullGrid<CombiDataType>& dfg_s = pair[0]->getDistributedFullGrid();
+    DistributedFullGrid<CombiDataType>& dfg_t = pair[1]->getDistributedFullGrid();
+
+    LevelVector s_level = pair[0]->getLevelVector();
+    LevelVector t_level = pair[1]->getLevelVector();
+
+    DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = new DistributedSparseGridUniform<CombiDataType>(
+        combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
+        combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
+
+    dfg_s.registerUniformSG( *SDCUniDSG );
+    dfg_t.registerUniformSG( *SDCUniDSG );
+
+    dfg_s.addToUniformSG( *SDCUniDSG, 1.0 );
+    dfg_t.addToUniformSG( *SDCUniDSG, -1.0, true );
+
+    LevelVector common_level;
+    for (size_t i = 0; i < s_level.size(); ++i)
+      common_level.push_back( (s_level[i] <= t_level[i]) ? s_level[i] : t_level[i] );
+
+    CombiDataType localBetaMax(0.0);
+    LevelVector subMax;
+    size_t jMax;
+
+    for (size_t i = 0; i < SDCUniDSG->getNumSubspaces(); ++i){
+      if (SDCUniDSG->getLevelVector(i) <= common_level){
+        auto subData = SDCUniDSG->getData(i);
+        auto subSize = SDCUniDSG->getDataSize(i);
+        for (size_t j = 0; j < subSize; ++j){
+          if (std::abs(subData[j]) > std::abs(localBetaMax)){
+//            localBetaMax = std::abs(subData[j]);
+            localBetaMax = subData[j];
+            subMax = SDCUniDSG->getLevelVector(i);
+            jMax = j;
+          }
+        }
+//          localBeta = *std::max_element(subData, subData + subSize);
+      }
+    }
+    allBetas.push_back( localBetaMax );
+    allSubs.push_back( subMax );
+    allJs.push_back( jMax );
+  }
+
+  std::vector<CombiDataType> allBetasReduced;
+  allBetasReduced.resize(allBetas.size());
+
+  CombiCom::BetasReduce( allBetas, allBetasReduced, theMPISystem()->getLocalComm() );
+
+  auto globalBetaMax = std::max_element(allBetasReduced.begin(), allBetasReduced.end(),
+                       [](CombiDataType a, CombiDataType b){ return std::abs(a) < std::abs(b); } );
+
+  auto b = std::find( allBetas.begin(), allBetas.end(), *globalBetaMax );
+
+  if(b != allBetas.end()) {
+
+    size_t indMax = std::distance(allBetas.begin(), b);
+
+    allBetas.clear();
+
+    LevelVector subMax = allSubs[indMax];
+    size_t jMax = allJs[indMax];
+
+    for (auto pair : allPairs){
+
+      DistributedFullGrid<CombiDataType>& dfg_s = pair[0]->getDistributedFullGrid();
+      DistributedFullGrid<CombiDataType>& dfg_t = pair[1]->getDistributedFullGrid();
+
+      LevelVector s_level = pair[0]->getLevelVector();
+      LevelVector t_level = pair[1]->getLevelVector();
+
+      DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = new DistributedSparseGridUniform<CombiDataType>(
+          combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
+          combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
+
+      dfg_s.registerUniformSG( *SDCUniDSG );
+      dfg_t.registerUniformSG( *SDCUniDSG );
+
+      dfg_s.addToUniformSG( *SDCUniDSG, 1.0 );
+      dfg_t.addToUniformSG( *SDCUniDSG, -1.0, true );
+
+      LevelVector common_level;
+      for (size_t i = 0; i < s_level.size(); ++i)
+        common_level.push_back( (s_level[i] <= t_level[i]) ? s_level[i] : t_level[i] );
+
+        if (subMax <= common_level){
+          auto subData = SDCUniDSG->getData(subMax);
+//          CombiDataType localBetaMax = std::abs(subData[jMax]);
+          CombiDataType localBetaMax = subData[jMax];
+          allBetas.push_back( localBetaMax );
+      }
+
+    }
+
+//    betasFile_<<allBetas.size()<<std::endl;
+    std::stringstream buf;
+    buf<<allBetas.size()<< std::endl;
+    for ( size_t ind = 0; ind < allBetas.size(); ++ind ){
+//      betasFile_<<allPairs[ind][0]->getLevelVector()<<","<<allPairs[ind][1]->getLevelVector()<<","<< allBetas[ind] <<std::endl;
+      buf << allPairs[ind][0]->getLevelVector()<<","<<allPairs[ind][1]->getLevelVector()<<","<< allBetas[ind] <<std::endl;
+      MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
+      MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
+      buf.str("");
+      std::cout<<allPairs[ind][0]->getLevelVector()<<", "<<allPairs[ind][1]->getLevelVector()<<": "<< allBetas[ind] << std::endl;
+      betas_[std::make_pair(allPairs[ind][0]->getLevelVector(), allPairs[ind][1]->getLevelVector())] = allBetas[ind];
+    }
+
+    searchForSDC();
+  }
+  MPI_File_close(&betasFile_);
+}
+
+void ProcessGroupWorker::generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs){
+  std::vector<LevelVector> levels;
+
+  for ( auto tt: tasks_ ){
+    levels.push_back(tt->getLevelVector());
+  }
+  for (Task* s : tasks_ ){
+
+//    std::cout<<"Unsorted levels, s = " << s->getLevelVector() << std::endl;
+//    for(auto tt : levels)
+//      std::cout<<tt<<std::endl;
+
+    std::sort(levels.begin(), levels.end(), [s](LevelVector const& a, LevelVector const& b) {
+      return l1(a - s->getLevelVector()) < l1(b - s->getLevelVector());
+    });
+
+//    std::cout<<"Sorted tasks, s = " << s->getLevelVector() << std::endl;
+//    for(auto tt : levels)
+//      std::cout<<tt<<std::endl;
+
+    int k = 0;
+
+    for( size_t t_i = 1; t_i < levels.size(); ++t_i ){
+      std::vector<Task*> currentPair;
+
+      Task* t = *std::find_if(tasks_.begin(), tasks_.end(),
+          [levels,t_i](Task* const &tt) -> bool { return tt->getLevelVector() == levels[t_i]; });
+
+      currentPair.push_back(t);
+      currentPair.push_back(s);
+
+      if(std::find(allPairs.begin(), allPairs.end(), currentPair) == allPairs.end()){
+        allPairs.push_back({currentPair[1],currentPair[0]});
+        k++;
+      }
+
+      if (k == numNearestNeighbors)
+        break;
+    }
+  }
+}
+
+void ProcessGroupWorker::searchForSDC(){
+
+  // Number of measurements (beta values)
+  size_t n = betas_.size();
+
+  auto lmin = combiParameters_.getLMin();
+  auto lmax = combiParameters_.getLMax();
+  size_t diff = lmax[0] - lmin[0] + 1;
+
+  // Number of unknowns (functions D1, D2, and D12)
+  size_t p = 2*diff + diff*(diff+1)/2;
+
+  if ( n < p )
+    return;
+
+  gsl_multifit_robust_workspace *regressionWsp = gsl_multifit_robust_alloc (gsl_multifit_robust_default , n , p );
+
+  gsl_matrix *X = gsl_matrix_alloc( n, p );
+  gsl_vector *y = gsl_vector_alloc( n );
+  gsl_vector *c = gsl_vector_alloc( p );
+  gsl_vector *r = gsl_vector_alloc( n );
+  gsl_matrix *cov = gsl_matrix_alloc( p, p );
+
+  IndexType idx_D1, idx_D2, idx_D12;
+  auto idx = [](int d, int i){
+    std::vector<int> numbers(i);
+    std::iota(numbers.begin(), numbers.end(),d-i+1);
+    return std::accumulate(numbers.begin(), numbers.end(), 0);
+  };
+
+  int row  = 0;
+  for( auto const &entry : betas_ ){
+    LevelVector key_t = entry.first.first;
+    LevelVector key_s = entry.first.second;
+    CombiDataType beta = entry.second;
+
+    std::vector<double> ht = {1.0/pow(2,key_t[0]), 1.0/pow(2,key_t[1])};
+    std::vector<double> hs = {1.0/pow(2,key_s[0]), 1.0/pow(2,key_s[1])};
+
+    for( size_t i = 0; i < key_t.size(); ++i ){
+      key_t[i] -= lmin[0];
+      key_s[i] -= lmin[0];
+    }
+
+    idx_D1 =  key_t[0];
+    gsl_matrix_set( X, row, idx_D1, pow(ht[0],2) );
+
+    idx_D1 =  key_s[0];
+    gsl_matrix_set( X, row, idx_D1, pow(-hs[0],2) );
+
+    idx_D2 = diff + key_t[1];
+    gsl_matrix_set( X, row, idx_D2, pow(ht[1],2) );
+
+    idx_D2 = diff + key_s[1];
+    gsl_matrix_set( X, row, idx_D2, pow(-hs[1],2) );
+
+    idx_D12 = 2*diff + idx(diff,key_t[1]) + key_t[0];
+    gsl_matrix_set( X, row, idx_D12, pow(ht[0]*ht[1],2) );
+
+    idx_D12 = 2*diff + idx(diff,key_s[1]) + key_s[0];
+    gsl_matrix_set( X, row, idx_D12, pow(-hs[0]*hs[1],2) );
+
+    gsl_vector_set( y, row, beta );
+
+    row++;
+  }
+
+  gsl_multifit_robust( X, y, c, cov, regressionWsp );
+  gsl_multifit_robust_residuals( X, y, c, r, regressionWsp );
+
+  // Write coefficients to file
+  std::stringstream buf;
+  buf << " " << c->size << std::endl;
+  for( size_t i = 0; i < c->size; ++i){
+    buf << c->data[i]<<std::endl;
+    std::cout<<c->data[i]<<std::endl;
+    MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
+    MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
+    buf.str("");
+  }
+
+//  row  = 0;
+//  for( auto const &entry : betas_ ){
+//    LevelVector key_t = entry.first.first;
+//    LevelVector key_s = entry.first.second;
+//    CombiDataType beta = entry.second;
+//    std::cout<<key_t<<" "<<key_s<<" "<<beta<<" "<< r->data[row] << std::endl;
+//    row++;
+//  }
+  gsl_matrix_free(X);
+  gsl_matrix_free(cov);
+  gsl_vector_free(y);
+  gsl_vector_free(c);
+  gsl_vector_free(r);
+  gsl_multifit_robust_free(regressionWsp);
+}
 
 //  void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
 //                      real coeff) {

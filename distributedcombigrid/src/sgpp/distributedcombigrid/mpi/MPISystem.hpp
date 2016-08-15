@@ -99,8 +99,6 @@ class MPISystem {
 
   inline size_t getNumProcs() const;
 
-  void recoverCommunicators( bool groupAlive );
-
  private:
   explicit MPISystem();
 

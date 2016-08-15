@@ -109,6 +109,15 @@ class MPIUtils {
     }
   }
 
+  static void MAX_ABS(double *a, double *b, int *len, MPI_Datatype *dtype) {
+    for( int i = 0; i < *len; ++i ){
+      if (std::abs(*a) > std::abs(*b))
+        *b = *a;
+      a++; b++;
+    }
+    //
+  }
+
 };
 
 }

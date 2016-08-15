@@ -76,6 +76,10 @@ class ProcessGroupManager {
 
   bool addTask( Task* );
 
+  bool recompute( Task* );
+
+  bool recoverCommunicators();
+
  private:
   RankType pgroupRootID_; // rank in GlobalComm of the master process of this group
 

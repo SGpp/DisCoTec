@@ -146,11 +146,49 @@ bool ProcessGroupManager::addTask( Task* t ) {
 }
 
 
+bool ProcessGroupManager::recompute( Task* t ) {
+  // first check status
+  // tying to add a task to a busy group is an invalid operation
+  // and should be avoided
+  if (status_ != PROCESS_GROUP_WAIT)
+    return false;
+
+  // add task to list of tasks managed by this pgroup
+  tasks_.push_back(t);
+
+  // send add task signal to pgroup
+  SignalType signal = RECOMPUTE;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // send task
+  Task::send( &t, pgroupRootID_, theMPISystem()->getGlobalComm() );
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+
+  // only return true if task successfully send to pgroup
+  return true;
+}
+
+
 void ProcessGroupManager::recvStatus(){
   // start non-blocking call to receive status
   MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag, theMPISystem()->getGlobalComm(),
               &statusRequest_);
 }
 
+
+bool ProcessGroupManager::recoverCommunicators(){
+  assert( status_ == PROCESS_GROUP_WAIT );
+
+  // send signal to pgroup
+  SignalType signal = RECOVER_COMM;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  return true;
+}
 
 } /* namespace combigrid */

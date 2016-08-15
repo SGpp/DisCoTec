@@ -62,3 +62,4 @@ coverage
 
 # ignoring uq tests
 datadriven/tests/uq/
+/Debug/
