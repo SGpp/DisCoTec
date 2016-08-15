@@ -2,7 +2,7 @@
 #define MPISYSTEM_HPP
 
 #include <mpi.h>
-//#include <mpi-ext.h>
+#include <mpi-ext.h>
 #include <ostream>
 #include <vector>
 #include <assert.h>
