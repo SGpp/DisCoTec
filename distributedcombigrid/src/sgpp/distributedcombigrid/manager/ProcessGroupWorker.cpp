@@ -292,6 +292,8 @@ void ProcessGroupWorker::combineUniform() {
   if (combinedUniDSG_ != NULL)
     delete combinedUniDSG_;
 
+  compareSDCPairs( 5 );
+
   // erzeug dsg
   combinedUniDSG_ = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
       lmin, boundary,
@@ -305,7 +307,6 @@ void ProcessGroupWorker::combineUniform() {
     dfg.registerUniformSG(*combinedUniDSG_);
   }
 
-  compareSDCPairs( 3 );
 
   for (Task* t : tasks_) {
 
@@ -515,12 +516,13 @@ void ProcessGroupWorker::compareSDCPairs( int numNearestNeighbors ){
 
   auto b = std::find( allBetas.begin(), allBetas.end(), *globalBetaMax );
 
+  betas_.clear();
+
   if(b != allBetas.end()) {
 
     size_t indMax = std::distance(allBetas.begin(), b);
 
     allBetas.clear();
-
     LevelVector subMax = allSubs[indMax];
     size_t jMax = allJs[indMax];
 
@@ -550,14 +552,16 @@ void ProcessGroupWorker::compareSDCPairs( int numNearestNeighbors ){
           auto subData = SDCUniDSG->getData(subMax);
 //          CombiDataType localBetaMax = std::abs(subData[jMax]);
           CombiDataType localBetaMax = subData[jMax];
-          allBetas.push_back( localBetaMax );
+//          allBetas.push_back( localBetaMax );
+          betas_[std::make_pair(s_level, t_level)] = localBetaMax;
+          std::cout<< s_level <<", "<< t_level <<": "<< localBetaMax << std::endl;
       }
 
     }
 
-    for ( size_t ind = 0; ind < allBetas.size(); ++ind ){
-      betas_[std::make_pair(allPairs[ind][0]->getLevelVector(), allPairs[ind][1]->getLevelVector())] = allBetas[ind];
-    }
+//    for ( size_t ind = 0; ind < allBetas.size(); ++ind ){
+//      betas_[std::make_pair(allPairs[ind][0]->getLevelVector(), allPairs[ind][1]->getLevelVector())] = allBetas[ind];
+//    }
 
     searchForSDC();
     MPI_File_close( &betasFile_ );
@@ -616,12 +620,15 @@ void ProcessGroupWorker::searchForSDC(){
   size_t diff = lmax[0] - lmin[0] + 1;
 
   // Number of unknowns (functions D1, D2, and D12)
-  size_t p = 2*diff + diff*(diff+1)/2;
+//  size_t p = 2*diff + diff*(diff+1)/2;
+  size_t p = 2*diff;
 
   if ( n < p )
     return;
 
-  gsl_multifit_robust_workspace *regressionWsp = gsl_multifit_robust_alloc (gsl_multifit_robust_fair , n , p );
+  gsl_multifit_robust_workspace *regressionWsp = gsl_multifit_robust_alloc (gsl_multifit_robust_default, n , p );
+
+  gsl_multifit_robust_tune( 0.1, regressionWsp );
 
   gsl_multifit_robust_maxiter( 1000, regressionWsp );
 
@@ -672,12 +679,12 @@ void ProcessGroupWorker::searchForSDC(){
     val = gsl_matrix_get( X, row, idx_D2 );
     gsl_matrix_set( X, row, idx_D2, val - pow(hs[1],2) );
 
-    idx_D12 = 2*diff + idx(diff,key_t[1]) + key_t[0];
-    gsl_matrix_set( X, row, idx_D12, pow(ht[0]*ht[1],2) );
-
-    idx_D12 = 2*diff + idx(diff,key_s[1]) + key_s[0];
-    val = gsl_matrix_get( X, row, idx_D12 );
-    gsl_matrix_set( X, row, idx_D12, val - pow(hs[0]*hs[1],2) );
+//    idx_D12 = 2*diff + idx(diff,key_t[1]) + key_t[0];
+//    gsl_matrix_set( X, row, idx_D12, pow(ht[0]*ht[1],2) );
+//
+//    idx_D12 = 2*diff + idx(diff,key_s[1]) + key_s[0];
+//    val = gsl_matrix_get( X, row, idx_D12 );
+//    gsl_matrix_set( X, row, idx_D12, val - pow(hs[0]*hs[1],2) );
 
     gsl_vector_set( y, row, beta );
 
@@ -700,7 +707,7 @@ void ProcessGroupWorker::searchForSDC(){
     MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
     MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
     buf.str("");
-    std::cout<< key_t <<", "<< key_s <<": "<< beta << ", "<< res << std::endl;
+//    std::cout<< key_t <<", "<< key_s <<": "<< beta << ", "<< res << std::endl;
     row++;
   }
   // Write regression coefficients to file
