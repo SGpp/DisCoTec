@@ -288,6 +288,7 @@ inline void CombiCom::BetasReduce<double>( std::vector<double>& betas, std::vect
   MPI_Op_create((MPI_User_function *) MPIUtils::MAX_ABS, 1, &OP_MAX_ABS );
 
   MPI_Allreduce(betas.data(), betasReduced.data(), static_cast<int>(betas.size()), MPI_DOUBLE, OP_MAX_ABS, comm);
+
   MPI_Op_free( &OP_MAX_ABS );
 }
 

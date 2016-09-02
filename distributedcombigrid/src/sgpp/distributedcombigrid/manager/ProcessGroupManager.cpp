@@ -99,21 +99,19 @@ bool ProcessGroupManager::combine() {
 }
 
 bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
+  // can only send sync signal when not in busy state
+  assert(status_ != PROCESS_GROUP_BUSY);
 
   SignalType signal = UPDATE_COMBI_PARAMETERS;
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
 
   // send combiparameters
   MPIUtils::sendClass(&params, pgroupRootID_, theMPISystem()->getGlobalComm());
-
   // set status
   status_ = PROCESS_GROUP_BUSY;
 
   // start non-blocking MPI_IRecv to receive status
   recvStatus();
-
   return true;
 }
 
@@ -191,4 +189,23 @@ bool ProcessGroupManager::recoverCommunicators(){
   return true;
 }
 
+bool ProcessGroupManager::searchSDC( SDCMethodType method ){
+
+  if (status_ != PROCESS_GROUP_WAIT)
+    return false;
+
+  // send signal to pgroup
+  SignalType signal = SEARCH_SDC;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // send method to pgroup
+  MPI_Send(&method, 1, MPI_INT, pgroupRootID_, infoTag, theMPISystem()->getGlobalComm());
+
+  status_ = PROCESS_GROUP_BUSY;
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+
+  return true;
+}
 } /* namespace combigrid */

@@ -50,6 +50,9 @@ class ProcessManager {
   bool
   runnext();
 
+  inline bool
+  searchSDC( SDCMethodType method );
+
   inline void
   combine();
 
@@ -80,6 +83,10 @@ class ProcessManager {
   /* Computes group faults in current combi scheme step */
   void
   getGroupFaultIDs( std::vector<int>& faultsID );
+
+  /* Computes group faults in current combi scheme step */
+  void
+  getSDCFaultIDs( std::vector<int>& faultsID );
 
   inline CombiParameters& getCombiParameters();
 
@@ -335,5 +342,32 @@ ProcessManager::getTask( int taskID ){
   }
   return nullptr;
 }
+
+/*
+ */
+bool ProcessManager::searchSDC( SDCMethodType method ) {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  // send signal to each group
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->searchSDC( method );
+  }
+  bool group_failed = waitAllFinished();
+  // return true if no group failed
+  return !group_failed;
+}
+
+
 } /* namespace combigrid */
 #endif /* PROCESSMANAGER_HPP_ */

@@ -47,11 +47,15 @@ class ProcessGroupWorker {
 
   void updateCombiParameters();
 
+  void searchSDC();
+
   /* Computes the difference between all pairs of combination solutions
    * (or only between neighboring ones if onlyNearestNeighbors = true)
    * according to the paper on SDC detection. If the difference is large,
    * a soft fault might have occurred. */
-  void compareSDCPairs( int numNearestNeighbors );
+  int comparePairs( int numNearestNeighbors );
+
+  int compareValues();
 
   /* Generates a list of pairs of tasks, so that for each task
    * that a worker has, we find its K nearest neighbors. The distance
@@ -60,7 +64,7 @@ class ProcessGroupWorker {
    * */
   void generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs);
 
-  void searchForSDC();
+  void filterSDC( std::vector<int> &levelsSDC );
 
  private:
   TaskContainer tasks_; // task storage

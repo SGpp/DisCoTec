@@ -86,22 +86,23 @@ void ProcessManager::exit() {
 void ProcessManager::updateCombiParameters() {
   {
     bool fail = waitAllFinished();
-
-    assert( !fail && "should not fail here" );
+    // Commented out since not relevant when SDC occurs
+//    assert( !fail && "should not fail here" );
   }
 
   for( auto g : pgroups_ )
     g->updateCombiParameters(params_);
-
+  std::cout<<"Updated all.";
   {
     bool fail = waitAllFinished();
-
-    assert( !fail && "should not fail here" );
+    // Commented out since not relevant when SDC occurs
+//    assert( !fail && "should not fail here" );
   }
+  std::cout<<"Waiting done";
 }
 
 /*
- * Compute the group faults that occured at this combination step using the fault simulator
+ * Compute the group faults that occurred at this combination step using the fault simulator
  */
 void
 ProcessManager::getGroupFaultIDs( std::vector<int>& faultsID ) {
@@ -116,6 +117,21 @@ ProcessManager::getGroupFaultIDs( std::vector<int>& faultsID ) {
   }
 }
 
+void
+ProcessManager::getSDCFaultIDs( std::vector<int>& faultsID ) {
+  for( auto p : pgroups_ ){
+    StatusType status = p->waitStatus();
+    if( status == PROCESS_GROUP_FAIL ){
+      size_t numTasks = p->getTaskContainer().size();
+      faultsID.resize( numTasks );
+      MPI_Status statusSDC;
+      MPI_Recv( &faultsID[0], numTasks , MPI_INT, MPI_ANY_SOURCE, infoTag, theMPISystem()->getGlobalComm(), &statusSDC );
+      int numTasksSDC;
+      MPI_Get_count( &statusSDC, MPI_INT, &numTasksSDC );
+      faultsID.resize( numTasksSDC );
+    }
+  }
+}
 
 void ProcessManager::redistribute( std::vector<int>& taskID ) {
   for (size_t i = 0; i < taskID.size(); ++i) {
@@ -167,7 +183,6 @@ void ProcessManager::recompute( std::vector<int>& taskID ) {
     }
 
     assert( t != NULL );
-
     // wait for available process group
     ProcessGroupManagerID g = wait();
 
@@ -176,13 +191,14 @@ void ProcessManager::recompute( std::vector<int>& taskID ) {
   }
 
   size_t numWaiting = 0;
-
+  std::cout<<"Waiting...";
   while (numWaiting != pgroups_.size()) {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
       if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
         ++numWaiting;
+      std::cout<<"Status = "<<pgroups_[i]->getStatus();
     }
 
   }
@@ -260,13 +276,11 @@ void ProcessManager::restoreCombischeme() {
 
 bool ProcessManager::waitAllFinished(){
   bool group_failed = false;
-  int i = 0;
   for( auto p : pgroups_ ){
     StatusType status = p->waitStatus();
     if( status == PROCESS_GROUP_FAIL ){
       group_failed = true;
     }
-    ++i;
   }
 
   return group_failed;

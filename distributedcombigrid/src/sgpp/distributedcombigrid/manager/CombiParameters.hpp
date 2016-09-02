@@ -141,6 +141,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& boundary_;
   ar& levels_;
   ar& coeffs_;
+  ar& levelsToIDs_;
 }
 
 }

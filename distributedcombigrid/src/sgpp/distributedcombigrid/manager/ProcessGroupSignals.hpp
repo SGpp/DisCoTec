@@ -30,6 +30,7 @@ const SignalType ADD_TASK = 13;
 const SignalType RECOMPUTE = 14;
 const SignalType CHECK_DEAD_PROCS = 15; // check for dead workers
 const SignalType RECOVER_COMM = 16;
+const SignalType SEARCH_SDC = 17;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
@@ -37,9 +38,9 @@ const NormalizationType L1_NORMALIZATION = 1;
 const NormalizationType L2_NORMALIZATION = 2;
 const NormalizationType EV_NORMALIZATION = 3;
 
-typedef int FaultSimulationType;
-const FaultSimulationType RANDOM_FAIL = 0;
-const FaultSimulationType GROUPS_FAIL = 1;
+typedef int SDCMethodType;
+const SDCMethodType COMPARE_PAIRS = 0;
+const SDCMethodType COMPARE_VALUES = 1;
 
 enum TagType {
   signalTag = 0, statusTag = 1, infoTag = 2

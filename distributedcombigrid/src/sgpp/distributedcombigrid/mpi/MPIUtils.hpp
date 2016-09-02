@@ -115,7 +115,6 @@ class MPIUtils {
         *b = *a;
       a++; b++;
     }
-    //
   }
 
 };

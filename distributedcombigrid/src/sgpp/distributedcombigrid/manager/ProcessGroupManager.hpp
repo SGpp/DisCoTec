@@ -80,6 +80,9 @@ class ProcessGroupManager {
 
   bool recoverCommunicators();
 
+  bool
+  searchSDC( SDCMethodType method );
+
  private:
   RankType pgroupRootID_; // rank in GlobalComm of the master process of this group
 
