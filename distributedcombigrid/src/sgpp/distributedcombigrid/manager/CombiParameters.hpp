@@ -22,7 +22,19 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<int>& taskIDs ) :
-    dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary) {
+    dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary)
+  {
+    hierarchizationDims_ = std::vector<bool>(dim_,true);
+    setLevelsCoeffs( taskIDs, levels, coeffs );
+  }
+
+  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
+                  std::vector<bool>& boundary, std::vector<LevelVector>& levels,
+                  std::vector<real>& coeffs, std::vector<bool>& hierachizationDims,
+                  std::vector<int>& taskIDs ) :
+    dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
+    hierarchizationDims_(hierachizationDims)
+  {
     setLevelsCoeffs( taskIDs, levels, coeffs );
   }
 
@@ -109,6 +121,10 @@ class CombiParameters {
     return levels_.size();
   }
 
+  inline const std::vector<bool>& getHierarchizationDims(){
+    return hierarchizationDims_;
+  }
+
  private:
   DimType dim_;
 
@@ -126,6 +142,8 @@ class CombiParameters {
 
   std::map<LevelVector, real> combiDictionary_;
 
+  std::vector<bool> hierarchizationDims_;
+
   friend class boost::serialization::access;
 
   // serialize
@@ -141,6 +159,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& boundary_;
   ar& levels_;
   ar& coeffs_;
+  ar& hierarchizationDims_;
 }
 
 }

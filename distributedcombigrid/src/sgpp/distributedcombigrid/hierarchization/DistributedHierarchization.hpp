@@ -352,6 +352,8 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
 
 #ifdef DEBUG_OUTPUT
   {
+    std::cout << "in debug output" << std::endl;
+
     IndexType fidx = dfg.getFirstGlobal1dIndex(dim);
     LevelType flvl = dfg.getLevel( dim, fidx );
     IndexType fleftpre = dfg.getLeftPredecessor( dim, fidx );
@@ -1311,6 +1313,7 @@ IndexType checkPredecessors(IndexType idx, DimType dim,
 template<typename FG_ELEMENT>
 RankType getNeighbor1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                        IndexType idx1d) {
+
   // if global index is outside of domain return negative value
   {
     if (idx1d < 0)
@@ -2074,9 +2077,9 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       tmp[gstart + i] = ldata[start + stride * i];
 
     // hierarchize tmp array with hupp function
-    //hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
-    hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
-                                       level_idxend);
+    hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
+    //hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
+                                       //level_idxend);
 
     // copy pole back
     for (IndexType i = 0; i < ndim; ++i)
@@ -2562,7 +2565,7 @@ class DistributedHierarchization {
   // inplace hierarchization
   template<typename FG_ELEMENT>
   static void hierarchize( DistributedFullGrid<FG_ELEMENT>& dfg,
-                           std::vector<bool>& dims ) {
+                           const std::vector<bool>& dims ) {
     assert( dfg.getDimension() > 0 );
     assert( dfg.getDimension() == dims.size() );
 
@@ -2643,7 +2646,7 @@ class DistributedHierarchization {
   // inplace dehierarchization
   template<typename FG_ELEMENT>
   static void dehierarchize( DistributedFullGrid<FG_ELEMENT>& dfg,
-                             std::vector<bool>& dims ) {
+                             const std::vector<bool>& dims ) {
     assert( dfg.getDimension() > 0 );
     assert( dfg.getDimension() == dims.size() );
 

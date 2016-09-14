@@ -280,7 +280,8 @@ void ProcessGroupWorker::combineUniform() {
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
 
     // hierarchize dfg
-    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
+    DistributedHierarchization::hierarchize<CombiDataType>(
+        dfg, combiParameters_.getHierarchizationDims() );
 
     // lokales reduce auf sg ->
     dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
@@ -296,7 +297,8 @@ void ProcessGroupWorker::combineUniform() {
     dfg.extractFromUniformSG( *combinedUniDSG_ );
 
     // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<CombiDataType>( dfg );
+    DistributedHierarchization::dehierarchize<CombiDataType>(
+        dfg, combiParameters_.getHierarchizationDims() );
   }
 
 }
@@ -356,6 +358,11 @@ void ProcessGroupWorker::gridEval() {
                     theMPISystem()->getLocalComm() );
 
     MASTER_EXCLUSIVE_SECTION{
+      // todo: remove
+      // save fg file for debugging
+      std::string tmp( "fg.dat" );
+      fg.save( tmp );
+
       fg_red.add(fg, combiParameters_.getCoeff( t->getID() ) );
     }
   }
