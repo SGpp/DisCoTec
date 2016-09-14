@@ -237,26 +237,57 @@ if( bounds[4] == 0 ){
 }
 
 void
-GeneTask::saveCheckpoint( const FullGrid<complex>& fg, const char* filename )
+GeneTask::saveCheckpoint( FullGrid<CombiDataType>& fg, const char* filename )
 {
+// first make sure we have a valid fullgrid
 assert( fg.isGridCreated() );
+assert( fg.getDimension() == 6 );
+const std::vector<bool>& boundary = fg.returnBoundaryFlags();
+assert( boundary[0] == true ); //x
+assert( boundary[1] == false ); //y
+assert( boundary[2] == true ); // z
+assert( boundary[3] == true ); // v
+assert( boundary[4] == true ); // w
+assert( boundary[5] == false ); // nspec
+assert( fg.getLevels()[1] == 1 ); // y
+assert( fg.getLevels()[5] == 1 ); // nspec
 
 size_t nspec = 1;
 size_t nw = static_cast<size_t>( std::pow( 2.0, fg.getLevels()[4] ) );
 size_t nv = static_cast<size_t>( std::pow( 2.0, fg.getLevels()[3] ) );
 size_t nz = static_cast<size_t>( std::pow( 2.0, fg.getLevels()[2] ) );
 size_t ny = 1;
-size_t nx = static_cast<size_t>( std::pow( 2.0, fg.getLevels()[0] ) ) + 1;
+size_t nx = static_cast<size_t>( std::pow( 2.0, fg.getLevels()[0] ) );
 
-// create temporary global GeneGrid
-GeneGrid global_tmp( boost::extents[nspec][nw][nv][nz][ny][nx] );
+// create MultiArray to store Gene grid temporarily
+// note reverse notation of shape vector
+IndexVector geneShape = { nspec, nw, nv, nz, ny, nx };
+MultiArray<GeneComplex,6> geneGrid = createMultiArray<GeneComplex,6>( geneShape );
 
-// convert fg to gene grid
-FullGrid<complex>& ncfg = const_cast<FullGrid<complex>&>( fg );
-CombiGeneConverter::FullGridToGeneGrid( ncfg, global_tmp );
+// create MultiArrayRef to fg
+MultiArrayRef6 fgData = createMultiArrayRef<CombiDataType,6>( fg );
+
+// copy data to gene grid
+// note that the last grid points in x,z,v,w dimension are ignored
+for( size_t n=0; n < geneShape[0]; ++n ){ //n_spec
+  for( size_t m=0; m < geneShape[1]; ++m ){ //w
+    for( size_t l=0; l < geneShape[2]; ++l ){ //v
+      for( size_t k=0; k < geneShape[3]; ++k ){ //z
+        for( size_t j=0; j < geneShape[4]; ++j ){ //y
+          for( size_t i=0; i < geneShape[5]; ++i ){ //x
+            geneGrid[n][m][l][k][j][i].r = fgData[n][m][l][k][j][i].real();
+            geneGrid[n][m][l][k][j][i].i = fgData[n][m][l][k][j][i].imag();
+          }
+        }
+      }
+    }
+  }
+}
 
 // save to file
 std::ofstream cpFile( filename, std::ofstream::binary );
+
+std::cout << "saving full grid as GENE checkpoint" << std::endl;
 
 // write prec flag
 const char* prec = "DOUBLE";
@@ -278,7 +309,7 @@ res[1] = static_cast<int>(ny);
 res[2] = static_cast<int>(nz);
 res[3] = static_cast<int>(nv);
 res[4] = static_cast<int>(nw);
-res[5] = 1;
+res[5] = static_cast<int>(nspec);
 cpFile.write( (char*) res, sizeof(int) * 6 );
 std::cout << "resolution:" << "\n" << "\t nx(" << sizeof(int) << ") " << nx
     << "\n" << "\t ny(" << sizeof(int) << ") " << ny << "\n" << "\t nz("
@@ -287,8 +318,8 @@ std::cout << "resolution:" << "\n" << "\t nx(" << sizeof(int) << ") " << nx
     << "\t n_spec(" << sizeof(int) << ") " << nspec << std::endl;
 
 // write data
-size_t dsize( global_tmp.num_elements() );
-cpFile.write( (char*) global_tmp.origin(), sizeof(complex) * dsize );
+size_t dsize( geneGrid.num_elements() );
+cpFile.write( (char*) geneGrid.origin(), sizeof(GeneComplex) * dsize );
 
 cpFile.close();
 }
@@ -323,6 +354,7 @@ void GeneTask::initDFG( CommunicatorType comm,
 }
 
 
+/** copy and convert data from local checkpoint to dfg */
 void GeneTask::setDFG(){
   // step one: copy data of localcheckpoint into dfg
 
@@ -364,53 +396,6 @@ void GeneTask::setDFG(){
     } else{
       assert( dfgShape[d] == lcpShape[d] );
     }
-  }
-
-  // compute norm of lcp
-  {
-	real mynorm = 0.0;
-	GeneComplex* data = checkpoint_.getData();
-	for( size_t i=0; i<checkpoint_.getSize(); ++i ){
-	  CombiDataType tmp( data[i].r, data[i].i );
-	  mynorm += std::abs( tmp );
-	}
-
-	real norm;
-	MPI_Allreduce( &mynorm, &norm, 1, MPI_DOUBLE, MPI_SUM,
-				 theMPISystem()->getLocalComm() );
-
-	MASTER_EXCLUSIVE_SECTION{
-	  std::cout << "norm before lcp copy " << norm << std::endl;
-	}
-  }
-
-  {
-	  real mynorm = 0.0;
-
-	  for( size_t n=0; n < lcpShape[0]; ++n ){ //n_spec
-		for( size_t m=0; m < lcpShape[1]; ++m ){ //w
-		  for( size_t l=0; l < lcpShape[2]; ++l ){ //v
-			for( size_t k=0; k < lcpShape[3]; ++k ){ //z
-			  for( size_t j=0; j < lcpShape[4]; ++j ){ //y
-				for( size_t i=0; i < lcpShape[5]; ++i ){ //x
-				  CombiDataType tmp;
-				  tmp.real( lcpData[n][m][l][k][j][i].r );
-				  tmp.imag( lcpData[n][m][l][k][j][i].i );
-				  mynorm += std::abs( tmp );
-				}
-			  }
-			}
-		  }
-		}
-	  }
-
-	real norm;
-	MPI_Allreduce( &mynorm, &norm, 1, MPI_DOUBLE, MPI_SUM,
-			 	 	 theMPISystem()->getLocalComm() );
-
-	MASTER_EXCLUSIVE_SECTION{
-		std::cout << "norm of lcpData " << norm << std::endl;
-	}
   }
 
   // copy data from local checkpoint to dfg
@@ -469,23 +454,6 @@ void GeneTask::setDFG(){
               }
   }
 
-  {
-	  // calc norm for debugging
-	  real mynorm = 0.0;
-	  std::vector<CombiDataType>& data = dfg_->getElementVector();
-	  for( size_t i=0; i<data.size(); ++i ){
-		  mynorm += std::abs( data[i] );
-	  }
-
-	  real norm;
-	  MPI_Allreduce( &mynorm, &norm, 1, MPI_DOUBLE, MPI_SUM,
-					 theMPISystem()->getLocalComm() );
-
-	  MASTER_EXCLUSIVE_SECTION{
-		  std::cout << "norm before boundary adaption " << norm << std::endl;
-	  }
-  }
-
   // adapt z-boundary
   adaptBoundaryZ();
 }
@@ -499,7 +467,11 @@ void GeneTask::adaptBoundaryZ(){
 }
 
 
-
+/** the term local may be misleading in the context of GENE
+ *  this simply means that the copy operations are done locally without any
+ *  MPI communication. this is only possible in the case that there is only
+ *  one process in z direction (and in x, what we require anyway)
+ */
 void GeneTask::adaptBoundaryZlocal(){
   // make sure no parallelization in z and x
   assert( dfg_->getParallelization()[0] == 1 );
@@ -528,10 +500,8 @@ void GeneTask::adaptBoundaryZlocal(){
           for( size_t j=0; j < dfgShape[4]; ++j ) //y
             for( size_t i=0; i < nkx; ++i ){ //x
                 dfgData[n][m][l][ dfgShape[3]-1 ][j][i] =
-                    dfgData[n][m][l][0][j][ (i + xoffset)%nkx ];
+                    dfgData[n][m][l][0][j][ (i + xoffset)%nkx ] * factor;
             }
-
-  // todo: multiply with factor
 }
 
 
@@ -709,6 +679,45 @@ void GeneTask::adaptBoundaryZglobal(){
   MPI_Waitall( requests.size(), &requests[0], MPI_STATUSES_IGNORE );
 
   // todo: multiply with factor
+}
+
+
+/* copy dfg data to local checkpoint */
+void GeneTask::getDFG(){
+  // get multiarrayref to lcp
+  // todo: put this into a function as it is used multiple times
+  const std::vector<size_t>& b = checkpoint_.getBounds();
+  IndexVector lowerBounds = { b[0], b[2], b[4], b[6], b[8], b[10] };
+  IndexVector upperBounds = { b[1], b[3], b[5], b[7], b[9], b[11] };
+  IndexVector lcpSizes = upperBounds - lowerBounds;
+  MultiArrayRef<GeneComplex,6> lcpData =
+    createMultiArrayRef<GeneComplex,6>( checkpoint_.getData(), lcpSizes );
+
+  // get multiarrayref to dfg
+  MultiArrayRef6 dfgData =
+      createMultiArrayRef<CombiDataType,6>( *dfg_ );
+
+  // copy data back to lcp
+  // note that the last grid points in x,z,v,w dimension are ignored
+  const size_t* lcpShape = lcpData.shape();
+  for( size_t n=0; n < lcpShape[0]; ++n ){ //n_spec
+    for( size_t m=0; m < lcpShape[1]; ++m ){ //w
+      for( size_t l=0; l < lcpShape[2]; ++l ){ //v
+        for( size_t k=0; k < lcpShape[3]; ++k ){ //z
+          for( size_t j=0; j < lcpShape[4]; ++j ){ //y
+            for( size_t i=0; i < lcpShape[5]; ++i ){ //x
+              lcpData[n][m][l][k][j][i].r = dfgData[n][m][l][k][j][i].real();
+              lcpData[n][m][l][k][j][i].i = dfgData[n][m][l][k][j][i].imag();
+            }
+          }
+        }
+      }
+    }
+  }
+
+  MASTER_EXCLUSIVE_SECTION{
+    std::cout << "getDFG" << std::endl;
+  }
 }
 
 } /* namespace combigrid */

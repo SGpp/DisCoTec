@@ -70,7 +70,7 @@ public:
   /*
    * save a fullgrid in GENE's checkpoint format
    */
-  static void saveCheckpoint( const FullGrid<complex>& fg,
+  static void saveCheckpoint( FullGrid<complex>& fg,
 			      const char* filename  );
 
 
@@ -79,6 +79,8 @@ public:
   void initDFG( CommunicatorType comm, std::vector<IndexVector>& decomposition );
 
   void setDFG();
+
+  void getDFG();
 
 private:
   friend class boost::serialization::access;
