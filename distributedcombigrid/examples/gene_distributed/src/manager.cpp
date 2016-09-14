@@ -29,6 +29,34 @@ using namespace combigrid;
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(GeneTask)
 
+
+// helper funtion to read a bool vector from string
+inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
+  std::vector<std::string> strs;
+  boost::split(strs, str, boost::is_any_of(" "));
+
+  assert(vec.size() == strs.size());
+
+  for (size_t i = 0; i < strs.size(); ++i)
+    vec[i] = boost::lexical_cast<bool>(strs[i]);
+
+  return vec;
+}
+
+
+// helper function to output bool vector
+inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
+  os << "[";
+
+  for (size_t i = 0; i < l.size(); ++i)
+    os << l[i] << " ";
+
+  os << "]";
+
+  return os;
+}
+
+
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
@@ -89,27 +117,20 @@ int main(int argc, char** argv) {
     DimType dim = cfg.get<DimType>("ct.dim");
     LevelVector lmin(dim), lmax(dim), leval(dim);
     IndexVector p(dim);
+    std::vector<bool> boundary(dim), hierarchizationDims(dim);
     combigrid::real dt;
     size_t nsteps, ncombi;
     cfg.get<std::string>("ct.lmin") >> lmin;
     cfg.get<std::string>("ct.lmax") >> lmax;
     cfg.get<std::string>("ct.leval") >> leval;
     cfg.get<std::string>("ct.p") >> p;
+    cfg.get<std::string>("ct.boundary") >> boundary;
+    cfg.get<std::string>("ct.hierarchization_dims") >> hierarchizationDims;
     ncombi = cfg.get<size_t>("ct.ncombi");
     std::string basename = cfg.get<std::string>( "preproc.basename" );
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
     std::string fg_file_prefix = cfg.get<std::string>( "ct.fg_file_prefix" );
-
-    // todo: read in boundary vector from ctparam
-    // set boundary vector
-    std::vector<bool> boundary( 6 );
-    boundary[0] = true; //x
-    boundary[1] = false; //y
-    boundary[2] = true; // z
-    boundary[3] = true; // v
-    boundary[4] = true; // w
-    boundary[5] = false; // nspec
 
     // todo: read from parametes file
     real shat = 0.7960;
@@ -159,6 +180,8 @@ int main(int argc, char** argv) {
     // output of combination setup
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
+    std::cout << "boundary = " << boundary << std::endl;
+    std::cout << "hierarchization_dims = " << hierarchizationDims << std::endl;
     std::cout << "CombiScheme: " << std::endl;
     for (size_t i = 0; i < levels.size(); ++i)
       std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
@@ -181,7 +204,8 @@ int main(int argc, char** argv) {
     }
 
     // create combiparamters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs );
+    CombiParameters params( dim, lmin, lmax, boundary, levels,
+                            coeffs, hierarchizationDims, taskIDs );
 
     // create Manager with process groups
     ProcessManager manager(pgroups, tasks, params);
@@ -211,7 +235,13 @@ int main(int argc, char** argv) {
       // write solution to file
       std::string filename = fg_file_prefix
           + boost::lexical_cast<std::string>( i ) + ".dat";
-      fg_eval.save( filename );
+      //fg_eval.save( filename );
+
+      // write solution in plotable format
+      fg_eval.writePlotFile( filename.c_str() );
+
+      // create GENE checkpoint
+      GeneTask::saveCheckpoint( fg_eval, "checkpoint" );
     }
 
     myfile.close();
