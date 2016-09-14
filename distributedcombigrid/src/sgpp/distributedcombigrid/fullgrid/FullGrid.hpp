@@ -238,6 +238,8 @@ class FullGrid {
 
   inline void print(std::ostream& os) const;
 
+  void writePlotFile(const char* filename) const;
+
  private:
   /** dimension of the full grid */
   DimType dim_;
@@ -293,7 +295,6 @@ class FullGrid {
   void print2D(std::ostream& os) const;
 
   void print3D(std::ostream& os) const;
-
 };
 
 } // namespace combigrid
@@ -415,22 +416,27 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
 template<typename FG_ELEMENT>
 FullGrid<FG_ELEMENT>::FullGrid(const char* filename,
                                const BasisFunctionBasis* basis) {
+
+  /*
   // set the basis function for the full grid
   if (basis == NULL)
     basis_ = LinearBasisFunction::getDefaultBasis();
   else
     basis_ = basis;
+  */
 
   std::ifstream ifs(filename, std::ios::binary);
   //boost::archive::binary_iarchive ia(ifs);
   boost::archive::text_iarchive ia(ifs);
   ia >> *this;
 
+  /*
   gridDomain_ = NULL;
 
   isHierarchized_ = false;
 
-  isFGcreated_ = false;
+  isFGcreated_ = true;
+  */
 }
 
 /* create hierarchized fullgrid from SGrid */
@@ -1138,6 +1144,27 @@ inline void FullGrid<FG_ELEMENT>::print(std::ostream& os) const {
     print3D(os);
   else
     assert(false && "Maximum dimension for printing is 2");
+}
+
+
+template<typename FG_ELEMENT>
+inline void FullGrid<FG_ELEMENT>::writePlotFile(const char* filename) const {
+  std::ofstream ofs(filename);
+
+  // first line: dimension
+  ofs << getDimension() << std::endl;
+
+  // second line grid points per dimension in the order
+  // x_0, x_1, ... , x_d
+  for( auto s : getSizes() )
+    ofs << s << " ";
+  ofs << std::endl;
+
+  // plain data, one value per line
+  for( auto d : getElementVector() )
+    ofs << d << std::endl;
+
+  ofs.close();
 }
 
 // output operator
