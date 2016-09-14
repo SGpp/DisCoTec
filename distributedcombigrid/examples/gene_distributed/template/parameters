@@ -32,7 +32,7 @@ chptdir = './'
 read_checkpoint  = F
 write_checkpoint = T
 
-istep_field =     -100
+istep_field =     1
 istep_mom   =     -100
 istep_nrg   =      -10
 istep_omega =     $istep_omega 
@@ -70,7 +70,7 @@ collision_op = 'none'
 
 init_cond = 'alm'
 
-hyp_z =   0.2500    
+hyp_z =   -1    
 hyp_v =   0.2000    
 
 perf_tsteps =  20
