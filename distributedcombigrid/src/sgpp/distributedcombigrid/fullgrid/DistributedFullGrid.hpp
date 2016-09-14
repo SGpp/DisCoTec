@@ -17,7 +17,7 @@
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
 
-
+//#define DEBUG_OUTPUT
 #define UNIFORM_SG
 
 using namespace combigrid;
@@ -101,6 +101,8 @@ class DistributedFullGrid {
 
     if (decomposition.size() == 0) {
       calculateDefaultBounds();
+
+      calcDecomposition();
     } else {
       assert(decomposition.size() == dim_);
 
@@ -175,8 +177,25 @@ class DistributedFullGrid {
 
     ++count;
 
+    /* todo remove
+    for( size_t i=0; i<dim_; ++i ){
+      std::cout << "decomposition " << i << " "
+                << decomposition_[i] << std::endl;
+    }
+    */
+
 #ifdef DEBUG_OUTPUT
 
+    if( rank_ == 0 ){
+      for( RankType r = 0; r < size_; ++r ){
+        std::cout << "rank " << r << ": \n"
+                  << "\t lower bounds " << lowerBounds_[r]
+                  << "\t upper bounds " << upperBounds_[r]
+                  << std::endl;
+      }
+    }
+
+    /*
     if ( rank_ == 0 ) {
       for ( auto subsp : subspaces_ ) {
         std::cout << subsp.level_ << std::endl;
@@ -196,6 +215,7 @@ class DistributedFullGrid {
         }
       }
     }
+    */
 
 #endif
   }
@@ -1699,6 +1719,23 @@ class DistributedFullGrid {
 
         os << std::endl;
       }
+    }
+  }
+
+
+  void calcDecomposition(){
+    // create decomposition vectors
+    decomposition_.resize(dim_);
+    for( size_t i=0; i<dim_; ++i )
+      decomposition_[i].resize( procs_[i] );
+
+    for (RankType r = 0; r < size_; ++r) {
+      // get coords of r in cart comm
+      IndexVector coords(dim_);
+      getPartitionCoords( r, coords );
+
+      for (DimType i = 0; i < dim_; ++i)
+        decomposition_[i][coords[i]] = lowerBounds_[r][i];
     }
   }
 
