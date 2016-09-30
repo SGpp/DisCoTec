@@ -92,13 +92,11 @@ void ProcessManager::updateCombiParameters() {
 
   for( auto g : pgroups_ )
     g->updateCombiParameters(params_);
-  std::cout<<"Updated all.";
   {
     bool fail = waitAllFinished();
     // Commented out since not relevant when SDC occurs
 //    assert( !fail && "should not fail here" );
   }
-  std::cout<<"Waiting done";
 }
 
 /*
@@ -191,14 +189,12 @@ void ProcessManager::recompute( std::vector<int>& taskID ) {
   }
 
   size_t numWaiting = 0;
-  std::cout<<"Waiting...";
   while (numWaiting != pgroups_.size()) {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
       if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
         ++numWaiting;
-      std::cout<<"Status = "<<pgroups_[i]->getStatus();
     }
 
   }

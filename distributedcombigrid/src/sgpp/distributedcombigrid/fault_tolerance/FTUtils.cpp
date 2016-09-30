@@ -260,7 +260,6 @@ LevelVectorList filter_faults(const LevelVectorList& faults_input, const IndexTy
     if (it != received_dict.end()) {
       level_fault = std::accumulate(faults_input[i].begin(),
           faults_input[i].end(), 0);
-
       if ((level_fault == l_max) || (level_fault == (l_max - 1))) {
         faults_output.push_back(faults_input[i]);
       }

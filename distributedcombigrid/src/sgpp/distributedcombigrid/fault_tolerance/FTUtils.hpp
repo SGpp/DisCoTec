@@ -15,6 +15,8 @@
 #include <valarray>
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/vector.hpp>
+#include <boost/foreach.hpp>
+
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 

@@ -13,8 +13,12 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
 
 #include <gsl/gsl_multifit.h>
+#include <gsl/gsl_statistics.h>
+#include <gsl/gsl_sort.h>
+#include <gsl/gsl_sort_vector.h>
 
 namespace combigrid {
 
@@ -53,7 +57,7 @@ class ProcessGroupWorker {
    * (or only between neighboring ones if onlyNearestNeighbors = true)
    * according to the paper on SDC detection. If the difference is large,
    * a soft fault might have occurred. */
-  int comparePairs( int numNearestNeighbors );
+  void comparePairs( int numNearestNeighbors, std::vector<int> &levelsSDC );
 
   int compareValues();
 
@@ -65,6 +69,8 @@ class ProcessGroupWorker {
   void generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs);
 
   void filterSDC( std::vector<int> &levelsSDC );
+
+  void filterSDCPython( std::vector<int> &levelsSDC );
 
  private:
   TaskContainer tasks_; // task storage
