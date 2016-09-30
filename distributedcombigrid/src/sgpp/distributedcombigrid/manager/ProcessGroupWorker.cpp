@@ -275,9 +275,16 @@ void ProcessGroupWorker::combineUniform() {
     dfg.registerUniformSG(*combinedUniDSG_);
   }
 
+  real localMax(0.0);
+
   for (Task* t : tasks_) {
 
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+
+    // compute max norm
+    real max = dfg.getLpNorm(0);
+    if( max > localMax )
+      localMax = max;
 
     // hierarchize dfg
     DistributedHierarchization::hierarchize<CombiDataType>(
@@ -286,6 +293,11 @@ void ProcessGroupWorker::combineUniform() {
     // lokales reduce auf sg ->
     dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
   }
+
+  // compute global max norm
+  real globalMax;
+  MPI_Allreduce(  &localMax, &globalMax, 1, MPI_DOUBLE,
+                  MPI_MAX, theMPISystem()->getGlobalReduceComm() );
 
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
 
@@ -299,6 +311,12 @@ void ProcessGroupWorker::combineUniform() {
     // dehierarchize dfg
     DistributedHierarchization::dehierarchize<CombiDataType>(
         dfg, combiParameters_.getHierarchizationDims() );
+
+    // if exceeds normalization limit, normalize dfg with global max norm
+    if( globalMax > 1000 ){
+      dfg.mul( 1.0 / globalMax );
+      std::cout << "normalized dfg with " << globalMax << std::endl;
+    }
   }
 
 }
@@ -306,9 +324,7 @@ void ProcessGroupWorker::combineUniform() {
 void ProcessGroupWorker::gridEval() {
   /* error if no tasks available
    * todo: however, this is not a real problem, we could can create an empty
-   * grid an contribute to the reduce operation. at the moment even the dim
-   * parameter is stored in the tasks, so if no task available we have no access
-   * to this parameter.
+   * grid an contribute to the reduce operation.
    */
   assert(tasks_.size() > 0);
 

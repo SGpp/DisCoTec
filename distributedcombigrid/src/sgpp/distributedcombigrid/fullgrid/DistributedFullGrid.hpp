@@ -1305,6 +1305,66 @@ class DistributedFullGrid {
     return maxSubspaceSize_;
   }
 
+
+  real getLpNorm(int p) {
+    assert(p >= 0);
+
+    // special case maximum norm
+    if (p == 0) {
+      std::vector<FG_ELEMENT>& data = getElementVector();
+      real max = 0.0;
+
+      for (size_t i = 0; i < data.size(); ++i) {
+        if (std::abs(data[i]) > max)
+          max = std::abs(data[i]);
+      }
+
+      real globalMax(-1);
+      MPI_Allreduce(  &max, &globalMax, 1, MPI_DOUBLE,
+                      MPI_MAX, getCommunicator() );
+
+      return globalMax;
+    } else {
+      real p_f = static_cast<real>(p);
+      std::vector<FG_ELEMENT>& data = getElementVector();
+      real res = 0.0;
+
+      for (size_t i = 0; i < data.size(); ++i) {
+        real abs = std::abs(data[i]);
+        res += std::pow(abs, p_f);
+      }
+
+      real globalRes(-1);
+      MPI_Allreduce(  &res, &globalRes, 1, getMPIDatatype(),
+                      MPI_SUM, getCommunicator() );
+
+      return std::pow( globalRes, 1.0 / p_f);
+      // todo: test
+      assert( false && "this has never been tested" );
+    }
+  }
+
+
+  // normalize with specific norm
+  inline real normalizelp(int p) {
+    real norm = getLpNorm(p);
+
+    std::vector<FG_ELEMENT>& data = getElementVector();
+    for (size_t i = 0; i < data.size(); ++i)
+      data[i] = data[i] / norm;
+
+    return norm;
+  }
+
+
+  // multiply with a constant
+  inline void mul( real c ){
+    std::vector<FG_ELEMENT>& data = getElementVector();
+    for (size_t i = 0; i < data.size(); ++i)
+      data[i] *= c;
+  }
+
+
  private:
   /** dimension of the full grid */
   DimType dim_;

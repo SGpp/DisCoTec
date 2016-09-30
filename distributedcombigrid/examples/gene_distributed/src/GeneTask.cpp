@@ -494,13 +494,31 @@ void GeneTask::adaptBoundaryZlocal(){
   // we ignore the last point in x direction
   size_t nkx = dfgShape[5]-1;
 
+  // make sure this value is even (actually should be power of two)
+  // because we assume the highest kx is always zero
+  assert( nkx%2 == 0 );
+
   for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
     for( size_t m=0; m < dfgShape[1]; ++m ) //w
       for( size_t l=0; l < dfgShape[2]; ++l ) //v
           for( size_t j=0; j < dfgShape[4]; ++j ) //y
             for( size_t i=0; i < nkx; ++i ){ //x
-                dfgData[n][m][l][ dfgShape[3]-1 ][j][i] =
-                    dfgData[n][m][l][0][j][ (i + xoffset)%nkx ] * factor;
+              // ignore highest mode
+              if( i == nkx/2 )
+                continue;
+
+              // calc kx_star
+              IndexType kx_star = (i + xoffset)%nkx;
+
+              // if kx* is the highest mode, increase by one
+              if( kx_star == nkx/2 )
+                kx_star += 1;
+
+              // this should never happen
+              assert( kx_star < nkx);
+
+              dfgData[n][m][l][ dfgShape[3]-1 ][j][i] =
+                  dfgData[n][m][l][0][j][ kx_star ] * factor;
             }
 }
 

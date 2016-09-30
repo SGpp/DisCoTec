@@ -238,7 +238,7 @@ int main(int argc, char** argv) {
       //fg_eval.save( filename );
 
       // write solution in plotable format
-      fg_eval.writePlotFile( filename.c_str() );
+      fg_eval.writePlotFile( "plot.dat" );
 
       // create GENE checkpoint
       GeneTask::saveCheckpoint( fg_eval, "checkpoint" );
