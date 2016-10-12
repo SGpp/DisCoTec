@@ -783,7 +783,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
     int bsize = int(dsg.getDataSize(i));
     MPI_Datatype dtype = abstraction::getMPIDatatype(
                            abstraction::getabstractionDataType<FG_ELEMENT>());
-
+#if 0
     // mpi allreduce
     if (USE_NONBLOCKING_MPI_COLLECTIVE) {
       MPI_Request request;
@@ -791,13 +791,15 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
                       &request);
       myrequests.push_back(request);
     } else {
+#endif
       MPI_Allreduce( MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm);
-    }
+    //}
   }
-
+#if 0
   if (USE_NONBLOCKING_MPI_COLLECTIVE) {
     MPI_Waitall(int(myrequests.size()), &myrequests[0], MPI_STATUSES_IGNORE);
   }
+#endif
 }
 
 template<typename FG_ELEMENT>

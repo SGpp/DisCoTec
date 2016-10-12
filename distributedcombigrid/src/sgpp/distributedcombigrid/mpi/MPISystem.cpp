@@ -197,14 +197,14 @@ void MPISystem::recoverCommunicators( bool groupAlive ){
   // revoke commmworld
   theStatsContainer()->setTimerStart("recoverComm-revoke");
   //WORLD_MANAGER_EXCLUSIVE_SECTION{
-    MPI_Comm_revoke( theMPISystem()->getWorldComm() );
+    MPIX_Comm_revoke( theMPISystem()->getWorldComm() );
   //}
   theStatsContainer()->setTimerStop("recoverComm-revoke");
 
   // shrink world
   theStatsContainer()->setTimerStart("recoverComm-shrink");
   MPI_Comm newCommWorld;
-  MPI_Comm_shrink( theMPISystem()->getWorldComm(), &newCommWorld );
+  MPIX_Comm_shrink( theMPISystem()->getWorldComm(), &newCommWorld );
   theStatsContainer()->setTimerStop("recoverComm-shrink");
 
   // split off alive procs. this will be the new WorldComm
