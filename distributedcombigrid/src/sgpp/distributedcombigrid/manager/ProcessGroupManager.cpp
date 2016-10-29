@@ -142,7 +142,29 @@ bool ProcessGroupManager::addTask( Task* t ) {
   // only return true if task successfully send to pgroup
   return true;
 }
+bool ProcessGroupManager::reinitTask( Task* t ) {
+  // first check status
+  // tying to add a task to a busy group is an invalid operation
+  // and should be avoided
+  if (status_ != PROCESS_GROUP_WAIT)
+    return false;
 
+  // send add task signal to pgroup
+  SignalType signal = REINIT_TASK;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // send task
+  Task::send(&t, pgroupRootID_, theMPISystem()->getGlobalComm());
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+
+  // only return true if task successfully send to pgroup
+  return true;
+}
 
 bool ProcessGroupManager::recompute( Task* t ) {
   // first check status

@@ -76,6 +76,8 @@ class ProcessGroupManager {
 
   bool addTask( Task* );
 
+  bool reinitTask( Task* );
+
   bool recompute( Task* );
 
   bool recoverCommunicators();

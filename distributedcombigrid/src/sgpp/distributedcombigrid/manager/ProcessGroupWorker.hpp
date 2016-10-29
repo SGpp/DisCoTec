@@ -57,7 +57,9 @@ class ProcessGroupWorker {
    * (or only between neighboring ones if onlyNearestNeighbors = true)
    * according to the paper on SDC detection. If the difference is large,
    * a soft fault might have occurred. */
-  void comparePairs( int numNearestNeighbors, std::vector<int> &levelsSDC );
+  void comparePairsDistributed( int numNearestNeighbors, std::vector<int> &levelsSDC );
+
+  void comparePairsSerial( int numNearestNeighbors, std::vector<int> &levelsSDC );
 
   int compareValues();
 
@@ -68,7 +70,7 @@ class ProcessGroupWorker {
    * */
   void generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs);
 
-  void filterSDC( std::vector<int> &levelsSDC );
+  void filterSDCGSL( std::vector<int> &levelsSDC );
 
   void filterSDCPython( std::vector<int> &levelsSDC );
 

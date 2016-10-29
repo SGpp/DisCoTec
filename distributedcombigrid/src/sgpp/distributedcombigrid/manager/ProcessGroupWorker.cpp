@@ -16,6 +16,7 @@
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
+#include "sgpp/distributedcombigrid/hierarchization/Hierarchization.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 #include <Python.h>
 #include <boost/python.hpp>
@@ -201,6 +202,36 @@ SignalType ProcessGroupWorker::wait() {
     //    return signal;
   } else if (signal == SEARCH_SDC) {
       searchSDC();
+  } else if (signal == REINIT_TASK) {
+    std::cout << "reinitializing a single task" << std::endl;
+
+    Task* t;
+
+    // local root receives task
+    MASTER_EXCLUSIVE_SECTION {
+      Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+    }
+
+    // broadcast task to other process of pgroup
+    Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+
+    MPI_Barrier(theMPISystem()->getLocalComm());
+
+    // initalize task and set values to zero
+    // the task will get the proper initial solution during the next combine
+    t->init( theMPISystem()->getLocalComm() );
+    t->setZero();
+    t->setFinished( true );
+    // todo: careful -> dehier is done here!
+    setCombinedSolutionUniform( t );
+    MASTER_EXCLUSIVE_SECTION{
+      if (t->getID() == 3){
+        std::cout<<"After reinit: "<<t->getID()<<std::endl;
+        t->getDistributedFullGrid().print(std::cout);
+      }
+    }
+    status_ = PROCESS_GROUP_BUSY;
+
   }
 
   // in the general case: send ready signal.
@@ -272,6 +303,7 @@ void ProcessGroupWorker::combine() {
 
     // dehierarchize dfg
     DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
+
   }
 }
 
@@ -310,7 +342,12 @@ void ProcessGroupWorker::combineUniform() {
   for (Task* t : tasks_) {
 
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
+    MASTER_EXCLUSIVE_SECTION{
+      if (t->getID() == 3){
+        std::cout<<"Before combine: "<<t->getID()<<": "<<combiParameters_.getCoeff( t->getID() ) <<std::endl;
+        dfg.print(std::cout);
+      }
+    }
     // hierarchize dfg
     DistributedHierarchization::hierarchize<CombiDataType>(dfg);
 
@@ -319,16 +356,20 @@ void ProcessGroupWorker::combineUniform() {
   }
 
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
-
   for (Task* t : tasks_) {
     // get handle to dfg
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
     // extract dfg vom dsg
     dfg.extractFromUniformSG( *combinedUniDSG_ );
 
     // dehierarchize dfg
     DistributedHierarchization::dehierarchize<CombiDataType>( dfg );
+    MASTER_EXCLUSIVE_SECTION{
+      if (t->getID() == 3){
+        std::cout<<"After extraction: "<<t->getID()<<": "<<combiParameters_.getCoeff( t->getID() ) <<std::endl;
+        dfg.print(std::cout);
+      }
+    }
   }
 
 }
@@ -440,7 +481,7 @@ void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
   // get handle to dfg
   DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
 
-  // extract dfg vom dsg
+  // extract dfg from dsg
   dfg.extractFromUniformSG( *combinedUniDSG_ );
 
   // dehierarchize dfg
@@ -464,7 +505,7 @@ void ProcessGroupWorker::searchSDC(){
 
   std::vector<int> levelsSDC;
   if( method == COMPARE_PAIRS )
-    comparePairs( 2, levelsSDC );
+    comparePairsSerial( 2, levelsSDC );
   if( method == COMPARE_VALUES )
     compareValues();
 
@@ -492,7 +533,7 @@ void ProcessGroupWorker::searchSDC(){
   }
 }
 
-void ProcessGroupWorker::comparePairs( int numNearestNeighbors, std::vector<int> &levelsSDC ){
+void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::vector<int> &levelsSDC ){
 
   /* Generate all pairs of grids */
   std::vector<std::vector<Task*>> allPairs;
@@ -564,9 +605,16 @@ void ProcessGroupWorker::comparePairs( int numNearestNeighbors, std::vector<int>
 
   if(b != allBetas.end()) {
 
+    std::cout<<"allBetas:\n";
+    for(auto jj : allBetas)
+      std::cout<<jj<<" ";
+    std::cout<<std::endl;
+
     size_t indMax = std::distance(allBetas.begin(), b);
 
     LevelVector subMax = allSubs[indMax];
+    std::cout<<"Subspace with SDC = "<<subMax<<std::endl;
+
     size_t jMax = allJs[indMax];
 
     int numMeasurements = 0;
@@ -610,7 +658,110 @@ void ProcessGroupWorker::comparePairs( int numNearestNeighbors, std::vector<int>
 
   }
 }
+void ProcessGroupWorker::comparePairsSerial( int numNearestNeighbors, std::vector<int> &levelsSDC ){
 
+  /* Generate all pairs of grids */
+  std::vector<std::vector<Task*>> allPairs;
+
+  generatePairs( numNearestNeighbors, allPairs );
+
+  std::vector<CombiDataType> allBetas;
+  std::vector<size_t> allJs;
+  size_t jMax;
+
+  //  MPI_File_open(theMPISystem()->getLocalComm(), "out/all-betas-0.txt", MPI_MODE_CREATE|MPI_MODE_RDWR, MPI_INFO_NULL, &betasFile_ );
+  const DimType dim = combiParameters_.getDim();
+  LevelVector lmax = combiParameters_.getLMax();
+  const std::vector<bool>& boundary = combiParameters_.getBoundary();
+
+  for (auto pair : allPairs){
+
+    FullGrid<CombiDataType> fg_red(dim, lmax, boundary);
+    FullGrid<CombiDataType> fg_t(dim, pair[0]->getLevelVector(), boundary );
+    FullGrid<CombiDataType> fg_s(dim, pair[1]->getLevelVector(), boundary );
+    CombiDataType localBetaMax(0.0);
+    jMax = 0;
+
+    // create the empty grid on only on localroot
+    MASTER_EXCLUSIVE_SECTION {
+      fg_red.createFullGrid();
+      fg_t.createFullGrid();
+      fg_s.createFullGrid();
+    }
+
+    pair[0]->getFullGrid( fg_t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm() );
+    pair[1]->getFullGrid( fg_s, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm() );
+
+    MPI_Barrier(theMPISystem()->getLocalComm());
+    MASTER_EXCLUSIVE_SECTION{
+      fg_red.add(fg_t, 1.0 );
+      fg_red.add(fg_s, -1.0 );
+      Hierarchization::hierarchize<CombiDataType>(fg_red);
+      auto data_red = fg_red.getData();
+      for (size_t j = 0; j < fg_red.getNrElements(); ++j){
+        if (std::abs(data_red[j]) > std::abs(localBetaMax)){
+          localBetaMax = data_red[j];
+          jMax = j;
+        }
+      }
+      allBetas.push_back( localBetaMax );
+      allJs.push_back( jMax );
+    }
+  }
+
+  MASTER_EXCLUSIVE_SECTION{
+    auto globalBetaMax = std::max_element(allBetas.begin(), allBetas.end(),
+        [](CombiDataType a, CombiDataType b){ return std::abs(a) < std::abs(b); } );
+
+    auto b = std::find( allBetas.begin(), allBetas.end(), *globalBetaMax );
+    size_t indMax = std::distance(allBetas.begin(), b);
+    jMax = allJs[indMax];
+
+    FullGrid<CombiDataType> fg_red(dim, lmax, boundary);
+    // create the empty grid on only on localroot
+    fg_red.createFullGrid();
+    LevelVector sdcLevel(dim);
+    IndexVector indexes(dim);
+    fg_red.getLI(jMax, sdcLevel,indexes);
+    std::cout<<"SDC Level = " << sdcLevel<<", jMax = "<<jMax << ", gBMax = "<< *globalBetaMax<<std::endl;
+    fg_red.deleteFullGrid();
+  }
+  for (auto pair : allPairs){
+
+    FullGrid<CombiDataType> fg_red(dim, lmax, boundary);
+    MASTER_EXCLUSIVE_SECTION{
+      // create the empty grid on only on localroot
+      fg_red.createFullGrid();
+    }
+
+    FullGrid<CombiDataType> fg_t(pair[0]->getDim(), pair[0]->getLevelVector(), boundary );
+    FullGrid<CombiDataType> fg_s(pair[1]->getDim(), pair[1]->getLevelVector(), boundary );
+
+    LevelVector t_level = pair[0]->getLevelVector();
+    LevelVector s_level = pair[1]->getLevelVector();
+
+    MASTER_EXCLUSIVE_SECTION{
+      fg_t.createFullGrid();
+      fg_s.createFullGrid();
+    }
+
+    pair[0]->getFullGrid( fg_t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm() );
+    pair[1]->getFullGrid( fg_s, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm() );
+
+    MASTER_EXCLUSIVE_SECTION{
+      fg_red.add(fg_t, 1.0 );
+      fg_red.add(fg_s, -1.0 );
+
+      auto data = fg_red.getData();
+      CombiDataType localBetaMax = data[jMax];
+
+      betas_[std::make_pair(t_level, s_level)] = localBetaMax;
+    }
+  }
+  MASTER_EXCLUSIVE_SECTION{
+    filterSDCPython( levelsSDC );
+  }
+}
 int ProcessGroupWorker::compareValues(){
 }
 
@@ -693,7 +844,7 @@ void ProcessGroupWorker::generatePairs( int numNearestNeighbors, std::vector<std
   }
 }
 
-void ProcessGroupWorker::filterSDC( std::vector<int> &levelsSDC ){
+void ProcessGroupWorker::filterSDCGSL( std::vector<int> &levelsSDC ){
 
   // Number of measurements (beta values)
   size_t n = betas_.size();
@@ -892,12 +1043,12 @@ void ProcessGroupWorker::filterSDCPython( std::vector<int> &levelsSDC ){
 
   namespace py = boost::python;
 
+  // Cal Python routines
   Py_Initialize();
   py::object main_module = py::import("__main__");
   py::dict main_namespace = py::extract<py::dict>(main_module.attr("__dict__"));
   main_namespace["lmin"] = lmin[0];
   main_namespace["lmax"] = lmax[0];
-//  py::exec("betasDict = {}",main_namespace);
   py::exec("t_train = [] \n"
            "y_train = []",main_namespace);
   py::dict dictionary;
@@ -910,7 +1061,6 @@ void ProcessGroupWorker::filterSDCPython( std::vector<int> &levelsSDC ){
     main_namespace["l1"] = l1;
     main_namespace["l2"] = l2;
     main_namespace["beta"] = entry.second;
-//    py::exec("betasDict[tuple(l1),tuple(l2)] = beta", main_namespace);
     py::exec("t_train.append((tuple(l1),tuple(l2))) \n"
              "y_train.append(beta)", main_namespace);
   }
@@ -920,10 +1070,13 @@ void ProcessGroupWorker::filterSDCPython( std::vector<int> &levelsSDC ){
   catch (py::error_already_set) {
     PyErr_Print();
   }
+  // Obtain standardized LMS residuals
   py::object r_stand_lms = main_namespace["r_stand_lms"];
   std::vector<CombiDataType> stand_residuals;
   for(size_t i = 0; i < n; ++i)
     stand_residuals.push_back(py::extract<CombiDataType>(r_stand_lms[i]));
+
+  // Look for outliers
   std::map<LevelVector,int> mapSDC;
   for ( auto const &entry : betas_ ){
     LevelVector key_t = entry.first.first;
@@ -954,42 +1107,4 @@ void ProcessGroupWorker::filterSDCPython( std::vector<int> &levelsSDC ){
     }
   }
 }
-//  void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-//                      real coeff) {
-//    // test if dsg has already been registered
-//    if (&dsg != dsg_)
-//      registerUniformSG(dsg);
-//
-//    // create iterator for each subspace in dfg
-//    typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
-//    typename std::vector<SubspaceIterator> it_sub(
-//      subspaceAssigmentList_.size());
-//
-//    for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
-//      if (subspaceAssigmentList_[subFgId] < 0)
-//        continue;
-//
-//      IndexType subSgId = subspaceAssigmentList_[subFgId];
-//
-//      it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
-//    }
-//
-//    // loop over all grid points
-//    for (size_t i = 0; i < fullgridVector_.size(); ++i) {
-//      // get subspace_fg id
-//      size_t subFgId(assigmentList_[i]);
-//
-//      if (subspaceAssigmentList_[subFgId] < 0)
-//        continue;
-//
-//      IndexType subSgId = subspaceAssigmentList_[subFgId];
-//
-//      assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
-//
-//      // add grid point to subspace, mul with coeff
-//      *it_sub[subFgId] += coeff * fullgridVector_[i];
-//
-//      ++it_sub[subFgId];
-//    }
-//  }
 } /* namespace combigrid */

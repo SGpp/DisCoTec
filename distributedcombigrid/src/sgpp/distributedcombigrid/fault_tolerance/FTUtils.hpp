@@ -124,8 +124,10 @@ struct FaultsInfo {
 public:
   int numFaults_;
   IndexVector iterationFaults_;
-  IndexVector globalRankFaults_;
+  IndexVector localRankFaults_;
   IndexVector taskFaults_;
+  CombiDataType sdcMag_;
+  int sdcSub_;
 private:
   friend class boost::serialization::access;
   // serialize
@@ -138,8 +140,10 @@ template<class Archive>
 void FaultsInfo::serialize(Archive& ar, const unsigned int version) {
   ar& numFaults_;
   ar& iterationFaults_;
-  ar& globalRankFaults_;
+  ar& localRankFaults_;
   ar& taskFaults_;
+  ar& sdcMag_;
+  ar& sdcSub_;
 }
 
 } // namespace combigrid

@@ -9,20 +9,20 @@ static bool CHECK_NPROCS( int nprocs ){
 
     return size == nprocs;
 }
-
-BOOST_AUTO_TEST_CASE( bla4 ){
-  if( CHECK_NPROCS(4) ){
-    std::cout << "I'm with 4" << std::endl;
-
-    BOOST_CHECK( true );
-  }
-}
-
-
-BOOST_AUTO_TEST_CASE( bla8 ){
-  if( CHECK_NPROCS(8) ){
-    std::cout << "I'm with 8" << std::endl;
-
-    BOOST_CHECK( true );
-  }
-}
+//
+//BOOST_AUTO_TEST_CASE( bla4 ){
+//  if( CHECK_NPROCS(4) ){
+//    std::cout << "I'm with 4" << std::endl;
+//
+//    BOOST_CHECK( true );
+//  }
+//}
+//
+//
+//BOOST_AUTO_TEST_CASE( bla8 ){
+//  if( CHECK_NPROCS(8) ){
+//    std::cout << "I'm with 8" << std::endl;
+//
+//    BOOST_CHECK( true );
+//  }
+//}

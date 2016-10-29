@@ -92,9 +92,9 @@ class ProcessManager {
 
   void redistribute( std::vector<int>& taskID );
 
-  void recompute( std::vector<int>& taskID );
+  void reinit( std::vector<int>& taskID );
 
-  void recover();
+  void recompute( std::vector<int>& taskID );
 
   void recoverCommunicators();
 

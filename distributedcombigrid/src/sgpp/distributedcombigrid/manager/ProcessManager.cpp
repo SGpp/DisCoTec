@@ -167,7 +167,43 @@ void ProcessManager::redistribute( std::vector<int>& taskID ) {
   std::cout << "Redistribute finished" << std::endl;
 }
 
+void ProcessManager::reinit( std::vector<int>& taskID ) {
 
+  for (size_t i = 0; i < taskID.size(); ++i) {
+    // find id in list of tasks
+    Task* t = NULL;
+
+    for ( Task* tmp : tasks_ ) {
+      if ( tmp->getID() == taskID[i] ) {
+        t = tmp;
+        break;
+      }
+    }
+    assert( t != NULL );
+    // wait for available process group
+    for ( auto p : pgroups_ ){
+      TaskContainer groupTasks = p->getTaskContainer();
+      if (std::find(groupTasks.begin(), groupTasks.end(), t) != groupTasks.end()){
+        p->reinitTask(t);
+        break;
+      }
+    }
+  }
+
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+
+  }
+
+  std::cout << "Reinitialize finished" << std::endl;
+}
 void ProcessManager::recompute( std::vector<int>& taskID ) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
@@ -229,30 +265,6 @@ void ProcessManager::recoverCommunicators(){
   for( size_t i=0; i<pgroups_.size(); ++i ){
     pgroups_[i]->setMasterRank( int(i) );
   }
-}
-
-void ProcessManager::recover(){
-
-  std::vector<int> faultsID;
-  getGroupFaultIDs(faultsID);
-
-  /* call optimization code to find new coefficients */
-  const std::string prob_name = "interpolation based optimization";
-  std::vector<int> redistributeFaultsID, recomputeFaultsID;
-  recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
-
-  /* recover communicators*/
-  recoverCommunicators();
-
-  /* redistribute failed tasks to living groups */
-  redistribute(faultsID);
-
-  /* communicate new combination scheme*/
-  updateCombiParameters();
-
-  /* if some tasks have to be recomputed, do so*/
-  if(!recomputeFaultsID.empty())
-    recompute(recomputeFaultsID);
 }
 
 void ProcessManager::restoreCombischeme() {
