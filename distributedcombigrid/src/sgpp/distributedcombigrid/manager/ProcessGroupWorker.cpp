@@ -217,21 +217,18 @@ SignalType ProcessGroupWorker::wait() {
 
     MPI_Barrier(theMPISystem()->getLocalComm());
 
-    // initalize task and set values to zero
-    // the task will get the proper initial solution during the next combine
-    t->init( theMPISystem()->getLocalComm() );
-    t->setZero();
-    t->setFinished( true );
-    // todo: careful -> dehier is done here!
-    setCombinedSolutionUniform( t );
-    MASTER_EXCLUSIVE_SECTION{
-      if (t->getID() == 3){
-        std::cout<<"After reinit: "<<t->getID()<<std::endl;
-        t->getDistributedFullGrid().print(std::cout);
+    for (auto tt : tasks_){
+      if (tt->getID() == t->getID()){
+        currentTask_ = tt;
+        break;
       }
     }
-    status_ = PROCESS_GROUP_BUSY;
 
+    // initalize task and set values to zero
+    currentTask_->init( theMPISystem()->getLocalComm() );
+    currentTask_->setZero();
+    setCombinedSolutionUniform( currentTask_ );
+    currentTask_->setFinished(true);
   }
 
   // in the general case: send ready signal.
@@ -342,12 +339,7 @@ void ProcessGroupWorker::combineUniform() {
   for (Task* t : tasks_) {
 
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-    MASTER_EXCLUSIVE_SECTION{
-      if (t->getID() == 3){
-        std::cout<<"Before combine: "<<t->getID()<<": "<<combiParameters_.getCoeff( t->getID() ) <<std::endl;
-        dfg.print(std::cout);
-      }
-    }
+
     // hierarchize dfg
     DistributedHierarchization::hierarchize<CombiDataType>(dfg);
 
@@ -364,12 +356,12 @@ void ProcessGroupWorker::combineUniform() {
 
     // dehierarchize dfg
     DistributedHierarchization::dehierarchize<CombiDataType>( dfg );
-    MASTER_EXCLUSIVE_SECTION{
-      if (t->getID() == 3){
-        std::cout<<"After extraction: "<<t->getID()<<": "<<combiParameters_.getCoeff( t->getID() ) <<std::endl;
-        dfg.print(std::cout);
-      }
-    }
+//    MASTER_EXCLUSIVE_SECTION{
+//      if (t->getID() == 3){
+//        std::cout<<"After extraction (after deh): "<<t->getID()<<": "<<combiParameters_.getCoeff( t->getID() ) <<std::endl;
+//        dfg.print(std::cout);
+//      }
+//    }
   }
 
 }
@@ -505,7 +497,7 @@ void ProcessGroupWorker::searchSDC(){
 
   std::vector<int> levelsSDC;
   if( method == COMPARE_PAIRS )
-    comparePairsSerial( 2, levelsSDC );
+    comparePairsDistributed( 2, levelsSDC );
   if( method == COMPARE_VALUES )
     compareValues();
 
@@ -535,6 +527,16 @@ void ProcessGroupWorker::searchSDC(){
 
 void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::vector<int> &levelsSDC ){
 
+  DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = new DistributedSparseGridUniform<CombiDataType>(
+      combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
+      combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
+
+  for (auto t : tasks_){
+    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
+    dfg.registerUniformSG( *SDCUniDSG );
+  }
+
   /* Generate all pairs of grids */
   std::vector<std::vector<Task*>> allPairs;
 
@@ -544,29 +546,13 @@ void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::
   std::vector<CombiDataType> allBetasSum;
   std::vector<LevelVector> allSubs;
   std::vector<size_t> allJs;
-
-//  MPI_File_open(theMPISystem()->getLocalComm(), "out/all-betas-0.txt", MPI_MODE_CREATE|MPI_MODE_RDWR, MPI_INFO_NULL, &betasFile_ );
-
   for (auto pair : allPairs){
 
     DistributedFullGrid<CombiDataType>& dfg_t = pair[0]->getDistributedFullGrid();
     DistributedFullGrid<CombiDataType>& dfg_s = pair[1]->getDistributedFullGrid();
 
-    LevelVector t_level = pair[0]->getLevelVector();
-    LevelVector s_level = pair[1]->getLevelVector();
-
-    DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = new DistributedSparseGridUniform<CombiDataType>(
-        combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
-        combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
-
-    dfg_t.registerUniformSG( *SDCUniDSG );
-    dfg_s.registerUniformSG( *SDCUniDSG );
-
     dfg_t.addToUniformSG( *SDCUniDSG, 1.0 );
-    dfg_s.addToUniformSG( *SDCUniDSG, -1.0, false );
-    LevelVector common_level;
-    for (size_t i = 0; i < t_level.size(); ++i)
-      common_level.push_back( (t_level[i] <= s_level[i]) ? t_level[i] : s_level[i] );
+    dfg_s.addToUniformSG( *SDCUniDSG, -1.0 );
 
     CombiDataType localBetaMax(0.0);
 
@@ -574,21 +560,23 @@ void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::
     size_t jMax = 0;
 
     for (size_t i = 0; i < SDCUniDSG->getNumSubspaces(); ++i){
-      if (SDCUniDSG->getLevelVector(i) <= common_level){
-        auto subData = SDCUniDSG->getData(i);
-        auto subSize = SDCUniDSG->getDataSize(i);
-        for (size_t j = 0; j < subSize; ++j){
-          if (std::abs(subData[j]) > std::abs(localBetaMax)){
-            localBetaMax = subData[j];
-            subMax = SDCUniDSG->getLevelVector(i);
-            jMax = j;
-          }
+      auto subData = SDCUniDSG->getData(i);
+      auto subSize = SDCUniDSG->getDataSize(i);
+      for (size_t j = 0; j < subSize; ++j){
+        if (std::abs(subData[j]) > std::abs(localBetaMax)){
+          localBetaMax = subData[j];
+          subMax = SDCUniDSG->getLevelVector(i);
+          jMax = j;
         }
       }
     }
     allBetas.push_back( localBetaMax );
     allSubs.push_back( subMax );
     allJs.push_back( jMax );
+
+    // Remove from sparse grid
+    dfg_t.addToUniformSG( *SDCUniDSG, -1.0 );
+    dfg_s.addToUniformSG( *SDCUniDSG, 1.0 );
   }
 
   std::vector<CombiDataType> allBetasReduced;
@@ -603,12 +591,8 @@ void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::
 
   betas_.clear();
 
-  if(b != allBetas.end()) {
 
-    std::cout<<"allBetas:\n";
-    for(auto jj : allBetas)
-      std::cout<<jj<<" ";
-    std::cout<<std::endl;
+  if(b != allBetas.end()) {
 
     size_t indMax = std::distance(allBetas.begin(), b);
 
@@ -616,8 +600,6 @@ void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::
     std::cout<<"Subspace with SDC = "<<subMax<<std::endl;
 
     size_t jMax = allJs[indMax];
-
-    int numMeasurements = 0;
 
     for (auto pair : allPairs){
 
@@ -627,35 +609,24 @@ void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::
       LevelVector t_level = pair[0]->getLevelVector();
       LevelVector s_level = pair[1]->getLevelVector();
 
-      DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = new DistributedSparseGridUniform<CombiDataType>(
-          combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
-          combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
-
-      dfg_t.registerUniformSG( *SDCUniDSG );
-      dfg_s.registerUniformSG( *SDCUniDSG );
-
       dfg_t.addToUniformSG( *SDCUniDSG, 1.0 );
-      dfg_s.addToUniformSG( *SDCUniDSG, -1.0, false );
+      dfg_s.addToUniformSG( *SDCUniDSG, -1.0 );
 
-      LevelVector common_level;
-      for (size_t i = 0; i < t_level.size(); ++i)
-        common_level.push_back( (t_level[i] <= s_level[i]) ? t_level[i] : s_level[i] );
+      auto subData = SDCUniDSG->getData(subMax);
+      CombiDataType localBetaMax = subData[jMax];
+      betas_[std::make_pair(t_level, s_level)] = localBetaMax;
 
-      if (subMax <= common_level){
-        auto subData = SDCUniDSG->getData(subMax);
-        CombiDataType localBetaMax = subData[jMax];
-        betas_[std::make_pair(t_level, s_level)] = localBetaMax;
-        numMeasurements++;
-      }
-      else
-        betas_[std::make_pair(t_level, s_level)] = 0;
+      dfg_t.addToUniformSG( *SDCUniDSG, -1.0 );
+      dfg_s.addToUniformSG( *SDCUniDSG, 1.0 );
     }
 
-//    if ( numMeasurements >= 5 ) // Otherwise we have too few measurements
-      filterSDCPython( levelsSDC );
+    filterSDCPython( levelsSDC );
 
-//    MPI_File_close( &betasFile_ );
-
+  }
+  MPI_Barrier(theMPISystem()->getLocalComm());
+  for (auto t : tasks_){
+    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
   }
 }
 void ProcessGroupWorker::comparePairsSerial( int numNearestNeighbors, std::vector<int> &levelsSDC ){
@@ -751,7 +722,7 @@ void ProcessGroupWorker::comparePairsSerial( int numNearestNeighbors, std::vecto
     MASTER_EXCLUSIVE_SECTION{
       fg_red.add(fg_t, 1.0 );
       fg_red.add(fg_s, -1.0 );
-
+      Hierarchization::hierarchize<CombiDataType>(fg_red);
       auto data = fg_red.getData();
       CombiDataType localBetaMax = data[jMax];
 

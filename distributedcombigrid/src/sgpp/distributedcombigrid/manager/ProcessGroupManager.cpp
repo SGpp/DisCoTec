@@ -144,12 +144,12 @@ bool ProcessGroupManager::addTask( Task* t ) {
 }
 bool ProcessGroupManager::reinitTask( Task* t ) {
   // first check status
-  // tying to add a task to a busy group is an invalid operation
+  // tying to reinit a task in a busy group is an invalid operation
   // and should be avoided
   if (status_ != PROCESS_GROUP_WAIT)
     return false;
 
-  // send add task signal to pgroup
+  // send reinit task signal to pgroup
   SignalType signal = REINIT_TASK;
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
 

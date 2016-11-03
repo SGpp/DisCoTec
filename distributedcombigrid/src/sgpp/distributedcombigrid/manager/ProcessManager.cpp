@@ -180,7 +180,7 @@ void ProcessManager::reinit( std::vector<int>& taskID ) {
       }
     }
     assert( t != NULL );
-    // wait for available process group
+    // send signal to group where task failed
     for ( auto p : pgroups_ ){
       TaskContainer groupTasks = p->getTaskContainer();
       if (std::find(groupTasks.begin(), groupTasks.end(), t) != groupTasks.end()){
