@@ -19,6 +19,7 @@
 #include <gsl/gsl_statistics.h>
 #include <gsl/gsl_sort.h>
 #include <gsl/gsl_sort_vector.h>
+#include <gsl/gsl_blas.h>
 
 namespace combigrid {
 
@@ -62,6 +63,8 @@ class ProcessGroupWorker {
   void comparePairsSerial( int numNearestNeighbors, std::vector<int> &levelsSDC );
 
   int compareValues();
+
+  void computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_lms );
 
   /* Generates a list of pairs of tasks, so that for each task
    * that a worker has, we find its K nearest neighbors. The distance
