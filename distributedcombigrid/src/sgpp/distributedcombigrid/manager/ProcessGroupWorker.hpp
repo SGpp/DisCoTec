@@ -77,6 +77,8 @@ class ProcessGroupWorker {
 
   void filterSDCPython( std::vector<int> &levelsSDC );
 
+  void detectOutliers( double* r_lms ,std::vector<int> &levelsSDC );
+
  private:
   TaskContainer tasks_; // task storage
 
