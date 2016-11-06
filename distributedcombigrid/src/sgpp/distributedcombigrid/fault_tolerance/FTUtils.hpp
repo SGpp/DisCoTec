@@ -73,7 +73,7 @@ CombigridDict create_out_dict(const CombigridDict& given_downset,
 std::string set_aux_var_name(const std::string& var_name, const int& index);
 
 /* generates no_of_levels random faults */
-int generate_random_fault(const int& no_of_levels);
+//int generate_random_fault(const int& no_of_levels);
 
 /* used to generate random variables for the W matrix in the optimization problem */
 std::vector<real> gen_rand(const int& size);

@@ -298,13 +298,13 @@ std::string set_aux_var_name(const std::string& var_name, const int& index) {
   return aux_var.str();
 }
 // generate integer random numbers between 0 and #levels-1
-int generate_random_fault(const int& no_of_levels) {
-  std::random_device dev;
-  std::mt19937 rng(dev());
-  std::uniform_int_distribution<int> rand_num(0, no_of_levels - 1);
-
-  return rand_num(rng);
-}
+//int generate_random_fault(const int& no_of_levels) {
+//  std::random_device dev;
+//  std::mt19937 rng(dev());
+//  std::uniform_int_distribution<int> rand_num(0, no_of_levels - 1);
+//
+//  return rand_num(rng);
+//}
 
 std::vector<double> gen_rand(const int& size) {
   double rand_var = 0.0;
