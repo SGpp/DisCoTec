@@ -64,7 +64,7 @@ class ProcessGroupWorker {
 
   int compareValues();
 
-  void computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_lms );
+  void computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms );
 
   /* Generates a list of pairs of tasks, so that for each task
    * that a worker has, we find its K nearest neighbors. The distance
