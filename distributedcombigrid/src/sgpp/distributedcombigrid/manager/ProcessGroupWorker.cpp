@@ -18,8 +18,6 @@
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
 #include "sgpp/distributedcombigrid/hierarchization/Hierarchization.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
-#include <Python.h>
-#include <boost/python.hpp>
 #include <set>
 
 namespace combigrid {
@@ -626,7 +624,6 @@ void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::
       }
     }
 
-//    filterSDCPython( levelsSDC );
     filterSDCGSL( levelsSDC );
 
   }
@@ -737,7 +734,7 @@ void ProcessGroupWorker::comparePairsSerial( int numNearestNeighbors, std::vecto
     }
   }
   MASTER_EXCLUSIVE_SECTION{
-    filterSDCPython( levelsSDC );
+    filterSDCGSL( levelsSDC );
   }
 }
 
@@ -1010,64 +1007,6 @@ void ProcessGroupWorker::filterSDCGSL( std::vector<int> &levelsSDC ){
   gsl_vector_free(y);
   gsl_vector_free(c);
   gsl_multifit_robust_free(regressionWsp);
-}
-
-void ProcessGroupWorker::filterSDCPython( std::vector<int> &levelsSDC ){
-
-  // Number of measurements (beta values)
-  size_t n = betas_.size();
-
-  auto lmin = combiParameters_.getLMin();
-  auto lmax = combiParameters_.getLMax();
-  size_t diff = lmax[0] - lmin[0] + 1;
-
-  // Number of unknowns (functions D1, D2, and D12)
-  size_t p = 2*diff;
-
-  if ( n < p )
-    return;
-
-  namespace py = boost::python;
-
-  // Cal Python routines
-  Py_Initialize();
-  py::object main_module = py::import("__main__");
-  py::dict main_namespace = py::extract<py::dict>(main_module.attr("__dict__"));
-  main_namespace["lmin"] = lmin[0];
-  main_namespace["lmax"] = lmax[0];
-  py::exec("t_train = [] \n"
-           "y_train = []", main_namespace);
-  py::dict dictionary;
-  for( auto const &entry : betas_ ){
-    py::list l1,l2;
-
-    for(auto v: entry.first.first)
-      l1.append(v);
-
-    for(auto v: entry.first.second)
-      l2.append(v);
-
-    main_namespace["l1"] = l1;
-    main_namespace["l2"] = l2;
-    main_namespace["beta"] = entry.second;
-    py::exec("t_train.append((tuple(l1),tuple(l2))) \n"
-             "y_train.append(beta)", main_namespace);
-  }
-  try{
-    py::object result = py::exec_file("outlier.py", main_namespace);
-  }
-  catch (py::error_already_set) {
-    PyErr_Print();
-  }
-
-  // Obtain standardized LMS residuals
-  py::object r_lms_py = main_namespace["r_lms"];
-  std::vector<CombiDataType> r_lms;
-  for(size_t i = 0; i < n; ++i)
-    r_lms.push_back(py::extract<CombiDataType>(r_lms_py[i]));
-
-  // Look for outliers
-  detectOutliers( r_lms.data(), levelsSDC );
 }
 
 void ProcessGroupWorker::detectOutliers( double* r_lms ,std::vector<int> &levelsSDC ){

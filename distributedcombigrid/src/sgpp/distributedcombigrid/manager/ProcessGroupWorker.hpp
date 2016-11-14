@@ -75,8 +75,6 @@ class ProcessGroupWorker {
 
   void filterSDCGSL( std::vector<int> &levelsSDC );
 
-  void filterSDCPython( std::vector<int> &levelsSDC );
-
   void detectOutliers( double* r_lms ,std::vector<int> &levelsSDC );
 
  private:
