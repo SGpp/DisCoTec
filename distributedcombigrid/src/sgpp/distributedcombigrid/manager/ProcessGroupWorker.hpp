@@ -62,7 +62,9 @@ class ProcessGroupWorker {
 
   void comparePairsSerial( int numNearestNeighbors, std::vector<int> &levelsSDC );
 
-  int compareValues();
+  void comparePairsTests( int numNearestNeighbors, std::vector<int> &levelsSDC );
+
+  int compareValues( int numNearestNeighbors, std::vector<int> &levelsSDC );
 
   void computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms );
 
@@ -75,9 +77,10 @@ class ProcessGroupWorker {
 
   void filterSDCGSL( std::vector<int> &levelsSDC );
 
-  void detectOutliers( double* r_lms ,std::vector<int> &levelsSDC );
+  void detectOutliers( double* r_lms ,std::vector<int> &levelsSDC, double eps );
 
  private:
+
   TaskContainer tasks_; // task storage
 
   Task* currentTask_;
@@ -96,7 +99,9 @@ class ProcessGroupWorker {
 
   MPI_File betasFile_;
 
-  std::map <std::pair<LevelVector,LevelVector>, CombiDataType> betas_;
+  std::map <std::pair<LevelVector, LevelVector>, CombiDataType> betas_;
+
+  std::map <LevelVector, CombiDataType> subspaceValues_;
 
   void setCombinedSolutionUniform( Task* t );
 };
