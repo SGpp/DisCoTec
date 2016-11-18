@@ -525,7 +525,7 @@ void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::
       combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
       combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
 
-  MPI_File_open(theMPISystem()->getLocalComm(), "out/all-betas-0.txt", MPI_MODE_CREATE|MPI_MODE_RDWR, MPI_INFO_NULL, &betasFile_ );
+  //MPI_File_open(theMPISystem()->getLocalComm(), "out/all-betas-0.txt", MPI_MODE_CREATE|MPI_MODE_RDWR, MPI_INFO_NULL, &betasFile_ );
 
   for (auto t : tasks_){
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
@@ -570,9 +570,14 @@ void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::
     allSubs.push_back( subMax );
     allJs.push_back( jMax );
 
-    // Remove from sparse grid
-    dfg_t.addToUniformSG( *SDCUniDSG, -1.0 );
-    dfg_s.addToUniformSG( *SDCUniDSG, 1.0 );
+    // Reset sparse grid to zero
+    for (size_t i = 0; i < SDCUniDSG->getNumSubspaces(); ++i){
+      auto subData = SDCUniDSG->getData(i);
+      auto subSize = SDCUniDSG->getDataSize(i);
+      for (size_t j = 0; j < subSize; ++j)
+        subData[j] = 0.0;
+    }
+
   }
 
   std::vector<CombiDataType> allBetasReduced;
@@ -612,12 +617,17 @@ void ProcessGroupWorker::comparePairsDistributed( int numNearestNeighbors, std::
       CombiDataType localBetaMax = subData[jMax];
       betas_[std::make_pair(t_level, s_level)] = localBetaMax;
 
-      dfg_t.addToUniformSG( *SDCUniDSG, -1.0 );
-      dfg_s.addToUniformSG( *SDCUniDSG, 1.0 );
+      // Reset sparse grid to zero
+      for (size_t i = 0; i < SDCUniDSG->getNumSubspaces(); ++i){
+        auto subData = SDCUniDSG->getData(i);
+        auto subSize = SDCUniDSG->getDataSize(i);
+        for (size_t j = 0; j < subSize; ++j)
+          subData[j] = 0.0;
+      }
     }
 
-    filterSDCPython( levelsSDC );
-//    filterSDCGSL( levelsSDC );
+ //   filterSDCPython( levelsSDC );
+    filterSDCGSL( levelsSDC );
 
   }
   MPI_Barrier(theMPISystem()->getLocalComm());
@@ -749,12 +759,12 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
   gsl_vector_memcpy(r_stand, regressionStats.r);
   gsl_vector_memcpy(r_lms, regressionStats.r);
 
+  std::cout<<"Residuals:\n";
+  for(size_t i = 0; i < regressionStats.r->size; ++i)
+    std::cout<<regressionStats.r->data[i]<<" ";
+
   for (size_t i = 0; i < r->size; ++i)
     gsl_vector_set(r2, i, std::pow(gsl_vector_get(r, i),2));
-
-  std::cout<<"Residuals2:\n";
-  for(size_t i = 0; i < regressionStats.r->size; ++i)
-    std::cout<<r2->data[i]<<" ";
 
   gsl_vector_memcpy(r2_sorted, r2);
   gsl_sort_vector(r2_sorted);
@@ -766,7 +776,7 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
   // Preliminary scale estimate
   double s0 = 1.4826*( 1 + 5.0/(n-p-1))*(std::sqrt(median_r2));
 
-  std::cout<<"s0 ="<<s0<<std::endl;
+  std::cout<<"s0 = "<<s0<<std::endl;
   // Standardized residuals
   gsl_vector_scale(r_stand, 1.0/s0);
 
@@ -781,20 +791,17 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
   std::cout<<"Stand Residuals:\n";
   for(size_t i = 0; i < regressionStats.r->size; ++i)
     std::cout<<r_stand->data[i]<<" ";
+
   // Robust scale estimate
   double prod;
   gsl_blas_ddot( weights, r2, &prod );
-  std::cout<<"Prod = "<<prod<<std::endl;
 
   double sum;
   gsl_vector_set_all( ones, 1 );
   gsl_blas_ddot( weights, ones, &sum );
-  std::cout<<"Sum = "<<sum<<std::endl;
+
   double s_star = std::sqrt(prod/(sum-p));
 
-  std::cout<<"Residuals:\n";
-  for(size_t i = 0; i < regressionStats.r->size; ++i)
-    std::cout<<regressionStats.r->data[i]<<" ";
   std::cout<<"s_star = "<<s_star<<std::endl;
   gsl_vector_scale( r_lms, 1.0/s_star );
   std::cout<<"LMS Residuals:\n";
@@ -897,17 +904,18 @@ void ProcessGroupWorker::filterSDCGSL( std::vector<int> &levelsSDC ){
   if ( n < p )
     return;
 
-  gsl_multifit_robust_workspace *regressionWsp = gsl_multifit_robust_alloc(gsl_multifit_robust_default, n , p );
+  gsl_multifit_robust_workspace *regressionWsp = gsl_multifit_robust_alloc(gsl_multifit_robust_cauchy, n , p );
 
-//  double tune_const = 6.0;
+//  double tune_const = 1.0;
 //  gsl_multifit_robust_tune( tune_const, regressionWsp );
 
-  //  gsl_multifit_robust_maxiter( 100, regressionWsp );
+  //gsl_multifit_robust_maxiter( 100, regressionWsp );
 
   gsl_matrix *X = gsl_matrix_alloc( n, p );
   gsl_vector *y = gsl_vector_alloc( n );
   gsl_vector *c = gsl_vector_alloc( p );
   gsl_vector *r_lms = gsl_vector_alloc( n );
+  gsl_vector *rt = gsl_vector_alloc( n );
   gsl_matrix *cov = gsl_matrix_alloc( p, p );
 
   // Initialize matrix with zeros
@@ -951,9 +959,28 @@ void ProcessGroupWorker::filterSDCGSL( std::vector<int> &levelsSDC ){
   gsl_set_error_handler_off();
   gsl_multifit_robust( X, y, c, cov, regressionWsp );
 
-  gsl_multifit_robust_stats regressionStats = gsl_multifit_robust_statistics( regressionWsp );
+  gsl_vector_memcpy(rt,y);
 
-  computeLMSResiduals( regressionWsp, r_lms );
+  gsl_blas_dgemv(CblasNoTrans, 1, X, c, 0.0, rt);
+
+  std::cout<<"\nMeasured yi:\n";
+  for(size_t i = 0; i < y->size; ++i)
+    std::cout<<y->data[i]<<" ";
+
+  std::cout<<"\nCalculated yi:\n";
+  for(size_t i = 0; i < rt->size; ++i)
+    std::cout<<rt->data[i]<<" ";
+
+  gsl_vector_memcpy(rt,y);
+  gsl_blas_dgemv(CblasNoTrans, -1.0, X, c, 1.0, rt);
+  std::cout<<"\nCalculated ri:\n";
+  for(size_t i = 0; i < rt->size; ++i)
+    std::cout<<rt->data[i]<<" ";
+
+  gsl_multifit_robust_stats regressionStats = gsl_multifit_robust_statistics( regressionWsp );
+  gsl_multifit_robust_residuals(X, y, c, r_lms, regressionWsp);
+
+  //computeLMSResiduals( regressionWsp, r_lms );
 
   detectOutliers( r_lms->data, levelsSDC );
 
@@ -967,8 +994,8 @@ void ProcessGroupWorker::filterSDCGSL( std::vector<int> &levelsSDC ){
     CombiDataType beta = entry.second;
     CombiDataType res = r_lms->data[row];
     buf<<key_t <<","<< key_s <<","<<beta<<","<< res <<std::endl;
-    MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
-    MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
+    //MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
+    //MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
     std::cout<<buf.str();
     buf.str("");
     row++;
@@ -977,8 +1004,8 @@ void ProcessGroupWorker::filterSDCGSL( std::vector<int> &levelsSDC ){
   buf << c->size << std::endl;
   for( size_t i = 0; i < c->size; ++i){
     buf << c->data[i]<<std::endl;
-    MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
-    MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
+    //MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
+    //MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
     buf.str("");
   }
 

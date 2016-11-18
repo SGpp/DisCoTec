@@ -7,6 +7,7 @@ import distutils.sysconfig
 import os
 import subprocess
 import re
+import sys
 
 import Helper
 
@@ -18,6 +19,18 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
                                        "CheckJNI" : Helper.CheckJNI,
                                        "CheckFlag" : Helper.CheckFlag})
 
+  # boost library
+  #TODO: add check and error
+  config.env.AppendUnique(CPPPATH=[config.env['BOOST_INCLUDE_PATH']])
+  config.env.AppendUnique(LIBPATH=[config.env['BOOST_LIBRARY_PATH']])
+  
+  # glpk library
+  config.env.AppendUnique(CPPPATH=[config.env['GLPK_INCLUDE_PATH']])
+  config.env.AppendUnique(LIBPATH=[config.env['GLPK_LIBRARY_PATH']])
+
+  # gsl library
+  config.env.AppendUnique(CPPPATH=[config.env['GSL_INCLUDE_PATH']])
+  config.env.AppendUnique(LIBPATH=[config.env['GSL_LIBRARY_PATH']])
   # now set up all further environment settings that should never fail
   # compiler setup should be always after checking headers and flags,
   # as they can make the checks invalid, e.g., by setting "-Werror"
@@ -28,6 +41,9 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
     env.Append(CPPFLAGS=["-O3", "-g"])
   else:
     env.Append(CPPFLAGS=["-g", "-O0"])
+
+  if env['USE_STATICLIB']:
+     env.Append(CPPFLAGS=['-D_USE_STATICLIB'])
 
   # make settings case-insensitive
   env["COMPILER"] = env["COMPILER"].lower()
@@ -108,6 +124,30 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
     config.env['NVCCFLAGS'] = "-ccbin " + config.env["CXX"] + " -std=c++11 -Xcompiler -fpic,-Wall "# + flagsToForward
     # config.env.AppendUnique(LIBPATH=['/usr/local.nfs/sw/cuda/cuda-7.5/'])
 
+  if not config.CheckCXXHeader('glpk.h'):
+      sys.stderr.write("Warning: glpk library cannot be found.\n")
+
+      install_res = False
+      while True:
+      	sys.stdout.write("Would you like to install it? [Y/n] ")
+      	sys.stdout.flush()
+      	resp = sys.stdin.readline()
+      	if len(resp) > 2: 
+      		continue   # ask again
+      	else:
+      		if resp[0].lower() == 'n':
+      			sys.stderr.write("\nglpk library installation skipped\n\n")
+      			break
+      		elif resp[0].lower() == 'y' or len(resp) == 1:
+      			install_res = install_glpk()
+      			if install_res == True:
+      				sys.stderr.write("\nglpk library installed successfully!\n\n")
+      			else:
+      				sys.stderr.write("\nglpk library installation failed! Manual installation might be required or dependencies failed.\n\n")
+      			break
+      		else: 
+      			continue   # ask again
+      sys.stdout.flush()
   env = config.Finish()
 
   print "Configuration done."

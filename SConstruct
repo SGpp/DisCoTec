@@ -113,6 +113,10 @@ vars.Add("OCL_INCLUDE_PATH", "Set path to the OpenCL header files (parent direct
 vars.Add("OCL_LIBRARY_PATH", "Set path to the OpenCL library")
 vars.Add("BOOST_INCLUDE_PATH", "Set path to the Boost header files", "/usr/include")
 vars.Add("BOOST_LIBRARY_PATH", "Set path to the Boost library", "/usr/lib/x86_64-linux-gnu")
+vars.Add("GLPK_INCLUDE_PATH", 'Specifies the location of the GLPK header files.', '/usr/include')
+vars.Add("GLPK_LIBRARY_PATH", 'Specifies the location of the GLPK library.', '/usr/lib64')
+vars.Add("GSL_INCLUDE_PATH", 'Specifies the location of the GLPK header files.', '/usr/include')
+vars.Add("GSL_LIBRARY_PATH", 'Specifies the location of the GLPK library.', '/usr/lib64')
 vars.Add(BoolVariable("COMPILE_BOOST_TESTS",
                       "Compile the test cases written using Boost Test", True))
 vars.Add(BoolVariable("COMPILE_BOOST_PERFORMANCE_TESTS",
@@ -133,6 +137,7 @@ vars.Add(BoolVariable("USE_GMMPP", "Set if Gmm++ should be used " +
                                    "(only relevant for sgpp::optimization)", False))
 vars.Add(BoolVariable("USE_UMFPACK", "Set if UMFPACK should be used " +
                                      "(only relevant for sgpp::optimization)", False))
+vars.Add(BoolVariable('USE_STATICLIB', 'Sets if a static library should be built.', False))
 vars.Add(BoolVariable("BUILD_STATICLIB", "Set if static libraries should be built " +
                                          "instead of shared libraries", False))
 vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing SG++", True))
