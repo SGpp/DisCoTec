@@ -334,16 +334,16 @@ void ProcessGroupWorker::combineUniform() {
     dfg.registerUniformSG(*combinedUniDSG_);
   }
 
-  for (Task* t : tasks_) {
-
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-    // hierarchize dfg
-    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
-
-    // lokales reduce auf sg ->
-    dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
-  }
+//  for (Task* t : tasks_) {
+//
+//    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+//
+//    // hierarchize dfg
+//    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
+//
+//    // lokales reduce auf sg ->
+//    dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
+//  }
 
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
   for (Task* t : tasks_) {
@@ -488,7 +488,8 @@ void ProcessGroupWorker::searchSDC(){
       theMPISystem()->getLocalComm() );
 
   std::vector<int> levelsSDC;
-  compareSolutions( combiParameters_.getDim(), levelsSDC, method );
+//  compareSolutions( combiParameters_.getDim(), levelsSDC, method );
+  compareSolutions( 2, levelsSDC, method );
 
   int numLocalSDC = levelsSDC.size();
   int numGlobalSDC;
@@ -650,10 +651,10 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
     }
   }
   MPI_Barrier(theMPISystem()->getLocalComm());
-  for (auto t : tasks_){
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
-  }
+//  for (auto t : tasks_){
+//    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+//    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
+//  }
 }
 
 void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms ){
@@ -890,8 +891,15 @@ void ProcessGroupWorker::robustRegressionPairs( std::vector<int> &levelsSDC ){
 
   gsl_multifit_robust_residuals(X, y, c, r_stud, regressionWsp);
 
-  double eps = 2.5;
-  detectOutliers( r_stud->data, levelsSDC, eps, COMPARE_PAIRS );
+  // Before checking the residuals, check the data for extremely large values
+  double eps = 1e50;
+  detectOutliers( y->data, levelsSDC, eps, COMPARE_PAIRS);
+
+  // Now we can check for large residuals
+  if(levelsSDC.size() == 0){
+    eps = 2.5;
+    detectOutliers( r_stud->data, levelsSDC, eps, COMPARE_PAIRS );
+  }
 
   // Write pairs and their beta values to file
   std::stringstream buf;
@@ -984,8 +992,15 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
 
   computeLMSResiduals( regressionWsp, r_stud, r_lms );
 
-  double eps = 2.5;
-  detectOutliers( r_lms->data, levelsSDC, eps, COMPARE_VALUES );
+  // Before checking the residuals, check the data for extremely large values
+  double eps = 1e50;
+  detectOutliers( y->data, levelsSDC, eps, COMPARE_VALUES );
+
+  // Now we can check for large residuals
+  if(levelsSDC.size() == 0){
+    eps = 2.5;
+    detectOutliers( r_lms->data, levelsSDC, eps, COMPARE_VALUES );
+  }
 
   // Write pairs and their beta values to file
   std::stringstream buf;
@@ -1020,7 +1035,7 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   gsl_multifit_robust_free(regressionWsp);
 }
 
-void ProcessGroupWorker::detectOutliers( double* residuals, std::vector<int> &levelsSDC, double eps, SDCMethodType method ){
+void ProcessGroupWorker::detectOutliers( double* data, std::vector<int> &levelsSDC, double eps, SDCMethodType method ){
 
   std::map<LevelVector,int> mapSDC;
   for ( auto t : tasks_ ){
@@ -1036,7 +1051,7 @@ void ProcessGroupWorker::detectOutliers( double* residuals, std::vector<int> &le
       LevelVector key_t = entry.first.first;
       LevelVector key_s = entry.first.second;
       CombiDataType beta = entry.second;
-      if ( std::abs(residuals[row]) > eps && beta != 0 ){
+      if ( std::abs(data[row]) > eps && beta != 0 ){
         mapSDC[key_t]++;
         mapSDC[key_s]++;
         numSDCPairs++;
@@ -1055,7 +1070,7 @@ void ProcessGroupWorker::detectOutliers( double* residuals, std::vector<int> &le
   if ( method == COMPARE_VALUES ) {
     for( auto const &entry : subspaceValues_ ){
       LevelVector key = entry.first;
-      if ( std::abs(residuals[row]) > eps )
+      if ( std::abs(data[row]) > eps )
         mapSDC[key]++;
       row++;
     }

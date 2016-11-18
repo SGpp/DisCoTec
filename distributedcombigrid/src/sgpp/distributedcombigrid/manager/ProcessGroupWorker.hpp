@@ -73,7 +73,7 @@ class ProcessGroupWorker {
 
   void robustRegressionValues( std::vector<int> &levelsSDC );
 
-  void detectOutliers( double* residuals,std::vector<int> &levelsSDC, double eps, SDCMethodType method );
+  void detectOutliers( double* residuals, std::vector<int> &levelsSDC, double eps, SDCMethodType method );
 
  private:
 
