@@ -128,6 +128,7 @@ public:
   IndexVector taskFaults_;
   CombiDataType sdcMag_;
   int sdcSub_;
+  int sdcMethod_;
 private:
   friend class boost::serialization::access;
   // serialize
@@ -144,6 +145,7 @@ void FaultsInfo::serialize(Archive& ar, const unsigned int version) {
   ar& taskFaults_;
   ar& sdcMag_;
   ar& sdcSub_;
+  ar& sdcMethod_;
 }
 
 } // namespace combigrid

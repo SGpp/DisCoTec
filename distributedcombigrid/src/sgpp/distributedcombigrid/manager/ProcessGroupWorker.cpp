@@ -556,7 +556,7 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
       auto subData = SDCUniDSG->getData(i);
       auto subSize = SDCUniDSG->getDataSize(i);
       for (size_t j = 0; j < subSize; ++j){
-        if (std::abs(subData[j]) > std::abs(localBetaMax)){
+        if (std::abs(subData[j]) >= std::abs(localBetaMax)){
           localBetaMax = subData[j];
           subMax = SDCUniDSG->getLevelVector(i);
           jMax = j;
@@ -587,6 +587,9 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
 
   auto b = std::find( allBetas.begin(), allBetas.end(), *globalBetaMax );
 
+  betas_.clear();
+  subspaceValues_.clear();
+
   if(b != allBetas.end()) {
 
     size_t indMax = std::distance(allBetas.begin(), b);
@@ -597,8 +600,6 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
     size_t jMax = allJs[indMax];
 
     if ( method == COMPARE_PAIRS ) {
-
-      betas_.clear();
 
       for (auto pair : allPairs){
 
@@ -627,8 +628,6 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
     }
     if ( method == COMPARE_VALUES ) {
 
-      subspaceValues_.clear();
-
       for (auto t: tasks_){
 
         LevelVector level = t->getLevelVector();
@@ -639,6 +638,7 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
 
         auto subData = SDCUniDSG->getData(subMax);
         CombiDataType localValMax = subData[jMax];
+
         // todo: this is a dumb test (should check for subspace instead)
         if ( subMax <= level )
           subspaceValues_[level] = localValMax;
