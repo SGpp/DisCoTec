@@ -58,13 +58,9 @@ class ProcessGroupWorker {
    * (or only between neighboring ones if onlyNearestNeighbors = true)
    * according to the paper on SDC detection. If the difference is large,
    * a soft fault might have occurred. */
-  void comparePairsDistributed( int numNearestNeighbors, std::vector<int> &levelsSDC );
+  void compareSolutions( int numNearestNeighbors, std::vector<int> &levelsSDC, SDCMethodType method );
 
-  void comparePairsSerial( int numNearestNeighbors, std::vector<int> &levelsSDC );
-
-  int compareValues();
-
-  void computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_lms );
+  void computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms );
 
   /* Generates a list of pairs of tasks, so that for each task
    * that a worker has, we find its K nearest neighbors. The distance
@@ -73,13 +69,14 @@ class ProcessGroupWorker {
    * */
   void generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs);
 
-  void filterSDCGSL( std::vector<int> &levelsSDC );
+  void robustRegressionPairs( std::vector<int> &levelsSDC );
 
-  void filterSDCPython( std::vector<int> &levelsSDC );
+  void robustRegressionValues( std::vector<int> &levelsSDC );
 
-  void detectOutliers( double* r_lms ,std::vector<int> &levelsSDC );
+  void detectOutliers( double* residuals, std::vector<int> &levelsSDC, double eps, SDCMethodType method );
 
  private:
+
   TaskContainer tasks_; // task storage
 
   Task* currentTask_;
@@ -98,7 +95,9 @@ class ProcessGroupWorker {
 
   MPI_File betasFile_;
 
-  std::map <std::pair<LevelVector,LevelVector>, CombiDataType> betas_;
+  std::map <std::pair<LevelVector, LevelVector>, CombiDataType> betas_;
+
+  std::map <LevelVector, CombiDataType> subspaceValues_;
 
   void setCombinedSolutionUniform( Task* t );
 };

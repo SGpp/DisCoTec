@@ -946,7 +946,7 @@ class DistributedFullGrid {
         CombiDataType minAbsVal = std::min(std::abs(*it_sub[subFgId]), std::abs(fullgridVector_[i]));
         *it_sub[subFgId] += coeff * fullgridVector_[i];
         // todo: what is a good tolerance?
-        if (minAbsVal > 1e-6){
+        if (minAbsVal > 1e-10){
 //          *it_sub[subFgId] = std::abs(*it_sub[subFgId]);
           *it_sub[subFgId] /= minAbsVal;
         }
