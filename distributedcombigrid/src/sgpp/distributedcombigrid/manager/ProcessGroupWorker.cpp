@@ -334,16 +334,16 @@ void ProcessGroupWorker::combineUniform() {
     dfg.registerUniformSG(*combinedUniDSG_);
   }
 
-//  for (Task* t : tasks_) {
-//
-//    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-//
-//    // hierarchize dfg
-//    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
-//
-//    // lokales reduce auf sg ->
-//    dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
-//  }
+  for (Task* t : tasks_) {
+
+    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+
+    // hierarchize dfg
+    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
+
+    // lokales reduce auf sg ->
+    dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
+  }
 
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
   for (Task* t : tasks_) {
@@ -556,7 +556,7 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
       auto subData = SDCUniDSG->getData(i);
       auto subSize = SDCUniDSG->getDataSize(i);
       for (size_t j = 0; j < subSize; ++j){
-        if (std::abs(subData[j]) > std::abs(localBetaMax)){
+        if (std::abs(subData[j]) >= std::abs(localBetaMax)){
           localBetaMax = subData[j];
           subMax = SDCUniDSG->getLevelVector(i);
           jMax = j;
@@ -588,6 +588,7 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
   auto b = std::find( allBetas.begin(), allBetas.end(), *globalBetaMax );
 
   betas_.clear();
+  subspaceValues_.clear();
 
   if(b != allBetas.end()) {
 
@@ -599,6 +600,7 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
     size_t jMax = allJs[indMax];
 
     if ( method == COMPARE_PAIRS ) {
+
       for (auto pair : allPairs){
 
         DistributedFullGrid<CombiDataType>& dfg_t = pair[0]->getDistributedFullGrid();
@@ -625,6 +627,7 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
     robustRegressionPairs( levelsSDC );
     }
     if ( method == COMPARE_VALUES ) {
+
       for (auto t: tasks_){
 
         LevelVector level = t->getLevelVector();
@@ -635,8 +638,9 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
 
         auto subData = SDCUniDSG->getData(subMax);
         CombiDataType localValMax = subData[jMax];
+
         // todo: this is a dumb test (should check for subspace instead)
-        if (localValMax != 0)
+        if ( subMax <= level )
           subspaceValues_[level] = localValMax;
 
         // Reset sparse grid to zero
@@ -651,10 +655,10 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
     }
   }
   MPI_Barrier(theMPISystem()->getLocalComm());
-//  for (auto t : tasks_){
-//    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-//    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
-//  }
+  for (auto t : tasks_){
+    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
+  }
 }
 
 void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms ){
