@@ -318,28 +318,28 @@ void ProcessGroupWorker::combineUniform() {
       lmax[i] -= 1;
 
   // todo: delete old dsg
-  if (combinedUniDSG_ != NULL)
-    delete combinedUniDSG_;
+//  if (combinedUniDSG_ != NULL)
+//    delete combinedUniDSG_;
 
   // erzeug dsg
-  combinedUniDSG_ = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
-      lmin, boundary,
-      theMPISystem()->getLocalComm());
+//  combinedUniDSG_ = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
+//      lmin, boundary,
+//      theMPISystem()->getLocalComm());
 
   // todo: move to init function to avoid reregistering
   // register dsg in all dfgs
-  for (Task* t : tasks_) {
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-    dfg.registerUniformSG(*combinedUniDSG_);
-  }
+//  for (Task* t : tasks_) {
+//    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+//
+//    dfg.registerUniformSG(*combinedUniDSG_);
+//  }
 
   for (Task* t : tasks_) {
 
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
 
     // hierarchize dfg
-    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
+//    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
 
     // lokales reduce auf sg ->
     dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
@@ -517,10 +517,18 @@ void ProcessGroupWorker::searchSDC(){
 
 void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<int> &levelsSDC, SDCMethodType method ){
 
-  DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = new DistributedSparseGridUniform<CombiDataType>(
+  // todo: delete old dsg
+  if (combinedUniDSG_ != NULL)
+    delete combinedUniDSG_;
+
+  // erzeug dsg
+//  DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = new DistributedSparseGridUniform<CombiDataType>(
+//      combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
+//      combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
+  combinedUniDSG_ = new DistributedSparseGridUniform<CombiDataType>(
       combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
       combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
-
+DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
 //  MPI_File_open(theMPISystem()->getLocalComm(), "out/all-betas-0.txt", MPI_MODE_CREATE|MPI_MODE_RDWR, MPI_INFO_NULL, &betasFile_ );
 
   for (auto t : tasks_){
@@ -639,7 +647,6 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
         auto subData = SDCUniDSG->getData(subMax);
         CombiDataType localValMax = subData[jMax];
 
-        // todo: this is a dumb test (should check for subspace instead)
         if ( subMax <= level )
           subspaceValues_[level] = localValMax;
 
@@ -654,11 +661,12 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
     robustRegressionValues( levelsSDC );
     }
   }
+  // todo: Barrier needed?
   MPI_Barrier(theMPISystem()->getLocalComm());
-  for (auto t : tasks_){
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
-  }
+//  for (auto t : tasks_){
+//    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+//    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
+//  }
 }
 
 void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms ){
@@ -950,11 +958,6 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   // Number of unknowns (values of functions D_i)
   size_t p = 1;
 
-  if ( n < 3 ){
-    std::cout<<"Too few measurements: SDC detection skipped."<<std::endl;
-    return;
-  }
-
   gsl_multifit_robust_workspace *regressionWsp = gsl_multifit_robust_alloc(gsl_multifit_robust_cauchy, n , p );
 
   gsl_matrix *X = gsl_matrix_alloc( n, p );
@@ -971,10 +974,17 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   int row  = 0;
   for( auto const &entry : subspaceValues_){
     CombiDataType maxVal = entry.second;
-
     gsl_vector_set( y, row, maxVal );
-
     row++;
+  }
+
+  // Before checking the residuals, check the data for extremely large values
+  double eps = 1e50;
+  detectOutliers( y->data, levelsSDC, eps, COMPARE_VALUES );
+
+  if ( n < 3 ){
+    std::cout<<"Too few measurements: Robust regression skipped."<<std::endl;
+    return;
   }
 
   gsl_set_error_handler_off();
@@ -995,10 +1005,6 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   gsl_multifit_robust_residuals(X, y, c, r_stud, regressionWsp);
 
   computeLMSResiduals( regressionWsp, r_stud, r_lms );
-
-  // Before checking the residuals, check the data for extremely large values
-  double eps = 1e50;
-  detectOutliers( y->data, levelsSDC, eps, COMPARE_VALUES );
 
   // Now we can check for large residuals
   if(levelsSDC.size() == 0){
