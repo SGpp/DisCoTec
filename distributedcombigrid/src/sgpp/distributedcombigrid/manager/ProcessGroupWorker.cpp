@@ -537,6 +537,9 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
     dfg.registerUniformSG( *SDCUniDSG );
   }
 
+  if ( tasks_.size() == 1 )
+    return;
+
   /* Generate all pairs of grids */
   std::vector<std::vector<Task*>> allPairs;
 

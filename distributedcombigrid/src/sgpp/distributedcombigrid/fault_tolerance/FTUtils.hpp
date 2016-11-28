@@ -126,8 +126,8 @@ public:
   IndexVector iterationFaults_;
   IndexVector localRankFaults_;
   IndexVector taskFaults_;
+  IndexVector sdcIndex_;
   CombiDataType sdcMag_;
-  int sdcSub_;
   int sdcMethod_;
 private:
   friend class boost::serialization::access;
@@ -143,8 +143,8 @@ void FaultsInfo::serialize(Archive& ar, const unsigned int version) {
   ar& iterationFaults_;
   ar& localRankFaults_;
   ar& taskFaults_;
+  ar& sdcIndex_;
   ar& sdcMag_;
-  ar& sdcSub_;
   ar& sdcMethod_;
 }
 
