@@ -46,6 +46,7 @@ LP_OPT_INTERP::LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim,
   }
 
   no_faults = static_cast<int>(valid_input_faults.size());
+  no_faults_recompute = static_cast<int>(recompute_faults.size());
 
   if (no_faults == 0) {
     std::cout << "No faults to fix." << std::endl;
@@ -339,6 +340,14 @@ CombigridDict LP_OPT_INTERP::get_results( LevelVectorList& recomp_faults ) const
 
 int LP_OPT_INTERP::getNumFaults(){
   return no_faults;
+}
+
+int LP_OPT_INTERP::getNumFaultsRecompute(){
+  return no_faults_recompute;
+}
+
+LevelVectorList LP_OPT_INTERP::getFaultsRecompute(){
+  return recompute_faults;
 }
 
 LP_OPT_INTERP::~LP_OPT_INTERP() {

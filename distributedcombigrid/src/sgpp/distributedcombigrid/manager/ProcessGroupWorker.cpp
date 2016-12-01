@@ -500,7 +500,7 @@ void ProcessGroupWorker::searchSDC(){
       if (!theMPISystem()->isMaster()){
         MPI_Send( &levelsSDC[0], numLocalSDC, MPI_INT, theMPISystem()->getMasterRank(), infoTag, theMPISystem()->getLocalComm() );
       }
-    }else{
+    } else {
       MASTER_EXCLUSIVE_SECTION{
         levelsSDC.resize(tasks_.size());
         MPI_Recv( &levelsSDC[0], tasks_.size(), MPI_INT, MPI_ANY_SOURCE, infoTag, theMPISystem()->getLocalComm(), &statusSDC );

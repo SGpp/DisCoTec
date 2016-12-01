@@ -27,6 +27,9 @@ private:
 
   /* no. of constraints */
   int no_faults;
+
+  /* no. of faults to recompute*/
+  int no_faults_recompute;
   /* level max sum */
   IndexType l_max;
 
@@ -71,6 +74,10 @@ public:
   virtual void set_constr_matrix(const std::vector<real>& W);
 
   virtual int getNumFaults();
+
+  virtual int getNumFaultsRecompute();
+
+  virtual LevelVectorList getFaultsRecompute();
 
   virtual void solve_opti_problem() const;
 

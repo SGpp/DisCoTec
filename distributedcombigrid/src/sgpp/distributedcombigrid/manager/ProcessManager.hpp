@@ -265,9 +265,9 @@ ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
 
   std::map<int, LevelVector> IDsToLevels = params_.getLevelsDict();
   LevelVectorList faultLevelVectors;
-  for (auto id : faultsID)
+  for (auto id : faultsID){
     faultLevelVectors.push_back(IDsToLevels[id]);
-
+  }
 
   LevelVectorList lvlminmax;
   lvlminmax.push_back(params_.getLMin());
@@ -308,6 +308,13 @@ ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
     std::set_difference(faultsID.begin(), faultsID.end(),
                         recomputeFaultsID.begin(), recomputeFaultsID.end(),
                         std::inserter(redistributeFaultsID, redistributeFaultsID.begin()));
+  }else if( opt_interp.getNumFaultsRecompute() != 0 ){
+
+    LevelVectorList recomputeLevelVectors = opt_interp.getFaultsRecompute();
+    std::map<LevelVector, int> LevelsToIDs = params_.getLevelsToIDs();
+    for(auto l : recomputeLevelVectors){
+      recomputeFaultsID.push_back(LevelsToIDs[l]);
+    }
   }
 }
 
