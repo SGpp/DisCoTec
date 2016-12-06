@@ -488,8 +488,8 @@ void ProcessGroupWorker::searchSDC(){
       theMPISystem()->getLocalComm() );
 
   std::vector<int> levelsSDC;
-//  compareSolutions( combiParameters_.getDim(), levelsSDC, method );
-  compareSolutions( 2, levelsSDC, method );
+  compareSolutions( combiParameters_.getDim(), levelsSDC, method );
+//  compareSolutions( 2, levelsSDC, method );
 
   int numLocalSDC = levelsSDC.size();
   int numGlobalSDC;
@@ -985,7 +985,7 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   double eps = 1e50;
   detectOutliers( y->data, levelsSDC, eps, COMPARE_VALUES );
 
-  if ( n < 3 ){
+  if ( n < 5 ){
     std::cout<<"Too few measurements: Robust regression skipped."<<std::endl;
     return;
   }
@@ -1007,7 +1007,7 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
 
   gsl_multifit_robust_residuals(X, y, c, r_stud, regressionWsp);
 
-  computeLMSResiduals( regressionWsp, r_stud, r_lms );
+  computeLMSResiduals( regressionWsp, regressionWsp->r, r_lms );
 
   // Now we can check for large residuals
   if(levelsSDC.size() == 0){
