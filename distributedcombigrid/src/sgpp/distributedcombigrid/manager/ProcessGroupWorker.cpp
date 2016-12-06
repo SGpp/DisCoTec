@@ -601,6 +601,7 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
   betas_.clear();
   subspaceValues_.clear();
 
+  // The following is only done by the process that contains the suspicious value
   if(b != allBetas.end()) {
 
     size_t indMax = std::distance(allBetas.begin(), b);
@@ -610,6 +611,37 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
 
     size_t jMax = allJs[indMax];
 
+    if ( method == COMPARE_VALUES ) {
+
+      for (auto t: tasks_){
+
+        LevelVector level = t->getLevelVector();
+
+        DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+
+        dfg.addToUniformSG( *SDCUniDSG, 1.0 );
+
+        auto subData = SDCUniDSG->getData(subMax);
+        CombiDataType localValMax = subData[jMax];
+
+        if ( subMax <= level )
+          subspaceValues_[level] = localValMax;
+
+        // Reset sparse grid to zero
+        for (size_t i = 0; i < SDCUniDSG->getNumSubspaces(); ++i){
+          auto subData = SDCUniDSG->getData(i);
+          auto subSize = SDCUniDSG->getDataSize(i);
+          for (size_t j = 0; j < subSize; ++j)
+            subData[j] = 0.0;
+        }
+      }
+      if( subspaceValues_.size() < 5 ){
+        std::cout<<"To few measurements. Changing strategy to search pairs."<<std::endl;
+        method = COMPARE_PAIRS;
+      } else {
+        robustRegressionValues( levelsSDC );
+      }
+    }
     if ( method == COMPARE_PAIRS ) {
 
       for (auto pair : allPairs){
@@ -636,32 +668,6 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
         }
       }
     robustRegressionPairs( levelsSDC );
-    }
-    if ( method == COMPARE_VALUES ) {
-
-      for (auto t: tasks_){
-
-        LevelVector level = t->getLevelVector();
-
-        DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-        dfg.addToUniformSG( *SDCUniDSG, 1.0 );
-
-        auto subData = SDCUniDSG->getData(subMax);
-        CombiDataType localValMax = subData[jMax];
-
-        if ( subMax <= level )
-          subspaceValues_[level] = localValMax;
-
-        // Reset sparse grid to zero
-        for (size_t i = 0; i < SDCUniDSG->getNumSubspaces(); ++i){
-          auto subData = SDCUniDSG->getData(i);
-          auto subSize = SDCUniDSG->getDataSize(i);
-          for (size_t j = 0; j < subSize; ++j)
-            subData[j] = 0.0;
-        }
-      }
-    robustRegressionValues( levelsSDC );
     }
   }
   // todo: Barrier needed?
