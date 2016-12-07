@@ -124,7 +124,6 @@ struct FaultsInfo {
 public:
   int numFaults_;
   IndexVector iterationFaults_;
-  IndexVector localRankFaults_;
   IndexVector taskFaults_;
   IndexVector sdcIndex_;
   CombiDataType sdcMag_;
@@ -141,7 +140,6 @@ template<class Archive>
 void FaultsInfo::serialize(Archive& ar, const unsigned int version) {
   ar& numFaults_;
   ar& iterationFaults_;
-  ar& localRankFaults_;
   ar& taskFaults_;
   ar& sdcIndex_;
   ar& sdcMag_;
