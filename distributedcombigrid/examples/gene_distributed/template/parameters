@@ -30,11 +30,11 @@ diagdir = './'
 chptdir = './'
 
 read_checkpoint  = F
-write_checkpoint = T
+write_checkpoint = T 
 
 istep_field =     1
 istep_mom   =     -100
-istep_nrg   =      -10
+istep_nrg   =      10
 istep_omega =     $istep_omega 
 istep_vsp   =     -500
 istep_schpt =    -500

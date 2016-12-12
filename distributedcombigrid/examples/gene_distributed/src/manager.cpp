@@ -227,22 +227,22 @@ int main(int argc, char** argv) {
       }
 
       manager.combine();
-
-      // evaluate solution
-      FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-      manager.gridEval(fg_eval);
-
-      // write solution to file
-      std::string filename = fg_file_prefix
-          + boost::lexical_cast<std::string>( i ) + ".dat";
-      //fg_eval.save( filename );
-
-      // write solution in plotable format
-      fg_eval.writePlotFile( "plot.dat" );
-
-      // create GENE checkpoint
-      GeneTask::saveCheckpoint( fg_eval, "checkpoint" );
     }
+
+    // evaluate solution
+    FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
+    manager.gridEval(fg_eval);
+
+    // write solution to file
+    //std::string filename = fg_file_prefix
+    //    + boost::lexical_cast<std::string>( i ) + ".dat";
+    //fg_eval.save( filename );
+
+    // write solution in plotable format
+    fg_eval.writePlotFile( "plot.dat" );
+
+    // create GENE checkpoint
+    GeneTask::saveCheckpoint( fg_eval, "checkpoint" );
 
     myfile.close();
 

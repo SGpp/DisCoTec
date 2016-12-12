@@ -45,7 +45,8 @@ assert( boundary[5] == false );//nspec
 
 GeneTask::GeneTask() :
     checkpoint_(),
-    dfg_(NULL)
+    dfg_(NULL),
+    nrg_(0.0)
 {
 }
 
@@ -456,6 +457,9 @@ void GeneTask::setDFG(){
 
   // adapt z-boundary
   adaptBoundaryZ();
+
+  // normalize
+  normalizeDFG();
 }
 
 
@@ -697,6 +701,7 @@ void GeneTask::adaptBoundaryZglobal(){
   MPI_Waitall( requests.size(), &requests[0], MPI_STATUSES_IGNORE );
 
   // todo: multiply with factor
+  assert( false && "no factor correction" );
 }
 
 
@@ -737,5 +742,63 @@ void GeneTask::getDFG(){
     std::cout << "getDFG" << std::endl;
   }
 }
+
+
+/* we normalize the magnitude by the square root of nrg0 (first entry in nrg.dat)
+ * we also normalize the average phase to zero
+ */
+void GeneTask::normalizeDFG(){
+  const bool normalizePhase = false;
+  const bool normalizeAmplitude = false;
+
+  // 1: normalize phase
+
+  if( normalizePhase ){
+    // compute local mean value of dfg
+    CombiDataType localMean(0.0);
+    std::vector<CombiDataType>& data = dfg_->getElementVector();
+    for( size_t i=0; i<data.size(); ++i )
+      localMean += data[i];
+
+    // allreduce mean to get global mean value
+    CombiDataType globalMean(0.0);
+    MPI_Allreduce( &localMean, &globalMean, 1,
+                   dfg_->getMPIDatatype(), MPI_SUM,
+                   theMPISystem()->getLocalComm() );
+
+
+    // subtract phase of local mean from all values of dfg
+    real phaseShift = std::arg(globalMean);
+    for( size_t i=0; i<data.size(); ++i )
+      data[i] *= std::exp( - complex(0,1) * phaseShift );
+
+    MASTER_EXCLUSIVE_SECTION{
+      std::cout << "phase shift = " << phaseShift << std::endl;
+    }
+  }
+
+
+  // 2: normalize magnitude
+
+  if(normalizeAmplitude){
+    // get squared value of nrg0 (only available on master process)
+    real factor = 1.0 / std::sqrt(nrg_);
+
+    // broadcast to other procs
+    MPI_Bcast( &factor
+        , 1, MPI_DOUBLE,
+               theMPISystem()->getMasterRank(),
+               theMPISystem()->getLocalComm() );
+
+    // divide values of dfg
+    std::vector<CombiDataType>& data = dfg_->getElementVector();
+    for( size_t i=0; i<data.size(); ++i )
+      data[i] *= factor;
+  }
+
+}
+
+
+
 
 } /* namespace combigrid */

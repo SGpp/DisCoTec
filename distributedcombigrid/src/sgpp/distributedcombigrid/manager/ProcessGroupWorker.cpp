@@ -295,9 +295,11 @@ void ProcessGroupWorker::combineUniform() {
   }
 
   // compute global max norm
+
   real globalMax;
   MPI_Allreduce(  &localMax, &globalMax, 1, MPI_DOUBLE,
                   MPI_MAX, theMPISystem()->getGlobalReduceComm() );
+
 
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
 
@@ -313,10 +315,12 @@ void ProcessGroupWorker::combineUniform() {
         dfg, combiParameters_.getHierarchizationDims() );
 
     // if exceeds normalization limit, normalize dfg with global max norm
+
     if( globalMax > 1000 ){
       dfg.mul( 1.0 / globalMax );
       std::cout << "normalized dfg with " << globalMax << std::endl;
     }
+
   }
 
 }
@@ -376,8 +380,17 @@ void ProcessGroupWorker::gridEval() {
     MASTER_EXCLUSIVE_SECTION{
       // todo: remove
       // save fg file for debugging
-      std::string tmp( "fg.dat" );
-      fg.save( tmp );
+      //std::string tmp( "fg.dat" );
+      //fg.save( tmp );
+
+      // todo: remove. works only for small grids. also hard coded path
+      int id = t->getID();
+      std::string path = std::string("/home/heenemo/workspace/combi-gene/distributedcombigrid/examples/gene_distributed/")
+                         + "ginstance" + boost::lexical_cast<std::string>( id )
+                         + "/fg.dat";
+      FullGrid<CombiDataType> fg_plot(dim, leval, boundary);
+      fg_plot.add( fg, 1.0 );
+      fg_plot.writePlotFile( path.c_str() );
 
       fg_red.add(fg, combiParameters_.getCoeff( t->getID() ) );
     }

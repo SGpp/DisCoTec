@@ -82,6 +82,10 @@ public:
 
   void getDFG();
 
+  void normalizeDFG();
+
+  inline void setNrg(real nrg);
+
 private:
   friend class boost::serialization::access;
 
@@ -109,6 +113,7 @@ private:
   // serialized
   GeneLocalCheckpoint checkpoint_;
   DistributedFullGrid<CombiDataType>* dfg_;
+  real nrg_;
 
   // serialize
   template<class Archive>
@@ -144,6 +149,14 @@ inline GeneLocalCheckpoint& GeneTask::getLocalCheckpoint(){
   return checkpoint_;
 }
 
+
+inline void GeneTask::setNrg(real nrg){
+  nrg_ = nrg;
+
+  MASTER_EXCLUSIVE_SECTION{
+    std::cout << "task " << this->getID() << " nrg = " << nrg_ << std::endl;
+  }
+}
 
 
 
