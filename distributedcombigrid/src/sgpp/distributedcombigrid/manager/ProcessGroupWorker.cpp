@@ -717,6 +717,7 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
 
   // Threshold for residuals
   double eps = 2.5;
+  // Weights for each residual
   for(size_t i = 0; i < r_stand->size; ++i){
     if(std::abs(r_stand->data[i]) <= eps)
       gsl_vector_set(weights, i, 1);
