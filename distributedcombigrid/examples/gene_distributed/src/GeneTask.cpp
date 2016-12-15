@@ -507,7 +507,7 @@ void GeneTask::adaptBoundaryZlocal(){
       for( size_t l=0; l < dfgShape[2]; ++l ) //v
           for( size_t j=0; j < dfgShape[4]; ++j ) //y
             for( size_t i=0; i < nkx; ++i ){ //x
-              // ignore highest mode
+              // ignore highest mode, because it is always zero
               if( i == nkx/2 )
                 continue;
 
@@ -515,8 +515,8 @@ void GeneTask::adaptBoundaryZlocal(){
               IndexType kx_star = (i + xoffset)%nkx;
 
               // if kx* is the highest mode, increase by one
-              if( kx_star == nkx/2 )
-                kx_star += 1;
+              //if( kx_star == nkx/2 )
+              //  kx_star += 1;
 
               // this should never happen
               assert( kx_star < nkx);
@@ -535,9 +535,16 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor ){
 
   xoffset = N;
   factor = std::pow(-1.0,N);
+
+  // i think this function is only right if nky=1
+  assert( l_[1] == 1 && boundary_[1] == false );
 }
 
 
+/* name may be misleading, this is for local iv compuations
+ * global refers to a global adaption of the z-boundary conditions, which is
+ * the case when there is more than one process in this direction
+ */
 void GeneTask::adaptBoundaryZglobal(){
   // make sure at least two processes in z-direction
   assert( dfg_->getParallelization()[2] > 1 );
@@ -635,8 +642,6 @@ void GeneTask::adaptBoundaryZglobal(){
   }
 
 
-
-
   std::vector< MPI_Request > requests;
 
   // first exchange block1 then exchange block2
@@ -702,6 +707,11 @@ void GeneTask::adaptBoundaryZglobal(){
 
   // todo: multiply with factor
   assert( false && "no factor correction" );
+
+  // nur letze processe in z-richtung
+
+  // loop über x,y,v,w
+  // multipliziere
 }
 
 
