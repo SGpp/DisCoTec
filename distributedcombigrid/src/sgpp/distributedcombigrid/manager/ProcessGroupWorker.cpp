@@ -698,7 +698,7 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
   for (size_t i = 0; i < r->size; ++i)
     gsl_vector_set(r2, i, std::pow(gsl_vector_get(r, i),2));
 
-  std::cout<<"Stud. residuals:\n";
+  std::cout<<"\nStud. residuals:\n";
   for(size_t i = 0; i < regressionStats.r->size; ++i)
     std::cout<<r_stud->data[i]<<" ";
 
@@ -718,19 +718,21 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
   for (size_t i = 0; i < r_stand->size; ++i)
     gsl_vector_set(r_stand, i, fabs(gsl_vector_get(r_stand, i)));
 
-  // Largest residual
+  // Largest standardized residual
   double r_max = gsl_vector_max(r_stand);
   size_t r_max_index = gsl_vector_max_index(r_stand);
 
   // Threshold for residuals
   double eps = 2.5;
 
-  // Weight for max residual
+  // Weight for max residual: here we assume that there can
+  // only be one outlier (the one with the largest residual)
   gsl_vector_set_all( weights, 1 );
   if(r_stand->data[r_max_index] > eps)
       gsl_vector_set(weights, r_max_index, 0);
 
-  // Weights for each residual
+  // Weights for each residual: here we assume that the can
+  // be multiple residuals
   //for(size_t i = 0; i < r_stand->size; ++i){
   //  if(std::abs(r_stand->data[i]) <= eps)
   //    gsl_vector_set(weights, i, 1);
@@ -978,7 +980,7 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   // Number of measurements (beta values)
   size_t n = subspaceValues_.size();
 
-  // Number of unknowns (values of functions D_i)
+  // Number of unknowns
   size_t p = 1;
 
   gsl_multifit_robust_workspace *regressionWsp = gsl_multifit_robust_alloc(gsl_multifit_robust_cauchy, n , p );
@@ -1032,7 +1034,7 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   // Now we can check for large residuals
   if(levelsSDC.size() == 0){
     eps = 2.5;
-    detectOutliers( r_lms->data, levelsSDC, eps, COMPARE_VALUES );
+    detectOutliers( r_lms->data, levelsSDC, eps, COMPARE_VALUES, y->data[0] );
   }
 
   // Write pairs and their beta values to file
@@ -1068,7 +1070,7 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   gsl_multifit_robust_free(regressionWsp);
 }
 
-void ProcessGroupWorker::detectOutliers( double* data, std::vector<int> &levelsSDC, double eps, SDCMethodType method ){
+void ProcessGroupWorker::detectOutliers( double* data, std::vector<int> &levelsSDC, double eps, SDCMethodType method, double y ){
 
   std::map<LevelVector,int> mapSDC;
   for ( auto t : tasks_ ){
@@ -1076,10 +1078,10 @@ void ProcessGroupWorker::detectOutliers( double* data, std::vector<int> &levelsS
     mapSDC[key] = 0;
   }
 
-  size_t row = 0;
 
   if ( method == COMPARE_PAIRS ) {
     size_t numSDCPairs = 0;
+    size_t row = 0;
     for( auto const &entry : betas_ ){
       LevelVector key_t = entry.first.first;
       LevelVector key_s = entry.first.second;
@@ -1101,10 +1103,12 @@ void ProcessGroupWorker::detectOutliers( double* data, std::vector<int> &levelsS
     }
   }
   if ( method == COMPARE_VALUES ) {
+    size_t row = 0;
     for( auto const &entry : subspaceValues_ ){
       LevelVector key = entry.first;
-      if ( std::abs(data[row]) > eps )
+      if ( std::abs(data[row]) > eps ){
         mapSDC[key]++;
+      }
       row++;
     }
     std::cout<< "SDC grid: " << std::endl;
@@ -1115,6 +1119,58 @@ void ProcessGroupWorker::detectOutliers( double* data, std::vector<int> &levelsS
         levelsSDC.push_back(id);
       }
     }
+    combineValuesFaults( levelsSDC, y );
+  }
+}
+
+void ProcessGroupWorker::combineValuesFaults( std::vector<int>& faultsID, double u_robust ) {
+
+  std::map<int, LevelVector> IDsToLevels = combiParameters_.getLevelsDict();
+  int dim = static_cast<int>(combiParameters_.getDim());
+  int numLevels = int(combiParameters_.getNumLevels());
+
+  const std::string prob_name = "interpolation based optimization";
+
+  LevelVectorList lvlminmax;
+  lvlminmax.push_back(combiParameters_.getLMin());
+  lvlminmax.push_back(combiParameters_.getLMax());
+
+  CombigridDict given_dict = combiParameters_.getCombiDict();
+
+
+  for (auto id : faultsID){
+
+    LevelVectorList faultLevelVectors;
+    faultLevelVectors.push_back(IDsToLevels[id]);
+    LP_OPT_INTERP opt_interp(lvlminmax,dim,GLP_MAX,given_dict,faultLevelVectors);
+
+    opt_interp.init_opti_prob(prob_name);
+    opt_interp.set_constr_matrix();
+    opt_interp.solve_opti_problem();
+
+    LevelVectorList recomputeLevelVectors;
+    CombigridDict new_dict = opt_interp.get_results(recomputeLevelVectors);
+
+    CombiDataType u_c = 0.0;
+    CombiDataType ut_c = 0.0;
+    CombiDataType rel_err_max = 0.10;
+
+    for( auto const &entry : subspaceValues_){
+      LevelVector lvl = entry.first;
+      u_c += given_dict[lvl]*entry.second;
+      ut_c += new_dict[lvl]*entry.second;
+    }
+    CombiDataType rel_err = std::abs( u_c - ut_c )/u_robust;
+    std::cout<<"u_c = "<<u_c<<std::endl;
+    std::cout<<"ut_c = "<<ut_c<<std::endl;
+    std::cout<<"u_robust = "<<u_robust<<std::endl;
+    std::cout<<"rel_err = "<< rel_err <<std::endl;
+
+    if ( rel_err < rel_err_max ){
+      faultsID.erase(std::remove(faultsID.begin(), faultsID.end(), id), faultsID.end());
+      std::cout<<"Removing id = "<<id<<std::endl;
+    }
+
   }
 }
 } /* namespace combigrid */

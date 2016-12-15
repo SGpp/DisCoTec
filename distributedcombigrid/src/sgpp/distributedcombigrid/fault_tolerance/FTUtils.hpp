@@ -114,7 +114,6 @@ void check_input_levels(const LevelVectorList& levels);
 std::vector<real> select_coeff_downset(const std::vector<real>& all_c,
     const CombigridDict& given_downset, const CombigridDict& aux_downset);
 
-
 /* contains information about fault simulation:
 ** numFaults_: how many faults occur
 ** iterationFaults_: vector of timesteps at which processes fail
