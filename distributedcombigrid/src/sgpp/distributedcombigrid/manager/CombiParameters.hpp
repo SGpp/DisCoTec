@@ -142,6 +142,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& levels_;
   ar& coeffs_;
   ar& levelsToIDs_;
+  ar& combiDictionary_;
 }
 
 }

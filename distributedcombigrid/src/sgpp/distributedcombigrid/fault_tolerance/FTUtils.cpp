@@ -500,5 +500,4 @@ std::vector<double> select_coeff_downset(const std::vector<double>& all_c,
 
   return donwset_c;
 }
-
 } // namespace combigrid

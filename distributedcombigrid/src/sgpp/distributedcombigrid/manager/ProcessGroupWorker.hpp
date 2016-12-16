@@ -14,6 +14,7 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/LPOptimizationInterpolation.hpp"
 
 #include <gsl/gsl_multifit.h>
 #include <gsl/gsl_statistics.h>
@@ -73,7 +74,9 @@ class ProcessGroupWorker {
 
   void robustRegressionValues( std::vector<int> &levelsSDC );
 
-  void detectOutliers( double* residuals, std::vector<int> &levelsSDC, double eps, SDCMethodType method );
+  void detectOutliers( double* residuals, std::vector<int> &levelsSDC, double eps, SDCMethodType method, double y = 0.0 );
+
+  void combineValuesFaults( std::vector<int>& faultsID, double u_robust );
 
  private:
 
