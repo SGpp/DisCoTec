@@ -727,7 +727,7 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
 
   // Weight for max residual
   gsl_vector_set_all( weights, 1 );
-  if(r_stand->data[r_max_index] > eps)
+  if(r_max > eps)
       gsl_vector_set(weights, r_max_index, 0);
 
   // Weights for each residual
