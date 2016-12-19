@@ -164,6 +164,9 @@ SignalType ProcessGroupWorker::wait() {
 
     updateCombiParameters();
 
+  } else if( signal == PARALLEL_EVAL ){
+
+    parallelEval();
   }
 
   // special solution for GENE
@@ -244,19 +247,22 @@ void ProcessGroupWorker::combine() {
 }
 
 void ProcessGroupWorker::combineUniform() {
-  // early exit if no tasks available
-  // todo: doesnt work, each pgrouproot must call reduce function
+  // each pgrouproot must call reduce function
   assert(tasks_.size() > 0);
 
   assert( combiParametersSet_ );
   DimType dim = combiParameters_.getDim();
   const LevelVector& lmin = combiParameters_.getLMin();
   LevelVector lmax = combiParameters_.getLMax();
-  const std::vector<bool>& boundary = combiParameters_.getBoundary();;
+  const std::vector<bool>& boundary = combiParameters_.getBoundary();
 
+  // the dsg can be smaller than lmax because the highest subspaces do not have
+  // to be exchanged
+  /*
   for (size_t i = 0; i < lmax.size(); ++i)
-    if (lmax[i] > 1)
+    if (lmax[i] > lmin[i])
       lmax[i] -= 1;
+      */
 
   // todo: delete old dsg
   if (combinedUniDSG_ != NULL)
@@ -325,6 +331,83 @@ void ProcessGroupWorker::combineUniform() {
 
 }
 
+
+void ProcessGroupWorker::parallelEval(){
+  if(uniformDecomposition)
+    parallelEvalUniform();
+  else
+    assert( false && "not yet implemented" );
+}
+
+
+void ProcessGroupWorker::parallelEvalUniform(){
+  assert(uniformDecomposition);
+
+  // each pgrouproot must call reduce function
+  assert(tasks_.size() > 0);
+
+  assert(combiParametersSet_);
+  const DimType dim = combiParameters_.getDim();
+
+  // combine must have been called before this function
+  assert( combinedUniDSG_ != NULL && "you must combine before you can eval" );
+
+  // receive leval and broadcast to group members
+  std::vector<int> tmp(dim);
+  MASTER_EXCLUSIVE_SECTION{
+    MPI_Recv( &tmp[0], dim, MPI_INT,
+              theMPISystem()->getManagerRank(), 0,
+              theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+  }
+
+  MPI_Bcast( &tmp[0], dim, MPI_INT,
+             theMPISystem()->getMasterRank(),
+             theMPISystem()->getLocalComm() );
+  LevelVector leval( tmp.begin(), tmp.end() );
+
+  // receive filename and broadcast to group members
+  std::string filename;
+  MASTER_EXCLUSIVE_SECTION{
+    MPIUtils::receiveClass( &filename,
+                            theMPISystem()->getManagerRank(),
+                            theMPISystem()->getGlobalComm() );
+  }
+
+  MPIUtils::broadcastClass( &filename,
+                            theMPISystem()->getMasterRank(),
+                            theMPISystem()->getLocalComm() );
+
+
+  // create dfg
+  DistributedFullGrid<CombiDataType> dfg( dim, leval,
+                                          combiParameters_.getApplicationComm(),
+                                          combiParameters_.getBoundary(),
+                                          combiParameters_.getParallelization(),
+                                          false
+                                          );
+
+  // register dsg
+  dfg.registerUniformSG(*combinedUniDSG_);
+
+  // fill dfg with hierarchical coefficients from distributed sparse grid
+  dfg.extractFromUniformSG( *combinedUniDSG_ );
+
+  // dehierarchize dfg
+  DistributedHierarchization::dehierarchize<CombiDataType>(
+      dfg, combiParameters_.getHierarchizationDims() );
+
+  // convert to fg
+  FullGrid<CombiDataType> fg( dim, leval, combiParameters_.getBoundary() );
+  dfg.gatherFullGrid( fg, theMPISystem()->getMasterRank() );
+
+  // save to file
+  MASTER_EXCLUSIVE_SECTION{
+    fg.writePlotFile( filename.c_str() );
+  }
+}
+
+
+
 void ProcessGroupWorker::gridEval() {
   /* error if no tasks available
    * todo: however, this is not a real problem, we could can create an empty
@@ -384,6 +467,7 @@ void ProcessGroupWorker::gridEval() {
       //fg.save( tmp );
 
       // todo: remove. works only for small grids. also hard coded path
+      /*
       int id = t->getID();
       std::string path = std::string("/home/heenemo/workspace/combi-gene/distributedcombigrid/examples/gene_distributed/")
                          + "ginstance" + boost::lexical_cast<std::string>( id )
@@ -391,10 +475,12 @@ void ProcessGroupWorker::gridEval() {
       FullGrid<CombiDataType> fg_plot(dim, leval, boundary);
       fg_plot.add( fg, 1.0 );
       fg_plot.writePlotFile( path.c_str() );
+      */
 
       fg_red.add(fg, combiParameters_.getCoeff( t->getID() ) );
     }
   }
+
   // global reduce of f_red
   MASTER_EXCLUSIVE_SECTION {
     CombiCom::FGReduce( fg_red,

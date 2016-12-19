@@ -337,21 +337,7 @@ void GeneTask::initDFG( CommunicatorType comm,
     delete dfg_;
 
   dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
-      this->getBoundary(), p_, decomposition );
-
-  /*
-  for( int r=0; r<dfg_->getCommunicatorSize(); ++r ){
-    if( r == dfg_->getMpiRank() ){
-      std::cout << "rank " << r << "\n"
-                << "\t lower bounds " << dfg_->getLowerBounds() << "\n"
-                << "\t upper bounds " << dfg_->getUpperBounds()
-                << std::endl;
-    }
-
-    MPI_Barrier( dfg_->getCommunicator() );
-  }*/
-
-
+      this->getBoundary(), p_, false, decomposition );
 }
 
 

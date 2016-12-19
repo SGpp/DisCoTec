@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     std::string basename = cfg.get<std::string>( "preproc.basename" );
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
-    std::string fg_file_prefix = cfg.get<std::string>( "ct.fg_file_prefix" );
+    std::string fg_file_path = cfg.get<std::string>( "ct.fg_file_path" );
 
     // todo: read from parametes file
     real shat = 0.7960;
@@ -206,15 +206,13 @@ int main(int argc, char** argv) {
     // create combiparamters
     CombiParameters params( dim, lmin, lmax, boundary, levels,
                             coeffs, hierarchizationDims, taskIDs );
+    params.setParallelization(p);
 
     // create Manager with process groups
     ProcessManager manager(pgroups, tasks, params);
 
     // combiparameters need to be set before starting the computation
     manager.updateCombiParameters();
-
-    std::ofstream myfile;
-    myfile.open("out/solution.dat");
 
     for (size_t i = 0; i < ncombi; ++i) {
       if( i == 0 ){
@@ -230,8 +228,11 @@ int main(int argc, char** argv) {
     }
 
     // evaluate solution
-    FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-    manager.gridEval(fg_eval);
+    manager.parallelEval( leval, fg_file_path, 0 );
+
+
+    //FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
+    //manager.gridEval(fg_eval);
 
     // write solution to file
     //std::string filename = fg_file_prefix
@@ -239,12 +240,10 @@ int main(int argc, char** argv) {
     //fg_eval.save( filename );
 
     // write solution in plotable format
-    fg_eval.writePlotFile( "plot.dat" );
+    //fg_eval.writePlotFile( "plot.dat" );
 
     // create GENE checkpoint
-    GeneTask::saveCheckpoint( fg_eval, "checkpoint" );
-
-    myfile.close();
+    //GeneTask::saveCheckpoint( fg_eval, "checkpoint" );
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();

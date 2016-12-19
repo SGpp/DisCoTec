@@ -62,10 +62,16 @@ template<typename FG_ELEMENT>
 class DistributedFullGrid {
  public:
   /** dimension adaptive Ctor */
-  DistributedFullGrid(DimType dim, const LevelVector& levels,
-                      CommunicatorType comm, const std::vector<bool>& hasBdrPoints,
-                      const IndexVector& procs, const std::vector<IndexVector>& decomposition =
-                        std::vector<IndexVector>(), const BasisFunctionBasis* basis = NULL) {
+  DistributedFullGrid(DimType dim,
+                      const LevelVector& levels,
+                      CommunicatorType comm,
+                      const std::vector<bool>& hasBdrPoints,
+                      const IndexVector& procs,
+                      bool forwardDecomposition = true,
+                      const std::vector<IndexVector>& decomposition =
+                        std::vector<IndexVector>(),
+                      const BasisFunctionBasis* basis = NULL
+                      ) {
     dim_ = dim;
 
     assert(levels.size() == dim);
@@ -100,7 +106,7 @@ class DistributedFullGrid {
     lowerBounds_.resize(size_, IndexVector(dim_));
 
     if (decomposition.size() == 0) {
-      calculateDefaultBounds();
+      calculateDefaultBounds(forwardDecomposition);
 
       calcDecomposition();
     } else {
@@ -952,12 +958,15 @@ class DistributedFullGrid {
 
       IndexType subSgId = subspaceAssigmentList_[subFgId];
 
-      if (subSgId < 0)
+      // todo: check if this is the right policy in general
+      // set coefficients that are not included in sparse grid solution to zero
+      if (subSgId < 0){
+        fullgridVector_[i] = FG_ELEMENT(0);
         continue;
+      }
 
       assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
-      // copy add grid point to subspace, mul with coeff
       fullgridVector_[i] = *it_sub[subFgId];
 
       ++it_sub[subFgId];
@@ -1496,7 +1505,13 @@ class DistributedFullGrid {
     }
   }
 
-  void calculateDefaultBounds() {
+  /* a regular (equidistant) domain decompositioning for an even number of processes
+   * leads to grid points on the (geometrical) process boundaries.
+   * with the forwardDecomposition flag it can be decided if the grid points on
+   * the process boundaries belong to the process on the right-hand side (true)
+   * of the process boundary, or to the one on the left-hand side (false).
+   */
+  void calculateDefaultBounds(bool forwardDecomposition) {
     std::vector<IndexVector> llbounds(dim_);
 
     for (DimType i = 0; i < dim_; ++i) {
@@ -1506,7 +1521,11 @@ class DistributedFullGrid {
       for (IndexType j = 0; j < procs_[i]; ++j) {
         double tmp = static_cast<double>(nrPoints_[i]) * static_cast<double>(j)
                      / static_cast<double>(procs_[i]);
-        llbnd[j] = static_cast<IndexType>(std::ceil(tmp));
+
+        if(forwardDecomposition)
+          llbnd[j] = static_cast<IndexType>(std::ceil(tmp));
+        else
+          llbnd[j] = static_cast<IndexType>(std::floor(tmp));
       }
     }
 
