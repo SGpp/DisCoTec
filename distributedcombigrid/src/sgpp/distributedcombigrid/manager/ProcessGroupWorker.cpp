@@ -1155,10 +1155,16 @@ void ProcessGroupWorker::combineValuesFaults( std::vector<int>& faultsID, double
     CombiDataType ut_c = 0.0;
     CombiDataType rel_err_max = 0.10;
 
-    for( auto const &entry : subspaceValues_){
+//    for( auto const &entry : subspaceValues_){
+    for( auto const &entry : given_dict){
       LevelVector lvl = entry.first;
-      u_c += given_dict[lvl]*entry.second;
-      ut_c += new_dict[lvl]*entry.second;
+      CombiDataType u_i;
+      if ( subspaceValues_.find(lvl) == subspaceValues_.end() )
+        u_i = u_robust;
+      else
+        u_i = subspaceValues_[lvl];
+      u_c += given_dict[lvl]*u_i;
+      ut_c += new_dict[lvl]*u_i;
     }
     CombiDataType rel_err = std::abs( u_c - ut_c )/u_robust;
     std::cout<<"u_c = "<<u_c<<std::endl;
