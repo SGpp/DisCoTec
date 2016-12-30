@@ -719,26 +719,26 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
     gsl_vector_set(r_stand, i, fabs(gsl_vector_get(r_stand, i)));
 
   // Largest standardized residual
-  double r_max = gsl_vector_max(r_stand);
-  size_t r_max_index = gsl_vector_max_index(r_stand);
+//  double r_max = gsl_vector_max(r_stand);
+//  size_t r_max_index = gsl_vector_max_index(r_stand);
 
   // Threshold for residuals
   double eps = 2.5;
 
   // Weight for max residual: here we assume that there can
   // only be one outlier (the one with the largest residual)
-  gsl_vector_set_all( weights, 1 );
-  if(r_max > eps)
-      gsl_vector_set(weights, r_max_index, 0);
+//  gsl_vector_set_all( weights, 1 );
+//  if(r_max > eps)
+//      gsl_vector_set(weights, r_max_index, 0);
 
   // Weights for each residual: here we assume that the can
   // be multiple residuals
-  //for(size_t i = 0; i < r_stand->size; ++i){
-  //  if(std::abs(r_stand->data[i]) <= eps)
-  //    gsl_vector_set(weights, i, 1);
-  //  else
-  //    gsl_vector_set(weights, i, 0);
-  //}
+  for(size_t i = 0; i < r_stand->size; ++i){
+    if(std::abs(r_stand->data[i]) <= eps)
+      gsl_vector_set(weights, i, 1);
+    else
+      gsl_vector_set(weights, i, 0);
+  }
 
   // Robust scale estimate
   double prod;
