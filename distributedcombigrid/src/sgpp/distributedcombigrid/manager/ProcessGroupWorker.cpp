@@ -1138,7 +1138,9 @@ void ProcessGroupWorker::combineValuesFaults( std::vector<int>& faultsID, double
   CombigridDict given_dict = combiParameters_.getCombiDict();
 
 
-  for (auto id : faultsID){
+  std::vector<int> faultsIDCopy = faultsID;
+
+  for (auto id : faultsIDCopy){
 
     LevelVectorList faultLevelVectors;
     faultLevelVectors.push_back(IDsToLevels[id]);
