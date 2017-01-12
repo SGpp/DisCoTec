@@ -1162,7 +1162,8 @@ inline void FullGrid<FG_ELEMENT>::writePlotFile(const char* filename) const {
 
   // plain data, one value per line
   for( auto d : getElementVector() )
-    ofs << d << std::endl;
+    ofs << std::setprecision(std::numeric_limits<real>::max_digits10)
+        << d << std::endl;
 
   ofs.close();
 }
