@@ -47,6 +47,7 @@ now. It is not necessary any more to compile or link the combigrid module.)
 On Hazel Hen
 --------------
 load modules: PrgEnv-gnu, scons, python 2.7, boost
+
 set paths for boost in SConfigure. e.g., /opt/hlrs/tools/boost/1.62.0/include
 
 compile with
