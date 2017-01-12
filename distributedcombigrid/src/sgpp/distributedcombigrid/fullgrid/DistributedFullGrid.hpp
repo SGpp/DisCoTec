@@ -746,7 +746,7 @@ class DistributedFullGrid {
   }
 
   // return MPI DataType
-  inline MPI_Datatype getMPIDatatype() {
+  inline MPI_Datatype getMPIDatatype() const {
     return abstraction::getMPIDatatype(
              abstraction::getabstractionDataType<FG_ELEMENT>());
   }
@@ -1374,6 +1374,66 @@ class DistributedFullGrid {
   }
 
 
+  // write data to file using MPI-IO
+  void writePlotFile(const char* filename) const{
+      int dim = getDimension();
+
+      // create subarray data type
+      IndexVector sizes = getGlobalSizes();
+      IndexVector subsizes = getUpperBounds()
+                             - getLowerBounds();
+      IndexVector starts = getLowerBounds();
+
+      // we store our data in c format, i.e. first dimension is the innermost
+      // dimension. however, we access our data in fortran notation, with the
+      // first index in indexvectors being the first dimension.
+      // to comply with an ordering that mpi understands, we have to reverse
+      // our index vectors
+      // also we have to use int as datatype
+      std::vector<int> csizes(sizes.rbegin(), sizes.rend());
+      std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
+      std::vector<int> cstarts(starts.rbegin(), starts.rend());
+
+      // create subarray view on data
+      MPI_Datatype mysubarray;
+      MPI_Type_create_subarray(static_cast<int>(getDimension()),
+                               &csizes[0], &csubsizes[0], &cstarts[0],
+                               MPI_ORDER_C, getMPIDatatype(), &mysubarray);
+      MPI_Type_commit(&mysubarray);
+
+      // open file
+      MPI_File fh;
+      MPI_File_open( getCommunicator(),
+                     filename,
+                     MPI_MODE_WRONLY+MPI_MODE_CREATE,
+                     MPI_INFO_NULL,
+                     &fh);
+
+      // rank 0 write dim and resolution (and data format?)
+      int rank;
+      MPI_Comm_rank( getCommunicator(), &rank );
+      if(rank == 0){
+        MPI_File_write( fh,&dim,1,MPI_INT,MPI_STATUS_IGNORE );
+
+        std::vector<int> res( sizes.begin(), sizes.end() );
+        MPI_File_write( fh,&res[0],6,MPI_INT,MPI_STATUS_IGNORE );
+      }
+
+      // set file view to right offset (in bytes)
+      // 1*int + dim*int = (1+dim)*sizeof(int)
+      MPI_Offset offset = (1+dim)*sizeof(int);
+      MPI_File_set_view( fh, offset, getMPIDatatype(),
+                         mysubarray, "native", MPI_INFO_NULL );
+
+      // write subarray
+      MPI_File_write_all( fh, getData(), getNrLocalElements(),
+                          getMPIDatatype(), MPI_STATUS_IGNORE );
+
+      // close file
+      MPI_File_close(&fh);
+    }
+
+
  private:
   /** dimension of the full grid */
   DimType dim_;
@@ -1817,6 +1877,8 @@ class DistributedFullGrid {
         decomposition_[i][coords[i]] = lowerBounds_[r][i];
     }
   }
+
+
 
 };
 // end class

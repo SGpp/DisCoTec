@@ -301,7 +301,7 @@ void ProcessGroupWorker::combineUniform() {
   }
 
   // compute global max norm
-
+  // todo: this is bullshit!!!
   real globalMax;
   MPI_Allreduce(  &localMax, &globalMax, 1, MPI_DOUBLE,
                   MPI_MAX, theMPISystem()->getGlobalReduceComm() );
@@ -347,7 +347,7 @@ void ProcessGroupWorker::parallelEvalUniform(){
   assert(tasks_.size() > 0);
 
   assert(combiParametersSet_);
-  const DimType dim = combiParameters_.getDim();
+  const int dim = static_cast<int>( combiParameters_.getDim() );
 
   // combine must have been called before this function
   assert( combinedUniDSG_ != NULL && "you must combine before you can eval" );
@@ -397,13 +397,17 @@ void ProcessGroupWorker::parallelEvalUniform(){
       dfg, combiParameters_.getHierarchizationDims() );
 
   // convert to fg
-  FullGrid<CombiDataType> fg( dim, leval, combiParameters_.getBoundary() );
-  dfg.gatherFullGrid( fg, theMPISystem()->getMasterRank() );
+  //FullGrid<CombiDataType> fg( dim, leval, combiParameters_.getBoundary() );
+  //dfg.gatherFullGrid( fg, theMPISystem()->getMasterRank() );
 
   // save to file
-  MASTER_EXCLUSIVE_SECTION{
-    fg.writePlotFile( filename.c_str() );
-  }
+  //MASTER_EXCLUSIVE_SECTION{
+  //  fg.writePlotFile( filename.c_str() );
+  //}
+
+  // save dfg to file with MPI-IO
+  std::string filename_parallel = filename + ".par";
+  dfg.writePlotFile( filename_parallel.c_str() );
 }
 
 
