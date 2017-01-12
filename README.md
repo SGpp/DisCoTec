@@ -44,4 +44,16 @@ scons -j 4 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CP
 (The distributedcombigridmodule is completely independent from the other modules 
 now. It is not necessary any more to compile or link the combigrid module.)
 
+On Hazel Hen
+--------------
+load modules: PrgEnv-gnu, scons, python 2.7, boost
+set paths for boost in SConfigure. e.g., /opt/hlrs/tools/boost/1.62.0/include
+
+compile with
+scons -j 16 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CXX=CC OPT=1
+
+(the linking of the boost tests might fail. however this is not a problem, the
+sg++ libraries should be there)
+
+
 
