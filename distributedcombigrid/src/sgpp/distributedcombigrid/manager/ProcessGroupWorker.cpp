@@ -208,6 +208,8 @@ void ProcessGroupWorker::ready() {
 }
 
 void ProcessGroupWorker::combine() {
+  assert( false && "not properly implemented" );
+
   // early exit if no tasks available
   // todo: doesnt work, each pgrouproot must call reduce function
   assert(tasks_.size() > 0);
@@ -288,9 +290,11 @@ void ProcessGroupWorker::combineUniform() {
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
 
     // compute max norm
+    /*
     real max = dfg.getLpNorm(0);
     if( max > localMax )
       localMax = max;
+      */
 
     // hierarchize dfg
     DistributedHierarchization::hierarchize<CombiDataType>(
@@ -302,9 +306,9 @@ void ProcessGroupWorker::combineUniform() {
 
   // compute global max norm
   // todo: this is bullshit!!!
-  real globalMax;
-  MPI_Allreduce(  &localMax, &globalMax, 1, MPI_DOUBLE,
-                  MPI_MAX, theMPISystem()->getGlobalReduceComm() );
+  //real globalMax;
+  //MPI_Allreduce(  &localMax, &globalMax, 1, MPI_DOUBLE,
+  //                MPI_MAX, theMPISystem()->getGlobalReduceComm() );
 
 
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
@@ -321,11 +325,12 @@ void ProcessGroupWorker::combineUniform() {
         dfg, combiParameters_.getHierarchizationDims() );
 
     // if exceeds normalization limit, normalize dfg with global max norm
-
+    /*
     if( globalMax > 1000 ){
       dfg.mul( 1.0 / globalMax );
       std::cout << "normalized dfg with " << globalMax << std::endl;
     }
+    */
 
   }
 
@@ -342,9 +347,6 @@ void ProcessGroupWorker::parallelEval(){
 
 void ProcessGroupWorker::parallelEvalUniform(){
   assert(uniformDecomposition);
-
-  // each pgrouproot must call reduce function
-  assert(tasks_.size() > 0);
 
   assert(combiParametersSet_);
   const int dim = static_cast<int>( combiParameters_.getDim() );
@@ -396,20 +398,9 @@ void ProcessGroupWorker::parallelEvalUniform(){
   DistributedHierarchization::dehierarchize<CombiDataType>(
       dfg, combiParameters_.getHierarchizationDims() );
 
-  // convert to fg
-  //FullGrid<CombiDataType> fg( dim, leval, combiParameters_.getBoundary() );
-  //dfg.gatherFullGrid( fg, theMPISystem()->getMasterRank() );
-
-  // save to file
-  //MASTER_EXCLUSIVE_SECTION{
-  //  fg.writePlotFile( filename.c_str() );
-  //}
-
   // save dfg to file with MPI-IO
-  std::string filename_parallel = filename + ".par";
-  dfg.writePlotFile( filename_parallel.c_str() );
+  dfg.writePlotFile( filename.c_str() );
 }
-
 
 
 void ProcessGroupWorker::gridEval() {

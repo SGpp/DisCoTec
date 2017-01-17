@@ -1,7 +1,7 @@
 CC=mpic++.mpich
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic
 
-SGPP_DIR=$(HOME)/path/to/SGpp
+SGPP_DIR=$(HOME)/workspace/combi-gene
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 
@@ -25,6 +25,9 @@ obj/%.o: src/%.cpp
 
 lib: $(OBJ_FILES)
 	$(CC) -shared -o lib/libgenetask.so $^
+
+errorCalc: tools/errorCalcNew.cpp
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o errorCalc tools/errorCalcNew.cpp $(LIBS) timing.o
 
 clean:
 	rm obj/*.o out/* manager lib/*

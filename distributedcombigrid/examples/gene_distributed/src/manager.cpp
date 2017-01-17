@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
      * CombiTS_CT will generate a valid combination. however, you could
      * also read in a list of levelvectors and coefficients from a file */
     DimType dim = cfg.get<DimType>("ct.dim");
-    LevelVector lmin(dim), lmax(dim), leval(dim);
+    LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim);
     IndexVector p(dim);
     std::vector<bool> boundary(dim), hierarchizationDims(dim);
     combigrid::real dt;
@@ -123,6 +123,7 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.lmin") >> lmin;
     cfg.get<std::string>("ct.lmax") >> lmax;
     cfg.get<std::string>("ct.leval") >> leval;
+    cfg.get<std::string>("ct.leval2") >> leval2;
     cfg.get<std::string>("ct.p") >> p;
     cfg.get<std::string>("ct.boundary") >> boundary;
     cfg.get<std::string>("ct.hierarchization_dims") >> hierarchizationDims;
@@ -131,6 +132,7 @@ int main(int argc, char** argv) {
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
     std::string fg_file_path = cfg.get<std::string>( "ct.fg_file_path" );
+    std::string fg_file_path2 = cfg.get<std::string>( "ct.fg_file_path2" );
 
     // todo: read from parametes file
     real shat = 0.7960;
@@ -227,23 +229,11 @@ int main(int argc, char** argv) {
       manager.combine();
     }
 
-    // evaluate solution
+    // evaluate solution on the grid defined by leval
     manager.parallelEval( leval, fg_file_path, 0 );
 
-
-    //FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-    //manager.gridEval(fg_eval);
-
-    // write solution to file
-    //std::string filename = fg_file_prefix
-    //    + boost::lexical_cast<std::string>( i ) + ".dat";
-    //fg_eval.save( filename );
-
-    // write solution in plotable format
-    //fg_eval.writePlotFile( "plot.dat" );
-
-    // create GENE checkpoint
-    //GeneTask::saveCheckpoint( fg_eval, "checkpoint" );
+    // evaluate solution on the grid defined by leval2
+    manager.parallelEval( leval2, fg_file_path2, 0 );
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
