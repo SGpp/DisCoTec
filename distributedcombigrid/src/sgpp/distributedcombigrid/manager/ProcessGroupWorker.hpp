@@ -61,7 +61,10 @@ class ProcessGroupWorker {
    * a soft fault might have occurred. */
   void compareSolutions( int numNearestNeighbors, std::vector<int> &levelsSDC, SDCMethodType method );
 
-  void computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms );
+  /* Obtain standardized residuals from robust residuals. If a standardized residual is larger than 2.5,
+   * it is considered an outlier.
+   * */
+  void computeStandardizedResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms );
 
   /* Generates a list of pairs of tasks, so that for each task
    * that a worker has, we find its K nearest neighbors. The distance
@@ -70,13 +73,25 @@ class ProcessGroupWorker {
    * */
   void generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs);
 
+  /* Robust fit of beta values using an error expansion model
+   * */
   void robustRegressionPairs( std::vector<int> &levelsSDC );
 
+  /* Robust fit of function values using a constant model
+   * */
   void robustRegressionValues( std::vector<int> &levelsSDC );
 
+  /* Determine from standardized residuals if a solution has been affected by SDC
+   * */
   void detectOutliers( double* residuals, std::vector<int> &levelsSDC, double eps, SDCMethodType method, double y = 0.0 );
 
-  void combineValuesFaults( std::vector<int>& faultsID, double u_robust );
+  /* Check if a solution marked as outlier is actually only a false positive. We combine the values
+   * with the outlier (using the classical combination coefficients) and without it (adjusting the
+   * combination coefficients according to the FTCT) and compare the two combined values. If they're very
+   * similar, they suspect values is most likely a false positive, or the error is too small as to be
+   * safely ignored.
+   * */
+  void removeFalsePositives( std::vector<int>& faultsID, double u_robust );
 
  private:
 
