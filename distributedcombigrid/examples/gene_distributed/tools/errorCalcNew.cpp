@@ -26,6 +26,8 @@ calcNorms(  std::vector<CombiDataType>& dleft,
             std::vector<CombiDataType>& dright,
             std::vector<real>& Norms );
 
+real l2Norm( std::vector<CombiDataType>& data );
+
 int main( int argc, char** argv ){
   assert( argc == 6 );
 
@@ -38,7 +40,7 @@ int main( int argc, char** argv ){
   std::string filenameLeft( argv[2] );
   std::string filenameRight( argv[3] );
   std::string filenameError( argv[4] );
-  std::string prefix( argv[4] );
+  std::string prefix( argv[5] );
 
   std::vector<CombiDataType> data1;
   std::vector<CombiDataType> data2;
@@ -68,27 +70,42 @@ int main( int argc, char** argv ){
   assert( data1.size() == data2.size() );
   assert( res1 == res2 );
 
-  // calc errors
-  std::vector<real> norms(9);
-  calcNorms( data1, data2, norms );
+  // normalize with l2 norm
+  real l2norm1 = l2Norm( data1 );
+  real l2norm2 = l2Norm( data2 );
 
-  // err norms are relative to left
-  norms[0] = norms[0] / norms[3];
-  norms[1] = norms[1] / norms[4];
-  norms[2] = norms[2] / norms[5];
+  real tmp1 = 1.0/l2norm1;
+  for( auto i=0; i<data1.size(); ++i )
+    data1[i] *= tmp1;
+
+  real tmp2 = 1.0/l2norm2;
+  for( auto i=0; i<data2.size(); ++i )
+    data2[i] *= tmp2;
+
+  // calc l2 norm of absolute values
+  real err = 0.0;
+  for( auto i=0; i<data1.size(); ++i ){
+    real tmp = std::abs( data1[i] ) - std::abs( data2[i] );
+    err += tmp*tmp;
+  }
+  err = std::sqrt(err);
 
   // open file in append mode
   std::ofstream ofs( filenameError.c_str(), std::ofstream::app );
 
-  // write prefix
-  ofs << prefix << " ";
-
-  // write norms
-  for( size_t j = 0; j < norms.size(); ++j )
-      ofs << " " << norms[j];
-  ofs << std::endl;
+  // write prefix and err
+  ofs << prefix << " " << err << std::endl;
 
   return 0;
+}
+
+
+real l2Norm( std::vector<CombiDataType>& data ){
+  real nrm = 0.0;
+  for( auto d : data )
+    nrm += std::abs(d)*std::abs(d);
+
+  return sqrt(nrm);
 }
 
 
