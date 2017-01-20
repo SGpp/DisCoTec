@@ -96,6 +96,8 @@ int main( int argc, char** argv ){
   // write prefix and err
   ofs << prefix << " " << err << std::endl;
 
+  std::cout << "error " << err << std::endl;
+
   return 0;
 }
 
