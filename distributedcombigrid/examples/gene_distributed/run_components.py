@@ -129,6 +129,7 @@ if __name__ == "__main__":
         dirname = basename 
         dirname += "_" + '%s%s%s%s%s%s' % tuple(lmin)
         dirname += "_" + str(NCOMBI*NSTEPS)
+        dirname += "_" + '%s%s%s%s%s%s' % tuple(leval)
             
         print dirname, lmin, lmax, leval, leval2, p, ngroup,\
                 nprocs, ncombi, nsteps, dt
