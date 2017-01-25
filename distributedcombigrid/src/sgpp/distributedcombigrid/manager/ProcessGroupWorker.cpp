@@ -189,6 +189,9 @@ void ProcessGroupWorker::ready() {
         // set currentTask
         currentTask_ = tasks_[i];
         currentTask_->run(theMPISystem()->getLocalComm());
+
+        // todo: gene specific voodoo
+        return;
       }
     }
 
@@ -290,9 +293,11 @@ void ProcessGroupWorker::combineUniform() {
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
 
     // compute max norm
+    /*
     real max = dfg.getLpNorm(0);
     if( max > localMax )
       localMax = max;
+      */
 
     // hierarchize dfg
     DistributedHierarchization::hierarchize<CombiDataType>(
@@ -300,9 +305,14 @@ void ProcessGroupWorker::combineUniform() {
 
     // lokales reduce auf sg ->
     dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
+
+    std::cout << "task " << t->getID() << " has coefficient "
+              << combiParameters_.getCoeff( t->getID() )
+              << std::endl;
   }
 
   // compute global max norm
+  /*
   real globalMax_tmp;
   MPI_Allreduce(  &localMax, &globalMax_tmp, 1, MPI_DOUBLE,
                   MPI_MAX, theMPISystem()->getGlobalReduceComm() );
@@ -310,6 +320,7 @@ void ProcessGroupWorker::combineUniform() {
   real globalMax;
   MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
                     MPI_MAX, theMPISystem()->getLocalComm() );
+                    */
 
 
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
@@ -326,10 +337,12 @@ void ProcessGroupWorker::combineUniform() {
         dfg, combiParameters_.getHierarchizationDims() );
 
     // if exceeds normalization limit, normalize dfg with global max norm
+    /*
     if( globalMax > 1000 ){
       dfg.mul( 1.0 / globalMax );
       std::cout << "normalized dfg with " << globalMax << std::endl;
     }
+    */
 
   }
 
