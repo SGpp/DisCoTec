@@ -69,9 +69,9 @@ if( chdir( path_.c_str() ) ){
 char cwd[1024];
 getcwd(cwd, sizeof(cwd));
 
-int rank;
-MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-std::cout << "rank " << rank << " changed dir to " << cwd << std::endl;
+MASTER_EXCLUSIVE_SECTION{
+  std::cout << "run task " << this->getID() << std::endl;
+}
 
 }
 
@@ -746,10 +746,6 @@ void GeneTask::getDFG(){
         }
       }
     }
-  }
-
-  MASTER_EXCLUSIVE_SECTION{
-    std::cout << "getDFG" << std::endl;
   }
 }
 
