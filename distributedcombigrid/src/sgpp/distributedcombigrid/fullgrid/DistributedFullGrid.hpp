@@ -227,6 +227,7 @@ class DistributedFullGrid {
   }
 
   virtual ~DistributedFullGrid() {
+    //todo: remove communicators?
   }
 
   /** evaluates the full grid on the specified coordinates

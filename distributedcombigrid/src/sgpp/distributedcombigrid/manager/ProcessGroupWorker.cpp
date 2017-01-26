@@ -305,10 +305,6 @@ void ProcessGroupWorker::combineUniform() {
 
     // lokales reduce auf sg ->
     dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
-
-    std::cout << "task " << t->getID() << " has coefficient "
-              << combiParameters_.getCoeff( t->getID() )
-              << std::endl;
   }
 
   // compute global max norm

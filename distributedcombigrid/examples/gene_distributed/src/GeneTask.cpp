@@ -333,11 +333,24 @@ void GeneTask::setZero(){
 
 void GeneTask::initDFG( CommunicatorType comm,
                         std::vector<IndexVector>& decomposition ){
+  // this is the clean version. however requires creation of dfg before each
+  // combination step
+  /*
   if( dfg_ != NULL )
     delete dfg_;
 
   dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
       this->getBoundary(), p_, false, decomposition );
+  */
+
+  // todo: keep in mind
+  // in this version the dfg is only created once. this only works if always exactly
+  // the same set of processes is used by gene
+  // this will probably not work, when the task is moved to another group.
+  if( dfg_ == NULL ){
+    dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
+        this->getBoundary(), p_, false, decomposition );
+  }
 }
 
 
@@ -404,7 +417,7 @@ void GeneTask::setDFG(){
   }
 
 
-
+  /*
   // check if last grid point of x is zero
   if( coords[1] == p[1] - 1 ){
     for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
@@ -440,6 +453,7 @@ void GeneTask::setDFG(){
                         == complex(0.0) );
               }
   }
+  */
 
   // adapt z-boundary
   adaptBoundaryZ();
