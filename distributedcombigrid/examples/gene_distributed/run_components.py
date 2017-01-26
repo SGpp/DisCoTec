@@ -15,11 +15,11 @@ parfile = "ctparam"
 
 BASENAME = 'comp'
 DIM = 6
-LEVAL = [3,1,5,5,5,1]
-LEVAL2 = [3,1,6,6,6,1]
-P = [1,1,1,2,2,1]
+LEVAL = [3,1,7,7,7,1]
+LEVAL2 = [3,1,8,8,8,1]
+P = [1,1,1,16,32,1]
 NGROUP = 1
-NPROCS = 4
+NPROCS = 512
 DT = 5e-3
 NCOMBI = 1
 NSTEPS = 6000
@@ -89,6 +89,8 @@ def createExperiment( dirname, lmin, lmax, leval, leval2, \
 
 
 if __name__ == "__main__":
+    print sys.argv 
+
     #read filename from args
     expdir = sys.argv[1]
     
@@ -129,6 +131,7 @@ if __name__ == "__main__":
         dirname = basename 
         dirname += "_" + '%s%s%s%s%s%s' % tuple(lmin)
         dirname += "_" + str(NCOMBI*NSTEPS)
+	dirname += "_" + '%s%s%s%s%s%s' % tuple(leval)
             
         print dirname, lmin, lmax, leval, leval2, p, ngroup,\
                 nprocs, ncombi, nsteps, dt
@@ -143,6 +146,6 @@ if __name__ == "__main__":
             expPlotFile = dirname + '/ginstance/plot2.dat'
             
         print './errorCalc %s %s %s %s %s' % (errorMode, errorPlotFile, expPlotFile, errorOutFile, dirname)
-        call( [ './errorCalc', errorMode, errorPlotFile, expPlotFile, errorOutFile, dirname] )
+        call( [ 'aprun','./errorCalc', errorMode, errorPlotFile, expPlotFile, errorOutFile, dirname] )
         
-        
+       
