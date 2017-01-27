@@ -149,6 +149,10 @@ class CombiParameters {
   inline void setApplicationComm( CommunicatorType comm ){
     assert( uniformDecomposition );
 
+    // make sure it is set only once
+    if( applicationCommSet_ == true )
+      return;
+
     MPI_Comm_dup( comm, &applicationComm_ );
     applicationCommSet_ = true;
   }
