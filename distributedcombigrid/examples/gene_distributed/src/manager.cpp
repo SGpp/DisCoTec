@@ -11,6 +11,7 @@
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
+#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
@@ -216,27 +217,40 @@ int main(int argc, char** argv) {
     // combiparameters need to be set before starting the computation
     manager.updateCombiParameters();
 
+    theStatsContainer()->setTimerStart("compute");
     for (size_t i = 0; i < ncombi; ++i) {
       if( i == 0 ){
         /* distribute task according to load model and start computation for
          * the first time */
+        theStatsContainer()->setTimerStart("runfirst");
         manager.runfirst();
+        theStatsContainer()->setTimerStop("runfirst");
       } else {
         // run tasks for next time interval
+        if(i==1) theStatsContainer()->setTimerStart("runnext");
         manager.runnext();
+        if(i==1) theStatsContainer()->setTimerStop("runnext");
       }
 
       manager.combine();
     }
+    theStatsContainer()->setTimerStop("compute");
 
     // evaluate solution on the grid defined by leval
+    theStatsContainer()->setTimerStart("parallelEval");
     manager.parallelEval( leval, fg_file_path, 0 );
+    theStatsContainer()->setTimerStop("parallelEval");
 
     // evaluate solution on the grid defined by leval2
+    theStatsContainer()->setTimerStart("parallelEval2");
     manager.parallelEval( leval2, fg_file_path2, 0 );
+    theStatsContainer()->setTimerStop("parallelEval2");
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
+
+    // save stats
+    theStatsContainer()->save("times.dat");
   }
 
   MPI_Finalize();

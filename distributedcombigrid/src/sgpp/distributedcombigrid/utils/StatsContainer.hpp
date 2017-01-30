@@ -17,7 +17,7 @@
 
 #include "sgpp/distributedcombigrid/utils/StatsContainerID.hpp"
 
-//#define TIMING
+#define TIMING
 
 namespace combigrid {
 
