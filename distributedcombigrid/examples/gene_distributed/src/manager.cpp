@@ -232,7 +232,9 @@ int main(int argc, char** argv) {
         if(i==1) theStatsContainer()->setTimerStop("runnext");
       }
 
+      if(i==0) theStatsContainer()->setTimerStart("combine");
       manager.combine();
+      if(i==0) theStatsContainer()->setTimerStart("combine");
     }
     theStatsContainer()->setTimerStop("compute");
 
