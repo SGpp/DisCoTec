@@ -1,0 +1,49 @@
+#!/bin/sh
+#shifts range *_[number1] *_[number2] to new range starting at *_[number3]
+#usage: runshift [number1] [number2] [number3]
+r4=`expr $3 + $2 - $1`
+nruns=`expr $2 - $1 + 1`
+
+echo "shifting runs $1 - $2 to $3 - $r4"
+
+i=0
+while [ $i -lt $nruns ]
+do
+  inrun=`expr $1 + $i`
+  outrun=`expr $3 + $i`
+  echo "renaming $inrun to $outrun"
+
+  if [[ `ls *_$inrun *_${inrun}.h5 2> /dev/null | wc -l` -eq 0 ]]; then
+    echo "source does not exist"
+    exit
+  fi
+
+  if [[ `ls *_$outrun *_${outrun}.h5 2> /dev/null | wc -l` -gt 0 ]]; then
+    overwrite="y"
+    echo "target already exists: overwrite (y/n)?"
+    read overwrite
+    if [ "$overwrite" != "y" ]
+    then
+      echo "exiting"
+      exit
+    fi
+  fi
+
+  if [[ `ls *_$inrun 2> /dev/null | wc -l` -gt 0 ]]; then
+    for file_in in *_$inrun
+    do
+      file_out=`echo $file_in | sed -e "s/\(.*\)_${inrun}/\1_${outrun}/"`
+      mv $file_in $file_out
+    done
+  fi
+
+  if [[ `ls *_${inrun}.h5 2> /dev/null | wc -l` -gt 0 ]]; then
+    for file_in in *_${inrun}.h5
+    do
+      file_out=`echo $file_in | sed -e "s/\(.*\)_${inrun}.h5/\1_${outrun}.h5/"`
+      mv $file_in $file_out
+    done
+  fi
+
+  i=`expr $i + 1`
+done

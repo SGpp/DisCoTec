@@ -1,0 +1,98 @@
+&parallelization
+!n_procs_s =   1
+!n_procs_v =   2
+!n_procs_w =   8
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   4
+!n_all_procs =     64
+/
+
+&box
+n_spec =    1
+nx0    =  128
+nky0   =   16
+nz0    =   16
+nv0    =   32
+nw0    =    8
+
+kymin =   0.5000E-01
+lv    =     3.00    
+lw    =     9.00    
+lx    =  120.000    
+nexc  =   6
+adapt_lx = F
+/
+
+&in_out
+diagdir = '/out'
+
+read_checkpoint  = F
+write_checkpoint = T
+
+istep_field =     100
+istep_mom   =     100
+istep_nrg   =      10
+istep_vsp   =     500
+istep_schpt =    5000
+/
+
+&general
+nonlinear =   T
+comp_type = 'IV'
+!perf_vec  =  1 1 2 1 2 2 2 1 1
+
+timescheme = 'RK4'
+dt_max     =   0.6950E-01
+courant    =     0.40
+
+timelim    =      86000
+ntimesteps =     500000
+
+beta       =    0.000    
+debye2     =    0.000    
+collision_op = 'none'
+
+init_cond = 'ppj'
+
+hyp_z =    2.000    
+hyp_v =   0.2000    
+
+/
+
+&geometry
+magn_geometry = 's_alpha'
+shat     =   1.0000
+trpeps   =   0.1600    
+major_R  =    1.0000
+q0       =    2.000    
+/
+
+&species
+name   = 'Ions'
+omn    =    3.000    
+omt    =    9.000    
+
+mass   =    1.000    
+temp   =    1.000    
+dens   =    1.000    
+charge =  1
+/
+
+&info
+step_time  =     0.4044
+number of computed time steps =   51799
+time for initial value solver =  20949.180
+calc_dt = T
+init_time =   507.1482
+n_fields = 1
+n_moms   =  6
+n_energies   =  2
+ly =  125.664    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+SVN_REV = 1929:1930M          
+RELEASE = 1.5 - alpha 1
+/
+

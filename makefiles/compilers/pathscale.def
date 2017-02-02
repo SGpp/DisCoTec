@@ -1,0 +1,91 @@
+# definitions for the pathscale compilers
+
+MPFC ?= pathf95
+MPCC ?= pathcc
+cmd=$(shell basename "`which $(MPFC)`")
+ifneq ($(cmd),$(MPFC))
+MPFC = pathf90
+MPCC = pathcc
+endif
+
+#abort if no valid intel compiler is found
+cmd=$(shell basename "`which $(MPFC)`")
+ifneq ($(cmd),$(MPFC))
+$(error $(MPFC) not found)
+endif
+
+FC ?= pathf95
+CC ?= pathcc
+
+SET_F2003_STANDARD = -ffortran2003
+ONLY_PREPROCESS = -E
+PREPROC_FLAG = -cpp
+HEAPARRAYS_FFLAGS = 
+ALIGN_FFLAGS = 
+
+DEBUG_TRACEBACK = -g
+DEBUG_WARN = -fullwarn
+DEBUG_RUNTIME_CHECK = -C
+DEBUG_FFLAGS = $(DEBUG_TRACEBACK)
+DEBUG_FFLAGS += $(DEBUG_RUNTIME_CHECK) $(DEBUG_WARN)
+DEBUG_CFLAGS = $(DEBUG_TRACEBACK) $(DEBUG_WARN)
+
+MKL_ARCH=intel64
+ifeq ($(CHIP),Core2)
+ CHIP_OPT ?= 
+endif
+ifeq ($(CHIP),Nehalem)
+ CHIP_OPT ?= 
+endif
+ifeq ($(CHIP),SandyBridge)
+ CHIP_OPT ?= 
+endif
+ifeq ($(CHIP),Xeon_E5_IvyBridge)
+ CHIP_OPT ?= 
+endif
+ifeq ($(CHIP),IvyBridge)
+ CHIP_OPT ?= 
+endif
+ifeq ($(CHIP),Haswell)
+ CHIP_OPT ?= 
+endif
+ifeq ($(CHIP),Phi)
+ CHIP_OPT =
+ MKL_ARCH = mic
+endif
+
+CHIP_OPT ?= -march=auto
+OPTLEVEL ?= 3
+
+#reduce optimization in specific versions due to
+#compiler bugs:
+ifeq ($(findstring 12.1,$(MPFCVERSION)),12.1)
+#OPTLEVEL = 2
+endif
+
+OPT_FFLAGS = -O$(OPTLEVEL) $(CHIP_OPT)
+OPT_CFLAGS = -O$(OPTLEVEL) $(CHIP_OPT)
+PRODRUN_FFLAGS = -Ofast
+PRODRUN_CFLAGS = -Ofast
+
+OPENMP_FFLAGS = -mp
+OPENMP_CFLAGS = -mp
+
+SYMBOL_FFLAGS += -g 
+SYMBOL_CFLAGS += -g
+
+REPORT_VEC_FFLAGS =
+REPORT_OPENMP_FFLAGS =
+REPORT_OFFLOAD_FFLAGS =
+REPORT_HLO_FFLAGS = 
+REPORT_FFLAGS = 
+
+REPORT_CFLAGS = $(REPORT_FFLAGS)
+
+DOUBLE_PRECISION_FFLAGS = -r8
+MODDIR_FFLAGS = -module $(OBJDIR)
+
+F2003_MISSING=
+
+
+

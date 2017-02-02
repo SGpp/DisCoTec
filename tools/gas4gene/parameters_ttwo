@@ -1,0 +1,109 @@
+&parallelization
+n_procs_s = 1
+n_procs_v = 1
+n_procs_w = 8
+n_procs_x = 1
+n_procs_y = 1
+n_procs_z = 1
+n_procs_sim = 8
+/
+
+&box
+n_spec = 1
+nx0 = 64
+nky0 = 1
+nz0 = 16
+nv0 = 32
+nw0 = 8
+kymin = 0.3
+lx = 60
+lv = 4.11398130336
+lw = 5.87362420433
+x0 = 0.5
+n0_global = 5
+/
+
+&in_out
+diagdir = '/home/cluster/pr63so/di56xiq/gene11dev/prob02'
+read_checkpoint = .F.
+istep_nrg = 10
+istep_field = 100
+istep_mom = 100
+istep_energy = 0
+istep_prof = 100
+istep_vsp = 500
+istep_schpt = 5000
+/
+
+&general
+nonlinear = .F.
+x_local = .F.
+comp_type = 'IV'
+calc_dt = .T.
+ntimesteps = 500000
+timelim = 3600
+n_ev = 1
+underflow_limit = 1e-15
+beta = 0.0
+hyp_z = 2.0
+hyp_v = 0.2
+init_cond = 'db'
+/
+
+&nonlocal_x
+rad_bc_type = 1
+l_buffer_size = 0.1
+lcoef_krook = 1.0
+lpow_krook = 4
+u_buffer_size = 0.1
+ucoef_krook = 1.0
+upow_krook = 4
+/
+
+&external_contr
+/
+
+&geometry
+magn_geometry = 'circular'
+q_coeffs = 0.868, 0., 2.2
+minor_r = 0.35
+major_r = 1
+rhostar = 0.0125
+mag_prof = .T.
+/
+
+&species
+name = 'electrons'
+prof_type = 2
+kappa_t = 6.9589000
+lt_center = 0.50000000
+lt_width = 0.10000000
+kappa_n = 2.2320000
+ln_center = 0.50000000
+ln_width = 0.30000000
+mass = 0.54461700E-02
+temp = 1.0000000
+dens = 1.0000000
+charge = -1
+/
+
+&units
+tref = 3
+nref = 5
+bref = 2.5
+lref = 1.65
+mref = 1.0
+/
+
+&adaptivity
+n_vx_blks = 5
+prob_vx = 0.99
+n_wx_blks = 5
+prob_wx = 0.99
+opt_mthd_vx = 'integral'
+opt_mthd_wx = 'integral'
+blk_mks_r_v = 0.125, 0.448003229918, 0.518232183535, 0.583830419984, 0.67276766216, 0.875
+blk_mks_v = 4.11398130336, 3.86096349357, 3.56364763274, 3.35125968949, 3.24923539577, 3.22553561223
+blk_mks_r_w = 0.125, 0.448003229918, 0.518232183535, 0.583830419984, 0.67276766216, 0.875
+blk_mks_w = 5.87362420433, 5.17336261187, 4.40728403184, 3.89760384343, 3.66390226882, 3.61064850323
+/

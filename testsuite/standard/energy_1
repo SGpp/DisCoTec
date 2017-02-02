@@ -1,0 +1,17 @@
+ #  1.  time
+ #  2.  Total Energy
+ #  3.  Total dE/dt
+ #  4.  Drive 1 term
+ #  5.  Heat sources (nonlocal)
+ #  6.  Collisional Dissipation
+ #  7.  hyp_v dissipation
+ #  8.  hyp_z dissipation
+ #  9.  hyp_x/y dissipation
+ #  10. nonlinearity
+ #  11. [Poisson err]_z,vpar
+ #  12. curvature + remaining terms (if any)
+ #  13. (abs(10)+abs(11)+abs(12))/abs(4): test for conservation
+ #  14. change in energy: (E(t)-E(t_last_energy_calc))/(dt*istep_energy)
+#        1           2           3           4           5           6           7           8           9          10          11          12          13          14
+  0.0000E+00  4.4770E-02 -2.8434E-04  0.0000E+00  0.0000E+00  0.0000E+00 -5.3591E-08 -2.8429E-04  0.0000E+00  0.0000E+00  1.6263E-19  0.0000E+00  0.0000E+00  1.8654E-03
+  2.4000E+01  1.1161E+04  5.8114E+03  6.0571E+03  0.0000E+00  0.0000E+00 -3.9272E+01 -2.0638E+02  0.0000E+00  0.0000E+00  5.6843E-14  0.0000E+00  9.3846E-18  4.6502E+02

@@ -1,0 +1,27 @@
+The files in this directory are sample input files from past 
+(machine) benchmark exercises as well as proposed benchmarks 
+for future studies.
+
+Description:
+1. parameters_multiscale_small  
+   Multiscale simulation in local approximation
+   high resolution in x and y (kx, ky)
+2. parameters_stellarator
+   Stellarator simulation in local approximation
+   high resolution in z
+3. parameters_multiscale_large
+   same as 1) but even higher resolutions as they 
+   are going to be required for realistic mass ratios
+4. parameters_ITGTEM_global
+   Example of a global run with full profile information
+   high resolution in x and increased resolution in v and w
+
+Strong scaling results for 1) and 2) can be found in
+Mohr, Bernd; Frings, Wolfgang (Eds.) (2010)
+Jülich Blue Gene/P Extreme Scaling Workshop 2009
+Technical Report IB-2010-02, PDF (824 kB)
+
+
+Note:
+GENE does only accept "parameters" as input file.
+The desired benchmark case has thus to be renamed.

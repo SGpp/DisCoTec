@@ -1,0 +1,121 @@
+&parallelization
+!n_procs_s =   2
+!n_procs_v =   1
+!n_procs_w =   8
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   1
+!n_procs_sim =     16
+/
+
+&box
+n_spec =    2
+nx0    =    3
+nky0   =    1
+nz0    =  128
+nv0    =   48
+nw0    =    8
+
+kymin =   0.3000    
+lv    =     3.00    
+lw    =     9.00    
+adapt_lx = T
+ky0_ind =   1
+mu_grid_type = 'gau_lag'
+/
+
+&in_out
+diagdir = '/out'
+
+read_checkpoint  = F
+write_checkpoint = T
+
+istep_field =     100
+istep_mom   =     200
+istep_nrg   =      10
+istep_omega =       0
+istep_vsp   =     500
+istep_schpt =       0
+
+write_std = T
+momentum_flux = F
+/
+
+&general
+nonlinear =   F
+comp_type = 'EV'
+!perf_vec  =  2 2 1 1 1 1 1 1 1
+!nblocks   =     192
+arakawa_zv =   T
+arakawa_zv_order =   4
+
+which_ev  = 'jd'
+pc_type  = 'asm'
+n_ev      =          2
+ev_n_test =      32
+
+timelim    =      83000
+
+beta       =   0.10000000E-02
+debye2     =    0.0000000    
+collision_op = 'none'
+
+init_cond = 'ppj'
+
+hyp_z =    5.000    
+hyp_v =   0.5000    
+
+/
+
+&geometry
+magn_geometry = 'tracer'
+q0       =    1.1100000    
+shat     =  -0.1088
+geomdir = '/tracer'
+geomfile = 'hm128.dat'
+minor_r  =    1.0000000    
+norm_flux_projection  = F
+/
+
+&species
+name   = 'ions'
+omn    =    0.0000000    
+omt    =    4.0000000    
+
+mass   =    1.0000000    
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge =  1
+/
+
+&species
+name   = 'electrons'
+omn    =    0.0000000    
+omt    =    0.0000000    
+
+mass   =   0.25000000E-02
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge = -1
+/
+
+&info
+comment = 2 species stellarator
+q0     =    1.1100000    
+iterations for eigenvalue calculation =    1928
+time for eigenvalue solver =  1784.6376
+init_time =     0.6535
+n_fields = 2
+n_moms   =  6
+lx =   30.6373    
+ly =   20.9440    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+SVN_REV = 3943M               
+RELEASE = 1.6 - alpha 0
+/
+
+&units
+/
+

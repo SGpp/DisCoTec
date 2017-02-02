@@ -1,0 +1,28 @@
+#!/bin/sh
+#deletes *_[id1] to *_[id2]
+#usage: rd [id1] [id2]
+if [[ $# -ne 2 ]]; then
+  echo "call with two arguments"
+  exit
+fi
+
+run=$1
+lastrun=$2
+
+if [[ $lastrun -eq '' ]]; then
+  lastrun=$1
+fi
+
+taken_action=0
+while [ $run -le $lastrun ]
+do
+  if [[ `ls *_$run *_${run}.h5 2> /dev/null | wc -l` -gt 0 ]]; then
+    rm *_$run *_${run}.h5 2> /dev/null
+    taken_action=1
+  fi
+  run=`expr $run + 1`
+done
+
+if [[ $taken_action -ne 1 ]]; then
+  echo "no files found to delete"
+fi

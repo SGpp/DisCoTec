@@ -1,0 +1,37 @@
+#!/bin/sh
+#renames *_[id1] to *_[id2]
+#usage: runrename [id1] [id2]
+
+if [[ `ls *_$1 *_${1}.h5 2> /dev/null | wc -l` -eq 0 ]]; then
+  echo "source does not exist"
+  exit
+fi
+
+if [[ `ls *_$2 *_${2}.h5 2> /dev/null | wc -l` -gt 0 ]]; then
+  overwrite="y"
+  echo "target already exists: overwrite (y/n)?"
+  read overwrite
+  if [ "$overwrite" != "y" ]
+  then
+    echo "exiting"
+    exit
+  fi
+fi
+
+if [[ `ls *_$1 2> /dev/null | wc -l` -gt 0 ]]; then
+  echo "renaming *_$1 to *_${2}"
+  for file_in in *_$1
+  do
+    file_out=`echo $file_in | sed -e "s/\(.*\)_${1}/\1_${2}/"`
+    mv $file_in $file_out
+  done
+fi
+
+if [[ `ls *_${1}.h5 2> /dev/null | wc -l` -gt 0 ]]; then
+  echo "renaming *_${1}.h5 to *_${2}.h5"
+  for file_in in *_${1}.h5
+  do
+  file_out=`echo $file_in | sed -e "s/\(.*\)_${1}.h5/\1_${2}.h5/"`
+  mv $file_in $file_out
+  done
+fi

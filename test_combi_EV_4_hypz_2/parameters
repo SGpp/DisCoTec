@@ -1,0 +1,121 @@
+&parallelization
+!n_procs_s =   2
+!n_procs_v =   1
+!n_procs_w =  16
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   1
+!n_procs_sim =     32
+/
+
+&box
+n_spec = 2
+nx0 = 5
+nky0 = 1
+nz0 = 256
+nv0 = 64
+nw0 = 16
+
+kymin = 0.2500
+lv = 3.00
+lw = 9.00
+adapt_lx = T
+ky0_ind = 1
+mu_grid_type = 'clenshaw_curtis'
+/
+
+&in_out
+diagdir = "/home/ckow/work/gene_20140826/test_combi_EV_4_hypz_2/output/"
+
+read_checkpoint = F
+write_checkpoint = T
+
+istep_field = 100
+istep_mom = 100
+istep_nrg = 10
+istep_omega = 0
+istep_vsp = 500
+istep_schpt = 0
+istep_energy = 100
+
+write_std = T
+momentum_flux = F
+/
+
+&general
+nonlinear = F
+comp_type = 'EV'
+perf_vec = 2 2 2 1 1 1 1 1 2
+nblocks = 64
+arakawa_zv_order = 2
+
+which_ev = 'jd'
+pc_type = 'asm'
+n_ev = 2
+ev_max_it = 25000
+ev_n_test = 32
+
+timelim = 84000
+
+beta = 0.10000000E-02
+debye2 = 0.0000000
+collision_op = 'none'
+
+init_cond = 'alm'
+
+hyp_z = 2.000
+hyp_v = 0.5000
+
+/
+
+&geometry
+magn_geometry = 'circular'
+q0 = 1.4000000
+shat = 0.8000
+trpeps = 0.18000000
+major_R = 1.00000000
+dpdx_term = 'gradB_eq_curv'
+dpdx_pm = 0.0000000
+norm_flux_projection = F
+/
+
+&species
+name   = 'ions'
+omn    =    2.5000000    
+omt    =    3.5000000    
+
+mass   =   1.00000000    
+temp   =   1.00000000    
+dens   =   1.00000000    
+charge =  1
+/
+
+&species
+name   = 'electrons'
+omn    =    2.5000000    
+omt    =    4.0000000    
+
+mass   =   0.27000000E-03
+temp   =    1.5000000    
+dens   =   1.00000000    
+charge = -1
+/
+
+&info
+iterations for eigenvalue calculation = 591
+time for eigenvalue solver = 507.2697
+init_time = 1.0256
+n_fields = 2
+n_moms = 6
+lx = 5.00000
+ly = 25.1327
+PRECISION = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS = 1
+RELEASE = 1.8 - alpha 0
+/
+
+&units
+/
+
+

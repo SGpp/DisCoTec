@@ -1,0 +1,114 @@
+# definitions for the PGI compiler family
+
+MPFC ?= mpipgf90
+MPCC ?= mpipgcc
+
+cmd=$(shell basename "`which $(MPFC)`")
+ifneq ($(cmd),$(MPFC))
+MPFC = mpipf90
+MPCC = mpipcc
+endif
+
+FC ?= pgf90
+CC ?= pgcc
+
+ifeq ($(USE_PERFLIB),scalasca)
+ MPFC := scalasca -instrument -user $(MPFC)
+ MPCC := scalasca -instrument -user $(MPCC)
+#	FFLAGS += -fpp -Wp,-P
+endif
+ifeq ($(USE_PERFLIB),ompp)
+# the preprocessor must not write #line directives
+# and also the quotes in the SVN statement is switched off
+ MPFC := kinst-ompp $(MPFC)
+ FC := kinst-ompp $(FC)
+#	FFLAGS += -fpp -Wp,-P
+endif
+
+FFLAGS += -Kieee
+
+SET_F2003_STANDARD =
+PREPROC_FLAG = -Mpreprocess
+ONLY_PREPROCESS=-E
+
+DEBUG_TRACEBACK = -traceback
+DEBUG_FFLAGS = $(DEBUG_TRACEBACK) -g -C -Mchkptr -Mchkfpstk
+DEBUG_CFLAGS = 
+
+
+ifeq ($(CHIP),Core2)
+ CHIP_OPT = -tp core2
+endif
+ifeq ($(CHIP),Nehalem)
+ CHIP_OPT = -tp nehalem
+endif
+ifeq ($(CHIP),SandyBridge)
+ CHIP_OPT = -tp sandybridge
+endif
+ifeq ($(CHIP),Magny-Cours)
+#according to http://sites.amd.com/es/Documents/CompilerOptQuickRef-61004100.pdf
+ CHIP_OPT = -tp istanbul-64
+endif
+ifeq ($(CHIP),Phi)
+ CHIP_OPT =
+ MKL_ARCH = mic
+endif
+
+OPTLEVEL ?= 3
+OPT_FFLAGS = -O$(OPTLEVEL) $(CHIP_OPT) -fastsse
+PRODRUN_FFLAGS = $(OPT_FFLAGS) -Mipa=fast,inline:3
+
+OPENMP_FFLAGS = -mp
+
+SYMBOL_FFLAGS += -g 
+SYMBOL_CFLAGS += -g
+
+REPORT_FFLAGS = 
+
+DOUBLE_PRECISION_FFLAGS = -r8 
+DOUBLE_PRECISION_PREPREC = -D'erf=derf'
+MODDIR_FFLAGS = -module $(OBJDIR)
+
+ifneq ($(strip $(MKL_TARGET_ARCH)),)
+ MKL_ARCH?=$(MKL_TARGET_ARCH)
+endif
+MKL_ARCH?=intel64
+
+ifneq ($(filter 10.1 10.2 10.3,$(MKLVERSION)),)
+ifneq ($(filter 10.1 10.2,$(MKLVERSION)),)
+ MKL_ARCH = em64t
+endif
+ MKL_SCALAPACK_LINKLINE = $(MKLROOT)/lib/$(MKL_ARCH)/libmkl_scalapack_lp64.a \
+	$(MKLROOT)/lib/$(MKL_ARCH)/libmkl_solver_lp64_sequential.a -Wl,--start-group  \
+	$(MKLROOT)/lib/$(MKL_ARCH)/libmkl_intel_lp64.a \
+	$(MKLROOT)/lib/$(MKL_ARCH)/libmkl_sequential.a \
+	$(MKLROOT)/lib/$(MKL_ARCH)/libmkl_core.a \
+	$(MKLROOT)/lib/$(MKL_ARCH)/libmkl_blacs_intelmpi_lp64.a -Wl,--end-group -lpthread -lm
+
+ MKL_BLAS_LINKLINE = $(MKLROOT)/lib/$(MKL_ARCH)/libmkl_solver_lp64_sequential.a \
+	-Wl,--start-group  $(MKLROOT)/lib/$(MKL_ARCH)/libmkl_intel_lp64.a \
+	$(MKLROOT)/lib/$(MKL_ARCH)/libmkl_sequential.a \
+	$(MKLROOT)/lib/$(MKL_ARCH)/libmkl_core.a -Wl,--end-group -lpthread -lm
+endif
+
+ifeq ($(MKL_SCALAPACK_LINKLINE),)
+#default case; otherwise use follwing line
+#ifneq ($(filter 11.0 13.5 14.0,$(MKLVERSION)),)
+ MKL_SCALAPACK_LINKLINE = -L$(MKLROOT)/lib/$(MKL_ARCH) -Wl,-rpath,$(MKLROOT)/lib/$(MKL_ARCH) \
+			  -lmkl_scalapack_lp64 \
+			  -lmkl_intel_lp64 -lmkl_core -lmkl_sequential \
+			  -lmkl_blacs_intelmpi_lp64 -lpthread -lm 
+
+ MKL_BLAS_LINKLINE = -L$(MKLROOT)/lib/$(MKL_ARCH) -Wl,-rpath,$(MKLROOT)/lib/$(MKL_ARCH) \
+			-lmkl_intel_lp64 \
+		      	-lmkl_core -lmkl_sequential -lpthread -lm
+endif
+
+
+
+F2003_MISSING=
+
+#default optimization creates problems with perf_vec(4)=3 in standard
+#test 3 for n_procs = (1,1,8,1,1,1); hence reduced opt. level
+NOOPTLIST += collisions.o
+NOOPTFLAGS = -Kieee $(MODDIR_FFLAGS) -O1 $(DOUBLE_PRECISION_FFLAGS)

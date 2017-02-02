@@ -1,0 +1,1156 @@
+#!/usr/bin/perl
+# for usage type ./scanscript --help and/or view the comments at the end of the file
+ 
+use strict;
+#use warnings;
+use Class::Struct;
+use File::Copy;
+use Getopt::Long;
+use Cwd;
+use Math::BigInt;
+use Math::BigFloat;
+
+# add folder to perl path variable @INC
+use lib "../tools/scanscript";
+# module containing perl subroutines
+use perl_tools;
+
+# define and initialize the scan data structure
+struct Intervall => {
+    name => '@',
+    spec => '@',
+    start   => '@',
+    step => '@',
+    end => '@',
+	  scantype => '@',
+};
+our $StrInt = Intervall -> new(); 
+initialize_StrInt();
+
+#global variables
+our $SCANDIR=" ";
+our $OUTDIR=" ";
+our $PROBDIR = cwd;
+#   temporary parameter file, scanscript is operating on
+#   philosophy: in the original parameter file we only modify 
+#               &scan namelist and result of performance optimization
+our $infilename = "gene_in.xml";
+our $tmpparfile = "$PROBDIR/tmp_$infilename";
+our $parfile_probdir = "$PROBDIR/$infilename";
+our $parfile_scandir = "";  #set in prepare_scandir
+our $PARINDIR=" ";
+our $mysyscall = "";
+our $startnum=0; 
+our $runnum=0;
+our $endnum=10000000;
+our $make = (system("gmake -v > /dev/null") > 0) ? "make" : "gmake";
+our @datarr;
+our @scancoords; #used for scangene
+our $chpdepth = 0; # for clever use of checkpoints in higher dimensional scans
+our @autopar_cond ;
+#options
+my $n_pes=0;              #total number of processes requested for the job
+my $force = 0;            #execute all runs, even if error occurs
+my $help=0;               #show help
+my $long_help=0;          #show advanced help
+my $continue_scan=0;      #continue scan in given diagdir
+my $test=0;               #do not execute gene (default 0=execute gene)
+my $stop=0;               #exit scanscript before gene execution (for debugging)
+my $efficiency=0;         #efficiency for different n_procs_sim
+my $min_procs="not_set";  #minimal number of processes for a efficiency test
+my $procs_per_node=0;     #procs per node ;o)
+my $ap_switch=1;          #do(1) or do not(0) use autoparallelization result of first run
+my $oldgene=0;            #(0) : scangene is used (new),(1): gene executable is used (old) 
+my $nl_box=0;             #requires ky0_ind scan! set nx0 according to NL box (1): on (0): off 
+                          # parameters !nl_nx0 = nonlinear number of x modes mus be set, !nl_nx0_max can be set 
+my $mk_scanlog=0;         #equivalent to --test --startnum 1
+my $max_scans=9999;       # maximal recursion depth for routine Traver==maximal number of scans
+my $itm=1;                # is gene started as  a ITM library?
+
+GetOptions("startnum:i"=> \$startnum,
+	   "s:i"=> \$startnum,
+	   "endnum:i"=> \$endnum,
+	   "e:i"=>  \$endnum,
+	   "n_pes:i" => \$n_pes,
+	   "scandir:s" => \$SCANDIR,
+	   "outdir:s" => \$OUTDIR,
+	   "o:s" => \$OUTDIR,
+	   "syscall:s" => \$mysyscall,
+	   "test!" => \$test,
+	   "stop!" => \$stop,
+	   "mk_scanlog!" => \$mk_scanlog,
+	   "efficiency!" => \$efficiency,
+	   "min_procs:i" => \$min_procs,
+	   "procs_per_node:i" => \$procs_per_node,
+	   "force!" => \$force,
+	   "oldgene!" => \$oldgene,
+	   "f" => \$force,
+	   "ap_switch:i"=> \$ap_switch,
+	   "nl_box!"=> \$nl_box,
+	   "continue_scan!"=> \$continue_scan,
+	   "long_help!"=> \$long_help,
+	   "help!" => \$help);
+
+if($help==1){
+	show_help();
+   exit(0);
+}
+
+if($long_help==1){
+	show_help();
+	show_long_help();
+   exit(0);
+}
+
+check_options();
+
+#subroutine creating the output directory etc.
+prepare_scandir();
+
+# parallel efficiency test  ################
+  ### global variables for efficiency option
+  our @primes = (2,3,5,7,11,13);
+  our $max_num_primes = scalar(@primes);
+  our @n_procs_list ; 
+  our @all_exps ; # prime exponents of all numbers summed up
+  our @exps;       # help prime exponents 
+  our $t_n_procs;
+##################################################
+
+our  $n_ev=1;
+our  $EVsolver = isEVsolver();
+
+########################################################################
+### MAIN PROGRAM: either CONVENTIONAL SCANSCRIPT USE with --efficiency # 
+###               or     SCANGENE a)efficiency scan b)write parameters #
+###                               c)execute scangene d)create scan.log # 
+########################################################################
+
+
+#  particularly interesting for efficiency studies when n_procs_sim*n_parallel_sims .ne. n_pes
+  print "\n  SCANSCRIPT with LIB ITM GENE\n\n";
+  $runnum=0;     # initialize new Traver parsing    
+  $chpdepth = 0; # for clever use of checkpoints in higher dimensional scans
+  fill_struct(); #with scan data from parameters file
+  create_scanlog();
+  # main routine:
+  if ($mk_scanlog == 0) {
+    Traver(0,$max_scans,"genecall"); }
+  else{
+    Traver(0,$max_scans,"scanlog"); 
+  }
+  #runs through the scan struct and modifies parameter values to start gene
+  finalize_scan();
+
+####################################################################################
+##################################Subroutines#######################################
+####################################################################################
+sub check_options {
+  if ($mk_scanlog == 1) { 
+    $test = 1;
+    $startnum = 0;
+  }
+  if (($test != 1) and ($mk_scanlog !=1)) { 
+#   neither test option nor mk_scanlog option: n_pes is required!
+    if (($n_pes <= 0)and($oldgene !=1)) {
+      print "error: n_pes = $n_pes <= 0!\n use the scanscript option --n_pes 'number>0'\n";
+      exit(0);
+    }
+  #}else{ # n_pes does not have to be set for test calls
+  } 
+  if ($continue_scan == 1) {
+     if ($oldgene == 0){
+        $startnum = 1;
+     }else{
+        print "use --startnum = <int> option to continue scan\n";
+        exit(0);
+     }
+  }
+}
+
+sub set_entry{
+# ITM version
+# replace an entry in specified namelist if it exists, 
+# add to input namelist otherwise
+    my $filename = shift;
+    my $namelist = shift;
+    my $entry = shift;
+    my $newvalue = shift;
+    $itm = 1;
+    my $line;
+
+    if (read_entry_in_nmllist("$filename","$namelist","$entry") eq ""){
+      open(DAT,"$filename");
+      my @lines=<DAT>;
+      close(DAT);
+      open(DAT,">$filename");
+      foreach $line(@lines){
+        if ($line =~ /\s*<\s*$namelist\s*>\s*/){
+          $line="$line"."     <$entry>  $newvalue  <\/$entry> \n";
+        }
+        print DAT $line;
+      }
+      close DAT ;
+      return("a"); #added
+    }else{
+      replace_entry("$filename","$entry", "$newvalue");
+      return("r"); #replaced
+    }
+    print "error in set_entry : $entry";
+    return(0);
+}
+
+sub replace_entry {
+# replace entry or commented entry in file
+    my $filename = shift;
+    my $keyword = shift;
+    my $newentry = shift;
+    my $line;
+    open(DAT,"$filename");
+    my @entry=<DAT>;
+    close(DAT);
+    open(DAT,">$filename");
+    foreach $line(@entry){
+		if ($line =~ /^\s<\s*$keyword\s*>(.*)<\/\s*$keyword>/) {
+			$line="         <$keyword>  $newentry  <\/$keyword>\n";
+		}	
+	print DAT $line;
+    }
+	close(DAT);
+}
+
+sub read_entry {
+    # returns the value of parameter $entry in input file
+    my $file = shift;
+    my $entry = shift;
+    my $line;
+    open(FH,"<$file");
+    while ($line=<FH>) {
+	if ($line =~ /^\s*<\s*$entry\s*>\s*(\S*?)\s*<\s*\/\s*$entry\s*>/) {
+	    close(FH);
+	    return($1);
+	}
+    }
+    close(FH);
+    return("");
+}
+
+
+sub read_entry_in_nmllist {
+    # returns the value of parameter $entry in the namelist of the input file
+    my $file = shift;
+    my $namelist = shift;
+    my $entry = shift;
+    my $line;
+    my $in_namelist = 0;
+    open(FH,"<$file");
+    while ($line=<FH>) {
+        if ($line =~ /\s*<\s*$namelist\s*>\s*/){
+	    #found the namelist and starts to look for entry
+	    $in_namelist = 1;
+	} elsif ($in_namelist == 1) {
+	    #check for entry in current line:
+	    if ($line =~ /\s*$entry\s*=\s*(.*)/) {
+		close(FH);
+		return($1);	    
+	    } elsif ($line =~ /^\s*<\/$namelist\s*>(.*)/) {
+		#found the '/' symbol, i.e. finished
+		#the namelist
+		$in_namelist = 0;
+	    }
+	}
+    }
+    close(FH);
+    return("");
+}
+
+
+
+sub set_nl_box {
+  
+  opendir(PATH,"$PARINDIR");	      
+	my @content=readdir(PATH);
+	closedir(PATH);		
+
+  printf "\n\nnx0 values for nonlinear box: \n";
+  printf "\$ky0_ind \$ky \$nx0\n";
+
+  my $file = "gene_in.xml";
+  my $nx0=0;
+      my $parfile = "$PROBDIR"."/parameters";
+      my $nl_nx0 = read_entry("$parfile","!nl_nx0");
+      my $nl_nx0_max = read_entry("$parfile","!nl_nx0_max");
+      my $nl_nexc = read_entry("$parfile","!nl_nexc");
+      my $nl_kymin = read_entry("$parfile","!nl_kymin");
+      my $nl_ky0_ind = ReadValue("$parfile","!nl_ky0_ind",1,0);
+      foreach ($nl_nx0,$nl_nx0_max,$nl_nexc,$nl_kymin,$nl_ky0_ind){
+        if ("$_" eq ""){print "wrong nl_box, exit at file\n $parfile\n";exit(0);}
+      }
+      my $ky=$nl_kymin*$nl_ky0_ind;
+  my $max_pos_x_modes = int(($nl_nx0-1)/2);
+#     this is the calculation of the number of x modes connecting to the ky mode number i
+#     the ith ky mode only connects to the every i*nl_nexc th x mode.
+#     we count in positive x-direction, the actual number of modes is twice that number (+1 for kx=0 )
+#     as long as there are x modes available, count count one up!
+      for (my $count=1;$count*$nl_nexc*$nl_ky0_ind<=$max_pos_x_modes;$count++){$nx0=$count*2+1}
+      $nx0 = min($nl_nx0_max,$nx0);
+      printf ("%2d    %.3f  %4d\n", $nl_ky0_ind,$ky,$nx0);
+  set_entry($file,"box","nx0","$nx0");
+}
+
+
+sub finalize_scan{
+  #finally add \n to scan.log
+  open(LOG,">>$SCANDIR/scan.log");
+  print LOG "\n";
+  close(LOG);
+  copy("$parfile_scandir","$parfile_probdir");
+  if ($efficiency==1){unlink("$SCANDIR/scan.log")}
+  #unlink($tmpparfile);
+}
+
+sub initialize_StrInt{
+  $StrInt->name(0,'nky0');
+  $StrInt->start(0,1.);
+  $StrInt->step(0,1.);
+  $StrInt->end(0,1.);
+  $StrInt->spec(0,1);
+	$StrInt->scantype(0,'range');
+}
+
+sub print_StrInt{
+  my $i = 0;
+  while (defined $StrInt->name($i) ){;
+    my $name = $StrInt->name($i);
+    my $start = $StrInt->start($i);
+    my $step=$StrInt->step($i);
+    my $end=$StrInt->end($i);
+    my $spec=$StrInt->spec($i);
+	  my $type=$StrInt->scantype($i);
+    print "StrInt $i:\n";
+    print "  name $name\n";
+    print "  start $start\n";
+    print "  step $step\n";
+    print "  end $end\n";
+    print "  spec $spec\n";
+    print "  type $type\n";
+    $i++
+  }
+  print "number of scan parameters: $i\n";
+  #exit(0);
+}
+
+sub isEVsolver{
+# determine mode of operation (Eigenvalue or Initial value solver)
+  print "determine gene mode of operation...\n";
+  my $my_EVsolver=1;
+  my $which_ev = read_entry("$tmpparfile","which_ev");
+  my $comp_type = read_entry("$tmpparfile","comp_type");
+  if (("$which_ev" eq "")||("$which_ev" eq "none")) {
+    if(("$comp_type" eq "IV")|| ("$comp_type" eq "")){
+      $my_EVsolver=0;
+      print "initial value solver\n";
+    }else{
+      print "eigenvalue solver\n";
+    }
+  }else{
+     print "eigenvalue solver\n";
+  }
+  if ($my_EVsolver==1){
+    $n_ev=read_entry("$tmpparfile","n_ev",1,0);
+    if (($n_ev=="")or($n_ev<=0)){
+	    $n_ev=1;
+	    print "n_ev set to 1\n";
+    }
+  }
+  return($my_EVsolver);
+}
+
+##################################################################################
+sub prepare_scandir{
+	my $i=0;
+	if ($OUTDIR=~" "){
+	    $OUTDIR=read_entry("$parfile_probdir","diagdir");
+##     ungreedy search from the end, no character after scanfiles<i> allowed
+	    $OUTDIR=~/(\S+?)\/?((scanfiles)\d*)?$/;
+	    $OUTDIR=($1);
+	    my $string = ($2);
+	    if ($startnum > 0){
+			if ($SCANDIR=~" "){
+			    $SCANDIR=$string;
+			    print "no scandir set; set to $SCANDIR\n";
+			}else{
+			    $SCANDIR=~/(\S+)\/?((scanfiles)\d*)?/;
+			    $SCANDIR=($2);
+			}
+	    }
+	    print "SCANDIR = $SCANDIR\n";
+	}else{
+    $/="/";
+    chomp($OUTDIR);
+	}
+	print "using OUTDIR = $OUTDIR\n";
+	print "using PROBDIR = $PROBDIR\n";
+	opendir(OUTDIR,"$OUTDIR") || die "couldn't open dir: $OUTDIR\n";
+	closedir(OUTDIR);
+	chdir("$PROBDIR");
+	if($startnum==0){
+	  print "creating new scandir.\n";
+	  if(-e "$OUTDIR/scanfiles"){
+			$i=1;
+			while(-e "$OUTDIR/scanfiles$i"){
+			    $i++;
+			}
+			mkdir("$OUTDIR/scanfiles$i");
+			$SCANDIR="$OUTDIR/scanfiles$i";
+	  }else{
+		  mkdir("$OUTDIR/scanfiles");
+		  $SCANDIR="$OUTDIR/scanfiles";
+		}
+		print "Starting with run no 1\n";
+	}else{
+		#use the last scanfile
+	    print "Starting with run no $startnum\n";
+    # if it does not exist: create one
+	    if(($SCANDIR=~" ")||(not(-e "$OUTDIR/$SCANDIR"))){
+			  print "creating new scandir.\n";
+			  if(-e "$OUTDIR/scanfiles"){
+			    $i=1;
+			    while(-e "$OUTDIR/scanfiles$i"){
+					  $i++;
+			    }
+			    $i--;
+			    if($i==0){
+					  $SCANDIR="$OUTDIR/scanfiles";
+			    }else{
+					  $SCANDIR="$OUTDIR/scanfiles$i";
+			    }
+			  }else{
+			    mkdir("$OUTDIR/scanfiles");
+			    $SCANDIR="$OUTDIR/scanfiles";
+			  }
+      # else, use the diagdir from parameters file  
+	    }else{
+			  $SCANDIR="$OUTDIR/$SCANDIR";
+	    }
+#     clean up unfinished files
+	    opendir(SCANDIR,"$SCANDIR") || die "couldn't open scandir.";
+	    my @entry = readdir(SCANDIR);
+	    my $elem;
+	    foreach $elem(@entry){
+			  if($elem=~/(.*)\.dat/){	   
+			    unlink("$SCANDIR/$elem");
+			  }
+	    }
+	    closedir(SCANDIR);
+	}
+	print "using SCANDIR = $SCANDIR\n";
+	ChEntry("$parfile_probdir","diagdir","$SCANDIR",1);
+	ChEntry("$parfile_probdir","chptdir","$SCANDIR",1);
+# original parameters copied to scandir
+  $parfile_scandir = "$SCANDIR/$infilename";
+	copy("$parfile_probdir","$parfile_scandir");
+# create temporary parameters file
+  copy("$parfile_probdir","$tmpparfile");
+
+} #end prepare_scandir
+
+###########################################################################
+
+sub create_scanlog{
+  my $entry = "";
+  my $i=0;
+  my $n_scanpars=@scancoords;
+  for (my $i=0;$i<$n_scanpars;$i++){
+	    $entry= sprintf("| %-9s %d  %s",$StrInt->name($i),$StrInt->spec($i),$entry);
+  }
+    $entry="#Run  ".$entry;
+    if ($startnum==0){
+		  open(LOG,">$SCANDIR/scan.log");
+		  print LOG $entry;
+		  for(my $i=1;$i<=$n_ev;$i++){
+			print LOG "/Eigenvalue$i            ";
+		}
+		close(LOG);
+  }
+    return();
+} 
+
+###########################ROUTINES CONCERNING THE SCAN STRUCT ########################
+
+sub fill_struct {
+  $StrInt = Intervall -> new();
+  my @my_scancoords;
+  my $i=0;
+  my $j=0;
+  my $k=0;
+  open(INTFILE,"<$tmpparfile");
+  my @datarrs=<INTFILE>;
+  close(INTFILE);
+  my $line;
+  my $entry="";
+  my $name = "";
+  my $scantype = "";
+  my $cmpl = "";
+  my $values = "";
+##initialize scan struct with the situation: no scan
+  $StrInt->name(0,"no_scan");
+  $StrInt->scantype(0,"none");
+	$StrInt->spec(0,0);
+	$StrInt->start(0,0);
+	$StrInt->step(0,0);
+	$StrInt->end(0,0);
+  for($k=0;$k<=$#datarrs;$k++){
+    $line=$datarrs[$k];
+      if ($line=~/\s*<\s*(\S+)\s*>\s*.+\s*!scan(\w*):((re|im):)?\s*(.+,.+)\s*<\/\s*(\S+)\s*>/){ 
+        print "line with scan: $line\n";
+#       $values has to have "," --> functional dependencies work, one-element lists are ignored!!
+      $name = $1;
+      $scantype = $2;
+	    # $3 is $complex with ":" ...
+		  if (defined $4){$cmpl = $4;}
+		  $values = $5;
+      chomp($values);
+#     BACKWARDS COMPATIBILITY
+      if ("$scantype" eq ""){
+ 	      if ($values=~/xi/){
+	        $scantype="func";
+        }else{
+	        $scantype="range";
+        }
+      }
+		  $StrInt->name($i,"$name");
+		  $StrInt->scantype($i,"$scantype");
+		  $StrInt->spec($i,1);
+		  for ($j=0;$j<$k;$j++){
+		    if ($datarrs[$j]=~/$name\s*=/){
+		    $StrInt->spec($i,$StrInt->spec($i)+1);
+		    }
+		  }
+#		  scan-type dependent struct filling:
+		  if ("$scantype" eq "range"){
+		    $values=~/\s*(.+),(.+),(.+)\s*/;
+#       test: $1 $2 and $3 must be numbers 
+###     number tests have been removed due to frequent problems with isnumber 
+        ##    instead: defined..works in all tested cases.
+        #if ((isnumber("$1")) and (isnumber("$2")) and (isnumber("$3"))){
+          if (( defined $1) and (defined $2) and (defined $3)){
+		      $StrInt->start($i,$1);
+		      $StrInt->step($i,$2);
+		      $StrInt->end($i,$3);
+          }else{
+            print "invalid scan$scantype expression for parameter $name\nexit!\n";
+            exit(0);
+          }
+		  }elsif ("$scantype" eq "func"){
+		    $values=~/\s*(.+),(.+),(.+)\s*/;
+#         test: $1 and $3 must be numbers $2 is some formula not tested 
+          if (( defined $1) and (defined $2) and (defined $3)){
+		      $StrInt->start($i,$1);
+		      $StrInt->step($i,$2);
+		      $StrInt->end($i,$3);
+          }else{
+            print "invalid scan$scantype expression for parameter $name\nexit!\n";
+            exit(0);
+          }
+		  }elsif ("$scantype" eq "list"){
+		#     list without test, $values is saved as a string
+		      $StrInt->start($i,0);		
+		      $StrInt->step($i,$values);		#save the string, not the array.
+		      $StrInt->end($i,0);
+		  }else{
+		      print "unknown scan expression !scan$scantype occured at parameter $name\n";
+		      exit(0);
+		  }
+		#   complex values are written by ChEntry in a special way
+		  if (("$cmpl" eq "re") or ("$cmpl" eq "im")){
+		    $StrInt->name($i,"$name"."_scan_$cmpl");
+		  }
+      $i++;
+      push(@my_scancoords,0); #the lenght of this is the number of scan parameters
+    }
+  }
+# no scan found for i=0
+  if ($i == 0) {
+    print "\n### no scan was found in the parameters file ###\n";
+    print   "### set scan_dims = 1                        ###\n";
+    push(@my_scancoords,0);
+  }
+  @scancoords = @my_scancoords; #initialization...
+  
+  return($i);
+}# end fill_struct
+
+###########################ROUTINES CONCERNING THE SCAN STRUCT ########################
+
+
+########################### MAIN ROUTINE ###############################################
+
+sub Traver{			# traverse scan struct recursively (see comments at end of file)
+  my $i = shift;			#depth of recursion (numbers scan parameters), start with 0
+  my $imax = shift;     #maximal depth of recursion (avoids uncontrollable number of recursions at error)  
+  my $action = shift;   #what Traver should do
+	
+  my $val=0.;
+  my $scanindex=1; #count the values that parameter $i takes
+	my $listlength=0;
+	my @varlist = "";
+	## START VALUE
+  if ($StrInt->scantype($i) eq "func" ){
+		#here start with index 1
+		$val=function($scanindex, $StrInt->step($i));
+	}elsif($StrInt->scantype($i) eq "list"){
+		@varlist= split(/,/,$StrInt->step($i));
+		$listlength = @varlist ;   # determine length
+		$val=$varlist[$scanindex-1]; #here start with index 0
+		$val = function(1,$val);
+  }else{
+	  $val=$StrInt->start($i);
+  }
+
+  my $whilecond;
+  my $val1=$val;
+	my $entryname = "";
+  do{
+    $entryname=$StrInt->name($i);
+	  ChEntry("$tmpparfile",$entryname,"$val",$StrInt->spec($i));
+    if (("$val" =~ m/[a-z,A-Z]/) and ( "$val" !~ m/([Ee][+-])/ )) {
+#     $val is a string (this might not work with diagnostics...but its nice!)
+	    $datarr[$i]=sprintf(" | %12s",$val);
+    }else{
+#     here val should be a number
+	    $datarr[$i]=sprintf(" | %12.6e",$val);
+    }
+    $scancoords[$i]=$scanindex; #write (karthesian) scan coordinates to array
+    if  ((defined $StrInt->name($i+1))and($i<$imax)){
+		  Traver($i+1,$imax,"$action");
+	  }else{
+      $runnum += 1;
+      if (($runnum >= $startnum) && ($runnum <= $endnum)) {
+
+		    printf "\n ...run number %.4d \n\n",$runnum;
+
+        SolveDep();
+
+        if ("$action" eq "genecall"){
+          ### --testlibITMgene: copy temporary parameter file(gene needs all the information ) 
+          copy("$tmpparfile","$parfile_probdir");
+		      if($test==0){
+            execute_gene();
+          }
+	        process_output_data($i);
+        }elsif("$action" eq "scanlog"){
+	        process_output_data($i);
+        }else{
+          print "unknown Traver action\n";
+        }
+	    }else{ ## not between end and startnum...no idea what this is for
+		  }
+	   }  #this belongs to "if i+1 entry in struct does not exist..
+
+#		STOP CONDITION and SETTING OF NEXT $val
+		$val1 = $val;
+		$scanindex++;
+		if ($StrInt->scantype($i) eq "func"){
+			if ($scanindex <= $StrInt->start($i)){
+				$val=function($scanindex, $StrInt->step($i));
+				$whilecond=($StrInt->end($i)-$val)*10000000*($val-$val1); ;
+			}else{
+				$whilecond=-1;
+			}
+		}elsif ($StrInt->scantype($i) eq "list"){
+			if ($scanindex <= $listlength){ # scanindex runs  1..length
+				$val=$varlist[$scanindex-1];  # list index runs 0..length-1
+        $val=function(1,$val);
+			}else{
+				$whilecond=-1;
+			}
+    }elsif ($StrInt->scantype($i) eq "none"){
+      $whilecond = -1;
+		}else{
+		    $val+=$StrInt->step($i);
+		    $whilecond=($StrInt->end($i)-$val)*10000000*($StrInt->step($i));
+		}
+	}while($whilecond > -0.00000001);
+	return 0;
+}
+
+##################################################################################
+
+sub execute_gene{
+  my $tmpgerr = "$SCANDIR/tmpgene.err";
+  my $N_PES=$n_pes ;
+  my $syscall = "";
+#$syscall = "$make -j -f ../makefile lib LIBN=libITMgene librun N_PES=$N_PES NLSPATH=$ENV{'NLSPATH'}";
+    print  "\n";
+    print  "#############################################\n";
+    printf "#           LIBITMGENE CALL; N_PES = %.4d         #\n",$N_PES;
+    print  "#############################################\n";
+    print  "\n";
+
+  if ($mysyscall ne "") {
+	  $syscall="$mysyscall";
+	}else{
+    print "implement libitmgene call if you are not on hpcff or use --syscall option!!!\n";
+$syscall="mpiexec -env MKL_SERIAL yes -env OMP_NUM_THREADS 1 -np=$N_PES ./test_libITMgene";
+#$syscall="./test_libITMgene";
+    print "use\nsyscall=$syscall\n"
+  }      
+	$syscall.=" 2>&1 1>&1 | tee $tmpgerr";
+
+  if ($stop==1) {
+     print "stop script before executing\n$syscall\n";
+     exit(0);
+  }
+
+	my $parent_pid = $$;
+#   gene output is monitored for errors
+#   in case of error: stop scan
+  my $child_pid = fork();
+  if($child_pid){
+    #parent process (scanscript?) has to wait until child(gene?) is ready
+    wait;
+  }else{
+    ##gene call
+   if ((qx($syscall))=~/(STOP.*|ERROR.*)/) {
+     print "\nProblem with compiling/running gene. For details see:\n $tmpgerr\n. Last ERROR Message:\n  ($1)\n";
+     #empty eigenvalues.dat because of wrong eigenvalues
+     if($1=~/(PETSC ERROR:.*|PETSC WARNING:.*)/){
+       open(EIGENS,">$OUTDIR/eigenvalues_0001");
+       close(EIGENS);
+       exit(0);		    
+    }
+    if ($force==0){
+#     option --force : continue scan if errors occur.
+      exit(getppid());
+      exit(0);
+    }
+  }
+   exit(0);
+  }
+}
+
+sub process_output_data	{
+	#print "process output data...\n";
+	my $i=shift;
+	my $nky0 = read_entry("$tmpparfile","nky0");
+	my @arrsave;
+	my $j;
+	my $elem;
+	my @entry;
+	my $filenum=$runnum;
+	my $newfilename=' ';
+
+	#
+	rename_output_files($filenum);	#in the scandir
+	# _0001 to _scan_$filenum and .err and .out files to one .log file
+  #
+
+
+	  #replace ky string if GENE adapted kymin
+#my $inparfile="$tmpparfile";
+#my $scanparfile=sprintf("$SCANDIR/parameters_%.4d",$filenum);
+#my $kymin_in=sprintf("%12.6e",read_entry("$inparfile","kymin"));
+#	  my $kymin_out=sprintf("%12.6e",read_entry("$scanparfile","kymin"));
+#	  if (($kymin_in!=$kymin_out)&&(($nky0==1)||($EVsolver>0))) {
+#    		  $datarr[$i] =~ s/$kymin_in/$kymin_out/;
+#     }
+
+  # write scan.log entry (both for EVsolver=0 or  1)
+	@arrsave=@datarr;	    
+	if ($EVsolver==0){
+    my $scan_om_file = sprintf("$SCANDIR/omega_scan_%.4d",$filenum);
+    my $rw=open(EIGENS,"<$scan_om_file");
+    splice(@entry,0);
+    if(not defined($rw)){
+			for($j=0;$j<$nky0;$j++){
+		    my $kymin=read_entry("$tmpparfile","kymin");
+         
+				$entry[$j]=($j+1)*$kymin." 0.000 0.000";
+			}
+		}else{
+			@entry=<EIGENS>;
+		}
+		close(EIGENS);		
+		chomp(@entry);
+    my $iky=0;
+    foreach $elem(@entry){
+   		if($elem=~/\s*(-?\S+)\s+(-?\S+)\s+(-?\S+)\s*/){
+				if (($2==0)&&($3==0)){
+					$datarr[0].=" |     NaN         NaN  ";
+				}else{
+					$datarr[0].=" | ".sprintf("%9.4f   %9.4f",$2,$3);
+				}
+				if($nky0>1){
+					$datarr[$i]=sprintf("%.4d  | %9.4f %s",$runnum,$1,$datarr[$i]);
+				}else{
+					$datarr[$i]=sprintf("%.4d %s",$runnum,$datarr[$i]);
+				}
+				open(LOG,"<$SCANDIR/scan.log");
+				my @scanentry=<LOG>;
+				if($#scanentry<$runnum*$nky0){
+					$scanentry[$#scanentry].= "\n"; 
+					$#scanentry+=$nky0;
+					for($j=1;$j<$nky0;$j++){
+						$scanentry[$#scanentry-$j]= "\n"; 
+					}
+				}
+				close LOG;
+				$scanentry[$runnum*$nky0-$iky]=$datarr[$i];
+				for($j=$i-1;$j>=0;$j--){
+					$scanentry[$runnum*$nky0-$iky].=$datarr[$j];
+				} 		
+				if($runnum*$nky0-$iky!=$#scanentry){
+					$scanentry[$runnum*$nky0-$iky].="\n";
+				}
+				$iky++;
+				open(LOG,">$SCANDIR/scan.log");
+				for($j=0;$j<=$#scanentry;$j++){
+					print LOG $scanentry[$j];
+				}
+				close(LOG);
+				@datarr=@arrsave;
+			}else{
+				print "no match";
+		  }
+		}
+	}else{  ## $EVsolver!=0
+	  my $scanEVfile = sprintf("$SCANDIR/eigenvalues_scan_%.4d",$filenum); 
+	  $datarr[$i]=sprintf("%.4d %s",$runnum,$datarr[$i]);
+	  splice(@entry,0);
+	  open(EIGENS,"<$scanEVfile");
+	  @entry=<EIGENS>;
+	  close(EIGENS);
+		chomp(@entry);
+		$j=-1;
+		foreach $elem(@entry){
+	  	if ($j<0){
+				if ($elem=~/eigenvalues/){
+					$j++;
+				}
+			}else{
+				$elem=~/\s*(-?\S+)\s+(-?\S+)\s*/;
+				$datarr[0].=" | ".sprintf("%9.6f   %9.6f",$1,$2);
+				$j++;
+			}
+		}
+		while($n_ev-$j>0){
+		  $datarr[0].=" |  NaN         NaN     ";   
+			$j++;
+		}
+		open(LOG,"<$SCANDIR/scan.log");
+		my @scanentry=<LOG>;
+		if($#scanentry<$runnum){
+		  $scanentry[$#scanentry].= "\n"; 
+		  $#scanentry+=$nky0;
+		}
+		close LOG;
+		$scanentry[$runnum]=$datarr[$i];
+		for($j=$i-1;$j>=0;$j--){
+			$scanentry[$runnum].=$datarr[$j];
+		} 		
+		if($runnum!=$#scanentry){
+		  $scanentry[$runnum].="\n";
+		}
+		open(LOG,">$SCANDIR/scan.log");
+		for($j=0;$j<=$#scanentry;$j++){
+		  print LOG $scanentry[$j];
+		}
+		close(LOG);
+	} ## EVsolver..
+		#	
+		@datarr=@arrsave;
+     
+ return($chpdepth);
+} 
+
+sub rename_output_files {
+	my $filenum = shift;	
+	my $elem = "";
+	opendir(PATH,"$SCANDIR");	      
+	my @entry=readdir(PATH);
+	closedir(PATH);		
+	foreach $elem(@entry){
+	    if(($elem=~/(.*)_0001/) and ($elem!~/scan/)){	   
+			  my $newfilename=sprintf("$SCANDIR/$1_scan_%.4d",$filenum);
+			  copy("$SCANDIR/$elem","$newfilename");
+			  unlink("$SCANDIR/$elem");
+		  }
+	    if($elem=~/tmpgene\.err/){	   
+			open(ERRDAT,">>$SCANDIR/geneerr.log");
+			print ERRDAT "\n run $filenum:\n";
+			open(TMPERRDAT,"<$SCANDIR/$elem");
+			my @errentry = <TMPERRDAT>;
+			close(TMPERRDAT);
+			print ERRDAT @errentry;
+			close(ERRDAT);
+			unlink("$SCANDIR/$elem");			
+			my $errelem='';
+			foreach $errelem(@errentry){
+				if(($errelem=~/(.*STOP.*)/) and ($force==0)){
+					exit(); #if force=0 only write first error then stop.
+				}
+			}
+	    }
+	}
+}
+####################################################################################
+
+sub function{
+	# evaluates f(xi)
+	# (also can evaluate formulas in lists..)
+    no strict 'refs';
+    my $fktindex=shift;
+    my $formula=shift;
+    my $ch;
+    while($formula=~/(!?[a-z_]+)\((\d)\)/){
+		$ch = ReadValue("$tmpparfile",$1,$2,0);
+		$formula=~ s/(!?[a-z_]+)\((\d)\)/$ch/;
+    }
+    $formula=~ s/xi/$fktindex/gi;
+    $formula="\$ch=".$formula;
+    eval "$formula";
+    return($ch);
+}
+
+####################################################################################
+
+#################################################################################
+# SolveDep evaluates the functional dependency of a <par1>
+# on other parameters <pari>
+# for every <par1> = <val> !scan:formula(<pari>(#)) 
+sub SolveDep{
+    no strict 'refs';
+    open(FILE,"$tmpparfile");
+    my @entryarr=<FILE>;
+    close(FILE);
+    my $line="";
+    my $spec=1;
+    my $i=0;
+    my $j=0;
+    my $ch;
+    my $formula;
+    my $name;
+	# find line with formula       
+  # WARNING: no digits in name:  (e.g. !scan: q0(1)*3  does not work!
+    foreach $line(@entryarr){
+#	 |-> why this {2} ???.. {2} to exclude .t. and .f. used only for read_chekpoint and treated later..
+		if ($line=~/\s*(\S+)\s*=\s*.+ !scan:.*!?[A-Za-z]{2}/ && (not $line=~/,/)){
+			$line=~/\s*(\S+)\s*=\s*.+ !scan:(.+)/;
+			$name=$1;
+			$formula=$2;
+			# find species-number of parameter of formula
+			# search file for occurencies of $name at line start up to present line number $i
+			# only at beginning of line -> comments including $name are allowed
+			for ($j=0;$j<$i;$j++){
+				if (($entryarr[$j]=~/^\s*$name\s*=/)&&!($entryarr[$j]=~/diagdir/)&&!($entryarr[$j]=~/chptdir/)){
+					$spec++;
+				}
+			}
+			# substitute params in formula
+			while($formula=~/(!?[A-Z,a-z,_,0-9]+)\((\d)\)/){
+				$ch = ReadValue("$tmpparfile",$1,$2,0);
+				$formula=~ s/(!?[A-Z,a-z_,0-9]+)\((\d)\)/$ch/;
+			 }
+			$formula="\$ch="."$formula";
+			eval "$formula";
+			ChEntry("$tmpparfile",$name,"$ch ",$spec,1);
+		    $spec=1;
+		}
+		$i++;
+
+    }
+    return();
+}
+####################################################################################
+
+sub ReadValue{
+# read an entry of the input parameter file 
+  my $dat = shift;     #file name
+  my $entry = shift;   #name of the paramter to be read, keyword
+# $i   : read the $i'th occurence of the parameter $entry  
+# the $all switch allows to read the whole line or skip comments like "!scan: XX"  
+  my $i = 1;
+  $i=shift;            #index of keyword to be read (i'th occurence will be read)
+
+  open(FILE,"<$dat");
+  while(<FILE>){
+	    if ($_ =~ /^\s*<\s*$entry\s*>\s*(.*)\s*<\s*\/\s*$entry\s*>/) {
+	      if ($i==1){
+		      close(FILE);
+		      return($1);
+	      }else{
+		      $i--;
+	      }
+   }
+ }
+ close(FILE);
+ print "$entry not found by routine ReadValue in file \n $dat \n";
+ return(0);
+}
+####################################################################################
+
+sub ChEntry{
+#   change value of parameter entry in the input parameter file
+#   conserves comments like "!scan: 0.1,0.1,1" at the end of the line
+    my $file = shift;
+    my $entry = shift;
+    my $ch = shift;
+    my $spec=shift;  # the $spec'th ocurrence of $entry will be changed
+    my $i = $spec;
+    my $line;
+    my $warn=shift;
+    open(FILE,"$file")|| die "couldn't open dir.";
+    my @entryarr=<FILE>;
+    close(FILE);    
+    my $complex=0;
+    if($entry=~/(.*)_scan_(re|im)/){
+		  $entry=$1;
+		  if($2=~/re/){
+			  $complex=1;
+		  }else{
+			  $complex=2;
+		  }
+    }
+    foreach $line(@entryarr){
+		  if ($line =~ /^\s*<\s*$entry\s*>\s*.+\s*<\s*\/\s*$entry\s*>/) {
+			  if($i==1){
+					print"$entry $spec = $ch\n";
+					$line=Replace($line,$entry,$ch,$complex);
+			  }
+			  $i--;	#only edit $spec th occurence of $entry
+		  }	
+    }
+    open(FILE,">$file");
+    print FILE @entryarr;
+    close(FILE);    
+    if (($i>0)&&($warn==1)) {
+		  print"value $entry in $file not found in ChEntry \n";
+    }
+    return();
+}
+
+sub Replace{
+#   replaces a parameter value, used in the ChEntry routine  
+    my $line=shift;
+    my $entry=shift;
+    my $ch=shift;
+    my $complex=shift;
+#   general routine, can handle 
+#   "$ch !scan...\n" and "$ch\n"
+#   therefore it is important to remove \n from $line and $ch and add \n at the end
+    chomp($line);
+	  chomp($ch);
+    if($complex==0){
+#$line=~ s/<\s*$entry\s*>\s*\S+\s*/<$entry>   $ch /; 
+# replace line, incompatible with SolveDep, unfortunately
+      $line= "     <$entry>  $ch  <\/$entry>"; 
+    }elsif($complex==1){ #real part
+      exit("complex does not work");
+		  $ch=~/\s*(\S*)\s*/;
+		  $ch=$1;
+		  $line=~ s/\s*$entry\s*=\s*\(\s*\S+\s*,\s*(\S+)\s*\)\s+/$entry = ($ch,$1) /;
+    }else{				#immaginary part
+      exit("complex does not work");
+		  $ch=~/\s*(\S*)\s*/;
+		  $ch=$1;
+		  $line=~ s/\s*$entry\s*=\s*\(\s*(\S+)\s*,\s*\S+\s*\)\s+/$entry = ($1,$ch) /;
+    }
+#   add \n at the end
+    $line = $line."\n";
+    return($line);
+}
+####################################################################################
+
+####################################################################################
+
+
+sub show_help {
+    print "\nscanscript\n";
+    print "usage: ./scanscript \n";
+    print "main options: \n";
+    print "--n_pes=<int>: -total number of mpi processors, must be set correctly!\n";
+    print "                  -several instances of GENE can be started as specified in &scan namelist\n";
+    print "                  -automatical efficiency test finds optimal number of parallel GENES\n";
+    print "                  (skip the test using a correct &scan namelist in the parameters file)\n";
+    print "--procs_per_node=<integer>: number of processors per compute node of current machine\n";
+    print "                            optional but recommended for automatic efficiency tests \n";
+    print "--help      : display this help text\n";
+    print "--long_help : display a full list of options \n";
+    print "              and more information on gene scans\n";
+    print "\n";
+    print "quickstart:\n";
+    print "- compile gene (if not already done)\n";
+    print "- specify scan in parameters file e.g:\n";
+    print "  kymin = 0.5 !scanlist: 0.5,0.6,0.7\n";
+    print "- use autoparallelization for an efficiency test (n_procs_z = -1 etc.)\n";
+    print "- call (in submit script): ./scanscript --n_pes=<int> --procs_per_node=<int>\n";
+    print "\n";
+    print "for more information, see gene documentation and/or use the --long_help option\n";
+}
+
+sub show_long_help {
+    print "-----------------------------------------------\n";
+    print "advanced options: \n";
+    print "--startnum=<int>: number of the next run (integer)\n";
+    print "                  if >0, the scanfiles directory is taken from the parameters file\n";
+    print "                  if not set, a new scanfiles directory is created\n";
+    print "                  to continue a scangene run set --startnum=1, unfinished jobs are started\n";
+    print "--endnum=<integer>: last run-number (default: scan until finish)\n";
+    print "--continue_scan : continue scan, only works, if --oldgene is not set";
+    print "--syscall=<string> specify GENE execution command.\n";
+    print "                   default is gmake -f ../makefile run N_PES=\$N_PES\n";
+    print "--efficiency : test the parallel efficiency for your problem -> output: efficiency.log\n";
+    print "               setting autoparallelization for box namelist parameters is required\n";
+    print "               n_pes sets the maximum number of processes\n";
+    print "--procs_per_node=<integer>: number of processors per compute node of current machine\n";
+    print "                            optional but recommended for automatic and manual efficiency tests \n";
+    print "--min_procs=<integer>: set minimum number of processes for --efficiency (default: 1)\n";
+    print "--ap_switch: switch on/off using the perf_vec and MPI mapping from the first run\n";
+    print "             (default: on, if box isn't changed)\n";
+    print "--outdir='<string>' : specify the output directory\n";
+    print "--test : test settings without executing gene\n";
+    print "--stop : stop script right before gene execution (for debugging)\n";
+    print "--force : perform all scans ,default: off (exit at first gene error)\n";
+    print "--mk_scanlog :create a scan.log with data of a (possibly unfinished) scan\n";
+    print "              parameters file must contain original directory and scan information\n";
+    print "--oldgene: use gene executable(old fashioned way) MIGHT NOT WORK anymore..\n";
+    print "\n-----------------------------------------------\n";
+    print "how to initiate a parameter scan in the parameters file:\n";
+    print "- 'range' scan: insert start-, step- and end-value:\n";
+    print "   <par> = <value> !scanrange: <start>,<step>,<end>\n";
+    print "   or\n";
+    print "   <par> = <value> !scan: <start>,<step>,<end>\n";
+    print "- 'function' scan: \n";
+    print "   <par>=<value>  !scanfunc: <endstep>,<function(xi)>,<endvalue>\n";
+    print "   integer variable xi [1..endstep]\n";
+    print "   operators: +,-,*,/,%,e,**,abs,sqrt,int,exp,log,sin,cos.\n";
+    print "   example:\n";
+    print "   kymin=0 !scanfunc: 10,0.5*(xi-1)**2,4\n";   
+    print "- 'list' scan: \n";
+    print "   examples:\n";
+    print "   nz0= 1  !scanlist: 8,24,12,48\n";
+    print "   collision_op = 'landau'  !scanlist: \"'none'\",\"'landau'\"\n";
+    print "   \n";
+    print "- parameters can depend on other parameters (also in functions and lists):\n";
+    print "   <par1>=0 !scan: 5*<par2>(<i>)\n";
+    print "   set in brackets (<i>) the species number of par2, (1) otherwise\n";
+    print "-----------------------------------------------\n";
+    print "use checkpoints to enhance eigenvalue computations:\n";
+    print "read_checkpoint=.t. !scan: .t.\n";
+    print "-----------------------------------------------\n";
+    print "scan re/im of complex variables e.g.:\n";
+    print "ev_shift = 1 !scanrange:im: -1,0.2,1\n";
+    print "\n-----------------------------------------------\n";
+    print "compile the scangene executable with the command \n  gmake -f ../makefile scangene\n";
+    print "-----------------------------------------------\n";
+    print "the scan namelist: n_parallel_sims = number of simultanuous GENE runs\n"; 
+    print "                   n_procs_sim = number of processors per GENE run\n"; 
+    print "if not set, the result of an efficiency test is used for scangene\n"; 
+    print "efficiency test FAILS in cases like the following:\n"; 
+    print "-parallel performance is optimal for 8 processors\n"; 
+    print "-you scan over 4 values\n"; 
+    print "-you start your job on 64 processors\n"; 
+    print "-each problem is started with 8 processors, 32 will idle the whole time\n"; 
+    print " obviously it would be better to use 16 or even 32 processors per problem,\n so set the scan namelist accordingly\n"; 
+}

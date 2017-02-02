@@ -1,0 +1,642 @@
+standard testsuite on bob_cluster 
+started 22.08.2013, 13:35 with SVN revision number: 4353M                
+test 1: time loop: 0.695 s (parallelization: 1 2 4 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 1.0424 s 
+test 2: time loop: 8.646 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 2.5475 s 
+test 3: time loop: 16.220 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 1.3130 s 
+test 4: time loop: 10.531 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 2 1 1 1), init_time 6.7411 s 
+test 5: time loop: 13.514 s (parallelization: 1 1 4 2 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 26.7154 s 
+test 6: time loop: 14.897 s (parallelization: 1 1 4 2 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 41.5579 s 
+test 7: time loop: 14.415 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 46.1806 s 
+test 8: time loop: 34.457 s (parallelization: 1 1 4 2 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 64.0779 s 
+test 9: time loop: 36.004 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 137.0771 s 
+test 10: time loop: 35.663 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 48.1225 s 
+test 11: time loop: 66.942 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 16.3481 s 
+test 12: time loop: 15.739 s (parallelization: 2 4 1 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 1.8413 s 
+test 13: time loop: 1.996 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 1 2 1 1 1 1 1), init_time 5.6338 s 
+test 14: time loop: 3.830 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.7272 s 
+test 15: time loop: 39.974 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 36.5420 s 
+
+standard testsuite on genius_bgp 
+started 02.12.2009, 09:09 with SVN revision number: 1494:1496M           
+test 1: time loop: 4.953 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 2 1), init_time 19.9645 s 
+test 2: time loop: 65.798 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 2 1), init_time 56.1467 s 
+test 3: time loop: 168.519 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 2 3), init_time 35.4046 s 
+test 4: time loop: 61.376 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 2 1), init_time 85.9624 s 
+test 5: time loop: 26.498 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1), init_time 213.3989 s 
+test 6: time loop: 29.237 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1), init_time 271.2558 s 
+test 7: time loop: 32.243 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 1 1 1 1), init_time 422.1317 s 
+test 8: time loop: 127.344 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1), init_time 358.6384 s 
+test 9: time loop: 46.459 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1), init_time 412.2336 s 
+
+standard testsuite on hpcff
+started 05.03.2013, 09:27 with SVN revision number: 4088                 
+test 1: time loop: 0.521 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 3.0463 s 
+test 2: time loop: 5.411 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 2.5936 s 
+test 3: time loop: 9.934 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 1.1320 s 
+test 4: time loop: 5.805 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 6.2482 s 
+test 5: time loop: 3.178 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 10.7531 s 
+test 6: time loop: 3.565 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 11.5355 s 
+test 7: time loop: 3.296 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 16.6055 s 
+test 8: time loop: 16.664 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 28.0777 s 
+test 9: time loop: 8.104 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 61.1438 s 
+test 10: time loop: 16.275 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 33.1297 s 
+test 11: time loop: 17.757 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 7.5680 s 
+test 12: time loop: 9.161 s (parallelization: 2 2 2 1 1 1, perf_vec: 2 2 1 1 1 2 1 2 2), init_time 1.7349 s 
+test 13: time loop: 60.350 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 2 1 1 1 1 2), init_time 5.0550 s 
+test 14: time loop: 2.508 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.5215 s 
+
+standard testsuite on gp 
+started 14.11.2011, 10:04 with SVN revision number: 3117M                
+test 1: time loop: 0.338 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 1.8615 s 
+test 2: time loop: 3.601 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 5.6632 s 
+test 3: time loop: 12.026 s (parallelization: 2 1 1 1 1 4, perf_vec: 2 2 3 1 1 2 2 1 2), init_time 3.4569 s 
+test 4: time loop: 6.422 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 1 2 1 1), init_time 12.7011 s 
+test 5: time loop: 2.851 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 22.5444 s 
+test 6: time loop: 3.579 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 34.6636 s 
+test 7: time loop: 3.351 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 3 1 1 1 1 1 1), init_time 64.2120 s 
+test 8: time loop: 15.671 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 51.8327 s 
+test 9: time loop: 7.569 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 61.8959 s 
+test 10: time loop: 17.141 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 59.9709 s 
+test 11: time loop: 17.257 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 8.5860 s 
+
+standard testsuite on odin 
+started 25.07.2013, 09:17 with SVN revision number: exported             
+test 1: time loop: 0.347 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.7282 s 
+test 2: time loop: 4.386 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 1.8620 s 
+test 3: time loop: 7.477 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 0.7339 s 
+test 4: time loop: 3.330 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 1), init_time 4.2606 s 
+test 5: time loop: 1.867 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 5.6496 s 
+test 6: time loop: 2.117 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 9.4424 s 
+test 7: time loop: 1.956 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 12.2633 s 
+test 8: time loop: 10.207 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 18.5976 s 
+test 9: time loop: 5.374 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 55.3921 s 
+test 10: time loop: 10.858 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 24.0067 s 
+test 11: time loop: 11.693 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 6.5097 s 
+test 12: time loop: 6.349 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 1.0625 s 
+test 13: time loop: 43.035 s (parallelization: 2 1 2 1 1 2, perf_vec: 2 2 1 2 1 2 2 1 2), init_time 3.7504 s 
+test 14: time loop: 1.766 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.4511 s 
+
+standard testsuite on hector 
+started 31.01.2011, 10:10 with SVN revision number: 2400                 
+test 1: time loop: 0.594 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 1 1 1 1 2 1 1 2), init_time 4.6007 s 
+test 2: time loop: 8.082 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 3 1 1 2 1 1 2), init_time 11.3429 s 
+test 3: time loop: 31.049 s (parallelization: 2 1 1 1 1 4, perf_vec: 2 2 3 1 1 1 2 1 2), init_time 7.6252 s 
+test 4: time loop: 8.570 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 20.7370 s 
+test 5: time loop: 6.108 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 65.5787 s 
+test 6: time loop: 7.738 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 84.0412 s 
+test 7: time loop: 7.456 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 135.3942 s 
+test 8: time loop: 25.211 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 105.9117 s 
+test 9: time loop: 14.861 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 111.2899 s 
+test 10: time loop: 27.773 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 134.0502 s
+
+standard testsuite on supermig 
+started 30.08.2012, 10:11 with SVN revision number: 3699                 
+test 1: time loop: 0.333 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 2.4276 s 
+test 2: time loop: 3.221 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 6.3179 s 
+test 3: time loop: 11.691 s (parallelization: 2 2 2 1 1 1, perf_vec: 2 2 1 3 1 2 1 2 2), init_time 3.7769 s 
+test 4: time loop: 9.762 s (parallelization: 1 2 4 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 18.6799 s 
+test 5: time loop: 3.461 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 3 1 1 1 2 1 1), init_time 7.5959 s 
+test 6: time loop: 3.822 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 3 1 1 1 2 1 1), init_time 28.7412 s 
+test 7: time loop: 3.578 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 3 1 1 1 1 1 1), init_time 42.4958 s 
+test 8: time loop: 27.936 s (parallelization: 1 1 2 1 1 4, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 100.9672 s 
+test 9: time loop: 9.071 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 85.0597 s 
+test 10: time loop: 35.455 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 3 1 1 1 1 1 1), init_time 131.7301 s 
+test 11: time loop: 18.471 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 11.0580 s 
+test 12: time loop: 7.889 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 2.8693 s 
+test 13: time loop: 62.494 s (parallelization: 2 1 2 1 1 2, perf_vec: 2 2 1 2 1 1 2 1 2), init_time 11.5962 s 
+test 14: time loop: 3.870 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 1.6613 s 
+
+standard testsuite on supermuc 
+started 06.03.2013, 17:24 with SVN revision number: 4095                 
+test 1: time loop: 0.588 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.9144 s 
+test 2: time loop: 6.264 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 2.6330 s 
+test 3: time loop: 10.168 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 1.1412 s 
+test 4: time loop: 6.517 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 2 1 1), init_time 7.4556 s 
+test 5: time loop: 2.054 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 7.6554 s 
+test 6: time loop: 2.346 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 13.0391 s 
+test 7: time loop: 2.341 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 18.1852 s 
+test 8: time loop: 15.561 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 24.9648 s 
+test 9: time loop: 5.644 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 72.6950 s 
+test 10: time loop: 15.124 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 36.6757 s 
+test 11: time loop: 13.507 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 10.0817 s 
+test 12: time loop: 8.385 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 1.3787 s 
+test 13: time loop: 56.204 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 2 1 2 1 1 2), init_time 5.4194 s 
+test 14: time loop: 2.251 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.7160 s 
+
+standard testsuite on helios_csc 
+started 06.03.2013, 10:08 with SVN revision number: 4088                 
+test 1: time loop: 0.365 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.8448 s 
+test 2: time loop: 4.516 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 2.2736 s 
+test 3: time loop: 8.029 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 1.0390 s 
+test 4: time loop: 4.397 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 2 1 1), init_time 4.7997 s 
+test 5: time loop: 2.734 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 7.3037 s 
+test 6: time loop: 2.959 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 11.5930 s 
+test 7: time loop: 2.800 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 16.0904 s 
+test 8: time loop: 12.835 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 23.3423 s 
+test 9: time loop: 7.104 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 61.3190 s 
+test 10: time loop: 14.150 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 29.5403 s 
+test 11: time loop: 14.681 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 6.8602 s 
+test 12: time loop: 7.826 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 1.6693 s 
+test 13: time loop: 52.387 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 2 1 1 1 1 2), init_time 4.5184 s 
+test 14: time loop: 1.889 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.5148 s 
+
+standard testsuite on hydra
+started 08.03.2013, 02:35 with SVN revision number: 4099
+test 1: time loop: 0.413 s (parallelization: 1 2 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 2 2), init_time 1.8421 s
+test 2: time loop: 4.890 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 1.6841 s
+test 3: time loop: 8.653 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 1.1509 s
+test 4: time loop: 4.664 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 1), init_time 4.8012 s
+test 5: time loop: 3.023 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 9.4395 s
+test 6: time loop: 3.358 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 12.9079 s
+test 7: time loop: 3.132 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 16.6400 s
+test 8: time loop: 13.535 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 15.2649 s
+test 9: time loop: 7.989 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 64.0439 s
+test 10: time loop: 14.731 s (parallelization: 1 2 2 1 1 2, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 29.7410 s
+test 11: time loop: 16.059 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 7.7038 s
+test 12: time loop: 8.192 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 1.7821 s
+test 13: time loop: 53.375 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 2 1 1 1 1 2), init_time 5.5975 s
+test 14: time loop: 2.110 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.6417 s
+
+standard testsuite on lindgren 
+started 07.02.2012, 16:22 with SVN revision number: 3236                 
+test 1: time loop: 0.472 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 2.7988 s 
+test 2: time loop: 7.208 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 9.0769 s 
+test 3: time loop: 26.091 s (parallelization: 2 2 1 1 1 2, perf_vec: 2 2 2 1 1 2 2 2 2), init_time 6.1058 s 
+test 4: time loop: 9.109 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 2 2 1 1 2 2 1 1), init_time 18.9673 s 
+test 5: time loop: 6.230 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 65.2900 s 
+test 6: time loop: 7.683 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 166.2532 s 
+test 7: time loop: 7.369 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 129.5546 s 
+test 8: time loop: 26.515 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 105.7134 s 
+test 9: time loop: 16.089 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 260.0980 s 
+test 10: time loop: 26.960 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 137.9066 s
+
+standard testsuite on anselm_it4i 
+started 27.06.2014, 17:59 with SVN revision number: 4764                 
+test 1: time loop: 0.630 s (parallelization: 1 2 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 3.2501 s 
+test 2: time loop: 5.780 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 2.1523 s 
+test 3: time loop: 9.889 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 1.1973 s 
+test 4: time loop: 4.182 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 1), init_time 5.5827 s 
+test 5: time loop: 2.075 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 7.4911 s 
+test 6: time loop: 2.385 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 11.3742 s 
+test 7: time loop: 2.277 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 15.3351 s 
+test 8: time loop: 10.059 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 20.1386 s 
+test 9: time loop: 5.600 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 67.7093 s 
+test 10: time loop: 13.384 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 30.8774 s 
+test 11: time loop: 14.248 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 8.0077 s 
+test 12: time loop: 8.199 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 1.6248 s 
+test 13: time loop: 0.975 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 4.5804 s 
+test 14: time loop: 2.292 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.5870 s 
+test 15: time loop: 14.722 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 20.5750 s 
+
+standard testsuite on hopper 
+started 03.04.2012, 05:24 with SVN revision number: 3381                 
+test 1: time loop: 0.509 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 2.8004 s 
+test 2: time loop: 7.328 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 11.8116 s 
+test 3: time loop: 24.323 s (parallelization: 2 2 1 1 1 2, perf_vec: 2 2 2 2 1 2 2 2 2), init_time 9.8786 s 
+test 4: time loop: 9.650 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 2 1 2), init_time 18.2756 s 
+test 5: time loop: 5.951 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 37.3089 s 
+test 6: time loop: 6.998 s (parallelization: 1 1 2 1 1 4, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 51.9116 s 
+test 7: time loop: 6.672 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 73.3988 s 
+test 8: time loop: 27.937 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 105.4822 s 
+test 9: time loop: 14.716 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 192.2328 s 
+test 10: time loop: 30.147 s (parallelization: 1 4 1 1 1 2, perf_vec: 1 1 3 1 1 1 1 2 1), init_time 124.1863 s 
+test 11: time loop: 35.463 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 24.0877 s 
+
+standard testsuite on edison 
+started 07.08.2013, 09:13 with SVN revision number: 4313                 
+test 1: time loop: 0.372 s (parallelization: 1 8 8 1 1 2, perf_vec: 2 1 1 1 1 2 1 1 2), init_time 0.5156 s
+test 2: time loop: 5.168 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 1.5634 s
+test 3: time loop: 8.609 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 0.9155 s
+test 4: time loop: 3.442 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 1), init_time 2.2701 s
+test 5: time loop: 2.136 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 5.7197 s
+test 6: time loop: 2.434 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 9.1928 s
+test 7: time loop: 2.330 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 12.9168 s
+test 8: time loop: 10.718 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 21.1825 s
+test 9: time loop: 6.024 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 52.0654 s
+test 10: time loop: 11.232 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 23.5924 s
+test 11: time loop: 13.579 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 6.1687 s
+test 12: time loop: 7.232 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 1.4440 s
+test 13: time loop: 49.575 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 2 1 2 1 1 2), init_time 4.2101 s
+test 14: time loop: 2.145 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.4793 s
+test 15: time loop: 12.961 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 16.5919 s
+
+standard testsuite on pppl_cluster    (kruskal)
+started 06.06.2012, 10:11 with SVN revision number: 3482
+test 1: time loop: 1.090 s (parallelization: 1 4 2 1 1 1, perf_vec: 2 2 3 1 1 1 1 1 2), init_time 5.8781 s
+test 2: time loop: 8.103 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 15.4360 s
+test 3: time loop: 28.313 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 3 3 1 1 1 1 2), init_time 10.1204 s
+test 4: time loop: 16.373 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 2 1 2), init_time 26.6010 s
+test 5: time loop: 6.171 s (parallelization: 1 1 2 1 1 4, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 38.1823 s
+test 6: time loop: 6.370 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 53.9221 s
+test 7: time loop: 6.097 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 80.4799 s
+test 8: time loop: 34.281 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 123.7705 s
+test 9: time loop: 14.684 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 175.7913 s
+test 10: time loop: 33.768 s (parallelization: 1 2 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 2 1), init_time 139.5089 s
+test 11: time loop: 33.788 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 21.0875 s
+
+standard testsuite on tokp_cluster_rzg 
+started 10.10.2013, 12:33 with SVN revision number: 4420                 
+test 1: time loop: 0.423 s (parallelization: 1 2 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.9624 s 
+test 2: time loop: 4.836 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 1.7523 s 
+test 3: time loop: 8.585 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 0.8948 s 
+test 4: time loop: 4.359 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 1), init_time 5.7206 s 
+test 5: time loop: 2.045 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 6.3281 s 
+test 6: time loop: 2.226 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 10.5133 s 
+test 7: time loop: 2.117 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 13.4671 s 
+test 8: time loop: 11.794 s (parallelization: 1 2 4 1 1 1, perf_vec: 1 1 1 1 1 1 1 2 1), init_time 22.7152 s 
+test 9: time loop: 5.782 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 62.2393 s 
+test 10: time loop: 12.371 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 28.3884 s 
+test 11: time loop: 13.615 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 7.4551 s 
+test 12: time loop: 7.912 s (parallelization: 2 2 2 1 1 1, perf_vec: 2 2 1 3 1 1 1 1 2), init_time 1.3140 s 
+test 13: time loop: 0.825 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 2 1 2 1 1 2), init_time 3.8581 s 
+test 14: time loop: 2.116 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.5893 s 
+test 15: time loop: 13.452 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 18.8986 s 
+
+standard testsuite on stampede 
+started 28.01.2013, 15:10 with SVN revision number: 3962                 
+test 1: time loop: 0.350 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 1.4266 s 
+test 2: time loop: 4.469 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 4.1604 s 
+test 3: time loop: 13.511 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 2.6186 s 
+test 4: time loop: 5.136 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 1 1 1 1 2 1 1 1), init_time 10.5800 s 
+test 5: time loop: 2.572 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 13.0776 s 
+test 6: time loop: 2.888 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 17.3223 s 
+test 7: time loop: 2.712 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 25.2801 s 
+test 8: time loop: 11.481 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 28.5560 s 
+test 9: time loop: 6.510 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 56.9374 s 
+test 10: time loop: 13.507 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 45.9188 s 
+test 11: time loop: 14.168 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 6.9734 s 
+test 12: time loop: 3.951 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 2.1031 s 
+test 13: time loop: 45.964 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 2 1 1 1 1 2), init_time 8.7014 s 
+test 14: time loop: 1.830 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 1.1924 s 
+
+big testsuite on bob_cluster 
+started 05.03.2013, 14:22 with SVN revision number: 4088                 
+test 1: time loop: 77.263 s (parallelization: 4 1 4 1 1 8, perf_vec: 2 2 1 1 1 1 2 1 2), init_time 8.1933 s 
+test 2: time loop: 72.383 s (parallelization: 2 2 8 1 2 2, perf_vec: 1 1 2 1 1 1 2 2 1), init_time 625.8881 s 
+test 3: time loop: 233.788 s (parallelization: 2 2 4 1 4 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 2246.3323 s 
+test 4: time loop: 794.585 s (parallelization: 2 1 2 1 2 16, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 5109.5483 s 
+test 5: time loop: 110.832 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 91.3445 s 
+test 6: time loop: 105.101 s (parallelization: 1 1 16 8 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 3900.0395 s 
+test 7: time loop: 95.341 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 1791.6265 s 
+test 8: time loop: 159.764 s (parallelization: 2 1 2 8 1 4, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 2036.0440 s 
+
+big testsuite on edison 
+started 07.08.2013, 09:15 with SVN revision number: 4313                 
+test 1: time loop: 25.965 s (parallelization: 4 4 4 1 1 2, perf_vec: 2 2 2 1 1 1 2 2 2), init_time 2.1195 s
+test 2: time loop: 19.982 s (parallelization: 2 2 8 1 1 4, perf_vec: 1 1 1 1 1 1 1 2 1), init_time 149.8393 s
+test 3: time loop: 63.013 s (parallelization: 2 4 4 1 4 1, perf_vec: 2 1 1 2 1 1 1 1 1), init_time 441.8228 s
+test 4: time loop: 225.578 s (parallelization: 1 1 8 1 1 16, perf_vec: 2 1 1 1 1 1 1 1 1), init_time 564.3939 s
+test 5: time loop: 21.929 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 24.7623 s
+test 6: time loop: 30.544 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 1183.6790 s
+test 7: time loop: 30.481 s (parallelization: 1 1 16 2 1 4, perf_vec: 1 1 3 1 1 1 1 1 1), init_time 677.3497 s
+test 8: time loop: 37.564 s (parallelization: 2 1 4 8 1 2, perf_vec: 1 1 1 2 1 1 1 1 1), init_time 628.2271 s
+
+big testsuite on genius_bgp
+started 25.07.2009, 19:31 with SVN revision number: 1154
+test 1: time loop 376.820 s (parallelization: 4 8 4 1 1 1, perf_vec: 2 2 2 1 2 1), init_time 63.6526 s
+test 2: time loop 159.377 s (parallelization: 2 2 8 1 1 4, perf_vec: 1 2 2 1 1 1), init_time 350.4124 s
+test 3: time loop 539.182 s (parallelization: 2 8 2 1 1 4, perf_vec: 1 2 2 1 1 2), init_time 6488.9904 s
+test 4: time loop 1844.745 s (parallelization: 2 1 8 1 1 8, perf_vec: 1 2 2 1 1 1), init_time 5615.8677 s
+test 5: time loop 153.704 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 1 1), init_time 10773.5813 s
+test 6: time loop 401.811 s (parallelization: 1 1 16 1 1 8, perf_vec: 1 1 2 1 1 1), init_time 4152.5560 s
+
+big testsuite on hpcff 
+started 05.03.2013, 09:54 with SVN revision number: 4088                 
+test 1: time loop: 27.662 s (parallelization: 4 2 4 1 1 4, perf_vec: 2 2 1 1 1 1 2 2 2), init_time 2.9233 s 
+test 2: time loop: 28.416 s (parallelization: 2 1 8 1 4 2, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 263.2329 s 
+test 3: time loop: 86.934 s (parallelization: 2 2 4 1 8 1, perf_vec: 1 1 1 2 1 1 1 1 1), init_time 1338.5348 s 
+test 4: time loop: 374.537 s (parallelization: 1 1 4 1 1 32, perf_vec: 2 2 2 1 1 1 1 1 1), init_time 1598.2475 s 
+test 5: time loop: 25.256 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 27.6774 s 
+test 6: time loop: 42.084 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 1407.0738 s 
+test 7: time loop: 44.270 s (parallelization: 1 1 16 2 1 4, perf_vec: 1 1 3 1 1 1 2 1 1), init_time 831.7507 s 
+test 8: time loop: 43.927 s (parallelization: 2 1 4 8 1 2, perf_vec: 1 1 1 2 1 1 1 1 1), init_time 800.2432 s 
+
+big testsuite on aims_cluster 
+started 23.03.2010, 11:26 with SVN revision number: 1700                 
+test 1: time loop: 25.284 s (parallelization: 4 4 4 1 1 2, perf_vec: 2 2 2 1 1 2 2 1 2), init_time 19.4955 s 
+test 2: time loop: 28.008 s (parallelization: 2 1 8 1 1 8, perf_vec: 1 1 2 1 2 1 1 1 1), init_time 70.0233 s 
+test 3: time loop: 108.706 s (parallelization: 2 8 1 1 8 1, perf_vec: 1 1 2 2 2 1 1 1 1), init_time 2311.5690 s 
+test 4: time loop: 275.396 s (parallelization: 2 1 4 1 1 16, perf_vec: 1 2 2 1 2 1 2 1 1), init_time 1381.3982 s 
+test 5: time loop: 20.611 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 2 1 2 1 1), init_time 505.8207 s 
+test 6: time loop: 86.002 s (parallelization: 1 1 4 4 1 8, perf_vec: 1 1 2 1 2 1 2 1 1), init_time 486.2074 s 
+test 7: time loop: 56.523 s (parallelization: 1 1 16 1 1 8, perf_vec: 1 1 2 1 2 1 1 1 1), init_time 127.3376 s 
+
+big testsuite on hector 
+started 31.01.2011, 10:31 with SVN revision number: 2400                 
+test 1: time loop: 46.477 s (parallelization: 4 2 4 1 1 4, perf_vec: 2 1 3 1 1 2 2 2 2), init_time 6.7674 s 
+test 2: time loop: 38.652 s (parallelization: 2 2 8 1 1 4, perf_vec: 2 1 2 1 2 1 1 2 1), init_time 141.3758 s 
+test 3: time loop: 167.326 s (parallelization: 2 8 1 1 4 2, perf_vec: 1 2 2 2 2 1 1 2 1), init_time 3128.7237 s 
+test 4: time loop: 509.195 s (parallelization: 2 1 4 1 1 16, perf_vec: 1 2 2 1 2 1 2 1 1), init_time 3129.3754 s 
+test 5: time loop: 40.573 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 1230.1577 s 
+test 6: time loop: 84.514 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 2 1 2 1 2 1 1), init_time 700.1727 s 
+test 7: time loop: 93.871 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 2 1 2 1 2 1 1), init_time 305.6799 s 
+
+big testsuite on supermuc 
+started 07.03.2013, 09:13 with SVN revision number: 4095                 
+test 1: time loop: 40.598 s (parallelization: 4 2 4 1 1 4, perf_vec: 2 2 2 1 1 2 2 1 2), init_time 4.0963 s 
+test 2: time loop: 23.206 s (parallelization: 2 4 8 1 1 2, perf_vec: 2 1 1 1 1 1 2 1 1), init_time 144.5223 s 
+test 3: time loop: 77.331 s (parallelization: 2 8 2 1 4 1, perf_vec: 1 1 1 2 1 2 2 2 1), init_time 549.9433 s 
+test 4: time loop: 260.780 s (parallelization: 2 1 4 1 1 16, perf_vec: 2 1 1 1 1 1 2 1 1), init_time 624.2197 s 
+test 5: time loop: 23.212 s (parallelization: 1 2 64 1 1 1, perf_vec: 1 1 1 1 1 1 1 2 1), init_time 31.9492 s 
+test 6: time loop: 37.544 s (parallelization: 1 1 16 2 1 4, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 1760.6836 s 
+test 7: time loop: 40.070 s (parallelization: 1 1 16 2 1 4, perf_vec: 1 1 3 1 1 1 1 1 1), init_time 910.3392 s 
+test 8: time loop: 46.942 s (parallelization: 2 1 4 4 1 4, perf_vec: 1 1 2 2 1 1 1 1 1), init_time 771.3956 s 
+
+big testsuite on helios_csc 
+started 06.03.2013, 10:17 with SVN revision number: 4088                 
+test 1: time loop: 23.630 s (parallelization: 4 8 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 2 2), init_time 2.9609 s 
+test 2: time loop: 20.082 s (parallelization: 2 2 8 1 1 4, perf_vec: 2 1 1 1 1 1 1 1 1), init_time 134.7848 s 
+test 3: time loop: 64.495 s (parallelization: 2 4 2 1 8 1, perf_vec: 1 1 1 2 1 2 2 1 1), init_time 697.8612 s 
+test 4: time loop: 225.245 s (parallelization: 1 1 4 1 1 32, perf_vec: 2 1 1 1 1 1 2 1 1), init_time 773.2053 s 
+test 5: time loop: 20.386 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 26.9679 s 
+test 6: time loop: 31.306 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 1296.6392 s 
+test 7: time loop: 32.189 s (parallelization: 1 2 8 2 1 4, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 719.2536 s 
+test 8: time loop: 40.307 s (parallelization: 2 1 4 4 1 4, perf_vec: 1 1 1 2 1 1 1 1 1), init_time 633.4472 s 
+
+big testsuite on hydra 
+started 07.03.2013, 22:05 with SVN revision number: 4099                 
+test 1: time loop: 32.456 s (parallelization: 4 4 2 1 1 4, perf_vec: 2 2 2 1 1 2 2 2 2), init_time 5.0952 s 
+test 2: time loop: 21.946 s (parallelization: 2 2 8 1 1 4, perf_vec: 1 1 1 1 1 1 1 2 1), init_time 140.9217 s 
+test 3: time loop: 80.684 s (parallelization: 2 8 2 1 4 1, perf_vec: 1 1 1 2 1 2 1 1 1), init_time 620.2751 s 
+test 4: time loop: 244.461 s (parallelization: 1 1 8 1 1 16, perf_vec: 2 1 1 1 1 1 1 1 1), init_time 477.8671 s 
+test 5: time loop: 23.559 s (parallelization: 1 2 64 1 1 1, perf_vec: 1 1 1 1 1 1 1 2 1), init_time 29.0015 s 
+test 6: time loop: 34.526 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 1356.0174 s 
+test 7: time loop: 36.317 s (parallelization: 1 1 16 2 1 4, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 748.0872 s 
+test 8: time loop: 47.423 s (parallelization: 2 1 4 8 1 2, perf_vec: 1 1 2 2 1 1 1 1 1), init_time 702.3852 s 
+
+big testsuite on lindgren 
+started 08.02.2012, 13:33 with SVN revision number: 3236                 
+test 1: time loop: 117.515 s (parallelization: 4 2 4 1 1 4, perf_vec: 1 2 3 1 1 2 2 2 2), init_time 6.3267 s 
+test 2: time loop: 75.241 s (parallelization: 2 2 8 1 1 4, perf_vec: 1 1 2 1 1 1 1 2 1), init_time 145.5060 s 
+test 3: time loop: 169.702 s (parallelization: 2 8 1 1 4 2, perf_vec: 2 1 3 2 1 1 1 2 1), init_time 3154.0671 s 
+test 4: time loop: 522.430 s (parallelization: 2 1 4 1 1 16, perf_vec: 2 2 2 1 1 1 2 1 1), init_time 3016.3049 s 
+test 5: time loop: 41.538 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 3003.3618 s 
+test 6: time loop: 88.371 s (parallelization: 1 1 8 4 1 4, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 1428.6991 s 
+test 7: time loop: 95.198 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 560.2240 s 
+
+big testsuite on GNU-hermit_xe6 (4x32 cores)
+started 20.08.2012, 10:59 with SVN revision number: 3661                 
+test 1: time loop: 53.683 s (parallelization: 4 2 4 1 1 4, perf_vec: 2 2 3 1 1 1 2 2 2), init_time 23.3219 s 
+test 2: time loop: 45.082 s (parallelization: 2 2 8 1 1 4, perf_vec: 2 2 3 1 1 1 1 2 1), init_time 887.1964 s 
+test 3: time loop: 237.689 s (parallelization: 2 8 1 1 1 8, perf_vec: 2 2 2 2 1 1 1 1 2), init_time 1882.7021 s 
+test 4: time loop: 549.663 s (parallelization: 1 1 8 1 1 16, perf_vec: 2 2 3 1 1 1 1 1 1), init_time 3799.2675 s 
+test 5: time loop: 49.276 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 1181.1282 s 
+test 6: time loop: 76.391 s (parallelization: 1 1 8 4 1 4, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 652.3838 s 
+test 7: time loop: 84.693 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 3 1 1 1 2 1 1), init_time 3680.0960 s
+
+big testsuite on INTEL-hermit_xe6 (4x32 cores)
+started 20.08.2012, 13:35 with SVN revision number: 3661     
+test 1: time loop: 58.170 s (parallelization: 4 2 4 1 1 4, perf_vec: 2 2 2 1 1 1 2 2 2), init_time 19.1441
+test 2: time loop: 45.423 s (parallelization: 2 4 8 1 1 2, perf_vec: 2 1 3 1 1 1 1 1 1), init_time 889.8569 s
+test 3: time loop: 202.836 s (parallelization: 2 8 1 1 1 8, perf_vec: 2 1 3 2 1 1 1 1 1), init_time 1702.7123 s
+test 4: time loop: 542.002 s (parallelization: 2 1 4 1 1 16, perf_vec: 2 1 2 1 1 1 1 1 1), init_time 3821.2569 s 
+test 5: time loop: 49.353 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 867.4247 s 
+test 6: time loop: 78.268 s (parallelization: 1 1 8 8 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 510.5299 s 
+test 7: time loop: 82.993 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 2811.2045 s 
+
+big testsuite on PGI-hermit_xe6 (4x32 cores)
+started 20.08.2012, 10:57 with SVN revision number: 3660                 
+test 1: time loop: 54.705 s (parallelization: 4 4 4 1 1 2, perf_vec: 2 1 2 1 1 2 2 1 2), init_time 20.3238 s 
+test 2: time loop: 45.241 s (parallelization: 2 2 8 1 1 4, perf_vec: 1 1 2 1 1 1 1 2 1), init_time 913.5952 s 
+test 3: time loop: 254.534 s (parallelization: 2 8 1 1 1 8, perf_vec: 2 2 3 2 1 2 1 1 1), init_time 1668.3092 s 
+test 4: time loop: 532.288 s (parallelization: 1 1 4 1 1 32, perf_vec: 2 1 2 1 1 1 1 1 1), init_time 3416.0597 s 
+test 5: time loop: 53.612 s (parallelization: 1 1 64 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 1376.5767 s 
+test 6: time loop: 82.758 s (parallelization: 1 1 8 8 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 751.8416 s 
+test 7: time loop: 86.713 s (parallelization: 1 1 16 4 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 4127.9724 s 
+
+big testsuite on tokp_cluster_rzg 
+started 10.10.2013, 12:40 with SVN revision number: 4420                 
+test 1: time loop: 32.610 s (parallelization: 2 4 4 1 1 4, perf_vec: 2 2 2 1 1 2 2 2 2), init_time 4.2253 s 
+test 2: time loop: 23.176 s (parallelization: 2 2 8 1 1 4, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 127.1634 s 
+test 3: time loop: 70.196 s (parallelization: 2 8 2 1 4 1, perf_vec: 1 1 1 2 1 2 2 2 1), init_time 643.1950 s 
+test 4: time loop: 259.609 s (parallelization: 2 1 4 1 1 16, perf_vec: 1 1 1 1 1 1 2 1 1), init_time 637.4014 s 
+test 5: time loop: 23.124 s (parallelization: 1 2 64 1 1 1, perf_vec: 1 1 1 1 1 1 1 2 1), init_time 28.6292 s 
+test 6: time loop: 37.306 s (parallelization: 1 1 16 2 1 4, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 1338.4689 s 
+test 7: time loop: 36.403 s (parallelization: 1 1 16 2 1 4, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 723.8627 s 
+test 8: time loop: 40.720 s (parallelization: 2 1 4 4 1 4, perf_vec: 1 1 1 2 1 1 1 1 1), init_time 699.6540 s 
+
+slepc testsuite on bob_cluster 
+started 05.03.2013, 14:04 with SVN revision number: 4088                 
+test 1: time loop: 26.052 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 1 1 1 2), init_time 0.7230 s 
+test 2: time loop: 15.1911 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.0866 s 
+test 3: time loop: 18.4678 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 0.0891 s 
+test 4: time loop: 32.5249 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.0854 s 
+test 5: time loop: 21.7836 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.0912 s 
+test 6: time loop: 42.5080 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 1 1 1 1 1 1 2), init_time 0.2305 s 
+test 7: time loop: 73.8497 s (parallelization: 4 1 4 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 0.2596 s 
+test 8: time loop: 1769.0914 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 2 1 2), init_time 0.6282 s 
+test 9: time loop: 462.4932 s (parallelization: 1 1 4 4 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 75.8807 s 
+test 10: time loop: 10279.0859 s (parallelization: 1 1 16 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 1287.8174 s 
+test 11: time loop: 15.9367 s (parallelization: 1 1 4 1 1 4, perf_vec: 2 2 2 1 1 1 2 1 2), init_time 0.0856 s 
+
+slepc testsuite on edison 
+started 07.08.2013, 09:12 with SVN revision number: 4313                 
+test 1: time loop: 13.983 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.2966 s
+test 2: time loop: 3.0237 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0595 s
+test 3: time loop: 3.6459 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0588 s
+test 4: time loop: 6.3432 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0613 s
+test 5: time loop: 4.3843 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0645 s
+test 6: time loop: 9.7527 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 0.1263 s
+test 7: time loop: 14.0490 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.1585 s
+test 8: time loop: 368.1731 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 2 1 2), init_time 0.2438 s
+test 9: time loop: 96.1065 s (parallelization: 1 1 8 2 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 26.9453 s
+test 10: time loop: 1959.3308 s (parallelization: 1 1 16 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 459.3005 s
+test 11: time loop: 9.0875 s (parallelization: 1 4 4 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 0.0618 s
+
+slepc testsuite on hpcff 
+started 05.03.2013, 13:26 with SVN revision number: 4088                 
+test 1: time loop: 15.494 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.5643 s 
+test 2: time loop: 3.2837 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0962 s 
+test 3: time loop: 3.8835 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.1121 s 
+test 4: time loop: 7.2480 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.1010 s 
+test 5: time loop: 4.7236 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0873 s 
+test 6: time loop: 10.0891 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.1668 s 
+test 7: time loop: 14.5559 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.1853 s 
+test 8: time loop: 383.5663 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 2 1 2), init_time 0.3560 s 
+test 9: time loop: 108.1218 s (parallelization: 1 1 8 2 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 31.4888 s 
+test 10: time loop: 2037.1410 s (parallelization: 1 1 16 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 508.2157 s 
+test 11: time loop: 7.7184 s (parallelization: 1 4 4 1 1 1, perf_vec: 2 2 1 1 1 1 1 2 2), init_time 0.1160 s 
+
+slepc testsuite on helios_csc 
+started 06.03.2013, 09:55 with SVN revision number: 4088                 
+test 1: time loop: 12.481 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.5346 s 
+test 2: time loop: 3.5163 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.1755 s 
+test 3: time loop: 4.2725 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.2155 s 
+test 4: time loop: 7.4965 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.1261 s 
+test 5: time loop: 5.0972 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0965 s 
+test 6: time loop: 11.2187 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 0.2224 s 
+test 7: time loop: 17.6237 s (parallelization: 4 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.3318 s 
+test 8: time loop: 372.2287 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 2 1 2), init_time 0.4527 s 
+
+slepc testsuite on hydra 
+started 07.03.2013, 11:32 with SVN revision number: 4099                 
+test 1: time loop: 14.011 s (parallelization: 1 2 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 1.5464 s 
+test 2: time loop: 8.7214 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 0.8524 s 
+test 3: time loop: 10.4688 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 0.7969 s 
+test 4: time loop: 18.4019 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 0.7919 s 
+test 5: time loop: 12.6450 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 0.7756 s 
+test 6: time loop: 24.2093 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 0.9724 s 
+test 7: time loop: 38.0339 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.8733 s 
+test 8: time loop: 1059.1203 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 2), init_time 1.0584 s 
+
+slepc testsuite on supermuc 
+started 07.03.2013, 11:31 with SVN revision number: 4095                 
+test 1: time loop: 15.744 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.3592 s 
+test 2: time loop: 2.9617 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0436 s 
+test 3: time loop: 3.6326 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0493 s 
+test 4: time loop: 6.4037 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0440 s 
+test 5: time loop: 4.2712 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0425 s 
+test 6: time loop: 9.5922 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 0.1293 s 
+test 7: time loop: 13.8801 s (parallelization: 4 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.1250 s 
+test 8: time loop: 338.0988 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 2 1 2), init_time 0.2491 s 
+
+slepc testsuite on lindgren 
+started 07.02.2012, 16:49 with SVN revision number: 3236                 
+test 1: time loop: 25.610 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 1.4269 s 
+test 2: time loop: 8.4094 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.2610 s 
+test 3: time loop: 9.5118 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.3615 s 
+test 4: time loop: 15.5576 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.3271 s 
+test 5: time loop: 10.4358 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.2433 s 
+test 6: time loop: 30.0900 s (parallelization: 2 4 2 1 1 1, perf_vec: 2 2 2 1 1 2 2 1 2), init_time 1.0478 s 
+test 7: time loop: 32.0436 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.7842 s 
+test 8: time loop: 844.9015 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 1 1 1 2), init_time 6.2133 s 
+test 9: time loop: 237.3999 s (parallelization: 1 1 8 1 1 2, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 11.5089 s 
+test 10: time loop: 5351.1012 s (parallelization: 2 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 2977.3227 s 
+
+slepc testsuite on pppl_cluster   (kruskal)
+started 06.06.2012, 09:58 with SVN revision number: 3482
+test 1: time loop: 21.579 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 1.3235 s
+test 2: time loop: 7.0745 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.1207 s
+test 3: time loop: 8.6107 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.1535 s
+test 4: time loop: 13.3840 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 2), init_time 0.1447 s
+test 5: time loop: 10.7162 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 0.1510 s
+test 6: time loop: 23.9189 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 1 2 1 2 1 1 2), init_time 0.3700 s
+test 7: time loop: 31.5940 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.4245 s
+
+slepc testsuite on tokp_cluster_rzg 
+started 10.10.2013, 17:20 with SVN revision number: 4422                 
+test 1: time loop: 14.324 s (parallelization: 1 2 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.9230 s 
+test 2: time loop: 8.9918 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 0.3716 s 
+test 3: time loop: 10.9527 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 0.3733 s 
+test 4: time loop: 19.0767 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 0.3621 s 
+test 5: time loop: 13.5847 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 0.3570 s 
+test 6: time loop: 25.8764 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 1 1 1 1 1 1 1 1), init_time 0.5055 s 
+test 7: time loop: 41.2620 s (parallelization: 4 1 4 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 2), init_time 0.4375 s 
+test 8: time loop: 1104.2527 s (parallelization: 2 1 8 1 1 1, perf_vec: 2 2 2 1 1 1 1 1 1), init_time 0.5132 s 
+
+bpar testsuite on bob_cluster 
+started 22.08.2013, 09:29 with SVN revision number: 4352M                
+test 1: time loop: 1.041 s (parallelization: 2 1 8 1 1 2, perf_vec: 2 2 1 1 1 1 2 1 2), init_time 3.0437 s 
+test 2: time loop: 3.768 s (parallelization: 1 2 8 1 2 1, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 80.1580 s 
+test 3: time loop: 3.707 s (parallelization: 2 2 4 1 2 1, perf_vec: 1 1 3 1 1 1 1 1 1), init_time 84.5524 s 
+test 4: time loop: 10.813 s (parallelization: 2 1 8 1 1 2, perf_vec: 2 1 3 1 1 2 2 1 2), init_time 1.8374 s 
+
+bpar testsuite on edison 
+started 07.08.2013, 11:06 with SVN revision number: 4313                 
+test 1: time loop: 0.060 s (parallelization: 2 1 8 1 1 2, perf_vec: 2 2 1 1 1 2 2 1 2), init_time 0.8858 s
+test 2: time loop: 1.229 s (parallelization: 2 4 4 1 1 1, perf_vec: 2 1 3 1 1 1 2 1 1), init_time 16.4243 s
+test 3: time loop: 1.222 s (parallelization: 2 4 4 1 1 1, perf_vec: 2 1 3 1 1 1 2 1 1), init_time 16.4253 s
+test 4: time loop: 3.935 s (parallelization: 2 1 8 1 1 2, perf_vec: 2 2 2 1 1 2 2 1 2), init_time 0.7422 s
+
+bpar testsuite on hpcff 
+started 05.03.2013, 13:41 with SVN revision number: 4088                 
+test 1: time loop: 0.185 s (parallelization: 2 2 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 2 2), init_time 1.1683 s 
+test 2: time loop: 1.783 s (parallelization: 2 2 8 1 1 1, perf_vec: 2 2 3 1 1 1 1 2 1), init_time 22.3036 s 
+test 3: time loop: 1.840 s (parallelization: 1 4 8 1 1 1, perf_vec: 2 1 3 1 1 1 1 2 1), init_time 22.2639 s 
+test 4: time loop: 5.246 s (parallelization: 2 2 4 1 1 2, perf_vec: 2 2 3 1 1 1 2 2 2), init_time 0.8216 s 
+
+bpar testsuite on hydra 
+started 07.03.2013, 21:22 with SVN revision number: 4099                 
+test 1: time loop: 0.069 s (parallelization: 1 2 8 1 1 2, perf_vec: 2 2 1 1 1 2 2 2 2), init_time 2.3317 s 
+test 2: time loop: 1.295 s (parallelization: 2 4 4 1 1 1, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 18.0755 s 
+test 3: time loop: 1.305 s (parallelization: 2 4 4 1 1 1, perf_vec: 1 1 3 1 1 1 1 1 1), init_time 19.0900 s 
+test 4: time loop: 4.221 s (parallelization: 2 2 8 1 1 1, perf_vec: 2 2 2 1 1 1 1 1 2), init_time 1.5501 s 
+
+bpar testsuite on helios_csc 
+started 06.03.2013, 09:24 with SVN revision number: 4088                 
+test 1: time loop: 0.054 s (parallelization: 2 2 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 1.1404 s 
+test 2: time loop: 1.209 s (parallelization: 2 2 8 1 1 1, perf_vec: 2 1 3 1 1 1 1 2 1), init_time 16.4372 s 
+test 3: time loop: 1.228 s (parallelization: 2 4 4 1 1 1, perf_vec: 2 1 2 1 1 1 1 1 1), init_time 16.6262 s 
+test 4: time loop: 3.685 s (parallelization: 2 1 8 1 1 2, perf_vec: 2 2 3 1 1 2 2 1 2), init_time 0.9670 s 
+
+bpar testsuite on supermuc 
+started 07.03.2013, 11:26 with SVN revision number: 4095                 
+test 1: time loop: 0.051 s (parallelization: 2 1 8 1 1 2, perf_vec: 2 2 1 1 1 2 2 1 2), init_time 0.9303 s 
+test 2: time loop: 1.793 s (parallelization: 2 1 8 1 2 1, perf_vec: 2 1 3 1 1 1 1 1 1), init_time 48.1804 s 
+test 3: time loop: 1.793 s (parallelization: 2 1 8 1 2 1, perf_vec: 1 1 3 1 1 1 2 1 1), init_time 48.0749 s 
+test 4: time loop: 4.650 s (parallelization: 2 1 8 1 1 2, perf_vec: 2 2 2 1 1 2 2 1 2), init_time 0.8968 s 
+
+bpar testsuite on tokp_cluster_rzg 
+started 23.01.2014, 09:01 with SVN revision number: 4525:4526M (PRODRUN=no)
+test 1: time loop: 0.521 s (parallelization: 2 2 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 2), init_time 1.8919 s 
+test 2: time loop: 1.381 s (parallelization: 2 4 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 15.6217 s 
+test 3: time loop: 1.378 s (parallelization: 2 4 4 1 1 1, perf_vec: 2 1 2 1 1 1 2 1 1), init_time 15.6821 s 
+test 4: time loop: 4.996 s (parallelization: 2 1 4 1 1 4, perf_vec: 2 2 2 1 1 1 2 1 2), init_time 1.2192 s 
+
+neoclassic testsuite on bob_cluster 
+started 30.01.2013, 15:56 with SVN revision number: 3971M                
+test 1: time loop: 0.019 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0362 s 
+test 2: time loop: 0.538 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 3 1 2 2 1 2), init_time 0.1142 s 
+test 3: time loop: 0.0 s (parallelization: 1 1 4 1 1 2, perf_vec: 2 2 2 1 1 2 2 1 2), init_time 0.5678 s 
+test 4: time loop: 1.968 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 2 2 1 2), init_time 0.4018 s 
+test 5: time loop: 405.906 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 2 1 1 1 1 1), init_time 1.0290 s 
+
+neoclassic testsuite on hydra 
+started 08.03.2013, 02:42 with SVN revision number: 4099                 
+test 1: time loop: 0.072 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.0911 s 
+test 2: time loop: 0.509 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 0.1527 s 
+test 3: time loop: 0.0 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.3431 s 
+test 4: time loop: 1.481 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 3 1 2 1 1 2), init_time 0.3411 s 
+test 5: time loop: 237.250 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 2 1 1 1 1 1), init_time 0.3832 s 
+
+neoclassic testsuite on tokp_cluster_rzg 
+started 22.01.2014, 17:26 with SVN revision number: 4525:4526M   (PRODRUN=no)        
+test 1: time loop: 0.156 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 2), init_time 0.2344 s 
+test 2: time loop: 0.598 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 0.1810 s 
+test 3: time loop:  s (parallelization: 1 1 4 1 1 2, perf_vec: 2 2 2 3 1 2 2 1 2), init_time 0.4430 s 
+test 4: time loop: 1.747 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 3 1 2 1 1 2), init_time 0.3447 s 
+test 5: time loop: 252.525 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 3 1 1 1 1 1), init_time 0.4811 s 
+
+temp_tests testsuite on bob_cluster 
+started 22.08.2013, 10:09 with SVN revision number: 4352                 
+test 1: time loop: 17.847 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 2 1 1 1 2 2 1 1), init_time 9.5014 s 
+test 2: time loop: 691.860 s (parallelization: 2 1 2 1 2 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 2048.9509 s 
+test 3: time loop: 18.754 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 8.8375 s 
+test 4: time loop: 56.960 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 2 1 1 1), init_time 29.1579 s 
+test 5: time loop: 7.502 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 2 1 1 1 2 1 1), init_time 6.4992 s 
+test 6: time loop: 0.729 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 1), init_time 0.4852 s 
+test 7: time loop: 12.934 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 13.5452 s 
+test 8: time loop: 10.620 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 1), init_time 0.3288 s 
+
+temp_tests testsuite on helios_csc 
+started 30.01.2013, 04:30 with SVN revision number: 3966M                
+test 1: time loop: 5.558 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 1), init_time 9.6428 s 
+test 2: time loop: 159.015 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 1 2 1 1 1 1 1 1), init_time 1144.8858 s 
+test 3: time loop: 3.928 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 4.4647 s 
+test 4: time loop: 19.464 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 2 1 1), init_time 31.7318 s 
+test 5: time loop: 1.656 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 1 1 1 1 1 2 1 1), init_time 3.2161 s 
+test 6: time loop: 0.405 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 1), init_time 0.8055 s 
+test 7: time loop: 2.576 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 6.0725 s 
+test 8: time loop: 5.941 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 1), init_time 0.4756 s 
+
+temp_tests testsuite on hydra 
+started 08.03.2013, 02:47 with SVN revision number: 4099                 
+test 1: time loop: 5.934 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 1), init_time 2.9237 s 
+test 2: time loop: 177.355 s (parallelization: 2 1 2 1 1 2, perf_vec: 2 1 2 1 1 1 1 1 1), init_time 333.8089 s 
+test 3: time loop: 4.536 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 4.0177 s 
+test 4: time loop: 20.879 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 2 1 1 1), init_time 19.5345 s 
+test 5: time loop: 1.791 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 1 2 1 1 2 1 1 1), init_time 1.7683 s 
+test 6: time loop: 0.406 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 1), init_time 0.3885 s 
+test 7: time loop: 2.818 s (parallelization: 1 1 8 1 1 1, perf_vec: 1 1 1 1 1 1 1 1 1), init_time 4.6025 s 
+test 8: time loop: 5.830 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 1), init_time 0.2950 s 
+
+temp_tests testsuite on tokp_cluster_rzg 
+started 23.01.2014, 08:43 with SVN revision number: 4525:4526M (PRODRUN=no)          
+test 1: time loop: 6.016 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 2 1 1 1 1 1 1 1), init_time 5.2881 s 
+test 2: time loop: 162.869 s (parallelization: 2 1 2 1 1 2, perf_vec: 2 2 1 1 1 1 2 1 1), init_time 294.0479 s 
+test 3: time loop: 4.382 s (parallelization: 1 1 4 1 1 2, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 4.6614 s 
+test 4: time loop: 20.015 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 1 1 1 1 1 1 1 1), init_time 19.8346 s 
+test 5: time loop: 1.449 s (parallelization: 1 1 8 1 1 1, perf_vec: 2 1 1 1 1 1 1 1 1), init_time 1.8065 s 
+test 6: time loop: 0.470 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 1), init_time 0.6451 s 
+test 7: time loop: 2.365 s (parallelization: 2 1 4 1 1 1, perf_vec: 1 1 2 1 1 1 1 1 1), init_time 4.7581 s 
+test 8: time loop: 6.890 s (parallelization: 2 1 4 1 1 1, perf_vec: 2 2 2 1 1 2 1 1 1), init_time 0.3865 s 

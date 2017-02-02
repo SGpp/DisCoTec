@@ -1,0 +1,114 @@
+&parallelization
+n_parallel_sims = 4
+!n_procs_s =   1
+!n_procs_v =   1
+!n_procs_w =   8
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   1
+!n_procs_sim =      8
+/
+
+&box
+n_spec =    1
+nx0    =    4
+nky0   =    1
+nz0    =   16
+nv0    =   32
+nw0    =    8
+
+kymin =   0.3000 !scanlist: 0.1,0.2,0.3,0.4
+lv    =     3.00    
+lw    =     9.00    
+adapt_lx = T
+ky0_ind =   1
+mu_grid_type = 'gau_lag'
+/
+
+&in_out
+diagdir = '/out'
+
+read_checkpoint  = F
+write_checkpoint = T
+
+istep_field =     100
+istep_mom   =     100
+istep_nrg   =      10
+istep_energy =    500
+istep_omega =      20
+istep_vsp   =     500
+istep_schpt =    5000
+
+write_std = T
+write_h5 = F         
+chpt_h5 = F
+momentum_flux=.f.
+/
+
+&general
+nonlinear =   F
+comp_type = 'IV'
+!perf_vec  =  2 2 1 1 1 2 1 1 2
+!nblocks   =       8
+
+timescheme = 'RK4'
+calc_dt = T
+!dt_max     =   0.5100E-01
+
+timelim    =      64500
+ntimesteps =     1000000
+omega_prec =   0.1000E-03
+
+beta       =    0.0000000    
+debye2     =    0.0000000    
+collision_op = 'none'
+
+init_cond = 'alm'
+
+hyp_z =   0.2500    
+hyp_v =   0.2000    
+
+perf_tsteps =  20
+
+/
+
+&geometry
+magn_geometry = 's_alpha'
+shat     =   0.7960
+trpeps   =   0.18000000    
+major_R  =    1.0000000    
+q0       =    1.4000000    
+/
+
+&species
+name   = 'ions'
+omn    =    2.2200000    
+omt    =    6.9200000    
+
+mass   =    1.0000000    
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge =  1
+/
+
+&info
+comment = one species linear ITG, ky scan
+step_time  =     0.0007
+number of computed time steps =     679
+time for initial value solver =      0.480
+calc_dt = T
+init_time =     3.4629
+n_fields = 1
+n_moms   =  6
+n_energies   =  2
+lx =  4.18760    
+ly =  20.9440    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+RELEASE = 1.6 - alpha 0
+/
+
+&units
+/
+

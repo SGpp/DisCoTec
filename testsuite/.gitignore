@@ -1,0 +1,9 @@
+*.out
+*.dat
+checkpoint
+gene_*
+host.list
+*.perf
+*.err
+geom_info
+parameters

@@ -1,0 +1,138 @@
+&parallelization
+!n_procs_s =   2
+!n_procs_v =   1
+!n_procs_w =   4
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   1
+!n_procs_sim =      8
+/
+
+&box
+n_spec =    2
+nx0    =   12
+nky0   =    1
+nz0    =   16
+nv0    =   32
+nw0    =    8
+
+kymin =   0.1100    
+lv    =     3.00    
+lw    =     9.00    
+adapt_lx = T
+n0_global =    3
+ky0_ind =   1
+mu_grid_type = 'gau_lag'
+/
+
+&in_out
+diagdir = '/out'
+
+read_checkpoint  = F
+write_checkpoint = F
+
+istep_field =     500
+istep_mom   =     500
+istep_nrg   =      20
+istep_omega =      20
+istep_vsp   =    1500
+istep_schpt =    5000
+istep_energy =    5000
+
+write_std = T
+momentum_flux  = T
+write_h5 = F
+chpt_h5 = F
+chpt_hac = F
+/
+
+&general
+nonlinear =   F
+comp_type = 'IV'
+!perf_vec  =  1 1 1 2 1 1 1 1 1
+!nblocks   =       8
+
+arakawa_zv =   T
+arakawa_zv_order =   4
+hyp_on_h =   F
+
+timescheme = 'RK4'
+dt_max     =   0.7160E-02
+ev_coll    =   171.10537    
+
+timelim    =      64500
+ntimesteps =        200
+omega_prec =   0.1000E-03
+
+beta       =   0.50000000E-02
+debye2     =    0.0000000    
+collision_op = 'pitch-angle'
+coll         =   0.30000000E-02
+coll_cons_model  = 'none'
+Zeff =    2.0000000    
+
+init_cond = 'almmt'
+
+hyp_z =    3.000    
+hyp_v =   0.8000    
+
+perf_tsteps =  10
+
+/
+
+&geometry
+magn_geometry = 'circular'
+q0       =    3.0000000    
+shat     =   1.0000
+trpeps   =   0.15000000    
+major_R  =    1.0000000    
+norm_flux_projection  = F
+/
+
+&species
+name   = 'ions'
+omn    =    1.0000000    
+omt    =    1.0000000    
+
+mass   =    1.0000000    
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge =  1
+/
+
+&species
+name   = 'electrons'
+omn    =    1.0000000    
+omt    =    6.0000000    
+
+mass   =   0.54400000E-03
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge = -1
+/
+
+&info
+comment = linear microtearing, hyp_on_f, pitch-angle collisions
+step_time  =     0.0100
+number of computed time steps =     200
+time for initial value solver =      1.996
+calc_dt = T
+init_time =     5.6338
+n_fields = 2
+n_moms   =  6
+nrgcols  = 10
+lx =   9.09091    
+ly =   57.1199    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+SVN_REV = 4353M               
+RELEASE = 1.7 - alpha 0
+nu_ei =   1.028992
+nustar_i =   0.466154
+nustar_e =   0.932308
+/
+
+&units
+/
+

@@ -1,0 +1,38 @@
+#!/bin/bash
+# adds further GENE parameters specified by 
+# string1, string2, etc. as last columns 
+# after the scan.log contents in scan.<string1>.<string2>.etc;
+# to be executed in the scan output directory
+if [ $# -lt 1 ]; then
+    echo "usage: add2scanlog <string1> <string2> ..."
+    exit
+fi
+
+if [ ! -f "./scan.log" ]; then
+    echo "error: no scan.log file found in current directory"
+    exit
+fi
+
+TIMESTAMP=$(date +%m%d%y%H%M%S)
+tmpdatfile1="/tmp/add2scan.$USER.$TIMESTAMP.0.dat"
+tmpdatfile2="/tmp/add2scan.$USER.$TIMESTAMP.1.dat"
+tmpdatfile3="/tmp/add2scan.$USER.$TIMESTAMP.2.dat"
+
+infile="scan.log"
+outfile="scan"
+
+until [ -z "$1" ]; do
+    outfile="$outfile.$1"
+    awk -v parstr=$1 'BEGIN {print parstr} $0 ~ parstr {print $3}' parameters_???? > $tmpdatfile1
+    awk -v outfile=$tmpdatfile3 -v infile=$infile '{str = $0 ; getline < infile ; print $0 " \t" str > outfile}' $tmpdatfile1
+
+    rm $tmpdatfile1
+    mv $tmpdatfile3 $tmpdatfile2
+
+    infile="$tmpdatfile2"
+    #infile="$outfile"
+    shift;
+done
+
+mv $tmpdatfile2 $outfile
+echo "wrote $outfile"

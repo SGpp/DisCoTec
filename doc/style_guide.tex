@@ -1,0 +1,179 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage{alltt}
+
+\title{Style guide for programming the GENE code}
+\author{T.~Dannert, T.~G\"orler, X.~Lapillonne, F.~Merz}
+\date{Jul 30, 2009}
+\begin{document}
+\maketitle
+
+\begin{enumerate}
+\item Naming of Variables
+  \begin{enumerate}
+  \item Variables which do not change during the code and which are known
+    already at \textit{compile time} (constants and quasi-constants) are
+    written in upper case like \texttt{NRGFILE}
+  \item The variables \texttt{i,j,k,l,m,n} are reserved all over the code for
+    the directions $x, y, z, v_\|, \mu$ and species, respectively. Neither different usage nor
+    another mapping is allowed. 
+  \item Loop variables should have names of the structure \texttt{iName},
+    where the \texttt{i} indicates a loop variable and the \texttt{Name}
+    should really describe what the loop is running through. Clarity precedes
+    shortness! 
+  \item Numbers of things are named $\mathtt{n\_rows}$, where the \texttt{n}
+    indicates a total number and the identifier is the plural of the quantity
+    described. 
+  \item distribution function like quantities, $\mathtt{g\_1, f\_1}$
+  \item prefactors are starting with a minor \texttt{p}, immediately followed
+    by the physical quantity ($\mathtt{pdfdz}$)
+  \end{enumerate}
+\item Naming of Modules and Types
+  \begin{enumerate}
+  \item The filename which contains the module is named with the module name
+    (without any module extension). 
+  \item The module itself does have a name with $\mathtt{\_module}$ appended.
+  \item Types are named short but clear.
+ \end{enumerate}
+\item Encapsulation
+\item Style for writing modules
+  \begin{enumerate}
+  \item Modules should be used wherever things belong together.
+  \item A module encapsulates a number of methods and data structures. 
+    The usage of modular variables is allowed if only one instance is used 
+    throughout the whole code. Otherwise, a new type containing those 
+    structures and type should be declared.
+  \item In principle the data in a module is private to the module (the same
+    applies even stronger to the data of a type). All modification of the data
+    should be done by methods of the module. 
+  \item The usage of {\em implicit none} is mandatory.
+  \item The structure of the module should be:\\
+    \begin{minipage}{0.8\linewidth}
+\begin{verbatim}
+module matrix_module
+implicit none
+
+type matrix
+...
+end type
+
+interface initialize_matrix_module
+  module procedure mp_initialize_module
+end interface
+
+interface finalize_matrix_module
+  module procedure mp_finalize_module
+end interface
+
+interface initialize
+  module procedure mp_initialize_matrix
+end interface
+...
+
+private :: mp_initialize_matrix, mp_initialize_module
+
+integer, private :: modular variables (if any)
+
+contains
+  subroutine mp_initialize_module(...)
+  end subroutine
+
+  subroutine mp_finalize_module(...)
+  end subroutine
+
+...
+end module matrix_module
+\end{verbatim}
+      \end{minipage}
+    \item A module must contain an $\mathtt{initialize\_name\_module}$ and a
+      $\mathtt{finalize\_name\_module}$ routine. If types 
+      are used, also a \texttt{initialize(type(...))} and
+      \texttt{finalize(type(...))} method must be supplied.
+    \item If other modules are \texttt{USE}d, the \texttt{ONLY} statement is
+      to be used. Only exception is the module which contains all global
+      indices for the physical dimensions.
+    \item If types are present, the interface blocks must be defined, to
+      open the possibility of static polymorphism.
+    \item For methods operating on types, the first argument of the method
+        is of the type.\\
+        \begin{minipage}{0.8\linewidth}
+\begin{verbatim}
+subroutine set_value(mat, a_row, a_col, a_value)
+  type(Matrix) :: mat
+  integer,INTENT(IN) :: a_row, a_col
+  complex,INITENT(IN) :: a_value
+
+...
+end subroutine
+\end{verbatim}
+        \end{minipage}
+  \end{enumerate}
+
+\item Style for writing global functions and subroutines
+  \begin{enumerate}
+  \item Functions should use only arguments and local variables, the usage of
+    global variables should be reduced to a absolute minimum. 
+  \item Functions should be short, and each function has ideally exactly one defined
+    purpose and no side effects. It only changes the output arguments of the
+    function. The only side effect allowed in some cases is the influence on
+    private module variables (see style for modules).
+  \item The first block in a function contains the passed argument type
+    definitions. Then separated the local variables are defined.
+  \item A function should be testable separately to make sure it fulfills its
+    purpose correctly.
+  \item Naming of subroutines, functions and arguments
+    \begin{enumerate}
+    \item long describing names, starting with a verb in lower case and the
+      objects it is acting on separated by underscores, $\mathtt{calculate\_rhs}$,
+      $\mathtt{count\_number\_of\_rows}$ 
+    \item dummy arguments of the subroutines should have a minor $\mathtt{a\_}$
+      prepended
+    \item All IN and OUT arguments of a subroutine should have an
+      \texttt{INTENT} statement. Only INOUT arguments can be written without
+      this statement, as this is the default.
+    \end{enumerate}
+  \item 
+  \end{enumerate}
+\item Before committing any changes to the \texttt{subversion} repository, the
+  testsuite has to be run and all tests have to be successfull. This has to be
+  done on as many machines as possible.
+\item It is prohibited to use \texttt{double precision} or \texttt{double
+    complex} types in type declaration. Always use \texttt{real} and
+  \texttt{complex}. These types are extended to double precision by the
+  compiler if wished. It is also necessary to use
+  $\mathtt{MPI\_COMPLEX\_TYPE}$ and $\mathtt{MPI\_REAL\_TYPE}$ for the MPI
+  routines, as these names (in upper case) are replaced by the actual types in
+  the preprocessing phase of compilation.
+
+  
+\item Source code documentation
+  \begin{enumerate}
+  \item Modules, subroutines, parameters, etc. should be explained using 
+    meaningful comments.
+  \item The comment style should be compatible with \texttt{doxygen} 
+    (see www.doxygen.org). Examples:
+    \begin{verbatim}
+      !>SHORT DESCRIPTION of subroutine my_sub
+      !!
+      !!LONG DESCRIPTION
+      !!might range over
+      !!several lines
+      !!\param a important input parameter
+      !!\param b parameter containing the result
+      Subroutine my_sub(a,b)
+    \end{verbatim}
+    or
+    \begin{verbatim}
+      !>SHORT DESCRIPTION of subroutine my_sub
+      !!
+      !!LONG DESCRIPTION
+      !!might range over
+      !!several lines
+      Subroutine my_sub(a,b)
+      Datatype1 a !<important input parameter
+      Datatype2 b !<parameter containing the result
+    \end{verbatim}
+    
+  \end{enumerate}
+\end{enumerate}
+
+\end{document}

@@ -1,0 +1,124 @@
+&parallelization
+!n_procs_s =   1
+!n_procs_v =   1
+!n_procs_w =   8
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   1
+!n_procs_sim =      8
+/
+
+&box
+n_spec =    1
+nx0    =    8
+nky0   =    8
+nz0    =   16
+nv0    =   32
+nw0    =    8
+
+kymin =   0.1000E+00
+lv    =     3.00    
+lw    =     9.00    
+lx    =   182.948    
+nexc  =   4
+adapt_lx = F
+x0    =   0.4000    
+mu_grid_type = 'gau_lag'
+/
+
+&in_out
+diagdir = '/out'
+
+read_checkpoint  = F
+write_checkpoint = T
+
+istep_field  =     100
+istep_mom    =     100
+istep_nrg    =      10
+istep_vsp    =     500
+istep_schpt  =    5000
+istep_energy =      50
+
+write_std = T
+chpt_h5 = F
+chpt_hac = F
+momentum_flux  = F
+/
+
+&general
+nonlinear =   T
+comp_type = 'IV'
+!perf_vec  =  2 2 1 1 1 2 1 1 1
+!nblocks   =       8
+hypz_opt =   F
+
+timescheme = 'RK4'
+dt_max     =   0.2570    
+courant    =     1.25
+
+timelim    =      64500
+ntimesteps =        200
+
+beta       =    0.0000000    
+debye2     =    0.0000000    
+collision_op = 'none'
+
+init_cond = 'ppj'
+
+hyp_z =   0.5000    
+hyp_v =   0.4000    
+
+/
+
+&geometry
+magn_geometry = 'tracer_efit'
+q0       =    1.1911981    
+shat     =   0.2186
+geomdir = '../geomdata/efit/'
+geomfile = 'test_efit'
+minor_r  =   1.00000000    
+major_R  =    2.7504028    
+dpdx_term= 'gradB_eq_curv'
+dpdx_pm  =   0.13037328    
+norm_flux_projection  = F
+/
+
+&species
+name   = 'ions'
+omn    =    2.2200000    
+omt    =    3.0000000    
+
+mass   =   1.00000000    
+temp   =   1.00000000    
+dens   =   1.00000000    
+charge =  1
+/
+
+&info
+comment = nonlinear ITG (tracer_efit)
+q0     =    1.1911981    
+step_time  =     0.0216
+number of computed time steps =     200
+time for initial value solver =      4.314
+calc_dt = T
+hypz compensation = F
+init_time =     6.5270
+n_fields = 1
+n_moms   =  6
+lx =   182.948    
+ly =   62.8319    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+SVN_REV = 4788M               
+RELEASE = 1.8 - alpha 0
+/
+
+&units
+Bref =   2.3629546220644704E+00
+Tref =   1.0000000000000000E+00
+nref =   1.0000000000000000E+00
+Lref =   6.3060618868494978E-01
+mref =   2.0000000000000000E+00
+/
+

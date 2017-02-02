@@ -1,0 +1,108 @@
+&parallelization
+!n_procs_s =   1
+!n_procs_v =   1
+!n_procs_w =   4
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   4
+!n_procs_sim =     16
+/
+
+&box
+n_spec =    1
+nx0    =    3
+nky0   =    1
+nz0    =    8
+nv0    =   16
+nw0    =    4
+
+kymin =   0.5000E-01
+lv    =     3.00    
+lw    =     9.00    
+adapt_lx = T
+ky0_ind =   1
+mu_grid_type = 'gau_lag'
+/
+
+&in_out
+diagdir = '/out'
+
+read_checkpoint  = F
+write_checkpoint = F
+
+istep_field =     100
+istep_mom   =     200
+istep_nrg   =      10
+istep_omega =       0
+istep_vsp   =     500
+istep_schpt =       0
+
+write_std = T
+momentum_flux  = T
+/
+
+&general
+nonlinear =   F
+comp_type = 'EV'
+!perf_vec  =  2 2 2 1 1 1 2 1 2
+!nblocks   =       4
+arakawa_zv =   T
+arakawa_zv_order =   4
+
+which_ev  = 'all_mpl'
+vec_out_limit = T
+n_ev      =         10
+
+timelim    =      86000
+
+beta       =    0.0000000    
+debye2     =    0.0000000    
+collision_op = 'none'
+
+init_cond = 'alm'
+
+hyp_z =   0.2500    
+hyp_v =   0.2000    
+
+/
+
+&geometry
+magn_geometry = 's_alpha'
+q0       =    1.4000000    
+shat     =   0.7960
+trpeps   =   0.18000000    
+major_R  =    1.0000000    
+norm_flux_projection  = F
+/
+
+&species
+name   = 'ions'
+omn    =    2.2200000    
+omt    =    6.9600000    
+
+mass   =    1.0000000    
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge =  1
+/
+
+&info
+comment = scalapack ev test case 
+iterations for eigenvalue calculation =      -1
+time for eigenvalue solver =    16.7672
+init_time =     0.1011
+n_fields = 1
+n_moms   =  6
+nrgcols  = 10
+lx =   25.1256    
+ly =   125.664    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+SVN_REV = 3943M               
+RELEASE = 1.6 - alpha 0
+/
+
+&units
+/
+

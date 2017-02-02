@@ -1,0 +1,142 @@
+\documentclass[12pt, a4paper, fleqn]{article}
+\usepackage[latin1]{inputenc}
+\usepackage{amsxtra}
+\usepackage{amssymb}
+
+\parindent=0pt
+
+\begin{document} 
+
+\section{Spectra calculation \texttt{GENE 11} Diagnostics}
+
+The change from \texttt{GENE 10} to \texttt{GENE 11} had a great influence on the way how
+amplitude or flux spectra are calculated in the corresponding diagnostics. In the older
+\texttt{GENE} versions only one direction used to be Fourier transformed. 
+Since \texttt{GENE 11} the output data (\texttt{mom}-files) is transformed 
+in $x$- and $y$-direction. The following sections show how this affects the spectra
+calculations.
+
+\subsection{Amplitude spectra}
+In \texttt{GENE 10} and former versions amplitude spectra of a function $f$ were defined by
+\begin{align}
+S_x &= \frac{1}{N_y} \sum_{y} \left|f(k_x, y)\right|^2 \\
+S_y &= \frac{1}{N_x} \sum_{x} \left|f(x, k_y)\right|^2
+\end{align}
+where $y = -L_y/2, -L_y/2+L_y/N_y,..., L_y/2-L_y/N_y$ and $x= -L_x/2, -L_x/2+L_x/N_x,...,
+L_x/2-L_x/N_x$.
+Starting from this definitions we transform into the two-dimensional Fourier space
+\begin{align}
+S_x = & \frac{1}{N_y} \sum_y \left|f(k_x, y)\right|^2 \nonumber \\
+ = & \frac{1}{N_y} \sum_y \bigg|\sum_{k_y} f(k_x,k_y)
+ {\rm e}^{{\rm i} k_y y}\bigg|^2 \nonumber \\
+ = & \frac{1}{N_y} \sum_y \sum_{k_y, k^{\prime}_y} f^*(k_x,k^{\prime}_y) f(k_x,k_y) \,{\rm
+ e}^{\,{\rm
+ i} (k_y-k^{\prime}_y) y} \label{eq:Sx1}
+\end{align}
+with $k_y = 2\pi/L_y \cdot n$ and $n =-N_y/2+1, -N_y/2+2,...,N_y/2$. Using the relation
+\begin{equation}
+\frac{1}{N} \sum_{\nu=0}^{N-1} {\rm e}^{\,{\rm i} (a-b)\nu/N} = \delta_{ab}
+\end{equation}
+we can simplify eq.~(\ref{eq:Sx1}) and arrive at
+\begin{align}
+S_x = & \sum_{k_y, k^{\prime}_y} f^*(k_x,k^{\prime}_y) f(k_x,k_y)
+\,\delta_{k_y k^{\prime}_y} \nonumber \\
+ = & \sum_{k_y} |f(k_x,k_y)|^2
+\end{align}
+Similarly the $k_y$-spectrum is given by
+\begin{align}
+S_y = \sum_{k_x} |f(k_x,k_y)|^2
+\end{align}
+The data stored in a \texttt{mom}-file contains all information in $k_x$-direction but only
+one half of all $k_y$-points, namely those from $0, ..., N_y/2-1$, because negative $k_y$-values can be restored by using
+$f(-k_x,-k_y) = f^*(k_x,k_y)$. Only the high frequency component $k_{N_y/2}$ is lost
+which should be close to zero anyway.
+\par
+With this knowledge we slightly adapt the $k_x$-spectrum to 
+\begin{align}
+S_x = & \sum_{n=-N_y/2+1}^{N_y/2} |f(k_x,k^{(n)}_y)|^2 \nonumber \\
+ = & |f(k_x, k^{(0)}_y)|^2 + \sum_{n =
+ 1}^{N_y/2-1}\left(|f(k_x,k^{(n)}_y)|^2+|f(-k_x,k^{(n)}_y)|^2\right)
+\end{align}
+where $k^{(n)}_y = 2\pi/L_y \cdot n$ has been used to gain shorter expressions for the limits of
+the summation.\\
+The $k_y$-spectrum is not affected as long as we only consider positive $k_y$-values.
+
+
+\subsection{Flux spectra}
+
+In \cite{Jenko99} a spectrum of two fluctuating quantities $A$ and $B$ is derived for data
+being transformed to $k_y$-space. We now want to apply this derivation to data given in
+$k_x$- and $k_y$-space and start at 
+\begin{align}
+\Gamma_{AB} & = \left\langle A B \right\rangle_{x,y} \nonumber \\
+ & = \left\langle \sum_{k_x}\sum_{k_y} A(k_x, k_y) {\rm e}^{{\rm i}k_z
+x+{\rm i} k_y y} \sum_{k'_x}\sum_{k'_y} B(k'_x, k'_y) {\rm e}^{{\rm i}k'_x
+x+{\rm i} k'_y y} \right\rangle_{x,y} \nonumber \\
+ & = \sum_{k_x,k'_x}\sum_{k_y,k'_y} A(k_x, k_y) B(k'_x, k'_y) \left\langle {\rm
+e}^{{\rm i}(k_x + k'_x) x} \right\rangle_x \left\langle {\rm e}^{{\rm i}(k_y + k'_y) y}
+\right\rangle_y \nonumber \\
+ & = \sum_{k_x,k'_x} \sum_{k_y,k'_y} A(k_x, k_y) B(k'_x, k'_y)\, \delta_{k_x,-k_{x}}
+\delta_{k_y,-k_{y}} \nonumber \\
+ & = \sum_{k_x} \sum_{k_y} A(k_x, k_y) B(-k_{x}, -k_{y}) \nonumber \\
+ & = \sum_{k_x} \sum_{k_y} A(k_x, k_y) B^*(k_{x}, k_{y}) \label{eq:Gamma_AB} 
+\end{align}
+where we used $C^*(k_x, k_y) = C(-k_x, -k_y)$ $(C=A,B)$.
+
+\subsubsection{$k_y$-spectrum}
+According to \cite{Jenko99} the (positive) $k_y$-spectrum $\Gamma_{AB}(k_y)$ is defined via
+\begin{align}
+\Gamma_{AB} = \sum_{n=0}^{N_y/2} \Gamma_{AB}(k^{(n)}_y). \nonumber
+\end{align}
+Comparison with eq.~(\ref{eq:Gamma_AB}) leads to 
+\begin{align}
+\Gamma^{(y)}_{AB}(k^{(0)}_y)= & \sum_{m=-N_x/2+1}^{N_x/2} A(k^{(m)}_x, k^{(0)}_y) B^*(k^{(m)}_{x}, k^{(0)}_{y})
+\\
+\Gamma^{(y)}_{AB}(k^{(N_y/2)}_y) = & \sum_{m=-N_x/2+1}^{N_x/2} A(k^{(m)}_x, k^{(N_y/2)}_y) B^*(k^{(m)}_{x}, k^{(N_y/2)}_{y})
+\end{align}
+and for $n=1,..,N_y/2-1$
+\begin{align}
+%\Gamma^{(y)}_{AB}(k^{(n)}_y) = & 2 {\rm Re}\left[A^*(k^{(0)}_x, k^{(n)}_y) B(k^{(0)}_x,
+%k^{(n)}_y)+A^*(k^{(N_x/2)}_x, k^{(n)}_y) B(k^{(N_x/2)}_x, k^{(n)}_y)\right] \nonumber \\
+%& + 2 {\rm Re}\left[\sum_{m = 1}^{N_x/2-1}\left(A^*(k^{(m)}_x, k^{(n)}_y) B(k^{(m)}_x, k^{(n)}_y)
+%\right.\right. \nonumber \\
+%& \left.+  A^*(-k^{(m)}_x,k^{(n)}_y)B(-k^{(m)}_x,k^{(n)}_y)\right) \Bigg]
+\Gamma^{(y)}_{AB}(k^{(n)}_y) = & \sum_{m = -N_x/2+1}^{N_x/2}\left(A(k_x^{(m)},-k_y^{(n)}) B^*(k_x^{(m)}, -k_y^{(n)})\right. \nonumber \\ 
+& \left. \hspace{5em} + A(k_x^{(m)},k_y^{(n)}) B^*(k_x^{(m)},k_y^{(n)})\right) \nonumber \\
+= & \sum_{m = -N_x/2+1}^{N_x/2}\left(A^*(-k_x^{(m)},k_y^{(n)}) B(-k_x^{(m)}, k_y^{(n)}) \right. \nonumber \\
+& \left. \hspace{5em} + A(k_x^{(m)},k_y^{(n)}) B^*(k_x^{(m)},k_y^{(n)})\right) \nonumber \\
+= & \hspace{1ex} 2 \hspace{-1em} \sum_{m = -N_x/2+1}^{N_x/2}{\rm Re}\left[A^*(k^{(m)}_x, k^{(n)}_y) B(k^{(m)}_x, k^{(n)}_y)\right] \nonumber \\
+\end{align}
+
+\subsubsection{$k_x$-spectrum}
+Similarly the $k_x$-spectrum, here defined as
+\begin{equation}
+\Gamma_{AB} = \sum_{m=0}^{N_x/2} \Gamma^{(x)}_{AB}(k^{(m)}_x),
+\end{equation}
+is given by
+\begin{align}
+\Gamma^{(x)}_{AB}(k^{(0)}_x)= & \sum_{n=-N_y/2+1}^{N_y/2} A(k^{(0)}_x, k^{(n)}_y) B^*(k^{(0)}_{x}, k^{(n)}_{y}) \nonumber \\
+= & A(k^{(0)}_x,k^{(0)}_y)B(k^{(0)}_x,k^{(0)}_y) + A(k^{(0)}_x, k^{(N_y/2)}_y)B(k^{(0)}_x, k^{(N_y/2)}_y)\nonumber \\
+ & + 2 \sum_{n = 1}^{N_y/2-1} {\rm Re}\left[A^*(k^{(0)}_x, k^{(n)}_y) B(k^{(0)}_x, k^{(n)}_y)\right]\\
+\Gamma^{(x)}_{AB}(k^{(N_x/2)}_x) = & \sum_{n=-N_y/2+1}^{N_y/2} A(k^{(N_x/2)}_x, k^{(n)}_y) B^*(k^{(N_x/2)}_{x}, k^{(n)}_{y}) \nonumber \\
+= & A(k^{(N_x/2)}_x, k^{(0)}_y) B(k^{(N_x/2)}_x, k^{(0)}_y) \nonumber \\
+& + A(k^{(N_x/2)}_x, k^{(N_y/2)}_y)B(k^{(N_x/2)}_x, k^{(N_y/2)}_y) \nonumber \\
+& + 2 \sum_{n = 1}^{N_y/2-1} {\rm Re}\left[A^*(k^{(N_x/2)}_x, k^{(n)}_y) B(k^{(N_x/2)}_x,k^{(n)}_y)\right]
+\end{align}
+and for $m=1,..,N_x/2-1$
+\begin{align}
+\Gamma^{(x)}_{AB}(k^{(m)}_x) = & 2 \sum_{n=-N_y/2+1}^{N_y/2} {\rm Re}\left[A^*(k^{(m)}_x, k^{(n)}_y) B(k^{(m)}_x, k^{(n)}_y)\right] \nonumber \\
+= & 
+2 \,{\rm Re}\left[A^*(k^{(m)}_x, k^{(0)}_y) B(k^{(m)}_x, k^{(0)}_y)\right] \nonumber \\
+& + 2\, {\rm Re}\left[A^*(k^{(m)}_x, k^{(N_y/2)}_y)B(k^{(m)}_x, k^{(N_y/2)}_y)\right]\nonumber \\
+& + 2 \sum_{n = 1}^{N_y/2-1} {\rm Re} \left[ A^*(k^{(m)}_x, k^{(n)}_y) B(k^{(m)}_x,k^{(n)}_y)
+ \right. \nonumber \\
+& \left. \hspace{5em} + A^*(-k^{(m)}_x,k^{(n)}_y)B(-k^{(m)}_x,k^{(n)}_y) \right]
+\end{align}
+
+
+\begin{thebibliography}{99}
+\bibitem[1]{Jenko99} F.~Jenko and B.D.~Scott, Phys.~Plasmas \textbf{6}, 2418 (1999)
+\end{thebibliography}
+
+\end{document}

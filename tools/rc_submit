@@ -1,0 +1,196 @@
+#!/bin/sh
+#Run chain tool, requires valid queue name input (with existing submit script),
+#as well as a run number range, e.g.: rc_submit.sh dino 120 124 would submit
+#five runs to the dino queue as specified in dino.cmd
+#Optional keyword: -nosubmit, creates submit script but does not submit
+#(note that -nosubmit needs to be specified after the other parameters)
+#For this script to work, the following tools need to be accessible via PATH:
+#rc_chpt, rc_modpar, rc_overfl, and rc_runassign (usually in [genedir]/tools/)
+#Additionally, the timestamp program has to be similarly available
+if [ $# -lt 3 ]
+then
+  echo "rc_submit error: incorrect usage of run chain submit"
+  echo "usage: rc_submit <queue>[.cmd] <firstrun\#> <lastrun\#> [-nosubmit]"
+  exit
+fi
+#check for timestamp
+which timestamp > /dev/null
+if [ $? -ne 0 ]
+then
+  echo "rc_submit warning: 'timestamp' not found, trying to create"
+  tst_path=`which rc_chpt | sed -e "s/rc_chpt/timestamp/"`
+  gcc ${tst_path}.c -o $tst_path
+  which timestamp
+  if [ $? -ne 0 ]
+  then
+    echo "rc_submit error: 'timestamp' not found" > rcerror.msg
+    echo "rc_submit error: 'timestamp' not found, creation failed"
+    exit
+  fi
+fi
+if [ -f rcerror.msg ]
+then
+  rm rcerror.msg
+fi
+if [ `echo "$1" | grep ".cmd" | wc -l` -lt 1 ]
+then
+  queuecmd="${1}.cmd"
+else
+  queuecmd=$1
+fi
+if [ ! -f $queuecmd ]
+then
+  echo "rc_submit error: no submit script $queuecmd" > rcerror.msg
+  echo "rc_submit error: no submit script ${queuecmd}, not submitting job(s)"
+  exit
+fi
+nruns=`expr $3 - $2 + 1`
+if [ $nruns -lt 2 ]
+then
+  echo "rc_submit error: $nruns runs (less than two) requested" > rcerror.msg
+  echo "rc_submit error: $nruns runs (less than two) requested, not submitting job(s)"
+  exit
+fi
+if [ $nruns -gt 20 ]
+then
+  echo "##### warning: large number of runs: ${nruns}! #####"
+  echo -n "proceed? [y/n] "
+  read answer
+  if [ "$answer" != "y" ]
+  then
+    exit
+  fi
+fi
+tmpcmd="rc_$queuecmd"
+
+##### check which submit command applies #####
+nollsubmit=`which llsubmit 2> /dev/null | grep "not found" | wc -l`
+noqsub=`which qsub 2> /dev/null | grep "not found" | wc -l`
+if [ $nollsubmit -eq 0 ]
+then
+
+##### llsubmit (e.g., Power5, Power6, BlueGene) #####
+### duplicate queue command, name steps ###
+# create a copy of the selected queue submit script (and name it rc_[scriptname])
+# which can then be modified
+cp $queuecmd $tmpcmd
+# define auxilliary variable
+stepnamebase="# @ step_name = GENE_run_"
+dependhead="# @ dependency = ( GENE_run_"
+dependtail=" == 0 )"
+queuestr="# @ queue"
+run=$2
+# get lines from submit script to duplicate for multiple queueings
+jobtypeline=`grep "@ job_type" $queuecmd`
+nnodeline=`grep "@ node" $queuecmd`
+tpnodeline=`grep "@ tasks_per_node" $queuecmd`
+# loop over run numbers, add loadleveler statements
+while [ $run -lt $3 ]
+do
+  queuestmts="${queuestmts}${stepnamebase}${run}?"
+  if [ $run -ne $2 ]
+  then
+    queuestmts="${queuestmts}${dependhead}$(( $run - 1 ))${dependtail}?"
+    queuestmts="${queuestmts}${jobtypeline}?${nnodeline}?${tpnodeline}?"
+  fi
+  queuestmts="${queuestmts}${queuestr}?"
+  run=$(( $run + 1 ))
+done
+# for the last step, avoid a newline at the end
+queuestmts="${queuestmts}${stepnamebase}${run}?"
+queuestmts="${queuestmts}${dependhead}$(( $run - 1 ))${dependtail}?"
+queuestmts="${queuestmts}${jobtypeline}?${nnodeline}?${tpnodeline}?"
+queuestmts="${queuestmts}${queuestr}"
+
+### modify run commands; question marks are later turned into newlines ###
+# retrieve the job id and step id during runtime from a loadleveler environment
+getllenvs="hostjobid=\`echo \$LOADL_STEP_ID | tr '.' ' ' | awk '{printf \$(1);printf \".\";printf \$(NF-1)}'\`?stepid=\`echo \$LOADL_STEP_ID | tr '.' ' ' | awk '{printf \$(NF)}'\`"
+# since the shell PATH cannot be accessed from within the submit script,
+# required paths need to be stored; the backslashes protect the slashes
+holdcmd=`which llhold | sed -e "s/\//\\\\\\\\\\\//g"`
+toolsdir=`which rc_submit | sed -e "s/rc_submit//" | sed -e "s/\//\\\\\\\\\\\//g"`
+
+# check for GENE.stop and overflows
+genestop_overfl="if [ -f GENE.stop ]?then?  err=1?else?  err=0?fi?${toolsdir}rc_overfl?err=\$(( \$err + \$ ))"
+# if err > 0 then hold all steps with higher step id
+holdonerr="err=\$(( \$err + \$ ))?if [ \$err -gt 0 ]?then?  currrun=\$(( \$stepid + 1 ))?  while [ \$currrun -lt $nruns ]?  do?    $holdcmd \${hostjobid}.\$currrun?    currrun=\$(( \$currrun + 1 ))?  done?fi"
+# after the loadleveler statements but before the call to GENE: check for
+# overflows, check checkpoints, assign run number, set read_checkpoint = .t.
+# if not in the first step, hold on errors
+addpreexec="?${getllenvs}?if [ \$stepid -ne 0 ]?then?${genestop_overfl}?${toolsdir}rc_chpt ${toolsdir}?err=\$(( \$err + \$ ))?${toolsdir}rc_runassign \$(( \$stepid + $2 - 1 ))?if [ \$stepid -eq 1 ]?then?  ${toolsdir}rc_modpar?fi?${holdonerr}?fi"
+# after GENE: check for overflow, check checkpoints (no copying/moving), hold
+# on errors; if the step is the last, move checkpoint, runassign
+# NOTE: it must generally be assumed that the post-GENE statements may
+# not be executed due to lack of time before the wall clock limit; however,
+# if there is time, checks are performed in order to possibly prevent the
+# next step to start in case of errors
+addpostexec="if [ \$stepid -ne $(( $nruns - 1 )) ]?then?${genestop_overfl}?${toolsdir}rc_chpt ${toolsdir} -nochange?${holdonerr}?else?  ${toolsdir}rc_chpt ${toolsdir} -move?  ${toolsdir}rc_runassign \$(( \$stepid + $2 ))?fi"
+
+# attach post-GENE statements at the end of the submit script
+echo $addpostexec >> $tmpcmd
+# find the original queue statement, add loadleveler and pre-GENE statements
+# right below; also substitute newlines for question marks
+cat $tmpcmd | sed -e "s/^# *@ *queue */${queuestmts}${addpreexec}/" | tr "?" "\n" > ${tmpcmd}~
+# since there are some places where question marks are required, reinsert those
+cat ${tmpcmd}~ | sed -e "s/(( \$err + \$ ))/(( \$err + \$? ))/g" > $tmpcmd
+rm ${tmpcmd}~
+
+if [ ! "$4" == "-nosubmit" ]
+then
+  llsubmit $tmpcmd
+  rm $tmpcmd
+else
+  echo "created submit script $tmpcmd for $nruns runs"
+fi
+exit
+
+else
+
+##### exit if neither llsubmit nor qsub exist #####
+if [ $noqsub -eq 1 ]
+then
+  echo "rc_submit error: neither llsubmit nor qsub found" > rcerror.msg
+  echo "rc_submit error: cannot submit jobs: neither llsubmit nor qsub found"
+  exit
+fi
+
+fi
+
+##### qsub (e.g., Linus clusters, Altix); note that this includes SGE and PBS) #####
+### modify run commands ###
+
+echo "currently, no qsub support implemented; aborting..."
+exit
+
+holdcmd=`which qhold | sed -e "s/\//\\\\\\\\\\\//g"`
+toolsdir=`which rc_submit | sed -e "s/rc_submit//" | sed -e "s/\//\\\\\\\\\\\//g"`
+
+run=$2
+while [ $run -le $3 ]
+do
+  if [ $run -ne $2 ]
+  then
+    dependstr="-W depend=afterany:$lastjobid "
+  else
+    dependstr=""
+  fi
+
+genestop_overfl="if [ -f GENE.stop ]?then?  err=1?else?  err=0?fi?${toolsdir}rc_overfl?err=\$(( \$err + \$ ))"
+holdonerr="err=\$(( \$err + \$ ))?if [ \$err -gt 0 ]?then?  currrun=\$(( \$stepid + 1 ))?  while [ \$currrun -lt $nruns ]?  do?    $holdcmd \${hostjobid}.\$currrun?    currrun=\$(( \$currrun + 1 ))?  done?fi"
+addpreexec="?${getllenvs}?if [ \$stepid -ne 0 ]?then?${genestop_overfl}?${toolsdir}rc_chpt ${toolsdir}?err=\$(( \$err + \$ ))?${toolsdir}rc_runassign \$(( \$stepid + $2 - 1 ))?if [ \$stepid -eq 1 ]?then?  ${toolsdir}rc_modpar?fi?${holdonerr}?fi"
+addpostexec="if [ \$stepid -ne $(( $nruns - 1 )) ]?then?${genestop_overfl}?${toolsdir}rc_chpt ${toolsdir} -nochange?${holdonerr}?else?  ${toolsdir}rc_chpt ${toolsdir} -move?  ${toolsdir}rc_runassign \$(( \$stepid + $2 ))?fi"
+
+echo $addpostexec >> $tmpcmd
+cat $tmpcmd | sed -e "s/^# *@ *queue */${addpreexec}/" | tr "?" "\n" > ${tmpcmd}~
+cat ${tmpcmd}~ | sed -e "s/(( \$err + \$ ))/(( \$err + \$? ))/g" > $tmpcmd
+
+
+  if [ ! "$4" == "-nosubmit" ]
+  then
+    qsub -W depend=afterany:<JOB-ID>  <QSUB SCRIPT>
+    rm $tmpcmd
+  else
+#########################one script for multiple submits with afterany!
+    echo "created submit script $tmpcmd for $nruns runs"
+  fi
+done

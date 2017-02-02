@@ -1,0 +1,477 @@
+LINK_OBJ = 	$(OBJDIR)/test_gyroaverage.o \
+	$(OBJDIR)/localpolynombase.o \
+	$(OBJDIR)/comm.o \
+	$(OBJDIR)/discretization.o \
+	$(OBJDIR)/coordinates.o \
+	$(OBJDIR)/par_other.o \
+	$(OBJDIR)/par_in.o \
+	$(OBJDIR)/geometry.o \
+	$(OBJDIR)/BoundaryDescription.o \
+	$(OBJDIR)/matrix.o \
+	$(OBJDIR)/BandedMatrix.o \
+	$(OBJDIR)/Vector.o \
+	$(OBJDIR)/derivative_matrix.o \
+	$(OBJDIR)/grid1d.o \
+	$(OBJDIR)/file_io.o \
+	$(OBJDIR)/gyro_average_df.o \
+	$(OBJDIR)/gyro_average_dd.o \
+	$(OBJDIR)/test_pmm.o \
+	$(OBJDIR)/test_gyroaverage_io.o \
+	$(OBJDIR)/init_physical.o \
+	$(OBJDIR)/par_mod.o \
+	$(OBJDIR)/spectype.o \
+	$(OBJDIR)/gauss.quadrature.o \
+	$(OBJDIR)/processgrid.o \
+	$(OBJDIR)/storefullmatrix.o \
+	$(OBJDIR)/storevector.o \
+	$(OBJDIR)/par_geom.o \
+	$(OBJDIR)/chease.o \
+	$(OBJDIR)/circular.o \
+	$(OBJDIR)/tracer.o \
+	$(OBJDIR)/lag_interp.o \
+	$(OBJDIR)/tracer_aux.o \
+	$(OBJDIR)/tracer_rk5.o \
+	$(OBJDIR)/tracer_IO.o \
+	$(OBJDIR)/spline_interp.o \
+	$(OBJDIR)/tracer_rk5_util.o \
+	$(OBJDIR)/storebandedmatrix.o \
+	$(OBJDIR)/ListObject.o \
+	$(OBJDIR)/ListObject.o \
+	$(OBJDIR)/ListObject.o \
+	$(OBJDIR)/ListObject.o \
+	$(OBJDIR)/localpolynombase2d.o \
+	$(OBJDIR)/fourier_fftw.o \
+	$(OBJDIR)/collisions.o \
+	$(OBJDIR)/boundary_exchange_z.o \
+	$(OBJDIR)/profiles.o \
+	$(OBJDIR)/dzv_terms.o \
+	$(OBJDIR)/numerical_damping.o \
+	$(OBJDIR)/vel_space.o \
+	$(OBJDIR)/boundary.o \
+	$(OBJDIR)/gyro_average_ff.o \
+	$(OBJDIR)/axpy.o \
+	$(OBJDIR)/hybrid.o \
+	$(OBJDIR)/aux_func.o \
+	$(OBJDIR)/dealiasing.o \
+	$(OBJDIR)/boundary_exchange_general.o \
+	$(OBJDIR)/boundary_exchange_x.o \
+	$(OBJDIR)/boundary_exchange_vw.o \
+	$(OBJDIR)/box_data_module.o \
+	$(OBJDIR)/exchange_z_ff.o \
+	$(OBJDIR)/blockindex.o \
+	$(OBJDIR)/x_derivatives.o \
+	$(OBJDIR)/prefactors.o \
+	$(OBJDIR)/external_contr.o \
+	$(OBJDIR)/arrays.o \
+	$(OBJDIR)/aux_fields.o \
+	$(OBJDIR)/field_solve_ff.o \
+	$(OBJDIR)/field_solve_df.o \
+	$(OBJDIR)/field_solver.o \
+	$(OBJDIR)/charge_curr_dens.o \
+	$(OBJDIR)/compute_f.o \
+	$(OBJDIR)/compute_h.o \
+	$(OBJDIR)/adiabatic_response.o \
+	$(OBJDIR)/spatial_averages.o \
+	$(OBJDIR)/debug_output.o \
+	$(OBJDIR)/flr_corr.o
+
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/localpolynombase.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/comm.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/BandedMatrix.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/Vector.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/derivative_matrix.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/gyro_average_dd.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/test_pmm.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/test_gyroaverage_io.o
+$(OBJDIR)/test_gyroaverage.o: $(OBJDIR)/init_physical.o
+$(OBJDIR)/localpolynombase.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/comm.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/comm.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/comm.o: $(OBJDIR)/Vector.o
+$(OBJDIR)/par_mod.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/par_mod.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/par_mod.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/par_mod.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/discretization.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/discretization.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/par_in.o: $(OBJDIR)/spectype.o
+$(OBJDIR)/coordinates.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/coordinates.o: $(OBJDIR)/gauss.quadrature.o
+$(OBJDIR)/coordinates.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/gauss.quadrature.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/matrix.o: $(OBJDIR)/processgrid.o
+$(OBJDIR)/matrix.o: $(OBJDIR)/storefullmatrix.o
+$(OBJDIR)/storefullmatrix.o: $(OBJDIR)/processgrid.o
+$(OBJDIR)/storefullmatrix.o: $(OBJDIR)/storevector.o
+$(OBJDIR)/storevector.o: $(OBJDIR)/processgrid.o
+$(OBJDIR)/Vector.o: $(OBJDIR)/processgrid.o
+$(OBJDIR)/Vector.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/Vector.o: $(OBJDIR)/storevector.o
+$(OBJDIR)/geometry.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/geometry.o: $(OBJDIR)/par_geom.o
+$(OBJDIR)/geometry.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/geometry.o: $(OBJDIR)/comm.o
+$(OBJDIR)/geometry.o: $(OBJDIR)/chease.o
+$(OBJDIR)/geometry.o: $(OBJDIR)/circular.o
+$(OBJDIR)/geometry.o: $(OBJDIR)/tracer.o
+$(OBJDIR)/geometry.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/file_io.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/file_io.o: $(OBJDIR)/comm.o
+$(OBJDIR)/chease.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/chease.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/chease.o: $(OBJDIR)/par_geom.o
+$(OBJDIR)/chease.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/circular.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/circular.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/circular.o: $(OBJDIR)/par_geom.o
+$(OBJDIR)/tracer.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/tracer.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/tracer.o: $(OBJDIR)/tracer_aux.o
+$(OBJDIR)/tracer.o: $(OBJDIR)/tracer_rk5.o
+$(OBJDIR)/tracer.o: $(OBJDIR)/tracer_IO.o
+$(OBJDIR)/tracer.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/tracer.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/tracer.o: $(OBJDIR)/par_geom.o
+$(OBJDIR)/tracer_aux.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/tracer_aux.o: $(OBJDIR)/tracer_IO.o
+$(OBJDIR)/tracer_aux.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/tracer_aux.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/tracer_IO.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/tracer_IO.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/tracer_IO.o: $(OBJDIR)/spline_interp.o
+$(OBJDIR)/tracer_IO.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/tracer_IO.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/tracer_rk5.o: $(OBJDIR)/tracer_rk5_util.o
+$(OBJDIR)/tracer_rk5.o: $(OBJDIR)/tracer_IO.o
+$(OBJDIR)/BandedMatrix.o: $(OBJDIR)/processgrid.o
+$(OBJDIR)/BandedMatrix.o: $(OBJDIR)/storebandedmatrix.o
+$(OBJDIR)/BandedMatrix.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/BandedMatrix.o: $(OBJDIR)/Vector.o
+$(OBJDIR)/storebandedmatrix.o: $(OBJDIR)/processgrid.o
+$(OBJDIR)/storebandedmatrix.o: $(OBJDIR)/storefullmatrix.o
+$(OBJDIR)/storebandedmatrix.o: $(OBJDIR)/storevector.o
+$(OBJDIR)/storebandedmatrix.o: $(OBJDIR)/ListObject.o
+$(OBJDIR)/storebandedmatrix.o: $(OBJDIR)/ListObject.o
+$(OBJDIR)/storebandedmatrix.o: $(OBJDIR)/ListObject.o
+$(OBJDIR)/storebandedmatrix.o: $(OBJDIR)/ListObject.o
+$(OBJDIR)/derivative_matrix.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/derivative_matrix.o: $(OBJDIR)/BandedMatrix.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/localpolynombase.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/comm.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/BandedMatrix.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/Vector.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/derivative_matrix.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/gyro_average_df.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/localpolynombase2d.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/comm.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/BandedMatrix.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/Vector.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/derivative_matrix.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/gyro_average_dd.o: $(OBJDIR)/fourier_fftw.o
+$(OBJDIR)/localpolynombase2d.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/fourier_fftw.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/fourier_fftw.o: $(OBJDIR)/comm.o
+$(OBJDIR)/fourier_fftw.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/localpolynombase.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/comm.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/BandedMatrix.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/Vector.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/derivative_matrix.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/test_pmm.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/localpolynombase.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/comm.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/BandedMatrix.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/Vector.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/derivative_matrix.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/test_pmm.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/collisions.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/comm.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/gauss.quadrature.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/boundary_exchange_z.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/profiles.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/dzv_terms.o
+$(OBJDIR)/test_gyroaverage_io.o: $(OBJDIR)/numerical_damping.o
+$(OBJDIR)/collisions.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/collisions.o: $(OBJDIR)/comm.o
+$(OBJDIR)/collisions.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/collisions.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/collisions.o: $(OBJDIR)/boundary.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/comm.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/gyro_average_ff.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/axpy.o
+$(OBJDIR)/vel_space.o: $(OBJDIR)/hybrid.o
+$(OBJDIR)/gyro_average_ff.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/gyro_average_ff.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/gyro_average_ff.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/gyro_average_ff.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/gyro_average_ff.o: $(OBJDIR)/aux_func.o
+$(OBJDIR)/gyro_average_ff.o: $(OBJDIR)/boundary.o
+$(OBJDIR)/gyro_average_ff.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/comm.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/dealiasing.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/boundary_exchange_general.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/boundary_exchange_x.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/boundary_exchange_z.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/boundary_exchange_vw.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/box_data_module.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/exchange_z_ff.o
+$(OBJDIR)/boundary.o: $(OBJDIR)/blockindex.o
+$(OBJDIR)/dealiasing.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/dealiasing.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/dealiasing.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/dealiasing.o: $(OBJDIR)/boundary_exchange_x.o
+$(OBJDIR)/dealiasing.o: $(OBJDIR)/comm.o
+$(OBJDIR)/dealiasing.o: $(OBJDIR)/blockindex.o
+$(OBJDIR)/dealiasing.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/dealiasing.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/boundary_exchange_x.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/boundary_exchange_x.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/boundary_exchange_x.o: $(OBJDIR)/boundary_exchange_general.o
+$(OBJDIR)/boundary_exchange_x.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/boundary_exchange_general.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/blockindex.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/boundary_exchange_z.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/boundary_exchange_z.o: $(OBJDIR)/boundary_exchange_general.o
+$(OBJDIR)/boundary_exchange_z.o: $(OBJDIR)/box_data_module.o
+$(OBJDIR)/boundary_exchange_z.o: $(OBJDIR)/dealiasing.o
+$(OBJDIR)/boundary_exchange_z.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/boundary_exchange_z.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/boundary_exchange_z.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/box_data_module.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/box_data_module.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/boundary_exchange_vw.o: $(OBJDIR)/BoundaryDescription.o
+$(OBJDIR)/boundary_exchange_vw.o: $(OBJDIR)/boundary_exchange_general.o
+$(OBJDIR)/exchange_z_ff.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/exchange_z_ff.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/exchange_z_ff.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/exchange_z_ff.o: $(OBJDIR)/fourier_fftw.o
+$(OBJDIR)/exchange_z_ff.o: $(OBJDIR)/comm.o
+$(OBJDIR)/axpy.o: $(OBJDIR)/comm.o
+$(OBJDIR)/axpy.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/hybrid.o: $(OBJDIR)/comm.o
+$(OBJDIR)/hybrid.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/hybrid.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/hybrid.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/profiles.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/profiles.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/profiles.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/profiles.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/profiles.o: $(OBJDIR)/x_derivatives.o
+$(OBJDIR)/profiles.o: $(OBJDIR)/file_io.o
+$(OBJDIR)/x_derivatives.o: $(OBJDIR)/boundary.o
+$(OBJDIR)/x_derivatives.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/x_derivatives.o: $(OBJDIR)/dealiasing.o
+$(OBJDIR)/x_derivatives.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/blockindex.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/prefactors.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/boundary.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/comm.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/axpy.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/numerical_damping.o
+$(OBJDIR)/dzv_terms.o: $(OBJDIR)/lag_interp.o
+$(OBJDIR)/prefactors.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/prefactors.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/prefactors.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/prefactors.o: $(OBJDIR)/external_contr.o
+$(OBJDIR)/prefactors.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/prefactors.o: $(OBJDIR)/comm.o
+$(OBJDIR)/prefactors.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/external_contr.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/external_contr.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/external_contr.o: $(OBJDIR)/fourier_fftw.o
+$(OBJDIR)/external_contr.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/external_contr.o: $(OBJDIR)/comm.o
+$(OBJDIR)/external_contr.o: $(OBJDIR)/profiles.o
+$(OBJDIR)/numerical_damping.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/numerical_damping.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/numerical_damping.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/numerical_damping.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/numerical_damping.o: $(OBJDIR)/comm.o
+$(OBJDIR)/numerical_damping.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/prefactors.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/comm.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/aux_func.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/collisions.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/spectype.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/boundary.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/numerical_damping.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/x_derivatives.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/external_contr.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/arrays.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/aux_fields.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/box_data_module.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/dealiasing.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/blockindex.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/dzv_terms.o
+$(OBJDIR)/init_physical.o: $(OBJDIR)/profiles.o
+$(OBJDIR)/arrays.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/arrays.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/field_solve_ff.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/field_solve_df.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/field_solver.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/gyro_average_ff.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/prefactors.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/boundary.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/charge_curr_dens.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/compute_f.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/compute_h.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/aux_fields.o: $(OBJDIR)/fourier_fftw.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/comm.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/aux_func.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/gyro_average_ff.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/charge_curr_dens.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/adiabatic_response.o
+$(OBJDIR)/field_solve_ff.o: $(OBJDIR)/hybrid.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/gyro_average_ff.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/comm.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/aux_func.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/hybrid.o
+$(OBJDIR)/charge_curr_dens.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/comm.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/aux_func.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/gyro_average_ff.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/spatial_averages.o
+$(OBJDIR)/adiabatic_response.o: $(OBJDIR)/hybrid.o
+$(OBJDIR)/spatial_averages.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/spatial_averages.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/spatial_averages.o: $(OBJDIR)/comm.o
+$(OBJDIR)/spatial_averages.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/spectype.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/coordinates.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/comm.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/debug_output.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/BandedMatrix.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/grid1d.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/derivative_matrix.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/flr_corr.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/hybrid.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/adiabatic_response.o
+$(OBJDIR)/field_solve_df.o: $(OBJDIR)/spatial_averages.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/comm.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/matrix.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/BandedMatrix.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/Vector.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/geometry.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/aux_func.o
+$(OBJDIR)/flr_corr.o: $(OBJDIR)/hybrid.o
+$(OBJDIR)/field_solver.o: $(OBJDIR)/discretization.o
+$(OBJDIR)/field_solver.o: $(OBJDIR)/par_in.o
+$(OBJDIR)/field_solver.o: $(OBJDIR)/par_other.o
+$(OBJDIR)/field_solver.o: $(OBJDIR)/charge_curr_dens.o
+$(OBJDIR)/field_solver.o: $(OBJDIR)/adiabatic_response.o
+$(OBJDIR)/field_solver.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/field_solver.o: $(OBJDIR)/gyro_average_ff.o
+$(OBJDIR)/field_solver.o: $(OBJDIR)/field_solve_ff.o
+$(OBJDIR)/field_solver.o: $(OBJDIR)/field_solve_df.o
+$(OBJDIR)/compute_f.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/compute_f.o: $(OBJDIR)/comm.o
+$(OBJDIR)/compute_f.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/compute_f.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/compute_f.o: $(OBJDIR)/gyro_average_ff.o
+$(OBJDIR)/compute_f.o: $(OBJDIR)/boundary.o
+$(OBJDIR)/compute_h.o: $(OBJDIR)/par_mod.o
+$(OBJDIR)/compute_h.o: $(OBJDIR)/comm.o
+$(OBJDIR)/compute_h.o: $(OBJDIR)/vel_space.o
+$(OBJDIR)/compute_h.o: $(OBJDIR)/gyro_average_df.o
+$(OBJDIR)/compute_h.o: $(OBJDIR)/gyro_average_ff.o
+$(OBJDIR)/compute_h.o: $(OBJDIR)/boundary.o
