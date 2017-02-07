@@ -834,6 +834,7 @@ void CombiCom::distributedGlobalReduce(
       // left empty
       if (subspaceData.size() == 0) {
         buf_it += subspaceSizes[i];
+        continue;
       }
 
       for (size_t j = 0; j < subspaceData.size(); ++j) {
@@ -854,12 +855,18 @@ void CombiCom::distributedGlobalReduce(
     for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
       std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
 
-      // if subspace does not exist on this process this part of the buffer is
-      // skipped
-      if (subspaceData.size() == 0) {
-        buf_it += subspaceSizes[i];
+      // this is very unlikely but can happen if dsg is different than
+      // lmax and lmin of combination scheme
+      if(subspaceData.size() == 0 && subspaceSizes[i] == 0)
+        continue;
+
+      // this happens for subspaces that are only available in component grids
+      // on other process groups
+      if( subspaceData.size() == 0 && subspaceSizes[i] > 0 ){
+        subspaceData.resize( subspaceSizes[i] );
       }
 
+      // wenn subspaceData.size() > 0 und subspaceSizes > 0
       for (size_t j = 0; j < subspaceData.size(); ++j) {
         subspaceData[j] = *buf_it;
         ++buf_it;
