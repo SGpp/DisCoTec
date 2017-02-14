@@ -22,7 +22,23 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<int>& taskIDs ) :
-    dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary) {
+    dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
+    procsSet_(false), applicationComm_(MPI_COMM_NULL),
+    applicationCommSet_(false)
+  {
+    hierarchizationDims_ = std::vector<bool>(dim_,true);
+    setLevelsCoeffs( taskIDs, levels, coeffs );
+  }
+
+  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
+                  std::vector<bool>& boundary, std::vector<LevelVector>& levels,
+                  std::vector<real>& coeffs, std::vector<bool>& hierachizationDims,
+                  std::vector<int>& taskIDs ) :
+    dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
+    hierarchizationDims_(hierachizationDims),
+    procsSet_(false), applicationComm_(MPI_COMM_NULL),
+    applicationCommSet_(false)
+  {
     setLevelsCoeffs( taskIDs, levels, coeffs );
   }
 
@@ -109,6 +125,48 @@ class CombiParameters {
     return levels_.size();
   }
 
+  inline const std::vector<bool>& getHierarchizationDims(){
+    return hierarchizationDims_;
+  }
+
+
+  /* get the common parallelization
+   * this function can only be used in the uniform mode
+   */
+  inline const IndexVector getParallelization() const{
+    assert( uniformDecomposition && procsSet_);
+    return procs_;
+  }
+
+
+  inline CommunicatorType getApplicationComm() const{
+    assert( uniformDecomposition && applicationCommSet_ );
+
+    return applicationComm_;
+  }
+
+
+  inline void setApplicationComm( CommunicatorType comm ){
+    assert( uniformDecomposition );
+
+    // make sure it is set only once
+    if( applicationCommSet_ == true )
+      return;
+
+    MPI_Comm_dup( comm, &applicationComm_ );
+    applicationCommSet_ = true;
+  }
+
+  /* set the common parallelization
+   * this function can only be used in the uniform mode
+   */
+  inline void setParallelization( const IndexVector p ){
+    assert( uniformDecomposition );
+
+    procs_ = p;
+    procsSet_ = true;
+  }
+
  private:
   DimType dim_;
 
@@ -126,6 +184,16 @@ class CombiParameters {
 
   std::map<LevelVector, real> combiDictionary_;
 
+  std::vector<bool> hierarchizationDims_;
+
+  IndexVector procs_;
+
+  bool procsSet_;
+
+  CommunicatorType applicationComm_;
+
+  bool applicationCommSet_;
+
   friend class boost::serialization::access;
 
   // serialize
@@ -141,6 +209,11 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& boundary_;
   ar& levels_;
   ar& coeffs_;
+  ar& hierarchizationDims_;
+  ar& procs_;
+  ar& procsSet_;
+  ar& applicationComm_;
+  ar& applicationCommSet_;
 }
 
 }

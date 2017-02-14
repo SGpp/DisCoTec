@@ -204,8 +204,8 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
 template<typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::print(std::ostream& os) const {
   for (size_t i = 0; i < subspaces_.size(); ++i) {
-    std::cout << i << " " << subspaces_[i].level_ << " " << subspaces_[i].sizes_
-              << " " << subspaces_[i].dataSize_ << " " << "r " << subspaceToProc_[i]
+    os << i << " " << subspaces_[i].level_ << " " << subspaces_[i].sizes_
+              << " " << subspaces_[i].dataSize_
               << std::endl;
   }
 }

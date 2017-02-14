@@ -1,0 +1,29 @@
+[ct]
+dim = 6
+lmin = 2 1 4 4 4 1  
+lmax = 2 1 4 4 4 1
+leval = 2 1 4 4 4 1
+leval2 = 2 1 2 2 2 1
+p = 1 1 1 2 2 1
+ncombi = 1 
+readspaces = 1
+fg_file_path = /home/heenemo/workspace/combi-gene/distributedcombigrid/examples/gene_distributed/ginstance/plot.dat
+fg_file_path2 = /home/heenemo/workspace/combi-gene/distributedcombigrid/examples/gene_distributed/ginstance/plot2.dat
+boundary = 1 0 1 1 1 0
+hierarchization_dims = 0 0 1 1 1 0
+
+[application]
+dt = 0.01
+nsteps = 2000
+
+[preproc]
+basename = ginstance
+executable = ./gene_new_machine
+mpi = mpirun.mpich
+sgpplib = /home/heenemo/workspace/combi-gene/lib/sgpp
+tasklib = /home/heenemo/workspace/combi-gene/distributedcombigrid/examples/gene_distributed/lib
+startscript = start.bat
+
+[manager]
+ngroup = 1
+nprocs = 4 

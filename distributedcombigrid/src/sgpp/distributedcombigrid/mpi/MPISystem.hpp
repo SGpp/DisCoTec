@@ -70,6 +70,8 @@ class MPISystem {
 
   void init( size_t ngroups, size_t nprocs );
 
+  void init( size_t ngroups, size_t nprocs, CommunicatorType lcomm );
+
   inline const CommunicatorType& getWorldComm() const;
 
   inline const CommunicatorType& getGlobalComm() const;
@@ -109,6 +111,8 @@ class MPISystem {
   inline size_t getNumProcs() const;
 
   void recoverCommunicators( bool groupAlive );
+
+  inline bool isInitialized() const;
 
  private:
   explicit MPISystem();
@@ -326,6 +330,10 @@ inline size_t MPISystem::getNumProcs() const{
   return nprocs_;
 }
 
+
+inline bool MPISystem::isInitialized() const{
+  return initialized_;
+}
 
 /*
 // operators

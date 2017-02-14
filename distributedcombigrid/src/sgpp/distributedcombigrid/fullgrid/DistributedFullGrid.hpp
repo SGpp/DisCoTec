@@ -1,8 +1,3 @@
-/* ****************************************************************************
- * Copyright (C) 2011 Technische Universitaet Muenchen                         *
- * This file is part of the SG++ project. For conditions of distribution and   *
- * use, please see the copyright notice at http://www5.in.tum.de/SGpp          *
- **************************************************************************** */
 // @author Mario Heene
 #ifndef DISTRIBUTEDCOMBIFULLGRID_HPP_
 #define DISTRIBUTEDCOMBIFULLGRID_HPP_
@@ -22,6 +17,7 @@
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
 
+//#define DEBUG_OUTPUT
 #define UNIFORM_SG
 
 using namespace combigrid;
@@ -42,8 +38,6 @@ struct SubspaceDFG {
 };
 
 /** The full grid class which is the main building block of the combi grid <br>
- *  It is important that the grid will actually occupy memory when the createFullGrid()
- *  method is called. <br>
  *  The index of a gridpoint in the full grid is given by the formula : <br>
  *  ind = i0 + i1*N0 + i2*N0*N1 + ... + id*N0*N1*N2*...*Nd, where i0,i1,i2,... are the indexes in every dimension,
  *  and Nk is the number of gridpoints in direction k. <br>
@@ -51,15 +45,33 @@ struct SubspaceDFG {
  *  Nk=2^level[k]+1 for every k for the directions with boundary points and Nk=2^level[k]-1 for the directions without boundary. <br>
  *  <br>
  *  The full grid can also be scaled which is done with a separate "combigrid::GridDomain" object. <br>
+ *
+ *  The layout of the process grid, i.e. the ordering of procs is the same as of
+ *  levels. The same holds for every function involving partition coordinates, e.g.
+ *  getRank().
+ *  However, in the internal implementation, i.e. for the grid of MPI processes,
+ *  an inverse ordering for the process coordinates is used. This must be kept
+ *  in mind when mapping an application's data structure to the distributed
+ *  full grid.
+ *  In future, we plan to offer more flexiblity here. At least to cover the two
+ *  most natural options to arrange processes in a grid. At the end of the day
+ *  this only affects the rank in the cartesian communicator, which is assigned
+ *  by MPI in fortran-typical column-major ordering.
  * */
 template<typename FG_ELEMENT>
 class DistributedFullGrid {
  public:
   /** dimension adaptive Ctor */
-  DistributedFullGrid(DimType dim, const LevelVector& levels,
-                      CommunicatorType comm, const std::vector<bool>& hasBdrPoints,
-                      const IndexVector& procs, const std::vector<IndexVector>& decomposition =
-                        std::vector<IndexVector>(), const BasisFunctionBasis* basis = NULL) {
+  DistributedFullGrid(DimType dim,
+                      const LevelVector& levels,
+                      CommunicatorType comm,
+                      const std::vector<bool>& hasBdrPoints,
+                      const IndexVector& procs,
+                      bool forwardDecomposition = true,
+                      const std::vector<IndexVector>& decomposition =
+                        std::vector<IndexVector>(),
+                      const BasisFunctionBasis* basis = NULL
+                      ) {
     dim_ = dim;
 
     assert(levels.size() == dim);
@@ -94,7 +106,9 @@ class DistributedFullGrid {
     lowerBounds_.resize(size_, IndexVector(dim_));
 
     if (decomposition.size() == 0) {
-      calculateDefaultBounds();
+      calculateDefaultBounds(forwardDecomposition);
+
+      calcDecomposition();
     } else {
       assert(decomposition.size() == dim_);
 
@@ -108,32 +122,15 @@ class DistributedFullGrid {
     upperBounds_.resize(size_, IndexVector(dim_));
     calcUpperBounds();
 
-    //set boundary flags
-    boundaryLeft_.resize(dim);
-    boundaryRight_.resize(dim);
-    std::vector<int> coords(dim);
-    MPI_Cart_coords(communicator_, rank_, static_cast<int>(dim), &coords[0]);
-
-    for (DimType j = 0; j < dim_; ++j) {
-      boundaryLeft_[j] =
-        (coords[j] == 0) && hasBoundaryPoints_[j] ? true : false;
-      boundaryRight_[j] =
-        (coords[j] == procs_[j] - 1) && hasBoundaryPoints_[j] ? true : false;
-    }
-
     // set local elements and local offsets
     nrLocalPoints_ = getUpperBounds() - getLowerBounds();
 
     nrLocalElements_ = 1;
-    nrElementsNoBoundary_ = 1;
     localOffsets_.resize(dim);
 
     for (DimType j = 0; j < dim_; ++j) {
       localOffsets_[j] = nrLocalElements_;
       nrLocalElements_ *= nrLocalPoints_[j];
-
-      nrElementsNoBoundary_ = nrElementsNoBoundary_
-                              * (nrLocalPoints_[j] - boundaryLeft_[j] - boundaryRight_[j]);
     }
 
     // in contrast to serial implementation we directly create the grid
@@ -158,9 +155,6 @@ class DistributedFullGrid {
 
     if (count == 0)
       theStatsContainer()->setTimerStop("create_dfg_calc_subspaces");
-
-//    if (rank_ == 0)
-//      std::cout << "num subspaces = " << subspaces_.size() << std::endl;
 
     if (count == 0)
       theStatsContainer()->setTimerStart("create_dfg_assigment_list");
@@ -189,8 +183,25 @@ class DistributedFullGrid {
 
     ++count;
 
+    /* todo remove
+    for( size_t i=0; i<dim_; ++i ){
+      std::cout << "decomposition " << i << " "
+                << decomposition_[i] << std::endl;
+    }
+    */
+
 #ifdef DEBUG_OUTPUT
 
+    if( rank_ == 0 ){
+      for( RankType r = 0; r < size_; ++r ){
+        std::cout << "rank " << r << ": \n"
+                  << "\t lower bounds " << lowerBounds_[r]
+                  << "\t upper bounds " << upperBounds_[r]
+                  << std::endl;
+      }
+    }
+
+    /*
     if ( rank_ == 0 ) {
       for ( auto subsp : subspaces_ ) {
         std::cout << subsp.level_ << std::endl;
@@ -210,11 +221,13 @@ class DistributedFullGrid {
         }
       }
     }
+    */
 
 #endif
   }
 
   virtual ~DistributedFullGrid() {
+    //todo: remove communicators?
   }
 
   /** evaluates the full grid on the specified coordinates
@@ -475,11 +488,6 @@ class DistributedFullGrid {
     return nrLocalElements_;
   }
 
-  /** ADDED returns the number of elements in the full grid */
-  inline IndexType getNrElementsNoBoundary() const {
-    return nrElementsNoBoundary_;
-  }
-
   /** number of points per dimension i */
   inline IndexType length(int i) const {
     return nrPoints_[i];
@@ -577,23 +585,14 @@ class DistributedFullGrid {
     return size_;
   }
 
-  /** Flag for local left boundary */
-  inline bool getBoundaryLeft(DimType dimension) {
-    return boundaryLeft_[dimension];
-  }
-
-  /** Flag for local right boundary */
-  inline bool getBoundaryRight(DimType dimension) {
-    return boundaryRight_[dimension];
-  }
-
   /** position of a process in the grid of processes */
   inline void getPartitionCoords(RankType r, IndexVector& coords) const {
     assert(r >= 0 && r < size_);
     std::vector<int> tmp(dim_);
     MPI_Cart_coords(communicator_, r, static_cast<int>(dim_), &tmp[0]);
 
-    coords.assign(tmp.begin(), tmp.end());
+    // important: reverse ordering of partition coords!
+    coords.assign( tmp.rbegin(), tmp.rend() );
   }
 
   /** position of the local process in the grid of processes */
@@ -696,11 +695,14 @@ class DistributedFullGrid {
                                  IndexVector& partitionCoords) {
     partitionCoords.resize(dim_);
 
-    for (DimType d = 0; d < dim_; ++d) {
-      partitionCoords[d] = (globalAxisIndex[d] * procs_[d]) / nrPoints_[d];
+    for(DimType d = 0; d < dim_; ++d) {
+      partitionCoords[d] = -1;
+      for( size_t i=0; i<decomposition_[d].size(); ++i ){
+        if( globalAxisIndex[d] >= decomposition_[d][i] )
+          partitionCoords[d] = i;
+      }
 
-      // check whether the partition coordinates are valid
-      assert(partitionCoords[d] < procs_[d]);
+      assert( partitionCoords[d] > -1 && partitionCoords[d] < procs_[d] );
     }
   }
 
@@ -711,8 +713,9 @@ class DistributedFullGrid {
     for (DimType d = 0; d < dim_; ++d)
       assert(partitionCoords[d] < procs_[d]);
 
-    std::vector<int> partitionCoordsInt(partitionCoords.begin(),
-                                        partitionCoords.end());
+    // important: note reverse ordering
+    std::vector<int> partitionCoordsInt( partitionCoords.rbegin(),
+                                         partitionCoords.rend() );
 
     RankType rank;
     MPI_Cart_rank(communicator_, &partitionCoordsInt[0], &rank);
@@ -744,7 +747,7 @@ class DistributedFullGrid {
   }
 
   // return MPI DataType
-  inline MPI_Datatype getMPIDatatype() {
+  inline MPI_Datatype getMPIDatatype() const {
     return abstraction::getMPIDatatype(
              abstraction::getabstractionDataType<FG_ELEMENT>());
   }
@@ -892,7 +895,7 @@ class DistributedFullGrid {
   }
 
   void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-      real coeff, bool normalize = false) {
+                      real coeff) {
     // test if dsg has already been registered
     if (&dsg != dsg_)
       registerUniformSG(dsg);
@@ -900,7 +903,7 @@ class DistributedFullGrid {
     // create iterator for each subspace in dfg
     typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
     typename std::vector<SubspaceIterator> it_sub(
-        subspaceAssigmentList_.size());
+      subspaceAssigmentList_.size());
 
     for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
       if (subspaceAssigmentList_[subFgId] < 0)
@@ -911,47 +914,22 @@ class DistributedFullGrid {
       it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
     }
 
-    if( !normalize ) {
-      // loop over all grid points
-      for (size_t i = 0; i < fullgridVector_.size(); ++i) {
-        // get subspace_fg id
-        size_t subFgId(assigmentList_[i]);
+    // loop over all grid points
+    for (size_t i = 0; i < fullgridVector_.size(); ++i) {
+      // get subspace_fg id
+      size_t subFgId(assigmentList_[i]);
 
-        if (subspaceAssigmentList_[subFgId] < 0)
-          continue;
+      if (subspaceAssigmentList_[subFgId] < 0)
+        continue;
 
-        IndexType subSgId = subspaceAssigmentList_[subFgId];
+      IndexType subSgId = subspaceAssigmentList_[subFgId];
 
-        assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
+      assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
-        // add grid point to subspace, mul with coeff
-        *it_sub[subFgId] += coeff * fullgridVector_[i];
-        ++it_sub[subFgId];
-      }
-    } else {
-//      std::cout<<"Normalizing...\n";
-      // loop over all grid points
-      for (size_t i = 0; i < fullgridVector_.size(); ++i) {
-        // get subspace_fg id
-        size_t subFgId(assigmentList_[i]);
+      // add grid point to subspace, mul with coeff
+      *it_sub[subFgId] += coeff * fullgridVector_[i];
 
-        if (subspaceAssigmentList_[subFgId] < 0)
-          continue;
-
-        IndexType subSgId = subspaceAssigmentList_[subFgId];
-
-        assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
-
-        // add grid point to subspace, mul with coeff
-        CombiDataType minAbsVal = std::min(std::abs(*it_sub[subFgId]), std::abs(fullgridVector_[i]));
-        *it_sub[subFgId] += coeff * fullgridVector_[i];
-        // todo: what is a good tolerance?
-        if (minAbsVal > 1e-6){
-          *it_sub[subFgId] = std::abs(*it_sub[subFgId]);
-          *it_sub[subFgId] /= minAbsVal;
-        }
-        ++it_sub[subFgId];
-      }
+      ++it_sub[subFgId];
     }
   }
 
@@ -981,12 +959,15 @@ class DistributedFullGrid {
 
       IndexType subSgId = subspaceAssigmentList_[subFgId];
 
-      if (subSgId < 0)
+      // todo: check if this is the right policy in general
+      // set coefficients that are not included in sparse grid solution to zero
+      if (subSgId < 0){
+        fullgridVector_[i] = FG_ELEMENT(0);
         continue;
+      }
 
       assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
-      // copy add grid point to subspace, mul with coeff
       fullgridVector_[i] = *it_sub[subFgId];
 
       ++it_sub[subFgId];
@@ -1144,56 +1125,6 @@ class DistributedFullGrid {
     }
   }
 
-  /*
-   *  void gatherSubspaceNB( const LevelVector& l, RankType dst,
-   std::vector<FG_ELEMENT>& buf,
-   std::vector<MPI_Request>& requests ){
-   assert( subspacesFilled_ && "subspaces have not been filled" );
-
-   // get subspace corresponding to l
-   size_t subI = this->getSubspaceIndex( l );
-   Subspace<FG_ELEMENT>& subsp = subspaces_[ subI ];
-   int tag = int( subI );
-
-   // each rank: send subspace to dst
-   // important: skip this if send size = 0
-   if( subsp.data_.size() > 0 ){
-   MPI_Request sendRequest;
-   MPI_Isend( subsp.data_.data(), int( subsp.data_.size() ),
-   this->getMPIDatatype(), dst, tag, this->getCommunicator(), &sendRequest );
-   requests.push_back( sendRequest );
-   }
-
-   std::vector< MPI_Datatype > subarrayTypes;
-
-   // rank r: for each rank create subarray view on fg
-   if( rank_ == dst ){
-   // resize buffer
-   IndexType bsize = 1;
-   for( auto s : subsp.sizes_ )
-   bsize *= s;
-   buf.resize( bsize );
-
-   for( int r = 0; r < size_; ++r ){
-   MPI_Datatype mysubarray = subsp.subarrayTypes_[r];
-
-   if( mysubarray == MPI_DATATYPE_NULL )
-   continue;
-
-   int src = r;
-   MPI_Request req;
-   MPI_Irecv(  buf.data(), 1, mysubarray, src, tag,
-   this->getCommunicator(), &req );
-   requests.push_back( req );
-   }
-   }
-
-   // free subarrays; only dst has a non-zero container here
-   // todo: free on destruct
-   //for( size_t i = 0; i < subarrayTypes.size(); ++i )
-   //  MPI_Type_free( &subarrayTypes[i] );
-   }
-   */
 
   void gatherSubspaceNB(const LevelVector& l, RankType dst,
                         std::vector<FG_ELEMENT>& buf, std::vector<MPI_Request>& requests) {
@@ -1371,14 +1302,6 @@ class DistributedFullGrid {
     return subspaces_[i].level_;
   }
 
-  inline size_t getSubspaceIndex(LevelVector l) {
-    for (size_t i = 0; i < subspaces_.size(); ++i) {
-      if (subspaces_[i].level_ == l)
-        return i;
-    }
-    return subspaces_.size();
-  }
-
   void getSubspacesLevelVectors(std::vector<LevelVector>& lvecs) {
     for (auto subsp : subspaces_)
       lvecs.push_back(subsp.level_);
@@ -1392,16 +1315,125 @@ class DistributedFullGrid {
     return maxSubspaceSize_;
   }
 
-  inline std::vector<FG_ELEMENT>& getSubspaceData(size_t i) {
-    assert(i < subspaces_.size());
-    return subspaces_[i].data_;
+
+  real getLpNorm(int p) {
+    assert(p >= 0);
+
+    // special case maximum norm
+    if (p == 0) {
+      std::vector<FG_ELEMENT>& data = getElementVector();
+      real max = 0.0;
+
+      for (size_t i = 0; i < data.size(); ++i) {
+        if (std::abs(data[i]) > max)
+          max = std::abs(data[i]);
+      }
+
+      real globalMax(-1);
+      MPI_Allreduce(  &max, &globalMax, 1, MPI_DOUBLE,
+                      MPI_MAX, getCommunicator() );
+
+      return globalMax;
+    } else {
+      real p_f = static_cast<real>(p);
+      std::vector<FG_ELEMENT>& data = getElementVector();
+      real res = 0.0;
+
+      for (size_t i = 0; i < data.size(); ++i) {
+        real abs = std::abs(data[i]);
+        res += std::pow(abs, p_f);
+      }
+
+      real globalRes(-1);
+      MPI_Allreduce(  &res, &globalRes, 1, getMPIDatatype(),
+                      MPI_SUM, getCommunicator() );
+
+      return std::pow( globalRes, 1.0 / p_f);
+      // todo: test
+      assert( false && "this has never been tested" );
+    }
   }
 
-  inline std::vector<FG_ELEMENT>& getSubspaceData(LevelVector l) {
-    size_t i = this->getSubspaceIndex(l);
-    assert(i != subspaces_.size());
-    return subspaces_[i].data_;
+
+  // normalize with specific norm
+  inline real normalizelp(int p) {
+    real norm = getLpNorm(p);
+
+    std::vector<FG_ELEMENT>& data = getElementVector();
+    for (size_t i = 0; i < data.size(); ++i)
+      data[i] = data[i] / norm;
+
+    return norm;
   }
+
+
+  // multiply with a constant
+  inline void mul( real c ){
+    std::vector<FG_ELEMENT>& data = getElementVector();
+    for (size_t i = 0; i < data.size(); ++i)
+      data[i] *= c;
+  }
+
+
+  // write data to file using MPI-IO
+  void writePlotFile(const char* filename) const{
+      int dim = getDimension();
+
+      // create subarray data type
+      IndexVector sizes = getGlobalSizes();
+      IndexVector subsizes = getUpperBounds()
+                             - getLowerBounds();
+      IndexVector starts = getLowerBounds();
+
+      // we store our data in c format, i.e. first dimension is the innermost
+      // dimension. however, we access our data in fortran notation, with the
+      // first index in indexvectors being the first dimension.
+      // to comply with an ordering that mpi understands, we have to reverse
+      // our index vectors
+      // also we have to use int as datatype
+      std::vector<int> csizes(sizes.rbegin(), sizes.rend());
+      std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
+      std::vector<int> cstarts(starts.rbegin(), starts.rend());
+
+      // create subarray view on data
+      MPI_Datatype mysubarray;
+      MPI_Type_create_subarray(static_cast<int>(getDimension()),
+                               &csizes[0], &csubsizes[0], &cstarts[0],
+                               MPI_ORDER_C, getMPIDatatype(), &mysubarray);
+      MPI_Type_commit(&mysubarray);
+
+      // open file
+      MPI_File fh;
+      MPI_File_open( getCommunicator(),
+                     filename,
+                     MPI_MODE_WRONLY+MPI_MODE_CREATE,
+                     MPI_INFO_NULL,
+                     &fh);
+
+      // rank 0 write dim and resolution (and data format?)
+      int rank;
+      MPI_Comm_rank( getCommunicator(), &rank );
+      if(rank == 0){
+        MPI_File_write( fh,&dim,1,MPI_INT,MPI_STATUS_IGNORE );
+
+        std::vector<int> res( sizes.begin(), sizes.end() );
+        MPI_File_write( fh,&res[0],6,MPI_INT,MPI_STATUS_IGNORE );
+      }
+
+      // set file view to right offset (in bytes)
+      // 1*int + dim*int = (1+dim)*sizeof(int)
+      MPI_Offset offset = (1+dim)*sizeof(int);
+      MPI_File_set_view( fh, offset, getMPIDatatype(),
+                         mysubarray, "native", MPI_INFO_NULL );
+
+      // write subarray
+      MPI_File_write_all( fh, getData(), getNrLocalElements(),
+                          getMPIDatatype(), MPI_STATUS_IGNORE );
+
+      // close file
+      MPI_File_close(&fh);
+    }
+
 
  private:
   /** dimension of the full grid */
@@ -1412,9 +1444,6 @@ class DistributedFullGrid {
 
   /** the size of the vector, nr of total elements */
   IndexType nrLocalElements_;
-
-  /** the size of the vector, nr of local elements without boundary */
-  IndexType nrElementsNoBoundary_;
 
   /** levels for each dimension */
   LevelVector levels_;
@@ -1450,6 +1479,8 @@ class DistributedFullGrid {
    *  the global array bounds or the lower bounds of a neighboring process */
   std::vector<IndexVector> upperBounds_;
 
+  std::vector<IndexVector> decomposition_;
+
   /** number of procs in every dimension */
   IndexVector procs_;
 
@@ -1458,12 +1489,6 @@ class DistributedFullGrid {
 
   /** mpi size */
   int size_;
-
-  /** flag to show if the dimension has right boundary points*/
-  std::vector<bool> boundaryRight_;
-
-  /** flag to show if the dimension has left boundary points*/
-  std::vector<bool> boundaryLeft_;
 
   /** number of local (in this grid cell) points per axis*/
   IndexVector nrLocalPoints_;
@@ -1511,16 +1536,43 @@ class DistributedFullGrid {
                                             std::multiplies<size_t>());
     assert(size_ == static_cast<int>(numSubgrids));
 
-    std::vector<int> dims(procs_.begin(), procs_.end());
+    // important: note reverse ordering of dims!
+    std::vector<int> dims(procs_.rbegin(), procs_.rend() );
 
-    // todo mh: think whether periodic bc will be useful
-    std::vector<int> periods(dim_, 0);
-    int reorder = 0;
-    MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0],
-                    reorder, &communicator_);
+    //check if communicator is already cartesian
+    int status;
+    MPI_Topo_test( comm, &status );
+
+    if( status == MPI_CART ){
+      // check if process grid of comm uses the required ordering
+      int maxdims = procs_.size();
+      std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
+      MPI_Cart_get( comm, maxdims, &cartdims[0], &periods[0], &coords[0] );
+
+      assert( cartdims == dims );
+
+      MPI_Comm_dup( comm, &communicator_ );
+
+      std::cout << "DistributedFullGrid: using given cartcomm: "
+                << communicator_ << std::endl;
+    } else{
+      // todo mh: think whether periodic bc will be useful
+      std::vector<int> periods(dim_, 0);
+      int reorder = 0;
+      MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0],
+                      reorder, &communicator_);
+
+      std::cout << "DistributedFullGrid: create new cartcomm" << std::endl;
+    }
   }
 
-  void calculateDefaultBounds() {
+  /* a regular (equidistant) domain decompositioning for an even number of processes
+   * leads to grid points on the (geometrical) process boundaries.
+   * with the forwardDecomposition flag it can be decided if the grid points on
+   * the process boundaries belong to the process on the right-hand side (true)
+   * of the process boundary, or to the one on the left-hand side (false).
+   */
+  void calculateDefaultBounds(bool forwardDecomposition) {
     std::vector<IndexVector> llbounds(dim_);
 
     for (DimType i = 0; i < dim_; ++i) {
@@ -1530,14 +1582,18 @@ class DistributedFullGrid {
       for (IndexType j = 0; j < procs_[i]; ++j) {
         double tmp = static_cast<double>(nrPoints_[i]) * static_cast<double>(j)
                      / static_cast<double>(procs_[i]);
-        llbnd[j] = static_cast<IndexType>(std::ceil(tmp));
+
+        if(forwardDecomposition)
+          llbnd[j] = static_cast<IndexType>(std::ceil(tmp));
+        else
+          llbnd[j] = static_cast<IndexType>(std::floor(tmp));
       }
     }
 
     for (RankType r = 0; r < size_; ++r) {
       // get coords of r in cart comm
-      std::vector<int> coords(dim_);
-      MPI_Cart_coords(communicator_, r, static_cast<int>(dim_), &coords[0]);
+      IndexVector coords(dim_);
+      getPartitionCoords( r, coords );
 
       for (DimType i = 0; i < dim_; ++i) {
         lowerBounds_[r][i] = llbounds[i][coords[i]];
@@ -1567,30 +1623,32 @@ class DistributedFullGrid {
       assert(last == tmp.end());
     }
 
+    decomposition_ = decomposition;
+
     for (RankType r = 0; r < size_; ++r) {
       // get coords of r in cart comm
-      std::vector<int> coords(dim_);
-      MPI_Cart_coords(communicator_, r, static_cast<int>(dim_), &coords[0]);
+      IndexVector coords(dim_);
+      getPartitionCoords( r, coords );
 
       for (DimType i = 0; i < dim_; ++i)
-        lowerBounds_[r][i] = decomposition[i][coords[i]];
+        lowerBounds_[r][i] = decomposition_[i][coords[i]];
     }
   }
 
   void calcUpperBounds() {
     for (RankType r = 0; r < size_; ++r) {
       // get coords of r in cart comm
-      std::vector<int> coords(dim_);
-      MPI_Cart_coords(communicator_, r, static_cast<int>(dim_), &coords[0]);
+      IndexVector coords(dim_);
+      getPartitionCoords( r, coords );
 
       for (DimType i = 0; i < dim_; ++i) {
         RankType n;
-        std::vector<int> nc(coords);
+        IndexVector nc(coords);
 
         if (nc[i] < procs_[i] - 1) {
           // get rank of next neighbor in dim i
           nc[i] += 1;
-          MPI_Cart_rank(communicator_, &nc[0], &n);
+          n = getRank( nc );
           upperBounds_[r][i] = lowerBounds_[n][i];
         } else {
           // no neighbor in dim i -> end of domain
@@ -1632,8 +1690,8 @@ class DistributedFullGrid {
   void calcDecompositionCoords() {
     for (RankType r = 0; r < size_; ++r) {
       // get coords of r in cart comm
-      std::vector<int> coords(dim_);
-      MPI_Cart_coords(communicator_, r, static_cast<int>(dim_), &coords[0]);
+      IndexVector coords(dim_);
+      getPartitionCoords( r, coords );
 
       for (DimType i = 0; i < dim_; ++i)
         decompositionCoords_[i][coords[i]] = lowerBoundsCoords_[r][i];
@@ -1753,49 +1811,6 @@ class DistributedFullGrid {
       oneDIndices.push_back(idx);
   }
 
-  void calcMPISubarrays() {
-    for (size_t i = 0; i < subspaces_.size(); ++i) {
-      SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[i];
-
-      // for each rank calc MPISubarray
-      for (int r = 0; r < size_; ++r) {
-        IndexVector sizes(subsp.sizes_);
-        IndexVector subsizes = subsp.upperBounds_[r] - subsp.lowerBounds_[r];
-        IndexVector starts = subsp.lowerBounds_[r];
-
-        // important: skip r if subsize = 0
-        IndexType ssize = 1;
-
-        for (auto s : subsizes) {
-          ssize *= s;
-        }
-
-        if (ssize == 0) {
-          subsp.subarrayTypes_.push_back( MPI_DATATYPE_NULL);
-          continue;
-        }
-
-        // we store our data in c format, i.e. first dimension is the innermost
-        // dimension. however, we access our data in fortran notation, with the
-        // first index in indexvectors being the first dimension.
-        // to comply with an ordering that mpi understands, we have to reverse
-        // our index vectors
-        // also we have to use int as datatype
-        std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-        std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-        std::vector<int> cstarts(starts.rbegin(), starts.rend());
-
-        // create subarray view on data
-        MPI_Datatype mysubarray;
-        MPI_Type_create_subarray(int(this->getDimension()), &csizes[0],
-                                 &csubsizes[0], &cstarts[0],
-                                 MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
-
-        MPI_Type_commit(&mysubarray);
-        subsp.subarrayTypes_.push_back(mysubarray);
-      }
-    }
-  }
 
   // 2d output
   void print2D(std::ostream& os) const {
@@ -1846,6 +1861,25 @@ class DistributedFullGrid {
       }
     }
   }
+
+
+  void calcDecomposition(){
+    // create decomposition vectors
+    decomposition_.resize(dim_);
+    for( size_t i=0; i<dim_; ++i )
+      decomposition_[i].resize( procs_[i] );
+
+    for (RankType r = 0; r < size_; ++r) {
+      // get coords of r in cart comm
+      IndexVector coords(dim_);
+      getPartitionCoords( r, coords );
+
+      for (DimType i = 0; i < dim_; ++i)
+        decomposition_[i][coords[i]] = lowerBounds_[r][i];
+    }
+  }
+
+
 
 };
 // end class

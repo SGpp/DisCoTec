@@ -175,6 +175,32 @@ bool ProcessGroupManager::recompute( Task* t ) {
   return true;
 }
 
+bool ProcessGroupManager::parallelEval( const LevelVector& leval,
+                                        std::string& filename ) {
+  // can only send sync signal when in wait state, so check first
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  // send signal
+  SignalType signal = PARALLEL_EVAL;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // send levelvector
+  std::vector<int> tmp( leval.begin(), leval.end() );
+  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
+           theMPISystem()->getGlobalComm());
+
+  // send filename
+  MPIUtils::sendClass( &filename, pgroupRootID_,
+                       theMPISystem()->getGlobalComm() );
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+
+  return true;
+}
 
 void ProcessGroupManager::recvStatus(){
   // start non-blocking call to receive status

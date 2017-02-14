@@ -83,7 +83,11 @@ class ProcessManager {
 
   inline CombiParameters& getCombiParameters();
 
-  void redistribute( std::vector<int>& taskID );
+  void parallelEval( const LevelVector& leval,
+                                     std::string& filename,
+                                     size_t groupID );
+  
+void redistribute( std::vector<int>& taskID );
 
   void recompute( std::vector<int>& taskID );
 
@@ -94,7 +98,6 @@ class ProcessManager {
   /* After faults have been fixed, we need to return the combischeme
    * to the original combination technique*/
   void restoreCombischeme();
-
 
 
  private:
@@ -335,5 +338,7 @@ ProcessManager::getTask( int taskID ){
   }
   return nullptr;
 }
+
+
 } /* namespace combigrid */
 #endif /* PROCESSMANAGER_HPP_ */

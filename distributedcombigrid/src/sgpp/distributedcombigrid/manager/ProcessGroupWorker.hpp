@@ -44,7 +44,13 @@ class ProcessGroupWorker {
 
   void gridEval();
 
+  void parallelEval();
+
+  void parallelEvalUniform();
+
   void updateCombiParameters();
+
+  inline CombiParameters& getCombiParameters();
 
   /* Computes the difference between all pairs of combination solutions
    * (or only between neighboring ones if onlyNearestNeighbors = true)
@@ -81,8 +87,16 @@ class ProcessGroupWorker {
   void setCombinedSolutionUniform( Task* t );
 };
 
+
 inline Task* ProcessGroupWorker::getCurrentTask() {
   return currentTask_;
+}
+
+
+inline CombiParameters& ProcessGroupWorker::getCombiParameters(){
+  assert(combiParametersSet_);
+
+  return combiParameters_;
 }
 
 } /* namespace combigrid */

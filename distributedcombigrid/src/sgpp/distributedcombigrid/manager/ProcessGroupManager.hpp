@@ -81,6 +81,7 @@ class ProcessGroupManager {
 
   bool recoverCommunicators();
 
+  bool parallelEval( const LevelVector& leval, std::string& filename );
  private:
   RankType pgroupRootID_; // rank in GlobalComm of the master process of this group
 

@@ -48,9 +48,6 @@ class CombiCom {
   template<typename FG_ELEMENT>
   static void FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm);
 
-  template<typename FG_ELEMENT>
-  static void BetasReduce( std::vector<FG_ELEMENT>& betas, RankType r, MPI_Comm comm);
-
   // multiply dfg with coeff and add to dsg. dfg will not be changed
   template<typename FG_ELEMENT>
   static void distributedLocalReduce(DistributedFullGrid<FG_ELEMENT>& dfg,
@@ -278,22 +275,6 @@ inline void CombiCom::FGAllreduce<std::complex<double> >(
   MPI_Allreduce( MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()),
                  MPI_DOUBLE_COMPLEX, MPI_SUM, comm);
 }
-template<>
-inline void CombiCom::BetasReduce<double>( std::vector<double>& betas, RankType r, MPI_Comm comm ){
-
-  int myrank;
-  MPI_Comm_rank(comm, &myrank);
-
-  std::vector<double> recvBetas(betas.size());
-
-  if ( myrank == r ) {
-    MPI_Reduce( MPI_IN_PLACE, &betas[0], static_cast<int>(betas.size()),
-        MPI_DOUBLE, MPI_MAX, r, comm);
-  } else {
-    MPI_Reduce(&betas[0], &recvBetas[0], static_cast<int>(betas.size()),
-        MPI_DOUBLE, MPI_MAX, r, comm);
-  }
-}
 
 template<typename FG_ELEMENT>
 void CombiCom::SGReduce(SGrid<FG_ELEMENT>& sg, MPI_Comm comm) {
@@ -307,11 +288,6 @@ void CombiCom::FGReduce(FullGrid<FG_ELEMENT>& fg, RankType r, MPI_Comm comm) {
 
 template<typename FG_ELEMENT>
 void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
-  assert(!"this type is not yet implemented");
-}
-
-template<typename FG_ELEMENT>
-void CombiCom::BetasReduce(std::vector<FG_ELEMENT>& betas, RankType r, MPI_Comm comm) {
   assert(!"this type is not yet implemented");
 }
 
@@ -858,6 +834,7 @@ void CombiCom::distributedGlobalReduce(
       // left empty
       if (subspaceData.size() == 0) {
         buf_it += subspaceSizes[i];
+        continue;
       }
 
       for (size_t j = 0; j < subspaceData.size(); ++j) {
@@ -878,12 +855,18 @@ void CombiCom::distributedGlobalReduce(
     for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
       std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
 
-      // if subspace does not exist on this process this part of the buffer is
-      // skipped
-      if (subspaceData.size() == 0) {
-        buf_it += subspaceSizes[i];
+      // this is very unlikely but can happen if dsg is different than
+      // lmax and lmin of combination scheme
+      if(subspaceData.size() == 0 && subspaceSizes[i] == 0)
+        continue;
+
+      // this happens for subspaces that are only available in component grids
+      // on other process groups
+      if( subspaceData.size() == 0 && subspaceSizes[i] > 0 ){
+        subspaceData.resize( subspaceSizes[i] );
       }
 
+      // wenn subspaceData.size() > 0 und subspaceSizes > 0
       for (size_t j = 0; j < subspaceData.size(); ++j) {
         subspaceData[j] = *buf_it;
         ++buf_it;
@@ -891,7 +874,6 @@ void CombiCom::distributedGlobalReduce(
     }
   }
 }
-
 
 } /* namespace combigrid */
 

@@ -352,6 +352,8 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
 
 #ifdef DEBUG_OUTPUT
   {
+    std::cout << "in debug output" << std::endl;
+
     IndexType fidx = dfg.getFirstGlobal1dIndex(dim);
     LevelType flvl = dfg.getLevel( dim, fidx );
     IndexType fleftpre = dfg.getLeftPredecessor( dim, fidx );
@@ -1311,6 +1313,7 @@ IndexType checkPredecessors(IndexType idx, DimType dim,
 template<typename FG_ELEMENT>
 RankType getNeighbor1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                        IndexType idx1d) {
+
   // if global index is outside of domain return negative value
   {
     if (idx1d < 0)
@@ -2074,9 +2077,9 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       tmp[gstart + i] = ldata[start + stride * i];
 
     // hierarchize tmp array with hupp function
-    //hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
-    hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
-                                       level_idxend);
+    hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
+    //hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
+                                       //level_idxend);
 
     // copy pole back
     for (IndexType i = 0; i < ndim; ++i)
@@ -2559,15 +2562,15 @@ namespace combigrid {
 class DistributedHierarchization {
 
  public:
-  // whereever references possible, use references
-  // here using a reference avoids the possibility of passing a NULL pointer
-  // which would lead to a segfault for sure
-
   // inplace hierarchization
   template<typename FG_ELEMENT>
-  static void hierarchize(DistributedFullGrid<FG_ELEMENT>& dfg) {
+  static void hierarchize( DistributedFullGrid<FG_ELEMENT>& dfg,
+                           const std::vector<bool>& dims ) {
+    assert( dfg.getDimension() > 0 );
+    assert( dfg.getDimension() == dims.size() );
+
     // hierarchize first dimension
-    {
+    if( dims[0] ){
       DimType dim = 0;
 
       if (hierCount == 0)
@@ -2597,6 +2600,8 @@ class DistributedHierarchization {
 
     // hierarchize other dimensions
     for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
+      if( !dims[dim] )
+        continue;
 
       if (hierCount == 0)
         theStatsContainer()->setTimerStart(
@@ -2631,11 +2636,22 @@ class DistributedHierarchization {
 
   }
 
+
+  template<typename FG_ELEMENT>
+  static void hierarchize( DistributedFullGrid<FG_ELEMENT>& dfg ) {
+    std::vector<bool> dims( dfg.getDimension(), true );
+    hierarchize<FG_ELEMENT>( dfg, dims );
+  }
+
   // inplace dehierarchization
   template<typename FG_ELEMENT>
-  static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg) {
+  static void dehierarchize( DistributedFullGrid<FG_ELEMENT>& dfg,
+                             const std::vector<bool>& dims ) {
+    assert( dfg.getDimension() > 0 );
+    assert( dfg.getDimension() == dims.size() );
+
     // dehierarchize first dimension
-    {
+    if( dims[0] ){
       DimType dim = 0;
 
       if (hierCount == 0)
@@ -2664,6 +2680,8 @@ class DistributedHierarchization {
 
     // dehierarchize other dimensions
     for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
+      if( !dims[dim] )
+          continue;
 
       if (hierCount == 0)
         theStatsContainer()->setTimerStart(
@@ -2692,6 +2710,13 @@ class DistributedHierarchization {
         theStatsContainer()->setTimerStop(
           "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
     }
+  }
+
+
+  template<typename FG_ELEMENT>
+  static void dehierarchize( DistributedFullGrid<FG_ELEMENT>& dfg ) {
+    std::vector<bool> dims( dfg.getDimension(), true );
+    dehierarchize<FG_ELEMENT>( dfg, dims );
   }
 
 };
