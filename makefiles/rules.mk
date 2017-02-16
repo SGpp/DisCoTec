@@ -123,6 +123,11 @@ ifeq ($(COMBI),yes)
 	PREPROC+= -DCOMBI -DWSHIFT=0.0 -DSHIFT=0.0
 endif
 
+ifeq ($(COMBI_FT),yes)
+        PREPROC+= -DCOMBI_FT
+endif
+
+
 ifeq ($(OUTPUT),yes)
  PREPROC+= -DOUTPUT
 endif
