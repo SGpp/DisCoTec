@@ -55,7 +55,7 @@ Program gene
 #if defined(SVN_REV)
   svn_rev = SVN_REV
 #endif
-  
+
 #ifdef WITHOMP
   call mpi_init_thread(MPI_THREAD_MULTIPLE, omp_level,ierr)
 #ifdef __INTEL_COMPILER
@@ -65,6 +65,9 @@ Program gene
   call mpi_init(ierr)
   omp_level = MPI_THREAD_SINGLE
 #endif
+#ifdef COMBI_FT
+  call mpi_ft_init()
+#endif
   if (ierr /= 0) stop 'mpi_init failed!'
 
   call check_for_scan(mult_par)
@@ -73,8 +76,9 @@ Program gene
 
 #ifdef COMBI_MGR
   do while(.true.)
+    print*,"worker waits"
     call worker_wait(gene_comm,worker_signal,n_procs_sim,n_parallel_sims)
-
+    print*,worker_signal
     ! reset timers
     time_perf = -1.0
     time_cp = -1.0
@@ -124,6 +128,10 @@ Program gene
     
     ! 14 = recomputed
     ! do nothing
+
+    !if(worker_signal.eq.15) cycle
+
+    !if(worker_signal.eq.16) cycle
 
     ! 17 = parallel eval
     if(worker_signal.eq.17) cycle

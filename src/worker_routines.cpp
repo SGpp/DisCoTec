@@ -11,6 +11,8 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "GeneLocalCheckpoint.hpp"
 #include "GeneTask.hpp"
+#include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
+
 
 double calc_time_start;
 
@@ -228,6 +230,12 @@ void worker_wait( MPI_Comm lcomm, int* worker_stat, int nprocs, int ngroup ){
 void worker_wait_(MPI_Fint* lcomm_f, int* worker_stat, int* nprocs, int* ngroup ){
   worker_wait( (MPI_Comm) *lcomm_f, worker_stat, *nprocs, *ngroup );
 }
+
+void mpi_ft_init_(){
+  simft::Sim_FT_MPI_Init_worker();
+
+}
+
 
 
 void worker_ready(double wtime, double time_perf,

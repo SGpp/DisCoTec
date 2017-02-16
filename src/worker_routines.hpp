@@ -45,9 +45,10 @@ extern "C" void write_omega_(int* itime, double* gamma, double* omega);
 
 extern "C" void set_nrg_(double* time, double* nrg0 );
 
+extern "C" void mpi_ft_init_();
+
 // c interfaces
 void worker_wait(MPI_Comm comm, int* worker_stat, int nprocs, int ngroup );
 void worker_ready(double wtime, double time_perf,
                   double time_iv, double time_cp );
-
 
