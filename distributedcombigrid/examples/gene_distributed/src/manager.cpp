@@ -59,7 +59,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
 
 
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  //MPI_Init(&argc, &argv);
+  simft::Sim_FT_MPI_Init(&argc, &argv);
 
   // read in parameter file
   boost::property_tree::ptree cfg;
@@ -132,6 +133,18 @@ int main(int argc, char** argv) {
     std::string basename = cfg.get<std::string>( "preproc.basename" );
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
+    //read fault values
+    FaultsInfo faultsInfo;
+
+    faultsInfo.numFaults_ = cfg.get<int>("faults.num_faults");
+
+    faultsInfo.iterationFaults_.resize(faultsInfo.numFaults_);
+    faultsInfo.globalRankFaults_.resize(faultsInfo.numFaults_);
+
+    if( faultsInfo.numFaults_ > 0 ){
+      cfg.get<std::string>("faults.iteration_faults") >> faultsInfo.iterationFaults_;
+      cfg.get<std::string>("faults.global_rank_faults") >> faultsInfo.globalRankFaults_;
+    }
     std::string fg_file_path = cfg.get<std::string>( "ct.fg_file_path" );
     std::string fg_file_path2 = cfg.get<std::string>( "ct.fg_file_path2" );
 
@@ -201,7 +214,7 @@ int main(int argc, char** argv) {
 
       Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
                                 loadmodel, path, dt, nsteps,
-                                shat, kymin, lx, ky0_ind, p );
+                                shat, kymin, lx, ky0_ind, p, faultsInfo );
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
     }
@@ -216,26 +229,70 @@ int main(int argc, char** argv) {
 
     // combiparameters need to be set before starting the computation
     manager.updateCombiParameters();
-
+    bool success = true;
     theStatsContainer()->setTimerStart("compute");
     for (size_t i = 0; i < ncombi; ++i) {
       if( i == 0 ){
         /* distribute task according to load model and start computation for
          * the first time */
         theStatsContainer()->setTimerStart("runfirst");
-        manager.runfirst();
+        success = manager.runfirst();
         theStatsContainer()->setTimerStop("runfirst");
       } else {
         // run tasks for next time interval
         if(i==1) theStatsContainer()->setTimerStart("runnext");
-        manager.runnext();
+        success = manager.runnext();
         if(i==1) theStatsContainer()->setTimerStop("runnext");
+      }
+      //success = true;
+      //check if fault occured
+      if ( !success ) {
+        std::cout << "failed group detected at combi iteration " << i-1<< std::endl;
+//        manager.recover();
+
+        std::vector<int> faultsID;
+        manager.getGroupFaultIDs(faultsID);
+
+        /* call optimization code to find new coefficients */
+        const std::string prob_name = "interpolation based optimization";
+        std::vector<int> redistributeFaultsID, recomputeFaultsID;
+        manager.recomputeOptimumCoefficients(prob_name, faultsID,
+                                             redistributeFaultsID, recomputeFaultsID);
+
+        for ( auto id : redistributeFaultsID ) {
+          GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+          tmp->setStepsTotal(i*nsteps);
+        }
+
+        for ( auto id : recomputeFaultsID ) {
+          GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+          tmp->setStepsTotal((i-1)*nsteps);
+        }
+        /* recover communicators*/
+        manager.recoverCommunicators();
+
+        /* communicate new combination scheme*/
+        manager.updateCombiParameters();
+
+        /* if some tasks have to be recomputed, do so*/
+        manager.recompute(recomputeFaultsID);
+
+        /* redistribute failed tasks to living groups */
+        manager.redistribute(redistributeFaultsID);
       }
 
       if(i==0) theStatsContainer()->setTimerStart("combine");
       manager.combine();
       if(i==0) theStatsContainer()->setTimerStart("combine");
+      //postprocessing in case of errors
+      if ( !success ){
+        /* restore combischeme to its original state
+         * and send new combiParameters to all surviving groups */
+        manager.restoreCombischeme();
+        manager.updateCombiParameters();
+      }
     }
+
     theStatsContainer()->setTimerStop("compute");
 
     // evaluate solution on the grid defined by leval

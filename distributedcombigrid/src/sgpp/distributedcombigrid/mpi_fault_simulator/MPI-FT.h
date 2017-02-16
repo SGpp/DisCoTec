@@ -431,6 +431,7 @@ int Sim_FT_MPI_Waitall(int count, Sim_FT_MPI_Request array_of_requests[],
 		Sim_FT_MPI_Status array_of_statuses[]);
 int Sim_FT_MPI_Init(int *argc, char ***argv);
 
+void Sim_FT_MPI_Init_worker();
 
 
 //Custom helper-functions

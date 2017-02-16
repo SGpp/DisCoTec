@@ -17,9 +17,9 @@ int simft::Sim_FT_MPI_Wait(simft::Sim_FT_MPI_Request *request, simft::Sim_FT_MPI
 	int Flag = 0;
 	int Ret = 0;
 	while(Flag == 0){
-//		std::cout << "Test ret = " << Ret << " - req complete = " << (*request)->completed << " - Flag = " << Flag << "\n";
+		//std::cout << "Test ret = " << Ret << " - req complete = " << (*request)->completed << " - Flag = " << Flag << "\n";
 		Ret = simft::Sim_FT_MPI_Test(request, &Flag, status);
-//		std::cout << "Test ret = " << Ret << " - req complete = " << (*request)->completed << " - Flag = " << Flag << "\n";
+		//std::cout << "Test ret = " << Ret << " - req complete = " << (*request)->completed << " - Flag = " << Flag << "\n";
 	}
 	return Ret;
 }

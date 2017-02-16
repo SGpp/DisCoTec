@@ -22,16 +22,19 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
                     std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
                     std::string& path, real dt, size_t nsteps,
                     real shat, real kymin, real lx, int ky0_ind,
-                    IndexVector p )
+                    IndexVector p , FaultsInfo faultsInfo )
     : Task( dim, l, boundary, coeff, loadModel),
       path_( path ),
       dt_( dt ),
       nsteps_( nsteps ),
+      stepsTotal_(0),
+      combiStep_(0),
       shat_( shat ),
       kymin_( kymin ),
       lx_( lx ),
       ky0_ind_( ky0_ind ),
-      p_(p)
+      p_(p),
+	  faultsInfo_(faultsInfo)
 {
 
 // theres only one boundary configuration allowed at the moment
@@ -73,6 +76,12 @@ MASTER_EXCLUSIVE_SECTION{
   std::cout << "run task " << this->getID() << std::endl;
 }
 
+//check if killing necessary
+if (failNow(globalRank)){
+      std::cout<<"rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
+      simft::Sim_FT_kill_me();
+}
+combiStep_++;
 }
 
 
@@ -805,6 +814,24 @@ void GeneTask::normalizeDFG(){
 }
 
 
+inline bool GeneTask::failNow( const int& globalRank ){
+  FaultsInfo faultsInfo = faultsInfo_;
+  IndexVector iF = faultsInfo_.iterationFaults_;
+  IndexVector rF = faultsInfo_.globalRankFaults_;
 
+  std::vector<IndexType>::iterator it;
+  it = std::find(iF.begin(), iF.end(), combiStep_);
+  IndexType idx = std::distance(iF.begin(),it);
+
+  // Check if current iteration is in iterationFaults_
+  while (it!=iF.end()){
+    // Check if my rank is the one that fails
+    if (globalRank == rF[idx])
+      return true;
+    it = std::find(++it, iF.end(), combiStep_);
+    idx = std::distance(iF.begin(),it);
+  }
+  return false;
+}
 
 } /* namespace combigrid */

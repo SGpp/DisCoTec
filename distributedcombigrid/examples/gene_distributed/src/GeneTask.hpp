@@ -23,6 +23,8 @@
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "GeneLocalCheckpoint.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
+
 
 namespace combigrid {
 
@@ -31,7 +33,7 @@ public:
   GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
             LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
             real shat, real kymin, real lx, int ky0_ind,
-            IndexVector p = IndexVector(0) );
+            IndexVector p = IndexVector(0), FaultsInfo faultsInfo = {0,IndexVector(0),IndexVector(0)} );
 
   GeneTask();
 
@@ -86,6 +88,8 @@ public:
 
   inline void setNrg(real nrg);
 
+  inline void setStepsTotal( size_t stepsTotal );
+
 private:
   friend class boost::serialization::access;
 
@@ -97,11 +101,16 @@ private:
 
   void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor );
 
+  inline bool failNow( const int& globalRank );
+
   // following variables are set in manager and thus need to be included in
   // serialize function
   std::string path_;    // directory in which task should be executed
   real dt_;
   size_t nsteps_;
+  size_t stepsTotal_;
+  size_t combiStep_;
+
   IndexVector p_;
 
   real shat_;
@@ -115,6 +124,9 @@ private:
   DistributedFullGrid<CombiDataType>* dfg_;
   real nrg_;
 
+  //fault tolerance info
+  FaultsInfo faultsInfo_;
+
   // serialize
   template<class Archive>
   void serialize(Archive & ar, const unsigned int version){
@@ -122,6 +134,7 @@ private:
     ar & path_;
     ar & dt_;
     ar & nsteps_;
+    ar & stepsTotal_;
     ar & p_;
     ar & shat_;
     ar & kymin_;
@@ -144,6 +157,11 @@ inline std::ostream& operator<<( std::ostream& os, const GeneTask &t ){
   return os;
 }
 
+
+
+inline void GeneTask::setStepsTotal( size_t stepsTotal ) {
+    stepsTotal_ = stepsTotal;
+}
 
 inline GeneLocalCheckpoint& GeneTask::getLocalCheckpoint(){
   return checkpoint_;

@@ -1,7 +1,7 @@
 #path to python interface
 from sys import path
-path.append('/home/heenemo/workspace/gene_python_interface_master/src')
-path.append('/home/heenemo/workspace/gene_python_interface_master/src/tools')
+path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src')
+path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src/tools')
 
 from ConfigParser import SafeConfigParser
 import collections

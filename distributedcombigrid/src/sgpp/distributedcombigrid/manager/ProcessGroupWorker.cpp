@@ -214,8 +214,8 @@ SignalType ProcessGroupWorker::wait() {
     return signal;
 
   // in the general case: send ready signal.
-  if(!omitReadySignal)
-    ready();
+  //if(!omitReadySignal)
+  ready();
 
   return signal;
 }

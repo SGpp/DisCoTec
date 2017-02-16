@@ -140,6 +140,9 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
   MPI_Comm_rank( worldComm_, &worldRank_ );
   managerRankWorld_ = worldSize - 1;
 
+  if( ENABLE_FT ){
+      worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
+  }
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
    * for manager, lcomm is a group which contains only manager process and can be ignored
@@ -162,6 +165,13 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
 
     MPI_Comm_rank( localComm_, &localRank_ );
   }
+   theStatsContainer()->setTimerStart("init-local-createFT");
+   if(ENABLE_FT){
+	 if( localComm_ != MPI_COMM_NULL){
+       createCommFT( &localCommFT_, localComm_ );
+	 }
+   }
+   theStatsContainer()->setTimerStop("init-local-createFT");
 
   /* create global communicator which contains only the manager and the master
    * process of each process group

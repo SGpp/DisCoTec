@@ -1,7 +1,7 @@
-CC=mpic++.mpich
-CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic
+CC=mpicxx.mpich
+CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb
 
-SGPP_DIR=$(HOME)/workspace/combi-gene
+SGPP_DIR=$(HOME)/Documents/ExaHD/mergetest/combi-ft-gene
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 
@@ -10,7 +10,7 @@ INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
 LDIR=$(LD_SGPP)
 INC=$(INC_SGPP)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization 
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
 
 CPP_FILES := $(wildcard src/*.cpp)
 OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))
