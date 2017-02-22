@@ -30,5 +30,5 @@ nprocs = 4
 
 [faults]
 num_faults = 1
-iteration_faults = 1 
-global_rank_faults = 3 
+iteration_faults = 1
+global_rank_faults = 5

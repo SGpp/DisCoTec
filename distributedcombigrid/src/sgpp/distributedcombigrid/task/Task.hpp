@@ -53,7 +53,7 @@ class Task {
 
   virtual void run(CommunicatorType lcomm) = 0;
 
-  virtual void init(CommunicatorType lcomm) = 0;
+  virtual void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>()) = 0;
 
   inline real estimateRuntime() const;
 
@@ -67,6 +67,16 @@ class Task {
   virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid() = 0;
 
   virtual void setZero() = 0;
+
+  virtual void decideToKill(){
+    std::cout << "Kill function not implemented for this task! \n";
+  }
+
+  virtual std::vector<IndexVector> getDecomposition(){
+    return std::vector<IndexVector>();
+  }
+
+  inline virtual bool isInitialized();
 
 
  private:
@@ -126,10 +136,14 @@ inline void Task::setFinished(bool finished) {
   isFinished_ = finished;
 }
 
+inline bool Task::isInitialized(){
+  std::cout << "Not implemented!!!";
+  return false;
+}
+
 inline real Task::estimateRuntime() const {
   return loadModel_->eval(l_);
 }
-
 } /* namespace combigrid */
 
 #endif /* TASK_HPP_ */

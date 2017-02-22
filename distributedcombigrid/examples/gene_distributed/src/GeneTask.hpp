@@ -41,7 +41,15 @@ public:
 
   void run( CommunicatorType lcomm );
 
-  void init(CommunicatorType lcomm);
+  //void init(CommunicatorType lcomm);
+
+  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>());
+
+  std::vector<IndexVector> getDecomposition(){
+      return dfg_->getDecomposition();
+  }
+
+  void decideToKill();
 
   inline const std::string& getPath() const;
 
@@ -52,6 +60,9 @@ public:
                               std::vector<size_t>& sizes,
                               std::vector<size_t>& bounds );
 
+  void InitLocalCheckpoint(size_t size,
+      std::vector<size_t>& sizes,
+      std::vector<size_t>& bounds );
   /*
    * Gather GENE checkpoint distributed over process group on process
    * with localRootID and convert to FullGrid fg. The actual full grid
@@ -90,6 +101,15 @@ public:
 
   inline void setStepsTotal( size_t stepsTotal );
 
+  inline void setCombiStep(int ncombi);
+  inline bool isInitialized(){
+      return initialized_;
+  }
+
+  inline bool checkIsInitialized(){
+      return checkpointInitialized_;
+  }
+
 private:
   friend class boost::serialization::access;
 
@@ -102,6 +122,10 @@ private:
   void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor );
 
   inline bool failNow( const int& globalRank );
+
+
+
+
 
   // following variables are set in manager and thus need to be included in
   // serialize function
@@ -117,6 +141,8 @@ private:
   real kymin_;
   real lx_;
   int ky0_ind_;
+  //fault tolerance info
+  FaultsInfo faultsInfo_;
 
   // following variables are only accessed in worker and do not need to be
   // serialized
@@ -124,8 +150,8 @@ private:
   DistributedFullGrid<CombiDataType>* dfg_;
   real nrg_;
 
-  //fault tolerance info
-  FaultsInfo faultsInfo_;
+  bool initialized_;
+  bool checkpointInitialized_;
 
   // serialize
   template<class Archive>
@@ -135,11 +161,13 @@ private:
     ar & dt_;
     ar & nsteps_;
     ar & stepsTotal_;
+    ar & combiStep_;
     ar & p_;
     ar & shat_;
     ar & kymin_;
     ar & lx_;
     ar & ky0_ind_;
+    ar & faultsInfo_;
   }
 };
 
@@ -174,6 +202,9 @@ inline void GeneTask::setNrg(real nrg){
   MASTER_EXCLUSIVE_SECTION{
     std::cout << "task " << this->getID() << " nrg = " << nrg_ << std::endl;
   }
+}
+inline void GeneTask::setCombiStep(int ncombi){
+  combiStep_ = ncombi;
 }
 
 

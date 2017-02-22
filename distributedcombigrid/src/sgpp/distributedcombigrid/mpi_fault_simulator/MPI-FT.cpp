@@ -725,7 +725,7 @@ void simft::Sim_FT_Initialize_new_comm(simft::Sim_FT_MPI_Comm *f_new_comm, bool 
 	if( (*f_new_comm)->Root_Rank == -1 ){
    int size;
    MPI_Comm_size( (*f_new_comm)->c_comm, &size );
-
+   std::cout << "Setting root rank to " << size - 1 << "\n";
    (*f_new_comm)->Root_Rank = size-1;
 	}
 

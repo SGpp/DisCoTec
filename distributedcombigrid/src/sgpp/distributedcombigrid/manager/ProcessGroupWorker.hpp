@@ -33,6 +33,9 @@ class ProcessGroupWorker {
   // send ready signal to manager
   void ready();
 
+  //decides if current Task needs to be killed
+  void decideToKill();
+
   // todo: maybe only needed for gene?
   inline Task* getCurrentTask();
 

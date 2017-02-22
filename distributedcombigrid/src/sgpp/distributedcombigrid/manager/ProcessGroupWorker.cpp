@@ -42,6 +42,9 @@ ProcessGroupWorker::~ProcessGroupWorker() {
 }
 
 SignalType ProcessGroupWorker::wait() {
+  if(status_ == PROCESS_GROUP_FAIL){ //exit all procs in failed group
+    return EXIT;
+  }
   if (status_ != PROCESS_GROUP_WAIT)
     return RUN_NEXT;
 
@@ -59,6 +62,7 @@ SignalType ProcessGroupWorker::wait() {
   MPI_Bcast( &signal, 1, MPI_INT,
              theMPISystem()->getMasterRank(),
              theMPISystem()->getLocalComm() );
+  std::cout << theMPISystem()->getWorldRank() << " waits for signal " << signal << " \n";
   // process signal
   if (signal == RUN_FIRST) {
 
@@ -127,7 +131,16 @@ SignalType ProcessGroupWorker::wait() {
 
     // initalize task and set values to zero
     // the task will get the proper initial solution during the next combine
-    t->init( theMPISystem()->getLocalComm() );
+    //gene specific hack
+    std::vector<IndexVector> decomposition;
+    if(!t->isInitialized()){
+      for( auto tmp: tasks_){
+        if(tmp->isInitialized()){
+          decomposition = tmp->getDecomposition();
+        }
+      }
+    }
+    t->init( theMPISystem()->getLocalComm(), decomposition );
 
     t->setZero();
 
@@ -219,18 +232,23 @@ SignalType ProcessGroupWorker::wait() {
 
   return signal;
 }
-
+void ProcessGroupWorker::decideToKill(){
+  //decide if processor was killed during this iteration
+  currentTask_->decideToKill();
+}
 void ProcessGroupWorker::ready() {
   if( ENABLE_FT ){
     // with this barrier the local root but also each other process can detect
     // whether a process in the group has failed
+    int globalRank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+    std::cout << "rank " << globalRank << " is ready \n";
     int err = simft::Sim_FT_MPI_Barrier( theMPISystem()->getLocalCommFT() );
 
     if( err == MPI_ERR_PROC_FAILED ){
       status_ = PROCESS_GROUP_FAIL;
 
-      int globalRank;
-      MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+
       std::cout << "rank " << globalRank << " fault detected" << std::endl;
     }
   }

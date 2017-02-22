@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
   MPI_Comm_rank(MPI_COMM_WORLD, &globalID);
   MPI_Comm_size(MPI_COMM_WORLD, &globalSize);
   const int managerIDworld = globalSize - 1;
-
+  std::cout << "Manager rank " << globalID << "\n";
   assert(globalSize == int(ngroup * nprocs + 1));
 
   int color = globalID / nprocs;
@@ -232,6 +232,7 @@ int main(int argc, char** argv) {
     bool success = true;
     theStatsContainer()->setTimerStart("compute");
     for (size_t i = 0; i < ncombi; ++i) {
+      std::cout << "Compute !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n";
       if( i == 0 ){
         /* distribute task according to load model and start computation for
          * the first time */
@@ -247,7 +248,7 @@ int main(int argc, char** argv) {
       //success = true;
       //check if fault occured
       if ( !success ) {
-        std::cout << "failed group detected at combi iteration " << i-1<< std::endl;
+        std::cout << "failed group detected at combi iteration " << i << std::endl;
 //        manager.recover();
 
         std::vector<int> faultsID;
@@ -261,29 +262,35 @@ int main(int argc, char** argv) {
 
         for ( auto id : redistributeFaultsID ) {
           GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
-          tmp->setStepsTotal(i*nsteps);
+          tmp->setStepsTotal((i+1)*nsteps);
+          tmp->setCombiStep(i+1);
         }
 
         for ( auto id : recomputeFaultsID ) {
           GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
-          tmp->setStepsTotal((i-1)*nsteps);
+          tmp->setStepsTotal((i)*nsteps);
+          tmp->setCombiStep(i);
         }
+        std::cout << "Recover \n";
+
         /* recover communicators*/
         manager.recoverCommunicators();
+        std::cout << "Update \n";
 
         /* communicate new combination scheme*/
         manager.updateCombiParameters();
+        std::cout << "Recompute \n";
 
         /* if some tasks have to be recomputed, do so*/
         manager.recompute(recomputeFaultsID);
-
+        std::cout << "Redistribute \n";
         /* redistribute failed tasks to living groups */
         manager.redistribute(redistributeFaultsID);
       }
 
       if(i==0) theStatsContainer()->setTimerStart("combine");
       manager.combine();
-      if(i==0) theStatsContainer()->setTimerStart("combine");
+      if(i==0) theStatsContainer()->setTimerStop("combine");
       //postprocessing in case of errors
       if ( !success ){
         /* restore combischeme to its original state
@@ -311,8 +318,15 @@ int main(int argc, char** argv) {
     // save stats
     theStatsContainer()->save("times.dat");
   }
-
-  MPI_Finalize();
+  if( ENABLE_FT ){
+    WORLD_MANAGER_EXCLUSIVE_SECTION{
+      std::cout << "Program finished successfully" << std::endl;
+      std::cout << "To avoid problems with hanging killed processes, we exit with "
+          << "MPI_Abort()" << std::endl;
+      MPI_Abort( MPI_COMM_WORLD, 0 );
+    }
+  }
+  simft::Sim_FT_MPI_Finalize();
 
   return 0;
 }

@@ -34,7 +34,9 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       lx_( lx ),
       ky0_ind_( ky0_ind ),
       p_(p),
-	  faultsInfo_(faultsInfo)
+	  faultsInfo_(faultsInfo),
+	  checkpoint_(), initialized_(false),
+	  checkpointInitialized_(false)
 {
 
 // theres only one boundary configuration allowed at the moment
@@ -49,7 +51,9 @@ assert( boundary[5] == false );//nspec
 GeneTask::GeneTask() :
     checkpoint_(),
     dfg_(NULL),
-    nrg_(0.0)
+    nrg_(0.0),
+    initialized_(false),
+    checkpointInitialized_(false)
 {
 }
 
@@ -61,32 +65,43 @@ GeneTask::~GeneTask()
 void
 GeneTask::run( CommunicatorType lcomm )
 {
-// change dir to wdir
-if( chdir( path_.c_str() ) ){
+
+  // change dir to wdir
+  if( chdir( path_.c_str() ) ){
 
 
-  printf( "could not change to directory %s \n", path_.c_str() );
-  MPI_Abort( MPI_COMM_WORLD, 1 );
+    printf( "could not change to directory %s \n", path_.c_str() );
+    MPI_Abort( MPI_COMM_WORLD, 1 );
+  }
+
+  char cwd[1024];
+  getcwd(cwd, sizeof(cwd));
+
+  MASTER_EXCLUSIVE_SECTION{
+    std::cout << "run task " << this->getID() << std::endl;
+  }
+  //printf("running gene!!! \n");
+
 }
 
-char cwd[1024];
-getcwd(cwd, sizeof(cwd));
-
-MASTER_EXCLUSIVE_SECTION{
-  std::cout << "run task " << this->getID() << std::endl;
+void GeneTask::decideToKill(){
+  int globalRank;
+  // MPI_Comm_rank(lcomm, &lrank);
+  MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+  //check if killing necessary
+  std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at step " << combiStep_ << "\n" ;
+  if (failNow(globalRank)){
+        std::cout<<"rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
+        simft::Sim_FT_kill_me();
+  }
+  combiStep_++;
 }
-
-//check if killing necessary
-if (failNow(globalRank)){
-      std::cout<<"rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
-      simft::Sim_FT_kill_me();
-}
-combiStep_++;
-}
-
-
-void GeneTask::init(CommunicatorType lcomm){
-
+void GeneTask::init(CommunicatorType lcomm, std::vector<IndexVector> decomposition){
+  if( dfg_ == NULL ){
+      dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, lcomm,
+          this->getBoundary(), p_, false);
+  }
+  initialized_ = true;
 }
 
 void
@@ -94,10 +109,17 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
                                 std::vector<size_t>& sizes,
                                 std::vector<size_t>& bounds )
 {
-// todo: doing it like this will require two times copying
-checkpoint_.writeCheckpoint( data, size, sizes, bounds );
+  // todo: doing it like this will require two times copying
+  checkpoint_.writeCheckpoint( data, size, sizes, bounds );
+  checkpointInitialized_= true;
 
+}
 
+void GeneTask::InitLocalCheckpoint(size_t size,
+    std::vector<size_t>& sizes,
+    std::vector<size_t>& bounds ){
+  checkpoint_.initCheckpoint(size,sizes,bounds);
+  checkpointInitialized_= true;
 }
 
 
@@ -336,7 +358,10 @@ cpFile.close();
 
 
 void GeneTask::setZero(){
-  // todo: implement
+  std::vector<CombiDataType>& data = dfg_->getElementVector();
+
+  for( size_t i=0; i<data.size(); ++i )
+    data[i] = std::complex<real>(0);
 }
 
 
@@ -344,14 +369,14 @@ void GeneTask::initDFG( CommunicatorType comm,
                         std::vector<IndexVector>& decomposition ){
   // this is the clean version. however requires creation of dfg before each
   // combination step
-  /*
+
   if( dfg_ != NULL )
     delete dfg_;
 
   dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
       this->getBoundary(), p_, false, decomposition );
-  */
 
+  /*
   // todo: keep in mind
   // in this version the dfg is only created once. this only works if always exactly
   // the same set of processes is used by gene
@@ -360,6 +385,7 @@ void GeneTask::initDFG( CommunicatorType comm,
     dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
         this->getBoundary(), p_, false, decomposition );
   }
+  */
 }
 
 
@@ -822,7 +848,7 @@ inline bool GeneTask::failNow( const int& globalRank ){
   std::vector<IndexType>::iterator it;
   it = std::find(iF.begin(), iF.end(), combiStep_);
   IndexType idx = std::distance(iF.begin(),it);
-
+  std::cout << "faultInfo" << iF[0] << " " << rF[0] << "\n";
   // Check if current iteration is in iterationFaults_
   while (it!=iF.end()){
     // Check if my rank is the one that fails

@@ -95,7 +95,7 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
 
   MPI_Comm_rank( worldComm_, &worldRank_ );
   managerRankWorld_ = worldSize - 1;
-
+  //managerRankWorld_ = 0;
   if( ENABLE_FT ){
     worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
   }
@@ -139,10 +139,13 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
 
   MPI_Comm_rank( worldComm_, &worldRank_ );
   managerRankWorld_ = worldSize - 1;
+  //managerRankWorld_ = 0;
 
   if( ENABLE_FT ){
       worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
   }
+  std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
+  //worldCommFT_->Root_Rank = worldSize - 1;
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
    * for manager, lcomm is a group which contains only manager process and can be ignored
@@ -160,16 +163,16 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
     int localSize;
     MPI_Comm_size( localComm_, &localSize );
     assert( masterRank < localSize );
-
+    std::cout << "local size of communicator " << localSize << " for rank " << worldRank_ <<"\n";
     masterRank_ = masterRank;
 
     MPI_Comm_rank( localComm_, &localRank_ );
   }
    theStatsContainer()->setTimerStart("init-local-createFT");
    if(ENABLE_FT){
-	 if( localComm_ != MPI_COMM_NULL){
-       createCommFT( &localCommFT_, localComm_ );
-	 }
+     if( localComm_ != MPI_COMM_NULL){
+         createCommFT( &localCommFT_, localComm_ );
+     }
    }
    theStatsContainer()->setTimerStop("init-local-createFT");
 
@@ -240,7 +243,7 @@ void MPISystem::initGlobalComm(){
     MPI_Comm_size( globalComm_, &globalSize );
 
     managerRank_ = globalSize - 1;
-
+    //managerRank_ = 0;
     MPI_Comm_rank( globalComm_, &globalRank_ );
   }
 
@@ -287,21 +290,21 @@ void MPISystem::createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType c
 
 void MPISystem::recoverCommunicators( bool groupAlive ){
   assert( ENABLE_FT && "this funtion is only availabe if FT enabled!" );
-
+  std::cout << "start recovery \n";
   // revoke commmworld
   theStatsContainer()->setTimerStart("recoverComm-revoke");
   //WORLD_MANAGER_EXCLUSIVE_SECTION{
     MPI_Comm_revoke( theMPISystem()->getWorldCommFT() );
   //}
   theStatsContainer()->setTimerStop("recoverComm-revoke");
-
+  std::cout << "revoked MPI comm \n";
   // shrink world
   theStatsContainer()->setTimerStart("recoverComm-shrink");
   simft::Sim_FT_MPI_Comm newCommWorldFT;
   MPI_Comm_shrink( theMPISystem()->getWorldCommFT(), &newCommWorldFT );
   MPI_Comm newCommWorld = newCommWorldFT->c_comm;
   theStatsContainer()->setTimerStop("recoverComm-shrink");
-
+  std::cout << "shrkinked communicator \n";
   // split off alive procs. this will be the new WorldComm
   // processes of dead groups set color to MPI_UNDEFINED. in this case
   // MPI_Comm_split returns MPI_COMMM_NULL

@@ -28,6 +28,10 @@ public:
                   std::vector<size_t>& sizes,
                   std::vector<size_t>& bounds );
 
+  void initCheckpoint(size_t size,
+                    std::vector<size_t>& sizes,
+                    std::vector<size_t>& bounds );
+
   inline size_t getSize() const;
 
   inline const std::vector<size_t>& getSizes() const;

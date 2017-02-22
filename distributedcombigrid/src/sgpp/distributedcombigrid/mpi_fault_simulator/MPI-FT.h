@@ -405,6 +405,7 @@ int Sim_FT_MPI_Comm_set_errhandler(Sim_FT_MPI_Comm f_comm, MPI_Errhandler errhan
 int Sim_FT_MPI_Comm_size(Sim_FT_MPI_Comm f_comm, int *size);
 int Sim_FT_MPI_Comm_split(Sim_FT_MPI_Comm f_comm, int color, int key, Sim_FT_MPI_Comm *f_newcomm);
 int Sim_FT_MPI_Finalize(void);
+void Sim_FT_MPI_Finalize_worker(void);
 int Sim_FT_MPI_Get_count(const Sim_FT_MPI_Status *status, MPI_Datatype datatype, int *count);
 #ifndef DISABLE_NBC
 int Sim_FT_MPI_Iallreduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype,

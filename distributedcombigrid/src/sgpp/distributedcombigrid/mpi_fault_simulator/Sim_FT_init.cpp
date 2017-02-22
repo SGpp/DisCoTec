@@ -27,7 +27,9 @@ int simft::Sim_FT_MPI_Init(int *argc, char ***argv){
 	simft::Sim_FT_MPI_REQUEST_NULL.c_request = MPI_REQUEST_NULL;
 
 	int ret = MPI_Init(argc, argv);
-
+  //int worldSize;
+	//MPI_Comm_size(MPI_COMM_WORLD, &worldSize );
+  //simft::Sim_FT_MPI_COMM_WORLD->Root_Rank = worldSize - 1;
 	//important: initialize MPI_COMM_WORLD in our fault layer
 	simft::Sim_FT_Initialize_new_comm(&simft::Sim_FT_MPI_COMM_WORLD, true);
 
@@ -43,8 +45,10 @@ void simft::Sim_FT_MPI_Init_worker(){
 	simft::Sim_FT_MPI_REQUEST_NULL.c_request = MPI_REQUEST_NULL;
 
 	//int ret = MPI_Init(argc, argv); MPI is initialized beforehand
-
+	//int worldSize;
+  //MPI_Comm_size(MPI_COMM_WORLD, &worldSize );
+	//simft::Sim_FT_MPI_COMM_WORLD->Root_Rank = worldSize - 1;
 	//important: initialize MPI_COMM_WORLD in our fault layer
 	simft::Sim_FT_Initialize_new_comm(&simft::Sim_FT_MPI_COMM_WORLD, true);
-	std::cout << "Init FT_MPI worker!";
+	//std::cout << "Init FT_MPI worker!";
 }

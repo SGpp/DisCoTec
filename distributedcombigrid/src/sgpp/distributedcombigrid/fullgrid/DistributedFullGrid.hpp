@@ -1434,6 +1434,9 @@ class DistributedFullGrid {
       MPI_File_close(&fh);
     }
 
+  std::vector<IndexVector>& getDecomposition(){
+    return decomposition_;
+  }
 
  private:
   /** dimension of the full grid */
