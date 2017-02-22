@@ -106,7 +106,6 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
   // set decomposition in combiparameters
   CombiParameters& param = pgroup->getCombiParameters();
   param.setApplicationComm( *comm_gene_f );
-  printf("writing checkpoint! \n");
   t->writeLocalCheckpoint( g_1, size, sizes, bounds );
   //t->setTimeCPMem( MPI_Wtime() - tstart );
 
@@ -118,7 +117,6 @@ void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
                              int *ll1p, int *ll2p, int *lm1p, int *lm2p,
                              int *ln1p, int *ln2p, int *ni0p, int *nj0p, int *nz0p,
                              int *nv0p, int *nw0p, int *n_specp) {
-  printf("readfing checkpoint! \n");
   Task* tt = pgroup->getCurrentTask();
   GeneTask* t = static_cast< GeneTask* >(tt);
   if(!t->checkIsInitialized()){
