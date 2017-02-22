@@ -290,21 +290,21 @@ void MPISystem::createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType c
 
 void MPISystem::recoverCommunicators( bool groupAlive ){
   assert( ENABLE_FT && "this funtion is only availabe if FT enabled!" );
-  std::cout << "start recovery \n";
+  //std::cout << "start recovery \n";
   // revoke commmworld
   theStatsContainer()->setTimerStart("recoverComm-revoke");
   //WORLD_MANAGER_EXCLUSIVE_SECTION{
     MPI_Comm_revoke( theMPISystem()->getWorldCommFT() );
   //}
   theStatsContainer()->setTimerStop("recoverComm-revoke");
-  std::cout << "revoked MPI comm \n";
+  //std::cout << "revoked MPI comm \n";
   // shrink world
   theStatsContainer()->setTimerStart("recoverComm-shrink");
   simft::Sim_FT_MPI_Comm newCommWorldFT;
   MPI_Comm_shrink( theMPISystem()->getWorldCommFT(), &newCommWorldFT );
   MPI_Comm newCommWorld = newCommWorldFT->c_comm;
   theStatsContainer()->setTimerStop("recoverComm-shrink");
-  std::cout << "shrkinked communicator \n";
+  //std::cout << "shrinked communicator \n";
   // split off alive procs. this will be the new WorldComm
   // processes of dead groups set color to MPI_UNDEFINED. in this case
   // MPI_Comm_split returns MPI_COMMM_NULL

@@ -89,9 +89,9 @@ void GeneTask::decideToKill(){
   // MPI_Comm_rank(lcomm, &lrank);
   MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
   //check if killing necessary
-  std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at step " << combiStep_ << "\n" ;
+  //std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at step " << combiStep_ << "\n" ;
   if (failNow(globalRank)){
-        std::cout<<"rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
+        std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
         simft::Sim_FT_kill_me();
   }
   combiStep_++;
@@ -848,7 +848,7 @@ inline bool GeneTask::failNow( const int& globalRank ){
   std::vector<IndexType>::iterator it;
   it = std::find(iF.begin(), iF.end(), combiStep_);
   IndexType idx = std::distance(iF.begin(),it);
-  std::cout << "faultInfo" << iF[0] << " " << rF[0] << "\n";
+  //std::cout << "faultInfo" << iF[0] << " " << rF[0] << "\n";
   // Check if current iteration is in iterationFaults_
   while (it!=iF.end()){
     // Check if my rank is the one that fails
