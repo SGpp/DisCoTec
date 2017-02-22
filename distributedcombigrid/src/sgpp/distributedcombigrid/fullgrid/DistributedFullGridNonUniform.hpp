@@ -19,7 +19,7 @@
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 //#define UNIFORM_SG
@@ -179,26 +179,26 @@ class DistributedFullGridNonUniform {
     calcDecompositionCoords();
 
     if (count == 0)
-      theStatsContainer()->setTimerStart("create_dfg_calc_subspaces");
+      Stats::startEvent("create_dfg_calc_subspaces");
 
     calcSubspaces();
     subspacesFilled_ = false;
 
     if (count == 0)
-      theStatsContainer()->setTimerStop("create_dfg_calc_subspaces");
+      Stats::stopEvent("create_dfg_calc_subspaces");
 
 //    if (rank_ == 0)
 //      std::cout << "num subspaces = " << subspaces_.size() << std::endl;
 
     if (count == 0)
-      theStatsContainer()->setTimerStart("create_dfg_calc_subarrays");
+      Stats::startEvent("create_dfg_calc_subarrays");
 
     //calcMPISubarrays();
     if (count == 0)
-      theStatsContainer()->setTimerStop("create_dfg_calc_subarrays");
+      Stats::stopEvent("create_dfg_calc_subarrays");
 
     if (count == 0)
-      theStatsContainer()->setTimerStart("create_dfg_assigment_list");
+      Stats::startEvent("create_dfg_assigment_list");
 
     if (subspaces_.size() > 65535)
       assert(
@@ -211,7 +211,7 @@ class DistributedFullGridNonUniform {
     calcAssigmentList();
 
     if (count == 0)
-      theStatsContainer()->setTimerStop("create_dfg_assigment_list");
+      Stats::stopEvent("create_dfg_assigment_list");
 
     /*
      for( size_t i = 0; i<assigmentList_.size(); ++i )
