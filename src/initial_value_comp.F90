@@ -122,7 +122,7 @@ contains
        END IF
 #ifdef COMBI_MGR
        !mh read checkpoint from memory
-       call checkpoint_read_memory(g_1, li1, li2, lj1, lj2, lk1, lk2, ll1, ll2, lm1, lm2, ln1, ln2)
+       call checkpoint_read_memory(g_1, li1, li2, lj1, lj2, lk1, lk2, ll1, ll2, lm1, lm2, ln1, ln2, ni0, nj0, nz0, nv0, nw0, n_spec)
 #else
        call initialize_checkpoint_read
        call checkpoint_read(g_1)

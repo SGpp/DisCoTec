@@ -76,9 +76,9 @@ Program gene
 
 #ifdef COMBI_MGR
   do while(.true.)
-    print*,"worker waits"
+    !print*,"worker waits"
     call worker_wait(gene_comm,worker_signal,n_procs_sim,n_parallel_sims)
-    print*,worker_signal
+    !print*,"signal: ",worker_signal
     ! reset timers
     time_perf = -1.0
     time_cp = -1.0
@@ -126,15 +126,21 @@ Program gene
     ! 13 = add_task
     if(worker_signal.eq.13) cycle
     
-    ! 14 = recomputed
+    ! 14 = recompute
     ! do nothing
 
-    !if(worker_signal.eq.15) cycle
+    ! 15 = check dead procs
+    if(worker_signal.eq.15) cycle
 
-    !if(worker_signal.eq.16) cycle
+    ! 16 = recover comm
+    if(worker_signal.eq.16) cycle
 
     ! 17 = parallel eval
     if(worker_signal.eq.17) cycle
+
+    ! 18 = do nothing
+    if(worker_signal.eq.18) cycle
+
 #endif
 
     LIKWID_INIT
@@ -220,13 +226,17 @@ Program gene
   LIKWID_CLOSE
 
 #ifdef COMBI_MGR
+    call decide_to_kill()
     call worker_ready(wtime, time_perf, time_iv, time_cp)
   end do
 #endif
 
   call finalize_comm_scan(gene_comm,comm_parall)
+#ifdef ENABLE_FT
+  call mpi_ft_finalize()
+#else
   call mpi_finalize(ierr)
-
+#endif
 #ifdef MEMORY_CHECKER
   call get_malloc_stat(max_allocated,unfreed_blocks,still_allocated)
   write(*,"(I7,A,I10,A)") mype,": max_allocated = ",max_allocated," bytes"

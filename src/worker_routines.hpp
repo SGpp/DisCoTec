@@ -28,7 +28,8 @@ extern "C" void checkpoint_write_memory_(
 extern "C" void checkpoint_read_memory_(GeneComplex* g_1, int *li1, int *li2,
                                         int *lj1, int *lj2, int *lk1, int *lk2,
                                         int *ll1, int *ll2, int *lm1, int *lm2,
-                                        int *ln1, int *ln2);
+                                        int *ln1, int *ln2, int *ni0p, int *nj0p, int *nz0p,
+                                        int *nv0p, int *nw0p, int *n_specp);
 
 void write_to_file(MPI_Comm lcomm);
 
@@ -46,6 +47,11 @@ extern "C" void write_omega_(int* itime, double* gamma, double* omega);
 extern "C" void set_nrg_(double* time, double* nrg0 );
 
 extern "C" void mpi_ft_init_();
+
+extern "C" void mpi_ft_finalize_();
+
+
+extern "C" void decide_to_kill_();
 
 // c interfaces
 void worker_wait(MPI_Comm comm, int* worker_stat, int nprocs, int ngroup );

@@ -22,7 +22,7 @@
 COMPILER = gnu
 MPFC = mpif90.mpich
 MPCC = mpicc.mpich
-MPCXX = mpic++.mpich
+MPCXX = mpicxx.mpich
 
 #set chip for proper chip optimization flags (optional)
 #check possible choices in /makefiles/compilers/$COMPILER.def
@@ -43,6 +43,7 @@ MPRUN = mpiexec -n $(N_PES) ./$(EXEC)
 # combination technique
 COMBI_MGR = yes
 COMBI = yes
+COMBI_FT = yes
 
 # FFTLIB - needed in /src/files.mk and /makefiles/rules.mk
 # set to: mkl, fftw or essl
@@ -90,11 +91,11 @@ COMPILER_REPORTS = no
 
 #INCLUDE PATHS
 #Add include paths for BLAS routines (can be LAPACK,ESSL,MKL,etc.)
-INCPATHS += -I/usr/include/ -I/home/heenemo/workspace/combi-gene/distributedcombigrid/src -I/home/heenemo/workspace/combi-gene/distributedcombigrid/examples/gene_distributed/src
+INCPATHS += -I/usr/include/ -I/import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/distributedcombigrid/src -I/import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/distributedcombigrid/examples/gene_distributed/src
 
 #LIBRARIES AND LIBFLAGS
 #Insert BLAS library
-LIBS += -L/home/heenemo/workspace/combi-gene/distributedcombigrid/examples/gene_distributed/lib -lgenetask -L/home/heenemo/workspace/combi-gene/lib/sgpp/ -L/usr/lib/lapack/ -L/usr/lib/libblas/ -L/usr/lib/ -llapack -lblas -lfftw3 -lfftw3f -lstdc++ -lsgppdistributedcombigrid -lboost_serialization -lglpk
+LIBS += -L/import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/distributedcombigrid/examples/gene_distributed/lib -lgenetask -L/import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/lib/sgpp/ -L/usr/lib/lapack/ -L/usr/lib/libblas/ -L/usr/lib/ -llapack -lblas -lfftw3 -lfftw3f -lstdc++ -lsgppdistributedcombigrid -lboost_serialization -lglpk
 
 #FFT LIBRARY
 #fill at least one of the following choices: mkl, essl, fftw

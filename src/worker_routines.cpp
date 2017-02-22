@@ -106,7 +106,7 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
   // set decomposition in combiparameters
   CombiParameters& param = pgroup->getCombiParameters();
   param.setApplicationComm( *comm_gene_f );
-
+  printf("writing checkpoint! \n");
   t->writeLocalCheckpoint( g_1, size, sizes, bounds );
   //t->setTimeCPMem( MPI_Wtime() - tstart );
 
@@ -116,10 +116,54 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
 void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
                              int *lj1p, int *lj2p, int *lk1p, int *lk2p,
                              int *ll1p, int *ll2p, int *lm1p, int *lm2p,
-                             int *ln1p, int *ln2p) {
+                             int *ln1p, int *ln2p, int *ni0p, int *nj0p, int *nz0p,
+                             int *nv0p, int *nw0p, int *n_specp) {
+  printf("readfing checkpoint! \n");
   Task* tt = pgroup->getCurrentTask();
   GeneTask* t = static_cast< GeneTask* >(tt);
+  if(!t->checkIsInitialized()){
+    //bounds for init checkpoint
+    // calculate local size of checkpoint
+    int d6 = *ln2p - *ln1p +1;
+    int d5 = *lm2p - *lm1p +1;
+    int d4 = *ll2p - *ll1p +1;
+    int d3 = *lk2p - *lk1p +1;
+    int d2 = *lj2p - *lj1p +1;
+    int d1 = *li2p - *li1p +1;
+    size_t size = static_cast<size_t>(d1*d2*d3*d4*d5*d6);
+    /* store bounds of local arrays in following order
+     * ln1/2, lm1/2, ll1/2, lk1/2, lj1/2, li1/2
+     * upper bounds are +1 compared to gene
+     * which corresponds to the dimensions
+     * spec,w,v,z,y,x
+     */
+    std::vector<size_t> bounds(12);
+    bounds[0] = static_cast<size_t>(*ln1p);
+    bounds[1] = static_cast<size_t>(*ln2p + 1);
+    bounds[2] = static_cast<size_t>(*lm1p);
+    bounds[3] = static_cast<size_t>(*lm2p + 1);
+    bounds[4] = static_cast<size_t>(*ll1p);
+    bounds[5] = static_cast<size_t>(*ll2p + 1);
+    bounds[6] = static_cast<size_t>(*lk1p);
+    bounds[7] = static_cast<size_t>(*lk2p + 1);
+    bounds[8] = static_cast<size_t>(*lj1p);
+    bounds[9] = static_cast<size_t>(*lj2p + 1);
+    bounds[10] = static_cast<size_t>(*li1p);
+    bounds[11] = static_cast<size_t>(*li2p + 1);
 
+    // get global sizes
+    // order: spec,w,v,z,y,x
+    std::vector<size_t> sizes(6);
+    sizes[0] = static_cast<size_t>(*n_specp);
+    sizes[1] = static_cast<size_t>(*nw0p);
+    sizes[2] = static_cast<size_t>(*nv0p);
+    sizes[3] = static_cast<size_t>(*nz0p);
+    sizes[4] = static_cast<size_t>(*nj0p);
+    sizes[5] = static_cast<size_t>(*ni0p);
+
+    //init checkpoint
+    t->InitLocalCheckpoint(size,sizes,bounds);
+  }
   // write dfg data to local checkpoint
   t->getDFG();
 
@@ -236,6 +280,14 @@ void mpi_ft_init_(){
 
 }
 
+void mpi_ft_finalize_(){
+  simft::Sim_FT_MPI_Finalize();
+
+}
+
+void decide_to_kill_(){
+  pgroup->decideToKill();
+}
 
 
 void worker_ready(double wtime, double time_perf,
