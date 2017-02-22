@@ -232,7 +232,7 @@ int main(int argc, char** argv) {
     bool success = true;
     theStatsContainer()->setTimerStart("compute");
     for (size_t i = 0; i < ncombi; ++i) {
-      std::cout << "Compute !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n";
+      //std::cout << "Compute !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n";
       if( i == 0 ){
         /* distribute task according to load model and start computation for
          * the first time */
@@ -271,19 +271,19 @@ int main(int argc, char** argv) {
           tmp->setStepsTotal((i)*nsteps);
           tmp->setCombiStep(i);
         }
-        std::cout << "Recover \n";
+        //std::cout << "Recover \n";
 
         /* recover communicators*/
         manager.recoverCommunicators();
-        std::cout << "Update \n";
+        //std::cout << "Update \n";
 
         /* communicate new combination scheme*/
         manager.updateCombiParameters();
-        std::cout << "Recompute \n";
+        //std::cout << "Recompute \n";
 
         /* if some tasks have to be recomputed, do so*/
         manager.recompute(recomputeFaultsID);
-        std::cout << "Redistribute \n";
+        //std::cout << "Redistribute \n";
         /* redistribute failed tasks to living groups */
         manager.redistribute(redistributeFaultsID);
       }
