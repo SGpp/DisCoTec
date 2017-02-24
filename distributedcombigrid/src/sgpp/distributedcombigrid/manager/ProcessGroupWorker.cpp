@@ -131,16 +131,7 @@ SignalType ProcessGroupWorker::wait() {
 
     // initalize task and set values to zero
     // the task will get the proper initial solution during the next combine
-    //gene specific hack
-    std::vector<IndexVector> decomposition;
-    if(!t->isInitialized()){
-      for( auto tmp: tasks_){
-        if(tmp->isInitialized()){
-          decomposition = tmp->getDecomposition();
-        }
-      }
-    }
-    t->init( theMPISystem()->getLocalComm(), decomposition );
+    t->init( theMPISystem()->getLocalComm());
 
     t->setZero();
 
