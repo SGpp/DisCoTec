@@ -14,6 +14,7 @@
 #include "CombiGeneConverter.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/MultiArray.hpp"
+#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
 
 namespace combigrid
 {
@@ -22,7 +23,7 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
                     std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
                     std::string& path, real dt, size_t nsteps,
                     real shat, real kymin, real lx, int ky0_ind,
-                    IndexVector p , FaultsInfo faultsInfo )
+                    IndexVector p , FaultCriterion *faultCrit )
     : Task( dim, l, boundary, coeff, loadModel),
       path_( path ),
       dt_( dt ),
@@ -34,9 +35,9 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       lx_( lx ),
       ky0_ind_( ky0_ind ),
       p_(p),
-	  faultsInfo_(faultsInfo),
-	  checkpoint_(), initialized_(false),
-	  checkpointInitialized_(false)
+      checkpoint_(), initialized_(false),
+      checkpointInitialized_(false),
+      faultCriterion_(faultCrit)
 {
 
 // theres only one boundary configuration allowed at the moment
@@ -53,8 +54,9 @@ GeneTask::GeneTask() :
     dfg_(NULL),
     nrg_(0.0),
     initialized_(false),
-    checkpointInitialized_(false)
+    checkpointInitialized_(false), faultCriterion_((new FaultCriterion()))
 {
+  ;
 }
 
 GeneTask::~GeneTask()
@@ -65,6 +67,7 @@ GeneTask::~GeneTask()
 void
 GeneTask::run( CommunicatorType lcomm )
 {
+  using namespace std::chrono;
 
   // change dir to wdir
   if( chdir( path_.c_str() ) ){
@@ -80,17 +83,39 @@ GeneTask::run( CommunicatorType lcomm )
   MASTER_EXCLUSIVE_SECTION{
     std::cout << "run task " << this->getID() << std::endl;
   }
+  int globalRank;
+  // MPI_Comm_rank(lcomm, &lrank);
+  MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+  if(combiStep_ != 0){
+    //theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
+    //theStatsContainer()->setValue("computeIterationRank" + std::to_string(globalRank),0.0);
+  }
+  startTimeIteration_ = high_resolution_clock::now();
+
+  //theStatsContainer()->setTimerStart("computeIterationRank" + std::to_string(globalRank));
+
   //printf("running gene!!! \n");
 
 }
 
 void GeneTask::decideToKill(){
+  using namespace std::chrono;
+
   int globalRank;
   // MPI_Comm_rank(lcomm, &lrank);
   MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+  //theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
+  duration<real> dur = high_resolution_clock::now() - startTimeIteration_;
+  real t_iter = dur.count();
+  std::cout << "Current iteration took " << t_iter << "\n";
+
+  //theStatsContainer()->setTimerStart("computeIterationRank" + std::to_string(globalRank));
+
+
   //check if killing necessary
   //std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at step " << combiStep_ << "\n" ;
-  if (failNow(globalRank)){
+  //real t = dt_ * nsteps_ * combiStep_;
+  if (faultCriterion_->failNow(combiStep_, t_iter, globalRank)){
         std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
         simft::Sim_FT_kill_me();
   }
@@ -839,7 +864,7 @@ void GeneTask::normalizeDFG(){
 
 }
 
-
+/*
 inline bool GeneTask::failNow( const int& globalRank ){
   FaultsInfo faultsInfo = faultsInfo_;
   IndexVector iF = faultsInfo_.iterationFaults_;
@@ -859,5 +884,5 @@ inline bool GeneTask::failNow( const int& globalRank ){
   }
   return false;
 }
-
+*/
 } /* namespace combigrid */

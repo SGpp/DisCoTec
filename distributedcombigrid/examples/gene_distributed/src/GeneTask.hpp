@@ -24,7 +24,8 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "GeneLocalCheckpoint.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
-
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
 
 namespace combigrid {
 
@@ -33,7 +34,7 @@ public:
   GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
             LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
             real shat, real kymin, real lx, int ky0_ind,
-            IndexVector p = IndexVector(0), FaultsInfo faultsInfo = {0,IndexVector(0),IndexVector(0)} );
+            IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})));
 
   GeneTask();
 
@@ -142,7 +143,7 @@ private:
   real lx_;
   int ky0_ind_;
   //fault tolerance info
-  FaultsInfo faultsInfo_;
+  FaultCriterion *faultCriterion_;
 
   // following variables are only accessed in worker and do not need to be
   // serialized
@@ -152,6 +153,8 @@ private:
 
   bool initialized_;
   bool checkpointInitialized_;
+
+  std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 
   // serialize
   template<class Archive>
@@ -167,7 +170,7 @@ private:
     ar & kymin_;
     ar & lx_;
     ar & ky0_ind_;
-    ar & faultsInfo_;
+    ar & faultCriterion_;
   }
 };
 

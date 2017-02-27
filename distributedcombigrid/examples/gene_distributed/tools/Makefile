@@ -1,8 +1,8 @@
-CC=mpic++.mpich
+CC=mpicxx.mpich
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall 
 CFLAGS+=-DSIMFTMPI -rdynamic
 
-SGPP_DIR=$(HOME)/workspace/combi-gene
+SGPP_DIR=$(HOME)/Documents/ExaHD/mergetest/combi-ft-gene
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp -L../lib/
 
@@ -20,6 +20,9 @@ testBoundaryZ: testBoundaryZ.cpp
 
 errorCalc: errorCalc.cpp
 	$(CC) $(CFLAGS) $(LDIR) $(INC) -o errorCalc errorCalc.cpp $(LIBS)
+
+errorCalCNew: errorCalcNew.cpp
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o errorCalcNew errorCalcNew.cpp $(LIBS)
 
 errorCalcGene: errorCalcGene.cpp timing.o
 	$(CC) $(CFLAGS) $(LDIR) $(INC) -o errorCalcGene errorCalcGene.cpp $(LIBS)

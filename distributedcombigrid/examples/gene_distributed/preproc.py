@@ -35,7 +35,7 @@ config.sgpplib = parser.get('preproc','sgpplib')
 config.tasklib = parser.get('preproc','tasklib')
 config.ngroup = int( parser.get('manager','ngroup') )
 config.nprocs = int( parser.get('manager','nprocs') )
-config.istep_omega = 20
+config.istep_omega = 10
 
 # if command line options given overwrite config options
 '''

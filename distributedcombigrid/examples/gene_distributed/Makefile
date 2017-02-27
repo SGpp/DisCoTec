@@ -15,7 +15,7 @@ LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
 CPP_FILES := $(wildcard src/*.cpp)
 OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))
 
-all: manager lib 
+all: manager lib errorCalc
 
 manager: $(OBJ_FILES)
 	$(CC) $(CFLAGS) $(LDIR) $(INC) -o $@ $^ $(LIBS)
@@ -27,7 +27,7 @@ lib: $(OBJ_FILES)
 	$(CC) -shared -o lib/libgenetask.so $^
 
 errorCalc: tools/errorCalcNew.cpp
-	$(CC) $(CFLAGS) $(LDIR) $(INC) -o errorCalc tools/errorCalcNew.cpp $(LIBS) timing.o
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o errorCalc tools/errorCalcNew.cpp $(LIBS) tools/timing.o
 
 clean:
 	rm obj/*.o out/* manager lib/*

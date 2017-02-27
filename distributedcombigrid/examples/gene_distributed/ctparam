@@ -1,11 +1,11 @@
 [ct]
 dim = 6
-lmin = 2 1 4 4 4 1  
-lmax = 2 1 4 5 5 1
-leval = 2 1 4 4 4 1
-leval2 = 2 1 2 2 2 1
-p = 1 1 1 2 2 1
-ncombi = 4 
+lmin = 2 1 6 6 6 1  
+lmax = 2 1 6 6 6 1
+leval = 2 1 6 6 6 1
+leval2 = 2 1 4 4 4 1
+p = 1 1 1 4 2 1
+ncombi = 50 
 readspaces = 1
 fg_file_path = /import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/distributedcombigrid/examples/gene_distributed/ginstance/plot.dat
 fg_file_path2 = /import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/distributedcombigrid/examples/gene_distributed/ginstance/plot2.dat
@@ -14,7 +14,7 @@ hierarchization_dims = 0 0 1 1 1 0
 
 [application]
 dt = 0.01
-nsteps = 20
+nsteps = 1
 
 [preproc]
 basename = ginstance
@@ -25,10 +25,10 @@ tasklib = /import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/di
 startscript = start.bat
 
 [manager]
-ngroup = 2
-nprocs = 4 
+ngroup = 1
+nprocs = 8 
 
 [faults]
-num_faults = 1
+num_faults = 0
 iteration_faults = 1
 global_rank_faults = 5

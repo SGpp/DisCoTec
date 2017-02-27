@@ -21,14 +21,20 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 
 // include user specific task. this is the interface to your application
 #include "GeneTask.hpp"
 
 using namespace combigrid;
-
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(GeneTask)
+BOOST_CLASS_EXPORT(StaticFaults)
+BOOST_CLASS_EXPORT(WeibullFaults)
+
+BOOST_CLASS_EXPORT(FaultCriterion)
 
 
 // helper funtion to read a bool vector from string
@@ -95,6 +101,7 @@ int main(int argc, char** argv) {
 
   // here the actual MPI initialization
   theMPISystem()->init( ngroup, nprocs, lcomm );
+  int nfaults = 0;
 
   // manager code
   if (theMPISystem()->getWorldRank() == theMPISystem()->getManagerRankWorld()) {
@@ -202,6 +209,7 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < levels.size(); ++i)
       std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
 
+
     // create Tasks
     TaskContainer tasks;
     std::vector<int> taskIDs;
@@ -211,12 +219,20 @@ int main(int argc, char** argv) {
       std::stringstream ss2;
       ss2 << "../" << basename << fileTaskIDs[i];
       std::string path = ss2.str();
-
+      FaultCriterion *faultCrit;
+      //create fault criterion
+      if(nfaults > 0){
+        faultCrit = new WeibullFaults(0.7, 1000, ncombi);
+      }
+      else{ //do not use faults
+        faultCrit = new StaticFaults(faultsInfo);
+      }
       Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
                                 loadmodel, path, dt, nsteps,
-                                shat, kymin, lx, ky0_ind, p, faultsInfo );
+                                shat, kymin, lx, ky0_ind, p, faultCrit);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
+
     }
 
     // create combiparamters
@@ -248,6 +264,7 @@ int main(int argc, char** argv) {
       //success = true;
       //check if fault occured
       if ( !success ) {
+        nfaults++;
         std::cout << "failed group detected at combi iteration " << i << std::endl;
 //        manager.recover();
 
@@ -320,6 +337,8 @@ int main(int argc, char** argv) {
   }
   if( ENABLE_FT ){
     WORLD_MANAGER_EXCLUSIVE_SECTION{
+      std::cout << "The number of detected faults during the simulation is " << nfaults << "\n";
+
       std::cout << "Program finished successfully" << std::endl;
       std::cout << "To avoid problems with hanging killed processes, we exit with "
           << "MPI_Abort()" << std::endl;

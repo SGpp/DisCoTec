@@ -29,6 +29,7 @@ calcNorms(  std::vector<CombiDataType>& dleft,
 real l2Norm( std::vector<CombiDataType>& data );
 
 int main( int argc, char** argv ){
+  std::cout << argc << "\n";
   assert( argc == 6 );
 
   // mode ff, fc, cf, cc -> <format of first file><format of second file>
