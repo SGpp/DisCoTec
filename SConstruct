@@ -111,8 +111,8 @@ vars.Add(BoolVariable("USE_OCL", "Enable OpenCL support (only actually enabled i
 vars.Add(BoolVariable("USE_CUDA", "Enable CUDA support (you might need to provide an 'CUDA_TOOLKIT_PATH')", False))
 vars.Add("OCL_INCLUDE_PATH", "Set path to the OpenCL header files (parent directory of CL/)")
 vars.Add("OCL_LIBRARY_PATH", "Set path to the OpenCL library")
-vars.Add("BOOST_INCLUDE_PATH", "Set path to the Boost header files", "/usr/include")
-vars.Add("BOOST_LIBRARY_PATH", "Set path to the Boost library", "/usr/lib/x86_64-linux-gnu")
+vars.Add("BOOST_INCLUDE_PATH", "Set path to the Boost header files", "/zhome/academic/HLRS/ipv/ipvalf/hlrs-tools/boost_1_58_0/")
+vars.Add("BOOST_LIBRARY_PATH", "Set path to the Boost library", "/zhome/academic/HLRS/ipv/ipvalf/hlrs-tools/boost_1_58_0/stage/lib")
 vars.Add(BoolVariable("COMPILE_BOOST_TESTS",
                       "Compile the test cases written using Boost Test", True))
 vars.Add(BoolVariable("COMPILE_BOOST_PERFORMANCE_TESTS",

@@ -61,10 +61,6 @@ class ProcessManager {
   inline void
   gridEval(FullGrid<FG_ELEMENT>& fg);
 
-  /* Generates no_faults random faults from the combischeme */
-  inline void
-  createRandomFaults( std::vector<int>& faultIds, int no_faults );
-
   inline void
   recomputeOptimumCoefficients( std::string prob_name,
                                 std::vector<int>& faultsID,
@@ -245,27 +241,6 @@ void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
 
 CombiParameters& ProcessManager::getCombiParameters() {
   return params_;
-}
-
-
-/*
- * Create a certain given number of random faults, considering that the faulty processes
- * simply cannot give the evaluation results, but they are still available in the MPI
- * communication scheme (the nodes are not dead)
- */
-inline void
-ProcessManager::createRandomFaults( std::vector<int>& faultIds, int no_faults ) {
-  int fault_id;
-
-  // create random faults
-  int j = 0;
-  while (j < no_faults) {
-    fault_id = generate_random_fault( static_cast<int>( params_.getNumLevels() ) );
-    if (j == 0 || std::find(faultIds.begin(), faultIds.end(), fault_id) == faultIds.end()){
-      faultIds.push_back(fault_id);
-      j++;
-    }
-  }
 }
 
 /*

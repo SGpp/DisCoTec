@@ -1,21 +1,25 @@
-CC=mpicxx.mpich
-CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb
+CC=mpic++
+CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb -rdynamic
 
-SGPP_DIR=$(HOME)/Documents/ExaHD/mergetest/combi-ft-gene
+SGPP_DIR=$(HOME)/combi-gene-faults
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
+LD_BOOST=-L/zhome/academic/HLRS/ipv/ipvalf/hlrs-tools/boost_1_58_0/stage/lib
+LD_GLPK=-L/zhome/academic/HLRS/ipv/ipvalf/hlrs-tools/glpk455/lib
 
 INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ 
+INC_BOOST=-I/zhome/academic/HLRS/ipv/ipvalf/hlrs-tools/boost_1_58_0
+INC_GLPK=-I/zhome/academic/HLRS/ipv/ipvalf/hlrs-tools/glpk455/include
 
-LDIR=$(LD_SGPP)
-INC=$(INC_SGPP)
+LDIR=$(LD_SGPP) $(LD_BOOST) $(LD_GLPK)
+INC=$(INC_SGPP) $(INC_BOOST) $(INC_GLPK)
 
 LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
 
 CPP_FILES := $(wildcard src/*.cpp)
 OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))
 
-all: manager lib errorCalc
+all: manager lib
 
 manager: $(OBJ_FILES)
 	$(CC) $(CFLAGS) $(LDIR) $(INC) -o $@ $^ $(LIBS)

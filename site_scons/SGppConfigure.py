@@ -108,6 +108,14 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
     config.env['NVCCFLAGS'] = "-ccbin " + config.env["CXX"] + " -std=c++11 -Xcompiler -fpic,-Wall "# + flagsToForward
     # config.env.AppendUnique(LIBPATH=['/usr/local.nfs/sw/cuda/cuda-7.5/'])
 
+    # glpk library
+  config.env.AppendUnique(CPPPATH=[config.env['GLPK_INCLUDE_PATH']])
+  config.env.AppendUnique(LIBPATH=[config.env['GLPK_LIBRARY_PATH']])
+
+    # boost library
+  config.env.AppendUnique(CPPPATH=[config.env['BOOST_INCLUDE_PATH']])
+  config.env.AppendUnique(LIBPATH=[config.env['BOOST_LIBRARY_PATH']])
+
   env = config.Finish()
 
   print "Configuration done."
