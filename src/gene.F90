@@ -232,7 +232,7 @@ Program gene
 #endif
 
   call finalize_comm_scan(gene_comm,comm_parall)
-#ifdef ENABLE_FT
+#ifdef COMBI_FT
   call mpi_ft_finalize()
 #else
   call mpi_finalize(ierr)
