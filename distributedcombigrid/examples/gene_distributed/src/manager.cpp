@@ -221,7 +221,7 @@ int main(int argc, char** argv) {
       std::string path = ss2.str();
       FaultCriterion *faultCrit;
       //create fault criterion
-      if(nfaults > 0){
+      if(faultsInfo.numFaults_ > 0){
         faultCrit = new WeibullFaults(0.7, 1000, ncombi);
       }
       else{ //do not use faults
