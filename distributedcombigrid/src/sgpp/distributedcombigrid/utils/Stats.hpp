@@ -12,7 +12,7 @@
 #include <fstream>
 #include <mpi.h>
 
-#define TIMING
+//#define TIMING
 
 namespace combigrid {
 
