@@ -11,7 +11,6 @@
 #include "boost/lexical_cast.hpp"
 #include <cstdlib>
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
-#include "sgpp/distributedcombigrid/utils/combigrid_ultils.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 /*
@@ -351,7 +350,6 @@ inline void dehierarchize1DUnoptimizedNoBoundary(
   //                  << "size " << size
   //                  << "dim " << dim << std::endl;
 
-  IndexType ll;
   IndexType steps;
   IndexType ctr;
   IndexType offset, parentOffset;
@@ -405,7 +403,6 @@ template<typename FG_ELEMENT>
 inline void dehierarchize1DUnoptimizedBoundary(
   combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
   IndexType size, DimType dim) {
-  IndexType ll;
   IndexType steps;
   IndexType ctr;
   IndexType offset, parentOffset;
