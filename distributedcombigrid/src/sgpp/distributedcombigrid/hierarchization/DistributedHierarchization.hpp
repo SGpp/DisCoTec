@@ -1964,9 +1964,9 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       tmp[gstart + i] = ldata[start + stride * i];
 
     // hierarchize tmp array with hupp function
-    //hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
-    hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
-                                       level_idxend);
+    hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
+    //hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
+                                       //level_idxend);
 
     // copy pole back
     for (IndexType i = 0; i < ndim; ++i)
@@ -2449,15 +2449,15 @@ namespace combigrid {
 class DistributedHierarchization {
 
  public:
-  // whereever references possible, use references
-  // here using a reference avoids the possibility of passing a NULL pointer
-  // which would lead to a segfault for sure
-
   // inplace hierarchization
   template<typename FG_ELEMENT>
-  static void hierarchize(DistributedFullGrid<FG_ELEMENT>& dfg) {
+  static void hierarchize( DistributedFullGrid<FG_ELEMENT>& dfg,
+                           const std::vector<bool>& dims ) {
+    assert( dfg.getDimension() > 0 );
+    assert( dfg.getDimension() == dims.size() );
+
     // hierarchize first dimension
-    {
+    if( dims[0] ){
       DimType dim = 0;
 
       // exchange data first dimension
@@ -2475,6 +2475,8 @@ class DistributedHierarchization {
 
     // hierarchize other dimensions
     for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
+      if( !dims[dim] )
+        continue;
 
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
@@ -2493,11 +2495,22 @@ class DistributedHierarchization {
 
   }
 
+
+  template<typename FG_ELEMENT>
+  static void hierarchize( DistributedFullGrid<FG_ELEMENT>& dfg ) {
+    std::vector<bool> dims( dfg.getDimension(), true );
+    hierarchize<FG_ELEMENT>( dfg, dims );
+  }
+
   // inplace dehierarchization
   template<typename FG_ELEMENT>
-  static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg) {
+  static void dehierarchize( DistributedFullGrid<FG_ELEMENT>& dfg,
+                             const std::vector<bool>& dims ) {
+    assert( dfg.getDimension() > 0 );
+    assert( dfg.getDimension() == dims.size() );
+
     // dehierarchize first dimension
-    {
+    if( dims[0] ){
       DimType dim = 0;
 
       // exchange data first dimension
@@ -2515,6 +2528,8 @@ class DistributedHierarchization {
 
     // dehierarchize other dimensions
     for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
+      if( !dims[dim] )
+          continue;
 
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
@@ -2528,6 +2543,13 @@ class DistributedHierarchization {
       }
 
     }
+  }
+
+
+  template<typename FG_ELEMENT>
+  static void dehierarchize( DistributedFullGrid<FG_ELEMENT>& dfg ) {
+    std::vector<bool> dims( dfg.getDimension(), true );
+    dehierarchize<FG_ELEMENT>( dfg, dims );
   }
 
 };
