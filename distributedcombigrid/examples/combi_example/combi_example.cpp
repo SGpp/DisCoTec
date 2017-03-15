@@ -32,6 +32,11 @@ BOOST_CLASS_EXPORT(TaskExample)
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
+  /* when using timers (TIMING is defined in Stats), the Stats class must be
+   * initialized at the beginning of the program. (and finalized in the end)
+   */
+  Stats::initialize();
+
   // read in parameter file
   boost::property_tree::ptree cfg;
   boost::property_tree::ini_parser::read_ini("ctparam", cfg);
@@ -59,9 +64,7 @@ int main(int argc, char** argv) {
     // create load model
     LoadModel* loadmodel = new LinearLoadModel();
 
-    /* generate a list of levelvectors and coefficients
-     * CombiTS_CT will generate a valid combination. however, you could
-     * also read in a list of levelvectors and coefficients from a file */
+    /* read in parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
     LevelVector lmin(dim), lmax(dim), leval(dim);
     IndexVector p(dim);
@@ -86,6 +89,10 @@ int main(int argc, char** argv) {
 
     assert(checkProcs == IndexType(nprocs));
 
+    /* generate a list of levelvectors and coefficients
+     * CombiMinMaxScheme will create a classical combination scheme.
+     * however, you could also read in a list of levelvectors and coefficients
+     * from a file */
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
@@ -172,6 +179,8 @@ int main(int argc, char** argv) {
     while (signal != EXIT)
       signal = pgroup.wait();
   }
+
+  Stats::finalize();
 
   MPI_Finalize();
 

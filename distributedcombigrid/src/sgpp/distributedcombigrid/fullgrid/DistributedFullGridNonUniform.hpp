@@ -178,27 +178,10 @@ class DistributedFullGridNonUniform {
 
     calcDecompositionCoords();
 
-    if (count == 0)
-      Stats::startEvent("create_dfg_calc_subspaces");
-
     calcSubspaces();
     subspacesFilled_ = false;
 
-    if (count == 0)
-      Stats::stopEvent("create_dfg_calc_subspaces");
-
-//    if (rank_ == 0)
-//      std::cout << "num subspaces = " << subspaces_.size() << std::endl;
-
-    if (count == 0)
-      Stats::startEvent("create_dfg_calc_subarrays");
-
     //calcMPISubarrays();
-    if (count == 0)
-      Stats::stopEvent("create_dfg_calc_subarrays");
-
-    if (count == 0)
-      Stats::startEvent("create_dfg_assigment_list");
 
     if (subspaces_.size() > 65535)
       assert(
@@ -209,9 +192,6 @@ class DistributedFullGridNonUniform {
     assigmentList_.resize(fullgridVector_.size());
     //assigmentList2_.resize( fullgridVector_.size() );
     calcAssigmentList();
-
-    if (count == 0)
-      Stats::stopEvent("create_dfg_assigment_list");
 
     /*
      for( size_t i = 0; i<assigmentList_.size(); ++i )
