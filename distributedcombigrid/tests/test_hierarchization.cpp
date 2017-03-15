@@ -13,12 +13,12 @@
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
 
 /**
- * functor for test function
+ * functor for test function f(x) = \prod_{i=0}^d x_i^2
  */
-class TestFn {
+class TestFn_1 {
   LevelVector levels_;
 public:
-  TestFn(LevelVector& levels) : levels_(levels) {}
+  TestFn_1(LevelVector& levels) : levels_(levels) {}
 
   // overload for function value
   std::complex<double> operator()(std::vector<double>& coords) {
@@ -37,6 +37,38 @@ public:
       for (int l = 1; l < levels_[d]+1; ++l) {
         for (int i = 0; i < 1<<l; ++i) {
           if (i % 2) {
+            coeff.insert(coeff.begin()+i, -std::pow(2.0, -2*l));
+          }
+        }
+      }
+      result.real(result.real() * coeff[index[d]]);
+    }
+    return result;
+  }
+};
+
+class TestFn_2 {
+  LevelVector levels_;
+public:
+  TestFn_2(LevelVector& levels) : levels_(levels) {}
+
+  // overload for function value
+  std::complex<double> operator()(std::vector<double>& coords) {
+    std::complex<double> result(1,0);
+    for (size_t d = 0; d < coords.size(); ++d) {
+      result.real(result.real() * coords[d] * (coords[d] - 1.0));
+    }
+    return result;
+  }
+
+  // overload for hierarchical surpluses
+  std::complex<double> operator()(IndexVector& index) {
+    std::complex<double> result(1,0);
+    for (size_t d = 0; d < index.size(); ++d) {
+      std::vector<double> coeff = { 0.25 };
+      for (int l = 1; l < levels_[d]+1; ++l) {
+        for (int i = 0; i < 1<<l; ++i) {
+          if (i % 2 == 0) {
             coeff.insert(coeff.begin()+i, -std::pow(2.0, -2*l));
           }
         }
@@ -128,7 +160,7 @@ BOOST_AUTO_TEST_CASE(IsotropicHierarchizationWithBoundary1) {
   LevelVector levels = {4,4,4};
   IndexVector procs = {2,2,2};
   std::vector<bool> boundary(3, true);
-  TestFn testFn(levels);
+  TestFn_1 testFn(levels);
 
   checkHierarchization(testFn, levels, procs, boundary);
 }
@@ -139,7 +171,7 @@ BOOST_AUTO_TEST_CASE(IsotropicHierarchizationWithBoundary2) {
   LevelVector levels = {6,6,6};
   IndexVector procs = {2,2,2};
   std::vector<bool> boundary(3, true);
-  TestFn testFn(levels);
+  TestFn_1 testFn(levels);
 
   checkHierarchization(testFn, levels, procs, boundary);
 }
@@ -150,7 +182,7 @@ BOOST_AUTO_TEST_CASE(IsotropicHierarchizationWithBoundary3) {
   LevelVector levels = {4,4,4};
   IndexVector procs = {1,4,2};
   std::vector<bool> boundary(3, true);
-  TestFn testFn(levels);
+  TestFn_1 testFn(levels);
 
   checkHierarchization(testFn, levels, procs, boundary);
 }
@@ -161,7 +193,18 @@ BOOST_AUTO_TEST_CASE(IsotropicHierarchizationWithBoundary4) {
   LevelVector levels = {4,4,4};
   IndexVector procs = {1,1,8};
   std::vector<bool> boundary(3, true);
-  TestFn testFn(levels);
+  TestFn_1 testFn(levels);
+
+  checkHierarchization(testFn, levels, procs, boundary);
+}
+
+BOOST_AUTO_TEST_CASE(IsotropicHierarchizationWithBoundary5) {
+  BOOST_REQUIRE(checkNumProcs(8));
+
+  LevelVector levels = {3,3,3,3};
+  IndexVector procs = {1,2,2,2};
+  std::vector<bool> boundary(4, true);
+  TestFn_1 testFn(levels);
 
   checkHierarchization(testFn, levels, procs, boundary);
 }
@@ -172,7 +215,7 @@ BOOST_AUTO_TEST_CASE(AnisotropicHierarchizationWithBoundary1) {
   LevelVector levels = {2,4,6};
   IndexVector procs = {2,2,2};
   std::vector<bool> boundary(3, true);
-  TestFn testFn(levels);
+  TestFn_1 testFn(levels);
 
   checkHierarchization(testFn, levels, procs, boundary);
 }
@@ -183,7 +226,84 @@ BOOST_AUTO_TEST_CASE(AnisotropicHierarchizationWithBoundary2) {
   LevelVector levels = {2,4,6};
   IndexVector procs = {2,1,4};
   std::vector<bool> boundary(3, true);
-  TestFn testFn(levels);
+  TestFn_1 testFn(levels);
+
+  checkHierarchization(testFn, levels, procs, boundary);
+}
+
+BOOST_AUTO_TEST_CASE(AnisotropicHierarchizationWithBoundary3) {
+  BOOST_REQUIRE(checkNumProcs(8));
+
+  LevelVector levels = {2,2,3,3,2};
+  IndexVector procs = {2,1,2,2,1};
+  std::vector<bool> boundary(5, true);
+  TestFn_1 testFn(levels);
+
+  checkHierarchization(testFn, levels, procs, boundary);
+}
+
+BOOST_AUTO_TEST_CASE(IsotropicHierarchizationNoBoundary1) {
+  BOOST_REQUIRE(checkNumProcs(8));
+
+  LevelVector levels = {4,4,4};
+  IndexVector procs = {2,2,2};
+  std::vector<bool> boundary(3, false);
+  TestFn_2 testFn(levels);
+
+  checkHierarchization(testFn, levels, procs, boundary);
+}
+
+BOOST_AUTO_TEST_CASE(IsotropicHierarchizationNoBoundary2) {
+  BOOST_REQUIRE(checkNumProcs(8));
+
+  LevelVector levels = {6,6,6};
+  IndexVector procs = {2,2,2};
+  std::vector<bool> boundary(3, false);
+  TestFn_2 testFn(levels);
+
+  checkHierarchization(testFn, levels, procs, boundary);
+}
+
+BOOST_AUTO_TEST_CASE(IsotropicHierarchizationNoBoundary3) {
+  BOOST_REQUIRE(checkNumProcs(8));
+
+  LevelVector levels = {4,4,4};
+  IndexVector procs = {4,2,1};
+  std::vector<bool> boundary(3, false);
+  TestFn_2 testFn(levels);
+
+  checkHierarchization(testFn, levels, procs, boundary);
+}
+
+BOOST_AUTO_TEST_CASE(AnisotropicHierarchizationNoBoundary1) {
+  BOOST_REQUIRE(checkNumProcs(8));
+
+  LevelVector levels = {2,3,4};
+  IndexVector procs = {2,2,2};
+  std::vector<bool> boundary(3, false);
+  TestFn_2 testFn(levels);
+
+  checkHierarchization(testFn, levels, procs, boundary);
+}
+
+BOOST_AUTO_TEST_CASE(AnisotropicHierarchizationNoBoundary2) {
+  BOOST_REQUIRE(checkNumProcs(8));
+
+  LevelVector levels = {2,3,4};
+  IndexVector procs = {2,1,4};
+  std::vector<bool> boundary(3, false);
+  TestFn_2 testFn(levels);
+
+  checkHierarchization(testFn, levels, procs, boundary);
+}
+
+BOOST_AUTO_TEST_CASE(AnisotropicHierarchizationNoBoundary3) {
+  BOOST_REQUIRE(checkNumProcs(8));
+
+  LevelVector levels = {2,2,3,3,2};
+  IndexVector procs = {2,1,2,2,1};
+  std::vector<bool> boundary(5, false);
+  TestFn_2 testFn(levels);
 
   checkHierarchization(testFn, levels, procs, boundary);
 }
