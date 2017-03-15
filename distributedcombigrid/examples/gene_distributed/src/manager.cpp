@@ -63,13 +63,21 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
   return os;
 }
 
-
+/**
+ * This example performs the fault tolerant combination technique on Gene.
+ * Multiple fault models can be plugged in to simulate faults during the simulation.
+ * For simulation the faults the Sim_FT fault simulator is used. This is only the code of the manager.
+ * All slaves execute the modified gene version that is able to communicate with the master.
+ */
 int main(int argc, char** argv) {
   //MPI_Init(&argc, &argv);
   simft::Sim_FT_MPI_Init(&argc, &argv);
 
   // read in parameter file
   boost::property_tree::ptree cfg;
+  /*
+   * Read input from ctparam
+   */
   boost::property_tree::ini_parser::read_ini("ctparam", cfg);
 
   // number of process groups and number of processes per group
@@ -88,7 +96,7 @@ int main(int argc, char** argv) {
   const int managerIDworld = globalSize - 1;
   std::cout << "Manager rank " << globalID << "\n";
   assert(globalSize == int(ngroup * nprocs + 1));
-
+  //generate the local communicators for the different process groups
   int color = globalID / nprocs;
   int key = globalID - color * nprocs;
   MPI_Comm lcomm;
@@ -109,6 +117,7 @@ int main(int argc, char** argv) {
      * a pgroup is identified by the ID in gcomm
      */
     ProcessGroupManagerContainer pgroups;
+    //create vector containing the different process groups
     for (size_t i=0; i<ngroup; ++i) {
       // todo: order of ranks in new group?
       int pgroupRootID(i);
@@ -219,6 +228,7 @@ int main(int argc, char** argv) {
       std::stringstream ss2;
       ss2 << "../" << basename << fileTaskIDs[i];
       std::string path = ss2.str();
+      //create FaultCriterion
       FaultCriterion *faultCrit;
       //create fault criterion
       if(faultsInfo.numFaults_ > 0){
@@ -304,7 +314,7 @@ int main(int argc, char** argv) {
         /* redistribute failed tasks to living groups */
         manager.redistribute(redistributeFaultsID);
       }
-
+      //combine
       if(i==0) theStatsContainer()->setTimerStart("combine");
       manager.combine();
       if(i==0) theStatsContainer()->setTimerStop("combine");
