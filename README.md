@@ -46,9 +46,12 @@ now. It is not necessary any more to compile or link the combigrid module.)
 
 On Hazel Hen
 --------------
-load modules: PrgEnv-gnu, scons, python 2.7, boost
+load modules: PrgEnv-gnu, scons, python 2.7
 
-set paths for boost in SConfigure. e.g., /opt/hlrs/tools/boost/1.62.0/include
+Unfortunately, the boost module on Hazel Hen does not work with our code any more.
+Hence, you have to install boost yourself.
+Do not forget to set boost paths in SConfigure, i.e. BOOST_INCLUDE_PATH, 
+BOOST_LIBRARY_PATH
 
 compile with
 scons -j 16 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CXX=CC OPT=1
