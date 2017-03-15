@@ -11,7 +11,6 @@
 #include "boost/lexical_cast.hpp"
 #include <cstdlib>
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
-#include "sgpp/distributedcombigrid/utils/combigrid_ultils.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 /*
