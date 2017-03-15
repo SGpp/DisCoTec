@@ -79,10 +79,14 @@ SignalType ProcessGroupWorker::wait() {
     currentTask_ = tasks_.back();
 
     // initalize task
+    Stats::startEvent("worker init");
     currentTask_->init(theMPISystem()->getLocalComm());
+    Stats::stopEvent("worker init");
 
     // execute task
+    Stats::startEvent("worker run first");
     currentTask_->run(theMPISystem()->getLocalComm());
+    Stats::stopEvent("worker run first");
 
   } else if (signal == RUN_NEXT) {
     // this should not happen
@@ -98,7 +102,9 @@ SignalType ProcessGroupWorker::wait() {
     currentTask_ = tasks_[0];
 
     // run first task
+    Stats::startEvent("worker run");
     currentTask_->run(theMPISystem()->getLocalComm());
+    Stats::stopEvent("worker run");
 
   } else if (signal == ADD_TASK) {
     std::cout << "adding a single task" << std::endl;
@@ -147,11 +153,16 @@ SignalType ProcessGroupWorker::wait() {
     }
   } else if (signal == COMBINE) {
 
+    Stats::startEvent("combine");
     combineUniform();
+    Stats::stopEvent("combine");
 
   } else if (signal == GRID_EVAL) {
 
+    Stats::startEvent("eval");
     gridEval();
+    Stats::stopEvent("eval");
+
     return signal;
 
   } else if (signal == COMBINE_FG) {
@@ -181,7 +192,9 @@ void ProcessGroupWorker::ready() {
 
         // set currentTask
         currentTask_ = tasks_[i];
+        Stats::startEvent("worker run");
         currentTask_->run(theMPISystem()->getLocalComm());
+        Stats::stopEvent("worker run");
       }
     }
 

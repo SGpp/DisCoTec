@@ -70,9 +70,7 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
    * lcomm is the local communicator of its own process group for each worker process.
    * for manager, lcomm is a group which contains only manager process and can be ignored
    */
-  Stats::startEvent("init-local");
   initLocalComm();
-  Stats::stopEvent("init-local");
 
   /* create global communicator which contains only the manager and the master
    * process of each process group
@@ -81,24 +79,21 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
    * this communicator is used for communication between master processes of the
    * process groups and the manager and the master processes to each other
    */
-  Stats::startEvent("init-global");
   initGlobalComm();
-  Stats::stopEvent("init-global");
 
-  Stats::startEvent("init-global-reduce");
   initGlobalReduceCommm();
-  Stats::stopEvent("init-global-reduce");
 
   initialized_ = true;
 }
 
 
 void MPISystem::initLocalComm(){
-  Stats::startEvent("init-local-split");
   int color = worldRank_ / int(nprocs_);
   int key = worldRank_ - color * int(nprocs_);
   MPI_Comm_split( worldComm_, color, key, &localComm_ );
-  Stats::stopEvent("init-local-split");
+
+  /* set group number in Stats. this is necessary for postprocessing */
+  Stats::setAttribute("group", std::to_string(color));
 
   // manager is not supposed to have a localComm
   if( worldRank_ == managerRankWorld_ )
@@ -142,6 +137,9 @@ void MPISystem::initGlobalComm(){
 
     MPI_Comm_rank( globalComm_, &globalRank_ );
   }
+
+  /* mark master processes and manager process in Stats. this is necessary for postprocessing */
+  Stats::setAttribute("group_manager", std::to_string(globalComm_ != MPI_COMM_NULL));
 }
 
 void MPISystem::initGlobalReduceCommm() {

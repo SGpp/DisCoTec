@@ -613,15 +613,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
             subarraySize *= subsizes[i];
 
           totalSendSize += subarraySize;
-
-          std::string valName = "subarray_send_size_dim_"
-                                + boost::lexical_cast<std::string>(dim) + "_rank_"
-                                + boost::lexical_cast<std::string>(r) + "_index_"
-                                + boost::lexical_cast<std::string>(indices[k]);
-
-          if (hierCount == 0)
-            Stats::setAttribute(valName,
-                                std::to_string(subarraySize * sizeof(FG_ELEMENT)));
         }
 
         // start
@@ -688,14 +679,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                     dfg.getCommunicator(), &recvRequests[recvcount+k]);
 
           {
-            std::string valName = "subarray_recv_size_dim_"
-                                  + boost::lexical_cast<std::string>(dim) + "_rank_"
-                                  + boost::lexical_cast<std::string>(r) + "_index_"
-                                  + boost::lexical_cast<std::string>(indices[k]);
-
-            if (hierCount == 0)
-              Stats::setAttribute(valName,
-                                  std::to_string(bsize * sizeof(FG_ELEMENT)));
             totalRecvSize += bsize;
           }
 
@@ -715,25 +698,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   MPI_Waitall(static_cast<int>(recvRequests.size()), &recvRequests.front(),
               MPI_STATUSES_IGNORE);
 
-  {
-    std::string valName = "total_send_size_dim_"
-                          + boost::lexical_cast<std::string>(dim);
-
-    if (hierCount == 0)
-      Stats::setAttribute(valName,
-                          std::to_string(totalSendSize * sizeof(FG_ELEMENT)));
-
-  }
-
-  {
-    std::string valName = "total_recv_size_dim_"
-                          + boost::lexical_cast<std::string>(dim);
-
-    if (hierCount == 0)
-      Stats::setAttribute(valName,
-                          std::to_string(totalRecvSize * sizeof(FG_ELEMENT)));
-
-  }
 
 #ifdef DEBUG_OUTPUT
   MPI_Barrier( comm );
@@ -998,16 +962,6 @@ static void exchangeData1dDehierarchization(
             subarraySize *= subsizes[i];
 
           totalSendSize += subarraySize;
-
-          std::string valName = "subarray_send_size_dim_"
-                                + boost::lexical_cast<std::string>(dim) + "_rank_"
-                                + boost::lexical_cast<std::string>(r) + "_index_"
-                                + boost::lexical_cast<std::string>(indices[k]);
-
-          if (hierCount == 0)
-            Stats::setAttribute(valName,
-                                std::to_string(subarraySize * sizeof(FG_ELEMENT)));
-
         }
 
         // start
@@ -1074,15 +1028,6 @@ static void exchangeData1dDehierarchization(
                     dfg.getCommunicator(), &recvRequests[recvcount + k]);
 
           {
-            std::string valName = "subarray_recv_size_dim_"
-                                  + boost::lexical_cast<std::string>(dim) + "_rank_"
-                                  + boost::lexical_cast<std::string>(r) + "_index_"
-                                  + boost::lexical_cast<std::string>(indices[k]);
-
-            if (hierCount == 0)
-              Stats::setAttribute(valName,
-                                  std::to_string(bsize * sizeof(FG_ELEMENT)));
-
             totalRecvSize += bsize;
           }
 
@@ -1102,25 +1047,6 @@ static void exchangeData1dDehierarchization(
   MPI_Waitall(static_cast<int>(recvRequests.size()), &recvRequests[0],
               MPI_STATUSES_IGNORE);
 
-  {
-    std::string valName = "total_send_size_dim_"
-                          + boost::lexical_cast<std::string>(dim);
-
-    if (hierCount == 0)
-      Stats::setAttribute(valName,
-                          std::to_string(totalSendSize * sizeof(FG_ELEMENT)));
-
-  }
-
-  {
-    std::string valName = "total_recv_size_dim_"
-                          + boost::lexical_cast<std::string>(dim);
-
-    if (hierCount == 0)
-      Stats::setAttribute(valName,
-                          std::to_string(totalRecvSize * sizeof(FG_ELEMENT)));
-
-  }
 
 #ifdef DEBUG_OUTPUT
   MPI_Barrier( comm );
