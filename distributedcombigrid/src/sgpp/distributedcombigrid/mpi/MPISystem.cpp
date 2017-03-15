@@ -8,7 +8,7 @@
  */
 
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include <iostream>
 
 namespace combigrid {
@@ -70,9 +70,9 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
    * lcomm is the local communicator of its own process group for each worker process.
    * for manager, lcomm is a group which contains only manager process and can be ignored
    */
-  theStatsContainer()->setTimerStart("init-local");
+  Stats::startEvent("init-local");
   initLocalComm();
-  theStatsContainer()->setTimerStop("init-local");
+  Stats::stopEvent("init-local");
 
   /* create global communicator which contains only the manager and the master
    * process of each process group
@@ -81,24 +81,24 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
    * this communicator is used for communication between master processes of the
    * process groups and the manager and the master processes to each other
    */
-  theStatsContainer()->setTimerStart("init-global");
+  Stats::startEvent("init-global");
   initGlobalComm();
-  theStatsContainer()->setTimerStop("init-global");
+  Stats::stopEvent("init-global");
 
-  theStatsContainer()->setTimerStart("init-global-reduce");
+  Stats::startEvent("init-global-reduce");
   initGlobalReduceCommm();
-  theStatsContainer()->setTimerStop("init-global-reduce");
+  Stats::stopEvent("init-global-reduce");
 
   initialized_ = true;
 }
 
 
 void MPISystem::initLocalComm(){
-  theStatsContainer()->setTimerStart("init-local-split");
+  Stats::startEvent("init-local-split");
   int color = worldRank_ / int(nprocs_);
   int key = worldRank_ - color * int(nprocs_);
   MPI_Comm_split( worldComm_, color, key, &localComm_ );
-  theStatsContainer()->setTimerStop("init-local-split");
+  Stats::stopEvent("init-local-split");
 
   // manager is not supposed to have a localComm
   if( worldRank_ == managerRankWorld_ )

@@ -12,7 +12,7 @@
 #include <cstdlib>
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/combigrid_ultils.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 /*
  * Instead of having private static functions, I put these functions in an
@@ -83,7 +83,7 @@ class Hierarchization {
     IndexType jump;
     lldiv_t divresult;
 
-    theStatsContainer()->setTimerStart("hierarchize_dim_0");
+    Stats::startEvent("hierarchize_dim_0");
 
     //   dimension 1 separate as start of each pole is easier to calculate
     IndexType ndim = n[0];
@@ -107,10 +107,10 @@ class Hierarchization {
     }
 
     // end dimension 1
-    theStatsContainer()->setTimerStop("hierarchize_dim_0");
+    Stats::stopEvent("hierarchize_dim_0");
 
     for (DimType dim = 1; dim < d; dim++) { // hierarchize for all dims
-      theStatsContainer()->setTimerStart(
+      Stats::startEvent(
         "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
 
       stride *= ndim;
@@ -139,7 +139,7 @@ class Hierarchization {
         }
       }
 
-      theStatsContainer()->setTimerStop(
+      Stats::stopEvent(
         "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
 
     } // end loop over dimension 2 to d
