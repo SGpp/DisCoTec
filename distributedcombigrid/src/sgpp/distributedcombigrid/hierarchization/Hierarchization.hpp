@@ -82,8 +82,6 @@ class Hierarchization {
     IndexType jump;
     lldiv_t divresult;
 
-    Stats::startEvent("hierarchize_dim_0");
-
     //   dimension 1 separate as start of each pole is easier to calculate
     IndexType ndim = n[0];
     IndexType nbrOfPoles = size / ndim;
@@ -105,13 +103,7 @@ class Hierarchization {
       }
     }
 
-    // end dimension 1
-    Stats::stopEvent("hierarchize_dim_0");
-
     for (DimType dim = 1; dim < d; dim++) { // hierarchize for all dims
-      Stats::startEvent(
-        "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
-
       stride *= ndim;
       ndim = n[dim];
       jump = stride * ndim;
@@ -137,9 +129,6 @@ class Hierarchization {
           hierarchize1DUnoptimizedBoundary(fg, start, stride, ndim, dim);
         }
       }
-
-      Stats::stopEvent(
-        "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
 
     } // end loop over dimension 2 to d
 

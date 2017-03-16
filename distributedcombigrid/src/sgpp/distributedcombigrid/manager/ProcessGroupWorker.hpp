@@ -43,7 +43,13 @@ class ProcessGroupWorker {
 
   void gridEval();
 
+  void parallelEval();
+
+  void parallelEvalUniform();
+
   void updateCombiParameters();
+
+  inline CombiParameters& getCombiParameters();
 
  private:
   TaskContainer tasks_; // task storage
@@ -65,8 +71,16 @@ class ProcessGroupWorker {
   void setCombinedSolutionUniform( Task* t );
 };
 
+
 inline Task* ProcessGroupWorker::getCurrentTask() {
   return currentTask_;
+}
+
+
+inline CombiParameters& ProcessGroupWorker::getCombiParameters(){
+  assert(combiParametersSet_);
+
+  return combiParameters_;
 }
 
 } /* namespace combigrid */

@@ -67,6 +67,10 @@ class ProcessManager {
 
   inline CombiParameters& getCombiParameters();
 
+  void parallelEval( const LevelVector& leval,
+                                     std::string& filename,
+                                     size_t groupID );
+
  private:
   ProcessGroupManagerContainer& pgroups_;
 
@@ -225,5 +229,6 @@ ProcessManager::getTask( int taskID ){
   }
   return nullptr;
 }
+
 } /* namespace combigrid */
 #endif /* PROCESSMANAGER_HPP_ */

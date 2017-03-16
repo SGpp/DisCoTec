@@ -468,12 +468,12 @@ template<typename FG_ELEMENT>
 void CombiCom::distributedLocalReduceBlock(
   DistributedFullGridNonUniform<FG_ELEMENT>& dfg,
   DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
-  Stats::startEvent("local_reduce_fill_subspaces");
+
   // copy data into subspace datastructures
   dfg.fillSubspaces();
-  Stats::stopEvent("local_reduce_fill_subspaces");
 
-  Stats::startEvent("local_reduce_calc_dependencies");
+
+
   // get a list of all the subspaces in dfg
   std::vector<LevelVector> dfgSubspacesLevels;
   dfg.getSubspacesLevelVectors(dfgSubspacesLevels);
@@ -507,9 +507,6 @@ void CombiCom::distributedLocalReduceBlock(
                             recvsizes, recvsubspaces);
   }
 
-  Stats::stopEvent("local_reduce_calc_dependencies");
-
-  Stats::startEvent("local_reduce_exchange_data");
   // start send and recv operations to all other processes
   std::vector<MPI_Request> requests;
   size_t totalsendsize(0), totalrecvsize(0);
@@ -539,7 +536,6 @@ void CombiCom::distributedLocalReduceBlock(
   }
 
   MPI_Waitall(int(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
-  Stats::stopEvent("local_reduce_exchange_data");
 
   int rank = dfg.getMpiRank();
 
@@ -568,12 +564,8 @@ void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
    * which has been used in the constructor
    */
 
-  Stats::startEvent("local_reduce_fill_subspaces");
   // copy data into subspace datastructures
   dfg.fillSubspaces();
-  Stats::stopEvent("local_reduce_fill_subspaces");
-
-  Stats::startEvent("local_reduce_exchange_data");
 
   // get a list of all the subspaces in dfg
   std::vector<LevelVector> dfgSubspacesLevels;
@@ -611,10 +603,6 @@ void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
     MPI_Waitall(static_cast<int>(requests.size()), &requests[0],
                 MPI_STATUSES_IGNORE);
 
-  Stats::stopEvent("local_reduce_exchange_data");
-
-  Stats::startEvent("local_reduce_add_buffers");
-
   // each process adds the buffers it is responsible for to the corresponding
   // subpsace in dsg
   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
@@ -639,7 +627,6 @@ void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
     }
   }
 
-  Stats::stopEvent("local_reduce_add_buffers");
 }
 
 template<typename FG_ELEMENT>
@@ -725,7 +712,6 @@ void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
    * which has been used in the constructor
    */
 
-  Stats::startEvent("local_scatter_exchange_data");
   // get a list of all the subspaces in dfg
   std::vector<LevelVector> dfgSubspacesLevels;
   dfg.getSubspacesLevelVectors(dfgSubspacesLevels);
@@ -749,12 +735,8 @@ void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
     dfg.scatterSubspace(scatterL, src, buf);
   }
 
-  Stats::stopEvent("local_scatter_exchange_data");
-
   // copy data back into dfg
-  Stats::startEvent("local_scatter_write_back");
   dfg.writeBackSubspaces();
-  Stats::stopEvent("local_scatter_write_back");
 
   // clear subspace containers and release memory
   dfg.clearSubspaces();
@@ -858,6 +840,7 @@ void CombiCom::distributedGlobalReduce(
       // left empty
       if (subspaceData.size() == 0) {
         buf_it += subspaceSizes[i];
+        continue;
       }
 
       for (size_t j = 0; j < subspaceData.size(); ++j) {
@@ -878,12 +861,18 @@ void CombiCom::distributedGlobalReduce(
     for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
       std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
 
-      // if subspace does not exist on this process this part of the buffer is
-      // skipped
-      if (subspaceData.size() == 0) {
-        buf_it += subspaceSizes[i];
+      // this is very unlikely but can happen if dsg is different than
+      // lmax and lmin of combination scheme
+      if(subspaceData.size() == 0 && subspaceSizes[i] == 0)
+        continue;
+
+      // this happens for subspaces that are only available in component grids
+      // on other process groups
+      if( subspaceData.size() == 0 && subspaceSizes[i] > 0 ){
+        subspaceData.resize( subspaceSizes[i] );
       }
 
+      // wenn subspaceData.size() > 0 und subspaceSizes > 0
       for (size_t j = 0; j < subspaceData.size(); ++j) {
         subspaceData[j] = *buf_it;
         ++buf_it;
@@ -891,7 +880,6 @@ void CombiCom::distributedGlobalReduce(
     }
   }
 }
-
 
 } /* namespace combigrid */
 

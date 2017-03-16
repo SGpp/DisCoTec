@@ -115,5 +115,28 @@ bool ProcessManager::waitAllFinished(){
   return group_failed;
 }
 
+
+void ProcessManager::parallelEval( const LevelVector& leval,
+                                   std::string& filename,
+                                   size_t groupID ){
+  // actually it would be enough to wait for the group which does the eval
+  {
+    bool fail = waitAllFinished();
+
+    assert( !fail && "should not fail here" );
+  }
+
+  assert( groupID < pgroups_.size() );
+
+  auto g = pgroups_[ groupID ];
+  g->parallelEval( leval, filename );
+
+  {
+    bool fail = waitAllFinished();
+
+    assert( !fail && "should not fail here" );
+  }
+}
+
 } /* namespace combigrid */
 

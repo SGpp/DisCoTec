@@ -48,6 +48,16 @@ const bool USE_NONBLOCKING_MPI_COLLECTIVE = true;
  * true to avoid that the ready signal is sent automatically.
  */
 const bool omitReadySignal = false;
+
+
+/* using a uniform domain decomposition for all component grids (the same
+ * number of processes in each dimension) yields a significantly better performance
+ * for the combination and eval operation.
+ * to enable the uniform operations set this to true.
+ * so far, only the uniform operations are properly implemented
+ */
+const bool uniformDecomposition = true;
+
 }
 
 
