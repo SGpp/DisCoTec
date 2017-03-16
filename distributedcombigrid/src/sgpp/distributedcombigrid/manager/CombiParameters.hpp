@@ -212,8 +212,6 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;
-  ar& applicationComm_;
-  ar& applicationCommSet_;
 }
 
 }
