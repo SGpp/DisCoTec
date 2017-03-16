@@ -1580,9 +1580,9 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       }
     }
 
-    hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
-                                       level_idxend);
-    //hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
+    //hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
+    //                                   level_idxend);
+    hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
 
     // copy local data back
     for (IndexType i = 0; i < xSize; ++i)
