@@ -168,7 +168,7 @@ def prepareDoxyfile(modules):
           excludePaths += " " + testPath
         if os.path.exists(os.path.join(os.getcwd(), imagePath)):
           imagePaths += " " + imagePath
-
+      examplePaths+= " distributedcombigrid/examples/combi_example"
       for line in doxyFileTemplate.readlines():
         if re.match(r"INPUT  .*", line):
           doxyFile.write(inputPaths + "\n")
@@ -180,7 +180,6 @@ def prepareDoxyfile(modules):
           doxyFile.write(imagePaths + "\n")
         else:
           doxyFile.write(line)
-
   # create example menu page
   with open("base/doc/doxygen/examples.doxy", "w") as examplesFile:
     examplesFile.write('''/**
