@@ -221,7 +221,7 @@ int main(int argc, char** argv) {
       std::string path = ss2.str();
       FaultCriterion *faultCrit;
       //create fault criterion
-      if(faultsInfo.numFaults_ > 0){
+      if(faultsInfo.numFaults_ < 0){
         faultCrit = new WeibullFaults(0.7, 1000, ncombi);
       }
       else{ //do not use faults
@@ -345,6 +345,7 @@ int main(int argc, char** argv) {
       MPI_Abort( MPI_COMM_WORLD, 0 );
     }
   }
+  std::cout << "Finalize manager \n";
   simft::Sim_FT_MPI_Finalize();
 
   return 0;
