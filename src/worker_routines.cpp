@@ -25,7 +25,9 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
                               int *ni0p, int *nj0p, int *nz0p,
                               int *nv0p, int *nw0p, int *n_specp,
                               MPI_Fint* comm_gene_f ) {
+  //std::cout << "write memory \n";
   double tstart = MPI_Wtime();
+  MPI_Comm comm_gene = (MPI_Comm) *comm_gene_f;
 
   Task* tt = pgroup->getCurrentTask();
   GeneTask* t = static_cast< GeneTask* >(tt);
@@ -77,12 +79,12 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
   // todo: create decomposition vectors
   // gather lowerbounds of all procs in dfg typical ordering
   int lsize;
-  MPI_Comm_size( *comm_gene_f, &lsize );
+  MPI_Comm_size( comm_gene, &lsize );
   std::vector<int> myLowerBounds = { *li1p, *lj1p, *lk1p, *ll1p, *lm1p, *ln1p };
   std::vector<int> allLowerBounds( lsize * myLowerBounds.size() );
   MPI_Allgather( &myLowerBounds[0], static_cast<int>( myLowerBounds.size() ), MPI_INT,
               &allLowerBounds[0], static_cast<int>( myLowerBounds.size() ), MPI_INT,
-              *comm_gene_f );
+              comm_gene );
 
   // extract decomposition from alllowerbounds
   std::vector<IndexVector> decomposition(6);
@@ -101,11 +103,11 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
   }
 
   // check if dfg created and create if necessary
-  t->initDFG( *comm_gene_f, decomposition );
+  t->initDFG( comm_gene, decomposition );
 
   // set decomposition in combiparameters
   CombiParameters& param = pgroup->getCombiParameters();
-  param.setApplicationComm( *comm_gene_f );
+  param.setApplicationComm( comm_gene );
   t->writeLocalCheckpoint( g_1, size, sizes, bounds );
   //t->setTimeCPMem( MPI_Wtime() - tstart );
 
@@ -117,6 +119,7 @@ void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
                              int *ll1p, int *ll2p, int *lm1p, int *lm2p,
                              int *ln1p, int *ln2p, int *ni0p, int *nj0p, int *nz0p,
                              int *nv0p, int *nw0p, int *n_specp) {
+  //std::cout << "read memory \n";
   Task* tt = pgroup->getCurrentTask();
   GeneTask* t = static_cast< GeneTask* >(tt);
   if(!t->checkIsInitialized()){
@@ -158,7 +161,7 @@ void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
     sizes[3] = static_cast<size_t>(*nz0p);
     sizes[4] = static_cast<size_t>(*nj0p);
     sizes[5] = static_cast<size_t>(*ni0p);
-
+    //std::cout << "initializing checkpoint! \n";
     //init checkpoint
     t->InitLocalCheckpoint(size,sizes,bounds);
   }
