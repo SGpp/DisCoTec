@@ -144,7 +144,7 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
   if( ENABLE_FT ){
       worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
   }
-  std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
+  //std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
   //worldCommFT_->Root_Rank = worldSize - 1;
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
@@ -163,7 +163,7 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
     int localSize;
     MPI_Comm_size( localComm_, &localSize );
     assert( masterRank < localSize );
-    std::cout << "local size of communicator " << localSize << " for rank " << worldRank_ <<"\n";
+    //std::cout << "local size of communicator " << localSize << " for rank " << worldRank_ <<"\n";
     masterRank_ = masterRank;
 
     MPI_Comm_rank( localComm_, &localRank_ );

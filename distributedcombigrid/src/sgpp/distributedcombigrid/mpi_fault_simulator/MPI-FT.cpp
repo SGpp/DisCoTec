@@ -69,11 +69,13 @@ int simft::Sim_FT_Check_dead_processes(simft::Sim_FT_MPI_Comm f_comm, simft::Nex
 
 		f_comm->CurrentMaxNBC = Reduce_Vector[1];
 		f_comm->CurrentMaxNBC_Rank = Reduce_Vector[2];
-
+		//std::cout << "Number of dead processes is " << f_comm->Dead_Processes_Root.size() << "\n";
+		//std::cout << "Reduce vector value is " << Reduce_Vector[0] << "\n";
 		//receive dead messages until the reduced dead count is reached
 		while((int)f_comm->Dead_Processes_Root.size() < Reduce_Vector[0]){
 			simft::Sim_FT_Receive_dead_msgs_root(f_comm);
 			simft::Sim_FT_Perform_background_operations( true );
+			//std::cout << "Received dead msg from " << f_comm->Dead_Processes_Root[0] << "\n";
 		}
 		std::vector<int> Send_Vector; //[0]: NextOp; [1]: Dead processes count; [>1]: Dead processes ids
 
@@ -89,6 +91,7 @@ int simft::Sim_FT_Check_dead_processes(simft::Sim_FT_MPI_Comm f_comm, simft::Nex
 		Send_Vector.push_back(f_comm->Dead_Processes_Root.size());
 
 		if(f_comm->Dead_Processes_Root.size() > 0){
+		  //std::cout << "option = " <<option << "\n";
 			Ret = MPI_ERR_PROC_FAILED;
 
 
@@ -795,7 +798,10 @@ void simft::Sim_FT_kill_me(){
 				Actives = nullptr;
 				break;
 			}
-
+			if(Actives->comm_revoked){ //change tags if communicator is revoked
+        Actives->ReduceTag = SIM_FT_REDUCE_TAG_REVOKED;
+        Actives->DeadTag = SIM_FT_DEAD_TAG_REVOKED;
+      }
 			std::vector<int> buf;
 			int count = 0;
 
@@ -808,7 +814,7 @@ void simft::Sim_FT_kill_me(){
 					if(Actives->dead_nodes.size() != Actives->dead_set.size()){
 						Actives->dead_set = std::set<int> (Actives->dead_nodes.begin(), Actives->dead_nodes.end()); //inefficient (O(n logn)) but only occurs if new processes failed
 					}
-
+					//std::cout <<"Command tag: " << buf[0] << "\n";
 					if(buf[0] == 1){ //Shrink next
 						MPI_Comm EmptyComm;
 						MPI_Comm_split(Actives->c_comm, MPI_UNDEFINED, 0, &EmptyComm);
@@ -851,6 +857,7 @@ void simft::Sim_FT_kill_me(){
 				}
 				simft::Sim_FT_Custom_Ireduce(Actives, true);
 			}else{
+
 				//if process is root, first receive Ireduce. After it is completed, initiate broadcast (immediately finished)
 				if(simft::Sim_FT_Custom_Ireduce(Actives, true)){
 					count = 4;
@@ -948,7 +955,7 @@ void simft::Sim_FT_kill_me(){
 					}
 				}
 			}
-
+			//printf("Dead background operations \n");
 			simft::Sim_FT_Perform_background_operations_dead(Actives);
 		}
 	}
@@ -1078,7 +1085,7 @@ int simft::Sim_FT_Custom_Reduce(int Send_Vector[], simft::Sim_FT_MPI_Comm f_comm
 	}else{
 		ReduceTag = SIM_FT_REDUCE_TAG_REVOKED;
 	}
-
+	//std::cout << "Reduce Tag " << ReduceTag <<" of rank: " << f_comm->comm_rank << " revoked: " << Revoked << "\n";
 	MPI_Comm comm = f_comm->c_comm_copy_coll;
 
 	Send_Vector[0] = 0;
@@ -1105,7 +1112,7 @@ int simft::Sim_FT_Custom_Reduce(int Send_Vector[], simft::Sim_FT_MPI_Comm f_comm
 		for(unsigned int i = 0; i < f_comm->Bcast_Successors.size(); i++){
 			if(!Received[i]){
 				MPI_Iprobe(f_comm->Bcast_Successors[i], ReduceTag, comm, &Recv_Flag, &Reduce_Status);
-
+				//std::cout << "Bcast Successor " << f_comm->Bcast_Successors[i] <<" of rank " << f_comm->comm_rank << "\n";
 				if(Recv_Flag == 1){
 
 					if(count == 0){ //"deprecated", should not happen, because size of reduce msg is at least 3 int!
@@ -1154,21 +1161,28 @@ bool simft::Sim_FT_Custom_Ireduce(simft::Sim_FT_MPI_Comm f_comm, bool proc_dead)
 	if(f_comm->Ireduce_Active == true) return false;
 	int Recv_Flag = 0;
 	MPI_Status Reduce_Status;
+  int ReduceTag=f_comm->ReduceTag;
+  //std::cout << "Reduce Tag: " << f_comm->ReduceTag << "\n";
 
+	if( !f_comm->comm_revoked){
+    ReduceTag = SIM_FT_REDUCE_TAG;
+  }else{
+    ReduceTag = SIM_FT_REDUCE_TAG_REVOKED;
+  }
 	//check all successors for incoming reduce messages
 	for(unsigned int i = 0; i < f_comm->Bcast_Successors.size(); i++){
 
 		if(!f_comm->Received[i]){
 
 
-			MPI_Iprobe(f_comm->Bcast_Successors[i], f_comm->ReduceTag, f_comm->c_comm_copy_coll, &Recv_Flag, &Reduce_Status);
+			MPI_Iprobe(f_comm->Bcast_Successors[i], ReduceTag, f_comm->c_comm_copy_coll, &Recv_Flag, &Reduce_Status);
 
 			if(Recv_Flag == 1){
 
 				std::vector<int> Receive_Vector;
 				Receive_Vector.resize(4);
 
-				MPI_Recv(&Receive_Vector[0], 4, MPI_INT, f_comm->Bcast_Successors[i], f_comm->ReduceTag, f_comm->c_comm_copy_coll, MPI_STATUS_IGNORE);
+				MPI_Recv(&Receive_Vector[0], 4, MPI_INT, f_comm->Bcast_Successors[i], ReduceTag, f_comm->c_comm_copy_coll, MPI_STATUS_IGNORE);
 
 
 				//call reduce function
@@ -1182,7 +1196,7 @@ bool simft::Sim_FT_Custom_Ireduce(simft::Sim_FT_MPI_Comm f_comm, bool proc_dead)
 	}
 
 	simft::Sim_FT_Check_comm_revoked(f_comm);
-
+	//std::cout << "Receive count_ " << f_comm->Received_Cnt << " Successor count " << f_comm->Bcast_Successors.size();
 
 	if(f_comm->Received_Cnt < f_comm->Bcast_Successors.size()){
 		//not all successors have sent reduce messages, wait
@@ -1198,12 +1212,13 @@ bool simft::Sim_FT_Custom_Ireduce(simft::Sim_FT_MPI_Comm f_comm, bool proc_dead)
 			MPI_Request Send_Request;
 
 			//use the Bcast-topology to get the processes' predecessor
-			MPI_Isend(&f_comm->Last_Send_Vector[0], f_comm->Last_Send_Vector.size(), MPI_INT, f_comm->Bcast_Predecessor, f_comm->ReduceTag, f_comm->c_comm_copy_coll, &Send_Request);
+			MPI_Isend(&f_comm->Last_Send_Vector[0], f_comm->Last_Send_Vector.size(), MPI_INT, f_comm->Bcast_Predecessor, ReduceTag, f_comm->c_comm_copy_coll, &Send_Request);
 			MPI_Request_free(&Send_Request);
 		}
 
 		f_comm->Ireduce_Active = true;
-
+		//std::cout << "Active Ireduce \n";
+		//std::cout << "Send command is " << f_comm->Send_Vector[3] << "\n";
 		/*
 		 * Custom Ireduce is finished, clear variables for a possible next Ireduce
 		 */
