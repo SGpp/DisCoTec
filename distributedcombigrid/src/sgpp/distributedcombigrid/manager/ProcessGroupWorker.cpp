@@ -272,7 +272,9 @@ void ProcessGroupWorker::ready() {
     }
 
     // all tasks finished -> group waiting
-    status_ = PROCESS_GROUP_WAIT;
+    if(status_ != PROCESS_GROUP_FAIL){
+      status_ = PROCESS_GROUP_WAIT;
+    }
   }
 
   // send ready status to manager
