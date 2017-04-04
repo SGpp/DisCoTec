@@ -311,8 +311,21 @@ CombigridDict LP_OPT_INTERP::get_results( LevelVectorList& recomp_faults ) const
 
     // Determine tasks to be recomputed
     for (auto fault : recompute_faults){
-      if (output[fault] != 0){
-        recomp_faults.push_back(fault);
+      LevelVector fault_complete(i_dim);
+      int i=0;
+      for (int j = 0; j < i_dim; ++j) {
+        if(std::find(ignored_dimensions.begin(), ignored_dimensions.end(), j) != ignored_dimensions.end()){
+          fault_complete[j]=input_faults[0][j];
+        }
+        else{
+          fault_complete[j] = fault[i];
+          i++;
+        }
+
+      }
+      std::cout << "fault complete" << fault_complete << "\n";
+      if (output[fault_complete] != 0){
+        recomp_faults.push_back(fault_complete);
       }
     }
     recompute_faults.clear();
@@ -322,7 +335,7 @@ CombigridDict LP_OPT_INTERP::get_results( LevelVectorList& recomp_faults ) const
     std::cout << "Faults to be recomputed:" << std::endl;
     for ( size_t i = 0; i < recomp_faults.size(); ++i) {
       std::cout << "[";
-      for (int j = 0; j < new_dim; ++j) {
+      for (int j = 0; j < i_dim; ++j) {
         std::cout << recomp_faults[i][j] << " ";
       }
       std::cout << "], ";
