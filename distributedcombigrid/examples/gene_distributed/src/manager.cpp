@@ -153,10 +153,10 @@ int main(int argc, char** argv) {
     FaultsInfo faultsInfo;
 
     faultsInfo.numFaults_ = cfg.get<int>("faults.num_faults");
-
-    faultsInfo.iterationFaults_.resize(faultsInfo.numFaults_);
-    faultsInfo.globalRankFaults_.resize(faultsInfo.numFaults_);
-
+    if(faultsInfo.numFaults_>=0){
+      faultsInfo.iterationFaults_.resize(faultsInfo.numFaults_);
+      faultsInfo.globalRankFaults_.resize(faultsInfo.numFaults_);
+    }
     if( faultsInfo.numFaults_ > 0 ){
       cfg.get<std::string>("faults.iteration_faults") >> faultsInfo.iterationFaults_;
       cfg.get<std::string>("faults.global_rank_faults") >> faultsInfo.globalRankFaults_;
