@@ -232,7 +232,7 @@ int main(int argc, char** argv) {
       FaultCriterion *faultCrit;
       //create fault criterion
       if(faultsInfo.numFaults_ < 0){
-        faultCrit = new WeibullFaults(0.7, 1000, ncombi);
+        faultCrit = new WeibullFaults(0.7, 1000, ncombi, true);
       }
       else{ //do not use faults
         faultCrit = new StaticFaults(faultsInfo);

@@ -107,7 +107,7 @@ void GeneTask::decideToKill(){
   //theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
   duration<real> dur = high_resolution_clock::now() - startTimeIteration_;
   real t_iter = dur.count();
-  std::cout << "Current iteration took " << t_iter << "\n";
+  //std::cout << "Current iteration took " << t_iter << "\n";
 
   //theStatsContainer()->setTimerStart("computeIterationRank" + std::to_string(globalRank));
 
@@ -394,14 +394,14 @@ void GeneTask::initDFG( CommunicatorType comm,
                         std::vector<IndexVector>& decomposition ){
   // this is the clean version. however requires creation of dfg before each
   // combination step
-
+/*
   if( dfg_ != NULL )
     delete dfg_;
 
   dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
       this->getBoundary(), p_, false, decomposition );
+*/
 
-  /*
   // todo: keep in mind
   // in this version the dfg is only created once. this only works if always exactly
   // the same set of processes is used by gene
@@ -410,7 +410,7 @@ void GeneTask::initDFG( CommunicatorType comm,
     dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
         this->getBoundary(), p_, false, decomposition );
   }
-  */
+  //std::cout << "initDFG \n";
 }
 
 

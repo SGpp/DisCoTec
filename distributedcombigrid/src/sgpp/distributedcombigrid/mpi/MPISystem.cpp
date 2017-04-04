@@ -294,7 +294,7 @@ void MPISystem::recoverCommunicators( bool groupAlive ){
   // revoke commmworld
   theStatsContainer()->setTimerStart("recoverComm-revoke");
   //WORLD_MANAGER_EXCLUSIVE_SECTION{
-    MPI_Comm_revoke( theMPISystem()->getWorldCommFT() );
+   //MPI_Comm_revoke( theMPISystem()->getWorldCommFT() );
   //}
   theStatsContainer()->setTimerStop("recoverComm-revoke");
   //std::cout << "revoked MPI comm \n";

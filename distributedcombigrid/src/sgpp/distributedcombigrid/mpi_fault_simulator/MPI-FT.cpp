@@ -62,6 +62,7 @@ int simft::Sim_FT_Check_dead_processes(simft::Sim_FT_MPI_Comm f_comm, simft::Nex
 	/*
 	 * Step1: reduce count of dead processes to root
 	 */
+	//std::cout << " size of comm " << f_comm->comm_size << "\n";
 	simft::Sim_FT_Custom_Reduce(Reduce_Vector, f_comm, option, revokedAck);
 
 	if(f_comm->comm_rank == f_comm->Root_Rank){
@@ -264,7 +265,7 @@ void simft::Sim_FT_Perform_background_operations(simft::Sim_FT_MPI_Comm f_comm, 
 				MPI_Isend(&Revoked_Char, 1, MPI_CHAR, Alive_Status.MPI_SOURCE, Alive_Status.MPI_TAG, f_comm->c_comm_copy_p2p, &Send_Request);
 				MPI_Request_free(&Send_Request);
 			}
-
+			std::cout << "sending revoked char to processor: " << Alive_Status.MPI_SOURCE << " size: " << f_comm->comm_size << "\n";
 		}
 
 		//check for incoming reduce from Check_dead_processes on the non-revoked tag and respond with a bcast-message with NextOp "comm is revoked"
@@ -273,6 +274,7 @@ void simft::Sim_FT_Perform_background_operations(simft::Sim_FT_MPI_Comm f_comm, 
 		MPI_Iprobe(MPI_ANY_SOURCE, SIM_FT_REDUCE_TAG, f_comm->c_comm_copy_coll, &Recv_Flag, &Recv_Status);
 
 		if(Recv_Flag == 1){
+		  std::cout << "Answering with revoke comm to rank: " << Recv_Status.MPI_SOURCE << " from rank: " << f_comm->comm_rank << " size " << f_comm->comm_size << "\n";
 			std::vector <int> Receive_Vector;
 			int count;
 			MPI_Get_count(&Recv_Status, MPI_INT, &count);
@@ -625,6 +627,8 @@ bool simft::Sim_FT_Check_comm_revoked(simft::Sim_FT_MPI_Comm f_comm){
 			if(Revoke_Flag == 1){
 				//receive probed revoke message
 				MPI_Recv(0, 0, MPI_CHAR, Revoke_Status.MPI_SOURCE, SIM_FT_REVOKE_TAG, f_comm->c_comm_copy, MPI_STATUS_IGNORE);
+        std::cout << "received revoke message from: " <<Revoke_Status.MPI_SOURCE << " I am rank: "<< f_comm->comm_rank << " size: " << f_comm->comm_size<<"\n";
+
 				if(f_comm->comm_revoked == false){
 
 					//Comm not revoked yet, initialize background revoke broadcast
@@ -659,6 +663,7 @@ bool simft::Sim_FT_Check_comm_revoked(simft::Sim_FT_MPI_Comm f_comm){
 			if(BCast_Ret){
 				//broadcast finished, set comm to revoked
 				if(BCast_Revoke_Message[0] == 2){
+				  std::cout << "revoking communicator at rank: "<< f_comm->comm_rank << " size: " << f_comm->comm_size << "\n";
 					f_comm->comm_revoked = true;
 					return true;
 				}else{
@@ -680,9 +685,13 @@ void simft::Sim_FT_Send_revoke_message(simft::Sim_FT_MPI_Comm f_comm){
 	}else{
 		MPI_Request Revoke_Req;
 		MPI_Isend(0, 0, MPI_CHAR, f_comm->Root_Rank, SIM_FT_REVOKE_TAG, f_comm->c_comm_copy, &Revoke_Req);
+		//std::cout << "sending revoke message to root: " << f_comm->Root_Rank << " from rank: " << f_comm->comm_rank << "\n";
 		MPI_Request_free(&Revoke_Req);
 
 		//do not set f_comm->comm_revoked to true right now, instead wait to receive a revoke bcast and only then set it to true!
+		/*if(f_comm->comm_rank != f_comm->Root_Rank){
+		  f_comm->comm_revoked = true; //we do it because of dead locks
+		}*/
 	}
 }
 
@@ -798,6 +807,7 @@ void simft::Sim_FT_kill_me(){
 				Actives = nullptr;
 				break;
 			}
+			//std::cout << "revoked: " << Actives->comm_revoked <<" size: " << Actives->comm_size << " name: "  << Actives << "rank" << Actives->comm_rank << "\n";
 			if(Actives->comm_revoked){ //change tags if communicator is revoked
         Actives->ReduceTag = SIM_FT_REDUCE_TAG_REVOKED;
         Actives->DeadTag = SIM_FT_DEAD_TAG_REVOKED;
@@ -1129,7 +1139,6 @@ int simft::Sim_FT_Custom_Reduce(int Send_Vector[], simft::Sim_FT_MPI_Comm f_comm
 				}
 			}
 		}
-
 		simft::Sim_FT_Perform_background_operations( true );
 
 	}
@@ -1140,6 +1149,7 @@ int simft::Sim_FT_Custom_Reduce(int Send_Vector[], simft::Sim_FT_MPI_Comm f_comm
 	}
 
 	if(f_comm->comm_rank != f_comm->Root_Rank){
+	  //std::cout << "sending from rank " << f_comm->comm_rank << " to: " << f_comm->Bcast_Predecessor << " size: " << f_comm->comm_size << " revoked: " << Revoked <<"\n";
 		MPI_Request Send_Request;
 		//use the Bcast-topology to find a predecessor
 		MPI_Isend(&Send_Vector[0], 4, MPI_INT, f_comm->Bcast_Predecessor, ReduceTag, comm, &Send_Request);
@@ -1162,13 +1172,14 @@ bool simft::Sim_FT_Custom_Ireduce(simft::Sim_FT_MPI_Comm f_comm, bool proc_dead)
 	int Recv_Flag = 0;
 	MPI_Status Reduce_Status;
   int ReduceTag=f_comm->ReduceTag;
-  //std::cout << "Reduce Tag: " << f_comm->ReduceTag << "\n";
-
+/*
 	if( !f_comm->comm_revoked){
     ReduceTag = SIM_FT_REDUCE_TAG;
   }else{
     ReduceTag = SIM_FT_REDUCE_TAG_REVOKED;
-  }
+  }*/
+  //std::cout << "Reduce Tag: " << ReduceTag << "\n";
+
 	//check all successors for incoming reduce messages
 	for(unsigned int i = 0; i < f_comm->Bcast_Successors.size(); i++){
 
@@ -1181,7 +1192,9 @@ bool simft::Sim_FT_Custom_Ireduce(simft::Sim_FT_MPI_Comm f_comm, bool proc_dead)
 
 				std::vector<int> Receive_Vector;
 				Receive_Vector.resize(4);
-
+				/*if(f_comm->comm_rank == 1){
+				  std::cout << "received from " << f_comm->Bcast_Successors[i] << " size: "<< f_comm->comm_size << "\n";
+				}*/
 				MPI_Recv(&Receive_Vector[0], 4, MPI_INT, f_comm->Bcast_Successors[i], ReduceTag, f_comm->c_comm_copy_coll, MPI_STATUS_IGNORE);
 
 
@@ -1196,7 +1209,7 @@ bool simft::Sim_FT_Custom_Ireduce(simft::Sim_FT_MPI_Comm f_comm, bool proc_dead)
 	}
 
 	simft::Sim_FT_Check_comm_revoked(f_comm);
-	//std::cout << "Receive count_ " << f_comm->Received_Cnt << " Successor count " << f_comm->Bcast_Successors.size();
+	//std::cout << "Receive count " << f_comm->Received_Cnt << " Successor count " << f_comm->Bcast_Successors.size()<< " rank: " << f_comm->comm_rank << " size: " << f_comm->comm_size <<"\n";
 
 	if(f_comm->Received_Cnt < f_comm->Bcast_Successors.size()){
 		//not all successors have sent reduce messages, wait
@@ -1217,7 +1230,8 @@ bool simft::Sim_FT_Custom_Ireduce(simft::Sim_FT_MPI_Comm f_comm, bool proc_dead)
 		}
 
 		f_comm->Ireduce_Active = true;
-		//std::cout << "Active Ireduce \n";
+		//std::cout << "Active Ireduce" << f_comm << " " << f_comm->comm_rank <<" rvoked: " << f_comm->comm_revoked <<" size " << f_comm->comm_size <<"\n";
+		//std::cout << "sending to " << f_comm->Bcast_Predecessor <<" size_ " << f_comm->comm_size <<"\n";
 		//std::cout << "Send command is " << f_comm->Send_Vector[3] << "\n";
 		/*
 		 * Custom Ireduce is finished, clear variables for a possible next Ireduce
