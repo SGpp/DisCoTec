@@ -488,10 +488,9 @@ void ProcessGroupWorker::searchSDC(){
       theMPISystem()->getLocalComm() );
 
   std::vector<int> levelsSDC;
-  compareSolutions( combiParameters_.getDim(), levelsSDC, method );
-//  compareSolutions( 2, levelsSDC, method );
+  compareSolutions( static_cast<int>(combiParameters_.getDim()), levelsSDC, method );
 
-  int numLocalSDC = levelsSDC.size();
+  int numLocalSDC = static_cast<int>(levelsSDC.size());
   int numGlobalSDC;
   MPI_Allreduce( &numLocalSDC, &numGlobalSDC, 1, MPI_INT, MPI_SUM, theMPISystem()->getLocalComm());
   if ( numGlobalSDC > 0 ){
@@ -503,7 +502,7 @@ void ProcessGroupWorker::searchSDC(){
     } else {
       MASTER_EXCLUSIVE_SECTION{
         levelsSDC.resize(tasks_.size());
-        MPI_Recv( &levelsSDC[0], tasks_.size(), MPI_INT, MPI_ANY_SOURCE, infoTag, theMPISystem()->getLocalComm(), &statusSDC );
+        MPI_Recv( &levelsSDC[0], static_cast<int>(tasks_.size()), MPI_INT, MPI_ANY_SOURCE, infoTag, theMPISystem()->getLocalComm(), &statusSDC );
         MPI_Get_count( &statusSDC, MPI_INT, &numGlobalSDC );
         levelsSDC.resize(numGlobalSDC);
       }
@@ -522,15 +521,14 @@ void ProcessGroupWorker::compareSolutions( int numNearestNeighbors, std::vector<
     delete combinedUniDSG_;
 
   // erzeug dsg
-//  DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = new DistributedSparseGridUniform<CombiDataType>(
-//      combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
-//      combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
   combinedUniDSG_ = new DistributedSparseGridUniform<CombiDataType>(
       combiParameters_.getDim(), combiParameters_.getLMax(), combiParameters_.getLMin(),
       combiParameters_.getBoundary(), theMPISystem()->getLocalComm());
-DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
-//  MPI_File_open(theMPISystem()->getLocalComm(), "out/all-betas-0.txt", MPI_MODE_CREATE|MPI_MODE_RDWR, MPI_INFO_NULL, &betasFile_ );
 
+  // We use this DSG to compare component solutions and search for SDC
+  DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
+
+  // We work in the hierarchical basis, so hierarchization is now done here
   for (auto t : tasks_){
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
     DistributedHierarchization::hierarchize<CombiDataType>(dfg);
@@ -540,9 +538,8 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
   if ( tasks_.size() == 1 )
     return;
 
-  /* Generate all pairs of grids */
+  // Generate all pairs of grids
   std::vector<std::vector<Task*>> allPairs;
-
   generatePairs( numNearestNeighbors, allPairs );
 
   std::vector<CombiDataType> allBetas;
@@ -550,6 +547,8 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
   std::vector<LevelVector> allSubs;
   std::vector<size_t> allJs;
 
+  // Iterate throuh all pairs of grids. For each pair, we store the gridpoint with
+  // the largest difference
   for (auto pair : allPairs){
 
     DistributedFullGrid<CombiDataType>& dfg_t = pair[0]->getDistributedFullGrid();
@@ -579,7 +578,7 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
     allSubs.push_back( subMax );
     allJs.push_back( jMax );
 
-    // Reset sparse grid to zero
+    // Reset sparse grid to zero before continuing to next pair
     for (size_t i = 0; i < SDCUniDSG->getNumSubspaces(); ++i){
       auto subData = SDCUniDSG->getData(i);
       auto subSize = SDCUniDSG->getDataSize(i);
@@ -588,11 +587,13 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
     }
   }
 
+  // We gather all beta values across processes in a group and store only the largest per pair
   std::vector<CombiDataType> allBetasReduced;
   allBetasReduced.resize(allBetas.size());
 
   CombiCom::BetasReduce( allBetas, allBetasReduced, theMPISystem()->getLocalComm() );
 
+  // Largest beta in a given group -> potential candidate for SDC
   auto globalBetaMax = std::max_element(allBetasReduced.begin(), allBetasReduced.end(),
       [](CombiDataType a, CombiDataType b){ return std::abs(a) < std::abs(b); } );
 
@@ -607,10 +608,11 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
     size_t indMax = std::distance(allBetas.begin(), b);
 
     LevelVector subMax = allSubs[indMax];
-    std::cout<<"Subspace with SDC = "<<subMax<<std::endl;
+    std::cout<< "Subspace with potential SDC = "<<subMax<<std::endl;
 
     size_t jMax = allJs[indMax];
 
+    // First strategy: compare function values directly and try to fit a constant
     if ( method == COMPARE_VALUES ) {
 
       for (auto t: tasks_){
@@ -642,6 +644,8 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
         robustRegressionValues( levelsSDC );
       }
     }
+
+    // Second strategy: compare beta values and try to fit an error expansion model
     if ( method == COMPARE_PAIRS ) {
 
       for (auto pair : allPairs){
@@ -672,13 +676,9 @@ DistributedSparseGridUniform<CombiDataType>* SDCUniDSG = combinedUniDSG_;
   }
   // todo: Barrier needed?
   MPI_Barrier(theMPISystem()->getLocalComm());
-//  for (auto t : tasks_){
-//    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-//    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
-//  }
 }
 
-void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms ){
+void ProcessGroupWorker::computeStandardizedResiduals( gsl_multifit_robust_workspace* regressionWsp, gsl_vector* r_stud, gsl_vector* r_lms ){
 
   size_t p = regressionWsp->p;
   size_t n = regressionWsp->n;
@@ -689,8 +689,6 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
   gsl_vector *weights = gsl_vector_alloc( n );
   gsl_vector *ones = gsl_vector_alloc( n );
 
-  gsl_multifit_robust_stats regressionStats = gsl_multifit_robust_statistics( regressionWsp );
-
   gsl_vector_memcpy(r, r_stud);
   gsl_vector_memcpy(r_stand, r_stud);
   gsl_vector_memcpy(r_lms, r_stud);
@@ -698,19 +696,14 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
   for (size_t i = 0; i < r->size; ++i)
     gsl_vector_set(r2, i, std::pow(gsl_vector_get(r, i),2));
 
-  std::cout<<"\nStud. residuals:\n";
-  for(size_t i = 0; i < regressionStats.r->size; ++i)
-    std::cout<<r_stud->data[i]<<" ";
-
   gsl_vector_memcpy(r2_sorted, r2);
   gsl_sort_vector(r2_sorted);
 
+  // Median of residuals squared
   double median_r2 = gsl_stats_median_from_sorted_data(r2_sorted->data, r2_sorted->stride, r2_sorted->size);
-  std::cout<<"\nMedian r2 = "<<median_r2<<std::endl;
 
   // Preliminary scale estimate
   double s0 = 1.4826*( 1 + 5.0/(n-p-1))*(std::sqrt(median_r2));
-  std::cout<<"s0 = "<<s0<<std::endl;
 
   // Standardized residuals
   gsl_vector_scale(r_stand, 1.0/s0);
@@ -718,18 +711,8 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
   for (size_t i = 0; i < r_stand->size; ++i)
     gsl_vector_set(r_stand, i, fabs(gsl_vector_get(r_stand, i)));
 
-  // Largest standardized residual
-//  double r_max = gsl_vector_max(r_stand);
-//  size_t r_max_index = gsl_vector_max_index(r_stand);
-
-  // Threshold for residuals
+  // Threshold for outliers
   double eps = 2.5;
-
-  // Weight for max residual: here we assume that there can
-  // only be one outlier (the one with the largest residual)
-//  gsl_vector_set_all( weights, 1 );
-//  if(r_max > eps)
-//      gsl_vector_set(weights, r_max_index, 0);
 
   // Weights for each residual: here we assume that the can
   // be multiple residuals
@@ -749,11 +732,7 @@ void ProcessGroupWorker::computeLMSResiduals( gsl_multifit_robust_workspace* reg
   gsl_blas_ddot( weights, ones, &sum );
   double s_star = std::sqrt(prod/(sum-p));
 
-  std::cout<<"s_star = "<<s_star<<std::endl;
   gsl_vector_scale( r_lms, 1.0/s_star );
-  std::cout<<"LMS Residuals:\n";
-  for(size_t i = 0; i < r_lms->size; ++i)
-    std::cout<<r_lms->data[i]<<" ";
 }
 
 void ProcessGroupWorker::generatePairs( int numNearestNeighbors, std::vector<std::vector<Task*>> &allPairs ){
@@ -784,8 +763,6 @@ void ProcessGroupWorker::generatePairs( int numNearestNeighbors, std::vector<std
       currentPair.push_back(s);
 
       if(std::find(allPairs.begin(), allPairs.end(), currentPair) == allPairs.end()
-          //          && numPairs[s->getLevelVector()] < numNearestNeighbors
-          //          && numPairs[t->getLevelVector()] < numNearestNeighbors
       ){
         allPairs.push_back({currentPair[1],currentPair[0]});
         numPairs[s->getLevelVector()]++;
@@ -806,7 +783,6 @@ void ProcessGroupWorker::generatePairs( int numNearestNeighbors, std::vector<std
       std::sort(levels.begin(), levels.end(), [s](LevelVector const& a, LevelVector const& b) {
         return l1(a - s->getLevelVector()) < l1(b - s->getLevelVector());
       });
-
 
       for( size_t t_i = 1; t_i < levels.size(); ++t_i ){
         std::vector<Task*> currentPair;
@@ -856,10 +832,6 @@ void ProcessGroupWorker::robustRegressionPairs( std::vector<int> &levelsSDC ){
     row++;
   }
 
-  std::cout<<"Index Map:"<<std::endl;
-  for(auto ii : indexMap)
-    std::cout<<ii.first<<": "<<ii.second<<std::endl;
-
   // Number of measurements (beta values)
   size_t n = betas_.size();
 
@@ -881,7 +853,6 @@ void ProcessGroupWorker::robustRegressionPairs( std::vector<int> &levelsSDC ){
   gsl_vector *y = gsl_vector_alloc( n );
   gsl_vector *c = gsl_vector_alloc( p );
   gsl_vector *r_stud = gsl_vector_alloc( n );
-  gsl_vector *rt = gsl_vector_alloc( n );
   gsl_matrix *cov = gsl_matrix_alloc( p, p );
 
   // Initialize matrix with zeros
@@ -896,11 +867,11 @@ void ProcessGroupWorker::robustRegressionPairs( std::vector<int> &levelsSDC ){
     CombiDataType beta = entry.second;
 
     for( size_t di = 0; di < dim; ++di){
-      CombiDataType ht_i = 1.0/pow(2.0,key_t[di]);
+      CombiDataType ht_i = 1.0/pow(2.0,static_cast<double>(key_t[di]));
       idx_Di = di*numIndices + indexMap[key_t[di]];
       gsl_matrix_set( X, row, idx_Di, pow(ht_i,ex) );
 
-      CombiDataType hs_i = 1.0/pow(2.0,key_s[di]);
+      CombiDataType hs_i = 1.0/pow(2.0,static_cast<double>(key_s[di]));
       idx_Di = di*numIndices + indexMap[key_s[di]];
       val = gsl_matrix_get( X, row, idx_Di );
       gsl_matrix_set( X, row, idx_Di, val - pow(hs_i,ex) );
@@ -914,18 +885,6 @@ void ProcessGroupWorker::robustRegressionPairs( std::vector<int> &levelsSDC ){
   gsl_set_error_handler_off();
   gsl_multifit_robust( X, y, c, cov, regressionWsp );
 
-  gsl_vector_memcpy(rt,y);
-
-  gsl_blas_dgemv(CblasNoTrans, 1, X, c, 0.0, rt);
-
-  std::cout<<"\nMeasured yi:\n";
-  for(size_t i = 0; i < y->size; ++i)
-    std::cout<<y->data[i]<<" ";
-
-  std::cout<<"\nCalculated yi:\n";
-  for(size_t i = 0; i < rt->size; ++i)
-    std::cout<<rt->data[i]<<" ";
-
   gsl_multifit_robust_residuals(X, y, c, r_stud, regressionWsp);
 
   // Before checking the residuals, check the data for extremely large values
@@ -938,33 +897,17 @@ void ProcessGroupWorker::robustRegressionPairs( std::vector<int> &levelsSDC ){
     detectOutliers( r_stud->data, levelsSDC, eps, COMPARE_PAIRS );
   }
 
-  // Write pairs and their beta values to file
-  std::stringstream buf;
-  buf<<n<< std::endl;
+  // Print betas and resiguals
   row = 0;
   for ( auto const &entry : betas_ ){
     LevelVector key_t = entry.first.first;
     LevelVector key_s = entry.first.second;
     CombiDataType beta = entry.second;
     CombiDataType res = r_stud->data[row];
-    buf<<key_t <<","<< key_s <<","<<beta<<","<< res <<std::endl;
-//    MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
-//    MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
-    std::cout<<buf.str();
-    buf.str("");
+    std::cout<<key_t <<","<< key_s <<","<<beta<<","<< res <<std::endl;
     row++;
   }
 
-  // Write regression coefficients to file
-  buf << c->size << std::endl;
-  for( size_t i = 0; i < c->size; ++i){
-    buf << c->data[i]<<std::endl;
-//    MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
-//    MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
-    buf.str("");
-  }
-
-//  MPI_File_close(&betasFile_);
   gsl_matrix_free(X);
   gsl_matrix_free(cov);
   gsl_vector_free(y);
@@ -990,7 +933,6 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   gsl_vector *c = gsl_vector_alloc( p );
   gsl_vector *r_lms = gsl_vector_alloc( n );
   gsl_vector *r_stud = gsl_vector_alloc( n );
-  gsl_vector *rt = gsl_vector_alloc( n );
   gsl_matrix *cov = gsl_matrix_alloc( p, p );
 
   // Initialize matrix with ones
@@ -1015,21 +957,9 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
   gsl_set_error_handler_off();
   gsl_multifit_robust( X, y, c, cov, regressionWsp );
 
-  gsl_vector_memcpy(rt,y);
-
-  gsl_blas_dgemv(CblasNoTrans, 1, X, c, 0.0, rt);
-
-  std::cout<<"\nMeasured yi:\n";
-  for(size_t i = 0; i < y->size; ++i)
-    std::cout<<y->data[i]<<" ";
-
-  std::cout<<"\nCalculated yi:\n";
-  for(size_t i = 0; i < rt->size; ++i)
-    std::cout<<rt->data[i]<<" ";
-
   gsl_multifit_robust_residuals(X, y, c, r_stud, regressionWsp);
 
-  computeLMSResiduals( regressionWsp, regressionWsp->r, r_lms );
+  computeStandardizedResiduals( regressionWsp, regressionWsp->r, r_lms );
 
   // Now we can check for large residuals
   if(levelsSDC.size() == 0){
@@ -1037,32 +967,16 @@ void ProcessGroupWorker::robustRegressionValues( std::vector<int> &levelsSDC ){
     detectOutliers( r_lms->data, levelsSDC, eps, COMPARE_VALUES, y->data[0] );
   }
 
-  // Write pairs and their beta values to file
-  std::stringstream buf;
-  buf<<n<< std::endl;
+  // Print data and residuals
   row = 0;
   for ( auto const &entry : subspaceValues_){
     LevelVector key = entry.first;
     CombiDataType maxVal = entry.second;
     CombiDataType res = r_lms->data[row];
-    buf<<key <<","<<maxVal<<","<< res <<std::endl;
-//    MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
-//    MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
-    std::cout<<buf.str();
-    buf.str("");
+    std::cout<<key <<","<<maxVal<<","<< res <<std::endl;
     row++;
   }
 
-  // Write regression coefficients to file
-  buf << c->size << std::endl;
-  for( size_t i = 0; i < c->size; ++i){
-    buf << c->data[i]<<std::endl;
-//    MPI_File_seek(betasFile_, 0, MPI_SEEK_END);
-//    MPI_File_write(betasFile_, buf.str().c_str(), buf.str().size(), MPI_CHAR, MPI_STATUS_IGNORE);
-    buf.str("");
-  }
-
-//  MPI_File_close(&betasFile_);
   gsl_matrix_free(X);
   gsl_matrix_free(cov);
   gsl_vector_free(y);
@@ -1077,7 +991,6 @@ void ProcessGroupWorker::detectOutliers( double* data, std::vector<int> &levelsS
     LevelVector key = t->getLevelVector();
     mapSDC[key] = 0;
   }
-
 
   if ( method == COMPARE_PAIRS ) {
     size_t numSDCPairs = 0;
@@ -1119,15 +1032,15 @@ void ProcessGroupWorker::detectOutliers( double* data, std::vector<int> &levelsS
         levelsSDC.push_back(id);
       }
     }
-    combineValuesFaults( levelsSDC, y );
+    // Check for false positives and remove them if it's the case
+    removeFalsePositives( levelsSDC, y );
   }
 }
 
-void ProcessGroupWorker::combineValuesFaults( std::vector<int>& faultsID, double u_robust ) {
+void ProcessGroupWorker::removeFalsePositives( std::vector<int>& faultsID, double u_robust ) {
 
   std::map<int, LevelVector> IDsToLevels = combiParameters_.getLevelsDict();
   int dim = static_cast<int>(combiParameters_.getDim());
-  int numLevels = int(combiParameters_.getNumLevels());
 
   const std::string prob_name = "interpolation based optimization";
 
@@ -1137,15 +1050,16 @@ void ProcessGroupWorker::combineValuesFaults( std::vector<int>& faultsID, double
 
   CombigridDict given_dict = combiParameters_.getCombiDict();
 
-
   std::vector<int> faultsIDCopy = faultsID;
 
+  // Iterate through tasks currently marked as outliers
   for (auto id : faultsIDCopy){
 
     LevelVectorList faultLevelVectors;
     faultLevelVectors.push_back(IDsToLevels[id]);
-    LP_OPT_INTERP opt_interp(lvlminmax,dim,GLP_MAX,given_dict,faultLevelVectors);
 
+    // Find alternative combination coefficients to exclude suspect value
+    LP_OPT_INTERP opt_interp(lvlminmax,dim,GLP_MAX,given_dict,faultLevelVectors);
     opt_interp.init_opti_prob(prob_name);
     opt_interp.set_constr_matrix();
     opt_interp.solve_opti_problem();
@@ -1157,7 +1071,7 @@ void ProcessGroupWorker::combineValuesFaults( std::vector<int>& faultsID, double
     CombiDataType ut_c = 0.0;
     CombiDataType rel_err_max = 0.10;
 
-//    for( auto const &entry : subspaceValues_){
+    // Combine values with and without the suspect
     for( auto const &entry : given_dict){
       LevelVector lvl = entry.first;
       CombiDataType u_i;
@@ -1168,17 +1082,16 @@ void ProcessGroupWorker::combineValuesFaults( std::vector<int>& faultsID, double
       u_c += given_dict[lvl]*u_i;
       ut_c += new_dict[lvl]*u_i;
     }
-    CombiDataType rel_err = std::abs( u_c - ut_c )/u_robust;
-    std::cout<<"u_c = "<<u_c<<std::endl;
-    std::cout<<"ut_c = "<<ut_c<<std::endl;
-    std::cout<<"u_robust = "<<u_robust<<std::endl;
-    std::cout<<"rel_err = "<< rel_err <<std::endl;
 
+    // Calculate relative error
+    CombiDataType rel_err = std::abs( u_c - ut_c )/u_robust;
+
+    // If relative error is small, value was a false positive (not an outlier)
+    // -> Remove ID from list of SDC IDs
     if ( rel_err < rel_err_max ){
       faultsID.erase(std::remove(faultsID.begin(), faultsID.end(), id), faultsID.end());
       std::cout<<"Removing id = "<<id<<std::endl;
     }
-
   }
 }
 } /* namespace combigrid */
