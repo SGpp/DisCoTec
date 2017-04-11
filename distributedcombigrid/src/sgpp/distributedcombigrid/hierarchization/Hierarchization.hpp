@@ -11,7 +11,7 @@
 #include "boost/lexical_cast.hpp"
 #include <cstdlib>
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 /*
  * Instead of having private static functions, I put these functions in an
@@ -82,8 +82,6 @@ class Hierarchization {
     IndexType jump;
     lldiv_t divresult;
 
-    theStatsContainer()->setTimerStart("hierarchize_dim_0");
-
     //   dimension 1 separate as start of each pole is easier to calculate
     IndexType ndim = n[0];
     IndexType nbrOfPoles = size / ndim;
@@ -106,12 +104,7 @@ class Hierarchization {
     }
 
     // end dimension 1
-    theStatsContainer()->setTimerStop("hierarchize_dim_0");
-
     for (DimType dim = 1; dim < d; dim++) { // hierarchize for all dims
-      theStatsContainer()->setTimerStart(
-        "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
-
       stride *= ndim;
       ndim = n[dim];
       jump = stride * ndim;
@@ -137,9 +130,6 @@ class Hierarchization {
           hierarchize1DUnoptimizedBoundary(fg, start, stride, ndim, dim);
         }
       }
-
-      theStatsContainer()->setTimerStop(
-        "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
 
     } // end loop over dimension 2 to d
 

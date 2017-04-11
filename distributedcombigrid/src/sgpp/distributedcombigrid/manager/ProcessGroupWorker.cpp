@@ -57,7 +57,7 @@ SignalType ProcessGroupWorker::wait() {
               signalTag,
               theMPISystem()->getGlobalComm(),
               MPI_STATUS_IGNORE);
-}
+  }
   // distribute signal to other processes of pgroup
   MPI_Bcast( &signal, 1, MPI_INT,
              theMPISystem()->getMasterRank(),
@@ -89,10 +89,14 @@ SignalType ProcessGroupWorker::wait() {
     currentTask_ = tasks_.back();
 
     // initalize task
+    Stats::startEvent("worker init");
     currentTask_->init(theMPISystem()->getLocalComm());
+    Stats::stopEvent("worker init");
 
     // execute task
+    Stats::startEvent("worker run first");
     currentTask_->run(theMPISystem()->getLocalComm());
+    Stats::stopEvent("worker run first");
 
   } else if (signal == RUN_NEXT) {
     // this should not happen
@@ -108,7 +112,9 @@ SignalType ProcessGroupWorker::wait() {
     currentTask_ = tasks_[0];
 
     // run first task
+    Stats::startEvent("worker run");
     currentTask_->run(theMPISystem()->getLocalComm());
+    Stats::stopEvent("worker run");
 
   } else if (signal == ADD_TASK) {
     std::cout << "adding a single task" << std::endl;
@@ -149,7 +155,6 @@ SignalType ProcessGroupWorker::wait() {
     // t.eval(x)
   } else if (signal == EXIT) {
 
-
   } else if (signal == SYNC_TASKS) {
     MASTER_EXCLUSIVE_SECTION {
       for (size_t i = 0; i < tasks_.size(); ++i) {
@@ -158,11 +163,16 @@ SignalType ProcessGroupWorker::wait() {
     }
   } else if (signal == COMBINE) {
 
+    Stats::startEvent("combine");
     combineUniform();
+    Stats::stopEvent("combine");
 
   } else if (signal == GRID_EVAL) {
 
+    Stats::startEvent("eval");
     gridEval();
+    Stats::stopEvent("eval");
+
     return signal;
 
   } else if (signal == COMBINE_FG) {
@@ -209,7 +219,10 @@ SignalType ProcessGroupWorker::wait() {
     return signal;
   } else if( signal == PARALLEL_EVAL ){
 
+    Stats::startEvent("parallel eval");
     parallelEval();
+    Stats::stopEvent("parallel eval");
+
   }
 
   // special solution for GENE
@@ -252,9 +265,10 @@ void ProcessGroupWorker::ready() {
 
         // set currentTask
         currentTask_ = tasks_[i];
+        Stats::startEvent("worker run");
         currentTask_->run(theMPISystem()->getLocalComm());
-
-        if( ENABLE_FT ){
+        Stats::stopEvent("worker run");
+ 	if( ENABLE_FT ){
           // with this barrier the local root but also each other process can detect
           // whether a process in the group has failed
           int err = simft::Sim_FT_MPI_Barrier( theMPISystem()->getLocalCommFT() );
@@ -342,8 +356,6 @@ void ProcessGroupWorker::combine() {
 
 void ProcessGroupWorker::combineUniform() {
   // each pgrouproot must call reduce function
-  // early exit if no tasks available
-  // todo: doesnt work, each pgrouproot must call reduce function
   assert(tasks_.size() > 0);
 
   assert( combiParametersSet_ );
@@ -354,6 +366,7 @@ void ProcessGroupWorker::combineUniform() {
 
   // the dsg can be smaller than lmax because the highest subspaces do not have
   // to be exchanged
+  // todo: use a flag to switch on/off optimized combination
   /*
   for (size_t i = 0; i < lmax.size(); ++i)
     if (lmax[i] > lmin[i])
@@ -441,7 +454,6 @@ void ProcessGroupWorker::parallelEval(){
   else
     assert( false && "not yet implemented" );
 }
-
 
 void ProcessGroupWorker::parallelEvalUniform(){
   assert(uniformDecomposition);
@@ -556,26 +568,9 @@ void ProcessGroupWorker::gridEval() {
                     theMPISystem()->getLocalComm() );
 
     MASTER_EXCLUSIVE_SECTION{
-      // todo: remove
-      // save fg file for debugging
-      //std::string tmp( "fg.dat" );
-      //fg.save( tmp );
-
-      // todo: remove. works only for small grids. also hard coded path
-      /*
-      int id = t->getID();
-      std::string path = std::string("/home/heenemo/workspace/combi-gene/distributedcombigrid/examples/gene_distributed/")
-                         + "ginstance" + boost::lexical_cast<std::string>( id )
-                         + "/fg.dat";
-      FullGrid<CombiDataType> fg_plot(dim, leval, boundary);
-      fg_plot.add( fg, 1.0 );
-      fg_plot.writePlotFile( path.c_str() );
-      */
-
       fg_red.add(fg, combiParameters_.getCoeff( t->getID() ) );
     }
   }
-
   // global reduce of f_red
   MASTER_EXCLUSIVE_SECTION {
     CombiCom::FGReduce( fg_red,
@@ -630,43 +625,4 @@ void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
   DistributedHierarchization::dehierarchize<CombiDataType>( dfg );
 }
 
-
-//  void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-//                      real coeff) {
-//    // test if dsg has already been registered
-//    if (&dsg != dsg_)
-//      registerUniformSG(dsg);
-//
-//    // create iterator for each subspace in dfg
-//    typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
-//    typename std::vector<SubspaceIterator> it_sub(
-//      subspaceAssigmentList_.size());
-//
-//    for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
-//      if (subspaceAssigmentList_[subFgId] < 0)
-//        continue;
-//
-//      IndexType subSgId = subspaceAssigmentList_[subFgId];
-//
-//      it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
-//    }
-//
-//    // loop over all grid points
-//    for (size_t i = 0; i < fullgridVector_.size(); ++i) {
-//      // get subspace_fg id
-//      size_t subFgId(assigmentList_[i]);
-//
-//      if (subspaceAssigmentList_[subFgId] < 0)
-//        continue;
-//
-//      IndexType subSgId = subspaceAssigmentList_[subFgId];
-//
-//      assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
-//
-//      // add grid point to subspace, mul with coeff
-//      *it_sub[subFgId] += coeff * fullgridVector_[i];
-//
-//      ++it_sub[subFgId];
-//    }
-//  }
 } /* namespace combigrid */

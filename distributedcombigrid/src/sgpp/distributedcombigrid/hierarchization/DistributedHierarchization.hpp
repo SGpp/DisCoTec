@@ -12,7 +12,7 @@
 
 #include "boost/lexical_cast.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
 
 using namespace combigrid;
@@ -410,11 +410,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   }
 #endif
 
-  //time to calculate dependencies
-  if (hierCount == 0)
-    theStatsContainer()->setTimerStart(
-      "calc_dependencies_dim_" + boost::lexical_cast<std::string>(dim));
-
   // create buffers for every rank
   std::vector<IndexVector> recv1dIndices(dfg.getCommunicatorSize());
   std::vector<IndexVector> send1dIndices(dfg.getCommunicatorSize());
@@ -508,10 +503,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     }
   }
 
-  if (hierCount == 0)
-    theStatsContainer()->setTimerStop(
-      "calc_dependencies_dim_" + boost::lexical_cast<std::string>(dim));
-
 #ifdef DEBUG_OUTPUT
   // print recvindices
   {
@@ -572,11 +563,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
    ofs.close();
    }*/
 
-  //time to exchange data
-  if (hierCount == 0)
-    theStatsContainer()->setTimerStart(
-      "data_transfer_dim_" + boost::lexical_cast<std::string>(dim));
-
   std::vector<MPI_Request> sendRequests;
   std::vector<MPI_Request> recvRequests;
   size_t sendcount = 0;
@@ -629,15 +615,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
             subarraySize *= subsizes[i];
 
           totalSendSize += subarraySize;
-
-          std::string valName = "subarray_send_size_dim_"
-                                + boost::lexical_cast<std::string>(dim) + "_rank_"
-                                + boost::lexical_cast<std::string>(r) + "_index_"
-                                + boost::lexical_cast<std::string>(indices[k]);
-
-          if (hierCount == 0)
-            theStatsContainer()->setValue(valName,
-                                          static_cast<double>(subarraySize * sizeof(FG_ELEMENT)));
         }
 
         // start
@@ -704,15 +681,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                     dfg.getCommunicator(), &recvRequests[recvcount+k]);
 
           {
-            std::string valName = "subarray_recv_size_dim_"
-                                  + boost::lexical_cast<std::string>(dim) + "_rank_"
-                                  + boost::lexical_cast<std::string>(r) + "_index_"
-                                  + boost::lexical_cast<std::string>(indices[k]);
-
-            if (hierCount == 0)
-              theStatsContainer()->setValue(valName,
-                                            static_cast<int>(bsize * sizeof(FG_ELEMENT)));
-
             totalRecvSize += bsize;
           }
 
@@ -731,29 +699,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
               MPI_STATUSES_IGNORE);
   MPI_Waitall(static_cast<int>(recvRequests.size()), &recvRequests.front(),
               MPI_STATUSES_IGNORE);
-  if (hierCount == 0)
-    theStatsContainer()->setTimerStop(
-      "data_transfer_dim_" + boost::lexical_cast<std::string>(dim));
 
-  {
-    std::string valName = "total_send_size_dim_"
-                          + boost::lexical_cast<std::string>(dim);
-
-    if (hierCount == 0)
-      theStatsContainer()->setValue(valName,
-                                    static_cast<double>(totalSendSize * sizeof(FG_ELEMENT)));
-
-  }
-
-  {
-    std::string valName = "total_recv_size_dim_"
-                          + boost::lexical_cast<std::string>(dim);
-
-    if (hierCount == 0)
-      theStatsContainer()->setValue(valName,
-                                    static_cast<double>(totalRecvSize * sizeof(FG_ELEMENT)));
-
-  }
 
 #ifdef DEBUG_OUTPUT
   MPI_Barrier( comm );
@@ -868,11 +814,6 @@ static void exchangeData1dDehierarchization(
   }
 #endif
 
-  //time to calculate dependencies
-  if (hierCount == 0)
-    theStatsContainer()->setTimerStart(
-      "calc_dependencies_dim_" + boost::lexical_cast<std::string>(dim));
-
   // create buffers for every rank
   std::vector<IndexVector> recv1dIndices(dfg.getCommunicatorSize());
   std::vector<IndexVector> send1dIndices(dfg.getCommunicatorSize());
@@ -908,10 +849,6 @@ static void exchangeData1dDehierarchization(
       tmp.resize(std::distance(tmp.begin(), it));
     }
   }
-
-  if (hierCount == 0)
-    theStatsContainer()->setTimerStop(
-      "calc_dependencies_dim_" + boost::lexical_cast<std::string>(dim));
 
 #ifdef DEBUG_OUTPUT
   MPI_Barrier( comm );
@@ -975,11 +912,6 @@ static void exchangeData1dDehierarchization(
    ofs.close();
    }*/
 
-  //time to exchange data
-  if (hierCount == 0)
-    theStatsContainer()->setTimerStart(
-      "data_transfer_dim_" + boost::lexical_cast<std::string>(dim));
-
   std::vector<MPI_Request> sendRequests;
   std::vector<MPI_Request> recvRequests;
   size_t sendcount = 0;
@@ -1032,16 +964,6 @@ static void exchangeData1dDehierarchization(
             subarraySize *= subsizes[i];
 
           totalSendSize += subarraySize;
-
-          std::string valName = "subarray_send_size_dim_"
-                                + boost::lexical_cast<std::string>(dim) + "_rank_"
-                                + boost::lexical_cast<std::string>(r) + "_index_"
-                                + boost::lexical_cast<std::string>(indices[k]);
-
-          if (hierCount == 0)
-            theStatsContainer()->setValue(valName,
-                                          static_cast<double>(subarraySize * sizeof(FG_ELEMENT)));
-
         }
 
         // start
@@ -1108,15 +1030,6 @@ static void exchangeData1dDehierarchization(
                     dfg.getCommunicator(), &recvRequests[recvcount + k]);
 
           {
-            std::string valName = "subarray_recv_size_dim_"
-                                  + boost::lexical_cast<std::string>(dim) + "_rank_"
-                                  + boost::lexical_cast<std::string>(r) + "_index_"
-                                  + boost::lexical_cast<std::string>(indices[k]);
-
-            if (hierCount == 0)
-              theStatsContainer()->setValue(valName,
-                                            static_cast<int>(bsize * sizeof(FG_ELEMENT)));
-
             totalRecvSize += bsize;
           }
 
@@ -1136,29 +1049,6 @@ static void exchangeData1dDehierarchization(
   MPI_Waitall(static_cast<int>(recvRequests.size()), &recvRequests[0],
               MPI_STATUSES_IGNORE);
 
-  if (hierCount == 0)
-    theStatsContainer()->setTimerStop(
-      "data_transfer_dim_" + boost::lexical_cast<std::string>(dim));
-
-  {
-    std::string valName = "total_send_size_dim_"
-                          + boost::lexical_cast<std::string>(dim);
-
-    if (hierCount == 0)
-      theStatsContainer()->setValue(valName,
-                                    static_cast<double>(totalSendSize * sizeof(FG_ELEMENT)));
-
-  }
-
-  {
-    std::string valName = "total_recv_size_dim_"
-                          + boost::lexical_cast<std::string>(dim);
-
-    if (hierCount == 0)
-      theStatsContainer()->setValue(valName,
-                                    static_cast<double>(totalRecvSize * sizeof(FG_ELEMENT)));
-
-  }
 
 #ifdef DEBUG_OUTPUT
   MPI_Barrier( comm );
@@ -1313,7 +1203,6 @@ IndexType checkPredecessors(IndexType idx, DimType dim,
 template<typename FG_ELEMENT>
 RankType getNeighbor1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                        IndexType idx1d) {
-
   // if global index is outside of domain return negative value
   {
     if (idx1d < 0)
@@ -1693,9 +1582,9 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       }
     }
 
-    hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
-                                       level_idxend);
-    //hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
+    //hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
+    //                                   level_idxend);
+    hierarchizeX_opt_boundary_kernel( &tmp[0], lmax, 0, 1 );
 
     // copy local data back
     for (IndexType i = 0; i < xSize; ++i)
@@ -2573,29 +2462,17 @@ class DistributedHierarchization {
     if( dims[0] ){
       DimType dim = 0;
 
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStart("exchange_dim_0");
-
       // exchange data first dimension
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1d(dfg, dim, remoteData);
 
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStop("exchange_dim_0");
-
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStart("hierarchize_dim_0");
-
       if (dfg.returnBoundaryFlags()[dim] == true) {
         hierarchizeX_opt_boundary(dfg, lookupTable);
       } else {
         hierarchizeX_opt_noboundary(dfg, lookupTable);
       }
-
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStop("hierarchize_dim_0");
     }
 
     // hierarchize other dimensions
@@ -2603,22 +2480,10 @@ class DistributedHierarchization {
       if( !dims[dim] )
         continue;
 
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStart(
-          "exchange_dim_" + boost::lexical_cast<std::string>(dim));
-
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1d(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
-
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStop(
-          "exchange_dim_" + boost::lexical_cast<std::string>(dim));
-
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStart(
-          "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
         //hierarchizeN_boundary( dfg, lookupTable, dim );
@@ -2626,10 +2491,6 @@ class DistributedHierarchization {
       } else {
         hierarchizeN_opt_noboundary(dfg, lookupTable, dim);
       }
-
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStop(
-          "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
 
       ++hierCount;
     }
@@ -2654,19 +2515,10 @@ class DistributedHierarchization {
     if( dims[0] ){
       DimType dim = 0;
 
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStart("exchange_dim_0");
-
       // exchange data first dimension
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1dDehierarchization(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
-
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStop("exchange_dim_0");
-
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStart("hierarchize_dim_0");
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
         dehierarchizeX_opt_boundary(dfg, lookupTable);
@@ -2674,8 +2526,6 @@ class DistributedHierarchization {
         dehierarchizeX_opt_noboundary(dfg, lookupTable);
       }
 
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStop("hierarchize_dim_0");
     }
 
     // dehierarchize other dimensions
@@ -2683,22 +2533,10 @@ class DistributedHierarchization {
       if( !dims[dim] )
           continue;
 
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStart(
-          "exchange_dim_" + boost::lexical_cast<std::string>(dim));
-
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1dDehierarchization(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
-
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStop(
-          "exchange_dim_" + boost::lexical_cast<std::string>(dim));
-
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStart(
-          "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
         dehierarchizeN_opt_boundary(dfg, lookupTable, dim);
@@ -2706,9 +2544,6 @@ class DistributedHierarchization {
         dehierarchizeN_opt_noboundary(dfg, lookupTable, dim);
       }
 
-      if (hierCount == 0)
-        theStatsContainer()->setTimerStop(
-          "hierarchize_dim_" + boost::lexical_cast<std::string>(dim));
     }
   }
 

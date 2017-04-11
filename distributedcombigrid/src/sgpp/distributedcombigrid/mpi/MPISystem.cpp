@@ -8,7 +8,7 @@
  */
 
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include <iostream>
 
 namespace{
@@ -139,7 +139,6 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
 
   MPI_Comm_rank( worldComm_, &worldRank_ );
   managerRankWorld_ = worldSize - 1;
-  //managerRankWorld_ = 0;
 
   if( ENABLE_FT ){
       worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
@@ -163,18 +162,18 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
     int localSize;
     MPI_Comm_size( localComm_, &localSize );
     assert( masterRank < localSize );
-    //std::cout << "local size of communicator " << localSize << " for rank " << worldRank_ <<"\n";
+
     masterRank_ = masterRank;
 
     MPI_Comm_rank( localComm_, &localRank_ );
   }
-   theStatsContainer()->setTimerStart("init-local-createFT");
+
    if(ENABLE_FT){
      if( localComm_ != MPI_COMM_NULL){
          createCommFT( &localCommFT_, localComm_ );
      }
    }
-   theStatsContainer()->setTimerStop("init-local-createFT");
+
 
   /* create global communicator which contains only the manager and the master
    * process of each process group
@@ -196,6 +195,9 @@ void MPISystem::initLocalComm(){
   int key = worldRank_ - color * int(nprocs_);
   MPI_Comm_split( worldComm_, color, key, &localComm_ );
 
+  /* set group number in Stats. this is necessary for postprocessing */
+  Stats::setAttribute("group", std::to_string(color));
+
   // manager is not supposed to have a localComm
   if( worldRank_ == managerRankWorld_ )
     localComm_ = MPI_COMM_NULL;
@@ -213,13 +215,12 @@ void MPISystem::initLocalComm(){
     MPI_Comm_rank( localComm_, &localRank_ );
   }
 
-  theStatsContainer()->setTimerStart("init-local-createFT");
+
   if(ENABLE_FT){
     if( localComm_ != MPI_COMM_NULL){
       createCommFT( &localCommFT_, localComm_ );
     }
   }
-  theStatsContainer()->setTimerStop("init-local-createFT");
 }
 
 
@@ -243,7 +244,6 @@ void MPISystem::initGlobalComm(){
     MPI_Comm_size( globalComm_, &globalSize );
 
     managerRank_ = globalSize - 1;
-    //managerRank_ = 0;
     MPI_Comm_rank( globalComm_, &globalRank_ );
   }
 
@@ -252,6 +252,8 @@ void MPISystem::initGlobalComm(){
       createCommFT( &globalCommFT_, globalComm_ );
     }
   }
+  /* mark master processes and manager process in Stats. this is necessary for postprocessing */
+  Stats::setAttribute("group_manager", std::to_string(globalComm_ != MPI_COMM_NULL));
 }
 
 void MPISystem::initGlobalReduceCommm() {
@@ -279,7 +281,6 @@ void MPISystem::initGlobalReduceCommm() {
     }
   }
 }
-
 
 void MPISystem::createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm ){
   *commFT = new simft::Sim_FT_MPI_Comm_struct;

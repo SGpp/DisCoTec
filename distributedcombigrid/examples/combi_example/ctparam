@@ -1,14 +1,14 @@
 [ct]
 dim = 2
 lmin = 3 3 
-lmax = 7 7  
-leval = 4 4 
+lmax = 10 10  
+leval = 5 5 
 p = 1 2
-ncombi = 100
+ncombi = 10
 
 [application]
-dt = 0.01
-nsteps = 1
+dt = 1e-3
+nsteps = 100
 
 [manager]
 ngroup = 2
