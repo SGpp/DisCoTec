@@ -11,7 +11,7 @@
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
@@ -256,20 +256,20 @@ int main(int argc, char** argv) {
     // combiparameters need to be set before starting the computation
     manager.updateCombiParameters();
     bool success = true;
-    theStatsContainer()->setTimerStart("compute");
+    //theStatsContainer()->setTimerStart("compute");
     for (size_t i = 0; i < ncombi; ++i) {
       //std::cout << "Compute !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n";
       if( i == 0 ){
         /* distribute task according to load model and start computation for
          * the first time */
-        theStatsContainer()->setTimerStart("runfirst");
+        //theStatsContainer()->setTimerStart("runfirst");
         success = manager.runfirst();
-        theStatsContainer()->setTimerStop("runfirst");
+        //theStatsContainer()->setTimerStop("runfirst");
       } else {
         // run tasks for next time interval
-        if(i==1) theStatsContainer()->setTimerStart("runnext");
+        //if(i==1) theStatsContainer()->setTimerStart("runnext");
         success = manager.runnext();
-        if(i==1) theStatsContainer()->setTimerStop("runnext");
+        //if(i==1) theStatsContainer()->setTimerStop("runnext");
       }
       //success = true;
       //check if fault occured
@@ -315,9 +315,9 @@ int main(int argc, char** argv) {
         manager.redistribute(redistributeFaultsID);
       }
       //combine
-      if(i==0) theStatsContainer()->setTimerStart("combine");
+      //if(i==0) theStatsContainer()->setTimerStart("combine");
       manager.combine();
-      if(i==0) theStatsContainer()->setTimerStop("combine");
+      //if(i==0) theStatsContainer()->setTimerStop("combine");
       //postprocessing in case of errors
       if ( !success ){
         /* restore combischeme to its original state
@@ -327,23 +327,23 @@ int main(int argc, char** argv) {
       }
     }
 
-    theStatsContainer()->setTimerStop("compute");
+    //theStatsContainer()->setTimerStop("compute");
 
     // evaluate solution on the grid defined by leval
-    theStatsContainer()->setTimerStart("parallelEval");
+    //theStatsContainer()->setTimerStart("parallelEval");
     manager.parallelEval( leval, fg_file_path, 0 );
-    theStatsContainer()->setTimerStop("parallelEval");
+    //theStatsContainer()->setTimerStop("parallelEval");
 
     // evaluate solution on the grid defined by leval2
-    theStatsContainer()->setTimerStart("parallelEval2");
+    //theStatsContainer()->setTimerStart("parallelEval2");
     manager.parallelEval( leval2, fg_file_path2, 0 );
-    theStatsContainer()->setTimerStop("parallelEval2");
+    //theStatsContainer()->setTimerStop("parallelEval2");
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
 
     // save stats
-    theStatsContainer()->save("times.dat");
+    //theStatsContainer()->save("times.dat");
   }
   if( ENABLE_FT ){
     WORLD_MANAGER_EXCLUSIVE_SECTION{

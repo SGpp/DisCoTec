@@ -17,11 +17,11 @@ namespace{
   std::string getMinMaxAvg( RankType r, int size, std::string timerName, bool isTimer,
                             MPI_Comm comm ){
     double value;
-    if( isTimer )
+/*    if( isTimer )
       value = theStatsContainer()->getDuration( timerName );
     else
       value = theStatsContainer()->getValue( timerName );
-
+*/
     double min, max, sum;
     MPI_Reduce( &value, &min, 1, MPI_DOUBLE, MPI_MIN, r, comm );
     MPI_Reduce( &value, &max, 1, MPI_DOUBLE, MPI_MAX, r, comm );
@@ -293,18 +293,18 @@ void MPISystem::recoverCommunicators( bool groupAlive ){
   assert( ENABLE_FT && "this funtion is only availabe if FT enabled!" );
   //std::cout << "start recovery \n";
   // revoke commmworld
-  theStatsContainer()->setTimerStart("recoverComm-revoke");
+  //theStatsContainer()->setTimerStart("recoverComm-revoke");
   //WORLD_MANAGER_EXCLUSIVE_SECTION{
    //MPI_Comm_revoke( theMPISystem()->getWorldCommFT() );
   //}
-  theStatsContainer()->setTimerStop("recoverComm-revoke");
+  //theStatsContainer()->setTimerStop("recoverComm-revoke");
   //std::cout << "revoked MPI comm \n";
   // shrink world
-  theStatsContainer()->setTimerStart("recoverComm-shrink");
+  //theStatsContainer()->setTimerStart("recoverComm-shrink");
   simft::Sim_FT_MPI_Comm newCommWorldFT;
   MPI_Comm_shrink( theMPISystem()->getWorldCommFT(), &newCommWorldFT );
   MPI_Comm newCommWorld = newCommWorldFT->c_comm;
-  theStatsContainer()->setTimerStop("recoverComm-shrink");
+  //theStatsContainer()->setTimerStop("recoverComm-shrink");
   //std::cout << "shrinked communicator \n";
   // split off alive procs. this will be the new WorldComm
   // processes of dead groups set color to MPI_UNDEFINED. in this case

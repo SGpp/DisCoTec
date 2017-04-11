@@ -14,7 +14,7 @@
 #include "CombiGeneConverter.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/MultiArray.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+//#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
 
 namespace combigrid
 {
