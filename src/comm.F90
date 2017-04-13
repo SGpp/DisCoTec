@@ -119,6 +119,10 @@ Contains
          split_comm,ierr)
     call mpi_comm_rank (split_comm, mype, ierr)
 
+#ifdef COMBI_MGR
+    call set_group_id(my_sim)
+#endif
+
     call mpi_comm_split(mpi_comm_world,rank,my_sim,&
          parall_comm,ierr)
     

@@ -45,6 +45,16 @@ extern "C" void write_omega_(int* itime, double* gamma, double* omega);
 
 extern "C" void set_nrg_(double* time, double* nrg0 );
 
+extern "C" void init_stats_();
+
+extern "C" void finalize_stats_();
+
+extern "C" void set_group_id_(int* color);
+
+extern "C" void gene_time_start_();
+
+extern "C" void gene_time_stop_();
+
 // c interfaces
 void worker_wait(MPI_Comm comm, int* worker_stat, int nprocs, int ngroup );
 void worker_ready(double wtime, double time_perf,

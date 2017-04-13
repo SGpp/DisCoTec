@@ -63,6 +63,9 @@ Program gene
 #endif
 #else
   call mpi_init(ierr)
+#ifdef COMBI_MGR
+  call init_stats
+#endif
   omp_level = MPI_THREAD_SINGLE
 #endif
   if (ierr /= 0) stop 'mpi_init failed!'
@@ -127,6 +130,8 @@ Program gene
 
     ! 17 = parallel eval
     if(worker_signal.eq.17) cycle
+
+    call gene_time_start
 #endif
 
     LIKWID_INIT
@@ -212,11 +217,17 @@ Program gene
   LIKWID_CLOSE
 
 #ifdef COMBI_MGR
+    call gene_time_stop
     call worker_ready(wtime, time_perf, time_iv, time_cp)
   end do
 #endif
 
   call finalize_comm_scan(gene_comm,comm_parall)
+
+#ifdef COMBI_MGR
+  call finalize_stats
+#endif
+
   call mpi_finalize(ierr)
 
 #ifdef MEMORY_CHECKER
