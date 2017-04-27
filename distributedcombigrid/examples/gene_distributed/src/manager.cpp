@@ -276,43 +276,40 @@ int main(int argc, char** argv) {
       if ( !success ) {
         nfaults++;
         std::cout << "failed group detected at combi iteration " << i << std::endl;
-//        manager.recover();
-
-        std::vector<int> faultsID;
-        manager.getGroupFaultIDs(faultsID);
-
-        /* call optimization code to find new coefficients */
-        const std::string prob_name = "interpolation based optimization";
-        std::vector<int> redistributeFaultsID, recomputeFaultsID;
-        manager.recomputeOptimumCoefficients(prob_name, faultsID,
-                                             redistributeFaultsID, recomputeFaultsID);
-
-        for ( auto id : redistributeFaultsID ) {
-          GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
-          tmp->setStepsTotal((i+1)*nsteps);
-          tmp->setCombiStep(i+1);
-        }
-
-        for ( auto id : recomputeFaultsID ) {
-          GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
-          tmp->setStepsTotal((i)*nsteps);
-          tmp->setCombiStep(i);
-        }
-        //std::cout << "Recover \n";
-
-        /* recover communicators*/
-        manager.recoverCommunicators();
-        //std::cout << "Update \n";
-
-        /* communicate new combination scheme*/
-        manager.updateCombiParameters();
-        //std::cout << "Recompute \n";
-
-        /* if some tasks have to be recomputed, do so*/
-        manager.recompute(recomputeFaultsID);
-        //std::cout << "Redistribute \n";
-        /* redistribute failed tasks to living groups */
-        manager.redistribute(redistributeFaultsID);
+        manager.recover();
+//        the following is replaced by recover()
+//        std::vector<int> faultsID;
+//        std::vector< ProcessGroupManagerID> groupFaults;
+//        manager.getGroupFaultIDs(faultsID, groupFaults);
+//
+//        /* call optimization code to find new coefficients */
+//        const std::string prob_name = "interpolation based optimization";
+//        std::vector<int> redistributeFaultsID, recomputeFaultsID;
+//        manager.recomputeOptimumCoefficients(prob_name, faultsID,
+//                                             redistributeFaultsID, recomputeFaultsID);
+//
+//
+//        //std::cout << "Recover \n";
+//
+//        /* recover communicators*/
+//        bool failedRecovery = manager.recoverCommunicators(groupFaults);
+//        //std::cout << "Update \n";
+//
+//        /* communicate new combination scheme*/
+//        manager.updateCombiParameters();
+//        //std::cout << "Recompute \n";
+//
+//        /* if some tasks have to be recomputed, do so*/
+//        manager.recompute(recomputeFaultsID); //toDo consider succeeded recovery
+//        //std::cout << "Redistribute \n";
+//        /* redistribute failed tasks to living groups */
+//
+//        if(failedRecovery){
+//          manager.redistribute(redistributeFaultsID);
+//        }
+//        else{
+//          manager.reInitializeGroup(groupFaults);
+//        }
       }
       //combine
       //if(i==0) theStatsContainer()->setTimerStart("combine");

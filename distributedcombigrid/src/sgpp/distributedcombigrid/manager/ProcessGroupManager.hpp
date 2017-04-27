@@ -19,7 +19,6 @@
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
-
 class ProcessGroupManager {
 
  public:
@@ -76,6 +75,9 @@ class ProcessGroupManager {
   isGroupFault();
 
   bool addTask( Task* );
+
+  //resets tasks only on workers not in group manager
+  bool resetTasksWorker();
 
   bool recompute( Task* );
 

@@ -79,7 +79,7 @@ class ProcessManager {
 
   /* Computes group faults in current combi scheme step */
   void
-  getGroupFaultIDs( std::vector<int>& faultsID );
+  getGroupFaultIDs( std::vector< int>& faultsID, std::vector< ProcessGroupManagerID>& groupFaults );
 
   inline CombiParameters& getCombiParameters();
 
@@ -87,14 +87,15 @@ class ProcessManager {
                                      std::string& filename,
                                      size_t groupID );
   
-void redistribute( std::vector<int>& taskID );
+  void redistribute( std::vector<int>& taskID );
+
+  void reInitializeGroup( std::vector< ProcessGroupManagerID>& taskID );
 
   void recompute( std::vector<int>& taskID );
 
   void recover();
 
-  void recoverCommunicators();
-
+  bool recoverCommunicators(std::vector< ProcessGroupManagerID> failedGroups);
   /* After faults have been fixed, we need to return the combischeme
    * to the original combination technique*/
   void restoreCombischeme();

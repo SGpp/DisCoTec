@@ -148,6 +148,18 @@ SignalType ProcessGroupWorker::wait() {
 
     status_ = PROCESS_GROUP_BUSY;
 
+  } else if (signal == RESET_TASKS) {
+    std::cout << "resetting tasks" << std::endl;
+
+
+    // freeing tasks
+    for ( auto tmp : tasks_ )
+      free(tmp);
+
+    tasks_.clear();
+
+    status_ = PROCESS_GROUP_BUSY;
+
   } else if (signal == EVAL) {
     // receive x
 

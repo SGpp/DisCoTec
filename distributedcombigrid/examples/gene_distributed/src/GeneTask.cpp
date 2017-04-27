@@ -117,6 +117,7 @@ void GeneTask::decideToKill(){
   //real t = dt_ * nsteps_ * combiStep_;
   if (faultCriterion_->failNow(combiStep_, t_iter, globalRank)){
         std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
+        theMPISystem()->sendFailedSignal();
         simft::Sim_FT_kill_me();
   }
   combiStep_++;

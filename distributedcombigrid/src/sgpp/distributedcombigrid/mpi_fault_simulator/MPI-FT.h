@@ -103,6 +103,15 @@ typedef void (Sim_FT_MPI_Comm_errhandler_function)(Sim_FT_MPI_Comm, int *, ...);
 #define SIM_FT_NBC_REQUEST_TAG 1020
 #define SIM_FT_NBC_RESPONSE_TAG 1021
 
+//gene implementation tags
+
+#define FT_NEW_RANK_TAG 1030
+#define FT_RECOVERY_STATUS_TAG 1031
+#define FT_EXCLUDE_TAG 1032
+#define FT_SHRINK_TAG 1033
+#define FT_REUSABLE_RANK_TAG 1034
+#define FT_FAILED_RANK_TAG 1035
+
 /*not implemented yet:
   #define SIM_FT_CHANGE_ROOT 1
   #define SIM_FT_KEEP_ROOT 0 */

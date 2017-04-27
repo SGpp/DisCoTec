@@ -147,6 +147,31 @@ bool ProcessGroupManager::addTask( Task* t ) {
   return true;
 }
 
+bool ProcessGroupManager::resetTasksWorker() {
+  // first check status
+  // tying to reset tasks of a busy group is an invalid operation
+  // and should be avoided
+  if (status_ != PROCESS_GROUP_WAIT)
+    return false;
+
+  // add task to list of tasks managed by this pgroup
+  //tasks_.clear(); we do not clear group manager tasks
+
+  // send add task signal to pgroup
+  SignalType signal = RESET_TASKS;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+
+  // only return true if task successfully send to pgroup
+  return true;
+}
+
 
 bool ProcessGroupManager::recompute( Task* t ) {
   // first check status

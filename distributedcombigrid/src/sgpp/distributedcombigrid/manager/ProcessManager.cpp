@@ -103,13 +103,13 @@ void ProcessManager::updateCombiParameters() {
 /*
  * Compute the group faults that occured at this combination step using the fault simulator
  */
-void
-ProcessManager::getGroupFaultIDs( std::vector<int>& faultsID ) {
+void ProcessManager::getGroupFaultIDs( std::vector< int>& faultsID, std::vector< ProcessGroupManagerID>& groupFaults ) {
   for( auto p : pgroups_ ){
     StatusType status = p->waitStatus();
 
     if( status == PROCESS_GROUP_FAIL ){
       TaskContainer failedTasks = p->getTaskContainer();
+      groupFaults.push_back(p);
       for( auto task : failedTasks )
         faultsID.push_back(task->getID());
     }
@@ -153,6 +153,30 @@ void ProcessManager::redistribute( std::vector<int>& taskID ) {
   std::cout << "Redistribute finished" << std::endl;
 }
 
+void ProcessManager::reInitializeGroup(std::vector< ProcessGroupManagerID>& recoveredGroups ) {
+  for (auto g : recoveredGroups) {
+    //erase existing tasks in group members to avoid doubled tasks
+    g->resetTasksWorker();
+    for ( Task* t : g->getTaskContainer()) {
+      assert( t != NULL );
+      // assign instance to group
+      g->addTask( t );
+    }
+  }
+
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  std::cout << "Reinitialization finished" << std::endl;
+}
+
 
 void ProcessManager::recompute( std::vector<int>& taskID ) {
   for (size_t i = 0; i < taskID.size(); ++i) {
@@ -191,7 +215,7 @@ void ProcessManager::recompute( std::vector<int>& taskID ) {
 }
 
 
-void ProcessManager::recoverCommunicators(){
+bool ProcessManager::recoverCommunicators(std::vector< ProcessGroupManagerID> failedGroups){
   waitAllFinished();
 
   // send recover communicators signal to alive groups
@@ -201,7 +225,7 @@ void ProcessManager::recoverCommunicators(){
     }
   }
 
-  theMPISystem()->recoverCommunicators( true );
+  bool failedRecovery = theMPISystem()->recoverCommunicators( true,failedGroups );
 
   // remove failed groups from group list and set new
   // todo: this is rather error prone. this relies on the previous functions
@@ -217,24 +241,42 @@ void ProcessManager::recoverCommunicators(){
   for( size_t i=0; i<pgroups_.size(); ++i ){
     pgroups_[i]->setMasterRank( int(i) );
   }
+  return failedRecovery;
 }
 
-void ProcessManager::recover(){
+void ProcessManager::recover(){ //outdated
 
   std::vector<int> faultsID;
-  getGroupFaultIDs(faultsID);
+  std::vector< ProcessGroupManagerID> groupFaults;
+  getGroupFaultIDs(faultsID, groupFaults);
 
   /* call optimization code to find new coefficients */
   const std::string prob_name = "interpolation based optimization";
   std::vector<int> redistributeFaultsID, recomputeFaultsID;
   recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
+  //time does not need to be updated in gene but maybe in other applications
+  /*for ( auto id : redistributeFaultsID ) {
+    GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+    tmp->setStepsTotal((i+1)*nsteps);
+    tmp->setCombiStep(i+1);
+  }
 
+  for ( auto id : recomputeFaultsID ) {
+    GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+    tmp->setStepsTotal((i)*nsteps);
+    tmp->setCombiStep(i);
+  }*/
   /* recover communicators*/
-  recoverCommunicators();
+  bool failedRecovery = recoverCommunicators(groupFaults);
 
   /* redistribute failed tasks to living groups */
-  redistribute(faultsID);
-
+  //redistribute(faultsID);
+  if(failedRecovery){
+    redistribute(redistributeFaultsID);
+  }
+  else{
+    reInitializeGroup(groupFaults);
+  }
   /* communicate new combination scheme*/
   updateCombiParameters();
 
