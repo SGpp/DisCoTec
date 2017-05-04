@@ -313,10 +313,21 @@ std::vector<RankType> MPISystem::getReusableRanks( int remainingProcs ){ //toDo 
   std::vector<RankType> reusableProcs(remainingProcs);
   for(int i=0; i< remainingProcs; i++){
     int reusableRank;
-     MPI_Recv(&reusableRank, 1, MPI_INT, MPI_ANY_SOURCE, FT_REUSABLE_RANK_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
+     MPI_Recv(&reusableRank, 1, MPI_INT, MPI_ANY_SOURCE, FT_REUSABLE_RANK_TAG, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
      reusableProcs[i] = reusableRank;
+     std::cout << "reusable rank id " << reusableRank << "\n";
   }
   return reusableProcs;
+}
+
+void MPISystem::getReusableRanksSpare(){ //update ranks after shrink
+  for(int i=0; i< reusableRanks_.size(); i++){
+    std::cout << "getting new ranks \n";
+    int reusableRank;
+     MPI_Recv(&reusableRank, 1, MPI_INT, MPI_ANY_SOURCE, FT_REUSABLE_RANK_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
+     reusableRanks_[i] = reusableRank;
+     std::cout << "new rank id " << reusableRank << "\n";
+  }
 }
 
 bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks, std::vector<RankType>& reusableRanks ){ //toDo matching send
@@ -327,19 +338,28 @@ bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks, std::vector<Rank
   bool success = true; //so far no time out failing possible
   int numTimeouts = 0; // counts number of ranks that do not answer in time
   for(int i=0; i< failedRanks.size(); i++){
-    MPI_Wait(&requests[i],MPI_STATUS_IGNORE); //toDo implement timeout
+    MPI_Wait(&requests[i],MPI_STATUS_IGNORE); //toDo implement timeout and remove time-outed ranks immedeately
   }
-  int lastIndex = failedRanks.size() + numTimeouts; //needs to be increased in case of ranks with time-out
-  if(success){
+  int lastIndex = failedRanks.size(); //needs to be increased in case of ranks with time-out
+  bool recoveryFailed;
+  if(success){//send recovery status
+    recoveryFailed = false;
+    std::vector<MPI_Request> requests2(failedRanks.size());
+    for(int i = 0; i < failedRanks.size(); i++ ){
+      MPI_Isend(&recoveryFailed, 1, MPI::BOOL, reusableRanks[i], FT_RECOVERY_STATUS_TAG, theMPISystem()->getSpareCommFT()->c_comm, &requests2[i]);
+    }
+    for(int i = 0; i < failedRanks.size(); i++ ){
+      MPI_Wait(&requests2[i],MPI_STATUS_IGNORE);
+    }
     reusableRanks.erase(reusableRanks.begin(), reusableRanks.begin() + lastIndex);
   }
-  return false; //so far failing not implemented
+  return recoveryFailed; //so far failing not implemented
 }
 
 void MPISystem::sendRecoveryStatus(bool failedRecovery, std::vector<RankType>& newReusableRanks ){ //toDo matching send
   std::vector<MPI_Request> requests(newReusableRanks.size());
   for(int i=0; i< newReusableRanks.size(); i++){
-     MPI_Isend(&failedRecovery, 1, MPI::BOOL, newReusableRanks[i], FT_RECOVERY_STATUS_TAG, theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
+     MPI_Isend(&failedRecovery, 1, MPI::BOOL, newReusableRanks[i], FT_RECOVERY_STATUS_TAG, theMPISystem()->getWorldComm(), &requests[i]);
   }
   for(int i=0; i< newReusableRanks.size(); i++){
     MPI_Wait(&requests[i],MPI_STATUS_IGNORE); //toDo implement timeout
@@ -350,7 +370,8 @@ void MPISystem::sendExcludeSignal(std::vector<RankType>& reusableRanks){
   std::vector<MPI_Request> requests(reusableRanks.size());
 
   for(int i = 0; i< reusableRanks.size(); i++){
-    MPI_Isend(&reusableRanks[i],0,MPI_INT,managerRankFT_,FT_EXCLUDE_TAG,theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
+    int excludeData; //not used so far
+    MPI_Isend(&excludeData,0,MPI_INT,reusableRanks[i],FT_EXCLUDE_TAG,theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
   }
 
   for(int i = 0; i< reusableRanks.size(); i++){
@@ -362,7 +383,8 @@ void MPISystem::sendShrinkSignal(std::vector<RankType>& reusableRanks){
   std::vector<MPI_Request> requests(reusableRanks.size());
 
   for(int i = 0; i< reusableRanks.size(); i++){
-    MPI_Isend(&reusableRanks[i],0,MPI_INT,managerRankFT_,FT_SHRINK_TAG,theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
+    int shrinkData; //not used so far
+    MPI_Isend(&shrinkData,0,MPI_INT,reusableRanks[i],FT_SHRINK_TAG,theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
   }
 
   for(int i = 0; i< reusableRanks.size(); i++){
@@ -371,6 +393,11 @@ void MPISystem::sendShrinkSignal(std::vector<RankType>& reusableRanks){
 }
 
 void MPISystem::sendReusableSignal(){
+  std::cout << "sending reusable signal \n";
+  MPI_Send(&worldRank_,1,MPI_INT,managerRankWorld_,FT_REUSABLE_RANK_TAG,theMPISystem()->getWorldComm());
+}
+
+void MPISystem::sendReusableSignalSpare(){
   MPI_Send(&worldRank_,1,MPI_INT,managerRankFT_,FT_REUSABLE_RANK_TAG,theMPISystem()->getSpareCommFT()->c_comm);
 }
 
@@ -383,7 +410,7 @@ bool MPISystem::receiveRecoverStatus(){
   bool recoveryState;
 
   //receive recovery state
-  MPI_Recv(&recoveryState, 1, MPI::BOOL, managerRankFT_, FT_RECOVERY_STATUS_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
+  MPI_Recv(&recoveryState, 1, MPI::BOOL, managerRankWorld_, FT_RECOVERY_STATUS_TAG, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
   return recoveryState;
 
 
@@ -408,9 +435,9 @@ void MPISystem::waitForReuse(){
 
       newRankFlag = 0;
       //receive recovery state to check if recovery really succeeded
-      bool recoveryStatus;
-      MPI_Recv(&recoveryStatus, 1, MPI::BOOL, managerRankFT_, FT_RECOVERY_STATUS_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
-      if(recoveryStatus){
+      bool recoveryFailed;
+      MPI_Recv(&recoveryFailed, 1, MPI::BOOL, managerRankFT_, FT_RECOVERY_STATUS_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
+      if(!recoveryFailed){
         worldRank_=rankID;
         return;
       }
@@ -442,6 +469,8 @@ void MPISystem::waitForReuse(){
        int ftCommSize;
        MPI_Comm_size(spareCommFT_->c_comm, &ftCommSize );
        managerRankFT_= ftCommSize - 1;
+       MPI_Comm_rank(spareCommFT_->c_comm,&worldRank_);
+       sendReusableSignalSpare();
     }
   }
 }
@@ -481,14 +510,23 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
     MPI_Comm_size(theMPISystem()->getWorldComm(),&sizeOld);
     MPI_Comm_size(newWorldCommFT->c_comm,&sizeNew);
     MPI_Comm_size(spareCommFT_->c_comm,&sizeSpare);
+    std::cout << "size old = " << sizeOld << "\n";
+    std::cout << "size new = " << sizeNew << "\n";
+    std::cout << "size spare = " << sizeSpare << "\n";
+
     int numFailedRanks = sizeOld-sizeNew;
     std::vector<RankType> failedRanks = getFailedRanks(numFailedRanks);
+    std::cout << "nprocs - numFailed " << nprocs_ - numFailedRanks << "\n";
     std::vector<RankType> newReusableRanks = getReusableRanks(nprocs_ - numFailedRanks);
+    getReusableRanksSpare();
     //toDO reusableRanks might be outdated due to new failures there
-    bool enoughSpareProcs = sizeSpare - sizeNew > numFailedRanks;
+    bool enoughSpareProcs = sizeSpare - sizeNew >= numFailedRanks;
+    std::cout << "enoughSpareProcs: " << enoughSpareProcs << "\n";
+    std::cout << "failedRanks: " << failedRanks[0] << failedRanks.size() << " ;reusable Ranks: " << newReusableRanks[0] << newReusableRanks.size() << "\n";
     bool failedSendingRankIds = false;
     if(enoughSpareProcs){ //send failed ranks to reusable procs so they can set their worldRank accordingly
       failedSendingRankIds = sendRankIds(failedRanks,reusableRanks_);  //check with timeout if reusable ranks are still available;
+      std::cout << "finished assigning ranks \n";
       //otherwise fail recovery of broken processgroup
       //remove failed spare procs from reusableRanks_
       if(!failedSendingRankIds){
@@ -498,18 +536,22 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
     if(!enoughSpareProcs or failedSendingRankIds){
       failedRecovery = true;
     }
+    std::cout << "failed recovery: " << failedRecovery <<"\n";
+    std::cout << "sending recovery status \n";
     sendRecoveryStatus(failedRecovery, newReusableRanks);
     //order shrink with color 0 to reusable ranks as they need to be excluded for this recovery process
+    std::cout << "sending exclude signal \n";
     sendExcludeSignal(reusableRanks_);
-    if(!enoughSpareProcs or failedSendingRankIds){ // add in case of failure newreusable ranks to vector
+    if(failedRecovery){ // add in case of failure newreusable ranks to vector
       reusableRanks_.insert(reusableRanks_.end(), newReusableRanks.begin(), newReusableRanks.end());
     }
   }
   int color;
   if(!groupAlive){ //check if group was recovered and mark as reusable
     sendReusableSignal();
-    bool recovered = receiveRecoverStatus(); //check if exclude signal
-    if(!recovered){
+    bool recoveryFailed = receiveRecoverStatus(); //check if exclude signal
+    std::cout << "recovery failed: " << recoveryFailed <<"\n";
+    if(recoveryFailed){
       color = 0;
       int key = worldRank_;
       MPI_Comm_split( spareCommFT_->c_comm, color, key, &worldComm_ );
@@ -524,6 +566,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   // MPI_Comm_split returns MPI_COMMM_NULL
   color = 1; //all processors at this point belong to alive or recovered process groups
   int key = worldRank_;
+  std::cout << "performing MPI split \n";
   MPI_Comm_split(spareCommFT_->c_comm, color, key, &worldComm_ );
   /*color = (!groupAlive) ? 1 : MPI_UNDEFINED; //all alive procs from dead process groups
   WORLD_MANAGER_EXCLUSIVE_SECTION{
@@ -570,7 +613,15 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   }
   if(!groupAlive){
     //toDo:init local comm?
+    std::cout << "initialize local comm \n";
     initLocalComm();
+    std::cout << "initialized local comm \n";
+  }
+  else{
+    CommunicatorType tmp;
+    color = MPI_UNDEFINED;
+    key = -1;
+    MPI_Comm_split( worldComm_, color, key, &tmp );
   }
   //initLocalComm();
 
@@ -594,7 +645,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
    WORLD_MANAGER_EXCLUSIVE_SECTION{ std::cout << t_shrink << std::endl; }*/
 
    //toDo return fixed process group IDs
-
+  std::cout << "returning \n";
   return failedRecovery;
 }
 

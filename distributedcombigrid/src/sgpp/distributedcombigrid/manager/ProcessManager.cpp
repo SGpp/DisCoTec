@@ -12,6 +12,7 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
+
 namespace combigrid {
 
 bool compareInstances(const Task* instance1, const Task* instance2) {
@@ -153,14 +154,19 @@ void ProcessManager::redistribute( std::vector<int>& taskID ) {
   std::cout << "Redistribute finished" << std::endl;
 }
 
-void ProcessManager::reInitializeGroup(std::vector< ProcessGroupManagerID>& recoveredGroups ) {
+void ProcessManager::reInitializeGroup(std::vector< ProcessGroupManagerID>& recoveredGroups, std::vector<int>& tasksToIgnore ) {
   for (auto g : recoveredGroups) {
     //erase existing tasks in group members to avoid doubled tasks
     g->resetTasksWorker();
     for ( Task* t : g->getTaskContainer()) {
       assert( t != NULL );
+      if(std::find(tasksToIgnore.begin(), tasksToIgnore.end(), t->getID()) != tasksToIgnore.end()){ //ignore tasks that are recomputed
+        continue;
+      }
+      StatusType status = g->waitStatus();
+      std::cout << "status of g: " << status << "\n";
       // assign instance to group
-      g->addTask( t );
+      g->refreshTask( t );
     }
   }
 
@@ -178,7 +184,7 @@ void ProcessManager::reInitializeGroup(std::vector< ProcessGroupManagerID>& reco
 }
 
 
-void ProcessManager::recompute( std::vector<int>& taskID ) {
+void ProcessManager::recompute( std::vector<int>& taskID, bool failedRecovery, std::vector< ProcessGroupManagerID>& recoveredGroups  ) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
     Task* t = NULL;
@@ -193,10 +199,18 @@ void ProcessManager::recompute( std::vector<int>& taskID ) {
     assert( t != NULL );
 
     // wait for available process group
-    ProcessGroupManagerID g = wait();
+    if(failedRecovery){
+      ProcessGroupManagerID g = wait();
+      // assign instance to group
+      g->recompute( t );
+    }
+    else{
+      ProcessGroupManagerID g = waitAvoid(recoveredGroups);
+      // assign instance to group
+      g->recompute( t );
+    }
 
-    // assign instance to group
-    g->recompute( t );
+
   }
 
   size_t numWaiting = 0;
@@ -231,20 +245,27 @@ bool ProcessManager::recoverCommunicators(std::vector< ProcessGroupManagerID> fa
   // todo: this is rather error prone. this relies on the previous functions
   // to have removed all processes of failed groups and that the order of
   // processes has not changed
-  pgroups_.erase(
-    std::remove_if( pgroups_.begin(),
-                    pgroups_.end(),
-                    [] (const ProcessGroupManagerID& p) {
-                       return (p->getStatus() == PROCESS_GROUP_FAIL); } ),
-    pgroups_.end() );
+  if(!failedRecovery){
+    for(auto pg : failedGroups){
+      pg->setStatus(PROCESS_GROUP_WAIT);
+    }
+  }
+  if(failedRecovery){
+    pgroups_.erase(
+      std::remove_if( pgroups_.begin(),
+                      pgroups_.end(),
+                      [] (const ProcessGroupManagerID& p) {
+                         return (p->getStatus() == PROCESS_GROUP_FAIL); } ),
+      pgroups_.end() );
 
-  for( size_t i=0; i<pgroups_.size(); ++i ){
-    pgroups_[i]->setMasterRank( int(i) );
+    for( size_t i=0; i<pgroups_.size(); ++i ){
+      pgroups_[i]->setMasterRank( int(i) );
+    }
   }
   return failedRecovery;
 }
 
-void ProcessManager::recover(){ //outdated
+void ProcessManager::recover(int i, int nsteps){ //outdated
 
   std::vector<int> faultsID;
   std::vector< ProcessGroupManagerID> groupFaults;
@@ -255,34 +276,40 @@ void ProcessManager::recover(){ //outdated
   std::vector<int> redistributeFaultsID, recomputeFaultsID;
   recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
   //time does not need to be updated in gene but maybe in other applications
-  /*for ( auto id : redistributeFaultsID ) {
-    GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+/*  for ( auto id : redistributeFaultsID ) {
+    GeneTask* tmp = static_cast<GeneTask*>(getTask(id));
     tmp->setStepsTotal((i+1)*nsteps);
     tmp->setCombiStep(i+1);
   }
 
   for ( auto id : recomputeFaultsID ) {
-    GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+    GeneTask* tmp = static_cast<GeneTask*>(getTask(id));
     tmp->setStepsTotal((i)*nsteps);
     tmp->setCombiStep(i);
   }*/
   /* recover communicators*/
   bool failedRecovery = recoverCommunicators(groupFaults);
-
-  /* redistribute failed tasks to living groups */
-  //redistribute(faultsID);
+  /* communicate new combination scheme*/
   if(failedRecovery){
+    std::cout << "redistribute \n";
     redistribute(redistributeFaultsID);
   }
   else{
-    reInitializeGroup(groupFaults);
+    std::cout << "reinitializing group \n";
+    reInitializeGroup(groupFaults,recomputeFaultsID);
   }
-  /* communicate new combination scheme*/
-  updateCombiParameters();
+
 
   /* if some tasks have to be recomputed, do so*/
-  if(!recomputeFaultsID.empty())
-    recompute(recomputeFaultsID);
+  if(!recomputeFaultsID.empty()){
+    recompute(recomputeFaultsID,failedRecovery,groupFaults);
+  }
+  std::cout << "updateing Combination Parameters \n";
+  //needs to be after reInitialization!
+  updateCombiParameters();
+  /* redistribute failed tasks to living groups */
+  //redistribute(faultsID);
+
 }
 
 void ProcessManager::restoreCombischeme() {

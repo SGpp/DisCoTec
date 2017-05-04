@@ -276,8 +276,48 @@ int main(int argc, char** argv) {
       if ( !success ) {
         nfaults++;
         std::cout << "failed group detected at combi iteration " << i << std::endl;
-        manager.recover();
-//        the following is replaced by recover()
+       // manager.recover(i, nsteps); has no access toi GENE Task
+        std::vector<int> faultsID;
+        std::vector< ProcessGroupManagerID> groupFaults;
+        manager.getGroupFaultIDs(faultsID, groupFaults);
+
+        /* call optimization code to find new coefficients */
+        const std::string prob_name = "interpolation based optimization";
+        std::vector<int> redistributeFaultsID, recomputeFaultsID;
+        manager.recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
+        //time does not need to be updated in gene but maybe in other applications
+        for ( auto id : redistributeFaultsID ) {
+         GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+         tmp->setStepsTotal((i+1)*nsteps);
+         tmp->setCombiStep(i+1);
+        }
+
+        for ( auto id : recomputeFaultsID ) {
+         GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+         tmp->setStepsTotal((i)*nsteps);
+         tmp->setCombiStep(i);
+        }
+        /* recover communicators*/
+        bool failedRecovery = manager.recoverCommunicators(groupFaults);
+        /* communicate new combination scheme*/
+        if(failedRecovery){
+         std::cout << "redistribute \n";
+         manager.redistribute(redistributeFaultsID);
+        }
+        else{
+         std::cout << "reinitializing group \n";
+         manager.reInitializeGroup(groupFaults,recomputeFaultsID);
+        }
+
+
+        /* if some tasks have to be recomputed, do so*/
+        if(!recomputeFaultsID.empty()){
+         manager.recompute(recomputeFaultsID,failedRecovery,groupFaults);
+        }
+        std::cout << "updateing Combination Parameters \n";
+        //needs to be after reInitialization!
+        manager.updateCombiParameters();
+//        old version
 //        std::vector<int> faultsID;
 //        std::vector< ProcessGroupManagerID> groupFaults;
 //        manager.getGroupFaultIDs(faultsID, groupFaults);
@@ -323,7 +363,7 @@ int main(int argc, char** argv) {
         manager.updateCombiParameters();
       }
     }
-
+    std::cout << "Computation finished evaluating on target grid! \n";
     //theStatsContainer()->setTimerStop("compute");
 
     // evaluate solution on the grid defined by leval

@@ -7,6 +7,8 @@
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
+
 simft::Sim_FT_MPI_Comm simft::Sim_FT_MPI_COMM_WORLD;
 simft::Sim_FT_MPI_Comm simft::Sim_FT_MPI_COMM_NULL;
 
@@ -33,6 +35,8 @@ int simft::Sim_FT_MPI_Init(int *argc, char ***argv){
 	//important: initialize MPI_COMM_WORLD in our fault layer
 	simft::Sim_FT_Initialize_new_comm(&simft::Sim_FT_MPI_COMM_WORLD, true);
 
+  combigrid::Stats::initialize();
+
 	return ret;
 }
 
@@ -50,5 +54,7 @@ void simft::Sim_FT_MPI_Init_worker(){
 	//simft::Sim_FT_MPI_COMM_WORLD->Root_Rank = worldSize - 1;
 	//important: initialize MPI_COMM_WORLD in our fault layer
 	simft::Sim_FT_Initialize_new_comm(&simft::Sim_FT_MPI_COMM_WORLD, true);
+  combigrid::Stats::initialize();
+
 	//std::cout << "Init FT_MPI worker!";
 }

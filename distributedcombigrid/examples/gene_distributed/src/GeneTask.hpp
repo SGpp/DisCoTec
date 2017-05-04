@@ -135,7 +135,6 @@ private:
   size_t nsteps_;
   size_t stepsTotal_;
   size_t combiStep_;
-
   IndexVector p_;
 
   real shat_;

@@ -145,6 +145,8 @@ class MPISystem {
 
   void sendReusableSignal();
 
+  void sendReusableSignalSpare();
+
   void waitForReuse();
 
   bool receiveRecoverStatus();
@@ -158,6 +160,8 @@ class MPISystem {
   bool sendRankIds(std::vector<RankType>& failedRanks, std::vector<RankType>& reusableRanks );
 
   std::vector<RankType> getReusableRanks( int remainingProcs );
+
+  void getReusableRanksSpare();
 
   std::vector<RankType> getFailedRanks( int numFailedProcs );
 

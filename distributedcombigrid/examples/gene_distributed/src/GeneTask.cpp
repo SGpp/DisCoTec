@@ -98,7 +98,7 @@ GeneTask::run( CommunicatorType lcomm )
 
 }
 
-void GeneTask::decideToKill(){
+void GeneTask::decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
   using namespace std::chrono;
 
   int globalRank;
@@ -386,8 +386,10 @@ cpFile.close();
 void GeneTask::setZero(){
   std::vector<CombiDataType>& data = dfg_->getElementVector();
 
-  for( size_t i=0; i<data.size(); ++i )
-    data[i] = std::complex<real>(0);
+  for( size_t i=0; i<data.size(); ++i ){
+    data[i].real(0);
+    data[i].imag(0);
+  }
 }
 
 
@@ -395,14 +397,14 @@ void GeneTask::initDFG( CommunicatorType comm,
                         std::vector<IndexVector>& decomposition ){
   // this is the clean version. however requires creation of dfg before each
   // combination step
-/*
+
   if( dfg_ != NULL )
     delete dfg_;
 
   dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
       this->getBoundary(), p_, false, decomposition );
-*/
 
+/*
   // todo: keep in mind
   // in this version the dfg is only created once. this only works if always exactly
   // the same set of processes is used by gene
@@ -412,6 +414,7 @@ void GeneTask::initDFG( CommunicatorType comm,
         this->getBoundary(), p_, false, decomposition );
   }
   //std::cout << "initDFG \n";
+   */
 }
 
 

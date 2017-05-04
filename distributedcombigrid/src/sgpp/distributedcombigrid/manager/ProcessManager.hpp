@@ -89,11 +89,11 @@ class ProcessManager {
   
   void redistribute( std::vector<int>& taskID );
 
-  void reInitializeGroup( std::vector< ProcessGroupManagerID>& taskID );
+  void reInitializeGroup( std::vector< ProcessGroupManagerID>& taskID, std::vector<int>& tasksToIgnore  );
 
-  void recompute( std::vector<int>& taskID );
+  void recompute( std::vector<int>& taskID, bool failedRecovery, std::vector< ProcessGroupManagerID>& recoveredGroups );
 
-  void recover();
+  void recover(int i, int nsteps);
 
   bool recoverCommunicators(std::vector< ProcessGroupManagerID> failedGroups);
   /* After faults have been fixed, we need to return the combischeme
@@ -111,7 +111,7 @@ class ProcessManager {
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
   inline ProcessGroupManagerID wait();
-
+  inline ProcessGroupManagerID waitAvoid( std::vector< ProcessGroupManagerID>& avoidGroups);
   bool waitAllFinished();
 };
 
@@ -125,6 +125,18 @@ inline ProcessGroupManagerID ProcessManager::wait() {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
       if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
         return pgroups_[i];
+    }
+  }
+}
+
+inline ProcessGroupManagerID ProcessManager::waitAvoid( std::vector< ProcessGroupManagerID>& avoidGroups) {
+  while (true) {
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (std::find(avoidGroups.begin(), avoidGroups.end(), pgroups_[i]) != avoidGroups.end()){//ignore tasks that are recomputed
+        if(pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT){
+          return pgroups_[i];
+        }
+      }
     }
   }
 }

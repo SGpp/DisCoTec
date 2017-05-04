@@ -42,12 +42,16 @@ ProcessGroupWorker::~ProcessGroupWorker() {
 }
 
 SignalType ProcessGroupWorker::wait() {
-  if(status_ == PROCESS_GROUP_FAIL){ //exit all procs in failed group
-    return EXIT;
+  if(status_ == PROCESS_GROUP_FAIL){ //in this case worker got reused
+    status_ = PROCESS_GROUP_WAIT;
   }
-  if (status_ != PROCESS_GROUP_WAIT)
+  if (status_ != PROCESS_GROUP_WAIT){
+    int myRank;
+    MPI_Comm_rank(theMPISystem()->getWorldComm(), &myRank);
+    std::cout << "status is " << status_ << "of rank " << myRank << "\n";
+    std::cout << "executing next task\n";
     return RUN_NEXT;
-
+  }
   SignalType signal = -1;
 
   MASTER_EXCLUSIVE_SECTION {
@@ -62,7 +66,7 @@ SignalType ProcessGroupWorker::wait() {
   MPI_Bcast( &signal, 1, MPI_INT,
              theMPISystem()->getMasterRank(),
              theMPISystem()->getLocalComm() );
-  //std::cout << theMPISystem()->getWorldRank() << " waits for signal " << signal << " \n";
+  std::cout << theMPISystem()->getWorldRank() << " waits for signal " << signal << " \n";
   // process signal
   if (signal == RUN_FIRST) {
 
@@ -101,7 +105,6 @@ SignalType ProcessGroupWorker::wait() {
   } else if (signal == RUN_NEXT) {
     // this should not happen
     assert(tasks_.size() > 0);
-
     // reset finished status of all tasks
     for (size_t i = 0; i < tasks_.size(); ++i)
       tasks_[i]->setFinished(false);
@@ -157,7 +160,6 @@ SignalType ProcessGroupWorker::wait() {
       free(tmp);
 
     tasks_.clear();
-
     status_ = PROCESS_GROUP_BUSY;
 
   } else if (signal == EVAL) {
@@ -239,7 +241,7 @@ SignalType ProcessGroupWorker::wait() {
 
   // special solution for GENE
   // todo: find better solution and remove this
-  if( ( signal == RUN_FIRST || signal == RUN_NEXT ) && omitReadySignal )
+  if( ( signal == RUN_FIRST || signal == RUN_NEXT || signal == RECOMPUTE ) && omitReadySignal )
     return signal;
 
   // in the general case: send ready signal.
@@ -252,6 +254,7 @@ void ProcessGroupWorker::decideToKill(){
   //decide if processor was killed during this iteration
   currentTask_->decideToKill();
 }
+
 void ProcessGroupWorker::ready() {
   if( ENABLE_FT ){
     // with this barrier the local root but also each other process can detect
@@ -320,8 +323,10 @@ void ProcessGroupWorker::ready() {
 
   // if failed proc in this group detected the alive procs go into recovery state
   if( ENABLE_FT ){
-    if( status_ == PROCESS_GROUP_FAIL )
+    if( status_ == PROCESS_GROUP_FAIL ){
       theMPISystem()->recoverCommunicators( false );
+      status_ = PROCESS_GROUP_WAIT;
+    }
   }
 }
 
@@ -609,6 +614,7 @@ void ProcessGroupWorker::updateCombiParameters() {
         &tmp,
         theMPISystem()->getManagerRank(),
         theMPISystem()->getGlobalComm() );
+    std::cout << "master received combiparameters \n";
   }
 
   // broadcast task to other process of pgroup
@@ -616,6 +622,7 @@ void ProcessGroupWorker::updateCombiParameters() {
       &tmp,
       theMPISystem()->getMasterRank(),
       theMPISystem()->getLocalComm() );
+  std::cout << "worker received combiparameters \n";
 
   combiParameters_ = tmp;
 

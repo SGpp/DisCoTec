@@ -43,6 +43,9 @@ class ProcessGroupManager {
   inline StatusType
   getStatus();
 
+  inline void
+  setStatus(StatusType status);
+
   /* blocks until process group finished computation */
   inline StatusType
   waitStatus();
@@ -75,6 +78,7 @@ class ProcessGroupManager {
   isGroupFault();
 
   bool addTask( Task* );
+  bool refreshTask( Task* );
 
   //resets tasks only on workers not in group manager
   bool resetTasksWorker();
@@ -138,7 +142,9 @@ inline StatusType ProcessGroupManager::getStatus() {
 
   return status_;
 }
-
+inline void ProcessGroupManager::setStatus(StatusType status) {
+  status_ = status;
+}
 
 inline StatusType ProcessGroupManager::waitStatus() {
   if( status_ == PROCESS_GROUP_WAIT )
