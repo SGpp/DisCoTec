@@ -98,6 +98,20 @@ GeneTask::run( CommunicatorType lcomm )
 
 }
 
+void GeneTask::changeDir(){
+  // change dir to wdir
+  if( chdir( path_.c_str() ) ){
+    printf( "could not change to directory %s \n", path_.c_str() );
+    MPI_Abort( MPI_COMM_WORLD, 1 );
+  }
+
+  char cwd[1024];
+  getcwd(cwd, sizeof(cwd));
+
+  MASTER_EXCLUSIVE_SECTION{
+    std::cout << "run task " << this->getID() << std::endl;
+  }
+}
 void GeneTask::decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
   using namespace std::chrono;
 
@@ -123,10 +137,10 @@ void GeneTask::decideToKill(){ //toDo check if combiStep should be included in t
   combiStep_++;
 }
 void GeneTask::init(CommunicatorType lcomm, std::vector<IndexVector> decomposition){
-  if( dfg_ == NULL ){
-      dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, lcomm,
-          this->getBoundary(), p_, false);
-  }
+//  if( dfg_ == NULL ){
+//      dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, lcomm,
+//          this->getBoundary(), p_, false);
+//  }
   initialized_ = true;
 }
 
@@ -384,11 +398,13 @@ cpFile.close();
 
 
 void GeneTask::setZero(){
-  std::vector<CombiDataType>& data = dfg_->getElementVector();
+  if(dfg_ != NULL){
+    std::vector<CombiDataType>& data = dfg_->getElementVector();
 
-  for( size_t i=0; i<data.size(); ++i ){
-    data[i].real(0);
-    data[i].imag(0);
+    for( size_t i=0; i<data.size(); ++i ){
+      data[i].real(0);
+      data[i].imag(0);
+    }
   }
 }
 

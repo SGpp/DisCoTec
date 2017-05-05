@@ -42,6 +42,8 @@ public:
 
   void run( CommunicatorType lcomm );
 
+  void changeDir();
+
   //void init(CommunicatorType lcomm);
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>());

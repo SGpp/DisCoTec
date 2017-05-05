@@ -148,8 +148,9 @@ SignalType ProcessGroupWorker::wait() {
 
     // add task to task storage
     tasks_.push_back(t);
-
-    status_ = PROCESS_GROUP_BUSY;
+    currentTask_= tasks_.back(); //important for updating values
+    currentTask_->changeDir();
+    status_ = PROCESS_GROUP_WAIT;
 
   } else if (signal == RESET_TASKS) {
     std::cout << "resetting tasks" << std::endl;
@@ -241,13 +242,15 @@ SignalType ProcessGroupWorker::wait() {
 
   // special solution for GENE
   // todo: find better solution and remove this
-  if( ( signal == RUN_FIRST || signal == RUN_NEXT || signal == RECOMPUTE ) && omitReadySignal )
+  if( ( signal == RUN_FIRST || signal == RUN_NEXT || signal == RECOMPUTE) && omitReadySignal )
     return signal;
 
   // in the general case: send ready signal.
   //if(!omitReadySignal)
   ready();
-
+  if(signal == ADD_TASK){ //ready resets currentTask but needs to be set for GENE
+    currentTask_ = tasks_.back();
+  }
   return signal;
 }
 void ProcessGroupWorker::decideToKill(){
