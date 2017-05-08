@@ -277,7 +277,10 @@ Program gene
   LIKWID_CLOSE
 
 #ifdef COMBI_MGR
-    call decide_to_kill()
+    ! don't fail within recompute
+    if(worker_signal.ne.14) then
+      call decide_to_kill()
+    end if
     call worker_ready(wtime, time_perf, time_iv, time_cp)
   end do
 #endif
