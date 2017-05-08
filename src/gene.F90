@@ -11,7 +11,11 @@ Program gene
   use gene_subroutine
   use file_io
   use pinning_mod
+  use discretization
+  use phys_ini
   use diagnostics, only: NRGFILE, cat_output
+  use arrays
+
   use, intrinsic :: iso_c_binding
 #ifdef WITH_LIKWID
 #include "likwid_f90.h"
@@ -49,7 +53,7 @@ Program gene
   integer:: worker_signal=0
   double precision :: worker_tperf
 #endif
-
+  integer:: n_procs
   !set svn_rev here as par_other.F90 might not be recompiled after
   !code modifications (gene_subroutine, however, almost always is)
 #if defined(SVN_REV)
@@ -124,10 +128,49 @@ Program gene
     if(worker_signal.eq.12) cycle
     
     ! 13 = add_task
-    if(worker_signal.eq.13) cycle
+    if(worker_signal.eq.13) then
+      call mpi_comm_size(gene_comm,n_procs,ierr)
+      print*, n_procs
+      !mh: modified to use splitted comm
+      call check_for_diagdir(gene_comm)
+      !initialize communicator
+      call initialize_comm_sim(gene_comm)
+      !read parameter file
+      print*, par_in_dir
+      call read_parameters(par_in_dir)
+      !set parallel values and initializes discretization
+      !call optimize_parall_perf
+      
+      !set up new variables
+      call split_comm
+      call initialize_discretization(print_ini_msg)
+      print*, par_in_dir
+      print*, li1, lj1, lk1, ll1, lm1, ln1, my_pex, my_pey, my_pez, my_pev, my_pew
+      !update decomposition
+      call update_decomposition(gene_comm, li1, lj1, lk1, ll1, lm1, ln1)
+      cycle
+    end if
     
     ! 14 = recompute
-    ! do nothing
+    if(worker_signal.eq.14) then
+      !mh: modified to use splitted comm
+      call check_for_diagdir(gene_comm)
+      !initialize communicator
+      call initialize_comm_sim(gene_comm)
+      !read parameter file
+      call read_parameters(par_in_dir) 
+      !set parallel values and initializes discretization
+      !call optimize_parall_perf
+
+      !set up new variables
+      call split_comm
+      call initialize_discretization(print_ini_msg)
+      print*, li1, lj1, lk1, ll1, lm1, ln1
+      !update decomposition
+      call update_decomposition(gene_comm, li1, lj1, lk1, ll1, lm1, ln1)
+      call set_combined_solution()
+      !no cycle!
+    end if
 
     ! 15 = check dead procs
     if(worker_signal.eq.15) cycle
@@ -140,7 +183,15 @@ Program gene
 
     ! 18 = do nothing
     if(worker_signal.eq.18) cycle
+    
+    ! 19 = reset tasks
+    if(worker_signal.eq.19) then 
+      !get new communicator
+      call update_simulation_communicator(gene_comm)
+      call mpi_comm_rank (gene_comm, mype, ierr)
 
+      cycle
+    end if
 #endif
 
     LIKWID_INIT

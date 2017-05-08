@@ -53,6 +53,12 @@ extern "C" void mpi_ft_finalize_();
 
 extern "C" void decide_to_kill_();
 
+extern "C" void update_simulation_communicator_(MPI_Fint* comm_gene_f);
+
+extern "C" void update_decomposition_(MPI_Fint* comm_gene_f, int *li1p, int *lj1p, int *lk1p, int *ll1p, int *lm1p, int *ln1p);
+
+extern "C" void set_combined_solution_();
+
 // c interfaces
 void worker_wait(MPI_Comm comm, int* worker_stat, int nprocs, int ngroup );
 void worker_ready(double wtime, double time_perf,

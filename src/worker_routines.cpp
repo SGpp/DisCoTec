@@ -104,9 +104,10 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
 
   // check if dfg created and create if necessary
   t->initDFG( comm_gene, decomposition );
-
+  
   // set decomposition in combiparameters
   CombiParameters& param = pgroup->getCombiParameters();
+  std::cout << "set application comm \n";
   param.setApplicationComm( comm_gene );
   t->writeLocalCheckpoint( g_1, size, sizes, bounds );
   //t->setTimeCPMem( MPI_Wtime() - tstart );
@@ -210,6 +211,47 @@ void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
   memcpy ( g_1, cp.getData(), cp.getSize() * sizeof(GeneComplex) );
 }
 
+void update_simulation_communicator_(MPI_Fint* comm_gene_f){
+  MPI_Comm commCombi = theMPISystem()->getLocalComm();
+  MPI_Comm_dup(commCombi,comm_gene_f);
+}
+
+void update_decomposition_(MPI_Fint* comm_gene_f, int *li1p, int *lj1p, int *lk1p, int *ll1p, int *lm1p, int *ln1p){
+  std::vector<int> myLowerBounds = { *li1p, *lj1p, *lk1p, *ll1p, *lm1p, *ln1p };
+  MPI_Comm comm_gene = (MPI_Comm) *comm_gene_f;
+  int lsize;
+  MPI_Comm_size( comm_gene, &lsize );
+  std::vector<int> allLowerBounds( lsize * myLowerBounds.size() );
+  MPI_Allgather( &myLowerBounds[0], static_cast<int>( myLowerBounds.size() ), MPI_INT,
+              &allLowerBounds[0], static_cast<int>( myLowerBounds.size() ), MPI_INT,
+              comm_gene );
+  // extract decomposition from alllowerbounds
+  std::vector<IndexVector> decomposition(6);
+  for( int r=0; r<lsize; ++r ){
+    for( int i=0; i<6; ++i )
+      decomposition[i].push_back( allLowerBounds[ r*6 + i ] );
+  }
+  // decomposition contains only unique elements
+  for( int d=0; d<6; ++d ){
+    std::sort( decomposition[d].begin(),
+               decomposition[d].end() );
+    IndexVector::iterator last = std::unique( decomposition[d].begin(),
+                                              decomposition[d].end());
+    decomposition[d].erase( last, decomposition[d].end() );
+  }
+  Task* tt = pgroup->getCurrentTask();
+  GeneTask* t = static_cast< GeneTask* >(tt);
+  // check if dfg created and create if necessary
+  t->initDFG( comm_gene, decomposition );
+  // set zero for combination
+  t->setZero();
+}
+
+void set_combined_solution_(){
+  Task* tt = pgroup->getCurrentTask();
+  GeneTask* t = static_cast< GeneTask* >(tt);
+  pgroup->setCombinedSolutionUniform(t);
+}
 
 volatile int endStallForDebugger=1;
 
