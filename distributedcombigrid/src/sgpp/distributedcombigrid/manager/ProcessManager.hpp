@@ -132,7 +132,7 @@ inline ProcessGroupManagerID ProcessManager::wait() {
 inline ProcessGroupManagerID ProcessManager::waitAvoid( std::vector< ProcessGroupManagerID>& avoidGroups) {
   while (true) {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (std::find(avoidGroups.begin(), avoidGroups.end(), pgroups_[i]) != avoidGroups.end()){//ignore tasks that are recomputed
+      if (std::find(avoidGroups.begin(), avoidGroups.end(), pgroups_[i]) == avoidGroups.end()){//ignore tasks that are recomputed
         if(pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT){
           return pgroups_[i];
         }

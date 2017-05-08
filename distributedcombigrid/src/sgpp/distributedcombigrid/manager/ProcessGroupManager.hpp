@@ -56,6 +56,9 @@ class ProcessGroupManager {
   inline const TaskContainer&
   getTaskContainer() const;
 
+  inline void
+  removeTask(Task* t);
+
   bool
   combine();
 
@@ -180,6 +183,16 @@ inline complex ProcessGroupManager::eval(const std::vector<real>& x) {
 inline const TaskContainer&
 ProcessGroupManager::getTaskContainer() const {
   return tasks_;
+}
+
+inline void ProcessGroupManager::removeTask(Task* t){
+  std::vector<Task *>::iterator position = std::find(tasks_.begin(), tasks_.end(), t);
+  if (position != tasks_.end()){ // == myVector.end() means the element was not found
+      tasks_.erase(position);
+  }
+  else{
+    std::cout << "Error could not remove task!";
+  }
 }
 
 template<typename FG_ELEMENT>

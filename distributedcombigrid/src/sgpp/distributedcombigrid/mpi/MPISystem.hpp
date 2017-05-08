@@ -161,7 +161,7 @@ class MPISystem {
 
   std::vector<RankType> getReusableRanks( int remainingProcs );
 
-  void getReusableRanksSpare();
+  void getReusableRanksSpare(std::vector<RankType>& reusableRanks);
 
   std::vector<RankType> getFailedRanks( int numFailedProcs );
 

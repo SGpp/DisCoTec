@@ -413,7 +413,10 @@ void GeneTask::initDFG( CommunicatorType comm,
                         std::vector<IndexVector>& decomposition ){
   // this is the clean version. however requires creation of dfg before each
   // combination step
-
+  for(auto d:decomposition){
+    std::cout << d << " ,";
+  }
+  std::cout << "\n";
   if( dfg_ != NULL )
     delete dfg_;
 

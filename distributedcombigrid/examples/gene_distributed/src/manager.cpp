@@ -154,10 +154,11 @@ int main(int argc, char** argv) {
 
     faultsInfo.numFaults_ = cfg.get<int>("faults.num_faults");
 
-    faultsInfo.iterationFaults_.resize(faultsInfo.numFaults_);
-    faultsInfo.globalRankFaults_.resize(faultsInfo.numFaults_);
+
 
     if( faultsInfo.numFaults_ > 0 ){
+      faultsInfo.iterationFaults_.resize(faultsInfo.numFaults_);
+      faultsInfo.globalRankFaults_.resize(faultsInfo.numFaults_);
       cfg.get<std::string>("faults.iteration_faults") >> faultsInfo.iterationFaults_;
       cfg.get<std::string>("faults.global_rank_faults") >> faultsInfo.globalRankFaults_;
     }
@@ -232,7 +233,7 @@ int main(int argc, char** argv) {
       FaultCriterion *faultCrit;
       //create fault criterion
       if(faultsInfo.numFaults_ < 0){
-        faultCrit = new WeibullFaults(0.7, 1000, ncombi, true);
+        faultCrit = new WeibullFaults(0.7, 100, ncombi, true);
       }
       else{ //do not use faults
         faultCrit = new StaticFaults(faultsInfo);

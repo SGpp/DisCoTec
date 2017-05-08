@@ -155,18 +155,24 @@ void ProcessManager::redistribute( std::vector<int>& taskID ) {
 }
 
 void ProcessManager::reInitializeGroup(std::vector< ProcessGroupManagerID>& recoveredGroups, std::vector<int>& tasksToIgnore ) {
+  std::vector<Task*> removeTasks;
   for (auto g : recoveredGroups) {
     //erase existing tasks in group members to avoid doubled tasks
     g->resetTasksWorker();
     for ( Task* t : g->getTaskContainer()) {
       assert( t != NULL );
-      if(std::find(tasksToIgnore.begin(), tasksToIgnore.end(), t->getID()) != tasksToIgnore.end()){ //ignore tasks that are recomputed
-        continue;
+      if(std::find(tasksToIgnore.begin(), tasksToIgnore.end(), t->getID()) == tasksToIgnore.end()){ //ignore tasks that are recomputed
+        StatusType status = g->waitStatus();
+        std::cout << "status of g: " << status << "\n";
+        // assign instance to group
+        g->refreshTask( t );
       }
-      StatusType status = g->waitStatus();
-      std::cout << "status of g: " << status << "\n";
-      // assign instance to group
-      g->refreshTask( t );
+      else{
+        removeTasks.push_back(t);
+      }
+    }
+    for( Task* t : removeTasks){
+      g->removeTask(t);
     }
   }
 
@@ -230,6 +236,10 @@ void ProcessManager::recompute( std::vector<int>& taskID, bool failedRecovery, s
 
 
 bool ProcessManager::recoverCommunicators(std::vector< ProcessGroupManagerID> failedGroups){
+  if(pgroups_.size() == failedGroups.size()){
+    std::cout << "last process groups failed! Aborting! \n";
+    MPI_Abort(MPI_COMM_WORLD, 1 );
+  }
   waitAllFinished();
 
   // send recover communicators signal to alive groups

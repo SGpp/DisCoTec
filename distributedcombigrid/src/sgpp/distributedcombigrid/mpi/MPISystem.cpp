@@ -320,12 +320,12 @@ std::vector<RankType> MPISystem::getReusableRanks( int remainingProcs ){ //toDo 
   return reusableProcs;
 }
 
-void MPISystem::getReusableRanksSpare(){ //update ranks after shrink
-  for(int i=0; i< reusableRanks_.size(); i++){
+void MPISystem::getReusableRanksSpare(std::vector<RankType>& reusableRanks){ //update ranks after shrink
+  for(int i=0; i< reusableRanks.size(); i++){
     std::cout << "getting new ranks \n";
     int reusableRank;
      MPI_Recv(&reusableRank, 1, MPI_INT, MPI_ANY_SOURCE, FT_REUSABLE_RANK_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
-     reusableRanks_[i] = reusableRank;
+     reusableRanks[i] = reusableRank;
      std::cout << "new rank id " << reusableRank << "\n";
   }
 }
@@ -333,6 +333,7 @@ void MPISystem::getReusableRanksSpare(){ //update ranks after shrink
 bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks, std::vector<RankType>& reusableRanks ){ //toDo matching send
   std::vector<MPI_Request> requests(failedRanks.size());
   for(int i=0; i< failedRanks.size(); i++){
+    std::cout << "sending rank: " << failedRanks[i] << " to rank: " << reusableRanks[i] << "\n";
      MPI_Isend(&failedRanks[i], 1, MPI_INT, reusableRanks[i], FT_NEW_RANK_TAG, theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
   }
   bool success = true; //so far no time out failing possible
@@ -385,6 +386,7 @@ void MPISystem::sendShrinkSignal(std::vector<RankType>& reusableRanks){
   for(int i = 0; i< reusableRanks.size(); i++){
     int shrinkData; //not used so far
     MPI_Isend(&shrinkData,0,MPI_INT,reusableRanks[i],FT_SHRINK_TAG,theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
+    std::cout << "sending shrink signal to " << reusableRanks[i] << "\n";
   }
 
   for(int i = 0; i< reusableRanks.size(); i++){
@@ -432,6 +434,7 @@ void MPISystem::waitForReuse(){
       int rankID;
       //receive rank ID
       MPI_Recv(&rankID, 1, MPI_INT, managerRankFT_, FT_NEW_RANK_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
+      std::cout << "spare rank " << worldRank_ << " receives new rank: "<< rankID << "\n";
 
       newRankFlag = 0;
       //receive recovery state to check if recovery really succeeded
@@ -448,6 +451,8 @@ void MPISystem::waitForReuse(){
        int excludeData;
        excludeFlag = 0;
        //receive exclude data ; so far nothing there
+       std::cout << "spare rank " << worldRank_ << " gets excluded \n";
+
        MPI_Recv(&excludeData, 0, MPI_INT, managerRankFT_, FT_EXCLUDE_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
        //perform split with color 0
        int color = 0;
@@ -460,6 +465,7 @@ void MPISystem::waitForReuse(){
        shrinkFlag = 0;
        int shrinkData; // not used so far
        //receive exclude data ; so far nothing there
+       std::cout << "spare rank " << worldRank_ << " performs shrink \n";
        MPI_Recv(&shrinkData, 0, MPI_INT, managerRankFT_, FT_SHRINK_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
        //perform shrink
        simft::Sim_FT_MPI_Comm newSpareCommFT;
@@ -490,9 +496,10 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   //theStatsContainer()->setTimerStart("recoverComm-shrink");
   simft::Sim_FT_MPI_Comm newSpareCommFT;
   simft::Sim_FT_MPI_Comm newWorldCommFT;
-
-  //indicate shrink to reusable ranks
-  sendShrinkSignal(reusableRanks_);
+  WORLD_MANAGER_EXCLUSIVE_SECTION{
+    //indicate shrink to reusable ranks
+    sendShrinkSignal(reusableRanks_);
+  }
   //shrink of all processors including reusable ones
   MPI_Comm_shrink( theMPISystem()->getSpareCommFT(), &newSpareCommFT ); //remove dead processors from spareComm(worldComm + reusable ranks)
   //shrink of all active processors
@@ -501,7 +508,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   int ftCommSize;
   MPI_Comm_size(spareCommFT_->c_comm, &ftCommSize );
   managerRankFT_= ftCommSize - 1;
-
+  std::vector<RankType> newReusableRanks;
   MPI_Comm_shrink( theMPISystem()->getWorldCommFT(), &newWorldCommFT); //remove dead processors from current worldComm
   bool failedRecovery = true;
   WORLD_MANAGER_EXCLUSIVE_SECTION{ //get failed ranks
@@ -516,9 +523,9 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
 
     int numFailedRanks = sizeOld-sizeNew;
     std::vector<RankType> failedRanks = getFailedRanks(numFailedRanks);
-    std::cout << "nprocs - numFailed " << nprocs_ - numFailedRanks << "\n";
-    std::vector<RankType> newReusableRanks = getReusableRanks(nprocs_ - numFailedRanks);
-    getReusableRanksSpare();
+    std::cout << "nprocs - numFailed " << failedGroups.size() * nprocs_ - numFailedRanks << "\n";
+    newReusableRanks = getReusableRanks(failedGroups.size() * nprocs_ - numFailedRanks);
+    getReusableRanksSpare(reusableRanks_); //update ranks of reusable ranks
     //toDO reusableRanks might be outdated due to new failures there
     bool enoughSpareProcs = sizeSpare - sizeNew >= numFailedRanks;
     std::cout << "enoughSpareProcs: " << enoughSpareProcs << "\n";
@@ -543,6 +550,8 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
     std::cout << "sending exclude signal \n";
     sendExcludeSignal(reusableRanks_);
     if(failedRecovery){ // add in case of failure newreusable ranks to vector
+      getReusableRanksSpare(newReusableRanks); //update ranks to value in spareft communicator
+
       reusableRanks_.insert(reusableRanks_.end(), newReusableRanks.begin(), newReusableRanks.end());
     }
   }
@@ -554,7 +563,12 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
     if(recoveryFailed){
       color = 0;
       int key = worldRank_;
+      //update worldRank_ to spare communicator
+      MPI_Comm_rank(spareCommFT_->c_comm,&worldRank_);
+      sendReusableSignalSpare(); //send rank in ft communicator to master
+
       MPI_Comm_split( spareCommFT_->c_comm, color, key, &worldComm_ );
+      //sendReusableSignal(theMPISystem()->getSpareCommFT()->c_comm);
       waitForReuse(); //does only leave this routine when reused later //participates in future shrinks
       color = 1;
     }
@@ -568,6 +582,11 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   int key = worldRank_;
   std::cout << "performing MPI split \n";
   MPI_Comm_split(spareCommFT_->c_comm, color, key, &worldComm_ );
+
+//  //get new rank ids from reusable ranks after splitting
+//  WORLD_MANAGER_EXCLUSIVE_SECTION{
+//    getReusableRanksSpare(newReusableRanks);
+//  }
   /*color = (!groupAlive) ? 1 : MPI_UNDEFINED; //all alive procs from dead process groups
   WORLD_MANAGER_EXCLUSIVE_SECTION{
      color = 1;

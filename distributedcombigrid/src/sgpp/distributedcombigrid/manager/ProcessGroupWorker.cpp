@@ -128,9 +128,9 @@ SignalType ProcessGroupWorker::wait() {
     MASTER_EXCLUSIVE_SECTION {
       Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
     }
-
     // broadcast task to other process of pgroup
     Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+    std::cout << "added task id: " << t->getID();
 
     MPI_Barrier(theMPISystem()->getLocalComm());
 
@@ -150,7 +150,7 @@ SignalType ProcessGroupWorker::wait() {
     tasks_.push_back(t);
     currentTask_= tasks_.back(); //important for updating values
     currentTask_->changeDir();
-    status_ = PROCESS_GROUP_WAIT;
+    status_ = PROCESS_GROUP_BUSY;
 
   } else if (signal == RESET_TASKS) {
     std::cout << "resetting tasks" << std::endl;
@@ -225,7 +225,7 @@ SignalType ProcessGroupWorker::wait() {
     currentTask_->setZero();
 
     // fill task with combisolution
-    setCombinedSolutionUniform( currentTask_ );
+   // setCombinedSolutionUniform( currentTask_ ); works only if DFG is initialized -> this happens outside
 
     // execute task
     currentTask_->run(theMPISystem()->getLocalComm());
