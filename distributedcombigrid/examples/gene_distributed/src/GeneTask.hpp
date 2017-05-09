@@ -42,6 +42,8 @@ public:
 
   void run( CommunicatorType lcomm );
 
+  void changeDir();
+
   //void init(CommunicatorType lcomm);
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>());
@@ -135,7 +137,6 @@ private:
   size_t nsteps_;
   size_t stepsTotal_;
   size_t combiStep_;
-
   IndexVector p_;
 
   real shat_;

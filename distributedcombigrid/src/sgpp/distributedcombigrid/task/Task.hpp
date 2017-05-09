@@ -53,6 +53,10 @@ class Task {
 
   virtual void run(CommunicatorType lcomm) = 0;
 
+  virtual void changeDir(){
+    //do nothing
+  }
+
   virtual void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>()) = 0;
 
   inline real estimateRuntime() const;

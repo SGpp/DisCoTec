@@ -76,7 +76,7 @@ class TaskExample: public Task {
     }
 
     if (lrank == 0) {
-      std::cout << "computing task " << this->getID() << " with l = "
+      std::cout << "init task " << this->getID() << " with l = "
                 << this->getLevelVector() << " and p = " << p << std::endl;
     }
 
@@ -122,6 +122,8 @@ class TaskExample: public Task {
         dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
         elements[i] = TaskExample::myfunction(globalCoords, time);
       }
+
+      MPI_Barrier(lcomm);
     }
 
     stepsTotal_ += nsteps_;

@@ -60,6 +60,7 @@ namespace combigrid {
  * isLocalMaster returns true if the calling process is the master process of
  * its process group
  */
+class ProcessGroupManager;
 class MPISystem {
  public:
   ~MPISystem();
@@ -81,6 +82,9 @@ class MPISystem {
   inline const CommunicatorType& getGlobalReduceComm() const;
 
   inline simft::Sim_FT_MPI_Comm getWorldCommFT();
+
+  inline simft::Sim_FT_MPI_Comm getSpareCommFT();
+
 
   inline simft::Sim_FT_MPI_Comm getGlobalCommFT();
 
@@ -110,9 +114,11 @@ class MPISystem {
 
   inline size_t getNumProcs() const;
 
-  void recoverCommunicators( bool groupAlive );
-
   inline bool isInitialized() const;
+
+  bool recoverCommunicators( bool groupAlive, std::vector< std::shared_ptr< ProcessGroupManager >> failedGroups = std::vector< std::shared_ptr< ProcessGroupManager >>(0) );
+
+  void sendFailedSignal();
 
  private:
   explicit MPISystem();
@@ -137,9 +143,36 @@ class MPISystem {
 
   void initGlobalComm();
 
+  void sendReusableSignal();
+
+  void sendReusableSignalSpare();
+
+  void waitForReuse();
+
+  bool receiveRecoverStatus();
+
+  void sendShrinkSignal(std::vector<RankType>& reusableRanks);
+
+  void sendExcludeSignal(std::vector<RankType>& reusableRanks);
+
+  void sendRecoveryStatus(bool failedRecovery, std::vector<RankType>& newReusableRanks );
+
+  bool sendRankIds(std::vector<RankType>& failedRanks, std::vector<RankType>& reusableRanks );
+
+  std::vector<RankType> getReusableRanks( int remainingProcs );
+
+  void getReusableRanksSpare(std::vector<RankType>& reusableRanks);
+
+  std::vector<RankType> getFailedRanks( int numFailedProcs );
+
+
+
   bool initialized_;
 
   CommunicatorType worldComm_;
+
+  //contains alive procs from dead process groups and manager
+  simft::Sim_FT_MPI_Comm spareCommFT_;
 
   CommunicatorType globalComm_;
 
@@ -167,11 +200,16 @@ class MPISystem {
 
   RankType managerRankWorld_;
 
+  RankType managerRankFT_;
+
   RankType masterRank_;
 
   size_t ngroup_;
 
   size_t nprocs_;
+
+  //ranks that er still functional but not assigned to any process group
+  std::vector<RankType> reusableRanks_;
 };
 
 /*!\name MPI communication system setup functions */
@@ -238,6 +276,12 @@ inline simft::Sim_FT_MPI_Comm MPISystem::getWorldCommFT(){
   checkPreconditionsFT();
 
   return worldCommFT_;
+}
+
+inline simft::Sim_FT_MPI_Comm MPISystem::getSpareCommFT(){
+  checkPreconditionsFT();
+
+  return spareCommFT_;
 }
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalCommFT(){

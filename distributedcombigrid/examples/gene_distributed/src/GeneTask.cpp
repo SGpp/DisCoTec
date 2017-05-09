@@ -14,7 +14,9 @@
 #include "CombiGeneConverter.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/MultiArray.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
+
+//#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
 
 namespace combigrid
 {
@@ -98,7 +100,21 @@ GeneTask::run( CommunicatorType lcomm )
 
 }
 
-void GeneTask::decideToKill(){
+void GeneTask::changeDir(){
+  // change dir to wdir
+  if( chdir( path_.c_str() ) ){
+    printf( "could not change to directory %s \n", path_.c_str() );
+    MPI_Abort( MPI_COMM_WORLD, 1 );
+  }
+
+  char cwd[1024];
+  getcwd(cwd, sizeof(cwd));
+
+  MASTER_EXCLUSIVE_SECTION{
+    std::cout << "changed to task " << this->getID() << std::endl;
+  }
+}
+void GeneTask::decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
   using namespace std::chrono;
 
   int globalRank;
@@ -117,15 +133,21 @@ void GeneTask::decideToKill(){
   //real t = dt_ * nsteps_ * combiStep_;
   if (faultCriterion_->failNow(combiStep_, t_iter, globalRank)){
         std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
+        StatusType status=PROCESS_GROUP_FAIL;
+        MASTER_EXCLUSIVE_SECTION{
+          simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), statusTag,
+                            theMPISystem()->getGlobalCommFT() );
+        }
+        theMPISystem()->sendFailedSignal();
         simft::Sim_FT_kill_me();
   }
   combiStep_++;
 }
 void GeneTask::init(CommunicatorType lcomm, std::vector<IndexVector> decomposition){
-  if( dfg_ == NULL ){
-      dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, lcomm,
-          this->getBoundary(), p_, false);
-  }
+//  if( dfg_ == NULL ){
+//      dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, lcomm,
+//          this->getBoundary(), p_, false);
+//  }
   initialized_ = true;
 }
 
@@ -383,10 +405,14 @@ cpFile.close();
 
 
 void GeneTask::setZero(){
-  std::vector<CombiDataType>& data = dfg_->getElementVector();
+  if(dfg_ != NULL){
+    std::vector<CombiDataType>& data = dfg_->getElementVector();
 
-  for( size_t i=0; i<data.size(); ++i )
-    data[i] = std::complex<real>(0);
+    for( size_t i=0; i<data.size(); ++i ){
+      data[i].real(0);
+      data[i].imag(0);
+    }
+  }
 }
 
 
@@ -394,14 +420,17 @@ void GeneTask::initDFG( CommunicatorType comm,
                         std::vector<IndexVector>& decomposition ){
   // this is the clean version. however requires creation of dfg before each
   // combination step
-/*
+  for(auto d:decomposition){
+    std::cout << d << " ,";
+  }
+  std::cout << "\n";
   if( dfg_ != NULL )
     delete dfg_;
 
   dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
       this->getBoundary(), p_, false, decomposition );
-*/
 
+/*
   // todo: keep in mind
   // in this version the dfg is only created once. this only works if always exactly
   // the same set of processes is used by gene
@@ -411,6 +440,7 @@ void GeneTask::initDFG( CommunicatorType comm,
         this->getBoundary(), p_, false, decomposition );
   }
   //std::cout << "initDFG \n";
+   */
 }
 
 

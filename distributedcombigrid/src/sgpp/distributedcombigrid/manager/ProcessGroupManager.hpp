@@ -19,7 +19,6 @@
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
-
 class ProcessGroupManager {
 
  public:
@@ -44,6 +43,9 @@ class ProcessGroupManager {
   inline StatusType
   getStatus();
 
+  inline void
+  setStatus(StatusType status);
+
   /* blocks until process group finished computation */
   inline StatusType
   waitStatus();
@@ -53,6 +55,9 @@ class ProcessGroupManager {
 
   inline const TaskContainer&
   getTaskContainer() const;
+
+  inline void
+  removeTask(Task* t);
 
   bool
   combine();
@@ -76,6 +81,10 @@ class ProcessGroupManager {
   isGroupFault();
 
   bool addTask( Task* );
+  bool refreshTask( Task* );
+
+  //resets tasks only on workers not in group manager
+  bool resetTasksWorker();
 
   bool recompute( Task* );
 
@@ -136,7 +145,9 @@ inline StatusType ProcessGroupManager::getStatus() {
 
   return status_;
 }
-
+inline void ProcessGroupManager::setStatus(StatusType status) {
+  status_ = status;
+}
 
 inline StatusType ProcessGroupManager::waitStatus() {
   if( status_ == PROCESS_GROUP_WAIT )
@@ -172,6 +183,16 @@ inline complex ProcessGroupManager::eval(const std::vector<real>& x) {
 inline const TaskContainer&
 ProcessGroupManager::getTaskContainer() const {
   return tasks_;
+}
+
+inline void ProcessGroupManager::removeTask(Task* t){
+  std::vector<Task *>::iterator position = std::find(tasks_.begin(), tasks_.end(), t);
+  if (position != tasks_.end()){ // == myVector.end() means the element was not found
+      tasks_.erase(position);
+  }
+  else{
+    std::cout << "Error could not remove task!";
+  }
 }
 
 template<typename FG_ELEMENT>

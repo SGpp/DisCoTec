@@ -11,7 +11,7 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGridNonUniform.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGrid.hpp"
@@ -444,12 +444,12 @@ template<typename FG_ELEMENT>
 void CombiCom::distributedLocalReduceBlock(
   DistributedFullGridNonUniform<FG_ELEMENT>& dfg,
   DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
-  theStatsContainer()->setTimerStart("local_reduce_fill_subspaces");
+
   // copy data into subspace datastructures
   dfg.fillSubspaces();
-  theStatsContainer()->setTimerStop("local_reduce_fill_subspaces");
 
-  theStatsContainer()->setTimerStart("local_reduce_calc_dependencies");
+
+
   // get a list of all the subspaces in dfg
   std::vector<LevelVector> dfgSubspacesLevels;
   dfg.getSubspacesLevelVectors(dfgSubspacesLevels);
@@ -483,9 +483,6 @@ void CombiCom::distributedLocalReduceBlock(
                             recvsizes, recvsubspaces);
   }
 
-  theStatsContainer()->setTimerStop("local_reduce_calc_dependencies");
-
-  theStatsContainer()->setTimerStart("local_reduce_exchange_data");
   // start send and recv operations to all other processes
   std::vector<MPI_Request> requests;
   size_t totalsendsize(0), totalrecvsize(0);
@@ -515,7 +512,6 @@ void CombiCom::distributedLocalReduceBlock(
   }
 
   MPI_Waitall(int(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
-  theStatsContainer()->setTimerStop("local_reduce_exchange_data");
 
   int rank = dfg.getMpiRank();
 
@@ -544,12 +540,8 @@ void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
    * which has been used in the constructor
    */
 
-  theStatsContainer()->setTimerStart("local_reduce_fill_subspaces");
   // copy data into subspace datastructures
   dfg.fillSubspaces();
-  theStatsContainer()->setTimerStop("local_reduce_fill_subspaces");
-
-  theStatsContainer()->setTimerStart("local_reduce_exchange_data");
 
   // get a list of all the subspaces in dfg
   std::vector<LevelVector> dfgSubspacesLevels;
@@ -587,10 +579,6 @@ void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
     MPI_Waitall(static_cast<int>(requests.size()), &requests[0],
                 MPI_STATUSES_IGNORE);
 
-  theStatsContainer()->setTimerStop("local_reduce_exchange_data");
-
-  theStatsContainer()->setTimerStart("local_reduce_add_buffers");
-
   // each process adds the buffers it is responsible for to the corresponding
   // subpsace in dsg
   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
@@ -615,7 +603,6 @@ void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
     }
   }
 
-  theStatsContainer()->setTimerStop("local_reduce_add_buffers");
 }
 
 template<typename FG_ELEMENT>
@@ -701,7 +688,6 @@ void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
    * which has been used in the constructor
    */
 
-  theStatsContainer()->setTimerStart("local_scatter_exchange_data");
   // get a list of all the subspaces in dfg
   std::vector<LevelVector> dfgSubspacesLevels;
   dfg.getSubspacesLevelVectors(dfgSubspacesLevels);
@@ -725,12 +711,8 @@ void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
     dfg.scatterSubspace(scatterL, src, buf);
   }
 
-  theStatsContainer()->setTimerStop("local_scatter_exchange_data");
-
   // copy data back into dfg
-  theStatsContainer()->setTimerStart("local_scatter_write_back");
   dfg.writeBackSubspaces();
-  theStatsContainer()->setTimerStop("local_scatter_write_back");
 
   // clear subspace containers and release memory
   dfg.clearSubspaces();

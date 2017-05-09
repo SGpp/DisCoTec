@@ -15,7 +15,7 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
-#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 //#define DEBUG_OUTPUT
 #define UNIFORM_SG
@@ -147,17 +147,8 @@ class DistributedFullGrid {
 
     calcDecompositionCoords();
 
-    if (count == 0)
-      theStatsContainer()->setTimerStart("create_dfg_calc_subspaces");
-
     calcSubspaces();
     subspacesFilled_ = false;
-
-    if (count == 0)
-      theStatsContainer()->setTimerStop("create_dfg_calc_subspaces");
-
-    if (count == 0)
-      theStatsContainer()->setTimerStart("create_dfg_assigment_list");
 
     if (subspaces_.size() > 65535)
       assert(
@@ -167,9 +158,6 @@ class DistributedFullGrid {
 
     assigmentList_.resize(fullgridVector_.size());
     calcAssigmentList();
-
-    if (count == 0)
-      theStatsContainer()->setTimerStop("create_dfg_assigment_list");
 
     // set size of largest subspace
     maxSubspaceSize_ = 0;
@@ -182,13 +170,6 @@ class DistributedFullGrid {
     dsg_ = NULL;
 
     ++count;
-
-    /* todo remove
-    for( size_t i=0; i<dim_; ++i ){
-      std::cout << "decomposition " << i << " "
-                << decomposition_[i] << std::endl;
-    }
-    */
 
 #ifdef DEBUG_OUTPUT
 
@@ -702,6 +683,7 @@ class DistributedFullGrid {
           partitionCoords[d] = i;
       }
 
+      // check whether the partition coordinates are valid
       assert( partitionCoords[d] > -1 && partitionCoords[d] < procs_[d] );
     }
   }
@@ -968,6 +950,7 @@ class DistributedFullGrid {
 
       assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
+      // copy add grid point to subspace, mul with coeff
       fullgridVector_[i] = *it_sub[subFgId];
 
       ++it_sub[subFgId];
@@ -1302,6 +1285,14 @@ class DistributedFullGrid {
     return subspaces_[i].level_;
   }
 
+  inline size_t getSubspaceIndex(LevelVector l) {
+    for (size_t i = 0; i < subspaces_.size(); ++i) {
+      if (subspaces_[i].level_ == l)
+        return i;
+    }
+    return subspaces_.size();
+  }
+
   void getSubspacesLevelVectors(std::vector<LevelVector>& lvecs) {
     for (auto subsp : subspaces_)
       lvecs.push_back(subsp.level_);
@@ -1315,6 +1306,16 @@ class DistributedFullGrid {
     return maxSubspaceSize_;
   }
 
+  inline std::vector<FG_ELEMENT>& getSubspaceData(size_t i) {
+    assert(i < subspaces_.size());
+    return subspaces_[i].data_;
+  }
+
+  inline std::vector<FG_ELEMENT>& getSubspaceData(LevelVector l) {
+    size_t i = this->getSubspaceIndex(l);
+    assert(i != subspaces_.size());
+    return subspaces_[i].data_;
+  }
 
   real getLpNorm(int p) {
     assert(p >= 0);
@@ -1353,7 +1354,6 @@ class DistributedFullGrid {
       assert( false && "this has never been tested" );
     }
   }
-
 
   // normalize with specific norm
   inline real normalizelp(int p) {

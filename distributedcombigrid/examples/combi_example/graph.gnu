@@ -10,9 +10,9 @@ set xlabel "x"
 set ylabel "y"
 set style line 1 lt -1 lw 0.3
 set pm3d hidden3d 1
-do for [i = 1:100] {
+do for [i = 1:10] {
     splot "out/solution.dat" index (i-1) using 1:2:3 with pm3d
-    pause 0.02
+    pause 0.2
 }
 reread
 pause mouse keypress

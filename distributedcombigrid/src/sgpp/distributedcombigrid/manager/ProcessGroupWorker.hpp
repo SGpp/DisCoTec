@@ -55,6 +55,7 @@ class ProcessGroupWorker {
 
   inline CombiParameters& getCombiParameters();
 
+  void setCombinedSolutionUniform( Task* t );
 
  private:
   TaskContainer tasks_; // task storage
@@ -75,7 +76,6 @@ class ProcessGroupWorker {
 
   //std::ofstream betasFile_;
 
-  void setCombinedSolutionUniform( Task* t );
 };
 
 
