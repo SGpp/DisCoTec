@@ -529,7 +529,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
     //toDO reusableRanks might be outdated due to new failures there
     bool enoughSpareProcs = sizeSpare - sizeNew >= numFailedRanks;
     std::cout << "enoughSpareProcs: " << enoughSpareProcs << "\n";
-    std::cout << "failedRanks: " << failedRanks[0] << failedRanks.size() << " ;reusable Ranks: " << newReusableRanks[0] << newReusableRanks.size() << "\n";
+    //std::cout << "failedRanks: " << failedRanks[0] << failedRanks.size() << " ;reusable Ranks: " << newReusableRanks[0] << newReusableRanks.size() << "\n";
     bool failedSendingRankIds = false;
     if(enoughSpareProcs){ //send failed ranks to reusable procs so they can set their worldRank accordingly
       failedSendingRankIds = sendRankIds(failedRanks,reusableRanks_);  //check with timeout if reusable ranks are still available;

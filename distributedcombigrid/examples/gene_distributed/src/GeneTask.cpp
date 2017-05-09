@@ -14,6 +14,8 @@
 #include "CombiGeneConverter.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/MultiArray.hpp"
+#include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
+
 //#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
 
 namespace combigrid
@@ -109,7 +111,7 @@ void GeneTask::changeDir(){
   getcwd(cwd, sizeof(cwd));
 
   MASTER_EXCLUSIVE_SECTION{
-    std::cout << "run task " << this->getID() << std::endl;
+    std::cout << "changed to task " << this->getID() << std::endl;
   }
 }
 void GeneTask::decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
@@ -131,6 +133,11 @@ void GeneTask::decideToKill(){ //toDo check if combiStep should be included in t
   //real t = dt_ * nsteps_ * combiStep_;
   if (faultCriterion_->failNow(combiStep_, t_iter, globalRank)){
         std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
+        StatusType status=PROCESS_GROUP_FAIL;
+        MASTER_EXCLUSIVE_SECTION{
+          simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), statusTag,
+                            theMPISystem()->getGlobalCommFT() );
+        }
         theMPISystem()->sendFailedSignal();
         simft::Sim_FT_kill_me();
   }

@@ -313,7 +313,7 @@ int main(int argc, char** argv) {
 
         /* if some tasks have to be recomputed, do so*/
         if(!recomputeFaultsID.empty()){
-         manager.recompute(recomputeFaultsID,failedRecovery,groupFaults);
+         manager.recompute(recomputeFaultsID,failedRecovery,groupFaults); //toDO handle faults in recompute
         }
         std::cout << "updateing Combination Parameters \n";
         //needs to be after reInitialization!

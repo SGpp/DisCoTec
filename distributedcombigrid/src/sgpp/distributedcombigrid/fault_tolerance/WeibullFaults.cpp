@@ -24,8 +24,10 @@ WeibullFaults::~WeibullFaults() {
 }
 
 bool WeibullFaults::failNow(int ncombi, real t_iter, int globalRank){
-  MASTER_EXCLUSIVE_SECTION {
-    return false;
+  if(!faultMaster_){
+    MASTER_EXCLUSIVE_SECTION {
+      return false;
+    }
   }
   if(ncombi == numberOfCombis_ - 1){ //do not fault in last iteration
     return false;
