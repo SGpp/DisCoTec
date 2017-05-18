@@ -131,7 +131,7 @@ void GeneTask::decideToKill(){ //toDo check if combiStep should be included in t
   //check if killing necessary
   //std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at step " << combiStep_ << "\n" ;
   //real t = dt_ * nsteps_ * combiStep_;
-  if (faultCriterion_->failNow(combiStep_, t_iter, globalRank)){
+  if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, t_iter, globalRank)){
         std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
         StatusType status=PROCESS_GROUP_FAIL;
         MASTER_EXCLUSIVE_SECTION{
