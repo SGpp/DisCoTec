@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
       FaultCriterion *faultCrit;
       //create fault criterion
       if(faultsInfo.numFaults_ < 0){
-        faultCrit = new WeibullFaults(0.7, 100, ncombi, true);
+        faultCrit = new WeibullFaults(0.7, abs(faultsInfo.numFaults_), ncombi, true);
       }
       else{ //do not use faults
         faultCrit = new StaticFaults(faultsInfo);
@@ -311,6 +311,7 @@ int main(int argc, char** argv) {
 
         /* if some tasks have to be recomputed, do so*/
         if(!recomputeFaultsID.empty()){
+          std::cout << "sending tasks for recompute \n";
          manager.recompute(recomputeFaultsID,failedRecovery,groupFaults); //toDO handle faults in recompute
         }
         std::cout << "updateing Combination Parameters \n";

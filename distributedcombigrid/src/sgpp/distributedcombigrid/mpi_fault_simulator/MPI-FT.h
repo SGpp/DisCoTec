@@ -73,6 +73,7 @@ typedef void (Sim_FT_MPI_Comm_errhandler_function)(Sim_FT_MPI_Comm, int *, ...);
 #define I_AM_ALIVE_NB 7
 //#define I_AM_DEAD_NB 8
 #define I_AM_ALIVE 9
+#define TAGOFFSETALIVE 10000
 #define I_AM_DEAD 10
 #define PROBE_REQUEST 11
 #define PROBE_ANSWER 12
@@ -408,6 +409,8 @@ int Sim_FT_MPI_Cart_create(Sim_FT_MPI_Comm comm_old, int ndims, int dims[],
 int Sim_FT_MPI_Cart_rank(Sim_FT_MPI_Comm f_comm, int coords[], int *rank);
 int Sim_FT_MPI_Comm_create(Sim_FT_MPI_Comm f_comm, MPI_Group group, Sim_FT_MPI_Comm *newcomm);
 int Sim_FT_MPI_Comm_free(Sim_FT_MPI_Comm *comm);
+int Sim_FT_MPI_Comm_free2(Sim_FT_MPI_Comm *comm);
+
 int Sim_FT_MPI_Comm_rank(Sim_FT_MPI_Comm f_comm, int *rank);
 int Sim_FT_MPI_Comm_group(Sim_FT_MPI_Comm f_comm, MPI_Group *group);
 int Sim_FT_MPI_Comm_set_errhandler(Sim_FT_MPI_Comm f_comm, MPI_Errhandler errhandler);

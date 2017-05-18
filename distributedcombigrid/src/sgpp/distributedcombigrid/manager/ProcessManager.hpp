@@ -119,8 +119,13 @@ inline void ProcessManager::addTask(Task* t) {
 inline ProcessGroupManagerID ProcessManager::wait() {
   while (true) {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+      StatusType status = pgroups_[i]->getStatus();
+//      std::cout << status << " is the status of : "<< i << "\n";
+      assert(status >= 0); //check for invalid values
+      assert(status <= 2);
+      if (status == PROCESS_GROUP_WAIT){
         return pgroups_[i];
+      }
     }
   }
 }
@@ -129,7 +134,11 @@ inline ProcessGroupManagerID ProcessManager::waitAvoid( std::vector< ProcessGrou
   while (true) {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
       if (std::find(avoidGroups.begin(), avoidGroups.end(), pgroups_[i]) == avoidGroups.end()){//ignore tasks that are recomputed
-        if(pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT){
+        StatusType status = pgroups_[i]->getStatus();
+        //      std::cout << status << " is the status of : "<< i << "\n";
+        assert(status >= 0); //check for invalid values
+        assert(status <= 2);
+        if (status == PROCESS_GROUP_WAIT){
           return pgroups_[i];
         }
       }

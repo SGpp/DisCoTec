@@ -117,6 +117,9 @@ class MPISystem {
   inline bool isInitialized() const;
 
   bool recoverCommunicators( bool groupAlive, std::vector< std::shared_ptr< ProcessGroupManager >> failedGroups = std::vector< std::shared_ptr< ProcessGroupManager >>(0) );
+  void deleteCommFT(simft::Sim_FT_MPI_Comm *comm);
+
+  void deleteCommFTAndCcomm(simft::Sim_FT_MPI_Comm *comm, CommunicatorType *ccomm);
 
   void sendFailedSignal();
 
