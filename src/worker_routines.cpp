@@ -212,8 +212,28 @@ void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
 }
 
 void update_simulation_communicator_(MPI_Fint* comm_gene_f){
+//  int size;
+//  MPI_Comm_size(theMPISystem()->getGlobalReduceComm(),&size);
+//  std::cout << "size of reduce comm before updating gene_comm is " << size << "\n";
+
+  MPI_Comm comm_gene = (MPI_Comm) *comm_gene_f;
+  if(comm_gene != NULL && comm_gene_f != NULL){
+    if(comm_gene != MPI_COMM_WORLD && comm_gene != MPI_COMM_NULL ){
+      MPI_Comm_free(&comm_gene);
+    }
+  }
+//  MPI_Comm_size(theMPISystem()->getGlobalReduceComm(),&size);
+//
+//  std::cout << "size of reduce comm before updating gene_comm 2 is " << size << "\n";
+
+  std::cout << "updating gene comm \n";
   MPI_Comm commCombi = theMPISystem()->getLocalComm();
-  MPI_Comm_dup(commCombi,comm_gene_f);
+  MPI_Comm_dup(commCombi,&comm_gene);
+  std::cout << "updating gene comm finished \n";
+//  MPI_Comm_size(theMPISystem()->getGlobalReduceComm(),&size);
+//
+//  std::cout << "size of reduce comm after updating gene_comm is " << size << "\n";
+
 }
 
 void update_decomposition_(MPI_Fint* comm_gene_f, int *li1p, int *lj1p, int *lk1p, int *ll1p, int *lm1p, int *ln1p){
