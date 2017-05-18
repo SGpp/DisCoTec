@@ -173,47 +173,12 @@ void stallForDebugger()
 
 
 void worker_wait( MPI_Comm lcomm, int* worker_stat, int nprocs, int ngroup ){
-  // first time wait function is called: pgroup will be initialized
-  /*
-  if( pgroup == NULL ){
-    int grank, lrank, gsize;
-    MPI_Comm_rank( lcomm, &lrank );
-    MPI_Comm_size( MPI_COMM_WORLD, &gsize );
-
-    // create global communicator containing manager and pgroup roots
-    MPI_Group worldGroup;
-    MPI_Comm_group( MPI_COMM_WORLD, &worldGroup );
-
-    std::vector<int> ranks(ngroup+1);
-    for( size_t i=0; i<ngroup; ++i )
-      ranks[i] = i*nprocs;
-    ranks.back() = gsize-1;
-
-    MPI_Group rootGroup;
-    MPI_Group_incl( worldGroup, int( ranks.size() ),
-                    &ranks[0], &rootGroup );
-
-    CommunicatorType gcomm = MPI_COMM_NULL;
-    MPI_Comm_create( MPI_COMM_WORLD, rootGroup, &gcomm );
-
-    int managerID = MPI_PROC_NULL;
-
-    if( gcomm != MPI_COMM_NULL ){
-      int newsize;
-      MPI_Comm_size(gcomm, &newsize);
-      managerID = newsize-1;
-      MPI_Comm_rank( gcomm, &grank );
-    }
-
-    pgroup = new ProcessGroupWorker( gcomm, lcomm, grank, lrank, managerID );
-  }*/
-
+  // first time wait function is called: mpi system and pgroup are initialized
   if( !theMPISystem()->isInitialized() )
     theMPISystem()->init( ngroup, nprocs, lcomm );
 
   if( pgroup == NULL )
     pgroup = new ProcessGroupWorker();
-
 
   //when unfinished tasks -> run next task
   // sonst pgroup wait
@@ -232,23 +197,16 @@ void worker_wait_(MPI_Fint* lcomm_f, int* worker_stat, int* nprocs, int* ngroup 
 
 void worker_ready(double wtime, double time_perf,
                   double time_iv, double time_cp){
-  // copy parameters.dat to parameters
-  rename( "parameters.dat", "parameters" );
+  MASTER_EXCLUSIVE_SECTION {
+    // copy parameters.dat to parameters
+    rename( "parameters.dat", "parameters" );
+  }
 
   // get current task
   Task* t = pgroup->getCurrentTask();
 
   // set finished status
   t->setFinished(true);
-
-  // setze auf nächsten unfinished task
-
-
-  // set task wtime
-  //t->setTimeOverall(wtime);
-  //t->setTimePerf(time_perf);
-  //t->setTimeIV(time_iv);
-  //t->setTimeCP(time_cp);
 
   pgroup->ready();
 }
