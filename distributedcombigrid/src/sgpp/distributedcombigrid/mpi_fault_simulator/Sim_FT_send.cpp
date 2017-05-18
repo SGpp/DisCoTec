@@ -27,14 +27,14 @@ int simft::Sim_FT_MPI_Send(void *buf, int count, MPI_Datatype type, int dest,
 	Alive_Status_Send = I_AM_ALIVE;
     MPI_Request Send_Request;
     MPI_Status Recv_Status;
-    MPI_Isend(&Alive_Status_Send, 1, MPI_CHAR, dest, tag, f_comm->c_comm_copy_p2p, &Send_Request);
+    MPI_Isend(&Alive_Status_Send, 1, MPI_CHAR, dest, tag + TAGOFFSETALIVE, f_comm->c_comm_copy_p2p, &Send_Request);
     MPI_Request_free(&Send_Request); //We can't use MPI_Wait or MPI_Test => use MPI_Request_free instead
     bool leaveloop = false;
     while(!leaveloop){
     	int RecFlag = 0;
 
 		while(RecFlag == 0){
-			MPI_Iprobe(dest, tag, f_comm->c_comm_copy_p2p, &RecFlag, &Recv_Status);
+			MPI_Iprobe(dest, tag + TAGOFFSETALIVE, f_comm->c_comm_copy_p2p, &RecFlag, &Recv_Status);
 			simft::Sim_FT_Perform_background_operations();
 		}
 
@@ -45,7 +45,7 @@ int simft::Sim_FT_MPI_Send(void *buf, int count, MPI_Datatype type, int dest,
 		if(simft::Sim_FT_Check_comm_revoked(f_comm)){
 			return MPI_ERR_REVOKED; //TODO: wait for incoming SIM_FT_STATUS_TAG, respond with comm_revoked
 		}else{
-			MPI_Recv(&Alive_Status_Recv, 1, MPI_CHAR, dest, tag, f_comm->c_comm_copy_p2p, MPI_STATUS_IGNORE);
+			MPI_Recv(&Alive_Status_Recv, 1, MPI_CHAR, dest, tag  + TAGOFFSETALIVE, f_comm->c_comm_copy_p2p, MPI_STATUS_IGNORE);
 		}
 
 		if(Alive_Status_Recv == PROBE_REQUEST){

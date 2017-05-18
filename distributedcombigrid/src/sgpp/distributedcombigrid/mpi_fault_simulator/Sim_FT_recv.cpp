@@ -36,7 +36,7 @@ int simft::Sim_FT_MPI_Recv(void *buf, int count, MPI_Datatype type, int source,
     	MPI_Status RStatus;
 
     	while(1){
-    		MPI_Iprobe(source, tag, f_comm->c_comm_copy_p2p, &RFlag, &RStatus);
+    		MPI_Iprobe(source, tag  + TAGOFFSETALIVE, f_comm->c_comm_copy_p2p, &RFlag, &RStatus);
 			if(f_comm->dead_set.size() > 0 && f_comm->Ack_failed_processes == false){
 				return MPI_ERR_PROC_FAILED_PENDING;
 				/* ######## IMPORTANT ########
@@ -48,7 +48,7 @@ int simft::Sim_FT_MPI_Recv(void *buf, int count, MPI_Datatype type, int source,
 			}else if(RFlag == 1){
 				//receive the status message and respond with an alive-message
 				MPI_Recv(&Alive_Status_Recv, 1, MPI_CHAR, RStatus.MPI_SOURCE, RStatus.MPI_TAG, f_comm->c_comm_copy_p2p, MPI_STATUS_IGNORE);
-				MPI_Isend(&Alive_Status_Send, 1, MPI_CHAR, RStatus.MPI_SOURCE, tag, f_comm->c_comm_copy_p2p, &Send_Request);
+				MPI_Isend(&Alive_Status_Send, 1, MPI_CHAR, RStatus.MPI_SOURCE, tag + TAGOFFSETALIVE, f_comm->c_comm_copy_p2p, &Send_Request);
 				MPI_Request_free(&Send_Request);
 				break;
 			}else if(f_comm->comm_revoked){
@@ -57,17 +57,17 @@ int simft::Sim_FT_MPI_Recv(void *buf, int count, MPI_Datatype type, int source,
 			simft::Sim_FT_Perform_background_operations();
     	}
 	}else{
-		MPI_Isend(&Alive_Status_Send, 1, MPI_CHAR, source, tag, f_comm->c_comm_copy_p2p, &Send_Request);//send alive-message
+		MPI_Isend(&Alive_Status_Send, 1, MPI_CHAR, source, tag  + TAGOFFSETALIVE, f_comm->c_comm_copy_p2p, &Send_Request);//send alive-message
 		MPI_Request_free(&Send_Request);
 
     	int RecFlag = 0;
 
     	//wait for a status message
 		while(RecFlag == 0){
-			MPI_Iprobe(source, tag, f_comm->c_comm_copy_p2p, &RecFlag, MPI_STATUS_IGNORE);
+			MPI_Iprobe(source, tag + TAGOFFSETALIVE, f_comm->c_comm_copy_p2p, &RecFlag, MPI_STATUS_IGNORE);
 			simft::Sim_FT_Perform_background_operations();
 		}
-		MPI_Recv(&Alive_Status_Recv, 1, MPI_CHAR, source, tag, f_comm->c_comm_copy_p2p, MPI_STATUS_IGNORE);
+		MPI_Recv(&Alive_Status_Recv, 1, MPI_CHAR, source, tag  + TAGOFFSETALIVE, f_comm->c_comm_copy_p2p, MPI_STATUS_IGNORE);
 	}
 
     //check the content of the status message and react to it

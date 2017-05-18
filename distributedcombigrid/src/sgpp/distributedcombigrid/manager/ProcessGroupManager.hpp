@@ -123,6 +123,7 @@ inline StatusType ProcessGroupManager::getStatus() {
 
   if( status_ == PROCESS_GROUP_FAIL )
     return PROCESS_GROUP_FAIL;
+//  std::cout << "status before test is " << status_ << " \n";
 
   // if the process group is busy we need
   if( status_ == PROCESS_GROUP_BUSY){
@@ -142,7 +143,9 @@ inline StatusType ProcessGroupManager::getStatus() {
       MPI_Test(&statusRequest_, &flag, MPI_STATUS_IGNORE);
     }
   }
-
+//  std::cout << "status is " << status_ << " \n";
+  assert(status_ >= 0); //check for invalid values
+  assert(status_ <= 2);
   return status_;
 }
 inline void ProcessGroupManager::setStatus(StatusType status) {
@@ -170,7 +173,8 @@ inline StatusType ProcessGroupManager::waitStatus() {
       MPI_Wait( &statusRequest_, MPI_STATUS_IGNORE);
     }
   }
-
+  assert(status_ >= 0); //check for invalid values
+  assert(status_ <= 2);
   return status_;
 }
 

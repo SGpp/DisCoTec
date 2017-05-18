@@ -106,7 +106,10 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
   //managerRankWorld_ = 0;
   if( ENABLE_FT ){
     worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
-    spareCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
+    MPI_Comm worldCommdup;
+    MPI_Comm_dup(worldComm_, &worldCommdup);
+    createCommFT(&spareCommFT_, worldCommdup);
+    //spareCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
   }
 
   /* init localComm
@@ -152,7 +155,10 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
 
   if( ENABLE_FT ){
       worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
-      spareCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
+      MPI_Comm worldCommdup;
+      MPI_Comm_dup(worldComm_, &worldCommdup);
+      createCommFT(&spareCommFT_, worldCommdup);
+      //spareCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
   }
   //std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
   //worldCommFT_->Root_Rank = worldSize - 1;
@@ -164,8 +170,8 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
   if( worldRank_ == managerRankWorld_ )
     localComm_ = MPI_COMM_NULL;
   else{
-    localComm_ = lcomm;
-
+    //localComm_ = lcomm;
+    MPI_Comm_dup(lcomm,&localComm_);
     // todo: think through which side effects changing the master rank would have
     // in principle this does not have to be 0
     const int masterRank = 0;
@@ -255,6 +261,7 @@ void MPISystem::initGlobalComm(){
     MPI_Comm_size( globalComm_, &globalSize );
 
     managerRank_ = globalSize - 1;
+    std::cout << "new manager rank: " << managerRank_ << " \n";
     MPI_Comm_rank( globalComm_, &globalRank_ );
   }
 
@@ -268,33 +275,61 @@ void MPISystem::initGlobalComm(){
 }
 
 void MPISystem::initGlobalReduceCommm() {
-  // create communicator which only contains workers
-  MPI_Comm workerComm;
-  {
-    int color = ( worldRank_ != managerRankWorld_ ) ? 1 : 0;
-    int key = (worldRank_ != managerRankWorld_ ) ? worldRank_ : 0;
-    MPI_Comm_split( worldComm_, color, key, &workerComm);
-  }
+  //old version
+//  // create communicator which only contains workers
+//  MPI_Comm workerComm;
+//  {
+//    int color = ( worldRank_ != managerRankWorld_ ) ? 1 : 0;
+//    int key = (worldRank_ != managerRankWorld_ ) ? worldRank_ : 0;
+//    MPI_Comm_split( worldComm_, color, key, &workerComm);
+//  }
 
-  if( worldRank_ != managerRankWorld_ ) {
-    int workerID;
-    MPI_Comm_rank(workerComm, &workerID);
+//  if( worldRank_ != managerRankWorld_ ) {
+//    int workerID;
+//    MPI_Comm_rank(workerComm, &workerID);
+//
+//    MPI_Comm globalReduceComm;
+//    int color = workerID % int(nprocs_);
+//    int key = workerID / int(nprocs_);
+//    MPI_Comm_split(workerComm, color, key, &globalReduceComm);
+//
+//    globalReduceComm_ = globalReduceComm;
+//
+//    if( ENABLE_FT ){
+//      createCommFT( &globalReduceCommFT_, globalReduceComm_ );
+//    }
+//  }
+  //new version
+    if( worldRank_ != managerRankWorld_ ) {
+      int workerID;
+      MPI_Comm_rank(worldComm_, &workerID);
 
-    MPI_Comm globalReduceComm;
-    int color = workerID % int(nprocs_);
-    int key = workerID / int(nprocs_);
-    MPI_Comm_split(workerComm, color, key, &globalReduceComm);
+//      MPI_Comm globalReduceComm;
+      int color = workerID % int(nprocs_);
+      int key = workerID / int(nprocs_);
+      MPI_Comm_split(worldComm_, color, key, &globalReduceComm_);
 
-    globalReduceComm_ = globalReduceComm;
-
-    if( ENABLE_FT ){
-      createCommFT( &globalReduceCommFT_, globalReduceComm_ );
+      if( ENABLE_FT ){
+        createCommFT( &globalReduceCommFT_, globalReduceComm_ );
+      }
+      int size;
+       MPI_Comm_size(globalReduceComm_,&size);
+       std::cout << "size if global reduce comm " << size << "\n";
+       MPI_Barrier(globalReduceComm_);
     }
-  }
+    else{
+      MPI_Comm_split(worldComm_,MPI_UNDEFINED,-1,&globalReduceComm_);
+    }
+
+//  if(workerComm != MPI_COMM_NULL){
+//    MPI_Comm_free(&workerComm);
+//  }
 }
 
 void MPISystem::createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm ){
+
   *commFT = new simft::Sim_FT_MPI_Comm_struct;
+
   (*commFT)->c_comm = comm;
   simft::Sim_FT_Initialize_new_comm( commFT, true );
 }
@@ -454,10 +489,10 @@ void MPISystem::waitForReuse(){
        std::cout << "spare rank " << worldRank_ << " gets excluded \n";
 
        MPI_Recv(&excludeData, 0, MPI_INT, managerRankFT_, FT_EXCLUDE_TAG, theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
-       //perform split with color 0
-       int color = 0;
+       //perform split with color undefined
+       int color = MPI_UNDEFINED;
        int key;
-       MPI_Comm_size(worldComm_,&key);
+       MPI_Comm_size(spareCommFT_->c_comm,&key);
        MPI_Comm_split( spareCommFT_->c_comm, color, key, &worldComm_ );
     }
     MPI_Iprobe(managerRankFT_, FT_SHRINK_TAG, theMPISystem()->getSpareCommFT()->c_comm, &shrinkFlag, &shrinkStatus);
@@ -470,7 +505,10 @@ void MPISystem::waitForReuse(){
        //perform shrink
        simft::Sim_FT_MPI_Comm newSpareCommFT;
        MPI_Comm_shrink( theMPISystem()->getSpareCommFT(), &newSpareCommFT ); //remove dead processors from spareComm(worldComm + reusable ranks)
+       deleteCommFTAndCcomm(&spareCommFT_, &spareCommFT_->c_comm);
        createCommFT( &spareCommFT_, newSpareCommFT->c_comm ); //removes dead processors from worldComm
+       //delete temporary communicator
+       deleteCommFT(&newSpareCommFT);
        //adjust manger rank in spareComm as it has changed during shrink
        int ftCommSize;
        MPI_Comm_size(spareCommFT_->c_comm, &ftCommSize );
@@ -481,6 +519,21 @@ void MPISystem::waitForReuse(){
   }
 }
 
+void MPISystem::deleteCommFT(simft::Sim_FT_MPI_Comm * commFT){
+  if(commFT != NULL && *commFT != NULL){ //delete old communicator of exists
+     if((*commFT)->c_comm != MPI_COMM_WORLD && (*commFT)->c_comm != MPI_COMM_NULL){
+       simft::Sim_FT_MPI_Comm_free2(commFT); //do not delete c_comm
+     }
+   }
+}
+void MPISystem::deleteCommFTAndCcomm(simft::Sim_FT_MPI_Comm * commFT, CommunicatorType *ccomm){
+  if(commFT != NULL && *commFT != NULL){ //delete old communicator of exists
+     if((*commFT)->c_comm != MPI_COMM_WORLD && (*commFT)->c_comm != MPI_COMM_NULL){
+       simft::Sim_FT_MPI_Comm_free(commFT); //do not delete c_comm
+     }
+   }
+  *ccomm = MPI_COMM_NULL;
+}
 
 bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_ptr< ProcessGroupManager >> failedGroups ){ //toDo fix multiple failed groups
   assert( ENABLE_FT && "this funtion is only availabe if FT enabled!" );
@@ -496,33 +549,51 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   //theStatsContainer()->setTimerStart("recoverComm-shrink");
   simft::Sim_FT_MPI_Comm newSpareCommFT;
   simft::Sim_FT_MPI_Comm newWorldCommFT;
+//  int sizeWorld;
+//  MPI_Comm_size(worldComm_,&sizeWorld);
+//  std::cout << "size worldcomm: " << sizeWorld << "\n";
   WORLD_MANAGER_EXCLUSIVE_SECTION{
     //indicate shrink to reusable ranks
     sendShrinkSignal(reusableRanks_);
   }
   //shrink of all processors including reusable ones
   MPI_Comm_shrink( theMPISystem()->getSpareCommFT(), &newSpareCommFT ); //remove dead processors from spareComm(worldComm + reusable ranks)
-  //shrink of all active processors
+//  std::cout << "first shrink done \n";
+  deleteCommFTAndCcomm(&spareCommFT_, &spareCommFT_->c_comm);
+//  std::cout << "firs delete done \n";
+
   createCommFT( &spareCommFT_, newSpareCommFT->c_comm ); //removes dead processors from worldComm
+//  std::cout << "create comm done \n";
+  deleteCommFT(&newSpareCommFT);
+//  std::cout << "second delete done \n";
+  //MPI_Barrier(spareCommFT_->c_comm);
   //adjust manger rank in spareComm as it has changed durin shrink
   int ftCommSize;
   MPI_Comm_size(spareCommFT_->c_comm, &ftCommSize );
   managerRankFT_= ftCommSize - 1;
   std::vector<RankType> newReusableRanks;
+  //shrink of all active processors
+//  std::cout << "starting second shrink \n";
+  //MPI_Barrier(spareCommFT_->c_comm);
   MPI_Comm_shrink( theMPISystem()->getWorldCommFT(), &newWorldCommFT); //remove dead processors from current worldComm
+//  std::cout << "second shrink done \n";
+
   bool failedRecovery = true;
+  int sizeNew;
+  MPI_Comm_size(newWorldCommFT->c_comm,&sizeNew);
+  //deleteing tompary world comm
+  deleteCommFTAndCcomm(&newWorldCommFT, &newWorldCommFT->c_comm);
   WORLD_MANAGER_EXCLUSIVE_SECTION{ //get failed ranks
-    int sizeNew,sizeOld,sizeSpare;
+    int sizeOld,sizeSpare;
     sizeSpare = 0;
     MPI_Comm_size(theMPISystem()->getWorldComm(),&sizeOld);
-    MPI_Comm_size(newWorldCommFT->c_comm,&sizeNew);
     MPI_Comm_size(spareCommFT_->c_comm,&sizeSpare);
     std::cout << "size old = " << sizeOld << "\n";
     std::cout << "size new = " << sizeNew << "\n";
     std::cout << "size spare = " << sizeSpare << "\n";
 
     int numFailedRanks = sizeOld-sizeNew;
-    std::vector<RankType> failedRanks = getFailedRanks(numFailedRanks);
+    std::vector<RankType> failedRanks = getFailedRanks(numFailedRanks); //has to be solved differently with ULFM
     std::cout << "nprocs - numFailed " << failedGroups.size() * nprocs_ - numFailedRanks << "\n";
     newReusableRanks = getReusableRanks(failedGroups.size() * nprocs_ - numFailedRanks);
     getReusableRanksSpare(reusableRanks_); //update ranks of reusable ranks
@@ -555,22 +626,32 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
       reusableRanks_.insert(reusableRanks_.end(), newReusableRanks.begin(), newReusableRanks.end());
     }
   }
+
+
   int color;
   if(!groupAlive){ //check if group was recovered and mark as reusable
     sendReusableSignal();
     bool recoveryFailed = receiveRecoverStatus(); //check if exclude signal
     std::cout << "recovery failed: " << recoveryFailed <<"\n";
+    deleteCommFTAndCcomm(&localCommFT_, &localComm_);
+
     if(recoveryFailed){
-      color = 0;
+      color = MPI_UNDEFINED;
       int key = worldRank_;
       //update worldRank_ to spare communicator
       MPI_Comm_rank(spareCommFT_->c_comm,&worldRank_);
       sendReusableSignalSpare(); //send rank in ft communicator to master
-
+      deleteCommFTAndCcomm(&worldCommFT_, &worldComm_);
       MPI_Comm_split( spareCommFT_->c_comm, color, key, &worldComm_ );
+      //delete communicators
+      deleteCommFTAndCcomm(&globalCommFT_, &globalComm_);
+      deleteCommFTAndCcomm(&globalReduceCommFT_, &globalReduceComm_);
       //sendReusableSignal(theMPISystem()->getSpareCommFT()->c_comm);
       waitForReuse(); //does only leave this routine when reused later //participates in future shrinks
       color = 1;
+    }
+    else{
+      deleteCommFTAndCcomm(&worldCommFT_, &worldComm_);
     }
   }
   //theStatsContainer()->setTimerStop("recoverComm-shrink");
@@ -580,7 +661,11 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   // MPI_Comm_split returns MPI_COMMM_NULL
   color = 1; //all processors at this point belong to alive or recovered process groups
   int key = worldRank_;
+  if(groupAlive){
+    deleteCommFTAndCcomm(&worldCommFT_, &worldComm_);
+  }
   std::cout << "performing MPI split \n";
+
   MPI_Comm_split(spareCommFT_->c_comm, color, key, &worldComm_ );
 
 //  //get new rank ids from reusable ranks after splitting
@@ -643,9 +728,11 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
     MPI_Comm_split( worldComm_, color, key, &tmp );
   }
   //initLocalComm();
-
+  std::cout << "initializing global comm \n";
+  deleteCommFTAndCcomm(&globalCommFT_,&globalComm_);
   initGlobalComm();
-
+  std::cout << "initializing global reduce comm \n";
+  deleteCommFTAndCcomm(&globalReduceCommFT_,&globalReduceComm_);
   initGlobalReduceCommm();
 
   /* print stats */
@@ -665,6 +752,8 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
 
    //toDo return fixed process group IDs
   std::cout << "returning \n";
+//  MPI_Barrier( worldComm_ );
+
   return failedRecovery;
 }
 
