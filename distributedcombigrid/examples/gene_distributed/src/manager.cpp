@@ -294,7 +294,7 @@ int main(int argc, char** argv) {
         for ( auto id : recomputeFaultsID ) {
          GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
          tmp->setStepsTotal((i)*nsteps);
-         tmp->setCombiStep(i);
+         tmp->setCombiStep(i+1); //i+1 as decideToKill is not executed during recompute and therfore combistep is not increased
         }
         /* recover communicators*/
         bool failedRecovery = manager.recoverCommunicators(groupFaults);
