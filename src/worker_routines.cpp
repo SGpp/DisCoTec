@@ -217,7 +217,7 @@ void update_simulation_communicator_(MPI_Fint* comm_gene_f){
 //  std::cout << "size of reduce comm before updating gene_comm is " << size << "\n";
 
   MPI_Comm comm_gene = (MPI_Comm) *comm_gene_f;
-  if(comm_gene != NULL && comm_gene_f != NULL){
+  if(comm_gene_f != NULL){
     if(comm_gene != MPI_COMM_WORLD && comm_gene != MPI_COMM_NULL ){
       MPI_Comm_free(&comm_gene);
     }
@@ -262,7 +262,7 @@ void update_decomposition_(MPI_Fint* comm_gene_f, int *li1p, int *lj1p, int *lk1
   Task* tt = pgroup->getCurrentTask();
   GeneTask* t = static_cast< GeneTask* >(tt);
   // check if dfg created and create if necessary
-  t->initDFG( comm_gene, decomposition );
+  t->initDFG2( comm_gene, decomposition );
   // set zero for combination
   t->setZero();
 }

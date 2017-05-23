@@ -148,6 +148,8 @@ Program gene
       print*, li1, lj1, lk1, ll1, lm1, ln1, my_pex, my_pey, my_pez, my_pev, my_pew
       !update decomposition
       call update_decomposition(gene_comm, li1, lj1, lk1, ll1, lm1, ln1)
+      call free_comm
+      call finalize_comm_sim
       cycle
     end if
     
@@ -169,6 +171,8 @@ Program gene
       !update decomposition
       call update_decomposition(gene_comm, li1, lj1, lk1, ll1, lm1, ln1)
       call set_combined_solution()
+      call free_comm
+      call finalize_comm_sim
       !no cycle!
     end if
 
