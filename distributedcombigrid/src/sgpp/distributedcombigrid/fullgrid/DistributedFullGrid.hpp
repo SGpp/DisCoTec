@@ -208,7 +208,8 @@ class DistributedFullGrid {
   }
 
   virtual ~DistributedFullGrid() {
-    //todo: remove communicators?
+    //todo: remove communicators? Yes -> Done
+    MPI_Comm_free(&communicator_);
   }
 
   /** evaluates the full grid on the specified coordinates

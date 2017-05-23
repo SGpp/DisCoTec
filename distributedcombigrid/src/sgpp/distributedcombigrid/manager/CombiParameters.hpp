@@ -145,6 +145,9 @@ class CombiParameters {
     return applicationComm_;
   }
 
+  inline bool isApplicationCommSet() const{
+    return applicationCommSet_;
+  }
 
   inline void setApplicationComm( CommunicatorType comm ){
     assert( uniformDecomposition );

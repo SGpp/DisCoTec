@@ -92,7 +92,17 @@ public:
 
   void setZero();
 
+  /**
+   * normal initializiation of DFG at the beginning or in case the processors did not change
+   */
   void initDFG( CommunicatorType comm, std::vector<IndexVector>& decomposition );
+
+  /**
+   * initializes DFG to a new version and destroys old DFG
+   * necessary if set of communicators changes
+   */
+  void initDFG2( CommunicatorType comm, std::vector<IndexVector>& decomposition );
+
 
   void setDFG();
 
