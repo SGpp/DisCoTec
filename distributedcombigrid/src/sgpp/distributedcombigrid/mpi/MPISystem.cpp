@@ -519,7 +519,7 @@ void MPISystem::waitForReuse(){
   }
 }
 
-void MPISystem::deleteCommFT(simft::Sim_FT_MPI_Comm * commFT){
+void MPISystem::deleteCommFT(simft::Sim_FT_MPI_Comm * commFT){ //does not delete c_comm -> important if c_comm is used in other FT comm (e.g. through creatCommFT)
   if(commFT != NULL && *commFT != NULL){ //delete old communicator of exists
      if((*commFT)->c_comm != MPI_COMM_WORLD && (*commFT)->c_comm != MPI_COMM_NULL){
        simft::Sim_FT_MPI_Comm_free2(commFT); //do not delete c_comm
@@ -689,7 +689,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   // early exit for dead procs; not existing anymore
   //if( worldComm_ == MPI_COMM_NULL)
   //  return;
-
+/*
   // todo: remove
   // output new commWorld
   {
@@ -709,7 +709,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
         MPI_Barrier( worldComm_ );
     }
   }
-
+*/
   int worldSize;
   MPI_Comm_size( worldComm_, &worldSize );
   assert( (worldSize - 1) % nprocs_ == 0 );

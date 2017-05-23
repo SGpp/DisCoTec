@@ -626,7 +626,10 @@ void ProcessGroupWorker::updateCombiParameters() {
       theMPISystem()->getMasterRank(),
       theMPISystem()->getLocalComm() );
   std::cout << "worker received combiparameters \n";
-
+  if(combiParameters_.isApplicationCommSet()){
+    CommunicatorType free = combiParameters_.getApplicationComm();
+    MPI_Comm_free(&free);
+  }
   combiParameters_ = tmp;
 
   combiParametersSet_ = true;
