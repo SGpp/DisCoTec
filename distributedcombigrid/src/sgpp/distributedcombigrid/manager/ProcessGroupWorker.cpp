@@ -628,7 +628,9 @@ void ProcessGroupWorker::updateCombiParameters() {
   std::cout << "worker received combiparameters \n";
   if(combiParameters_.isApplicationCommSet()){
     CommunicatorType free = combiParameters_.getApplicationComm();
-    MPI_Comm_free(&free);
+    if(free != NULL && free != MPI_COMM_NULL){
+      MPI_Comm_free(&free);
+    }
   }
   combiParameters_ = tmp;
 
