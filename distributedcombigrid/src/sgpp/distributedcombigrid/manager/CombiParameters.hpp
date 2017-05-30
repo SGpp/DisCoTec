@@ -16,7 +16,8 @@ namespace combigrid {
 
 class CombiParameters {
  public:
-  CombiParameters() {
+  CombiParameters(): procsSet_(false), applicationComm_(MPI_COMM_NULL),
+  applicationCommSet_(false) {
   }
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
