@@ -23,7 +23,7 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
                               int *ni0p, int *nj0p, int *nz0p,
                               int *nv0p, int *nw0p, int *n_specp,
                               MPI_Fint* comm_gene_f ) {
-  double tstart = MPI_Wtime();
+  Stats::startEvent("worker write memory");
 
   Task* tt = pgroup->getCurrentTask();
   GeneTask* t = static_cast< GeneTask* >(tt);
@@ -106,15 +106,18 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
   param.setApplicationComm( *comm_gene_f );
 
   t->writeLocalCheckpoint( g_1, size, sizes, bounds );
-  //t->setTimeCPMem( MPI_Wtime() - tstart );
 
   t->setDFG();
+
+  Stats::stopEvent("worker write memory");
 }
 
 void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
                              int *lj1p, int *lj2p, int *lk1p, int *lk2p,
                              int *ll1p, int *ll2p, int *lm1p, int *lm2p,
                              int *ln1p, int *ln2p) {
+  Stats::startEvent("worker read memory");
+
   Task* tt = pgroup->getCurrentTask();
   GeneTask* t = static_cast< GeneTask* >(tt);
 
@@ -161,6 +164,8 @@ void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
     assert( bounds[i] == cp_bounds[i] );
 
   memcpy ( g_1, cp.getData(), cp.getSize() * sizeof(GeneComplex) );
+
+  Stats::stopEvent("worker read memory");
 }
 
 
