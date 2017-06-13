@@ -406,3 +406,27 @@ void set_nrg_(double* time, double* nrg0){
   t->setNrg(*nrg0);
 }
 
+
+void init_stats_(){
+  Stats::initialize();
+}
+
+void finalize_stats_(){
+  Stats::finalize();
+
+  /* write stats to json file for postprocessing */
+  Stats::write( "timers.json" );
+}
+
+void set_group_id_(int* color){
+  Stats::setAttribute("group", std::to_string(*color));
+}
+
+
+void gene_time_start_(){
+  Stats::startEvent("worker run");
+}
+
+void gene_time_stop_(){
+  Stats::stopEvent("worker run");
+}

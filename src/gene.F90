@@ -67,6 +67,9 @@ Program gene
 #endif
 #else
   call mpi_init(ierr)
+#ifdef COMBI_MGR
+  call init_stats
+#endif
   omp_level = MPI_THREAD_SINGLE
 #endif
 #ifdef COMBI_FT
@@ -196,6 +199,7 @@ Program gene
 
       cycle
     end if
+    call gene_time_start
 #endif
 
     LIKWID_INIT
@@ -281,6 +285,7 @@ Program gene
   LIKWID_CLOSE
 
 #ifdef COMBI_MGR
+    call gene_time_stop
     ! don't fail within recompute
     if(worker_signal.ne.14) then
       call decide_to_kill()
@@ -290,6 +295,10 @@ Program gene
 #endif
 
   call finalize_comm_scan(gene_comm,comm_parall)
+
+#ifdef COMBI_MGR
+  call finalize_stats
+#endif
 #ifdef COMBI_FT
   call mpi_ft_finalize()
 #else

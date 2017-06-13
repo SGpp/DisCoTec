@@ -59,8 +59,19 @@ extern "C" void update_decomposition_(MPI_Fint* comm_gene_f, int *li1p, int *lj1
 
 extern "C" void set_combined_solution_();
 
+extern "C" void init_stats_();
+
+extern "C" void finalize_stats_();
+
+extern "C" void set_group_id_(int* color);
+
+extern "C" void gene_time_start_();
+
+extern "C" void gene_time_stop_();
+
 // c interfaces
 void worker_wait(MPI_Comm comm, int* worker_stat, int nprocs, int ngroup );
 void worker_ready(double wtime, double time_perf,
                   double time_iv, double time_cp );
+
 
