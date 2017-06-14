@@ -67,13 +67,14 @@ Program gene
 #endif
 #else
   call mpi_init(ierr)
-#ifdef COMBI_MGR
-  call init_stats
-#endif
   omp_level = MPI_THREAD_SINGLE
 #endif
 #ifdef COMBI_FT
   call mpi_ft_init()
+
+#endif
+#ifdef COMBI_MGR
+  call init_stats
 #endif
   if (ierr /= 0) stop 'mpi_init failed!'
 
