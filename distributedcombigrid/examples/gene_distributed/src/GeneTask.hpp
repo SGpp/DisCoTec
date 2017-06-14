@@ -42,7 +42,7 @@ public:
 
   void run( CommunicatorType lcomm );
 
-  void changeDir();
+  void changeDir(CommunicatorType lcomm);
 
   //void init(CommunicatorType lcomm);
 

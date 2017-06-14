@@ -60,6 +60,7 @@ const bool uniformDecomposition = true;
 
 /* switch on fault tolerance functionality */
 const bool ENABLE_FT = true;
+const bool isGENE = true;
 }
 
 

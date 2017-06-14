@@ -115,9 +115,13 @@ SignalType ProcessGroupWorker::wait() {
     currentTask_ = tasks_[0];
 
     // run first task
-    Stats::startEvent("worker run");
+    if(!isGENE){
+      Stats::startEvent("worker run");
+    }
     currentTask_->run(theMPISystem()->getLocalComm());
-    Stats::stopEvent("worker run");
+    if(!isGENE){
+      Stats::stopEvent("worker run");
+    }
 
   } else if (signal == ADD_TASK) {
     std::cout << "adding a single task" << std::endl;
@@ -149,7 +153,7 @@ SignalType ProcessGroupWorker::wait() {
     // add task to task storage
     tasks_.push_back(t);
     currentTask_= tasks_.back(); //important for updating values
-    currentTask_->changeDir();
+    currentTask_->changeDir(theMPISystem()->getLocalComm());
     status_ = PROCESS_GROUP_BUSY;
 
   } else if (signal == RESET_TASKS) {
@@ -169,6 +173,10 @@ SignalType ProcessGroupWorker::wait() {
     // loop over all tasks
     // t.eval(x)
   } else if (signal == EXIT) {
+    if(isGENE){
+      // todo: gene specific
+      chdir( "../ginstance" );
+    }
 
   } else if (signal == SYNC_TASKS) {
     MASTER_EXCLUSIVE_SECTION {
@@ -429,6 +437,7 @@ void ProcessGroupWorker::combineUniform() {
 
     // lokales reduce auf sg ->
     dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
+    std::cout << "Combination: added task " << t->getID() << " with coefficient " << combiParameters_.getCoeff( t->getID() ) <<"\n";
   }
 
   // compute global max norm

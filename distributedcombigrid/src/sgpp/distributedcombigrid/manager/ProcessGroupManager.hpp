@@ -191,11 +191,13 @@ ProcessGroupManager::getTaskContainer() const {
 
 inline void ProcessGroupManager::removeTask(Task* t){
   std::vector<Task *>::iterator position = std::find(tasks_.begin(), tasks_.end(), t);
-  if (position != tasks_.end()){ // == myVector.end() means the element was not found
+  if (position != tasks_.end()){ // == task_.end() means the element was not found
       tasks_.erase(position);
+      std::cout << "Removing task" << t->getID() << " " << theMPISystem()->getWorldRank() << " !\n";
+
   }
   else{
-    std::cout << "Error could not remove task!";
+    std::cout << "Error could not remove task" << t->getID() << " " << theMPISystem()->getWorldRank() << " !\n";
   }
 }
 

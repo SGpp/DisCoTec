@@ -63,7 +63,7 @@ GeneTask::GeneTask() :
 
 GeneTask::~GeneTask()
 {
-// TODO Auto-generated destructor stub
+  delete dfg;
 }
 
 void
@@ -79,8 +79,11 @@ GeneTask::run( CommunicatorType lcomm )
     MPI_Abort( MPI_COMM_WORLD, 1 );
   }
 
-  char cwd[1024];
-  getcwd(cwd, sizeof(cwd));
+//  char cwd[1024];
+//  getcwd(cwd, sizeof(cwd));
+
+  // it is more save to wait here until all procs are in the right directory
+  MPI_Barrier( lcomm );
 
   MASTER_EXCLUSIVE_SECTION{
     std::cout << "run task " << this->getID() << std::endl;
@@ -100,15 +103,17 @@ GeneTask::run( CommunicatorType lcomm )
 
 }
 
-void GeneTask::changeDir(){
+void GeneTask::changeDir(CommunicatorType lcomm){
   // change dir to wdir
   if( chdir( path_.c_str() ) ){
     printf( "could not change to directory %s \n", path_.c_str() );
     MPI_Abort( MPI_COMM_WORLD, 1 );
   }
 
-  char cwd[1024];
-  getcwd(cwd, sizeof(cwd));
+//  char cwd[1024];
+//  getcwd(cwd, sizeof(cwd));
+  // it is more save to wait here until all procs are in the right directory
+  MPI_Barrier( lcomm );
 
   MASTER_EXCLUSIVE_SECTION{
     std::cout << "changed to task " << this->getID() << std::endl;
@@ -409,8 +414,7 @@ void GeneTask::setZero(){
     std::vector<CombiDataType>& data = dfg_->getElementVector();
 
     for( size_t i=0; i<data.size(); ++i ){
-      data[i].real(0);
-      data[i].imag(0);
+      data[i] = complex(0.0);
     }
   }
 }
