@@ -43,7 +43,7 @@ bool WeibullFaults::failNow(int ncombi, real t_iter, int globalRank){
   */
   std::weibull_distribution<real> distribution(k_,lambda_);
   real t_fault = distribution(rd);
-  std::cout << "Sampled time for fault: " << t_fault << "\n";
+  std::cout << "Sampled time for fault: " << t_fault << " simulation time needed " << t_iter << "\n";
   if(t_fault < t_iter){
     //std::cout << "Sampled time for fault: " << t_fault  << " with p: " << p << "\n";
 

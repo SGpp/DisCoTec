@@ -53,7 +53,7 @@ class Task {
 
   virtual void run(CommunicatorType lcomm) = 0;
 
-  virtual void changeDir(){
+  virtual void changeDir(CommunicatorType lcomm){
     //do nothing
   }
 

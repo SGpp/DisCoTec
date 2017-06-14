@@ -11,7 +11,7 @@
 #include <boost/serialization/map.hpp>
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-
+#include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 namespace combigrid {
 
 class CombiParameters {
@@ -141,18 +141,21 @@ class CombiParameters {
 
 
   inline CommunicatorType getApplicationComm() const{
-    assert( uniformDecomposition && applicationCommSet_ );
+    assert(uniformDecomposition);
+    return theMPISystem()->getLocalComm();
+    //assert( uniformDecomposition && applicationCommSet_ );
 
-    return applicationComm_;
+    //return applicationComm_;
   }
 
   inline bool isApplicationCommSet() const{
-    return applicationCommSet_;
+    return false;
+    //return applicationCommSet_;
   }
 
   inline void setApplicationComm( CommunicatorType comm ){
     assert( uniformDecomposition );
-
+    return; //outdated
     // make sure it is set only once
     if( applicationCommSet_ == true )
       return;
@@ -216,8 +219,6 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;
-  ar& applicationComm_;
-  ar& applicationCommSet_;
 }
 
 }

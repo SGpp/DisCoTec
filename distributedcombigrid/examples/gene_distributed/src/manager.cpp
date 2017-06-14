@@ -72,7 +72,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
 int main(int argc, char** argv) {
   //MPI_Init(&argc, &argv);
   simft::Sim_FT_MPI_Init(&argc, &argv);
-
+  Stats::initialize();
   // read in parameter file
   boost::property_tree::ptree cfg;
   /*
@@ -106,6 +106,8 @@ int main(int argc, char** argv) {
   // to execute comm_split again
   MPI_Comm pcomm;
   MPI_Comm_split( MPI_COMM_WORLD, key, color, &pcomm );
+
+  Stats::setAttribute("group", std::to_string(color));
 
   // here the actual MPI initialization
   theMPISystem()->init( ngroup, nprocs, lcomm );
@@ -255,7 +257,9 @@ int main(int argc, char** argv) {
     ProcessManager manager(pgroups, tasks, params);
 
     // combiparameters need to be set before starting the computation
+    Stats::startEvent("update combi parameters");
     manager.updateCombiParameters();
+    Stats::stopEvent("update combi parameters");
     bool success = true;
     //theStatsContainer()->setTimerStart("compute");
     for (size_t i = 0; i < ncombi; ++i) {
@@ -264,17 +268,25 @@ int main(int argc, char** argv) {
         /* distribute task according to load model and start computation for
          * the first time */
         //theStatsContainer()->setTimerStart("runfirst");
+        Stats::startEvent("manager run");
         success = manager.runfirst();
+        Stats::stopEvent("manager run");
+
         //theStatsContainer()->setTimerStop("runfirst");
       } else {
         // run tasks for next time interval
         //if(i==1) theStatsContainer()->setTimerStart("runnext");
+        Stats::startEvent("manager run");
         success = manager.runnext();
+        Stats::stopEvent("manager run");
+
         //if(i==1) theStatsContainer()->setTimerStop("runnext");
       }
       //success = true;
       //check if fault occured
       if ( !success ) {
+        Stats::startEvent("manager recover preprocessing");
+
         nfaults++;
         std::cout << "failed group detected at combi iteration " << i << std::endl;
        // manager.recover(i, nsteps); has no access toi GENE Task
@@ -352,17 +364,26 @@ int main(int argc, char** argv) {
 //        else{
 //          manager.reInitializeGroup(groupFaults);
 //        }
+        Stats::stopEvent("manager recover preprocessing");
+
       }
       //combine
       //if(i==0) theStatsContainer()->setTimerStart("combine");
+      Stats::startEvent("manager combine");
       manager.combine();
+      Stats::stopEvent("manager combine");
+
       //if(i==0) theStatsContainer()->setTimerStop("combine");
       //postprocessing in case of errors
       if ( !success ){
+        Stats::startEvent("manager recover postprocessing");
+
         /* restore combischeme to its original state
          * and send new combiParameters to all surviving groups */
         manager.restoreCombischeme();
         manager.updateCombiParameters();
+        Stats::stopEvent("manager recover postprocessing");
+
       }
     }
     std::cout << "Computation finished evaluating on target grid! \n";
@@ -370,12 +391,18 @@ int main(int argc, char** argv) {
 
     // evaluate solution on the grid defined by leval
     //theStatsContainer()->setTimerStart("parallelEval");
+    Stats::startEvent("manager parallel eval");
     manager.parallelEval( leval, fg_file_path, 0 );
+    Stats::stopEvent("manager parallel eval");
+
     //theStatsContainer()->setTimerStop("parallelEval");
 
     // evaluate solution on the grid defined by leval2
     //theStatsContainer()->setTimerStart("parallelEval2");
+    Stats::startEvent("manager parallel eval 2");
     manager.parallelEval( leval2, fg_file_path2, 0 );
+    Stats::stopEvent("manager parallel eval 2");
+
     //theStatsContainer()->setTimerStop("parallelEval2");
 
     // send exit signal to workers in order to enable a clean program termination
@@ -384,6 +411,11 @@ int main(int argc, char** argv) {
     // save stats
     //theStatsContainer()->save("times.dat");
   }
+  Stats::finalize();
+
+  /* write stats to json file for postprocessing */
+  Stats::write( "timers.json" );
+
   if( ENABLE_FT ){
     WORLD_MANAGER_EXCLUSIVE_SECTION{
       std::cout << "The number of detected faults during the simulation is " << nfaults << "\n";
