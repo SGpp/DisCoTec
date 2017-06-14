@@ -258,6 +258,7 @@ int main(int argc, char** argv) {
     //theStatsContainer()->setTimerStart("compute");
     for (size_t i = 0; i < ncombi; ++i) {
       //std::cout << "Compute !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n";
+      std::cout << "Starting iteration " << i << "\n";
       if( i == 0 ){
         /* distribute task according to load model and start computation for
          * the first time */
@@ -362,6 +363,7 @@ int main(int argc, char** argv) {
         manager.restoreCombischeme();
         manager.updateCombiParameters();
       }
+      std::cout << "Finished iteration " << i << "\n";
     }
     std::cout << "Computation finished evaluating on target grid! \n";
     //theStatsContainer()->setTimerStop("compute");
