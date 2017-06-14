@@ -63,7 +63,7 @@ GeneTask::GeneTask() :
 
 GeneTask::~GeneTask()
 {
-  delete dfg;
+  delete dfg_;
 }
 
 void
