@@ -1,8 +1,8 @@
 [ct]
 dim = 2
-lmin = 3 3 
-lmax = 10 10  
-leval = 5 5 
+lmin = 3 3
+lmax = 6 6  
+leval = 5 5
 p = 1 2
 ncombi = 10
 
@@ -12,4 +12,4 @@ nsteps = 100
 
 [manager]
 ngroup = 2
-nprocs = 2 
+nprocs = 2

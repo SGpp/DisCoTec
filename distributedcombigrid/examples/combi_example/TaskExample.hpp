@@ -26,7 +26,7 @@ class TaskExample: public Task {
       nsteps), p_(p), initialized_(false), stepsTotal_(0), dfg_(NULL) {
   }
 
-  void init(CommunicatorType lcomm) {
+  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
@@ -172,6 +172,11 @@ class TaskExample: public Task {
 
   }
 
+  ~TaskExample() {
+    if (dfg_ != NULL)
+      delete dfg_;
+  }
+
  protected:
   /* if there are local variables that have to be initialized at construction
    * you have to do it here. the worker processes will create the task using
@@ -180,11 +185,6 @@ class TaskExample: public Task {
    * set to false. */
   TaskExample() :
     initialized_(false), stepsTotal_(1), dfg_(NULL) {
-  }
-
-  ~TaskExample() {
-    if (dfg_ != NULL)
-      delete dfg_;
   }
 
  private:
