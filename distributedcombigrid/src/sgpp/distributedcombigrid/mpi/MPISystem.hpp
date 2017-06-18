@@ -132,6 +132,8 @@ class MPISystem {
 
   inline void checkPreconditionsFT() const;
 
+  void initWorldComm( size_t ngroup, size_t nprocs );
+
   /* create the global communicators for the global reduce.
    * all processes which have local rank i in their process group will be grouped in a
    * distinct communicator.
