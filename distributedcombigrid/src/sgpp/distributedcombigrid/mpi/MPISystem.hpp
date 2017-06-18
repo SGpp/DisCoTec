@@ -144,6 +144,8 @@ class MPISystem {
 
   void initLocalComm();
 
+  void initLocalComm(CommunicatorType lcomm);
+
   void initGlobalComm();
 
   void sendReusableSignal();

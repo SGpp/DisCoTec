@@ -166,31 +166,9 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
    * lcomm is the local communicator of its own process group for each worker process.
    * for manager, lcomm is a group which contains only manager process and can be ignored
    */
-  // manager is not supposed to have a localComm
-  if( worldRank_ == managerRankWorld_ )
-    localComm_ = MPI_COMM_NULL;
-  else{
-    //localComm_ = lcomm;
-    MPI_Comm_dup(lcomm,&localComm_);
-    // todo: think through which side effects changing the master rank would have
-    // in principle this does not have to be 0
-    const int masterRank = 0;
-
-    int localSize;
-    MPI_Comm_size( localComm_, &localSize );
-    assert( masterRank < localSize );
-
-    masterRank_ = masterRank;
-
-    MPI_Comm_rank( localComm_, &localRank_ );
-  }
-
-   if(ENABLE_FT){
-     if( localComm_ != MPI_COMM_NULL){
-         createCommFT( &localCommFT_, localComm_ );
-     }
-   }
-
+   CommunicatorType lcommCopy;
+   MPI_Comm_dup(lcomm,&lcommCopy);
+   initLocalComm( lcommCopy );
 
   /* create global communicator which contains only the manager and the master
    * process of each process group
@@ -210,15 +188,21 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
 void MPISystem::initLocalComm(){
   int color = worldRank_ / int(nprocs_);
   int key = worldRank_ - color * int(nprocs_);
-  MPI_Comm_split( worldComm_, color, key, &localComm_ );
-
+  CommunicatorType lcomm;
+  MPI_Comm_split( worldComm_, color, key, &lcomm );
   /* set group number in Stats. this is necessary for postprocessing */
   Stats::setAttribute("group", std::to_string(color));
 
+  initLocalComm( lcomm );
+}
+
+
+void MPISystem::initLocalComm( CommunicatorType lcomm ){
   // manager is not supposed to have a localComm
   if( worldRank_ == managerRankWorld_ )
     localComm_ = MPI_COMM_NULL;
   else{
+    localComm_ = lcomm;
     // todo: think through which side effects changing the master rank would have
     // in principle this does not have to be 0
     const int masterRank = 0;
@@ -758,5 +742,3 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
 }
 
 } // namespace combigrid
-
-
