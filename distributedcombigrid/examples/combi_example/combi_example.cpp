@@ -6,6 +6,7 @@
  */
 #include <mpi.h>
 #include <vector>
+#include <string>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/serialization/export.hpp>
@@ -25,9 +26,32 @@
 #include "TaskExample.hpp"
 
 using namespace combigrid;
+using boost::property_tree::ptree;
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskExample)
+
+template <typename T>
+std::vector<T> get_as_vector(ptree const& pt, ptree::key_type const& key)
+{
+  const auto& data = pt.get_child(key).data();
+  ptree ptBuffer;
+  std::vector<T> result;
+
+  size_t last = 0;
+  size_t next = 0;
+  while ((next = data.find(" ", last)) != std::string::npos) {
+    ptBuffer.data() = data.substr(last, next - last);
+    result.push_back( ptBuffer.get_value<T>() );
+    last = next + 1;
+  }
+  if(last < data.size()) {
+    // Using a large value for subtr size guarantees we get the rest of the data
+    ptBuffer.data() = data.substr(last, data.size());
+    result.push_back( ptBuffer.get_value<T>() );
+  }
+  return result;
+}
 
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
@@ -43,7 +67,7 @@ int main(int argc, char** argv) {
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
-  size_t nprocs = cfg.get<size_t>("manager.nprocs");
+  std::vector<size_t> nprocs = get_as_vector<size_t>( cfg, "manager.nprocs" );
 
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
@@ -86,7 +110,7 @@ int main(int argc, char** argv) {
     IndexType checkProcs = 1;
     for (auto k : p)
       checkProcs *= k;
-    assert(checkProcs == IndexType(nprocs));
+    assert(checkProcs == IndexType(nprocs[0]));
 
     /* generate a list of levelvectors and coefficients
      * CombiMinMaxScheme will create a classical combination scheme.
