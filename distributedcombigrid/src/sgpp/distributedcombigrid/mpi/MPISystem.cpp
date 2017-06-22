@@ -12,6 +12,8 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 
 #include <iostream>
+#include <numeric>
+#include <algorithm>
 
 namespace{
   using namespace combigrid;
@@ -69,6 +71,9 @@ MPISystem::MPISystem() :
     managerRank_(MPI_UNDEFINED),
     managerRankWorld_(MPI_UNDEFINED),
     masterRank_(MPI_UNDEFINED),
+    nprocsByGroup_(),
+    groupBaseRank_(),
+    group_(-1),
     reusableRanks_(std::vector<RankType>(0))
 {
   // check if MPI was initialized (e.g. by MPI_Init or similar)
@@ -85,9 +90,29 @@ MPISystem::~MPISystem() {
 
 
 void MPISystem::init( size_t ngroup, size_t nprocs ){
-  assert( !initialized_ && "MPISystem already initialized!" );
+  init( ngroup, std::vector<size_t>{ ngroup, nprocs } );
+}
 
-  initWorldComm( ngroup, nprocs );
+
+void MPISystem::init( size_t ngroup, std::vector<size_t> nprocsByGroup ){
+  assert( !initialized_ && "MPISystem already initialized!" );
+  assert( ngroup % nprocsByGroup.size() == 0 && "ngroup must be multiple of nprocsByGroup.size()");
+  assert( ngroup > 0 && "ngroup must be positive");
+
+  {
+    size_t repeat = ngroup / nprocsByGroup.size();
+    size_t patternSize = nprocsByGroup.size();
+    nprocsByGroup.resize( patternSize * repeat );
+    auto patternStart = nprocsByGroup.begin();
+    auto patternEnd = nprocsByGroup.begin() + patternSize;
+    auto it = patternEnd;
+    for(size_t i = 1; i < repeat; i++) {
+      std::copy(patternStart, patternEnd, it);
+      it += patternSize;
+    }
+
+    initWorldComm( std::move( nprocsByGroup ) );
+  }
 
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
@@ -114,7 +139,7 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
 void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
   assert( !initialized_ && "MPISystem already initialized!" );
 
-  initWorldComm( ngroup, nprocs );
+  initWorldComm( std::vector<size_t>{ ngroup, nprocs } );
   //std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
   //worldCommFT_->Root_Rank = worldSize - 1;
   /* init localComm
@@ -140,9 +165,13 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
 }
 
 
-void MPISystem::initWorldComm( size_t ngroup, size_t nprocs ){
-    ngroup_ = ngroup;
-    nprocs_ = nprocs;
+void MPISystem::initWorldComm( std::vector<size_t> procsByGroup ){
+    size_t ngroup = procsByGroup.size();
+    nprocsByGroup_ = procsByGroup;
+    groupBaseRank_ = std::vector<RankType>( ngroup, 0 );
+    // partial sum shifted by one in the output
+    assert( ngroup > 0 );
+    std::partial_sum(nprocsByGroup_.begin(), nprocsByGroup_.end() - 1, groupBaseRank_.begin() + 1);
 
     worldComm_ = MPI_COMM_WORLD;
 
@@ -151,11 +180,20 @@ void MPISystem::initWorldComm( size_t ngroup, size_t nprocs ){
      */
     int worldSize;
     MPI_Comm_size( worldComm_, &worldSize );
-    assert( worldSize == int(ngroup_ * nprocs_ + 1) );
+    assert( worldSize == int(std::accumulate(nprocsByGroup_.begin(), nprocsByGroup_.end(), size_t(0)) + 1) );
 
     MPI_Comm_rank( worldComm_, &worldRank_ );
     managerRankWorld_ = worldSize - 1;
     managerRankFT_ = worldSize - 1;
+
+    group_ = GroupType( ngroup ); // Default singleton group for world manager
+    for(size_t i = 0; i < ngroup; i++) {
+      bool inGroupI = worldRank_ >= groupBaseRank_[i] && worldRank_ < groupBaseRank_[i] + nprocsByGroup_[i];
+      if(inGroupI) {
+        group_ = GroupType( i );
+        break;
+      }
+    }
 
     if( ENABLE_FT ){
         worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
@@ -168,8 +206,8 @@ void MPISystem::initWorldComm( size_t ngroup, size_t nprocs ){
 
 
 void MPISystem::initLocalComm(){
-  int color = worldRank_ / int(nprocs_);
-  int key = worldRank_ - color * int(nprocs_);
+  int color = int(group_);
+  int key = worldRank_ - getGroupBaseRank( group_ );
   CommunicatorType lcomm;
   MPI_Comm_split( worldComm_, color, key, &lcomm );
   /* set group number in Stats. this is necessary for postprocessing */
@@ -211,9 +249,10 @@ void MPISystem::initGlobalComm(){
   MPI_Group worldGroup;
   MPI_Comm_group( worldComm_, &worldGroup);
 
-  std::vector<int> ranks( ngroup_ + 1 );
-  for (size_t i = 0; i < ngroup_; i++) {
-    ranks[i] = int( i * nprocs_ );
+  size_t ngroup = getNumGroups();
+  std::vector<int> ranks( ngroup + 1 );
+  for (size_t i = 0, groupBaseProc = 0; i < ngroup; i++, groupBaseProc += getNumProcs(i)) {
+    ranks[i] = int( groupBaseProc ); // group manager local rank
   }
   ranks.back() = managerRankWorld_;
 
@@ -241,47 +280,27 @@ void MPISystem::initGlobalComm(){
 }
 
 void MPISystem::initGlobalReduceCommm() {
-  //old version
-//  // create communicator which only contains workers
-//  MPI_Comm workerComm;
-//  {
-//    int color = ( worldRank_ != managerRankWorld_ ) ? 1 : 0;
-//    int key = (worldRank_ != managerRankWorld_ ) ? worldRank_ : 0;
-//    MPI_Comm_split( worldComm_, color, key, &workerComm);
-//  }
-
-//  if( worldRank_ != managerRankWorld_ ) {
-//    int workerID;
-//    MPI_Comm_rank(workerComm, &workerID);
-//
-//    MPI_Comm globalReduceComm;
-//    int color = workerID % int(nprocs_);
-//    int key = workerID / int(nprocs_);
-//    MPI_Comm_split(workerComm, color, key, &globalReduceComm);
-//
-//    globalReduceComm_ = globalReduceComm;
-//
-//    if( ENABLE_FT ){
-//      createCommFT( &globalReduceCommFT_, globalReduceComm_ );
-//    }
-//  }
-  //new version
     if( worldRank_ != managerRankWorld_ ) {
-      int workerID;
-      MPI_Comm_rank(worldComm_, &workerID);
+      size_t maxProcsInGroup = *std::max_element( nprocsByGroup_.begin(), nprocsByGroup_.end() );
+      size_t procsInOwnGroup = getNumProcs( group_ );
+      assert( maxProcsInGroup % procsInOwnGroup == 0 && "group sizes must be multiple of each other" );
+      size_t reduceMultiplicity = maxProcsInGroup / procsInOwnGroup;
+
+      RankType workerID = getWorldRank();
 
 //      MPI_Comm globalReduceComm;
-      int color = workerID % int(nprocs_);
-      int key = workerID / int(nprocs_);
+      // TODO: multiple reduce comms
+      int color = int( workerID - getGroupBaseRank(group_) );
+      int key = int( group_ );
       MPI_Comm_split(worldComm_, color, key, &globalReduceComm_);
 
       if( ENABLE_FT ){
         createCommFT( &globalReduceCommFT_, globalReduceComm_ );
       }
       int size;
-       MPI_Comm_size(globalReduceComm_,&size);
-       std::cout << "size if global reduce comm " << size << "\n";
-       MPI_Barrier(globalReduceComm_);
+      MPI_Comm_size(globalReduceComm_,&size);
+      std::cout << "size if global reduce comm " << size << "\n";
+      MPI_Barrier(globalReduceComm_);
     }
     else{
       MPI_Comm_split(worldComm_,MPI_UNDEFINED,-1,&globalReduceComm_);
@@ -560,8 +579,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
 
     int numFailedRanks = sizeOld-sizeNew;
     std::vector<RankType> failedRanks = getFailedRanks(numFailedRanks); //has to be solved differently with ULFM
-    std::cout << "nprocs - numFailed " << failedGroups.size() * nprocs_ - numFailedRanks << "\n";
-    newReusableRanks = getReusableRanks(failedGroups.size() * nprocs_ - numFailedRanks);
+    // TODO: handle multiplicity of workers in unequal groups
     getReusableRanksSpare(reusableRanks_); //update ranks of reusable ranks
     //toDO reusableRanks might be outdated due to new failures there
     bool enoughSpareProcs = sizeSpare - sizeNew >= numFailedRanks;
@@ -671,8 +689,6 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
 
   int worldSize;
   MPI_Comm_size( worldComm_, &worldSize );
-  assert( (worldSize - 1) % nprocs_ == 0 );
-  ngroup_ = (worldSize - 1) / nprocs_;
 
   MPI_Comm_rank( worldComm_, &worldRank_ );
   managerRankWorld_ = worldSize - 1;

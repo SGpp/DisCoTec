@@ -29,6 +29,7 @@ typedef MPI_Comm CommunicatorType;
 
 typedef int RankType;
 
+typedef unsigned int GroupType;
 
 
 }

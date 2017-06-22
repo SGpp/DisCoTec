@@ -76,11 +76,6 @@ int main(int argc, char** argv) {
     /* create load model */
     LoadModel* loadmodel = new LinearLoadModel();
 
-    IndexType checkProcs = 1;
-    for (auto k : p)
-      checkProcs *= k;
-    assert(checkProcs == IndexType(nprocs));
-
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
     combischeme.makeFaultTolerant();
@@ -201,4 +196,3 @@ int main(int argc, char** argv) {
 
   return 0;
 }
-	

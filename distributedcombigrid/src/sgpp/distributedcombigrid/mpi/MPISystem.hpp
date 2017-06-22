@@ -71,6 +71,8 @@ class MPISystem {
 
   void init( size_t ngroups, size_t nprocs );
 
+  void init( size_t ngroups, std::vector<size_t> nprocsByGroup );
+
   void init( size_t ngroups, size_t nprocs, CommunicatorType lcomm );
 
   inline const CommunicatorType& getWorldComm() const;
@@ -112,7 +114,9 @@ class MPISystem {
 
   inline size_t getNumGroups() const;
 
-  inline size_t getNumProcs() const;
+  inline size_t getNumProcs( GroupType group ) const;
+
+  inline RankType getGroupBaseRank( GroupType group ) const;
 
   inline bool isInitialized() const;
 
@@ -132,7 +136,7 @@ class MPISystem {
 
   inline void checkPreconditionsFT() const;
 
-  void initWorldComm( size_t ngroup, size_t nprocs );
+  void initWorldComm( std::vector<size_t> nprocsByGroup );
 
   /* create the global communicators for the global reduce.
    * all processes which have local rank i in their process group will be grouped in a
@@ -178,9 +182,6 @@ class MPISystem {
 
   CommunicatorType worldComm_;
 
-  //contains alive procs from dead process groups and manager
-  simft::Sim_FT_MPI_Comm spareCommFT_;
-
   CommunicatorType globalComm_;
 
   CommunicatorType localComm_;
@@ -190,6 +191,9 @@ class MPISystem {
   simft::Sim_FT_MPI_Comm worldCommFT_;
 
   simft::Sim_FT_MPI_Comm globalCommFT_;
+
+  //contains alive procs from dead process groups and manager
+  simft::Sim_FT_MPI_Comm spareCommFT_;
 
   simft::Sim_FT_MPI_Comm localCommFT_;
 
@@ -211,9 +215,11 @@ class MPISystem {
 
   RankType masterRank_;
 
-  size_t ngroup_;
-
-  size_t nprocs_;
+    // Each group inhabits the ranks range
+    // [groupBaseRank[g], groupBaseRank[g] + nprocsByGroup_[g]) in worldComm
+  std::vector<size_t> nprocsByGroup_;
+  std::vector<RankType> groupBaseRank_;
+  GroupType group_;
 
   //ranks that er still functional but not assigned to any process group
   std::vector<RankType> reusableRanks_;
@@ -372,13 +378,21 @@ inline bool MPISystem::isMaster() const{
 inline size_t MPISystem::getNumGroups() const{
   checkPreconditions();
 
-  return ngroup_;
+  return nprocsByGroup_.size();
 }
 
-inline size_t MPISystem::getNumProcs() const{
+
+inline size_t MPISystem::getNumProcs( GroupType group ) const{
   checkPreconditions();
 
-  return nprocs_;
+  return nprocsByGroup_[group];
+}
+
+
+inline RankType MPISystem::getGroupBaseRank( GroupType group ) const {
+  checkPreconditions();
+
+  return groupBaseRank_[group];
 }
 
 
