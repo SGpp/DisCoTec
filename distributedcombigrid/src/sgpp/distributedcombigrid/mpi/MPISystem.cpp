@@ -556,34 +556,24 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   //theStatsContainer()->setTimerStart("recoverComm-shrink");
   simft::Sim_FT_MPI_Comm newSpareCommFT;
   simft::Sim_FT_MPI_Comm newWorldCommFT;
-//  int sizeWorld;
-//  MPI_Comm_size(worldComm_,&sizeWorld);
-//  std::cout << "size worldcomm: " << sizeWorld << "\n";
   WORLD_MANAGER_EXCLUSIVE_SECTION{
     //indicate shrink to reusable ranks
     sendShrinkSignal(reusableRanks_);
   }
   //shrink of all processors including reusable ones
   MPI_Comm_shrink( theMPISystem()->getSpareCommFT(), &newSpareCommFT ); //remove dead processors from spareComm(worldComm + reusable ranks)
-//  std::cout << "first shrink done \n";
   deleteCommFTAndCcomm(&spareCommFT_);
-//  std::cout << "firs delete done \n";
 
   createCommFT( &spareCommFT_, newSpareCommFT->c_comm ); //removes dead processors from worldComm
-//  std::cout << "create comm done \n";
   deleteCommFT(&newSpareCommFT);
-//  std::cout << "second delete done \n";
-  //MPI_Barrier(spareCommFT_->c_comm);
+
   //adjust manger rank in spareComm as it has changed durin shrink
   int ftCommSize;
   MPI_Comm_size(spareCommFT_->c_comm, &ftCommSize );
   managerRankFT_= ftCommSize - 1;
   std::vector<RankType> newReusableRanks;
-  //shrink of all active processors
-//  std::cout << "starting second shrink \n";
-  //MPI_Barrier(spareCommFT_->c_comm);
+
   MPI_Comm_shrink( theMPISystem()->getWorldCommFT(), &newWorldCommFT); //remove dead processors from current worldComm
-//  std::cout << "second shrink done \n";
 
   bool failedRecovery = true;
   int sizeNew;
