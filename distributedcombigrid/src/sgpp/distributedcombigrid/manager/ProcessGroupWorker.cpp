@@ -233,8 +233,9 @@ SignalType ProcessGroupWorker::wait() {
     currentTask_->setZero();
 
     // fill task with combisolution
-   // setCombinedSolutionUniform( currentTask_ ); works only if DFG is initialized -> this happens outside
-
+    if(!isGENE){
+      setCombinedSolutionUniform( currentTask_ );
+    }
     // execute task
     currentTask_->run(theMPISystem()->getLocalComm());
   } else if ( signal ==  RECOVER_COMM ){
@@ -651,6 +652,7 @@ void ProcessGroupWorker::updateCombiParameters() {
 void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
   assert( combinedUniDSG_ != NULL );
 
+
   // get handle to dfg
   DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
 
@@ -658,7 +660,8 @@ void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
   dfg.extractFromUniformSG( *combinedUniDSG_ );
 
   // dehierarchize dfg
-  DistributedHierarchization::dehierarchize<CombiDataType>( dfg );
+  DistributedHierarchization::dehierarchize<CombiDataType>(
+      dfg, combiParameters_.getHierarchizationDims() );
 }
 
 } /* namespace combigrid */
