@@ -71,6 +71,8 @@ class MPISystem {
 
   void init( size_t ngroups, size_t nprocs, CommunicatorType lcomm );
 
+  void init( CommunicatorType wcomm, size_t ngroups, size_t nprocs);
+
   inline const CommunicatorType& getWorldComm() const;
 
   inline const CommunicatorType& getGlobalComm() const;
