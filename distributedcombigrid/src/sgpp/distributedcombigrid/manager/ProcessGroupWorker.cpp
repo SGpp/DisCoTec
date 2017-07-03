@@ -297,7 +297,7 @@ void ProcessGroupWorker::ready() {
           }
         }
 	//merge problem?
-	// todo: gene specific voodoo 
+	// todo: gene specific voodoo
         return;
 	//
       }
@@ -360,7 +360,9 @@ void ProcessGroupWorker::combine() {
   }
 
   // globales reduce
-  CombiCom::distributedGlobalReduce(dsg);
+  for(size_t reduceIndex = 0; reduceIndex < theMPISystem()->getReduceMultiplicity(); reduceIndex++) {
+    CombiCom::distributedGlobalReduce( *combinedUniDSG_, reduceIndex );
+  }
 
   for (Task* t : tasks_) {
     // get handle to dfg
@@ -441,8 +443,9 @@ void ProcessGroupWorker::combineUniform() {
   MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
                     MPI_MAX, theMPISystem()->getLocalComm() );
                     */
-
-  CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
+  for(size_t reduceIndex = 0; reduceIndex < theMPISystem()->getReduceMultiplicity(); reduceIndex++) {
+    CombiCom::distributedGlobalReduce( *combinedUniDSG_, reduceIndex );
+  }
 
   for (Task* t : tasks_) {
     // get handle to dfg

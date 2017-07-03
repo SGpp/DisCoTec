@@ -76,11 +76,11 @@ class CombiCom {
                                       DistributedSparseGrid<FG_ELEMENT>& dsg);
 
   template<typename FG_ELEMENT>
-  static void distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg);
+  static void distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg, size_t reduceCommIndex);
 
   template<typename FG_ELEMENT>
   static void
-  distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg);
+  distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg, size_t reduceCommIndex);
 };
 
 template<>
@@ -719,7 +719,9 @@ void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
 }
 
 template<typename FG_ELEMENT>
-void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
+void CombiCom::distributedGlobalReduce(
+  DistributedSparseGrid<FG_ELEMENT>& dsg,
+  size_t reduceCommIndex ) {
   // get rank in pgroup communicator.
   int lrank;
   MPI_Comm_rank(dsg.getCommunicator(), &lrank);
@@ -731,7 +733,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
     if (dsg.getRank(i) != lrank)
       continue;
 
-    MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
+    MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm( reduceCommIndex );
 
     // make sure that subspace is initialized. not all subspaces will be initialized
     // after local reduce. this will not overwrite an already initialized subspace
@@ -760,9 +762,10 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
 
 template<typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(
-  DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
+  DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+  size_t reduceCommIndex ) {
   // get global communicator for this operation
-  MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
+  MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm( reduceCommIndex );
 
   assert(mycomm != MPI_COMM_NULL);
 

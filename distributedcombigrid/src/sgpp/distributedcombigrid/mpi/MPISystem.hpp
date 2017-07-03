@@ -81,7 +81,7 @@ class MPISystem {
 
   inline const CommunicatorType& getLocalComm() const;
 
-  inline const CommunicatorType& getGlobalReduceComm() const;
+  inline const CommunicatorType& getGlobalReduceComm( size_t partIndex ) const;
 
   inline simft::Sim_FT_MPI_Comm getWorldCommFT();
 
@@ -92,7 +92,9 @@ class MPISystem {
 
   inline simft::Sim_FT_MPI_Comm getLocalCommFT();
 
-  inline simft::Sim_FT_MPI_Comm getGlobalReduceCommFT();
+  inline simft::Sim_FT_MPI_Comm getGlobalReduceCommFT( size_t partIndex );
+
+  inline void deleteReduceCommsFTAndComm();
 
   inline const RankType& getWorldRank() const;
 
@@ -115,6 +117,8 @@ class MPISystem {
   inline size_t getNumGroups() const;
 
   inline size_t getNumProcs( GroupType group ) const;
+
+  inline size_t getReduceMultiplicity() const;
 
   inline RankType getGroupBaseRank( GroupType group ) const;
 
@@ -186,7 +190,7 @@ class MPISystem {
 
   CommunicatorType localComm_;
 
-  CommunicatorType globalReduceComm_;
+  std::vector<CommunicatorType> globalReduceComms_;
 
   simft::Sim_FT_MPI_Comm worldCommFT_;
 
@@ -197,7 +201,7 @@ class MPISystem {
 
   simft::Sim_FT_MPI_Comm localCommFT_;
 
-  simft::Sim_FT_MPI_Comm globalReduceCommFT_;
+  std::vector<simft::Sim_FT_MPI_Comm> globalReduceCommsFT_;
 
   RankType worldRank_;
 
@@ -279,10 +283,10 @@ inline const CommunicatorType& MPISystem::getLocalComm() const{
 }
 
 
-inline const CommunicatorType& MPISystem::getGlobalReduceComm() const{
+inline const CommunicatorType& MPISystem::getGlobalReduceComm( size_t index ) const{
   checkPreconditions();
 
-  return globalReduceComm_;
+  return globalReduceComms_[index];
 }
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getWorldCommFT(){
@@ -311,10 +315,10 @@ inline simft::Sim_FT_MPI_Comm MPISystem::getLocalCommFT(){
 }
 
 
-inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalReduceCommFT(){
+inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalReduceCommFT( size_t index ){
   checkPreconditionsFT();
 
-  return globalReduceCommFT_;
+  return globalReduceCommsFT_[index];
 }
 
 
@@ -389,6 +393,13 @@ inline size_t MPISystem::getNumProcs( GroupType group ) const{
 }
 
 
+inline size_t MPISystem::getReduceMultiplicity() const {
+  checkPreconditions();
+
+  return globalReduceComms_.size();
+}
+
+
 inline RankType MPISystem::getGroupBaseRank( GroupType group ) const {
   checkPreconditions();
 
@@ -398,6 +409,14 @@ inline RankType MPISystem::getGroupBaseRank( GroupType group ) const {
 
 inline bool MPISystem::isInitialized() const{
   return initialized_;
+}
+
+inline void MPISystem::deleteReduceCommsFTAndComm() {
+  for(size_t i = 0; i < getReduceMultiplicity(); i++) {
+    deleteCommFTAndCcomm(&globalReduceCommsFT_[i], &globalReduceComms_[i]);
+  }
+  globalReduceComms_.clear();
+  globalReduceCommsFT_.clear();
 }
 
 /*

@@ -58,12 +58,12 @@ MPISystem::MPISystem() :
     worldComm_(MPI_COMM_NULL),
     globalComm_(MPI_COMM_NULL),
     localComm_(MPI_COMM_NULL),
-    globalReduceComm_(MPI_COMM_NULL),
+    globalReduceComms_(),
     worldCommFT_(nullptr),
     globalCommFT_(nullptr),
     spareCommFT_(nullptr),
     localCommFT_(nullptr),
-    globalReduceCommFT_(nullptr),
+    globalReduceCommsFT_(),
     worldRank_(MPI_UNDEFINED),
     globalRank_(MPI_UNDEFINED),
     localRank_(MPI_UNDEFINED),
@@ -281,29 +281,58 @@ void MPISystem::initGlobalComm(){
 
 void MPISystem::initGlobalReduceCommm() {
     if( worldRank_ != managerRankWorld_ ) {
-      size_t maxProcsInGroup = *std::max_element( nprocsByGroup_.begin(), nprocsByGroup_.end() );
+      size_t maxProcsPerGroup = *std::max_element( nprocsByGroup_.begin(), nprocsByGroup_.end() );
       size_t procsInOwnGroup = getNumProcs( group_ );
-      assert( maxProcsInGroup % procsInOwnGroup == 0 && "group sizes must be multiple of each other" );
-      size_t reduceMultiplicity = maxProcsInGroup / procsInOwnGroup;
+      assert( maxProcsPerGroup % procsInOwnGroup == 0 && "group sizes must be multiple of each other" );
+      size_t reduceMultiplicity = maxProcsPerGroup / procsInOwnGroup;
+
+      globalReduceComms_ = std::vector<CommunicatorType>( reduceMultiplicity, MPI_COMM_NULL );
+      globalReduceCommsFT_ = std::vector<simft::Sim_FT_MPI_Comm>( reduceMultiplicity, nullptr );
 
       RankType workerID = getWorldRank();
+      int localRank = size_t( workerID - getGroupBaseRank(group_) );
 
-//      MPI_Comm globalReduceComm;
-      // TODO: multiple reduce comms
-      int color = int( workerID - getGroupBaseRank(group_) );
-      int key = int( group_ );
-      MPI_Comm_split(worldComm_, color, key, &globalReduceComm_);
+      MPI_Group worldGroup;
+      MPI_Comm_group(worldComm_, &worldGroup);
+      size_t numGroups = getNumGroups();
 
-      if( ENABLE_FT ){
-        createCommFT( &globalReduceCommFT_, globalReduceComm_ );
+      for(size_t i = 0; i < reduceMultiplicity; i++) {
+        int logicalLocalRank = int( localRank * reduceMultiplicity + i );
+
+        std::vector<RankType> worldRanksInReduceGroup( numGroups );
+        for(GroupType g = 0; g < numGroups; g++) {
+          size_t procsInGroup = getNumProcs( g );
+          size_t groupMulitplicity = maxProcsPerGroup / procsInGroup;
+          size_t groupLocalRankInReduceGroup = int( logicalLocalRank / groupMulitplicity );
+
+          RankType groupBase = getGroupBaseRank( g );
+          worldRanksInReduceGroup[g] = groupBase + groupLocalRankInReduceGroup;
+        }
+        MPI_Group reduceGroup;
+        MPI_Group_incl( worldGroup, worldRanksInReduceGroup.size(), worldRanksInReduceGroup.data(), &reduceGroup );
+
+        int tag = int( logicalLocalRank );
+        CommunicatorType reduceComm;
+        MPI_Comm_create_group( worldComm_, reduceGroup, tag, &reduceComm );
+        globalReduceComms_[i] = reduceComm;
+
+        if( ENABLE_FT ){
+          simft::Sim_FT_MPI_Comm reduceCommFT;
+          createCommFT( &reduceCommFT, reduceComm );
+          globalReduceCommsFT_[i] = reduceCommFT;
+        }
+
+        int size;
+        MPI_Comm_size(reduceComm,&size);
+        std::cout << "size if global reduce comm " << size << "\n";
+        MPI_Barrier(reduceComm);
+        MPI_Group_free(&reduceGroup);
       }
-      int size;
-      MPI_Comm_size(globalReduceComm_,&size);
-      std::cout << "size if global reduce comm " << size << "\n";
-      MPI_Barrier(globalReduceComm_);
+      MPI_Group_free(&worldGroup);
     }
     else{
-      MPI_Comm_split(worldComm_,MPI_UNDEFINED,-1,&globalReduceComm_);
+      globalReduceComms_.clear();
+      globalReduceCommsFT_.clear();
     }
 
 //  if(workerComm != MPI_COMM_NULL){
@@ -629,7 +658,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
       MPI_Comm_split( spareCommFT_->c_comm, color, key, &worldComm_ );
       //delete communicators
       deleteCommFTAndCcomm(&globalCommFT_, &globalComm_);
-      deleteCommFTAndCcomm(&globalReduceCommFT_, &globalReduceComm_);
+      deleteReduceCommsFTAndComm();
       //sendReusableSignal(theMPISystem()->getSpareCommFT()->c_comm);
       waitForReuse(); //does only leave this routine when reused later //participates in future shrinks
       color = 1;
@@ -714,7 +743,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   deleteCommFTAndCcomm(&globalCommFT_,&globalComm_);
   initGlobalComm();
   std::cout << "initializing global reduce comm \n";
-  deleteCommFTAndCcomm(&globalReduceCommFT_,&globalReduceComm_);
+  deleteReduceCommsFTAndComm();
   initGlobalReduceCommm();
 
   /* print stats */
