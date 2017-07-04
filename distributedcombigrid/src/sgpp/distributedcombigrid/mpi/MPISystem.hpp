@@ -4,6 +4,7 @@
 #include <mpi.h>
 #include <ostream>
 #include <vector>
+#include <type_traits>
 #include <assert.h>
 
 #include "sgpp/distributedcombigrid/mpi/MPISystemID.hpp"
@@ -132,13 +133,26 @@ class MPISystem {
   void sendFailedSignal();
 
  private:
+  enum class InitializationStage {
+    // Nothing is initialized yet
+    PRE_INIT,
+    // The world communicator is initialized
+    WORLD_INIT,
+    // The local communicator is initialized
+    LOCAL_INIT,
+    // The global communicator is initialized
+    GLOBAL_INIT,
+    // The reduce communicator is initialized
+    ALL_INIT
+  };
+
   explicit MPISystem();
 
   friend MPISystemID theMPISystem();
 
-  inline void checkPreconditions() const;
+  inline void checkPreconditions(InitializationStage requiredStage = InitializationStage::ALL_INIT) const;
 
-  inline void checkPreconditionsFT() const;
+  inline void checkPreconditionsFT(InitializationStage requiredStage = InitializationStage::ALL_INIT) const;
 
   void initWorldComm( std::vector<size_t> nprocsByGroup );
 
@@ -182,7 +196,7 @@ class MPISystem {
 
 
 
-  bool initialized_;
+  InitializationStage initialized_;
 
   CommunicatorType worldComm_;
 
@@ -251,114 +265,117 @@ inline MPISystemID theMPISystem() {
 }
 
 
-inline void MPISystem::checkPreconditions() const{
-  assert( initialized_ && "MPI System not initialized!");
+inline void MPISystem::checkPreconditions(InitializationStage requiredStage) const {
+  using OrdinalType = typename std::underlying_type<InitializationStage>::type;
+  auto requiredStageNr = static_cast<OrdinalType>(requiredStage);
+  auto initializedStageNr = static_cast<OrdinalType>(initialized_);
+  assert( requiredStageNr <= initializedStageNr && "MPI System not initialized!");
 }
 
 
-inline void MPISystem::checkPreconditionsFT() const{
-  checkPreconditions();
+inline void MPISystem::checkPreconditionsFT(InitializationStage requiredStage) const{
+  checkPreconditions( requiredStage );
   assert( ENABLE_FT && "Fault Tolerance not enabled!" );
 }
 
 
 inline const CommunicatorType& MPISystem::getWorldComm() const {
-  checkPreconditions();
+  checkPreconditions( InitializationStage::WORLD_INIT );
 
   return worldComm_;
 }
 
 
 inline const CommunicatorType& MPISystem::getGlobalComm() const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::GLOBAL_INIT );
 
   return globalComm_;
 }
 
 
 inline const CommunicatorType& MPISystem::getLocalComm() const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::LOCAL_INIT );
 
   return localComm_;
 }
 
 
 inline const CommunicatorType& MPISystem::getGlobalReduceComm( size_t index ) const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::ALL_INIT );
 
   return globalReduceComms_[index];
 }
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getWorldCommFT(){
-  checkPreconditionsFT();
+  checkPreconditionsFT( InitializationStage::WORLD_INIT );
 
   return worldCommFT_;
 }
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getSpareCommFT(){
-  checkPreconditionsFT();
+  checkPreconditionsFT( InitializationStage::WORLD_INIT );
 
   return spareCommFT_;
 }
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalCommFT(){
-  checkPreconditionsFT();
+  checkPreconditionsFT( InitializationStage::GLOBAL_INIT );
 
   return globalCommFT_;
 }
 
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getLocalCommFT(){
-  checkPreconditionsFT();
+  checkPreconditionsFT( InitializationStage::LOCAL_INIT );
 
   return localCommFT_;
 }
 
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalReduceCommFT( size_t index ){
-  checkPreconditionsFT();
+  checkPreconditionsFT( InitializationStage::ALL_INIT );
 
   return globalReduceCommsFT_[index];
 }
 
 
 inline const RankType& MPISystem::getWorldRank() const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::WORLD_INIT );
 
   return worldRank_;
 }
 
 
 inline const RankType& MPISystem::getGlobalRank() const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::GLOBAL_INIT );
 
   return globalRank_;
 }
 
 
 inline const RankType& MPISystem::getLocalRank() const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::LOCAL_INIT );
 
   return localRank_;
 }
 
 
 inline const RankType& MPISystem::getManagerRankWorld() const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::WORLD_INIT );
 
   return managerRankWorld_;
 }
 
 
 inline const RankType& MPISystem::getManagerRank() const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::GLOBAL_INIT );
 
   return managerRank_;
 }
 
 
 inline const RankType& MPISystem::getMasterRank() const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::LOCAL_INIT );
 
   return masterRank_;
 }
@@ -380,35 +397,35 @@ inline bool MPISystem::isMaster() const{
 
 
 inline size_t MPISystem::getNumGroups() const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::WORLD_INIT );
 
   return nprocsByGroup_.size();
 }
 
 
 inline size_t MPISystem::getNumProcs( GroupType group ) const{
-  checkPreconditions();
+  checkPreconditions( InitializationStage::WORLD_INIT );
 
   return nprocsByGroup_[group];
 }
 
 
 inline size_t MPISystem::getReduceMultiplicity() const {
-  checkPreconditions();
+  checkPreconditions( InitializationStage::ALL_INIT );
 
   return globalReduceComms_.size();
 }
 
 
 inline RankType MPISystem::getGroupBaseRank( GroupType group ) const {
-  checkPreconditions();
+  checkPreconditions( InitializationStage::WORLD_INIT );
 
   return groupBaseRank_[group];
 }
 
 
 inline bool MPISystem::isInitialized() const{
-  return initialized_;
+  return initialized_ == InitializationStage::ALL_INIT;
 }
 
 inline void MPISystem::deleteReduceCommsFTAndComm() {

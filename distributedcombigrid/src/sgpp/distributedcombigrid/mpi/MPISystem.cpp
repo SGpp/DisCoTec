@@ -54,7 +54,7 @@ namespace combigrid {
  // the communicator. The default root process has rank zero.
  */
 MPISystem::MPISystem() :
-    initialized_(false),
+    initialized_(InitializationStage::PRE_INIT),
     worldComm_(MPI_COMM_NULL),
     globalComm_(MPI_COMM_NULL),
     localComm_(MPI_COMM_NULL),
@@ -95,7 +95,7 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
 
 
 void MPISystem::init( size_t ngroup, std::vector<size_t> nprocsByGroup ){
-  assert( !initialized_ && "MPISystem already initialized!" );
+  assert( initialized_ == InitializationStage::PRE_INIT && "MPISystem already initialized!" );
   assert( ngroup % nprocsByGroup.size() == 0 && "ngroup must be multiple of nprocsByGroup.size()");
   assert( ngroup > 0 && "ngroup must be positive");
 
@@ -112,6 +112,7 @@ void MPISystem::init( size_t ngroup, std::vector<size_t> nprocsByGroup ){
     }
 
     initWorldComm( std::move( nprocsByGroup ) );
+    initialized_ = InitializationStage::WORLD_INIT;
   }
 
   /* init localComm
@@ -119,6 +120,7 @@ void MPISystem::init( size_t ngroup, std::vector<size_t> nprocsByGroup ){
    * for manager, lcomm is a group which contains only manager process and can be ignored
    */
   initLocalComm();
+  initialized_ = InitializationStage::LOCAL_INIT;
 
   /* create global communicator which contains only the manager and the master
    * process of each process group
@@ -128,18 +130,19 @@ void MPISystem::init( size_t ngroup, std::vector<size_t> nprocsByGroup ){
    * process groups and the manager and the master processes to each other
    */
   initGlobalComm();
+  initialized_ = InitializationStage::GLOBAL_INIT;
 
   initGlobalReduceCommm();
-
-  initialized_ = true;
+  initialized_ = InitializationStage::ALL_INIT;
 }
 
 
 /*  here the local communicator has already been created by the application */
 void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
-  assert( !initialized_ && "MPISystem already initialized!" );
+  assert( initialized_ == InitializationStage::PRE_INIT && "MPISystem already initialized!" );
 
   initWorldComm( std::vector<size_t>{ ngroup, nprocs } );
+  initialized_ = InitializationStage::WORLD_INIT;
   //std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
   //worldCommFT_->Root_Rank = worldSize - 1;
   /* init localComm
@@ -149,6 +152,7 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
    CommunicatorType lcommCopy;
    MPI_Comm_dup(lcomm,&lcommCopy);
    initLocalComm( lcommCopy );
+   initialized_ = InitializationStage::LOCAL_INIT;
 
   /* create global communicator which contains only the manager and the master
    * process of each process group
@@ -158,10 +162,10 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
    * process groups and the manager and the master processes to each other
    */
   initGlobalComm();
+  initialized_ = InitializationStage::GLOBAL_INIT;
 
   initGlobalReduceCommm();
-
-  initialized_ = true;
+  initialized_ = InitializationStage::ALL_INIT;
 }
 
 
