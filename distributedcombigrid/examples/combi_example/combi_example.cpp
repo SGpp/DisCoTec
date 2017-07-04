@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     IndexType checkProcs = 1;
     for (auto k : p)
       checkProcs *= k;
-    assert(checkProcs == IndexType(nprocs[0]));
+    // assert(checkProcs == IndexType(nprocs[0]));
 
     /* generate a list of levelvectors and coefficients
      * CombiMinMaxScheme will create a classical combination scheme.
@@ -149,13 +149,13 @@ int main(int argc, char** argv) {
 
     std::cout << "set up component grids and run until first combination point"
               << std::endl;
-
     /* distribute task according to load model and start computation for
      * the first time */
+
     Stats::startEvent("manager run first");
     manager.runfirst();
     Stats::stopEvent("manager run first");
-
+    /*
     std::ofstream myfile;
     myfile.open("out/solution.dat");
 
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager run");
     }
 
-    myfile.close();
+    myfile.close();*/
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
