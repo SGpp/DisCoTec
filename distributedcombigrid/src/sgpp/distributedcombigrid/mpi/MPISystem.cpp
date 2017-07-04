@@ -12,6 +12,7 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 
 #include <iostream>
+#include <sstream>
 #include <numeric>
 #include <algorithm>
 
@@ -254,14 +255,15 @@ void MPISystem::initGlobalComm(){
   MPI_Comm_group( worldComm_, &worldGroup);
 
   size_t ngroup = getNumGroups();
-  std::vector<int> ranks( ngroup + 1 );
-  for (size_t i = 0, groupBaseProc = 0; i < ngroup; i++, groupBaseProc += getNumProcs(i)) {
+  std::vector<RankType> ranks( ngroup + 1 );
+  for (size_t i = 0, groupBaseProc = 0; i < ngroup; i++) {
     ranks[i] = int( groupBaseProc ); // group manager local rank
+    groupBaseProc += getNumProcs(i);
   }
   ranks.back() = managerRankWorld_;
 
   MPI_Group globalGroup;
-  MPI_Group_incl( worldGroup, int( ranks.size() ), &ranks[0], &globalGroup );
+  MPI_Group_incl( worldGroup, int( ranks.size() ), ranks.data(), &globalGroup );
 
   MPI_Comm_create( worldComm_, globalGroup, &globalComm_ );
 
@@ -328,7 +330,11 @@ void MPISystem::initGlobalReduceCommm() {
 
         int size;
         MPI_Comm_size(reduceComm,&size);
-        std::cout << "size if global reduce comm " << size << "\n";
+        std::stringstream debugOut;
+        debugOut << worldRank_ << " " << localRank << " " << logicalLocalRank << ", size of reduce comm: " << size << " [";
+        std::copy(worldRanksInReduceGroup.begin(), worldRanksInReduceGroup.end(), std::ostream_iterator<char>(debugOut, " "));
+        debugOut << "]" << std::endl;
+        std::cout << debugOut.rdbuf();
         MPI_Barrier(reduceComm);
         MPI_Group_free(&reduceGroup);
       }
