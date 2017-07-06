@@ -162,6 +162,17 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
                                 std::vector<size_t>& bounds )
 {
   // todo: doing it like this will require two times copying
+  for(unsigned int i= 0; i < sizes.size(); i++){
+//    std::cout << i << " size[i]: " << sizes[i] << "\n";
+    int index_l = sizes.size()- 1 - i ; // sizes is reversed order of l; i.e. l is x y z v w spec and sizes spec, w, v, z, y, x
+//    std::cout << index_l << " l[i]: " << pow(2,l_[index_l]) << "\n";
+    if(i==0 || i == 4){ //we have only 1 species and 1 coordinate in y direction
+      assert(sizes[i] == 1);
+    }
+    else{
+      assert(sizes[i] == pow(2,l_[index_l]));
+    }
+  }
   checkpoint_.writeCheckpoint( data, size, sizes, bounds );
   checkpointInitialized_= true;
 
@@ -170,6 +181,17 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
 void GeneTask::InitLocalCheckpoint(size_t size,
     std::vector<size_t>& sizes,
     std::vector<size_t>& bounds ){
+  for(unsigned int i= 0; i < sizes.size(); i++){
+//    std::cout << i << " size[i]: " << sizes[i] << "\n";
+    int index_l = sizes.size()- 1 - i ; // sizes is reversed order of l; i.e. l is x y z v w spec and sizes spec, w, v, z, y, x
+//    std::cout << index_l << " l[i]: " << pow(2,l_[index_l]) << "\n";
+    if(i==0 || i == 4){ //we have only 1 species and 1 coordinate in y direction
+      assert(sizes[i] == 1);
+    }
+    else{
+      assert(sizes[i] == pow(2,l_[index_l])); //check if parameters match
+    }
+  }
   checkpoint_.initCheckpoint(size,sizes,bounds);
   checkpointInitialized_= true;
 }
