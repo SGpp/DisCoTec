@@ -356,7 +356,12 @@ void decide_to_kill_(){
 void worker_ready(double wtime, double time_perf,
                   double time_iv, double time_cp){
   // copy parameters.dat to parameters
-  rename( "parameters.dat", "parameters" );
+
+  MASTER_EXCLUSIVE_SECTION {
+    // copy parameters.dat to parameters
+    rename( "parameters.dat", "parameters" );
+  }
+
 
   // get current task
   Task* t = pgroup->getCurrentTask();
