@@ -1,15 +1,18 @@
-[ct]
-dim = 2
-lmin = 3 3
-lmax = 6 6
-leval = 5 5
-p = 1 2
-ncombi = 10
-
-[application]
-dt = 1e-3
-nsteps = 100
-
-[manager]
-ngroup = 2
-nprocs = 2 4
+{
+  "ct": {
+    "dim": 2,
+    "lmin": "3 3",
+    "lmax": "6 6",
+    "leval": "5 5",
+    "p": ["1 1", "1 2"],
+    "ncombi": 10
+  },
+  "application": {
+    "dt": 1e-3,
+    "nsteps": 100
+  },
+  "manager": {
+    "ngroup": 2,
+    "nprocs": [1, 2]
+  }
+}

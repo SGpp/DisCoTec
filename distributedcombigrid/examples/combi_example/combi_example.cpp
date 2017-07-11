@@ -7,8 +7,10 @@
 #include <mpi.h>
 #include <vector>
 #include <string>
+#include <unordered_map>
+#include <numeric>
 #include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/ini_parser.hpp>
+#include <boost/property_tree/json_parser.hpp>
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
@@ -34,21 +36,12 @@ BOOST_CLASS_EXPORT(TaskExample)
 template <typename T>
 std::vector<T> get_as_vector(ptree const& pt, ptree::key_type const& key)
 {
-  const auto& data = pt.get_child(key).data();
-  ptree ptBuffer;
   std::vector<T> result;
+  result.reserve( pt.size() );
 
-  size_t last = 0;
-  size_t next = 0;
-  while ((next = data.find(" ", last)) != std::string::npos) {
-    ptBuffer.data() = data.substr(last, next - last);
-    result.push_back( ptBuffer.get_value<T>() );
-    last = next + 1;
-  }
-  if(last < data.size()) {
-    // Using a large value for subtr size guarantees we get the rest of the data
-    ptBuffer.data() = data.substr(last, data.size());
-    result.push_back( ptBuffer.get_value<T>() );
+  for(const auto& child : pt.get_child(key)) {
+    const ptree& childPt = child.second;
+    result.push_back( childPt.get_value<T>() );
   }
   return result;
 }
@@ -63,7 +56,7 @@ int main(int argc, char** argv) {
 
   // read in parameter file
   boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini("ctparam", cfg);
+  boost::property_tree::json_parser::read_json("ctparam", cfg);
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
@@ -92,13 +85,21 @@ int main(int argc, char** argv) {
     /* read in parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
     LevelVector lmin(dim), lmax(dim), leval(dim);
-    IndexVector p(dim);
+    std::unordered_map<size_t, IndexVector> pByNProcs;
     combigrid::real dt;
     size_t nsteps, ncombi;
     cfg.get<std::string>("ct.lmin") >> lmin;
     cfg.get<std::string>("ct.lmax") >> lmax;
     cfg.get<std::string>("ct.leval") >> leval;
-    cfg.get<std::string>("ct.p") >> p;
+    {
+      const ptree& ps = cfg.get_child("ct.p");
+      for(const auto& pConfig : ps) {
+        IndexVector p( dim );
+        pConfig.second.get_value<std::string>() >> p;
+        IndexType procCount = std::accumulate( p.begin(), p.end(), 1, std::multiplies<IndexType>{} );
+        pByNProcs[procCount] = std::move( p );
+      }
+    }
     ncombi = cfg.get<size_t>("ct.ncombi");
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
@@ -107,10 +108,9 @@ int main(int argc, char** argv) {
     std::vector<bool> boundary(dim, true);
 
     // check whether parallelization vector p agrees with nprocs
-    IndexType checkProcs = 1;
-    for (auto k : p)
-      checkProcs *= k;
-    // assert(checkProcs == IndexType(nprocs[0]));
+    for(const auto& nproc : nprocs) {
+      assert(pByNProcs.find(nproc) != pByNProcs.end() && "Need parallelization for every proc size");
+    }
 
     /* generate a list of levelvectors and coefficients
      * CombiMinMaxScheme will create a classical combination scheme.
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i],
-                                loadmodel, dt, nsteps, p);
+                                loadmodel, dt, nsteps, pByNProcs);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
     }
@@ -151,11 +151,11 @@ int main(int argc, char** argv) {
               << std::endl;
     /* distribute task according to load model and start computation for
      * the first time */
-
+    /*
     Stats::startEvent("manager run first");
     manager.runfirst();
     Stats::stopEvent("manager run first");
-    /*
+
     std::ofstream myfile;
     myfile.open("out/solution.dat");
 

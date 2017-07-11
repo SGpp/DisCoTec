@@ -8,6 +8,9 @@
 #ifndef TASKEXAMPLE_HPP_
 #define TASKEXAMPLE_HPP_
 
+#include <unordered_map>
+#include <boost/serialization/unordered_map.hpp>
+
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
@@ -21,9 +24,9 @@ class TaskExample: public Task {
    */
   TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary,
               real coeff, LoadModel* loadModel, real dt,
-              size_t nsteps, IndexVector p = IndexVector(0) ) :
+              size_t nsteps, std::unordered_map<size_t, IndexVector> pByProc ) :
     Task(dim, l, boundary, coeff, loadModel), dt_(dt), nsteps_(
-      nsteps), p_(p), initialized_(false), stepsTotal_(0), dfg_(NULL) {
+      nsteps), p_( std::move(pByProc) ), initialized_(false), stepsTotal_(0), dfg_(NULL) {
   }
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
@@ -48,7 +51,7 @@ class TaskExample: public Task {
     IndexVector p(dim, 1);
     const LevelVector& l = this->getLevelVector();
 
-    if (p_.size() == 0) {
+    if (p_[np].size() == 0) {
       // compute domain decomposition
       IndexType prod_p(1);
 
@@ -72,7 +75,7 @@ class TaskExample: public Task {
           prod_p *= p[k];
       }
     } else {
-      p = p_;
+      p = p_[np];
     }
 
     if (lrank == 0) {
@@ -193,7 +196,7 @@ class TaskExample: public Task {
   // new variables that are set by manager. need to be added to serialize
   real dt_;
   size_t nsteps_;
-  IndexVector p_;
+  std::unordered_map<size_t, IndexVector> p_;
 
   // pure local variables that exist only on the worker processes
   bool initialized_;
