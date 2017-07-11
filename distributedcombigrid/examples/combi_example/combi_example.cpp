@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
               << std::endl;
     /* distribute task according to load model and start computation for
      * the first time */
-    /*
+
     Stats::startEvent("manager run first");
     manager.runfirst();
     Stats::stopEvent("manager run first");
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager run");
     }
 
-    myfile.close();*/
+    myfile.close();
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
