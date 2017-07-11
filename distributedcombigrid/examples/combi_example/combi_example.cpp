@@ -214,7 +214,7 @@ int main(int argc, char** argv) {
   Stats::finalize();
 
   /* write stats to json file for postprocessing */
-  Stats::write( "timers.json" );
+  Stats::write( "out/timers.json" );
 
   MPI_Finalize();
 

@@ -1,2 +1,2 @@
 #!/bin/bash
-../../tools/plot.py timers.json
+../../tools/plot.py out/timers.json

@@ -6,6 +6,7 @@
 */examples/**
 !*/examples/**/*/
 !*/examples/**/*.*
+*/examples/**/out/
 
 #ignoring c++ build files
 *.o
