@@ -26,7 +26,7 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
                     std::string& path, real dt, size_t nsteps,
                     real shat, real kymin, real lx, int ky0_ind,
                     IndexVector p , FaultCriterion *faultCrit )
-    : Task( dim, l, boundary, coeff, loadModel),
+    : Task( dim, l, boundary, coeff, loadModel,faultCrit),
       path_( path ),
       dt_( dt ),
       nsteps_( nsteps ),
@@ -38,8 +38,7 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       ky0_ind_( ky0_ind ),
       p_(p),
       checkpoint_(), initialized_(false),
-      checkpointInitialized_(false),
-      faultCriterion_(faultCrit)
+      checkpointInitialized_(false)
 {
 
 // theres only one boundary configuration allowed at the moment
@@ -56,7 +55,7 @@ GeneTask::GeneTask() :
     dfg_(NULL),
     nrg_(0.0),
     initialized_(false),
-    checkpointInitialized_(false), faultCriterion_((new FaultCriterion()))
+    checkpointInitialized_(false)
 {
   ;
 }
@@ -95,7 +94,7 @@ GeneTask::run( CommunicatorType lcomm )
     //theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
     //theStatsContainer()->setValue("computeIterationRank" + std::to_string(globalRank),0.0);
   }
-  startTimeIteration_ = high_resolution_clock::now();
+  //startTimeIteration_ = high_resolution_clock::now();
 
   //theStatsContainer()->setTimerStart("computeIterationRank" + std::to_string(globalRank));
 
@@ -126,8 +125,8 @@ void GeneTask::decideToKill(){ //toDo check if combiStep should be included in t
   // MPI_Comm_rank(lcomm, &lrank);
   MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
   //theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
-  duration<real> dur = high_resolution_clock::now() - startTimeIteration_;
-  real t_iter = dur.count();
+  //duration<real> dur = high_resolution_clock::now() - startTimeIteration_;
+  //real t_iter = dur.count();
   //std::cout << "Current iteration took " << t_iter << "\n";
 
   //theStatsContainer()->setTimerStart("computeIterationRank" + std::to_string(globalRank));
@@ -136,7 +135,7 @@ void GeneTask::decideToKill(){ //toDo check if combiStep should be included in t
   //check if killing necessary
   //std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at step " << combiStep_ << "\n" ;
   //real t = dt_ * nsteps_ * combiStep_;
-  if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, t_iter, globalRank)){
+  if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, -1.0, globalRank)){
         std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
         StatusType status=PROCESS_GROUP_FAIL;
         MASTER_EXCLUSIVE_SECTION{

@@ -24,8 +24,6 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "GeneLocalCheckpoint.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
 
 namespace combigrid {
 
@@ -153,8 +151,6 @@ private:
   real kymin_;
   real lx_;
   int ky0_ind_;
-  //fault tolerance info
-  FaultCriterion *faultCriterion_;
 
   // following variables are only accessed in worker and do not need to be
   // serialized
@@ -165,7 +161,7 @@ private:
   bool initialized_;
   bool checkpointInitialized_;
 
-  std::chrono::high_resolution_clock::time_point  startTimeIteration_;
+ // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 
   // serialize
   template<class Archive>
@@ -181,7 +177,6 @@ private:
     ar & kymin_;
     ar & lx_;
     ar & ky0_ind_;
-    ar & faultCriterion_;
   }
 };
 

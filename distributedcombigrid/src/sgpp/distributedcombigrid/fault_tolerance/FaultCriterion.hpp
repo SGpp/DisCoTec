@@ -11,6 +11,8 @@
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/vector.hpp>
+#include <chrono>
+
 //#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
 //class StaticFaults;
 
@@ -26,6 +28,11 @@ public:
     std::cout << "Use one of the specialized fault criteria for simulating faults!";
     return false;
   }
+
+  virtual real init(std::chrono::high_resolution_clock::time_point  startTimeIteration, real t_fault){
+    return -1.0;
+  }
+
 
 
 private:

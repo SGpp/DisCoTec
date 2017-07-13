@@ -31,6 +31,8 @@ ProcessGroupWorker::ProcessGroupWorker() :
     combiParameters_(),
     combiParametersSet_(false)
 {
+    t_fault_ = -1;
+    startTimeIteration_ = (std::chrono::high_resolution_clock::now());
   MASTER_EXCLUSIVE_SECTION {
     std::string fname ="out/all-betas-"+std::to_string(theMPISystem()->getGlobalRank())+".txt";
     //betasFile_ = std::ofstream( fname, std::ofstream::out );
@@ -95,6 +97,7 @@ SignalType ProcessGroupWorker::wait() {
     // initalize task
     Stats::startEvent("worker init");
     currentTask_->init(theMPISystem()->getLocalComm());
+    t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
     Stats::stopEvent("worker init");
 
     // execute task
@@ -104,23 +107,28 @@ SignalType ProcessGroupWorker::wait() {
 
   } else if (signal == RUN_NEXT) {
     // this should not happen
-    assert(tasks_.size() > 0);
+    //assert(tasks_.size() > 0);
     // reset finished status of all tasks
-    for (size_t i = 0; i < tasks_.size(); ++i)
-      tasks_[i]->setFinished(false);
+    if(tasks_.size() != 0){
+      for (size_t i = 0; i < tasks_.size(); ++i)
+        tasks_[i]->setFinished(false);
 
-    status_ = PROCESS_GROUP_BUSY;
+      status_ = PROCESS_GROUP_BUSY;
 
-    // set currentTask
-    currentTask_ = tasks_[0];
+      // set currentTask
+      currentTask_ = tasks_[0];
 
-    // run first task
-    if(!isGENE){
-      Stats::startEvent("worker run");
+      // run first task
+      if(!isGENE){
+        Stats::startEvent("worker run");
+      }
+      currentTask_->run(theMPISystem()->getLocalComm());
+      if(!isGENE){
+        Stats::stopEvent("worker run");
+      }
     }
-    currentTask_->run(theMPISystem()->getLocalComm());
-    if(!isGENE){
-      Stats::stopEvent("worker run");
+    else{
+      std::cout << "Possible error: No tasks! \n";
     }
 
   } else if (signal == ADD_TASK) {
@@ -145,6 +153,7 @@ SignalType ProcessGroupWorker::wait() {
     // initalize task and set values to zero
     // the task will get the proper initial solution during the next combine
     t->init( theMPISystem()->getLocalComm());
+    t_fault_ = t->initFaults(t_fault_, startTimeIteration_);
 
     t->setZero();
 
@@ -162,7 +171,7 @@ SignalType ProcessGroupWorker::wait() {
 
     // freeing tasks
     for ( auto tmp : tasks_ )
-      free(tmp);
+      delete(tmp);
 
     tasks_.clear();
     status_ = PROCESS_GROUP_BUSY;
@@ -229,6 +238,7 @@ SignalType ProcessGroupWorker::wait() {
 
     // initalize task
     currentTask_->init(theMPISystem()->getLocalComm());
+    t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
 
     currentTask_->setZero();
 
@@ -385,8 +395,10 @@ void ProcessGroupWorker::combine() {
 
 void ProcessGroupWorker::combineUniform() {
   // each pgrouproot must call reduce function
-  assert(tasks_.size() > 0);
-
+  //assert(tasks_.size() > 0);
+  if(tasks_.size() == 0){
+    std::cout << "Possible error: task size is 0! \n";
+  }
   assert( combiParametersSet_ );
   DimType dim = combiParameters_.getDim();
   const LevelVector& lmin = combiParameters_.getLMin();
