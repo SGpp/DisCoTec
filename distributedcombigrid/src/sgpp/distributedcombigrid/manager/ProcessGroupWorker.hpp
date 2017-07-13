@@ -14,6 +14,7 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
+#include <chrono>
 
 namespace combigrid {
 
@@ -73,6 +74,11 @@ class ProcessGroupWorker {
   CombiParameters combiParameters_;
 
   bool combiParametersSet_;
+
+  //fault parameters
+  real t_fault_; //time to fault
+
+  std::chrono::high_resolution_clock::time_point  startTimeIteration_; //starting time of process computation
 
   //std::ofstream betasFile_;
 
