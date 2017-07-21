@@ -1,7 +1,7 @@
 #path to python interface
 from sys import path
-path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src')
-path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src/tools')
+path.append('/zhome/academic/HLRS/ipv/ipvober/gene_python_interface_clean/src')
+path.append('/zhome/academic/HLRS/ipv/ipvober/gene_python_interface_clean/src/tools')
 
 from ConfigParser import SafeConfigParser
 import collections
@@ -194,9 +194,9 @@ call(["ln","-s","../manager",'./' + config.basename + '/manager'])
 call(["cp","./ctparam",'./' + config.basename + '/'])
 
 # create start script in base folder
-scmd = "export LD_LIBRARY_PATH=" + config.sgpplib + ":" + config.tasklib + ":/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
+#scmd = "export LD_LIBRARY_PATH=" + config.sgpplib + ":" + config.tasklib + ":/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
 #scmd = "source xprtld.bat\n"
-scmd += config.mpi
+scmd = config.mpi
 scmd += " -n " + str(config.nprocs*config.ngroup) + ' ' + config.executable
 scmd += " : "
 scmd += " -n 1" + " ./manager"
