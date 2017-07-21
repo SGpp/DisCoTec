@@ -118,9 +118,11 @@ pfileout.close()
 # note that the level vector in the python vector is stored in reverse order
 lminp = lmin[::-1]
 lmaxp = lmax[::-1]
-activeSet = aSF.ClassicDiagonalActiveSet(lmaxp,lminp)
-scheme = cS.combinationSchemeArbitrary(activeSet.getActiveSet())
-
+#activeSet = aSF.ClassicDiagonalActiveSet(lmaxp,lminp)
+#scheme = cS.combinationSchemeArbitrary(activeSet.getActiveSet())
+factory = aSF.ClassicDiagonalActiveSet(lmaxp,lminp,0)
+activeSet = factory.getActiveSet()
+scheme = cS.combinationSchemeFaultTolerant(factory)
 # detect number of simulation steps
 #nsteps = config.ntimesteps_combi if config.ntimesteps_combi <= config.ntimesteps_ev_calc else config.ntimesteps_ev_calc
 
