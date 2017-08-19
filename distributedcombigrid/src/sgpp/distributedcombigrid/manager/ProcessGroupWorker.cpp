@@ -360,9 +360,7 @@ void ProcessGroupWorker::combine() {
   }
 
   // globales reduce
-  for(size_t reduceIndex = 0; reduceIndex < theMPISystem()->getReduceMultiplicity(); reduceIndex++) {
-    CombiCom::distributedGlobalReduce( *combinedUniDSG_, reduceIndex );
-  }
+  CombiCom::distributedGlobalReduce( *combinedUniDSG_);
 
   for (Task* t : tasks_) {
     // get handle to dfg
@@ -443,9 +441,7 @@ void ProcessGroupWorker::combineUniform() {
   MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
                     MPI_MAX, theMPISystem()->getLocalComm() );
                     */
-  for(size_t reduceIndex = 0; reduceIndex < theMPISystem()->getReduceMultiplicity(); reduceIndex++) {
-    CombiCom::distributedGlobalReduce( *combinedUniDSG_, reduceIndex );
-  }
+  CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
 
   for (Task* t : tasks_) {
     // get handle to dfg

@@ -59,21 +59,26 @@ MPISystem::MPISystem() :
     worldComm_(MPI_COMM_NULL),
     globalComm_(MPI_COMM_NULL),
     localComm_(MPI_COMM_NULL),
-    globalReduceComms_(),
+    teamComm_(MPI_COMM_NULL),
+    globalReduceComm_(MPI_COMM_NULL),
     worldCommFT_(nullptr),
     globalCommFT_(nullptr),
     spareCommFT_(nullptr),
     localCommFT_(nullptr),
-    globalReduceCommsFT_(),
+    teamCommFT_(nullptr),
+    globalReduceCommFT_(nullptr),
     worldRank_(MPI_UNDEFINED),
     globalRank_(MPI_UNDEFINED),
     localRank_(MPI_UNDEFINED),
+    teamRank_(MPI_UNDEFINED),
+    teamColor_(MPI_UNDEFINED),
     globalReduceRank_(MPI_UNDEFINED),
     managerRank_(MPI_UNDEFINED),
     managerRankWorld_(MPI_UNDEFINED),
     masterRank_(MPI_UNDEFINED),
+    teamLeaderRank_(MPI_UNDEFINED),
     nprocsByGroup_(),
-    groupBaseRank_(),
+    groupBaseWorldRank_(),
     group_(-1),
     reusableRanks_(std::vector<RankType>(0))
 {
@@ -123,6 +128,9 @@ void MPISystem::init( size_t ngroup, std::vector<size_t> nprocsByGroup ){
   initLocalComm();
   initialized_ = InitializationStage::LOCAL_INIT;
 
+  initTeamComm();
+  initialized_ = InitializationStage::TEAM_INIT;
+
   /* create global communicator which contains only the manager and the master
    * process of each process group
    * the master processes of the process groups are the processes which have
@@ -155,6 +163,9 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
    initLocalComm( lcommCopy );
    initialized_ = InitializationStage::LOCAL_INIT;
 
+   initTeamComm();
+   initialized_ = InitializationStage::TEAM_INIT;
+
   /* create global communicator which contains only the manager and the master
    * process of each process group
    * the master processes of the process groups are the processes which have
@@ -173,10 +184,10 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
 void MPISystem::initWorldComm( std::vector<size_t> procsByGroup ){
     size_t ngroup = procsByGroup.size();
     nprocsByGroup_ = procsByGroup;
-    groupBaseRank_ = std::vector<RankType>( ngroup, 0 );
+    groupBaseWorldRank_ = std::vector<RankType>( ngroup, 0 );
     // partial sum shifted by one in the output
     assert( ngroup > 0 );
-    std::partial_sum(nprocsByGroup_.begin(), nprocsByGroup_.end() - 1, groupBaseRank_.begin() + 1);
+    std::partial_sum(nprocsByGroup_.begin(), nprocsByGroup_.end() - 1, groupBaseWorldRank_.begin() + 1);
 
     worldComm_ = MPI_COMM_WORLD;
 
@@ -193,7 +204,7 @@ void MPISystem::initWorldComm( std::vector<size_t> procsByGroup ){
 
     group_ = GroupType( ngroup ); // Default singleton group for world manager
     for(size_t i = 0; i < ngroup; i++) {
-      bool inGroupI = worldRank_ >= groupBaseRank_[i] && worldRank_ < groupBaseRank_[i] + nprocsByGroup_[i];
+      bool inGroupI = worldRank_ >= groupBaseWorldRank_[i] && worldRank_ < groupBaseWorldRank_[i] + nprocsByGroup_[i];
       if(inGroupI) {
         group_ = GroupType( i );
         break;
@@ -212,7 +223,7 @@ void MPISystem::initWorldComm( std::vector<size_t> procsByGroup ){
 
 void MPISystem::initLocalComm(){
   int color = int(group_);
-  int key = worldRank_ - getGroupBaseRank( group_ );
+  int key = worldRank_ - getGroupBaseWorldRank( group_ );
   CommunicatorType lcomm;
   MPI_Comm_split( worldComm_, color, key, &lcomm );
   /* set group number in Stats. this is necessary for postprocessing */
@@ -224,7 +235,7 @@ void MPISystem::initLocalComm(){
 
 void MPISystem::initLocalComm( CommunicatorType lcomm ){
   // manager is not supposed to have a localComm
-  if( worldRank_ == managerRankWorld_ )
+  if( isWorldManager() )
     localComm_ = MPI_COMM_NULL;
   else{
     localComm_ = lcomm;
@@ -245,6 +256,37 @@ void MPISystem::initLocalComm( CommunicatorType lcomm ){
   if(ENABLE_FT){
     if( localComm_ != MPI_COMM_NULL){
       createCommFT( &localCommFT_, localComm_ );
+    }
+  }
+}
+
+
+void MPISystem::initTeamComm(){
+  if( isWorldManager() ) {
+    teamComm_ = MPI_COMM_NULL;
+    teamCommFT_ = nullptr;
+  } else {
+    size_t maxProcsPerGroup = *std::max_element( nprocsByGroup_.begin(), nprocsByGroup_.end() );
+    size_t procsInOwnGroup = getNumProcs( group_ );
+    assert( maxProcsPerGroup % procsInOwnGroup == 0 && "group sizes must be multiple of each other" );
+    size_t teamSize = maxProcsPerGroup / procsInOwnGroup;
+
+    RankType localRank = getLocalRank();
+    RankType teamColor = localRank / teamSize;
+    RankType teamKey = localRank % teamSize;
+    MPI_Comm_split( getLocalComm(), teamColor, teamKey, &teamComm_ );
+    MPI_Comm_rank( teamComm_, &teamRank_ );
+    teamColor_ = teamColor;
+
+    const RankType teamLeaderRank = 0;
+
+    int teamSize;
+    MPI_Comm_size( teamComm_, &teamSize );
+    assert( teamLeaderRank < teamSize );
+    teamLeaderRank_ = teamLeaderRank;
+
+    if( ENABLE_FT ){
+      createCommFT( &teamCommFT_, teamComm_ );
     }
   }
 }
@@ -286,68 +328,42 @@ void MPISystem::initGlobalComm(){
 }
 
 void MPISystem::initGlobalReduceCommm() {
-    if( worldRank_ != managerRankWorld_ ) {
-      size_t maxProcsPerGroup = *std::max_element( nprocsByGroup_.begin(), nprocsByGroup_.end() );
-      size_t procsInOwnGroup = getNumProcs( group_ );
-      assert( maxProcsPerGroup % procsInOwnGroup == 0 && "group sizes must be multiple of each other" );
-      size_t reduceMultiplicity = maxProcsPerGroup / procsInOwnGroup;
-
-      globalReduceComms_ = std::vector<CommunicatorType>( reduceMultiplicity, MPI_COMM_NULL );
-      globalReduceCommsFT_ = std::vector<simft::Sim_FT_MPI_Comm>( reduceMultiplicity, nullptr );
+    if( !isTeamLeader() ) {
+      globalReduceComm_ = MPI_COMM_NULL;
+      globalReduceCommsFT_ = nullptr;
+    } else {
+      RankType teamColor = getTeamColor();
 
       RankType workerID = getWorldRank();
-      int localRank = size_t( workerID - getGroupBaseRank(group_) );
+      int localRank = size_t( workerID - getGroupBaseWorldRank(group_) );
 
       MPI_Group worldGroup;
       MPI_Comm_group(worldComm_, &worldGroup);
       size_t numGroups = getNumGroups();
 
-      for(size_t i = 0; i < reduceMultiplicity; i++) {
-        int logicalLocalRank = int( localRank * reduceMultiplicity + i );
+      std::vector<RankType> worldRanksInReduceGroup( numGroups );
+      size_t maxProcsPerGroup = *std::max_element( nprocsByGroup_.begin(), nprocsByGroup_.end() );
+      for(GroupType g = 0; g < numGroups; g++) {
+        size_t procsInGroup = getNumProcs( g );
+        size_t groupTeamSize = maxProcsPerGroup / procsInGroup;
+        RankType groupTeamLeaderWithColorWorldRank = getGroupBaseWorldRank( g ) + groupTeamSize * teamColor;
 
-        std::vector<RankType> worldRanksInReduceGroup( numGroups );
-        for(GroupType g = 0; g < numGroups; g++) {
-          size_t procsInGroup = getNumProcs( g );
-          size_t groupMulitplicity = maxProcsPerGroup / procsInGroup;
-          size_t groupLocalRankInReduceGroup = int( logicalLocalRank / groupMulitplicity );
-
-          RankType groupBase = getGroupBaseRank( g );
-          worldRanksInReduceGroup[g] = groupBase + groupLocalRankInReduceGroup;
-        }
-        MPI_Group reduceGroup;
-        MPI_Group_incl( worldGroup, worldRanksInReduceGroup.size(), worldRanksInReduceGroup.data(), &reduceGroup );
-
-        int tag = int( logicalLocalRank );
-        CommunicatorType reduceComm;
-        MPI_Comm_create_group( worldComm_, reduceGroup, tag, &reduceComm );
-        globalReduceComms_[i] = reduceComm;
-
-        if( ENABLE_FT ){
-          simft::Sim_FT_MPI_Comm reduceCommFT;
-          createCommFT( &reduceCommFT, reduceComm );
-          globalReduceCommsFT_[i] = reduceCommFT;
-        }
-
-        int size;
-        MPI_Comm_size(reduceComm,&size);
-        std::stringstream debugOut;
-        debugOut << worldRank_ << " " << localRank << " " << logicalLocalRank << ", size of reduce comm: " << size << " [";
-        std::copy(worldRanksInReduceGroup.begin(), worldRanksInReduceGroup.end(), std::ostream_iterator<char>(debugOut, " "));
-        debugOut << "]" << std::endl;
-        std::cout << debugOut.rdbuf();
-        MPI_Barrier(reduceComm);
-        MPI_Group_free(&reduceGroup);
+        worldRanksInReduceGroup.push_back( groupTeamLeaderWithColorWorldRank );
       }
+      MPI_Group reduceGroup;
+      MPI_Group_incl( worldGroup, worldRanksInReduceGroup.size(), worldRanksInReduceGroup.data(), &reduceGroup );
+
+      RankType tag = getWorldRank();
+      MPI_Comm_create_group( worldComm_, reduceGroup, tag, &globalReduceComm_ );
+
+      if( ENABLE_FT ){
+        createCommFT( &globalReduceCommFT_, globalReduceComm_ );
+      }
+
+      MPI_Barrier(globalReduceComm_);
+      MPI_Group_free(&reduceGroup);
       MPI_Group_free(&worldGroup);
     }
-    else{
-      globalReduceComms_.clear();
-      globalReduceCommsFT_.clear();
-    }
-
-//  if(workerComm != MPI_COMM_NULL){
-//    MPI_Comm_free(&workerComm);
-//  }
 }
 
 void MPISystem::createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm ){

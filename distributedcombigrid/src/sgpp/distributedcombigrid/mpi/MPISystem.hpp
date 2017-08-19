@@ -11,6 +11,8 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
+#define TEAM_LEADER_EXCLUSIVE_SECTION if( combigrid::theMPISystem()->isTeamLeader() )
+
 #define MASTER_EXCLUSIVE_SECTION if( combigrid::theMPISystem()->isMaster() )
 
 #define GLOBAL_MANAGER_EXCLUSIVE_SECTION if( combigrid::theMPISystem()->isGlobalManager() )
@@ -82,18 +84,21 @@ class MPISystem {
 
   inline const CommunicatorType& getLocalComm() const;
 
-  inline const CommunicatorType& getGlobalReduceComm( size_t partIndex ) const;
+  inline const CommunicatorType& getTeamComm() const;
+
+  inline const CommunicatorType& getGlobalReduceComm() const;
 
   inline simft::Sim_FT_MPI_Comm getWorldCommFT();
 
   inline simft::Sim_FT_MPI_Comm getSpareCommFT();
 
-
   inline simft::Sim_FT_MPI_Comm getGlobalCommFT();
 
   inline simft::Sim_FT_MPI_Comm getLocalCommFT();
 
-  inline simft::Sim_FT_MPI_Comm getGlobalReduceCommFT( size_t partIndex );
+  inline simft::Sim_FT_MPI_Comm getTeamCommFT();
+
+  inline simft::Sim_FT_MPI_Comm getGlobalReduceCommFT();
 
   inline void deleteReduceCommsFTAndComm();
 
@@ -115,13 +120,15 @@ class MPISystem {
 
   inline bool isMaster() const;
 
+  inline bool isTeamLeader() const;
+
+  inline const RankType& getTeamColor() const;
+
   inline size_t getNumGroups() const;
 
   inline size_t getNumProcs( GroupType group ) const;
 
-  inline size_t getReduceMultiplicity() const;
-
-  inline RankType getGroupBaseRank( GroupType group ) const;
+  inline RankType getGroupBaseWorldRank( GroupType group ) const;
 
   inline bool isInitialized() const;
 
@@ -140,6 +147,8 @@ class MPISystem {
     WORLD_INIT,
     // The local communicator is initialized
     LOCAL_INIT,
+    // The team communicator is initilalized
+    TEAM_INIT,
     // The global communicator is initialized
     GLOBAL_INIT,
     // The reduce communicator is initialized
@@ -171,6 +180,8 @@ class MPISystem {
   void initLocalComm(CommunicatorType lcomm);
 
   void initGlobalComm();
+
+  void initTeamComm();
 
   void sendReusableSignal();
 
@@ -204,7 +215,9 @@ class MPISystem {
 
   CommunicatorType localComm_;
 
-  std::vector<CommunicatorType> globalReduceComms_;
+  CommunicatorType teamComm_;
+
+  CommunicatorType globalReduceComm_;
 
   simft::Sim_FT_MPI_Comm worldCommFT_;
 
@@ -215,13 +228,19 @@ class MPISystem {
 
   simft::Sim_FT_MPI_Comm localCommFT_;
 
-  std::vector<simft::Sim_FT_MPI_Comm> globalReduceCommsFT_;
+  simft::Sim_FT_MPI_Comm teamCommFT_;
+
+  simft::Sim_FT_MPI_Comm globalReduceCommFT_;
 
   RankType worldRank_;
 
   RankType globalRank_;
 
   RankType localRank_;
+
+  RankType teamRank_;
+
+  RankType teamColor_;
 
   RankType globalReduceRank_;
 
@@ -233,10 +252,12 @@ class MPISystem {
 
   RankType masterRank_;
 
+  RankType teamLeaderRank_;
+
     // Each group inhabits the ranks range
     // [groupBaseRank[g], groupBaseRank[g] + nprocsByGroup_[g]) in worldComm
   std::vector<size_t> nprocsByGroup_;
-  std::vector<RankType> groupBaseRank_;
+  std::vector<RankType> groupBaseWorldRank_;
   GroupType group_;
 
   //ranks that er still functional but not assigned to any process group
@@ -300,10 +321,17 @@ inline const CommunicatorType& MPISystem::getLocalComm() const{
 }
 
 
-inline const CommunicatorType& MPISystem::getGlobalReduceComm( size_t index ) const{
+inline const CommunicatorType& MPISystem::getTeamComm() const{
+  checkPreconditions( InitializationStage::TEAM_INIT );
+
+  return teamComm_;
+}
+
+
+inline const CommunicatorType& MPISystem::getGlobalReduceComm() const{
   checkPreconditions( InitializationStage::ALL_INIT );
 
-  return globalReduceComms_[index];
+  return globalReduceComm_;
 }
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getWorldCommFT(){
@@ -332,10 +360,17 @@ inline simft::Sim_FT_MPI_Comm MPISystem::getLocalCommFT(){
 }
 
 
-inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalReduceCommFT( size_t index ){
+inline simft::Sim_FT_MPI_Comm MPISystem::getTeamCommFT(){
+  checkPreconditionsFT( InitializationStage::TEAM_INIT );
+
+  return teamCommFT_;
+}
+
+
+inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalReduceCommFT(){
   checkPreconditionsFT( InitializationStage::ALL_INIT );
 
-  return globalReduceCommsFT_[index];
+  return globalReduceCommFT_;
 }
 
 
@@ -387,12 +422,22 @@ inline bool MPISystem::isWorldManager() const{
 
 
 inline bool MPISystem::isGlobalManager() const{
-  return ( globalRank_ == managerRank_ );
+  return ( globalRank_ == managerRank_ && managerRank_ != MPI_UNDEFINED );
 }
 
 
 inline bool MPISystem::isMaster() const{
-  return ( localRank_ == masterRank_ );
+  return ( localRank_ == masterRank_ && masterRank_ != MPI_UNDEFINED );
+}
+
+
+inline bool MPISystem::isTeamLeader() const{
+  return ( teamRank_ == teamLeaderRank_ && teamLeaderRank_ != MPI_UNDEFINED );
+}
+
+
+inline const RankType& MPISystem::getTeamColor() const{
+  return teamColor_;
 }
 
 
@@ -410,17 +455,10 @@ inline size_t MPISystem::getNumProcs( GroupType group ) const{
 }
 
 
-inline size_t MPISystem::getReduceMultiplicity() const {
-  checkPreconditions( InitializationStage::ALL_INIT );
-
-  return globalReduceComms_.size();
-}
-
-
-inline RankType MPISystem::getGroupBaseRank( GroupType group ) const {
+inline RankType MPISystem::getGroupBaseWorldRank( GroupType group ) const {
   checkPreconditions( InitializationStage::WORLD_INIT );
 
-  return groupBaseRank_[group];
+  return groupBaseWorldRank_[group];
 }
 
 
@@ -429,11 +467,7 @@ inline bool MPISystem::isInitialized() const{
 }
 
 inline void MPISystem::deleteReduceCommsFTAndComm() {
-  for(size_t i = 0; i < getReduceMultiplicity(); i++) {
-    deleteCommFTAndCcomm(&globalReduceCommsFT_[i], &globalReduceComms_[i]);
-  }
-  globalReduceComms_.clear();
-  globalReduceCommsFT_.clear();
+  deleteCommFTAndCcomm(&globalReduceCommFT_, &globalReduceComm_);
 }
 
 /*
