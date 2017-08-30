@@ -385,15 +385,15 @@ void MPISystem::debugLogCommunicator( CommunicatorType comm, std::string commNam
   int commRank;
   MPI_Comm_rank( comm, &commRank );
   MPI_Comm_size( comm, &commSize );
-  std::vector<RankType> worldRanks;
+  std::vector<RankType> worldRanksInComm;
   RankType root = 0;
-  worldRanks.resize( commSize );
-  MPI_Allgather( &MPISystem::getWorldRank(), 1, MPI_INT, worldRanks.data(), 1, MPI_INT, comm );
+  worldRanksInComm.resize( commSize );
+  MPI_Allgather( &MPISystem::getWorldRank(), 1, MPI_INT, worldRanksInComm.data(), 1, MPI_INT, comm );
 
   std::stringstream debugOutput;
-  debugOutput << commName << MPISystem::getGlobalRank() << " {";
+  debugOutput << commName << *std::min_element(worldRanksInComm.begin(), worldRanksInComm.end()) << " {";
   std::ostream_iterator<RankType> debugOutIt (debugOutput, ", ");
-  std::copy( worldRanks.begin(), worldRanks.end(), debugOutIt );
+  std::copy( worldRanksInComm.begin(), worldRanksInComm.end(), debugOutIt );
   debugOutput << "}";
   std::cout << debugOutput.str() << std::endl;
 }
