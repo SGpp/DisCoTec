@@ -183,6 +183,8 @@ class MPISystem {
 
   void initTeamComm();
 
+  void debugLogCommunicator( CommunicatorType comm, std::string commName );
+
   void sendReusableSignal();
 
   void sendReusableSignalSpare();

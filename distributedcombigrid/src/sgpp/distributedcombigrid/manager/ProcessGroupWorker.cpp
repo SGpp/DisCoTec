@@ -410,7 +410,7 @@ void ProcessGroupWorker::combineUniform() {
     dfg.registerUniformSG(*combinedUniDSG_);
   }
 
-  real localMax(0.0);
+  // real localMax(0.0);
 
   for (Task* t : tasks_) {
 
