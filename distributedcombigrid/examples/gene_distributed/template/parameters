@@ -17,7 +17,7 @@ nz0    =   $nz0
 nv0    =   $nv0
 nw0    =   $nw0
 
-kymin =   0.3000    
+kymin =     $kymin    
 lv    =     3.00    
 lw    =     9.00    
 adapt_lx = T
@@ -80,7 +80,7 @@ perf_tsteps =  20
 &geometry
 magn_geometry = 's_alpha'
 q0       =    1.4000000    
-shat     =   0.7960
+shat     =   $shat
 trpeps   =   0.18000000    
 major_R  =    1.0000000    
 norm_flux_projection  = F
@@ -106,7 +106,7 @@ calc_dt = T
 init_time =     2.7914
 n_fields = 1
 n_moms   =  6
-lx =   4.18760    
+lx =   $lx    
 ly =   20.9440    
 PRECISION  = DOUBLE
 ENDIANNESS = LITTLE

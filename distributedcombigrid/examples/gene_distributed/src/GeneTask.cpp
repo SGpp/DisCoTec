@@ -8,13 +8,15 @@
 #include "GeneTask.hpp"
 #include <sstream>
 #include <boost/archive/text_oarchive.hpp>
+#include <boost/math/constants/constants.hpp>
 #include <boost/archive/text_iarchive.hpp>
-#include <unistd.h> //chdir
+#include <unistd.h>
 #include <fstream>
 #include "CombiGeneConverter.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/MultiArray.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
+#include <math.h>
 
 //#include "sgpp/distributedcombigrid/utils/StatsContainer.hpp"
 
@@ -36,6 +38,7 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       kymin_( kymin ),
       lx_( lx ),
       ky0_ind_( ky0_ind ),
+      x0_(lx/2.0),
       p_(p),
       checkpoint_(), initialized_(false),
       checkpointInitialized_(false)
@@ -631,6 +634,7 @@ void GeneTask::adaptBoundaryZlocal(){
   IndexType xoffset;
   CombiDataType factor;
   getOffsetAndFactor( xoffset, factor );
+  std::cout <<"lx: " <<lx_ <<  "s: " << shat_ << " kymin: " << kymin_ << "\n";
 
   MASTER_EXCLUSIVE_SECTION{
     std::cout << "xoffset: " << xoffset
@@ -654,6 +658,7 @@ void GeneTask::adaptBoundaryZlocal(){
               // ignore highest mode, because it is always zero
               if( i == nkx/2 )
                 continue;
+              getOffsetAndFactor( xoffset, factor,j+1 );
 
               // calc kx_star
               IndexType kx_star = (i + xoffset)%nkx;
@@ -670,18 +675,33 @@ void GeneTask::adaptBoundaryZlocal(){
             }
 }
 
-
-void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor ){
+/**
+ * This function calculates the offset in x coordinate and the scaling factor for the z-boundary condition.
+ * See diss of Christoph Kowitz for more information.
+ * @args xoffset variable that stores the xoffset after call
+ * @args factor variable that stores the scaling factors after call
+ * @args l defines mode ky=kymin_*l. l is always integer valued
+ */
+void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l, real x ){
   // calculate x offset and factor
+  if(!GENE_Global){
   int N = int( round( shat_ * kymin_ * lx_ ) );
   int ky0_ind = 1;
   assert( N == 1);
 
-  xoffset = N;
-  factor = std::pow(-1.0,N);
+  xoffset = l*N;
+  factor = std::pow(-1.0,N * l);
 
   // i think this function is only right if nky=1
   assert( l_[1] == 1 && boundary_[1] == false );
+  }
+  else{
+    xoffset = 0;
+    double ky = kymin_ * l;
+    double pi = boost::math::constants::pi<double>();
+    double angle = 2*pi*ky*(x0_ + shat_ *(x - x0_));
+    factor = complex(cos(angle),sin(angle));
+  }
 }
 
 
@@ -692,7 +712,8 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor ){
 void GeneTask::adaptBoundaryZglobal(){
   // make sure at least two processes in z-direction
   assert( dfg_->getParallelization()[2] > 1 );
-
+  //make sure that no parallelization in x is performed
+  assert(dfg_->getParallelization()[0] == 1);
   // everything in normal dfg notation here except MPI subarrays!
 
   // get parallelization and coordinates of process
@@ -711,7 +732,6 @@ void GeneTask::adaptBoundaryZglobal(){
 
   IndexType xoffset;
   CombiDataType factor;
-  getOffsetAndFactor( xoffset, factor );
 
   bool sendingProc = false;
   if( coords[2] == 0 ){
@@ -723,7 +743,7 @@ void GeneTask::adaptBoundaryZglobal(){
     // other processes don't have to do anything here
     return;
   }
-
+/*
   // for each remote process there may be up to two blocks of data to send
   // or receive
   std::vector< std::vector<IndexType> > transferIndicesBlock1( dfg_->getCommunicatorSize() );
@@ -846,16 +866,94 @@ void GeneTask::adaptBoundaryZglobal(){
       requests.push_back(req);
     }
   }
+*/
+  MPI_Request request;
 
-  MPI_Waitall( requests.size(), &requests[0], MPI_STATUSES_IGNORE );
+  // set lower bounds of subarray
+  IndexVector subarrayLowerBounds = dfg_->getLowerBounds();
+
+  // set upper bounds of subarray
+  IndexVector subarrayUpperBounds = dfg_->getUpperBounds();
+
+  if( sendingProc ){
+    subarrayLowerBounds[2] = 0;
+    subarrayUpperBounds[2] = 1;
+  } else{
+    subarrayLowerBounds[2] = dfg_->getGlobalSizes()[2] - 1;
+    subarrayUpperBounds[2] = dfg_->getGlobalSizes()[2];
+  }
+
+  // create MPI datatype
+  IndexVector sizes( dfg_->getLocalSizes() );
+  IndexVector subsizes = subarrayUpperBounds - subarrayLowerBounds;
+  // the starts are local indices
+  IndexVector starts = subarrayLowerBounds - dfg_->getLowerBounds();
+
+  // convert to mpi notation
+  // also we have to use int as type for the indizes
+  std::vector<int> csizes(sizes.rbegin(), sizes.rend());
+  std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
+  std::vector<int> cstarts(starts.rbegin(), starts.rend());
+
+  // create subarray view on data
+  MPI_Datatype mysubarray;
+  MPI_Type_create_subarray(static_cast<int>(dfg_->getDimension()),
+                           &csizes[0], &csubsizes[0], &cstarts[0],
+                           MPI_ORDER_C, dfg_->getMPIDatatype(), &mysubarray);
+  MPI_Type_commit(&mysubarray);
+  if(sendingProc){
+    coords[2] = p[2]-1 ;
+  }
+  else{
+    coords[2] = 0;
+  }
+  RankType r = dfg_->getRank( coords );
+  CombiDataType *receiveBuffer;
+  if( sendingProc ){
+    MPI_Isend( dfg_->getData(), 1, mysubarray, r, 1000, dfg_->getCommunicator(),
+               &request);
+
+  } else{
+    IndexType numElements = 1;
+    for(int i=0; i<subsizes.size(); i++){
+      numElements *= subsizes[i];
+    }
+    receiveBuffer = new CombiDataType[numElements];
+    MPI_Irecv( receiveBuffer, 1, mysubarray, r, 1000, dfg_->getCommunicator(),
+               &request);
+  }
+
+
+
+
+  MPI_Wait(&request, MPI_STATUSES_IGNORE );
 
   // todo: multiply with factor
-  assert( false && "no factor correction" );
-
+  //assert( false && "no factor correction" );
   // nur letze processe in z-richtung
+  if(!sendingProc){
+    MultiArrayRef6 dfgData = createMultiArrayRef<CombiDataType,6>( *dfg_ );
+    const size_t* dfgShape = dfgData.shape();
+    size_t nkx = dfgShape[5]-1;
+    MultiArrayRef6 receivedData =  MultiArrayRef<CombiDataType,6>(receiveBuffer,subsizes);
 
-  // loop über x,y,v,w
-  // multipliziere
+    // loop über x,y,v,w
+    for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
+        for( size_t m=0; m < dfgShape[1]; ++m ) //w
+          for( size_t l=0; l < dfgShape[2]; ++l ) //v
+              for( size_t j=0; j < dfgShape[4]; ++j )//y
+                for( size_t i=0; i < nkx; ++i ){ //x
+                  // ignore highest mode, because it is always zero
+                  if( i == nkx/2 )
+                    continue;
+                  getOffsetAndFactor( xoffset, factor ,j+1);
+
+                  IndexType kx_star = (i + xoffset)%nkx;
+
+                  // multipliziere
+                  dfgData[n][m][l][ dfgShape[3]-1 ][j][i] = factor * receivedData[n][m][l][0][j][kx_star];
+                }
+  }
 }
 
 

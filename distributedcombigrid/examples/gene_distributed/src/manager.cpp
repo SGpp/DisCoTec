@@ -70,6 +70,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
  * All slaves execute the modified gene version that is able to communicate with the master.
  */
 int main(int argc, char** argv) {
+  bool doOnlyRecompute = false;
   //MPI_Init(&argc, &argv);
   simft::Sim_FT_MPI_Init(&argc, &argv);
   Stats::initialize();
@@ -168,10 +169,15 @@ int main(int argc, char** argv) {
     std::string fg_file_path2 = cfg.get<std::string>( "ct.fg_file_path2" );
 
     // todo: read from parametes file
-    real shat = 0.7960;
-    real kymin = 0.3000;
-    real lx = 4.18760;
+    //real shat = 0.7960;
+    //real kymin = 0.3000;
+    //real lx = 4.18760;
+    real shat = cfg.get<real>("application.shat");
+    real kymin = cfg.get<real>("application.kymin");
+    real lx = cfg.get<real>("application.lx");
+    std::cout << "shat: " << shat << " kymin: " << kymin << " lx: " << lx << "\n";
     int ky0_ind = 1;
+    cfg.get<std::string>("ct.lmin") >> lmin;
 
     // check parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
@@ -208,6 +214,7 @@ int main(int argc, char** argv) {
     } else {
       CombiMinMaxScheme combischeme(dim, lmin, lmax);
       combischeme.createAdaptiveCombischeme();
+      combischeme.makeFaultTolerant();
       levels = combischeme.getCombiSpaces();
       coeffs = combischeme.getCoeffs();
     }
@@ -313,6 +320,10 @@ int main(int argc, char** argv) {
         /* recover communicators*/
         bool failedRecovery = manager.recoverCommunicators(groupFaults);
         /* communicate new combination scheme*/
+        if(doOnlyRecompute){
+          recomputeFaultsID = faultsID;
+          redistributeFaultsID = std::vector<int>(0);
+        }
         if(failedRecovery){
          std::cout << "redistribute \n";
          manager.redistribute(redistributeFaultsID);
@@ -330,7 +341,9 @@ int main(int argc, char** argv) {
         }
         std::cout << "updateing Combination Parameters \n";
         //needs to be after reInitialization!
-        manager.updateCombiParameters();
+        if(!doOnlyRecompute){
+          manager.updateCombiParameters();
+        }
 //        old version
 //        std::vector<int> faultsID;
 //        std::vector< ProcessGroupManagerID> groupFaults;

@@ -130,7 +130,7 @@ private:
 
   void adaptBoundaryZglobal();
 
-  void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor );
+  void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l = 1, real x = 0 );
 
   inline bool failNow( const int& globalRank );
 
@@ -150,6 +150,7 @@ private:
   real shat_;
   real kymin_;
   real lx_;
+  real x0_;
   int ky0_ind_;
 
   // following variables are only accessed in worker and do not need to be
@@ -176,6 +177,7 @@ private:
     ar & shat_;
     ar & kymin_;
     ar & lx_;
+    ar & x0_;
     ar & ky0_ind_;
   }
 };

@@ -19,7 +19,7 @@ spcfile = 'spaces.dat'
 parser = SafeConfigParser()
 parser.read('ctparam')
 
-config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max ntimesteps_combi basename executable mpi startscript sgpplib tasklib ngroup nprocs')
+config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max ntimesteps_combi basename executable mpi startscript sgpplib tasklib ngroup nprocs shat kymin lx')
 
 config.lmin = [int(x) for x in parser.get('ct','lmin').split()]
 config.lmax = [int(x) for x in parser.get('ct','lmax').split()]
@@ -36,6 +36,9 @@ config.tasklib = parser.get('preproc','tasklib')
 config.ngroup = int( parser.get('manager','ngroup') )
 config.nprocs = int( parser.get('manager','nprocs') )
 config.istep_omega = 10
+config.shat = parser.get('application','shat') 
+config.kymin = parser.get('application','kymin') 
+config.lx = parser.get('application','lx') 
 
 # if command line options given overwrite config options
 '''
@@ -174,6 +177,10 @@ for l in scheme.getCombinationDictionary():
     pout = pout.replace('$istep_omega', str(config.istep_omega))
     pout = pout.replace('$dt_max', str(config.dt_max))
     
+    pout = pout.replace('$shat', str(config.shat))
+    pout = pout.replace('$kymin', str(config.kymin))
+    pout = pout.replace('$lx', str(config.lx))
+
     pout = pout.replace('$read_cp','F')
     pout = pout.replace('$write_cp','T')
     
