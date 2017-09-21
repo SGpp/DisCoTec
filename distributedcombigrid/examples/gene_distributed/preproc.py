@@ -39,6 +39,7 @@ config.istep_omega = 10
 config.shat = parser.get('application','shat') 
 config.kymin = parser.get('application','kymin') 
 config.lx = parser.get('application','lx') 
+config.numspecies = parser.get('application','numspecies') 
 
 # if command line options given overwrite config options
 '''
@@ -161,7 +162,7 @@ for l in scheme.getCombinationDictionary():
     pout = pout.replace('$nz0',str(2**l2),1)
     pout = pout.replace('$nv0',str(2**l3),1)
     pout = pout.replace('$nw0',str(2**l4),1)
-    pout = pout.replace('$nspec',str(l5),1)
+    pout = pout.replace('$nspec',str(config.numspecies),1)
     
     pout = pout.replace('$ps',str(ps),1)
     pout = pout.replace('$pv',str(pv),1)

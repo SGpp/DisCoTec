@@ -192,11 +192,15 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
 //    std::cout << i << " size[i]: " << sizes[i] << "\n";
     int index_l = sizes.size()- 1 - i ; // sizes is reversed order of l; i.e. l is x y z v w spec and sizes spec, w, v, z, y, x
 //    std::cout << index_l << " l[i]: " << pow(2,l_[index_l]) << "\n";
-    if(i==0 || i == 4){ //we have only 1 species and 1 coordinate in y direction
-      assert(sizes[i] == 1);
-    }
-    else{
-      assert(sizes[i] == pow(2,l_[index_l]));
+    if(i==0){
+      assert(sizes[0] == nspecies_);
+    }else{
+      if(i == 4 && GENE_Linear){//we have only 1 coordinate in y direction in linear scenarios
+        assert(sizes[i] == 1);
+      }
+      else{
+        assert(sizes[i] == pow(2,l_[index_l]));
+      }
     }
   }
   checkpoint_.writeCheckpoint( data, size, sizes, bounds );
@@ -218,11 +222,16 @@ void GeneTask::InitLocalCheckpoint(size_t size,
 //    std::cout << i << " size[i]: " << sizes[i] << "\n";
     int index_l = sizes.size()- 1 - i ; // sizes is reversed order of l; i.e. l is x y z v w spec and sizes spec, w, v, z, y, x
 //    std::cout << index_l << " l[i]: " << pow(2,l_[index_l]) << "\n";
-    if(i==0 || i == 4){ //we have only 1 species and 1 coordinate in y direction
-      assert(sizes[i] == 1);
+    if(i==0){
+      assert(sizes[0] == nspecies_); // we have nspecies elements in this dimension
     }
     else{
-      assert(sizes[i] == pow(2,l_[index_l])); //check if parameters match
+      if(i == 4){ //we have only 1 coordinate in y direction
+        assert(sizes[i] == 1);
+      }
+      else{
+        assert(sizes[i] == pow(2,l_[index_l])); //check if parameters match
+      }
     }
   }
   checkpoint_.initCheckpoint(size,sizes,bounds);
@@ -531,7 +540,7 @@ void GeneTask::initDFG2( CommunicatorType comm,
     std::cout << d << " ,";
   }
   std::cout << "\n";
-  if(dfgVector_.size() != 0){
+  if(dfgVector_.size() != nspecies_){
     dfgVector_.resize(nspecies_,NULL);
   }
   for(int i=0; i<nspecies_; i++){
@@ -602,7 +611,12 @@ void GeneTask::setDFG(){
       if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || d==5 ) ){
         assert( dfgShape[d] == lcpShape[d] + 1 );
       } else{
-        assert( dfgShape[d] == lcpShape[d] );
+        if(d==0){
+          assert(lcpShape[0] == nspecies_ && dfgShape[0] == 1); //dfg has always 1 coordinate in species direction
+        }
+        else{
+          assert( dfgShape[d] == lcpShape[d] );
+        }
       }
     }
 

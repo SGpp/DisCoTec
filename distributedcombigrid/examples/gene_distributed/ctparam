@@ -1,7 +1,8 @@
 [ct]
+#last element has to be 1 -> specify species with special field
 dim = 6
-lmin = 2 1 4 4 4 1  
-lmax = 2 1 6 6 6 1
+lmin = 2 1 5 5 5 1  
+lmax = 2 1 7 7 7 1
 leval = 2 1 6 6 6 1
 leval2 = 2 1 4 4 4 1
 p = 1 1 1 1 2 1
@@ -18,6 +19,7 @@ nsteps = 1
 shat = 0.7960
 kymin = 0.3000
 lx = 4.18760
+numspecies = 2
 [preproc]
 basename = ginstance
 executable = ./gene_new_machine
@@ -31,6 +33,7 @@ ngroup = 4
 nprocs = 2 
 
 [faults]
-num_faults = 1
-iteration_faults = 0
-global_rank_faults = 2 
+num_faults = 0
+iteration_faults = 2 4 7 8
+global_rank_faults = 2 1 7 0
+
