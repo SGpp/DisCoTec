@@ -19,6 +19,8 @@
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
+#include <string>
+#include <iostream>
 
 namespace combigrid {
 
@@ -26,7 +28,7 @@ ProcessGroupWorker::ProcessGroupWorker() :
     currentTask_( NULL),
     status_(PROCESS_GROUP_WAIT),
     combinedFG_( NULL),
-    combinedUniDSG_(NULL),
+    combinedUniDSGVector_(0),
     combinedFGexists_(false),
     combiParameters_(),
     combiParametersSet_(false)
@@ -351,7 +353,7 @@ void ProcessGroupWorker::ready() {
     }
   }
 }
-
+/* not supported anymore
 void ProcessGroupWorker::combine() {
   assert( false && "not properly implemented" );
 
@@ -391,7 +393,7 @@ void ProcessGroupWorker::combine() {
     // dehierarchize dfg
     DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
   }
-}
+} */
 
 void ProcessGroupWorker::combineUniform() {
   // each pgrouproot must call reduce function
@@ -400,6 +402,8 @@ void ProcessGroupWorker::combineUniform() {
     std::cout << "Possible error: task size is 0! \n";
   }
   assert( combiParametersSet_ );
+  int numGrids = combiParameters_.getNumGrids(); //we assume here that every task has the same number of grids
+
   DimType dim = combiParameters_.getDim();
   const LevelVector& lmin = combiParameters_.getLMin();
   LevelVector lmax = combiParameters_.getLMax();
@@ -414,43 +418,53 @@ void ProcessGroupWorker::combineUniform() {
       lmax[i] -= 1;
       */
 
-  // todo: delete old dsg
-  if (combinedUniDSG_ != NULL)
-    delete combinedUniDSG_;
+  // todo: delete old dsgs
+  for(int g=0; g<combinedUniDSGVector_.size(); g++){
 
+    if (combinedUniDSGVector_[g] != NULL)
+      delete combinedUniDSGVector_[g];
+  }
+  combinedUniDSGVector_.clear();
   // erzeug dsg
-  combinedUniDSG_ = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
+  combinedUniDSGVector_.resize(numGrids);
+  for(int g=0; g<numGrids; g++){
+    combinedUniDSGVector_[g] = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
       lmin, boundary,
       theMPISystem()->getLocalComm());
-
+  }
   // todo: move to init function to avoid reregistering
   // register dsg in all dfgs
   for (Task* t : tasks_) {
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+    for(int g=0; g<numGrids; g++){
 
-    dfg.registerUniformSG(*combinedUniDSG_);
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+
+      dfg.registerUniformSG(*(combinedUniDSGVector_[g]));
+    }
   }
 
   real localMax(0.0);
 
   for (Task* t : tasks_) {
+    for(int g=0; g<numGrids; g++){
 
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
-    // compute max norm
-    /*
-    real max = dfg.getLpNorm(0);
-    if( max > localMax )
-      localMax = max;
-      */
+      // compute max norm
+      /*
+      real max = dfg.getLpNorm(0);
+      if( max > localMax )
+        localMax = max;
+        */
 
-    // hierarchize dfg
-    DistributedHierarchization::hierarchize<CombiDataType>(
-        dfg, combiParameters_.getHierarchizationDims() );
+      // hierarchize dfg
+      DistributedHierarchization::hierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims() );
 
-    // lokales reduce auf sg ->
-    dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
-    std::cout << "Combination: added task " << t->getID() << " with coefficient " << combiParameters_.getCoeff( t->getID() ) <<"\n";
+      // lokales reduce auf sg ->
+      dfg.addToUniformSG( *combinedUniDSGVector_[g], combiParameters_.getCoeff( t->getID() ) );
+      std::cout << "Combination: added task " << t->getID() << " with coefficient " << combiParameters_.getCoeff( t->getID() ) <<"\n";
+    }
   }
 
   // compute global max norm
@@ -463,28 +477,30 @@ void ProcessGroupWorker::combineUniform() {
   MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
                     MPI_MAX, theMPISystem()->getLocalComm() );
                     */
-
-  CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
-
+  for(int g=0; g<numGrids; g++){
+    CombiCom::distributedGlobalReduce( *combinedUniDSGVector_[g] );
+  }
   for (Task* t : tasks_) {
-    // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+    for(int g=0; g<numGrids; g++){
 
-    // extract dfg vom dsg
-    dfg.extractFromUniformSG( *combinedUniDSG_ );
+      // get handle to dfg
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
-    // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<CombiDataType>(
-        dfg, combiParameters_.getHierarchizationDims() );
+      // extract dfg vom dsg
+      dfg.extractFromUniformSG( *combinedUniDSGVector_[g] );
 
-    // if exceeds normalization limit, normalize dfg with global max norm
-    /*
-    if( globalMax > 1000 ){
-      dfg.mul( 1.0 / globalMax );
-      std::cout << "normalized dfg with " << globalMax << std::endl;
+      // dehierarchize dfg
+      DistributedHierarchization::dehierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims() );
+
+      // if exceeds normalization limit, normalize dfg with global max norm
+      /*
+      if( globalMax > 1000 ){
+        dfg.mul( 1.0 / globalMax );
+        std::cout << "normalized dfg with " << globalMax << std::endl;
+      }
+      */
     }
-    */
-
   }
 
 }
@@ -501,10 +517,12 @@ void ProcessGroupWorker::parallelEvalUniform(){
   assert(uniformDecomposition);
 
   assert(combiParametersSet_);
+  int numGrids = combiParameters_.getNumGrids(); //we assume here that every task has the same number of grids
+
   const int dim = static_cast<int>( combiParameters_.getDim() );
 
   // combine must have been called before this function
-  assert( combinedUniDSG_ != NULL && "you must combine before you can eval" );
+  assert( combinedUniDSGVector_.size() != 0 && "you must combine before you can eval" );
 
   // receive leval and broadcast to group members
   std::vector<int> tmp(dim);
@@ -531,27 +549,29 @@ void ProcessGroupWorker::parallelEvalUniform(){
                             theMPISystem()->getMasterRank(),
                             theMPISystem()->getLocalComm() );
 
+  for(int g=0; g < numGrids; g++){//loop over all grids and plot them
+    // create dfg
+    DistributedFullGrid<CombiDataType> dfg( dim, leval,
+                                            combiParameters_.getApplicationComm(),
+                                            combiParameters_.getBoundary(),
+                                            combiParameters_.getParallelization(),
+                                            false
+                                            );
 
-  // create dfg
-  DistributedFullGrid<CombiDataType> dfg( dim, leval,
-                                          combiParameters_.getApplicationComm(),
-                                          combiParameters_.getBoundary(),
-                                          combiParameters_.getParallelization(),
-                                          false
-                                          );
+    // register dsg
+    dfg.registerUniformSG(*combinedUniDSGVector_[g]);
 
-  // register dsg
-  dfg.registerUniformSG(*combinedUniDSG_);
+    // fill dfg with hierarchical coefficients from distributed sparse grid
+    dfg.extractFromUniformSG( *combinedUniDSGVector_[g] );
 
-  // fill dfg with hierarchical coefficients from distributed sparse grid
-  dfg.extractFromUniformSG( *combinedUniDSG_ );
-
-  // dehierarchize dfg
-  DistributedHierarchization::dehierarchize<CombiDataType>(
-      dfg, combiParameters_.getHierarchizationDims() );
-
-  // save dfg to file with MPI-IO
-  dfg.writePlotFile( filename.c_str() );
+    // dehierarchize dfg
+    DistributedHierarchization::dehierarchize<CombiDataType>(
+        dfg, combiParameters_.getHierarchizationDims() );
+    std::string fn = filename;
+    fn = fn + std::to_string(g);
+    // save dfg to file with MPI-IO
+    dfg.writePlotFile( fn.c_str() );
+  }
 }
 
 
@@ -662,18 +682,24 @@ void ProcessGroupWorker::updateCombiParameters() {
 
 
 void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
-  assert( combinedUniDSG_ != NULL );
+  assert( combinedUniDSGVector_.size() != 0 );
+  assert(combiParametersSet_);
 
+  int numGrids = combiParameters_.getNumGrids(); //we assume here that every task has the same number of grids
 
-  // get handle to dfg
-  DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+  for(int g=0; g < numGrids;g++){
+    assert( combinedUniDSGVector_[g] != NULL );
 
-  // extract dfg vom dsg
-  dfg.extractFromUniformSG( *combinedUniDSG_ );
+    // get handle to dfg
+    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
-  // dehierarchize dfg
-  DistributedHierarchization::dehierarchize<CombiDataType>(
-      dfg, combiParameters_.getHierarchizationDims() );
+    // extract dfg vom dsg
+    dfg.extractFromUniformSG( *combinedUniDSGVector_[g] );
+
+    // dehierarchize dfg
+    DistributedHierarchization::dehierarchize<CombiDataType>(
+        dfg, combiParameters_.getHierarchizationDims() );
+  }
 }
 
 } /* namespace combigrid */

@@ -24,6 +24,7 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "GeneLocalCheckpoint.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
+#include "sgpp/distributedcombigrid/fullgrid/MultiArray.hpp"
 
 namespace combigrid {
 
@@ -32,7 +33,8 @@ public:
   GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
             LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
             real shat, real kymin, real lx, int ky0_ind,
-            IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})));
+            IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
+            IndexType numSpecies = 1);
 
   GeneTask();
 
@@ -46,8 +48,8 @@ public:
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>());
 
-  std::vector<IndexVector> getDecomposition(){
-      return dfg_->getDecomposition();
+  std::vector<IndexVector> getDecomposition(int species){
+      return dfgVector_[species]->getDecomposition();
   }
 
   void decideToKill();
@@ -66,13 +68,13 @@ public:
       std::vector<size_t>& bounds );
   /*
    * Gather GENE checkpoint distributed over process group on process
-   * with localRootID and convert to FullGrid fg. The actual full grid
+   * with localRootID and convert to FullGrid fg for speciefied species. The actual full grid
    * will only be created on the process with localRootID.
    */
   void getFullGrid( FullGrid<CombiDataType>& fg, RankType lroot,
-                    CommunicatorType lcomm);
+                    CommunicatorType lcomm, int species);
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid();
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int specie);
 
   /*
    * Convert fg to GeneGrid and scatter over processes of pgroup. The fullgrid
@@ -106,7 +108,7 @@ public:
 
   void getDFG();
 
-  void normalizeDFG();
+  void normalizeDFG(int species);
 
   inline void setNrg(real nrg);
 
@@ -124,11 +126,13 @@ public:
 private:
   friend class boost::serialization::access;
 
-  void adaptBoundaryZ();
+  void adaptBoundaryZ(int species);
 
-  void adaptBoundaryZlocal();
+  void adaptBoundaryZlocal(int species);
 
-  void adaptBoundaryZglobal();
+  void adaptBoundaryZglobal(int species);
+
+  void adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& targetData, int species);
 
   void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l = 1, real x = 0 );
 
@@ -156,11 +160,15 @@ private:
   // following variables are only accessed in worker and do not need to be
   // serialized
   GeneLocalCheckpoint checkpoint_;
-  DistributedFullGrid<CombiDataType>* dfg_;
+  std::vector<DistributedFullGrid<CombiDataType> *> dfgVector_;
   real nrg_;
 
   bool initialized_;
   bool checkpointInitialized_;
+  //number of species
+  int nspecies_;
+  MPI_Request * requestArray_;
+  std::vector<CombiDataType *> receiveBufferArray_;
 
  // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 
@@ -179,6 +187,7 @@ private:
     ar & lx_;
     ar & x0_;
     ar & ky0_ind_;
+    ar & nspecies_;
   }
 };
 

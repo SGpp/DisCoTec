@@ -232,7 +232,7 @@ int main(int argc, char** argv) {
     // create Tasks
     TaskContainer tasks;
     std::vector<int> taskIDs;
-
+    IndexType numGrids = levels[0][5];
     for (size_t i = 0; i < levels.size(); i++) {
       // path to task folder
       std::stringstream ss2;
@@ -247,17 +247,19 @@ int main(int argc, char** argv) {
       else{ //do not use faults
         faultCrit = new StaticFaults(faultsInfo);
       }
-      Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
+      LevelVector currentLevel = levels[i];
+      currentLevel[5] = 1; // we generate one fullgrid per species
+      IndexType numSpecies = numGrids; //generate one grid per species
+      Task* t = new GeneTask(dim, currentLevel, boundary, coeffs[i],
                                 loadmodel, path, dt, nsteps,
-                                shat, kymin, lx, ky0_ind, p, faultCrit);
+                                shat, kymin, lx, ky0_ind, p, faultCrit, numSpecies);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
 
     }
-
     // create combiparamters
     CombiParameters params( dim, lmin, lmax, boundary, levels,
-                            coeffs, hierarchizationDims, taskIDs );
+                            coeffs, hierarchizationDims, taskIDs, numGrids );
     params.setParallelization(p);
 
     // create Manager with process groups
