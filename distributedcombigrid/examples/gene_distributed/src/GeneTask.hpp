@@ -34,7 +34,7 @@ public:
             LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
             real shat, real kymin, real lx, int ky0_ind,
             IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
-            IndexType numSpecies = 1);
+            IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);
 
   GeneTask();
 
@@ -169,7 +169,8 @@ private:
   int nspecies_;
   MPI_Request * requestArray_;
   std::vector<CombiDataType *> receiveBufferArray_;
-
+  bool _GENE_Global;
+  bool _GENE_Linear;
  // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 
   // serialize
@@ -188,6 +189,8 @@ private:
     ar & x0_;
     ar & ky0_ind_;
     ar & nspecies_;
+    ar & _GENE_Global;
+    ar & _GENE_Linear;
   }
 };
 

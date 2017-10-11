@@ -27,7 +27,7 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
                     std::string& path, real dt, size_t nsteps,
                     real shat, real kymin, real lx, int ky0_ind,
                     IndexVector p , FaultCriterion *faultCrit,
-                    IndexType numSpecies)
+                    IndexType numSpecies, bool GENE_Global, bool GENE_Linear)
     : Task( dim, l, boundary, coeff, loadModel,faultCrit),
       path_( path ),
       dt_( dt ),
@@ -42,7 +42,9 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       p_(p),
       checkpoint_(), initialized_(false),
       checkpointInitialized_(false),
-      nspecies_(numSpecies)
+      nspecies_(numSpecies),
+      _GENE_Global(GENE_Global),
+      _GENE_Linear(GENE_Linear)
 {
 
 // theres only one boundary configuration allowed at the moment
@@ -59,7 +61,9 @@ GeneTask::GeneTask() :
     dfgVector_(0),
     nrg_(0.0),
     initialized_(false),
-    checkpointInitialized_(false)
+    checkpointInitialized_(false),
+    _GENE_Global(false),
+    _GENE_Linear(true)
 {
   ;
 }
@@ -195,7 +199,7 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
     if(i==0){
       assert(sizes[0] == nspecies_);
     }else{
-      if(i == 4 && GENE_Linear){//we have only 1 coordinate in y direction in linear scenarios
+      if(i == 4 && _GENE_Linear){//we have only 1 coordinate in y direction in linear scenarios
         assert(sizes[i] == 1);
       }
       else{
@@ -589,7 +593,7 @@ void GeneTask::setDFG(){
     // parallelization in this dimension would require very expensive communication
     // in order to change the ordering in this dimension
     // Parallelization in x required for global cases
-    if(!GENE_Global){
+    if(!_GENE_Global){
       assert( dfgVector_[species]->getParallelization()[0] == 1 );
     }
     // some checks
@@ -762,11 +766,11 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
           for( size_t j=0; j < targetShape[4]; ++j ){ //y
             for( size_t i=0; i < nkx; ++i ){ //x
               // ignore highest mode, because it is always zero toDo is this only valid in local case?
-              if(!GENE_Global){ //toDo is this right?
+              if(!_GENE_Global){ //toDo is this right?
                 if( i == nkxGlobal/2 )
                   continue;
               }
-              if(!GENE_Global){
+              if(!_GENE_Global){
                 getOffsetAndFactor( xoffset, factor,j+1 );
               }
               else{
@@ -780,7 +784,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
               //  kx_star += 1;
 
               // this should never happen
-              assert(xoffset > 0);
+              assert(xoffset >= 0);
               assert( kx_star < nkx);
 
               targetData[n][m][l][ targetShape[3]-1 ][j][i] =
@@ -801,7 +805,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
  */
 void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l, real x ){
   // calculate x offset and factor
-  if(!GENE_Global){
+  if(!_GENE_Global){
   int N = int( round( shat_ * kymin_ * lx_ ) );
   int ky0_ind = 1;
   assert( N == 1);

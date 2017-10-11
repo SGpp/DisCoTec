@@ -46,7 +46,7 @@ class ProcessGroupWorker {
 
   void combineFG();
 
-  void gridEval();
+ // void gridEval();
 
   void parallelEval();
 

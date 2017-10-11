@@ -40,6 +40,8 @@ config.shat = parser.get('application','shat')
 config.kymin = parser.get('application','kymin') 
 config.lx = parser.get('application','lx') 
 config.numspecies = parser.get('application','numspecies') 
+config.local = parser.get('application','GENE_local') 
+config.nonlinear = parser.get('application','GENE_nonlinear') 
 
 # if command line options given overwrite config options
 '''
@@ -163,7 +165,9 @@ for l in scheme.getCombinationDictionary():
     pout = pout.replace('$nv0',str(2**l3),1)
     pout = pout.replace('$nw0',str(2**l4),1)
     pout = pout.replace('$nspec',str(config.numspecies),1)
-    
+    pout = pout.replace('$GENE_local',str(config.local),1)
+    pout = pout.replace('$GENE_nonlinear',str(config.nonlinear),1)
+
     pout = pout.replace('$ps',str(ps),1)
     pout = pout.replace('$pv',str(pv),1)
     pout = pout.replace('$pw',str(pw),1)

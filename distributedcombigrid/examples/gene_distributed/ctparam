@@ -1,12 +1,12 @@
 [ct]
 #last element has to be 1 -> specify species with special field
 dim = 6
-lmin = 2 1 5 5 5 1  
-lmax = 2 1 7 7 7 1
+lmin = 5 1 4 4 4 1  
+lmax = 5 1 6 6 6 1
 leval = 2 1 6 6 6 1
 leval2 = 2 1 4 4 4 1
 p = 1 1 1 1 2 1
-ncombi = 10 
+ncombi = 3 
 readspaces = 1
 fg_file_path = /import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/examples/gene_distributed/ginstance/plot.dat
 fg_file_path2 = /import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/examples/gene_distributed/ginstance/plot2.dat
@@ -15,11 +15,13 @@ hierarchization_dims = 0 0 1 1 1 0
 
 [application]
 dt = 0.01
-nsteps = 1
+nsteps = 10
 shat = 0.7960
 kymin = 0.3000
 lx = 4.18760
 numspecies = 2
+GENE_local = F
+GENE_nonlinear = F
 [preproc]
 basename = ginstance
 executable = ./gene_new_machine
@@ -33,7 +35,7 @@ ngroup = 4
 nprocs = 2 
 
 [faults]
-num_faults = 0
+num_faults = 4
 iteration_faults = 2 4 7 8
 global_rank_faults = 2 1 7 0
 

@@ -176,6 +176,14 @@ int main(int argc, char** argv) {
     real kymin = cfg.get<real>("application.kymin");
     real lx = cfg.get<real>("application.lx");
     IndexType numGrids = cfg.get<IndexType>("application.numspecies");
+    std::string GENE_nonlinear_string = cfg.get<std::string>("application.GENE_nonlinear");
+    std::string GENE_local_string = cfg.get<std::string>("application.GENE_local");
+    std::remove(GENE_nonlinear_string.begin(), GENE_nonlinear_string.end(), ' ');
+    std::remove(GENE_local_string.begin(), GENE_local_string.end(), ' ');
+    const bool GENE_Linear = GENE_nonlinear_string == "F";
+    const bool GENE_Global = GENE_local_string == "F";
+    std::cout << "GENE_Linear: " << GENE_Linear << "\n";
+    std::cout << "GENE_Global: " << GENE_Global << "\n";
     std::cout << "shat: " << shat << " kymin: " << kymin << " lx: " << lx << "\n";
     int ky0_ind = 1;
     cfg.get<std::string>("ct.lmin") >> lmin;
@@ -226,9 +234,9 @@ int main(int argc, char** argv) {
     std::cout << "boundary = " << boundary << std::endl;
     std::cout << "hierarchization_dims = " << hierarchizationDims << std::endl;
     std::cout << "CombiScheme: " << std::endl;
-    for (size_t i = 0; i < levels.size(); ++i)
+    for (size_t i = 0; i < levels.size(); ++i){
       std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
-
+    }
 
     // create Tasks
     TaskContainer tasks;
@@ -252,7 +260,7 @@ int main(int argc, char** argv) {
       IndexType numSpecies = numGrids; //generate one grid per species
       Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
                                 loadmodel, path, dt, nsteps,
-                                shat, kymin, lx, ky0_ind, p, faultCrit, numSpecies);
+                                shat, kymin, lx, ky0_ind, p, faultCrit, numSpecies, GENE_Global,GENE_Linear);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
 

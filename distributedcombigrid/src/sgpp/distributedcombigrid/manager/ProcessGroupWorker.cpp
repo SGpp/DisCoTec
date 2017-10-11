@@ -201,11 +201,11 @@ SignalType ProcessGroupWorker::wait() {
     combineUniform();
     Stats::stopEvent("combine");
 
-  } else if (signal == GRID_EVAL) {
-
-    Stats::startEvent("eval");
-    gridEval();
-    Stats::stopEvent("eval");
+  } else if (signal == GRID_EVAL) { // not supported anymore
+//
+//    Stats::startEvent("eval");
+//    gridEval();
+//    Stats::stopEvent("eval");
 
     return signal;
 
@@ -575,71 +575,71 @@ void ProcessGroupWorker::parallelEvalUniform(){
 }
 
 
-void ProcessGroupWorker::gridEval() {
-  /* error if no tasks available
-   * todo: however, this is not a real problem, we could can create an empty
-   * grid an contribute to the reduce operation. at the moment even the dim
-   * parameter is stored in the tasks, so if no task available we have no access
-   * to this parameter.
-   */
-  assert(tasks_.size() > 0);
-
-  assert(combiParametersSet_);
-  const DimType dim = combiParameters_.getDim();
-
-  LevelVector leval(dim);
-
-  // receive leval
-  MASTER_EXCLUSIVE_SECTION{
-    // receive size of levelvector = dimensionality
-    MPI_Status status;
-    int bsize;
-    MPI_Probe( theMPISystem()->getManagerRank(), 0, theMPISystem()->getGlobalComm(), &status);
-    MPI_Get_count(&status, MPI_INT, &bsize);
-
-    assert(bsize == static_cast<int>(dim));
-
-    std::vector<int> tmp(dim);
-    MPI_Recv( &tmp[0], bsize, MPI_INT,
-              theMPISystem()->getManagerRank(), 0,
-              theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
-    leval = LevelVector(tmp.begin(), tmp.end());
-  }
-
-  assert( combiParametersSet_ );
-  const std::vector<bool>& boundary = combiParameters_.getBoundary();
-  FullGrid<CombiDataType> fg_red(dim, leval, boundary);
-
-  // create the empty grid on only on localroot
-  MASTER_EXCLUSIVE_SECTION {
-    fg_red.createFullGrid();
-  }
-
-  // collect fg on pgrouproot and reduce
-  for (size_t i = 0; i < tasks_.size(); ++i) {
-    Task* t = tasks_[i];
-
-    FullGrid<CombiDataType> fg(t->getDim(), t->getLevelVector(), boundary );
-
-    MASTER_EXCLUSIVE_SECTION {
-      fg.createFullGrid();
-    }
-
-    t->getFullGrid( fg,
-                    theMPISystem()->getMasterRank(),
-                    theMPISystem()->getLocalComm() );
-
-    MASTER_EXCLUSIVE_SECTION{
-      fg_red.add(fg, combiParameters_.getCoeff( t->getID() ) );
-    }
-  }
-  // global reduce of f_red
-  MASTER_EXCLUSIVE_SECTION {
-    CombiCom::FGReduce( fg_red,
-                        theMPISystem()->getManagerRank(),
-                        theMPISystem()->getGlobalComm() );
-  }
-}
+//void ProcessGroupWorker::gridEval() { //not supported anymore
+//  /* error if no tasks available
+//   * todo: however, this is not a real problem, we could can create an empty
+//   * grid an contribute to the reduce operation. at the moment even the dim
+//   * parameter is stored in the tasks, so if no task available we have no access
+//   * to this parameter.
+//   */
+//  assert(tasks_.size() > 0);
+//
+//  assert(combiParametersSet_);
+//  const DimType dim = combiParameters_.getDim();
+//
+//  LevelVector leval(dim);
+//
+//  // receive leval
+//  MASTER_EXCLUSIVE_SECTION{
+//    // receive size of levelvector = dimensionality
+//    MPI_Status status;
+//    int bsize;
+//    MPI_Probe( theMPISystem()->getManagerRank(), 0, theMPISystem()->getGlobalComm(), &status);
+//    MPI_Get_count(&status, MPI_INT, &bsize);
+//
+//    assert(bsize == static_cast<int>(dim));
+//
+//    std::vector<int> tmp(dim);
+//    MPI_Recv( &tmp[0], bsize, MPI_INT,
+//              theMPISystem()->getManagerRank(), 0,
+//              theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+//    leval = LevelVector(tmp.begin(), tmp.end());
+//  }
+//
+//  assert( combiParametersSet_ );
+//  const std::vector<bool>& boundary = combiParameters_.getBoundary();
+//  FullGrid<CombiDataType> fg_red(dim, leval, boundary);
+//
+//  // create the empty grid on only on localroot
+//  MASTER_EXCLUSIVE_SECTION {
+//    fg_red.createFullGrid();
+//  }
+//
+//  // collect fg on pgrouproot and reduce
+//  for (size_t i = 0; i < tasks_.size(); ++i) {
+//    Task* t = tasks_[i];
+//
+//    FullGrid<CombiDataType> fg(t->getDim(), t->getLevelVector(), boundary );
+//
+//    MASTER_EXCLUSIVE_SECTION {
+//      fg.createFullGrid();
+//    }
+//
+//    t->getFullGrid( fg,
+//                    theMPISystem()->getMasterRank(),
+//                    theMPISystem()->getLocalComm() );
+//
+//    MASTER_EXCLUSIVE_SECTION{
+//      fg_red.add(fg, combiParameters_.getCoeff( t->getID() ) );
+//    }
+//  }
+//  // global reduce of f_red
+//  MASTER_EXCLUSIVE_SECTION {
+//    CombiCom::FGReduce( fg_red,
+//                        theMPISystem()->getManagerRank(),
+//                        theMPISystem()->getGlobalComm() );
+//  }
+//}
 
 //todo: this is just a temporary function which will drop out some day
 // also this function requires a modified fgreduce method which uses allreduce

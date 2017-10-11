@@ -61,8 +61,8 @@ const bool uniformDecomposition = true;
 /* switch on fault tolerance functionality */
 const bool ENABLE_FT = true;
 const bool isGENE = true;
-const bool GENE_Global = false;
-const bool GENE_Linear = true;
+//const bool GENE_Global = true;
+//const bool GENE_Linear = true;
 }
 
 
