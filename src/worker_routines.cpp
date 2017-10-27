@@ -24,7 +24,8 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
                               int *lm1p, int *lm2p, int *ln1p, int *ln2p,
                               int *ni0p, int *nj0p, int *nz0p,
                               int *nv0p, int *nw0p, int *n_specp,
-                              MPI_Fint* comm_gene_f ) {
+                              MPI_Fint* comm_gene_f, double *C_y,
+                              int *size_Cy, double *q_prof, int *size_q ) {
   //std::cout << "write memory \n";
   double tstart = MPI_Wtime();
   MPI_Comm comm_gene = (MPI_Comm) *comm_gene_f;
@@ -109,6 +110,8 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
   CombiParameters& param = pgroup->getCombiParameters();
   std::cout << "set application comm \n";
   param.setApplicationComm( comm_gene );
+  //set boundary parameters
+  t->setBoundaryParameters(C_y,size_Cy, q_prof, size_q);
   t->writeLocalCheckpoint( g_1, size, sizes, bounds );
   //t->setTimeCPMem( MPI_Wtime() - tstart );
 
@@ -359,7 +362,13 @@ void worker_ready(double wtime, double time_perf,
 
   MASTER_EXCLUSIVE_SECTION {
     // copy parameters.dat to parameters
-    rename( "parameters.dat", "parameters" );
+    if(rename( "parameters.dat", "parameters" )){
+      std::cout << "Could not rename parameters files! \n";
+      MPI_Abort(MPI_COMM_WORLD,0);
+    }
+    else{
+      std::cout << "Renaming successfully!\n";
+    }
   }
 
 
