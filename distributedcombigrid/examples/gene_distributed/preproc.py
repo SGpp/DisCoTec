@@ -36,12 +36,14 @@ config.tasklib = parser.get('preproc','tasklib')
 config.ngroup = int( parser.get('manager','ngroup') )
 config.nprocs = int( parser.get('manager','nprocs') )
 config.istep_omega = 10
-config.shat = parser.get('application','shat') 
+#config.shat = parser.get('application','shat') 
 config.kymin = parser.get('application','kymin') 
 config.lx = parser.get('application','lx') 
 config.numspecies = parser.get('application','numspecies') 
 config.local = parser.get('application','GENE_local') 
 config.nonlinear = parser.get('application','GENE_nonlinear') 
+if config.local == "T" :
+    config.shat = parser.get('application','shat') 
 
 # if command line options given overwrite config options
 '''
@@ -160,7 +162,10 @@ for l in scheme.getCombinationDictionary():
     pfilein.close()
     
     pout = pin.replace('$nx0',str(2**l0),1)
-    pout = pout.replace('$nky0',str(2**l1-1),1)
+    if config.nonlinear == "T" :
+    	pout = pout.replace('$nky0',str(2**l1),1)
+    else:
+        pout = pout.replace('$nky0',str(2**l1-1),1)
     pout = pout.replace('$nz0',str(2**l2),1)
     pout = pout.replace('$nv0',str(2**l3),1)
     pout = pout.replace('$nw0',str(2**l4),1)
@@ -181,8 +186,8 @@ for l in scheme.getCombinationDictionary():
     pout = pout.replace('$ntimesteps_combi', str(config.ntimesteps_total))
     pout = pout.replace('$istep_omega', str(config.istep_omega))
     pout = pout.replace('$dt_max', str(config.dt_max))
-    
-    pout = pout.replace('$shat', str(config.shat))
+    if config.local == "T" :
+        pout = pout.replace('$shat', str(config.shat))
     pout = pout.replace('$kymin', str(config.kymin))
     pout = pout.replace('$lx', str(config.lx))
 

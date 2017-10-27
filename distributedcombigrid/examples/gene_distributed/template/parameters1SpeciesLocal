@@ -47,7 +47,8 @@ momentum_flux = F
 /
 
 &general
-nonlinear =   F
+nonlinear =   $GENE_nonlinear
+x_local   = $GENE_local
 comp_type = 'IV'
 perf_vec  =  2 2 1 1 1 1 2 1 2
 !nblocks   =      16
@@ -88,42 +89,13 @@ norm_flux_projection  = F
 
 &species
 name   = 'ions'
-prof_type =  3
-kappa_T   =  6.9000
-LT_center =  0.5000    
-LT_width  =  0.5000E-01
+omn    =    2.2200000    
+omt    =    6.9200000    
 
-kappa_n   =  3.0
-Ln_center =  0.5000
-Ln_width  =  0.5000E-01
-
-delta_x_T  = 0.2500
-delta_x_n  = 0.2500
-
-mass   =    1.000    
-temp   =    1.000    
-dens   =    1.000    
+mass   =    1.0000000    
+temp   =    1.0000000    
+dens   =    1.0000000    
 charge =  1
-/
-
-&species
-name   = 'electrons'
-prof_type =  3
-kappa_T   =   6.900
-LT_center =   0.5000    
-LT_width  =   0.5000E-01
-
-kappa_n   =   3.00
-Ln_center =   0.5000    
-Ln_width  =   0.5000E-01
-
-delta_x_T  =  0.2500    
-delta_x_n  =  0.2500    
-
-mass   =    5.446E-4
-temp   =    3.  !we don't want ETG at the moment
-dens   =    1.000    
-charge = -1
 /
 
 &info

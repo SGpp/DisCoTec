@@ -105,6 +105,16 @@ public:
 
 
   void setDFG();
+  /**
+   * sets boundary parameters for global simulations
+   * is directly set in GENE execution before writing checkpoint
+   */
+  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q ){
+    C_y_ = C_y;
+    size_Cy_ = *size_Cy;
+    q_prof_= q_prof;
+    size_q_ = *size_q;
+  }
 
   void getDFG();
 
@@ -134,7 +144,7 @@ private:
 
   void adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& targetData, int species);
 
-  void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l = 1, real x = 0 );
+  void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l = 1, IndexType x = 0 );
 
   inline bool failNow( const int& globalRank );
 
@@ -171,6 +181,10 @@ private:
   std::vector<CombiDataType *> receiveBufferArray_;
   bool _GENE_Global;
   bool _GENE_Linear;
+  double *C_y_;
+  int size_Cy_ ;
+  double *q_prof_;
+  int size_q_;
  // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 
   // serialize

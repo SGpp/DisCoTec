@@ -49,7 +49,12 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
 
 // theres only one boundary configuration allowed at the moment
 assert( boundary[0] == true );//x
-assert( boundary[1] == false );//y
+if(_GENE_Linear){
+  assert( boundary[1] == false );//y
+}
+else{
+  assert( boundary[1] == true );//y
+}
 assert( boundary[2] == true );//z
 assert( boundary[3] == true );//v
 assert( boundary[4] == true );//w
@@ -193,9 +198,9 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
 {
   // todo: doing it like this will require two times copying
   for(unsigned int i= 0; i < sizes.size(); i++){
-//    std::cout << i << " size[i]: " << sizes[i] << "\n";
+    //std::cout << i << " size[i]: " << sizes[i] << "\n";
     int index_l = sizes.size()- 1 - i ; // sizes is reversed order of l; i.e. l is x y z v w spec and sizes spec, w, v, z, y, x
-//    std::cout << index_l << " l[i]: " << pow(2,l_[index_l]) << "\n";
+    //std::cout << index_l << " l[i]: " << pow(2,l_[index_l]) << "\n";
     if(i==0){
       assert(sizes[0] == nspecies_);
     }else{
@@ -540,10 +545,10 @@ void GeneTask::initDFG2( CommunicatorType comm,
                         std::vector<IndexVector>& decomposition ){
   // this is the clean version. however requires creation of dfg before each
   // combination step
-  for(auto d:decomposition){
+  /*for(auto d:decomposition){
     std::cout << d << " ,";
   }
-  std::cout << "\n";
+  std::cout << "\n";*/
   if(dfgVector_.size() != nspecies_){
     dfgVector_.resize(nspecies_,NULL);
   }
@@ -610,16 +615,19 @@ void GeneTask::setDFG(){
     const size_t* lcpShape = lcpData.shape();
 
     for( DimType d=0; d<dfgVector_[species]->getDimension(); ++d ){
-      // for the last rank in the dimension w(d=1), v(2), z(3), x(5) the number of elements in
+      // for the last rank in the dimension w(d=1), v(2), z(3), y(4) (only in non-linear), x(5) the number of elements in
       // dfg and lcp differ
-      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || d==5 ) ){
+      //std::cout << "dfgShape[" << d << "] " << dfgShape[d] <<"\n";
+      //std::cout << "lcpShape[" << d << "] " << lcpShape[d] <<"\n";
+
+      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || d == 4 ||d==5 ) ){ //x,y (only non-linear cases),z,v,w at upper border of domain (one additional point)
         assert( dfgShape[d] == lcpShape[d] + 1 );
       } else{
-        if(d==0){
+        if(d==0){ //species
           assert(lcpShape[0] == nspecies_ && dfgShape[0] == 1); //dfg has always 1 coordinate in species direction
         }
-        else{
-          assert( dfgShape[d] == lcpShape[d] );
+        else{ //lower border or in the middle of domain (no additional boundary point)
+            assert( dfgShape[d] == lcpShape[d] );
         }
       }
     }
@@ -733,6 +741,8 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
     // the shape of the multi arrays, i.e. spec, w, v, z, y, x
     IndexVector coords( tmp.rbegin(), tmp.rend() );
     bool xBorder = coords[5] == p[5] - 1; //check if we are at the upper x border
+    bool yBorder = coords[4] == p[4] - 1; //check if we are at the upper y border
+
     IndexType xoffset;
     CombiDataType factor;
     getOffsetAndFactor( xoffset, factor );
@@ -746,16 +756,24 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
     const size_t* targetShape = targetData.shape();
 
     // we ignore the last point in x direction
-    size_t nkx; //number of points in x direction in local dfg
+    size_t nkx, nky; //number of points in x and y direction in local dfg (excludes points that are 0)
     if(xBorder){
       nkx= targetShape[5]-1; //toDo what happens when x not fourier
     }
     else{
       nkx = targetShape[5];
     }
+
+    if(yBorder){ //toDo is y always 0 at last position?
+      nky = targetShape[4]-1;
+    }
+    else{
+      nky = targetShape[4];
+    }
     size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0] - 1; //here x is at position 0
-    assert(nkxGlobal >= nkx);
     std::cout << "local number of x points: " << nkx << " global number of x points: " << nkxGlobal << "\n";
+
+    assert(nkxGlobal >= nkx);
     // make sure this value is even (actually should be power of two)
     // because we assume the highest kx is always zero
     assert( nkx%2 == 0 ); //toDo global case
@@ -763,7 +781,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
     for( size_t n=0; n < targetShape[0]; ++n ){ //n_spec
       for( size_t m=0; m < targetShape[1]; ++m ){ //w
         for( size_t l=0; l < targetShape[2]; ++l ){ //v
-          for( size_t j=0; j < targetShape[4]; ++j ){ //y
+          for( size_t j=0; j < nky; ++j ){ //y
             for( size_t i=0; i < nkx; ++i ){ //x
               // ignore highest mode, because it is always zero toDo is this only valid in local case?
               if(!_GENE_Global){ //toDo is this right?
@@ -774,7 +792,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
                 getOffsetAndFactor( xoffset, factor,j+1 );
               }
               else{
-                getOffsetAndFactor( xoffset, factor,j+1, (i*1.0)/(nkxGlobal*1.0) * lx_ );
+                getOffsetAndFactor( xoffset, factor,j+1, i );
               }
               // calc kx_star
               IndexType kx_star = (i + xoffset)%nkxGlobal; //it might be problematic if kx_star is not on the same process
@@ -801,9 +819,10 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
  * See diss of Christoph Kowitz for more information.
  * @param xoffset variable that stores the xoffset after call
  * @param factor variable that stores the scaling factors after call
- * @param l defines mode ky=kymin_*l. l is always integer valued
+ * @param l defines mode ky=kymin_*l. l is always integer valued (starts at 1 -> y index +1)
+ * @param x x index only used in Global simulations
  */
-void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l, real x ){
+void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l, IndexType x ){
   // calculate x offset and factor
   if(!_GENE_Global){
   int N = int( round( shat_ * kymin_ * lx_ ) );
@@ -818,10 +837,23 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, In
   }
   else{
     xoffset = 0;
-    double ky = kymin_ * l;
-    double pi = boost::math::constants::pi<double>();
-    double angle = 2*pi*ky*(x0_ + shat_ *(x - x0_));
-    factor = complex(cos(angle),sin(angle));
+    //std::cout << "size of q: " << size_q_ << " size of Cy: " << size_Cy_ <<"\n";
+
+    if(x<size_q_ && l - 1 < size_Cy_){
+      double ky = kymin_ * l;
+      double Cy = C_y_[l-1];
+      double q = q_prof_[x];
+      //std::cout << "q: " << q << " Cy: " << Cy <<"\n";
+
+      double pi = boost::math::constants::pi<double>();
+      double angle = 2*pi*q*Cy*ky;
+      factor = complex(cos(angle),sin(angle));
+    }
+    else{
+      std::cout << "Error! out of bounds. \n";
+      std::cout << "x: " << x << " y: " << l-1 << "\n";
+      factor = 0;
+    }
   }
 }
 
@@ -833,8 +865,10 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, In
 void GeneTask::adaptBoundaryZglobal(int species){
   // make sure at least two processes in z-direction
   assert( dfgVector_[species]->getParallelization()[2] > 1 );
-  //make sure that no parallelization in x is performed
-  assert(dfgVector_[species]->getParallelization()[0] == 1);
+  //make sure that no parallelization in x is performed (in local cases); toDO test in glboal cases
+  if(_GENE_Linear){
+    assert(dfgVector_[species]->getParallelization()[0] == 1);
+  }
   // everything in normal dfg notation here except MPI subarrays!
 
   // get parallelization and coordinates of process
@@ -849,8 +883,10 @@ void GeneTask::adaptBoundaryZglobal(int species){
   // todo: works only for nky = 1. for linear simulations we do not need this
   // for non-linear simulations the boundary treatment is different
   // for global simulations it is probably different too
-  assert( dfgVector_[species]->getGlobalSizes()[1] == 1 );
-
+  // adapted for nky > 1 (non-linear simulations)
+  if(_GENE_Linear){
+    assert( dfgVector_[species]->getGlobalSizes()[1] == 1 );
+  }
   IndexType xoffset;
   CombiDataType factor;
 
@@ -864,7 +900,7 @@ void GeneTask::adaptBoundaryZglobal(int species){
     // other processes don't have to do anything here
     return;
   }
-/*
+/* old code
   // for each remote process there may be up to two blocks of data to send
   // or receive
   std::vector< std::vector<IndexType> > transferIndicesBlock1( dfg_->getCommunicatorSize() );
@@ -991,6 +1027,7 @@ void GeneTask::adaptBoundaryZglobal(int species){
   if(species==0){
     requestArray_ = new MPI_Request[nspecies_];
     receiveBufferArray_.resize(nspecies_);
+    //std::cout << "created array \n";
   }
   // set lower bounds of subarray
   IndexVector subarrayLowerBounds = dfgVector_[species]->getLowerBounds();
@@ -1011,6 +1048,9 @@ void GeneTask::adaptBoundaryZglobal(int species){
   IndexVector subsizes = subarrayUpperBounds - subarrayLowerBounds;
   // the starts are local indices
   IndexVector starts = subarrayLowerBounds - dfgVector_[species]->getLowerBounds();
+  //std::cout << "sizes: " << sizes << "\n";
+  //std::cout << "subsizes: " << subsizes << "\n";
+  //std::cout << "starts: " << starts << "\n";
 
   // convert to mpi notation
   // also we have to use int as type for the indizes
@@ -1041,7 +1081,8 @@ void GeneTask::adaptBoundaryZglobal(int species){
       numElements *= subsizes[i];
     }
     receiveBufferArray_[species] = new CombiDataType[numElements];
-    MPI_Irecv( receiveBufferArray_[species], 1, mysubarray, r, 1000, dfgVector_[species]->getCommunicator(),
+    //receiver does not need mysubarray
+    MPI_Irecv( receiveBufferArray_[species], numElements, dfgVector_[species]->getMPIDatatype(), r, 1000, dfgVector_[species]->getCommunicator(),
                &requestArray_[species]);
   }
 
@@ -1054,9 +1095,12 @@ void GeneTask::adaptBoundaryZglobal(int species){
     if(!sendingProc){
       for(int i=0; i<nspecies_; i++){
         MultiArrayRef6 dfgData = createMultiArrayRef<CombiDataType,6>( *dfgVector_[i] );
-        MultiArrayRef6 receivedData =  MultiArrayRef<CombiDataType,6>(receiveBufferArray_[i],subsizes);
+        //dfg data is stored in reverse ordering of shape
+        std::vector<size_t> shape( subsizes.rbegin(),
+                                       subsizes.rend() );
+        MultiArrayRef6 receivedData =  MultiArrayRef<CombiDataType,6>(receiveBufferArray_[i],shape);
         adaptBoundaryZKernel(receivedData,dfgData,i);
-        delete receiveBufferArray_[i];
+        delete[] receiveBufferArray_[i];
       }
     }
     delete[] requestArray_;

@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
   MPI_Comm_split(MPI_COMM_WORLD, color, key, &lcomm);
 
   // Gene creates another comm which we do not need, but it is necessary
-  // to execute comm_split again
+  // to execute comm_split again; otherwise dead-lock (Split is collective and blocking)
   MPI_Comm pcomm;
   MPI_Comm_split( MPI_COMM_WORLD, key, color, &pcomm );
 
@@ -172,7 +172,6 @@ int main(int argc, char** argv) {
     //real shat = 0.7960;
     //real kymin = 0.3000;
     //real lx = 4.18760;
-    real shat = cfg.get<real>("application.shat");
     real kymin = cfg.get<real>("application.kymin");
     real lx = cfg.get<real>("application.lx");
     IndexType numGrids = cfg.get<IndexType>("application.numspecies");
@@ -182,6 +181,10 @@ int main(int argc, char** argv) {
     std::remove(GENE_local_string.begin(), GENE_local_string.end(), ' ');
     const bool GENE_Linear = GENE_nonlinear_string == "F";
     const bool GENE_Global = GENE_local_string == "F";
+    real shat = 0;
+    if(!GENE_Global){ //shat only used in local case
+       shat = cfg.get<real>("application.shat");
+    }
     std::cout << "GENE_Linear: " << GENE_Linear << "\n";
     std::cout << "GENE_Global: " << GENE_Global << "\n";
     std::cout << "shat: " << shat << " kymin: " << kymin << " lx: " << lx << "\n";
@@ -260,7 +263,8 @@ int main(int argc, char** argv) {
       IndexType numSpecies = numGrids; //generate one grid per species
       Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
                                 loadmodel, path, dt, nsteps,
-                                shat, kymin, lx, ky0_ind, p, faultCrit, numSpecies, GENE_Global,GENE_Linear);
+                                shat, kymin, lx, ky0_ind, p, faultCrit,
+                                numSpecies, GENE_Global,GENE_Linear);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
 
