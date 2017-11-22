@@ -8,8 +8,8 @@
 #ifndef TASKEXAMPLE_HPP_
 #define TASKEXAMPLE_HPP_
 
-#include <unordered_map>
-#include <boost/serialization/unordered_map.hpp>
+#include <map>
+#include <boost/serialization/map.hpp>
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
@@ -24,7 +24,7 @@ class TaskExample: public Task {
    */
   TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary,
               real coeff, LoadModel* loadModel, real dt,
-              size_t nsteps, std::unordered_map<size_t, IndexVector> pByProc ) :
+              size_t nsteps, std::map<size_t, CartRankCoords> pByProc ) :
     Task(dim, l, boundary, coeff, loadModel), dt_(dt), nsteps_(
       nsteps), p_( std::move(pByProc) ), initialized_(false), stepsTotal_(0), dfg_(NULL) {
   }
@@ -75,7 +75,8 @@ class TaskExample: public Task {
           prod_p *= p[k];
       }
     } else {
-      p = p_[np];
+      auto& pBySize = p_[np];
+      std::transform(pBySize.begin(), pBySize.end(), p.begin(), [](int i){ return static_cast<size_t>(i); });
     }
 
     if (lrank == 0) {
@@ -196,7 +197,7 @@ class TaskExample: public Task {
   // new variables that are set by manager. need to be added to serialize
   real dt_;
   size_t nsteps_;
-  std::unordered_map<size_t, IndexVector> p_;
+  std::map<size_t, CartRankCoords> p_;
 
   // pure local variables that exist only on the worker processes
   bool initialized_;

@@ -4,6 +4,7 @@
 #include <mpi.h>
 #include <ostream>
 #include <vector>
+#include <map>
 #include <type_traits>
 #include <assert.h>
 
@@ -20,6 +21,8 @@
 #define WORLD_MANAGER_EXCLUSIVE_SECTION  if( combigrid::theMPISystem()->isWorldManager() )
 
 namespace combigrid {
+
+typedef std::vector<int> CartRankCoords;
 
 /** MPI Communication System
  *
@@ -64,6 +67,27 @@ namespace combigrid {
  * its process group
  */
 class ProcessGroupManager;
+class MPISystem;
+class MPIInitHelper {
+public:
+  MPIInitHelper(MPISystem&);
+  MPIInitHelper& withGroups( size_t ngroups, size_t nprocs );
+  MPIInitHelper& withGroups( size_t ngroups, std::vector<size_t> nprocsPattern );
+
+  MPIInitHelper& withLocalComm( CommunicatorType lcomm );
+
+  MPIInitHelper& withParallelization( std::map<size_t, CartRankCoords> parallelization );
+
+  void init();
+private:
+  // The system to init
+  MPISystem& system_;
+  size_t ngroups_;
+  std::vector<size_t> nprocsByGroup_;
+  CommunicatorType lcomm_;
+  std::map<size_t, CartRankCoords> parallelByLocalSize_;
+};
+
 class MPISystem {
  public:
   ~MPISystem();
@@ -72,11 +96,10 @@ class MPISystem {
 
   MPISystem& operator=( MPISystem const & ) = delete;
 
-  void init( size_t ngroups, size_t nprocs );
-
-  void init( size_t ngroups, std::vector<size_t> nprocsByGroup );
-
-  void init( size_t ngroups, size_t nprocs, CommunicatorType lcomm );
+  // Don't use this directly, instead use configure().with[...].init()
+  void init( size_t ngroups, std::vector<size_t> nprocsByGroup,
+    CommunicatorType lcomm, std::map<size_t, CartRankCoords> parallelByLocalSize );
+  MPIInitHelper configure();
 
   inline const CommunicatorType& getWorldComm() const;
 
@@ -147,8 +170,6 @@ class MPISystem {
     WORLD_INIT,
     // The local communicator is initialized
     LOCAL_INIT,
-    // The team communicator is initilalized
-    TEAM_INIT,
     // The global communicator is initialized
     GLOBAL_INIT,
     // The reduce communicator is initialized
@@ -175,13 +196,9 @@ class MPISystem {
 
   void createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm );
 
-  void initLocalComm();
-
-  void initLocalComm(CommunicatorType lcomm);
+  void initLocalComm( CommunicatorType lcomm, std::map<size_t, CartRankCoords> parallelByLocalSize );
 
   void initGlobalComm();
-
-  void initTeamComm();
 
   void debugLogCommunicator( CommunicatorType comm, std::string commName );
 
@@ -241,6 +258,12 @@ class MPISystem {
   RankType localRank_;
 
   RankType teamRank_;
+
+  CartRankCoords localCoords_;
+
+  CartRankCoords parallelization_;
+
+  CartRankCoords teamExtent_;
 
   RankType teamColor_;
 
@@ -324,7 +347,7 @@ inline const CommunicatorType& MPISystem::getLocalComm() const{
 
 
 inline const CommunicatorType& MPISystem::getTeamComm() const{
-  checkPreconditions( InitializationStage::TEAM_INIT );
+  checkPreconditions( InitializationStage::LOCAL_INIT );
 
   return teamComm_;
 }
@@ -363,7 +386,7 @@ inline simft::Sim_FT_MPI_Comm MPISystem::getLocalCommFT(){
 
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getTeamCommFT(){
-  checkPreconditionsFT( InitializationStage::TEAM_INIT );
+  checkPreconditionsFT( InitializationStage::LOCAL_INIT );
 
   return teamCommFT_;
 }

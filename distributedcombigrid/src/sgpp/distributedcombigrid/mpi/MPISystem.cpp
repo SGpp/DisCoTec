@@ -44,6 +44,60 @@ namespace{
 
 namespace combigrid {
 
+MPIInitHelper::MPIInitHelper(MPISystem& mpiSystem) :
+    system_(mpiSystem),
+    ngroups_(-1),
+    nprocsByGroup_(),
+    lcomm_(MPI_COMM_NULL),
+    parallelByLocalSize_()
+{
+}
+
+MPIInitHelper& MPIInitHelper::withGroups( size_t ngroups, size_t nprocs )
+{
+  ngroups_ = ngroups;
+  nprocsByGroup_ = std::vector<size_t>{ ngroups, nprocs };
+  return *this;
+}
+
+MPIInitHelper& MPIInitHelper::withGroups( size_t ngroups, std::vector<size_t> nprocsPattern )
+{
+  assert( ngroups % nprocsPattern.size() == 0 && "ngroups must be multiple of nprocsPattern.size()");
+  assert( ngroups > 0 && "ngroups must be positive");
+
+  size_t patternSize = nprocsPattern.size();
+  size_t repeat = ngroups / patternSize;
+  nprocsPattern.resize( patternSize * repeat );
+  auto patternStart = nprocsPattern.begin();
+  auto patternEnd = nprocsPattern.begin() + patternSize;
+  auto it = patternEnd;
+  for(size_t i = 1; i < repeat; i++) {
+    std::copy(patternStart, patternEnd, it);
+    it += patternSize;
+  }
+
+  ngroups_ = ngroups;
+  nprocsByGroup_ = std::move( nprocsPattern );
+  return *this;
+}
+
+MPIInitHelper& MPIInitHelper::withLocalComm( CommunicatorType lcomm )
+{
+  lcomm_ = lcomm;
+  return *this;
+}
+
+MPIInitHelper& MPIInitHelper::withParallelization( std::map<size_t, CartRankCoords> parallelization )
+{
+  parallelByLocalSize_ = std::move( parallelization );
+  return *this;
+}
+
+void MPIInitHelper::init()
+{
+  system_.init( ngroups_, nprocsByGroup_, lcomm_, parallelByLocalSize_ );
+}
+
 
 
 /*!\brief Constructor for the MPISystem class.
@@ -71,6 +125,9 @@ MPISystem::MPISystem() :
     globalRank_(MPI_UNDEFINED),
     localRank_(MPI_UNDEFINED),
     teamRank_(MPI_UNDEFINED),
+    localCoords_(),
+    parallelization_(),
+    teamExtent_(),
     teamColor_(MPI_UNDEFINED),
     globalReduceRank_(MPI_UNDEFINED),
     managerRank_(MPI_UNDEFINED),
@@ -95,42 +152,26 @@ MPISystem::~MPISystem() {
 }
 
 
-void MPISystem::init( size_t ngroup, size_t nprocs ){
-  init( ngroup, std::vector<size_t>{ ngroup, nprocs } );
-}
-
-
-void MPISystem::init( size_t ngroup, std::vector<size_t> nprocsByGroup ){
+void MPISystem::init(
+    size_t ngroup,
+    std::vector<size_t> nprocsByGroup,
+    CommunicatorType lcomm,
+    std::map<size_t, CartRankCoords> parallelizationBySize)
+{
   assert( initialized_ == InitializationStage::PRE_INIT && "MPISystem already initialized!" );
-  assert( ngroup % nprocsByGroup.size() == 0 && "ngroup must be multiple of nprocsByGroup.size()");
   assert( ngroup > 0 && "ngroup must be positive");
+  assert( ngroup == nprocsByGroup.size() && "ngroup must be equal to nprocsByGroup.size()");
 
-  {
-    size_t repeat = ngroup / nprocsByGroup.size();
-    size_t patternSize = nprocsByGroup.size();
-    nprocsByGroup.resize( patternSize * repeat );
-    auto patternStart = nprocsByGroup.begin();
-    auto patternEnd = nprocsByGroup.begin() + patternSize;
-    auto it = patternEnd;
-    for(size_t i = 1; i < repeat; i++) {
-      std::copy(patternStart, patternEnd, it);
-      it += patternSize;
-    }
-
-    initWorldComm( std::move( nprocsByGroup ) );
-    initialized_ = InitializationStage::WORLD_INIT;
-  }
+  initWorldComm( std::move( nprocsByGroup ) );
+  initialized_ = InitializationStage::WORLD_INIT;
 
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
    * for manager, lcomm is a group which contains only manager process and can be ignored
    */
-  initLocalComm();
+  initLocalComm( lcomm, std::move(parallelizationBySize) );
   initialized_ = InitializationStage::LOCAL_INIT;
 
-  initTeamComm();
-  initialized_ = InitializationStage::TEAM_INIT;
-
   /* create global communicator which contains only the manager and the master
    * process of each process group
    * the master processes of the process groups are the processes which have
@@ -152,44 +193,8 @@ void MPISystem::init( size_t ngroup, std::vector<size_t> nprocsByGroup ){
 }
 
 
-/*  here the local communicator has already been created by the application */
-void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
-  assert( initialized_ == InitializationStage::PRE_INIT && "MPISystem already initialized!" );
-
-  initWorldComm( std::vector<size_t>{ ngroup, nprocs } );
-  initialized_ = InitializationStage::WORLD_INIT;
-  //std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
-  //worldCommFT_->Root_Rank = worldSize - 1;
-  /* init localComm
-   * lcomm is the local communicator of its own process group for each worker process.
-   * for manager, lcomm is a group which contains only manager process and can be ignored
-   */
-   CommunicatorType lcommCopy;
-   MPI_Comm_dup(lcomm,&lcommCopy);
-   initLocalComm( lcommCopy );
-   initialized_ = InitializationStage::LOCAL_INIT;
-
-   initTeamComm();
-   initialized_ = InitializationStage::TEAM_INIT;
-
-  /* create global communicator which contains only the manager and the master
-   * process of each process group
-   * the master processes of the process groups are the processes which have
-   * rank 0 in lcomm
-   * this communicator is used for communication between master processes of the
-   * process groups and the manager and the master processes to each other
-   */
-  initGlobalComm();
-  initialized_ = InitializationStage::GLOBAL_INIT;
-
-  initGlobalReduceCommm();
-  initialized_ = InitializationStage::ALL_INIT;
-
-  debugLogCommunicator( MPISystem::getWorldComm(), "world" );
-  debugLogCommunicator( MPISystem::getLocalComm(), "local" );
-  debugLogCommunicator( MPISystem::getTeamComm(), "team" );
-  debugLogCommunicator( MPISystem::getGlobalComm(), "global" );
-  debugLogCommunicator( MPISystem::getGlobalReduceComm(), "reduce" );
+MPIInitHelper MPISystem::configure() {
+  return { *this };
 }
 
 
@@ -233,71 +238,100 @@ void MPISystem::initWorldComm( std::vector<size_t> procsByGroup ){
 }
 
 
-void MPISystem::initLocalComm(){
-  int color = int(group_);
-  int key = worldRank_ - getGroupBaseWorldRank( group_ );
-  CommunicatorType lcomm;
-  MPI_Comm_split( worldComm_, color, key, &lcomm );
-  /* set group number in Stats. this is necessary for postprocessing */
-  Stats::setAttribute("group", std::to_string(color));
-
-  initLocalComm( lcomm );
-}
-
-
-void MPISystem::initLocalComm( CommunicatorType lcomm ){
-  // manager is not supposed to have a localComm
-  if( isWorldManager() )
+void MPISystem::initLocalComm(
+    CommunicatorType lcomm,
+    std::map<size_t, CartRankCoords> parallelByLocalSize )
+{
+  if( isWorldManager() ) {
     localComm_ = MPI_COMM_NULL;
-  else{
-    localComm_ = lcomm;
-    // todo: think through which side effects changing the master rank would have
-    // in principle this does not have to be 0
-    const int masterRank = 0;
-
-    int localSize;
-    MPI_Comm_size( localComm_, &localSize );
-    assert( masterRank < localSize );
-
-    masterRank_ = masterRank;
-
-    MPI_Comm_rank( localComm_, &localRank_ );
+    return;
   }
 
+  assert(parallelByLocalSize.size() > 0 && "parallelization can't be empty");
+
+  size_t groupSize = getNumProcs( group_ );
+  assert(parallelByLocalSize.find( groupSize) != parallelByLocalSize.end() &&
+      "parallelization must contain an entry for each group size" );
+  CartRankCoords& pVec = parallelByLocalSize[groupSize];
+  CartRankCoords& minPVec = parallelByLocalSize.begin()->second;
+  size_t dim = pVec.size();
+
+  // important: note reverse ordering of dims!
+  CartRankCoords dims( pVec.rbegin(), pVec.rend() );
+
+  if( lcomm == MPI_COMM_NULL ) {
+    // Create a new local communicator
+    int color = int(group_);
+    int key = worldRank_ - getGroupBaseWorldRank( group_ );
+    MPI_Comm_split( worldComm_, color, key, &lcomm );
+  } else {
+    // Copy for independant context
+    MPI_Comm_dup( lcomm, &lcomm );
+  }
+
+  int status;
+  MPI_Topo_test( lcomm, &status );
+  if( status != MPI_CART ) {
+    // Impose a cartesian structure
+    // todo mh: think whether periodic bc will be useful
+    CartRankCoords periods(dim, 0);
+    int reorder = 0;
+    MPI_Cart_create(lcomm, static_cast<int>(dim), dims.data(), periods.data(),
+                    reorder, &lcomm);
+  } else {
+    CartRankCoords cartdims(dim), periods(dim), coords(dim);
+    MPI_Cart_get( lcomm, dim, cartdims.data(), periods.data(), coords.data() );
+
+    assert( cartdims == dims );
+
+    std::cout << "Using existing communicator with cartesian structure\n";
+  }
+  /* set group number in Stats. this is necessary for postprocessing */
+  Stats::setAttribute("group", std::to_string(int(group_)));
+
+  localComm_ = lcomm;
+  // todo: think through which side effects changing the master rank would have
+  // in principle this does not have to be 0
+  const int masterRank = 0;
+
+  int localSize;
+  MPI_Comm_size( localComm_, &localSize );
+  assert( localSize == groupSize );
+  assert( masterRank < localSize );
+
+  masterRank_ = masterRank;
+
+  MPI_Comm_rank( localComm_, &localRank_ );
 
   if(ENABLE_FT){
-    if( localComm_ != MPI_COMM_NULL){
-      createCommFT( &localCommFT_, localComm_ );
-    }
+    createCommFT( &localCommFT_, localComm_ );
   }
-}
 
+  // Initialize teams
+  localCoords_.resize(dim, 0);
+  MPI_Cart_coords( localComm_, localRank_, dim, localCoords_.data() );
+  parallelization_ = dims;
 
-void MPISystem::initTeamComm(){
-  if( isWorldManager() ) {
-    teamComm_ = MPI_COMM_NULL;
-    teamCommFT_ = nullptr;
-  } else {
-    size_t minProcsPerGroup = *std::min_element( nprocsByGroup_.begin(), nprocsByGroup_.end() );
-    size_t procsInOwnGroup = getNumProcs( group_ );
-    assert( procsInOwnGroup % minProcsPerGroup == 0 && "group sizes must be multiple of each other" );
-    size_t teamSize = procsInOwnGroup / minProcsPerGroup;
+  teamExtent_.resize(dim, 0);
+  size_t teamSize = 0;
+  for(size_t d = 0; d < dim; ++d) {
+    assert( pVec[d] >= minPVec[d] && "parallelizations must be compatible" );
+    teamExtent_[d] = pVec[d] - minPVec[d];
+  }
+  // Remember to reverse dims
+  std::reverse( teamExtent_.begin(), teamExtent_.end() );
 
-    RankType localRank = getLocalRank();
-    RankType teamColor = localRank / teamSize;
-    RankType teamKey = localRank % teamSize;
-    MPI_Comm_split( getLocalComm(), teamColor, teamKey, &teamComm_ );
-    MPI_Comm_rank( teamComm_, &teamRank_ );
-    teamColor_ = teamColor;
+  // Find our team leader
+  CartRankCoords teamLeaderCoords(dim);
+  for(size_t d = 0; d < dim; ++d) {
+    teamLeaderCoords[d] = localCoords_[d] - (localCoords_[d] % teamExtent_[d]);
+  }
+  MPI_Cart_rank( localComm_, teamLeaderCoords.data(), &teamLeaderRank_ );
 
-    const RankType teamLeaderRank = 0;
+  MPI_Comm_split( localComm_, teamLeaderRank_, localRank_, &teamComm_ );
 
-    assert( teamLeaderRank < teamSize );
-    teamLeaderRank_ = teamLeaderRank;
-
-    if( ENABLE_FT ){
-      createCommFT( &teamCommFT_, teamComm_ );
-    }
+  if(ENABLE_FT){
+    createCommFT( &teamCommFT_, teamComm_ );
   }
 }
 
@@ -787,7 +821,7 @@ bool MPISystem::recoverCommunicators( bool groupAlive, std::vector< std::shared_
   if(!groupAlive){
     //toDo:init local comm?
     std::cout << "initialize local comm \n";
-    initLocalComm();
+    // initLocalComm();
     std::cout << "initialized local comm \n";
   }
   else{

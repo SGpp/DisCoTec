@@ -7,7 +7,7 @@
 #include <mpi.h>
 #include <vector>
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <numeric>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -62,9 +62,24 @@ int main(int argc, char** argv) {
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
   std::vector<size_t> nprocs = get_as_vector<size_t>( cfg, "manager.nprocs" );
 
+  DimType dim = cfg.get<DimType>("ct.dim");
+  std::map<size_t, CartRankCoords> pByNProcs;
+  {
+    const ptree& ps = cfg.get_child("ct.p");
+    for(const auto& pConfig : ps) {
+      IndexVector pIdx( dim );
+      pConfig.second.get_value<std::string>() >> pIdx;
+
+      CartRankCoords p( dim );
+      std::transform(pIdx.begin(), pIdx.end(), p.begin(), [](size_t i) { return static_cast<int>(i); });
+      IndexType procCount = std::accumulate( p.begin(), p.end(), 1, std::multiplies<IndexType>{} );
+      pByNProcs[procCount] = std::move( p );
+    }
+  }
+
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
-  theMPISystem()->init( ngroup, nprocs );
+  theMPISystem()->configure().withGroups( ngroup, nprocs ).withParallelization( pByNProcs ).init();
 
   // this code is only executed by the manager process
   WORLD_MANAGER_EXCLUSIVE_SECTION {
@@ -83,23 +98,12 @@ int main(int argc, char** argv) {
     LoadModel* loadmodel = new LinearLoadModel();
 
     /* read in parameters from ctparam */
-    DimType dim = cfg.get<DimType>("ct.dim");
     LevelVector lmin(dim), lmax(dim), leval(dim);
-    std::unordered_map<size_t, IndexVector> pByNProcs;
     combigrid::real dt;
     size_t nsteps, ncombi;
     cfg.get<std::string>("ct.lmin") >> lmin;
     cfg.get<std::string>("ct.lmax") >> lmax;
     cfg.get<std::string>("ct.leval") >> leval;
-    {
-      const ptree& ps = cfg.get_child("ct.p");
-      for(const auto& pConfig : ps) {
-        IndexVector p( dim );
-        pConfig.second.get_value<std::string>() >> p;
-        IndexType procCount = std::accumulate( p.begin(), p.end(), 1, std::multiplies<IndexType>{} );
-        pByNProcs[procCount] = std::move( p );
-      }
-    }
     ncombi = cfg.get<size_t>("ct.ncombi");
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");

@@ -857,11 +857,7 @@ class DistributedFullGrid {
     for (size_t subFgId = 0; subFgId < subspaces_.size(); ++subFgId) {
       subspaceAssigmentList_[subFgId] = dsg.getIndex(
                                           subspaces_[subFgId].level_);
-    }
-
-    // resize all common subspaces in dsg
-    for (size_t subFgId = 0; subFgId < subspaceAssigmentList_.size();
-         ++subFgId) {
+      // resize all common subspaces in dsg
       if (subspaceAssigmentList_[subFgId] < 0)
         continue;
 
