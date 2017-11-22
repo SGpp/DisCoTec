@@ -243,7 +243,7 @@ void MPISystem::initLocalComm(
     std::map<size_t, CartRankCoords> parallelByLocalSize )
 {
   if( isWorldManager() ) {
-    localComm_ = MPI_COMM_NULL;
+    MPI_Comm_split( worldComm_, MPI_UNDEFINED, 0, &lcomm );
     return;
   }
 
@@ -315,8 +315,8 @@ void MPISystem::initLocalComm(
   teamExtent_.resize(dim, 0);
   size_t teamSize = 0;
   for(size_t d = 0; d < dim; ++d) {
-    assert( pVec[d] >= minPVec[d] && "parallelizations must be compatible" );
-    teamExtent_[d] = pVec[d] - minPVec[d];
+    assert( (pVec[d] % minPVec[d]) == 0 && "parallelizations must be compatible" );
+    teamExtent_[d] = pVec[d] / minPVec[d];
   }
   // Remember to reverse dims
   std::reverse( teamExtent_.begin(), teamExtent_.end() );
