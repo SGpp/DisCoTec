@@ -34,6 +34,8 @@ struct SubspaceDFG {
 
   size_t targetSize_;
 
+  IndexVector localSizes_;
+
   size_t localSize_;
 };
 
@@ -1744,23 +1746,28 @@ class DistributedFullGrid {
       //continue;
 
       const LevelVector& l = subspaces_[i].level_;
-      IndexVector ivec(dim_);
+      subspaces_[i].localSizes_.resize( dim_ );
+      std::vector<IndexVector> oneDIndices( dim_ );
+      for(DimType d = 0; d < dim_; ++d) {
+        get1dIndicesLocal(d, l, oneDIndices[d]);
+        subspaces_[i].localSizes_[d] = oneDIndices[d].size();
+      }
 
-      calcAssigmentRec(dim_ - 1, l, ivec, i);
+      IndexVector ivec(dim_);
+      calcAssigmentRec(dim_ - 1, l, oneDIndices, ivec, i);
     }
   }
 
-  void calcAssigmentRec(DimType d, const LevelVector& lvec, IndexVector& ivec,
+  void calcAssigmentRec(DimType d,
+                        const LevelVector& lvec,
+                        const std::vector<IndexVector>& oneDIndices,
+                        IndexVector& ivec,
                         size_t subI) {
-    IndexVector oneDIndices;
-
-    get1dIndicesLocal(d, lvec, oneDIndices);
-
-    for (IndexType idx : oneDIndices) {
+    for (IndexType idx : oneDIndices[d]) {
       ivec[d] = idx;
 
       if (d > 0)
-        calcAssigmentRec(d - 1, lvec, ivec, subI);
+        calcAssigmentRec(d - 1, lvec, oneDIndices, ivec, subI);
       else {
         IndexType j = getLocalLinearIndex(ivec);
         assigmentList_[j] = static_cast<unsigned short int>(subI);
