@@ -132,6 +132,13 @@ public:
   inline bool checkIsInitialized(){
       return checkpointInitialized_;
   }
+  void write_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
+    int size);
+  void load_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
+      int size);
+  bool is_gyromatrix_buffered(){
+    return gyromatrix_buffered_;
+  }
 
 private:
   friend class boost::serialization::access;
@@ -149,9 +156,6 @@ private:
   inline bool failNow( const int& globalRank );
 
 
-
-
-
   // following variables are set in manager and thus need to be included in
   // serialize function
   std::string path_;    // directory in which task should be executed
@@ -166,7 +170,8 @@ private:
   real lx_;
   real x0_;
   int ky0_ind_;
-
+  GeneComplex* gyromatrix_buffer_; //buffer for gyromatrix
+  bool gyromatrix_buffered_ = false; //indicates if gyromatrix is buffered
   // following variables are only accessed in worker and do not need to be
   // serialized
   GeneLocalCheckpoint checkpoint_;

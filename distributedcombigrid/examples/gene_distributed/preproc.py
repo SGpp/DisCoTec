@@ -19,7 +19,7 @@ spcfile = 'spaces.dat'
 parser = SafeConfigParser()
 parser.read('ctparam')
 
-config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max ntimesteps_combi basename executable mpi startscript sgpplib tasklib ngroup nprocs shat kymin lx')
+config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max ntimesteps_combi basename executable mpi startscript sgpplib tasklib ngroup nprocs shat kymin lx numFaults')
 
 config.lmin = [int(x) for x in parser.get('ct','lmin').split()]
 config.lmax = [int(x) for x in parser.get('ct','lmax').split()]
@@ -42,6 +42,7 @@ config.lx = parser.get('application','lx')
 config.numspecies = parser.get('application','numspecies') 
 config.local = parser.get('application','GENE_local') 
 config.nonlinear = parser.get('application','GENE_nonlinear') 
+config.numFaults = int( parser.get('faults', 'num_faults'))
 if config.local == "T" :
     config.shat = parser.get('application','shat') 
 
@@ -126,11 +127,13 @@ pfileout.close()
 # note that the level vector in the python vector is stored in reverse order
 lminp = lmin[::-1]
 lmaxp = lmax[::-1]
-#activeSet = aSF.ClassicDiagonalActiveSet(lmaxp,lminp)
-#scheme = cS.combinationSchemeArbitrary(activeSet.getActiveSet())
-factory = aSF.ClassicDiagonalActiveSet(lmaxp,lminp,0)
-activeSet = factory.getActiveSet()
-scheme = cS.combinationSchemeFaultTolerant(factory)
+if(config.numFaults == 0):
+    activeSet = aSF.ClassicDiagonalActiveSet(lmaxp,lminp)
+    scheme = cS.combinationSchemeArbitrary(activeSet.getActiveSet())
+else:
+    factory = aSF.ClassicDiagonalActiveSet(lmaxp,lminp,0)
+    activeSet = factory.getActiveSet()
+    scheme = cS.combinationSchemeFaultTolerant(factory)
 # detect number of simulation steps
 #nsteps = config.ntimesteps_combi if config.ntimesteps_combi <= config.ntimesteps_ev_calc else config.ntimesteps_ev_calc
 
@@ -161,7 +164,7 @@ for l in scheme.getCombinationDictionary():
     pin = pfilein.read()
     pfilein.close()
     
-    pout = pin.replace('$nx0',str(2**l0),1)
+    pout = pin.replace('$nx0',str(2**l0+1),1)
     if config.nonlinear == "T" :
     	pout = pout.replace('$nky0',str(2**l1),1)
     else:

@@ -208,7 +208,12 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
         assert(sizes[i] == 1);
       }
       else{
-        assert(sizes[i] == pow(2,l_[index_l]));
+        if(i == 5){ //x
+          assert(sizes[i] == pow(2,l_[index_l]) + 1);
+        }
+        else{
+          assert(sizes[i] == pow(2,l_[index_l]));
+        }
       }
     }
   }
@@ -619,8 +624,8 @@ void GeneTask::setDFG(){
       // dfg and lcp differ
       //std::cout << "dfgShape[" << d << "] " << dfgShape[d] <<"\n";
       //std::cout << "lcpShape[" << d << "] " << lcpShape[d] <<"\n";
-
-      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || d == 4 ||d==5 ) ){ //x,y (only non-linear cases),z,v,w at upper border of domain (one additional point)
+      //last process in line has boundary points not included in gene
+      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || d == 4 /*||d==5 */) ){ //x,y (only non-linear cases),z,v,w at upper border of domain (one additional point)
         assert( dfgShape[d] == lcpShape[d] + 1 );
       } else{
         if(d==0){ //species
@@ -642,6 +647,7 @@ void GeneTask::setDFG(){
             for( size_t i=0; i < lcpShape[5]; ++i ){ //x
               dfgData[0][m][l][k][j][i].real( lcpData[species][m][l][k][j][i].r );
               dfgData[0][m][l][k][j][i].imag( lcpData[species][m][l][k][j][i].i );
+              //std::cout << dfgData[0][m][l][k][j][i] << "\n";
             }
           }
         }
@@ -757,8 +763,8 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
 
     // we ignore the last point in x direction
     size_t nkx, nky; //number of points in x and y direction in local dfg (excludes points that are 0)
-    if(xBorder){
-      nkx= targetShape[5]-1; //toDo what happens when x not fourier
+    if(xBorder && !_GENE_Global){ //in global case all x values are valid right now
+      nkx= targetShape[5]-1;
     }
     else{
       nkx = targetShape[5];
@@ -770,13 +776,14 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
     else{
       nky = targetShape[4];
     }
-    size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0] - 1; //here x is at position 0
-    std::cout << "local number of x points: " << nkx << " global number of x points: " << nkxGlobal << "\n";
+    //size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0] - 1; //here x is at position 0
+    size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0]; //we include x boundary currently
+    //std::cout << "local number of x points: " << nkx << " global number of x points: " << nkxGlobal << "\n";
 
     assert(nkxGlobal >= nkx);
     // make sure this value is even (actually should be power of two)
     // because we assume the highest kx is always zero
-    assert( nkx%2 == 0 ); //toDo global case
+    //assert( nkx%2 == 0 ); //toDo global case
 
     for( size_t n=0; n < targetShape[0]; ++n ){ //n_spec
       for( size_t m=0; m < targetShape[1]; ++m ){ //w
@@ -820,7 +827,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
  * @param xoffset variable that stores the xoffset after call
  * @param factor variable that stores the scaling factors after call
  * @param l defines mode ky=kymin_*l. l is always integer valued (starts at 1 -> y index +1)
- * @param x x index only used in Global simulations
+ * @param x x index only used in Global simulations (starts at 0)
  */
 void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l, IndexType x ){
   // calculate x offset and factor
@@ -839,9 +846,9 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, In
     xoffset = 0;
     //std::cout << "size of q: " << size_q_ << " size of Cy: " << size_Cy_ <<"\n";
 
-    if(x<size_q_ && l - 1 < size_Cy_){
+    if(x<size_q_ && x < size_Cy_){
       double ky = kymin_ * l;
-      double Cy = C_y_[l-1];
+      double Cy = C_y_[x];
       double q = q_prof_[x];
       //std::cout << "q: " << q << " Cy: " << Cy <<"\n";
 
@@ -1201,6 +1208,20 @@ void GeneTask::normalizeDFG(int species){
 
 }
 
+void GeneTask::write_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
+    int size){
+  assert(gyromatrix_buffered_ == false);
+  gyromatrix_buffer_ = new GeneComplex[size];
+  memcpy (gyromatrix_buffer_, sparse_gyromatrix_buffer, size * sizeof(GeneComplex) );
+  gyromatrix_buffered_ = true;
+}
+
+void GeneTask::load_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
+    int size){
+  assert(gyromatrix_buffered_ == true);
+
+  memcpy (sparse_gyromatrix_buffer,gyromatrix_buffer_, size * sizeof(GeneComplex) );
+}
 /*
 inline bool GeneTask::failNow( const int& globalRank ){
   FaultsInfo faultsInfo = faultsInfo_;

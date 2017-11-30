@@ -319,7 +319,9 @@ void ProcessGroupWorker::ready() {
         }
 	//merge problem?
 	// todo: gene specific voodoo 
-        return;
+ 	      if(isGENE){
+ 	        return;
+ 	      }
 	//
       }
     }

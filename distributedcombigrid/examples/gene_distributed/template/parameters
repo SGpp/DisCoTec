@@ -64,7 +64,7 @@ istep_schpt =    5000
 nonlinear =   $GENE_nonlinear
 x_local   = $GENE_local
 comp_type = 'IV'
-
+perf_vec  =  1 1 2 1 1 1 1 1 1
 !calc_dt = T
 !dt_max     =   0.6960E-02
 dt_max     =   $dt_max
