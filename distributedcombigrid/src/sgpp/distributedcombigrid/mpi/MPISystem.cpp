@@ -314,7 +314,7 @@ void MPISystem::initLocalComm(
 
   teamExtent_.resize(dim, 0);
   size_t teamSize = 0;
-  for(size_t d = 0; d < dim; ++d) {
+  for(DimType d = 0; d < dim; ++d) {
     assert( (pVec[d] % minPVec[d]) == 0 && "parallelizations must be compatible" );
     teamExtent_[d] = pVec[d] / minPVec[d];
   }
@@ -328,7 +328,14 @@ void MPISystem::initLocalComm(
   }
   MPI_Cart_rank( localComm_, teamLeaderCoords.data(), &teamLeaderRank_ );
 
-  MPI_Comm_split( localComm_, teamLeaderRank_, localRank_, &teamComm_ );
+  int color = teamLeaderRank_;
+  // Use a predictable ordering here
+  int key = 0;
+  for(DimType d = 0; d < dim; ++d) {
+    key *= teamExtent_[d];
+    key += localCoords_[d] - teamLeaderCoords[d];
+  }
+  MPI_Comm_split( localComm_, color, key, &teamComm_ );
 
   if(ENABLE_FT){
     createCommFT( &teamCommFT_, teamComm_ );
