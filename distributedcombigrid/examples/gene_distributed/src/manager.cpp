@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
 
     // create Manager with process groups
     ProcessManager manager(pgroups, tasks, params);
-
+    Stats::startEvent("gesamt");
     // combiparameters need to be set before starting the computation
     Stats::startEvent("update combi parameters");
     manager.updateCombiParameters();
@@ -319,24 +319,34 @@ int main(int argc, char** argv) {
         std::vector<int> redistributeFaultsID, recomputeFaultsID;
         manager.recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
         //time does not need to be updated in gene but maybe in other applications
+        //Stats::startEvent("manager redistribute");
+
         for ( auto id : redistributeFaultsID ) {
          GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
          tmp->setStepsTotal((i+1)*nsteps);
          tmp->setCombiStep(i+1);
         }
-
+        //Stats::stopEvent("manager redistribute");
+        //Stats::startEvent("manager recompute");
         for ( auto id : recomputeFaultsID ) {
          GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
          tmp->setStepsTotal((i)*nsteps);
          tmp->setCombiStep(i+1); //i+1 as decideToKill is not executed during recompute and therfore combistep is not increased
         }
+        //Stats::stopEvent("manager recompute");
         /* recover communicators*/
+        Stats::startEvent("manager recoverComm");
         bool failedRecovery = manager.recoverCommunicators(groupFaults);
+        Stats::stopEvent("manager recoverComm");
         /* communicate new combination scheme*/
+
         if(doOnlyRecompute){
           recomputeFaultsID = faultsID;
           redistributeFaultsID = std::vector<int>(0);
         }
+
+        Stats::startEvent("manager redistribute");
+
         if(failedRecovery){
          std::cout << "redistribute \n";
          manager.redistribute(redistributeFaultsID);
@@ -345,13 +355,16 @@ int main(int argc, char** argv) {
          std::cout << "reinitializing group \n";
          manager.reInitializeGroup(groupFaults,recomputeFaultsID);
         }
-
+        Stats::stopEvent("manager redistribute");
+        Stats::startEvent("manager recompute");
 
         /* if some tasks have to be recomputed, do so*/
         if(!recomputeFaultsID.empty()){
           std::cout << "sending tasks for recompute \n";
          manager.recompute(recomputeFaultsID,failedRecovery,groupFaults); //toDO handle faults in recompute
         }
+        Stats::stopEvent("manager recompute");
+
         std::cout << "updateing Combination Parameters \n";
         //needs to be after reInitialization!
         if(!doOnlyRecompute){
@@ -415,7 +428,7 @@ int main(int argc, char** argv) {
     }
     std::cout << "Computation finished evaluating on target grid! \n";
     //theStatsContainer()->setTimerStop("compute");
-
+    Stats::stopEvent("gesamt");
     // evaluate solution on the grid defined by leval
     //theStatsContainer()->setTimerStart("parallelEval");
     Stats::startEvent("manager parallel eval");

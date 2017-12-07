@@ -291,18 +291,17 @@ def checkJava(config):
 
 def configureGNUCompiler(config):
   if config.env["COMPILER"] == "openmpi":
-    config.env["CC"] = ("mpicc.openmpi")
-    config.env["LINK"] = ("mpic++.openmpi")
-    config.env["CXX"] = ("mpic++.openmpi")
+    config.env["CC"] = ("CC")
+    config.env["LINK"] = ("CC")
+    config.env["CXX"] = ("CC")
     config.env["CPPDEFINES"]["USE_MPI"] = "1"
     Helper.printInfo("Using openmpi.")
   elif config.env["COMPILER"] == "mpich":
-    config.env["CC"] = ("mpicc.mpich")
-    config.env["LINK"] = ("mpic++.mpich")
-    config.env["CXX"] = ("mpic++.mpich")
+    config.env["CC"] = ("cc")
+    config.env["LINK"] = ("CC")
+    config.env["CXX"] = ("CC")
     config.env["CPPDEFINES"]["USE_MPI"] = "1"
     Helper.printInfo("Using mpich.")
-
   versionString = subprocess.check_output([config.env["CXX"], "-dumpversion"]).strip()
   Helper.printInfo("Using {} ({})".format(config.env["CXX"], versionString))
 

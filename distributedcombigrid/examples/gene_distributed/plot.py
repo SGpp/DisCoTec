@@ -205,18 +205,24 @@ def bar_plot_all(proc, maxAverage):
         value = 0
         if(maxAverage):
             value = np.max(timesSum[i])
+            err=0
         else:
             value = np.mean(times[i])
+            err=np.std(times[i])
+        valueMax = np.max(timesSum[i])
+        valueMean = np.mean(times[i])
+        errStd=np.std(times[i])
+        print i, "Error max: ", valueMax, "Error mean: ", valueMean, "Standard deviation: ", errStd 
         ax.bar(offset, value , 2, color=colors[i],
                edgecolor="black", linewidth=1,
-               yerr=np.std(times[i]), label=i,
+               yerr=err, label=i,
                error_kw=dict(elinewidth=1,ecolor='black',
                              capsize=2,capthick=1))
         offset += 2
     ax.legend(loc=2).get_frame().set_alpha(0.75)
 
     ax.set_ylim(ymin=0)
-
+    ax.set_yscale('log')
     # use seconds as unit
     scale_y = 1e6
     ticks_y = ticker.FuncFormatter(lambda y, pos: "{0:g}".format(y/scale_y))
