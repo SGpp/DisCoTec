@@ -17,9 +17,9 @@ Task::Task() {
 }
 
 Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-    LoadModel* loadModel, FaultCriterion *faultCrit ) :
+    LoadModel* loadModel, FaultCriterion *faultCrit) :
   dim_(dim), l_(l), boundary_(boundary), id_(count++), loadModel_(
-    loadModel), isFinished_(false), faultCriterion_(faultCrit) {
+    loadModel), isFinished_(false), faultCriterion_(faultCrit){
   assert(dim_ > 0);
   assert(l_.size() == dim_);
 }

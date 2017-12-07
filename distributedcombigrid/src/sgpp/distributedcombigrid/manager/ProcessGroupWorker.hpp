@@ -46,7 +46,7 @@ class ProcessGroupWorker {
 
   void combineFG();
 
-  void gridEval();
+ // void gridEval();
 
   void parallelEval();
 
@@ -67,7 +67,7 @@ class ProcessGroupWorker {
 
   FullGrid<complex>* combinedFG_;
 
-  DistributedSparseGridUniform<CombiDataType>* combinedUniDSG_;
+  std::vector<DistributedSparseGridUniform<CombiDataType>*> combinedUniDSGVector_;
 
   bool combinedFGexists_;
 
@@ -77,6 +77,8 @@ class ProcessGroupWorker {
 
   //fault parameters
   real t_fault_; //time to fault
+
+  int numGrids_; //number of grids per task
 
   std::chrono::high_resolution_clock::time_point  startTimeIteration_; //starting time of process computation
 

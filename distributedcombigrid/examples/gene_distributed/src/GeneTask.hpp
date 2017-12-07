@@ -24,6 +24,7 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "GeneLocalCheckpoint.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
+#include "sgpp/distributedcombigrid/fullgrid/MultiArray.hpp"
 
 namespace combigrid {
 
@@ -32,7 +33,8 @@ public:
   GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
             LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
             real shat, real kymin, real lx, int ky0_ind,
-            IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})));
+            IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
+            IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);
 
   GeneTask();
 
@@ -46,8 +48,8 @@ public:
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>());
 
-  std::vector<IndexVector> getDecomposition(){
-      return dfg_->getDecomposition();
+  std::vector<IndexVector> getDecomposition(int species){
+      return dfgVector_[species]->getDecomposition();
   }
 
   void decideToKill();
@@ -66,13 +68,13 @@ public:
       std::vector<size_t>& bounds );
   /*
    * Gather GENE checkpoint distributed over process group on process
-   * with localRootID and convert to FullGrid fg. The actual full grid
+   * with localRootID and convert to FullGrid fg for speciefied species. The actual full grid
    * will only be created on the process with localRootID.
    */
   void getFullGrid( FullGrid<CombiDataType>& fg, RankType lroot,
-                    CommunicatorType lcomm);
+                    CommunicatorType lcomm, int species);
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid();
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int specie);
 
   /*
    * Convert fg to GeneGrid and scatter over processes of pgroup. The fullgrid
@@ -103,10 +105,20 @@ public:
 
 
   void setDFG();
+  /**
+   * sets boundary parameters for global simulations
+   * is directly set in GENE execution before writing checkpoint
+   */
+  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q ){
+    C_y_ = C_y;
+    size_Cy_ = *size_Cy;
+    q_prof_= q_prof;
+    size_q_ = *size_q;
+  }
 
   void getDFG();
 
-  void normalizeDFG();
+  void normalizeDFG(int species);
 
   inline void setNrg(real nrg);
 
@@ -120,22 +132,28 @@ public:
   inline bool checkIsInitialized(){
       return checkpointInitialized_;
   }
+  void write_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
+    int size);
+  void load_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
+      int size);
+  bool is_gyromatrix_buffered(){
+    return gyromatrix_buffered_;
+  }
 
 private:
   friend class boost::serialization::access;
 
-  void adaptBoundaryZ();
+  void adaptBoundaryZ(int species);
 
-  void adaptBoundaryZlocal();
+  void adaptBoundaryZlocal(int species);
 
-  void adaptBoundaryZglobal();
+  void adaptBoundaryZglobal(int species);
 
-  void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor );
+  void adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& targetData, int species);
+
+  void getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l = 1, IndexType x = 0 );
 
   inline bool failNow( const int& globalRank );
-
-
-
 
 
   // following variables are set in manager and thus need to be included in
@@ -150,17 +168,28 @@ private:
   real shat_;
   real kymin_;
   real lx_;
+  real x0_;
   int ky0_ind_;
-
+  GeneComplex* gyromatrix_buffer_; //buffer for gyromatrix
+  bool gyromatrix_buffered_ = false; //indicates if gyromatrix is buffered
   // following variables are only accessed in worker and do not need to be
   // serialized
   GeneLocalCheckpoint checkpoint_;
-  DistributedFullGrid<CombiDataType>* dfg_;
+  std::vector<DistributedFullGrid<CombiDataType> *> dfgVector_;
   real nrg_;
 
   bool initialized_;
   bool checkpointInitialized_;
-
+  //number of species
+  int nspecies_;
+  MPI_Request * requestArray_;
+  std::vector<CombiDataType *> receiveBufferArray_;
+  bool _GENE_Global;
+  bool _GENE_Linear;
+  double *C_y_;
+  int size_Cy_ ;
+  double *q_prof_;
+  int size_q_;
  // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 
   // serialize
@@ -176,7 +205,11 @@ private:
     ar & shat_;
     ar & kymin_;
     ar & lx_;
+    ar & x0_;
     ar & ky0_ind_;
+    ar & nspecies_;
+    ar & _GENE_Global;
+    ar & _GENE_Linear;
   }
 };
 

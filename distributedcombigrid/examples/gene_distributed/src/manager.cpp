@@ -70,6 +70,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
  * All slaves execute the modified gene version that is able to communicate with the master.
  */
 int main(int argc, char** argv) {
+  bool doOnlyRecompute = false;
   //MPI_Init(&argc, &argv);
   simft::Sim_FT_MPI_Init(&argc, &argv);
   Stats::initialize();
@@ -103,7 +104,7 @@ int main(int argc, char** argv) {
   MPI_Comm_split(MPI_COMM_WORLD, color, key, &lcomm);
 
   // Gene creates another comm which we do not need, but it is necessary
-  // to execute comm_split again
+  // to execute comm_split again; otherwise dead-lock (Split is collective and blocking)
   MPI_Comm pcomm;
   MPI_Comm_split( MPI_COMM_WORLD, key, color, &pcomm );
 
@@ -166,10 +167,27 @@ int main(int argc, char** argv) {
     std::string fg_file_path2 = cfg.get<std::string>( "ct.fg_file_path2" );
 
     // todo: read from parametes file
-    real shat = 0.7960;
-    real kymin = 0.3000;
-    real lx = 4.18760;
+    //real shat = 0.7960;
+    //real kymin = 0.3000;
+    //real lx = 4.18760;
+    real kymin = cfg.get<real>("application.kymin");
+    real lx = cfg.get<real>("application.lx");
+    IndexType numGrids = cfg.get<IndexType>("application.numspecies");
+    std::string GENE_nonlinear_string = cfg.get<std::string>("application.GENE_nonlinear");
+    std::string GENE_local_string = cfg.get<std::string>("application.GENE_local");
+    std::remove(GENE_nonlinear_string.begin(), GENE_nonlinear_string.end(), ' ');
+    std::remove(GENE_local_string.begin(), GENE_local_string.end(), ' ');
+    const bool GENE_Linear = GENE_nonlinear_string == "F";
+    const bool GENE_Global = GENE_local_string == "F";
+    real shat = 0;
+    if(!GENE_Global){ //shat only used in local case
+       shat = cfg.get<real>("application.shat");
+    }
+    std::cout << "GENE_Linear: " << GENE_Linear << "\n";
+    std::cout << "GENE_Global: " << GENE_Global << "\n";
+    std::cout << "shat: " << shat << " kymin: " << kymin << " lx: " << lx << "\n";
     int ky0_ind = 1;
+    cfg.get<std::string>("ct.lmin") >> lmin;
 
     // check parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
@@ -206,6 +224,7 @@ int main(int argc, char** argv) {
     } else {
       CombiMinMaxScheme combischeme(dim, lmin, lmax);
       combischeme.createAdaptiveCombischeme();
+      combischeme.makeFaultTolerant();
       levels = combischeme.getCombiSpaces();
       coeffs = combischeme.getCoeffs();
     }
@@ -216,9 +235,9 @@ int main(int argc, char** argv) {
     std::cout << "boundary = " << boundary << std::endl;
     std::cout << "hierarchization_dims = " << hierarchizationDims << std::endl;
     std::cout << "CombiScheme: " << std::endl;
-    for (size_t i = 0; i < levels.size(); ++i)
+    for (size_t i = 0; i < levels.size(); ++i){
       std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
-
+    }
 
     // create Tasks
     TaskContainer tasks;
@@ -238,17 +257,19 @@ int main(int argc, char** argv) {
       else{ //do not use faults
         faultCrit = new StaticFaults(faultsInfo);
       }
+
+      IndexType numSpecies = numGrids; //generate one grid per species
       Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
                                 loadmodel, path, dt, nsteps,
-                                shat, kymin, lx, ky0_ind, p, faultCrit);
+                                shat, kymin, lx, ky0_ind, p, faultCrit,
+                                numSpecies, GENE_Global,GENE_Linear);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
 
     }
-
     // create combiparamters
     CombiParameters params( dim, lmin, lmax, boundary, levels,
-                            coeffs, hierarchizationDims, taskIDs );
+                            coeffs, hierarchizationDims, taskIDs, numGrids );
     params.setParallelization(p);
 
     // create Manager with process groups
@@ -312,6 +333,10 @@ int main(int argc, char** argv) {
         /* recover communicators*/
         bool failedRecovery = manager.recoverCommunicators(groupFaults);
         /* communicate new combination scheme*/
+        if(doOnlyRecompute){
+          recomputeFaultsID = faultsID;
+          redistributeFaultsID = std::vector<int>(0);
+        }
         if(failedRecovery){
          std::cout << "redistribute \n";
          manager.redistribute(redistributeFaultsID);
@@ -329,7 +354,9 @@ int main(int argc, char** argv) {
         }
         std::cout << "updateing Combination Parameters \n";
         //needs to be after reInitialization!
-        manager.updateCombiParameters();
+        if(!doOnlyRecompute){
+          manager.updateCombiParameters();
+        }
 //        old version
 //        std::vector<int> faultsID;
 //        std::vector< ProcessGroupManagerID> groupFaults;
