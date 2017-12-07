@@ -58,6 +58,10 @@ MODULE gyro_average_df_mod
 
   ! gyromatrix contains the matrix for simple gyro-averaging (J0)
   TYPE(BandedMatrix), DIMENSION(:,:,:,:),ALLOCATABLE,TARGET,PRIVATE :: sparse_gyromatrix
+#ifdef COMBI_MGR
+  COMPLEX, DIMENSION(:,:,:,:,:,:),ALLOCATABLE :: sparse_gyromatrix_buffer
+  LOGICAL:: gyromatrix_buffered=.FALSE. !used for buffering gyromatrix locally
+#endif
 #ifdef GDAGGER_G  
   TYPE(BandedMatrix), DIMENSION(:,:,:,:),ALLOCATABLE,TARGET,PRIVATE :: sparse_gyromatrix_dagger
 #endif
@@ -491,6 +495,10 @@ SUBROUTINE allocate_gyromatrix
   LOGICAL :: transposed = .TRUE.
 
   ALLOCATE(sparse_gyromatrix(lj1:lj2,lk1:lk2,lm1:lm2,ln1:ln2))
+#ifdef COMBI_MGR
+  ALLOCATE(sparse_gyromatrix_buffer(lj1:lj2,lk1:lk2,lm1:lm2,ln1:ln2,1:li0,1:ni0))
+  call is_gyromatrix_buffered(gyromatrix_buffered)
+#endif
 #ifdef GDAGGER_G
   ALLOCATE(sparse_gyromatrix_dagger(lj1:lj2,lk1:lk2,lm1:lm2,ln1:ln2))
 #endif
@@ -770,9 +778,10 @@ SUBROUTINE calculate_J0matrix
 #endif
   REAL,dimension(0:nDeriv) :: res
   real, dimension(:), allocatable :: rho, rho_x, rho_y
-
+#ifdef COMBI_MGR
+  if (gyromatrix_buffered) call load_gyromatrix(sparse_gyromatrix_buffer,(ln2-ln1+1)*(lm2-lm1+1)*(lk2-lk1+1)*(lj2-lj1+1)*li0*ni0)
+#endif
   !PERFON('ga_mat')
-
   ! allocate the derivative matrices for all derivatives and also the 
   ! integral matrix contains the theta integral
   ALLOCATE(derivmat(1:nDeriv),integral(1:nDeriv))
@@ -828,7 +837,9 @@ SUBROUTINE calculate_J0matrix
      prho_gdy_1(:,k) = geom%gij(:,pj1,k)/sqrtgxx(:,k)
      prho_gdy_2(:,k) = sqrtgdet(:,pj1,k)/sqrtgxx(:,k)
   Enddo
-
+#ifdef COMBI_MGR
+  if (.not.gyromatrix_buffered) then
+#endif
   !local_sum = 0.0D0
   DO ispec=ln1,ln2
      DO m=lm1,lm2
@@ -905,7 +916,7 @@ SUBROUTINE calculate_J0matrix
                     endbase=ni0
                     IF (rad_bc_type.eq.0) startbase=1 !periodic boundaries
                  ENDIF
-
+                 !print*, "startbase: ",startbase, "endbase", endbase
                  ! Due to the multiplication with the derivative matrix,
                  ! which is also banded with a derivative_order/2 upper
                  ! diagonals and the same number of lower diagonals, we
@@ -950,6 +961,7 @@ SUBROUTINE calculate_J0matrix
 
                     sum_over_theta = sum_over_theta/ntheta
                     Call set_value(sparse_gyromatrix(j,k,m,ispec),ix,ibase,sum_over_theta(0))
+
                     DO ideriv=1,nderiv
                        CALL set_value(integral(ideriv),ix,ibase,sum_over_theta(ideriv))
                     ENDDO
@@ -984,10 +996,47 @@ SUBROUTINE calculate_J0matrix
               call transpose_storage(temp_dagger_matrix,sparse_gyromatrix_dagger(j,k,m,ispec))
 #endif
 
+#ifdef COMBI_MGR
+              DO ibase=1,ni0
+                 DO ix=1,li0
+                    sparse_gyromatrix_buffer(j,k,m,ispec,ix,ibase) = &
+                        mat_get_value(sparse_gyromatrix(j,k,m,ispec),ix+my_pex*li0,ibase)
+                 END DO
+              END DO
+#endif
            END DO !j
         END DO ! k
      END DO !m
   END DO ! ispec
+#ifdef COMBI_MGR
+  call write_gyromatrix_memory(sparse_gyromatrix_buffer,(ln2-ln1+1) * &
+    (lm2-lm1+1)*(lk2-lk1+1)*(lj2-lj1+1)*ni0*li0)
+  else
+     DO ispec=ln1,ln2
+        DO m=lm1,lm2
+           DO k=lk1,lk2
+              DO j=lj1,lj2
+                 CALL set_zero(sparse_gyromatrix(j,k,m,ispec))
+                 DO ix=1,li0
+                    DO ibase=1,ni0
+                       bandwidth(k,m,ispec)=max(bandwidth(k,m,ispec),abs(ibase-ix))
+                       Call set_value(sparse_gyromatrix(j,k,m,ispec),ix+my_pex*li0, &
+                          ibase,sparse_gyromatrix_buffer(j,k,m,ispec,ix,ibase))
+                    END DO
+                 END DO
+
+                 call commit_values(sparse_gyromatrix(j,k,m,ispec))
+#ifdef GDAGGER_G
+                 call transpose_and_conjugate(sparse_gyromatrix(j,k,m,ispec),&
+                          temp_dagger_matrix)
+                 call transpose_storage(temp_dagger_matrix,sparse_gyromatrix_dagger(j,k,m,ispec))
+#endif
+              END DO
+           END DO
+        END DO
+     END DO
+   endif
+#endif
   deallocate(sqrtgxx, prho_gdy_1,prho_gdy_2,prho_gdz_1,prho_gdz_2,prho_gdphi)
   deallocate(sum_over_theta)
 #ifdef GDAGGER_G
@@ -1002,7 +1051,6 @@ SUBROUTINE calculate_J0matrix
   END DO
   DEALLOCATE(integral,derivmat,rho)
   IF (rad_bc_type.eq.2) DEALLOCATE(derivmat_vN)
-
   exist_gyromatrix = .TRUE.
 
 END SUBROUTINE calculate_J0matrix
@@ -1092,6 +1140,7 @@ SUBROUTINE finalize_gyro_average_df
      END DO
   END IF
   DEALLOCATE(bandwidth_boundary)
+  DEALLOCATE(sparse_gyromatrix_buffer)
   call finalize(xgrid)
 
 END SUBROUTINE finalize_gyro_average_df

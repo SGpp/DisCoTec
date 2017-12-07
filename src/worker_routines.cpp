@@ -213,6 +213,25 @@ void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
 
   memcpy ( g_1, cp.getData(), cp.getSize() * sizeof(GeneComplex) );
 }
+void write_gyromatrix_memory_(GeneComplex* sparse_gyromatrix_buffer,
+    int *size){
+  Task* tt = pgroup->getCurrentTask();
+  GeneTask* t = static_cast< GeneTask* >(tt);
+  t->write_gyromatrix(sparse_gyromatrix_buffer, *size);
+}
+
+void load_gyromatrix_(GeneComplex* sparse_gyromatrix_buffer,
+    int *size){
+  Task* tt = pgroup->getCurrentTask();
+  GeneTask* t = static_cast< GeneTask* >(tt);
+  t->load_gyromatrix(sparse_gyromatrix_buffer, *size);
+}
+
+void is_gyromatrix_buffered_(bool *isBuffered){
+  Task* tt = pgroup->getCurrentTask();
+  GeneTask* t = static_cast< GeneTask* >(tt);
+  *(isBuffered) = t->is_gyromatrix_buffered();
+}
 
 void update_simulation_communicator_(MPI_Fint* comm_gene_f){
 //  int size;
@@ -355,11 +374,7 @@ void decide_to_kill_(){
   pgroup->decideToKill();
 }
 
-
-void worker_ready(double wtime, double time_perf,
-                  double time_iv, double time_cp){
-  // copy parameters.dat to parameters
-
+void worker_rename_parameters_(){
   MASTER_EXCLUSIVE_SECTION {
     // copy parameters.dat to parameters
     if(rename( "parameters.dat", "parameters" )){
@@ -370,6 +385,10 @@ void worker_ready(double wtime, double time_perf,
       std::cout << "Renaming successfully!\n";
     }
   }
+}
+
+void worker_ready(double wtime, double time_perf,
+                  double time_iv, double time_cp){
 
 
   // get current task

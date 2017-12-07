@@ -170,9 +170,9 @@ else
 CSRC += c_utils.c
 endif
 
-ifeq ($(COMBI_MGR),yes)
+#ifeq ($(COMBI_MGR),yes)
 CXXSRC += worker_routines.cpp
-endif
+#endif
 
 ifeq ($(USE_C_NONLIN),yes)
 F90PSRC += df_nonlinear_c.F90

@@ -288,6 +288,7 @@ Program gene
 #ifdef COMBI_MGR
     call gene_time_stop
     ! don't fail within recompute
+    call worker_rename_parameters
     if(worker_signal.ne.14) then
       call decide_to_kill()
     end if

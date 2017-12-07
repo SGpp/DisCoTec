@@ -145,7 +145,10 @@ contains
     else
        !local with even nx0: Nyquist mode is discarded
        !global and nonperiodic: x=-lx/2,..,lx/2
-       dx = lx / (nx0-1) 
+       dx = lx / (nx0-1) !old version
+       !new version with x = -lx/2,...,lx/2 -dx for combitechnique
+       !toDo check if this is right!
+       !dx = lx/ nx0
     endif
     if (.not.y_local) dx=lx/2.0/nx0
 

@@ -32,6 +32,14 @@ extern "C" void checkpoint_read_memory_(GeneComplex* g_1, int *li1, int *li2,
                                         int *ln1, int *ln2, int *ni0p, int *nj0p, int *nz0p,
                                         int *nv0p, int *nw0p, int *n_specp);
 
+
+extern "C" void write_gyromatrix_memory_(GeneComplex* sparse_gyromatrix_buffer,
+    int *size);
+
+extern "C" void load_gyromatrix_(GeneComplex* sparse_gyromatrix_buffer, int *size);
+
+extern "C" void is_gyromatrix_buffered_(bool *isBuffered);
+
 void write_to_file(MPI_Comm lcomm);
 
 //combigrid::complex eval( MPI_Comm lcomm, std::vector<combigrid::real>& x );
@@ -41,6 +49,8 @@ extern "C" void worker_wait_(MPI_Fint* comm_gene_f, int* worker_stat,
                              int* nprocs, int* ngroup );
 extern "C" void worker_ready_(double* wtime, double* time_perf,
                               double* time_iv, double* time_cp );
+
+extern "C" void worker_rename_parameters_();
 
 // append gamma and omega to omega_out.dat
 extern "C" void write_omega_(int* itime, double* gamma, double* omega);
