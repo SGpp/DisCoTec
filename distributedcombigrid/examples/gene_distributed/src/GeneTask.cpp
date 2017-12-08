@@ -586,8 +586,8 @@ void GeneTask::setDFG(){
   // step one: copy data of localcheckpoint into dfg
 
   const std::vector<size_t>& b = checkpoint_.getBounds();
-  IndexVector lowerBounds = { b[0], b[2], b[4], b[6], b[8], b[10] };
-  IndexVector upperBounds = { b[1], b[3], b[5], b[7], b[9], b[11] };
+  IndexVector lowerBounds = {(IndexType) b[0],(IndexType) b[2],(IndexType) b[4],(IndexType) b[6],(IndexType) b[8],(IndexType) b[10] };
+  IndexVector upperBounds = {(IndexType) b[1], (IndexType)b[3],(IndexType) b[5],(IndexType) b[7],(IndexType) b[9],(IndexType) b[11] };
   IndexVector lcpSizes = upperBounds - lowerBounds;
 
   MultiArrayRef<GeneComplex,6> lcpData =
@@ -1123,8 +1123,9 @@ void GeneTask::getDFG(){
   // get multiarrayref to lcp
   // todo: put this into a function as it is used multiple times
   const std::vector<size_t>& b = checkpoint_.getBounds();
-  IndexVector lowerBounds = { b[0], b[2], b[4], b[6], b[8], b[10] };
-  IndexVector upperBounds = { b[1], b[3], b[5], b[7], b[9], b[11] };
+  IndexVector lowerBounds = {(IndexType) b[0],(IndexType) b[2],(IndexType) b[4],(IndexType) b[6],(IndexType) b[8],(IndexType) b[10] };
+  IndexVector upperBounds = {(IndexType) b[1], (IndexType)b[3],(IndexType) b[5],(IndexType) b[7],(IndexType) b[9],(IndexType) b[11] };
+
   IndexVector lcpSizes = upperBounds - lowerBounds;
   MultiArrayRef<GeneComplex,6> lcpData =
     createMultiArrayRef<GeneComplex,6>( checkpoint_.getData(), lcpSizes );
