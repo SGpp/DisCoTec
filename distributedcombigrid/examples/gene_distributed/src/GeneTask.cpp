@@ -428,7 +428,7 @@ size_t nx = static_cast<size_t>( std::pow( 2.0, fg.getLevels()[0] ) );
 
 // create MultiArray to store Gene grid temporarily
 // note reverse notation of shape vector
-IndexVector geneShape = { nspec, nw, nv, nz, ny, nx };
+IndexVector geneShape = { (IndexType) nspec, (IndexType) nw, (IndexType) nv, (IndexType) nz, (IndexType) ny, (IndexType) nx };
 MultiArray<GeneComplex,6> geneGrid = createMultiArray<GeneComplex,6>( geneShape );
 
 // create MultiArrayRef to fg
