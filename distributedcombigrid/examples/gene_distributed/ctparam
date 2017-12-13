@@ -5,10 +5,10 @@ dim = 6
 #lmin = 7 4 3 4 3 1  
 #lmax = 9 5 5 6 5 1
 lmin = 4 3 3 3 3 1  
-lmax = 5 4 4 4 4 1
+lmax = 6 5 5 5 5 1
 
-leval = 7 5 5 6 5 1
-leval2 = 7 4 4 4 4 1
+leval = 4 3 3 3 3 1
+leval2 = 5 4 4 4 4 1
 p = 1 1 2 2 2 1
 ncombi = 5
 readspaces = 1
@@ -32,7 +32,7 @@ GENE_nonlinear = T
 basename = ginstance
 executable = ./gene_new_machine
 
-mpi = aprun 
+mpi = mpiexec 
 sgpplib = /zhome/academic/HLRS/ipv/ipvober/combi-gene-faults/lib/sgpp
 tasklib = /zhome/academic/HLRS/ipv/ipvober/combi-gene-faults/distributedcombigrid/examples/gene_distributed/lib
 startscript = start.bat

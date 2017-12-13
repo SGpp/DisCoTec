@@ -1,7 +1,7 @@
 #path to python interface
 from sys import path
-path.append('/zhome/academic/HLRS/ipv/ipvober/gene_python_interface_clean/src')
-path.append('/zhome/academic/HLRS/ipv/ipvober/gene_python_interface_clean/src/tools')
+path.append('/home/hpc/pr63so/ga34suk3/gene_python_interface_clean/src')
+path.append('/home/hpc/pr63so/ga34suk3/gene_python_interface_clean/src/tools')
 
 from ConfigParser import SafeConfigParser
 import collections

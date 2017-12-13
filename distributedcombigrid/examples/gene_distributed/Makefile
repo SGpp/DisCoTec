@@ -1,5 +1,5 @@
 
-CC=CC
+CC=mpiCC
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb -rdynamic -fPIC
 
 
@@ -7,22 +7,22 @@ CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typ
 SGPP_DIR=$(HOME)/combi-gene-faults
 
 
-USRNAME=ipvober
+
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 
-LD_BOOST=-L/zhome/academic/HLRS/ipv/$(USRNAME)/hlrs-tools/boost_1_58_0/stage/lib
-LD_GLPK=-L/zhome/academic/HLRS/ipv/$(USRNAME)/hlrs-tools/glpk/lib #-l:/zhome/academic/HLRS/ipv/$(USRNAME)/hlrs-tools/glpk/lib/libglkp.so
+#LD_BOOST=-L/home/hpc/pr63so/ga34suk3/hlrs-tools/boost_1_58_0/stage/lib
+LD_GLPK=-L/home/hpc/pr63so/ga34suk3/hlrs-tools/glpk/lib #-l:/zhome/academic/HLRS/ipv/$(USRNAME)/hlrs-tools/glpk/lib/libglkp.so
 
 INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ 
-INC_BOOST=-I/zhome/academic/HLRS/ipv/$(USRNAME)/hlrs-tools/boost_1_58_0
-INC_GLPK=-I/zhome/academic/HLRS/ipv/$(USRNAME)/hlrs-tools/glpk/include
+#INC_BOOST=-I/home/hpc/pr63so/ga34suk3/hlrs-tools/boost_1_58_0
+INC_GLPK=-I/home/hpc/pr63so/ga34suk3/hlrs-tools/glpk/include
 
-LDIR=$(LD_SGPP) $(LD_BOOST) $(LD_GLPK)
-INC=$(INC_SGPP) $(INC_BOOST) $(INC_GLPK)
+LDIR=$(LD_SGPP) -L$(BOOST_LIBDIR) $(LD_GLPK) #$(LD_BOOST)
+INC=$(INC_SGPP) $(INC_GLPK) -I$(BOOST_INCDIR) # $(INC_BOOST)
 
 
-LIBS= -lsgppdistributedcombigridstatic -lboost_serialization -Wl,-Bdynamic -lglpk -Wl,--dynamic-linker=/lib64/ld-linux-x86-64.so.2 #-Wl,-Bstatic -pie #-Xlinker --verbose
+LIBS= -lsgppdistributedcombigrid -lboost_serialization -lglpk #-Wl,-Bdynamic -lglpk# -Wl,#--dynamic-linker=/lib64/ld-linux-x86-64.so.2 #-Wl,-Bstatic -pie #-Xlinker --verbose
 
 
 CPP_FILES := $(wildcard src/*.cpp)

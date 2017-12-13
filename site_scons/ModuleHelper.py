@@ -194,7 +194,7 @@ class Module(object):
       testEnv = env.Clone()
       testEnv.AppendUnique(LIBS=[self.libname] +
                                 self.moduleDependencies + self.additionalDependencies +
-                                ["boost_unit_test_framework"] +
+                                ["boost_unit_test_framework"] +["boost_serialization"] + ["glpk"] +
                                 self.additionalBoostTestDependencies)
 
       testObjs = []
