@@ -77,6 +77,7 @@ module par_in
   integer :: which_kx_center(50)
   logical :: vec_out_limit !flag to limit number of eigenvectors output from scalapack routine
   Logical :: calc_dt=.false.
+  Logical :: nltdt_off=.false. !flat to switch off the nonlinear time step adaptation
   
   !flux surface averaged velspace moments
   integer :: istep_fsa_moments

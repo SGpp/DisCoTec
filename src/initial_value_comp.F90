@@ -76,10 +76,10 @@ contains
     !Local variables
     double precision :: time1, time2
     LOGICAL,parameter :: OUTPUT=.false.
-    logical :: reset=.false.
+    logical :: reset=.false., nltdt_off_sav=.false., simlimit_reached=.false.
     LOGICAL :: overflow_exit, underflow_exit
     INTEGER :: ierr
-    real :: local_sum, global_sum
+    real :: local_sum, global_sum, dt_max_sav=-1
 #ifdef WITH_VTUNE_API
     character(len=10) :: domain_name
 #endif
@@ -192,11 +192,28 @@ contains
        time_iv = time2 - realtime_start
        
        IF (time_iv > timelim) Exit
-       IF (time > simtimelim) THEN
+       IF ((time.ge.simtimelim).or. simlimit_reached) THEN
+          IF (dt_max_sav.gt.0) THEN !reset to correct value
+             dt_max=dt_max_sav
+             nltdt_off = nltdt_off_sav
+          ENDIF
+          ! a last output for diagnostics
+          call exec_all_diags(0,time,overflow_exit,underflow_exit,reset)
+
           IF ((mype.EQ.0).and.(print_ini_msg)) &
                & WRITE(*,"(A,F8.2,A)") "Simulation time limit of ",&
-               & simtimelim," L_ref/c_ref exceeded, exiting time loop"
+               & simtimelim," L_ref/c_ref reached, exiting time loop"
+          if (mype.eq.0) print*, 'time = ', time
+          simlimit_reached = .false.
+#ifdef COMBI_MGR
+          call increase_sim_time(simtimelim)
+#endif
           EXIT
+       ELSEIF (time+dt.gt.simtimelim) THEN
+          print *,"adjusting time-step according to limit!"
+          dt=simtimelim-time; dt_max_sav=dt_max; dt_max = dt
+          nltdt_off_sav = nltdt_off; nltdt_off = .true.
+          simlimit_reached = .true.
        ENDIF
        
        ITT_FRAME_BEGIN(itt_domain)

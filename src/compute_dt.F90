@@ -956,8 +956,12 @@ contains
     !1/dt_vlasov is a good estimate for eigenvalue due to dominating immag. part
     !without coll_split: dt_vlasov=dt_max is used
     !never exceed dt_max, which might be set by collisions for coll_split=T
-    dt_all = min(1.0/(1.0/dt_vlasov+1.0/dt_est),dt_max)
-
+    IF (nltdt_off) then
+      dt_all = dt_max
+      print *,"switched off adaptation"
+    else
+      dt_all = min(1.0/(1.0/dt_vlasov+1.0/dt_est),dt_max)
+    endif
     last_dts(mod(itime-1,win_dts))=dt_all
 
     dt_inst=minval(last_dts)

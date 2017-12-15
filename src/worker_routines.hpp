@@ -35,7 +35,7 @@ extern "C" void checkpoint_read_memory_(GeneComplex* g_1, int *li1, int *li2,
 
 extern "C" void write_gyromatrix_memory_(GeneComplex* sparse_gyromatrix_buffer,
     int *size);
-
+extern "C" void increase_sim_time_(double *simtime);
 extern "C" void load_gyromatrix_(GeneComplex* sparse_gyromatrix_buffer, int *size);
 
 extern "C" void is_gyromatrix_buffered_(bool *isBuffered);

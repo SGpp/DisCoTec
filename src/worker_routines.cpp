@@ -220,6 +220,14 @@ void write_gyromatrix_memory_(GeneComplex* sparse_gyromatrix_buffer,
   t->write_gyromatrix(sparse_gyromatrix_buffer, *size);
 }
 
+void increase_sim_time_(double *simtime){
+  Task* tt = pgroup->getCurrentTask();
+  GeneTask* t = static_cast< GeneTask* >(tt);
+  *(simtime) += t->getCombiTime();
+  std::cout << "timestep " << t->getCombiTime() << "\n";
+  std::cout << "Increased sim time limit to " << *simtime << "\n";
+}
+
 void load_gyromatrix_(GeneComplex* sparse_gyromatrix_buffer,
     int *size){
   Task* tt = pgroup->getCurrentTask();
