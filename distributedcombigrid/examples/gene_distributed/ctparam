@@ -4,6 +4,7 @@ dim = 6
 
 #lmin = 7 4 3 4 3 1  
 #lmax = 9 5 5 6 5 1
+
 lmin = 4 3 3 3 3 1  
 lmax = 6 5 5 5 5 1
 
@@ -16,12 +17,16 @@ fg_file_path = ../plot.dat
 fg_file_path2 = ../plot2.dat
 boundary = 1 1 1 1 1 0
 
-hierarchization_dims = 0 0 1 1 1 0
+
+hierarchization_dims = 1 0 1 1 1 0
+
 
 [application]
-dt = 0.6960E-02
+#dt = 0.6960E-02
+dt = 0.0005
+combitime = 0.001
 #timesteps 100000
-nsteps = 10
+nsteps = 100000
 #shat = 0.7960
 kymin = 0.1525E-01
 lx = 540.000

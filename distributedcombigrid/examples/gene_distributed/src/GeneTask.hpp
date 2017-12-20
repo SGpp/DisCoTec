@@ -31,7 +31,7 @@ namespace combigrid {
 class GeneTask: public combigrid::Task {
 public:
   GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-            LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
+            LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
             real shat, real kymin, real lx, int ky0_ind,
             IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
             IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);
@@ -139,6 +139,14 @@ public:
   bool is_gyromatrix_buffered(){
     return gyromatrix_buffered_;
   }
+  /**
+   * Returns the time that is simulated between combinations.
+   * This is only used in case we do not want to use a fixed number of timesteps
+   * but a fixed period of time between combinations for each component grids.
+   */
+  real getCombiTime(){
+    return combitime_;
+  }
 
 private:
   friend class boost::serialization::access;
@@ -160,6 +168,7 @@ private:
   // serialize function
   std::string path_;    // directory in which task should be executed
   real dt_;
+  real combitime_; //simulation time interval between combinations
   size_t nsteps_;
   size_t stepsTotal_;
   size_t combiStep_;
@@ -198,6 +207,7 @@ private:
     ar & boost::serialization::base_object<Task>(*this);
     ar & path_;
     ar & dt_;
+    ar & combitime_;
     ar & nsteps_;
     ar & stepsTotal_;
     ar & combiStep_;

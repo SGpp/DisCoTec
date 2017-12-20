@@ -140,6 +140,11 @@ int main(int argc, char** argv) {
     IndexVector p(dim);
     std::vector<bool> boundary(dim), hierarchizationDims(dim);
     combigrid::real dt;
+    //time inteveral of 1 combination
+    //only necessary if number of timesteps varies for each grid
+    //otherwise set very high and use ntimesteps to adjust combiinterval
+    combigrid::real combitime;
+
     size_t nsteps, ncombi;
     cfg.get<std::string>("ct.lmin") >> lmin;
     cfg.get<std::string>("ct.lmax") >> lmax;
@@ -151,11 +156,15 @@ int main(int argc, char** argv) {
     ncombi = cfg.get<size_t>("ct.ncombi");
     std::string basename = cfg.get<std::string>( "preproc.basename" );
     dt = cfg.get<combigrid::real>("application.dt");
+    combitime = cfg.get<combigrid::real>("application.combitime");
     nsteps = cfg.get<size_t>("application.nsteps");
     //read fault values
     FaultsInfo faultsInfo;
 
     faultsInfo.numFaults_ = cfg.get<int>("faults.num_faults");
+
+    std::cout << "Selected timestep is: " << dt << " and combination interval time: " << combitime << "\n";
+
 
     if( faultsInfo.numFaults_ > 0 ){
       faultsInfo.iterationFaults_.resize(faultsInfo.numFaults_);
@@ -260,7 +269,7 @@ int main(int argc, char** argv) {
 
       IndexType numSpecies = numGrids; //generate one grid per species
       Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
-                                loadmodel, path, dt, nsteps,
+                                loadmodel, path, dt, combitime, nsteps,
                                 shat, kymin, lx, ky0_ind, p, faultCrit,
                                 numSpecies, GENE_Global,GENE_Linear);
       tasks.push_back(t);
