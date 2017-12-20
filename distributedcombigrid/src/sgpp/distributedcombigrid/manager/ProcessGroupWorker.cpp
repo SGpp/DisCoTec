@@ -398,6 +398,8 @@ void ProcessGroupWorker::combine() {
 } */
 
 void ProcessGroupWorker::combineUniform() {
+  Stats::startEvent("combine init");
+
   // each pgrouproot must call reduce function
   //assert(tasks_.size() > 0);
   if(tasks_.size() == 0){
@@ -444,14 +446,17 @@ void ProcessGroupWorker::combineUniform() {
       dfg.registerUniformSG(*(combinedUniDSGVector_[g]));
     }
   }
+  Stats::stopEvent("combine init");
+  Stats::startEvent("combine hierarchize");
 
   real localMax(0.0);
-
+  //std::vector<CombiDataType> beforeCombi;
   for (Task* t : tasks_) {
     for(int g=0; g<numGrids; g++){
 
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-
+      //std::vector<CombiDataType> datavector(dfg.getElementVector());
+      //beforeCombi = datavector;
       // compute max norm
       /*
       real max = dfg.getLpNorm(0);
@@ -468,6 +473,7 @@ void ProcessGroupWorker::combineUniform() {
       std::cout << "Combination: added task " << t->getID() << " with coefficient " << combiParameters_.getCoeff( t->getID() ) <<"\n";
     }
   }
+  Stats::stopEvent("combine hierarchize");
 
   // compute global max norm
   /*
@@ -479,9 +485,16 @@ void ProcessGroupWorker::combineUniform() {
   MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
                     MPI_MAX, theMPISystem()->getLocalComm() );
                     */
+  Stats::startEvent("combine global reduce");
+
   for(int g=0; g<numGrids; g++){
     CombiCom::distributedGlobalReduce( *combinedUniDSGVector_[g] );
   }
+  Stats::stopEvent("combine global reduce");
+
+  //std::vector<CombiDataType> afterCombi;
+  Stats::startEvent("combine dehierarchize");
+
   for (Task* t : tasks_) {
     for(int g=0; g<numGrids; g++){
 
@@ -495,6 +508,8 @@ void ProcessGroupWorker::combineUniform() {
       DistributedHierarchization::dehierarchize<CombiDataType>(
           dfg, combiParameters_.getHierarchizationDims() );
 
+      //std::vector<CombiDataType> datavector(dfg.getElementVector());
+      //afterCombi = datavector;
       // if exceeds normalization limit, normalize dfg with global max norm
       /*
       if( globalMax > 1000 ){
@@ -504,7 +519,45 @@ void ProcessGroupWorker::combineUniform() {
       */
     }
   }
+  Stats::stopEvent("combine dehierarchize");
 
+  //test changes
+  /*for(int i=0; i<afterCombi.size(); i++){
+    if(std::abs(beforeCombi[i] - afterCombi[i])/std::abs(beforeCombi[i]) > 0.0001)
+      std::cout << std::abs(beforeCombi[i] - afterCombi[i])/std::abs(beforeCombi[i]) << " ";
+  }*/
+ /* std::cout << "before \n";
+  for(int i=0; i<4;i++){
+
+    int rank = theMPISystem()->getLocalRank();
+    if(rank == i){
+      std::cout << "\n" << i << "\n";
+
+      for(int i=0; i<beforeCombi.size(); i++){
+        std::cout << beforeCombi[i] << " \n ";
+
+      }
+    }
+    MPI_Barrier(theMPISystem()->getLocalComm());
+  }
+  std::cout << "\n";
+  std::cout << "after \n";
+  for(int i=0; i<4;i++){
+    int rank = theMPISystem()->getLocalRank();
+    if(rank == i){
+      std::cout << "\n" << i << "\n";
+
+      for(int i=0; i<afterCombi.size(); i++){
+        std::cout << afterCombi[i] << " \n ";
+
+      }
+    }
+    MPI_Barrier(theMPISystem()->getLocalComm());
+  }
+  std::cout << "\n";
+
+  std::cout << "\n";
+  */
 }
 
 
