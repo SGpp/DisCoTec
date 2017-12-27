@@ -32,6 +32,13 @@ struct SubspaceSGU {
   size_t dataSize_;
 
   std::vector<FG_ELEMENT> data_;
+
+  // For each proc in teamComm_, store the data type that will be received
+  // at the team leader. Only present on the team leader and after
+  // DFG::registerUniformSG has been called.
+  std::vector<int> teamDataTypes_;
+
+  size_t teamDataSize_;
 };
 
 /*
@@ -78,6 +85,11 @@ class DistributedSparseGridUniform {
 
   // get reference to data vector of subspace with l.
   inline std::vector<FG_ELEMENT>& getDataVector(const LevelVector& l);
+
+    // get reference to team data types of subspace i.
+  inline std::vector<int>& getTeamDataTypes(size_t i);
+
+  inline void setTeamDataSize(size_t i, size_t teamSize);
 
   inline size_t getDim() const;
 
@@ -402,6 +414,18 @@ DistributedSparseGridUniform<FG_ELEMENT>::getDataVector(const LevelVector& l) {
   }
 
   return subspaces_[i].data_;
+}
+
+template<typename FG_ELEMENT>
+inline std::vector<int>&
+DistributedSparseGridUniform<FG_ELEMENT>::getTeamDataTypes(size_t i) {
+  return subspaces_[i].teamDataTypes_;
+}
+
+template<typename FG_ELEMENT>
+void
+DistributedSparseGridUniform<FG_ELEMENT>::setTeamDataSize(size_t i, size_t size) {
+  subspaces_[i].teamDataSize_ = size;
 }
 
 template<typename FG_ELEMENT>

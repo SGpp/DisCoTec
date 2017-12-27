@@ -396,11 +396,19 @@ void ProcessGroupWorker::combineUniform() {
   // todo: delete old dsg
   if (combinedUniDSG_ != NULL)
     delete combinedUniDSG_;
+  if (combinedTeamDSG_ != nullptr)
+    delete combinedTeamDSG_;
 
   // erzeug dsg
   combinedUniDSG_ = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
       lmin, boundary,
       theMPISystem()->getLocalComm());
+
+  TEAM_LEADER_EXCLUSIVE_SECTION {
+    combinedTeamDSG_ = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
+        lmin, boundary,
+        theMPISystem()->getLocalComm());
+  }
 
   // todo: move to init function to avoid reregistering
   // register dsg in all dfgs
@@ -441,7 +449,10 @@ void ProcessGroupWorker::combineUniform() {
   MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
                     MPI_MAX, theMPISystem()->getLocalComm() );
                     */
-  CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
+
+  TEAM_LEADER_EXCLUSIVE_SECTION {
+    CombiCom::distributedGlobalReduce( *combinedTeamDSG_ );
+  }
 
   for (Task* t : tasks_) {
     // get handle to dfg
@@ -640,6 +651,7 @@ void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
   DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
 
   // extract dfg vom dsg
+  dfg.registerUniformSG(*combinedUniDSG_);
   dfg.extractFromUniformSG( *combinedUniDSG_ );
 
   // dehierarchize dfg

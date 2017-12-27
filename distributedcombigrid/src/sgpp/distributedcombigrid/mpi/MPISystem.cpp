@@ -254,7 +254,7 @@ void MPISystem::initLocalComm(
       "parallelization must contain an entry for each group size" );
   CartRankCoords& pVec = parallelByLocalSize[groupSize];
   CartRankCoords& minPVec = parallelByLocalSize.begin()->second;
-  size_t dim = pVec.size();
+  DimType dim = pVec.size();
 
   // important: note reverse ordering of dims!
   CartRankCoords dims( pVec.rbegin(), pVec.rend() );
@@ -323,7 +323,7 @@ void MPISystem::initLocalComm(
 
   // Find our team leader
   CartRankCoords teamLeaderCoords(dim);
-  for(size_t d = 0; d < dim; ++d) {
+  for(DimType d = 0; d < dim; ++d) {
     teamLeaderCoords[d] = localCoords_[d] - (localCoords_[d] % teamExtent_[d]);
   }
   MPI_Cart_rank( localComm_, teamLeaderCoords.data(), &teamLeaderRank_ );
@@ -331,7 +331,8 @@ void MPISystem::initLocalComm(
   int color = teamLeaderRank_;
   // Use a predictable ordering here
   int key = 0;
-  for(DimType d = 0; d < dim; ++d) {
+  for(DimType d = dim; d > 0; ) {
+    --d;
     key *= teamExtent_[d];
     key += localCoords_[d] - teamLeaderCoords[d];
   }

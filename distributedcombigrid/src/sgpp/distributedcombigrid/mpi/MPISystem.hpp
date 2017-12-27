@@ -153,6 +153,10 @@ class MPISystem {
 
   inline RankType getGroupBaseWorldRank( GroupType group ) const;
 
+  inline const CartRankCoords& getLocalCoords() const;
+
+  inline const CartRankCoords& getTeamExtent() const;
+
   inline bool isInitialized() const;
 
   bool recoverCommunicators( bool groupAlive, std::vector< std::shared_ptr< ProcessGroupManager >> failedGroups = std::vector< std::shared_ptr< ProcessGroupManager >>(0) );
@@ -484,6 +488,16 @@ inline RankType MPISystem::getGroupBaseWorldRank( GroupType group ) const {
   checkPreconditions( InitializationStage::WORLD_INIT );
 
   return groupBaseWorldRank_[group];
+}
+
+
+inline const CartRankCoords& MPISystem::getLocalCoords() const {
+  return localCoords_;
+}
+
+
+inline const CartRankCoords& MPISystem::getTeamExtent() const {
+  return teamExtent_;
 }
 
 

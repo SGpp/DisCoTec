@@ -66,7 +66,10 @@ class ProcessGroupWorker {
 
   FullGrid<complex>* combinedFG_;
 
+  /// This dsg represents the sparse grid on the current worker
   DistributedSparseGridUniform<CombiDataType>* combinedUniDSG_;
+  /// This dsg represents the combined dsg of the whole team
+  DistributedSparseGridUniform<CombiDataType>* combinedTeamDSG_;
 
   bool combinedFGexists_;
 
