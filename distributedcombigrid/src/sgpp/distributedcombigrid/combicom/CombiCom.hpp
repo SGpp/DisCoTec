@@ -81,6 +81,18 @@ class CombiCom {
   template<typename FG_ELEMENT>
   static void
   distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg);
+
+  template<typename FG_ELEMENT>
+  static DistributedSparseGridUniform<FG_ELEMENT>*
+  distributedTeamGather(
+    DistributedSparseGridUniform<FG_ELEMENT>* dsg,
+    DistributedSparseGridUniform<FG_ELEMENT>* teamDsg);
+
+  template<typename FG_ELEMENT>
+  static void
+  distributedTeamScatter(
+    DistributedSparseGridUniform<FG_ELEMENT>* dsg,
+    DistributedSparseGridUniform<FG_ELEMENT>* teamDsg);
 };
 
 template<>
@@ -855,6 +867,138 @@ void CombiCom::distributedGlobalReduce(
         ++buf_it;
       }
     }
+  }
+}
+
+
+template<typename FG_ELEMENT>
+DistributedSparseGridUniform<FG_ELEMENT>*
+CombiCom::distributedTeamGather(
+    DistributedSparseGridUniform<FG_ELEMENT>* dsg,
+    DistributedSparseGridUniform<FG_ELEMENT>* teamdsg /* only on team leader */
+  ) {
+  MPI_Comm comm = theMPISystem()->getTeamComm();
+  int teamSize;
+  MPI_Comm_size(comm, &teamSize);
+  int teamRank = theMPISystem()->getTeamRank();
+  if(teamSize == 1) {
+    // Skip gathering if team size is 1
+    return dsg;
+  }
+
+  size_t subspaceCount = dsg->getNumSubspaces();
+  std::vector<FG_ELEMENT> sendbuffer;
+  std::vector<FG_ELEMENT> recvbuffer;
+  MPI_Datatype sendtype = abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<FG_ELEMENT>()
+  );
+
+  size_t totalSendBufferSize = 0;
+  for(size_t ss = 0; ss < subspaceCount; ++ss) {
+    totalSendBufferSize += dsg->getDataVector(ss).size();
+  }
+  sendbuffer.resize(totalSendBufferSize);
+  for(size_t ss = 0, offset = 0; ss < subspaceCount; ++ss) {
+    auto& data = dsg->getDataVector(ss);
+    std::copy(data.begin(), data.end(), sendbuffer.begin() + offset);
+    offset += data.size();
+  }
+
+  TEAM_LEADER_EXCLUSIVE_SECTION {
+    // Size is passed to as as teamDataSize
+    size_t totalRecvBufferSize = 0;
+    for(size_t ss = 0; ss < subspaceCount; ++ss) {
+      totalRecvBufferSize += dsg->getTeamDataSize(ss);
+    }
+    recvbuffer.resize( totalRecvBufferSize );
+  }
+  std::vector<MPI_Datatype>& teamDatatypes = dsg->getTeamDataTypes();
+
+  for(int rank = 0; rank < teamSize; ++rank) {
+    int tag = rank;
+    int dest = theMPISystem()->getTeamLeaderRank();
+    MPI_Datatype recvtype = teamDatatypes[rank];
+    MPI_Sendrecv(
+      sendbuffer.data(), int(sendbuffer.size()), sendtype, dest, tag,
+      recvbuffer.data(),                     1, recvtype, rank, tag,
+      comm, MPI_STATUS_IGNORE );
+  }
+
+  TEAM_LEADER_EXCLUSIVE_SECTION {
+    for(size_t ss = 0, offset = 0; ss < subspaceCount; ++ss) {
+      size_t dataSize = dsg->getTeamDataSize(ss);
+      auto& data = teamdsg->getDataVector(ss);
+      data.resize( dataSize );
+      auto sgBegin = recvbuffer.begin() + offset;
+      std::copy(sgBegin, sgBegin + dataSize, data.begin());
+      offset += dataSize;
+    }
+  }
+
+  return teamdsg;
+}
+
+
+template<typename FG_ELEMENT>
+void
+CombiCom::distributedTeamScatter(
+    DistributedSparseGridUniform<FG_ELEMENT>* dsg,
+    DistributedSparseGridUniform<FG_ELEMENT>* teamdsg /* only on team leader */
+  ) {
+  MPI_Comm comm = theMPISystem()->getTeamComm();
+  int teamSize;
+  MPI_Comm_size(comm, &teamSize);
+  int teamRank = theMPISystem()->getTeamRank();
+  if(teamSize == 1) {
+    // Skip scatter if team size is 1. Mirroring distributedTeamGather
+    return;
+  }
+
+  size_t subspaceCount = dsg->getNumSubspaces();
+  std::vector<FG_ELEMENT> sendbuffer;
+  std::vector<FG_ELEMENT> recvbuffer;
+  MPI_Datatype recvtype = abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<FG_ELEMENT>()
+  );
+
+  TEAM_LEADER_EXCLUSIVE_SECTION {
+    size_t totalSendBufferSize = 0;
+    for(size_t ss = 0; ss < subspaceCount; ++ss) {
+      totalSendBufferSize += dsg->getTeamDataSize(ss);
+    }
+    sendbuffer.resize(totalSendBufferSize);
+    for(size_t ss = 0, offset = 0; ss < subspaceCount; ++ss) {
+      auto& data = teamdsg->getDataVector(ss);
+      std::copy( data.begin(), data.end(), sendbuffer.begin() + offset );
+      offset += data.size();
+    }
+  }
+
+  // Size is passed to as as teamDataSize
+  size_t totalRecvBufferSize = 0;
+  for(size_t ss = 0; ss < subspaceCount; ++ss) {
+    totalRecvBufferSize += dsg->getDataVector(ss).size();
+  }
+  recvbuffer.resize( totalRecvBufferSize );
+  std::vector<MPI_Datatype>& teamDatatypes = dsg->getTeamDataTypes();
+
+  for(int rank = 0; rank < teamSize; ++rank) {
+    int tag = rank;
+    int source = theMPISystem()->getTeamLeaderRank();
+    MPI_Datatype sendtype = teamDatatypes[rank];
+    MPI_Sendrecv(
+      sendbuffer.data(),                     1, sendtype, rank, tag,
+      recvbuffer.data(), int(recvbuffer.size()), recvtype, source, tag,
+      comm, MPI_STATUS_IGNORE );
+  }
+
+  for(size_t ss = 0, offset = 0; ss < subspaceCount; ++ss) {
+    size_t dataSize = dsg->getTeamDataSize(ss);
+    auto& data = dsg->getDataVector(ss);
+    assert(data.size() == dataSize);
+    auto sgBegin = recvbuffer.begin() + offset;
+    std::copy(sgBegin, sgBegin + dataSize, data.begin());
+    offset += dataSize;
   }
 }
 

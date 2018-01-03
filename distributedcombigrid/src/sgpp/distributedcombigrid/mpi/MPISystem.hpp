@@ -131,11 +131,15 @@ class MPISystem {
 
   inline const RankType& getLocalRank() const;
 
+  inline const RankType& getTeamRank() const;
+
   inline const RankType& getManagerRankWorld() const;
 
   inline const RankType& getManagerRank() const;
 
   inline const RankType& getMasterRank() const;
+
+  inline const RankType& getTeamLeaderRank() const;
 
   inline bool isWorldManager() const;
 
@@ -424,6 +428,13 @@ inline const RankType& MPISystem::getLocalRank() const{
 }
 
 
+inline const RankType& MPISystem::getTeamRank() const{
+  checkPreconditions( InitializationStage::LOCAL_INIT );
+
+  return teamRank_;
+}
+
+
 inline const RankType& MPISystem::getManagerRankWorld() const{
   checkPreconditions( InitializationStage::WORLD_INIT );
 
@@ -442,6 +453,13 @@ inline const RankType& MPISystem::getMasterRank() const{
   checkPreconditions( InitializationStage::LOCAL_INIT );
 
   return masterRank_;
+}
+
+
+inline const RankType& MPISystem::getTeamLeaderRank() const{
+  checkPreconditions( InitializationStage::LOCAL_INIT );
+
+  return teamLeaderRank_;
 }
 
 

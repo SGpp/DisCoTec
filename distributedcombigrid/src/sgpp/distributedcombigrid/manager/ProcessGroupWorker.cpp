@@ -450,9 +450,14 @@ void ProcessGroupWorker::combineUniform() {
                     MPI_MAX, theMPISystem()->getLocalComm() );
                     */
 
+  auto combinedReduceGrid =
+  CombiCom::distributedTeamGather( combinedUniDSG_, combinedTeamDSG_ );
+
   TEAM_LEADER_EXCLUSIVE_SECTION {
-    CombiCom::distributedGlobalReduce( *combinedTeamDSG_ );
+    CombiCom::distributedGlobalReduce( *combinedReduceGrid );
   }
+
+  CombiCom::distributedTeamScatter( combinedUniDSG_, combinedTeamDSG_ );
 
   for (Task* t : tasks_) {
     // get handle to dfg
