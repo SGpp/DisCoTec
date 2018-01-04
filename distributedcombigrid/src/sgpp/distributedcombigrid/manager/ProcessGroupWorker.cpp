@@ -27,6 +27,7 @@ ProcessGroupWorker::ProcessGroupWorker() :
     status_(PROCESS_GROUP_WAIT),
     combinedFG_( NULL),
     combinedUniDSG_(NULL),
+    combinedTeamDSG_(NULL),
     combinedFGexists_(false),
     combiParameters_(),
     combiParametersSet_(false)
@@ -394,7 +395,7 @@ void ProcessGroupWorker::combineUniform() {
       */
 
   // todo: delete old dsg
-  if (combinedUniDSG_ != NULL)
+  if (combinedUniDSG_ != nullptr)
     delete combinedUniDSG_;
   if (combinedTeamDSG_ != nullptr)
     delete combinedTeamDSG_;
@@ -416,6 +417,9 @@ void ProcessGroupWorker::combineUniform() {
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
 
     dfg.registerUniformSG(*combinedUniDSG_);
+  }
+  TEAM_LEADER_EXCLUSIVE_SECTION {
+    combinedUniDSG_->buildTeamDataTypes();
   }
 
   // real localMax(0.0);
@@ -451,9 +455,10 @@ void ProcessGroupWorker::combineUniform() {
                     */
 
   auto combinedReduceGrid =
-  CombiCom::distributedTeamGather( combinedUniDSG_, combinedTeamDSG_ );
+    CombiCom::distributedTeamGather( combinedUniDSG_, combinedTeamDSG_ );
 
   TEAM_LEADER_EXCLUSIVE_SECTION {
+    assert(combinedReduceGrid);
     CombiCom::distributedGlobalReduce( *combinedReduceGrid );
   }
 

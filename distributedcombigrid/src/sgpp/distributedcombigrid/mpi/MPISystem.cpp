@@ -322,21 +322,22 @@ void MPISystem::initLocalComm(
   std::reverse( teamExtent_.begin(), teamExtent_.end() );
 
   // Find our team leader
-  CartRankCoords teamLeaderCoords(dim);
+  int color = 0;
   for(DimType d = 0; d < dim; ++d) {
-    teamLeaderCoords[d] = localCoords_[d] - (localCoords_[d] % teamExtent_[d]);
+    color *= minPVec[d];
+    color += localCoords_[d] / teamExtent_[d];
   }
-  MPI_Cart_rank( localComm_, teamLeaderCoords.data(), &teamLeaderRank_ );
-
-  int color = teamLeaderRank_;
-  // Use a predictable ordering here
+  teamColor_ = color;
   int key = 0;
-  for(DimType d = dim; d > 0; ) {
-    --d;
-    key *= teamExtent_[d];
-    key += localCoords_[d] - teamLeaderCoords[d];
+  for(DimType d = dim; d > 0; --d) {
+    key *= teamExtent_[d - 1];
+    key += localCoords_[d - 1] % teamExtent_[d - 1];
   }
+
   MPI_Comm_split( localComm_, color, key, &teamComm_ );
+  teamLeaderRank_ = 0; // Through ordering
+
+  MPI_Comm_rank( teamComm_, &teamRank_ );
 
   if(ENABLE_FT){
     createCommFT( &teamCommFT_, teamComm_ );
@@ -380,41 +381,18 @@ void MPISystem::initGlobalComm(){
 
 void MPISystem::initGlobalReduceCommm() {
     if( !isTeamLeader() ) {
-      globalReduceComm_ = MPI_COMM_NULL;
+      MPI_Comm_split( worldComm_, MPI_UNDEFINED, MPI_UNDEFINED, &globalReduceComm_ );
       globalReduceCommFT_ = nullptr;
     } else {
       RankType teamColor = getTeamColor();
 
-      RankType workerID = getWorldRank();
-      int localRank = size_t( workerID - getGroupBaseWorldRank(group_) );
-
-      MPI_Group worldGroup;
-      MPI_Comm_group(worldComm_, &worldGroup);
-      size_t numGroups = getNumGroups();
-
-      std::vector<RankType> worldRanksInReduceGroup( numGroups );
-      size_t minProcsPerGroup = *std::min_element( nprocsByGroup_.begin(), nprocsByGroup_.end() );
-      for(GroupType g = 0; g < numGroups; g++) {
-        size_t procsInGroup = getNumProcs( g );
-        size_t groupTeamSize = procsInGroup / minProcsPerGroup;
-        RankType groupBaseRank = getGroupBaseWorldRank( g );
-        RankType groupTeamLeaderWithColorWorldRank = groupBaseRank + groupTeamSize * teamColor;
-
-        worldRanksInReduceGroup[g] = groupTeamLeaderWithColorWorldRank;
-      }
-      MPI_Group reduceGroup;
-
-      MPI_Group_incl( worldGroup, worldRanksInReduceGroup.size(), worldRanksInReduceGroup.data(), &reduceGroup );
-
-      MPI_Comm_create_group( worldComm_, reduceGroup, teamColor, &globalReduceComm_ );
+      MPI_Comm_split( worldComm_, teamColor, worldRank_, &globalReduceComm_ );
 
       if( ENABLE_FT ){
         createCommFT( &globalReduceCommFT_, globalReduceComm_ );
       }
 
       MPI_Barrier(globalReduceComm_);
-      MPI_Group_free(&reduceGroup);
-      MPI_Group_free(&worldGroup);
     }
 }
 
@@ -437,7 +415,7 @@ void MPISystem::debugLogCommunicator( CommunicatorType comm, std::string commNam
   std::ostream_iterator<RankType> debugOutIt (debugOutput, ", ");
   std::copy( worldRanksInComm.begin(), worldRanksInComm.end(), debugOutIt );
   debugOutput << "}";
-  std::cout << debugOutput.str() << std::endl;
+  std::cerr << debugOutput.str() << std::endl;
 }
 
 void MPISystem::createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm ){

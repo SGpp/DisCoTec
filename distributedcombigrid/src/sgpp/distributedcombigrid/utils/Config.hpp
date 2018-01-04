@@ -47,7 +47,7 @@ const bool USE_NONBLOCKING_MPI_COLLECTIVE = true;
  * process is in the application code. in this case this flag can be set to
  * true to avoid that the ready signal is sent automatically.
  */
-const bool omitReadySignal = true;
+const bool omitReadySignal = false;
 
 
 /* using a uniform domain decomposition for all component grids (the same

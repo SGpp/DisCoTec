@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
      */
     ProcessGroupManagerContainer pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+      int pgroupRootID = theMPISystem()->getGroupBaseWorldRank(i);
       pgroups.emplace_back(
           std::make_shared< ProcessGroupManager > ( pgroupRootID )
                           );
@@ -156,19 +156,23 @@ int main(int argc, char** argv) {
     /* distribute task according to load model and start computation for
      * the first time */
 
+    std::cerr << "run first" << std::endl;
     Stats::startEvent("manager run first");
     manager.runfirst();
     Stats::stopEvent("manager run first");
+    std::cerr << "run first complete" << std::endl;
 
     std::ofstream myfile;
     myfile.open("out/solution.dat");
 
     for (size_t i = 0; i < ncombi; ++i) {
+      std::cerr << "ncombi: " << i << std::endl;
       Stats::startEvent("combine");
       manager.combine();
       Stats::stopEvent("combine");
 
       // evaluate solution
+      std::cerr << "eval" << std::endl;
       FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
       Stats::startEvent("eval");
       manager.gridEval(fg_eval);

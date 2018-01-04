@@ -911,17 +911,31 @@ CombiCom::distributedTeamGather(
       totalRecvBufferSize += dsg->getTeamDataSize(ss);
     }
     recvbuffer.resize( totalRecvBufferSize );
-  }
-  std::vector<MPI_Datatype>& teamDatatypes = dsg->getTeamDataTypes();
 
-  for(int rank = 0; rank < teamSize; ++rank) {
-    int tag = rank;
+    const auto& teamDatatypes = dsg->getTeamDataTypes();
+
+    for(int rank = 0; rank < teamSize; ++rank) {
+      int source = rank;
+      int tag = rank;
+      MPI_Datatype recvtype = teamDatatypes[rank];
+      if(rank == theMPISystem()->getTeamLeaderRank()) {
+        int dest = rank;
+        MPI_Sendrecv(
+          sendbuffer.data(), int(sendbuffer.size()), sendtype, dest  , tag,
+          recvbuffer.data(),                     1, recvtype, source, tag,
+          comm, MPI_STATUS_IGNORE );
+      } else {
+        MPI_Recv(
+          recvbuffer.data(),                     1, recvtype, source, tag,
+          comm, MPI_STATUS_IGNORE );
+      }
+    }
+  } else {
+    int tag = teamRank;
     int dest = theMPISystem()->getTeamLeaderRank();
-    MPI_Datatype recvtype = teamDatatypes[rank];
-    MPI_Sendrecv(
+    MPI_Send(
       sendbuffer.data(), int(sendbuffer.size()), sendtype, dest, tag,
-      recvbuffer.data(),                     1, recvtype, rank, tag,
-      comm, MPI_STATUS_IGNORE );
+      comm );
   }
 
   TEAM_LEADER_EXCLUSIVE_SECTION {
@@ -934,7 +948,6 @@ CombiCom::distributedTeamGather(
       offset += dataSize;
     }
   }
-
   return teamdsg;
 }
 
@@ -961,41 +974,65 @@ CombiCom::distributedTeamScatter(
     abstraction::getabstractionDataType<FG_ELEMENT>()
   );
 
-  TEAM_LEADER_EXCLUSIVE_SECTION {
-    size_t totalSendBufferSize = 0;
-    for(size_t ss = 0; ss < subspaceCount; ++ss) {
-      totalSendBufferSize += dsg->getTeamDataSize(ss);
-    }
-    sendbuffer.resize(totalSendBufferSize);
-    for(size_t ss = 0, offset = 0; ss < subspaceCount; ++ss) {
-      auto& data = teamdsg->getDataVector(ss);
-      std::copy( data.begin(), data.end(), sendbuffer.begin() + offset );
-      offset += data.size();
-    }
-  }
-
   // Size is passed to as as teamDataSize
   size_t totalRecvBufferSize = 0;
   for(size_t ss = 0; ss < subspaceCount; ++ss) {
     totalRecvBufferSize += dsg->getDataVector(ss).size();
   }
   recvbuffer.resize( totalRecvBufferSize );
-  std::vector<MPI_Datatype>& teamDatatypes = dsg->getTeamDataTypes();
 
-  for(int rank = 0; rank < teamSize; ++rank) {
-    int tag = rank;
+  TEAM_LEADER_EXCLUSIVE_SECTION {
+    size_t totalSendBufferSize = 0;
+    for(size_t ss = 0; ss < subspaceCount; ++ss) {
+      size_t teamDataSize = dsg->getTeamDataSize(ss);
+      size_t distributedSize = teamdsg->getDataVector(ss).size();
+      if(teamDataSize == distributedSize)
+        totalSendBufferSize += teamDataSize;
+      else
+        // subspace is present on other processes, but not important
+        // for us, because no task includes it
+        assert(teamDataSize == 0);
+    }
+    sendbuffer.resize(totalSendBufferSize);
+    for(size_t ss = 0, offset = 0; ss < subspaceCount; ++ss) {
+      if(dsg->getTeamDataSize(ss) == 0) {
+        // See assert above, ignore this subspace
+        continue;
+      }
+      auto& data = teamdsg->getDataVector(ss);
+      std::copy( data.begin(), data.end(), sendbuffer.begin() + offset );
+      offset += data.size();
+    }
+
+    const auto& teamDatatypes = dsg->getTeamDataTypes();
+
+    for(int rank = 0; rank < teamSize; ++rank) {
+      int tag = rank;
+      int dest = rank;
+      MPI_Datatype sendtype = teamDatatypes[rank];
+      if(rank == theMPISystem()->getTeamLeaderRank()) {
+        int source = theMPISystem()->getTeamLeaderRank();
+        MPI_Sendrecv(
+          sendbuffer.data(),                     1, sendtype, dest  , tag,
+          recvbuffer.data(), int(recvbuffer.size()), recvtype, source, tag,
+          comm, MPI_STATUS_IGNORE );
+      } else {
+        MPI_Send(
+          sendbuffer.data(),                     1, sendtype, dest  , tag,
+          comm );
+      }
+    }
+  } else {
+    int tag = teamRank;
     int source = theMPISystem()->getTeamLeaderRank();
-    MPI_Datatype sendtype = teamDatatypes[rank];
-    MPI_Sendrecv(
-      sendbuffer.data(),                     1, sendtype, rank, tag,
+    MPI_Recv(
       recvbuffer.data(), int(recvbuffer.size()), recvtype, source, tag,
       comm, MPI_STATUS_IGNORE );
   }
 
   for(size_t ss = 0, offset = 0; ss < subspaceCount; ++ss) {
-    size_t dataSize = dsg->getTeamDataSize(ss);
     auto& data = dsg->getDataVector(ss);
-    assert(data.size() == dataSize);
+    size_t dataSize = data.size();
     auto sgBegin = recvbuffer.begin() + offset;
     std::copy(sgBegin, sgBegin + dataSize, data.begin());
     offset += dataSize;

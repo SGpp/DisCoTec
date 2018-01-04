@@ -862,37 +862,26 @@ class DistributedFullGrid {
     MPI_Comm_size( theMPISystem()->getTeamComm(), &teamSize );
     size_t subspaceCount = subspaces_.size();
 
-    std::vector<std::vector<MPI_Datatype>> subDataTypes;
-    std::vector<MPI_Aint> subDataDisplacements;
-    size_t accumulativeDisplacement = 0;
-    TEAM_LEADER_EXCLUSIVE_SECTION {
-
-      subDataTypes.resize(teamSize, std::vector<int>{ subspaceCount });
-      subDataDisplacements.resize( subspaceCount );
-    }
-
     for (size_t subFgId = 0; subFgId < subspaceCount; ++subFgId) {
       auto& subFgLevel = subspaces_[subFgId].level_;
-      subspaceAssigmentList_[subFgId] = dsg.getIndex( subFgLevel );
+      IndexType subSgId = subspaceAssigmentList_[subFgId] = dsg.getIndex( subFgLevel );
       // resize all common subspaces in dsg
-      if (subspaceAssigmentList_[subFgId] < 0)
+      if (subSgId < 0)
         continue;
-
-      IndexType subSgId = subspaceAssigmentList_[subFgId];
-
       std::vector<FG_ELEMENT>& subSgData = dsg.getDataVector(subSgId);
 
-      if (subSgData.size() == 0)
-        subSgData.resize(subspaces_[subFgId].localSize_);
-      else
+      if (subSgData.size() != 0) {
         assert(subSgData.size() == subspaces_[subFgId].localSize_);
+        // could assert datatypes
+        continue;
+      }
+      subSgData.resize(subspaces_[subFgId].localSize_);
+      auto& subDataTypes = dsg.getTemporaryTeamDataTypes(subSgId);
+      subDataTypes.resize(teamSize);
 
-      TEAM_LEADER_EXCLUSIVE_SECTION {
-        if(subDataTypes.size() == 0)
-          subDataTypes.resize( teamSize );
-        else
-          assert(subSgData.size() == teamSize);
-
+      // calculate subarray types of subspaces when merged at team leader
+      // only needed when team size > 1, see CombiComm#distributedTeamGather
+      TEAM_LEADER_EXCLUSIVE_SECTION if(teamSize > 1) {
         using PosVector = std::vector<int>;
         // Determine team leader coordinates
         const CartRankCoords& localCoords = theMPISystem()->getLocalCoords();
@@ -903,11 +892,12 @@ class DistributedFullGrid {
           teamLeaderCoords[d] = localCoords[d] - (localCoords[d] % teamExtent[d]);
         }
         // Determine sizes of subspace for all team ranks
-        std::vector<PosVector> subspaceSizes( teamSize );
-        CartRankCoords iCoords(dim);
+        std::vector<PosVector> subspaceSizes( teamSize, PosVector( dim ) );
+        CartRankCoords iCoords( dim ); // buffer
         for(int teamRank = 0;
             teamRank < teamSize;
             ++teamRank) {
+          // convert from teamRank -> localRank
           // From the ordering in MPISystem#initLocal
           int key = teamRank;
           for(DimType d = 0; d < dim; ++d) {
@@ -918,70 +908,59 @@ class DistributedFullGrid {
           int localRank;
           MPI_Cart_rank( getCommunicator(), iCoords.data(), &localRank );
           // TODO mm: determine size directly, without extracting all indices
-          subspaceSizes[teamRank].resize( dim );
+          // Determine size for localRank
           IndexVector oneDIndices;
           for(DimType d = 0; d < dim; ++d) {
+            oneDIndices.clear();
             get1dIndicesLocal(d, subFgLevel, oneDIndices, localRank);
             subspaceSizes[teamRank][d] = int(oneDIndices.size());
           }
         }
 
-        // For each dimension and a position in that dimension, the offset
-        // of the first point in the subspace, on a team-wide grid
+        // Let teamRank have coord (r1, r2, ..., rd) in the team parallelization
+        // == iRank mod teamExtent
+        // Then at starts[i][ri] we find start[i] of the associated subgrid
         std::vector<PosVector> starts( dim );
         PosVector teamSgGridSizes( dim );
-        for(DimType d = 0, stride = 1;
-            d < dim;
-            stride *= teamExtent[d], ++d) {
-          auto& startsInD = starts[d];
-          startsInD.resize( teamExtent[d], 0 );
+        for(DimType d = 0, stride = 1; d < dim; ++d) {
+          PosVector& startsInD = starts[d];
+          startsInD.resize( teamExtent[d] );
           int partialSum = 0;
           for(int i = 0; i < teamExtent[d]; ++i) {
             startsInD[i] = partialSum;
-            partialSum += subspaceSizes[i * stride][d];
+            auto iTeamRank = i * stride;
+            partialSum += subspaceSizes[iTeamRank][d];
           }
           teamSgGridSizes[d] = partialSum;
+          stride *= teamExtent[d];
         }
         // Then, we can finally calculate the subarrays we need
-        PosVector subArrayStart( dim );
+        PosVector subArrayStart( dim ); // reused buffer
         for(int teamRank = 0;
             teamRank < teamSize;
             ++teamRank) {
           // From the ordering in MPISystem#initLocal
           int key = teamRank;
           for(DimType d = 0; d < dim; ++d) {
-            auto iCoordD = key % teamExtent[d];
-            subArrayStart[d] = starts[d][iCoordD];
+            auto teamCoordD = key % teamExtent[d];
             key /= teamExtent[d];
+            subArrayStart[d] = starts[d][teamCoordD];
           }
 
           int subspaceType;
           MPI_Type_create_subarray( dim, teamSgGridSizes.data(),
               subspaceSizes[teamRank].data(), subArrayStart.data(),
-              MPI_ORDER_C, this->getMPIDatatype(), &subspaceType);
-          subDataTypes[teamRank][subSgId] = subspaceType;
+              MPI_ORDER_FORTRAN, this->getMPIDatatype(), &subspaceType );
+          subDataTypes[teamRank] = subspaceType;
         }
-        size_t totalSgTeamGridSize = 0;
+        // total team's grid size
+        size_t totalSgTeamGridSize = 1;
         for(DimType d = 0; d < dim; ++d) {
           totalSgTeamGridSize *= size_t(teamSgGridSizes[d]);
         }
+        assert(totalSgTeamGridSize >= subSgData.size());
         dsg.setTeamDataSize( subSgId, totalSgTeamGridSize );
-        subDataDisplacements[subSgId] = accumulativeDisplacement;
-        accumulativeDisplacement += totalSgTeamGridSize;
       } // end of LEADER_EXCLUSIVE_SECTION
-    }
-
-    std::vector<MPI_Datatype>& teamDataTypes = dsg.getTeamDataTypes();
-    teamDataTypes.resize( teamSize, MPI_DATATYPE_NULL );
-    TEAM_LEADER_EXCLUSIVE_SECTION {
-      // Each datatype is present once
-      std::vector<int> blockCounts( subspaceCount, 1 );
-      for(int rank = 0; rank < teamSize; ++rank) {
-        MPI_Type_struct( subspaceCount, blockCounts.data(),
-            subDataDisplacements.data(), subDataTypes[rank].data(),
-            &teamDataTypes[rank] );
-        MPI_Type_commit( &teamDataTypes[rank] );
-      }
     }
   }
 
@@ -1900,8 +1879,9 @@ class DistributedFullGrid {
     // get first local idx which has level l
     IndexType start = -1;
     IndexType firstGlobal1dIdx = getFirstGlobal1dIndex(d, rank);
+    const IndexVector nrLocalPoints = getUpperBounds(rank) - getLowerBounds(rank);
 
-    for (IndexType i = 0; i < nrLocalPoints_[d]; ++i) {
+    for (IndexType i = 0; i < nrLocalPoints[d]; ++i) {
       IndexType global1dIdx = firstGlobal1dIdx + i;
 
       LevelType myLevel = getLevel(d, global1dIdx);
@@ -1930,7 +1910,7 @@ class DistributedFullGrid {
       stride = IndexType(std::pow(2, levels_[d] - l + 1));
     }
 
-    for (IndexType idx = start; idx < nrLocalPoints_[d]; idx += stride)
+    for (IndexType idx = start; idx < nrLocalPoints[d]; idx += stride)
       oneDIndices.push_back(idx);
   }
 

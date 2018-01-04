@@ -33,6 +33,8 @@ struct SubspaceSGU {
 
   std::vector<FG_ELEMENT> data_;
 
+  std::vector<MPI_Datatype> temporaryTeamDataTypes_;
+
   size_t teamDataSize_;
 };
 
@@ -81,8 +83,16 @@ class DistributedSparseGridUniform {
   // get reference to data vector of subspace with l.
   inline std::vector<FG_ELEMENT>& getDataVector(const LevelVector& l);
 
+  // get reference to team data types of each rank for subspace i
+  // only temporary until TeamDataTypes are finalized
+  inline std::vector<MPI_Datatype>& getTemporaryTeamDataTypes(size_t i);
+
+  // builds data types for the team from temporary data types,
+  // then disposes of the temporary ones
+  void buildTeamDataTypes();
+
   // get reference to team data types of each rank in the team.
-  inline std::vector<MPI_Datatype>& getTeamDataTypes();
+  inline const std::vector<MPI_Datatype>& getTeamDataTypes();
 
   inline size_t getTeamDataSize(size_t i);
 
@@ -420,8 +430,8 @@ DistributedSparseGridUniform<FG_ELEMENT>::getDataVector(const LevelVector& l) {
 
 template<typename FG_ELEMENT>
 inline std::vector<MPI_Datatype>&
-DistributedSparseGridUniform<FG_ELEMENT>::getTeamDataTypes() {
-  return teamDataTypes_;
+DistributedSparseGridUniform<FG_ELEMENT>::getTemporaryTeamDataTypes(size_t i) {
+  return subspaces_[i].temporaryTeamDataTypes_;
 }
 
 template<typename FG_ELEMENT>
@@ -434,6 +444,82 @@ template<typename FG_ELEMENT>
 void
 DistributedSparseGridUniform<FG_ELEMENT>::setTeamDataSize(size_t i, size_t size) {
   subspaces_[i].teamDataSize_ = size;
+}
+
+template<typename FG_ELEMENT>
+void
+DistributedSparseGridUniform<FG_ELEMENT>::buildTeamDataTypes() {
+  MPI_Comm comm = theMPISystem()->getTeamComm();
+  int teamSize;
+  MPI_Comm_size(comm, &teamSize);
+  if(teamSize == 1) {
+    // In sync with distributedTeam(Gather|Scatter)
+    return;
+  }
+
+  MPI_Datatype datatype = abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<FG_ELEMENT>()
+  );
+  int datatypeSize;
+  MPI_Type_size( datatype, &datatypeSize );
+
+  size_t sgSubspaceCount = getNumSubspaces();
+
+  std::vector<MPI_Aint> subDataDisplacements ( sgSubspaceCount );
+  MPI_Aint sizeAccumulator = 0;
+  for(size_t i = 0; i < sgSubspaceCount; ++i) {
+    subDataDisplacements[i] = sizeAccumulator * datatypeSize;
+    sizeAccumulator += getTeamDataSize( i );
+  }
+
+  assert(teamDataTypes_.size() == 0 && "must not build team data types twice");
+  teamDataTypes_.resize( teamSize, MPI_DATATYPE_NULL );
+  // Each datatype is present once
+  std::vector<int> blockCounts( sgSubspaceCount, 1 );
+  std::vector<MPI_Datatype> dataTypesForRank( sgSubspaceCount );
+  for(int teamRank = 0; teamRank < teamSize; ++teamRank) {
+    // Type_struct doesn't accept MPI_DATATYPE_NULL, but does accept
+    // block counts of 0.
+    for(size_t sgId = 0; sgId < sgSubspaceCount; ++sgId) {
+      auto& sgTempDataTypes = getTemporaryTeamDataTypes(sgId);
+      bool isAbsent = sgTempDataTypes.size() == 0;
+      if(isAbsent) {
+        dataTypesForRank[sgId] = MPI_FLOAT;
+        blockCounts[sgId] = 0;
+      } else {
+        dataTypesForRank[sgId] = sgTempDataTypes[teamRank];
+        blockCounts[sgId] = 1;
+      }
+    }
+    // Finally create the struct
+    MPI_Type_create_struct( int(sgSubspaceCount),
+        blockCounts.data(),
+        subDataDisplacements.data(),
+        dataTypesForRank.data(),
+        &teamDataTypes_[teamRank] );
+    MPI_Aint lower, upper;
+    MPI_Type_get_extent(teamDataTypes_[teamRank], &lower, &upper);
+    MPI_Type_commit( &teamDataTypes_[teamRank] );
+    /*for(size_t sgId = 0; sgId < sgSubspaceCount; ++sgId) {
+      auto& sgTempDataTypes = getTemporaryTeamDataTypes(sgId);
+      bool isAbsent = sgTempDataTypes.size() == 0;
+      if(!isAbsent) {
+        MPI_Type_free( &sgTempDataTypes[teamRank] );
+      }
+    }*/
+  }
+
+  /*for(size_t sgId = 0; sgId < sgSubspaceCount; ++sgId) {
+    getTemporaryTeamDataTypes(sgId).clear();
+  }*/
+}
+
+
+template<typename FG_ELEMENT>
+inline const std::vector<MPI_Datatype>&
+DistributedSparseGridUniform<FG_ELEMENT>::getTeamDataTypes() {
+  assert(teamDataTypes_.size() > 0 && "must build team data types first");
+  return teamDataTypes_;
 }
 
 template<typename FG_ELEMENT>
