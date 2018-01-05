@@ -62,6 +62,7 @@ SignalType ProcessGroupWorker::wait() {
               signalTag,
               theMPISystem()->getGlobalComm(),
               MPI_STATUS_IGNORE);
+    std::cerr << "Received " << signal << std::endl;
   }
   // distribute signal to other processes of pgroup
   MPI_Bcast( &signal, 1, MPI_INT,

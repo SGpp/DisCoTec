@@ -1,15 +1,15 @@
 {
   "ct": {
-    "dim": 2,
-    "lmin": "3 3",
-    "lmax": "6 6",
-    "leval": "5 5",
-    "p": ["1 1", "1 2"],
+    "dim": 3,
+    "lmin": "3 3 3",
+    "lmax": "6 6 6",
+    "leval": "5 5 5",
+    "p": ["1 1 1", "1 2 1"],
     "ncombi": 10
   },
   "application": {
     "dt": 1e-3,
-    "nsteps": 100
+    "nsteps": 10
   },
   "manager": {
     "ngroup": 2,

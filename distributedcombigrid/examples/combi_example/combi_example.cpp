@@ -172,7 +172,6 @@ int main(int argc, char** argv) {
       Stats::stopEvent("combine");
 
       // evaluate solution
-      std::cerr << "eval" << std::endl;
       FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
       Stats::startEvent("eval");
       manager.gridEval(fg_eval);
