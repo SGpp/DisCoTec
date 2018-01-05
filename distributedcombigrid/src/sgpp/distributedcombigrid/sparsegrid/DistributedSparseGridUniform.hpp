@@ -146,6 +146,10 @@ class DistributedSparseGridUniform {
 
   void calcProcAssignment(int procsPerNode);
 
+  void freeTemporaryTeamDataTypes();
+
+  void freeTeamDataTypes();
+
   DimType dim_;
 
   LevelVector nmax_;
@@ -243,6 +247,7 @@ std::ostream& operator<<(std::ostream& os,
 
 template<typename FG_ELEMENT>
 DistributedSparseGridUniform<FG_ELEMENT>::~DistributedSparseGridUniform() {
+  freeTeamDataTypes();
 }
 
 // start recursion by setting dim=d=dimensionality of the vector space
@@ -500,18 +505,28 @@ DistributedSparseGridUniform<FG_ELEMENT>::buildTeamDataTypes() {
     MPI_Aint lower, upper;
     MPI_Type_get_extent(teamDataTypes_[teamRank], &lower, &upper);
     MPI_Type_commit( &teamDataTypes_[teamRank] );
-    /*for(size_t sgId = 0; sgId < sgSubspaceCount; ++sgId) {
+    for(size_t sgId = 0; sgId < sgSubspaceCount; ++sgId) {
       auto& sgTempDataTypes = getTemporaryTeamDataTypes(sgId);
       bool isAbsent = sgTempDataTypes.size() == 0;
       if(!isAbsent) {
         MPI_Type_free( &sgTempDataTypes[teamRank] );
       }
-    }*/
+    }
   }
 
-  /*for(size_t sgId = 0; sgId < sgSubspaceCount; ++sgId) {
+  for(size_t sgId = 0; sgId < sgSubspaceCount; ++sgId) {
     getTemporaryTeamDataTypes(sgId).clear();
-  }*/
+  }
+}
+
+
+template<typename FG_ELEMENT>
+void
+DistributedSparseGridUniform<FG_ELEMENT>::freeTeamDataTypes() {
+  for(auto& dataType : teamDataTypes_) {
+    MPI_Type_free( &dataType );
+  }
+  teamDataTypes_.clear();
 }
 
 
