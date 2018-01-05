@@ -227,6 +227,8 @@ void MPISystem::initWorldComm( std::vector<size_t> procsByGroup ){
         break;
       }
     }
+    /* set group number in Stats. this is necessary for postprocessing */
+    Stats::setAttribute("group", std::to_string(int(group_)));
 
     if( ENABLE_FT ){
         worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
@@ -286,8 +288,6 @@ void MPISystem::initLocalComm(
 
     std::cout << "Using existing communicator with cartesian structure\n";
   }
-  /* set group number in Stats. this is necessary for postprocessing */
-  Stats::setAttribute("group", std::to_string(int(group_)));
 
   localComm_ = lcomm;
   // todo: think through which side effects changing the master rank would have

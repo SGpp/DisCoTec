@@ -47,10 +47,13 @@ SignalType ProcessGroupWorker::wait() {
     status_ = PROCESS_GROUP_WAIT;
   }
   if (status_ != PROCESS_GROUP_WAIT){
-    int myRank;
+    /*int myRank;
     MPI_Comm_rank(theMPISystem()->getWorldComm(), &myRank);
     std::cout << "status is " << status_ << "of rank " << myRank << "\n";
-    std::cout << "executing next task\n";
+    std::cout << "executing next task\n";*/
+    if(!omitReadySignal) {
+      ready();
+    }
     return RUN_NEXT;
   }
   SignalType signal = -1;
