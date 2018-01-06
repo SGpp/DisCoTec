@@ -1505,7 +1505,7 @@ class DistributedFullGrid {
         MPI_File_write( fh,&dim,1,MPI_INT,MPI_STATUS_IGNORE );
 
         std::vector<int> res( sizes.begin(), sizes.end() );
-        MPI_File_write( fh,&res[0],6,MPI_INT,MPI_STATUS_IGNORE );
+        MPI_File_write( fh,&res[0],dim,MPI_INT,MPI_STATUS_IGNORE );
       }
 
       // set file view to right offset (in bytes)

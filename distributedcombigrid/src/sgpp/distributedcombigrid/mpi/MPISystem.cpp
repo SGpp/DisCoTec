@@ -313,7 +313,6 @@ void MPISystem::initLocalComm(
   parallelization_ = dims;
 
   teamExtent_.resize(dim, 0);
-  size_t teamSize = 0;
   for(DimType d = 0; d < dim; ++d) {
     assert( (pVec[d] % minPVec[d]) == 0 && "parallelizations must be compatible" );
     teamExtent_[d] = pVec[d] / minPVec[d];
@@ -324,7 +323,7 @@ void MPISystem::initLocalComm(
   // Find our team leader
   int color = 0;
   for(DimType d = 0; d < dim; ++d) {
-    color *= minPVec[d];
+    color *= minPVec[dim - 1 - d]; // minP is not reverse like the others
     color += localCoords_[d] / teamExtent_[d];
   }
   teamColor_ = color;
