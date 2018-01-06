@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < ngroup; ++i) {
       int pgroupRootID = theMPISystem()->getGroupBaseWorldRank(i);
       pgroups.emplace_back(
-          std::make_shared< ProcessGroupManager > ( pgroupRootID )
+          std::make_shared< ProcessGroupManager > ( i )
                           );
     }
 
