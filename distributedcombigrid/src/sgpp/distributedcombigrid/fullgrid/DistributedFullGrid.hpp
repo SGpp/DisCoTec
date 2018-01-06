@@ -876,12 +876,13 @@ class DistributedFullGrid {
         continue;
       }
       subSgData.resize(subspaces_[subFgId].localSize_);
-      auto& subDataTypes = dsg.getTemporaryTeamDataTypes(subSgId);
-      subDataTypes.resize(teamSize);
 
       // calculate subarray types of subspaces when merged at team leader
       // only needed when team size > 1, see CombiComm#distributedTeamGather
       TEAM_LEADER_EXCLUSIVE_SECTION if(teamSize > 1) {
+        auto& subDataTypes = dsg.getTemporaryTeamDataTypes(subSgId);
+        subDataTypes.resize(teamSize, MPI_DATATYPE_NULL);
+
         using PosVector = std::vector<int>;
         // Determine team leader coordinates
         const CartRankCoords& localCoords = theMPISystem()->getLocalCoords();
@@ -935,6 +936,7 @@ class DistributedFullGrid {
           stride *= teamExtent[d];
         }
         // Then, we can finally calculate the subarrays we need
+        std::reverse(teamSgGridSizes.begin(), teamSgGridSizes.end());
         PosVector subArrayStart( dim ); // reused buffer
         for(int teamRank = 0;
             teamRank < teamSize;
@@ -946,11 +948,25 @@ class DistributedFullGrid {
             key /= teamExtent[d];
             subArrayStart[d] = starts[d][teamCoordD];
           }
+          bool isSubspaceEmptyOnRank = false;
+          for(DimType d = 0; d < dim; ++d) {
+            if(subspaceSizes[teamRank][d] == 0
+                || teamSgGridSizes[d] == 0) {
+              isSubspaceEmptyOnRank = true;
+            }
+          }
+          if(isSubspaceEmptyOnRank) {
+            // empty subspace
+            subDataTypes[teamRank] = MPI_DATATYPE_NULL;
+            continue;
+          }
 
+          std::reverse(subspaceSizes[teamRank].begin(), subspaceSizes[teamRank].end());
+          std::reverse(subArrayStart.begin(), subArrayStart.end());
           int subspaceType;
           MPI_Type_create_subarray( dim, teamSgGridSizes.data(),
               subspaceSizes[teamRank].data(), subArrayStart.data(),
-              MPI_ORDER_FORTRAN, this->getMPIDatatype(), &subspaceType );
+              MPI_ORDER_C, this->getMPIDatatype(), &subspaceType );
           subDataTypes[teamRank] = subspaceType;
         }
         // total team's grid size

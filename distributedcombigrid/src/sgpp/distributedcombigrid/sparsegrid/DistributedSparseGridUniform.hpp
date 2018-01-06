@@ -146,8 +146,6 @@ class DistributedSparseGridUniform {
 
   void calcProcAssignment(int procsPerNode);
 
-  void freeTemporaryTeamDataTypes();
-
   void freeTeamDataTypes();
 
   DimType dim_;
@@ -487,7 +485,8 @@ DistributedSparseGridUniform<FG_ELEMENT>::buildTeamDataTypes() {
     // block counts of 0.
     for(size_t sgId = 0; sgId < sgSubspaceCount; ++sgId) {
       auto& sgTempDataTypes = getTemporaryTeamDataTypes(sgId);
-      bool isAbsent = sgTempDataTypes.size() == 0;
+      bool isAbsent = sgTempDataTypes.size() == 0 ||
+          sgTempDataTypes[teamRank] == MPI_DATATYPE_NULL;
       if(isAbsent) {
         dataTypesForRank[sgId] = MPI_FLOAT;
         blockCounts[sgId] = 0;
@@ -507,7 +506,8 @@ DistributedSparseGridUniform<FG_ELEMENT>::buildTeamDataTypes() {
     MPI_Type_commit( &teamDataTypes_[teamRank] );
     for(size_t sgId = 0; sgId < sgSubspaceCount; ++sgId) {
       auto& sgTempDataTypes = getTemporaryTeamDataTypes(sgId);
-      bool isAbsent = sgTempDataTypes.size() == 0;
+      bool isAbsent = sgTempDataTypes.size() == 0
+          || sgTempDataTypes[teamRank] == MPI_DATATYPE_NULL;
       if(!isAbsent) {
         MPI_Type_free( &sgTempDataTypes[teamRank] );
       }
