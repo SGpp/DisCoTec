@@ -912,7 +912,7 @@ class DistributedFullGrid {
           IndexVector oneDIndices;
           for(DimType d = 0; d < dim; ++d) {
             oneDIndices.clear();
-            get1dIndicesLocal(d, subFgLevel, oneDIndices, localRank);
+            get1dIndicesLocal(dim - 1 - d, subFgLevel, oneDIndices, localRank);
             subspaceSizes[teamRank][d] = int(oneDIndices.size());
           }
         }
