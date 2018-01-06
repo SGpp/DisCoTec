@@ -913,6 +913,8 @@ CombiCom::distributedTeamGather(
     recvbuffer.resize( totalRecvBufferSize );
 
     const auto& teamDatatypes = dsg->getTeamDataTypes();
+    std::vector<MPI_Request> requests;
+    requests.reserve(teamSize - 1);
 
     for(int rank = 0; rank < teamSize; ++rank) {
       int source = rank;
@@ -925,11 +927,15 @@ CombiCom::distributedTeamGather(
           recvbuffer.data(),                     1, recvtype, source, tag,
           comm, MPI_STATUS_IGNORE );
       } else {
-        MPI_Recv(
+        MPI_Request request;
+        MPI_Irecv(
           recvbuffer.data(),                     1, recvtype, source, tag,
-          comm, MPI_STATUS_IGNORE );
+          comm, &request );
+        requests.push_back( request );
       }
     }
+
+    MPI_Waitall(teamSize - 1, requests.data(), MPI_STATUSES_IGNORE);
   } else {
     int tag = teamRank;
     int dest = theMPISystem()->getTeamLeaderRank();
@@ -1005,6 +1011,8 @@ CombiCom::distributedTeamScatter(
     }
 
     const auto& teamDatatypes = dsg->getTeamDataTypes();
+    std::vector<MPI_Request> requests;
+    requests.reserve(teamSize - 1);
 
     for(int rank = 0; rank < teamSize; ++rank) {
       int tag = rank;
@@ -1017,11 +1025,15 @@ CombiCom::distributedTeamScatter(
           recvbuffer.data(), int(recvbuffer.size()), recvtype, source, tag,
           comm, MPI_STATUS_IGNORE );
       } else {
-        MPI_Send(
+        MPI_Request request;
+        MPI_Isend(
           sendbuffer.data(),                     1, sendtype, dest  , tag,
-          comm );
+          comm, &request );
+        requests.push_back( request );
       }
     }
+
+    MPI_Waitall(teamSize - 1, requests.data(), MPI_STATUSES_IGNORE);
   } else {
     int tag = teamRank;
     int source = theMPISystem()->getTeamLeaderRank();
