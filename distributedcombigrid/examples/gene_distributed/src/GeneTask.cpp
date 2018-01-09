@@ -45,7 +45,8 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       checkpointInitialized_(false),
       nspecies_(numSpecies),
       _GENE_Global(GENE_Global),
-      _GENE_Linear(GENE_Linear)
+      _GENE_Linear(GENE_Linear),
+      currentTime_(0.0)
 {
 
 // theres only one boundary configuration allowed at the moment
@@ -69,7 +70,8 @@ GeneTask::GeneTask() :
     initialized_(false),
     checkpointInitialized_(false),
     _GENE_Global(false),
-    _GENE_Linear(true)
+    _GENE_Linear(true),
+    currentTime_(0.0)
 {
   ;
 }
