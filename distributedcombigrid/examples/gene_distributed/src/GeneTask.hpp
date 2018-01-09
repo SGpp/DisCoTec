@@ -147,7 +147,18 @@ public:
   real getCombiTime(){
     return combitime_;
   }
-
+  real getCurrentTime(){
+    return currentTime_;
+  }
+  void setCurrentTime(real currentTime){
+    currentTime_ = currentTime;
+  }
+  real getCurrentTimestep(){
+    return currentTimestep_;
+  }
+  void setCurrentTimestep(real currentTimestep){
+    currentTimestep_ = currentTimestep;
+  }
 private:
   friend class boost::serialization::access;
 
@@ -199,6 +210,9 @@ private:
   int size_Cy_ ;
   double *q_prof_;
   int size_q_;
+  real currentTime_;
+  real currentTimestep_;
+
  // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 
   // serialize
@@ -220,6 +234,9 @@ private:
     ar & nspecies_;
     ar & _GENE_Global;
     ar & _GENE_Linear;
+    ar & currentTime_;
+    ar & currentTimestep_;
+
   }
 };
 
