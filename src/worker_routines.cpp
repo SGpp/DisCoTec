@@ -36,7 +36,9 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
   // this information is also contained in gene checkpoint files
   // we don't use it at the moment
 	double mytime = *timep;
+	t->setCurrentTime(mytime);
 	double dt = *dtp;
+  t->setCurrentTimestep(mytime);
 
 	// calculate local size of checkpoint
   int d6 = *ln2p - *ln1p +1;
@@ -118,7 +120,7 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
   t->setDFG();
 }
 
-void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
+void checkpoint_read_memory_(GeneComplex* g_1, double * timep, double * dtp, int *li1p, int *li2p,
                              int *lj1p, int *lj2p, int *lk1p, int *lk2p,
                              int *ll1p, int *ll2p, int *lm1p, int *lm2p,
                              int *ln1p, int *ln2p, int *ni0p, int *nj0p, int *nz0p,
@@ -126,6 +128,8 @@ void checkpoint_read_memory_(GeneComplex* g_1, int *li1p, int *li2p,
   //std::cout << "read memory \n";
   Task* tt = pgroup->getCurrentTask();
   GeneTask* t = static_cast< GeneTask* >(tt);
+  *(timep) = t->getCurrentTime();
+  *(dtp) = t->getCurrentTimestep();
   if(!t->checkIsInitialized()){
     //bounds for init checkpoint
     // calculate local size of checkpoint

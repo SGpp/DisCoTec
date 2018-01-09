@@ -122,7 +122,8 @@ contains
        END IF
 #ifdef COMBI_MGR
        !mh read checkpoint from memory
-       call checkpoint_read_memory(g_1, li1, li2, lj1, lj2, lk1, lk2, ll1, ll2, lm1, lm2, ln1, ln2, ni0, nj0, nz0, nv0, nw0, n_spec)
+       call checkpoint_read_memory(g_1, time, dt, li1, li2, lj1, lj2, &
+                lk1, lk2, ll1, ll2, lm1, lm2, ln1, ln2, ni0, nj0, nz0, nv0, nw0, n_spec)
 #else
        call initialize_checkpoint_read
        call checkpoint_read(g_1)
@@ -184,6 +185,9 @@ contains
     itt_domain = itt_domain_create(C_LOC(domain_name))
 #endif
     !CALL mt_trace_start_()
+#ifdef COMBI_MGR
+    dt_save=dt
+#endif
     Do itime = 1, ntimesteps
        
        Call get_systime(time2)
@@ -201,7 +205,7 @@ contains
           call exec_all_diags(0,time,overflow_exit,underflow_exit,reset)
 
           IF ((mype.EQ.0).and.(print_ini_msg)) &
-               & WRITE(*,"(A,F8.2,A)") "Simulation time limit of ",&
+               & WRITE(*,"(A,F8.5,A)") "Simulation time limit of ",&
                & simtimelim," L_ref/c_ref reached, exiting time loop"
           if (mype.eq.0) print*, 'time = ', time
           simlimit_reached = .false.
@@ -219,6 +223,7 @@ contains
        ITT_FRAME_BEGIN(itt_domain)
        CALL calc_timestep
        ITT_FRAME_END(itt_domain)
+       if (mype.eq.0) print*, 'starting time = ', time
        
        time = time + dt
        

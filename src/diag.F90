@@ -499,9 +499,10 @@ CONTAINS
     if ((comp_type.eq.'IV').and.write_checkpoint) then
       read_checkpoint = .true.
       !call checkpoint_write(g_1,'checkpoint')
-      call checkpoint_write_memory(g_1,time,dt,li1, li2, lj1, lj2, lk1, lk2, ll1, &
+      call checkpoint_write_memory(g_1,time,dt_save,li1, li2, lj1, lj2, lk1, lk2, ll1, &
                                    ll2, lm1, lm2, ln1, ln2,ni0,nj0,nz0,nv0,nw0, &
                                    n_spec, comm_cart,C_y, size(C_y), q_prof, size(q_prof) )
+
     end if
 #else
     if ((comp_type.eq.'IV').and.write_checkpoint) call checkpoint_write(g_1,'checkpoint')

@@ -20,6 +20,9 @@ module par_other
   character(len=13), parameter :: release = '1.8 - alpha 0'
 
   Real::    dt              ! Time step
+#ifdef COMBI_MGR
+  Real::    dt_save !saved time-step without endsim adaptation
+#endif
 
   LOGICAL :: equil_par_curr = .false.
 
