@@ -251,18 +251,22 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
 
+    //initialize individual tasks (component grids)
     for (size_t i = 0; i < levels.size(); i++) {
-      // path to task folder
+      // path to task folder (used for different instances of GENE)
       std::stringstream ss2;
       ss2 << "../" << basename << fileTaskIDs[i];
       std::string path = ss2.str();
       //create FaultCriterion
       FaultCriterion *faultCrit;
       //create fault criterion
-      if(faultsInfo.numFaults_ < 0){
+      if(faultsInfo.numFaults_ < 0){ //use random distributed faults
+        //if numFaults is smallerthan 0 we use the absolute value
+        //as lambda value for the weibull distribution
         faultCrit = new WeibullFaults(0.7, abs(faultsInfo.numFaults_), ncombi, true);
       }
-      else{ //do not use faults
+      else{ //use predefined static number and timing of faults
+        //if numFaults = 0 there are no faults
         faultCrit = new StaticFaults(faultsInfo);
       }
 
@@ -287,49 +291,49 @@ int main(int argc, char** argv) {
     Stats::startEvent("update combi parameters");
     manager.updateCombiParameters();
     Stats::stopEvent("update combi parameters");
-    bool success = true;
-    //theStatsContainer()->setTimerStart("compute");
+    bool success = true; //indicates if computation was sucessfull -> false means fault occured
+    //start computation
+    //we perform ncombi many combinations with
+    //fixed stepsize or simulation time between each combination
     for (size_t i = 0; i < ncombi; ++i) {
-      //std::cout << "Compute !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! \n";
       if( i == 0 ){
         /* distribute task according to load model and start computation for
          * the first time */
-        //theStatsContainer()->setTimerStart("runfirst");
         Stats::startEvent("manager run");
         success = manager.runfirst();
         Stats::stopEvent("manager run");
 
-        //theStatsContainer()->setTimerStop("runfirst");
       } else {
         // run tasks for next time interval
-        //if(i==1) theStatsContainer()->setTimerStart("runnext");
         Stats::startEvent("manager run");
         success = manager.runnext();
         Stats::stopEvent("manager run");
-
-        //if(i==1) theStatsContainer()->setTimerStop("runnext");
       }
-      //success = true;
       //check if fault occured
       if ( !success ) {
         Stats::startEvent("manager recover preprocessing");
 
-        nfaults++;
+        nfaults++; //increase the number of occured faults
         std::cout << "failed group detected at combi iteration " << i << std::endl;
        // manager.recover(i, nsteps); has no access toi GENE Task
+
+        //vector with IDs of faulted tasks (=component grids)
         std::vector<int> faultsID;
+        //vector with pointers to managers of failed groups
         std::vector< ProcessGroupManagerID> groupFaults;
         manager.getGroupFaultIDs(faultsID, groupFaults);
 
         /* call optimization code to find new coefficients */
         const std::string prob_name = "interpolation based optimization";
+        //vector with tasks that need to be redistributed (but not recomputed)
+        //and tasks that need to be recomputed
         std::vector<int> redistributeFaultsID, recomputeFaultsID;
         manager.recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
-        //time does not need to be updated in gene but maybe in other applications
+        //timestep does not need to be updated in gene but maybe in other applications
         for ( auto id : redistributeFaultsID ) {
          GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
          tmp->setStepsTotal((i+1)*nsteps);
-         tmp->setCombiStep(i+1);
+         tmp->setCombiStep(i+1); //adjust combistep for fault criterion!
         }
 
         for ( auto id : recomputeFaultsID ) {
@@ -337,24 +341,30 @@ int main(int argc, char** argv) {
          tmp->setStepsTotal((i)*nsteps);
          tmp->setCombiStep(i+1); //i+1 as decideToKill is not executed during recompute and therfore combistep is not increased
         }
-        /* recover communicators*/
+        /* recover communicators -> shrink communicators,
+         * use spare processors to restore process groups if possible
+         * failed Recovery indicates whether the process groups could be restored*/
         bool failedRecovery = manager.recoverCommunicators(groupFaults);
-        /* communicate new combination scheme*/
         if(doOnlyRecompute){
+          //only used for testing in case all tasks should be recomputed
           recomputeFaultsID = faultsID;
           redistributeFaultsID = std::vector<int>(0);
         }
+
         if(failedRecovery){
-         std::cout << "redistribute \n";
+         //if the process groups could not be restored distribute tasks to other groups
+         std::cout << "Redistribute groups \n";
          manager.redistribute(redistributeFaultsID);
         }
         else{
-         std::cout << "reinitializing group \n";
+         //if process groups could be restored reinitialize restored process group (keep the original tasks)
+         std::cout << "Reinitializing groups \n";
          manager.reInitializeGroup(groupFaults,recomputeFaultsID);
         }
 
-
-        /* if some tasks have to be recomputed, do so*/
+        /* if some tasks have to be recomputed, do so
+         * allowing recomputation reduces the overhead that would be needed
+         * for finding a scheme that avoids all failed tasks*/
         if(!recomputeFaultsID.empty()){
           std::cout << "sending tasks for recompute \n";
          manager.recompute(recomputeFaultsID,failedRecovery,groupFaults); //toDO handle faults in recompute
@@ -362,51 +372,18 @@ int main(int argc, char** argv) {
         std::cout << "updateing Combination Parameters \n";
         //needs to be after reInitialization!
         if(!doOnlyRecompute){
+          /* communicate new combination scheme*/
           manager.updateCombiParameters();
         }
-//        old version
-//        std::vector<int> faultsID;
-//        std::vector< ProcessGroupManagerID> groupFaults;
-//        manager.getGroupFaultIDs(faultsID, groupFaults);
-//
-//        /* call optimization code to find new coefficients */
-//        const std::string prob_name = "interpolation based optimization";
-//        std::vector<int> redistributeFaultsID, recomputeFaultsID;
-//        manager.recomputeOptimumCoefficients(prob_name, faultsID,
-//                                             redistributeFaultsID, recomputeFaultsID);
-//
-//
-//        //std::cout << "Recover \n";
-//
-//        /* recover communicators*/
-//        bool failedRecovery = manager.recoverCommunicators(groupFaults);
-//        //std::cout << "Update \n";
-//
-//        /* communicate new combination scheme*/
-//        manager.updateCombiParameters();
-//        //std::cout << "Recompute \n";
-//
-//        /* if some tasks have to be recomputed, do so*/
-//        manager.recompute(recomputeFaultsID); //toDo consider succeeded recovery
-//        //std::cout << "Redistribute \n";
-//        /* redistribute failed tasks to living groups */
-//
-//        if(failedRecovery){
-//          manager.redistribute(redistributeFaultsID);
-//        }
-//        else{
-//          manager.reInitializeGroup(groupFaults);
-//        }
+
         Stats::stopEvent("manager recover preprocessing");
 
       }
-      //combine
-      //if(i==0) theStatsContainer()->setTimerStart("combine");
+      //combine grids
       Stats::startEvent("manager combine");
       manager.combine();
       Stats::stopEvent("manager combine");
 
-      //if(i==0) theStatsContainer()->setTimerStop("combine");
       //postprocessing in case of errors
       if ( !success ){
         Stats::startEvent("manager recover postprocessing");
@@ -420,35 +397,28 @@ int main(int argc, char** argv) {
       }
     }
     std::cout << "Computation finished evaluating on target grid! \n";
-    //theStatsContainer()->setTimerStop("compute");
 
     // evaluate solution on the grid defined by leval
-    //theStatsContainer()->setTimerStart("parallelEval");
+    //(basically an interpolation of the sparse grid to fullgrid with resolution leval)
     Stats::startEvent("manager parallel eval");
     manager.parallelEval( leval, fg_file_path, 0 );
     Stats::stopEvent("manager parallel eval");
 
-    //theStatsContainer()->setTimerStop("parallelEval");
-
     // evaluate solution on the grid defined by leval2
-    //theStatsContainer()->setTimerStart("parallelEval2");
     Stats::startEvent("manager parallel eval 2");
     manager.parallelEval( leval2, fg_file_path2, 0 );
     Stats::stopEvent("manager parallel eval 2");
 
-    //theStatsContainer()->setTimerStop("parallelEval2");
-
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
 
-    // save stats
-    //theStatsContainer()->save("times.dat");
   }
+  // finalize timing evaluations
   Stats::finalize();
-
   /* write stats to json file for postprocessing */
   Stats::write( "timers.json" );
-
+  //terminate the program;
+  //we use MPI_Abort to avoid hanging of the program due to crashed processors
   if( ENABLE_FT ){
     WORLD_MANAGER_EXCLUSIVE_SECTION{
       std::cout << "The number of detected faults during the simulation is " << nfaults << "\n";
@@ -459,7 +429,6 @@ int main(int argc, char** argv) {
       MPI_Abort( MPI_COMM_WORLD, 0 );
     }
   }
-  std::cout << "Finalize manager \n";
   simft::Sim_FT_MPI_Finalize();
 
   return 0;
