@@ -28,6 +28,7 @@ MODULE gyro_average_df_mod
   use coordinates, only: lp1,lx,lx_a,ly,lw,zval,mu,x0,kj,deli
   USE par_other, ONLY: imag,pi, print_ini_msg, p_has_0_mode
   use par_in, only: rad_bc_type, spec, ga_spatial_var
+  use par_mod
   USE geometry, ONLY: geom, rhostar, magn_geometry, minor_r,major_r,&
        C_y, q_prof, dqdx_prof
   use BoundaryDescriptionModule
@@ -498,6 +499,10 @@ SUBROUTINE allocate_gyromatrix
 #ifdef COMBI_MGR
   ALLOCATE(sparse_gyromatrix_buffer(lj1:lj2,lk1:lk2,lm1:lm2,ln1:ln2,1:li0,1:ni0))
   call is_gyromatrix_buffered(gyromatrix_buffered)
+  if(gyromatrix_buffered.and.(time.eq.0.0)) then
+     gyromatrix_buffered = .FALSE.
+     call delete_gyromatrix()
+  endif
 #endif
 #ifdef GDAGGER_G
   ALLOCATE(sparse_gyromatrix_dagger(lj1:lj2,lk1:lk2,lm1:lm2,ln1:ln2))

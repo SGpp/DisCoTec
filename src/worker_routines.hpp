@@ -39,6 +39,7 @@ extern "C" void increase_sim_time_(double *simtime);
 extern "C" void load_gyromatrix_(GeneComplex* sparse_gyromatrix_buffer, int *size);
 
 extern "C" void is_gyromatrix_buffered_(bool *isBuffered);
+extern "C" void delete_gyromatrix_();
 
 void write_to_file(MPI_Comm lcomm);
 

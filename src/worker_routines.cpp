@@ -245,6 +245,11 @@ void is_gyromatrix_buffered_(bool *isBuffered){
   *(isBuffered) = t->is_gyromatrix_buffered();
 }
 
+void delete_gyromatrix_(){
+  Task* tt = pgroup->getCurrentTask();
+  GeneTask* t = static_cast< GeneTask* >(tt);
+  t->delete_gyromatrix();
+}
 void update_simulation_communicator_(MPI_Fint* comm_gene_f){
 //  int size;
 //  MPI_Comm_size(theMPISystem()->getGlobalReduceComm(),&size);
