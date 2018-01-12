@@ -196,6 +196,8 @@ private:
   real x0_;
   int ky0_ind_;
   GeneComplex* gyromatrix_buffer_; //buffer for gyromatrix
+  size_t gyromatrix_buffer_size_; //buffersize of gyromatrix
+
   bool gyromatrix_buffered_ = false; //indicates if gyromatrix is buffered
   // following variables are only accessed in worker and do not need to be
   // serialized

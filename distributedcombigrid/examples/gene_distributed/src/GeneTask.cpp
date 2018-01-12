@@ -1218,11 +1218,15 @@ void GeneTask::write_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
   gyromatrix_buffer_ = new GeneComplex[size];
   memcpy (gyromatrix_buffer_, sparse_gyromatrix_buffer, size * sizeof(GeneComplex) );
   gyromatrix_buffered_ = true;
+  gyromatrix_buffer_size_ = size;
+  std::cout << "Writing gyromatrix of size: " << size << "\n";
 }
 
 void GeneTask::load_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
     int size){
   assert(gyromatrix_buffered_ == true);
+  assert(size == gyromatrix_buffer_size_);
+  std::cout << "Loading gyromatrix of size: " << size << "\n";
 
   memcpy (sparse_gyromatrix_buffer,gyromatrix_buffer_, size * sizeof(GeneComplex) );
 }
