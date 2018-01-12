@@ -139,6 +139,11 @@ public:
   bool is_gyromatrix_buffered(){
     return gyromatrix_buffered_;
   }
+
+  void delete_gyromatrix(){
+    gyromatrix_buffered_ = false;
+    delete[] gyromatrix_buffer_;
+  }
   /**
    * Returns the time that is simulated between combinations.
    * This is only used in case we do not want to use a fixed number of timesteps
