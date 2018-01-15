@@ -20,9 +20,9 @@
 
 #set compiler (check /makefiles/compilers/*.def for possible choices)
 COMPILER = gnu
-MPFC = mpif90.mpich
-MPCC = mpicc.mpich
-MPCXX = mpicxx.mpich
+MPFC = mpif90
+MPCC = mpicc
+MPCXX = mpicxx
 
 #set chip for proper chip optimization flags (optional)
 #check possible choices in /makefiles/compilers/$COMPILER.def
@@ -57,10 +57,10 @@ PRECISION= double
 DEBUG= no
 
 #Switch to yes if PETSC/SLEPC is installed (highly recommended!!)
-SLEPC= no
+SLEPC= yes
 
 #only required for the global code and full eigenvalue spectrum runs:
-SCALAPACK = no
+SCALAPACK = yes
 
 #OPENMP might be important in future GENE releases again
 #Currently, pure MPI is most likely the best choice
@@ -91,11 +91,11 @@ COMPILER_REPORTS = no
 
 #INCLUDE PATHS
 #Add include paths for BLAS routines (can be LAPACK,ESSL,MKL,etc.)
-INCPATHS += -I/usr/include/ -I/import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/distributedcombigrid/src -I/import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/distributedcombigrid/examples/gene_distributed/src
+INCPATHS += -I/usr/include/ -I/import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/src -I/import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/examples/gene_distributed/src -I/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk/include
 
 #LIBRARIES AND LIBFLAGS
 #Insert BLAS library
-LIBS += -L/import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/distributedcombigrid/examples/gene_distributed/lib -lgenetask -L/import/home_local/oberstei/Documents/ExaHD/mergetest/combi-ft-gene/lib/sgpp/ -L/usr/lib/lapack/ -L/usr/lib/libblas/ -L/usr/lib/ -llapack -lblas -lfftw3 -lfftw3f -lstdc++ -lsgppdistributedcombigrid -lboost_serialization -lglpk
+LIBS += -L/import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/examples/gene_distributed/lib -L/import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/lib/sgpp/ -lgenetask -lsgppdistributedcombigrid -L/usr/lib/lapack/ -L/usr/lib/libblas/ -L/usr/lib/ -L/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk/lib -llapack -lblas -lfftw3 -lfftw3f -lstdc++ -lboost_serialization -lglpk -lmpich -L/home_local/oberstei/software/scalapack-2.0.2/ -l:libscalapack.a
 
 #FFT LIBRARY
 #fill at least one of the following choices: mkl, essl, fftw
