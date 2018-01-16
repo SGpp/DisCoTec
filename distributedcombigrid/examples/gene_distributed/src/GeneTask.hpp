@@ -242,8 +242,6 @@ private:
     ar & _GENE_Global;
     ar & _GENE_Linear;
     ar & currentTime_;
-    ar & currentTimestep_;
-
   }
 };
 
