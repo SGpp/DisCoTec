@@ -38,7 +38,7 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
 	double mytime = *timep;
 	t->setCurrentTime(mytime);
 	double dt = *dtp;
-  t->setCurrentTimestep(mytime);
+  t->setCurrentTimestep(dt);
 
 	// calculate local size of checkpoint
   int d6 = *ln2p - *ln1p +1;
