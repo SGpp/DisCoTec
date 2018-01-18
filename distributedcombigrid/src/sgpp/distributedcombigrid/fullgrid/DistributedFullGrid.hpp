@@ -1270,8 +1270,10 @@ class DistributedFullGrid {
       }
     }
 
+#ifdef DEBUG_OUTPUT
     if (!found)
       std::cout << "subspace " << myL << " not included" << std::endl;
+#endif
 
     assert(found);
 
@@ -1551,8 +1553,10 @@ class DistributedFullGrid {
 
       MPI_Comm_dup( comm, &communicator_ );
 
+#ifdef DEBUG_OUTPUT
       std::cout << "DistributedFullGrid: using given cartcomm: "
                 << communicator_ << std::endl;
+#endif
     } else{
       // todo mh: think whether periodic bc will be useful
       std::vector<int> periods(dim_, 0);
@@ -1560,7 +1564,9 @@ class DistributedFullGrid {
       MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0],
                       reorder, &communicator_);
 
+#ifdef DEBUG_OUTPUT
       std::cout << "DistributedFullGrid: create new cartcomm" << std::endl;
+#endif
     }
   }
 
@@ -1843,7 +1849,9 @@ class DistributedFullGrid {
       assert(dim_ == 3);
 
       // output global z index
+#ifdef DEBUG_OUTPUT
       std::cout << "z = " << this->getLowerBounds()[2] + k << ":" << std::endl;
+#endif
 
       IndexType offsetZ = localOffsets_[2] * k;
 

@@ -339,7 +339,6 @@ inline void dehierarchize1DUnoptimizedNoBoundary(
   //                  << "size " << size
   //                  << "dim " << dim << std::endl;
 
-  IndexType ll;
   IndexType steps;
   IndexType ctr;
   IndexType offset, parentOffset;
@@ -393,7 +392,6 @@ template<typename FG_ELEMENT>
 inline void dehierarchize1DUnoptimizedBoundary(
   combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
   IndexType size, DimType dim) {
-  IndexType ll;
   IndexType steps;
   IndexType ctr;
   IndexType offset, parentOffset;

@@ -143,6 +143,44 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
   initialized_ = true;
 }
 
+/* overload for initialization with given wold communicator
+ * this method can be called multiple times (needed for tests)
+ */
+void MPISystem::init( CommunicatorType wcomm, size_t ngroup, size_t nprocs ){
+  ngroup_ = ngroup;
+  nprocs_ = nprocs;
+
+  worldComm_ = wcomm;
+
+  /* init worldComm
+   * the manager has highest rank here
+   */
+  int worldSize;
+  MPI_Comm_size( worldComm_, &worldSize );
+  assert( worldSize == int(ngroup_ * nprocs_ + 1) );
+
+  MPI_Comm_rank( worldComm_, &worldRank_ );
+  managerRankWorld_ = worldSize - 1;
+
+  /* init localComm
+   * lcomm is the local communicator of its own process group for each worker process.
+   * for manager, lcomm is a group which contains only manager process and can be ignored
+   */
+  initLocalComm();
+
+  /* create global communicator which contains only the manager and the master
+   * process of each process group
+   * the master processes of the process groups are the processes which have
+   * rank 0 in lcomm
+   * this communicator is used for communication between master processes of the
+   * process groups and the manager and the master processes to each other
+   */
+  initGlobalComm();
+
+  initGlobalReduceCommm();
+
+  initialized_ = true;
+}
 
 void MPISystem::initLocalComm(){
   int color = worldRank_ / int(nprocs_);
