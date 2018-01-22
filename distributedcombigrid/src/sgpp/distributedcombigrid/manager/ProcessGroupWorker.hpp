@@ -78,7 +78,7 @@ class ProcessGroupWorker {
   //fault parameters
   real t_fault_; //time to fault
 
-  int numGrids_; //number of grids per task
+
 
   std::chrono::high_resolution_clock::time_point  startTimeIteration_; //starting time of process computation
 

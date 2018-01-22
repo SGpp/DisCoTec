@@ -25,10 +25,12 @@ class CombiParameters {
                   std::vector<real>& coeffs, std::vector<int>& taskIDs, IndexType numGrids = 1 ) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false), numGrids_(numGrids)
+    applicationCommSet_(false), numGridsPerTask_(numGrids)
   {
     hierarchizationDims_ = std::vector<bool>(dim_,true);
     setLevelsCoeffs( taskIDs, levels, coeffs );
+    numTasks_ = taskIDs.size();
+
   }
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
@@ -38,9 +40,10 @@ class CombiParameters {
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     hierarchizationDims_(hierachizationDims),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false), numGrids_(numGrids)
+    applicationCommSet_(false), numGridsPerTask_(numGrids)
   {
     setLevelsCoeffs( taskIDs, levels, coeffs );
+    numTasks_ = taskIDs.size();
   }
 
   ~CombiParameters() {
@@ -125,9 +128,18 @@ class CombiParameters {
   inline size_t getNumLevels() {
     return levels_.size();
   }
-
+  /**
+   * this method returns the number of grids a task contains
+   * in case we have multiple grids in our simulation
+   */
   inline IndexType getNumGrids() {
-    return numGrids_;
+    return numGridsPerTask_;
+  }
+  /**
+   * this method returns the number of tasks also referred to as component grids (one task might contain multiple grids)
+   */
+  inline IndexType getNumTasks() {
+    return numTasks_;
   }
 
   inline const std::vector<bool>& getHierarchizationDims(){
@@ -207,7 +219,9 @@ class CombiParameters {
 
   friend class boost::serialization::access;
 
-  IndexType numGrids_;
+  IndexType numGridsPerTask_; //number of grids per task
+
+  IndexType numTasks_;
 
   // serialize
   template<class Archive>
@@ -225,7 +239,8 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;
-  ar& numGrids_;
+  ar& numGridsPerTask_;
+  ar& numTasks_;
 }
 
 }

@@ -52,8 +52,10 @@ SignalType ProcessGroupWorker::wait() {
   if (status_ != PROCESS_GROUP_WAIT){
     int myRank;
     MPI_Comm_rank(theMPISystem()->getWorldComm(), &myRank);
+#ifdef DEBUG_OUTPUT
     std::cout << "status is " << status_ << "of rank " << myRank << "\n";
     std::cout << "executing next task\n";
+#endif
     return RUN_NEXT;
   }
   SignalType signal = -1;
@@ -70,7 +72,9 @@ SignalType ProcessGroupWorker::wait() {
   MPI_Bcast( &signal, 1, MPI_INT,
              theMPISystem()->getMasterRank(),
              theMPISystem()->getLocalComm() );
+#ifdef DEBUG_OUTPUT
   std::cout << theMPISystem()->getWorldRank() << " waits for signal " << signal << " \n";
+#endif
   // process signal
   if (signal == RUN_FIRST) {
 
