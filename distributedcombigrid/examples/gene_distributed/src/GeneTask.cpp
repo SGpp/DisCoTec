@@ -628,7 +628,7 @@ void GeneTask::setDFG(){
       //std::cout << "dfgShape[" << d << "] " << dfgShape[d] <<"\n";
       //std::cout << "lcpShape[" << d << "] " << lcpShape[d] <<"\n";
       //last process in line has boundary points not included in gene
-      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || d == 4 /*||d==5 */) ){ //x,y (only non-linear cases),z,v,w at upper border of domain (one additional point)
+      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || (d == 4 && !_GENE_Linear) /*||d==5 */) ){ //y (only non-linear cases),z,v,w at upper border of domain (one additional point)
         assert( dfgShape[d] == lcpShape[d] + 1 );
       } else{
         if(d==0){ //species
