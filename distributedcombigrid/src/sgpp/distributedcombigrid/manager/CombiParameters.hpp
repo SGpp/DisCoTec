@@ -22,10 +22,10 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
-                  std::vector<real>& coeffs, std::vector<int>& taskIDs, IndexType numGrids = 1 ) :
+                  std::vector<real>& coeffs, std::vector<int>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1 ) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false), numGridsPerTask_(numGrids)
+    applicationCommSet_(false), numberOfCombinations_(numberOfCombinations), numGridsPerTask_(numGrids)
   {
     hierarchizationDims_ = std::vector<bool>(dim_,true);
     setLevelsCoeffs( taskIDs, levels, coeffs );
@@ -36,11 +36,11 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<bool>& hierachizationDims,
-                  std::vector<int>& taskIDs , IndexType numGrids = 1) :
+                  std::vector<int>& taskIDs ,  IndexType numberOfCombinations, IndexType numGrids = 1) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     hierarchizationDims_(hierachizationDims),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false), numGridsPerTask_(numGrids)
+    applicationCommSet_(false), numberOfCombinations_(numberOfCombinations),numGridsPerTask_(numGrids)
   {
     setLevelsCoeffs( taskIDs, levels, coeffs );
     numTasks_ = taskIDs.size();
@@ -155,6 +155,9 @@ class CombiParameters {
     return procs_;
   }
 
+  inline const IndexType getNumberOfCombinations() const{
+    return numberOfCombinations_;
+  }
 
   inline CommunicatorType getApplicationComm() const{
     assert(uniformDecomposition);
@@ -218,7 +221,7 @@ class CombiParameters {
   bool applicationCommSet_;
 
   friend class boost::serialization::access;
-
+  IndexType numberOfCombinations_; //total number of combinations
   IndexType numGridsPerTask_; //number of grids per task
 
   IndexType numTasks_;
@@ -239,6 +242,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;
+  ar& numberOfCombinations_;
   ar& numGridsPerTask_;
   ar& numTasks_;
 }

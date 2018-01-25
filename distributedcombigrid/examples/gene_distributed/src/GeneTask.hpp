@@ -40,12 +40,14 @@ public:
 
   virtual ~GeneTask();
   /**
-   * This method does not acutally run GENE but just moves to folder of the GENE task
+   * This method does not acutally run GENE but just moves to folder of the GENE task.
+   * lcomm is the local communicator of the process group.
    */
   void run( CommunicatorType lcomm );
 
   /**
    * This method changes the folder to the folder of the task
+   * lcomm is the local communicator of the process group.
    */
   void changeDir(CommunicatorType lcomm);
 
@@ -53,6 +55,8 @@ public:
 
   /**
    * This method initializes the task
+   * lcomm is the local communicator of the process group.
+   * decomposition is the spatial decomposition of the component grid
    */
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>());
 
@@ -158,11 +162,13 @@ public:
    */
   inline void setNrg(real nrg);
   /**
-   * Sets the total number of timesteps. Used in case of restart of component grids
-   * during fault recovery.
+   * Sets the total number of timesteps computed so far. Used in case of restart of component grids
+   * during fault recovery. Only valid if combitime is not used
    */
   inline void setStepsTotal( size_t stepsTotal );
-
+  /**
+   * Sets the current combination step
+   */
   inline void setCombiStep(int ncombi);
   /**
    * Return boolean to indicate whether GeneTask is initialized.

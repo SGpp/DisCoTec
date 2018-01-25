@@ -144,27 +144,29 @@ int main(int argc, char** argv) {
     //only necessary if number of timesteps varies for each grid
     //otherwise set very high and use ntimesteps to adjust combiinterval
     combigrid::real combitime;
-
+    //read combination parameters
     size_t nsteps, ncombi;
-    cfg.get<std::string>("ct.lmin") >> lmin;
-    cfg.get<std::string>("ct.lmax") >> lmax;
-    cfg.get<std::string>("ct.leval") >> leval;
-    cfg.get<std::string>("ct.leval2") >> leval2;
-    cfg.get<std::string>("ct.p") >> p;
-    cfg.get<std::string>("ct.boundary") >> boundary;
-    cfg.get<std::string>("ct.hierarchization_dims") >> hierarchizationDims;
-    ncombi = cfg.get<size_t>("ct.ncombi");
+    cfg.get<std::string>("ct.lmin") >> lmin; //minimal level vector for each grid
+    cfg.get<std::string>("ct.lmax") >> lmax; //maximum level vector -> level vector of target grid
+    cfg.get<std::string>("ct.leval") >> leval; //level vector of final output
+    cfg.get<std::string>("ct.leval2") >> leval2; //level vector of second final output
+    cfg.get<std::string>("ct.p") >> p; //parallelization of domain (how many procs per dimension)
+    cfg.get<std::string>("ct.boundary") >> boundary; //which dimension have boundary points
+    cfg.get<std::string>("ct.hierarchization_dims") >> hierarchizationDims; //which dimension should be hierarchized
+    ncombi = cfg.get<size_t>("ct.ncombi"); //number of combinations
     std::string basename = cfg.get<std::string>( "preproc.basename" );
-    dt = cfg.get<combigrid::real>("application.dt");
-    combitime = cfg.get<combigrid::real>("application.combitime");
-    nsteps = cfg.get<size_t>("application.nsteps");
+    dt = cfg.get<combigrid::real>("application.dt"); //timestep (only used if adaptivity switched off and linear simulation)
+    combitime = cfg.get<combigrid::real>("application.combitime"); //combitime between combinations (can be used instead of fixed stepnumber)
+    nsteps = cfg.get<size_t>("application.nsteps"); //number of timesteps between combinations (can be set very large if combitime should be applied)
     //read fault values
     FaultsInfo faultsInfo;
-
+    /**number of faults that should happen during simulation;
+     * negative value mean that we want a fault distribution according to the Weibul distr.-> -1000 means e.g. Weibul with lambda = 1000
+     */
     faultsInfo.numFaults_ = cfg.get<int>("faults.num_faults");
     std::cout << "Selected timestep is: " << dt << " and combination interval time: " << combitime << "\n";
 
-
+    //read the ranks that shoudl fail in case of static faults (means numFaults > 0)
     if( faultsInfo.numFaults_ > 0 ){
       faultsInfo.iterationFaults_.resize(faultsInfo.numFaults_);
       faultsInfo.globalRankFaults_.resize(faultsInfo.numFaults_);
@@ -174,10 +176,7 @@ int main(int argc, char** argv) {
     std::string fg_file_path = cfg.get<std::string>( "ct.fg_file_path" );
     std::string fg_file_path2 = cfg.get<std::string>( "ct.fg_file_path2" );
 
-    // todo: read from parametes file
-    //real shat = 0.7960;
-    //real kymin = 0.3000;
-    //real lx = 4.18760;
+    //read application specific variables
     real kymin = cfg.get<real>("application.kymin");
     real lx = cfg.get<real>("application.lx");
     IndexType numGrids = cfg.get<IndexType>("application.numspecies");
@@ -211,7 +210,7 @@ int main(int argc, char** argv) {
     std::vector<combigrid::real> coeffs;
     std::vector<int> fileTaskIDs;
     const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
-    if (READ_FROM_FILE) {
+    if (READ_FROM_FILE) { //currently used file produced by preproc.py
       std::ifstream spcfile("spaces.dat");
       std::string line;
       while (std::getline(spcfile, line)) {
@@ -281,7 +280,7 @@ int main(int argc, char** argv) {
     }
     // create combiparamters
     CombiParameters params( dim, lmin, lmax, boundary, levels,
-                            coeffs, hierarchizationDims, taskIDs, numGrids );
+                            coeffs, hierarchizationDims, taskIDs, ncombi, numGrids  );
     params.setParallelization(p);
 
     // create Manager with process groups
@@ -319,6 +318,7 @@ int main(int argc, char** argv) {
 
         //vector with IDs of faulted tasks (=component grids)
         std::vector<int> faultsID;
+
         //vector with pointers to managers of failed groups
         std::vector< ProcessGroupManagerID> groupFaults;
         manager.getGroupFaultIDs(faultsID, groupFaults);
