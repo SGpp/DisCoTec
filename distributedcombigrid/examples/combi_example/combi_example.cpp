@@ -20,7 +20,9 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
-
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
 
@@ -28,7 +30,9 @@ using namespace combigrid;
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskExample)
-
+BOOST_CLASS_EXPORT(StaticFaults)
+BOOST_CLASS_EXPORT(WeibullFaults)
+BOOST_CLASS_EXPORT(FaultCriterion)
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
