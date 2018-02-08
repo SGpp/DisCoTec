@@ -266,17 +266,19 @@ SignalType ProcessGroupWorker::wait() {
     Stats::stopEvent("parallel eval");
 
   }
-
-  // special solution for GENE
-  // todo: find better solution and remove this
-  if( ( signal == RUN_FIRST || signal == RUN_NEXT || signal == RECOMPUTE) && omitReadySignal )
-    return signal;
-
+  if(isGENE){
+    // special solution for GENE
+    // todo: find better solution and remove this
+    if( ( signal == RUN_FIRST || signal == RUN_NEXT || signal == RECOMPUTE) && omitReadySignal )
+      return signal;
+  }
   // in the general case: send ready signal.
   //if(!omitReadySignal)
   ready();
-  if(signal == ADD_TASK){ //ready resets currentTask but needs to be set for GENE
-    currentTask_ = tasks_.back();
+  if(isGENE){
+    if(signal == ADD_TASK){ //ready resets currentTask but needs to be set for GENE
+      currentTask_ = tasks_.back();
+    }
   }
   return signal;
 }
