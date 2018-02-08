@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs );
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,ncombi, 1 );
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
