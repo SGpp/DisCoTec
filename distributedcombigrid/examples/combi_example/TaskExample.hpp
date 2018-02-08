@@ -21,8 +21,8 @@ class TaskExample: public Task {
    */
   TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary,
               real coeff, LoadModel* loadModel, real dt,
-              size_t nsteps, IndexVector p = IndexVector(0) ) :
-    Task(dim, l, boundary, coeff, loadModel), dt_(dt), nsteps_(
+              size_t nsteps, IndexVector p = IndexVector(0),FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})) ) :
+    Task(dim, l, boundary, coeff, loadModel, faultCrit), dt_(dt), nsteps_(
       nsteps), p_(p), initialized_(false), stepsTotal_(0), dfg_(NULL) {
   }
 
