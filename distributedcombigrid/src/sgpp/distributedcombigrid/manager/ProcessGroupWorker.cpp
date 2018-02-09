@@ -631,11 +631,12 @@ void ProcessGroupWorker::parallelEvalUniform(){
 
   for(int g=0; g < numGrids; g++){//loop over all grids and plot them
     // create dfg
+    bool forwardDecomposition = !isGENE;
     DistributedFullGrid<CombiDataType> dfg( dim, leval,
                                             combiParameters_.getApplicationComm(),
                                             combiParameters_.getBoundary(),
                                             combiParameters_.getParallelization(),
-                                            false
+                                            forwardDecomposition
                                             );
 
     // register dsg
