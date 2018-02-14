@@ -92,8 +92,8 @@ Program gene
     time_cp = -1.0
 
 	! check status code
-	! 0 = run first
-	! do nothing
+	! 0 = run first ; init time
+    if(worker_signal.eq.0) time=0.0
 
 	! 1 = run next
 	! do nothing
