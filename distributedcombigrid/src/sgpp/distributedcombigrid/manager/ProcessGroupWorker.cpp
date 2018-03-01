@@ -447,7 +447,7 @@ void ProcessGroupWorker::combineUniform() {
     }
   }
   Stats::stopEvent("combine init");
-  Stats::startEvent("combine hierarchize");
+  Stats::startEvent("combine hierarchize complete");
 
   real localMax(0.0);
   //std::vector<CombiDataType> beforeCombi;
@@ -465,15 +465,19 @@ void ProcessGroupWorker::combineUniform() {
         */
 
       // hierarchize dfg
+      Stats::startEvent("combine hierarchize");
+
       DistributedHierarchization::hierarchize<CombiDataType>(
           dfg, combiParameters_.getHierarchizationDims() );
-
+      Stats::stopEvent("combine hierarchize");
+      Stats::startEvent("combine add to Uniform");
       // lokales reduce auf sg ->
       dfg.addToUniformSG( *combinedUniDSGVector_[g], combiParameters_.getCoeff( t->getID() ) );
+      Stats::stopEvent("combine add to Uniform");
       std::cout << "Combination: added task " << t->getID() << " with coefficient " << combiParameters_.getCoeff( t->getID() ) <<"\n";
     }
   }
-  Stats::stopEvent("combine hierarchize");
+  Stats::stopEvent("combine hierarchize complete");
 
   // compute global max norm
   /*
@@ -493,21 +497,23 @@ void ProcessGroupWorker::combineUniform() {
   Stats::stopEvent("combine global reduce");
 
   //std::vector<CombiDataType> afterCombi;
-  Stats::startEvent("combine dehierarchize");
+  Stats::startEvent("combine dehierarchize complete");
 
   for (Task* t : tasks_) {
     for(int g=0; g<numGrids; g++){
-
+      Stats::startEvent("combine extract");
       // get handle to dfg
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
       // extract dfg vom dsg
       dfg.extractFromUniformSG( *combinedUniDSGVector_[g] );
+      Stats::stopEvent("combine extract");
+      Stats::startEvent("combine dehierarchize");
 
       // dehierarchize dfg
       DistributedHierarchization::dehierarchize<CombiDataType>(
           dfg, combiParameters_.getHierarchizationDims() );
-
+      Stats::stopEvent("combine dehierarchize");
       //std::vector<CombiDataType> datavector(dfg.getElementVector());
       //afterCombi = datavector;
       // if exceeds normalization limit, normalize dfg with global max norm
@@ -519,7 +525,7 @@ void ProcessGroupWorker::combineUniform() {
       */
     }
   }
-  Stats::stopEvent("combine dehierarchize");
+  Stats::stopEvent("combine dehierarchize complete");
 
   //test changes
   /*for(int i=0; i<afterCombi.size(); i++){
