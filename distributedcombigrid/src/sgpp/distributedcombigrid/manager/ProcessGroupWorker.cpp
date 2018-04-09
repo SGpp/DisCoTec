@@ -21,6 +21,7 @@
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include <string>
 #include <iostream>
+#include <algorithm>
 
 namespace combigrid {
 
@@ -31,7 +32,8 @@ ProcessGroupWorker::ProcessGroupWorker() :
     combinedUniDSGVector_(0),
     combinedFGexists_(false),
     combiParameters_(),
-    combiParametersSet_(false)
+    combiParametersSet_(false),
+    currentCombi_(0)
 {
     t_fault_ = -1;
     startTimeIteration_ = (std::chrono::high_resolution_clock::now());
@@ -52,8 +54,10 @@ SignalType ProcessGroupWorker::wait() {
   if (status_ != PROCESS_GROUP_WAIT){
     int myRank;
     MPI_Comm_rank(theMPISystem()->getWorldComm(), &myRank);
+#ifdef DEBUG_OUTPUT
     std::cout << "status is " << status_ << "of rank " << myRank << "\n";
     std::cout << "executing next task\n";
+#endif
     return RUN_NEXT;
   }
   SignalType signal = -1;
@@ -70,7 +74,9 @@ SignalType ProcessGroupWorker::wait() {
   MPI_Bcast( &signal, 1, MPI_INT,
              theMPISystem()->getMasterRank(),
              theMPISystem()->getLocalComm() );
+#ifdef DEBUG_OUTPUT
   std::cout << theMPISystem()->getWorldRank() << " waits for signal " << signal << " \n";
+#endif
   // process signal
   if (signal == RUN_FIRST) {
 
@@ -133,7 +139,7 @@ SignalType ProcessGroupWorker::wait() {
       std::cout << "Possible error: No tasks! \n";
     }
 
-  } else if (signal == ADD_TASK) {
+  } else if (signal == ADD_TASK) { //add a new task to the process group
     std::cout << "adding a single task" << std::endl;
 
     Task* t;
@@ -167,7 +173,7 @@ SignalType ProcessGroupWorker::wait() {
     currentTask_->changeDir(theMPISystem()->getLocalComm());
     status_ = PROCESS_GROUP_BUSY;
 
-  } else if (signal == RESET_TASKS) {
+  } else if (signal == RESET_TASKS) { //deleta all tasks (used in process recovery)
     std::cout << "resetting tasks" << std::endl;
 
 
@@ -185,7 +191,6 @@ SignalType ProcessGroupWorker::wait() {
     // t.eval(x)
   } else if (signal == EXIT) {
     if(isGENE){
-      // todo: gene specific
       chdir( "../ginstance" );
     }
 
@@ -195,10 +200,11 @@ SignalType ProcessGroupWorker::wait() {
         Task::send(&tasks_[i], theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
       }
     }
-  } else if (signal == COMBINE) {
+  } else if (signal == COMBINE) { //start combination
 
     Stats::startEvent("combine");
     combineUniform();
+    currentCombi_++;
     Stats::stopEvent("combine");
 
   } else if (signal == GRID_EVAL) { // not supported anymore
@@ -213,11 +219,11 @@ SignalType ProcessGroupWorker::wait() {
 
     combineFG();
 
-  } else if (signal == UPDATE_COMBI_PARAMETERS) {
+  } else if (signal == UPDATE_COMBI_PARAMETERS) { //update combiparameters (e.g. in case of faults -> FTCT)
 
     updateCombiParameters();
 
-  } else if (signal == RECOMPUTE) {
+  } else if (signal == RECOMPUTE) { //recompute the received task (immediately computes tasks -> difference to ADD_TASK)
     Task* t;
 
     // local root receives task
@@ -250,27 +256,29 @@ SignalType ProcessGroupWorker::wait() {
     }
     // execute task
     currentTask_->run(theMPISystem()->getLocalComm());
-  } else if ( signal ==  RECOVER_COMM ){
+  } else if ( signal ==  RECOVER_COMM ){ //start recovery in case of faults
     theMPISystem()->recoverCommunicators( true );
     return signal;
-  } else if( signal == PARALLEL_EVAL ){
+  } else if( signal == PARALLEL_EVAL ){ //output final grid
 
     Stats::startEvent("parallel eval");
     parallelEval();
     Stats::stopEvent("parallel eval");
 
   }
-
-  // special solution for GENE
-  // todo: find better solution and remove this
-  if( ( signal == RUN_FIRST || signal == RUN_NEXT || signal == RECOMPUTE) && omitReadySignal )
-    return signal;
-
+  if(isGENE){
+    // special solution for GENE
+    // todo: find better solution and remove this
+    if( ( signal == RUN_FIRST || signal == RUN_NEXT || signal == RECOMPUTE) && omitReadySignal )
+      return signal;
+  }
   // in the general case: send ready signal.
   //if(!omitReadySignal)
   ready();
-  if(signal == ADD_TASK){ //ready resets currentTask but needs to be set for GENE
-    currentTask_ = tasks_.back();
+  if(isGENE){
+    if(signal == ADD_TASK){ //ready resets currentTask but needs to be set for GENE
+      currentTask_ = tasks_.back();
+    }
   }
   return signal;
 }
@@ -397,6 +405,13 @@ void ProcessGroupWorker::combine() {
   }
 } */
 
+void reduceSparseGridCoefficients(LevelVector& lmax,LevelVector& lmin, IndexType totalNumberOfCombis, IndexType currentCombi){
+  for (size_t i = 0; i < lmax.size(); ++i)
+     if (lmin[i] > 1)
+       lmin[i] -= 0;
+  for (size_t i = 0; i < lmax.size(); ++i)
+     lmax[i] = std::max(lmin[i],lmax[i] - 1);
+}
 void ProcessGroupWorker::combineUniform() {
   Stats::startEvent("combine init");
 
@@ -409,27 +424,37 @@ void ProcessGroupWorker::combineUniform() {
   int numGrids = combiParameters_.getNumGrids(); //we assume here that every task has the same number of grids
 
   DimType dim = combiParameters_.getDim();
-  const LevelVector& lmin = combiParameters_.getLMin();
+  LevelVector lmin = combiParameters_.getLMin();
   LevelVector lmax = combiParameters_.getLMax();
   const std::vector<bool>& boundary = combiParameters_.getBoundary();
 
   // the dsg can be smaller than lmax because the highest subspaces do not have
   // to be exchanged
   // todo: use a flag to switch on/off optimized combination
-  /*
-  for (size_t i = 0; i < lmax.size(); ++i)
-    if (lmax[i] > lmin[i])
-      lmax[i] -= 1;
-      */
 
-  // todo: delete old dsgs
+  reduceSparseGridCoefficients(lmax,lmin,combiParameters_.getNumberOfCombinations(),currentCombi_);
+
+  /*for (size_t i = 0; i < lmax.size(); ++i)
+        if (lmin[i] > 1)
+          lmin[i] -= 01;
+  for (size_t i = 0; i < lmax.size(); ++i)
+      lmax[i] = std::max(lmin[i],lmax[i] - 2);
+  */
+#ifdef DEBUG_OUTPUT
+  MASTER_EXCLUSIVE_SECTION{
+    std::cout << "lmin: "<< lmax << std::endl;
+    std::cout << "lmax: "<< lmax << std::endl;
+  }
+#endif
+
+  //delete old dsgs
   for(int g=0; g<combinedUniDSGVector_.size(); g++){
 
     if (combinedUniDSGVector_[g] != NULL)
       delete combinedUniDSGVector_[g];
   }
   combinedUniDSGVector_.clear();
-  // erzeug dsg
+  // erzeug dsgs
   combinedUniDSGVector_.resize(numGrids);
   for(int g=0; g<numGrids; g++){
     combinedUniDSGVector_[g] = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
@@ -437,7 +462,7 @@ void ProcessGroupWorker::combineUniform() {
       theMPISystem()->getLocalComm());
   }
   // todo: move to init function to avoid reregistering
-  // register dsg in all dfgs
+  // register dsgs in all dfgs
   for (Task* t : tasks_) {
     for(int g=0; g<numGrids; g++){
 
@@ -612,11 +637,12 @@ void ProcessGroupWorker::parallelEvalUniform(){
 
   for(int g=0; g < numGrids; g++){//loop over all grids and plot them
     // create dfg
+    bool forwardDecomposition = !isGENE;
     DistributedFullGrid<CombiDataType> dfg( dim, leval,
                                             combiParameters_.getApplicationComm(),
                                             combiParameters_.getBoundary(),
                                             combiParameters_.getParallelization(),
-                                            false
+                                            forwardDecomposition
                                             );
 
     // register dsg

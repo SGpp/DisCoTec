@@ -628,7 +628,7 @@ void GeneTask::setDFG(){
       //std::cout << "dfgShape[" << d << "] " << dfgShape[d] <<"\n";
       //std::cout << "lcpShape[" << d << "] " << lcpShape[d] <<"\n";
       //last process in line has boundary points not included in gene
-      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || d == 4 /*||d==5 */) ){ //x,y (only non-linear cases),z,v,w at upper border of domain (one additional point)
+      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || (d == 4 && !_GENE_Linear) /*||d==5 */) ){ //y (only non-linear cases),z,v,w at upper border of domain (one additional point)
         assert( dfgShape[d] == lcpShape[d] + 1 );
       } else{
         if(d==0){ //species
@@ -1218,11 +1218,15 @@ void GeneTask::write_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
   gyromatrix_buffer_ = new GeneComplex[size];
   memcpy (gyromatrix_buffer_, sparse_gyromatrix_buffer, size * sizeof(GeneComplex) );
   gyromatrix_buffered_ = true;
+  gyromatrix_buffer_size_ = size;
+  std::cout << "Writing gyromatrix of size: " << size << "\n";
 }
 
 void GeneTask::load_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
     int size){
   assert(gyromatrix_buffered_ == true);
+  assert(size == gyromatrix_buffer_size_);
+  std::cout << "Loading gyromatrix of size: " << size << "\n";
 
   memcpy (sparse_gyromatrix_buffer,gyromatrix_buffer_, size * sizeof(GeneComplex) );
 }
