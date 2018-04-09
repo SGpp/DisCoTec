@@ -199,6 +199,7 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
                                 std::vector<size_t>& sizes,
                                 std::vector<size_t>& bounds )
 {
+  std::cout << "Number of species in checkpoint: " << sizes[0] << "\n";
   // todo: doing it like this will require two times copying
   for(unsigned int i= 0; i < sizes.size(); i++){
     //std::cout << i << " size[i]: " << sizes[i] << "\n";
@@ -211,12 +212,12 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
         assert(sizes[i] == 1);
       }
       else{
-        if(i == 5){ //x
-          assert(sizes[i] == pow(2,l_[index_l]) + 1);
-        }
-        else{
+//        if(i == 5){ //x
+//          assert(sizes[i] == pow(2,l_[index_l]) + 1);
+//        }
+//        else{
           assert(sizes[i] == pow(2,l_[index_l]));
-        }
+//        }
       }
     }
   }
@@ -243,7 +244,7 @@ void GeneTask::InitLocalCheckpoint(size_t size,
       assert(sizes[0] == nspecies_); // we have nspecies elements in this dimension
     }
     else{
-      if(i == 4){ //we have only 1 coordinate in y direction
+      if(i == 4 && _GENE_Linear){ //we have only 1 coordinate in y direction
         assert(sizes[i] == 1);
       }
       else{
@@ -628,7 +629,7 @@ void GeneTask::setDFG(){
       //std::cout << "dfgShape[" << d << "] " << dfgShape[d] <<"\n";
       //std::cout << "lcpShape[" << d << "] " << lcpShape[d] <<"\n";
       //last process in line has boundary points not included in gene
-      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || (d == 4 && !_GENE_Linear) /*||d==5 */) ){ //y (only non-linear cases),z,v,w at upper border of domain (one additional point)
+      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || (d == 4 && !_GENE_Linear) ||d==5 ) ){ //y (only non-linear cases),x,z,v,w at upper border of domain (one additional point)
         assert( dfgShape[d] == lcpShape[d] + 1 );
       } else{
         if(d==0){ //species
@@ -1214,41 +1215,27 @@ void GeneTask::normalizeDFG(int species){
 
 void GeneTask::write_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
     int size){
+  //return;
   assert(gyromatrix_buffered_ == false);
   gyromatrix_buffer_ = new GeneComplex[size];
   memcpy (gyromatrix_buffer_, sparse_gyromatrix_buffer, size * sizeof(GeneComplex) );
   gyromatrix_buffered_ = true;
   gyromatrix_buffer_size_ = size;
+#ifdef DEBUG_OUTPUT
   std::cout << "Writing gyromatrix of size: " << size << "\n";
+#endif
 }
 
 void GeneTask::load_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
     int size){
+#ifdef DEBUG_OUTPUT
+  std::cout << "Loading gyromatrix of size: " << size << "\n";
+#endif
   assert(gyromatrix_buffered_ == true);
   assert(size == gyromatrix_buffer_size_);
-  std::cout << "Loading gyromatrix of size: " << size << "\n";
+
 
   memcpy (sparse_gyromatrix_buffer,gyromatrix_buffer_, size * sizeof(GeneComplex) );
 }
-/*
-inline bool GeneTask::failNow( const int& globalRank ){
-  FaultsInfo faultsInfo = faultsInfo_;
-  IndexVector iF = faultsInfo_.iterationFaults_;
-  IndexVector rF = faultsInfo_.globalRankFaults_;
 
-  std::vector<IndexType>::iterator it;
-  it = std::find(iF.begin(), iF.end(), combiStep_);
-  IndexType idx = std::distance(iF.begin(),it);
-  //std::cout << "faultInfo" << iF[0] << " " << rF[0] << "\n";
-  // Check if current iteration is in iterationFaults_
-  while (it!=iF.end()){
-    // Check if my rank is the one that fails
-    if (globalRank == rF[idx])
-      return true;
-    it = std::find(++it, iF.end(), combiStep_);
-    idx = std::distance(iF.begin(),it);
-  }
-  return false;
-}
-*/
 } /* namespace combigrid */
