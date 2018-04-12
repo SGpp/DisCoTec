@@ -15,7 +15,7 @@ INC_GLPK=-I/zhome/academic/HLRS/ipv/$(USRNAME)/hlrs-tools/glpk/include
 LDIR=$(LD_SGPP) $(LD_BOOST) $(LD_GLPK)
 INC=$(INC_SGPP) $(INC_BOOST) $(INC_GLPK)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk -lboost_exception -lboost_mpi
 
 CPP_FILES := $(wildcard src/*.cpp)
 OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))

@@ -107,8 +107,17 @@ int main(int argc, char** argv) {
   MPI_Comm pcomm;
   MPI_Comm_split( MPI_COMM_WORLD, key, color, &pcomm );
 
-  // here the actual MPI initialization
-  theMPISystem()->init( ngroup, nprocs, lcomm );
+  DimType dim = cfg.get<DimType>("ct.dim");
+  IndexVector p(dim);
+  cfg.get<std::string>("ct.p") >> p;
+  {
+    std::map<size_t, CartRankCoords> pByProcs;
+    IndexType procCount = std::accumulate( p.begin(), p.end(), 1, std::multiplies<IndexType>{} );
+    pByProcs[procCount].resize( dim );
+    std::transform(p.begin(), p.end(), pByProcs[procCount].begin(), [](size_t i) { return static_cast<int>(i); });
+    // here the actual MPI initialization
+    theMPISystem()->configure().withGroups( ngroup, nprocs ).withParallelization( pByProcs ).withLocalComm( lcomm ).init();
+  }
   int nfaults = 0;
 
   // manager code
@@ -132,9 +141,7 @@ int main(int argc, char** argv) {
     /* generate a list of levelvectors and coefficients
      * CombiTS_CT will generate a valid combination. however, you could
      * also read in a list of levelvectors and coefficients from a file */
-    DimType dim = cfg.get<DimType>("ct.dim");
     LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim);
-    IndexVector p(dim);
     std::vector<bool> boundary(dim), hierarchizationDims(dim);
     combigrid::real dt;
     size_t nsteps, ncombi;
@@ -142,7 +149,6 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.lmax") >> lmax;
     cfg.get<std::string>("ct.leval") >> leval;
     cfg.get<std::string>("ct.leval2") >> leval2;
-    cfg.get<std::string>("ct.p") >> p;
     cfg.get<std::string>("ct.boundary") >> boundary;
     cfg.get<std::string>("ct.hierarchization_dims") >> hierarchizationDims;
     ncombi = cfg.get<size_t>("ct.ncombi");

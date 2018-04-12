@@ -11,7 +11,7 @@ INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ -I../src/
 LDIR=$(LD_SGPP)
 INC=$(INC_SGPP)
 
-LIBS=-Wl,-Bdynamic -lgenetask -lsgppdistributedcombigrid -lboost_serialization timing.o
+LIBS=-Wl,-Bdynamic -lgenetask -lsgppdistributedcombigrid -lboost_serialization -lboost_mpi timing.o
 
 all: testDistributedHierarchization
 
