@@ -202,7 +202,7 @@ class MPISystem {
    */
   void initGlobalReduceCommm();
 
-  void createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm );
+  void createCommFT( simft::Sim_FT_MPI_Comm* commFT, MPI_Comm comm );
 
   void initLocalComm( CommunicatorType lcomm, std::map<size_t, CartRankCoords> parallelByLocalSize );
 

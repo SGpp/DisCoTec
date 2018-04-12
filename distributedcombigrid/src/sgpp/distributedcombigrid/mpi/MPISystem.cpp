@@ -417,7 +417,7 @@ void MPISystem::debugLogCommunicator( CommunicatorType comm, std::string commNam
   std::cerr << debugOutput.str() << std::endl;
 }
 
-void MPISystem::createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm ){
+void MPISystem::createCommFT( simft::Sim_FT_MPI_Comm* commFT, MPI_Comm comm ){
 
   *commFT = new simft::Sim_FT_MPI_Comm_struct;
 
