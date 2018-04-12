@@ -35,6 +35,9 @@ using namespace combigrid;
  */
 namespace {
 
+[[maybe_unused]] // This is used in templated DistributedFullGridNonUniform.
+                 // If no instantiation of the template occurs, the compiler
+                 // warns about "unused funtion" which we silence
 combigrid::real get1dSubspaceCoord(LevelType l, bool boundary, IndexType i) {
   if (l == 1) {
     if (boundary)
