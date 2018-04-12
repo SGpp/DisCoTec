@@ -221,7 +221,7 @@ void MPISystem::initWorldComm( std::vector<size_t> procsByGroup ){
 
     group_ = GroupType( ngroup ); // Default singleton group for world manager
     for(size_t i = 0; i < ngroup; i++) {
-      bool inGroupI = worldRank_ >= groupBaseWorldRank_[i] && worldRank_ < groupBaseWorldRank_[i] + nprocsByGroup_[i];
+      bool inGroupI = worldRank_ >= groupBaseWorldRank_[i] && worldRank_ < groupBaseWorldRank_[i] + toMPISize(nprocsByGroup_[i]);
       if(inGroupI) {
         group_ = GroupType( i );
         break;
@@ -282,7 +282,7 @@ void MPISystem::initLocalComm(
                     reorder, &lcomm);
   } else {
     CartRankCoords cartdims(dim), periods(dim), coords(dim);
-    MPI_Cart_get( lcomm, dim, cartdims.data(), periods.data(), coords.data() );
+    MPI_Cart_get( lcomm, toMPISize(dim), cartdims.data(), periods.data(), coords.data() );
 
     assert( cartdims == dims );
 
@@ -292,11 +292,11 @@ void MPISystem::initLocalComm(
   localComm_ = lcomm;
   // todo: think through which side effects changing the master rank would have
   // in principle this does not have to be 0
-  const int masterRank = 0;
+  const RankType masterRank = 0;
 
-  int localSize;
+  MPISizeType localSize;
   MPI_Comm_size( localComm_, &localSize );
-  assert( localSize == groupSize );
+  assert( fromMPISize(localSize) == groupSize );
   assert( masterRank < localSize );
 
   masterRank_ = masterRank;
@@ -309,7 +309,7 @@ void MPISystem::initLocalComm(
 
   // Initialize teams
   localCoords_.resize(dim, 0);
-  MPI_Cart_coords( localComm_, localRank_, dim, localCoords_.data() );
+  MPI_Cart_coords( localComm_, localRank_, toMPISize(dim), localCoords_.data() );
   parallelization_ = dims;
 
   teamExtent_.resize(dim, 0);
@@ -350,9 +350,9 @@ void MPISystem::initGlobalComm(){
 
   size_t ngroup = getNumGroups();
   std::vector<RankType> ranks( ngroup + 1 );
-  for (RankType i = 0, groupBaseRank = 0; i < ngroup; i++) {
+  for (RankType i = 0, groupBaseRank = 0; i < toMPISize(ngroup); i++) {
     ranks[i] = groupBaseRank + 0; // group manager local rank
-    groupBaseRank += getNumProcs(i);
+    groupBaseRank += toMPISize( getNumProcs(i) );
   }
   ranks.back() = managerRankWorld_;
 

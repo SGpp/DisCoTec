@@ -964,7 +964,7 @@ class DistributedFullGrid {
           std::reverse(subspaceSizes[teamRank].begin(), subspaceSizes[teamRank].end());
           std::reverse(subArrayStart.begin(), subArrayStart.end());
           MPI_Datatype subspaceType;
-          MPI_Type_create_subarray( dim, teamSgGridSizes.data(),
+          MPI_Type_create_subarray( toMPISize(dim), teamSgGridSizes.data(),
               subspaceSizes[teamRank].data(), subArrayStart.data(),
               MPI_ORDER_C, this->getMPIDatatype(), &subspaceType );
           subDataTypes[teamRank] = subspaceType;
@@ -972,7 +972,7 @@ class DistributedFullGrid {
         // total team's grid size
         size_t totalSgTeamGridSize = 1;
         for(DimType d = 0; d < dim; ++d) {
-          totalSgTeamGridSize *= size_t(teamSgGridSizes[d]);
+          totalSgTeamGridSize *= fromMPISize(teamSgGridSizes[d]);
         }
         assert(totalSgTeamGridSize >= subSgData.size());
         dsg.setTeamDataSize( subSgId, totalSgTeamGridSize );
@@ -1481,7 +1481,7 @@ class DistributedFullGrid {
 
   // write data to file using MPI-IO
   void writePlotFile(const char* filename) const{
-      int dim = getDimension();
+      int dim = toMPISize(getDimension());
 
       // create subarray data type
       IndexVector sizes = getGlobalSizes();
@@ -1652,9 +1652,9 @@ class DistributedFullGrid {
 
     if( status == MPI_CART ){
       // check if process grid of comm uses the required ordering
-      int maxdims = procs_.size();
+      size_t maxdims = procs_.size();
       std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
-      MPI_Cart_get( comm, maxdims, &cartdims[0], &periods[0], &coords[0] );
+      MPI_Cart_get( comm, toMPISize(maxdims), &cartdims[0], &periods[0], &coords[0] );
 
       assert( cartdims == dims );
 

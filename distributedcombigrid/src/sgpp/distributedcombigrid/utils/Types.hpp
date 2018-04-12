@@ -11,10 +11,13 @@
 #include <mpi.h>
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include <cassert>
+#include <boost/numeric/conversion/cast.hpp>
 
 /* only change these types of if you know what you're doing! */
 
 namespace combigrid {
+
+using ::std::size_t;
 
 // IndexType must be signed! because we use -1 in some functions as a return
 // value. and large enough so that all grid points can be
@@ -31,6 +34,17 @@ typedef int RankType;
 
 typedef unsigned int GroupType;
 
+typedef int MPISizeType;
+
+inline MPISizeType toMPISize(size_t size) {
+  using ::boost::numeric_cast;
+  return numeric_cast<MPISizeType>(size);
+}
+
+inline size_t fromMPISize(MPISizeType size) {
+  using ::boost::numeric_cast;
+  return numeric_cast<size_t>(size);
+}
 
 }
 
