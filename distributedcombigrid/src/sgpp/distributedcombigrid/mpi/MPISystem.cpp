@@ -20,7 +20,7 @@ namespace{
   using namespace combigrid;
 
   std::string getMinMaxAvg( RankType r, int size, std::string timerName, bool isTimer,
-                            MPI_Comm comm ){
+                            const CommunicatorType& comm ){
     double value;
 /*    if( isTimer )
       value = theStatsContainer()->getDuration( timerName );

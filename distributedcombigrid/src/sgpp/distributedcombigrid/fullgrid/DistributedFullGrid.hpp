@@ -1635,7 +1635,7 @@ class DistributedFullGrid {
 
   static int count;
 
-  void InitMPI(MPI_Comm comm) {
+  void InitMPI(const CommunicatorType& comm) {
     MPI_Comm_rank(comm, &rank_);
     MPI_Comm_size(comm, &size_);
 

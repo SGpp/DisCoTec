@@ -12,6 +12,7 @@
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include <cassert>
 #include <boost/numeric/conversion/cast.hpp>
+#include <boost/mpi/communicator.hpp>
 
 /* only change these types of if you know what you're doing! */
 

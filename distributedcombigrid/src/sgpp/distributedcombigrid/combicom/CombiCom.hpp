@@ -38,15 +38,15 @@ class CombiCom {
   // after SGReduce sg will have full size
   // sg will be available on ALL members of comm
   template<typename FG_ELEMENT>
-  static void SGReduce(SGrid<FG_ELEMENT>& sg, MPI_Comm comm);
+  static void SGReduce(SGrid<FG_ELEMENT>& sg, const CommunicatorType& comm);
 
   // reduced fg will ONLY be available on r
   template<typename FG_ELEMENT>
-  static void FGReduce(FullGrid<FG_ELEMENT>& fg, RankType r, MPI_Comm comm);
+  static void FGReduce(FullGrid<FG_ELEMENT>& fg, RankType r, const CommunicatorType& comm);
 
   // reduced fg will be available on all member of comm
   template<typename FG_ELEMENT>
-  static void FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm);
+  static void FGAllreduce(FullGrid<FG_ELEMENT>& fg, const CommunicatorType& comm);
 
   // multiply dfg with coeff and add to dsg. dfg will not be changed
   template<typename FG_ELEMENT>
@@ -96,7 +96,7 @@ class CombiCom {
 };
 
 template<>
-inline void CombiCom::SGReduce<double>(SGrid<double>& sg, MPI_Comm comm) {
+inline void CombiCom::SGReduce<double>(SGrid<double>& sg, const CommunicatorType& comm) {
   // init all empty subspaces
   for (size_t i = 0; i < sg.getSize(); ++i)
     if (sg.getDataSize(i) == 0)
@@ -134,7 +134,7 @@ inline void CombiCom::SGReduce<double>(SGrid<double>& sg, MPI_Comm comm) {
 }
 
 template<>
-inline void CombiCom::SGReduce<float>(SGrid<float>& sg, MPI_Comm comm) {
+inline void CombiCom::SGReduce<float>(SGrid<float>& sg, const CommunicatorType& comm) {
 
   // init all empty subspaces
   for (size_t i = 0; i < sg.getSize(); ++i)
@@ -173,7 +173,7 @@ inline void CombiCom::SGReduce<float>(SGrid<float>& sg, MPI_Comm comm) {
 
 template<>
 inline void CombiCom::SGReduce<std::complex<double> >(
-  SGrid<std::complex<double> >& sg, MPI_Comm comm) {
+  SGrid<std::complex<double> >& sg, const CommunicatorType& comm) {
 
   int rank;
   MPI_Comm_rank(comm, &rank);
@@ -216,7 +216,7 @@ inline void CombiCom::SGReduce<std::complex<double> >(
 
 template<>
 inline void CombiCom::FGReduce<double>(FullGrid<double>& fg, RankType r,
-                                       MPI_Comm comm) {
+                                       const CommunicatorType& comm) {
   if (!fg.isGridCreated())
     fg.createFullGrid();
 
@@ -236,7 +236,7 @@ inline void CombiCom::FGReduce<double>(FullGrid<double>& fg, RankType r,
 }
 
 template<>
-inline void CombiCom::FGAllreduce<double>(FullGrid<double>& fg, MPI_Comm comm) {
+inline void CombiCom::FGAllreduce<double>(FullGrid<double>& fg, const CommunicatorType& comm) {
   if (!fg.isGridCreated())
     fg.createFullGrid();
 
@@ -252,7 +252,7 @@ inline void CombiCom::FGAllreduce<double>(FullGrid<double>& fg, MPI_Comm comm) {
 
 template<>
 inline void CombiCom::FGReduce<std::complex<double> >(
-  FullGrid<std::complex<double> >& fg, RankType r, MPI_Comm comm) {
+  FullGrid<std::complex<double> >& fg, RankType r, const CommunicatorType& comm) {
   if (!fg.isGridCreated())
     fg.createFullGrid();
 
@@ -274,7 +274,7 @@ inline void CombiCom::FGReduce<std::complex<double> >(
 
 template<>
 inline void CombiCom::FGAllreduce<std::complex<double> >(
-  FullGrid<std::complex<double> >& fg, MPI_Comm comm) {
+  FullGrid<std::complex<double> >& fg, const CommunicatorType& comm) {
   if (!fg.isGridCreated())
     fg.createFullGrid();
 
@@ -289,17 +289,17 @@ inline void CombiCom::FGAllreduce<std::complex<double> >(
 }
 
 template<typename FG_ELEMENT>
-void CombiCom::SGReduce(SGrid<FG_ELEMENT>& sg, MPI_Comm comm) {
+void CombiCom::SGReduce(SGrid<FG_ELEMENT>& sg, const CommunicatorType& comm) {
   assert(!"this type is not yet implemented");
 }
 
 template<typename FG_ELEMENT>
-void CombiCom::FGReduce(FullGrid<FG_ELEMENT>& fg, RankType r, MPI_Comm comm) {
+void CombiCom::FGReduce(FullGrid<FG_ELEMENT>& fg, RankType r, const CommunicatorType& comm) {
   assert(!"this type is not yet implemented");
 }
 
 template<typename FG_ELEMENT>
-void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
+void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, const CommunicatorType& comm) {
   assert(!"this type is not yet implemented");
 }
 
@@ -744,7 +744,7 @@ void CombiCom::distributedGlobalReduce(
     if (dsg.getRank(i) != lrank)
       continue;
 
-    MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm( );
+    const CommunicatorType& mycomm = theMPISystem()->getGlobalReduceComm( );
 
     // make sure that subspace is initialized. not all subspaces will be initialized
     // after local reduce. this will not overwrite an already initialized subspace
@@ -775,7 +775,7 @@ template<typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(
   DistributedSparseGridUniform<FG_ELEMENT>& dsg ) {
   // get global communicator for this operation
-  MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm( );
+  const CommunicatorType& mycomm = theMPISystem()->getGlobalReduceComm( );
 
   assert(mycomm != MPI_COMM_NULL);
 
@@ -877,7 +877,7 @@ CombiCom::distributedTeamGather(
     DistributedSparseGridUniform<FG_ELEMENT>* dsg,
     DistributedSparseGridUniform<FG_ELEMENT>* teamdsg /* only on team leader */
   ) {
-  MPI_Comm comm = theMPISystem()->getTeamComm();
+  const CommunicatorType& comm = theMPISystem()->getTeamComm();
   int teamSize;
   MPI_Comm_size(comm, &teamSize);
   int teamRank = theMPISystem()->getTeamRank();
@@ -964,7 +964,7 @@ CombiCom::distributedTeamScatter(
     DistributedSparseGridUniform<FG_ELEMENT>* dsg,
     DistributedSparseGridUniform<FG_ELEMENT>* teamdsg /* only on team leader */
   ) {
-  MPI_Comm comm = theMPISystem()->getTeamComm();
+  const CommunicatorType& comm = theMPISystem()->getTeamComm();
   int teamSize;
   MPI_Comm_size(comm, &teamSize);
   int teamRank = theMPISystem()->getTeamRank();

@@ -452,7 +452,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::setTeamDataSize(size_t i, size_t size)
 template<typename FG_ELEMENT>
 void
 DistributedSparseGridUniform<FG_ELEMENT>::buildTeamDataTypes() {
-  MPI_Comm comm = theMPISystem()->getTeamComm();
+  const CommunicatorType& comm = theMPISystem()->getTeamComm();
   int teamSize;
   MPI_Comm_size(comm, &teamSize);
   if(teamSize == 1) {
