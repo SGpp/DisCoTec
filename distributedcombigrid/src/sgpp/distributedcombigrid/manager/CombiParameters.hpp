@@ -23,8 +23,7 @@ class CombiParameters {
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<int>& taskIDs ) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
-    procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false)
+    procsSet_(false)
   {
     hierarchizationDims_ = std::vector<bool>(dim_,true);
     setLevelsCoeffs( taskIDs, levels, coeffs );
@@ -36,8 +35,7 @@ class CombiParameters {
                   std::vector<int>& taskIDs ) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     hierarchizationDims_(hierachizationDims),
-    procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false)
+    procsSet_(false)
   {
     setLevelsCoeffs( taskIDs, levels, coeffs );
   }
@@ -140,21 +138,9 @@ class CombiParameters {
 
 
   inline CommunicatorType getApplicationComm() const{
-    assert( uniformDecomposition && applicationCommSet_ );
+    assert( uniformDecomposition && false );
 
-    return applicationComm_;
-  }
-
-
-  inline void setApplicationComm( CommunicatorType comm ){
-    assert( uniformDecomposition );
-
-    // make sure it is set only once
-    if( applicationCommSet_ == true )
-      return;
-
-    MPI_Comm_dup( comm, &applicationComm_ );
-    applicationCommSet_ = true;
+    return MPI_COMM_NULL;
   }
 
   /* set the common parallelization
@@ -190,10 +176,6 @@ class CombiParameters {
 
   bool procsSet_;
 
-  CommunicatorType applicationComm_;
-
-  bool applicationCommSet_;
-
   friend class boost::serialization::access;
 
   // serialize
@@ -212,8 +194,6 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;
-  ar& applicationComm_;
-  ar& applicationCommSet_;
 }
 
 }
