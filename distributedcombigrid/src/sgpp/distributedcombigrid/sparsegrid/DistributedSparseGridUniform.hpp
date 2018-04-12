@@ -171,7 +171,7 @@ class DistributedSparseGridUniform {
   // For each proc in teamComm_, store the data type that will be received
   // at the team leader. Only present on the team leader and after
   // DFG::registerUniformSG has been called.
-  std::vector<int> teamDataTypes_;
+  std::vector<MPI_Datatype> teamDataTypes_;
 };
 
 } // namespace

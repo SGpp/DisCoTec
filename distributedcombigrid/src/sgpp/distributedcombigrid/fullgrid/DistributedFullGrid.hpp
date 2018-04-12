@@ -963,7 +963,7 @@ class DistributedFullGrid {
 
           std::reverse(subspaceSizes[teamRank].begin(), subspaceSizes[teamRank].end());
           std::reverse(subArrayStart.begin(), subArrayStart.end());
-          int subspaceType;
+          MPI_Datatype subspaceType;
           MPI_Type_create_subarray( dim, teamSgGridSizes.data(),
               subspaceSizes[teamRank].data(), subArrayStart.data(),
               MPI_ORDER_C, this->getMPIDatatype(), &subspaceType );
