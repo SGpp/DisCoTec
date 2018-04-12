@@ -607,9 +607,9 @@ void GeneTask::setDFG(){
     // parallelization in this dimension would require very expensive communication
     // in order to change the ordering in this dimension
     // Parallelization in x required for global cases
-    if(!_GENE_Global){
-      assert( dfgVector_[species]->getParallelization()[0] == 1 );
-    }
+//    if(!_GENE_Global){
+//      assert( dfgVector_[species]->getParallelization()[0] == 1 );
+//    }
     // some checks
     const IndexVector p( dfgVector_[species]->getParallelization().rbegin(),
                           dfgVector_[species]->getParallelization().rend() );
@@ -726,7 +726,7 @@ void GeneTask::adaptBoundaryZ(int species){
  */
 void GeneTask::adaptBoundaryZlocal(int species){
   // make sure no parallelization in z and x
-  assert( dfgVector_[species]->getParallelization()[0] == 1 );
+  //assert( dfgVector_[species]->getParallelization()[0] == 1 );
   assert( dfgVector_[species]->getParallelization()[2] == 1 );
 
   MultiArrayRef6 dfgData = createMultiArrayRef<CombiDataType,6>( *dfgVector_[species] );
@@ -767,7 +767,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
 
     // we ignore the last point in x direction
     size_t nkx, nky; //number of points in x and y direction in local dfg (excludes points that are 0)
-    if(xBorder && !_GENE_Global){ //in global case all x values are valid right now
+    if(xBorder){ //in global case all x values are valid right now
       nkx= targetShape[5]-1;
     }
     else{
@@ -780,8 +780,8 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
     else{
       nky = targetShape[4];
     }
-    //size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0] - 1; //here x is at position 0
-    size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0]; //we include x boundary currently
+    size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0] - 1; //here x is at position 0
+    //size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0]; //we include x boundary currently
     //std::cout << "local number of x points: " << nkx << " global number of x points: " << nkxGlobal << "\n";
 
     assert(nkxGlobal >= nkx);
@@ -803,7 +803,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
                 getOffsetAndFactor( xoffset, factor,j+1 );
               }
               else{
-                getOffsetAndFactor( xoffset, factor,j+1, i );
+                getOffsetAndFactor( xoffset, factor,j+1, dfgVector_[species]->getLowerBounds()[0] + i );
               }
               // calc kx_star
               IndexType kx_star = (i + xoffset)%nkxGlobal; //it might be problematic if kx_star is not on the same process
@@ -836,15 +836,15 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
 void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l, IndexType x ){
   // calculate x offset and factor
   if(!_GENE_Global){
-  int N = int( round( shat_ * kymin_ * lx_ ) );
-  int ky0_ind = 1;
-  assert( N == 1);
+    int N = int( round( shat_ * kymin_ * lx_ ) );
+    int ky0_ind = 1;
+    assert( N == 1);
 
-  xoffset = l*N;
-  factor = std::pow(-1.0,N * l);
+    xoffset = l*N;
+    factor = std::pow(-1.0,N * l);
 
-  // i think this function is only right if nky=1
-  assert( l_[1] == 1 && boundary_[1] == false );
+    // i think this function is only right if nky=1
+    assert( l_[1] == 1 && boundary_[1] == false );
   }
   else{
     xoffset = 0;
@@ -863,6 +863,7 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, In
     else{
       std::cout << "Error! out of bounds. \n";
       std::cout << "x: " << x << " y: " << l-1 << "\n";
+      assert(false);
       factor = 0;
     }
   }
