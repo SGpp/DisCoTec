@@ -108,6 +108,8 @@ class ProcessManager {
   // one group is in WAIT state
   inline ProcessGroupManagerID wait();
   inline ProcessGroupManagerID waitAvoid( std::vector< ProcessGroupManagerID>& avoidGroups);
+  // Wait until all groups have status PROCESS_GROUP_WAIT
+  inline void waitUntilAllWaiting() const;
   bool waitAllFinished();
 };
 
@@ -146,10 +148,7 @@ inline ProcessGroupManagerID ProcessManager::waitAvoid( std::vector< ProcessGrou
   }
 }
 
-template<typename FG_ELEMENT>
-inline FG_ELEMENT ProcessManager::eval(const std::vector<real>& coords) {
-  // wait until all process groups are in wait state
-  // after sending the exit signal checking the status might not be possible
+inline void ProcessManager::waitUntilAllWaiting() const {
   size_t numWaiting = 0;
 
   while (numWaiting != pgroups_.size()) {
@@ -160,6 +159,13 @@ inline FG_ELEMENT ProcessManager::eval(const std::vector<real>& coords) {
         ++numWaiting;
     }
   }
+}
+
+template<typename FG_ELEMENT>
+inline FG_ELEMENT ProcessManager::eval(const std::vector<real>& coords) {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  waitUntilAllWaiting();
 
   FG_ELEMENT res(0);
 
@@ -179,16 +185,7 @@ inline FG_ELEMENT ProcessManager::eval(const std::vector<real>& coords) {
 void ProcessManager::combine() {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
-  size_t numWaiting = 0;
-
-  while (numWaiting != pgroups_.size()) {
-    numWaiting = 0;
-
-    for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
-    }
-  }
+  waitUntilAllWaiting();
 
   // send signal to each group
   for (size_t i = 0; i < pgroups_.size(); ++i) {
@@ -209,16 +206,7 @@ template<typename FG_ELEMENT>
 void ProcessManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
-  size_t numWaiting = 0;
-
-  while (numWaiting != pgroups_.size()) {
-    numWaiting = 0;
-
-    for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
-    }
-  }
+  waitUntilAllWaiting();
 
   // send signal to each group
   for (size_t i = 0; i < pgroups_.size(); ++i) {
@@ -238,16 +226,7 @@ template<typename FG_ELEMENT>
 void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
-  size_t numWaiting = 0;
-
-  while (numWaiting != pgroups_.size()) {
-    numWaiting = 0;
-
-    for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
-    }
-  }
+  waitUntilAllWaiting();
 
   // send signal to each group
   for (size_t i = 0; i < pgroups_.size(); ++i) {

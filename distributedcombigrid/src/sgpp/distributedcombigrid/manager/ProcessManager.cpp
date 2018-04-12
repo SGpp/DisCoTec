@@ -66,16 +66,7 @@ bool ProcessManager::runnext() {
 void ProcessManager::exit() {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
-  size_t numWaiting = 0;
-
-  while (numWaiting != pgroups_.size()) {
-    numWaiting = 0;
-
-    for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
-    }
-  }
+  waitUntilAllWaiting();
 
   // send exit signal to each group
   for (size_t i = 0; i < pgroups_.size(); ++i) {
@@ -139,17 +130,7 @@ void ProcessManager::redistribute( std::vector<int>& taskID ) {
     g->addTask( t );
   }
 
-  size_t numWaiting = 0;
-
-  while (numWaiting != pgroups_.size()) {
-    numWaiting = 0;
-
-    for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
-    }
-
-  }
+  waitUntilAllWaiting();
 
   std::cout << "Redistribute finished" << std::endl;
 }
@@ -176,15 +157,7 @@ void ProcessManager::reInitializeGroup(std::vector< ProcessGroupManagerID>& reco
     }
   }
 
-  size_t numWaiting = 0;
-
-  while (numWaiting != pgroups_.size()) {
-    numWaiting = 0;
-    for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
-    }
-  }
+  waitUntilAllWaiting();
 
   std::cout << "Reinitialization finished" << std::endl;
 }
@@ -219,17 +192,7 @@ void ProcessManager::recompute( std::vector<int>& taskID, bool failedRecovery, s
 
   }
 
-  size_t numWaiting = 0;
-
-  while (numWaiting != pgroups_.size()) {
-    numWaiting = 0;
-
-    for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
-    }
-
-  }
+  waitUntilAllWaiting();
 
   std::cout << "Recompute finished" << std::endl;
 }
