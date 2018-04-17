@@ -410,7 +410,7 @@ void reduceSparseGridCoefficients(LevelVector& lmax,LevelVector& lmin, IndexType
      if (lmin[i] > 1)
        lmin[i] -= 0;
   for (size_t i = 0; i < lmax.size(); ++i)
-     lmax[i] = std::max(lmin[i],lmax[i] - 1);
+     lmax[i] = std::max(lmin[i],lmax[i] - 0);
 }
 void ProcessGroupWorker::combineUniform() {
   Stats::startEvent("combine init");
