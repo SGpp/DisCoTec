@@ -9,6 +9,7 @@
 
 #include <boost/serialization/export.hpp>
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
@@ -17,7 +18,9 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
-
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 #include "test_helper.hpp"
 
 /* functor for exact solution */
@@ -44,7 +47,7 @@ public:
     Task(2, l, boundary, coeff, loadModel), dt_(dt), nsteps_(nsteps) {
   }
 
-  void init(CommunicatorType lcomm) {
+  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     // only use one process per group
     IndexVector p(getDim(), 1);
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(),
@@ -107,11 +110,11 @@ public:
   }
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r,
-                   CommunicatorType lcomm) {
+                   CommunicatorType lcomm, int n = 0) {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid() {
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) {
     return *dfg_;
   }
 
@@ -139,6 +142,7 @@ private:
 
   template<class Archive>
   void serialize(Archive& ar, const unsigned int version) {
+    //ar& boost::serialization::make_nvp( BOOST_PP_STRINGIZE(*this),boost::serialization::base_object<Task>(*this));
     ar& boost::serialization::base_object<Task>(*this);
     ar& dt_;
     ar& nsteps_;
@@ -146,7 +150,10 @@ private:
 };
 
 BOOST_CLASS_EXPORT(TaskAdvectionFDM)
+BOOST_CLASS_EXPORT(StaticFaults)
+BOOST_CLASS_EXPORT(WeibullFaults)
 
+BOOST_CLASS_EXPORT(FaultCriterion)
 void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
   int size = useFG ? 2 : 7;
   BOOST_REQUIRE(TestHelper::checkNumProcs(size));
@@ -194,7 +201,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
@@ -230,7 +237,8 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
 
     // calculate error
     fg_exact.add(fg_eval, -1);
-
+    printf("Error: %f", fg_exact.getlpNorm(0));
+    printf("Error2: %f", fg_exact.getlpNorm(2));
     // results recorded previously
     BOOST_CHECK(TestHelper::equals(fg_exact.getlpNorm(0), l0err, 1e-5));
     BOOST_CHECK(TestHelper::equals(fg_exact.getlpNorm(2), l2err, 1e-5));
