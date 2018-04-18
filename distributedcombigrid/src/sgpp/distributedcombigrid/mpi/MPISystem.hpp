@@ -82,9 +82,12 @@ class MPISystem {
    */
   void init( size_t ngroups, size_t nprocs, CommunicatorType lcomm );
 
+
+  void init( CommunicatorType wcomm, size_t ngroups, size_t nprocs);
+
   /**
-   * returns the world communicator which contains all ranks (excluding spare ranks)
-   */
+  * returns the world communicator which contains all ranks (excluding spare ranks)
+  */
   inline const CommunicatorType& getWorldComm() const;
 
   /**

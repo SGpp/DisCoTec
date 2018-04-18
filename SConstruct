@@ -139,6 +139,8 @@ vars.Add(BoolVariable("BUILD_STATICLIB", "Set if static libraries should be buil
 vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing SG++", True))
 vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', '/usr/include')
 vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', '/usr/lib/x86_64-linux-gnu')
+vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
+
 
 # create temporary environment to check which system and compiler we should use
 # (the Environment call without "tools=[]" crashes with MinGW,
@@ -369,7 +371,9 @@ if env["RUN_PYTHON_TESTS"] and env["SG_PYTHON"]:
   env.Append(BUILDERS={"SimpleTest" : builder})
 
 if env["COMPILE_BOOST_TESTS"]:
-  builder = Builder(action="./$SOURCE")
+  proc_count = int(env["TEST_PROCESS_COUNT"])
+  run_cmd = "mpiexec -n %s " % proc_count if proc_count > 1 else ""
+  builder = Builder(action=run_cmd + "./$SOURCE")
   env.Append(BUILDERS={"BoostTest" : builder})
 
 # Building the modules

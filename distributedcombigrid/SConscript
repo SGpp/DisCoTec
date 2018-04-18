@@ -9,7 +9,9 @@ Import("*")
 
 moduleDependencies = []
 
-module = ModuleHelper.Module(moduleDependencies)
+additionalDependencies = ["boost_serialization","glpk"]
+
+module = ModuleHelper.Module(moduleDependencies, additionalDependencies)
 
 module.scanSource()
 module.buildLibrary()

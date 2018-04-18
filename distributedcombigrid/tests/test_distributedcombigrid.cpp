@@ -4,9 +4,8 @@
 #include <mpi.h>
 
 struct MpiOnOff {
-  MpiOnOff()   { MPI_Init( NULL, NULL); }
+  MpiOnOff()   { MPI_Init(NULL, NULL); }
   ~MpiOnOff()  { MPI_Finalize(); }
 };
 
-BOOST_GLOBAL_FIXTURE( MpiOnOff );
-
+BOOST_GLOBAL_FIXTURE(MpiOnOff)
