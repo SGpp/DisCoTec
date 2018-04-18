@@ -209,7 +209,7 @@ void MPISystem::init( size_t ngroup, size_t nprocs, CommunicatorType lcomm ){
 /* overload for initialization with given wold communicator
  * this method can be called multiple times (needed for tests)
  */
-void MPISystem::init( CommunicatorType wcomm, size_t ngroup, size_t nprocs ){
+void MPISystem::initWorld( CommunicatorType wcomm, size_t ngroup, size_t nprocs ){
   ngroup_ = ngroup;
   nprocs_ = nprocs;
 
