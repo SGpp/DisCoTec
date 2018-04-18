@@ -68,12 +68,12 @@ public:
 
   void run(CommunicatorType lcomm) {
     // velocity vector
-    std::vector<double> u(getDim());
+    std::vector<CombiDataType> u(getDim());
     u[0] = 1;
     u[1] = 1;
 
     // gradient of phi
-    std::vector<double> dphi(getDim());
+    std::vector<CombiDataType> dphi(getDim());
 
     IndexType l0 = dfg_->length(0);
     IndexType l1 = dfg_->length(1);
@@ -101,7 +101,7 @@ public:
         dphi[0] = (phi_[li] - phi_[lwi]) / h0;
         dphi[1] = (phi_[li] - phi_[lsi]) / h1;
 
-        double u_dot_dphi = u[0] * dphi[0] + u[1] * dphi[1];
+        CombiDataType u_dot_dphi = u[0] * dphi[0] + u[1] * dphi[1];
         dfg_->getData()[li] = phi_[li] - u_dot_dphi * dt_;
       }
     }
@@ -138,7 +138,7 @@ private:
   DistributedFullGrid<CombiDataType>* dfg_;
   real dt_;
   size_t nsteps_;
-  std::vector<double> phi_;
+  std::vector<CombiDataType> phi_;
 
   template<class Archive>
   void serialize(Archive& ar, const unsigned int version) {

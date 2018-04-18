@@ -11,7 +11,7 @@ INC_GLPK=-I/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk/include
 LDIR=$(LD_SGPP) $(LD_GLPK)
 INC=$(INC_SGPP) $(INC_GLPK)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk #-DDEBUG_OUTPUT
 
 CPP_FILES := $(wildcard src/*.cpp)
 OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))

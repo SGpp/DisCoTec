@@ -405,12 +405,15 @@ void ProcessGroupWorker::combine() {
   }
 } */
 
-void reduceSparseGridCoefficients(LevelVector& lmax,LevelVector& lmin, IndexType totalNumberOfCombis, IndexType currentCombi){
-  for (size_t i = 0; i < lmax.size(); ++i)
+void reduceSparseGridCoefficients(LevelVector& lmax,LevelVector& lmin, IndexType totalNumberOfCombis,
+    IndexType currentCombi, LevelVector reduceLmin, LevelVector reduceLmax){
+  for (size_t i = 0; i < lmin.size(); ++i){
      if (lmin[i] > 1)
-       lmin[i] -= 0;
-  for (size_t i = 0; i < lmax.size(); ++i)
-     lmax[i] = std::max(lmin[i],lmax[i] - 0);
+       lmin[i] -= reduceLmin[i];
+  }
+  for (size_t i = 0; i < lmax.size(); ++i){
+     lmax[i] = std::max(lmin[i],lmax[i] - reduceLmax[i]);
+  }
 }
 void ProcessGroupWorker::combineUniform() {
   Stats::startEvent("combine init");
@@ -432,7 +435,8 @@ void ProcessGroupWorker::combineUniform() {
   // to be exchanged
   // todo: use a flag to switch on/off optimized combination
 
-  reduceSparseGridCoefficients(lmax,lmin,combiParameters_.getNumberOfCombinations(),currentCombi_);
+  reduceSparseGridCoefficients(lmax,lmin,combiParameters_.getNumberOfCombinations(),currentCombi_,
+      combiParameters_.getLMinReductionVector(), combiParameters_.getLMaxReductionVector());
 
   /*for (size_t i = 0; i < lmax.size(); ++i)
         if (lmin[i] > 1)
@@ -442,7 +446,7 @@ void ProcessGroupWorker::combineUniform() {
   */
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION{
-    std::cout << "lmin: "<< lmax << std::endl;
+    std::cout << "lmin: "<< lmin << std::endl;
     std::cout << "lmax: "<< lmax << std::endl;
   }
 #endif
@@ -495,7 +499,9 @@ void ProcessGroupWorker::combineUniform() {
 
       // lokales reduce auf sg ->
       dfg.addToUniformSG( *combinedUniDSGVector_[g], combiParameters_.getCoeff( t->getID() ) );
+#ifdef DEBUG_OUTPUT
       std::cout << "Combination: added task " << t->getID() << " with coefficient " << combiParameters_.getCoeff( t->getID() ) <<"\n";
+#endif
     }
   }
   Stats::stopEvent("combine hierarchize");
