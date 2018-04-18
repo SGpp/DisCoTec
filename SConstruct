@@ -139,7 +139,7 @@ vars.Add(BoolVariable("BUILD_STATICLIB", "Set if static libraries should be buil
 vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing SG++", True))
 vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', '/usr/include')
 vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', '/usr/lib/x86_64-linux-gnu')
-vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "1")
+vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
 
 
 # create temporary environment to check which system and compiler we should use
