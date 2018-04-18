@@ -269,7 +269,7 @@ SignalType ProcessGroupWorker::wait() {
   if(isGENE){
     // special solution for GENE
     // todo: find better solution and remove this
-    if( ( signal == RUN_FIRST || signal == RUN_NEXT || signal == RECOMPUTE) && omitReadySignal )
+    if( ( signal == RUN_FIRST  || signal == RUN_NEXT || signal == RECOMPUTE) && !currentTask_->isFinished() && omitReadySignal )
       return signal;
   }
   // in the general case: send ready signal.
@@ -327,7 +327,7 @@ void ProcessGroupWorker::ready() {
         }
 	//merge problem?
 	// todo: gene specific voodoo 
- 	      if(isGENE){
+ 	      if(isGENE && !currentTask_->isFinished()){
  	        return;
  	      }
 	//
@@ -407,15 +407,22 @@ void ProcessGroupWorker::combine() {
 
 void reduceSparseGridCoefficients(LevelVector& lmax,LevelVector& lmin, IndexType totalNumberOfCombis,
     IndexType currentCombi, LevelVector reduceLmin, LevelVector reduceLmax){
-  for (size_t i = 0; i < lmin.size(); ++i){
-     if (lmin[i] > 1)
+  for (size_t i = 0; i < reduceLmin.size(); ++i){
+     if (lmin[i] > 1){
        lmin[i] -= reduceLmin[i];
+     }
   }
-  for (size_t i = 0; i < lmax.size(); ++i){
+  for (size_t i = 0; i < reduceLmax.size(); ++i){
      lmax[i] = std::max(lmin[i],lmax[i] - reduceLmax[i]);
   }
 }
 void ProcessGroupWorker::combineUniform() {
+#ifdef DEBUG_OUTPUT
+
+  MASTER_EXCLUSIVE_SECTION{
+    std::cout << "start combining \n";
+  }
+#endif
   Stats::startEvent("combine init");
 
   // each pgrouproot must call reduce function
