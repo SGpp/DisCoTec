@@ -24,13 +24,14 @@ namespace combigrid
 
 GeneTask::GeneTask( DimType dim, LevelVector& l,
                     std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
-                    std::string& path, real dt, size_t nsteps,
+                    std::string& path, real dt, real combitime, size_t nsteps,
                     real shat, real kymin, real lx, int ky0_ind,
                     IndexVector p , FaultCriterion *faultCrit,
                     IndexType numSpecies, bool GENE_Global, bool GENE_Linear)
     : Task( dim, l, boundary, coeff, loadModel,faultCrit),
       path_( path ),
       dt_( dt ),
+      combitime_(combitime),
       nsteps_( nsteps ),
       stepsTotal_(0),
       combiStep_(0),
@@ -44,7 +45,8 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       checkpointInitialized_(false),
       nspecies_(numSpecies),
       _GENE_Global(GENE_Global),
-      _GENE_Linear(GENE_Linear)
+      _GENE_Linear(GENE_Linear),
+      currentTime_(0.0)
 {
 
 // theres only one boundary configuration allowed at the moment
@@ -68,7 +70,8 @@ GeneTask::GeneTask() :
     initialized_(false),
     checkpointInitialized_(false),
     _GENE_Global(false),
-    _GENE_Linear(true)
+    _GENE_Linear(true),
+    currentTime_(0.0)
 {
   ;
 }
@@ -196,6 +199,7 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
                                 std::vector<size_t>& sizes,
                                 std::vector<size_t>& bounds )
 {
+  std::cout << "Number of species in checkpoint: " << sizes[0] << "\n";
   // todo: doing it like this will require two times copying
   for(unsigned int i= 0; i < sizes.size(); i++){
     //std::cout << i << " size[i]: " << sizes[i] << "\n";
@@ -208,12 +212,12 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
         assert(sizes[i] == 1);
       }
       else{
-        if(i == 5){ //x
-          assert(sizes[i] == pow(2,l_[index_l]) + 1);
-        }
-        else{
+//        if(i == 5){ //x
+//          assert(sizes[i] == pow(2,l_[index_l]) + 1);
+//        }
+//        else{
           assert(sizes[i] == pow(2,l_[index_l]));
-        }
+//        }
       }
     }
   }
@@ -240,7 +244,7 @@ void GeneTask::InitLocalCheckpoint(size_t size,
       assert(sizes[0] == nspecies_); // we have nspecies elements in this dimension
     }
     else{
-      if(i == 4){ //we have only 1 coordinate in y direction
+      if(i == 4 && _GENE_Linear){ //we have only 1 coordinate in y direction
         assert(sizes[i] == 1);
       }
       else{
@@ -428,7 +432,7 @@ size_t nx = static_cast<size_t>( std::pow( 2.0, fg.getLevels()[0] ) );
 
 // create MultiArray to store Gene grid temporarily
 // note reverse notation of shape vector
-IndexVector geneShape = { nspec, nw, nv, nz, ny, nx };
+IndexVector geneShape = { (IndexType) nspec, (IndexType) nw, (IndexType) nv, (IndexType) nz, (IndexType) ny, (IndexType) nx };
 MultiArray<GeneComplex,6> geneGrid = createMultiArray<GeneComplex,6>( geneShape );
 
 // create MultiArrayRef to fg
@@ -586,8 +590,8 @@ void GeneTask::setDFG(){
   // step one: copy data of localcheckpoint into dfg
 
   const std::vector<size_t>& b = checkpoint_.getBounds();
-  IndexVector lowerBounds = { b[0], b[2], b[4], b[6], b[8], b[10] };
-  IndexVector upperBounds = { b[1], b[3], b[5], b[7], b[9], b[11] };
+  IndexVector lowerBounds = {(IndexType) b[0],(IndexType) b[2],(IndexType) b[4],(IndexType) b[6],(IndexType) b[8],(IndexType) b[10] };
+  IndexVector upperBounds = {(IndexType) b[1], (IndexType)b[3],(IndexType) b[5],(IndexType) b[7],(IndexType) b[9],(IndexType) b[11] };
   IndexVector lcpSizes = upperBounds - lowerBounds;
 
   MultiArrayRef<GeneComplex,6> lcpData =
@@ -603,9 +607,9 @@ void GeneTask::setDFG(){
     // parallelization in this dimension would require very expensive communication
     // in order to change the ordering in this dimension
     // Parallelization in x required for global cases
-    if(!_GENE_Global){
-      assert( dfgVector_[species]->getParallelization()[0] == 1 );
-    }
+//    if(!_GENE_Global){
+//      assert( dfgVector_[species]->getParallelization()[0] == 1 );
+//    }
     // some checks
     const IndexVector p( dfgVector_[species]->getParallelization().rbegin(),
                           dfgVector_[species]->getParallelization().rend() );
@@ -625,7 +629,7 @@ void GeneTask::setDFG(){
       //std::cout << "dfgShape[" << d << "] " << dfgShape[d] <<"\n";
       //std::cout << "lcpShape[" << d << "] " << lcpShape[d] <<"\n";
       //last process in line has boundary points not included in gene
-      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || d == 4 /*||d==5 */) ){ //x,y (only non-linear cases),z,v,w at upper border of domain (one additional point)
+      if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || (d == 4 && !_GENE_Linear) ||d==5 ) ){ //y (only non-linear cases),x,z,v,w at upper border of domain (one additional point)
         assert( dfgShape[d] == lcpShape[d] + 1 );
       } else{
         if(d==0){ //species
@@ -722,7 +726,7 @@ void GeneTask::adaptBoundaryZ(int species){
  */
 void GeneTask::adaptBoundaryZlocal(int species){
   // make sure no parallelization in z and x
-  assert( dfgVector_[species]->getParallelization()[0] == 1 );
+  //assert( dfgVector_[species]->getParallelization()[0] == 1 );
   assert( dfgVector_[species]->getParallelization()[2] == 1 );
 
   MultiArrayRef6 dfgData = createMultiArrayRef<CombiDataType,6>( *dfgVector_[species] );
@@ -763,7 +767,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
 
     // we ignore the last point in x direction
     size_t nkx, nky; //number of points in x and y direction in local dfg (excludes points that are 0)
-    if(xBorder && !_GENE_Global){ //in global case all x values are valid right now
+    if(xBorder){ //in global case all x values are valid right now
       nkx= targetShape[5]-1;
     }
     else{
@@ -776,8 +780,8 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
     else{
       nky = targetShape[4];
     }
-    //size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0] - 1; //here x is at position 0
-    size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0]; //we include x boundary currently
+    size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0] - 1; //here x is at position 0
+    //size_t nkxGlobal = dfgVector_[species]->getGlobalSizes()[0]; //we include x boundary currently
     //std::cout << "local number of x points: " << nkx << " global number of x points: " << nkxGlobal << "\n";
 
     assert(nkxGlobal >= nkx);
@@ -799,7 +803,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
                 getOffsetAndFactor( xoffset, factor,j+1 );
               }
               else{
-                getOffsetAndFactor( xoffset, factor,j+1, i );
+                getOffsetAndFactor( xoffset, factor,j+1, dfgVector_[species]->getLowerBounds()[0] + i );
               }
               // calc kx_star
               IndexType kx_star = (i + xoffset)%nkxGlobal; //it might be problematic if kx_star is not on the same process
@@ -832,15 +836,15 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
 void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, IndexType l, IndexType x ){
   // calculate x offset and factor
   if(!_GENE_Global){
-  int N = int( round( shat_ * kymin_ * lx_ ) );
-  int ky0_ind = 1;
-  assert( N == 1);
+    int N = int( round( shat_ * kymin_ * lx_ ) );
+    int ky0_ind = 1;
+    assert( N == 1);
 
-  xoffset = l*N;
-  factor = std::pow(-1.0,N * l);
+    xoffset = l*N;
+    factor = std::pow(-1.0,N * l);
 
-  // i think this function is only right if nky=1
-  assert( l_[1] == 1 && boundary_[1] == false );
+    // i think this function is only right if nky=1
+    assert( l_[1] == 1 && boundary_[1] == false );
   }
   else{
     xoffset = 0;
@@ -859,6 +863,7 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, In
     else{
       std::cout << "Error! out of bounds. \n";
       std::cout << "x: " << x << " y: " << l-1 << "\n";
+      assert(false);
       factor = 0;
     }
   }
@@ -1123,8 +1128,9 @@ void GeneTask::getDFG(){
   // get multiarrayref to lcp
   // todo: put this into a function as it is used multiple times
   const std::vector<size_t>& b = checkpoint_.getBounds();
-  IndexVector lowerBounds = { b[0], b[2], b[4], b[6], b[8], b[10] };
-  IndexVector upperBounds = { b[1], b[3], b[5], b[7], b[9], b[11] };
+  IndexVector lowerBounds = {(IndexType) b[0],(IndexType) b[2],(IndexType) b[4],(IndexType) b[6],(IndexType) b[8],(IndexType) b[10] };
+  IndexVector upperBounds = {(IndexType) b[1], (IndexType)b[3],(IndexType) b[5],(IndexType) b[7],(IndexType) b[9],(IndexType) b[11] };
+
   IndexVector lcpSizes = upperBounds - lowerBounds;
   MultiArrayRef<GeneComplex,6> lcpData =
     createMultiArrayRef<GeneComplex,6>( checkpoint_.getData(), lcpSizes );
@@ -1210,37 +1216,27 @@ void GeneTask::normalizeDFG(int species){
 
 void GeneTask::write_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
     int size){
+  //return;
   assert(gyromatrix_buffered_ == false);
   gyromatrix_buffer_ = new GeneComplex[size];
   memcpy (gyromatrix_buffer_, sparse_gyromatrix_buffer, size * sizeof(GeneComplex) );
   gyromatrix_buffered_ = true;
+  gyromatrix_buffer_size_ = size;
+#ifdef DEBUG_OUTPUT
+  std::cout << "Writing gyromatrix of size: " << size << "\n";
+#endif
 }
 
 void GeneTask::load_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
     int size){
+#ifdef DEBUG_OUTPUT
+  std::cout << "Loading gyromatrix of size: " << size << "\n";
+#endif
   assert(gyromatrix_buffered_ == true);
+  assert(size == gyromatrix_buffer_size_);
+
 
   memcpy (sparse_gyromatrix_buffer,gyromatrix_buffer_, size * sizeof(GeneComplex) );
 }
-/*
-inline bool GeneTask::failNow( const int& globalRank ){
-  FaultsInfo faultsInfo = faultsInfo_;
-  IndexVector iF = faultsInfo_.iterationFaults_;
-  IndexVector rF = faultsInfo_.globalRankFaults_;
 
-  std::vector<IndexType>::iterator it;
-  it = std::find(iF.begin(), iF.end(), combiStep_);
-  IndexType idx = std::distance(iF.begin(),it);
-  //std::cout << "faultInfo" << iF[0] << " " << rF[0] << "\n";
-  // Check if current iteration is in iterationFaults_
-  while (it!=iF.end()){
-    // Check if my rank is the one that fails
-    if (globalRank == rF[idx])
-      return true;
-    it = std::find(++it, iF.end(), combiStep_);
-    idx = std::distance(iF.begin(),it);
-  }
-  return false;
-}
-*/
 } /* namespace combigrid */

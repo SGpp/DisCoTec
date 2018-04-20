@@ -361,7 +361,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     RankType leftPreRank = getNeighbor1d( dfg, dim, fleftpre );
     RankType rightPreRank = getNeighbor1d( dfg, dim, frightpre );
 
-    if ( rank == 0) std::cout << "first point:" << std::endl;
+    if ( rank == 0) std::cout << "first point for dim: " << dim << std::endl;
 
     for ( int r = 0; r < size; ++r ) {
       if ( r == rank ) {
@@ -700,7 +700,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   MPI_Waitall(static_cast<int>(recvRequests.size()), &recvRequests.front(),
               MPI_STATUSES_IGNORE);
 
-
+/*
 #ifdef DEBUG_OUTPUT
   MPI_Barrier( comm );
 
@@ -711,7 +711,8 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     for ( int r = 0; r < size; ++r ) {
       if ( r == rank ) {
         std::cout << "rank " << r << ":" << std::endl;
-        std::cout << dfg;
+        if(dfg.getDimension() <= 3)
+          std::cout << dfg;
       }
 
       MPI_Barrier(comm);
@@ -740,7 +741,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
       MPI_Barrier(comm);
     }
   }
-#endif
+#endif */
 }
 
 // exchange data in dimension dim
@@ -1049,7 +1050,7 @@ static void exchangeData1dDehierarchization(
   MPI_Waitall(static_cast<int>(recvRequests.size()), &recvRequests[0],
               MPI_STATUSES_IGNORE);
 
-
+/*
 #ifdef DEBUG_OUTPUT
   MPI_Barrier( comm );
 
@@ -1089,7 +1090,7 @@ static void exchangeData1dDehierarchization(
       MPI_Barrier(comm);
     }
   }
-#endif
+#endif */
 }
 
 template<typename FG_ELEMENT>

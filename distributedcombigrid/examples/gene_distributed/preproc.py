@@ -19,7 +19,7 @@ spcfile = 'spaces.dat'
 parser = SafeConfigParser()
 parser.read('ctparam')
 
-config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max ntimesteps_combi basename executable mpi startscript sgpplib tasklib ngroup nprocs shat kymin lx numFaults')
+config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max ntimesteps_combi basename executable mpi startscript sgpplib tasklib ngroup nprocs shat kymin lx numFaults combitime')
 
 config.lmin = [int(x) for x in parser.get('ct','lmin').split()]
 config.lmax = [int(x) for x in parser.get('ct','lmax').split()]
@@ -45,7 +45,7 @@ config.nonlinear = parser.get('application','GENE_nonlinear')
 config.numFaults = int( parser.get('faults', 'num_faults'))
 if config.local == "T" :
     config.shat = parser.get('application','shat') 
-
+config.combitime = float(parser.get('application','combitime'))
 # if command line options given overwrite config options
 '''
 import sys
@@ -164,7 +164,7 @@ for l in scheme.getCombinationDictionary():
     pin = pfilein.read()
     pfilein.close()
     
-    pout = pin.replace('$nx0',str(2**l0+1),1)
+    pout = pin.replace('$nx0',str(2**l0),1)
     if config.nonlinear == "T" :
     	pout = pout.replace('$nky0',str(2**l1),1)
     else:
@@ -196,7 +196,7 @@ for l in scheme.getCombinationDictionary():
 
     pout = pout.replace('$read_cp','F')
     pout = pout.replace('$write_cp','T')
-    
+    pout = pout.replace('$combitime',str(config.combitime)) 
     pfileout = open(parfile,'w')
     pfileout.write(pout)
     pfileout.close()
