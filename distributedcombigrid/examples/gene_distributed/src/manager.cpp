@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
      * CombiTS_CT will generate a valid combination. however, you could
      * also read in a list of levelvectors and coefficients from a file */
     DimType dim = cfg.get<DimType>("ct.dim");
-    LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim);
+    LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim), reduceCombinationDimsLmin(dim), reduceCombinationDimsLmax(dim);
     IndexVector p(dim);
     std::vector<bool> boundary(dim), hierarchizationDims(dim);
     combigrid::real dt;
@@ -150,6 +150,8 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.lmax") >> lmax; //maximum level vector -> level vector of target grid
     cfg.get<std::string>("ct.leval") >> leval; //level vector of final output
     cfg.get<std::string>("ct.leval2") >> leval2; //level vector of second final output
+    cfg.get<std::string>("ct.reduceCombinationDimsLmin") >> reduceCombinationDimsLmin;
+    cfg.get<std::string>("ct.reduceCombinationDimsLmax") >> reduceCombinationDimsLmax;
     cfg.get<std::string>("ct.p") >> p; //parallelization of domain (how many procs per dimension)
     cfg.get<std::string>("ct.boundary") >> boundary; //which dimension have boundary points
     cfg.get<std::string>("ct.hierarchization_dims") >> hierarchizationDims; //which dimension should be hierarchized
@@ -239,6 +241,8 @@ int main(int argc, char** argv) {
     // output of combination setup
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
+    std::cout << "reduceCombinationDimsLmin = " << reduceCombinationDimsLmin << std::endl;
+    std::cout << "reduceCombinationDimsLmax = " << reduceCombinationDimsLmax << std::endl;
     std::cout << "boundary = " << boundary << std::endl;
     std::cout << "hierarchization_dims = " << hierarchizationDims << std::endl;
     std::cout << "CombiScheme: " << std::endl;
@@ -280,7 +284,7 @@ int main(int argc, char** argv) {
     }
     // create combiparamters
     CombiParameters params( dim, lmin, lmax, boundary, levels,
-                            coeffs, hierarchizationDims, taskIDs, ncombi, numGrids  );
+                            coeffs, hierarchizationDims, taskIDs, ncombi, reduceCombinationDimsLmin, reduceCombinationDimsLmax, numGrids);
     params.setParallelization(p);
 
     // create Manager with process groups

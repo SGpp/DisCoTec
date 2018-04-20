@@ -22,10 +22,13 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
-                  std::vector<real>& coeffs, std::vector<int>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1 ) :
+                  std::vector<real>& coeffs, std::vector<int>& taskIDs, IndexType numberOfCombinations, LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0) ,
+                  LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0) ,
+                  IndexType numGrids = 1) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false), numberOfCombinations_(numberOfCombinations), numGridsPerTask_(numGrids)
+    applicationCommSet_(false), numberOfCombinations_(numberOfCombinations), numGridsPerTask_(numGrids),
+    reduceCombinationDimsLmin_(reduceCombinationDimsLmin), reduceCombinationDimsLmax_(reduceCombinationDimsLmax)
   {
     hierarchizationDims_ = std::vector<bool>(dim_,true);
     setLevelsCoeffs( taskIDs, levels, coeffs );
@@ -36,11 +39,13 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<bool>& hierachizationDims,
-                  std::vector<int>& taskIDs ,  IndexType numberOfCombinations, IndexType numGrids = 1) :
+                  std::vector<int>& taskIDs, IndexType numberOfCombinations, LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0) ,
+                  LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0), IndexType numGrids = 1) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     hierarchizationDims_(hierachizationDims),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false), numberOfCombinations_(numberOfCombinations),numGridsPerTask_(numGrids)
+    applicationCommSet_(false), numberOfCombinations_(numberOfCombinations),numGridsPerTask_(numGrids),
+    reduceCombinationDimsLmin_(reduceCombinationDimsLmin), reduceCombinationDimsLmax_(reduceCombinationDimsLmax)
   {
     setLevelsCoeffs( taskIDs, levels, coeffs );
     numTasks_ = taskIDs.size();
@@ -55,6 +60,14 @@ class CombiParameters {
 
   inline const LevelVector& getLMax() {
     return lmax_;
+  }
+
+  inline const LevelVector& getLMinReductionVector() {
+    return reduceCombinationDimsLmin_;
+  }
+
+  inline const LevelVector& getLMaxReductionVector() {
+    return reduceCombinationDimsLmax_;
   }
 
   inline const std::vector<bool>& getBoundary() {
@@ -225,7 +238,23 @@ class CombiParameters {
   IndexType numGridsPerTask_; //number of grids per task
 
   IndexType numTasks_;
-
+  /**
+   * This level vector indicates which dimension of lmin should be decreased by how many levels
+   * for constructing the distributed sparse grid.
+   * (0,0,0,0,0) would be the classical scheme were the sparse grid has the same minimum level as the combi scheme
+   * Higher values can decrease the communication volume but decrease the accuracy
+   */
+  LevelVector reduceCombinationDimsLmin_;
+  /**
+    * This level vector indicates which dimension of lmax should be decreased by how many levels
+    * for constructing the distributed sparse grid.
+    * (0,0,0,0,0,0) would be the classical scheme were the sparse grid has the same maximum level as the combi scheme
+    * (1,1,1,1,1,1) would be the classical optimization where we do not combine the highest subspaces
+    *               as they are only contained on the owning grid
+    * Higher values can decrease the communication volume but decrease the accuracy
+    * It is ensured that lmax >= lmin
+    */
+  LevelVector reduceCombinationDimsLmax_;
   // serialize
   template<class Archive>
   void serialize(Archive& ar, const unsigned int version);
@@ -245,6 +274,8 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;
   ar& numTasks_;
+  ar& reduceCombinationDimsLmin_;
+  ar& reduceCombinationDimsLmax_;
 }
 
 }
