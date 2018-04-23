@@ -126,6 +126,7 @@ void Task::serialize(Archive& ar, const unsigned int version) {
   ar& id_;
   ar& l_;
   ar& boundary_;
+  ar& isFinished_;
 }
 
 inline DimType Task::getDim() const {
