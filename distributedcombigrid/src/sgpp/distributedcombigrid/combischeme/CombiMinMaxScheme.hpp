@@ -44,10 +44,6 @@ public:
         effDim_--;
   }
 
-  ~CombiMinMaxScheme() {
-  }
-  ;
-
   /* Generate the combischeme corresponding to the classical combination technique.
    * We need to ensure that lmax = lmin +c*ones(dim), and take special care
    * of dummy dimensions
@@ -71,6 +67,10 @@ public:
   inline const std::vector<double>& getCoeffs() const {
     return coefficients_;
   }
+
+  const std::vector<LevelVector>& getLevels() const {
+	  return levels_;
+  };
 
   inline void print(std::ostream& os) const;
 
@@ -110,6 +110,7 @@ private:
   /* Calculate the coefficients of the adaptive CT using the formula in Alfredo's
    * SDC paper (from Brendan Harding)*/
   void computeCombiCoeffsAdaptive();
+
 
   LevelVector getLevelMinima();
 
