@@ -49,6 +49,7 @@ MPIInitHelper::MPIInitHelper(MPISystem& mpiSystem) :
     ngroups_(-1),
     nprocsByGroup_(),
     lcomm_(MPI_COMM_NULL),
+    wcomm_(MPI_COMM_WORLD),
     parallelByLocalSize_()
 {
 }
@@ -87,6 +88,12 @@ MPIInitHelper& MPIInitHelper::withLocalComm( CommunicatorType lcomm )
   return *this;
 }
 
+MPIInitHelper& MPIInitHelper::withWorldComm( CommunicatorType wcomm )
+{
+  wcomm_ = wcomm;
+  return *this;
+}
+
 MPIInitHelper& MPIInitHelper::withParallelization( std::map<size_t, CartRankCoords> parallelization )
 {
   parallelByLocalSize_ = std::move( parallelization );
@@ -95,7 +102,7 @@ MPIInitHelper& MPIInitHelper::withParallelization( std::map<size_t, CartRankCoor
 
 void MPIInitHelper::init()
 {
-  system_.init( ngroups_, nprocsByGroup_, lcomm_, parallelByLocalSize_ );
+  system_.init( ngroups_, nprocsByGroup_, lcomm_, parallelByLocalSize_, wcomm_ );
 }
 
 

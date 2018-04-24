@@ -9,7 +9,7 @@ Import("*")
 
 moduleDependencies = []
 
-additionalDependencies = ["boost_serialization","glpk"]
+additionalDependencies = ["boost_serialization", "boost_mpi", "glpk"]
 
 module = ModuleHelper.Module(moduleDependencies, additionalDependencies)
 

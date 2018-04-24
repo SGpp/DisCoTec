@@ -78,6 +78,9 @@ public:
 
   MPIInitHelper& withLocalComm( CommunicatorType lcomm );
 
+  // set the world comm the MPI system will use in place of MPI_COMM_WORLD. Used in tests
+  MPIInitHelper& withWorldComm( CommunicatorType wcomm );
+
   MPIInitHelper& withParallelization( std::map<size_t, CartRankCoords> parallelization );
 
   void init();
@@ -87,6 +90,7 @@ private:
   size_t ngroups_;
   std::vector<size_t> nprocsByGroup_;
   CommunicatorType lcomm_;
+  CommunicatorType wcomm_;
   std::map<size_t, CartRankCoords> parallelByLocalSize_;
 };
 
@@ -119,11 +123,6 @@ class MPISystem {
     CommunicatorType wcomm = MPI_COMM_WORLD );
   
   MPIInitHelper configure();
-
-  /**
-   * initializes MPI system including world communicator; so far only used in tests
-   */
-  void initWorld( CommunicatorType wcomm, size_t ngroups, size_t nprocs);
 
   /**
   * returns the world communicator which contains all ranks (excluding spare ranks)
