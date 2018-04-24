@@ -23,7 +23,9 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
-
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
 
@@ -32,6 +34,9 @@ using boost::property_tree::ptree;
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskExample)
+BOOST_CLASS_EXPORT(StaticFaults)
+BOOST_CLASS_EXPORT(WeibullFaults)
+BOOST_CLASS_EXPORT(FaultCriterion)
 
 template <typename T>
 std::vector<T> get_as_vector(ptree const& pt, ptree::key_type const& key)
@@ -142,8 +147,8 @@ int main(int argc, char** argv) {
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs );
-
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,ncombi, 1 );
+    params.setParallelization(p);
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
 
@@ -162,34 +167,17 @@ int main(int argc, char** argv) {
     Stats::stopEvent("manager run first");
     std::cerr << "run first complete" << std::endl;
 
-    std::ofstream myfile;
-    myfile.open("out/solution.dat");
-
     for (size_t i = 0; i < ncombi; ++i) {
       std::cerr << "ncombi: " << i << std::endl;
       Stats::startEvent("combine");
       manager.combine();
       Stats::stopEvent("combine");
 
-      // evaluate solution
-      FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-      Stats::startEvent("eval");
-      manager.gridEval(fg_eval);
-      Stats::stopEvent("eval");
-
+      // evaluate solution and
       // write solution to file
+      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat" );
       Stats::startEvent("manager write solution");
-      std::vector<double> coords(dim, 0.0);
-      for (int i = 0; i < fg_eval.getNrElements(); i++) {
-        if (i % fg_eval.length(0) == 0 && i > 0) {
-          myfile << std::endl;
-        }
-
-        fg_eval.getCoords(i, coords);
-        myfile << coords[0] << "\t" << coords[1] << "\t"
-               << fg_eval.getElementVector()[i] << std::endl;
-      }
-      myfile << std::endl << std::endl;
+      manager.parallelEval( leval, filename, 0 );
       Stats::stopEvent("manager write solution");
 
       std::cout << "run until combination point " << i+1 << std::endl;
@@ -199,8 +187,6 @@ int main(int argc, char** argv) {
       manager.runnext();
       Stats::stopEvent("manager run");
     }
-
-    myfile.close();
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();

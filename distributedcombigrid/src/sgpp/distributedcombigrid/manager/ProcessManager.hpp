@@ -287,7 +287,18 @@ ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
       newCoeffs.push_back(new_dict[lvl]);
       newTaskIDs.push_back(i);
     }
+    //check if sum of coefficients is 1
+    double sum;
+    std::cout << "new coefficients: ";
+    for(int i = 0; i < newCoeffs.size(); i++){
+      sum+=newCoeffs[i];
+      std::cout << newCoeffs[i] << " ";
+    }
+    std::cout << "\n";
+    int roundedSum = round(sum);
+    std::cout <<"Coefficient sum: " << roundedSum<< "\n";
 
+    assert(roundedSum==1);
     params_.setLevelsCoeffs(newTaskIDs, newLevels, newCoeffs);
 
     std::map<LevelVector, int> LevelsToIDs = params_.getLevelsToIDs();

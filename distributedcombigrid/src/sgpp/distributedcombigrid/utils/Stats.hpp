@@ -11,9 +11,11 @@
 #include <chrono>
 #include <fstream>
 #include <mpi.h>
+#include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
+
 
 /* comment this line to switch of timing */
-#define TIMING
+//#define TIMING
 
 namespace combigrid {
 
@@ -77,8 +79,8 @@ inline void Stats::initialize() {
 
 inline void Stats::finalize() {
   assert(initialized_);
-
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Comm worldComm = theMPISystem()->getWorldComm();
+  MPI_Barrier(worldComm);
   finalized_ = true;
 }
 
@@ -106,10 +108,10 @@ inline void Stats::write(const std::string& path) {
   assert(initialized_ && finalized_);
 
   using namespace std::chrono;
-
+  MPI_Comm worldComm = theMPISystem()->getWorldComm();
   int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(worldComm, &rank);
+  MPI_Comm_size(worldComm, &size);
 
   std::stringstream buffer;
 
@@ -166,12 +168,12 @@ inline void Stats::write(const std::string& path) {
   // get offset in file
   MPI_Offset len = buffer.str().size();
   MPI_Offset pos;
-  MPI_Scan(&len, &pos, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Scan(&len, &pos, 1, MPI_LONG, MPI_SUM, worldComm);
   pos -= len;
 
   // get total file length
   MPI_Offset file_len;
-  MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, worldComm);
 
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
   MPI_Info info = MPI_INFO_NULL;
@@ -187,7 +189,7 @@ inline void Stats::write(const std::string& path) {
 
   // open file
   MPI_File fh;
-  int err = MPI_File_open(MPI_COMM_WORLD, path.c_str(),
+  int err = MPI_File_open(worldComm, path.c_str(),
                           MPI_MODE_CREATE|MPI_MODE_WRONLY|MPI_MODE_EXCL,
                           info, &fh);
   if (err != MPI_SUCCESS)  {
@@ -195,7 +197,7 @@ inline void Stats::write(const std::string& path) {
     if (rank == 0) {
       MPI_File_delete(path.c_str(), MPI_INFO_NULL);
     }
-    MPI_File_open(MPI_COMM_WORLD, path.c_str(),
+    MPI_File_open(worldComm, path.c_str(),
                   MPI_MODE_CREATE|MPI_MODE_EXCL|MPI_MODE_WRONLY,
                   info, &fh);
   }

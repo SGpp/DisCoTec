@@ -149,12 +149,16 @@ void ProcessManager::reInitializeGroup(std::vector< ProcessGroupManagerID>& reco
         g->refreshTask( t );
       }
       else{
+        if(std::find(removeTasks.begin(), removeTasks.end(), t) != removeTasks.end()){
+          std::cout << "Error task " << t->getID() << "twice in container! Processor" << theMPISystem()->getWorldRank() << " \n";
+        }
         removeTasks.push_back(t);
       }
     }
     for( Task* t : removeTasks){
       g->removeTask(t);
     }
+    removeTasks.clear();
   }
 
   waitUntilAllWaiting();

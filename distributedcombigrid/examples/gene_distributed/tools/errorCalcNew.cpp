@@ -74,7 +74,7 @@ int main( int argc, char** argv ){
   // normalize with l2 norm
   real l2norm1 = l2Norm( data1 );
   real l2norm2 = l2Norm( data2 );
-
+  std::cout << "l2 norm grid 1: " << l2norm1 << " l2 norm grid 2: " << l2norm2 << "\n";
   real tmp1 = 1.0/l2norm1;
   for( auto i=0; i<data1.size(); ++i )
     data1[i] *= tmp1;
@@ -82,15 +82,25 @@ int main( int argc, char** argv ){
   real tmp2 = 1.0/l2norm2;
   for( auto i=0; i<data2.size(); ++i )
     data2[i] *= tmp2;
-
+  /*for( auto i=0; i<data1.size(); ++i ){
+    std::cout << data1[i] << " ";
+  }
+  //std::cout << "\n data2";
+  for( auto i=0; i<data2.size(); ++i ){
+    std::cout << data2[i] << " ";
+  }
+  std::cout << "\n";
+  */
   // calc l2 norm of absolute values
   real err = 0.0;
   for( auto i=0; i<data1.size(); ++i ){
     real tmp = std::abs( data1[i] ) - std::abs( data2[i] );
+    
+    if(std::abs(tmp)/std::abs(data1[i]) > 1e-12) std::cout <<" i: " << i << " value: " << std::abs(tmp)/std::abs(data1[i]) << " ";
     err += tmp*tmp;
   }
+  std::cout << "\n";
   err = std::sqrt(err);
-
   // open file in append mode
   std::ofstream ofs( filenameError.c_str(), std::ofstream::app );
 
@@ -155,7 +165,7 @@ void readCheckpoint( const char* ggFileName,
       << nv0 << "\n" << "\t nw(" << sizeof(int) << ") " << nw0 << "\n"
       << "\t n_spec(" << sizeof(int) << ") " << n_spec << std::endl;
   assert( n_spec == 1 );
-  assert( nj0 == 1 );
+  //assert( nj0 == 1 );
 
   int dsize = ni0 * nj0 * nz0 * nv0 * nw0 * n_spec;
   std::cout << "size: " << dsize << std::endl;
@@ -173,6 +183,11 @@ void readCheckpoint( const char* ggFileName,
   resolution.resize(6);
   for( size_t i=0; i<6; ++i )
     resolution[i] = res[i];
+  /*for(int i; i < data.size(); i++){
+    //if(data[i] != CombiDataType(0))
+      std::cout << data[i] << "\n";
+  }*/
+
 }
 
 
@@ -226,12 +241,16 @@ void readPlotFile( const char* pltFileName,
   // copy data from local checkpoint to dfg
   // note that on the last process in some dimensions dfg is larger than the
   // local checkpoint
+  int offsetY = 0;
+  if(shape[4]>1){
+    offsetY = 1;
+  }
   for( size_t n=0; n < shape[0]; ++n ){ //n_spec
     for( size_t m=0; m < shape[1]-1; ++m ){ //w
       for( size_t l=0; l < shape[2]-1; ++l ){ //v
         for( size_t k=0; k < shape[3]-1; ++k ){ //z
-          for( size_t j=0; j < shape[4]; ++j ){ //y
-            for( size_t i=0; i < shape[5]-1; ++i ){ //x
+          for( size_t j=0; j < shape[4]-offsetY; ++j ){ //y
+            for( size_t i=0; i < shape[5]; ++i ){ //x
               data.push_back( grid[n][m][l][k][j][i] );
             }
           }
@@ -241,11 +260,17 @@ void readPlotFile( const char* pltFileName,
   }
 
   // correct resolution
-  resolution[0] -= 1; //x
+//  resolution[0] -= 1; //x
+  if(shape[4]>1){
+    resolution[1] -= 1; //y
+  }
   resolution[2] -= 1; //z
-  resolution[3] -= 1; //x
-  resolution[4] -= 1; //x
-
+  resolution[3] -= 1; //v
+  resolution[4] -= 1; //w
+  /*for(int i; i < data.size(); i++){
+    //if(data[i] !=  CombiDataType(0))
+      std::cout << data[i] << "\n";
+  }*/
 }
 
 

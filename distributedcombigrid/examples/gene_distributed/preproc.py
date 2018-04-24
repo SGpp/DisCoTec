@@ -19,7 +19,7 @@ spcfile = 'spaces.dat'
 parser = SafeConfigParser()
 parser.read('ctparam')
 
-config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max ntimesteps_combi basename executable mpi startscript sgpplib tasklib ngroup nprocs')
+config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max ntimesteps_combi basename executable mpi startscript sgpplib tasklib ngroup nprocs shat kymin lx numFaults combitime')
 
 config.lmin = [int(x) for x in parser.get('ct','lmin').split()]
 config.lmax = [int(x) for x in parser.get('ct','lmax').split()]
@@ -36,7 +36,16 @@ config.tasklib = parser.get('preproc','tasklib')
 config.ngroup = int( parser.get('manager','ngroup') )
 config.nprocs = int( parser.get('manager','nprocs') )
 config.istep_omega = 10
-
+#config.shat = parser.get('application','shat') 
+config.kymin = parser.get('application','kymin') 
+config.lx = parser.get('application','lx') 
+config.numspecies = parser.get('application','numspecies') 
+config.local = parser.get('application','GENE_local') 
+config.nonlinear = parser.get('application','GENE_nonlinear') 
+config.numFaults = int( parser.get('faults', 'num_faults'))
+if config.local == "T" :
+    config.shat = parser.get('application','shat') 
+config.combitime = float(parser.get('application','combitime'))
 # if command line options given overwrite config options
 '''
 import sys
@@ -118,9 +127,13 @@ pfileout.close()
 # note that the level vector in the python vector is stored in reverse order
 lminp = lmin[::-1]
 lmaxp = lmax[::-1]
-activeSet = aSF.ClassicDiagonalActiveSet(lmaxp,lminp)
-scheme = cS.combinationSchemeArbitrary(activeSet.getActiveSet())
-
+if(config.numFaults == 0):
+    activeSet = aSF.ClassicDiagonalActiveSet(lmaxp,lminp)
+    scheme = cS.combinationSchemeArbitrary(activeSet.getActiveSet())
+else:
+    factory = aSF.ClassicDiagonalActiveSet(lmaxp,lminp,0)
+    activeSet = factory.getActiveSet()
+    scheme = cS.combinationSchemeFaultTolerant(factory)
 # detect number of simulation steps
 #nsteps = config.ntimesteps_combi if config.ntimesteps_combi <= config.ntimesteps_ev_calc else config.ntimesteps_ev_calc
 
@@ -152,12 +165,17 @@ for l in scheme.getCombinationDictionary():
     pfilein.close()
     
     pout = pin.replace('$nx0',str(2**l0),1)
-    pout = pout.replace('$nky0',str(2**l1-1),1)
+    if config.nonlinear == "T" :
+    	pout = pout.replace('$nky0',str(2**l1),1)
+    else:
+        pout = pout.replace('$nky0',str(2**l1-1),1)
     pout = pout.replace('$nz0',str(2**l2),1)
     pout = pout.replace('$nv0',str(2**l3),1)
     pout = pout.replace('$nw0',str(2**l4),1)
-    pout = pout.replace('$nspec',str(l5),1)
-    
+    pout = pout.replace('$nspec',str(config.numspecies),1)
+    pout = pout.replace('$GENE_local',str(config.local),1)
+    pout = pout.replace('$GENE_nonlinear',str(config.nonlinear),1)
+
     pout = pout.replace('$ps',str(ps),1)
     pout = pout.replace('$pv',str(pv),1)
     pout = pout.replace('$pw',str(pw),1)
@@ -171,10 +189,14 @@ for l in scheme.getCombinationDictionary():
     pout = pout.replace('$ntimesteps_combi', str(config.ntimesteps_total))
     pout = pout.replace('$istep_omega', str(config.istep_omega))
     pout = pout.replace('$dt_max', str(config.dt_max))
-    
+    if config.local == "T" :
+        pout = pout.replace('$shat', str(config.shat))
+    pout = pout.replace('$kymin', str(config.kymin))
+    pout = pout.replace('$lx', str(config.lx))
+
     pout = pout.replace('$read_cp','F')
     pout = pout.replace('$write_cp','T')
-    
+    pout = pout.replace('$combitime',str(config.combitime)) 
     pfileout = open(parfile,'w')
     pfileout.write(pout)
     pfileout.close()

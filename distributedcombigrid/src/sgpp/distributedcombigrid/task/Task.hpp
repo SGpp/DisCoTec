@@ -18,6 +18,9 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
+
 
 namespace combigrid {
 
@@ -30,7 +33,10 @@ class Task {
   Task();
 
   Task(DimType dim, LevelVector& l,
-       std::vector<bool>& boundary, real coeff, LoadModel* loadModel);
+       std::vector<bool>& boundary, real coeff, LoadModel* loadModel, FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})));
+
+  //fault tolerance info
+  FaultCriterion *faultCriterion_;
 
  public:
   virtual ~Task();
@@ -53,7 +59,7 @@ class Task {
 
   virtual void run(CommunicatorType lcomm) = 0;
 
-  virtual void changeDir(){
+  virtual void changeDir(CommunicatorType lcomm){
     //do nothing
   }
 
@@ -65,10 +71,11 @@ class Task {
 
   inline void setFinished(bool finished);
 
+  //returns the -th fullgrid gathered from all processors
   virtual void getFullGrid(FullGrid<CombiDataType>& fg, RankType lroot,
-                           CommunicatorType lcomm) = 0;
-
-  virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid() = 0;
+                           CommunicatorType lcomm, int n = 0) = 0;
+  //This method returns the local part of the n-th distributedFullGrid
+  virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) = 0;
 
   virtual void setZero() = 0;
 
@@ -81,6 +88,10 @@ class Task {
   }
 
   inline virtual bool isInitialized();
+
+  real initFaults(real t_fault, std::chrono::high_resolution_clock::time_point startTimeIteration){
+    return faultCriterion_->init(startTimeIteration, t_fault);
+  }
 
 
  private:
@@ -110,6 +121,7 @@ typedef std::vector<Task*> TaskContainer;
 
 template<class Archive>
 void Task::serialize(Archive& ar, const unsigned int version) {
+  ar & faultCriterion_;
   ar& dim_;
   ar& id_;
   ar& l_;

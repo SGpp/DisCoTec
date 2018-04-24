@@ -332,6 +332,9 @@ def configureGNUCompiler(config):
 
   # required for profiling
   config.env.Append(CPPFLAGS=["-fno-omit-frame-pointer"])
+  
+  if config.env["DEBUG_OUTPUT"]:
+    config.env.Append(CPPFLAGS=["-DDEBUG_OUTPUT"])  
 
   if config.env["BUILD_STATICLIB"]:
     config.env.Append(CPPFLAGS=["-D_BUILD_STATICLIB"])
@@ -385,10 +388,15 @@ def configureClangCompiler(config):
   #     http://www.swig.org/Release/CHANGES, 03/02/2006
   #    "If you are going to use optimisations turned on with gcc > 4.0 (for example -O2),
   #     ensure you also compile with -fno-strict-aliasing"
+  
   config.env.Append(CPPFLAGS=allWarnings + [
       "-DDEFAULT_RES_THRESHOLD=-1.0", "-DTASKS_PARALLEL_UPDOWN=4"])
   config.env.Append(CPPFLAGS=["-fopenmp=libiomp5"])
   config.env.Append(LINKFLAGS=["-fopenmp=libiomp5"])
+
+  if config.env["DEBUG_OUTPUT"]:
+    config.env.Append(CPPFLAGS=["-DDEBUG_OUTPUT"])
+  
 
   if config.env["BUILD_STATICLIB"]:
     config.env.Append(CPPFLAGS=["-D_BUILD_STATICLIB"])
@@ -439,6 +447,10 @@ def configureIntelCompiler(config):
 
   config.env.AppendUnique(CPPFLAGS=["-qopenmp"])
   config.env.AppendUnique(LINKFLAGS=["-qopenmp"])
+
+  if config.env["DEBUG_OUTPUT"]:
+    config.env.Append(CPPFLAGS=["-DDEBUG_OUTPUT"])
+
 
   if config.env["BUILD_STATICLIB"]:
     config.env.AppendUnique(CPPFLAGS=["-D_BUILD_STATICLIB"])

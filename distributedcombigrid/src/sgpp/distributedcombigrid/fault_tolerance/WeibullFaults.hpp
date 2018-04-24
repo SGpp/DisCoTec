@@ -19,13 +19,22 @@ public:
 
   virtual ~WeibullFaults();
   bool failNow(int ncombi, real t_iter, int globalRank);
+  real init(std::chrono::high_resolution_clock::time_point  startTimeIteration, real t_fault_);
 
 private:
   friend class boost::serialization::access;
+  //shape parameter
   real k_;
+  //scale parameter
   real lambda_;
+  //indicates if master of each process group is allowed to fail
   bool faultMaster_;
+  //total number of combinations
   int numberOfCombis_;
+  //failure time
+  real t_fault_;
+  //starting time of simulation
+  std::chrono::high_resolution_clock::time_point  startTimeIteration_;
   //serialize
   template<class Archive>
   void serialize(Archive& ar, const unsigned int version) {
