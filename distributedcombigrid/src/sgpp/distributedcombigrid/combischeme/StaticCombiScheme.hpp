@@ -17,13 +17,30 @@
 
 namespace combigrid {
 
+/**
+ * Used terminology: A full grid represented by its level in each dimension is !contained! in this combiScheme
+ * if is directly used in the combination technique or if it contained a subset of one of these grids
+ * (meaning there is a grid used in the combischeme for which every level in each dimension is bigger or equal).
+ *
+ * A dummy Dimension is a dimension where lmin[d] = lmax[d]. These dimensions are treaded specially.
+ */
 class StaticCombiScheme {
 public:
 
+	/**
+	 * Creates a classical combi scheme. That means that for every non dummy dimension lmax[j] == lmin[j] + c, where c is a
+	 * natural number.
+	 * If this invariant doesn't hold for the given parameters a new lmin* vector is created where
+	 * lmin*[j] = lmax[j] - k, where k is min_i(lmax[i] - lmin[i]). Both i and j are indices of non dummy dimensions.
+	 */
 	static StaticCombiScheme createClassicalScheme(LevelVector lmin, LevelVector lmax, bool faultTolerant = false){
-		return StaticCombiScheme(makeClassicalMin(lmin, lmax), lmax, faultTolerant);
+		return StaticCombiScheme(makeClassicalMin(lmin, lmax),
+				                 lmax, faultTolerant);
   }
 
+	/**
+	 * Creates an adaptive combi scheme.
+	 */
 	static StaticCombiScheme createAdaptiveScheme(LevelVector lmin, LevelVector lmax, bool faultTolerant = false){
 		return StaticCombiScheme(lmin, lmax, faultTolerant);
   }
@@ -34,36 +51,64 @@ public:
    * */
   void createCombiScheme();
 
+  /**
+   * Used in createClassicalScheme to force the lmin to the required format
+   * (see createClassicalScheme for further info)
+   */
   static LevelVector makeClassicalMin(LevelVector lmin, LevelVector lmax); 
 
+  /**
+   * Returns the fullgrids (represented by their level in every dimension)
+   * for which a solution should be calculated
+   */
   inline const std::vector<LevelVector>& getCombiSpaces() const {
     return combiSpaces_;
   }
 
+  /**
+   * Returns the coefficients needed to correctly combine the results combiSpaces.
+   */
   inline const std::vector<double>& getCoeffs() const {
     return coefficients_;
   }
 
+  /**
+   * Returns the fullgrids (represented by their level in every dimension)
+   * which are either in the comiSpaces or subgrids of these grid.
+   *
+   * This does not include grids which have levels smaller than lmin
+   * since these are trivially in the grid.
+   */
   const std::vector<LevelVector>& getLevels() const{
 	 return levels_;
   };
 
   inline void print(std::ostream& os) const;
 
+  /**
+   * Returns the dimension of the grids used
+   */
   LevelType dim(){
     return static_cast<LevelType>(lmin_.size());
   }
 
+  /**
+   * Returns the dimension of the grids used
+   * minus the dummy dimensions
+   */
   std::size_t effDim(){
 	  std::size_t count = 0;
 	  for(size_t i = 0; i < dim(); ++i){
-		  if(lmin_.at(i) != lmax_.at(i)){
+		  if(!isDummyDim(i)){
 			  ++count;
 		  }
 	  }
 	  return count;
   }
 
+  /**
+   * Returns true if the given dimension is a dummy dimension
+   */
   bool isDummyDim(size_t index){
     assert(index < dim());
     return lmax_.at(index) == lmin_.at(index);
@@ -76,7 +121,7 @@ protected:
   /* Maximal resolution */
   LevelVector lmax_;
 
-  /* Downset */
+  /* Downset without grids smaller than lmin*/
   std::vector<LevelVector> levels_;
 
   /* Subspaces of the combination technique*/
@@ -85,6 +130,11 @@ protected:
   /* Combination coefficients */
   std::vector<real> coefficients_;
 
+  /**
+   * Creates the adaptive combination technique from lmax and lmin.
+   * If called with an apropriate lmin it creates a classical combi technique
+   * (see also createClassicalScheme)
+   */
   StaticCombiScheme(const LevelVector& lmin, const LevelVector& lmax, bool faultTolerant) :
   lmin_ {lmin}, lmax_{lmax}, levels_{}, combiSpaces_{}, coefficients_{}{
 	assert(lmin_.size() > 0);
@@ -110,6 +160,15 @@ protected:
    */
   LevelType getMaxLevelSum();
 
+  /**
+   * The following three functions are used to generate the
+   * grids that make up the combi spaces and all of their
+   * subgrids.
+   *
+   * To do that first the grid is transformed from (lmin, lmax)
+   * to (1, lmax - lmin) (1 here represents the vector containing only ones).
+   * Then the contained grids are generated and in the end lmin-1 is added to these grids again
+   */
   LevelType getNameSum();
 
   void createLevelsRec(){
@@ -120,16 +179,22 @@ protected:
 	  }
   }
 
-  void makeFaultTolerant();
-
-  /* Creates the downset recursively */
   void createLevelsRec(LevelType currMaxSum,
           size_t currentIndex,
           LevelVector l);
 
-  /* Calculate the coefficients of the classical CT (binomial coefficient)*/
-  void computeCombiCoeffs();
+  /**
+   * TODO this method is simply copied from the old version and most likely won't
+   * work yet
+   */
+  void makeFaultTolerant();
 
+
+  /*
+   * Calculate the coefficients for the grids and
+   * stores the grid with a non zero coefficient in combiSpaces_
+   */
+  void computeCombiCoeffs();
 
 };
 
