@@ -28,6 +28,11 @@ Task::~Task() {
 }
 
 int Task::count = 0;
+bool Task::isFirstCombiSequence = true;
+
+std::vector<CombiDataType>* Task::bufAsync;
+MPI_Request* Task::requestAsync;
+
 
 void Task::send(Task** t, RankType dst, CommunicatorType comm) {
   // save data to archive

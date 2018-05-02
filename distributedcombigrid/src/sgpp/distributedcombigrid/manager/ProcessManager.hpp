@@ -53,6 +53,9 @@ class ProcessManager {
   inline void
   combine();
 
+  inline void
+  combineAsync();
+
   template<typename FG_ELEMENT>
   inline void
   combineFG(FullGrid<FG_ELEMENT>& fg);
@@ -86,7 +89,7 @@ class ProcessManager {
   void parallelEval( const LevelVector& leval,
                                      std::string& filename,
                                      size_t groupID );
-  
+
   void redistribute( std::vector<int>& taskID );
 
   void reInitializeGroup( std::vector< ProcessGroupManagerID>& taskID, std::vector<int>& tasksToIgnore  );
@@ -197,6 +200,35 @@ void ProcessManager::combine() {
   // send signal to each group
   for (size_t i = 0; i < pgroups_.size(); ++i) {
     bool success = pgroups_[i]->combine();
+    assert(success);
+  }
+
+  waitAllFinished();
+}
+
+/* This function performs the so-called recombination. First, the combination
+ * solution will be evaluated in the given sparse grid space.
+ * Also, the local component grids will be updated with the combination
+ * solution. The combination solution will also be available on the manager
+ * process.
+ */
+void ProcessManager::combineAsync() {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  // send signal to each group
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    bool success = pgroups_[i]->combineAsync();
     assert(success);
   }
 

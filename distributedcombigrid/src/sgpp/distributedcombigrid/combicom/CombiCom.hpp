@@ -81,6 +81,17 @@ class CombiCom {
   template<typename FG_ELEMENT>
   static void
   distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg);
+
+  template<typename FG_ELEMENT>
+  static void
+  distributedGlobalReduceAsyncInit(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                   std::vector<FG_ELEMENT>& BufAsync, MPI_Request &RequestAsync);
+
+  template<typename FG_ELEMENT>
+  static void
+  distributedGlobalReduceAsyncExtractSubspace(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                              std::vector<FG_ELEMENT>& BufAsync);
+
 };
 
 template<>
@@ -853,6 +864,113 @@ void CombiCom::distributedGlobalReduce(
         subspaceData[j] = *buf_it;
         ++buf_it;
       }
+    }
+  }
+}
+
+template<typename FG_ELEMENT>
+void CombiCom::distributedGlobalReduceAsyncInit(
+  DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+  std::vector<FG_ELEMENT>& bufAsync, MPI_Request &requestAsync) {
+  // get global communicator for this operation
+  MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
+
+  assert(mycomm != MPI_COMM_NULL);
+
+  /* get sizes of all partial subspaces in communicator
+   * we have to do this, because size information of uninitialized subspaces
+   * is not available in dsg. at the moment this information is only available
+   * in dfg.
+   */
+  std::vector<int> subspaceSizes(dsg.getNumSubspaces());
+
+  for (size_t i = 0; i < subspaceSizes.size(); ++i) {
+    // MPI does not have a real size_t equivalent. int should work in most cases
+    // if not we can at least detect this with an assert
+    assert(dsg.getDataSize(i) <= INT_MAX);
+
+    subspaceSizes[i] = int(dsg.getDataSize(i));
+  }
+
+  MPI_Allreduce( MPI_IN_PLACE, subspaceSizes.data(), int(subspaceSizes.size()),
+                 MPI_INT, MPI_MAX, mycomm);
+
+  // check for implementation errors, the reduced subspace size should not be
+  // different from the size of already initialized subspaces
+  int bsize = 0;
+
+  for (size_t i = 0; i < subspaceSizes.size(); ++i) {
+    bool check = (subspaceSizes[i] == 0 || dsg.getDataSize(i) == 0
+                  || subspaceSizes[i] == int(dsg.getDataSize(i)));
+
+    if (!check) {
+      int rank;
+      MPI_Comm_rank( MPI_COMM_WORLD, &rank);
+      std::cout << "l = " << dsg.getLevelVector(i) << " " << "rank = " << rank
+                << " " << "ssize = " << subspaceSizes[i] << " " << "dsize = "
+                << dsg.getDataSize(i) << std::endl;
+      assert(false);
+    }
+
+    bsize += subspaceSizes[i];
+  }
+
+  // put subspace data into buffer
+  std::vector<FG_ELEMENT> buf(bsize, FG_ELEMENT(0));
+  bufAsync = buf;
+  {
+    typename std::vector<FG_ELEMENT>::iterator buf_it = bufAsync.begin();
+
+    for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
+      std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
+
+      // if subspace does not exist on this process this part of the buffer is
+      // left empty
+      if (subspaceData.size() == 0) {
+        buf_it += subspaceSizes[i];
+        continue;
+      }
+
+      for (size_t j = 0; j < subspaceData.size(); ++j) {
+        *buf_it = subspaceData[j];
+        ++buf_it;
+      }
+    }
+  }
+
+  MPI_Datatype dtype = abstraction::getMPIDatatype(
+                         abstraction::getabstractionDataType<FG_ELEMENT>());
+  MPI_Iallreduce( MPI_IN_PLACE, bufAsync.data(), bsize, dtype, MPI_SUM, mycomm,
+                  &requestAsync);
+
+}
+
+template<typename FG_ELEMENT>
+void CombiCom::distributedGlobalReduceAsyncExtractSubspace(
+  DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+  std::vector<FG_ELEMENT>& bufAsync) {
+  // extract subspace data
+  std::vector<int> subspaceSizes(dsg.getNumSubspaces());
+  typename std::vector<FG_ELEMENT>::iterator buf_it = bufAsync.begin();
+
+  for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
+    std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
+
+    // this is very unlikely but can happen if dsg is different than
+    // lmax and lmin of combination scheme
+    if(subspaceData.size() == 0 && subspaceSizes[i] == 0)
+      continue;
+
+    // this happens for subspaces that are only available in component grids
+    // on other process groups
+    if( subspaceData.size() == 0 && subspaceSizes[i] > 0 ){
+      subspaceData.resize( subspaceSizes[i] );
+    }
+
+    // wenn subspaceData.size() > 0 und subspaceSizes > 0
+    for (size_t j = 0; j < subspaceData.size(); ++j) {
+      subspaceData[j] = *buf_it;
+      ++buf_it;
     }
   }
 }

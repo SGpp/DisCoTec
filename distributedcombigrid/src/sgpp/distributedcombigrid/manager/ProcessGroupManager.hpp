@@ -62,6 +62,9 @@ class ProcessGroupManager {
   bool
   combine();
 
+  bool
+  combineAsync();
+
   template<typename FG_ELEMENT>
   bool
   combineFG(FullGrid<FG_ELEMENT>& fg);

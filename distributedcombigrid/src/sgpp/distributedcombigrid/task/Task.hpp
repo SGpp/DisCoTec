@@ -115,6 +115,20 @@ class Task {
   LoadModel* loadModel_;
 
   bool isFinished_;
+
+  public:
+  /** the full grid vector before combi, this contains the elements of the full grid before combi*/
+  std::vector<CombiDataType> *fullgridVectorBeforeCombi;
+
+  /** flags if the combisequence is happening for the first time.*/
+  static bool isFirstCombiSequence;
+
+  /** Buffer for Async Reduce*/
+  static std::vector<CombiDataType> *bufAsync;
+
+  /** request for Async Reduce*/
+  static MPI_Request *requestAsync;
+
 };
 
 typedef std::vector<Task*> TaskContainer;

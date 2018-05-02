@@ -46,6 +46,19 @@ class ProcessGroupWorker {
   //combine on sparse grid with uniform decomposition of domain
   void combineUniform();
 
+  //combine on sparse grid with uniform decomposition of domain with noblocking reduce
+  void combineUniformAsync();
+
+  //combine on sparse grid with uniform decomposition of domain with noblocking reduce
+  bool isDistributedGlobalReduceAsyncCompleted();
+
+  //Initialization of noblocking reduce
+  void combineUniformAsyncInitHierarchizeReduce();
+
+  //Termination of noblocking reduce
+  void combineUniformAsyncHierarchizeUpdate();
+
+
   //outdated!
   void combineFG();
 
