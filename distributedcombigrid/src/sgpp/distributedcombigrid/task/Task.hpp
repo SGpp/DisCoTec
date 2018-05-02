@@ -73,9 +73,9 @@ class Task {
 
   //returns the -th fullgrid gathered from all processors
   virtual void getFullGrid(FullGrid<CombiDataType>& fg, RankType lroot,
-                           CommunicatorType lcomm, int n) = 0;
+                           CommunicatorType lcomm, int n = 0) = 0;
   //This method returns the local part of the n-th distributedFullGrid
-  virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n) = 0;
+  virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) = 0;
 
   virtual void setZero() = 0;
 
@@ -140,6 +140,7 @@ void Task::serialize(Archive& ar, const unsigned int version) {
   ar& id_;
   ar& l_;
   ar& boundary_;
+  ar& isFinished_;
 }
 
 inline DimType Task::getDim() const {

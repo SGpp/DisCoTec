@@ -13,7 +13,8 @@
 
 namespace combigrid {
 
-Task::Task() {
+Task::Task():
+    isFinished_(false){
 }
 
 Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,

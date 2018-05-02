@@ -62,7 +62,7 @@ class ProcessGroupWorker {
   //outdated!
   void combineFG();
 
- // void gridEval();
+  void gridEval();
 
   //parallel file io of final output grid
   void parallelEval();
