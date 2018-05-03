@@ -476,6 +476,7 @@ void ProcessGroupWorker::combineUniform() {
   combinedTeamDSGVector_.clear();
   // erzeug dsgs
   combinedUniDSGVector_.resize(numGrids);
+  combinedTeamDSGVector_.resize(numGrids);
   for(int g=0; g<numGrids; g++){
     combinedUniDSGVector_[g] = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
       lmin, boundary,
@@ -500,6 +501,11 @@ void ProcessGroupWorker::combineUniform() {
 
   TEAM_LEADER_EXCLUSIVE_SECTION {
     for(int g=0; g<numGrids; g++) {
+      for (Task* t : tasks_) {
+        DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+        dfg.registerUniformSGTeamTypes(*(combinedUniDSGVector_[g]));
+      }
+      
       combinedTeamDSGVector_[g]->buildTeamDataTypes();
     }
   }
