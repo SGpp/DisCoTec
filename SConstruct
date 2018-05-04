@@ -140,6 +140,7 @@ vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing S
 vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', '/usr/include')
 vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', '/usr/lib/x86_64-linux-gnu')
 vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
+vars.Add("BOOST_TEST_HOSTFILE", "Specifies a hostfile to use for parallel boost tests", "")
 
 
 # create temporary environment to check which system and compiler we should use
@@ -372,8 +373,14 @@ if env["RUN_PYTHON_TESTS"] and env["SG_PYTHON"]:
 
 if env["COMPILE_BOOST_TESTS"]:
   proc_count = int(env["TEST_PROCESS_COUNT"])
-  run_cmd = "mpiexec -n %s " % proc_count if proc_count > 1 else ""
-  builder = Builder(action=run_cmd + "./$SOURCE")
+  hostfile = str(env["BOOST_TEST_HOSTFILE"])
+  run_cmd = ["mpiexec"]
+  if proc_count > 1:
+    run_cmd += ["-n", "{}".format(proc_count)]
+  if hostfile:
+    run_cmd += ["--hostfile", env.File(hostfile).abspath]
+  run_cmd += ["$SOURCE"]
+  builder = Builder(action=[run_cmd])
   env.Append(BUILDERS={"BoostTest" : builder})
 
 # Building the modules
