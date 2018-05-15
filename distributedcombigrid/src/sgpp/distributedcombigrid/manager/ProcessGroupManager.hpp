@@ -56,6 +56,9 @@ class ProcessGroupManager {
   bool
   combine();
 
+  bool
+  combineThirdLevel();
+
   template<typename FG_ELEMENT>
   bool
   combineFG(FullGrid<FG_ELEMENT>& fg);

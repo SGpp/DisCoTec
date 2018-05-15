@@ -21,10 +21,14 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
-                  std::vector<real>& coeffs, std::vector<int>& taskIDs ) :
+                  std::vector<real>& coeffs, std::vector<int>& taskIDs,
+                  std::string thirdLevelHost = "",
+                  int thirdLevelMesgPort = -1, int thirdLevelDataPort_ = -1 ) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false)
+    applicationCommSet_(false), thirdLevelHost_(thirdLevelHost), 
+    thirdLevelMesgPort_(thirdLevelMesgPort),
+    thirdLevelDataPort_(thirdLevelDataPort)
   {
     hierarchizationDims_ = std::vector<bool>(dim_,true);
     setLevelsCoeffs( taskIDs, levels, coeffs );
@@ -33,11 +37,14 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<bool>& hierachizationDims,
-                  std::vector<int>& taskIDs ) :
+                  std::vector<int>& taskIDs, std::string thirdLevelHost = "",
+                  int thirdLevelPort = -1, int thirdLevelDataPort_ = -1) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     hierarchizationDims_(hierachizationDims),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false)
+    applicationCommSet_(false), thirdLevelHost_(thirdLevelHost),
+    thirdLevelMesgPort_(thirdLevelMesgPort),
+    thirdLevelDataPort_(thirdLevelDataPort)
   {
     setLevelsCoeffs( taskIDs, levels, coeffs );
   }
@@ -167,6 +174,18 @@ class CombiParameters {
     procsSet_ = true;
   }
 
+  inline const std::string& getThirdLevelHost() {
+    return thirdLevelHost_;
+  }
+
+  inline int getThirdLevelMesgPort() {
+    return thirdLevelMesgPort_;
+  }
+
+  inline int getThirdLevelDataPort() {
+    return thirdLevelDataPort_;
+  }
+
  private:
   DimType dim_;
 
@@ -194,6 +213,10 @@ class CombiParameters {
 
   bool applicationCommSet_;
 
+  std::string thirdLevelHost_;
+
+  int thirdLevelPort_;
+
   friend class boost::serialization::access;
 
   // serialize
@@ -212,6 +235,9 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;
+  ar& thirdLevelHost_;
+  ar& thirdLevelMesgPort_;
+  ar& thirdLevelDataPort_;
 }
 
 }

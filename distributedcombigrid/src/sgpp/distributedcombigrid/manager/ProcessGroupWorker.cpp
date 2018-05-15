@@ -25,6 +25,7 @@ ProcessGroupWorker::ProcessGroupWorker() :
     status_(PROCESS_GROUP_WAIT),
     combinedFG_( NULL),
     combinedUniDSG_(NULL),
+    thirdLevel_(NULL),
     combinedFGexists_(false),
     combiParameters_(),
     combiParametersSet_(false)
@@ -157,6 +158,22 @@ SignalType ProcessGroupWorker::wait() {
     Stats::startEvent("combine");
     combineUniform();
     Stats::stopEvent("combine");
+
+//    if (theMPISystem()->getWorldRank() == 0) {
+//      std::cout << "DSG on rank " << theMPISystem()->getWorldRank() << std::endl
+//                << "-------------" << std::endl;
+//      for (size_t i = 0; i < combinedUniDSG_->getNumSubspaces(); i++) {
+//        std::cout << "Subspace with level " << combinedUniDSG_->getLevelVector(i)
+//                  << "has " << combinedUniDSG_->getDataVector(i).size()
+//                  << "elements" << std::endl;
+//      }
+//    }
+
+  } else if (signal == COMBINE_THIRD_LEVEL) {
+
+    Stats::startEvent("combineThirdLevel");
+    combineThirdLevelUniform();
+    Stats::stopEvent("combineThirdLevel");
 
   } else if (signal == GRID_EVAL) {
 
@@ -299,8 +316,6 @@ void ProcessGroupWorker::combineUniform() {
     dfg.registerUniformSG(*combinedUniDSG_);
   }
 
-
-
   for (Task* t : tasks_) {
 
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
@@ -327,6 +342,87 @@ void ProcessGroupWorker::combineUniform() {
         dfg, combiParameters_.getHierarchizationDims() );
   }
 
+}
+
+void ProcessGroupWorker::combineThirdLevelUniform() {
+  // each pgrouproot must call reduce function
+  assert(tasks_.size() > 0);
+
+  // initialize third level
+  if (thirdLevel_ == NULL) {
+    const std::string& remoteHost = combiParameters_.getThirdLevelHost();
+    int mesgPort = combiParameters_.getThirdLevelMesgPort();
+    int dataPort = combiParameters_.getThirdLevelDataPort();
+    assert( mesgPort > 0 && "remote message port not set" );
+    assert( dataPort > 0 && "remote data port not set" );
+    assert( !remoteHost.empty() && "Third_Level host not given" );
+    thirdLevel_ = new ThirdLevelUtils(remoteHost, mesgPort, dataPort);
+  }
+
+  assert( combiParametersSet_ );
+  DimType dim = combiParameters_.getDim();
+  const LevelVector& lmin = combiParameters_.getLMin();
+  LevelVector lmax = combiParameters_.getLMax();
+  const std::vector<bool>& boundary = combiParameters_.getBoundary();
+
+  // the dsg can be smaller than lmax because the highest subspaces do not have
+  // to be exchanged
+  // todo: use a flag to switch on/off optimized combination
+  /*
+  for (size_t i = 0; i < lmax.size(); ++i)
+    if (lmax[i] > lmin[i])
+      lmax[i] -= 1;
+      */
+
+  // todo: delete old dsg
+  if (combinedUniDSG_ != NULL)
+    delete combinedUniDSG_;
+
+  // erzeug dsg
+  combinedUniDSG_ = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
+      lmin, boundary,
+      theMPISystem()->getLocalComm());
+
+  // todo: move to init function to avoid reregistering
+  // register dsg in all dfgs
+  for (Task* t : tasks_) {
+    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+
+    dfg.registerUniformSG(*combinedUniDSG_);
+  }
+
+  for (Task* t : tasks_) {
+
+    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+
+    // hierarchize dfg
+    DistributedHierarchization::hierarchize<CombiDataType>(
+        dfg, combiParameters_.getHierarchizationDims() );
+
+    // lokales reduce auf sg ->
+    dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
+  }
+
+  CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
+
+  // **************************************************************************
+  // TODO
+  // **************************************************************************
+  // reduce with remote system
+  assert(thirdLevel_ != NULL);
+  thirdLevel_->reduceGlobalRemote(*combinedUniDSG_);
+
+  for (Task* t : tasks_) {
+    // get handle to dfg
+    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
+
+    // extract dfg vom dsg
+    dfg.extractFromUniformSG( *combinedUniDSG_ );
+
+    // dehierarchize dfg
+    DistributedHierarchization::dehierarchize<CombiDataType>(
+        dfg, combiParameters_.getHierarchizationDims() );
+  }
 }
 
 

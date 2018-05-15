@@ -16,6 +16,7 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
+#include "sgpp/distributedcombigrid/third_level/ThirdLevelUtils.hpp"
 
 namespace combigrid {
 
@@ -51,6 +52,9 @@ class ProcessManager {
 
   inline void
   combine();
+
+  inline void
+  combineThirdLevel();
 
   template<typename FG_ELEMENT>
   inline void
@@ -146,6 +150,29 @@ void ProcessManager::combine() {
   // send signal to each group
   for (size_t i = 0; i < pgroups_.size(); ++i) {
     bool success = pgroups_[i]->combine();
+    assert(success);
+  }
+
+  waitAllFinished();
+}
+
+void ProcessManager::combineThirdLevel() {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  // send signal to groups
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    bool success = pgroups_[i]->combineThirdLevel();
     assert(success);
   }
 
