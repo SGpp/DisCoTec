@@ -87,6 +87,8 @@ class MPISystem {
 
   inline const RankType& getLocalRank() const;
 
+  inline const RankType& getGlobalReduceRank() const;
+
   inline const RankType& getManagerRankWorld() const;
 
   inline const RankType& getManagerRank() const;
@@ -230,6 +232,10 @@ inline const RankType& MPISystem::getLocalRank() const{
   checkPreconditions();
 
   return localRank_;
+}
+
+inline const RankType& MPISystem::getGlobalReduceRank() const{
+  return globalReduceRank_;
 }
 
 
