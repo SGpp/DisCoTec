@@ -351,12 +351,10 @@ void ProcessGroupWorker::combineThirdLevelUniform() {
   // initialize third level
   if (thirdLevel_ == NULL) {
     const std::string& remoteHost = combiParameters_.getThirdLevelHost();
-    int mesgPort = combiParameters_.getThirdLevelMesgPort();
-    int dataPort = combiParameters_.getThirdLevelDataPort();
-    assert( mesgPort > 0 && "remote message port not set" );
-    assert( dataPort > 0 && "remote data port not set" );
+    int port = combiParameters_.getThirdLevelPort();
+    assert( port > 0 && "remote message port not set" );
     assert( !remoteHost.empty() && "Third_Level host not given" );
-    thirdLevel_ = new ThirdLevelUtils(remoteHost, mesgPort, dataPort);
+    thirdLevel_ = new ThirdLevelUtils(remoteHost, port);
   }
 
   assert( combiParametersSet_ );
