@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
     IndexVector p(dim);
     combigrid::real dt;
     size_t nsteps, ncombi;
-    int thirdLevelMesgPort, thirdLevelDataPort;
+    int thirdLevelPort;
     std::string thirdLevelHost;
     cfg.get<std::string>("ct.lmin") >> lmin;
     cfg.get<std::string>("ct.lmax") >> lmax;
@@ -81,9 +81,7 @@ int main(int argc, char** argv) {
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
     cfg.get<std::string>("thirdLevel.host") >> thirdLevelHost;
-    cfg.get<int>("thirdLevel.mesgPort") >> thirdLevelMesgPort;
-    cfg.get<int>("thirdLevel.dataPort") >> thirdLevelDataPort;
-
+    cfg.get<int>("thirdLevel.port") >> thirdLevelPort;
 
     // todo: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
@@ -121,7 +119,7 @@ int main(int argc, char** argv) {
 
     // create combiparameters with third level information
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,
-        thirdLevelHost, thirdLevelMesgPort, thirdLevelDataPort);
+        thirdLevelHost, thirdLevelPort);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
