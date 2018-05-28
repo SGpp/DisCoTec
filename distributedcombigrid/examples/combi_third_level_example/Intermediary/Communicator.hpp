@@ -1,42 +1,63 @@
 #include <vector>
 #include <mutex>
+#include <map>
 #include <queue>
 #include "../../../src/sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
 
-#define BEGIN_ATOMIC_SECTION mtx_.lock();
-#define END_ATOMIC_SECTION mtx_.unlock();
+struct SRRequest {
+  ClientSocket* dataSock;
+  size_t size;
+};
 
+typedef std::map<size_t, std::queue<SRRequest>> SRRequests;
 
-struct Participant {
-  /*
-   * two sockets to distinguish data from operations.
-   * This way the participant can still make a receive request while
-   * sending data.
-   */
-  ClientSocket& mesgSocket;
-  ClientSocket& dataSocket;
+class Participant {
+  public:
+    Participant(ClientSocket* mesgSocket, size_t rank);
 
-  // TODO queue requires type
-  // holds those tasks where the participant wants to send data
-  std::queue<> sendRequests;
-  // holds those tasks where the participant wants to receive data
-  std::queue<> recvRequests;
+    const ClientSocket* getMesgSocket() const;
+    size_t getRank() const;
+    void pushSendRequest(ClientSocket* dataSocket, size_t dest, size_t size);
+    void pushRecvRequest(ClientSocket* dataSocket, size_t source, size_t size);
+    SRRequest popSendRequest(size_t dest);
+    SRRequest popRecvRequest(size_t source);
+    bool existsSendRequest(size_t dest) const;
+    bool existsRecvRequest(size_t source) const;
+
+  private:
+    ClientSocket* mesgSocket_;
+
+    std::mutex sendReqMtx_;
+    std::mutex recvReqMtx_;
+    // holds unfinished send tasks
+    SRRequests sendRequests_;
+    // holds unfinished receive tasks
+    SRRequests recvRequests_;
+
+    size_t rank_;
 };
 
 class Communicator {
-
   public:
-    unsigned int getSize();
-    unsigned int addParticipant(Participant participant);
-    const Participant& getParticipant(size_t rank);
+    size_t getSize() const;
+    size_t addParticipant(ClientSocket* mesgSocket);
+    Participant& getParticipant(size_t rank);
+    size_t getUniformReduceCounter();
+    void increaseGetUniformReduceCounter();
+    void resetGetUniformReduceCounter();
 
   private:
+    std::mutex uniformReduceCounterMtx_;
+    std::mutex participantsMtx_;
 
-    std::mutex mtx_;
+    /*
+     * Counts the distributedCombigrid files that have been written so far.
+     */
+    size_t uniformReduceCounter_ = 0;
 
     /*
      * Holds the participants of this communicator
-     * the position is the respecting id.
+     * the position is the respecting rank.
      */
     std::vector<Participant> participants_;
 };
