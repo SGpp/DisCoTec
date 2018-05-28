@@ -177,7 +177,6 @@ void ProcessManager::combineThirdLevel() {
   }
 
   waitAllFinished();
-}
 
 /* This function performs the so-called recombination. First, the combination
  * solution will be evaluated with the resolution of the given full grid.
