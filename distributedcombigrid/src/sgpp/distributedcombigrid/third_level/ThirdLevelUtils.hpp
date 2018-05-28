@@ -21,14 +21,12 @@
 #define THIRD_LEVEL_MANAGER THIRD_LEVEL_GROUP
 #define THIRD_LEVEL_PROCESSGROUP_EXCLUSIVE \
       if ( theMPISystem()->getWorldRank() % theMPISystem()->getNumProcs() == THIRD_LEVEL_GROUP )
-#define RESPONSE_THREAD_TIMEOUT 120
-#define AWAIT_RESPONSE_TIMEOUT 120
 
 namespace combigrid {
 
 class ThirdLevelUtils {
  public:
-   ThirdLevelUtils(const std::string& remoteHost, int mesgPort, int dataPort);
+   ThirdLevelUtils(const std::string& remoteHost, int mesgPort);
    ~ThirdLevelUtils();
 
    void init();
@@ -42,6 +40,30 @@ class ThirdLevelUtils {
  template<typename FG_ELEMENT>
    void isend(std::vector<FG_ELEMENT>& buf) const;
 
+  /*
+   * sends data to process on remote system with rank source.
+   */
+  template<typename FG_ELEMENT>
+    void send(const std::vector<FG_ELEMENT>& buff, int dest);
+
+  /*
+   * receives data from process on remote system with rank source.
+   */
+  template<typename FG_ELEMENT>
+    void recv(std::vector<FG_ELEMENT>& buff, size_t len, int source);
+
+  /*
+   * sends data to intermediary who writes the reduced values to a file.
+   */
+  template<typename FG_ELEMENT> void
+    reduceToFileUniform(const std::vector<FG_ELEMENT>& buff);
+
+  /*
+   * Blocks until commSize participants have joined to the communicator on 
+   * intermediary.
+   */
+  void barrier(size_t commSize);
+
  /*
   * Reduces global first and with remote after.
   */
@@ -50,31 +72,22 @@ class ThirdLevelUtils {
 
  private:
    std::string remoteHost_;
-   int remoteMesgPort_, remoteDataPort_, rank_;
-   ClientSocket *mesgClient_, *dataClient_;
+   int remoteMesgPort_, rank_;
+   ClientSocket* mesgClient_;
 
    std::mutex mesgLock_;
 
-   long mesgCount_;
-
-   // TODO better variable names
-   std::map<long, std::string> responses_;
-   std::mutex responsesLock_;
-   std::thread responseThread_;
-   int remaining_; // remaining time for responseThread_;
-   std::mutex timeoutLock_; // lock to change the remaining timeout
-
-   void fetchResponse();
-   bool awaitResponse(long mesgID);
-   long sendMessage(const std::string& mesg);
+   /*
+    * Talks to intermediary by sending an operation message and receiving the
+    * appropriate response.
+    */
+   void exchangeMesg(std::string& mesg);
 
    template<typename FG_ELEMENT> void
    extractSubspaces(DistributedSparseGridUniform<FG_ELEMENT>& dsg, std::vector<FG_ELEMENT>& buf, std::vector<int>& subspaceSizes) const;
 
    template<typename FG_ELEMENT> void
    setSubspaces(DistributedSparseGridUniform<FG_ELEMENT>& dsg, std::vector<FG_ELEMENT>& buf, std::vector<int>& subspaceSizes) const;
-
-   std::string getResponse() const;
 };
 
 }

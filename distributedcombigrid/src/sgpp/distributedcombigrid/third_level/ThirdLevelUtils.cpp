@@ -4,7 +4,7 @@ namespace combigrid {
 
   ThirdLevelUtils::ThirdLevelUtils(const std::string& remoteHost,
       int mesgPort, int dataPort) : remoteHost_(remoteHost),
-  remoteMesgPort_(mesgPort), remoteDataPort_(dataPort) {}
+  remoteMesgPort_(mesgPort) {}
 
   ThirdLevelUtils::~ThirdLevelUtils() {}
 
@@ -12,31 +12,22 @@ namespace combigrid {
    * Connects to the intermediary and saves the third level rank.
    */
   void ThirdLevelUtils::init() {
-    const RankType& worldRank = theMPISystem()->getWorldRank();
+    const RankType& globalReduceRank = theMPISystem()->getGlobalReduceRank();
     mesgClient_ = new ClientSocket(remoteHost_, remoteMesgPort_);
-    dataClient_ = new ClientSocket(remoteHost_, remoteDataPort_);
     mesgClient_->init();
-    dataClient_->init();
     assert(mesgClient_->isInitialized() &&
         "Third level could not initialize message client");
-    assert(dataClient_->isInitialized() &&
-        "Third level could not initialize data client");
 
-    mesgClient_->sendallPrefixed(std::to_string(worldRank));
+    mesgClient_->sendallPrefixed(std::to_string(globalReduceRank));
 
     std::string mesg = "getRank";
-    long mesgID = sendMessage(mesg);
-    bool available = awaitResponse(mesgID);
-    assert(available && "Timeout expired while retrieving Rank");
-    const std::string& rankstr = responses_[mesgID];
-    assert(NetworkUtils::isInteger(rankstr));
-    rank_= std::stoi(rankstr);
-    responsesLock_.lock();
-      responses_.erase(mesgID);
-    responsesLock_.unlock();
+    exchangeMesg(mesg);
+    assert(NetworkUtils::isInteger(mesg));
+    rank_= std::stoi(mesg);
   }
 
   /*
+   * TODO
    * Perfoms an in place allreduce with all processes in the communicator at
    * intermediary.
    */
@@ -44,133 +35,91 @@ namespace combigrid {
     ThirdLevelUtils::allreduce(std::vector<FG_ELEMENT>& sendrecvbuf,
         unsigned int numparts) const
     {
-      int size = getCommSize();
-      assert(size == numparts &&
-          "Communicator has wrong number of participants");
-
-      // serialize data for sending
-      std::stringstream ss;
-      boost::archive::text_oarchive oa(ss);
-      oa << sendrecvbuf;
-
-      // synchronized send and receive of serialized data
     }
 
   int ThirdLevelUtils::getCommSize() {
     std::string mesg = "getCommSize";
-    long mesgID = sendMessage(mesg);
-    bool available = awaitResponse(mesgID);
-    assert(available && "Timeout expired while retrieving CommSize");
-    const std::string& commSizeStr = responses_[mesgID];
-    assert(NetworkUtils::isInteger(commSizeStr));
-    int ret = std::stoi(commSizeStr);
-    responsesLock_.lock();
-      responses_.erase(mesgID);
-    responsesLock_.unlock();
-    return ret;
+    exchangeMesg(mesg);
+    assert(NetworkUtils::isInteger(mesg) && "Comm Size must be positiv integer");
+    int commSize = std::stoi(mesg);
+    return commSize;
   }
 
   template<typename FG_ELEMENT> void
     ThirdLevelUtils::send(const std::vector<FG_ELEMENT>& buff, int dest)
     {
+      assert(dest < getCommSize() && "Destination not in remote communicator");
       std::string mesg = "send#"+ std::to_string(dest) + "#" + std::to_string(buff.size());
-      long mesgID = sendMessage(mesg);
-      // serialize data for sending
-      std::stringstream ss;
-      boost::archive::text_oarchive oa(ss);
-      oa << buff;
-      bool available = awaitResponse(mesgID);
-      assert(available && "Timeout expired during wait for send");
-      const std::string& SizeStr = responses_[mesgID];
-      dataClient_->sendallPrefixed(ss.str());
+      exchangeMesg(mesg);
+      assert(NetworkUtils::isInteger(mesg) && "Received data port is not valid");
+      int dataPort = std::stoi(mesg);
+      ClientSocket dataClient(remoteHost_, dataPort);
+      assert(dataClient.init() && "Connecting to data server failed");
+      NetworkUtils::sendBinary(buff, dataClient);
     }
 
   template<typename FG_ELEMENT> void
-    ThirdLevelUtils::recv(std::vector<FG_ELEMENT>& buff, int source)
+    ThirdLevelUtils::recv(std::vector<FG_ELEMENT>& buff, size_t len, int source)
     {
+      assert(source < getCommSize() && "Source not in remote communicator");
       std::string mesg = "recv#" + std::to_string(source) + "#" + std::to_string(buff.size());
-      long mesgID = sendMessage(mesg);
-      bool available = awaitResponse(mesgID);
-      assert(available && "Timeout expired during wait for recv");
-      std::string recvbuf;
-      dataClient_->recvallPrefixed(recvbuf);
-      
-      responsesLock_.lock();
-        responses_.erase(mesgID);
-      responsesLock_.unlock();
+      exchangeMesg(mesg);
+      assert(NetworkUtils::isInteger(mesg) && "Received data port is not valid");
+      int dataPort = std::stoi(mesg);
+      ClientSocket dataClient(remoteHost_, dataPort);
+      assert(dataClient.init() && "Connecting to data server failed");
+      // TODO
+      NetworkUtils::recvBinary(buff, dataClient);
     }
 
-  /*
-   * Waits until appropriate message has been
-   * received.
-   * It will return true if message is available and false if timeout expires
-   * and message is not available.
-   * TODO prettyfi
-   */
-  bool ThirdLevelUtils::awaitResponse(long mesgID) {
-    timeoutLock_.lock();
-      if (remaining_ == 0) {
-        responseThread_ = std::thread(&ThirdLevelUtils::fetchResponse, this);
-        responseThread_.detach();
-      } else {
-        remaining_ = RESPONSE_THREAD_TIMEOUT;
-      }
-    timeoutLock_.unlock();
-    for (int t = AWAIT_RESPONSE_TIMEOUT; t > 0; t--) {
-      if (responses_[mesgID] != "")
-        return true;
+  template<typename FG_ELEMENT> void
+    ThirdLevelUtils::reduceToFileUniform(const std::vector<FG_ELEMENT>& buff) {
+      size_t commSize = (theMPISystem()->getNumProcs()-1) / theMPISystem()->getNumGroups();
+      std::string mesg = "reduceToFileUniform#" + std::to_string(commSize) + "#"
+        + std::to_string(buff.size()) + "#" +  std::to_string(sizeof(FG_ELEMENT)) +
+        "unknown";
+      exchangeMesg(mesg);
+      assert(NetworkUtils::isInteger(mesg) && "Received data port is not valid");
+      int dataPort = std::stoi(mesg);
+      ClientSocket dataClient(remoteHost_, dataPort);
+      assert(dataClient.init() && "Connecting to data server failed");
+      NetworkUtils::sendBinary(buff, dataClient);
     }
-    return false;
-  }
 
-  /*
-   * Loops until timeout and receives messages from intermediary.
-   * If a message arrives, responseID and the response message are extracted and
-   * made public in the corresponding member variables.
-   * This is the only way messages are received from Intermediary, thus
-   * preventing multiple threads peeking at messages when sending messages
-   * asynchronously.
-   */
-  void ThirdLevelUtils::fetchResponse() {
-    assert(mesgClient_->isInitialized());
-    int remaining_ = RESPONSE_THREAD_TIMEOUT;
-    for (;;) {
-      time_t start = time(0);
-      std::string mesg;
-      if (mesgClient_->isReadable(remaining_)) {
-        mesgClient_->recvallPrefixed(mesg);
-        size_t pos = mesg.find_first_of('#');
-        std::string responseIDStr = mesg.substr(0, pos);
-        assert(NetworkUtils::isInteger(responseIDStr));
-        long responseID = std::stoi(responseIDStr);
-        responsesLock_.lock();
-          responses_[responseID] = responseIDStr.substr(pos+1);
-        responsesLock_.unlock();
-      }
-      // ugly, but must preserve mutex while checking for loop termination
-      timeoutLock_.lock();
-        if (remaining_ == 0) {
-          timeoutLock_.unlock();
-          return;
-        }
-        remaining_ -= static_cast<int>(difftime(time(0), start));
-      timeoutLock_.unlock();
+  template<> void
+    ThirdLevelUtils::reduceToFileUniform(const std::vector<real>& buff) {
+      size_t commSize = (theMPISystem()->getNumProcs()-1) / theMPISystem()->getNumGroups();
+      std::string mesg = "reduceToFileUniform#" + std::to_string(commSize) + "#"
+        + std::to_string(buff.size()) + "#" +  std::to_string(sizeof(real)) +
+        "#real";
+      exchangeMesg(mesg);
+      assert(NetworkUtils::isInteger(mesg) && "Received data port is not valid");
+      int dataPort = std::stoi(mesg);
+      ClientSocket dataClient(remoteHost_, dataPort);
+      assert(dataClient.init() && "Connecting to data server failed");
+      NetworkUtils::sendBinary(buff, dataClient);
     }
-  }
 
-  /*
-   * Sends a message to intermediary.
-   * Returns the id of the message which must be used in order to receive the
-   * appropriate response.
-   */
-  long ThirdLevelUtils::sendMessage(const std::string& mesg) {
-    assert(mesgClient_->isInitialized());
+  void ThirdLevelUtils::exchangeMesg(std::string& mesg) {
     mesgLock_.lock();
-      long mesgID = mesgCount_;
-      mesgCount_++;
-      mesgClient_->sendallPrefixed(std::to_string(mesgID) + "#" + mesg);
+      assert(mesgClient_->sendallPrefixed(mesg) &&
+          "Sending to intermediary failed");
+      assert(mesgClient_->recvallPrefixed(mesg) &&
+          "Receiving from intermediary failed");
     mesgLock_.unlock();
-    return mesgID;
+  }
+
+  void ThirdLevelUtils::barrier(size_t commSize) {
+    std::string mesg = "barrier#" + std::to_string(commSize);
+    exchangeMesg(mesg);
+    assert(NetworkUtils::isInteger(mesg) && "Received data port is not valid");
+    int dataPort = std::stoi(mesg);
+    ClientSocket dataClient(remoteHost_, dataPort);
+    assert(dataClient.init() && "Connecting to data server failed");
+    char* signal = nullptr;
+    // blocks until receives signal
+    dataClient.recvall(signal, 1);
+    delete[] signal;
   }
 
   int ThirdLevelUtils::getRank() {
@@ -278,7 +227,7 @@ namespace combigrid {
       THIRD_LEVEL_PROCESSGROUP_EXCLUSIVE {
 
         // connect to communicator at intermediary
-        if ( this->client_ == NULL )
+        if ( this->mesgClient_ == NULL )
           init();
 
         std::vector<FG_ELEMENT> recvbuf(bsize, FG_ELEMENT(0));
