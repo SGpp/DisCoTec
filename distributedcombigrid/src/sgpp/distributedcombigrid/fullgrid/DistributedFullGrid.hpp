@@ -1441,6 +1441,18 @@ class DistributedFullGrid {
     return decomposition_;
   }
 
+  std::vector<FG_ELEMENT> getSubGrid(IndexType subgridID){
+	  std::vector<FG_ELEMENT> subgrid_elements;
+
+	  for(size_t i = 0; i < fullgridVector_.size(); ++i){
+		  if(assigmentList_.at(i) == subgridID){
+			  subgrid_elements.push_back(fullgridVector_.at(i));
+		  }
+	  }
+
+	  return subgrid_elements;
+  }
+
  private:
   /** dimension of the full grid */
   DimType dim_;
@@ -1890,9 +1902,6 @@ class DistributedFullGrid {
         decomposition_[i][coords[i]] = lowerBounds_[r][i];
     }
   }
-
-
-
 };
 // end class
 

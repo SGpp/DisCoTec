@@ -36,25 +36,25 @@ public:
 
   static LevelVector makeClassicalMin(LevelVector lmin, LevelVector lmax); 
 
-  inline const std::vector<LevelVector>& getCombiSpaces() const {
+  const std::vector<LevelVector>& getCombiSpaces() const noexcept {
     return combiSpaces_;
   }
 
-  inline const std::vector<double>& getCoeffs() const {
+  const std::vector<double>& getCoeffs() const noexcept{
     return coefficients_;
   }
 
-  const std::vector<LevelVector>& getLevels() const{
+  const std::vector<LevelVector>& getLevels() const noexcept{
 	 return levels_;
   };
 
   inline void print(std::ostream& os) const;
 
-  LevelType dim(){
-    return static_cast<LevelType>(lmin_.size());
+  DimType dim() const noexcept{
+    return static_cast<DimType>(lmin_.size());
   }
 
-  std::size_t effDim(){
+  std::size_t effDim() const{
 	  std::size_t count = 0;
 	  for(size_t i = 0; i < dim(); ++i){
 		  if(lmin_.at(i) != lmax_.at(i)){
@@ -64,7 +64,7 @@ public:
 	  return count;
   }
 
-  bool isDummyDim(size_t index){
+  bool isDummyDim(DimType index) const{
     assert(index < dim());
     return lmax_.at(index) == lmin_.at(index);
   }

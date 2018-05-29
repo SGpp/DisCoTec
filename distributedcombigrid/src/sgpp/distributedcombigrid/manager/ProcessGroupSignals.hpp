@@ -33,6 +33,7 @@ const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
 const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
+const SignalType BEST_EXPANSION = 20;
 
 
 typedef int NormalizationType;

@@ -17,6 +17,7 @@
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
+#include "sgpp/distributedcombigrid/utils/Config.hpp"
 
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include <string>
@@ -32,6 +33,7 @@ ProcessGroupWorker::ProcessGroupWorker() :
     combinedUniDSGVector_(0),
     combinedFGexists_(false),
     combiParameters_(),
+	combiScheme_ (LevelVector {1}, LevelVector {1}),
     combiParametersSet_(false),
     currentCombi_(0)
 {
@@ -768,7 +770,11 @@ void ProcessGroupWorker::updateCombiParameters() {
       MPI_Comm_free(&free);
     }
   }
+
   combiParameters_ = tmp;
+  if(!combiParametersSet_) {
+	  combiScheme_ = DimAdaptiveCombiScheme {combiParameters_.getLMin(), combiParameters_.getLMax()};
+  }
 
   combiParametersSet_ = true;
 
@@ -794,6 +800,98 @@ void ProcessGroupWorker::setCombinedSolutionUniform( Task* t ) {
     DistributedHierarchization::dehierarchize<CombiDataType>(
         dfg, combiParameters_.getHierarchizationDims() );
   }
+}
+
+int ProcessGroupWorker::getProcTask(int taskID){
+	return 0;//TODO see ProcTaskAssoc
+}
+
+void ProcessGroupWorker::findBestExpansion(){
+	int messageTag = 1;
+	double bestError = -1;
+	LevelVector bestExpansion {};
+	for(const auto& activeNode : combiScheme_.getActiveNodes()){
+		for(DimType i = 0; i < combiScheme_.dim(); ++i){
+			LevelVector potExpansion = activeNode;
+			++potExpansion.at(i);
+			if(!combiScheme_.isExpansion(potExpansion)){
+				continue;
+			}
+
+			const auto& bwdNeighbour = combiScheme_.getCoeffBwdNeighbour(activeNode, i);
+
+			//if there exists no valid backward neighbour we don't do anything
+			//this should only happen for active nodes directly at a border
+			if(bwdNeighbour.empty()){
+				continue;
+			}
+
+			const int bwdTaskID = combiParameters_.getID(bwdNeighbour);
+			const int activeTaskID = combiParameters_.getID(activeNode);
+
+			//This calculation depends on the current implementation of then
+			//rank calculations in MPI System so it might break easily
+			const int globalmasterRank = theMPISystem()->getGlobalRank() - theMPISystem()->getLocalRank();
+
+			const int activeNodeRank = getProcTask(activeTaskID);
+			const int bwdNeighRank = getProcTask(bwdTaskID);
+			const bool activeNodeOwned = activeNodeRank == globalmasterRank;
+			const bool bwdNeighOwned = bwdNeighRank == globalmasterRank;
+
+
+			if(activeNodeOwned){ //The proc itself owns both tasks
+				std::vector<CombiDataType> activeSubGrid {};
+				std::vector<CombiDataType> bwdSubGrid {};
+				double activeGridPoints = 0;
+				if(bwdNeighOwned){
+					Task *activeNodeTask;
+					Task *bwdNeighTask;
+					activeSubGrid = activeNodeTask->getDistributedFullGrid().getSubGrid(0);
+					bwdSubGrid= bwdNeighTask->getDistributedFullGrid().getSubGrid(0);
+					assert(activeSubGrid.size() == bwdSubGrid.size());
+				} else {
+					Task *activeNodeTask;
+					activeSubGrid = activeNodeTask->getDistributedFullGrid().getSubGrid(0);
+					bwdSubGrid.resize(activeSubGrid.size());
+					MPI_Recv(bwdSubGrid.data(), bwdSubGrid.size(), MPI_DOUBLE, bwdNeighRank, messageTag, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
+				}
+
+				double error = 0;
+				if(activeSubGrid.size() != 0){
+					error = std::inner_product(activeSubGrid.begin(), activeSubGrid.end(),
+						bwdSubGrid.begin(), error,
+						[](CombiDataType el1, CombiDataType el2){
+							return std::abs(el1-el2);
+						}, std::plus<CombiDataType>());
+					error /= activeGridPoints;
+				}
+
+				MASTER_EXCLUSIVE_SECTION{
+					MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+					if(error > bestError){
+						bestError = error;
+						bestExpansion = potExpansion;
+					}
+				} else {
+					MPI_Reduce(&error, &error, 1, MPI_DOUBLE, MPI_SUM, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+				}
+
+			} else if (bwdNeighOwned){ //the proc owns the bwdNeighbour
+				//since the bwd neighbour is smaller it is sent to the proc
+				//with the active node
+				Task *bwdNeighTask;
+				auto bwdSubGrid= bwdNeighTask->getDistributedFullGrid().getSubGrid(0);
+				MPI_Send(bwdSubGrid.data(), static_cast<int>(bwdSubGrid.size()), MPI_DOUBLE, activeNodeRank, messageTag, theMPISystem()->getWorldComm());
+			}
+			//if no if-branch was executed the proc owns nothing so we can simply continue
+			++messageTag;
+		}
+	}
+
+	MASTER_EXCLUSIVE_SECTION{
+		MPI_Send(&bestError, 1, MPI_DOUBLE, theMPISystem()->getManagerRankWorld(), 1234, theMPISystem()->getWorldComm());
+		MPI_Send(&bestExpansion, bestExpansion.size(), MPI_INT, theMPISystem()->getManagerRankWorld(), 1235, theMPISystem()->getWorldComm());
+	}
 }
 
 } /* namespace combigrid */

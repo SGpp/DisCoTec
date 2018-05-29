@@ -101,6 +101,10 @@ class ProcessManager {
   void restoreCombischeme();
 
 
+
+  bool commActiveNodeDistribution();
+
+  std::pair<double, LevelVector> getBestExpansion();
  private:
   ProcessGroupManagerContainer& pgroups_;
 
