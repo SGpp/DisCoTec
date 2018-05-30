@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <iostream>
+#include <vector>
+#include <utility>
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
@@ -376,6 +378,25 @@ void ProcessManager::parallelEval( const LevelVector& leval,
 
     assert( !fail && "should not fail here" );
   }
+}
+
+std::pair<double, LevelVector> ProcessManager::getBestExpansion(){
+	std::pair<double, LevelVector> currPair
+	{- std::numeric_limits<double>::infinity(), LevelVector {}};
+
+	for(auto& group : pgroups_){
+		group->startBestExpansion();
+	}
+
+	for(auto& group : pgroups_){
+		auto scoreCandidatePair = group->getBestExpansion(params_.getDim());
+		if(scoreCandidatePair.first > currPair.first){
+			currPair = std::move(scoreCandidatePair);
+		}
+	}
+	assert(currPair.first != - std::numeric_limits<double>::infinity());
+	assert(!currPair.second.empty());
+	return currPair;
 }
 
 } /* namespace combigrid */

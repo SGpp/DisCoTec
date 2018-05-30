@@ -14,6 +14,7 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
+#include "sgpp/distributedcombigrid/combischeme/DimAdaptiveCombiScheme.hpp"
 #include <chrono>
 
 namespace combigrid {
@@ -66,6 +67,10 @@ class ProcessGroupWorker {
   //initializes the component grid from the sparse grid; used to reinitialize tasks after fault
   void setCombinedSolutionUniform( Task* t );
 
+  void findBestExpansion();
+
+  int getProcTask(int taskID);
+
  private:
   TaskContainer tasks_; // task storage
 
@@ -83,6 +88,8 @@ class ProcessGroupWorker {
   bool combinedFGexists_;
 
   CombiParameters combiParameters_;
+
+  DimAdaptiveCombiScheme combiScheme_;
 
   bool combiParametersSet_; //indicates if combi parameters variable set
 

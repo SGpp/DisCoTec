@@ -91,6 +91,12 @@ class ProcessGroupManager {
   bool recoverCommunicators();
 
   bool parallelEval( const LevelVector& leval, std::string& filename );
+
+  bool commActiveNodeDistribution();
+
+  void startBestExpansion();
+
+  std::pair<double, LevelVector> getBestExpansion(DimType dim);
  private:
   RankType pgroupRootID_; // rank in GlobalComm of the master process of this group
 

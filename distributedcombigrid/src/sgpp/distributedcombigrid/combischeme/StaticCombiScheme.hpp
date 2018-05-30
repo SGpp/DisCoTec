@@ -61,14 +61,14 @@ public:
    * Returns the fullgrids (represented by their level in every dimension)
    * for which a solution should be calculated
    */
-  inline const std::vector<LevelVector>& getCombiSpaces() const {
+   const std::vector<LevelVector>& getCombiSpaces() const noexcept{
     return combiSpaces_;
   }
 
   /**
    * Returns the coefficients needed to correctly combine the results combiSpaces.
    */
-  inline const std::vector<double>& getCoeffs() const {
+   const std::vector<double>& getCoeffs() const noexcept{
     return coefficients_;
   }
 
@@ -79,7 +79,7 @@ public:
    * This does not include grids which have levels smaller than lmin
    * since these are trivially in the grid.
    */
-  const std::vector<LevelVector>& getLevels() const{
+  const std::vector<LevelVector>& getLevels() const noexcept{
 	 return levels_;
   };
 
@@ -88,7 +88,7 @@ public:
   /**
    * Returns the dimension of the grids used
    */
-  LevelType dim(){
+  DimType dim() const noexcept{
     return static_cast<LevelType>(lmin_.size());
   }
 
@@ -109,7 +109,7 @@ public:
   /**
    * Returns true if the given dimension is a dummy dimension
    */
-  bool isDummyDim(size_t index){
+  bool isDummyDim(DimType index) const{
     assert(index < dim());
     return lmax_.at(index) == lmin_.at(index);
   }

@@ -278,4 +278,22 @@ bool ProcessGroupManager::recoverCommunicators(){
   return true;
 }
 
+void ProcessGroupManager::startBestExpansion(){
+	std::pair<double, LevelVector> currPair
+	{- std::numeric_limits<double>::infinity(), LevelVector {}};
+
+	SignalType signal = BEST_EXPANSION;
+	MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+}
+
+std::pair<double, LevelVector> ProcessGroupManager::getBestExpansion(DimType dim){
+
+	double error = -1;
+	LevelVector expansion (dim);
+	MPI_Recv(&error, 1, MPI_DOUBLE, pgroupRootID_, 1234, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
+	MPI_Recv(&expansion, expansion.size(), MPI_INT, pgroupRootID_, 1235, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
+
+	return std::make_pair(error, expansion);
+}
+
 } /* namespace combigrid */
