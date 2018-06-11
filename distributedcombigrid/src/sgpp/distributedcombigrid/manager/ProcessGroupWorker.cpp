@@ -332,13 +332,9 @@ void ProcessGroupWorker::ready() {
           }
         }
 	//merge problem?
-<<<<<<< HEAD
+
 	// todo: gene specific voodoo
- 	      if(isGENE){
-=======
-	// todo: gene specific voodoo 
  	      if(isGENE && !currentTask_->isFinished()){
->>>>>>> origin/combi_gene_faults
  	        return;
  	      }
 	//
@@ -639,14 +635,38 @@ bool ProcessGroupWorker::isDistributedGlobalReduceAsyncCompleted(){
   int finishedReduce = 0;
   int flag = 0;
 
-  for(int g=0; g<numGrids; g++){
-    MPI_Test(&Task::requestAsync[g], &flag, MPI_STATUS_IGNORE);
-    finishedReduce += flag;
-  }
-  return (finishedReduce == numGrids);
+  //MPI_Testall(numGrids, Task::requestAsync, &flag, MPI_STATUSES_IGNORE);
+
+  MPI_Waitall(numGrids,Task::requestAsync,MPI_STATUSES_IGNORE);
+  flag =1;
+  return flag;
 }
 
+// void ProcessGroupWorker::combineUniformAsync(){
+//   combineUniformAsyncInitHierarchizeReduce();
+//
+//
+//    int numGrids = combiParameters_.getNumGrids();
+//    std::cout << "before toggle\n";
+//    for(int i=0;i<numGrids;i++){
+//      std::cout << "req" << i << ":"<< Task::requestAsync[i] <<"\n";
+//    }
+//
+//    MPI_Waitall(numGrids,Task::requestAsync,MPI_STATUSES_IGNORE);
+//    std::cout << "After toggle\n";
+//    for(int i=0;i<numGrids;i++){
+//      std::cout << "req" << i << ":"<< Task::requestAsync[i] <<"\n";
+//    }
+//   combineUniformAsyncHierarchizeUpdate();
+// }
+
 void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
+#ifdef DEBUG_OUTPUT
+    MASTER_EXCLUSIVE_SECTION{
+      std::cout << "start combining \n";
+    }
+#endif
+
   Stats::startEvent("combine init");
 
   // each pgrouproot must call reduce function
@@ -666,8 +686,8 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
   // to be exchanged
   // todo: use a flag to switch on/off optimized combination
 
-  reduceSparseGridCoefficients(lmax,lmin,combiParameters_.getNumberOfCombinations(),currentCombi_);
-
+  reduceSparseGridCoefficients(lmax,lmin,combiParameters_.getNumberOfCombinations(),currentCombi_,
+      combiParameters_.getLMinReductionVector(), combiParameters_.getLMaxReductionVector());
   /*for (size_t i = 0; i < lmax.size(); ++i)
         if (lmin[i] > 1)
           lmin[i] -= 01;
@@ -676,7 +696,7 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
   */
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION{
-    std::cout << "lmin: "<< lmax << std::endl;
+    std::cout << "lmin: "<< lmin << std::endl;
     std::cout << "lmax: "<< lmax << std::endl;
   }
 #endif
@@ -731,7 +751,9 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
 
       // lokales reduce auf sg ->
       dfg.addToUniformSG( *combinedUniDSGVector_[g], combiParameters_.getCoeff( t->getID() ) );
+#ifdef DEBUG_OUTPUT
       std::cout << "Combination: added task " << t->getID() << " with coefficient " << combiParameters_.getCoeff( t->getID() ) <<"\n";
+#endif
     }
   }
   Stats::stopEvent("combine hierarchize");
@@ -740,11 +762,37 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
 
   Task::bufAsync = new std::vector<CombiDataType>[numGrids];
   Task::requestAsync = new MPI_Request[numGrids];
+  Task::subspaceSizes = new std::vector<int>[numGrids];
 
   for(int g=0; g<numGrids; g++){
-    CombiCom::distributedGlobalReduceAsyncInit( *combinedUniDSGVector_[g], Task::bufAsync[g], Task::requestAsync[g]);
+    CombiCom::distributedGlobalReduceAsyncInit( *combinedUniDSGVector_[g], Task::subspaceSizes[g], Task::bufAsync[g], Task::requestAsync[g]);
   }
 
+  Stats::startEvent("combine dehierarchize");
+
+  for (Task* t : tasks_) {
+    for(int g=0; g<numGrids; g++){
+
+      // get handle to dfg
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+
+
+      // dehierarchize dfg
+      DistributedHierarchization::dehierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims() );
+
+      //std::vector<CombiDataType> datavector(dfg.getElementVector());
+      //afterCombi = datavector;
+      // if exceeds normalization limit, normalize dfg with global max norm
+      /*
+      if( globalMax > 1000 ){
+        dfg.mul( 1.0 / globalMax );
+        std::cout << "normalized dfg with " << globalMax << std::endl;
+      }
+      */
+    }
+  }
+  Stats::stopEvent("combine dehierarchize");
 }
 
 void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
@@ -753,7 +801,7 @@ void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
   int numGrids = combiParameters_.getNumGrids();
 
   for(int g=0; g<numGrids; g++){
-    CombiCom::distributedGlobalReduceAsyncExtractSubspace( *combinedUniDSGVector_[g], Task::bufAsync[g] );
+    CombiCom::distributedGlobalReduceAsyncExtractSubspace( *combinedUniDSGVector_[g], Task::subspaceSizes[g], Task::bufAsync[g] );
   }
   Stats::stopEvent("combine global reduce");
 

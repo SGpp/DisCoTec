@@ -85,12 +85,15 @@ class CombiCom {
   template<typename FG_ELEMENT>
   static void
   distributedGlobalReduceAsyncInit(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                                   std::vector<FG_ELEMENT>& BufAsync, MPI_Request &RequestAsync);
+                                   std::vector<int>& subspaceSizes,
+                                   std::vector<FG_ELEMENT>& bufAsync,
+                                   MPI_Request &requestAsync);
 
   template<typename FG_ELEMENT>
   static void
   distributedGlobalReduceAsyncExtractSubspace(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                                              std::vector<FG_ELEMENT>& BufAsync);
+                                              std::vector<int>& subspaceSizes,
+                                              std::vector<FG_ELEMENT>& bufAsync);
 
 };
 
@@ -837,6 +840,7 @@ void CombiCom::distributedGlobalReduce(
     }
   }
 
+
   MPI_Datatype dtype = abstraction::getMPIDatatype(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
   MPI_Allreduce( MPI_IN_PLACE, buf.data(), bsize, dtype, MPI_SUM, mycomm);
@@ -871,6 +875,7 @@ void CombiCom::distributedGlobalReduce(
 template<typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduceAsyncInit(
   DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+  std::vector<int>& subspaceSizes,
   std::vector<FG_ELEMENT>& bufAsync, MPI_Request &requestAsync) {
   // get global communicator for this operation
   MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
@@ -882,7 +887,7 @@ void CombiCom::distributedGlobalReduceAsyncInit(
    * is not available in dsg. at the moment this information is only available
    * in dfg.
    */
-  std::vector<int> subspaceSizes(dsg.getNumSubspaces());
+   subspaceSizes.resize(dsg.getNumSubspaces());
 
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     // MPI does not have a real size_t equivalent. int should work in most cases
@@ -916,8 +921,8 @@ void CombiCom::distributedGlobalReduceAsyncInit(
   }
 
   // put subspace data into buffer
-  std::vector<FG_ELEMENT> buf(bsize, FG_ELEMENT(0));
-  bufAsync = buf;
+  bufAsync.clear();
+  bufAsync.resize(bsize,FG_ELEMENT(0));
   {
     typename std::vector<FG_ELEMENT>::iterator buf_it = bufAsync.begin();
 
@@ -942,15 +947,17 @@ void CombiCom::distributedGlobalReduceAsyncInit(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
   MPI_Iallreduce( MPI_IN_PLACE, bufAsync.data(), bsize, dtype, MPI_SUM, mycomm,
                   &requestAsync);
+  // MPI_Allreduce( MPI_IN_PLACE, bufAsync.data(), bsize, dtype, MPI_SUM, mycomm);
 
 }
 
 template<typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduceAsyncExtractSubspace(
   DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+  std::vector<int>& subspaceSizes,
   std::vector<FG_ELEMENT>& bufAsync) {
   // extract subspace data
-  std::vector<int> subspaceSizes(dsg.getNumSubspaces());
+
   typename std::vector<FG_ELEMENT>::iterator buf_it = bufAsync.begin();
 
   for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {

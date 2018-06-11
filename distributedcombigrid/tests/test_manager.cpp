@@ -154,7 +154,7 @@ BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 
 BOOST_CLASS_EXPORT(FaultCriterion)
-void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
+void checkManager(bool useCombine, bool useFG, double l0err, double l2err, bool useCombineAsync=false) {
   int size = useFG ? 2 : 7;
   BOOST_REQUIRE(TestHelper::checkNumProcs(size));
 
@@ -216,8 +216,13 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
 
     for (size_t it = 0; it < ncombi; ++it) {
       if (useCombine) {
-        manager.combine();
-      }
+        if(useCombineAsync) {
+          manager.combineAsync();
+          } else {
+            manager.combine();
+          }
+        }
+
       manager.runnext();
     }
 
@@ -267,6 +272,11 @@ BOOST_AUTO_TEST_CASE(test_2) {
 BOOST_AUTO_TEST_CASE(test_3) {
   // calculate solution on fullgrid
   checkManager(false, true, 1.51188, 10.97143);
+}
+
+BOOST_AUTO_TEST_CASE(test_4) {
+  // use recombination
+  checkManager(true, false, 1.54369, 11.28857, false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

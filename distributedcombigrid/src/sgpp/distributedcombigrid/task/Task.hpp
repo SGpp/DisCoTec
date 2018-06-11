@@ -129,6 +129,9 @@ class Task {
   /** request for Async Reduce*/
   static MPI_Request *requestAsync;
 
+  /** SubspaceSized for Async Reduce*/
+  static std::vector<int> *subspaceSizes;
+
 };
 
 typedef std::vector<Task*> TaskContainer;

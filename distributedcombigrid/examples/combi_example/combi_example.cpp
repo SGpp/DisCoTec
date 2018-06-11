@@ -138,9 +138,9 @@ int main(int argc, char** argv) {
     Stats::stopEvent("manager run first");
 
     for (size_t i = 0; i < ncombi; ++i) {
-      Stats::startEvent("combine");
-      manager.combine();
-      Stats::stopEvent("combine");
+      //Stats::startEvent("combineAsync");
+      manager.combineAsync();
+      //Stats::stopEvent("combineAsync");
 
       // evaluate solution and
       // write solution to file

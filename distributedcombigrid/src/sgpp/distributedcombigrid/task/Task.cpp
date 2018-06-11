@@ -33,6 +33,7 @@ bool Task::isFirstCombiSequence = true;
 
 std::vector<CombiDataType>* Task::bufAsync;
 MPI_Request* Task::requestAsync;
+std::vector<int>* Task::subspaceSizes;
 
 
 void Task::send(Task** t, RankType dst, CommunicatorType comm) {
