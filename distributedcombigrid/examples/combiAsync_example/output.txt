@@ -1,0 +1,2 @@
+mpic++ -std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -L/home/shreyas/Thesis/combi/lib/sgpp -I/home/shreyas/Thesis/combi/distributedcombigrid/src/ -o combi_example combi_example.cpp -lsgppdistributedcombigrid -lboost_serialization
+Makefile:18: recipe for target 'combi_example' failed
