@@ -423,6 +423,7 @@ int main(int argc, char** argv) {
   Stats::write( "timers.json" );
   //terminate the program;
   //we use MPI_Abort to avoid hanging of the program due to crashed processors
+
   if( ENABLE_FT ){
     WORLD_MANAGER_EXCLUSIVE_SECTION{
       std::cout << "The number of detected faults during the simulation is " << nfaults << "\n";
@@ -430,7 +431,9 @@ int main(int argc, char** argv) {
       std::cout << "Program finished successfully" << std::endl;
       std::cout << "To avoid problems with hanging killed processes, we exit with "
           << "MPI_Abort()" << std::endl;
-      MPI_Abort( MPI_COMM_WORLD, 0 );
+      if(nfaults > 0){
+        MPI_Abort( MPI_COMM_WORLD, 0 );
+      }
     }
   }
   simft::Sim_FT_MPI_Finalize();

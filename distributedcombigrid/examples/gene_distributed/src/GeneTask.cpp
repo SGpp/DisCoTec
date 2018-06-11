@@ -84,6 +84,9 @@ GeneTask::~GeneTask()
     delete dfgVector_[g];
   }
   dfgVector_.clear();
+  if(gyromatrix_buffered_){
+    delete[] gyromatrix_buffer_;
+  }
 }
 
 /**
@@ -275,7 +278,7 @@ DistributedFullGrid<complex>& GeneTask::getDistributedFullGrid(int specie){
   return *dfgVector_[specie];
 }
 
-
+/*
 void
 GeneTask::setLocalCheckpoint( FullGrid<complex>& fg, CommunicatorType lcomm,
                               RankType localRootID )
@@ -407,7 +410,7 @@ if( bounds[4] == 0 ){
             }
 }
 
-}
+}*/
 
 void
 GeneTask::saveCheckpoint( FullGrid<CombiDataType>& fg, const char* filename )
@@ -789,7 +792,7 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
     assert(nkxGlobal >= nkx);
     // make sure this value is even (actually should be power of two)
     // because we assume the highest kx is always zero
-    //assert( nkx%2 == 0 ); //toDo global case
+    assert( nkx%2 == 0 ); //toDo global case
 
     for( size_t n=0; n < targetShape[0]; ++n ){ //n_spec
       for( size_t m=0; m < targetShape[1]; ++m ){ //w

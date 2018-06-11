@@ -22,9 +22,8 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
-                  std::vector<real>& coeffs, std::vector<int>& taskIDs, IndexType numberOfCombinations, LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0) ,
-                  LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0) ,
-                  IndexType numGrids = 1) :
+                  std::vector<real>& coeffs, std::vector<int>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1, LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0) ,
+                  LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0)) :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
     applicationCommSet_(false), numberOfCombinations_(numberOfCombinations), numGridsPerTask_(numGrids),
