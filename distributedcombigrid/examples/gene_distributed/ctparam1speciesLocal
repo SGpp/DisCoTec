@@ -12,10 +12,12 @@ fg_file_path = ../plot.dat
 fg_file_path2 = ../plot2.dat
 boundary = 1 0 1 1 1 0
 hierarchization_dims = 0 0 1 1 1 0
-
+reduceCombinationDimsLmin = 0 0 0 0 0 0
+reduceCombinationDimsLmax = 0 0 0 0 0 0
 [application]
 dt = 0.01
 nsteps = 10
+combitime = 1000
 shat = 0.7960
 kymin = 0.3000
 lx = 4.18760
