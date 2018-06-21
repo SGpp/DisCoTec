@@ -117,17 +117,18 @@ class TaskExample: public Task {
 
     /* pseudo timestepping to demonstrate the behaviour of your typical
      * time-dependent simulation problem. */
-     std::vector<CombiDataType> u(this->getDim());
-     u[0] = 1;
-     u[1] = 1;
+     std::vector<CombiDataType> u(this->getDim(), 1);
 
      // gradient of phi
      std::vector<CombiDataType> dphi(this->getDim());
 
-     IndexType l0 = dfg_->length(0);
-     IndexType l1 = dfg_->length(1);
-     double h0 = 1.0 / (double)l0;
-     double h1 = 1.0 / (double)l1;
+     std::vector<IndexType> l(this->getDim());
+     std::vector<double> h(this->getDim());
+
+     for (int i = 0; i < this->getDim(); i++){
+       l[i] = dfg_->length(i);
+       h[i] = 1.0 / (double)l[i];
+     }
 
      for (size_t i = 0; i < nsteps_; ++i) {
        phi_.swap(dfg_->getElementVector());
@@ -136,21 +137,24 @@ class TaskExample: public Task {
          IndexVector ai(this->getDim());
          dfg_->getGlobalVectorIndex(li, ai);
 
-         // west neighbor
-         IndexVector wi = ai;
-         wi[0] = (l0 + wi[0]-1) % l0;
-         IndexType lwi = dfg_->getGlobalLinearIndex(wi);
+         //neighbour
+         std::vector<IndexVector> ni(this->getDim(), ai);
+         std::vector<IndexType> lni(this->getDim());
 
-         // south neighbor
-         IndexVector si = ai;
-         si[1] = (l1 + si[1]-1) % l1;
-         IndexType lsi = dfg_->getGlobalLinearIndex(si);
+         CombiDataType u_dot_dphi = 0;
 
-         // calculate gradient of phi with backward differential quotient
-         dphi[0] = (phi_[li] - phi_[lwi]) / h0;
-         dphi[1] = (phi_[li] - phi_[lsi]) / h1;
+         for(int j = 0; j < this->getDim(); j++){
+           ni[j][j] = (l[j] + ni[j][j] - 1) % l[j];
+           lni[j] = dfg_->getGlobalLinearIndex(ni[j]);
+         }
 
-         CombiDataType u_dot_dphi = u[0] * dphi[0] + u[1] * dphi[1];
+         for(int j = 0; j < this->getDim(); j++){
+           //calculate gradient of phi with backward differential quotient
+           dphi[j] = (phi_[li] - phi_[lni[j]]) / h[j];
+
+           u_dot_dphi += u[j] * dphi[j];
+         }
+
          dfg_->getData()[li] = phi_[li] - u_dot_dphi * dt_;
        }
 

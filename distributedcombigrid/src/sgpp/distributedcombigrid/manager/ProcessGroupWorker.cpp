@@ -635,10 +635,9 @@ bool ProcessGroupWorker::isDistributedGlobalReduceAsyncCompleted(){
   int finishedReduce = 0;
   int flag = 0;
 
-  //MPI_Testall(numGrids, Task::requestAsync, &flag, MPI_STATUSES_IGNORE);
-
   MPI_Waitall(numGrids,Task::requestAsync,MPI_STATUSES_IGNORE);
-  flag =1;
+  MPI_Testall(numGrids, Task::requestAsync, &flag, MPI_STATUSES_IGNORE);
+
   return flag;
 }
 
@@ -822,9 +821,9 @@ void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
 
       std::vector<CombiDataType>& gridAfterCombi = dfg.getElementVector();
 
-
       for(int i=0; i< gridAfterCombi.size();i++){
         gridAfterCombi[i] += gridNextTimestep[i] - t->fullgridVectorBeforeCombi[g][i];
+
       }
 
     }

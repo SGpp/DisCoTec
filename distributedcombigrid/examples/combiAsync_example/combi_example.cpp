@@ -185,9 +185,16 @@ int main(int argc, char** argv) {
     }
 
     // calculate error
+    FullGrid<CombiDataType> fg_prev(fg_exact);
+
+    // calculate error
     fg_exact.add(fg_eval, -1);
-    std::cout << "Error: "<< fg_exact.getlpNorm(0);
-    std::cout << "Error2: "<< fg_exact.getlpNorm(2);
+
+    std::vector<CombiDataType> ev_prev(fg_prev.getElementVector());
+    std::vector<CombiDataType> ev_exact(fg_exact.getElementVector());
+
+    printf("Error: %f \n", fg_exact.getlpNorm(0)/fg_prev.getlpNorm(0));
+    printf("Error2: %f \n", fg_exact.getlpNorm(2)/fg_prev.getlpNorm(2));
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
