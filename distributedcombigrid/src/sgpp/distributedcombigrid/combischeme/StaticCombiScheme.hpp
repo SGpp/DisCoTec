@@ -28,6 +28,9 @@ public:
 		return StaticCombiScheme(lmin, lmax, faultTolerant);
   }
 
+  StaticCombiScheme(const StaticCombiScheme& scheme) = default;
+  StaticCombiScheme(StaticCombiScheme&& scheme) = default;
+
   /* Generate the combischeme corresponding to the classical combination technique.
    * We need to ensure that lmax = lmin +c*ones(dim), and take special care
    * of dummy dimensions
@@ -47,6 +50,32 @@ public:
   const std::vector<LevelVector>& getLevels() const noexcept{
 	 return levels_;
   };
+
+  std::vector<LevelVector> getAllLevels() const{
+
+	  //number of levels smaller or equal to lmin
+	  int minLevels = std::accumulate(std::begin(lmin_), std::end(lmin_) - 1, std::multiplies {});
+
+	  std::vector<LevelVector> allLevels {};
+	  allLevels.reserve(minLevels + levels_.size());
+
+
+	  LevelVector level (dim(), 1);
+	  allLevels.push_back(level);
+	  for(int i = 0; i < minLevels - 1; ++i){
+		  ++level.at(0);
+		  int j = 0;
+		  while(level.at(j) % (lmin_.at(j) + 1) == 0){
+				  level.at(j) = 1;
+				  ++level.at(j+1);
+				  ++j;
+		  }
+		  allLevels.push_back(level);
+	  }
+	  std::copy(std::begin(levels_), std::end(levels_), std::back_inserter(allLevels));
+
+	  return allLevels;
+  }
 
   inline void print(std::ostream& os) const;
 

@@ -49,6 +49,8 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 
   void expand(std::size_t index);
 
+  bool addExpansion(const LevelVector& grid);
+
   const std::vector<LevelVector>& getActiveNodes() const noexcept{
 	  return activeNodes;
   }
@@ -80,7 +82,7 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
   //}
 
 DimAdaptiveCombiScheme(LevelVector lmin, LevelVector lmax)
-    : StaticCombiScheme{StaticCombiScheme::createAdaptiveScheme(lmin, lmax)}, possibleExpansions{} {
+    : StaticCombiScheme{StaticCombiScheme::createClassicalScheme(lmin, lmax)}, possibleExpansions{} {
   generateActiveNodes();
 }
 

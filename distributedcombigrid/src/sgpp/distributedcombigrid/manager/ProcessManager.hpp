@@ -89,6 +89,8 @@ class ProcessManager {
   
   void redistribute( std::vector<int>& taskID );
 
+  void redistributeAll();
+
   void reInitializeGroup( std::vector< ProcessGroupManagerID>& taskID, std::vector<int>& tasksToIgnore  );
 
   void recompute( std::vector<int>& taskID, bool failedRecovery, std::vector< ProcessGroupManagerID>& recoveredGroups );
@@ -100,17 +102,21 @@ class ProcessManager {
    * to the original combination technique*/
   void restoreCombischeme();
 
-
-
   bool commActiveNodeDistribution();
 
   std::pair<double, LevelVector> getBestExpansion();
+
+  void ProcessManager::addExpansion(const LevelVector& vec);
+
+  void sendTaskToProc();
  private:
   ProcessGroupManagerContainer& pgroups_;
 
   TaskContainer& tasks_;
 
   CombiParameters params_;
+
+  std::map<int, int> taskToProc;
 
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state

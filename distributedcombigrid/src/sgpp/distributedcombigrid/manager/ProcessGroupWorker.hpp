@@ -15,6 +15,7 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include "sgpp/distributedcombigrid/combischeme/DimAdaptiveCombiScheme.hpp"
+#include "sgpp/distributedcombigrid/sparsegrid/DistributedAdaptiveSparseGridUniform.hpp"
 #include <chrono>
 
 namespace combigrid {
@@ -101,7 +102,12 @@ class ProcessGroupWorker {
   std::chrono::high_resolution_clock::time_point  startTimeIteration_; //starting time of process computation
 
   //std::ofstream betasFile_;
+  std::map<int, int> taskToProc_;
 
+	void runFirst();
+	void runNext();
+	void addTask();
+	void recompute();
 };
 
 

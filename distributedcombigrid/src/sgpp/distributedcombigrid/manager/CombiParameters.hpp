@@ -116,7 +116,7 @@ class CombiParameters {
   }
 
   inline int getID( LevelVector level ) {
-    return getLevelsToIDs()[level];
+    return getLevelsToIDs().at(level);
   }
 
   inline void getLevels(std::vector<int>& taskIDs, std::vector<LevelVector>& levels) {

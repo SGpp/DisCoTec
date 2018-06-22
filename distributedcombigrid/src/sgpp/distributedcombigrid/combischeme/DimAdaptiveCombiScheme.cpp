@@ -53,7 +53,8 @@ void DimAdaptiveCombiScheme::addNeighbouringExpansions(const LevelVector& grid){
     for(std::size_t i = 0; i < dim(); ++i){
       LevelVector fwdNeigh{grid};
       ++fwdNeigh.at(i);
-      if (!contains(fwdNeigh) && containsAllBwdNeighbours(fwdNeigh)) {
+      if (!isExpansion(fwdNeigh)) {
+    	  assert(!contains(fwdNeigh));
           possibleExpansions.insert(std::upper_bound(std::begin(possibleExpansions), std::end(possibleExpansions), fwdNeigh ),
           fwdNeigh);
       }
@@ -85,6 +86,16 @@ void DimAdaptiveCombiScheme::expand(std::size_t index){
   addNeighbouringExpansions(expansionGrid);
   levels_.push_back(expansionGrid);
   computeCombiCoeffs();
+}
+
+bool DimAdaptiveCombiScheme::addExpansion(const LevelVector& grid){
+  auto gridPos = std::find(std::begin(possibleExpansions), std::end(possibleExpansions), grid);
+  if(gridPos == std::end(possibleExpansions)){
+	  return false;
+  } else {
+	  expand(gridPos - std::begin(possibleExpansions));
+	  return true;
+  }
 }
 
 } // end namespace combigrid
