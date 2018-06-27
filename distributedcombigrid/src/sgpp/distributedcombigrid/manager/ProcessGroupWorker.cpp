@@ -12,7 +12,6 @@
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
-#include "sgpp/distributedcombigrid/sparsegrid/DistributedAdaptiveSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
@@ -106,9 +105,11 @@ void ProcessGroupWorker::addTask() {
 	// local root receives task
 	MASTER_EXCLUSIVE_SECTION{
 	Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-}
+
+	std::cout << "received task" << std::endl;
+	}
 // broadcast task to other process of pgroup
-	Task::broadcast(&t, theMPISystem()->getMasterRank(),
+	Task::broadcast(&t, 0,
 			theMPISystem()->getLocalComm());
 	std::cout << "added task id: " << t->getID();
 	MPI_Barrier(theMPISystem()->getLocalComm());
@@ -173,11 +174,13 @@ SignalType ProcessGroupWorker::wait() {
 
   MASTER_EXCLUSIVE_SECTION {
     // receive signal from manager
+	    std::cout << "recv signal\n";
     MPI_Recv( &signal, 1, MPI_INT,
               theMPISystem()->getManagerRank(),
               signalTag,
               theMPISystem()->getGlobalComm(),
               MPI_STATUS_IGNORE);
+    std::cout << "bcast signal: " << signal << "\n";
   }
   // distribute signal to other processes of pgroup
   MPI_Bcast( &signal, 1, MPI_INT,
@@ -260,11 +263,14 @@ SignalType ProcessGroupWorker::wait() {
 
   } else if (signal == TASK_TO_PROC){
 	  MASTER_EXCLUSIVE_SECTION {
-	  MPIUtils::receiveClass(&taskToProc_, theMPISystem()->getManagerRank(), theMPISystem()->getWorldComm());
+	  MPIUtils::receiveClass(&taskToProc_, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
 
 	  }
 	  //TODO rank
-	  MPIUtils::broadcastClass(&taskToProc_, theMPISystem()->getLocalRank(), 0);
+	  MPIUtils::broadcastClass(&taskToProc_, 0, theMPISystem()->getLocalComm());
+	  MASTER_EXCLUSIVE_SECTION {
+		  std::cout << "finished taskToProc bcast\n";
+	  }
   } else if (signal == ADD_EXPANSION){
 	  constexpr int addExpansionTag = 1235;
 	  LevelVector vec (combiScheme_.dim());
@@ -274,8 +280,12 @@ SignalType ProcessGroupWorker::wait() {
 			  addExpansionTag, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
 	  }
 
-	  MPI_Bcast(vec.data(), vec.size(), MPI_INT, theMPISystem()->getLocalRank(), theMPISystem()->getLocalComm());
+	  MPI_Bcast(vec.data(), vec.size(), MPI_INT, 0, theMPISystem()->getLocalComm());
+	  std::cout << "added Expansion: " << theMPISystem()->getWorldRank()<< "\n";
 	  combiScheme_.addExpansion(vec);
+  } else if (signal == BEST_EXPANSION){
+	  std::cout << "Worker Start expansion\n";
+	  findBestExpansion();
   }
   if(isGENE){
     // special solution for GENE
@@ -657,6 +667,7 @@ void ProcessGroupWorker::updateCombiParameters() {
         theMPISystem()->getManagerRank(),
         theMPISystem()->getGlobalComm() );
     std::cout << "master received combiparameters \n";
+	std::cout << "master size: " << tmp.getLevelsToIDs().size() << "\n";
   }
 
   // broadcast task to other process of pgroup
@@ -715,9 +726,11 @@ void ProcessGroupWorker::findBestExpansion(){
 		for(DimType i = 0; i < combiScheme_.dim(); ++i){
 			LevelVector potExpansion = activeNode;
 			++potExpansion.at(i);
+			std::cout << "curr possible expansion: " << potExpansion << " index: "<< i << "\n";
 			if(!combiScheme_.isExpansion(potExpansion)){
 				continue;
 			}
+			std::cout << "curr expansion: " << i << "\n";
 
 			const auto& bwdNeighbour = combiScheme_.getCoeffBwdNeighbour(activeNode, i);
 
@@ -727,31 +740,33 @@ void ProcessGroupWorker::findBestExpansion(){
 				continue;
 			}
 
+			std::cout << "size: " << combiParameters_.getLevelsToIDs().size() << "\n";
 			const int bwdTaskID = combiParameters_.getID(bwdNeighbour);
 			const int activeTaskID = combiParameters_.getID(activeNode);
 
 			//This calculation depends on the current implementation of then
 			//rank calculations in MPI System so it might break easily
-			const int globalmasterRank = theMPISystem()->getGlobalRank() - theMPISystem()->getLocalRank();
+			const int rankOffset = theMPISystem()->getLocalRank();
 
-			const int activeNodeRank = getProcTask(activeTaskID);
-			const int bwdNeighRank = getProcTask(bwdTaskID);
-			const bool activeNodeOwned = activeNodeRank == globalmasterRank;
-			const bool bwdNeighOwned = bwdNeighRank == globalmasterRank;
+			const int activeNodeRank = theMPISystem()->getWorldRankFromGlobalRank(getProcTask(activeTaskID)) + rankOffset;
+			const int bwdNeighRank = theMPISystem()->getWorldRankFromGlobalRank(getProcTask(bwdTaskID)) + rankOffset;
+			const bool activeNodeOwned = activeNodeRank == theMPISystem()->getWorldRank();
+			const bool bwdNeighOwned = bwdNeighRank == theMPISystem()->getWorldRank();
+
 
 
 			if(activeNodeOwned){
 				std::vector<CombiDataType> activeSubGrid {};
 				std::vector<CombiDataType> bwdSubGrid {};
-				double activeGridPoints = 0;
+				double activeGridPoints = 1;
 				if(bwdNeighOwned){ //The proc itself owns both tasks
-					Task *activeNodeTask;
-					Task *bwdNeighTask;
+					Task *activeNodeTask = getTask(activeTaskID);
+					Task *bwdNeighTask = getTask(bwdTaskID);
 					activeSubGrid = activeNodeTask->getDistributedFullGrid().getSubGrid(0);
 					bwdSubGrid= bwdNeighTask->getDistributedFullGrid().getSubGrid(0);
 					assert(activeSubGrid.size() == bwdSubGrid.size());
 				} else {
-					Task *activeNodeTask;
+					Task *activeNodeTask = getTask(activeTaskID);
 					activeSubGrid = activeNodeTask->getDistributedFullGrid().getSubGrid(0);
 					bwdSubGrid.resize(activeSubGrid.size());
 					MPI_Recv(bwdSubGrid.data(), bwdSubGrid.size(), MPI_DOUBLE, bwdNeighRank, messageTag, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
@@ -766,21 +781,20 @@ void ProcessGroupWorker::findBestExpansion(){
 						}, std::plus<CombiDataType>());
 					error /= activeGridPoints;
 				}
-
 				MASTER_EXCLUSIVE_SECTION{
-					MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+					MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, 0, theMPISystem()->getLocalComm());
 					if(error > bestError){
 						bestError = error;
 						bestExpansion = potExpansion;
 					}
 				} else {
-					MPI_Reduce(&error, &error, 1, MPI_DOUBLE, MPI_SUM, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+					MPI_Reduce(&error, &error, 1, MPI_DOUBLE, MPI_SUM, 0, theMPISystem()->getLocalComm());
 				}
 
 			} else if (bwdNeighOwned){ //the proc owns the bwdNeighbour
 				//since the bwd neighbour is smaller it is sent to the proc
 				//with the active node
-				Task *bwdNeighTask;
+				Task *bwdNeighTask = getTask(bwdTaskID);
 				auto bwdSubGrid= bwdNeighTask->getDistributedFullGrid().getSubGrid(0);
 				MPI_Send(bwdSubGrid.data(), static_cast<int>(bwdSubGrid.size()), MPI_DOUBLE, activeNodeRank, messageTag, theMPISystem()->getWorldComm());
 			}
@@ -790,8 +804,9 @@ void ProcessGroupWorker::findBestExpansion(){
 	}
 
 	MASTER_EXCLUSIVE_SECTION{
-		MPI_Send(&bestError, 1, MPI_DOUBLE, theMPISystem()->getManagerRankWorld(), 1234, theMPISystem()->getWorldComm());
-		MPI_Send(&bestExpansion, bestExpansion.size(), MPI_INT, theMPISystem()->getManagerRankWorld(), 1235, theMPISystem()->getWorldComm());
+		MPI_Send(&bestError, 1, MPI_DOUBLE, theMPISystem()->getManagerRank(), 1234, theMPISystem()->getGlobalComm());
+		MPI_Send(bestExpansion.data(), bestExpansion.size(), MPI_LONG, theMPISystem()->getManagerRank(), 1235, theMPISystem()->getGlobalComm());
+		std::cout << "Sent best expansion\n";
 	}
 }
 

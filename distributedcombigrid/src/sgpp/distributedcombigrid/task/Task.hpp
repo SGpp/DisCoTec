@@ -55,7 +55,7 @@ class Task {
 
   inline const std::vector<bool>& getBoundary() const;
 
-  inline int getID();
+  inline int getID() const;
 
   virtual void run(CommunicatorType lcomm) = 0;
 
@@ -140,7 +140,7 @@ inline const std::vector<bool>& Task::getBoundary() const {
   return boundary_;
 }
 
-inline int Task::getID() {
+inline int Task::getID() const {
   return id_;
 }
 

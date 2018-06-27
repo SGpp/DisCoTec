@@ -61,8 +61,8 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs,
   for (DimType d = 0; d < dim; ++d) {
     lmax[d] *= 2;
   }
-  DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin,
-                                                         boundary, comm);
+  DimAdaptiveCombiScheme scheme = DimAdaptiveCombiScheme{lmin, lmax};
+  DistributedSparseGridUniform<std::complex<double>> dsg(scheme, boundary, comm);
   dfg.addToUniformSG(dsg, 2.1);
   DistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary,
                                                  procs, forward);

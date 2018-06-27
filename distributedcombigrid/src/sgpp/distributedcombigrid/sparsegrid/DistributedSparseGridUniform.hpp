@@ -59,7 +59,7 @@ public:
 		comm_ = comm;
 		boundary_ = boundary;
 		subspaces_.resize(levels_.size());
-		levels_ = scheme.getAllLevels();
+		levels_ = scheme.getLevels();
 
 		for (size_t i = 0; i < levels_.size(); ++i)
 			subspaces_[i].level_ = levels_[i];

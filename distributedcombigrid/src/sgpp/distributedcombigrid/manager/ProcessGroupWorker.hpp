@@ -15,7 +15,6 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include "sgpp/distributedcombigrid/combischeme/DimAdaptiveCombiScheme.hpp"
-#include "sgpp/distributedcombigrid/sparsegrid/DistributedAdaptiveSparseGridUniform.hpp"
 #include <chrono>
 
 namespace combigrid {
@@ -71,6 +70,14 @@ class ProcessGroupWorker {
   void findBestExpansion();
 
   int getProcTask(int taskID);
+
+  Task* getTask(int id){
+	  auto pos = std::find_if(std::begin(tasks_), std::end(tasks_), [id](const Task *task){
+		  return task->getID() == id;
+	  });
+	  assert(pos != std::end(tasks_));
+	  return *pos;
+  }
 
  private:
   TaskContainer tasks_; // task storage

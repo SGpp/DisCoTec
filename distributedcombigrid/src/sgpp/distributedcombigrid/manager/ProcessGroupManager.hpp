@@ -127,7 +127,9 @@ class ProcessGroupManager {
   void recvStatus();
 
   void sendSignal(int signal){
+      std::cout << "sending signal: " << signal << " group: " << pgroupRootID_ << "\n";
 	  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+      std::cout << "sent signal: " << signal << " group: " << pgroupRootID_ << "\n";
   }
 
   /* sets the rank of the process group's master in global comm. should only

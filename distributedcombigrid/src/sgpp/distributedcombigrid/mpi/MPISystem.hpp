@@ -65,6 +65,7 @@ namespace combigrid {
 class ProcessGroupManager;
 class MPISystem {
  public:
+
   ~MPISystem();
 
   MPISystem( MPISystem const & ) = delete;
@@ -227,6 +228,12 @@ class MPISystem {
    */
   void sendFailedSignal();
 
+
+  int getWorldRankFromGlobalRank(int rank){
+		assert(rank <= ngroup_);
+		return rank * nprocs_;
+  }
+
  private:
   explicit MPISystem();
 
@@ -325,6 +332,7 @@ class MPISystem {
    * returns the vector of the failed ranks that caused the current recovery procedure
    */
   std::vector<RankType> getFailedRanks( int numFailedProcs );
+
 
 
   bool initialized_; //is MPISystem initialized?

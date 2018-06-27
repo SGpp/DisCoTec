@@ -286,15 +286,15 @@ std::pair<double, LevelVector> ProcessGroupManager::getBestExpansion(DimType dim
 
 	double error = -1;
 	LevelVector expansion (dim);
-	MPI_Recv(&error, 1, MPI_DOUBLE, pgroupRootID_, 1234, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
-	MPI_Recv(&expansion, expansion.size(), MPI_INT, pgroupRootID_, 1235, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
+	MPI_Recv(&error, 1, MPI_DOUBLE, pgroupRootID_, 1234, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+	MPI_Recv(expansion.data(), expansion.size(), MPI_LONG, pgroupRootID_, 1235, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
 
 	return std::make_pair(error, expansion);
 }
 
 void ProcessGroupManager::sendTaskToProc(const std::map<int, int>& taskToProc){
 	sendSignal(TASK_TO_PROC);
-	MPIUtils::sendClass(&taskToProc, pgroupRootID_, theMPISystem()->getWorldComm());
+	MPIUtils::sendClass(&taskToProc, pgroupRootID_, theMPISystem()->getGlobalComm());
 }
 
 void ProcessGroupManager::addExpansion(const LevelVector& expansion){

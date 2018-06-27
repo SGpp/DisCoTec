@@ -268,6 +268,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& boundary_;
   ar& levels_;
   ar& coeffs_;
+  ar& levelsToIDs_;
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;

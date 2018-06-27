@@ -46,8 +46,9 @@ bool ProcessManager::runfirst() {
 		// assign instance to group
 		g->runfirst(tasks_[i]);
 	}
-
 	bool group_failed = waitAllFinished();
+
+	sendTaskToProc();
 	// return true if no group failed
 	return !group_failed;
 }
@@ -123,15 +124,17 @@ void ProcessManager::getGroupFaultIDs( std::vector< int>& faultsID, std::vector<
 
 void ProcessManager::redistributeAll(){
 	taskToProc.clear();
-	for (Task& t : tasks_) {
+	std::cout << "redistributing tasks...\n";
+	for (Task *t : tasks_) {
 		// wait for available process group
 		ProcessGroupManagerID g = wait();
 
 		// assign instance to group
-		g->addTask( &t );
-		taskToProc.emplace(t.getID(), g->getID());
+		g->addTask( t );
+		taskToProc.emplace(t->getID(), g->getID());
 	}
 
+	std::cout << "redistributed tasks\n";
 	size_t numWaiting = 0;
 
 	while (numWaiting != pgroups_.size()) {

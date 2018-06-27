@@ -106,7 +106,7 @@ class ProcessManager {
 
   std::pair<double, LevelVector> getBestExpansion();
 
-  void ProcessManager::addExpansion(const LevelVector& vec);
+  void addExpansion(const LevelVector& vec);
 
   void sendTaskToProc();
  private:

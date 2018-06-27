@@ -5,7 +5,7 @@ bool DimAdaptiveCombiScheme::containsAllBwdNeighbours(const LevelVector& grid) c
   for(std::size_t i = 0; i < dim(); ++i){
       LevelVector bwdNeigh{grid};
       --bwdNeigh.at(i);
-      if(!contains(bwdNeigh)){
+      if(bwdNeigh.at(i) >= lmin_.at(i) && !contains(bwdNeigh)){
           return false;
       }
   }
@@ -18,11 +18,13 @@ bool DimAdaptiveCombiScheme::containsOneActiveBwdNeighbour(const LevelVector& gr
 	for(std::size_t i = 0; i < dim(); ++i){
 	      LevelVector bwdNeigh{grid};
 	      --bwdNeigh.at(i);
-	      if(containsActive(bwdNeigh) && !foundOne){
-	          foundOne = true;
-	      } else {
-	    	  //found at least two bwd neighbours that are active
-	    	  return false;
+	      if(containsActive(bwdNeigh)){
+	    	  if(!foundOne){
+		          foundOne = true;
+	    	  } else {
+		    	  //found at least two bwd neighbours that are active
+		    	  return false;
+	    	  }
 	      }
 	  }
 
@@ -63,11 +65,16 @@ void DimAdaptiveCombiScheme::addNeighbouringExpansions(const LevelVector& grid){
 
 void DimAdaptiveCombiScheme::generateActiveNodes(){
 	for(const LevelVector& grid: levels_){
-		if(!containsAllFwdNeighbours(grid)){
-			assert(containsAllBwdNeighbours(grid));
+		if(!containsAllFwdNeighbours(grid) && grid >= lmin_){
+			if(!containsAllBwdNeighbours(grid)){
+				std::cout << grid << '\n';
+				assert(false);
+			}
 			activeNodes.push_back(grid);
 		}
 	}
+	std::cout << "active:\n";
+	printActive(std::cout);
 }
 
 void DimAdaptiveCombiScheme::generatePossibleExpansions() {
