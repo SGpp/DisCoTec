@@ -34,6 +34,8 @@ const SignalType PARALLEL_EVAL = 17;
 const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
 const SignalType BEST_EXPANSION = 20;
+const SignalType TASK_TO_PROC = 21;
+const SignalType ADD_EXPANSION = 22;
 
 
 typedef int NormalizationType;

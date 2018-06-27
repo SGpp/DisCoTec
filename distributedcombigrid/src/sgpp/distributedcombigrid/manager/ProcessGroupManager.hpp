@@ -19,6 +19,12 @@
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
+
+/**
+ * This does not actually represent the code executed by the
+ * process group master bout is a handle to a process group contained
+ * in the global process manager
+ */
 class ProcessGroupManager {
 
  public:
@@ -97,6 +103,14 @@ class ProcessGroupManager {
   void startBestExpansion();
 
   std::pair<double, LevelVector> getBestExpansion(DimType dim);
+
+  void sendTaskToProc(const std::map<int, int>& taskToproc);
+
+  void addExpansion(const LevelVector& expansion);
+
+  RankType getID(){
+	  return pgroupRootID_;
+  }
  private:
   RankType pgroupRootID_; // rank in GlobalComm of the master process of this group
 
@@ -111,6 +125,12 @@ class ProcessGroupManager {
   std::vector<CombiDataType> allBetas_;
 
   void recvStatus();
+
+  void sendSignal(int signal){
+      std::cout << "sending signal: " << signal << " group: " << pgroupRootID_ << "\n";
+	  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+      std::cout << "sent signal: " << signal << " group: " << pgroupRootID_ << "\n";
+  }
 
   /* sets the rank of the process group's master in global comm. should only
    * be called by ProcessManager.

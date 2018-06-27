@@ -116,7 +116,7 @@ class CombiParameters {
   }
 
   inline int getID( LevelVector level ) {
-    return getLevelsToIDs()[level];
+    return getLevelsToIDs().at(level);
   }
 
   inline void getLevels(std::vector<int>& taskIDs, std::vector<LevelVector>& levels) {
@@ -268,6 +268,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& boundary_;
   ar& levels_;
   ar& coeffs_;
+  ar& levelsToIDs_;
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;

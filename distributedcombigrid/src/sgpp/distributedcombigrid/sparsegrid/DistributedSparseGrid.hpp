@@ -11,6 +11,7 @@
 #include <assert.h>
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 
 using namespace combigrid;
 

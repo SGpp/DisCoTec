@@ -83,7 +83,19 @@ public:
 	 return levels_;
   };
 
-  inline void print(std::ostream& os) const;
+  inline void print(std::ostream& os) const{
+	  for (uint i = 0; i < combiSpaces_.size(); ++i)
+	    os << "\t" << i << ". "<< combiSpaces_[i] << "\t" << coefficients_[i] << std::endl;
+
+	  os << std::endl;
+	}
+
+  void printLevels(std::ostream& os) const {
+	  for (uint i = 0; i < levels_.size(); ++i)
+	    os << "\t" << i << ". "<< levels_[i] << std::endl;
+
+	  os << std::endl;
+  }
 
   /**
    * Returns the dimension of the grids used
@@ -139,6 +151,7 @@ protected:
   lmin_ {lmin}, lmax_{lmax}, levels_{}, combiSpaces_{}, coefficients_{}{
 	assert(lmin_.size() > 0);
     assert(lmax_.size() == lmin_.size());
+    std::cout << "test\n";
 
     for (size_t i = 0; i < dim(); ++i) {
       assert(lmax_[i] > 0);
@@ -152,6 +165,10 @@ protected:
     if(faultTolerant){
     	makeFaultTolerant();
     }
+    std::cout << "combi: \n";
+    print(std::cout);
+    std::cout << "levels: \n";
+    printLevels(std::cout);
   }
 
   /**
@@ -172,11 +189,7 @@ protected:
   LevelType getNameSum();
 
   void createLevelsRec(){
-	  createLevelsRec(getNameSum(), dim() - 1, LevelVector(dim(), 0));
-	  const LevelVector normalizer = lmin_ - LevelVector(dim(), 1);
-	  for(auto& level : levels_){
-		  level = level + normalizer;
-	  }
+	  createLevelsRec(getMaxLevelSum(), dim() - 1, LevelVector(dim(), 0));
   }
 
   void createLevelsRec(LevelType currMaxSum,
@@ -203,14 +216,6 @@ inline std::ostream& operator<<(std::ostream& os,
     const combigrid::StaticCombiScheme& scheme) {
   scheme.print(os);
   return os;
-}
-
-
-inline void StaticCombiScheme::print(std::ostream& os) const {
-  for (uint i = 0; i < combiSpaces_.size(); ++i)
-    os << "\t" << i << ". "<< combiSpaces_[i] << "\t" << coefficients_[i] << std::endl;
-
-  os << std::endl;
 }
 
 }

@@ -61,15 +61,14 @@ LevelType StaticCombiScheme::getNameSum(){
 void StaticCombiScheme::createLevelsRec(LevelType currMaxSum,
                                         size_t currentIndex,
                                         LevelVector l) {
-  // to avoid an additional parameter we search for the current position every
-  const LevelVector diff = lmax_ - lmin_ + LevelVector(dim(), 1);
-  for (LevelType x = 1; x <= std::min(currMaxSum, diff.at(currentIndex)); ++x) {
+  for (LevelType x = 1; x <= std::min(currMaxSum, lmax_.at(currentIndex)); ++x) {
     l.at(currentIndex) = x;
     assert(l <= lmax_);
     if (currentIndex == 0) {
       levels_.push_back(l);
     } else {
-      createLevelsRec(currMaxSum - x, currentIndex - 1, l);
+      createLevelsRec(currMaxSum - x,
+    		          currentIndex - 1, l);
     }
   }
 }
@@ -89,7 +88,6 @@ void StaticCombiScheme::computeCombiCoeffs() {
       }
     }
 
-    //Only add the Flag combiSpaces that will be erased later
     if (coeff != 0) {
     	combiSpaces_.push_back(combiSpace);
     	coefficients_.push_back(coeff);

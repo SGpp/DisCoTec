@@ -49,6 +49,8 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 
   void expand(std::size_t index);
 
+  bool addExpansion(const LevelVector& grid);
+
   const std::vector<LevelVector>& getActiveNodes() const noexcept{
 	  return activeNodes;
   }
@@ -72,6 +74,9 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
   }
 
   bool isExpansion(const LevelVector& grid) const{
+	  if(grid == LevelVector{11, 3}){
+		  std::cout << containsAllBwdNeighbours(grid) << " bla " << containsOneActiveBwdNeighbour(grid) << "\n";
+	  }
 	  return containsAllBwdNeighbours(grid) && containsOneActiveBwdNeighbour(grid);
   }
 
@@ -80,9 +85,16 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
   //}
 
 DimAdaptiveCombiScheme(LevelVector lmin, LevelVector lmax)
-    : StaticCombiScheme{StaticCombiScheme::createAdaptiveScheme(lmin, lmax)}, possibleExpansions{} {
+    : StaticCombiScheme{StaticCombiScheme::createClassicalScheme(lmin, lmax)}, possibleExpansions{} {
   generateActiveNodes();
 }
+
+    inline void printActive(std::ostream& os) const{
+  	  for (uint i = 0; i < activeNodes.size(); ++i)
+  	    os << "\t" << i << ". "<< activeNodes[i] << std::endl;
+
+  	  os << std::endl;
+  	}
 
 private:
     std::vector<LevelVector> activeNodes;

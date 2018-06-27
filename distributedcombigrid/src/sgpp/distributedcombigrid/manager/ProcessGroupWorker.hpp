@@ -71,6 +71,14 @@ class ProcessGroupWorker {
 
   int getProcTask(int taskID);
 
+  Task* getTask(int id){
+	  auto pos = std::find_if(std::begin(tasks_), std::end(tasks_), [id](const Task *task){
+		  return task->getID() == id;
+	  });
+	  assert(pos != std::end(tasks_));
+	  return *pos;
+  }
+
  private:
   TaskContainer tasks_; // task storage
 
@@ -101,7 +109,12 @@ class ProcessGroupWorker {
   std::chrono::high_resolution_clock::time_point  startTimeIteration_; //starting time of process computation
 
   //std::ofstream betasFile_;
+  std::map<int, int> taskToProc_;
 
+	void runFirst();
+	void runNext();
+	void addTask();
+	void recompute();
 };
 
 
