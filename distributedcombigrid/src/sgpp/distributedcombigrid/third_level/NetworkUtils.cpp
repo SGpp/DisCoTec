@@ -48,7 +48,7 @@ bool ClientSocket::init() {
 bool ClientSocket::sendall(const std::string& mesg) const {
   assert(isInitialized() && "Client Socket not initialized");
   int err;
-  long n;
+  long n = -1;
   size_t total = 0;
   const size_t& len = mesg.size();
   while (total < len) {
@@ -68,7 +68,7 @@ bool ClientSocket::sendall(const std::string& mesg) const {
 bool ClientSocket::sendall(const char* buf, size_t len) const {
   assert(isInitialized() && "Client Socket not initialized");
   int err;
-  long n;
+  long n = -1;
   size_t total = 0;
   while (total < len) {
     n = send(sockfd_, &buf[total], len - total, 0);
@@ -93,7 +93,7 @@ bool ClientSocket::sendallPrefixed(const std::string& mesg) const {
 bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   int err;
-  long n;
+  long n = -1;
   char* buff = new char[len];
   size_t total = 0;
   while (total < len) {
@@ -112,12 +112,14 @@ bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
   return true;
 }
 
-bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len, size_t chunksize) const {
+bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
+    size_t chunksize) const
+{
   // receive endianness first
   assert(isInitialized() && "Client Socket not initialized");
   std::ofstream file(filename, std::ofstream::binary);
   bool success = false;
-  //recv endianness first
+
   char* endianness = nullptr;
   success = recvall(endianness, 1);
   if (!success) {
@@ -126,26 +128,30 @@ bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len, 
   }
 
   int err;
-  long n;
+  long n = -1;
   size_t total = 0;
   char* buff = new char[chunksize];
   while (total < len) {
     n = recv(sockfd_, buff, chunksize, 0);
     err = errno;
-    if (n == -1)
+    if (n <= 0)
       break;
     total += static_cast<size_t>(n);
     file.write(buff, static_cast<std::streamsize>(n));
-    file.seekp(static_cast<std::streamoff>(total)); // start writing at end of file
+    file.seekp(static_cast<std::streamoff>(total)); // append to file next round
   }
   if ( n == -1) {
     std::cerr << "Receive failed: " << std::to_string(err) << std::endl;
     file.close();
     return false;
+  } else if (n == 0) {
+    std::cerr << "Receive failed, sender terminated too early: " <<
+      std::to_string(err) << std::endl;
+    return false;
   }
 
   if ((bool) *endianness != NetworkUtils::isLittleEndian()) {
-    // TODO correct endiannes of file
+    // TODO correct endiannes in file
   }
 
   file.close();
@@ -157,18 +163,27 @@ bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len, 
 bool ClientSocket::recvall(char* &buf, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   int err;
-  long n;
+  long n = -1;
   buf = new char[len];
   size_t total = 0;
   while (total < len) {
     n = recv(sockfd_, &buf[total], len-total, flags);
+
     err = errno;
-    if (n == -1)
+    if (n <= 0)
       break;
     total += n;
+
+    if (len  == 67584)
+      std::cout << "received: " << total << std::endl;
+
   }
   if ( n == -1) {
     std::cerr << "Receive failed: " << std::to_string(err) << std::endl;
+    return false;
+  } else if (n == 0) {
+    std::cerr << "Receive failed, sender terminated too early: " <<
+      std::to_string(err) << std::endl;
     return false;
   }
   return true;
@@ -176,19 +191,25 @@ bool ClientSocket::recvall(char* &buf, size_t len, int flags) const {
 
 bool ClientSocket::recvallPrefixed(std::string& mesg, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
+  mesg.clear();
   int err;
-  long n;
+  long n = -1;
   std::string lenstr = "";
   char temp = ' ';
   do {
     n = recv(sockfd_, &temp, 1, flags);
     err = errno;
-    if (n == -1)
+    if (n <= 0)
       break;
     lenstr += temp;
   } while (temp != '#');
   if (n == -1) {
-    std::cerr << "Receive of length failed: " << std::to_string(err);
+    std::cerr << "Receive of length failed: " << std::to_string(err)
+      << std::endl;
+    return false;
+  } else if (n == 0) {
+    std::cerr << "Receive of length failed, sender terminated too early: " <<
+      std::to_string(err) << std::endl;
     return false;
   }
   lenstr.pop_back();
@@ -202,16 +223,18 @@ bool ClientSocket::isReadable(int timeout) const {
   struct timeval tv;
   fd_set readfds;
 
-  tv.tv_sec = timeout;
-  tv.tv_usec = 0;
 
   FD_ZERO(&readfds);
   FD_SET(sockfd_, &readfds);
 
-  if (timeout > -1)
+  if (timeout > -1) {
+    tv.tv_sec = timeout;
+    tv.tv_usec = 0;
     select(sockfd_+1, &readfds, NULL, NULL, &tv);
-  else
+  }
+  else {
     select(sockfd_+1, &readfds, NULL, NULL, NULL);
+  }
   return FD_ISSET(sockfd_, &readfds);
 }
 
@@ -232,6 +255,14 @@ bool ClientSocket::isWriteable(int timeout) const {
   return FD_ISSET(sockfd_, &writefds);
 }
 
+std::string ClientSocket::getRemoteHost() const {
+  return remoteHost_;
+}
+
+int ClientSocket::getRemotePort() const {
+  return remotePort_;
+}
+
 ServerSocket::ServerSocket(const unsigned short port) : Socket(), port_(port) {
   init();
 }
@@ -250,7 +281,7 @@ bool ServerSocket::init() {
 
   sockfd_ = socket( AF_INET, SOCK_STREAM, 0 );
   err = errno;
-  if (!isInitialized()) {
+  if (sockfd_ < 0) {
     std::cerr << "Opening server socket failed: " << err << std::endl;
     return false;
   }
@@ -274,7 +305,7 @@ bool ServerSocket::init() {
     return false;
   }
 
-  // set port if determined by os (port == 0)
+  // set port if determined by os
   if (this->port_ == 0) {
     socklen_t len = sizeof(servAddr);
     int stat =  getsockname(sockfd_, (struct sockaddr *)&servAddr, &len);
@@ -321,6 +352,9 @@ int ServerSocket::getPort() {
 Socket::Socket() : sockfd_(-1), initialized_(false) {
 }
 
+Socket::~Socket(){
+}
+
 int Socket::getFileDescriptor() const {
   return this->sockfd_;
 }
@@ -329,31 +363,66 @@ bool Socket::isInitialized() const {
   return initialized_ && sockfd_ > 0;
 }
 
-bool NetworkUtils::tunnel(const ClientSocket* sender, const ClientSocket* receiver,
-    unsigned int buffsize) {
+bool NetworkUtils::tunnel(const ClientSocket* sender,
+    const ClientSocket* receiver, size_t size, size_t chunksize)
+{
   assert(sender->isInitialized() && "Initialize sender first");
   assert(receiver->isInitialized() && "Initialize receiver first");
   int err;
-  int totalRecvd = 1;
+  size_t totalRecvd = 0;
+  long recvd = 0;
+  bool sendSuccess = false;
   int sendFd = sender->getFileDescriptor();
-  char* buff = new char[buffsize];
-  while (totalRecvd < buffsize) {
-    totalRecvd = recv(sendFd, buff, buffsize, 0);
-    err = errno;
-    if (totalRecvd == -1) {
-        std::cerr << "Unexpected fail of sender" << err;
+  char* buff = new char[chunksize];
+  if (size != 0) {
+    std::cout << "Start tunneling of " << size << " Bytes with same Endianess:" << std::endl;
+    while (totalRecvd < size)
+    {
+      std::cout << ".";
+      // receive a max of chunksize bytes
+      recvd = recv(sendFd, buff, chunksize, 0);
+      err = errno;
+      if (recvd == -1) {
+          std::cerr << "Unexpected fail of sender" << err;
+          delete[] buff;
+          return false;
+      } else if (recvd == 0) {
+          std::cerr << "Unexpected close of sender" << err;
+          delete[] buff;
+          return false;
+      }
+      totalRecvd += static_cast<size_t>(recvd);
+
+      // send received bytes to receiver
+      sendSuccess = receiver->sendall(buff, static_cast<size_t>(recvd));
+      if (!sendSuccess) {
+        std::cerr << "Unexpected fail of receiver";
         delete[] buff;
         return false;
+      }
     }
-    /* can be improved by sending and receiving asynchronous in
-     * separate threads*/
-    bool success = receiver->sendall(std::string(buff, totalRecvd));
-    if (!success) {
-      std::cerr << "Unexpected fail of receiver";
-      delete[] buff;
-      return false;
+  } else { // tunnel until sender disconnects
+    while (recvd > 0 && sendSuccess)
+    {
+      // receive a max of chunksize bytes
+      recvd = recv(sendFd, buff, chunksize, 0);
+      err = errno;
+      if (recvd == -1) {
+          std::cerr << "Unexpected fail of sender" << err;
+          delete[] buff;
+          return false;
+      }
+
+      // send received bytes to receiver
+      sendSuccess = receiver->sendall(buff, static_cast<size_t>(recvd));
+      if (!sendSuccess) {
+        std::cerr << "Unexpected fail of receiver";
+        delete[] buff;
+        return false;
+      }
     }
   }
+  std::cout << std::endl;
   delete[] buff;
   return true;
 }
@@ -376,63 +445,19 @@ bool NetworkUtils::isLittleEndian() {
   return (*(char*)&x == 1);
 }
 
-template<typename T>
-  bool sendBinary(const std::vector<T>& buf, const ClientSocket& socket)
-  {
-    if (!socket.isInitialized())
-      return false;
-    bool success = false;
-    size_t size = buf.size() * sizeof(T);
-    char endianness = NetworkUtils::isLittleEndian();
-    // send endianness header
-    success = socket.sendall(&endianness, 1);
-    if (!success)
-      return false;
-    success = socket.sendall((char*)buf.data(), size);
-    if (!success)
-      return false;
-    return true;
+/*
+ * Splits a string into tokens along the delimiter c
+ */
+void NetworkUtils::split(const std::string& s, const char c,
+   std::vector<std::string>& tokens)
+{
+  size_t next;
+  size_t prev = 0;
+  tokens.clear();
+  while((next = s.find(c, prev)) != std::string::npos) {
+    tokens.push_back(s.substr(prev, next-prev));
+    prev = next + 1;
   }
-
-// TODO Optimize memory usage (hopefully this wont cause thrashing and os recognizes the linear access)
-template<typename T>
-  bool recvBinary(std::vector<T>& buf, size_t len, const ClientSocket& socket)
-  {
-    if (!socket.isInitialized())
-      return false;
-    bool success = false;
-    //recv endianness first
-    char* endianess = nullptr;
-    success = socket.recvall(endianess, 1);
-    if (!success)
-      return false;
-    //recv data
-    char* raw = nullptr;
-    size_t rawSize = len*sizeof(T);
-    success = socket.recvall(raw, rawSize);
-    if (!success)
-      return false;
-    buf.clear();
-    buf.reserve(len);
-    if ((bool) *endianess == NetworkUtils::isLittleEndian()) { //same endianness
-      T* values = reinterpret_cast<T*>(raw);
-      // copy values to buf
-      for (size_t i = 0; i < len; i++) { // linear access to poss. huge arrays
-        buf.push_back(values[i]);
-      }
-    } else { // different endianness
-      char* rightOrder = new char[sizeof(T)];
-      // extract values from raw buffer in right order
-      // reverts byte order for each sizeof(T) big block
-      for (size_t i = 0; i < len; i+=sizeof(T)) { // somehow linear access
-        for (size_t j = sizeof(T)-1; j >= 0; j--) {
-          rightOrder[sizeof(T)-1 - j] = raw[i+j];
-          buf.push_back( reinterpret_cast<T &>(rightOrder) );
-        }
-      }
-      delete[] rightOrder;
-    }
-    delete[] endianess;
-    delete[] raw;
-    return true;
-  }
+  if (prev < s.size())
+    tokens.push_back(s.substr(prev));
+}
