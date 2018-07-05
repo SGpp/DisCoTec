@@ -30,16 +30,27 @@ using namespace combigrid;
 BOOST_CLASS_EXPORT(TaskExample)
 
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  int provided;
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+
+  if (provided < MPI_THREAD_FUNNELED) {
+    std::cout << "This application needs MPI with thread level support of >= "
+              << MPI_THREAD_FUNNELED << ". The provided level is " << provided
+              << std::endl;
+    return -1;
+  }
 
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
    */
   Stats::initialize();
 
+  const std::string cfgFile = argv[1];
+  std::cout << "running with config file: " << cfgFile << std::endl;
+
   // read in parameter file
   boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini("ctparam", cfg);
+  boost::property_tree::ini_parser::read_ini(cfgFile, cfg);
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
@@ -80,8 +91,8 @@ int main(int argc, char** argv) {
     ncombi = cfg.get<size_t>("ct.ncombi");
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
-    cfg.get<std::string>("thirdLevel.host") >> thirdLevelHost;
-    cfg.get<int>("thirdLevel.port") >> thirdLevelPort;
+    thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
+    thirdLevelPort = cfg.get<int>("thirdLevel.port");
 
     // todo: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
@@ -96,10 +107,33 @@ int main(int argc, char** argv) {
      * CombiMinMaxScheme will create a classical combination scheme.
      * however, you could also read in a list of levelvectors and coefficients
      * from a file */
+
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+
+    /*
+     * TODO Load levels from file
+     * For example purpose we modify the full level and coeff sets depending
+     * on our systemID
+     */
+    int systemID = cfg.get<int>("thirdLevel.systemID");
+    int numSystems = cfg.get<int>("thirdLevel.numSystems");
+    int newSize = levels.size()/numSystems;
+    int lower = newSize*systemID;
+    if(systemID != numSystems - 1) {
+      int higher = newSize * (systemID+1);
+      levels = std::vector<LevelVector>(levels.begin() + lower,
+          levels.begin() + higher);
+      coeffs = std::vector<combigrid::real>(coeffs.begin() + lower,
+          coeffs.begin() + higher);
+    } else {
+      levels = std::vector<LevelVector>(levels.begin() + lower,
+          levels.end());
+      coeffs = std::vector<combigrid::real>(coeffs.begin() + lower,
+          coeffs.end());
+    }
 
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
@@ -137,13 +171,19 @@ int main(int argc, char** argv) {
     manager.runfirst();
     Stats::stopEvent("manager run first");
 
+
     std::ofstream myfile;
     myfile.open("out/solution.dat");
 
+    double start, finish;
     for (size_t i = 0; i < ncombi; ++i) {
+
+      start = MPI_Wtime();
       Stats::startEvent("combine");
       manager.combineThirdLevel();
       Stats::stopEvent("combine");
+      finish = MPI_Wtime();
+      std::cout << "combination " << i << " took: " << finish-start << " seconds";
 
       // evaluate solution
       FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
@@ -169,9 +209,12 @@ int main(int argc, char** argv) {
       std::cout << "run until combination point " << i+1 << std::endl;
 
       // run tasks for next time interval
+      start = MPI_Wtime();
       Stats::startEvent("manager run");
       manager.runnext();
       Stats::stopEvent("manager run");
+      finish = MPI_Wtime();
+      std::cout << "calculation " << i << " took: " << finish-start << " seconds";
     }
 
     myfile.close();
