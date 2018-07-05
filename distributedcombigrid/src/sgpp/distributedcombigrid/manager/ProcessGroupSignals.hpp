@@ -32,6 +32,7 @@ const SignalType CHECK_DEAD_PROCS = 15; // check for dead workers
 const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
 const SignalType COMBINE_THIRD_LEVEL = 18;
+const SignalType COMBINE_TO_FILE_THIRD_LEVEL = 19;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
