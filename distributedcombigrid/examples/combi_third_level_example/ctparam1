@@ -1,0 +1,23 @@
+[ct]
+dim = 2
+lmin = 3 3 
+lmax = 20 20
+leval = 5 5 
+p = 1 2
+ncombi = 1
+levels = 9,3 10,3 8,4 9,4 7,5 8,5 6,6
+factors = -1 1 -1 1 -1 1 -1
+
+[application]
+dt = 1e-3
+nsteps = 100
+
+[manager]
+ngroup = 2
+nprocs = 2
+
+[thirdLevel]
+host = localhost
+port = 9999
+numSystems = 2
+systemID = 0
