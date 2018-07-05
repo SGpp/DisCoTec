@@ -1,54 +1,74 @@
+#ifndef COMMUNICATORHPP_
+#define COMMUNICATORHPP_
+
 #include <vector>
 #include <mutex>
 #include <map>
 #include <queue>
+#include <thread>
+#include <complex>
+#include "Intermediary.hpp"
+#include "Participant.hpp"
 #include "../../../src/sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
+
+class Intermediary;
+class Participant;
 
 struct SRRequest {
   ClientSocket* dataSock;
-  size_t size;
+  size_t dataSize;
 };
 
-typedef std::map<size_t, std::queue<SRRequest>> SRRequests;
-
-class Participant {
-  public:
-    Participant(ClientSocket* mesgSocket, size_t rank);
-
-    const ClientSocket* getMesgSocket() const;
-    size_t getRank() const;
-    void pushSendRequest(ClientSocket* dataSocket, size_t dest, size_t size);
-    void pushRecvRequest(ClientSocket* dataSocket, size_t source, size_t size);
-    SRRequest popSendRequest(size_t dest);
-    SRRequest popRecvRequest(size_t source);
-    bool existsSendRequest(size_t dest) const;
-    bool existsRecvRequest(size_t source) const;
-
-  private:
-    ClientSocket* mesgSocket_;
-
-    std::mutex sendReqMtx_;
-    std::mutex recvReqMtx_;
-    // holds unfinished send tasks
-    SRRequests sendRequests_;
-    // holds unfinished receive tasks
-    SRRequests recvRequests_;
-
-    size_t rank_;
+struct SRQueue{
+  std::queue<SRRequest> sendQueue;
+  std::queue<SRRequest> recvQueue;
 };
+
+struct SRPair {
+  size_t senderRank;
+  size_t receiverRank;
+
+  bool operator<(const SRPair& other) const {
+    if(senderRank == other.senderRank )
+      return receiverRank < other.receiverRank;
+    return senderRank < other.senderRank;
+  }
+};
+
+// unfinished send and receive requests
+typedef std::map<SRPair, SRQueue> SRRequests;
 
 class Communicator {
+  friend class Intermediary; // only Intermediary can add new participants
+
   public:
+    Communicator(Intermediary& intermediary, int id);
+    ~Communicator();
+
     size_t getSize() const;
-    size_t addParticipant(ClientSocket* mesgSocket);
+    size_t getID() const ;
+
     Participant& getParticipant(size_t rank);
-    size_t getUniformReduceCounter();
-    void increaseGetUniformReduceCounter();
-    void resetGetUniformReduceCounter();
+
+    bool existsParticipant(size_t rank);
+
+    size_t increaseUniformReduceCounter();
+
+    void resetUniformReduceCounter();
+
+    bool processSendRequest(size_t senderRank, size_t recvRank,
+        SRRequest request);
+    bool processRecvRequest(size_t senderRank, size_t recvRank,
+        SRRequest request);
+
+
+    void routeData(SRRequest sender, SRRequest receiver);
 
   private:
-    std::mutex uniformReduceCounterMtx_;
-    std::mutex participantsMtx_;
+    int id_;
+    size_t aliveParticipants_ = 0; // counts the number of particpants != null
+    Intermediary& intermediary_;
+    std::mutex uniformReduceCounterMtx_, participantsMtx_;
 
     /*
      * Counts the distributedCombigrid files that have been written so far.
@@ -57,7 +77,26 @@ class Communicator {
 
     /*
      * Holds the participants of this communicator
-     * the position is the respecting rank.
+     * If a participant with rank r has finished work, it will be deallocated.
+     * Thus the value at index r becomes a nullpointer.
      */
-    std::vector<Participant> participants_;
+    std::vector<Participant*> participants_;
+
+    /* Holds unfinished send and receive tasks */
+    SRRequests srRequests_;
+    std::recursive_mutex srRequestsLock_;
+
+    void addParticipant(ClientSocket* mesgSocket);
+    void runParticipant(size_t rank);
+
+    bool existsSendRequest(size_t senderRank, size_t recvRank);
+    bool existsRecvRequest(size_t senderRank, size_t recvRank);
+
+    bool pushSendRequest(size_t senderRank, size_t recvRank, SRRequest request);
+    bool pushRecvRequest(size_t senderRank, size_t recvRank, SRRequest request);
+
+    SRRequest popSendRequest(size_t senderRank, size_t recvRank);
+    SRRequest popRecvRequest(size_t senderRank, size_t recvRank);
 };
+
+#endif
