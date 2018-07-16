@@ -39,7 +39,7 @@ done in SG++ will also be done for this project.
 Installation instructions: 
 --------------------------
 Compile with  
-scons -j 4 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CXX=mpic++.mpich OPT=1 
+scons -j 4 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CXX=mpic++ OPT=1 
 
 (The distributedcombigridmodule is completely independent from the other modules 
 now. It is not necessary any more to compile or link the combigrid module.)
