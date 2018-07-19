@@ -136,33 +136,50 @@ int main(int argc, char** argv) {
     manager.runfirst();
     Stats::stopEvent("manager run first");
 
+    std::cout << "active exp\n";
+    combischeme.printActive(std::cout);
+    std::cout << "levels exp\n";
+    combischeme.print(std::cout);
+    std::cout << "coeffs exp\n";
+    combischeme.printLevels(std::cout);
+
     for (size_t i = 0; i < ncombi; ++i) {
-     std::cout << "start get Expansion\n";
-      auto bestExpansionPair = manager.getBestExpansion();
-      std::cout << "Best Expansion: " << bestExpansionPair.second << " with error: " << bestExpansionPair.first << std::endl;
-      if(i < 10){
-          manager.addExpansion(bestExpansionPair.second);
-          combischeme.addExpansion(bestExpansionPair.second);
-          levels = combischeme.getCombiSpaces();
-          coeffs = combischeme.getCoeffs();
 
-          tasks.clear();
-          taskIDs.clear();
-          for (size_t i = 0; i < levels.size(); i++) {
-            Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i],
-                                      loadmodel, dt, nsteps, p);
-            tasks.push_back(t);
-            taskIDs.push_back( t->getID() );
-          }
-          params = CombiParameters(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,ncombi);
-          params.setParallelization(p);
-          manager.updateCombiParameters();
-      }
+        std::cout << "start get Expansion\n";
+         auto bestExpansionPair = manager.getBestExpansion();
+         std::cout << "Best Expansion: " << bestExpansionPair.second << " with error: " << bestExpansionPair.first << std::endl;
 
 
-      Stats::startEvent("combine");
-      manager.combine();
-      Stats::stopEvent("combine");
+         Stats::startEvent("combine");
+         manager.combine();
+         Stats::stopEvent("combine");
+
+         if(i < 10){
+             manager.addExpansion(bestExpansionPair.second);
+             combischeme.addExpansion(bestExpansionPair.second);
+             std::cout << "active exp\n";
+             combischeme.printActive(std::cout);
+             std::cout << "levels exp\n";
+             combischeme.print(std::cout);
+             std::cout << "coeffs exp\n";
+             combischeme.printLevels(std::cout);
+             levels = combischeme.getCombiSpaces();
+             coeffs = combischeme.getCoeffs();
+
+             tasks.clear();
+             taskIDs.clear();
+             for (size_t i = 0; i < levels.size(); i++) {
+               Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i],
+                                         loadmodel, dt, nsteps, p);
+               tasks.push_back(t);
+               taskIDs.push_back( t->getID() );
+             }
+             params = CombiParameters(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,ncombi);
+             params.setParallelization(p);
+             manager.setCombiParameters(params);
+             manager.updateCombiParameters();
+             manager.initNewScheme();
+         }
 
       // evaluate solution and
       // write solution to file
