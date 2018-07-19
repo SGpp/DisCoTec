@@ -36,6 +36,7 @@ const SignalType RESET_TASKS = 19;
 const SignalType BEST_EXPANSION = 20;
 const SignalType TASK_TO_PROC = 21;
 const SignalType ADD_EXPANSION = 22;
+const SignalType RUN_NEWTASK = 23;
 
 
 typedef int NormalizationType;

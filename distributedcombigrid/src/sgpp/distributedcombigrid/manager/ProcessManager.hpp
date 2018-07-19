@@ -37,6 +37,8 @@ class ProcessManager {
   bool
   runfirst();
 
+  bool runNewTasks();
+
   void
   exit();
 
@@ -81,6 +83,10 @@ class ProcessManager {
   void
   getGroupFaultIDs( std::vector< int>& faultsID, std::vector< ProcessGroupManagerID>& groupFaults );
 
+  void setCombiParameters(const CombiParameters& params){
+	  params_ = params;
+  }
+
   inline CombiParameters& getCombiParameters();
 
   void parallelEval( const LevelVector& leval,
@@ -109,6 +115,13 @@ class ProcessManager {
   void addExpansion(const LevelVector& vec);
 
   void sendTaskToProc();
+
+  void initNewScheme(){
+	  for(auto pgroup : pgroups_){
+		  pgroup->resetTasksWorker();
+	  }
+	  runNewTasks();
+  }
  private:
   ProcessGroupManagerContainer& pgroups_;
 

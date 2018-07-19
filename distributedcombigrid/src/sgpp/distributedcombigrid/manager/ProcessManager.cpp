@@ -49,6 +49,7 @@ bool ProcessManager::runfirst() {
 	bool group_failed = waitAllFinished();
 
 	sendTaskToProc();
+	std::cout << taskToProc.size() << " tp size\n";
 	// return true if no group failed
 	return !group_failed;
 }
@@ -64,6 +65,26 @@ bool ProcessManager::runnext() {
 	}
 
 	group_failed = waitAllFinished();
+	// return true if no group failed
+	return !group_failed;
+}
+
+bool ProcessManager::runNewTasks(){
+	// sort instances in decreasing order
+	std::sort(tasks_.begin(), tasks_.end(), compareInstances);
+	taskToProc.clear();
+
+	for (size_t i = 0; i < tasks_.size(); ++i) {
+		// wait for available process group
+		ProcessGroupManagerID g = wait();
+		taskToProc.emplace(tasks_[i]->getID(), g->getID());
+		// assign instance to group
+		g->runNewTask(tasks_[i]);
+	}
+	bool group_failed = waitAllFinished();
+
+	sendTaskToProc();
+	std::cout << taskToProc.size() << " tp size\n";
 	// return true if no group failed
 	return !group_failed;
 }
@@ -436,8 +457,6 @@ void ProcessManager::addExpansion(const LevelVector& vec){
 	for( auto p : pgroups_ ){
 		p->addExpansion(vec);
 	}
-
-	redistributeAll();
 }
 
 void ProcessManager::sendTaskToProc(){

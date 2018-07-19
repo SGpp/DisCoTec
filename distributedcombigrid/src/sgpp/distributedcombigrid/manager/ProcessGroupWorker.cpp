@@ -75,6 +75,37 @@ void ProcessGroupWorker::runFirst() {
 	Stats::stopEvent("worker run first");
 }
 
+void ProcessGroupWorker::runNewTask(){
+	Task* t;
+	// local root receives task
+	MASTER_EXCLUSIVE_SECTION{
+	Task::receive( &t,
+			theMPISystem()->getManagerRank(),
+			theMPISystem()->getGlobalComm() );
+}
+// broadcast task to other process of pgroup
+	Task::broadcast(&t, theMPISystem()->getMasterRank(),
+			theMPISystem()->getLocalComm());
+	MPI_Barrier(theMPISystem()->getLocalComm());
+	// add task to task storage
+	tasks_.push_back(t);
+	status_ = PROCESS_GROUP_BUSY;
+	// set currentTask
+	currentTask_ = tasks_.back();
+	// initalize task
+	Stats::startEvent("worker init");
+	currentTask_->init(theMPISystem()->getLocalComm());
+	t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
+	Stats::stopEvent("worker init");
+
+	currentTask_->getDistributedFullGrid().extractFromUniformSG(*(combinedUniDSGVector_.at(0)));
+
+	// execute task
+	Stats::startEvent("worker run first");
+	currentTask_->run(theMPISystem()->getLocalComm());
+	Stats::stopEvent("worker run first");
+}
+
 void ProcessGroupWorker::runNext() {
 	// this should not happen
 	//assert(tasks_.size() > 0);
@@ -198,6 +229,8 @@ SignalType ProcessGroupWorker::wait() {
     // reset finished status of all tasks
 		runNext();
 
+  } else if (signal == RUN_NEWTASK){
+	  	runNewTask();
   } else if (signal == ADD_TASK) { //add a new task to the process group
 		addTask();
   } else if (signal == RESET_TASKS) { //deleta all tasks (used in process recovery)
@@ -276,11 +309,14 @@ SignalType ProcessGroupWorker::wait() {
 	  LevelVector vec (combiScheme_.dim());
 
 	  MASTER_EXCLUSIVE_SECTION {
-	  MPI_Recv(vec.data(), vec.size(), MPI_INT, theMPISystem()->getManagerRank(),
+	  MPI_Recv(vec.data(), vec.size(), MPI_LONG, theMPISystem()->getManagerRank(),
 			  addExpansionTag, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+
+	  std::cout << "master received: " << vec << "\n";
 	  }
 
-	  MPI_Bcast(vec.data(), vec.size(), MPI_INT, 0, theMPISystem()->getLocalComm());
+
+	  MPI_Bcast(vec.data(), vec.size(), MPI_LONG, 0, theMPISystem()->getLocalComm());
 	  std::cout << "added Expansion: " << theMPISystem()->getWorldRank()<< "\n";
 	  combiScheme_.addExpansion(vec);
   } else if (signal == BEST_EXPANSION){
@@ -722,27 +758,19 @@ void ProcessGroupWorker::findBestExpansion(){
 	int messageTag = 1;
 	double bestError = -1;
 	LevelVector bestExpansion {};
+
 	for(const auto& activeNode : combiScheme_.getActiveNodes()){
 		for(DimType i = 0; i < combiScheme_.dim(); ++i){
 			LevelVector potExpansion = activeNode;
 			++potExpansion.at(i);
-			std::cout << "curr possible expansion: " << potExpansion << " index: "<< i << "\n";
-			if(!combiScheme_.isExpansion(potExpansion)){
-				continue;
-			}
-			std::cout << "curr expansion: " << i << "\n";
-
-			const auto& bwdNeighbour = combiScheme_.getCoeffBwdNeighbour(activeNode, i);
-
-			//if there exists no valid backward neighbour we don't do anything
-			//this should only happen for active nodes directly at a border
-			if(bwdNeighbour.empty()){
+			if(!combiScheme_.isExpansion(potExpansion) || combiScheme_.isBorder(activeNode, i)){
 				continue;
 			}
 
-			std::cout << "size: " << combiParameters_.getLevelsToIDs().size() << "\n";
-			const int bwdTaskID = combiParameters_.getID(bwdNeighbour);
-			const int activeTaskID = combiParameters_.getID(activeNode);
+			const auto cmpPair = combiScheme_.getPosNegPair(activeNode, i);
+			const int activeTaskID = combiParameters_.getID(cmpPair.first);
+			const int bwdTaskID = combiParameters_.getID(cmpPair.second);
+
 
 			//This calculation depends on the current implementation of then
 			//rank calculations in MPI System so it might break easily

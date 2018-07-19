@@ -58,11 +58,11 @@ public:
 		MPI_Comm_size(comm, &commSize_);
 		comm_ = comm;
 		boundary_ = boundary;
-		subspaces_.resize(levels_.size());
 		levels_ = scheme.getLevels();
+		subspaces_.resize(levels_.size());
 
 		for (size_t i = 0; i < levels_.size(); ++i)
-			subspaces_[i].level_ = levels_[i];
+			subspaces_.at(i).level_ = levels_.at(i);
 
 		setSizes();
 	}

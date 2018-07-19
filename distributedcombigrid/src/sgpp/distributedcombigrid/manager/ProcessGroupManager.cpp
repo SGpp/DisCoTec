@@ -30,8 +30,7 @@ bool ProcessGroupManager::runfirst(Task* t) {
   tasks_.push_back(t);
 
   // send runfirst_signal to pgroup
-  SignalType signal = RUN_FIRST;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  sendSignal(RUN_FIRST);
 
   // send task
   Task::send( &t, pgroupRootID_, theMPISystem()->getGlobalComm() );
@@ -66,6 +65,32 @@ bool ProcessGroupManager::runnext() {
 
   return true;
 }
+
+bool ProcessGroupManager::runNewTask(Task* t) {
+	  // first check status
+	  // tying to add a task to a busy group is an invalid operation
+	  // and should be avoided
+	  if (status_ != PROCESS_GROUP_WAIT)
+	    return false;
+
+	  // add task to list of tasks managed by this pgroup
+	  tasks_.push_back(t);
+
+	  // send runfirst_signal to pgroup
+	  sendSignal(RUN_NEWTASK);
+
+	  // send task
+	  Task::send( &t, pgroupRootID_, theMPISystem()->getGlobalComm() );
+
+	  // set status
+	  status_ = PROCESS_GROUP_BUSY;
+
+	  // start non-blocking MPI_IRecv to receive status
+	  recvStatus();
+
+	  // only return true if task successfully send to pgroup
+	  return true;
+	}
 
 bool ProcessGroupManager::exit() {
   // can only send exit signal when in wait state
@@ -300,7 +325,7 @@ void ProcessGroupManager::sendTaskToProc(const std::map<int, int>& taskToProc){
 void ProcessGroupManager::addExpansion(const LevelVector& expansion){
 	constexpr int addExpansionTag = 1235;
 	sendSignal(ADD_EXPANSION);
-	MPI_Send(expansion.data(), expansion.size(), MPI_INT, pgroupRootID_, addExpansionTag, theMPISystem()->getGlobalComm());
+	MPI_Send(expansion.data(), expansion.size(), MPI_LONG, pgroupRootID_, addExpansionTag, theMPISystem()->getGlobalComm());
 }
 
 

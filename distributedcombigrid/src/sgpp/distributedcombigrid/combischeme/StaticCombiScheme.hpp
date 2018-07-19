@@ -165,10 +165,6 @@ protected:
     if(faultTolerant){
     	makeFaultTolerant();
     }
-    std::cout << "combi: \n";
-    print(std::cout);
-    std::cout << "levels: \n";
-    printLevels(std::cout);
   }
 
   /**

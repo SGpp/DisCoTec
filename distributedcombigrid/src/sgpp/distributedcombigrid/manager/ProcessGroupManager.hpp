@@ -42,6 +42,8 @@ class ProcessGroupManager {
   bool
   runnext();
 
+  bool runNewTask(Task* t);
+
   bool
   exit();
 

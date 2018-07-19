@@ -112,6 +112,7 @@ class ProcessGroupWorker {
   std::map<int, int> taskToProc_;
 
 	void runFirst();
+	void runNewTask();
 	void runNext();
 	void addTask();
 	void recompute();
