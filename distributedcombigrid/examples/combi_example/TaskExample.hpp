@@ -22,9 +22,13 @@ class TaskExample: public Task {
   TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary,
               real coeff, LoadModel* loadModel, real dt,
               size_t nsteps, IndexVector p = IndexVector(0) ) :
-    Task(dim, l, boundary, coeff, loadModel), dt_(dt), nsteps_(
-      nsteps), p_(p), initialized_(false), stepsTotal_(0), dfg_(NULL) {
-  }
+    Task(dim, l, boundary, coeff, loadModel), 
+    dt_(dt), 
+    nsteps_(nsteps), 
+    p_(p), 
+    initialized_(false), 
+    stepsTotal_(0), 
+    dfg_(NULL) {}
 
   void init(CommunicatorType lcomm) {
     assert(!initialized_);
@@ -172,6 +176,11 @@ class TaskExample: public Task {
 
   }
 
+  ~TaskExample() {
+    if (dfg_ != NULL)
+      delete dfg_;
+  }
+
  protected:
   /* if there are local variables that have to be initialized at construction
    * you have to do it here. the worker processes will create the task using
@@ -182,10 +191,6 @@ class TaskExample: public Task {
     initialized_(false), stepsTotal_(1), dfg_(NULL) {
   }
 
-  ~TaskExample() {
-    if (dfg_ != NULL)
-      delete dfg_;
-  }
 
  private:
   friend class boost::serialization::access;

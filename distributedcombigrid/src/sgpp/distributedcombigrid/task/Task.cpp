@@ -18,10 +18,15 @@ Task::Task() {
 
 Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
     LoadModel* loadModel) :
-  dim_(dim), l_(l), boundary_(boundary), id_(count++), loadModel_(
-    loadModel), isFinished_(false) {
-  assert(dim_ > 0);
-  assert(l_.size() == dim_);
+  dim_(dim), 
+  l_(l), 
+  boundary_(boundary), 
+  id_(count++), 
+  loadModel_(loadModel), 
+  isFinished_(false) 
+{
+    assert(dim_ > 0);
+    assert(l_.size() == dim_);
 }
 
 Task::~Task() {

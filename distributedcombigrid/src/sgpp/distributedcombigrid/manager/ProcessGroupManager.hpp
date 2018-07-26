@@ -9,6 +9,8 @@
 #define PROCESSGROUPMANAGER_HPP_
 
 #include <vector>
+#include <string>
+#include <stdexcept>
 
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
@@ -144,6 +146,7 @@ inline StatusType ProcessGroupManager::waitStatus() {
 
 inline complex ProcessGroupManager::eval(const std::vector<real>& x) {
   //todo: implement
+  throw std::runtime_error("Not yet implemented: " + std::string(x.begin(), x.end()) + __FILE__ + " " + std::to_string( __LINE__ ));
   return complex(0.0, 0.0);
 }
 
