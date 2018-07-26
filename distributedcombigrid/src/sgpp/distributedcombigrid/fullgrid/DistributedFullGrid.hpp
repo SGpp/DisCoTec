@@ -1377,7 +1377,7 @@ class DistributedFullGrid {
 
   // write data to file using MPI-IO
   void writePlotFile(const char* filename) const{
-      int dim = getDimension();
+      auto dim = getDimension();
 
       // create subarray data type
       IndexVector sizes = getGlobalSizes();
@@ -1545,7 +1545,7 @@ class DistributedFullGrid {
 
     if( status == MPI_CART ){
       // check if process grid of comm uses the required ordering
-      int maxdims = procs_.size();
+      auto maxdims = procs_.size();
       std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
       MPI_Cart_get( comm, maxdims, &cartdims[0], &periods[0], &coords[0] );
 

@@ -152,7 +152,7 @@ void CombiMinMaxScheme::computeCombiCoeffsAdaptive(){
 }
 
 void CombiMinMaxScheme::computeCombiCoeffsClassical(){
-  for (size_t i = 0; i < combiSpaces_.size(); ++i) {
+  for (DimType i = 0; i < combiSpaces_.size(); ++i) {
     LevelType l1 = sum(combiSpaces_[i]);
     LevelType p = n_ - l1;
     // Classical combination coefficients

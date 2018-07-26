@@ -1544,10 +1544,10 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     idxstart += 1;
 
   // last global index inside subdomain.
-  IndexType idxend = dfg.getUpperBounds()[dim] - 1;
+  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
 
   // level of gend
-  LevelType level_idxend = dfg.getLevel(dim, idxend);
+  // LevelType level_idxend = dfg.getLevel(dim, idxend);
   IndexType linIdxBlockStart;
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
@@ -1932,8 +1932,8 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     idxstart += 1;
 
   // last global index inside subdomain and corresponding level
-  IndexType idxend = dfg.getUpperBounds()[dim] - 1;
-  LevelType level_idxend = dfg.getLevel(dim, idxend);
+  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
+  // LevelType level_idxend = dfg.getLevel(dim, idxend);
 
   for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) { // integer operations form bottleneck here -- nested loops are twice as slow
