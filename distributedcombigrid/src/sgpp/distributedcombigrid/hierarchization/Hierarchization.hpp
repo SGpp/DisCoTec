@@ -103,6 +103,7 @@ class Hierarchization {
       }
     }
 
+    // end dimension 1
     for (DimType dim = 1; dim < d; dim++) { // hierarchize for all dims
       stride *= ndim;
       ndim = n[dim];

@@ -133,10 +133,14 @@ vars.Add(BoolVariable("USE_GMMPP", "Set if Gmm++ should be used " +
                                    "(only relevant for sgpp::optimization)", False))
 vars.Add(BoolVariable("USE_UMFPACK", "Set if UMFPACK should be used " +
                                      "(only relevant for sgpp::optimization)", False))
+vars.Add(BoolVariable("DEBUG_OUTPUT", "Set if you want to have additional output for debugging ", False))
 vars.Add(BoolVariable("BUILD_STATICLIB", "Set if static libraries should be built " +
                                          "instead of shared libraries", False))
 vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing SG++", True))
-vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "1")
+vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', '/usr/include')
+vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', '/usr/lib/x86_64-linux-gnu')
+vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
+
 
 # create temporary environment to check which system and compiler we should use
 # (the Environment call without "tools=[]" crashes with MinGW,

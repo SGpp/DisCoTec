@@ -31,6 +31,9 @@ const SignalType RECOMPUTE = 14;
 const SignalType CHECK_DEAD_PROCS = 15; // check for dead workers
 const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
+const SignalType DO_NOTHING = 18;
+const SignalType RESET_TASKS = 19;
+
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;

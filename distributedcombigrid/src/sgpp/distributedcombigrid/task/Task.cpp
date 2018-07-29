@@ -13,20 +13,16 @@
 
 namespace combigrid {
 
-Task::Task() {
+Task::Task():
+    isFinished_(false){
 }
 
 Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-    LoadModel* loadModel) :
-  dim_(dim), 
-  l_(l), 
-  boundary_(boundary), 
-  id_(count++), 
-  loadModel_(loadModel), 
-  isFinished_(false) 
-{
-    assert(dim_ > 0);
-    assert(l_.size() == dim_);
+    LoadModel* loadModel, FaultCriterion *faultCrit) :
+  dim_(dim), l_(l), boundary_(boundary), id_(count++), loadModel_(
+    loadModel), isFinished_(false), faultCriterion_(faultCrit){
+  assert(dim_ > 0);
+  assert(l_.size() == dim_);
 }
 
 Task::~Task() {

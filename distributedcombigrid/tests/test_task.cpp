@@ -7,6 +7,7 @@
 #include <vector>
 
 #include <boost/serialization/export.hpp>
+#include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 
@@ -21,7 +22,7 @@ public:
     Task(dim, l, boundary, coeff, loadModel), test(t) {
   }
 
-  void init(CommunicatorType lcomm) {
+  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     // create dummy dfg
     IndexVector p(getDim(), 1);
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(),
@@ -32,11 +33,11 @@ public:
   }
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r,
-                   CommunicatorType lcomm) {
+                   CommunicatorType lcomm, int n = 0) {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid() {
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) {
     return *dfg_;
   }
 

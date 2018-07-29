@@ -15,6 +15,7 @@
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/LPOptimizationInterpolation.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 
 namespace combigrid {
@@ -60,16 +61,45 @@ class ProcessManager {
   inline void
   gridEval(FullGrid<FG_ELEMENT>& fg);
 
+  /* Generates no_faults random faults from the combischeme */
+  inline void
+  createRandomFaults( std::vector<int>& faultIds, int no_faults );
+
+  inline void
+  recomputeOptimumCoefficients( std::string prob_name,
+                                std::vector<int>& faultsID,
+                                std::vector<int>& redistributefaultsID,
+                                std::vector<int>& recomputeFaultsID);
+
   inline Task* getTask( int taskID );
 
   void
   updateCombiParameters();
+
+
+  /* Computes group faults in current combi scheme step */
+  void
+  getGroupFaultIDs( std::vector< int>& faultsID, std::vector< ProcessGroupManagerID>& groupFaults );
 
   inline CombiParameters& getCombiParameters();
 
   void parallelEval( const LevelVector& leval,
                                      std::string& filename,
                                      size_t groupID );
+  
+  void redistribute( std::vector<int>& taskID );
+
+  void reInitializeGroup( std::vector< ProcessGroupManagerID>& taskID, std::vector<int>& tasksToIgnore  );
+
+  void recompute( std::vector<int>& taskID, bool failedRecovery, std::vector< ProcessGroupManagerID>& recoveredGroups );
+
+  void recover(int i, int nsteps);
+
+  bool recoverCommunicators(std::vector< ProcessGroupManagerID> failedGroups);
+  /* After faults have been fixed, we need to return the combischeme
+   * to the original combination technique*/
+  void restoreCombischeme();
+
 
  private:
   ProcessGroupManagerContainer& pgroups_;
@@ -81,7 +111,7 @@ class ProcessManager {
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
   inline ProcessGroupManagerID wait();
-
+  inline ProcessGroupManagerID waitAvoid( std::vector< ProcessGroupManagerID>& avoidGroups);
   bool waitAllFinished();
 };
 
@@ -93,8 +123,29 @@ inline void ProcessManager::addTask(Task* t) {
 inline ProcessGroupManagerID ProcessManager::wait() {
   while (true) {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+      StatusType status = pgroups_[i]->getStatus();
+//      std::cout << status << " is the status of : "<< i << "\n";
+      assert(status >= 0); //check for invalid values
+      assert(status <= 2);
+      if (status == PROCESS_GROUP_WAIT){
         return pgroups_[i];
+      }
+    }
+  }
+}
+
+inline ProcessGroupManagerID ProcessManager::waitAvoid( std::vector< ProcessGroupManagerID>& avoidGroups) {
+  while (true) {
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (std::find(avoidGroups.begin(), avoidGroups.end(), pgroups_[i]) == avoidGroups.end()){//ignore tasks that are recomputed
+        StatusType status = pgroups_[i]->getStatus();
+        //      std::cout << status << " is the status of : "<< i << "\n";
+        assert(status >= 0); //check for invalid values
+        assert(status <= 2);
+        if (status == PROCESS_GROUP_WAIT){
+          return pgroups_[i];
+        }
+      }
     }
   }
 }
@@ -219,6 +270,97 @@ CombiParameters& ProcessManager::getCombiParameters() {
 }
 
 
+/*
+ * Create a certain given number of random faults, considering that the faulty processes
+ * simply cannot give the evaluation results, but they are still available in the MPI
+ * communication scheme (the nodes are not dead)
+ */
+inline void
+ProcessManager::createRandomFaults( std::vector<int>& faultIds, int no_faults ) {
+  int fault_id;
+
+  // create random faults
+  int j = 0;
+  while (j < no_faults) {
+    fault_id = generate_random_fault( static_cast<int>( params_.getNumLevels() ) );
+    if (j == 0 || std::find(faultIds.begin(), faultIds.end(), fault_id) == faultIds.end()){
+      faultIds.push_back(fault_id);
+      j++;
+    }
+  }
+}
+
+/*
+ * Recompute coefficients for the combination technique based on given grid faults using
+ * an optimization scheme
+ */
+inline void
+ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
+                            std::vector<int>& faultsID,
+                            std::vector<int>& redistributeFaultsID,
+                            std::vector<int>& recomputeFaultsID) {
+
+  CombigridDict given_dict = params_.getCombiDict();
+
+  std::map<int, LevelVector> IDsToLevels = params_.getLevelsDict();
+  LevelVectorList faultLevelVectors;
+  for (auto id : faultsID)
+    faultLevelVectors.push_back(IDsToLevels[id]);
+
+
+  LevelVectorList lvlminmax;
+  lvlminmax.push_back(params_.getLMin());
+  lvlminmax.push_back(params_.getLMax());
+  LP_OPT_INTERP opt_interp(lvlminmax,static_cast<int>(params_.getDim()),GLP_MAX,given_dict,faultLevelVectors);
+  if ( opt_interp.getNumFaults() != 0 ) {
+
+    opt_interp.init_opti_prob(prob_name);
+    opt_interp.set_constr_matrix();
+    opt_interp.solve_opti_problem();
+
+    LevelVectorList recomputeLevelVectors;
+    CombigridDict new_dict = opt_interp.get_results(recomputeLevelVectors);
+
+    LevelVectorList newLevels;
+    std::vector<real> newCoeffs;
+    std::vector<int> newTaskIDs;
+
+    int numLevels = int(params_.getNumLevels());
+    for( int i = 0; i < numLevels; ++i ){
+      LevelVector lvl = params_.getLevel(i);
+
+      newLevels.push_back(lvl);
+      newCoeffs.push_back(new_dict[lvl]);
+      newTaskIDs.push_back(i);
+    }
+    //check if sum of coefficients is 1
+    double sum;
+    std::cout << "new coefficients: ";
+    for(int i = 0; i < newCoeffs.size(); i++){
+      sum+=newCoeffs[i];
+      std::cout << newCoeffs[i] << " ";
+    }
+    std::cout << "\n";
+    int roundedSum = round(sum);
+    std::cout <<"Coefficient sum: " << roundedSum<< "\n";
+
+    assert(roundedSum==1);
+    params_.setLevelsCoeffs(newTaskIDs, newLevels, newCoeffs);
+
+    std::map<LevelVector, int> LevelsToIDs = params_.getLevelsToIDs();
+    for(auto l : recomputeLevelVectors){
+      recomputeFaultsID.push_back(LevelsToIDs[l]);
+    }
+
+    std::sort(faultsID.begin(), faultsID.end());
+    std::sort(recomputeFaultsID.begin(), recomputeFaultsID.end());
+
+    std::set_difference(faultsID.begin(), faultsID.end(),
+                        recomputeFaultsID.begin(), recomputeFaultsID.end(),
+                        std::inserter(redistributeFaultsID, redistributeFaultsID.begin()));
+  }
+}
+
 inline Task*
 ProcessManager::getTask( int taskID ){
 
@@ -229,6 +371,7 @@ ProcessManager::getTask( int taskID ){
   }
   return nullptr;
 }
+
 
 } /* namespace combigrid */
 #endif /* PROCESSMANAGER_HPP_ */

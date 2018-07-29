@@ -20,7 +20,7 @@ class MPIUtils {
 
  public:
   template<typename T>
-  static void sendClass(T* t, RankType dst, CommunicatorType comm) {
+  static void sendClass( T* t, RankType dst, CommunicatorType comm) {
     // save data to archive
     std::stringstream ss;
     {

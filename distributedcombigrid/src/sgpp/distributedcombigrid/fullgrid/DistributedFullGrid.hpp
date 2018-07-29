@@ -208,7 +208,8 @@ class DistributedFullGrid {
   }
 
   virtual ~DistributedFullGrid() {
-    //todo: remove communicators?
+    //todo: remove communicators? Yes -> Done
+    MPI_Comm_free(&communicator_);
   }
 
   /** evaluates the full grid on the specified coordinates
@@ -683,6 +684,7 @@ class DistributedFullGrid {
           partitionCoords[d] = i;
       }
 
+      // check whether the partition coordinates are valid
       assert( partitionCoords[d] > -1 && partitionCoords[d] < procs_[d] );
     }
   }
@@ -949,6 +951,7 @@ class DistributedFullGrid {
 
       assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
+      // copy add grid point to subspace, mul with coeff
       fullgridVector_[i] = *it_sub[subFgId];
 
       ++it_sub[subFgId];
@@ -1434,6 +1437,9 @@ class DistributedFullGrid {
       MPI_File_close(&fh);
     }
 
+  std::vector<IndexVector>& getDecomposition(){
+    return decomposition_;
+  }
 
  private:
   /** dimension of the full grid */

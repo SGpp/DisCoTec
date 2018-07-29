@@ -31,8 +31,8 @@ typedef std::complex<real> complex;
  * have not been tested and operations on the grids like evaluation or
  * hierarchization might produce unexpected results.
  */
-typedef real CombiDataType;
-//typedef complex CombiDataType;
+//typedef real CombiDataType;
+typedef complex CombiDataType;
 
 
 /* nonblocking mpi collective calls (MPI_Iallreduce and the likes) usually yield
@@ -47,7 +47,7 @@ const bool USE_NONBLOCKING_MPI_COLLECTIVE = true;
  * process is in the application code. in this case this flag can be set to
  * true to avoid that the ready signal is sent automatically.
  */
-const bool omitReadySignal = false;
+const bool omitReadySignal = true;
 
 
 /* using a uniform domain decomposition for all component grids (the same
@@ -58,6 +58,11 @@ const bool omitReadySignal = false;
  */
 const bool uniformDecomposition = true;
 
+/* switch on fault tolerance functionality */
+const bool ENABLE_FT = true;
+const bool isGENE = true;
+//const bool GENE_Global = true;
+//const bool GENE_Linear = true;
 }
 
 
