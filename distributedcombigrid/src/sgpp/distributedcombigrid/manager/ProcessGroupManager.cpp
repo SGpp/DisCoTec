@@ -88,6 +88,8 @@ bool ProcessGroupManager::runNewTask(Task* t) {
 	  // start non-blocking MPI_IRecv to receive status
 	  recvStatus();
 
+	  std::cout << "status "  << this->getID() << " : " << status_ << "\n";
+
 	  // only return true if task successfully send to pgroup
 	  return true;
 	}
@@ -305,6 +307,12 @@ bool ProcessGroupManager::recoverCommunicators(){
 
 void ProcessGroupManager::startBestExpansion(){
 	sendSignal(BEST_EXPANSION);
+
+	  // set status
+	  status_ = PROCESS_GROUP_BUSY;
+
+	  // start non-blocking MPI_IRecv to receive status
+	  recvStatus();
 }
 
 std::pair<double, LevelVector> ProcessGroupManager::getBestExpansion(DimType dim){
@@ -320,12 +328,24 @@ std::pair<double, LevelVector> ProcessGroupManager::getBestExpansion(DimType dim
 void ProcessGroupManager::sendTaskToProc(const std::map<int, int>& taskToProc){
 	sendSignal(TASK_TO_PROC);
 	MPIUtils::sendClass(&taskToProc, pgroupRootID_, theMPISystem()->getGlobalComm());
+
+	  // set status
+	  status_ = PROCESS_GROUP_BUSY;
+
+	  // start non-blocking MPI_IRecv to receive status
+	  recvStatus();
 }
 
 void ProcessGroupManager::addExpansion(const LevelVector& expansion){
 	constexpr int addExpansionTag = 1235;
 	sendSignal(ADD_EXPANSION);
 	MPI_Send(expansion.data(), expansion.size(), MPI_LONG, pgroupRootID_, addExpansionTag, theMPISystem()->getGlobalComm());
+
+	  // set status
+	  status_ = PROCESS_GROUP_BUSY;
+
+	  // start non-blocking MPI_IRecv to receive status
+	  recvStatus();
 }
 
 

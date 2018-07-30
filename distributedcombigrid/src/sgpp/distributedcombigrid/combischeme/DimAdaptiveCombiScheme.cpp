@@ -113,8 +113,6 @@ void DimAdaptiveCombiScheme::generateActiveNodes(){
 			activeNodes.push_back(grid);
 		}
 	}
-	std::cout << "active:\n";
-	printActive(std::cout);
 }
 
 

@@ -42,6 +42,7 @@ bool ProcessManager::runfirst() {
 	for (size_t i = 0; i < tasks_.size(); ++i) {
 		// wait for available process group
 		ProcessGroupManagerID g = wait();
+		std::cout << "id: " << g->getID() << "\n";
 		taskToProc.emplace(tasks_[i]->getID(), g->getID());
 		// assign instance to group
 		g->runfirst(tasks_[i]);
@@ -76,7 +77,10 @@ bool ProcessManager::runNewTasks(){
 
 	for (size_t i = 0; i < tasks_.size(); ++i) {
 		// wait for available process group
+		std::cout << "status0: " << pgroups_[0]->getStatus() << "\n";
+		std::cout << "status1: " << pgroups_[1]->getStatus() << "\n";
 		ProcessGroupManagerID g = wait();
+		std::cout << "id: " << g->getID() << "\n";
 		taskToProc.emplace(tasks_[i]->getID(), g->getID());
 		// assign instance to group
 		g->runNewTask(tasks_[i]);
@@ -434,6 +438,7 @@ void ProcessManager::parallelEval( const LevelVector& leval,
 }
 
 std::pair<double, LevelVector> ProcessManager::getBestExpansion(){
+	waitAllFinished();
 	std::pair<double, LevelVector> currPair
 	{- std::numeric_limits<double>::infinity(), LevelVector {}};
 

@@ -104,7 +104,6 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 	  }
 	  assert(!posIndex <= combiSpaces_.size());
 	  LevelVector posGrid = combiSpaces_.at(posIndex);
-	  std::cout << "positive: " << posGrid << "\n";
 	  maxLevel = std::numeric_limits<int>::min();
 	  size_t negIndex = std::numeric_limits<size_t>::max();
 	  for(size_t i = 0; i < combiSpaces_.size(); ++i){
@@ -115,7 +114,6 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 		  }
 	  }
 	  assert(!negIndex <= combiSpaces_.size());
-		std::cout << "negative: " << combiSpaces_.at(negIndex) << "\n";
 
 	  return std::make_pair(std::move(posGrid), combiSpaces_.at(negIndex));
   }

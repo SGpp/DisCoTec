@@ -120,6 +120,7 @@ class ProcessManager {
 	  for(auto pgroup : pgroups_){
 		  pgroup->resetTasksWorker();
 	  }
+	  waitAllFinished();
 	  runNewTasks();
   }
  private:

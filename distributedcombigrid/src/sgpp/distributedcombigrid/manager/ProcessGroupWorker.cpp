@@ -21,6 +21,8 @@
 #include <string>
 #include <iostream>
 #include <algorithm>
+#include <chrono>
+#include <thread>
 
 namespace combigrid {
 
@@ -76,6 +78,8 @@ void ProcessGroupWorker::runFirst() {
 }
 
 void ProcessGroupWorker::runNewTask(){
+	std::this_thread::sleep_for(std::chrono::seconds {1});
+	std::cout << "dummytest\n";
 	Task* t;
 	// local root receives task
 	MASTER_EXCLUSIVE_SECTION{
@@ -205,13 +209,11 @@ SignalType ProcessGroupWorker::wait() {
 
   MASTER_EXCLUSIVE_SECTION {
     // receive signal from manager
-	    std::cout << "recv signal\n";
     MPI_Recv( &signal, 1, MPI_INT,
               theMPISystem()->getManagerRank(),
               signalTag,
               theMPISystem()->getGlobalComm(),
               MPI_STATUS_IGNORE);
-    std::cout << "bcast signal: " << signal << "\n";
   }
   // distribute signal to other processes of pgroup
   MPI_Bcast( &signal, 1, MPI_INT,
@@ -768,6 +770,8 @@ void ProcessGroupWorker::findBestExpansion(){
 			}
 
 			const auto cmpPair = combiScheme_.getPosNegPair(activeNode, i);
+			std::cout << "active: " << cmpPair.first << "\n";
+			std::cout << "bwd: " << cmpPair.second << "\n";;
 			const int activeTaskID = combiParameters_.getID(cmpPair.first);
 			const int bwdTaskID = combiParameters_.getID(cmpPair.second);
 
@@ -786,7 +790,6 @@ void ProcessGroupWorker::findBestExpansion(){
 			if(activeNodeOwned){
 				std::vector<CombiDataType> activeSubGrid {};
 				std::vector<CombiDataType> bwdSubGrid {};
-				double activeGridPoints = 1;
 				if(bwdNeighOwned){ //The proc itself owns both tasks
 					Task *activeNodeTask = getTask(activeTaskID);
 					Task *bwdNeighTask = getTask(bwdTaskID);
@@ -801,13 +804,16 @@ void ProcessGroupWorker::findBestExpansion(){
 				}
 
 				double error = 0;
-				if(activeSubGrid.size() != 0){
-					error = std::inner_product(activeSubGrid.begin(), activeSubGrid.end(),
-						bwdSubGrid.begin(), error,
-						[](CombiDataType el1, CombiDataType el2){
-							return std::abs(el1-el2);
-						}, std::plus<CombiDataType>());
-					error /= activeGridPoints;
+				if(!activeSubGrid.empty()){
+					assert(activeSubGrid.size() == bwdSubGrid.size());
+					const double expansionGridPoints = std::accumulate(std::begin(potExpansion), std::end(potExpansion), 1, std::multiplies<double>{});
+					for(int i = 0; i < bwdSubGrid.size(); ++i){
+						std::cout << "bwdSubGrid: " << bwdSubGrid.at(i) << "\n";
+						std::cout << "activeSubGrid: " << activeSubGrid.at(i) << "\n";
+						error += std::abs(bwdSubGrid.at(i) - activeSubGrid.at(i));
+					}
+					std::cout << "error: " << error << "\n";
+					error /= expansionGridPoints;
 				}
 				MASTER_EXCLUSIVE_SECTION{
 					MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, 0, theMPISystem()->getLocalComm());
