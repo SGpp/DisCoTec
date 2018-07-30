@@ -87,11 +87,18 @@ class TaskExample: public Task {
     /* loop over local subgrid and set initial values */
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
 
-    for (size_t i = 0; i < elements.size(); ++i) {
-      IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
-      std::vector<real> globalCoords(dim);
-      dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
-      elements[i] = TaskExample::myfunction(globalCoords, 0.0);
+    phi_.resize(elements.size());
+    assert(phi_.size() == elements.size());
+
+    for (IndexType li = 0; li < elements.size(); ++li) {
+      std::vector<double> coords(this->getDim());
+      dfg_->getCoordsGlobal(li, coords);
+
+      double exponent = 0;
+      for (DimType d = 0; d < this->getDim(); ++d) {
+        exponent -= std::pow(coords.at(d) - 0.5, 2);
+      }
+      dfg_->getElementVector().at(li) = std::exp(exponent*100.0) * 2;
     }
 
     initialized_ = true;
@@ -104,6 +111,7 @@ class TaskExample: public Task {
    * important: don't forget to set the isFinished flag at the end of the computation.
    */
   void run(CommunicatorType lcomm) {
+    std::cout << "run my task\n";
     assert(initialized_);
 
     int lrank;
@@ -111,17 +119,46 @@ class TaskExample: public Task {
 
     /* pseudo timestepping to demonstrate the behaviour of your typical
      * time-dependent simulation problem. */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+     std::vector<CombiDataType> u(this->getDim(), 0.0000001);
 
-    for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
-      real time = step * dt_;
+     // gradient of phi
+     std::vector<CombiDataType> dphi(this->getDim());
 
-      for (size_t i = 0; i < elements.size(); ++i) {
-        IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
-        std::vector<real> globalCoords(this->getDim());
-        dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
-        elements[i] = TaskExample::myfunction(globalCoords, time);
-      }
+     std::vector<IndexType> l(this->getDim());
+     std::vector<double> h(this->getDim());
+
+     for (int i = 0; i < this->getDim(); i++){
+       l[i] = dfg_->length(i);
+       h[i] = 1.0 / (double)l[i];
+     }
+
+     for (size_t i = 0; i < nsteps_; ++i) {
+       phi_.swap(dfg_->getElementVector());
+
+       for (IndexType li = 0; li < dfg_->getElementVector().size(); ++li) {
+         IndexVector ai(this->getDim());
+         dfg_->getGlobalVectorIndex(li, ai);
+
+         //neighbour
+         std::vector<IndexVector> ni(this->getDim(), ai);
+         std::vector<IndexType> lni(this->getDim());
+
+         CombiDataType u_dot_dphi = 0;
+
+         for(int j = 0; j < this->getDim(); j++){
+           ni[j][j] = (l[j] + ni[j][j] - 1) % l[j];
+           lni[j] = dfg_->getGlobalLinearIndex(ni[j]);
+         }
+
+         for(int j = 0; j < this->getDim(); j++){
+           //calculate gradient of phi with backward differential quotient
+           dphi.at(j) = (phi_.at(li) - phi_.at(lni.at(j))) / h.at(j);
+
+           u_dot_dphi += u[j] * dphi[j];
+         }
+
+         dfg_->getData()[li] = phi_[li] - u_dot_dphi * dt_;
+       }
 
       MPI_Barrier(lcomm);
     }
@@ -149,24 +186,6 @@ class TaskExample: public Task {
     return *dfg_;
   }
 
-  static real myfunction(std::vector<real>& coords, real t) {
-    real u = std::cos(M_PI * t);
-
-    for ( size_t d = 0; d < coords.size(); ++d )
-      u *= std::cos( 2.0 * M_PI * coords[d] );
-
-    return u;
-
-    /*
-    double res = 1.0;
-    for (size_t i = 0; i < coords.size(); ++i) {
-      res *= -4.0 * coords[i] * (coords[i] - 1);
-    }
-
-
-    return res;
-    */
-  }
 
   void setZero(){
 
@@ -199,6 +218,7 @@ class TaskExample: public Task {
   bool initialized_;
   size_t stepsTotal_;
   DistributedFullGrid<CombiDataType>* dfg_;
+  std::vector<CombiDataType> phi_;
 
   /**
    * The serialize function has to be extended by the new member variables.

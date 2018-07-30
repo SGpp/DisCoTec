@@ -154,6 +154,16 @@ int main(int argc, char** argv) {
          manager.combine();
          Stats::stopEvent("combine");
 
+
+      // evaluate solution and
+      // write solution to file
+      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat" );
+      Stats::startEvent("manager write solution");
+      manager.parallelEval( leval, filename, 0 );
+      Stats::stopEvent("manager write solution");
+
+      std::cout << "run until combination point " << i+1 << std::endl;
+
          if(i < 10){
              manager.addExpansion(bestExpansionPair.second);
              combischeme.addExpansion(bestExpansionPair.second);
@@ -179,21 +189,12 @@ int main(int argc, char** argv) {
              manager.setCombiParameters(params);
              manager.updateCombiParameters();
              manager.initNewScheme();
-         }
-
-      // evaluate solution and
-      // write solution to file
-      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat" );
-      Stats::startEvent("manager write solution");
-      manager.parallelEval( leval, filename, 0 );
-      Stats::stopEvent("manager write solution");
-
-      std::cout << "run until combination point " << i+1 << std::endl;
-
+         } else {
       // run tasks for next time interval
       Stats::startEvent("manager run");
       manager.runnext();
       Stats::stopEvent("manager run");
+         }
     }
 
     // send exit signal to workers in order to enable a clean program termination
