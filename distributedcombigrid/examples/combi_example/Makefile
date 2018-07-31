@@ -1,4 +1,4 @@
-CC=mpic++
+CC=mpicxx.mpich
 CFLAGS=-std=c++11 -g -fopenmp -Wall -Wextra -Wno-unused-local-typedefs 
 
 SGPP_DIR=/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/
