@@ -6,19 +6,20 @@
 
 class TestHelper {
   static constexpr double tolerance = 1e-12;
-public:
+
+ public:
   static bool checkNumProcs(int nprocs) {
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     return size >= nprocs;
   }
 
-  template<class T>
+  template <class T>
   static bool equals(const T& a, const T& b) {
     return std::abs(a - b) <= tolerance;
   }
-  
-  template<class T>
+
+  template <class T>
   static bool equals(const T& a, const T& b, double tol) {
     return std::abs(a - b) <= tol;
   }
@@ -43,4 +44,4 @@ public:
   }
 };
 
-#endif // TEST_HELPER_HPP
+#endif  // TEST_HELPER_HPP

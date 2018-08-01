@@ -1,18 +1,17 @@
 #ifndef STATS_HPP_
 #define STATS_HPP_
 
-#include <iostream>
-#include <string>
-#include <sstream>
-#include <unordered_map>
-#include <vector>
 #include <assert.h>
+#include <mpi.h>
 #include <unistd.h>
 #include <chrono>
 #include <fstream>
-#include <mpi.h>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
-
 
 /* comment this line to switch of timing */
 //#define TIMING
@@ -35,7 +34,7 @@ class Stats {
   static std::unordered_map<std::string, std::vector<Event>> event_;
   static std::unordered_map<std::string, std::string> attributes_;
 
-public:
+ public:
   /**
    * use at the start of the program
    */
@@ -135,15 +134,13 @@ inline void Stats::write(const std::string& path) {
   buffer << "\"events\":{" << std::endl;
   std::size_t event_count = 0;
   for (auto&& t = event_.begin(); t != event_.end(); ++t) {
-    buffer << "\"" << t->first << "\"" << ":[" << std::endl;
+    buffer << "\"" << t->first << "\""
+           << ":[" << std::endl;
 
     std::size_t element_count = 0;
     for (auto&& e = t->second.begin(); e != t->second.end(); ++e) {
-      buffer << "["
-          << duration_cast<microseconds>(e->start - init_time_).count()
-          << ","
-          << duration_cast<microseconds>(e->end - init_time_).count()
-          << "]";
+      buffer << "[" << duration_cast<microseconds>(e->start - init_time_).count() << ","
+             << duration_cast<microseconds>(e->end - init_time_).count() << "]";
       if (++element_count != t->second.size()) {
         buffer << "," << std::endl;
       } else {
@@ -159,7 +156,7 @@ inline void Stats::write(const std::string& path) {
   }
   buffer << "}" << std::endl << "}";
 
-  if (rank != size-1) {
+  if (rank != size - 1) {
     buffer << "," << std::endl;
   } else {
     buffer << std::endl << "}" << std::endl;
@@ -177,34 +174,31 @@ inline void Stats::write(const std::string& path) {
 
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
   MPI_Info info = MPI_INFO_NULL;
-  if (file_len > 4*1024*1024 || 256 < size) {
-      MPI_Info_create (&info);
-      MPI_Info_set (info, "cb_align", "2");
-      MPI_Info_set (info, "cb_nodes_list", "*:*");
-      MPI_Info_set (info, "direct_io", "false");
-      MPI_Info_set (info, "romio_ds_read", "disable");
-      MPI_Info_set (info, "romio_ds_write", "disable");
-      MPI_Info_set (info, "cb_nodes", "8");
+  if (file_len > 4 * 1024 * 1024 || 256 < size) {
+    MPI_Info_create(&info);
+    MPI_Info_set(info, "cb_align", "2");
+    MPI_Info_set(info, "cb_nodes_list", "*:*");
+    MPI_Info_set(info, "direct_io", "false");
+    MPI_Info_set(info, "romio_ds_read", "disable");
+    MPI_Info_set(info, "romio_ds_write", "disable");
+    MPI_Info_set(info, "cb_nodes", "8");
   }
 
   // open file
   MPI_File fh;
   int err = MPI_File_open(worldComm, path.c_str(),
-                          MPI_MODE_CREATE|MPI_MODE_WRONLY|MPI_MODE_EXCL,
-                          info, &fh);
-  if (err != MPI_SUCCESS)  {
+                          MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, info, &fh);
+  if (err != MPI_SUCCESS) {
     // file already existed, delete it and create new file
     if (rank == 0) {
       MPI_File_delete(path.c_str(), MPI_INFO_NULL);
     }
-    MPI_File_open(worldComm, path.c_str(),
-                  MPI_MODE_CREATE|MPI_MODE_EXCL|MPI_MODE_WRONLY,
-                  info, &fh);
+    MPI_File_open(worldComm, path.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY, info,
+                  &fh);
   }
 
   // write to single file with MPI-IO
-  MPI_File_write_at_all(fh, pos, buffer.str().c_str(), (int)len, MPI_CHAR,
-                        MPI_STATUS_IGNORE);
+  MPI_File_write_at_all(fh, pos, buffer.str().c_str(), (int)len, MPI_CHAR, MPI_STATUS_IGNORE);
   MPI_File_close(&fh);
 }
 #else
@@ -215,8 +209,7 @@ inline void Stats::stopEvent(const std::string& name) {}
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {}
 inline void Stats::write(const std::string& path) {}
 #endif
-
 }
-//end namespace combigrid
+// end namespace combigrid
 
 #endif /* STATS_HPP_ */

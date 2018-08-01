@@ -5,8 +5,8 @@
 
 namespace combigrid {
 
-class LP_OPT_INTERP: public LP_OPT {
-private:
+class LP_OPT_INTERP : public LP_OPT {
+ private:
   /* levels of grid indices */
   LevelVectorList i_levels;
   /* top level of grid indices*/
@@ -30,7 +30,7 @@ private:
   /* level max sum */
   IndexType l_max;
 
-  //  total size of the optimization problem 
+  //  total size of the optimization problem
   /* down set size */
   int size_downset;
 
@@ -54,11 +54,11 @@ private:
   /* faults that have to be recomputed */
   mutable LevelVectorList recompute_faults;
 
-public:
+ public:
   LP_OPT_INTERP();
 
   LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim, const int& _opt_type,
-      const CombigridDict& _given_downset, const LevelVectorList& _input_faults);
+                const CombigridDict& _given_downset, const LevelVectorList& _input_faults);
 
   LP_OPT_INTERP(const LP_OPT_INTERP& obj);
 
@@ -74,7 +74,7 @@ public:
 
   virtual void solve_opti_problem() const;
 
-  virtual CombigridDict get_results( LevelVectorList& recomp_faults ) const;
+  virtual CombigridDict get_results(LevelVectorList& recomp_faults) const;
 
   virtual ~LP_OPT_INTERP();
 };

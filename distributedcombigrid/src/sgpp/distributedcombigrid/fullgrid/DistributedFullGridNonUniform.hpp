@@ -7,13 +7,13 @@
 #ifndef DISTRIBUTEDCOMBIFULLGRIDNONUNIFORM_HPP_
 #define DISTRIBUTEDCOMBIFULLGRIDNONUNIFORM_HPP_
 
+#include <algorithm>
 #include <iostream>
 #include <numeric>
-#include <algorithm>
-#include "sgpp/distributedcombigrid/legacy/CombiBasisFunctionBasis.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiGridDomain.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
+#include "sgpp/distributedcombigrid/legacy/CombiBasisFunctionBasis.hpp"
+#include "sgpp/distributedcombigrid/legacy/CombiGridDomain.hpp"
+#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
@@ -46,11 +46,11 @@ combigrid::real get1dSubspaceCoord(LevelType l, bool boundary, IndexType i) {
   }
 }
 
-} // end anonymous namespace
+}  // end anonymous namespace
 
 namespace combigrid {
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 struct SubspaceDFGNU {
   LevelVector level_;
 
@@ -73,21 +73,26 @@ struct SubspaceDFGNU {
  *  It is important that the grid will actually occupy memory when the createFullGrid()
  *  method is called. <br>
  *  The index of a gridpoint in the full grid is given by the formula : <br>
- *  ind = i0 + i1*N0 + i2*N0*N1 + ... + id*N0*N1*N2*...*Nd, where i0,i1,i2,... are the indexes in every dimension,
+ *  ind = i0 + i1*N0 + i2*N0*N1 + ... + id*N0*N1*N2*...*Nd, where i0,i1,i2,... are the indexes in
+ * every dimension,
  *  and Nk is the number of gridpoints in direction k. <br>
- *  For more infos you can look at the "getVectorIndex" and "getLinearIndex" functions and their implementation. <br>
- *  Nk=2^level[k]+1 for every k for the directions with boundary points and Nk=2^level[k]-1 for the directions without boundary. <br>
+ *  For more infos you can look at the "getVectorIndex" and "getLinearIndex" functions and their
+ * implementation. <br>
+ *  Nk=2^level[k]+1 for every k for the directions with boundary points and Nk=2^level[k]-1 for the
+ * directions without boundary. <br>
  *  <br>
- *  The full grid can also be scaled which is done with a separate "combigrid::GridDomain" object. <br>
+ *  The full grid can also be scaled which is done with a separate "combigrid::GridDomain" object.
+ * <br>
  * */
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 class DistributedFullGridNonUniform {
  public:
   /** dimension adaptive Ctor */
-  DistributedFullGridNonUniform(DimType dim, const LevelVector& levels,
-                                CommunicatorType comm, const std::vector<bool>& hasBdrPoints,
-                                const IndexVector& procs, const std::vector<IndexVector>& decomposition =
-                                  std::vector<IndexVector>(), const BasisFunctionBasis* basis = NULL) {
+  DistributedFullGridNonUniform(
+      DimType dim, const LevelVector& levels, CommunicatorType comm,
+      const std::vector<bool>& hasBdrPoints, const IndexVector& procs,
+      const std::vector<IndexVector>& decomposition = std::vector<IndexVector>(),
+      const BasisFunctionBasis* basis = NULL) {
     dim_ = dim;
 
     assert(levels.size() == dim);
@@ -97,7 +102,7 @@ class DistributedFullGridNonUniform {
     hasBoundaryPoints_ = hasBdrPoints;
 
     procs_ = procs;
-    InitMPI(comm); // will also check grids per dim
+    InitMPI(comm);  // will also check grids per dim
 
     // set the basis function for the full grid
     if (basis == NULL)
@@ -111,9 +116,8 @@ class DistributedFullGridNonUniform {
     nrPoints_.resize(dim_);
 
     for (DimType j = 0; j < dim_; j++) {
-      nrPoints_[j] = (
-                       (hasBoundaryPoints_[j] == true) ?
-                       (powerOfTwo[levels_[j]] + 1) : (powerOfTwo[levels_[j]] - 1));
+      nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
+                                                      : (powerOfTwo[levels_[j]] - 1));
       offsets_[j] = nrElements_;
       nrElements_ = nrElements_ * nrPoints_[j];
     }
@@ -136,17 +140,15 @@ class DistributedFullGridNonUniform {
     upperBounds_.resize(size_, IndexVector(dim_));
     calcUpperBounds();
 
-    //set boundary flags
+    // set boundary flags
     boundaryLeft_.resize(dim);
     boundaryRight_.resize(dim);
     std::vector<int> coords(dim);
     MPI_Cart_coords(communicator_, rank_, static_cast<int>(dim), &coords[0]);
 
     for (DimType j = 0; j < dim_; ++j) {
-      boundaryLeft_[j] =
-        (coords[j] == 0) && hasBoundaryPoints_[j] ? true : false;
-      boundaryRight_[j] =
-        (coords[j] == procs_[j] - 1) && hasBoundaryPoints_[j] ? true : false;
+      boundaryLeft_[j] = (coords[j] == 0) && hasBoundaryPoints_[j] ? true : false;
+      boundaryRight_[j] = (coords[j] == procs_[j] - 1) && hasBoundaryPoints_[j] ? true : false;
     }
 
     // set local elements and local offsets
@@ -160,8 +162,8 @@ class DistributedFullGridNonUniform {
       localOffsets_[j] = nrLocalElements_;
       nrLocalElements_ *= nrLocalPoints_[j];
 
-      nrElementsNoBoundary_ = nrElementsNoBoundary_
-                              * (nrLocalPoints_[j] - boundaryLeft_[j] - boundaryRight_[j]);
+      nrElementsNoBoundary_ =
+          nrElementsNoBoundary_ * (nrLocalPoints_[j] - boundaryLeft_[j] - boundaryRight_[j]);
     }
 
     // in contrast to serial implementation we directly create the grid
@@ -173,24 +175,22 @@ class DistributedFullGridNonUniform {
 
     decompositionCoords_.resize(dim_);
 
-    for (size_t j = 0; j < dim_; ++j)
-      decompositionCoords_[j].resize(procs[j]);
+    for (size_t j = 0; j < dim_; ++j) decompositionCoords_[j].resize(procs[j]);
 
     calcDecompositionCoords();
 
     calcSubspaces();
     subspacesFilled_ = false;
 
-    //calcMPISubarrays();
+    // calcMPISubarrays();
 
     if (subspaces_.size() > 65535)
-      assert(
-        false
-        && "the number of subspaces is too high. assigment list uses only"
-        "short int. change data type");
+      assert(false &&
+             "the number of subspaces is too high. assigment list uses only"
+             "short int. change data type");
 
     assigmentList_.resize(fullgridVector_.size());
-    //assigmentList2_.resize( fullgridVector_.size() );
+    // assigmentList2_.resize( fullgridVector_.size() );
     calcAssigmentList();
 
     /*
@@ -202,30 +202,26 @@ class DistributedFullGridNonUniform {
     maxSubspaceSize_ = 0;
 
     for (auto subsp : subspaces_) {
-      if (subsp.targetSize_ > maxSubspaceSize_)
-        maxSubspaceSize_ = subsp.targetSize_;
+      if (subsp.targetSize_ > maxSubspaceSize_) maxSubspaceSize_ = subsp.targetSize_;
     }
 
     ++count;
 
 #ifdef DEBUG_OUTPUT
 
-    if ( rank_ == 0 ) {
-      for ( auto subsp : subspaces_ ) {
+    if (rank_ == 0) {
+      for (auto subsp : subspaces_) {
         std::cout << subsp.level_ << std::endl;
 
-        for ( RankType r = 0; r < size_; ++r ) {
+        for (RankType r = 0; r < size_; ++r) {
           // get coords of r in cart comm
-          IndexVector coords( dim_ );
-          this->getPartitionCoords( r, coords );
+          IndexVector coords(dim_);
+          this->getPartitionCoords(r, coords);
 
           std::cout << "r = " << r << " ";
-          std::cout << "rcoords = " << IndexVector( coords.begin(), coords.end() )
-                    << " ";
-          std::cout << "lbounds = " << subsp.lowerBounds_[r]
-                    << " ";
-          std::cout << "rbounds = " << subsp.upperBounds_[r]
-                    << std::endl;
+          std::cout << "rcoords = " << IndexVector(coords.begin(), coords.end()) << " ";
+          std::cout << "lbounds = " << subsp.lowerBounds_[r] << " ";
+          std::cout << "rbounds = " << subsp.upperBounds_[r] << std::endl;
         }
       }
     }
@@ -233,8 +229,7 @@ class DistributedFullGridNonUniform {
 #endif
   }
 
-  virtual ~DistributedFullGridNonUniform() {
-  }
+  virtual ~DistributedFullGridNonUniform() {}
 
   /** evaluates the full grid on the specified coordinates
    * @param coords ND coordinates on the unit square [0,1]^D*/
@@ -247,10 +242,9 @@ class DistributedFullGridNonUniform {
   /** return the coordinates on the unit square corresponding to global idx
    * @param globalIndex [IN] global linear index of the element i
    * @param coords [OUT] the vector must be resized already */
-  inline void getCoordsGlobal(IndexType globalLinearIndex,
-                              std::vector<real>& coords) const {
+  inline void getCoordsGlobal(IndexType globalLinearIndex, std::vector<real>& coords) const {
     // temporary variables
-    //int verb = 6;
+    // int verb = 6;
     IndexType ind = 0;
     IndexType tmp_add = 0;
 
@@ -261,18 +255,16 @@ class DistributedFullGridNonUniform {
       globalLinearIndex = globalLinearIndex / nrPoints_[j];
       // set the coordinate based on if we have boundary points
       tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
-      coords[j] = static_cast<double>(ind + tmp_add)
-                  * oneOverPowOfTwo[levels_[j]];
+      coords[j] = static_cast<double>(ind + tmp_add) * oneOverPowOfTwo[levels_[j]];
     }
   }
 
   /** return coordinates on the unit square corresponding to local idx
    * @param globalIndex [IN] local linear index of the element i
    * @param coords [OUT] the vector must be resized already */
-  inline void getCoordsLocal(IndexType localLinearIndex,
-                             std::vector<real>& coords) const {
-    //todo: probably very inefficient implementation, if crucial for
-    //performance implement more direct way of computing the coordinates
+  inline void getCoordsLocal(IndexType localLinearIndex, std::vector<real>& coords) const {
+    // todo: probably very inefficient implementation, if crucial for
+    // performance implement more direct way of computing the coordinates
 
     assert(localLinearIndex < getNrLocalElements());
 
@@ -285,8 +277,7 @@ class DistributedFullGridNonUniform {
    * @param elementIndex [IN] the linear index of the element
    * @param levels [OUT] the levels of the point in the LI notation
    * @param indexes [OUT] the indexes of the point in the LI notation */
-  inline void getGlobalLI(IndexType elementIndex, LevelVector& levels,
-                          IndexVector& indexes) const {
+  inline void getGlobalLI(IndexType elementIndex, LevelVector& levels, IndexVector& indexes) const {
     IndexType startindex, tmp_val;
 
     assert(elementIndex < nrElements_);
@@ -302,8 +293,10 @@ class DistributedFullGridNonUniform {
       tmp_val = tmp_val / nrPoints_[k];
     }
 
-    //The level and index of the element in the hashgridstorage are computed dividing by two the index and level in the fullgrid
-    //until we obtain an impair number for the index, thus obtaining the level and index in the hierarchical basis (Aliz Nagy)
+    // The level and index of the element in the hashgridstorage are computed dividing by two the
+    // index and level in the fullgrid
+    // until we obtain an impair number for the index, thus obtaining the level and index in the
+    // hierarchical basis (Aliz Nagy)
     // ...
     for (DimType k = 0; k < dim_; k++) {
       tmp_val = levels_[k];
@@ -325,8 +318,7 @@ class DistributedFullGridNonUniform {
   /** the global vector index corresponding to a global linear index
    * @param linIndex [IN] the linear index
    * @param axisIndex [OUT] the returned vector index */
-  inline void getGlobalVectorIndex(IndexType globLinIndex,
-                                   IndexVector& globAxisIndex) const {
+  inline void getGlobalVectorIndex(IndexType globLinIndex, IndexVector& globAxisIndex) const {
     assert(globLinIndex < nrElements_);
     assert(globAxisIndex.size() == dim_);
 
@@ -347,8 +339,7 @@ class DistributedFullGridNonUniform {
   }
 
   /** the local vector index corresponding to a local linear index */
-  inline void getLocalVectorIndex(IndexType locLinIndex,
-                                  IndexVector& locAxisIndex) const {
+  inline void getLocalVectorIndex(IndexType locLinIndex, IndexVector& locAxisIndex) const {
     assert(locLinIndex < nrElements_);
     assert(locAxisIndex.size() == dim_);
 
@@ -377,8 +368,7 @@ class DistributedFullGridNonUniform {
 
   /** returns the global linear index corresponding to the global index vector
    * @param axisIndex [IN] the vector index */
-  inline IndexType getGlobalLinearIndex(
-    const IndexVector& globAxisIndex) const {
+  inline IndexType getGlobalLinearIndex(const IndexVector& globAxisIndex) const {
     assert(globAxisIndex.size() == dim_);
 
     IndexType tmp = 0;
@@ -448,66 +438,40 @@ class DistributedFullGridNonUniform {
   }
 
   /** returns pointer to the basis function */
-  inline const BasisFunctionBasis* getBasisFct() const {
-    return basis_;
-  }
+  inline const BasisFunctionBasis* getBasisFct() const { return basis_; }
 
   /** returns the dimension of the full grid */
-  inline DimType getDimension() const {
-    return dim_;
-  }
+  inline DimType getDimension() const { return dim_; }
 
   /** the getters for the full grid vector */
-  inline std::vector<FG_ELEMENT>& getElementVector() {
-    return fullgridVector_;
-  }
+  inline std::vector<FG_ELEMENT>& getElementVector() { return fullgridVector_; }
 
-  inline const std::vector<FG_ELEMENT>& getElementVector() const {
-    return fullgridVector_;
-  }
+  inline const std::vector<FG_ELEMENT>& getElementVector() const { return fullgridVector_; }
 
   /** return the offset in the full grid vector of the dimension */
-  inline IndexType getOffset(DimType i) const {
-    return offsets_[i];
-  }
+  inline IndexType getOffset(DimType i) const { return offsets_[i]; }
 
-  inline const IndexVector& getOffsets() const {
-    return offsets_;
-  }
+  inline const IndexVector& getOffsets() const { return offsets_; }
 
-  inline const IndexVector& getLocalOffsets() const {
-    return localOffsets_;
-  }
+  inline const IndexVector& getLocalOffsets() const { return localOffsets_; }
 
   /** return the level vector */
-  inline const LevelVector& getLevels() const {
-    return levels_;
-  }
+  inline const LevelVector& getLevels() const { return levels_; }
 
   /** returns the number of elements in the full grid */
-  inline IndexType getNrElements() const {
-    return nrElements_;
-  }
+  inline IndexType getNrElements() const { return nrElements_; }
 
   /** number of elements in the local partition */
-  inline IndexType getNrLocalElements() const {
-    return nrLocalElements_;
-  }
+  inline IndexType getNrLocalElements() const { return nrLocalElements_; }
 
   /** ADDED returns the number of elements in the full grid */
-  inline IndexType getNrElementsNoBoundary() const {
-    return nrElementsNoBoundary_;
-  }
+  inline IndexType getNrElementsNoBoundary() const { return nrElementsNoBoundary_; }
 
   /** number of points per dimension i */
-  inline IndexType length(int i) const {
-    return nrPoints_[i];
-  }
+  inline IndexType length(int i) const { return nrPoints_[i]; }
 
   /** vector of flags to show if the dimension has boundary points*/
-  inline const std::vector<bool>& returnBoundaryFlags() const {
-    return hasBoundaryPoints_;
-  }
+  inline const std::vector<bool>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
 
   /** copies the input vector to the full grid vector
    * @param in [IN] input vector*/
@@ -516,31 +480,19 @@ class DistributedFullGridNonUniform {
     fullgridVector_ = in;
   }
 
-  inline FG_ELEMENT* getData() {
-    return &fullgridVector_[0];
-  }
+  inline FG_ELEMENT* getData() { return &fullgridVector_[0]; }
 
-  inline const FG_ELEMENT* getData() const {
-    return &fullgridVector_[0];
-  }
+  inline const FG_ELEMENT* getData() const { return &fullgridVector_[0]; }
 
   /** MPI Communicator*/
-  inline CommunicatorType getCommunicator() const {
-    return communicator_;
-  }
+  inline CommunicatorType getCommunicator() const { return communicator_; }
 
-  inline RankType getRank() const {
-    return rank_;
-  }
+  inline RankType getRank() const { return rank_; }
 
-  inline int getCommunicatorSize() const {
-    return size_;
-  }
+  inline int getCommunicatorSize() const { return size_; }
 
   /** lower Bounds of this process */
-  inline const IndexVector& getLowerBounds() const {
-    return lowerBounds_[rank_];
-  }
+  inline const IndexVector& getLowerBounds() const { return lowerBounds_[rank_]; }
 
   /** lower bounds of rank r */
   inline const IndexVector& getLowerBounds(RankType r) const {
@@ -549,9 +501,7 @@ class DistributedFullGridNonUniform {
   }
 
   /** coordinates of this process' lower bounds */
-  inline const std::vector<real>& getLowerBoundsCoords() const {
-    return lowerBoundsCoords_[rank_];
-  }
+  inline const std::vector<real>& getLowerBoundsCoords() const { return lowerBoundsCoords_[rank_]; }
 
   /** coordinates of rank r's lower bounds */
   inline const std::vector<real>& getLowerBoundsCoords(RankType r) const {
@@ -560,9 +510,7 @@ class DistributedFullGridNonUniform {
   }
 
   /** upper Bounds of this process */
-  inline const IndexVector& getUpperBounds() const {
-    return upperBounds_[rank_];
-  }
+  inline const IndexVector& getUpperBounds() const { return upperBounds_[rank_]; }
 
   /** upper bounds of rank r */
   inline const IndexVector& getUpperBounds(RankType r) const {
@@ -571,9 +519,7 @@ class DistributedFullGridNonUniform {
   }
 
   /** coordinates of this process' upper bounds */
-  inline const std::vector<real>& getUpperBoundsCoords() const {
-    return upperBoundsCoords_[rank_];
-  }
+  inline const std::vector<real>& getUpperBoundsCoords() const { return upperBoundsCoords_[rank_]; }
 
   /** coordinates of rank r' upper bounds */
   inline const std::vector<real>& getUpperBoundsCoords(RankType r) const {
@@ -582,29 +528,19 @@ class DistributedFullGridNonUniform {
   }
 
   /** Number of Grids in every dimension*/
-  inline const IndexVector& getParallelization() const {
-    return procs_;
-  }
+  inline const IndexVector& getParallelization() const { return procs_; }
 
   /** MPI Rank */
-  inline int getMpiRank() {
-    return rank_;
-  }
+  inline int getMpiRank() { return rank_; }
 
   /** MPI Size */
-  inline int getMpiSize() {
-    return size_;
-  }
+  inline int getMpiSize() { return size_; }
 
   /** Flag for local left boundary */
-  inline bool getBoundaryLeft(DimType dimension) {
-    return boundaryLeft_[dimension];
-  }
+  inline bool getBoundaryLeft(DimType dimension) { return boundaryLeft_[dimension]; }
 
   /** Flag for local right boundary */
-  inline bool getBoundaryRight(DimType dimension) {
-    return boundaryRight_[dimension];
-  }
+  inline bool getBoundaryRight(DimType dimension) { return boundaryRight_[dimension]; }
 
   /** position of a process in the grid of processes */
   inline void getPartitionCoords(RankType r, IndexVector& coords) const {
@@ -616,9 +552,7 @@ class DistributedFullGridNonUniform {
   }
 
   /** position of the local process in the grid of processes */
-  inline void getPartitionCoords(IndexVector& coords) const {
-    getPartitionCoords(rank_, coords);
-  }
+  inline void getPartitionCoords(IndexVector& coords) const { getPartitionCoords(rank_, coords); }
 
   /** returns the 1d global index of the first point in the local domain
    *
@@ -681,8 +615,7 @@ class DistributedFullGridNonUniform {
     LevelType l = getLevel(d, idx1d);
 
     // boundary points
-    if (l == 0)
-      return -1;
+    if (l == 0) return -1;
 
     LevelType ldiff = levels_[d] - l;
     IndexType lpidx = idx1d - static_cast<IndexType>(std::pow(2, ldiff));
@@ -694,8 +627,7 @@ class DistributedFullGridNonUniform {
     LevelType l = getLevel(d, idx1d);
 
     // boundary points
-    if (l == 0)
-      return -1;
+    if (l == 0) return -1;
 
     LevelType ldiff = levels_[d] - l;
     IndexType rpidx = idx1d + static_cast<IndexType>(std::pow(2, ldiff));
@@ -703,16 +635,14 @@ class DistributedFullGridNonUniform {
     // check if outside of domain
     IndexType numElementsD = this->getGlobalSizes()[d];
 
-    if (rpidx > numElementsD - 1)
-      rpidx = -1;
+    if (rpidx > numElementsD - 1) rpidx = -1;
 
     return rpidx;
   }
 
   // get coordinates of the partition which contains the point specified
   // by the global index vector
-  inline void getPartitionCoords(IndexVector& globalAxisIndex,
-                                 IndexVector& partitionCoords) {
+  inline void getPartitionCoords(IndexVector& globalAxisIndex, IndexVector& partitionCoords) {
     partitionCoords.resize(dim_);
 
     for (DimType d = 0; d < dim_; ++d) {
@@ -727,11 +657,9 @@ class DistributedFullGridNonUniform {
     // check wheter the partition coords are valid
     assert(partitionCoords.size() == dim_);
 
-    for (DimType d = 0; d < dim_; ++d)
-      assert(partitionCoords[d] < procs_[d]);
+    for (DimType d = 0; d < dim_; ++d) assert(partitionCoords[d] < procs_[d]);
 
-    std::vector<int> partitionCoordsInt(partitionCoords.begin(),
-                                        partitionCoords.end());
+    std::vector<int> partitionCoordsInt(partitionCoords.begin(), partitionCoords.end());
 
     RankType rank;
     MPI_Cart_rank(communicator_, &partitionCoordsInt[0], &rank);
@@ -751,21 +679,14 @@ class DistributedFullGridNonUniform {
   }
 
   // return extents of local grid
-  inline const IndexVector&
-  getLocalSizes() const {
-    return nrLocalPoints_;
-  }
+  inline const IndexVector& getLocalSizes() const { return nrLocalPoints_; }
 
   // return extents of global grid
-  inline const IndexVector&
-  getGlobalSizes() const {
-    return nrPoints_;
-  }
+  inline const IndexVector& getGlobalSizes() const { return nrPoints_; }
 
   // return MPI DataType
   inline MPI_Datatype getMPIDatatype() {
-    return abstraction::getMPIDatatype(
-             abstraction::getabstractionDataType<FG_ELEMENT>());
+    return abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
   }
 
   // gather fullgrid on rank r
@@ -777,21 +698,19 @@ class DistributedFullGridNonUniform {
     // each rank: send dfg to root
     int dest = root;
     MPI_Request sendRequest;
-    MPI_Isend(this->getData(), static_cast<int>(this->getNrLocalElements()),
-              this->getMPIDatatype(), dest, 0, comm, &sendRequest);
+    MPI_Isend(this->getData(), static_cast<int>(this->getNrLocalElements()), this->getMPIDatatype(),
+              dest, 0, comm, &sendRequest);
 
     std::vector<MPI_Request> requests;
     std::vector<MPI_Datatype> subarrayTypes;
 
     // rank r: for each rank create subarray view on fg
     if (rank == root) {
-      if (!fg.isGridCreated())
-        fg.createFullGrid();
+      if (!fg.isGridCreated()) fg.createFullGrid();
 
       for (int r = 0; r < size; ++r) {
         IndexVector sizes(fg.getSizes().begin(), fg.getSizes().end());
-        IndexVector subsizes = this->getUpperBounds(r)
-                               - this->getLowerBounds(r);
+        IndexVector subsizes = this->getUpperBounds(r) - this->getLowerBounds(r);
         IndexVector starts = this->getLowerBounds(r);
 
         // we store our data in c format, i.e. first dimension is the innermost
@@ -806,16 +725,14 @@ class DistributedFullGridNonUniform {
 
         // create subarray view on data
         MPI_Datatype mysubarray;
-        MPI_Type_create_subarray(static_cast<int>(this->getDimension()),
-                                 &csizes[0], &csubsizes[0], &cstarts[0],
-                                 MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
+        MPI_Type_create_subarray(static_cast<int>(this->getDimension()), &csizes[0], &csubsizes[0],
+                                 &cstarts[0], MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
         MPI_Type_commit(&mysubarray);
         subarrayTypes.push_back(mysubarray);
 
         int src = r;
         MPI_Request req;
-        MPI_Irecv(fg.getData(), 1, mysubarray, src, 0, this->getCommunicator(),
-                  &req);
+        MPI_Irecv(fg.getData(), 1, mysubarray, src, 0, this->getCommunicator(), &req);
         requests.push_back(req);
       }
     }
@@ -824,13 +741,11 @@ class DistributedFullGridNonUniform {
     MPI_Wait(&sendRequest, MPI_STATUS_IGNORE);
 
     if (rank == root) {
-      MPI_Waitall(static_cast<int>(requests.size()), &requests[0],
-                  MPI_STATUSES_IGNORE);
+      MPI_Waitall(static_cast<int>(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
     }
 
     // free subarrays
-    for (size_t i = 0; i < subarrayTypes.size(); ++i)
-      MPI_Type_free(&subarrayTypes[i]);
+    for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
   }
 
   inline const std::vector<std::vector<real> >& getDecompositionCoords() const {
@@ -849,19 +764,16 @@ class DistributedFullGridNonUniform {
       IndexVector lsize = subsp.upperBounds_[rank_] - subsp.lowerBounds_[rank_];
       IndexType dsize = 1;
 
-      for (auto l : lsize)
-        dsize *= l;
+      for (auto l : lsize) dsize *= l;
 
-      if (IndexType(subsp.data_.size()) != dsize)
-        subsp.data_.resize(dsize);
+      if (IndexType(subsp.data_.size()) != dsize) subsp.data_.resize(dsize);
     }
 
     // create iterator for each subspace of sgrid and set to begin
     typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
     typename std::vector<SubspaceIterator> it_sub(subspaces_.size());
 
-    for (size_t i = 0; i < it_sub.size(); ++i)
-      it_sub[i] = subspaces_[i].data_.begin();
+    for (size_t i = 0; i < it_sub.size(); ++i) it_sub[i] = subspaces_[i].data_.begin();
 
     for (size_t i = 0; i < fullgridVector_.size(); ++i) {
       // get subspace id
@@ -878,8 +790,7 @@ class DistributedFullGridNonUniform {
     subspacesFilled_ = true;
   }
 
-  void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                      real coeff) {
+  void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
     // calculate assigment subspaceID_fg <-> subspaceID_sg
     std::vector<IndexType> subspaceAssigmentList(subspaces_.size());
 
@@ -888,10 +799,8 @@ class DistributedFullGridNonUniform {
     }
 
     // check all common subspaces
-    for (size_t subFgId = 0; subFgId < subspaceAssigmentList.size();
-         ++subFgId) {
-      if (subspaceAssigmentList[subFgId] < 0)
-        continue;
+    for (size_t subFgId = 0; subFgId < subspaceAssigmentList.size(); ++subFgId) {
+      if (subspaceAssigmentList[subFgId] < 0) continue;
 
       IndexType subSgId = subspaceAssigmentList[subFgId];
 
@@ -927,8 +836,7 @@ class DistributedFullGridNonUniform {
     typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList.size());
 
     for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
-      if (subspaceAssigmentList[subFgId] < 0)
-        continue;
+      if (subspaceAssigmentList[subFgId] < 0) continue;
 
       IndexType subSgId = subspaceAssigmentList[subFgId];
 
@@ -940,8 +848,7 @@ class DistributedFullGridNonUniform {
       // get subspace_fg id
       size_t subFgId(assigmentList_[i]);
 
-      if (subspaceAssigmentList[subFgId] < 0)
-        continue;
+      if (subspaceAssigmentList[subFgId] < 0) continue;
 
       // todo: can be removed after testing.
       IndexType subSgId = subspaceAssigmentList[subFgId];
@@ -969,10 +876,8 @@ class DistributedFullGridNonUniform {
     }
 
     // check all common subspaces
-    for (size_t subFgId = 0; subFgId < subspaceAssigmentList.size();
-         ++subFgId) {
-      if (subspaceAssigmentList[subFgId] < 0)
-        continue;
+    for (size_t subFgId = 0; subFgId < subspaceAssigmentList.size(); ++subFgId) {
+      if (subspaceAssigmentList[subFgId] < 0) continue;
 
       IndexType subSgId = subspaceAssigmentList[subFgId];
 
@@ -1008,8 +913,7 @@ class DistributedFullGridNonUniform {
     typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList.size());
 
     for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
-      if (subspaceAssigmentList[subFgId] < 0)
-        continue;
+      if (subspaceAssigmentList[subFgId] < 0) continue;
 
       IndexType subSgId = subspaceAssigmentList[subFgId];
 
@@ -1023,8 +927,7 @@ class DistributedFullGridNonUniform {
 
       IndexType subSgId = subspaceAssigmentList[subFgId];
 
-      if (subSgId < 0)
-        continue;
+      if (subSgId < 0) continue;
 
       assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
@@ -1042,8 +945,7 @@ class DistributedFullGridNonUniform {
     typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
     typename std::vector<SubspaceIterator> it_sub(subspaces_.size());
 
-    for (size_t i = 0; i < it_sub.size(); ++i)
-      it_sub[i] = subspaces_[i].data_.begin();
+    for (size_t i = 0; i < it_sub.size(); ++i) it_sub[i] = subspaces_[i].data_.begin();
 
     for (size_t i = 0; i < fullgridVector_.size(); ++i) {
       // get subspace id corresponding to lvec
@@ -1059,14 +961,12 @@ class DistributedFullGridNonUniform {
   }
 
   void clearSubspaces() {
-    for (auto subsp : subspaces_)
-      subsp.data_.resize(0);
+    for (auto subsp : subspaces_) subsp.data_.resize(0);
 
     subspacesFilled_ = false;
   }
 
-  void gatherSubspace(const LevelVector& l, RankType dst,
-                      std::vector<FG_ELEMENT>& buf) {
+  void gatherSubspace(const LevelVector& l, RankType dst, std::vector<FG_ELEMENT>& buf) {
     assert(subspacesFilled_ && "subspaces have not been filled");
 
     // get subspace corresponding to l
@@ -1081,21 +981,18 @@ class DistributedFullGridNonUniform {
       // resize buffer
       IndexType bsize = 1;
 
-      for (auto s : subsp.sizes_)
-        bsize *= s;
+      for (auto s : subsp.sizes_) bsize *= s;
 
       buf.resize(bsize);
 
       for (int r = 0; r < size_; ++r) {
         MPI_Datatype mysubarray = subsp.subarrayTypes_[r];
 
-        if (mysubarray == MPI_DATATYPE_NULL)
-          continue;
+        if (mysubarray == MPI_DATATYPE_NULL) continue;
 
         int src = r;
         MPI_Request req;
-        MPI_Irecv(buf.data(), 1, mysubarray, src, 0, this->getCommunicator(),
-                  &req);
+        MPI_Irecv(buf.data(), 1, mysubarray, src, 0, this->getCommunicator(), &req);
         requests.push_back(req);
       }
     }
@@ -1103,18 +1000,16 @@ class DistributedFullGridNonUniform {
     // each rank: send subspace to dst
     // important: skip this if send size = 0
     if (subsp.data_.size() > 0) {
-      MPI_Send(subsp.data_.data(), int(subsp.data_.size()),
-               this->getMPIDatatype(), dst, 0, this->getCommunicator());
+      MPI_Send(subsp.data_.data(), int(subsp.data_.size()), this->getMPIDatatype(), dst, 0,
+               this->getCommunicator());
     }
 
     if (rank_ == dst) {
-      MPI_Waitall(static_cast<int>(requests.size()), &requests[0],
-                  MPI_STATUSES_IGNORE);
+      MPI_Waitall(static_cast<int>(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
     }
 
     // free subarrays; only dst has a non-zero container here
-    for (size_t i = 0; i < subarrayTypes.size(); ++i)
-      MPI_Type_free(&subarrayTypes[i]);
+    for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
   }
 
   void gatherSubspaceBlock(const LevelVector& l, RankType dst,
@@ -1139,11 +1034,9 @@ class DistributedFullGridNonUniform {
         // important: skip r if subsize = 0
         IndexType ssize = 1;
 
-        for (auto s : subsizes)
-          ssize *= s;
+        for (auto s : subsizes) ssize *= s;
 
-        if (ssize == 0)
-          continue;
+        if (ssize == 0) continue;
 
         recvsizes[r].push_back(ssize);
         recvsubspaces[r].push_back(subI);
@@ -1153,15 +1046,13 @@ class DistributedFullGridNonUniform {
     // send subspace copy subspace data into right buffer
     // skip this if send size = 0
     if (subsp.data_.size() > 0) {
-      senddata[dst].insert(senddata[dst].end(), subsp.data_.begin(),
-                           subsp.data_.end());
+      senddata[dst].insert(senddata[dst].end(), subsp.data_.begin(), subsp.data_.end());
       sendsizes[dst].push_back(subsp.data_.size());
       sendsubspaces[dst].push_back(subI);
     }
   }
 
-  void gatherSubspaceRed(const LevelVector& l, RankType dst,
-                         std::vector<FG_ELEMENT>& buf) {
+  void gatherSubspaceRed(const LevelVector& l, RankType dst, std::vector<FG_ELEMENT>& buf) {
     assert(subspacesFilled_ && "subspaces have not been filled");
 
     // get subspace corresponding to l
@@ -1171,18 +1062,17 @@ class DistributedFullGridNonUniform {
     assert(buf.size() >= subsp.targetSize_);
 
     // set interesting part of buf to zero
-    for (size_t i = 0; i < subsp.targetSize_; ++i)
-      buf[i] = FG_ELEMENT(0);
+    for (size_t i = 0; i < subsp.targetSize_; ++i) buf[i] = FG_ELEMENT(0);
 
     // todo: copy data into right position in buffer
 
     // perform reduce with target dst
     if (rank_ == dst) {
-      MPI_Reduce( MPI_IN_PLACE, buf.data(), int(subsp.targetSize_),
-                  this->getMPIDatatype(), MPI_SUM, dst, this->getCommunicator());
+      MPI_Reduce(MPI_IN_PLACE, buf.data(), int(subsp.targetSize_), this->getMPIDatatype(), MPI_SUM,
+                 dst, this->getCommunicator());
     } else {
-      MPI_Reduce(buf.data(), buf.data(), int(subsp.targetSize_),
-                 this->getMPIDatatype(), MPI_SUM, dst, this->getCommunicator());
+      MPI_Reduce(buf.data(), buf.data(), int(subsp.targetSize_), this->getMPIDatatype(), MPI_SUM,
+                 dst, this->getCommunicator());
     }
   }
 
@@ -1237,8 +1127,8 @@ class DistributedFullGridNonUniform {
    }
    */
 
-  void gatherSubspaceNB(const LevelVector& l, RankType dst,
-                        std::vector<FG_ELEMENT>& buf, std::vector<MPI_Request>& requests) {
+  void gatherSubspaceNB(const LevelVector& l, RankType dst, std::vector<FG_ELEMENT>& buf,
+                        std::vector<MPI_Request>& requests) {
     assert(subspacesFilled_ && "subspaces have not been filled");
 
     // get subspace corresponding to l
@@ -1250,9 +1140,8 @@ class DistributedFullGridNonUniform {
     // important: skip this if send size = 0
     if (subsp.data_.size() > 0) {
       MPI_Request sendRequest;
-      MPI_Isend(subsp.data_.data(), int(subsp.data_.size()),
-                this->getMPIDatatype(), dst, tag, this->getCommunicator(),
-                &sendRequest);
+      MPI_Isend(subsp.data_.data(), int(subsp.data_.size()), this->getMPIDatatype(), dst, tag,
+                this->getCommunicator(), &sendRequest);
       requests.push_back(sendRequest);
     }
 
@@ -1261,38 +1150,34 @@ class DistributedFullGridNonUniform {
       // resize buffer
       IndexType bsize = 1;
 
-      for (auto s : subsp.sizes_)
-        bsize *= s;
+      for (auto s : subsp.sizes_) bsize *= s;
 
       buf.resize(bsize);
 
       for (int r = 0; r < size_; ++r) {
         MPI_Datatype mysubarray = subsp.subarrayTypes_[r];
 
-        if (mysubarray == MPI_DATATYPE_NULL)
-          continue;
+        if (mysubarray == MPI_DATATYPE_NULL) continue;
 
         int src = r;
         MPI_Request req;
-        MPI_Irecv(buf.data(), 1, mysubarray, src, tag, this->getCommunicator(),
-                  &req);
+        MPI_Irecv(buf.data(), 1, mysubarray, src, tag, this->getCommunicator(), &req);
         requests.push_back(req);
       }
     }
 
-    //std::vector< MPI_Datatype > subarrayTypes;
+    // std::vector< MPI_Datatype > subarrayTypes;
 
     // free subarrays; only dst has a non-zero container here
     // todo: free on destruct
-    //for( size_t i = 0; i < subarrayTypes.size(); ++i )
+    // for( size_t i = 0; i < subarrayTypes.size(); ++i )
     //  MPI_Type_free( &subarrayTypes[i] );
   }
 
   /* takes the data of subspace l contained in buf and distributes
    * it over all processes of dfg
    */
-  void scatterSubspace(const LevelVector& l, RankType src,
-                       const std::vector<FG_ELEMENT>& buf) {
+  void scatterSubspace(const LevelVector& l, RankType src, const std::vector<FG_ELEMENT>& buf) {
     assert(subspacesFilled_ && "subspaces have not been created");
 
     // get subspace corresponding to l
@@ -1305,9 +1190,8 @@ class DistributedFullGridNonUniform {
     bool recvd(false);
 
     if (subsp.data_.size() > 0) {
-      MPI_Irecv(subsp.data_.data(), int(subsp.data_.size()),
-                this->getMPIDatatype(), src, 0, this->getCommunicator(),
-                &recvRequest);
+      MPI_Irecv(subsp.data_.data(), int(subsp.data_.size()), this->getMPIDatatype(), src, 0,
+                this->getCommunicator(), &recvRequest);
       recvd = true;
     }
 
@@ -1319,8 +1203,7 @@ class DistributedFullGridNonUniform {
       // check buffer size
       IndexType bsize = 1;
 
-      for (auto s : subsp.sizes_)
-        bsize *= s;
+      for (auto s : subsp.sizes_) bsize *= s;
 
       assert(IndexType(buf.size()) == bsize);
 
@@ -1332,11 +1215,9 @@ class DistributedFullGridNonUniform {
         // important: skip r if subsize = 0
         IndexType ssize = 1;
 
-        for (auto s : subsizes)
-          ssize *= s;
+        for (auto s : subsizes) ssize *= s;
 
-        if (ssize == 0)
-          continue;
+        if (ssize == 0) continue;
 
         // we store our data in c format, i.e. first dimension is the innermost
         // dimension. however, we access our data in fortran notation, with the
@@ -1350,32 +1231,27 @@ class DistributedFullGridNonUniform {
 
         // create subarray view on data
         MPI_Datatype mysubarray;
-        MPI_Type_create_subarray(int(this->getDimension()), &csizes[0],
-                                 &csubsizes[0], &cstarts[0],
+        MPI_Type_create_subarray(int(this->getDimension()), &csizes[0], &csubsizes[0], &cstarts[0],
                                  MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
         MPI_Type_commit(&mysubarray);
         subarrayTypes.push_back(mysubarray);
 
         int src = r;
         MPI_Request req;
-        MPI_Isend(buf.data(), 1, mysubarray, src, 0, this->getCommunicator(),
-                  &req);
+        MPI_Isend(buf.data(), 1, mysubarray, src, 0, this->getCommunicator(), &req);
         requests.push_back(req);
       }
     }
 
     // all
-    if (recvd)
-      MPI_Wait(&recvRequest, MPI_STATUS_IGNORE);
+    if (recvd) MPI_Wait(&recvRequest, MPI_STATUS_IGNORE);
 
     if (rank_ == src) {
-      MPI_Waitall(static_cast<int>(requests.size()), &requests[0],
-                  MPI_STATUSES_IGNORE);
+      MPI_Waitall(static_cast<int>(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
     }
 
     // free subarrays; only dst has a non-zero container here
-    for (size_t i = 0; i < subarrayTypes.size(); ++i)
-      MPI_Type_free(&subarrayTypes[i]);
+    for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
   }
 
   size_t getSubspaceIndex(const LevelVector& l) const {
@@ -1386,8 +1262,7 @@ class DistributedFullGridNonUniform {
     LevelVector myL(l);
 
     for (size_t k = 0; k < myL.size(); ++k)
-      if (myL[k] == 0)
-        myL[k] = 1;
+      if (myL[k] == 0) myL[k] = 1;
 
     // get index of l
     bool found = false;
@@ -1400,8 +1275,7 @@ class DistributedFullGridNonUniform {
       }
     }
 
-    if (!found)
-      std::cout << "subspace " << myL << " not included" << std::endl;
+    if (!found) std::cout << "subspace " << myL << " not included" << std::endl;
 
     assert(found);
 
@@ -1414,17 +1288,12 @@ class DistributedFullGridNonUniform {
   }
 
   void getSubspacesLevelVectors(std::vector<LevelVector>& lvecs) {
-    for (auto subsp : subspaces_)
-      lvecs.push_back(subsp.level_);
+    for (auto subsp : subspaces_) lvecs.push_back(subsp.level_);
   }
 
-  inline size_t getNumSubspaces() const {
-    return subspaces_.size();
-  }
+  inline size_t getNumSubspaces() const { return subspaces_.size(); }
 
-  inline size_t getMaxSubspaceSize() const {
-    return maxSubspaceSize_;
-  }
+  inline size_t getMaxSubspaceSize() const { return maxSubspaceSize_; }
 
  private:
   /** dimension of the full grid */
@@ -1526,8 +1395,8 @@ class DistributedFullGridNonUniform {
     MPI_Comm_rank(comm, &rank_);
     MPI_Comm_size(comm, &size_);
 
-    IndexType numSubgrids = std::accumulate(procs_.begin(), procs_.end(), 1,
-                                            std::multiplies<size_t>());
+    IndexType numSubgrids =
+        std::accumulate(procs_.begin(), procs_.end(), 1, std::multiplies<size_t>());
     assert(size_ == static_cast<int>(numSubgrids));
 
     std::vector<int> dims(procs_.begin(), procs_.end());
@@ -1535,8 +1404,7 @@ class DistributedFullGridNonUniform {
     // todo mh: think whether periodic bc will be useful
     std::vector<int> periods(dim_, 0);
     int reorder = 0;
-    MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0],
-                    reorder, &communicator_);
+    MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0], reorder, &communicator_);
   }
 
   void calculateDefaultBounds() {
@@ -1547,8 +1415,8 @@ class DistributedFullGridNonUniform {
       llbnd.resize(procs_[i]);
 
       for (IndexType j = 0; j < procs_[i]; ++j) {
-        double tmp = static_cast<double>(nrPoints_[i]) * static_cast<double>(j)
-                     / static_cast<double>(procs_[i]);
+        double tmp = static_cast<double>(nrPoints_[i]) * static_cast<double>(j) /
+                     static_cast<double>(procs_[i]);
         llbnd[j] = static_cast<IndexType>(std::ceil(tmp));
       }
     }
@@ -1580,7 +1448,7 @@ class DistributedFullGridNonUniform {
       IndexVector tmp(decomposition[i]);
       IndexVector::iterator last = std::unique(tmp.begin(), tmp.end());
 
-      //todo: this is not sufficient to check for duplicate entries
+      // todo: this is not sufficient to check for duplicate entries
       // if last points to the same element as tmp.end()
       // this means all entries in tmp are unique
       assert(last == tmp.end());
@@ -1591,8 +1459,7 @@ class DistributedFullGridNonUniform {
       std::vector<int> coords(dim_);
       MPI_Cart_coords(communicator_, r, static_cast<int>(dim_), &coords[0]);
 
-      for (DimType i = 0; i < dim_; ++i)
-        lowerBounds_[r][i] = decomposition[i][coords[i]];
+      for (DimType i = 0; i < dim_; ++i) lowerBounds_[r][i] = decomposition[i][coords[i]];
     }
   }
 
@@ -1640,8 +1507,7 @@ class DistributedFullGridNonUniform {
 
       for (DimType j = 0; j < dim_; ++j) {
         tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
-        coords[j] = static_cast<double>(ubvi[j] + tmp_add)
-                    * oneOverPowOfTwo[levels_[j]];
+        coords[j] = static_cast<double>(ubvi[j] + tmp_add) * oneOverPowOfTwo[levels_[j]];
       }
 
       upperBoundsCoords_[r] = coords;
@@ -1673,8 +1539,7 @@ class DistributedFullGridNonUniform {
       SubspaceDFGNU<FG_ELEMENT>& subsp = subspaces_[subspaceID];
 
       // compute decomposition coordinates from lower bounds
-      const std::vector<std::vector<real> >& decompositionCoords =
-        this->getDecompositionCoords();
+      const std::vector<std::vector<real> >& decompositionCoords = this->getDecompositionCoords();
 
       const IndexVector& sizes = sg.getSubspaceSizes(subspaceID);
       const IndexVector& subspaceSizes = sizes;
@@ -1686,8 +1551,7 @@ class DistributedFullGridNonUniform {
 
       IndexType bsize = 1;
 
-      for (auto s : subsp.sizes_)
-        bsize *= s;
+      for (auto s : subsp.sizes_) bsize *= s;
 
       subsp.targetSize_ = size_t(bsize);
 
@@ -1709,8 +1573,7 @@ class DistributedFullGridNonUniform {
           assert(k > -1);
 
           for (; k > -1; --k) {
-            if (c >= decompositionCoords[j][k])
-              break;
+            if (c >= decompositionCoords[j][k]) break;
           }
 
           // continue if first point of this partition already set
@@ -1718,7 +1581,6 @@ class DistributedFullGridNonUniform {
             continue;
           else
             subspaceDecomposition[j][k] = i;
-
         }
       }
 
@@ -1741,8 +1603,7 @@ class DistributedFullGridNonUniform {
 
       for (RankType r = 0; r < size_; ++r) {
         for (DimType j = 0; j < dim_; ++j) {
-          if (subspaceLowerBounds[r][j] == -1)
-            subspaceLowerBounds[r] = dummy;
+          if (subspaceLowerBounds[r][j] == -1) subspaceLowerBounds[r] = dummy;
         }
       }
 
@@ -1795,15 +1656,14 @@ class DistributedFullGridNonUniform {
       IndexVector lsize = subsp.upperBounds_[rank_] - subsp.lowerBounds_[rank_];
       IndexType dsize = 1;
 
-      for (auto l : lsize)
-        dsize *= l;
+      for (auto l : lsize) dsize *= l;
 
       subsp.localSize_ = dsize;
 
-      // todo: find proper way to switch this on and off
-      // storing subspace upper and lower bounds waste a lot of memory and does not
-      // scale with #procs. for uniform sg we dont need this information after
-      // sizes have been computed
+// todo: find proper way to switch this on and off
+// storing subspace upper and lower bounds waste a lot of memory and does not
+// scale with #procs. for uniform sg we dont need this information after
+// sizes have been computed
 #ifdef UNIFORM_SG
       subsp.lowerBounds_.resize(0);
       subsp.upperBounds_.resize(0);
@@ -1826,8 +1686,7 @@ class DistributedFullGridNonUniform {
      }*/
 
     for (size_t i = 0; i < subspaces_.size(); ++i) {
-      if (subspaces_[i].localSize_ < 1)
-        continue;
+      if (subspaces_[i].localSize_ < 1) continue;
 
       const LevelVector& l = subspaces_[i].level_;
       IndexVector ivec(dim_);
@@ -1836,8 +1695,7 @@ class DistributedFullGridNonUniform {
     }
   }
 
-  void calcAssigmentRec(DimType d, const LevelVector& lvec, IndexVector& ivec,
-                        size_t subI) {
+  void calcAssigmentRec(DimType d, const LevelVector& lvec, IndexVector& ivec, size_t subI) {
     IndexVector oneDIndices;
 
     get1dIndicesLocal(d, lvec, oneDIndices);
@@ -1854,8 +1712,7 @@ class DistributedFullGridNonUniform {
     }
   }
 
-  void get1dIndicesLocal(DimType d, const LevelVector& lvec,
-                         IndexVector& oneDIndices) {
+  void get1dIndicesLocal(DimType d, const LevelVector& lvec, IndexVector& oneDIndices) {
     LevelType l = lvec[d];
 
     // get first local idx which has level l
@@ -1869,8 +1726,7 @@ class DistributedFullGridNonUniform {
 
       // myLevel can be zero if boundary point, but we have our boundary
       // points in level 1 subspaces
-      if (myLevel == 0)
-        myLevel = 1;
+      if (myLevel == 0) myLevel = 1;
 
       if (myLevel == l) {
         start = i;
@@ -1889,8 +1745,7 @@ class DistributedFullGridNonUniform {
       stride = IndexType(std::pow(2, levels_[d] - l + 1));
     }
 
-    for (IndexType idx = start; idx < nrLocalPoints_[d]; idx += stride)
-      oneDIndices.push_back(idx);
+    for (IndexType idx = start; idx < nrLocalPoints_[d]; idx += stride) oneDIndices.push_back(idx);
   }
 
   void calcMPISubarrays() {
@@ -1911,7 +1766,7 @@ class DistributedFullGridNonUniform {
         }
 
         if (ssize == 0) {
-          subsp.subarrayTypes_.push_back( MPI_DATATYPE_NULL);
+          subsp.subarrayTypes_.push_back(MPI_DATATYPE_NULL);
           continue;
         }
 
@@ -1927,8 +1782,7 @@ class DistributedFullGridNonUniform {
 
         // create subarray view on data
         MPI_Datatype mysubarray;
-        MPI_Type_create_subarray(int(this->getDimension()), &csizes[0],
-                                 &csubsizes[0], &cstarts[0],
+        MPI_Type_create_subarray(int(this->getDimension()), &csizes[0], &csubsizes[0], &cstarts[0],
                                  MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
 
         MPI_Type_commit(&mysubarray);
@@ -1986,12 +1840,11 @@ class DistributedFullGridNonUniform {
       }
     }
   }
-
 };
 // end class
 
 // output operator
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 inline std::ostream& operator<<(std::ostream& os,
                                 const DistributedFullGridNonUniform<FG_ELEMENT>& dfg) {
   dfg.print(os);
@@ -1999,9 +1852,9 @@ inline std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 int DistributedFullGridNonUniform<FG_ELEMENT>::count = 0;
 
-} // end namespace
+}  // end namespace
 
 #endif /* DISTRIBUTEDCOMBIFULLGRID_HPP_ */

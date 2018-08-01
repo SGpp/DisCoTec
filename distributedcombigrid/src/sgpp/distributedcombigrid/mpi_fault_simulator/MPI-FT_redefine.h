@@ -10,7 +10,9 @@
 #ifndef MPI_FT_REDEFINE_H_
 #define MPI_FT_REDEFINE_H_
 
-static_assert( false, "if you include this header file, it is very probable that you are doing something wrong. onyl remove this assert if you know what you are doing");
+static_assert(false,
+              "if you include this header file, it is very probable that you are doing something "
+              "wrong. onyl remove this assert if you know what you are doing");
 
 #ifdef SIMFTMPI
 #undef MPI_COMM_WORLD
