@@ -256,6 +256,11 @@ class MPISystem {
   void createCommFT(simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm);
 
   /**
+   * initializes the members ngroup_, nprocs_, worldComm_,  managerRankWorld_, managerRankFT_
+   */
+  void initSystemConstants(size_t ngroup, size_t nprocs);
+
+  /**
    * initializes local comm + FT version if FT_ENABLED
    */
   void initLocalComm();
