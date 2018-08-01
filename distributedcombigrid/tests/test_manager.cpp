@@ -1,31 +1,31 @@
 #define BOOST_TEST_DYN_LINK
-#include <boost/test/unit_test.hpp>
 #include <mpi.h>
-#include <iostream>
+#include <boost/test/unit_test.hpp>
+#include <cmath>
 #include <complex>
 #include <cstdarg>
+#include <iostream>
 #include <vector>
-#include <cmath>
 
 #include <boost/serialization/export.hpp>
-#include "sgpp/distributedcombigrid/task/Task.hpp"
-#include "sgpp/distributedcombigrid/utils/Config.hpp"
-#include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
+#include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/utils/Config.hpp"
+#include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "test_helper.hpp"
 
 /* functor for exact solution */
 class TestFn {
-public:
+ public:
   // function value
   double operator()(std::vector<double>& coords, double t) {
     double exponent = 0;
@@ -33,7 +33,7 @@ public:
       coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
       exponent -= std::pow(coords[d] - 0.5, 2);
     }
-    return std::exp(exponent*100.0) * 2;
+    return std::exp(exponent * 100.0) * 2;
   }
 };
 
@@ -41,17 +41,17 @@ public:
  * periodic boundary conditions using the finite difference and explicit Euler
  * methods */
 class TaskAdvectionFDM : public combigrid::Task {
-public:
-  TaskAdvectionFDM(LevelVector& l, std::vector<bool>& boundary,
-                   real coeff, LoadModel* loadModel, real dt, size_t nsteps) :
-    Task(2, l, boundary, coeff, loadModel), dt_(dt), nsteps_(nsteps) {
-  }
+ public:
+  TaskAdvectionFDM(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
+                   real dt, size_t nsteps)
+      : Task(2, l, boundary, coeff, loadModel), dt_(dt), nsteps_(nsteps) {}
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+  void init(CommunicatorType lcomm,
+            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     // only use one process per group
     IndexVector p(getDim(), 1);
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(),
-                                                  lcomm, getBoundary(), p);
+    dfg_ =
+        new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p);
     phi_.resize(dfg_->getNrElements());
 
     for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
@@ -62,7 +62,7 @@ public:
       for (DimType d = 0; d < getDim(); ++d) {
         exponent -= std::pow(coords[d] - 0.5, 2);
       }
-      dfg_->getData()[li] = std::exp(exponent*100.0) * 2;
+      dfg_->getData()[li] = std::exp(exponent * 100.0) * 2;
     }
   }
 
@@ -89,12 +89,12 @@ public:
 
         // west neighbor
         IndexVector wi = ai;
-        wi[0] = (l0 + wi[0]-1) % l0;
+        wi[0] = (l0 + wi[0] - 1) % l0;
         IndexType lwi = dfg_->getGlobalLinearIndex(wi);
 
         // south neighbor
         IndexVector si = ai;
-        si[1] = (l1 + si[1]-1) % l1;
+        si[1] = (l1 + si[1] - 1) % l1;
         IndexType lsi = dfg_->getGlobalLinearIndex(si);
 
         // calculate gradient of phi with backward differential quotient
@@ -109,30 +109,22 @@ public:
     setFinished(true);
   }
 
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r,
-                   CommunicatorType lcomm, int n = 0) {
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) {
-    return *dfg_;
-  }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
-  void setZero() {
-
-  }
+  void setZero() {}
 
   ~TaskAdvectionFDM() {
-    if (dfg_ != NULL)
-      delete dfg_;
+    if (dfg_ != NULL) delete dfg_;
   }
 
-protected:
-  TaskAdvectionFDM() :
-    dfg_(NULL) {
-  }
+ protected:
+  TaskAdvectionFDM() : dfg_(NULL) {}
 
-private:
+ private:
   friend class boost::serialization::access;
 
   DistributedFullGrid<CombiDataType>* dfg_;
@@ -140,9 +132,10 @@ private:
   size_t nsteps_;
   std::vector<CombiDataType> phi_;
 
-  template<class Archive>
+  template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    //ar& boost::serialization::make_nvp( BOOST_PP_STRINGIZE(*this),boost::serialization::base_object<Task>(*this));
+    // ar& boost::serialization::make_nvp(
+    // BOOST_PP_STRINGIZE(*this),boost::serialization::base_object<Task>(*this));
     ar& boost::serialization::base_object<Task>(*this);
     ar& dt_;
     ar& nsteps_;
@@ -194,8 +187,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskAdvectionFDM(levels[i], boundary, coeffs[i],
-                                     loadmodel, dt, nsteps);
+      Task* t = new TaskAdvectionFDM(levels[i], boundary, coeffs[i], loadmodel, dt, nsteps);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -244,11 +236,11 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     BOOST_CHECK(TestHelper::equals(fg_exact.getlpNorm(2), l2err, 1e-5));
 
     manager.exit();
-  } else {
+  }
+  else {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
-    while (signal != EXIT)
-      signal = pgroup.wait();
+    while (signal != EXIT) signal = pgroup.wait();
   }
 }
 

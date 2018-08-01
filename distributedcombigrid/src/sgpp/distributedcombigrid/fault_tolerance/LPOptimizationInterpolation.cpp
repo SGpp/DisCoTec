@@ -4,16 +4,16 @@ namespace combigrid {
 
 LP_OPT_INTERP::LP_OPT_INTERP() {
   i_dim = 0;
-  i_levels = { {0}};
+  i_levels = {{0}};
   level_max = {0};
   no_faults = 0;
   l_max = 0;
   size_downset = 0;
 }
 
-LP_OPT_INTERP::LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim,
-    const int& _opt_type, const CombigridDict& _given_downset,
-    const LevelVectorList& _input_faults) {
+LP_OPT_INTERP::LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim, const int& _opt_type,
+                             const CombigridDict& _given_downset,
+                             const LevelVectorList& _input_faults) {
   assert(_opt_type == GLP_MIN || _opt_type == GLP_MAX);
   i_levels = _levels;
   i_dim = _dim;
@@ -24,14 +24,12 @@ LP_OPT_INTERP::LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim,
   new_levels = check_dimensionality(_levels, ignored_dimensions);
   new_faults = check_faults(_input_faults, ignored_dimensions);
   new_dim = static_cast<int>(new_levels[0].size());
-  new_given_downset = set_new_given_dict(given_downset, ignored_dimensions,
-      _dim);
+  new_given_downset = set_new_given_dict(given_downset, ignored_dimensions, _dim);
 
-  //check_input_levels(new_levels);
+  // check_input_levels(new_levels);
 
   level_max = new_levels.back();
-  entire_downset = set_entire_downset_dict(new_levels, new_given_downset,
-      new_dim);
+  entire_downset = set_entire_downset_dict(new_levels, new_given_downset, new_dim);
 
   l_max = new_levels[1][0];
   for (int i = 1; i < new_dim; ++i) {
@@ -40,8 +38,9 @@ LP_OPT_INTERP::LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim,
 
   valid_input_faults = filter_faults(new_faults, l_max, new_given_downset);
 
-  for (auto fault : new_faults ){
-    if( std::find( valid_input_faults.begin(), valid_input_faults.end(), fault) == valid_input_faults.end() )
+  for (auto fault : new_faults) {
+    if (std::find(valid_input_faults.begin(), valid_input_faults.end(), fault) ==
+        valid_input_faults.end())
       recompute_faults.push_back(fault);
   }
 
@@ -51,20 +50,19 @@ LP_OPT_INTERP::LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim,
     std::cout << "No faults to fix." << std::endl;
     i_lp_prob = glp_create_prob();
   } else {
+    aux_entire_dict = create_aux_entire_dict(entire_downset, new_dim);
+    inv_M = get_inv_M(aux_entire_dict, new_dim);
+    downset_indices = get_downset_indices(entire_downset, new_dim);
 
-  aux_entire_dict = create_aux_entire_dict(entire_downset, new_dim);
-  inv_M = get_inv_M(aux_entire_dict, new_dim);
-  downset_indices = get_downset_indices(entire_downset, new_dim);
+    size_downset = static_cast<int>(entire_downset.size());
+    total_size = no_faults * size_downset;
 
-  size_downset = static_cast<int>(entire_downset.size());
-  total_size = no_faults * size_downset;
+    constr_mat.reserve(1 + total_size);
+    row_index.reserve(1 + total_size);
+    col_index.reserve(1 + total_size);
 
-  constr_mat.reserve(1 + total_size);
-  row_index.reserve(1 + total_size);
-  col_index.reserve(1 + total_size);
-
-  i_lp_prob = glp_create_prob();
-  assert(i_lp_prob != NULL);
+    i_lp_prob = glp_create_prob();
+    assert(i_lp_prob != NULL);
   }
 }
 
@@ -202,18 +200,15 @@ void LP_OPT_INTERP::set_constr_matrix() {
   }
 }
 
-void LP_OPT_INTERP::set_constr_matrix(const std::vector<real>& W) {
-  /* TO DO: nothing here */
-}
+void LP_OPT_INTERP::set_constr_matrix(const std::vector<real>& W) { /* TO DO: nothing here */ }
 
 void LP_OPT_INTERP::solve_opti_problem() const {
-  glp_load_matrix(i_lp_prob, total_size, &row_index[0], &col_index[0],
-      &constr_mat[0]);
+  glp_load_matrix(i_lp_prob, total_size, &row_index[0], &col_index[0], &constr_mat[0]);
   glp_simplex(i_lp_prob, NULL);
   glp_intopt(i_lp_prob, NULL);
 }
 
-CombigridDict LP_OPT_INTERP::get_results( LevelVectorList& recomp_faults ) const {
+CombigridDict LP_OPT_INTERP::get_results(LevelVectorList& recomp_faults) const {
   int status = 0;
 
   real w_i = 0.0;
@@ -275,7 +270,7 @@ CombigridDict LP_OPT_INTERP::get_results( LevelVectorList& recomp_faults ) const
 
     // Print all faults from lower diagonals
     std::cout << "Faults to be potentially recomputed:" << std::endl;
-    for ( size_t i = 0; i < recompute_faults.size(); ++i) {
+    for (size_t i = 0; i < recompute_faults.size(); ++i) {
       std::cout << "[";
       for (int j = 0; j < new_dim; ++j) {
         std::cout << recompute_faults[i][j] << " ";
@@ -310,21 +305,20 @@ CombigridDict LP_OPT_INTERP::get_results( LevelVectorList& recomp_faults ) const
     std::cout << std::endl;
 
     // Determine tasks to be recomputed
-    for (auto fault : recompute_faults){
+    for (auto fault : recompute_faults) {
       LevelVector fault_complete(i_dim);
-      int i=0;
+      int i = 0;
       for (int j = 0; j < i_dim; ++j) {
-        if(std::find(ignored_dimensions.begin(), ignored_dimensions.end(), j) != ignored_dimensions.end()){
-          fault_complete[j]=input_faults[0][j];
-        }
-        else{
+        if (std::find(ignored_dimensions.begin(), ignored_dimensions.end(), j) !=
+            ignored_dimensions.end()) {
+          fault_complete[j] = input_faults[0][j];
+        } else {
           fault_complete[j] = fault[i];
           i++;
         }
-
       }
       std::cout << "fault complete" << fault_complete << "\n";
-      if (output[fault_complete] != 0){
+      if (output[fault_complete] != 0) {
         recomp_faults.push_back(fault_complete);
       }
     }
@@ -333,7 +327,7 @@ CombigridDict LP_OPT_INTERP::get_results( LevelVectorList& recomp_faults ) const
 
     // Print tasks to be recomputed
     std::cout << "Faults to be recomputed:" << std::endl;
-    for ( size_t i = 0; i < recomp_faults.size(); ++i) {
+    for (size_t i = 0; i < recomp_faults.size(); ++i) {
       std::cout << "[";
       for (int j = 0; j < i_dim; ++j) {
         std::cout << recomp_faults[i][j] << " ";
@@ -350,11 +344,7 @@ CombigridDict LP_OPT_INTERP::get_results( LevelVectorList& recomp_faults ) const
   return output;
 }
 
-int LP_OPT_INTERP::getNumFaults(){
-  return no_faults;
-}
+int LP_OPT_INTERP::getNumFaults() { return no_faults; }
 
-LP_OPT_INTERP::~LP_OPT_INTERP() {
-  glp_delete_prob(i_lp_prob);
-}
+LP_OPT_INTERP::~LP_OPT_INTERP() { glp_delete_prob(i_lp_prob); }
 }

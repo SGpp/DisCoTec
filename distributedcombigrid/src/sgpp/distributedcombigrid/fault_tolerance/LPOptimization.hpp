@@ -1,23 +1,22 @@
 #ifndef LPOPT_HPP_
 #define LPOPT_HPP_
 
-#include <iostream>
-#include <sstream>
-#include <cstring>
-#include <cstdlib>
-#include <vector>
-#include <map>
 #include <cassert>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
+#include <map>
+#include <sstream>
+#include <vector>
 
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
 
 #include "glpk.h"
 
-
 namespace combigrid {
 
 class LP_OPT {
-protected:
+ protected:
   /* optimization type: GLP_MIN or GLP_MAX */
   int opt_type;
 
@@ -31,7 +30,7 @@ protected:
   /* colums index vector for the constraint matrix */
   std::vector<int> col_index;
 
-public:
+ public:
   /* used for LP optimization problem initialization */
   /* number of auxiliary and structural variables is set */
   /* as well as objective function and the constraints */
@@ -40,7 +39,8 @@ public:
   /* used to set up the constraint matrix and its row and column indices*/
   virtual void set_constr_matrix() = 0;
 
-  /* used to set up the constraint matrix and its row and column indices when it depends on matrix W*/
+  /* used to set up the constraint matrix and its row and column indices when it depends on matrix
+   * W*/
   virtual void set_constr_matrix(const std::vector<real>& W) = 0;
 
   /* used to solve the linear programming problem, using the simplex algorithm */
@@ -50,8 +50,7 @@ public:
   virtual CombigridDict get_results(LevelVectorList& faults) const = 0;
 
   /* destructor; used to deallocate all the allocated memory */
-  virtual ~LP_OPT() {
-  }
+  virtual ~LP_OPT() {}
 };
 }
 #endif /* LPOPT_HPP_ */

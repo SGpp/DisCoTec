@@ -1,66 +1,57 @@
 #define BOOST_TEST_DYN_LINK
-#include <boost/test/unit_test.hpp>
 #include <mpi.h>
-#include <iostream>
+#include <boost/test/unit_test.hpp>
 #include <complex>
 #include <cstdarg>
+#include <iostream>
 #include <vector>
 
 #include <boost/serialization/export.hpp>
-#include "sgpp/distributedcombigrid/utils/Config.hpp"
-#include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
+#include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/utils/Config.hpp"
 
 #include "test_helper.hpp"
 
 class TaskTest : public combigrid::Task {
-public:
+ public:
   int test;
 
-  TaskTest(DimType dim, LevelVector& l, std::vector<bool>& boundary,
-              real coeff, LoadModel* loadModel, int t) :
-    Task(dim, l, boundary, coeff, loadModel), test(t) {
-  }
+  TaskTest(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+           LoadModel* loadModel, int t)
+      : Task(dim, l, boundary, coeff, loadModel), test(t) {}
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+  void init(CommunicatorType lcomm,
+            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     // create dummy dfg
     IndexVector p(getDim(), 1);
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(),
-                                                  lcomm, getBoundary(), p);
+    dfg_ =
+        new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p);
   }
 
-  void run(CommunicatorType lcomm) {
-  }
+  void run(CommunicatorType lcomm) {}
 
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r,
-                   CommunicatorType lcomm, int n = 0) {
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) {
-    return *dfg_;
-  }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
-  void setZero() {
-
-  }
+  void setZero() {}
 
   ~TaskTest() {
-    if (dfg_ != NULL)
-      delete dfg_;
+    if (dfg_ != NULL) delete dfg_;
   }
 
-protected:
-  TaskTest() :
-    dfg_(NULL) {
-  }
+ protected:
+  TaskTest() : dfg_(NULL) {}
 
-private:
+ private:
   friend class boost::serialization::access;
 
   DistributedFullGrid<CombiDataType>* dfg_;
 
-  template<class Archive>
+  template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     ar& boost::serialization::base_object<Task>(*this);
     ar& test;

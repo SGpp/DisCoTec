@@ -14,26 +14,23 @@
 namespace combigrid {
 
 class StaticFaults : public FaultCriterion {
-public:
+ public:
   StaticFaults(FaultsInfo faultsInfo);
   StaticFaults();
   virtual ~StaticFaults();
   bool failNow(int ncombi, real t_iter, int globalRank);
 
-
-
-private:
+ private:
   friend class boost::serialization::access;
 
   FaultsInfo faultsInfo_;
-  //serialize
-  template<class Archive>
+  // serialize
+  template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
-    ar & boost::serialization::base_object<FaultCriterion>(*this);
-    ar & faultsInfo_;
+    ar& boost::serialization::base_object<FaultCriterion>(*this);
+    ar& faultsInfo_;
   }
 };
-
 
 } /* namespace combigrid */
 

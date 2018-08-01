@@ -7,15 +7,14 @@
 
 #ifndef DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_FAULT_TOLERANCE_FAULTCRITERION_HPP_
 #define DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_FAULT_TOLERANCE_FAULTCRITERION_HPP_
-#include <iostream>
-#include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/vector.hpp>
 #include <chrono>
+#include <iostream>
+#include "sgpp/distributedcombigrid/utils/Config.hpp"
 
 //#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
-//class StaticFaults;
-
+// class StaticFaults;
 
 namespace combigrid {
 /**
@@ -23,8 +22,7 @@ namespace combigrid {
  * to determine of a processor should be killed
  */
 class FaultCriterion {
-
-public:
+ public:
   FaultCriterion();
   virtual ~FaultCriterion();
   /**
@@ -34,7 +32,7 @@ public:
    * @param t_iter time spent for the iteration
    * @param globalRank global rank of the process
    */
-  virtual bool failNow(int ncombi, real t_iter, int globalRank){
+  virtual bool failNow(int ncombi, real t_iter, int globalRank) {
     std::cout << "Use one of the specialized fault criteria for simulating faults!";
     return false;
   }
@@ -43,23 +41,21 @@ public:
    * @param startTimeIteration starting time of process -> used to compare to failure time
    * @param t_fault time a process fails (also referred to as failure time)
    */
-  virtual real init(std::chrono::high_resolution_clock::time_point  startTimeIteration, real t_fault){
+  virtual real init(std::chrono::high_resolution_clock::time_point startTimeIteration,
+                    real t_fault) {
     return -1.0;
   }
 
-
-
-private:
+ private:
   friend class boost::serialization::access;
   /**
    * This method is used for serialization
    */
-  template<class Archive>
-  void serialize(Archive& ar, const unsigned int version){
-
-  }
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {}
 };
 
 } /* namespace combigrid */
 
-#endif /* DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_FAULT_TOLERANCE_FAULTCRITERION_HPP_ */
+#endif /* DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_FAULT_TOLERANCE_FAULTCRITERION_HPP_ \
+          */
