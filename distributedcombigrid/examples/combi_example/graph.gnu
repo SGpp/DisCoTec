@@ -1,6 +1,6 @@
-#!/ bin / gnuplot
+#!/bin/gnuplot
 
-#set terminal pngcairo size 800, 600 enhanced font "Verdana,10"
+#set terminal pngcairo size 800,600 enhanced font "Verdana,10"
 set mouse
 set xrange [0:1]
 set yrange [0:1]
