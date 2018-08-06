@@ -44,6 +44,7 @@ ProcessGroupWorker::ProcessGroupWorker()
 
 ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 
+
 SignalType ProcessGroupWorker::wait() {
   if (status_ == PROCESS_GROUP_FAIL) {  // in this case worker got reused
     status_ = PROCESS_GROUP_WAIT;
@@ -72,31 +73,7 @@ SignalType ProcessGroupWorker::wait() {
   // process signal
   switch (signal) {
     case RUN_FIRST: {
-      Task* t;
-
-      // local root receives task
-      MASTER_EXCLUSIVE_SECTION {
-        Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-      }
-
-      // broadcast task to other process of pgroup
-      Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-
-      MPI_Barrier(theMPISystem()->getLocalComm());
-
-      // add task to task storage
-      tasks_.push_back(t);
-
-      status_ = PROCESS_GROUP_BUSY;
-
-      // set currentTask
-      currentTask_ = tasks_.back();
-
-      // initalize task
-      Stats::startEvent("worker init");
-      currentTask_->init(theMPISystem()->getLocalComm());
-      t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
-      Stats::stopEvent("worker init");
+      initializeTaskAndFaults();
 
       // execute task
       Stats::startEvent("worker run first");
@@ -129,38 +106,15 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case ADD_TASK: {  // add a new task to the process group
-      std::cout << "adding a single task" << std::endl;
-
-      Task* t;
-
-      // local root receives task
-      MASTER_EXCLUSIVE_SECTION {
-        Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-      }
-      // broadcast task to other process of pgroup
-      Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-      std::cout << "added task id: " << t->getID();
-
-      MPI_Barrier(theMPISystem()->getLocalComm());
-
-      // check if task already exists on this group
-      for (auto tmp : tasks_) assert(tmp->getID() != t->getID());
-
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
-      t->init(theMPISystem()->getLocalComm());
-      t_fault_ = t->initFaults(t_fault_, startTimeIteration_);
+      initializeTaskAndFaults();
+      
+      currentTask_->setZero();
 
-      t->setZero();
+      currentTask_->setFinished(true);
 
-      t->setFinished(true);
-
-      // add task to task storage
-      tasks_.push_back(t);
-      currentTask_ = tasks_.back();  // important for updating values
       currentTask_->changeDir(theMPISystem()->getLocalComm());
-      status_ = PROCESS_GROUP_BUSY;
-
     } break;
     case RESET_TASKS: {  // deleta all tasks (used in process recovery)
       std::cout << "resetting tasks" << std::endl;
@@ -219,30 +173,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case RECOMPUTE: {  // recompute the received task (immediately computes tasks ->
                        // difference to ADD_TASK)
-      Task* t;
-
-      // local root receives task
-      MASTER_EXCLUSIVE_SECTION {
-        Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-      }
-
-      // broadcast task to other process of pgroup
-      Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-
-      MPI_Barrier(theMPISystem()->getLocalComm());
-
-      // add task to task storage
-      tasks_.push_back(t);
-
-      status_ = PROCESS_GROUP_BUSY;
-
-      // set currentTask
-      currentTask_ = tasks_.back();
-
-      // initalize task
-      currentTask_->init(theMPISystem()->getLocalComm());
-      t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
-
+      initializeTaskAndFaults();
       currentTask_->setZero();
 
       // fill task with combisolution
@@ -710,6 +641,40 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
   MASTER_EXCLUSIVE_SECTION {
     CombiCom::FGReduce(fg_red, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
+}
+
+
+void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
+  Task* t;
+
+  // local root receives task
+  MASTER_EXCLUSIVE_SECTION {
+    Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+  }
+
+  // broadcast task to other process of pgroup
+  Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+
+  if (!mayAlreadyExist){
+    // check if task already exists on this group
+    for (auto tmp : tasks_) assert(tmp->getID() != t->getID());
+  }
+
+  MPI_Barrier(theMPISystem()->getLocalComm());
+
+  // add task to task storage
+  tasks_.push_back(t);
+
+  status_ = PROCESS_GROUP_BUSY;
+
+  // set currentTask
+  currentTask_ = tasks_.back();
+
+  // initalize task
+  Stats::startEvent("task init in worker");
+  currentTask_->init(theMPISystem()->getLocalComm());
+  t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
+  Stats::stopEvent("task init in worker");
 }
 
 // todo: this is just a temporary function which will drop out some day

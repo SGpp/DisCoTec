@@ -95,6 +95,8 @@ class ProcessGroupWorker {
       startTimeIteration_;  // starting time of process computation
 
   // std::ofstream betasFile_;
+
+  void initializeTaskAndFaults(bool mayAlreadyExist = true);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
