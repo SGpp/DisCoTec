@@ -1,0 +1,79 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "scons build",
+            "command": "scons",
+            "type": "shell",
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceRoot}/..", //"/home/freifrau/Desktop/phd/mario/combi"
+            },
+            "showOutput": "always",
+            "args": [
+                "-j4",
+                "SG_JAVA=0",
+                "COMPILE_BOOST_TESTS=1",
+                "SG_ALL=0 ",
+                "SG_DISTRIBUTEDCOMBIGRID=1 ",
+                "VERBOSE=1",
+                "RUN_BOOST_TESTS=0",
+                "RUN_CPPLINT=0",
+                "BUILD_STATICLIB=0",
+                "CXX=mpicxx.mpich",
+                "OPT=1",
+                "CPPFLAGS=-g" // for debugging and profiling
+            ],
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceRoot}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "boost tests",
+            "command": "mpirun.mpich",
+            "type": "shell",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "showOutput": "always",
+            "args": [
+                "-n",
+                "9",
+                "${workspaceRoot}/tests/test_distributedcombigrid_boost"
+            ],
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                }
+            },
+        },
+        {
+            "label": "make combi_example",
+            "command": "make && ./run.sh",
+            "type": "shell",
+            "group": "test",
+            "showOutput": "always",
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/combi_example"
+            },
+        }
+    ]
+}

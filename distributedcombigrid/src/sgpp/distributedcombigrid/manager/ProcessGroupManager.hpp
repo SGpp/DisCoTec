@@ -93,6 +93,19 @@ class ProcessGroupManager {
 
   void recvStatus();
 
+  // Helper functions for Communication with ProcessGroups
+  bool storeTaskReferenceAndSendTaskToProcessGroup(Task* t, SignalType signal);
+
+  void storeTaskReference(Task* t);
+
+  bool sendTaskToProcessGroup(Task* t, SignalType signal);
+
+  void sendSignalAndReceive(SignalType signal);
+
+  void sendSignalToProcessGroup(SignalType signal);
+
+  inline void setProcessGroupBusyAndReceive();
+
   /* sets the rank of the process group's master in global comm. should only
    * be called by ProcessManager.
    */

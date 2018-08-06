@@ -22,7 +22,7 @@ MPI_Op simft::customOp;
 #endif
 
 int simft::Sim_FT_MPI_Init(int *argc, char ***argv) {
-  simft::Sim_FT_MPI_COMM_WORLD = new simft::Sim_FT_MPI_Comm_struct;
+  simft::Sim_FT_MPI_COMM_WORLD = new simft::Sim_FT_MPI_Comm_struct; //TODO make_unique
   simft::Sim_FT_MPI_COMM_WORLD->c_comm = MPI_COMM_WORLD;
 
   simft::Sim_FT_MPI_COMM_NULL = new simft::Sim_FT_MPI_Comm_struct;

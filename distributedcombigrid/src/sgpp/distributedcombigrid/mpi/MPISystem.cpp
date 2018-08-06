@@ -79,7 +79,7 @@ MPISystem::~MPISystem() {
   // todo: the fault tolerant communicator are initialized with new -> delete
 }
 
-void MPISystem::init(size_t ngroup, size_t nprocs) {
+void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs) {
   assert(!initialized_ && "MPISystem already initialized!");
 
   ngroup_ = ngroup;
@@ -97,8 +97,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs) {
   MPI_Comm_rank(worldComm_, &worldRank_);
   managerRankWorld_ = worldSize - 1;
   managerRankFT_ = worldSize - 1;
-
-  // managerRankWorld_ = 0;
+  
   if (ENABLE_FT) {
     worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
     MPI_Comm worldCommdup;
@@ -106,6 +105,12 @@ void MPISystem::init(size_t ngroup, size_t nprocs) {
     createCommFT(&spareCommFT_, worldCommdup);
     // spareCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
   }
+  // std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
+  // worldCommFT_->Root_Rank = worldSize - 1;
+}
+
+void MPISystem::init(size_t ngroup, size_t nprocs) {
+  initSystemConstants(ngroup, nprocs);
 
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
@@ -129,33 +134,8 @@ void MPISystem::init(size_t ngroup, size_t nprocs) {
 
 /*  here the local communicator has already been created by the application */
 void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
-  assert(!initialized_ && "MPISystem already initialized!");
+  initSystemConstants(ngroup, nprocs);
 
-  ngroup_ = ngroup;
-  nprocs_ = nprocs;
-
-  worldComm_ = MPI_COMM_WORLD;
-
-  /* init worldComm
-   * the manager has highest rank here
-   */
-  int worldSize;
-  MPI_Comm_size(worldComm_, &worldSize);
-  assert(worldSize == int(ngroup_ * nprocs_ + 1));
-
-  MPI_Comm_rank(worldComm_, &worldRank_);
-  managerRankWorld_ = worldSize - 1;
-  managerRankFT_ = worldSize - 1;
-
-  if (ENABLE_FT) {
-    worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
-    MPI_Comm worldCommdup;
-    MPI_Comm_dup(worldComm_, &worldCommdup);
-    createCommFT(&spareCommFT_, worldCommdup);
-    // spareCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
-  }
-  // std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
-  // worldCommFT_->Root_Rank = worldSize - 1;
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
    * for manager, lcomm is a group which contains only manager process and can be ignored
