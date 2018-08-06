@@ -1,7 +1,7 @@
-CC=mpic++
+CC=mpicxx.mpich
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb
 
-SGPP_DIR=/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft
+SGPP_DIR=../../..
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 LD_GLPK=-L/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk/lib
