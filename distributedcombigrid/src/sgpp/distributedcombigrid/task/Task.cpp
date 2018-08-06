@@ -35,6 +35,13 @@ std::vector<CombiDataType>* Task::bufAsync;
 MPI_Request* Task::requestAsync;
 std::vector<int>* Task::subspaceSizes;
 
+std::vector<CombiDataType>* Task::bufAsyncOdd;
+std::vector<CombiDataType>* Task::bufAsyncEven;
+MPI_Request* Task::requestAsyncOdd;
+MPI_Request* Task::requestAsyncEven;
+std::vector<int>* Task::subspaceSizesOdd;
+std::vector<int>* Task::subspaceSizesEven;
+
 
 void Task::send(Task** t, RankType dst, CommunicatorType comm) {
   // save data to archive

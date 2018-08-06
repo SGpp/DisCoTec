@@ -58,6 +58,17 @@ class ProcessGroupWorker {
   //Termination of noblocking reduce
   void combineUniformAsyncHierarchizeUpdate();
 
+  //combine on sparse grid with uniform decomposition of domain with noblocking reduce
+  void combineUniformAsyncOddEven();
+
+  //combine on sparse grid with uniform decomposition of domain with noblocking reduce
+  bool isDistributedGlobalReduceAsyncOddEvenCompleted(bool isEven);
+  //Initialization of noblocking reduce
+  void combineUniformAsyncOddEvenInitHierarchizeReduce(bool isEven, bool isLast);
+
+  //Termination of noblocking reduce
+  void combineUniformAsyncOddEvenHierarchizeUpdate(bool isEven, bool isFirst);
+
 
   //outdated!
   void combineFG();
@@ -92,6 +103,11 @@ class ProcessGroupWorker {
    * Vector containing all distributed sparse grids
    */
   std::vector<DistributedSparseGridUniform<CombiDataType>*> combinedUniDSGVector_;
+
+  /**
+   * Vector containing all distributed sparse grids
+   */
+  std::vector<DistributedSparseGridUniform<CombiDataType>*> combinedUniDSGVector2_;
 
   bool combinedFGexists_;
 

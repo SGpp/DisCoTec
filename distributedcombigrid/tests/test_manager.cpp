@@ -66,19 +66,67 @@ public:
     }
   }
 
+  // void run(CommunicatorType lcomm) {
+  //   // velocity vector
+  //   std::vector<CombiDataType> u(getDim());
+  //   u[0] = 1;
+  //   u[1] = 1;
+  //
+  //   // gradient of phi
+  //   std::vector<CombiDataType> dphi(getDim());
+  //
+  //   IndexType l0 = dfg_->length(0);
+  //   IndexType l1 = dfg_->length(1);
+  //   double h0 = 1.0 / (double)l0;
+  //   double h1 = 1.0 / (double)l1;
+  //
+  //   for (size_t i = 0; i < nsteps_; ++i) {
+  //     phi_.swap(dfg_->getElementVector());
+  //
+  //     for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
+  //       IndexVector ai(getDim());
+  //       dfg_->getGlobalVectorIndex(li, ai);
+  //
+  //       // west neighbor
+  //       IndexVector wi = ai;
+  //       wi[0] = (l0 + wi[0]-1) % l0;
+  //       IndexType lwi = dfg_->getGlobalLinearIndex(wi);
+  //
+  //       // south neighbor
+  //       IndexVector si = ai;
+  //       si[1] = (l1 + si[1]-1) % l1;
+  //       IndexType lsi = dfg_->getGlobalLinearIndex(si);
+  //
+  //       // calculate gradient of phi with backward differential quotient
+  //       dphi[0] = (phi_[li] - phi_[lwi]) / h0;
+  //       dphi[1] = (phi_[li] - phi_[lsi]) / h1;
+  //
+  //       CombiDataType u_dot_dphi = u[0] * dphi[0] + u[1] * dphi[1];
+  //       dfg_->getData()[li] = phi_[li] - u_dot_dphi * dt_;
+  //     }
+  //   }
+  //
+  //   setFinished(true);
+  // }
+
+
   void run(CommunicatorType lcomm) {
+
+    //dim
+    int dim = getDim();
     // velocity vector
-    std::vector<CombiDataType> u(getDim());
-    u[0] = 1;
-    u[1] = 1;
+    std::vector<CombiDataType> u(getDim(), 1);
 
     // gradient of phi
     std::vector<CombiDataType> dphi(getDim());
 
-    IndexType l0 = dfg_->length(0);
-    IndexType l1 = dfg_->length(1);
-    double h0 = 1.0 / (double)l0;
-    double h1 = 1.0 / (double)l1;
+    std::vector<IndexType> l(getDim());
+    std::vector<double> h(getDim());
+
+    for (int i = 0; i < getDim(); i++){
+      l[i] = dfg_->length(i);
+      h[i] = 1.0 / (double)l[i];
+    }
 
     for (size_t i = 0; i < nsteps_; ++i) {
       phi_.swap(dfg_->getElementVector());
@@ -87,27 +135,31 @@ public:
         IndexVector ai(getDim());
         dfg_->getGlobalVectorIndex(li, ai);
 
-        // west neighbor
-        IndexVector wi = ai;
-        wi[0] = (l0 + wi[0]-1) % l0;
-        IndexType lwi = dfg_->getGlobalLinearIndex(wi);
+        //neighbour
+        std::vector<IndexVector> ni(getDim(), ai);
+        std::vector<IndexType> lni(getDim());
 
-        // south neighbor
-        IndexVector si = ai;
-        si[1] = (l1 + si[1]-1) % l1;
-        IndexType lsi = dfg_->getGlobalLinearIndex(si);
+        CombiDataType u_dot_dphi = 0;
 
-        // calculate gradient of phi with backward differential quotient
-        dphi[0] = (phi_[li] - phi_[lwi]) / h0;
-        dphi[1] = (phi_[li] - phi_[lsi]) / h1;
+        for(int j = 0; j < getDim(); j++){
+          ni[j][j] = (l[j] + ni[j][j] - 1) % l[j];
+          lni[j] = dfg_->getGlobalLinearIndex(ni[j]);
+        }
 
-        CombiDataType u_dot_dphi = u[0] * dphi[0] + u[1] * dphi[1];
+        for(int j = 0; j < getDim(); j++){
+          //calculate gradient of phi with backward differential quotient
+          dphi[j] = (phi_[li] - phi_[lni[j]]) / h[j];
+
+          u_dot_dphi += u[j] * dphi[j];
+        }
+
         dfg_->getData()[li] = phi_[li] - u_dot_dphi * dt_;
       }
     }
 
     setFinished(true);
   }
+
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r,
                    CommunicatorType lcomm, int n = 0) {
@@ -240,10 +292,22 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err, bool 
       fg_exact.getData()[li] = f(coords, (double)((1 + ncombi) * nsteps) * dt);
     }
 
+
+    FullGrid<CombiDataType> fg_prev(fg_exact);
+
     // calculate error
     fg_exact.add(fg_eval, -1);
-    printf("Error: %f", fg_exact.getlpNorm(0));
-    printf("Error2: %f", fg_exact.getlpNorm(2));
+
+    std::vector<CombiDataType> ev_prev(fg_prev.getElementVector());
+    std::vector<CombiDataType> ev_exact(fg_exact.getElementVector());
+    CombiDataType l1norm = 0;
+    for(int i = 0; i < ev_exact.size(); i++ ){
+      l1norm += abs(ev_exact[i] / ev_prev[i]);
+    }
+
+    printf("Error: %f", fg_exact.getlpNorm(0)/fg_prev.getlpNorm(0));
+    printf("Error: %f", l1norm);
+    printf("Error2: %f", fg_exact.getlpNorm(2)/fg_prev.getlpNorm(0));
     // results recorded previously
     BOOST_CHECK(TestHelper::equals(fg_exact.getlpNorm(0), l0err, 1e-5));
     BOOST_CHECK(TestHelper::equals(fg_exact.getlpNorm(2), l2err, 1e-5));

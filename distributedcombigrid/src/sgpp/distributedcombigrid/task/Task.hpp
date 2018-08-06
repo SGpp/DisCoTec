@@ -132,6 +132,21 @@ class Task {
   /** SubspaceSized for Async Reduce*/
   static std::vector<int> *subspaceSizes;
 
+  /** the full grid vector before combi, this contains the elements of the full grid before combi*/
+  std::vector<CombiDataType> *fullgridVectorCurrent;
+
+  /** request for Async Reduce*/
+  static MPI_Request *requestAsyncOdd;
+  static MPI_Request *requestAsyncEven;
+
+  /** Buffer for Async Reduce*/
+  static std::vector<CombiDataType> *bufAsyncOdd;
+  static std::vector<CombiDataType> *bufAsyncEven;
+
+  /** SubspaceSized for Async Reduce*/
+  static std::vector<int> *subspaceSizesOdd;
+  static std::vector<int> *subspaceSizesEven;
+
 };
 
 typedef std::vector<Task*> TaskContainer;

@@ -15,7 +15,7 @@
 
 
 /* comment this line to switch of timing */
-//#define TIMING
+#define TIMING
 
 namespace combigrid {
 

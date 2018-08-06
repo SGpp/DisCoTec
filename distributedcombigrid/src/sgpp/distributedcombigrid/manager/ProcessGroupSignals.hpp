@@ -34,6 +34,7 @@ const SignalType PARALLEL_EVAL = 17;
 const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
 const SignalType COMBINE_ASYNC = 20;
+const SignalType COMBINE_ASYNC_ODD_EVEN = 21;
 
 
 typedef int NormalizationType;

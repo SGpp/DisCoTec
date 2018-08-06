@@ -30,6 +30,7 @@ ProcessGroupWorker::ProcessGroupWorker() :
     status_(PROCESS_GROUP_WAIT),
     combinedFG_( NULL),
     combinedUniDSGVector_(0),
+    combinedUniDSGVector2_(0),
     combinedFGexists_(false),
     combiParameters_(),
     combiParametersSet_(false),
@@ -211,6 +212,14 @@ SignalType ProcessGroupWorker::wait() {
 
     Stats::startEvent("combine");
     combineUniformAsync();
+    currentCombi_++;
+    Stats::stopEvent("combine");
+
+  } else if (signal == COMBINE_ASYNC_ODD_EVEN) { //start combination
+
+    Stats::startEvent("combine");
+    combineUniformAsyncOddEven();
+    currentCombi_++;
     Stats::stopEvent("combine");
 
   } else if (signal == GRID_EVAL) { // not supported anymore
@@ -609,19 +618,16 @@ void ProcessGroupWorker::combineUniform() {
 void ProcessGroupWorker::combineUniformAsync() {
 
   /*In case there is only one combine do normal combine*/
-  if(currentCombi_+1 == combiParameters_.getNumberOfCombinations()){
+  if(combiParameters_.getNumberOfCombinations() == 1){
     combineUniform();
-    currentCombi_++;
   }
   else{
-    if(Task::isFirstCombiSequence){
+    if(currentCombi_ == 0){
       combineUniformAsyncInitHierarchizeReduce();
-      Task::isFirstCombiSequence = false;
     }
     else if(isDistributedGlobalReduceAsyncCompleted()){
       combineUniformAsyncHierarchizeUpdate();
-      currentCombi_++;
-      if(currentCombi_ != combiParameters_.getNumberOfCombinations()){
+      if(currentCombi_ + 1!= combiParameters_.getNumberOfCombinations()){
         combineUniformAsyncInitHierarchizeReduce();
       }
 
@@ -630,6 +636,33 @@ void ProcessGroupWorker::combineUniformAsync() {
 
 }
 
+void ProcessGroupWorker::combineUniformAsyncOddEven() {
+
+  /*In case there is only one combine do normal combine*/
+
+  bool isEven = (currentCombi_%2==0);
+  bool isLast = (currentCombi_ + 1== combiParameters_.getNumberOfCombinations());
+  bool isFirst = (currentCombi_ == 0);
+
+  if(combiParameters_.getNumberOfCombinations() == 1){
+    combineUniform();
+    return;
+  }
+  if(isFirst){
+    combineUniformAsyncOddEvenInitHierarchizeReduce(isEven, isLast);
+    combineUniformAsyncOddEvenHierarchizeUpdate(isEven, isFirst);
+    return;
+  }
+  if(isDistributedGlobalReduceAsyncOddEvenCompleted(isEven)){
+    combineUniformAsyncOddEvenInitHierarchizeReduce(isEven, isLast);
+    combineUniformAsyncOddEvenHierarchizeUpdate(isEven, isFirst);
+  }
+}
+
+
+
+
+
 bool ProcessGroupWorker::isDistributedGlobalReduceAsyncCompleted(){
   int numGrids = combiParameters_.getNumGrids();
   int finishedReduce = 0;
@@ -637,6 +670,25 @@ bool ProcessGroupWorker::isDistributedGlobalReduceAsyncCompleted(){
 
   MPI_Waitall(numGrids,Task::requestAsync,MPI_STATUSES_IGNORE);
   MPI_Testall(numGrids, Task::requestAsync, &flag, MPI_STATUSES_IGNORE);
+  if(!flag)
+  {
+    std::cout << "skipped";
+  }
+
+  return flag;
+}
+
+bool ProcessGroupWorker::isDistributedGlobalReduceAsyncOddEvenCompleted(bool isEven){
+  int numGrids = combiParameters_.getNumGrids();
+  int finishedReduce = 0;
+  int flag = 0;
+  if(isEven){
+    MPI_Waitall(numGrids,Task::requestAsyncOdd,MPI_STATUSES_IGNORE);
+    MPI_Testall(numGrids, Task::requestAsyncOdd, &flag, MPI_STATUSES_IGNORE);
+  } else{
+    MPI_Waitall(numGrids,Task::requestAsyncEven,MPI_STATUSES_IGNORE);
+    MPI_Testall(numGrids, Task::requestAsyncEven, &flag, MPI_STATUSES_IGNORE);
+  }
 
   return flag;
 }
@@ -736,13 +788,6 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       std::vector<CombiDataType> datavector(dfg.getElementVector());
       t->fullgridVectorBeforeCombi[g] = datavector;
-      //beforeCombi = datavector;
-      // compute max norm
-      /*
-      real max = dfg.getLpNorm(0);
-      if( max > localMax )
-        localMax = max;
-        */
 
       // hierarchize dfg
       DistributedHierarchization::hierarchize<CombiDataType>(
@@ -757,15 +802,22 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
   }
   Stats::stopEvent("combine hierarchize");
 
-  Stats::startEvent("combine global reduce");
+  Stats::startEvent("combine global reduce init");
 
   Task::bufAsync = new std::vector<CombiDataType>[numGrids];
   Task::requestAsync = new MPI_Request[numGrids];
-  Task::subspaceSizes = new std::vector<int>[numGrids];
+
+  if(currentCombi_ == 0){
+    Task::subspaceSizes = new std::vector<int>[numGrids];
+    for(int g=0; g<numGrids; g++){
+      CombiCom::distributedGlobalReduceAsyncFirst( *combinedUniDSGVector_[g], Task::subspaceSizes[g]);
+    }
+  }
 
   for(int g=0; g<numGrids; g++){
     CombiCom::distributedGlobalReduceAsyncInit( *combinedUniDSGVector_[g], Task::subspaceSizes[g], Task::bufAsync[g], Task::requestAsync[g]);
   }
+  Stats::stopEvent("combine global reduce init");
 
   Stats::startEvent("combine dehierarchize");
 
@@ -780,15 +832,6 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
       DistributedHierarchization::dehierarchize<CombiDataType>(
           dfg, combiParameters_.getHierarchizationDims() );
 
-      //std::vector<CombiDataType> datavector(dfg.getElementVector());
-      //afterCombi = datavector;
-      // if exceeds normalization limit, normalize dfg with global max norm
-      /*
-      if( globalMax > 1000 ){
-        dfg.mul( 1.0 / globalMax );
-        std::cout << "normalized dfg with " << globalMax << std::endl;
-      }
-      */
     }
   }
   Stats::stopEvent("combine dehierarchize");
@@ -796,13 +839,13 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
 
 void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
   //std::vector<CombiDataType> afterCombi;
-
+  Stats::startEvent("combine global reduce extract");
   int numGrids = combiParameters_.getNumGrids();
 
   for(int g=0; g<numGrids; g++){
     CombiCom::distributedGlobalReduceAsyncExtractSubspace( *combinedUniDSGVector_[g], Task::subspaceSizes[g], Task::bufAsync[g] );
   }
-  Stats::stopEvent("combine global reduce");
+  Stats::stopEvent("combine global reduce extract");
 
   Stats::startEvent("combine dehierarchize");
   for (Task* t : tasks_) {
@@ -822,15 +865,231 @@ void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
       std::vector<CombiDataType>& gridAfterCombi = dfg.getElementVector();
 
       for(int i=0; i< gridAfterCombi.size();i++){
-        gridAfterCombi[i] += gridNextTimestep[i] - t->fullgridVectorBeforeCombi[g][i];
+        gridAfterCombi[i] += (gridNextTimestep[i] - t->fullgridVectorBeforeCombi[g][i]);
 
       }
 
     }
   }
 
+  for(Task* t : tasks_){
+    delete [] t->fullgridVectorBeforeCombi;
+  }
+  delete [] Task::bufAsync;
+  delete [] Task::requestAsync;
+
   Stats::stopEvent("combine dehierarchize");
 }
+
+
+void ProcessGroupWorker::combineUniformAsyncOddEvenInitHierarchizeReduce(bool isEven, bool isFinal){
+#ifdef DEBUG_OUTPUT
+    MASTER_EXCLUSIVE_SECTION{
+      std::cout << "start combining \n";
+    }
+#endif
+
+  Stats::startEvent("combine init");
+
+  // each pgrouproot must call reduce function
+  //assert(tasks_.size() > 0);
+  if(tasks_.size() == 0){
+    std::cout << "Possible error: task size is 0! \n";
+  }
+  assert( combiParametersSet_ );
+  int numGrids = combiParameters_.getNumGrids(); //we assume here that every task has the same number of grids
+
+  DimType dim = combiParameters_.getDim();
+  LevelVector lmin = combiParameters_.getLMin();
+  LevelVector lmax = combiParameters_.getLMax();
+  const std::vector<bool>& boundary = combiParameters_.getBoundary();
+
+  // the dsg can be smaller than lmax because the highest subspaces do not have
+  // to be exchanged
+  // todo: use a flag to switch on/off optimized combination
+
+  reduceSparseGridCoefficients(lmax,lmin,combiParameters_.getNumberOfCombinations(),currentCombi_,
+      combiParameters_.getLMinReductionVector(), combiParameters_.getLMaxReductionVector());
+  /*for (size_t i = 0; i < lmax.size(); ++i)
+        if (lmin[i] > 1)
+          lmin[i] -= 01;
+  for (size_t i = 0; i < lmax.size(); ++i)
+      lmax[i] = std::max(lmin[i],lmax[i] - 2);
+  */
+#ifdef DEBUG_OUTPUT
+  MASTER_EXCLUSIVE_SECTION{
+    std::cout << "lmin: "<< lmin << std::endl;
+    std::cout << "lmax: "<< lmax << std::endl;
+  }
+#endif
+
+  std::vector<DistributedSparseGridUniform<CombiDataType>*> & combinedUniDSGVectorOddEven = ((isEven)? combinedUniDSGVector_ : combinedUniDSGVector2_);
+
+  //delete old dsgs
+  for(int g=0; g<combinedUniDSGVectorOddEven.size(); g++){
+
+    if (combinedUniDSGVectorOddEven[g] != NULL)
+      delete combinedUniDSGVectorOddEven[g];
+  }
+  combinedUniDSGVectorOddEven.clear();
+  // erzeug dsgs
+  combinedUniDSGVectorOddEven.resize(numGrids);
+  for(int g=0; g<numGrids; g++){
+    combinedUniDSGVectorOddEven[g] = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
+      lmin, boundary,
+      theMPISystem()->getLocalComm());
+  }
+  // todo: move to init function to avoid reregistering
+  // register dsgs in all dfgs
+  for (Task* t : tasks_) {
+    for(int g=0; g<numGrids; g++){
+
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+
+      dfg.registerUniformSG(*(combinedUniDSGVectorOddEven[g]));
+    }
+  }
+  Stats::stopEvent("combine init");
+  Stats::startEvent("combine hierarchize");
+
+  real localMax(0.0);
+  //std::vector<CombiDataType> beforeCombi;
+  for (Task* t : tasks_) {
+    t->fullgridVectorCurrent = new std::vector<CombiDataType>[numGrids];
+    for(int g=0; g<numGrids; g++){
+
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+      std::vector<CombiDataType> datavector(dfg.getElementVector());
+      t->fullgridVectorCurrent[g] = datavector;
+      // hierarchize dfg
+      DistributedHierarchization::hierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims() );
+
+      // lokales reduce auf sg ->
+      dfg.addToUniformSG( *combinedUniDSGVectorOddEven[g], combiParameters_.getCoeff( t->getID() ) );
+#ifdef DEBUG_OUTPUT
+      std::cout << "Combination: added task " << t->getID() << " with coefficient " << combiParameters_.getCoeff( t->getID() ) <<"\n";
+#endif
+    }
+  }
+  Stats::stopEvent("combine hierarchize");
+
+
+
+
+  if(isFinal)
+  {
+    return;
+  }
+
+  Stats::startEvent("combine global reduce init");
+  if(isEven){
+    Task::requestAsyncEven = new MPI_Request[numGrids];
+    Task::bufAsyncEven = new std::vector<CombiDataType>[numGrids];
+
+    if(currentCombi_ == 0){
+      Task::subspaceSizes = new std::vector<int>[numGrids];
+      for(int g=0; g<numGrids; g++){
+        CombiCom::distributedGlobalReduceAsyncFirst( *combinedUniDSGVector_[g], Task::subspaceSizes[g]);
+      }
+    }
+    for(int g=0; g<numGrids; g++){
+      CombiCom::distributedGlobalReduceAsyncInit( *combinedUniDSGVectorOddEven[g], Task::subspaceSizes[g], Task::bufAsyncEven[g], Task::requestAsyncEven[g]);
+    }
+  }else{
+    Task::requestAsyncOdd = new MPI_Request[numGrids];
+    Task::bufAsyncOdd = new std::vector<CombiDataType>[numGrids];
+
+    for(int g=0; g<numGrids; g++){
+      CombiCom::distributedGlobalReduceAsyncInit( *combinedUniDSGVectorOddEven[g], Task::subspaceSizes[g], Task::bufAsyncOdd[g], Task::requestAsyncOdd[g]);
+    }
+  }
+
+  Stats::stopEvent("combine global reduce init");
+}
+
+void ProcessGroupWorker::combineUniformAsyncOddEvenHierarchizeUpdate(bool isEven, bool isFirst){
+
+  std::vector<DistributedSparseGridUniform<CombiDataType>*> & combinedUniDSGVectorOddEven = ((isEven)? combinedUniDSGVector2_ : combinedUniDSGVector_);
+
+  //std::vector<CombiDataType> afterCombi;
+
+  int numGrids = combiParameters_.getNumGrids();
+
+
+  if (isFirst){
+      Stats::startEvent("combine dehierarchize");
+      for (Task* t : tasks_) {
+        t->fullgridVectorBeforeCombi = new std::vector<CombiDataType>[numGrids];
+        for(int g=0; g<numGrids; g++){
+          // get handle to dfg
+          DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+          // dehierarchize dfg
+          DistributedHierarchization::dehierarchize<CombiDataType>(
+              dfg, combiParameters_.getHierarchizationDims() );
+
+          std::vector<CombiDataType> datavector(dfg.getElementVector());
+          t->fullgridVectorBeforeCombi[g] = datavector;
+
+        }
+      }
+      Stats::stopEvent("combine dehierarchize");
+      return;
+  }
+  Stats::startEvent("combine global reduce extract");
+  if(isEven){
+    for(int g=0; g<numGrids; g++){
+      CombiCom::distributedGlobalReduceAsyncExtractSubspace( *combinedUniDSGVectorOddEven[g], Task::subspaceSizes[g], Task::bufAsyncOdd[g] );
+    }
+  } else{
+    for(int g=0; g<numGrids; g++){
+      CombiCom::distributedGlobalReduceAsyncExtractSubspace( *combinedUniDSGVectorOddEven[g], Task::subspaceSizes[g], Task::bufAsyncEven[g] );
+    }
+  }
+
+  Stats::stopEvent("combine global reduce extract");
+
+  Stats::startEvent("combine dehierarchize");
+  for (Task* t : tasks_) {
+    for(int g=0; g<numGrids; g++){
+
+      // get handle to dfg
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+
+      // extract dfg vom dsg
+      dfg.extractFromUniformSG( *combinedUniDSGVectorOddEven[g] );
+
+      // dehierarchize dfg
+      DistributedHierarchization::dehierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims() );
+
+      std::vector<CombiDataType>& gridAfterCombi = dfg.getElementVector();
+
+      for(int i=0; i< gridAfterCombi.size();i++){
+        gridAfterCombi[i] += (t->fullgridVectorCurrent[g][i] - t->fullgridVectorBeforeCombi[g][i]);
+        t->fullgridVectorBeforeCombi[g][i] = gridAfterCombi[i];
+      }
+
+    }
+  }
+
+  for(Task* t : tasks_){
+    delete [] t->fullgridVectorCurrent;
+  }
+
+
+  if(isEven){
+    delete [] Task::requestAsyncOdd;
+    delete [] Task::bufAsyncOdd;
+  } else{
+    delete [] Task::requestAsyncEven;
+    delete [] Task::bufAsyncEven;
+  }
+
+  Stats::stopEvent("combine dehierarchize");
+}
+
+
 
 void ProcessGroupWorker::parallelEval(){
   if(uniformDecomposition)
