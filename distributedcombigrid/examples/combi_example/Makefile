@@ -1,7 +1,7 @@
 CC=mpicxx.mpich
 CFLAGS=-std=c++11 -g -fopenmp -Wall -Wextra -Wno-unused-local-typedefs 
 
-SGPP_DIR=/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/
+SGPP_DIR=../../..
 GLPK_DIR=/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk
 
 INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ 
