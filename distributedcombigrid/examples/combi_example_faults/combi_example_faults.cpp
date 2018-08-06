@@ -23,6 +23,9 @@
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/LPOptimizationInterpolation.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
@@ -33,7 +36,10 @@ using namespace combigrid;
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskExample)
+BOOST_CLASS_EXPORT(StaticFaults)
+BOOST_CLASS_EXPORT(WeibullFaults)
 
+BOOST_CLASS_EXPORT(FaultCriterion)
 
 
 int main(int argc, char** argv) {
@@ -96,14 +102,27 @@ int main(int argc, char** argv) {
     std::vector<int> taskIDs;
 
     for (size_t i = 0; i < levels.size(); i++) {
+      //create FaultCriterion
+      FaultCriterion *faultCrit;
+      //create fault criterion
+      if(faultsInfo.numFaults_ < 0){ //use random distributed faults
+        //if numFaults is smallerthan 0 we use the absolute value
+        //as lambda value for the weibull distribution
+        faultCrit = new WeibullFaults(0.7, abs(faultsInfo.numFaults_), ncombi, true);
+      }
+      else{ //use predefined static number and timing of faults
+        //if numFaults = 0 there are no faults
+        faultCrit = new StaticFaults(faultsInfo);
+      }
       Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i],
-                                loadmodel, dt, nsteps, p, faultsInfo);
+                                loadmodel, dt, nsteps, p, faultCrit);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
     }
 
     /* create combi parameters */
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
+    params.setParallelization(p);
 
     /* create Manager with process groups */
     ProcessManager manager( pgroups, tasks, params );
@@ -122,7 +141,10 @@ int main(int argc, char** argv) {
 //        manager.recover();
 
         std::vector<int> faultsID;
-        manager.getGroupFaultIDs(faultsID);
+
+        //vector with pointers to managers of failed groups
+        std::vector< ProcessGroupManagerID> groupFaults;
+        manager.getGroupFaultIDs(faultsID, groupFaults);
 
         /* call optimization code to find new coefficients */
         const std::string prob_name = "interpolation based optimization";
@@ -140,16 +162,31 @@ int main(int argc, char** argv) {
           tmp->setStepsTotal((i-1)*nsteps);
         }
         /* recover communicators*/
-        manager.recoverCommunicators();
+        bool failedRecovery = manager.recoverCommunicators(groupFaults);
 
+
+        if(failedRecovery){
+          //if the process groups could not be restored distribute tasks to other groups
+          std::cout << "Redistribute groups \n";
+          manager.redistribute(redistributeFaultsID);
+        }
+        else{
+          //if process groups could be restored reinitialize restored process group (keep the original tasks)
+          std::cout << "Reinitializing groups \n";
+          manager.reInitializeGroup(groupFaults,recomputeFaultsID);
+        }
+        /* if some tasks have to be recomputed, do so
+         * allowing recomputation reduces the overhead that would be needed
+         * for finding a scheme that avoids all failed tasks*/
+        if(!recomputeFaultsID.empty()){
+          std::cout << "sending tasks for recompute \n";
+          manager.recompute(recomputeFaultsID,failedRecovery,groupFaults); //toDO handle faults in recompute
+        }
+        std::cout << "updateing Combination Parameters \n";
+        //needs to be after reInitialization!
         /* communicate new combination scheme*/
         manager.updateCombiParameters();
 
-        /* if some tasks have to be recomputed, do so*/
-        manager.recompute(recomputeFaultsID);
-
-        /* redistribute failed tasks to living groups */
-        manager.redistribute(redistributeFaultsID);
       }
 
       /* combine solution */
@@ -167,11 +204,8 @@ int main(int argc, char** argv) {
     }
 
 
-    /* evaluate solution */
-    FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-    manager.gridEval(fg_eval);
-    std::string filename( "solution.fg" );
-    fg_eval.save( filename );
+    std::string filename("out/solution_" + std::to_string(ncombi) + ".dat" );
+    manager.parallelEval( leval, filename, 0 );
 
     /* send exit signal to workers in order to enable a clean program termination */
     manager.exit();

@@ -4,7 +4,7 @@ lmin = 3 3
 lmax = 6 6
 leval = 4 4
 p = 1 2
-ncombi = 2
+ncombi = 3
 
 [application]
 dt = 0.01
@@ -17,5 +17,5 @@ nprocs = 2
 
 [faults]
 num_faults = 1
-iteration_faults = 0
+iteration_faults = 1
 global_rank_faults = 3

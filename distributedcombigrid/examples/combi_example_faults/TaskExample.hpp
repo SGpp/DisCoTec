@@ -18,14 +18,14 @@ class TaskExample: public Task {
 
  public:
   /* if the constructor of the base task class is not sufficient we can provide an
-   * own implementation. here, we add dt, nsteps, p, and faultsInfo as a new parameters.
+   * own implementation. here, we add dt, nsteps, p as a new parameters.
    */
   TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary,
       real coeff, LoadModel* loadModel, real dt,
       size_t nsteps, IndexVector p = IndexVector(0),
-      FaultsInfo faultsInfo = {0,IndexVector(0),IndexVector(0)}) :
-        Task(dim, l, boundary, coeff, loadModel), dt_(dt), nsteps_(
-            nsteps), stepsTotal_(0), p_(p), faultsInfo_(faultsInfo),
+      FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})) ) :
+        Task(dim, l, boundary, coeff, loadModel, faultCrit), dt_(dt), nsteps_(
+            nsteps), stepsTotal_(0), p_(p),
             initialized_(false), combiStep_(0), dfg_(NULL)
  {
  }
@@ -130,10 +130,7 @@ class TaskExample: public Task {
 
     stepsTotal_ += nsteps_;
     this->setFinished(true);
-    if (failNow(globalRank)){
-      std::cout<<"rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
-      simft::Sim_FT_kill_me();
-    }
+    decideToKill();
     ++combiStep_;
   }
 
@@ -145,12 +142,12 @@ class TaskExample: public Task {
    * the DistributedFullGrid class offers a convenient function to do this.
    */
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r,
-                   CommunicatorType lcomm) {
+                   CommunicatorType lcomm, int n = 0) {
     assert(fg.getLevels() == dfg_->getLevels());
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid() {
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n) {
     return *dfg_;
   }
 
@@ -202,13 +199,11 @@ class TaskExample: public Task {
   size_t nsteps_;
   size_t stepsTotal_;
   IndexVector p_;
-  FaultsInfo faultsInfo_;
 
   // pure local variables that exist only on the worker processes
   bool initialized_;
   size_t combiStep_;
 
-  inline bool failNow( const int& globalRank );
 
 
   DistributedFullGrid<CombiDataType>* dfg_;
@@ -231,30 +226,41 @@ class TaskExample: public Task {
     ar& nsteps_;
     ar& stepsTotal_;
     ar& p_;
-    ar& faultsInfo_;
+  }
+
+  void decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
+    using namespace std::chrono;
+
+    int globalRank;
+    // MPI_Comm_rank(lcomm, &lrank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+    //theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
+    //duration<real> dur = high_resolution_clock::now() - startTimeIteration_;
+    //real t_iter = dur.count();
+    //std::cout << "Current iteration took " << t_iter << "\n";
+
+    //theStatsContainer()->setTimerStart("computeIterationRank" + std::to_string(globalRank));
+
+
+    //check if killing necessary
+    //std::cout << "failNow result " << failNow(globalRank) << " at rank: " << globalRank <<" at step " << combiStep_ << "\n" ;
+    //real t = dt_ * nsteps_ * combiStep_;
+    if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, -1.0, globalRank)){
+          std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
+          StatusType status=PROCESS_GROUP_FAIL;
+          MASTER_EXCLUSIVE_SECTION{
+            simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), statusTag,
+                              theMPISystem()->getGlobalCommFT() );
+          }
+          theMPISystem()->sendFailedSignal();
+          simft::Sim_FT_kill_me();
+    }
   }
 
 };
 
-inline bool TaskExample::failNow( const int& globalRank ){
-  FaultsInfo faultsInfo = faultsInfo_;
-  IndexVector iF = faultsInfo_.iterationFaults_;
-  IndexVector rF = faultsInfo_.globalRankFaults_;
 
-  std::vector<IndexType>::iterator it;
-  it = std::find(iF.begin(), iF.end(), combiStep_);
-  IndexType idx = std::distance(iF.begin(),it);
 
-  // Check if current iteration is in iterationFaults_
-  while (it!=iF.end()){
-    // Check if my rank is the one that fails
-    if (globalRank == rF[idx])
-      return true;
-    it = std::find(++it, iF.end(), combiStep_);
-    idx = std::distance(iF.begin(),it);
-  }
-  return false;
-}
 
 
 inline void TaskExample::setStepsTotal( size_t stepsTotal ) {
