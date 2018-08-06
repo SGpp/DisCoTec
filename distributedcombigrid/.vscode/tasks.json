@@ -1,7 +1,5 @@
-
-    // See https://go.microsoft.com/fwlink/?LinkId=733558
-    // for the documentation about the tasks.json format
-
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
 {
     "version": "2.0.0",
     "tasks": [
@@ -11,7 +9,7 @@
             "type": "shell",
             "group": "build",
             "options": {
-                "cwd": "${workspaceRoot}/..",//"/home/freifrau/Desktop/phd/mario/combi"
+                "cwd": "${workspaceRoot}/..", //"/home/freifrau/Desktop/phd/mario/combi"
             },
             "showOutput": "always",
             "args": [
@@ -26,34 +24,7 @@
                 "BUILD_STATICLIB=0",
                 "CXX=mpicxx.mpich",
                 "OPT=1",
-                "CPPFLAGS=-g"
-            ],
-            "problemMatcher": {
-                "owner": "cpp",
-                "fileLocation": [
-                    "relative",
-                    "${workspaceRoot}"
-                ],
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "export lib",
-            "command": "export",
-            "type": "shell",
-            "group": "build",
-
-            "showOutput": "always",
-            
-            "args": [
-                "LD_LIBRARY_PATH=${workspaceRoot}/../home/freifrau/Desktop/phd/mario/combi/lib/sgpp:$LD_LIBRARY_PATH"
+                "CPPFLAGS=-g" // for debugging and profiling
             ],
             "problemMatcher": {
                 "owner": "cpp",
@@ -81,29 +52,28 @@
             },
             "showOutput": "always",
             "args": [
-                "-n", "9",
+                "-n",
+                "9",
                 "${workspaceRoot}/tests/test_distributedcombigrid_boost"
             ],
-            "problemMatcher": {
-                "owner": "cpp",
-                "fileLocation": [
-                    "relative",
-                    "${workspaceRoot}"
-                ],
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            },
             "options": {
                 "env": {
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 }
-            },    
+            },
+        },
+        {
+            "label": "make combi_example",
+            "command": "make && ./run.sh",
+            "type": "shell",
+            "group": "test",
+            "showOutput": "always",
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/combi_example"
+            },
         }
     ]
 }
