@@ -117,7 +117,7 @@ inline StatusType ProcessGroupManager::getStatus() {
     MPI_Status stat;
     int err = MPI_Test( &statusRequest_, &flag, &stat );
 
-    if( err == MPI_ERR_PROC_FAILED )
+    if( err == MPIX_ERR_PROC_FAILED )
       status_ = PROCESS_GROUP_FAIL;
   }
 
@@ -134,7 +134,7 @@ inline StatusType ProcessGroupManager::waitStatus() {
 
   if( status_ == PROCESS_GROUP_BUSY){
     int err = MPI_Wait( &statusRequest_, MPI_STATUS_IGNORE );
-    if( err == MPI_ERR_PROC_FAILED )
+    if( err == MPIX_ERR_PROC_FAILED )
       status_ = PROCESS_GROUP_FAIL;
   }
 

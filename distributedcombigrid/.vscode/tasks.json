@@ -1,0 +1,190 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "scons build",
+            "command": "scons",
+            "type": "shell",
+            "group": "build",
+            "options": {
+                "cwd": "${workspaceRoot}/..", //"/home/freifrau/Desktop/phd/mario/combi"
+            },
+            "presentation": {
+                "reveal": "always"
+            },
+            "args": [
+                "-j4",
+                "SG_JAVA=0",
+                "COMPILE_BOOST_TESTS=1",
+                "SG_ALL=0 ",
+                "SG_DISTRIBUTEDCOMBIGRID=1 ",
+                "VERBOSE=1",
+                "RUN_BOOST_TESTS=0",
+                "RUN_CPPLINT=0",
+                "BUILD_STATICLIB=0",
+                "CXX=mpicxx.mpich",
+                "OPT=1",
+                "CPPFLAGS=-g" // for debugging and profiling
+            ],
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceRoot}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "boost tests",
+            "command": "mpirun.mpich",
+            "type": "shell",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
+            },
+            "args": [
+                "-n",
+                "9",
+                "${workspaceRoot}/tests/test_distributedcombigrid_boost"
+            ],
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                }
+            },
+        },
+        {
+            "label": "make combi_example",
+            "command": "make && ./run.sh",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/combi_example"
+            },
+        },
+        {
+            "label": "make combi_example_faults",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/../lib/sgpp -I${workspaceRoot}/src/  -o combi_example_faults combi_example_faults.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && ./run.sh",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/combi_example_faults"
+            },
+        },
+        {
+            "label": "combi_example_faults_test_1",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/../lib/sgpp -I${workspaceRoot}/src/  -o test_ft_sim test_ft_sim.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 5 ./test_ft_sim 2",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/combi_example_faults"
+            },
+        },
+        {
+            "label": "combi_example_faults_test_2",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/../lib/sgpp -I${workspaceRoot}/src/  -o test_ft_sim_2 test_ft_sim_2.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 2 ./test_ft_sim_2 1",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/combi_example_faults"
+            },
+        },
+        {
+            "label": "combi_example_faults_test_3",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/../lib/sgpp -I${workspaceRoot}/src/  -o test_ft_sim_3 test_ft_sim_3.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./test_ft_sim_3 1",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/combi_example_faults"
+            },
+        },
+        {
+            "label": "combi_example_faults_test_4",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/../lib/sgpp -I${workspaceRoot}/src/  -o test_ft_sim_4 test_ft_sim_4.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./test_ft_sim_4 1",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/combi_example_faults"
+            },
+        },
+        {
+            "label": "make gene_example",
+            "command": "make && ./run.sh",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/gene_example"
+            },
+        },
+        {
+            "label": "make gene_distributed",
+            "command": "make && ./run.sh",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/gene_distributed"
+            },
+        },
+    ]
+}

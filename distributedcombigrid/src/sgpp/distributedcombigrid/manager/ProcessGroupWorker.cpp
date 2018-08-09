@@ -224,7 +224,7 @@ void ProcessGroupWorker::ready() {
     // whether a process in the group has failed
     int err = MPI_Barrier( theMPISystem()->getLocalComm() );
 
-    if( err == MPI_ERR_PROC_FAILED ){
+    if( err == MPIX_ERR_PROC_FAILED ){
       status_ = PROCESS_GROUP_FAIL;
 
       int globalRank;
@@ -248,7 +248,7 @@ void ProcessGroupWorker::ready() {
           // whether a process in the group has failed
           int err = MPI_Barrier( theMPISystem()->getLocalComm() );
 
-          if( err == MPI_ERR_PROC_FAILED ){
+          if( err == MPIX_ERR_PROC_FAILED ){
             status_ = PROCESS_GROUP_FAIL;
             break;
           }

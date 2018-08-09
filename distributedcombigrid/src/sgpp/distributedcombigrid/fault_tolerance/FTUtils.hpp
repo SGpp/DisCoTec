@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <chrono>
+#include <random>
 #include <valarray>
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/vector.hpp>
