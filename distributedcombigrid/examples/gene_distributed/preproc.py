@@ -1,9 +1,14 @@
+from __future__ import print_function
 #path to python interface
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
 from sys import path
 path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src')
 path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src/tools')
 
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import collections
 from subprocess import call
 
@@ -140,7 +145,7 @@ else:
 # loop over scheme
 id = 0
 spaces = ''
-print len(scheme.getCombinationDictionary())
+print(len(scheme.getCombinationDictionary()))
 for l in scheme.getCombinationDictionary():
     # note that the level vector in the python vector is stored in reverse order
     l0 = l[5]
