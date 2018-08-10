@@ -176,27 +176,27 @@ class DistributedFullGrid {
       }
     }
 
-/*
-if ( rank_ == 0 ) {
-  for ( auto subsp : subspaces_ ) {
-    std::cout << subsp.level_ << std::endl;
+    /*
+    if ( rank_ == 0 ) {
+      for ( auto subsp : subspaces_ ) {
+        std::cout << subsp.level_ << std::endl;
 
-    for ( RankType r = 0; r < size_; ++r ) {
-      // get coords of r in cart comm
-      IndexVector coords( dim_ );
-      this->getPartitionCoords( r, coords );
+        for ( RankType r = 0; r < size_; ++r ) {
+          // get coords of r in cart comm
+          IndexVector coords( dim_ );
+          this->getPartitionCoords( r, coords );
 
-      std::cout << "r = " << r << " ";
-      std::cout << "rcoords = " << IndexVector( coords.begin(), coords.end() )
-                << " ";
-      std::cout << "lbounds = " << subsp.lowerBounds_[r]
-                << " ";
-      std::cout << "rbounds = " << subsp.upperBounds_[r]
-                << std::endl;
+          std::cout << "r = " << r << " ";
+          std::cout << "rcoords = " << IndexVector( coords.begin(), coords.end() )
+                    << " ";
+          std::cout << "lbounds = " << subsp.lowerBounds_[r]
+                    << " ";
+          std::cout << "rbounds = " << subsp.upperBounds_[r]
+                    << std::endl;
+        }
+      }
     }
-  }
-}
-*/
+    */
 
 #endif
   }
@@ -786,7 +786,9 @@ if ( rank_ == 0 ) {
       if (subSgData.size() == 0)
         subSgData.resize(subspaces_[subFgId].localSize_);
       else
-        assert(subSgData.size() == subspaces_[subFgId].localSize_);
+        ASSERT(subSgData.size() == subspaces_[subFgId].localSize_,
+               "subSgData.size(): " << subSgData.size() << ", subspaces_[subFgId].localSize_: "
+                                    << subspaces_[subFgId].localSize_ << std::endl);
     }
   }
 
@@ -1393,6 +1395,9 @@ if ( rank_ == 0 ) {
 
     IndexType numSubgrids =
         std::accumulate(procs_.begin(), procs_.end(), 1, std::multiplies<size_t>());
+
+    ASSERT(size_ == static_cast<int>(numSubgrids),
+           " size_: " << size_ << " numSubgrids: " << static_cast<int>(numSubgrids));
     assert(size_ == static_cast<int>(numSubgrids));
 
     // important: note reverse ordering of dims!
@@ -1743,6 +1748,6 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
 template <typename FG_ELEMENT>
 int DistributedFullGrid<FG_ELEMENT>::count = 0;
 
-}  // end namespace
+}  // namespace combigrid
 
 #endif /* DISTRIBUTEDCOMBIFULLGRID_HPP_ */

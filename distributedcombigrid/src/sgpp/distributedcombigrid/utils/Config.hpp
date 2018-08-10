@@ -10,6 +10,16 @@
 
 #include <complex>
 
+#define ASSERT(cond, msg) {\
+    if(!(cond))\
+    {\
+        std::stringstream str;\
+        str << msg;\
+        std::cerr << msg;\
+        BOOST_ASSERT_MSG(cond, str.str().c_str());\
+    }\
+}
+
 namespace combigrid {
 
 /* With this config class the distributed combigrid module can be configured
@@ -54,7 +64,7 @@ const bool omitReadySignal = true;
 const bool uniformDecomposition = true;
 
 /* switch on fault tolerance functionality */
-const bool ENABLE_FT = true;
+const bool ENABLE_FT = false;
 const bool isGENE = true;
 // const bool GENE_Global = true;
 // const bool GENE_Linear = true;
