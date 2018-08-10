@@ -26,7 +26,9 @@
                 "BUILD_STATICLIB=0",
                 "CXX=mpicxx.mpich",
                 "OPT=1",
-                "CPPFLAGS=-g" // for debugging and profiling
+                "CPPFLAGS=-g", // for debugging and profiling
+                "GLPK_LIBRARY_PATH=${workspaceRoot}/../hlrs-tools/glpk/lib",
+                "GLPK_INCLUDE_PATH=${workspaceRoot}/../hlrs-tools/glpk/include"
             ],
             "problemMatcher": {
                 "owner": "cpp",
@@ -173,7 +175,7 @@
         },
         {
             "label": "make gene_distributed",
-            "command": "make && ./run.sh",
+            "command": "make manager && ./run.sh",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -184,6 +186,37 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/gene_distributed"
+            },
+        },
+        {
+            "label": "make gene_distributed testBoundaryZ",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/../lib/sgpp -I${workspaceRoot}/src/  -o testBoundaryZ testBoundaryZ.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./testBoundaryZ test_fg.dat .",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/gene_distributed/tools"
+            },
+        },
+        {
+            "label": "make gene_distributed testDistributedHierarchization",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/../lib/sgpp -I${workspaceRoot}/src/  -o testDistributedHierarchization testDistributedHierarchization.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 2 ./testDistributedHierarchization",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH",
+                    "PYTHONPATH": "${workspaceRoot}/../lib:$PYTHONPATH"
+                },
+                "cwd": "${workspaceRoot}/examples/gene_distributed/tools"
             },
         },
     ]
