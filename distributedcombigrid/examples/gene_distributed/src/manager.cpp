@@ -284,7 +284,7 @@ int main(int argc, char** argv) {
     }
     // create combiparamters
     CombiParameters params( dim, lmin, lmax, boundary, levels,
-                            coeffs, hierarchizationDims, taskIDs, ncombi, reduceCombinationDimsLmin, reduceCombinationDimsLmax, numGrids);
+                            coeffs, hierarchizationDims, taskIDs, ncombi, numGrids, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
     params.setParallelization(p);
 
     // create Manager with process groups
