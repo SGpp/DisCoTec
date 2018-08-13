@@ -1,12 +1,13 @@
 CC=mpic++
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb
 
-SGPP_DIR=/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft
+SGPP_DIR=$(SGPP)
+GLPK_DIR=$(GLPK)
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
-LD_GLPK=-L/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk/lib
+INC_GLPK=-I$(GLPK_DIR)/include
+LD_GLPK=-L$(GLPK_DIR)/lib
 INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ 
-INC_GLPK=-I/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk/include
 
 LDIR=$(LD_SGPP) $(LD_GLPK)
 INC=$(INC_SGPP) $(INC_GLPK)
