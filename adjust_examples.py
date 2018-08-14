@@ -1,6 +1,6 @@
-GLPK_DIR="/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk"
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
+GLPK_DIR= str(dir_path) + "/lib/glpk"
 examples = ["combi_example", "combi_example_faults", "gene_distributed"]
 for example in examples:
     pfilein = open(str(dir_path)+ "/distributedcombigrid/examples/" + example + "/Makefile.template" ,'r')
