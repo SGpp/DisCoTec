@@ -5,8 +5,8 @@ standard_library.install_aliases()
 from builtins import str
 from builtins import range
 from sys import path
-path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src')
-path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src/tools')
+path.append('../../../gene_python_interface/src')
+path.append('../../../gene_python_interface/src/tools')
 
 from configparser import SafeConfigParser
 import collections
@@ -146,6 +146,8 @@ else:
 id = 0
 spaces = ''
 print(len(scheme.getCombinationDictionary()))
+print(scheme.getCombinationDictionary())
+
 for l in scheme.getCombinationDictionary():
     # note that the level vector in the python vector is stored in reverse order
     l0 = l[5]
@@ -231,5 +233,3 @@ scmd += " -n 1" + " ./manager"
 sfile = open( config.basename + "/" + config.startscript,'w')
 sfile.write(scmd)
 sfile.close()
-
-

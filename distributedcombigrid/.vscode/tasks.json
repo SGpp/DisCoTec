@@ -85,7 +85,7 @@
         },
         {
             "label": "make combi_example_faults",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/../lib/sgpp -I${workspaceRoot}/src/  -o combi_example_faults combi_example_faults.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && ./run.sh",
+            "command": "make && ./run.sh",
             "type": "shell",
             "group": "test",
             "presentation": {

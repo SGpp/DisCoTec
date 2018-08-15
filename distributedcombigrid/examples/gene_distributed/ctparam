@@ -38,8 +38,8 @@ GENE_nonlinear = T
 basename = ginstance
 executable = ./gene_new_machine
 mpi = mpirun
-sgpplib = /import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/lib/sgpp
-tasklib = /import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/examples/gene_distributed/lib
+sgpplib = ../../../lib/sgpp
+tasklib = ./lib
 startscript = start.bat
 
 [manager]
