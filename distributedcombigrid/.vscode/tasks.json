@@ -9,7 +9,7 @@
             "type": "shell",
             "group": "build",
             "options": {
-                "cwd": "${workspaceRoot}/..", //"/home/freifrau/Desktop/phd/mario/combi"
+                "cwd": "${workspaceRoot}/.."
             },
             "presentation": {
                 "reveal": "always"
@@ -26,7 +26,7 @@
                 "BUILD_STATICLIB=0",
                 "CXX=mpicxx.mpich",
                 "OPT=1",
-                "CPPFLAGS=-g", // for debugging and profiling
+                "CPPFLAGS=-g",
                 "GLPK_LIBRARY_PATH=${workspaceRoot}/../hlrs-tools/glpk/lib",
                 "GLPK_INCLUDE_PATH=${workspaceRoot}/../hlrs-tools/glpk/include"
             ],
@@ -66,7 +66,7 @@
                 "env": {
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 }
-            },
+            }
         },
         {
             "label": "make combi_example",
@@ -81,7 +81,7 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/combi_example"
-            },
+            }
         },
         {
             "label": "make combi_example_faults",
@@ -96,7 +96,7 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/combi_example_faults"
-            },
+            }
         },
         {
             "label": "combi_example_faults_test_1",
@@ -111,7 +111,7 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/combi_example_faults"
-            },
+            }
         },
         {
             "label": "combi_example_faults_test_2",
@@ -126,7 +126,7 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/combi_example_faults"
-            },
+            }
         },
         {
             "label": "combi_example_faults_test_3",
@@ -141,7 +141,7 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/combi_example_faults"
-            },
+            }
         },
         {
             "label": "combi_example_faults_test_4",
@@ -156,7 +156,7 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/combi_example_faults"
-            },
+            }
         },
         {
             "label": "make gene_example",
@@ -171,7 +171,7 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/gene_example"
-            },
+            }
         },
         {
             "label": "make gene_distributed",
@@ -186,7 +186,51 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/gene_distributed"
+            }
+        },
+        {
+            "label": "preproc.py",
+            "command": "python3 preproc.py",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
             },
+            "options": {
+                "env": {
+                    "PYTHONPATH": "${workspaceRoot}/../../gene_python_interface/src:${workspaceRoot}/../../gene_python_interface/src/tools:$PYTHONPATH"
+                },
+                "cwd": "${workspaceRoot}/examples/gene_distributed"
+            }
+        },
+        {
+            "label": "base start.bat",
+            "command": "mpirun.mpich -n 4 ./gene_new_machine :  -n 1 ./manager",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:${workspaceRoot}/examples/gene_distributed/lib:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/examples/gene_distributed/ginstance"
+            }
+        },
+        {
+            "label": "Full gene_distributed (base case)",
+            "dependsOn": [
+                "make gene_distributed",
+                "preproc.py",
+                "base start.bat"
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
         },
         {
             "label": "make gene_distributed testBoundaryZ",
@@ -201,7 +245,7 @@
                     "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/gene_distributed/tools"
-            },
+            }
         },
         {
             "label": "make gene_distributed testDistributedHierarchization",
@@ -217,7 +261,7 @@
                     "PYTHONPATH": "${workspaceRoot}/../lib:$PYTHONPATH"
                 },
                 "cwd": "${workspaceRoot}/examples/gene_distributed/tools"
-            },
-        },
+            }
+        }
     ]
 }
