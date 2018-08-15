@@ -27,8 +27,8 @@
                 "CXX=mpicxx.mpich",
                 "OPT=1",
                 "CPPFLAGS=-g",
-                "GLPK_LIBRARY_PATH=${workspaceRoot}/../hlrs-tools/glpk/lib",
-                "GLPK_INCLUDE_PATH=${workspaceRoot}/../hlrs-tools/glpk/include"
+                "GLPK_LIBRARY_PATH=${workspaceRoot}/../../hlrs-tools/glpk/lib",
+                "GLPK_INCLUDE_PATH=${workspaceRoot}/../../hlrs-tools/glpk/include"
             ],
             "problemMatcher": {
                 "owner": "cpp",
@@ -93,7 +93,7 @@
             },
             "options": {
                 "env": {
-                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:$LD_LIBRARY_PATH"
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:${workspaceRoot}/../../hlrs-tools/glpk/lib:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/examples/combi_example_faults"
             }
