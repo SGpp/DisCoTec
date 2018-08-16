@@ -2,14 +2,6 @@
 
 namespace combigrid {
 
-LP_OPT_INTERP::LP_OPT_INTERP() {
-  i_dim = 0;
-  i_levels = {{0}};
-  level_max = {0};
-  no_faults = 0;
-  l_max = 0;
-  size_downset = 0;
-}
 
 LP_OPT_INTERP::LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim, const int& _opt_type,
                              const CombigridDict& _given_downset,
@@ -66,87 +58,87 @@ LP_OPT_INTERP::LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim, co
   }
 }
 
-LP_OPT_INTERP::LP_OPT_INTERP(const LP_OPT_INTERP& obj) {
-  i_levels = obj.i_levels;
-  i_dim = obj.i_dim;
-  opt_type = obj.opt_type;
-  given_downset = obj.given_downset;
-  input_faults = obj.input_faults;
+// LP_OPT_INTERP::LP_OPT_INTERP(const LP_OPT_INTERP& obj) {
+//   i_levels = obj.i_levels;
+//   i_dim = obj.i_dim;
+//   opt_type = obj.opt_type;
+//   given_downset = obj.given_downset;
+//   input_faults = obj.input_faults;
 
-  new_levels = obj.new_levels;
-  new_faults = obj.new_faults;
-  ignored_dimensions = obj.ignored_dimensions;
-  new_dim = obj.new_dim;
-  new_given_downset = obj.new_given_downset;
+//   new_levels = obj.new_levels;
+//   new_faults = obj.new_faults;
+//   ignored_dimensions = obj.ignored_dimensions;
+//   new_dim = obj.new_dim;
+//   new_given_downset = obj.new_given_downset;
 
-  level_max = obj.level_max;
-  size_downset = obj.size_downset;
+//   level_max = obj.level_max;
+//   size_downset = obj.size_downset;
 
-  l_max = obj.l_max;
+//   l_max = obj.l_max;
 
-  valid_input_faults = obj.valid_input_faults;
-  no_faults = obj.no_faults;
+//   valid_input_faults = obj.valid_input_faults;
+//   no_faults = obj.no_faults;
 
-  total_size = obj.total_size;
+//   total_size = obj.total_size;
 
-  entire_downset = obj.entire_downset;
-  aux_entire_dict = obj.aux_entire_dict;
-  inv_M = obj.inv_M;
+//   entire_downset = obj.entire_downset;
+//   aux_entire_dict = obj.aux_entire_dict;
+//   inv_M = obj.inv_M;
 
-  downset_indices = obj.downset_indices;
+//   downset_indices = obj.downset_indices;
 
-  constr_mat = obj.constr_mat;
-  row_index = obj.row_index;
-  col_index = obj.col_index;
+//   constr_mat = obj.constr_mat;
+//   row_index = obj.row_index;
+//   col_index = obj.col_index;
 
-  i_lp_prob = glp_create_prob();
-  assert(i_lp_prob != NULL);
-  std::memcpy(i_lp_prob, obj.i_lp_prob, 1 * sizeof(i_lp_prob));
-}
+//   i_lp_prob = glp_create_prob();
+//   assert(i_lp_prob != NULL);
+//   std::memcpy(i_lp_prob, obj.i_lp_prob, 1 * sizeof(i_lp_prob));
+// }
 
-LP_OPT_INTERP& LP_OPT_INTERP::operator=(const LP_OPT_INTERP& rhs) {
-  if (&rhs == this) {
-    return *this;
-  }
+// LP_OPT_INTERP& LP_OPT_INTERP::operator=(const LP_OPT_INTERP& rhs) {
+//   if (&rhs == this) {
+//     return *this;
+//   }
 
-  i_levels = rhs.i_levels;
-  i_dim = rhs.i_dim;
-  opt_type = rhs.opt_type;
-  given_downset = rhs.given_downset;
-  input_faults = rhs.input_faults;
+//   i_levels = rhs.i_levels;
+//   i_dim = rhs.i_dim;
+//   opt_type = rhs.opt_type;
+//   given_downset = rhs.given_downset;
+//   input_faults = rhs.input_faults;
 
-  new_levels = rhs.new_levels;
-  new_faults = rhs.new_faults;
-  ignored_dimensions = rhs.ignored_dimensions;
-  new_dim = rhs.new_dim;
-  new_given_downset = rhs.new_given_downset;
+//   new_levels = rhs.new_levels;
+//   new_faults = rhs.new_faults;
+//   ignored_dimensions = rhs.ignored_dimensions;
+//   new_dim = rhs.new_dim;
+//   new_given_downset = rhs.new_given_downset;
 
-  level_max = rhs.level_max;
-  size_downset = rhs.size_downset;
+//   level_max = rhs.level_max;
+//   size_downset = rhs.size_downset;
 
-  l_max = rhs.l_max;
+//   l_max = rhs.l_max;
 
-  valid_input_faults = rhs.valid_input_faults;
-  no_faults = rhs.no_faults;
+//   valid_input_faults = rhs.valid_input_faults;
+//   no_faults = rhs.no_faults;
 
-  total_size = rhs.total_size;
+//   total_size = rhs.total_size;
 
-  entire_downset = rhs.entire_downset;
-  aux_entire_dict = rhs.aux_entire_dict;
-  inv_M = rhs.inv_M;
+//   entire_downset = rhs.entire_downset;
+//   aux_entire_dict = rhs.aux_entire_dict;
+//   inv_M = rhs.inv_M;
 
-  downset_indices = rhs.downset_indices;
+//   downset_indices = rhs.downset_indices;
 
-  constr_mat = rhs.constr_mat;
-  row_index = rhs.row_index;
-  col_index = rhs.col_index;
+//   constr_mat = rhs.constr_mat;
+//   row_index = rhs.row_index;
+//   col_index = rhs.col_index;
 
-  i_lp_prob = glp_create_prob();
-  assert(i_lp_prob != NULL);
-  std::memcpy(i_lp_prob, rhs.i_lp_prob, 1 * sizeof(i_lp_prob));
+//   i_lp_prob = glp_create_prob();
+//   assert(i_lp_prob != NULL);
+//   std::memcpy(i_lp_prob, rhs.i_lp_prob, 1 * sizeof(i_lp_prob));
 
-  return *this;
-}
+//   return *this;
+// }
 
 void LP_OPT_INTERP::init_opti_prob(const std::string& prob_name) {
   std::string aux_var;

@@ -1,11 +1,15 @@
 #ifndef LPOPTINTERP_HPP_
 #define LPOPTINTERP_HPP_
 
-#include "sgpp/distributedcombigrid/fault_tolerance/LPOptimization.hpp"
+#include <memory>
+
+#include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
+
+#include "glpk.h"
 
 namespace combigrid {
 
-class LP_OPT_INTERP : public LP_OPT {
+class LP_OPT_INTERP {
  private:
   /* levels of grid indices */
   LevelVectorList i_levels;
@@ -54,15 +58,30 @@ class LP_OPT_INTERP : public LP_OPT {
   /* faults that have to be recomputed */
   mutable LevelVectorList recompute_faults;
 
+ protected:
+  /* optimization type: GLP_MIN or GLP_MAX */
+  int opt_type;
+
+  /* glp problem; used in every glpk function */
+  glp_prob* i_lp_prob;
+  // std::unique_ptr<glp_prob> i_lp_prob;
+
+  /* constraint matrix */
+  std::vector<double> constr_mat;
+  /* row index vector for the constraint matrix */
+  std::vector<int> row_index;
+  /* colums index vector for the constraint matrix */
+  std::vector<int> col_index;
+
  public:
   LP_OPT_INTERP();
 
   LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim, const int& _opt_type,
                 const CombigridDict& _given_downset, const LevelVectorList& _input_faults);
 
-  LP_OPT_INTERP(const LP_OPT_INTERP& obj);
+  LP_OPT_INTERP(const LP_OPT_INTERP& obj) = delete;
 
-  LP_OPT_INTERP& operator=(const LP_OPT_INTERP& rhs);
+  LP_OPT_INTERP& operator=(const LP_OPT_INTERP& rhs) = delete;
 
   virtual void init_opti_prob(const std::string& prob_name);
 
@@ -78,5 +97,5 @@ class LP_OPT_INTERP : public LP_OPT {
 
   virtual ~LP_OPT_INTERP();
 };
-}
+}  // namespace combigrid
 #endif /* LPOPTINTERP_HPP_ */
