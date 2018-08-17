@@ -25,9 +25,6 @@ std::string python_code_caller(const std::string& script_name, const LevelVector
 /* used to get data for the GCP when minimizing the interpolation error */
 CombigridDict get_python_data(const std::string& script_run, const int& dim);
 
-/* used to create the M matrix for the interpolation based problem */
-matrix create_M_matrix(const CombigridDict& aux_downset, const int& dim);
-
 /* used to create the inverse of M */
 matrix get_inv_M(const CombigridDict& aux_downset, const int& dim);
 
@@ -56,17 +53,8 @@ std::string set_aux_var_name(const std::string& var_name, const int& index);
 /* generates no_of_levels random faults */
 int generate_random_fault(const int& no_of_levels);
 
-/* used to generate random variables for the W matrix in the optimization problem */
-std::vector<real> gen_rand(const int& size);
-
-/* used to compute the size of the downset */
-int get_size_downset(const LevelVector& level_max, const int& dim);
-
 /* used to compute the L1 norm of a vector */
 int l1_norm(const LevelVector& u);
-
-/* used to compute factorial; needed to compute size of the downset */
-int factorial(const int& dim);
 
 /* test whether b >= a */
 bool test_greater(const LevelVector& b, const LevelVector& a);

@@ -80,40 +80,6 @@ CombigridDict get_python_data(const std::string& script_run, const int& dim) {
   return dict;
 }
 
-matrix create_M_matrix(const CombigridDict& aux_downset, const int& dim) {
-  int size_downset = static_cast<int>(aux_downset.size());
-  int i = 0;
-  int j = 0;
-
-  matrix M(size_downset, std::vector<real>(size_downset, 0.0));
-
-  for (auto ii = aux_downset.begin(); ii != aux_downset.end(); ++ii) {
-    i = static_cast<int>(ii->second);
-    j = 0;
-
-    LevelVector w;
-    for (int it = 0; it < dim; ++it) {
-      w.push_back(ii->first[it]);
-    }
-
-    for (auto jj = aux_downset.begin(); jj != aux_downset.end(); ++jj) {
-      LevelVector c;
-      for (int it = 0; it < dim; ++it) {
-        c.push_back(jj->first[it]);
-      }
-      j = static_cast<int>(jj->second);
-
-      if (test_greater(c, w)) {
-        M[i][j] = 1.0;
-      } else {
-        M[i][j] = 0.0;
-      }
-    }
-  }
-
-  return M;
-}
-
 matrix get_inv_M(const CombigridDict& aux_downset, const int& dim) {
   int size_downset = static_cast<int>(aux_downset.size());
   int i = 0;
@@ -297,31 +263,6 @@ int generate_random_fault(const int& no_of_levels) {
   return rand_num(rng);
 }
 
-std::vector<double> gen_rand(const int& size) {
-  double rand_var = 0.0;
-  std::vector<double> output;
-
-  for (int i = 0; i < size; ++i) {
-    rand_var = 1e-2 * (std::rand() % 10);
-    output.push_back(rand_var);
-  }
-
-  return output;
-}
-
-int get_size_downset(const std::vector<int>& level_max, const int& dim) {
-  int size = 1;
-  int min_level_max = *std::min_element(level_max.begin(), level_max.end());
-
-  for (int i = 0; i < dim; ++i) {
-    size *= (min_level_max + i);
-  }
-
-  size = static_cast<int>(size / (factorial(dim)));
-
-  return size;
-}
-
 int l1_norm(const LevelVector& u) {
   int norm = 0;
 
@@ -330,18 +271,6 @@ int l1_norm(const LevelVector& u) {
   }
 
   return norm;
-}
-
-int factorial(const int& dim) {
-  int fact = 0;
-
-  if (dim == 0 || dim == 1) {
-    fact = 1;
-  } else {
-    fact = dim * factorial(dim - 1);
-  }
-
-  return fact;
 }
 
 bool test_greater(const LevelVector& b, const LevelVector& a) {
