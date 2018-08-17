@@ -1,19 +1,9 @@
 #ifndef HELPER_HPP_
 #define HELPER_HPP_
 
-#include <algorithm>
 #include <boost/serialization/access.hpp>
 #include <boost/serialization/vector.hpp>
-#include <cassert>
-#include <chrono>
-#include <cmath>
-#include <cstdlib>
-#include <iostream>
 #include <map>
-#include <numeric>
-#include <sstream>
-#include <stdexcept>
-#include <valarray>
 #include <vector>
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
@@ -21,17 +11,12 @@
 namespace combigrid {
 
 typedef std::vector<std::vector<real>> matrix;
-typedef std::map<int, LevelVector> IdToLevelDict;
 typedef std::map<LevelVector, real> CombigridDict;
 typedef std::vector<LevelVector> LevelVectorList;
 
 /* used to convert a string to a number in any format */
 template <typename T>
 T str_to_number(const std::string& no);
-
-/* used to remove a vector element of vec from position pos */
-template <typename T>
-void remove(std::vector<T>& vec, size_t pos);
 
 /* used for calling the python code as python script_name level_min level_max */
 std::string python_code_caller(const std::string& script_name, const LevelVectorList& levels,

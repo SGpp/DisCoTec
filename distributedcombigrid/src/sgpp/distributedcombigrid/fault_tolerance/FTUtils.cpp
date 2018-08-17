@@ -1,5 +1,8 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
 #include <random>
+#include <numeric>
+#include <valarray>
+
 namespace combigrid {
 template <typename T>
 T str_to_number(const std::string& no) {
@@ -16,22 +19,12 @@ T str_to_number(const std::string& no) {
   return value;
 }
 
-template <typename T>
-void remove(std::vector<T>& vec, size_t pos) {
-  auto it = vec.begin();
-  std::advance(it, pos);
-  vec.erase(it);
-}
-
 std::string python_code_caller(const std::string& script_name, const LevelVectorList& levels,
                                const int& dim) {
-  LevelType levels_no = 0;
-  LevelType level_size = 0;
+  LevelType levels_no = static_cast<LevelType>(levels.size());
+  LevelType level_size = static_cast<LevelType>(levels[0].size());
   LevelType one_level = 0;
   std::stringstream caller;
-
-  levels_no = static_cast<LevelType>(levels.size());
-  level_size = static_cast<LevelType>(levels[0].size());
 
   caller << "python " << script_name << " " << dim << " ";
 
@@ -372,9 +365,7 @@ LevelVectorList mindex(const int& dimension, const LevelVector& level_max) {
 
   auto upper_limit = std::max_element(level_max.begin(), level_max.end());
 
-  for (auto elem : level_max) {
-    sum_level_max += elem;
-  }
+  sum_level_max = std::accumulate(level_max.begin(), level_max.end(), 0);
 
   while (true) {
     norm = l1_norm(temp);
@@ -445,17 +436,17 @@ CombigridDict set_new_given_dict(const CombigridDict& given_dict,
   real key = 0.0;
   CombigridDict new_given_dict;
 
-  for (auto ii = given_dict.begin(); ii != given_dict.end(); ++ii) {
+  for (const auto & ii : given_dict) {
     LevelVector new_level;
 
     for (int i = 0; i < dim; ++i) {
       if (std::find(ignored_dimensions.begin(), ignored_dimensions.end(), i) ==
           ignored_dimensions.end()) {
-        new_level.push_back(ii->first[i]);
+        new_level.push_back(ii.first[i]);
       }
     }
 
-    key = ii->second;
+    key = ii.second;
     new_given_dict.insert(std::make_pair(new_level, key));
   }
 
@@ -467,18 +458,17 @@ void check_input_levels(const LevelVectorList& levels) {
   LevelVector l_max = levels[1];
   LevelVector c;
 
-  for (unsigned int i = 0; i < l_min.size(); ++i) {
-    c.push_back(l_max[i] - l_min[i]);
-  }
+  // cf. https://stackoverflow.com/questions/3642700/vector-addition-operation
+  c.reserve( l_min.size() );
+  // for (unsigned int i = 0; i < l_min.size(); ++i) {
+  //   c.push_back(l_max[i] - l_min[i]);
+  // }
+  std::transform(l_max.begin(), l_max.end(), l_min.begin(), std::back_inserter(c), std::minus<IndexType>());
 
-  if (std::adjacent_find(c.begin(), c.end(), std::not_equal_to<int>()) == c.end()) {
-    std::cout << "Correct input levels!" << std::endl;
-  } else {
-    std::cout << "Input levels are incorrect!" << std::endl;
-    std::cout << "Please input them of the form: l_max = l_min + c*ones(dim), c>=1, integer"
-              << std::endl;
-    exit(0);
-  }
+  assert (std::adjacent_find(c.begin(), c.end(), std::not_equal_to<int>()) == c.end() &&
+    "Input levels are incorrect!" &&
+    "Please input them of the form: l_max = l_min + c*ones(dim), c>=1, integer"
+  );
 }
 
 std::vector<double> select_coeff_downset(const std::vector<double>& all_c,
@@ -487,9 +477,9 @@ std::vector<double> select_coeff_downset(const std::vector<double>& all_c,
   int given_downset_index = 0;
   std::vector<double> donwset_c;
 
-  for (auto ii = aux_downset.begin(); ii != aux_downset.end(); ++ii) {
-    if (given_downset.find(ii->first) != given_downset.end()) {
-      given_downset_index = static_cast<int>(ii->second);
+  for (const auto & ii : aux_downset) {
+    if (given_downset.find(ii.first) != given_downset.end()) {
+      given_downset_index = static_cast<int>(ii.second);
       donwset_c.push_back(all_c.at(given_downset_index));
     }
   }

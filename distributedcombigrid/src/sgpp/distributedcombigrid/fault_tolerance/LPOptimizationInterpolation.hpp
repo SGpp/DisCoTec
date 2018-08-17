@@ -74,8 +74,6 @@ class LP_OPT_INTERP {
   std::vector<int> col_index;
 
  public:
-  LP_OPT_INTERP();
-
   LP_OPT_INTERP(const LevelVectorList& _levels, const int& _dim, const int& _opt_type,
                 const CombigridDict& _given_downset, const LevelVectorList& _input_faults);
 
