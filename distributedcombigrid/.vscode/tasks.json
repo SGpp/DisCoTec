@@ -47,6 +47,12 @@
             }
         },
         {
+            "label": "scons clean",
+            "type": "shell",
+            "command": "scons -c && rm -r .scon*",
+            "group": "build"
+        },
+        {
             "label": "boost tests",
             "command": "mpirun.mpich",
             "type": "shell",
