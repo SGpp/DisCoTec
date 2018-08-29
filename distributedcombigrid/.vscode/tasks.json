@@ -27,8 +27,8 @@
                 "CXX=mpicxx.mpich",
                 "OPT=1",
                 "CPPFLAGS=-g",
-                "GLPK_LIBRARY_PATH=${workspaceRoot}/../../hlrs-tools/glpk/lib",
-                "GLPK_INCLUDE_PATH=${workspaceRoot}/../../hlrs-tools/glpk/include"
+                // "GLPK_LIBRARY_PATH=${workspaceRoot}/../../hlrs-tools/glpk/lib",
+                // "GLPK_INCLUDE_PATH=${workspaceRoot}/../../hlrs-tools/glpk/include"
             ],
             "problemMatcher": {
                 "owner": "cpp",
@@ -181,7 +181,7 @@
         },
         {
             "label": "make gene_distributed",
-            "command": "make manager && ./run.sh",
+            "command": "make manager && make lib && ./run.sh", // actually make all
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -193,7 +193,7 @@
                 },
                 "cwd": "${workspaceRoot}/examples/gene_distributed"
             }
-        },
+        }, 
         {
             "label": "preproc.py",
             "command": "python3 preproc.py",
@@ -224,10 +224,11 @@
                 "cwd": "${workspaceRoot}/examples/gene_distributed/ginstance"
             }
         },
-        {
+        { // this is how to currently build the distributed combi with gene
             "label": "Full gene_distributed (base case)",
             "dependsOn": [
                 "make gene_distributed",
+                // ... set the symbolic link to the gene executable in ./template ...
                 "preproc.py",
                 "base start.bat"
             ],

@@ -4,9 +4,9 @@ CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typ
 SGPP_DIR=../../..
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
-LD_GLPK=-L$(SGPP_DIR)/../hlrs-tools/glpk/lib
+# LD_GLPK=-L$(SGPP_DIR)/../hlrs-tools/glpk/lib
 INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ 
-INC_GLPK=-I$(SGPP_DIR)/../hlrs-tools/glpk/include
+# INC_GLPK=-I$(SGPP_DIR)/../hlrs-tools/glpk/include
 
 LDIR=$(LD_SGPP) $(LD_GLPK)
 INC=$(INC_SGPP) $(INC_GLPK)
