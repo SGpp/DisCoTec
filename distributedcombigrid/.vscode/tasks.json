@@ -269,6 +269,22 @@
                 },
                 "cwd": "${workspaceRoot}/examples/gene_distributed/tools"
             }
+        },
+        {
+            "label": "run gene-dev-exahd",
+            "command": "mkdir -p out && mpiexec.mpich -n 8 ./gene_new_machine", 
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/../lib/sgpp:${workspaceRoot}/examples/gene_distributed/lib:$LD_LIBRARY_PATH",
+                    "PYTHONPATH": "${workspaceRoot}/../lib:$PYTHONPATH"
+                },
+                "cwd": "${workspaceRoot}/../../gene-dev-exahd/prob01" //put parameters file into that folder too
+            }
         }
     ]
 }
