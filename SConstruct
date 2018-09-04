@@ -17,6 +17,8 @@ from SCons.Script.SConscript import SConsEnvironment
 import Helper
 import SGppConfigure
 
+rootDirectory = str(Dir('#').abspath)
+print rootDirectory
 sys.stdout = Helper.Logger(sys.stdout)
 sys.stderr = Helper.Logger(sys.stderr)
 finalMessagePrinter = Helper.FinalMessagePrinter()
@@ -134,11 +136,12 @@ vars.Add(BoolVariable("USE_GMMPP", "Set if Gmm++ should be used " +
 vars.Add(BoolVariable("USE_UMFPACK", "Set if UMFPACK should be used " +
                                      "(only relevant for sgpp::optimization)", False))
 vars.Add(BoolVariable("DEBUG_OUTPUT", "Set if you want to have additional output for debugging ", False))
+vars.Add(BoolVariable("TIMING", "Set if you want to have timing output", True))
 vars.Add(BoolVariable("BUILD_STATICLIB", "Set if static libraries should be built " +
                                          "instead of shared libraries", False))
 vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing SG++", True))
-vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', '/usr/include')
-vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', '/usr/lib/x86_64-linux-gnu')
+vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', rootDirectory + "/glpk/include/")
+vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', rootDirectory + "/glpk/lib/")
 vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
 
 
