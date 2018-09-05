@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 GLPK_DIR= str(dir_path) + "/glpk"

@@ -2,10 +2,12 @@
 # This file is part of the SG++ project. For conditions of distribution and
 # use, please see the copyright notice provided with SG++ or at
 # sgpp.sparsegrids.org
+from subprocess import call
+import os
+call(os.path.join(os.getcwd(), 'adjust_examples.py'))
 
 import atexit
 import glob
-import os
 import pipes
 import platform
 import subprocess
@@ -16,7 +18,6 @@ from SCons.Script.SConscript import SConsEnvironment
 
 import Helper
 import SGppConfigure
-
 rootDirectory = str(Dir('#').abspath)
 print rootDirectory
 sys.stdout = Helper.Logger(sys.stdout)
