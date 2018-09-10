@@ -8,9 +8,9 @@
             "command": "scons",
             "type": "shell",
             "group": "build",
-            "options": {
-                "cwd": "${workspaceRoot}"
-            },
+            // "options": {
+            //     "cwd": "${workspaceRoot}"
+            // },
             "presentation": {
                 "reveal": "always"
             },
@@ -106,7 +106,7 @@
         },
         {
             "label": "combi_example_faults_test_1",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/src/  -o test_ft_sim test_ft_sim.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 5 ./test_ft_sim 2",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim test_ft_sim.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 5 ./test_ft_sim 2",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -121,7 +121,7 @@
         },
         {
             "label": "combi_example_faults_test_2",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/src/  -o test_ft_sim_2 test_ft_sim_2.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 2 ./test_ft_sim_2 1",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_2 test_ft_sim_2.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 2 ./test_ft_sim_2 1",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -136,7 +136,7 @@
         },
         {
             "label": "combi_example_faults_test_3",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/src/  -o test_ft_sim_3 test_ft_sim_3.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./test_ft_sim_3 1",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_3 test_ft_sim_3.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./test_ft_sim_3 1",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -151,7 +151,7 @@
         },
         {
             "label": "combi_example_faults_test_4",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/src/  -o test_ft_sim_4 test_ft_sim_4.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./test_ft_sim_4 1",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_4 test_ft_sim_4.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./test_ft_sim_4 1",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -219,7 +219,7 @@
             },
             "options": {
                 "env": {
-                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:${workspaceRoot}/examples/gene_distributed/lib:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:${workspaceRoot}/distributedcombigrid/examples/gene_distributed/lib:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
                 },
                 "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed/ginstance"
             }
@@ -228,6 +228,7 @@
             "label": "Full gene_distributed (base case)",
             "dependsOn": [
                 "make gene_distributed",
+                // make gene (e.g. gene_mgr, gene-dev@exahd) with makefile fiddled right
                 // ... set the symbolic link to the gene executable in ./template ...
                 "preproc.py",
                 "base start.bat"
@@ -241,7 +242,7 @@
         },
         {
             "label": "make gene_distributed testBoundaryZ",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/src/  -o testBoundaryZ testBoundaryZ.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./testBoundaryZ test_fg.dat .",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o testBoundaryZ testBoundaryZ.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./testBoundaryZ test_fg.dat .",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -256,7 +257,7 @@
         },
         {
             "label": "make gene_distributed testDistributedHierarchization",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/src/  -o testDistributedHierarchization testDistributedHierarchization.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 2 ./testDistributedHierarchization",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o testDistributedHierarchization testDistributedHierarchization.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 2 ./testDistributedHierarchization",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -280,7 +281,7 @@
             },
             "options": {
                 "env": {
-                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:${workspaceRoot}/examples/gene_distributed/lib:$LD_LIBRARY_PATH",
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:${workspaceRoot}/distributedcombigrid/examples/gene_distributed/lib:$LD_LIBRARY_PATH",
                     "PYTHONPATH": "${workspaceRoot}/lib:$PYTHONPATH"
                 },
                 "cwd": "${workspaceRoot}/../gene-dev-exahd/prob01" //put parameters file into that folder too
