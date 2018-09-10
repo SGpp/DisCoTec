@@ -26,6 +26,7 @@ Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
 }
 
 Task::~Task() {
+  delete faultCriterion_;
 }
 
 int Task::count = 0;
