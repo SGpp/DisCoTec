@@ -1,8 +1,8 @@
 CC=mpicxx.mpich
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb
 
-SGPP_DIR=/data/scratch/pollinta/combi
-GLPK_DIR=/data/scratch/pollinta/combi/glpk
+SGPP_DIR=$(SGPP)
+GLPK_DIR=$(GLPK)
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 INC_GLPK=-I$(GLPK_DIR)/include
