@@ -1,0 +1,2 @@
+## This repository is deprecated - use https://gitlab.lrz.de/sparse_grids/gene_python_interface_clean instead
+(have yourself invidted there - gitinvited is currently not sending mails as it should so contact the support right away if it does not work)
