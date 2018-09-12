@@ -28,7 +28,9 @@ Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
   assert(l_.size() == dim_);
 }
 
-Task::~Task() {}
+Task::~Task() {
+  delete faultCriterion_;
+}
 
 int Task::count = 0;
 

@@ -179,7 +179,6 @@ int main(int argc, char** argv) {
     std::string fg_file_path2 = cfg.get<std::string>( "ct.fg_file_path2" );
 
     //read application specific variables
-    real kymin = cfg.get<real>("application.kymin");
     real lx = cfg.get<real>("application.lx");
     IndexType numGrids = cfg.get<IndexType>("application.numspecies");
     std::string GENE_nonlinear_string = cfg.get<std::string>("application.GENE_nonlinear");
@@ -194,7 +193,7 @@ int main(int argc, char** argv) {
     }
     std::cout << "GENE_Linear: " << GENE_Linear << "\n";
     std::cout << "GENE_Global: " << GENE_Global << "\n";
-    std::cout << "shat: " << shat << " kymin: " << kymin << " lx: " << lx << "\n";
+    std::cout << "shat: " << shat << " lx: " << lx << "\n";
     int ky0_ind = 1;
     cfg.get<std::string>("ct.lmin") >> lmin;
 
@@ -276,7 +275,7 @@ int main(int argc, char** argv) {
       IndexType numSpecies = numGrids; //generate one grid per species
       Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
                                 loadmodel, path, dt, combitime, nsteps,
-                                shat, kymin, lx, ky0_ind, p, faultCrit,
+                                shat, lx, ky0_ind, p, faultCrit,
                                 numSpecies, GENE_Global,GENE_Linear);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );

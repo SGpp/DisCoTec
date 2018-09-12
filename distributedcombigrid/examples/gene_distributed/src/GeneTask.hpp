@@ -32,7 +32,7 @@ class GeneTask: public combigrid::Task {
 public:
   GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
             LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
-            real shat, real kymin, real lx, int ky0_ind,
+            real shat, real lx, int ky0_ind,
             IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
             IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);
 
@@ -141,11 +141,12 @@ public:
    * sets boundary parameters for global simulations
    * is directly set in GENE execution before writing checkpoint
    */
-  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q ){
+  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q, double *kymin ){
     C_y_ = C_y;
     size_Cy_ = *size_Cy;
     q_prof_= q_prof;
     size_q_ = *size_q;
+    kymin_ = *kymin;
   }
   /* This method copies dfg data to local checkpoint
    * This is used to get the data from our framework to GENE
