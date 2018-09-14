@@ -13,3 +13,11 @@ for example in examples:
     pfileout.write(temp)
     pfileout.close()
 
+pfilein = open(str(dir_path)+ "/distributedcombigrid/examples/gene_distributed/preproc.py" ,'r')
+temp = pfilein.read()
+pfilein.close()
+temp = temp.replace('$(SGPP)', str(dir_path))
+pfileout = open(str(dir_path)+ "/distributedcombigrid/examples/gene_distributed/preproc.py" ,'w')
+pfileout.write(temp)
+pfileout.close()
+
