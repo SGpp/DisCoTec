@@ -45,14 +45,14 @@ public:
 
   }
 
-protected:
-  TaskTest() :
-    dfg_(NULL) {
-  }
-
   ~TaskTest() {
     if (dfg_ != NULL)
       delete dfg_;
+  }
+
+protected:
+  TaskTest() :
+    dfg_(NULL) {
   }
 
 private:

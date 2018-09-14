@@ -122,14 +122,14 @@ public:
 
   }
 
-protected:
-  TaskAdvectionFDM() :
-    dfg_(NULL) {
-  }
-
   ~TaskAdvectionFDM() {
     if (dfg_ != NULL)
       delete dfg_;
+  }
+
+protected:
+  TaskAdvectionFDM() :
+    dfg_(NULL) {
   }
 
 private:
