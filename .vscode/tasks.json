@@ -27,8 +27,8 @@
                 "CXX=mpicxx.mpich",
                 "OPT=1",
                 "CPPFLAGS=-g",
-                // "GLPK_LIBRARY_PATH=${workspaceRoot}/../hlrs-tools/glpk/lib",
-                // "GLPK_INCLUDE_PATH=${workspaceRoot}/../hlrs-tools/glpk/include"
+                "GLPK_LIBRARY_PATH=${workspaceRoot}/glpk/lib",
+                "GLPK_INCLUDE_PATH=${workspaceRoot}/glpk/include"
             ],
             "problemMatcher": {
                 "owner": "cpp",
@@ -66,7 +66,7 @@
             "args": [
                 "-n",
                 "9",
-                "${workspaceRoot}/tests/test_distributedcombigrid_boost"
+                "${workspaceRoot}/distributedcombigrid/tests/test_distributedcombigrid_boost"
             ],
             "options": {
                 "env": {
@@ -76,7 +76,7 @@
         },
         {
             "label": "make combi_example",
-            "command": "make && ./run.sh",
+            "command": "make clean && make && ./run.sh",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -106,7 +106,7 @@
         },
         {
             "label": "combi_example_faults_test_1",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim test_ft_sim.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 5 ./test_ft_sim 2",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim test_ft_sim.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 5 ./test_ft_sim 2",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -121,7 +121,7 @@
         },
         {
             "label": "combi_example_faults_test_2",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_2 test_ft_sim_2.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 2 ./test_ft_sim_2 1",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_2 test_ft_sim_2.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 2 ./test_ft_sim_2 1",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -136,7 +136,7 @@
         },
         {
             "label": "combi_example_faults_test_3",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_3 test_ft_sim_3.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./test_ft_sim_3 1",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_3 test_ft_sim_3.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 4 ./test_ft_sim_3 1",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -151,7 +151,7 @@
         },
         {
             "label": "combi_example_faults_test_4",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_4 test_ft_sim_4.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./test_ft_sim_4 1",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_4 test_ft_sim_4.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 4 ./test_ft_sim_4 1",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -242,7 +242,7 @@
         },
         {
             "label": "make gene_distributed testBoundaryZ",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o testBoundaryZ testBoundaryZ.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 4 ./testBoundaryZ test_fg.dat .",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o testBoundaryZ testBoundaryZ.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 4 ./testBoundaryZ test_fg.dat .",
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -257,7 +257,7 @@
         },
         {
             "label": "make gene_distributed testDistributedHierarchization",
-            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o testDistributedHierarchization testDistributedHierarchization.cpp -lsgppdistributedcombigrid -lboost_serialization -lglpk && mpirun.mpich -n 2 ./testDistributedHierarchization",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o testDistributedHierarchization testDistributedHierarchization.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 2 ./testDistributedHierarchization",
             "type": "shell",
             "group": "test",
             "presentation": {
