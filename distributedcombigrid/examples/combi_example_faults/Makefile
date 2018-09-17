@@ -15,7 +15,7 @@ INC=$(INC_SGPP) $(INC_GLPK)
 
 
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
+LIBS=-lsgppdistributedcombigrid -lboost_serialization
 
 all: combi_example_faults
 

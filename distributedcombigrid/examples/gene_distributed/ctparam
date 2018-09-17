@@ -37,7 +37,7 @@ GENE_nonlinear = T
 [preproc]
 basename = ginstance
 executable = ./gene_new_machine
-mpi = mpirun
+mpi = mpirun.mpich
 sgpplib = ../../../lib/sgpp
 tasklib = ./lib
 startscript = start.bat
