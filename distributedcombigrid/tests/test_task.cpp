@@ -37,7 +37,7 @@ class TaskTest : public combigrid::Task {
 
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
-  }
+  void setZero() {}
 
   ~TaskTest() {
     if (dfg_ != NULL) delete dfg_;
