@@ -8,4 +8,4 @@ struct MpiOnOff {
   ~MpiOnOff()  { MPI_Finalize(); }
 };
 
-BOOST_GLOBAL_FIXTURE(MpiOnOff)
+BOOST_GLOBAL_FIXTURE(MpiOnOff);
