@@ -1,0 +1,3 @@
+[submodule "gene_mgr"]
+	path = gene_mgr
+	url = git@simsgs.informatik.uni-stuttgart.de:heenemo/gene_mgr.git
