@@ -24,7 +24,7 @@ extern "C" void checkpoint_write_memory_(
                                   int *ni0p, int *nj0p, int *nz0p,
                                   int *nv0p, int *nw0p, int *n_spec,
                                   MPI_Fint* comm_gene_f , double *C_y,
-                                  int *sizeCy, double *q_prof, int *size_q );
+                                  int *sizeCy, double *q_prof, int *size_q, double* kymin );
 
 extern "C" void checkpoint_read_memory_(GeneComplex* g_1, double *timep, double *dtp, int *li1, int *li2,
                                         int *lj1, int *lj2, int *lk1, int *lk2,

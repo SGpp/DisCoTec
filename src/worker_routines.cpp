@@ -25,7 +25,7 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
                               int *ni0p, int *nj0p, int *nz0p,
                               int *nv0p, int *nw0p, int *n_specp,
                               MPI_Fint* comm_gene_f, double *C_y,
-                              int *size_Cy, double *q_prof, int *size_q ) {
+                              int *size_Cy, double *q_prof, int *size_q, double* kymin ) {
   //std::cout << "write memory \n";
   double tstart = MPI_Wtime();
   MPI_Comm comm_gene = (MPI_Comm) *comm_gene_f;
@@ -113,7 +113,7 @@ void checkpoint_write_memory_(GeneComplex* g_1, double *timep, double *dtp,
   std::cout << "set application comm \n";
   param.setApplicationComm( comm_gene );
   //set boundary parameters
-  t->setBoundaryParameters(C_y,size_Cy, q_prof, size_q);
+  t->setBoundaryParameters(C_y,size_Cy, q_prof, size_q, kymin);
   t->writeLocalCheckpoint( g_1, size, sizes, bounds );
   //t->setTimeCPMem( MPI_Wtime() - tstart );
 
