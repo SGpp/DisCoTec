@@ -57,7 +57,7 @@ basename = ginstance
 #executable name of gene manager
 executable = ./gene_new_machine
 #used mpi version
-mpi = mpirun
+mpi = mpirun.mpich
 startscript = start.bat
 
 [manager]
