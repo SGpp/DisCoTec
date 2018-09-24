@@ -499,10 +499,6 @@ SUBROUTINE allocate_gyromatrix
 #ifdef COMBI_MGR
   ALLOCATE(sparse_gyromatrix_buffer(lj1:lj2,lk1:lk2,lm1:lm2,ln1:ln2,1:li0,1:ni0))
   call is_gyromatrix_buffered(gyromatrix_buffered)
-  if(gyromatrix_buffered.and.(time.eq.0.0)) then
-     gyromatrix_buffered = .FALSE.
-     call delete_gyromatrix()
-  endif
 #endif
 #ifdef GDAGGER_G
   ALLOCATE(sparse_gyromatrix_dagger(lj1:lj2,lk1:lk2,lm1:lm2,ln1:ln2))
@@ -784,6 +780,12 @@ SUBROUTINE calculate_J0matrix
   REAL,dimension(0:nDeriv) :: res
   real, dimension(:), allocatable :: rho, rho_x, rho_y
 #ifdef COMBI_MGR
+  print*, gyromatrix_buffered, time
+  if(gyromatrix_buffered.and.(time.eq.0.0)) then
+     gyromatrix_buffered = .FALSE.
+     call delete_gyromatrix()
+  endif
+  print*, ln2,ln1,lm2,lm1,lk2,lk1,lj2,lj1,li0,ni0
   if (gyromatrix_buffered) call load_gyromatrix(sparse_gyromatrix_buffer,(ln2-ln1+1)*(lm2-lm1+1)*(lk2-lk1+1)*(lj2-lj1+1)*li0*ni0)
 #endif
   !PERFON('ga_mat')
@@ -1145,7 +1147,9 @@ SUBROUTINE finalize_gyro_average_df
      END DO
   END IF
   DEALLOCATE(bandwidth_boundary)
+#ifdef COMBI_MGR
   DEALLOCATE(sparse_gyromatrix_buffer)
+#endif
   call finalize(xgrid)
 
 END SUBROUTINE finalize_gyro_average_df
