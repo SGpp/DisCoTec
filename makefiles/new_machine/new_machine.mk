@@ -57,7 +57,7 @@ PRECISION= double
 DEBUG= no
 
 #Switch to yes if PETSC/SLEPC is installed (highly recommended!!)
-SLEPC= yes
+SLEPC= no
 
 #only required for the global code and full eigenvalue spectrum runs:
 SCALAPACK = yes
@@ -91,11 +91,11 @@ COMPILER_REPORTS = no
 
 #INCLUDE PATHS
 #Add include paths for BLAS routines (can be LAPACK,ESSL,MKL,etc.)
-INCPATHS += -I/usr/include/ -I/import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/src -I/import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/examples/gene_distributed/src -I/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk/include
+INCPATHS += -I/usr/include/ -I../distributedcombigrid/src -I../distributedcombigrid/examples/gene_distributed/src -I../glpk/include
 
 #LIBRARIES AND LIBFLAGS
 #Insert BLAS library
-LIBS += -L/import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/examples/gene_distributed/lib -L/import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/lib/sgpp/ -lgenetask -lsgppdistributedcombigrid -L/usr/lib/lapack/ -L/usr/lib/libblas/ -L/usr/lib/ -L/home_local/oberstei/Documents/ExaHD/hlrs-tools/glpk/lib -llapack -lblas -lfftw3 -lfftw3f -lstdc++ -lboost_serialization -lglpk -lmpich -L/home_local/oberstei/software/scalapack-2.0.2/ -l:libscalapack.a
+LIBS += -L../distributedcombigrid/examples/gene_distributed/lib -L../lib/sgpp/ -lgenetask -lsgppdistributedcombigrid -L/usr/lib/lapack/ -L/usr/lib/libblas/ -L/usr/lib/ -L../glpk/lib -llapack -lblas -lfftw3 -lfftw3f -lstdc++ -lboost_serialization -lglpk -lmpich -L/home_local/oberstei/software/scalapack-2.0.2/ -l:libscalapack.a
 
 #FFT LIBRARY
 #fill at least one of the following choices: mkl, essl, fftw
