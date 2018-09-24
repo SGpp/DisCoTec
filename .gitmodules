@@ -1,3 +1,6 @@
 [submodule "gene_mgr"]
 	path = gene_mgr
 	url = git@simsgs.informatik.uni-stuttgart.de:heenemo/gene_mgr.git
+[submodule "gene-non-linear"]
+	path = gene-non-linear
+	url = git@gitlab.mpcdf.mpg.de:ext-ec8a21db5900/gene-dev.git
