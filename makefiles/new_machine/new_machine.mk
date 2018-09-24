@@ -20,9 +20,9 @@
 
 #set compiler (check /makefiles/compilers/*.def for possible choices)
 COMPILER = gnu
-MPFC = mpif90
-MPCC = mpicc
-MPCXX = mpicxx
+MPFC = mpifort.mpich
+MPCC = mpicc.mpich
+MPCXX = mpicxx.mpich
 
 #set chip for proper chip optimization flags (optional)
 #check possible choices in /makefiles/compilers/$COMPILER.def
