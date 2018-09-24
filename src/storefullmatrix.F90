@@ -1204,7 +1204,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: phase
 
     INTEGER :: j, l, lm, kd, j_off, j_max, j_min, ierr
-    INTEGER :: mpi_status(mpi_status_size)
+   ! INTEGER :: mpi_status(MPI_STATUS_SIZE)
     COMPLEX :: ctmp
     COMPLEX,PARAMETER :: complex_one=(1,0), complex_zero=(0,0)
 
@@ -1276,7 +1276,7 @@ CONTAINS
           j_min = MAX(j_off + 1 - (mat%bwl+mat%bwu), 1)
           j_max = mat%NRows
           CALL MPI_Recv(mat%rhs(j_min),j_max-j_min+1,MPI_COMPLEX_TYPE,mat%PG%PRow-1,111, &
-                        vec%PG%Communicator, mpi_status, ierr)
+                        vec%PG%Communicator, MPI_STATUS_IGNORE, ierr)
        ENDIF
 
        ! My part of forward substitution
@@ -1311,7 +1311,7 @@ CONTAINS
           j_min = MAX(j_off + mat%RowsPerBlock + 1 - (mat%bwl+mat%bwu), 1)
           j_max = j_off + mat%RowsPerBlock
           CALL MPI_Recv(mat%rhs(j_min),j_max-j_min+1,MPI_COMPLEX_TYPE,mat%PG%PRow+1,222, &
-                        vec%PG%Communicator, mpi_status, ierr)
+                        vec%PG%Communicator, MPI_STATUS_IGNORE, ierr)
        ENDIF
 
        ! My part of backward substitution
@@ -2401,7 +2401,7 @@ CONTAINS
     INTEGER, INTENT(IN) :: phase
 
     INTEGER :: j, l, lm, kd, j_off, j_max, j_min, ierr
-    INTEGER :: mpi_status(mpi_status_size)
+    !INTEGER :: mpi_status(MPI_STATUS_SIZE)
     REAL :: ctmp
 
     ! This routine must be called 3 times (with phase=1,2,3) in order
@@ -2472,7 +2472,7 @@ CONTAINS
           j_min = MAX(j_off + 1 - (mat%bwl+mat%bwu), 1)
           j_max = mat%NRows
           CALL MPI_Recv(mat%rhs(j_min),j_max-j_min+1,MPI_REAL_TYPE,mat%PG%PRow-1,111, &
-                        vec%PG%Communicator, mpi_status, ierr)
+                        vec%PG%Communicator, MPI_STATUS_IGNORE, ierr)
        ENDIF
 
        ! My part of forward substitution
@@ -2507,7 +2507,7 @@ CONTAINS
           j_min = MAX(j_off + mat%RowsPerBlock + 1 - (mat%bwl+mat%bwu), 1)
           j_max = j_off + mat%RowsPerBlock
           CALL MPI_Recv(mat%rhs(j_min),j_max-j_min+1,MPI_REAL_TYPE,mat%PG%PRow+1,222, &
-                        vec%PG%Communicator, mpi_status, ierr)
+                        vec%PG%Communicator, MPI_STATUS_IGNORE, ierr)
        ENDIF
 
        ! My part of backward substitution

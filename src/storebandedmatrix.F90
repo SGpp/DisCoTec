@@ -761,7 +761,8 @@ CONTAINS
     COMPLEX, DIMENSION(1:mat%UpperBandwidth) :: from_next
     COMPLEX, DIMENSION(1:mat%LowerBandwidth) :: from_previous
     INTEGER :: rank, ierr, pe_dest, pe_source, tag, t_innerlast,t_innerfirst, innerlast, icol
-    INTEGER :: status(MPI_STATUS_SIZE), n_procs, npe_upper_sum, npe_lower_sum
+   ! INTEGER :: status(MPI_STATUS_SIZE)
+    INTEGER :: n_procs, npe_upper_sum, npe_lower_sum
     INTEGER, DIMENSION(1) :: dims, coords
     LOGICAL, DIMENSION(1) :: periods
 
@@ -818,7 +819,7 @@ CONTAINS
                    CALL mpi_sendrecv(temp_res,mat%UpperBandwidth,MPI_COMPLEX_TYPE,pe_dest,tag,&
                         & from_next,mat%UpperBandwidth, &
                         & MPI_COMPLEX_TYPE, pe_source, tag, &
-                        & mat%PG%communicator, status, ierr)
+                        & mat%PG%communicator, MPI_STATUS_IGNORE, ierr)
                    temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) = &
                         &temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) &
                         &+ from_next
@@ -833,14 +834,14 @@ CONTAINS
                    ELSEIF (rank.eq.0) then
                       ! first process, only receive, add
                       CALL mpi_recv(from_next,mat%UpperBandwidth,MPI_COMPLEX_TYPE, &
-                           & rank+1, tag, mat%PG%communicator,status,ierr)
+                           & rank+1, tag, mat%PG%communicator,MPI_STATUS_IGNORE,ierr)
                       temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) = &
                            &temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) &
                            &+ from_next
                    ELSE
                       ! all other processes, receive, add, send
                       call mpi_recv(from_next,mat%UpperBandwidth,MPI_COMPLEX_TYPE, &
-                           & rank+1, tag, mat%PG%communicator,status,ierr)
+                           & rank+1, tag, mat%PG%communicator,MPI_STATUS_IGNORE,ierr)
                       temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) = &
                            &temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) &
                            &+ from_next
@@ -858,7 +859,7 @@ CONTAINS
                    from_previous = CMPLX(0,0,kind(from_previous))
                    CALL mpi_sendrecv(temp_res(t_innerlast+1),mat%LowerBandwidth,MPI_COMPLEX_TYPE,pe_dest,tag,&
                         & from_previous,mat%LowerBandwidth,MPI_COMPLEX_TYPE, pe_source, tag, &
-                        & mat%PG%communicator, status, ierr)
+                        & mat%PG%communicator, MPI_STATUS_IGNORE, ierr)
                    temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) = &
                         &temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) &
                         &+ from_previous
@@ -874,14 +875,14 @@ CONTAINS
                    ELSEIF (rank.eq.n_procs-1) then
                       ! last process, only receive, add
                       CALL mpi_recv(from_previous,mat%LowerBandwidth,MPI_COMPLEX_TYPE, &
-                           & rank-1, tag, mat%PG%communicator,status,ierr)
+                           & rank-1, tag, mat%PG%communicator,MPI_STATUS_IGNORE,ierr)
                       temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) = &
                            &temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) &
                            &+ from_previous
                    ELSE
                       ! all other processes, receive, add, send
                       call mpi_recv(from_previous,mat%LowerBandwidth,MPI_COMPLEX_TYPE, &
-                           & rank-1, tag, mat%PG%communicator,status,ierr)
+                           & rank-1, tag, mat%PG%communicator,MPI_STATUS_IGNORE,ierr)
                       temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) = &
                            &temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) &
                            &+ from_previous
@@ -1326,7 +1327,8 @@ CONTAINS
     !complex, dimension(:), pointer :: ptr_fast_first, ptr_fast_second
     complex, dimension(:,:), allocatable, target :: temp1, temp2
     complex :: sum_value, cdotu
-    integer :: ierr,send_request, recv_request, tag, n_procs, rank, status(MPI_STATUS_SIZE)
+    integer :: ierr,send_request, recv_request, tag, n_procs, rank
+    !integer :: status(MPI_STATUS_SIZE)
     integer :: i_pe,i_block,i_block_recv,i_block_send
     integer :: global_res_row, global_res_col, global_index_start,global_index_end
     integer :: s_colindexset_mat, e_colindexset_mat,s_rowindexset_mat2,e_rowindexset_mat2
@@ -1375,14 +1377,14 @@ CONTAINS
        if (i_block.ne.rank) then
           ! wait for the received block
           !print*,rank,": Waiting for recv to finalize"
-          call mpi_wait(recv_request,status,ierr)
+          call mpi_wait(recv_request,MPI_STATUS_IGNORE,ierr)
           ! swap the pointers
           temp_ptr => ptr_next_recv
           ptr_next_recv => ptr_next_compute
           ptr_next_compute => temp_ptr
           ! wait for the sended block
           !print*,rank,": Waiting for send to finalize"
-          call mpi_wait(send_request,status,ierr)
+          call mpi_wait(send_request,MPI_STATUS_IGNORE,ierr)
        end if
        ! initiate non-blocking receive for the next block from some following pe
        if (i_block_recv.ne.rank) then
@@ -1866,7 +1868,8 @@ CONTAINS
     complex, dimension(:),pointer :: first_mat_row
     complex, dimension(1:res%NCols) :: result_row
     complex :: cdotu
-    integer :: ierr,send_request, recv_request, tag, n_procs, rank, status(MPI_STATUS_SIZE)
+    integer :: ierr,send_request, recv_request, tag, n_procs, rank
+    !integer :: status(MPI_STATUS_SIZE)
     integer :: i_pe,i_block,i_block_recv,i_block_send,global_bmat_row
     integer :: global_mat_col,global_index_start,global_index_end
     integer :: s_global_col, e_global_col, loop_length
@@ -1945,14 +1948,14 @@ CONTAINS
        if (i_block.ne.rank) then
           ! wait for the received block
           !print*,rank,": Waiting for recv to finalize"
-          call mpi_wait(recv_request,status,ierr)
+          call mpi_wait(recv_request,MPI_STATUS_IGNORE,ierr)
           ! swap the pointers
           temp_ptr => ptr_next_recv
           ptr_next_recv => ptr_next_compute
           ptr_next_compute => temp_ptr
           ! wait for the sended block
           !print*,rank,": Waiting for send to finalize"
-          call mpi_wait(send_request,status,ierr)
+          call mpi_wait(send_request,MPI_STATUS_IGNORE,ierr)
        end if
        ! initiate non-blocking receive for the next block from some following pe
        if (i_block_recv.ne.rank) then
@@ -2054,7 +2057,8 @@ CONTAINS
     INTEGER :: rank, n_procs, ierr, min_k, max_k, min_proc, max_proc, psource,iproc, pdest, tag
     TYPE(IntegerList) :: recv_list, send_list
     type(IntegerNodeData) :: nodedata
-    INTEGER :: status(MPI_STATUS_SIZE), send_request(MAX_SEND_REQUESTS), recv_request, irequest,n_requests,&
+    !INTEGER :: status(MPI_STATUS_SIZE)
+    INTEGER :: send_request(MAX_SEND_REQUESTS), recv_request, irequest,n_requests,&
          &calculate_rank
     COMPLEX, DIMENSION(mat%NumberOfStoredRows,mat%ColsPerBlock),TARGET :: rbuf1,rbuf2
     COMPLEX, DIMENSION(:,:),POINTER :: ptr_calculate, ptr_recv
@@ -2148,7 +2152,7 @@ CONTAINS
           PRINT*,"========================== local calculation ==============="
           CALL local_block_multiplication(mat,ptr_calculate,calculate_rank,res)
           IF (wait_for_recv) THEN
-             CALL mpi_wait(recv_request,status,ierr)
+             CALL mpi_wait(recv_request,MPI_STATUS_IGNORE,ierr)
              PRINT*,"waiting for receive"
           
              IF (ASSOCIATED(ptr_recv,rbuf1)) THEN
@@ -2167,7 +2171,7 @@ CONTAINS
        ! wait for finishing all non blocking sends
        DO irequest=1,n_requests
           !PRINT*,"Now waiting for send to complete for irequest = ",irequest," of ",n_requests
-          CALL mpi_wait(send_request(irequest),status,ierr)
+          CALL mpi_wait(send_request(irequest),MPI_STATUS_IGNORE,ierr)
        END DO
 
     ELSE
@@ -2738,7 +2742,9 @@ CONTAINS
     ! Local variables
     COMPLEX :: work(1)
     INTEGER :: i, n, bwu, bwl, bw_max, laf, lwork, info, desca(7)
-    INTEGER :: my_rank, n_procs, mpierr, mpi_status(mpi_status_size), np_send, np_recv
+    INTEGER :: my_rank, n_procs, mpierr
+    !INTEGER :: mpi_status(mpi_status_size)
+    INTEGER :: np_send, np_recv
     COMPLEX, ALLOCATABLE :: sbuf(:), rbuf(:)
 
     CALL exit_if_factored(mat)
@@ -2802,7 +2808,7 @@ CONTAINS
 
       call mpi_sendrecv(sbuf, n, MPI_COMPLEX_TYPE, np_send, 111, &
                         rbuf, n, MPI_COMPLEX_TYPE, np_recv, 111, &
-                        mat%PG%Communicator, mpi_status, mpierr)
+                        mat%PG%Communicator, MPI_STATUS_IGNORE, mpierr)
 
       n = 0
       DO i = 1, bwu
@@ -2832,7 +2838,7 @@ CONTAINS
 
       call mpi_sendrecv(sbuf,n,MPI_COMPLEX_TYPE,np_send,111, &
                         rbuf,n,MPI_COMPLEX_TYPE,np_recv,111, &
-                        mat%PG%Communicator, mpi_status, mpierr)
+                        mat%PG%Communicator, MPI_STATUS_IGNORE, mpierr)
 
       n = 0
       DO i = 1, bwl
@@ -3567,7 +3573,8 @@ CONTAINS
     REAL, DIMENSION(1:mat%UpperBandwidth) :: from_next
     REAL, DIMENSION(1:mat%LowerBandwidth) :: from_previous
     INTEGER :: rank, ierr, pe_dest, pe_source, tag, t_innerlast,t_innerfirst, innerlast, icol
-    INTEGER :: status(MPI_STATUS_SIZE), n_procs, npe_upper_sum, npe_lower_sum
+    !INTEGER :: status(MPI_STATUS_SIZE)
+    INTEGER :: n_procs, npe_upper_sum, npe_lower_sum
     INTEGER, DIMENSION(1) :: dims, coords
     LOGICAL, DIMENSION(1) :: periods
 
@@ -3626,7 +3633,7 @@ CONTAINS
                    CALL mpi_sendrecv(temp_res,mat%UpperBandwidth,MPI_REAL_TYPE,pe_dest,tag,&
                         & from_next,mat%UpperBandwidth, &
                         & MPI_REAL_TYPE, pe_source, tag, &
-                        & mat%PG%communicator, status, ierr)
+                        & mat%PG%communicator, MPI_STATUS_IGNORE, ierr)
                    temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) = &
                         &temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) &
                         &+ from_next
@@ -3641,14 +3648,14 @@ CONTAINS
                    ELSEIF (rank.eq.0) then
                       ! first process, only receive, add
                       CALL mpi_recv(from_next,mat%UpperBandwidth,MPI_REAL_TYPE, &
-                           & rank+1, tag, mat%PG%communicator,status,ierr)
+                           & rank+1, tag, mat%PG%communicator,MPI_STATUS_IGNORE,ierr)
                       temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) = &
                            &temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) &
                            &+ from_next
                    ELSE
                       ! all other processes, receive, add, send
                       call mpi_recv(from_next,mat%UpperBandwidth,MPI_REAL_TYPE, &
-                           & rank+1, tag, mat%PG%communicator,status,ierr)
+                           & rank+1, tag, mat%PG%communicator,MPI_STATUS_IGNORE,ierr)
                       temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) = &
                            &temp_res(res%RowsPerBlock+1:res%RowsPerBlock+mat%UpperBandwidth) &
                            &+ from_next
@@ -3666,7 +3673,7 @@ CONTAINS
                    from_previous = 0
                    CALL mpi_sendrecv(temp_res(t_innerlast+1),mat%LowerBandwidth,MPI_REAL_TYPE,pe_dest,tag,&
                         & from_previous,mat%LowerBandwidth,MPI_REAL_TYPE, pe_source, tag, &
-                        & mat%PG%communicator, status, ierr)
+                        & mat%PG%communicator, MPI_STATUS_IGNORE, ierr)
                    temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) = &
                         &temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) &
                         &+ from_previous
@@ -3682,14 +3689,14 @@ CONTAINS
                    ELSEIF (rank.eq.n_procs-1) then
                       ! last process, only receive, add
                       CALL mpi_recv(from_previous,mat%LowerBandwidth,MPI_REAL_TYPE, &
-                           & rank-1, tag, mat%PG%communicator,status,ierr)
+                           & rank-1, tag, mat%PG%communicator,MPI_STATUS_IGNORE,ierr)
                       temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) = &
                            &temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) &
                            &+ from_previous
                    ELSE
                       ! all other processes, receive, add, send
                       call mpi_recv(from_previous,mat%LowerBandwidth,MPI_REAL_TYPE, &
-                           & rank-1, tag, mat%PG%communicator,status,ierr)
+                           & rank-1, tag, mat%PG%communicator,MPI_STATUS_IGNORE,ierr)
                       temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) = &
                            &temp_res(t_innerfirst:t_innerfirst+mat%LowerBandwidth-1) &
                            &+ from_previous
@@ -4136,7 +4143,8 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
     !complex, dimension(:), pointer :: ptr_fast_first, ptr_fast_second
     REAL, dimension(:,:), allocatable, target :: temp1, temp2
     REAL :: sum_value !, cdotu
-    integer :: ierr,send_request, recv_request, tag, n_procs, rank, status(MPI_STATUS_SIZE)
+    integer :: ierr,send_request, recv_request, tag, n_procs, rank
+    !integer :: status(MPI_STATUS_SIZE)
     integer :: i_pe,i_block,i_block_recv,i_block_send
     integer :: global_res_row, global_res_col, global_index_start,global_index_end
     integer :: s_colindexset_mat, e_colindexset_mat,s_rowindexset_mat2,e_rowindexset_mat2
@@ -4185,14 +4193,14 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
        if (i_block.ne.rank) then
           ! wait for the received block
           !print*,rank,": Waiting for recv to finalize"
-          call mpi_wait(recv_request,status,ierr)
+          call mpi_wait(recv_request,MPI_STATUS_IGNORE,ierr)
           ! swap the pointers
           temp_ptr => ptr_next_recv
           ptr_next_recv => ptr_next_compute
           ptr_next_compute => temp_ptr
           ! wait for the sended block
           !print*,rank,": Waiting for send to finalize"
-          call mpi_wait(send_request,status,ierr)
+          call mpi_wait(send_request,MPI_STATUS_IGNORE,ierr)
        end if
        ! initiate non-blocking receive for the next block from some following pe
        if (i_block_recv.ne.rank) then
@@ -4678,7 +4686,8 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
     real, dimension(:),pointer :: first_mat_row
     real, dimension(1:res%NCols) :: result_row
 !    real :: cdotu
-    integer :: ierr,send_request, recv_request, tag, n_procs, rank, status(MPI_STATUS_SIZE)
+    integer :: ierr,send_request, recv_request, tag, n_procs, rank
+    !integer :: status(MPI_STATUS_SIZE)
     integer :: i_pe,i_block,i_block_recv,i_block_send,global_bmat_row
     integer :: global_mat_col,global_index_start,global_index_end
     integer :: s_global_col, e_global_col, loop_length
@@ -4757,14 +4766,14 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
        if (i_block.ne.rank) then
           ! wait for the received block
           !print*,rank,": Waiting for recv to finalize"
-          call mpi_wait(recv_request,status,ierr)
+          call mpi_wait(recv_request,MPI_STATUS_IGNORE,ierr)
           ! swap the pointers
           temp_ptr => ptr_next_recv
           ptr_next_recv => ptr_next_compute
           ptr_next_compute => temp_ptr
           ! wait for the sended block
           !print*,rank,": Waiting for send to finalize"
-          call mpi_wait(send_request,status,ierr)
+          call mpi_wait(send_request,MPI_STATUS_IGNORE,ierr)
        end if
        ! initiate non-blocking receive for the next block from some following pe
        if (i_block_recv.ne.rank) then
@@ -4867,7 +4876,8 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
     INTEGER :: rank, n_procs, ierr, min_k, max_k, min_proc, max_proc, psource,iproc, pdest, tag
     TYPE(IntegerList) :: recv_list, send_list
     type(IntegerNodeData) :: nodedata
-    INTEGER :: status(MPI_STATUS_SIZE), send_request(MAX_SEND_REQUESTS), recv_request, irequest,n_requests,&
+    !INTEGER :: status(MPI_STATUS_SIZE)
+    INTEGER :: send_request(MAX_SEND_REQUESTS), recv_request, irequest,n_requests,&
          &calculate_rank
     REAL, DIMENSION(mat%NumberOfStoredRows,mat%ColsPerBlock),TARGET :: rbuf1,rbuf2
     REAL, DIMENSION(:,:),POINTER :: ptr_calculate, ptr_recv
@@ -4961,7 +4971,7 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
           PRINT*,"========================== local calculation ==============="
           CALL local_block_multiplication_real(mat,ptr_calculate,calculate_rank,res)
           IF (wait_for_recv) THEN
-             CALL mpi_wait(recv_request,status,ierr)
+             CALL mpi_wait(recv_request,MPI_STATUS_IGNORE,ierr)
              PRINT*,"waiting for receive"
           
              IF (ASSOCIATED(ptr_recv,rbuf1)) THEN
@@ -4980,7 +4990,7 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
        ! wait for finishing all non blocking sends
        DO irequest=1,n_requests
           !PRINT*,"Now waiting for send to complete for irequest = ",irequest," of ",n_requests
-          CALL mpi_wait(send_request(irequest),status,ierr)
+          CALL mpi_wait(send_request(irequest),MPI_STATUS_IGNORE,ierr)
        END DO
 
     ELSE
@@ -5550,7 +5560,9 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
     ! Local variables
     REAL :: work(1)
     INTEGER :: i, n, bwu, bwl, bw_max, laf, lwork, info, desca(7)
-    INTEGER :: my_rank, n_procs, mpierr, mpi_status(mpi_status_size), np_send, np_recv
+    INTEGER :: my_rank, n_procs, mpierr
+    !INTEGER :: mpi_status(mpi_status_size)
+    INTEGER :: np_send, np_recv
     REAL, ALLOCATABLE :: sbuf(:), rbuf(:)
 
     CALL exit_if_factored(mat)
@@ -5614,7 +5626,7 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
 
       call mpi_sendrecv(sbuf, n, MPI_REAL_TYPE, np_send, 111, &
                         rbuf, n, MPI_REAL_TYPE, np_recv, 111, &
-                        mat%PG%Communicator, mpi_status, mpierr)
+                        mat%PG%Communicator, MPI_STATUS_IGNORE, mpierr)
 
       n = 0
       DO i = 1, bwu
@@ -5644,7 +5656,7 @@ stop 'fix implementation here as cdotu is not supposed to work with real numbers
 
       call mpi_sendrecv(sbuf,n,MPI_REAL_TYPE,np_send,111, &
                         rbuf,n,MPI_REAL_TYPE,np_recv,111, &
-                        mat%PG%Communicator, mpi_status, mpierr)
+                        mat%PG%Communicator, MPI_STATUS_IGNORE, mpierr)
 
       n = 0
       DO i = 1, bwl
