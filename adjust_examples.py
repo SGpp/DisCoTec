@@ -22,7 +22,20 @@ for example in examples:
     pfileout = open(str(dir_path)+ "/distributedcombigrid/examples/" + example + "/Makefile" ,'w')
     pfileout.write(temp)
     pfileout.close()
-
+gene_versions = ["gene_mgr", "gene-non-linear"]
+for geneVersion in gene_versions:
+    pfilein = open(str(dir_path) + "/"+ geneVersion + "/makefiles/new_machine/new_machine.template" ,'r')
+    print(str(dir_path) + "/"+ geneVersion + "makefiles/new_machine/new_machine.template" )
+    temp = pfilein.read()
+    pfilein.close()
+    temp = temp.replace('$(SGPP)', str(dir_path))
+    temp = temp.replace('$(GLPK)', GLPK_DIR)
+    temp = temp.replace('$(CC)', CC)
+    temp = temp.replace('$(FC)', FC)
+    temp = temp.replace('$(cc)', cc)
+    pfileout = open(str(dir_path) + "/" +geneVersion + "/makefiles/new_machine/new_machine.mk" ,'w')
+    pfileout.write(temp)
+    pfileout.close()
 pfilein = open(str(dir_path)+ "/distributedcombigrid/examples/gene_distributed/preproc.py" ,'r')
 temp = pfilein.read()
 pfilein.close()
