@@ -330,7 +330,8 @@ def configureGNUCompiler(config):
   
   if config.env["DEBUG_OUTPUT"]:
     config.env.Append(CPPFLAGS=["-DDEBUG_OUTPUT"])  
-
+  if config.env["TIMING"]:
+    config.env.Append(CPPFLAGS=["-DTIMING"])
   if config.env["BUILD_STATICLIB"]:
     config.env.Append(CPPFLAGS=["-D_BUILD_STATICLIB"])
 
