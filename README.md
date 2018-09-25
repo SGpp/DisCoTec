@@ -8,24 +8,17 @@ Please do use feature branches in development.
 
 Guidelines
 ---------
-* The master branch is supposed to be kept clean (I know that the current state
-is far from "clean", but the goal should be to change this some day) Please 
-develop new features in a new branch and then create a merge request to notify 
-other users about the changes. So everyone can check whether there are 
+*  Please develop new features in a new branch and then create a merge request 
+to notify other users about the changes. So everyone can check whether there are 
 side-effects to other branches.
 * Of course, you are still very welcome to directly fix obvious bugs in the 
 master branch.
 * Before merging new features to the master branch, please make sure that they
-are sufficiently commented. The current state of the master branch is not a good
-example for good comment style, so please look at the other modules of SG++ to
-get an impression how the comments should look like.
+are sufficiently commented. 
 * Although the distributed combigrid module is independent of the other modules
 in SG++, it will remain a part of this project. To ensure compability please
 make sure that you only change files in the distributedcombigrid folder. 
-* For the above reason, the other SG++ modules and also the build system will be
-updated on a regular basis to the newest version. So, if you have to modify the
-build system, please try to figure out a way which allows easy merging.
-* In future the automated testing and code style checking on commits that is 
+* In the future the automated testing and code style checking on commits that is 
 done in SG++ will also be done for this project.
 
 Installation instructions: 
