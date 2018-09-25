@@ -1,18 +1,10 @@
 What is this project about?
 ---------------------------
-This project contains the __distributed combigrid module__. It also contains the 
-other SG++ modules from the release 2.0 version, because the build system 
-expects some of them. I think this will simplify future merging.
-Note, however, the only module which is to be further developed and maintained
-in this project is the distributedcombigrid module. If you want to work on
-the "classical" SG++ modules, you should get access to the corresponding project.
+This project contains the __distributed combigrid module__. 
 
 Important:
 ----------
-Please do only push changes to the master branch which are of general nature.
-Please put anything that is specific to a certain application, e.g., GENE or
-DUNE, into an own branch. Furthermore, please create new branches to develop new
-features, e.g. fault-tolerance functionality.
+Please do use feature branches in development.
 
 Guidelines
 ---------
@@ -38,22 +30,25 @@ done in SG++ will also be done for this project.
 
 Installation instructions: 
 --------------------------
-Compile with  
+Compile with e.g.
 ```
-scons -j 4 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CXX=mpicxx.mpich OPT=1
+scons -j4 SG_JAVA=0 COMPILE_BOOST_TESTS=1 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 COMPILER=mpich OPT=1
+``` 
+and for debugging, add
+```
+CPPFLAGS=-g
 ``` 
 
-To use the submoduled "canonical" linear version of GENE, enter the gene_mgr directory and run 
+There are gene versions as submodules: a linear one in the gene_mgr folder, and 
+a nonlinear one in gene-non-linear. To get them, you need access to their 
+respective repos. Then go into the folder and
 
 ```
 git submodule init
 git submodule update
-git pull
 ```
-and then you just hope you can `make` it ;)
+and then you just hope you can `make` it by adapting the local library flags ;)
 
-(The distributedcombigridmodule is completely independent from the other modules 
-now. It is not necessary any more to compile or link the combigrid module.)
 
 On Hazel Hen
 --------------
