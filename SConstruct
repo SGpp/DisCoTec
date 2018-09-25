@@ -4,7 +4,7 @@
 # sgpp.sparsegrids.org
 from subprocess import call
 import os
-call(os.path.join(os.getcwd(), 'adjust_examples.py'))
+#call(os.path.join(os.getcwd(), 'adjust_examples.py'))
 
 import atexit
 import glob
@@ -167,7 +167,7 @@ finalMessagePrinter.env = env
 
 # fail if unknown variables where encountered on the command line
 unknownVariables = [var for var in vars.UnknownVariables()
-                    if var not in ["CXX", "CC", "CFLAGS", "CPPDEFINES"]]
+                    if var not in ["CXX", "CC", "FC", "CFLAGS", "CPPDEFINES"]]
 if len(unknownVariables) > 0:
   Helper.printErrorAndExit("The following command line variables could not be recognized:",
                            unknownVariables,
@@ -197,6 +197,9 @@ if "CXX" in ARGUMENTS:
 if "CC" in ARGUMENTS:
   Helper.printInfo("CC: {}".format(ARGUMENTS["CC"]))
   env["CC"] = ARGUMENTS["CC"]
+if "FC" in ARGUMENTS:
+  Helper.printInfo("FC: {}".format(ARGUMENTS["FC"]))
+  env["FC"] = ARGUMENTS["FC"]
 if "CPPFLAGS" in ARGUMENTS:
   env["CPPFLAGS"] = ARGUMENTS["CPPFLAGS"].split(",")
 if "CFLAGS" in ARGUMENTS:
@@ -549,6 +552,8 @@ for module in moduleFolders:
 
 # Default targets
 #########################################################################
+call([os.path.join(os.getcwd(),'adjust_examples.py'),  config.env["CXX"],  config.env["FC"], config.env["CC"]])
+
 
 finalMessagePrinter.sgppBuildPath = BUILD_DIR.abspath
 finalMessagePrinter.pysgppPackagePath = PYSGPP_PACKAGE_PATH.abspath

@@ -1,4 +1,4 @@
-CC=mpicxx.mpich
+CC=$(CC)
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall
 
 SGPP_DIR=$(SGPP)
