@@ -95,7 +95,7 @@ INCPATHS += -I/usr/include/ -I../distributedcombigrid/src -I../distributedcombig
 
 #LIBRARIES AND LIBFLAGS
 #Insert BLAS library
-LIBS += -L../distributedcombigrid/examples/gene_distributed/lib -L../lib/sgpp/ -lgenetask -lsgppdistributedcombigrid -L/usr/lib/lapack/ -L/usr/lib/libblas/ -L/usr/lib/ -L../glpk/lib -llapack -lblas -lfftw3 -lfftw3f -lstdc++ -lboost_serialization -lglpk -lmpich -L/home_local/oberstei/software/scalapack-2.0.2/ -l:libscalapack.a
+LIBS += -L../distributedcombigrid/examples/gene_distributed/lib -L../lib/sgpp/ -lgenetask -lsgppdistributedcombigrid -L/usr/lib/lapack/ -L/usr/lib/libblas/ -L/usr/lib/ -L../glpk/lib -llapack -lblas -lfftw3 -lfftw3f -lstdc++ -lboost_serialization -lmpich -L/home_local/oberstei/software/scalapack-2.0.2/ -l:libscalapack.a
 
 #FFT LIBRARY
 #fill at least one of the following choices: mkl, essl, fftw
