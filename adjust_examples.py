@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 import os 
+import sys
+
+CC = sys.argv[1]
+FC = sys.argv[2]
+cc = sys.argv[3]
+
+
 dir_path = os.path.dirname(os.path.realpath(__file__))
 GLPK_DIR= str(dir_path) + "/glpk"
 examples = ["combi_example", "combi_example_faults", "gene_distributed", "gene_distributed_linear"]
@@ -9,6 +16,9 @@ for example in examples:
     pfilein.close()
     temp = temp.replace('$(SGPP)', str(dir_path))
     temp = temp.replace('$(GLPK)', GLPK_DIR)
+    temp = temp.replace('$(CC)', CC)
+    temp = temp.replace('$(FC)', FC)
+    temp = temp.replace('$(cc)', cc)
     pfileout = open(str(dir_path)+ "/distributedcombigrid/examples/" + example + "/Makefile" ,'w')
     pfileout.write(temp)
     pfileout.close()
