@@ -309,7 +309,7 @@ private:
 
   bool initialized_; //indicates if GeneTask is initialized
   bool checkpointInitialized_; //indicates if checkpoint is initialized
-
+  bool geneXBoundariesIncluded_; //indicates if gene boundaries are set on both sides -> this is important for boundary conditions
   int nspecies_; //number of species
   MPI_Request * requestArray_;
   std::vector<CombiDataType *> receiveBufferArray_;
