@@ -24,7 +24,7 @@
                 "RUN_BOOST_TESTS=0",
                 "RUN_CPPLINT=0",
                 "BUILD_STATICLIB=0",
-                "CXX=mpicxx.mpich",
+                "COMPILER=mpich",
                 "OPT=1",
                 "CPPFLAGS=-g",
                 "GLPK_LIBRARY_PATH=${workspaceRoot}/glpk/lib",
