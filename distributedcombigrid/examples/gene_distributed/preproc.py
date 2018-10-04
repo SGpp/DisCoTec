@@ -18,7 +18,7 @@ import combinationScheme as cS
 import numpy as np
 
 #SGPP Directory set by Scons
-SGPP_LIB="/data/scratch/pollinta/combi/lib/sgpp"
+SGPP_LIB="$(SGPP)/lib/sgpp"
 print ("SGPP_LIB =", SGPP_LIB)
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
