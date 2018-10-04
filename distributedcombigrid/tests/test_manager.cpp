@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <boost/serialization/export.hpp>
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
@@ -151,6 +152,8 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
   int size = useFG ? 2 : 7;
   BOOST_REQUIRE(TestHelper::checkNumProcs(size));
 
+  Stats::initialize();
+
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) return;
 
@@ -242,6 +245,8 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     SignalType signal = -1;
     while (signal != EXIT) signal = pgroup.wait();
   }
+
+  Stats::finalize();
 }
 
 BOOST_AUTO_TEST_SUITE(manager)
