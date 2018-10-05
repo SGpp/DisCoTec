@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_SUITE(task)
 BOOST_AUTO_TEST_CASE(test) {
   int size = 8;
 
-  BOOST_REQUIRE(TestHelper::checkNumProcs(size));
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) return;
 

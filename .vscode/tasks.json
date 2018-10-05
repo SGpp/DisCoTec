@@ -25,7 +25,7 @@
                 "RUN_CPPLINT=0",
                 "BUILD_STATICLIB=0",
                 "COMPILER=mpich",
-                "TIMING=0",
+                "TIMING=1",
                 "OPT=1",
                 "CPPFLAGS=-g",
                 "GLPK_LIBRARY_PATH=${workspaceRoot}/glpk/lib",

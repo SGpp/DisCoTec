@@ -1,6 +1,7 @@
 #define BOOST_TEST_DYN_LINK
 #include <mpi.h>
 #include <boost/test/unit_test.hpp>
+#include <boost/test/floating_point_comparison.hpp>
 #include <complex>
 #include <cstdarg>
 #include <iostream>
@@ -65,7 +66,7 @@ void checkFullgrid(LevelVector& levels, std::vector<bool>& boundary) {
     }
     // every evaluated point should be the same as the function value,
     // as the funtion is linear and fullgrid uses linear basis functions.
-    BOOST_CHECK(TestHelper::equals(fg.eval(coords), f(coords)));
+  BOOST_CHECK_SMALL(abs(fg.eval(coords) - f(coords)), TestHelper::tolerance);
   }
 
   // some corner cases for eval
@@ -73,11 +74,11 @@ void checkFullgrid(LevelVector& levels, std::vector<bool>& boundary) {
   for (DimType d = 0; d < dim; ++d) {
     coords[d] = 0;
   }
-  BOOST_CHECK(TestHelper::equals(fg.eval(coords), f(coords)));
+  BOOST_CHECK_SMALL(abs(fg.eval(coords) - f(coords)), TestHelper::tolerance);
   for (DimType d = 0; d < dim; ++d) {
     coords[d] = 1;
   }
-  BOOST_CHECK(TestHelper::equals(fg.eval(coords), f(coords)));
+  BOOST_CHECK_SMALL(abs(fg.eval(coords) - f(coords)), TestHelper::tolerance);
 
   // test add
   FullGrid<std::complex<double>> fg2(dim, levels, boundary);
@@ -94,9 +95,10 @@ void checkFullgrid(LevelVector& levels, std::vector<bool>& boundary) {
     std::vector<double> coords(dim);
     for (DimType d = 0; d < dim; ++d) {
       coords[d] = dis(gen);
+
     }
-    BOOST_CHECK(TestHelper::equals(2.1 * fg.eval(coords), fg2.eval(coords)));
-    BOOST_CHECK(TestHelper::equals(4.2 * fg.eval(coords), fg3.eval(coords)));
+    BOOST_CHECK_SMALL(abs(2.1 * fg.eval(coords) - fg2.eval(coords)), TestHelper::tolerance);
+    BOOST_CHECK_SMALL(abs(4.2 * fg.eval(coords) - fg3.eval(coords)), TestHelper::tolerance);
   }
 }
 
