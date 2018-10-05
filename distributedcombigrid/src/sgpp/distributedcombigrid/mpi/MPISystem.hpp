@@ -266,6 +266,11 @@ class MPISystem {
   void initLocalComm();
 
   /**
+   * Sets the local rank, disables local communicator if manager
+   */
+  void setLocalRank();
+
+  /**
    * initializes global comm + FT version if FT_ENABLED
    */
   void initGlobalComm();

@@ -138,34 +138,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs) {
 void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
   initSystemConstants(ngroup, nprocs, lcomm);
 
-  /* init localComm
-   * lcomm is the local communicator of its own process group for each worker process.
-   * for manager, lcomm is a group which contains only manager process and can be ignored
-   */
-  // manager is not supposed to have a localComm
-  if (worldRank_ == managerRankWorld_)
-    localComm_ = MPI_COMM_NULL;
-  else {
-    // localComm_ = lcomm;
-    MPI_Comm_dup(lcomm, &localComm_);
-    // todo: think through which side effects changing the master rank would have
-    // in principle this does not have to be 0
-    const int masterRank = 0;
-
-    int localSize;
-    MPI_Comm_size(localComm_, &localSize);
-    assert(masterRank < localSize);
-
-    masterRank_ = masterRank;
-
-    MPI_Comm_rank(localComm_, &localRank_);
-  }
-
-  if (ENABLE_FT) {
-    if (localComm_ != MPI_COMM_NULL) {
-      createCommFT(&localCommFT_, localComm_);
-    }
-  }
+  setLocalRank();
 
   /* create global communicator which contains only the manager and the master
    * process of each process group
@@ -220,6 +193,7 @@ void MPISystem::initWorld(CommunicatorType wcomm, size_t ngroup, size_t nprocs) 
   initialized_ = true;
 }
 
+
 void MPISystem::initLocalComm() {
   int color = worldRank_ / int(nprocs_);
   int key = worldRank_ - color * int(nprocs_);
@@ -227,7 +201,11 @@ void MPISystem::initLocalComm() {
 
   /* set group number in Stats. this is necessary for postprocessing */
   Stats::setAttribute("group", std::to_string(color));
+  setLocalRank();
+  
+}
 
+void MPISystem::setLocalRank(){
   // manager is not supposed to have a localComm
   if (worldRank_ == managerRankWorld_)
     localComm_ = MPI_COMM_NULL;

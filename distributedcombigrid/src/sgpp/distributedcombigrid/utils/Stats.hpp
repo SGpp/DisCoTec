@@ -220,7 +220,7 @@ inline void Stats::finalize() {}
 inline void Stats::startEvent(const std::string& name) {}
 inline void Stats::stopEvent(const std::string& name) {}
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {}
-inline void Stats::write(const std::string& path) {}
+inline void Stats::write(const std::string& path, CommunicatorType comm) {}
 #endif
 }
 // end namespace combigrid

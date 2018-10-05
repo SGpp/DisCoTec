@@ -154,6 +154,8 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL){ return; }
 
+  combigrid::Stats::initialize();
+
   size_t ngroup = useFG ? 1 : 6;
   size_t nprocs = 1;
   theMPISystem()->initWorld(comm, ngroup, nprocs);
@@ -242,28 +244,26 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     SignalType signal = -1;
     while (signal != EXIT) signal = pgroup.wait();
   }
-}
 
-#ifndef TIMING
+  combigrid::Stats::finalize();
+  MPI_Barrier(comm);
+}
 
 BOOST_AUTO_TEST_SUITE(manager)
 
-BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(20)) {
   // use recombination
   checkManager(true, false, 1.54369, 11.28857);
 }
 
-BOOST_AUTO_TEST_CASE(test_2, * boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_2, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(30)) {
   // don't use recombination
   checkManager(false, false, 1.65104, 12.46828);
 }
 
-BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
   // calculate solution on fullgrid
   checkManager(false, true, 1.51188, 10.97143);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
-
-#endif //TIMING
-
