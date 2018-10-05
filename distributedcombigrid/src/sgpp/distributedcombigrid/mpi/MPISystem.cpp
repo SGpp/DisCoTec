@@ -79,7 +79,7 @@ MPISystem::~MPISystem() {
   // todo: the fault tolerant communicator are initialized with new -> delete
 }
 
-void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs) {
+void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm = MPI_COMM_WORLD) {
   assert(!initialized_ && "MPISystem already initialized!");
 
   ngroup_ = ngroup;
@@ -92,7 +92,9 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs) {
    */
   int worldSize;
   MPI_Comm_size(worldComm_, &worldSize);
-  assert(worldSize == int(ngroup_ * nprocs_ + 1));
+  int commSize;
+  MPI_Comm_size(comm, &commSize);
+  assert(commSize == int(ngroup_ * nprocs_ + 1));
 
   MPI_Comm_rank(worldComm_, &worldRank_);
   managerRankWorld_ = worldSize - 1;
@@ -134,7 +136,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs) {
 
 /*  here the local communicator has already been created by the application */
 void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
-  initSystemConstants(ngroup, nprocs);
+  initSystemConstants(ngroup, nprocs, lcomm);
 
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
