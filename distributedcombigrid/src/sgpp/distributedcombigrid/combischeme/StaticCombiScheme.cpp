@@ -74,9 +74,8 @@ void StaticCombiScheme::createLevelsRec(LevelType currMaxSum,
 }
 
 void StaticCombiScheme::computeCombiCoeffs() {
-  combiSpaces_.clear();
+combiSpaces_.clear();
   coefficients_.clear();
-
   for (const auto& combiSpace : levels_) {
     real coeff = 0;
     LevelVector maxNeighbour {combiSpace + LevelVector(dim(), 1)};
@@ -88,11 +87,12 @@ void StaticCombiScheme::computeCombiCoeffs() {
       }
     }
 
-    if (coeff != 0) {
+    if (coeff != 0 && !isBelowMin(combiSpace)) {
     	combiSpaces_.push_back(combiSpace);
     	coefficients_.push_back(coeff);
     }
   }
+
 }
 
 }  // end namespace combigrid

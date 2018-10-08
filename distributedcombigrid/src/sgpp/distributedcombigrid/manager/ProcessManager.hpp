@@ -121,7 +121,6 @@ class ProcessManager {
 		  pgroup->resetTasksWorker();
 	  }
 	  waitAllFinished();
-	  runNewTasks();
   }
  private:
   ProcessGroupManagerContainer& pgroups_;

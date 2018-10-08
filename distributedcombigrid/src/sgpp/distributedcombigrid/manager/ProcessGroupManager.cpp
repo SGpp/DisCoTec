@@ -135,6 +135,13 @@ bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
   std::cout << "sending class \n";
   // send combiparameters
+	std::cout << "sizeGroupMananger: " << params.getLevelsToIDs().size() << "\n";
+
+	for(auto test : params.getLevelsToIDs()){
+		std::cout << test.first << " " << test.second << "\n";
+	}
+
+
   MPIUtils::sendClass(&params, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   // set status

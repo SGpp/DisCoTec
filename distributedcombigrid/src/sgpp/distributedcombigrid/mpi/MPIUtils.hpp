@@ -46,6 +46,7 @@ class MPIUtils {
 
     // create buffer of appropriate size and receive
     std::vector<char> buf(bsize);
+    std::cout << "recv size:" << bsize << "\n";
     MPI_Recv(&buf[0], bsize, MPI_CHAR, src, 0, comm, MPI_STATUS_IGNORE);
 
     // create and open an archive for input

@@ -160,11 +160,14 @@ protected:
     }
 
     createLevelsRec();
+    printLevels(std::cout);
     computeCombiCoeffs();
 
     if(faultTolerant){
     	makeFaultTolerant();
     }
+
+
   }
 
   /**
@@ -204,6 +207,16 @@ protected:
    * stores the grid with a non zero coefficient in combiSpaces_
    */
   void computeCombiCoeffs();
+
+  bool isBelowMin(const LevelVector& grid){
+	  assert(grid.size() == lmin_.size());
+	  for(size_t i = 0; i < grid.size(); ++i){
+		  if(grid.at(i) < lmin_.at(i)){
+			  return true;
+		  }
+	  }
+	  return false;
+  }
 
 };
 

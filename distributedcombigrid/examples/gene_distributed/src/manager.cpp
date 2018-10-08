@@ -6,9 +6,12 @@
  */
 #include <mpi.h>
 #include <vector>
+#include <string>
+#include <fstream>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/serialization/export.hpp>
+#include <boost/filesystem.hpp>
 
 // compulsory includes for basic functionality
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
@@ -25,6 +28,8 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 
+namespace fs = boost::filesystem;
+
 // include user specific task. this is the interface to your application
 #include "GeneTask.hpp"
 
@@ -36,6 +41,102 @@ BOOST_CLASS_EXPORT(WeibullFaults)
 
 BOOST_CLASS_EXPORT(FaultCriterion)
 
+void replace_first(std::string& baseStr, const std::string& findStr, const std::string& replaceStr){
+	baseStr.replace(baseStr.find(findStr), findStr.size(), replaceStr);
+}
+
+void recursive_copy(const fs::path &src, const fs::path &dst) {
+//TODO exception handling
+	if (fs::is_directory(src)) {
+		fs::copy_directory(src, dst);
+		for (fs::directory_entry& entry : fs::directory_iterator(src)) {
+			recursive_copy(entry.path(), dst/entry.path().filename());
+		}
+	} else if (fs::is_regular_file(src)) {
+		fs::copy_file(src, dst, fs::copy_option::overwrite_if_exists);
+	}
+}
+
+void deleteGeneFolders(const std::string& basename){
+	for(auto dirEntry : fs::directory_iterator("../")){
+		std::string filename = dirEntry.path().filename().string();
+		if(filename.find(basename) != std::string::npos && filename != basename){
+			fs::remove_all(dirEntry.path());
+		}
+	}
+}
+
+void createNewGeneFolders(std::vector<LevelVector> levels, boost::property_tree::ptree cfg, int startID, bool read_checkpoint){
+
+    const std::string basename = cfg.get<std::string>( "preproc.basename" );
+	const std::string baseDir = "../" + basename;
+
+	int id = startID;
+	std::string spaces {};
+	for(const LevelVector& level : levels){
+		const std::string idStr = std::to_string(id);
+	    const fs::path currentFilePath {baseDir + idStr};
+		recursive_copy("../template", currentFilePath);
+		const fs::path parfile = currentFilePath / "parameters";
+
+		std::stringstream strStream;
+		{
+			std::ifstream baseFile {parfile.c_str()};
+			strStream << baseFile.rdbuf();
+		}
+		std::string parString {strStream.str()};
+
+		replace_first(parString, "$nx0", std::to_string(1 << level[0]));
+		if(cfg.get<std::string>("application.GENE_nonlinear") == "T"){
+			replace_first(parString, "$nky0", std::to_string(1 << level.at(1)));
+		} else {
+			replace_first(parString, "$nky0", std::to_string(1 << (level.at(1) - 1)));
+		}
+
+		replace_first(parString, "$nz0", std::to_string(1 << level.at(2)));
+		replace_first(parString, "$nv0", std::to_string(1 << level.at(3)));
+		replace_first(parString, "$nw0", std::to_string(1 << level.at(4)));
+
+		replace_first(parString, "$nspec", cfg.get<std::string>("application.numspecies"));
+		replace_first(parString, "$GENE_local", cfg.get<std::string>("application.GENE_local"));
+		replace_first(parString, "$GENE_nonlinear", cfg.get<std::string>("application.GENE_nonlinear"));
+
+	    IndexVector p(levels.at(0).size());
+	    cfg.get<std::string>("ct.p") >> p; //parallelization of domain (how many procs per dimension)
+		replace_first(parString, "$px", std::to_string(p.at(0)));
+		replace_first(parString, "$py", std::to_string(p.at(1)));
+		replace_first(parString, "$pz", std::to_string(p.at(2)));
+		replace_first(parString, "$pv", std::to_string(p.at(3)));
+		replace_first(parString, "$pw", std::to_string(p.at(4)));
+		replace_first(parString, "$ps", std::to_string(p.at(5)));
+
+
+		replace_first(parString, "$ngroup", cfg.get<std::string>("manager.ngroup"));
+		replace_first(parString, "$nprocs", cfg.get<std::string>("manager.nprocs"));
+
+		replace_first(parString, "$ntimesteps_combi", cfg.get<std::string>("application.nsteps"));
+		replace_first(parString, "$istep_omega", "10");
+		replace_first(parString, "$dt_max", cfg.get<std::string>("application.dt"));
+
+		if(cfg.get<std::string>("application.GENE_local") == "T"){
+			replace_first(parString, "$shat", cfg.get<std::string>("application.shat"));
+		}
+		replace_first(parString, "$kymin", cfg.get<std::string>("application.kymin"));
+		replace_first(parString, "$lx", cfg.get<std::string>("application.lx"));
+		{
+			std::string str {"read_checkpoint  = "};
+			str += read_checkpoint ? 'T' : 'F';
+			replace_first(parString, "read_checkpoint  = F", str);
+		}
+
+		{
+			std::ofstream baseFile {parfile.c_str()};
+			baseFile << parString;
+		}
+
+		++id;
+	}
+}
 
 // helper funtion to read a bool vector from string
 inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
@@ -71,8 +172,8 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
  */
 int main(int argc, char** argv) {
   bool doOnlyRecompute = false;
-  //MPI_Init(&argc, &argv);
-  simft::Sim_FT_MPI_Init(&argc, &argv);
+  MPI_Init(&argc, &argv);
+  //simft::Sim_FT_MPI_Init(&argc, &argv);
   Stats::initialize();
   // read in parameter file
   boost::property_tree::ptree cfg;
@@ -211,32 +312,9 @@ int main(int argc, char** argv) {
     std::vector<LevelVector> levels;
     std::vector<combigrid::real> coeffs;
     std::vector<int> fileTaskIDs;
-    const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
-    if (READ_FROM_FILE) { //currently used file produced by preproc.py
-      std::ifstream spcfile("spaces.dat");
-      std::string line;
-      while (std::getline(spcfile, line)) {
-        std::stringstream ss(line);
-        int id;
-        LevelVector l(dim);
-        combigrid::real coeff;
-        ss >> id;
-        for (size_t i = 0; i < dim; ++i)
-          ss >> l[i];
-        ss >> coeff;
-
-        levels.push_back(l);
-        coeffs.push_back(coeff);
-        fileTaskIDs.push_back(id);
-      }
-      spcfile.close();
-    } else {
-      CombiMinMaxScheme combischeme(dim, lmin, lmax);
-      combischeme.createAdaptiveCombischeme();
-      combischeme.makeFaultTolerant();
-      levels = combischeme.getCombiSpaces();
-      coeffs = combischeme.getCoeffs();
-    }
+    DimAdaptiveCombiScheme combischeme(lmin, lmax);
+    levels = combischeme.getCombiSpaces();
+    coeffs = combischeme.getCoeffs();
 
     // output of combination setup
     std::cout << "lmin = " << lmin << std::endl;
@@ -255,10 +333,13 @@ int main(int argc, char** argv) {
     std::vector<int> taskIDs;
 
     //initialize individual tasks (component grids)
+	deleteGeneFolders(basename);
+    int currentTaskID = 0;
+  	createNewGeneFolders(levels, cfg, currentTaskID, false);
     for (size_t i = 0; i < levels.size(); i++) {
       // path to task folder (used for different instances of GENE)
       std::stringstream ss2;
-      ss2 << "../" << basename << fileTaskIDs[i];
+      ss2 << "../" << basename << i;
       std::string path = ss2.str();
       //create FaultCriterion
       FaultCriterion *faultCrit;
@@ -280,11 +361,11 @@ int main(int argc, char** argv) {
                                 numSpecies, GENE_Global,GENE_Linear);
       tasks.push_back(t);
       taskIDs.push_back( t->getID() );
-
+      ++currentTaskID;
     }
     // create combiparamters
     CombiParameters params( dim, lmin, lmax, boundary, levels,
-                            coeffs, hierarchizationDims, taskIDs, ncombi, reduceCombinationDimsLmin, reduceCombinationDimsLmax, numGrids);
+                            coeffs, hierarchizationDims, taskIDs, ncombi, numGrids, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
     params.setParallelization(p);
 
     // create Manager with process groups
@@ -298,20 +379,33 @@ int main(int argc, char** argv) {
     //start computation
     //we perform ncombi many combinations with
     //fixed stepsize or simulation time between each combination
+
+    bool expanded = false;
+    int counter = 0;
     for (size_t i = 0; i < ncombi; ++i) {
-      if( i == 0 ){
+      if( i == 0){
         /* distribute task according to load model and start computation for
          * the first time */
+        std::cout << "runfirst\n";
         Stats::startEvent("manager run");
         success = manager.runfirst();
         Stats::stopEvent("manager run");
 
+      } else if(expanded){
+
+          std::cout << "runNewTasks\n";
+          Stats::startEvent("manager run");
+          success = manager.runNewTasks();
+          Stats::stopEvent("manager run");
+
       } else {
         // run tasks for next time interval
+        std::cout << "runnext\n";
         Stats::startEvent("manager run");
         success = manager.runnext();
         Stats::stopEvent("manager run");
       }
+
       //check if fault occured
       if ( !success ) {
         Stats::startEvent("manager recover preprocessing");
@@ -383,6 +477,11 @@ int main(int argc, char** argv) {
         Stats::stopEvent("manager recover preprocessing");
 
       }
+
+      std::cout << "start get Expansion\n";
+      auto bestExpansionPair = manager.getBestExpansion();
+      std::cout << "Best Expansion: " << bestExpansionPair.second << " with error: " << bestExpansionPair.first << std::endl;
+
       //combine grids
       Stats::startEvent("manager combine");
       manager.combine();
@@ -399,8 +498,51 @@ int main(int argc, char** argv) {
         Stats::stopEvent("manager recover postprocessing");
 
       }
+
+      expanded = false;
+      if(i % 5 == 0 && i != 0 && i <= 30){
+    	deleteGeneFolders(basename);
+      	manager.addExpansion(bestExpansionPair.second);
+      	combischeme.addExpansion(bestExpansionPair.second);
+
+      	std::cout << "active exp\n";
+      	combischeme.printActive(std::cout);
+      	std::cout << "levels exp\n";
+      	combischeme.print(std::cout);
+      	std::cout << "coeffs exp\n";
+      	combischeme.printLevels(std::cout);
+      	levels = combischeme.getCombiSpaces();
+      	coeffs = combischeme.getCoeffs();
+      	tasks.clear();
+      	taskIDs.clear();
+      	int startID = currentTaskID;
+      	for (size_t j = 0; j < levels.size(); j++) {
+            std::string path = "../" + basename + std::to_string(currentTaskID);
+            Task* t = new GeneTask(dim, levels[j], boundary, coeffs[j],
+                                      loadmodel, path, dt, combitime, nsteps,
+                                      shat, kymin, lx, ky0_ind, p, new StaticFaults(faultsInfo),
+                                      numGrids, GENE_Global,GENE_Linear);
+      		tasks.push_back(t);
+      		taskIDs.push_back( t->getID() );
+            assert(t->getID() == currentTaskID);
+            ++currentTaskID;
+      	}
+      	params = CombiParameters(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,ncombi);
+      	params.setParallelization(p);
+      	manager.setCombiParameters(params);
+      	manager.updateCombiParameters();
+      	manager.initNewScheme();
+      	createNewGeneFolders(levels, cfg, startID, true);
+      	expanded = true;
+      }
+
+      std::cout << "iteration: " << i << "\n";
+      ++counter;
     }
     std::cout << "Computation finished evaluating on target grid! \n";
+
+
+
 
     // evaluate solution on the grid defined by leval
     //(basically an interpolation of the sparse grid to fullgrid with resolution leval)
@@ -433,7 +575,7 @@ int main(int argc, char** argv) {
       MPI_Abort( MPI_COMM_WORLD, 0 );
     }
   }
-  simft::Sim_FT_MPI_Finalize();
-
+  //simft::Sim_FT_MPI_Finalize();
+  MPI_Finalize();
   return 0;
 }

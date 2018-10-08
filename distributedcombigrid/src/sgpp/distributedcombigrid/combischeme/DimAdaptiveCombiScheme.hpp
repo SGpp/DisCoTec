@@ -69,7 +69,15 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 
   void expand(std::size_t index);
 
-  bool addExpansion(const LevelVector& grid);
+  void addExpansion(const LevelVector& grid);
+
+  void addExpansionOneDirection(const LevelVector& grid);
+
+  void addExpansionAllDirections(const LevelVector& grid);
+
+  void addExpansionAllDirections2(const LevelVector& grid);
+
+  void addBelowMinNeighbours(const LevelVector& grid);
 
   bool isBorder(const LevelVector& grid, DimType dimension){
 	  assert(grid.size() == dim());
@@ -144,9 +152,6 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 	  //a valid expansions has to fullfill the following constraints:
 	  //1. it must not be contained in the scheme already
 	  if(contains(grid)){
-		  if(grid == LevelVector{11, 3}){
-			  std::cout << "contained\n";
-		  }
 		  return false;
 	  }
 
@@ -154,15 +159,9 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 	  int criticalCount = 0;
 	  for(const auto& bwdNeigh: generateNonBoundaryBwdNeighbours(grid)){
 		  if(!containsActive(bwdNeigh)){
-			  if(grid == LevelVector{11, 3}){
-				  std::cout << "bwdNeigh: " << bwdNeigh <<  " not contained\n";
-			  }
 			  return false;
 		  }
 		  if(isCritical(bwdNeigh)){
-			  if(grid == LevelVector{11, 3}){
-				  std::cout << "critical: " << bwdNeigh <<  "\n";
-			  }
 			  ++criticalCount;
 		  }
 	  }
@@ -178,6 +177,7 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 DimAdaptiveCombiScheme(LevelVector lmin, LevelVector lmax)
     : StaticCombiScheme{StaticCombiScheme::createClassicalScheme(lmin, lmax)} {
   generateActiveNodes();
+  printActive(std::cout);
 }
 
     inline void printActive(std::ostream& os) const{

@@ -120,7 +120,6 @@ void ProcessManager::updateCombiParameters() {
 
 		assert( !fail && "should not fail here" );
 	}
-
 	for( auto g : pgroups_ )
 		g->updateCombiParameters(params_);
 

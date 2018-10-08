@@ -57,6 +57,7 @@ void ProcessGroupWorker::runFirst() {
 			theMPISystem()->getManagerRank(),
 			theMPISystem()->getGlobalComm() );
 }
+	std::cout << "running task: " <<  t->getID() << " ";
 // broadcast task to other process of pgroup
 	Task::broadcast(&t, theMPISystem()->getMasterRank(),
 			theMPISystem()->getLocalComm());
@@ -66,14 +67,17 @@ void ProcessGroupWorker::runFirst() {
 	status_ = PROCESS_GROUP_BUSY;
 	// set currentTask
 	currentTask_ = tasks_.back();
+	std::cout << "current task1 " <<  currentTask_->getID() << " ";
 	// initalize task
 	Stats::startEvent("worker init");
 	currentTask_->init(theMPISystem()->getLocalComm());
 	t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
+	std::cout << "current task2 " <<  currentTask_->getID() << " ";
 	Stats::stopEvent("worker init");
 	// execute task
 	Stats::startEvent("worker run first");
 	currentTask_->run(theMPISystem()->getLocalComm());
+	std::cout << "current task3 " <<  currentTask_->getID() << " ";
 	Stats::stopEvent("worker run first");
 }
 
@@ -102,7 +106,9 @@ void ProcessGroupWorker::runNewTask(){
 	t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
 	Stats::stopEvent("worker init");
 
-	currentTask_->getDistributedFullGrid().extractFromUniformSG(*(combinedUniDSGVector_.at(0)));
+	if(!isGENE){
+		setCombinedSolutionUniform(currentTask_);
+	}
 
 	// execute task
 	Stats::startEvent("worker run first");
@@ -303,6 +309,7 @@ SignalType ProcessGroupWorker::wait() {
 	  }
 	  //TODO rank
 	  MPIUtils::broadcastClass(&taskToProc_, 0, theMPISystem()->getLocalComm());
+
 	  MASTER_EXCLUSIVE_SECTION {
 		  std::cout << "finished taskToProc bcast\n";
 	  }
@@ -328,11 +335,14 @@ SignalType ProcessGroupWorker::wait() {
   if(isGENE){
     // special solution for GENE
     // todo: find better solution and remove this
-    if( ( signal == RUN_FIRST  || signal == RUN_NEXT || signal == RECOMPUTE) && !currentTask_->isFinished() && omitReadySignal )
+	if(signal == RUN_FIRST  || signal == RUN_NEXT || signal == RECOMPUTE || signal == RUN_NEWTASK)
+	  std::cout << "isFinished: " << currentTask_->isFinished() << "\n";
+    if( ( signal == RUN_FIRST  || signal == RUN_NEXT || signal == RECOMPUTE || signal == RUN_NEWTASK) && /*!currentTask_->isFinished() &&*/ omitReadySignal )
       return signal;
   }
   // in the general case: send ready signal.
   //if(!omitReadySignal)
+  std::cout << "readCalled with signal: " << signal << "\n";
   ready();
   if(isGENE){
     if(signal == ADD_TASK){ //ready resets currentTask but needs to be set for GENE
@@ -771,7 +781,12 @@ void ProcessGroupWorker::findBestExpansion(){
 
 			const auto cmpPair = combiScheme_.getPosNegPair(activeNode, i);
 			std::cout << "active: " << cmpPair.first << "\n";
-			std::cout << "bwd: " << cmpPair.second << "\n";;
+			std::cout << "bwd: " << cmpPair.second << "\n";
+			std::cout << "size: " << combiParameters_.getLevelsToIDs().size() << "\n";
+
+			for(auto test : combiParameters_.getLevelsToIDs()){
+				std::cout << test.first << " " << test.second << "\n";
+			}
 			const int activeTaskID = combiParameters_.getID(cmpPair.first);
 			const int bwdTaskID = combiParameters_.getID(cmpPair.second);
 
@@ -805,21 +820,18 @@ void ProcessGroupWorker::findBestExpansion(){
 
 				double error = 0;
 				if(!activeSubGrid.empty()){
-					assert(activeSubGrid.size() == bwdSubGrid.size());
-					const double expansionGridPoints = std::accumulate(std::begin(potExpansion), std::end(potExpansion), 1, std::multiplies<double>{});
-					for(int i = 0; i < bwdSubGrid.size(); ++i){
-						std::cout << "bwdSubGrid: " << bwdSubGrid.at(i) << "\n";
-						std::cout << "activeSubGrid: " << activeSubGrid.at(i) << "\n";
-						error += std::abs(bwdSubGrid.at(i) - activeSubGrid.at(i));
-					}
-					std::cout << "error: " << error << "\n";
-					error /= expansionGridPoints;
+					const double expansionGridPoints = std::accumulate(std::begin(activeNode), std::end(activeNode), 1, [](double acc, LevelType val) {
+						return acc * (1 << (val - 1));
+					});
+
+					error = maxRelativeError(activeSubGrid, bwdSubGrid);
+					//error /= expansionGridPoints;
 				}
 				MASTER_EXCLUSIVE_SECTION{
 					MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, 0, theMPISystem()->getLocalComm());
 					if(error > bestError){
 						bestError = error;
-						bestExpansion = potExpansion;
+						bestExpansion = activeNode;
 					}
 				} else {
 					MPI_Reduce(&error, &error, 1, MPI_DOUBLE, MPI_SUM, 0, theMPISystem()->getLocalComm());

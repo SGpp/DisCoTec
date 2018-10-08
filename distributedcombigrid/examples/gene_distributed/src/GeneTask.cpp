@@ -202,6 +202,11 @@ GeneTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
                                 std::vector<size_t>& bounds )
 {
   std::cout << "Number of species in checkpoint: " << sizes[0] << "\n";
+        std::cout << "sizes [";
+        for(int i = 0; i < sizes.size(); ++i){
+            std::cout << sizes[i] << ", ";
+        }
+        std::cout << "]\n";
   // todo: doing it like this will require two times copying
   for(unsigned int i= 0; i < sizes.size(); i++){
     //std::cout << i << " size[i]: " << sizes[i] << "\n";
