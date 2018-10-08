@@ -108,7 +108,6 @@ int main(int argc, char** argv) {
   int key = globalID - color * nprocs;
   MPI_Comm lcomm;
 
-  // std::cout << "embarassing printf debug split" << std::endl;
   MPI_Comm_split(MPI_COMM_WORLD, color, key, &lcomm);
 
   // Gene creates another comm which we do not need, but it is necessary
@@ -118,20 +117,17 @@ int main(int argc, char** argv) {
 
   Stats::setAttribute("group", std::to_string(color));
 
-  // std::cout << "embarassing printf debug group attr" << std::endl;
-
   // here the actual MPI initialization
   theMPISystem()->init( ngroup, nprocs, lcomm );
   // theMPISystem()->initWorld(lcomm, ngroup, nprocs);
   int nfaults = 0;
 
-  std::cout << "embarassing printf debug: init World" << std::endl;
   // manager code
   if (theMPISystem()->getWorldRank() == theMPISystem()->getManagerRankWorld()) {
     /* create an abstraction of the process groups for the manager's view
      * a pgroup is identified by the ID in gcomm
      */
-    std::cout << "embarassing printf debug: get manager rank world" << std::endl;
+    
     ProcessGroupManagerContainer pgroups;
     //create vector containing the different process groups
     for (size_t i=0; i<ngroup; ++i) {
