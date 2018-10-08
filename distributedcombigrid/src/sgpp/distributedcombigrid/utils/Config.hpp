@@ -47,13 +47,13 @@ typedef complex CombiDataType;
  * problems with these functions uncomment to fall back to blocking counterpart
  * of the function.
  */
-const bool USE_NONBLOCKING_MPI_COLLECTIVE = true;
+constexpr bool USE_NONBLOCKING_MPI_COLLECTIVE = true;
 
 /* for some applications it is necessary to send the ready signal while the
  * process is in the application code. in this case this flag can be set to
  * true to avoid that the ready signal is sent automatically.
  */
-const bool omitReadySignal = true;
+constexpr bool omitReadySignal = true;
 
 /* using a uniform domain decomposition for all component grids (the same
  * number of processes in each dimension) yields a significantly better performance
@@ -61,11 +61,11 @@ const bool omitReadySignal = true;
  * to enable the uniform operations set this to true.
  * so far, only the uniform operations are properly implemented
  */
-const bool uniformDecomposition = true;
+constexpr bool uniformDecomposition = true;
 
 /* switch on fault tolerance functionality */
-const bool ENABLE_FT = true;
-const bool isGENE = true;
+constexpr bool ENABLE_FT = true; //TODO move this switch to a more sensible place
+constexpr bool isGENE = true;    //TODO move this switch to a more sensible place
 // const bool GENE_Global = true;
 // const bool GENE_Linear = true;
 }

@@ -258,12 +258,17 @@ class MPISystem {
   /**
    * initializes the members ngroup_, nprocs_, worldComm_,  managerRankWorld_, managerRankFT_
    */
-  void initSystemConstants(size_t ngroup, size_t nprocs);
+  void initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm);
 
   /**
    * initializes local comm + FT version if FT_ENABLED
    */
   void initLocalComm();
+
+  /**
+   * Sets the local rank, disables local communicator if manager
+   */
+  void setLocalRank();
 
   /**
    * initializes global comm + FT version if FT_ENABLED

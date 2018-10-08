@@ -320,13 +320,11 @@ void ProcessManager::restoreCombischeme() {
 
 bool ProcessManager::waitAllFinished() {
   bool group_failed = false;
-  int i = 0;
   for (auto p : pgroups_) {
     StatusType status = p->waitStatus();
     if (status == PROCESS_GROUP_FAIL) {
       group_failed = true;
     }
-    ++i;
   }
 
   return group_failed;

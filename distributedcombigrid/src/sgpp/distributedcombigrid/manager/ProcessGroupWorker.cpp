@@ -81,8 +81,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("worker run first");
     } break;
     case RUN_NEXT: {
-      // this should not happen
-      // assert(tasks_.size() > 0);
+      assert(tasks_.size() > 0);
       // reset finished status of all tasks
       if (tasks_.size() != 0) {
         for (size_t i = 0; i < tasks_.size(); ++i) tasks_[i]->setFinished(false);

@@ -71,9 +71,15 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
  */
 int main(int argc, char** argv) {
   bool doOnlyRecompute = false;
-  //MPI_Init(&argc, &argv);
-  simft::Sim_FT_MPI_Init(&argc, &argv);
+
   Stats::initialize();
+
+  if (ENABLE_FT){
+    simft::Sim_FT_MPI_Init(&argc, &argv);
+  }else{
+    MPI_Init(&argc, &argv); //FIXME have normal MPI_init in worker_routines, make this thing work w/o FT
+  }
+
   // read in parameter file
   boost::property_tree::ptree cfg;
   /*
@@ -101,6 +107,7 @@ int main(int argc, char** argv) {
   int color = globalID / nprocs;
   int key = globalID - color * nprocs;
   MPI_Comm lcomm;
+
   MPI_Comm_split(MPI_COMM_WORLD, color, key, &lcomm);
 
   // Gene creates another comm which we do not need, but it is necessary
@@ -112,6 +119,7 @@ int main(int argc, char** argv) {
 
   // here the actual MPI initialization
   theMPISystem()->init( ngroup, nprocs, lcomm );
+  // theMPISystem()->initWorld(lcomm, ngroup, nprocs);
   int nfaults = 0;
 
   // manager code
@@ -119,6 +127,7 @@ int main(int argc, char** argv) {
     /* create an abstraction of the process groups for the manager's view
      * a pgroup is identified by the ID in gcomm
      */
+    
     ProcessGroupManagerContainer pgroups;
     //create vector containing the different process groups
     for (size_t i=0; i<ngroup; ++i) {
@@ -433,9 +442,12 @@ int main(int argc, char** argv) {
       if(nfaults > 0){
         MPI_Abort( MPI_COMM_WORLD, 0 );
       }
-    }
+    } 
+    simft::Sim_FT_MPI_Finalize();
   }
-  simft::Sim_FT_MPI_Finalize();
+  else{
+    MPI_Finalize();
+  }
 
   return 0;
 }
