@@ -80,13 +80,7 @@ MPISystem::~MPISystem() {
 }
 
 int MPISystem::getWorldSize() {
-  return getCommSize(worldComm_);
-}
-
-int MPISystem::getCommSize(CommunicatorType comm) {
-  int commSize;
-  MPI_Comm_size(comm, &commSize);
-  return commSize;
+  return getCommSize(theMPISystem()->getWorldComm());
 }
 
 void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType worldComm = MPI_COMM_WORLD) {
@@ -100,7 +94,7 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorTy
    * the manager has highest rank here
    */
   
-  MPI_Comm_rank(worldComm_, &worldRank_);
+  worldRank_ = getCommRank(worldComm_);
   managerRankWorld_ = getWorldSize() - 1;
   
   if (ENABLE_FT) {
@@ -180,7 +174,7 @@ void MPISystem::setLocalRank(){
 
     masterRank_ = masterRank;
 
-    MPI_Comm_rank(localComm_, &localRank_);
+    localRank_ = getCommRank(localComm_);
   }
 
   if (ENABLE_FT) {
@@ -218,7 +212,7 @@ void MPISystem::initGlobalComm() {
 
     managerRank_ = globalSize - 1;
     std::cout << "new manager rank: " << managerRank_ << " \n";
-    MPI_Comm_rank(globalComm_, &globalRank_);
+    globalRank_ = getCommRank(globalComm_);
   }
 
   if (ENABLE_FT) {
@@ -233,8 +227,7 @@ void MPISystem::initGlobalComm() {
 void MPISystem::initGlobalReduceCommm() {
 
   if (worldRank_ != managerRankWorld_) {
-    int workerID;
-    MPI_Comm_rank(worldComm_, &workerID);
+    int workerID = getCommRank(worldComm_);
 
     //      MPI_Comm globalReduceComm;
     int color = workerID % int(nprocs_);
@@ -462,7 +455,7 @@ void MPISystem::waitForReuse() {
       // adjust manger rank in spareComm as it has changed during shrink
       int ftCommSize = getCommSize(spareCommFT_->c_comm);
       managerRankFT_ = ftCommSize - 1;
-      MPI_Comm_rank(spareCommFT_->c_comm, &worldRank_);
+      worldRank_ = getCommRank(spareCommFT_->c_comm);
       sendReusableSignalSpare();
     }
   }
@@ -593,7 +586,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
       color = MPI_UNDEFINED;
       int key = worldRank_;
       // update worldRank_ to spare communicator
-      MPI_Comm_rank(spareCommFT_->c_comm, &worldRank_);
+      worldRank_ = getCommRank(spareCommFT_->c_comm);
       sendReusableSignalSpare();  // send rank in ft communicator to master
       deleteCommFTAndCcomm(&worldCommFT_, &worldComm_);
       MPI_Comm_split(spareCommFT_->c_comm, color, key, &worldComm_);
@@ -661,7 +654,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   assert((worldSize - 1) % nprocs_ == 0);
   ngroup_ = (worldSize - 1) / nprocs_;
 
-  MPI_Comm_rank(worldComm_, &worldRank_);
+  worldRank_ = getCommRank(worldComm_);
   managerRankWorld_ = worldSize - 1;
 
   if (worldComm_ != MPI_COMM_NULL) {

@@ -88,6 +88,11 @@ class MPISystem {
   void initWorld(CommunicatorType wcomm, size_t ngroups, size_t nprocs);
 
   /**
+   * get the size of the worldComm_
+   */
+  int getWorldSize();
+
+  /**
   * returns the world communicator which contains all ranks (excluding spare ranks)
   */
   inline const CommunicatorType& getWorldComm() const;
@@ -233,9 +238,6 @@ class MPISystem {
   explicit MPISystem();
 
   friend MPISystemID theMPISystem();
-
-  int getWorldSize();
-  int getCommSize(CommunicatorType worldComm);
 
   /**
    * checks if initialized
@@ -539,6 +541,18 @@ std::ostream& operator<<(std::ostream& os, const MPISystem& ms);
 std::ostream& operator<<(std::ostream& os, const MPISystemID& ms);
 std::ostream& operator<<(std::ostream& os, const ConstMPISystemID& ms);
 */
+
+static int getCommSize(const CommunicatorType& comm) {
+  int commSize;
+  MPI_Comm_size(comm, &commSize);
+  return commSize;
+}
+
+static int getCommRank(const CommunicatorType& comm) {
+  int commRank;
+  MPI_Comm_rank(comm, &commRank);
+  return commRank;
+}
 
 }  // namespace combigrid
 
