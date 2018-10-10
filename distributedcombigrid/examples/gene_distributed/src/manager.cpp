@@ -100,7 +100,6 @@ int main(int argc, char** argv) {
   int globalID, globalSize;
   MPI_Comm_rank(MPI_COMM_WORLD, &globalID);
   MPI_Comm_size(MPI_COMM_WORLD, &globalSize);
-  const int managerIDworld = globalSize - 1;
   std::cout << "Manager rank " << globalID << "\n";
   assert(globalSize == int(ngroup * nprocs + 1));
   //generate the local communicators for the different process groups
@@ -408,22 +407,24 @@ int main(int argc, char** argv) {
 
       }
     }
-    std::cout << "Computation finished evaluating on target grid! \n";
 
     // evaluate solution on the grid defined by leval
     //(basically an interpolation of the sparse grid to fullgrid with resolution leval)
-    Stats::startEvent("manager parallel eval");
-    manager.parallelEval( leval, fg_file_path, 0 );
-    Stats::stopEvent("manager parallel eval");
+    // Stats::startEvent("manager parallel eval");
+    // manager.parallelEval( leval, fg_file_path, 0 );
+    // Stats::stopEvent("manager parallel eval");
+
+    // std::cout << "Computation finished leval 1! \n";
 
     // evaluate solution on the grid defined by leval2
     Stats::startEvent("manager parallel eval 2");
     manager.parallelEval( leval2, fg_file_path2, 0 );
     Stats::stopEvent("manager parallel eval 2");
 
+    std::cout << "Computation finished evaluating on target grid! \n";
+
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
-
   }
   // finalize timing evaluations
   Stats::finalize();

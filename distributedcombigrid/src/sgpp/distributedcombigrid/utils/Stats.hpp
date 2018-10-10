@@ -117,6 +117,7 @@ inline void Stats::setAttribute(const std::string& name, const std::string& valu
 }
 
 inline void Stats::write(const std::string& path, CommunicatorType comm) {
+  MPI_Barrier(comm);
   assert( finalized_ );
 
   using namespace std::chrono;
