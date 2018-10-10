@@ -162,7 +162,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer pgroups;
-    for (size_t i = 0; i < ngroup; ++i) {
+    for (int i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }

@@ -93,6 +93,11 @@ class MPISystem {
   int getWorldSize();
 
   /**
+   * get the rank in the worldComm_
+   */
+  int getWorldRank();
+
+  /**
   * returns the world communicator which contains all ranks (excluding spare ranks)
   */
   inline const CommunicatorType& getWorldComm() const;

@@ -83,6 +83,10 @@ int MPISystem::getWorldSize() {
   return getCommSize(theMPISystem()->getWorldComm());
 }
 
+int MPISystem::getWorldRank() {
+  return getCommRank(theMPISystem()->getWorldComm());
+}
+
 void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType worldComm = MPI_COMM_WORLD) {
 
   ngroup_ = ngroup;
@@ -528,7 +532,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   // deleteing tompary world comm
   deleteCommFTAndCcomm(&newWorldCommFT);
   WORLD_MANAGER_EXCLUSIVE_SECTION {  // get failed ranks
-    int sizeOld = getCommSize( theMPISystem()->getWorldComm());
+    int sizeOld = getWorldSize();
     int sizeSpare = getCommSize( spareCommFT_->c_comm);
     std::cout << "size old = " << sizeOld << "\n";
     std::cout << "size new = " << sizeNew << "\n";
@@ -653,7 +657,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   assert((worldSize - 1) % nprocs_ == 0);
   ngroup_ = (worldSize - 1) / nprocs_;
 
-  worldRank_ = getCommRank(worldComm_);
+  worldRank_ = getWorldRank();
   managerRankWorld_ = worldSize - 1;
 
   if (worldComm_ != MPI_COMM_NULL) {
