@@ -233,6 +233,10 @@ class MPISystem {
   explicit MPISystem();
 
   friend MPISystemID theMPISystem();
+
+  int getWorldSize();
+  int getCommSize(CommunicatorType worldComm);
+
   /**
    * checks if initialized
    */

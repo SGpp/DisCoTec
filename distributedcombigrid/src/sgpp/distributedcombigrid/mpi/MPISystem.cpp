@@ -79,6 +79,16 @@ MPISystem::~MPISystem() {
   // todo: the fault tolerant communicator are initialized with new -> delete
 }
 
+int MPISystem::getWorldSize() {
+  return getCommSize(worldComm_);
+}
+
+int MPISystem::getCommSize(CommunicatorType comm) {
+  int commSize;
+  MPI_Comm_size(comm, &commSize);
+  return commSize;
+}
+
 void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType worldComm = MPI_COMM_WORLD) {
 
   ngroup_ = ngroup;
@@ -89,14 +99,12 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorTy
   /* init worldComm
    * the manager has highest rank here
    */
-  int worldSize;
-  MPI_Comm_size(worldComm_, &worldSize);
-
+  
   MPI_Comm_rank(worldComm_, &worldRank_);
-  managerRankWorld_ = worldSize - 1;
+  managerRankWorld_ = getWorldSize() - 1;
   
   if (ENABLE_FT) {
-    managerRankFT_ = worldSize - 1;
+    managerRankFT_ = managerRankWorld_;
     worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
     MPI_Comm worldCommdup;
     MPI_Comm_dup(worldComm_, &worldCommdup);
@@ -110,6 +118,7 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorTy
 void MPISystem::init(size_t ngroup, size_t nprocs) {
   assert(!initialized_ && "MPISystem already initialized!");
   initWorld(MPI_COMM_WORLD, ngroup, nprocs);
+  assert(getWorldSize() == int(ngroup_ * nprocs_ + 1));
 }
 
 /*  here the local communicator has already been created by the application */
@@ -117,6 +126,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
   assert(!initialized_ && "MPISystem already initialized!");
 
   initSystemConstants(ngroup, nprocs);
+  assert(getWorldSize() == int(ngroup_ * nprocs_ + 1));
   localComm_ = lcomm;
   
   // no need to initialize lcomm, only setting rank here
@@ -656,8 +666,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
       }
     }
   */
-  int worldSize;
-  MPI_Comm_size(worldComm_, &worldSize);
+  int worldSize = getWorldSize();
   assert((worldSize - 1) % nprocs_ == 0);
   ngroup_ = (worldSize - 1) / nprocs_;
 
