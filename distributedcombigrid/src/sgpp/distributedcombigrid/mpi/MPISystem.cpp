@@ -95,7 +95,7 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorTy
    */
   
   worldRank_ = getCommRank(worldComm_);
-  managerRankWorld_ = getWorldSize() - 1;
+  managerRankWorld_ = getCommSize(worldComm_) - 1;
   
   if (ENABLE_FT) {
     managerRankFT_ = managerRankWorld_;
@@ -120,7 +120,6 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
   assert(!initialized_ && "MPISystem already initialized!");
 
   initSystemConstants(ngroup, nprocs);
-  assert(getWorldSize() == int(ngroup_ * nprocs_ + 1));
   localComm_ = lcomm;
   
   // no need to initialize lcomm, only setting rank here
@@ -129,6 +128,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
   initGlobalReduceCommm();
 
   initialized_ = true;
+  assert(getWorldSize() == int(ngroup_ * nprocs_ + 1));
 }
 
 /* overload for initialization with given wold communicator
