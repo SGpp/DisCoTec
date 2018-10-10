@@ -303,7 +303,7 @@ inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
     // check if sum of coefficients is 1
     double sum;
     std::cout << "new coefficients: ";
-    for (int i = 0; i < newCoeffs.size(); i++) {
+    for (size_t i = 0; i < newCoeffs.size(); i++) {
       sum += newCoeffs[i];
       std::cout << newCoeffs[i] << " ";
     }

@@ -63,6 +63,71 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
   return os;
 }
 
+// recovery in case of faults
+void recoverPreprocessing(ProcessManager manager, int nsteps, size_t i, bool doOnlyRecompute = false){
+
+  //vector with IDs of faulted tasks (=component grids)
+  std::vector<int> faultsID;
+
+  //vector with pointers to managers of failed groups
+  std::vector< ProcessGroupManagerID> groupFaults;
+  manager.getGroupFaultIDs(faultsID, groupFaults);
+
+  /* call optimization code to find new coefficients */
+  const std::string prob_name = "interpolation based optimization";
+  //vector with tasks that need to be redistributed (but not recomputed)
+  //and tasks that need to be recomputed
+  std::vector<int> redistributeFaultsID, recomputeFaultsID;
+  manager.recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
+  //timestep does not need to be updated in gene but maybe in other applications
+  for ( auto id : redistributeFaultsID ) {
+    GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+    tmp->setStepsTotal((i+1)*nsteps);
+    tmp->setCombiStep(i+1); //adjust combistep for fault criterion!
+  }
+
+  for ( auto id : recomputeFaultsID ) {
+    GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
+    tmp->setStepsTotal((i)*nsteps);
+    tmp->setCombiStep(i+1); //i+1 as decideToKill is not executed during recompute and therfore combistep is not increased
+  }
+  /* recover communicators -> shrink communicators,
+    * use spare processors to restore process groups if possible
+    * failed Recovery indicates whether the process groups could be restored*/
+  bool failedRecovery = manager.recoverCommunicators(groupFaults);
+  if(doOnlyRecompute){
+    //only used for testing in case all tasks should be recomputed
+    recomputeFaultsID = faultsID;
+    redistributeFaultsID = std::vector<int>(0);
+  }
+
+  if(failedRecovery){
+    //if the process groups could not be restored distribute tasks to other groups
+    std::cout << "Redistribute groups \n";
+    manager.redistribute(redistributeFaultsID);
+  }
+  else{
+    //if process groups could be restored reinitialize restored process group (keep the original tasks)
+    std::cout << "Reinitializing groups \n";
+    manager.reInitializeGroup(groupFaults,recomputeFaultsID);
+  }
+
+  /* if some tasks have to be recomputed, do so
+    * allowing recomputation reduces the overhead that would be needed
+    * for finding a scheme that avoids all failed tasks*/
+  if(!recomputeFaultsID.empty()){
+    std::cout << "sending tasks for recompute \n";
+    manager.recompute(recomputeFaultsID,failedRecovery,groupFaults); //toDO handle faults in recompute
+  }
+  std::cout << "updateing Combination Parameters \n";
+  //needs to be after reInitialization!
+  if(!doOnlyRecompute){
+    /* communicate new combination scheme*/
+    manager.updateCombiParameters();
+  }
+}
+
+
 /**
  * This example performs the fault tolerant combination technique on Gene.
  * Multiple fault models can be plugged in to simulate faults during the simulation.
@@ -70,8 +135,6 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
  * All slaves execute the modified gene version that is able to communicate with the master.
  */
 int main(int argc, char** argv) {
-
-  bool doOnlyRecompute = false;
 
   Stats::initialize();
 
@@ -122,8 +185,8 @@ int main(int argc, char** argv) {
   int nfaults = 0;
 
   // this code should be run by 1 process only; assert that
-  if ( ! theMPISystem()->getWorldRank() == theMPISystem()->getManagerRankWorld()) {
-    assert(false && "more than 1 process running manager/main");
+  if ( ! (theMPISystem()->getWorldRank() == theMPISystem()->getManagerRankWorld())) {
+    assert(false && "more than one process running manager/main");
   }
   // manager code
   /* create an abstraction of the process groups for the manager's view
@@ -325,73 +388,10 @@ int main(int argc, char** argv) {
     //check if fault occured
     if ( !success ) {
       Stats::startEvent("manager recover preprocessing");
-
       nfaults++; //increase the number of occured faults
       std::cout << "failed group detected at combi iteration " << i << std::endl;
-      // manager.recover(i, nsteps); has no access toi GENE Task
-
-      //vector with IDs of faulted tasks (=component grids)
-      std::vector<int> faultsID;
-
-      //vector with pointers to managers of failed groups
-      std::vector< ProcessGroupManagerID> groupFaults;
-      manager.getGroupFaultIDs(faultsID, groupFaults);
-
-      /* call optimization code to find new coefficients */
-      const std::string prob_name = "interpolation based optimization";
-      //vector with tasks that need to be redistributed (but not recomputed)
-      //and tasks that need to be recomputed
-      std::vector<int> redistributeFaultsID, recomputeFaultsID;
-      manager.recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
-      //timestep does not need to be updated in gene but maybe in other applications
-      for ( auto id : redistributeFaultsID ) {
-        GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
-        tmp->setStepsTotal((i+1)*nsteps);
-        tmp->setCombiStep(i+1); //adjust combistep for fault criterion!
-      }
-
-      for ( auto id : recomputeFaultsID ) {
-        GeneTask* tmp = static_cast<GeneTask*>(manager.getTask(id));
-        tmp->setStepsTotal((i)*nsteps);
-        tmp->setCombiStep(i+1); //i+1 as decideToKill is not executed during recompute and therfore combistep is not increased
-      }
-      /* recover communicators -> shrink communicators,
-        * use spare processors to restore process groups if possible
-        * failed Recovery indicates whether the process groups could be restored*/
-      bool failedRecovery = manager.recoverCommunicators(groupFaults);
-      if(doOnlyRecompute){
-        //only used for testing in case all tasks should be recomputed
-        recomputeFaultsID = faultsID;
-        redistributeFaultsID = std::vector<int>(0);
-      }
-
-      if(failedRecovery){
-        //if the process groups could not be restored distribute tasks to other groups
-        std::cout << "Redistribute groups \n";
-        manager.redistribute(redistributeFaultsID);
-      }
-      else{
-        //if process groups could be restored reinitialize restored process group (keep the original tasks)
-        std::cout << "Reinitializing groups \n";
-        manager.reInitializeGroup(groupFaults,recomputeFaultsID);
-      }
-
-      /* if some tasks have to be recomputed, do so
-        * allowing recomputation reduces the overhead that would be needed
-        * for finding a scheme that avoids all failed tasks*/
-      if(!recomputeFaultsID.empty()){
-        std::cout << "sending tasks for recompute \n";
-        manager.recompute(recomputeFaultsID,failedRecovery,groupFaults); //toDO handle faults in recompute
-      }
-      std::cout << "updateing Combination Parameters \n";
-      //needs to be after reInitialization!
-      if(!doOnlyRecompute){
-        /* communicate new combination scheme*/
-        manager.updateCombiParameters();
-      }
-
+      recoverPreprocessing(manager, nsteps, i);
       Stats::stopEvent("manager recover preprocessing");
-
     }
     //combine grids
     Stats::startEvent("manager combine");
