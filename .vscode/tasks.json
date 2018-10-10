@@ -15,7 +15,7 @@
                 "reveal": "always"
             },
             "args": [
-                "-j4",
+                "-j8",
                 "SG_JAVA=0",
                 "COMPILE_BOOST_TESTS=1",
                 "SG_ALL=0 ",
@@ -67,6 +67,7 @@
             "args": [
                 "-n",
                 "9",
+                //xterm -e gdb 
                 "${workspaceRoot}/distributedcombigrid/tests/test_distributedcombigrid_boost"
             ],
             "options": {
@@ -181,8 +182,8 @@
             }
         },
         {
-            "label": "make gene_distributed",
-            "command": "make manager && make lib && ./run.sh", // actually make all
+            "label": "make & run gene_distributed",
+            "command": "make -j8 && ./run.sh",  // make sure makefile does what we want //TODO timing
             "type": "shell",
             "group": "test",
             "presentation": {
@@ -190,26 +191,63 @@
             },
             "options": {
                 "env": {
-                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH"
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH",
+                    "PYTHONPATH": "${workspaceRoot}/../gene_python_interface_clean/src:${workspaceRoot}/../gene_python_interface_clean/src/tools:$PYTHONPATH"
                 },
                 "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed"
+            },
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceRoot}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },  
+        {
+            "label": "clean gene_distributed",
+            "command": "make clean", 
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed"
+            }
+        },         
+        {
+            "label": "make gene-non-linear",
+            "command": "make -j8", // make sure makefile does what we want
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH",
+                },
+                "cwd": "${workspaceRoot}/gene-non-linear"
+            }
+        },    
+        {
+            "label": "clean gene-non-linear",
+            "command": "make distclean",
+            "type": "shell",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceRoot}/gene-non-linear"
             }
         }, 
-        {
-            "label": "preproc.py",
-            "command": "python3 preproc.py",
-            "type": "shell",
-            "group": "test",
-            "presentation": {
-                "reveal": "always"
-            },
-            "options": {
-                "env": {
-                    "PYTHONPATH": "${workspaceRoot}/../gene_python_interface/src:${workspaceRoot}/../gene_python_interface/src/tools:$PYTHONPATH"
-                },
-                "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed"
-            }
-        },
         {
             "label": "base start.bat",
             "command": "mpirun.mpich -n 4 ./gene_new_machine :  -n 1 ./manager",
@@ -226,13 +264,23 @@
             }
         },
         { // this is how to currently build the distributed combi with gene
-            "label": "Full gene_distributed (base case)",
+            "label": "Full gene_distributed",
             "dependsOn": [
-                "make gene_distributed",
-                // make gene (e.g. gene_mgr, gene-dev@exahd) with makefile fiddled right
-                // ... set the symbolic link to the gene executable in ./template ...
-                "preproc.py",
-                "base start.bat"
+                "make gene-non-linear",
+                "make & run gene_distributed",
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Clean full gene_distributed",
+            "dependsOn": [
+                "clean gene-non-linear",
+                "clean e",
             ],
             "presentation": {
                 "reveal": "always"

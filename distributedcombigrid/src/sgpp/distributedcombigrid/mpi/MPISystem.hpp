@@ -88,6 +88,16 @@ class MPISystem {
   void initWorld(CommunicatorType wcomm, size_t ngroups, size_t nprocs);
 
   /**
+   * get the size of the worldComm_
+   */
+  int getWorldSize();
+
+  /**
+   * get the rank in the worldComm_
+   */
+  int getWorldRank();
+
+  /**
   * returns the world communicator which contains all ranks (excluding spare ranks)
   */
   inline const CommunicatorType& getWorldComm() const;
@@ -234,9 +244,6 @@ class MPISystem {
 
   friend MPISystemID theMPISystem();
 
-  int getWorldSize();
-  int getCommSize(CommunicatorType worldComm);
-
   /**
    * checks if initialized
    */
@@ -348,9 +355,6 @@ class MPISystem {
 
   CommunicatorType worldComm_;  // contains all processes that are active
 
-  // contains alive procs from dead process groups and manager
-  simft::Sim_FT_MPI_Comm spareCommFT_;
-
   CommunicatorType globalComm_;  // contains the manager and master processes
 
   CommunicatorType localComm_;  // contains all processes in process group
@@ -364,6 +368,9 @@ class MPISystem {
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
   simft::Sim_FT_MPI_Comm globalCommFT_;  // FT version of global comm
+
+   // contains alive procs from dead process groups and manager
+  simft::Sim_FT_MPI_Comm spareCommFT_;
 
   simft::Sim_FT_MPI_Comm localCommFT_;  // FT version of local comm
 
@@ -539,6 +546,18 @@ std::ostream& operator<<(std::ostream& os, const MPISystem& ms);
 std::ostream& operator<<(std::ostream& os, const MPISystemID& ms);
 std::ostream& operator<<(std::ostream& os, const ConstMPISystemID& ms);
 */
+
+static int getCommSize(const CommunicatorType& comm) {
+  int commSize;
+  MPI_Comm_size(comm, &commSize);
+  return commSize;
+}
+
+static int getCommRank(const CommunicatorType& comm) {
+  int commRank;
+  MPI_Comm_rank(comm, &commRank);
+  return commRank;
+}
 
 }  // namespace combigrid
 

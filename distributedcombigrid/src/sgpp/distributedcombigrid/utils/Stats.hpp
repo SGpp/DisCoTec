@@ -122,9 +122,8 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
 
   using namespace std::chrono;
   // MPI_Comm worldComm = theMPISystem()->getWorldComm();
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  int rank = getCommRank(comm);
+  int size = getCommSize(comm);
 
   std::stringstream buffer;
 

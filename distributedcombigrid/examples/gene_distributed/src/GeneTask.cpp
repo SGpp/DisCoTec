@@ -12,7 +12,7 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <unistd.h>
 #include <fstream>
-#include "CombiGeneConverter.hpp"
+//#include "CombiGeneConverter.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include <math.h>
