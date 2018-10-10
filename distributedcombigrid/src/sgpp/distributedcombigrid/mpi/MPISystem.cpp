@@ -278,7 +278,7 @@ std::vector<RankType> MPISystem::getReusableRanks(int remainingProcs) {  // toDo
 
 void MPISystem::getReusableRanksSpare(
     std::vector<RankType>& reusableRanks) {  // update ranks after shrink
-  for (int i = 0; i < reusableRanks.size(); i++) {
+  for (size_t i = 0; i < reusableRanks.size(); i++) {
     std::cout << "getting new ranks \n";
     int reusableRank;
     MPI_Recv(&reusableRank, 1, MPI_INT, MPI_ANY_SOURCE, FT_REUSABLE_RANK_TAG,
@@ -291,27 +291,27 @@ void MPISystem::getReusableRanksSpare(
 bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks,
                             std::vector<RankType>& reusableRanks) {  // toDo matching send
   std::vector<MPI_Request> requests(failedRanks.size());
-  for (int i = 0; i < failedRanks.size(); i++) {
+  for (size_t i = 0; i < failedRanks.size(); i++) {
     std::cout << "sending rank: " << failedRanks[i] << " to rank: " << reusableRanks[i] << "\n";
     MPI_Isend(&failedRanks[i], 1, MPI_INT, reusableRanks[i], FT_NEW_RANK_TAG,
               theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
   }
   bool success = true;  // so far no time out failing possible
-  int numTimeouts = 0;  // counts number of ranks that do not answer in time
-  for (int i = 0; i < failedRanks.size(); i++) {
+  
+  for (size_t i = 0; i < failedRanks.size(); i++) {
     MPI_Wait(&requests[i],
              MPI_STATUS_IGNORE);  // toDo implement timeout and remove time-outed ranks immedeately
   }
-  int lastIndex = failedRanks.size();  // needs to be increased in case of ranks with time-out
+  auto lastIndex = failedRanks.size();  // needs to be increased in case of ranks with time-out
   bool recoveryFailed;
   if (success) {  // send recovery status
     recoveryFailed = false;
     std::vector<MPI_Request> requests2(failedRanks.size());
-    for (int i = 0; i < failedRanks.size(); i++) {
+    for (size_t i = 0; i < failedRanks.size(); i++) {
       MPI_Isend(&recoveryFailed, 1, MPI::BOOL, reusableRanks[i], FT_RECOVERY_STATUS_TAG,
                 theMPISystem()->getSpareCommFT()->c_comm, &requests2[i]);
     }
-    for (int i = 0; i < failedRanks.size(); i++) {
+    for (size_t i = 0; i < failedRanks.size(); i++) {
       MPI_Wait(&requests2[i], MPI_STATUS_IGNORE);
     }
     reusableRanks.erase(reusableRanks.begin(), reusableRanks.begin() + lastIndex);
@@ -322,11 +322,11 @@ bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks,
 void MPISystem::sendRecoveryStatus(bool failedRecovery,
                                    std::vector<RankType>& newReusableRanks) {  // toDo matching send
   std::vector<MPI_Request> requests(newReusableRanks.size());
-  for (int i = 0; i < newReusableRanks.size(); i++) {
+  for (size_t i = 0; i < newReusableRanks.size(); i++) {
     MPI_Isend(&failedRecovery, 1, MPI::BOOL, newReusableRanks[i], FT_RECOVERY_STATUS_TAG,
               theMPISystem()->getWorldComm(), &requests[i]);
   }
-  for (int i = 0; i < newReusableRanks.size(); i++) {
+  for (size_t i = 0; i < newReusableRanks.size(); i++) {
     MPI_Wait(&requests[i], MPI_STATUS_IGNORE);  // toDo implement timeout
   }
 }
@@ -334,13 +334,13 @@ void MPISystem::sendRecoveryStatus(bool failedRecovery,
 void MPISystem::sendExcludeSignal(std::vector<RankType>& reusableRanks) {
   std::vector<MPI_Request> requests(reusableRanks.size());
 
-  for (int i = 0; i < reusableRanks.size(); i++) {
+  for (size_t i = 0; i < reusableRanks.size(); i++) {
     int excludeData;  // not used so far
     MPI_Isend(&excludeData, 0, MPI_INT, reusableRanks[i], FT_EXCLUDE_TAG,
               theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
   }
 
-  for (int i = 0; i < reusableRanks.size(); i++) {
+  for (size_t i = 0; i < reusableRanks.size(); i++) {
     MPI_Wait(&requests[i], MPI_STATUS_IGNORE);  // toDo implement timeout
   }
 }
@@ -348,14 +348,14 @@ void MPISystem::sendExcludeSignal(std::vector<RankType>& reusableRanks) {
 void MPISystem::sendShrinkSignal(std::vector<RankType>& reusableRanks) {
   std::vector<MPI_Request> requests(reusableRanks.size());
 
-  for (int i = 0; i < reusableRanks.size(); i++) {
+  for (size_t i = 0; i < reusableRanks.size(); i++) {
     int shrinkData;  // not used so far
     MPI_Isend(&shrinkData, 0, MPI_INT, reusableRanks[i], FT_SHRINK_TAG,
               theMPISystem()->getSpareCommFT()->c_comm, &requests[i]);
     std::cout << "sending shrink signal to " << reusableRanks[i] << "\n";
   }
 
-  for (int i = 0; i < reusableRanks.size(); i++) {
+  for (size_t i = 0; i < reusableRanks.size(); i++) {
     MPI_Wait(&requests[i], MPI_STATUS_IGNORE);  // toDo implement timeout
   }
 }
@@ -601,8 +601,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
       deleteCommFTAndCcomm(&worldCommFT_, &worldComm_);
     }
   }
-  // theStatsContainer()->setTimerStop("recoverComm-shrink");
-  // std::cout << "shrinked communicator \n";
+  
   // split off alive procs. this will be the new WorldComm
   // processes of dead groups set color to MPI_UNDEFINED. in this case
   // MPI_Comm_split returns MPI_COMMM_NULL
@@ -678,21 +677,6 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   std::cout << "initializing global reduce comm \n";
   deleteCommFTAndCcomm(&globalReduceCommFT_, &globalReduceComm_);
   initGlobalReduceCommm();
-
-  /* print stats */
-  /* outdated
-   int ngroup( theMPISystem()->getNumGroups() );
-   int nprocs( theMPISystem()->getNumProcs() );
-   std::string t_revoke = getMinMaxAvg( theMPISystem()->getManagerRankWorld(),
-                                        ngroup*nprocs+1,
-                                      "recoverComm-revoke", true,
-                                      theMPISystem()->getWorldComm() );
-   std::string t_shrink = getMinMaxAvg( theMPISystem()->getManagerRankWorld(),
-                                        ngroup*nprocs+1,
-                                      "recoverComm-shrink", true,
-                                      theMPISystem()->getWorldComm() );
-   WORLD_MANAGER_EXCLUSIVE_SECTION{ std::cout << t_revoke << std::endl; }
-   WORLD_MANAGER_EXCLUSIVE_SECTION{ std::cout << t_shrink << std::endl; }*/
 
   // toDo return fixed process group IDs
   std::cout << "returning \n";

@@ -350,9 +350,6 @@ class MPISystem {
 
   CommunicatorType worldComm_;  // contains all processes that are active
 
-  // contains alive procs from dead process groups and manager
-  simft::Sim_FT_MPI_Comm spareCommFT_;
-
   CommunicatorType globalComm_;  // contains the manager and master processes
 
   CommunicatorType localComm_;  // contains all processes in process group
@@ -366,6 +363,9 @@ class MPISystem {
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
   simft::Sim_FT_MPI_Comm globalCommFT_;  // FT version of global comm
+
+   // contains alive procs from dead process groups and manager
+  simft::Sim_FT_MPI_Comm spareCommFT_;
 
   simft::Sim_FT_MPI_Comm localCommFT_;  // FT version of local comm
 
