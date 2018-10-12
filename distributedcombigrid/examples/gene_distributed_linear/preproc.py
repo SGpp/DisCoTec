@@ -171,7 +171,7 @@ for l in scheme.getCombinationDictionary():
     pin = pfilein.read()
     pfilein.close()
     
-    pout = pin.replace('$nx0',str(2**l0)+1,1)
+    pout = pin.replace('$nx0',str(2**l0 + 1),1)
     if config.nonlinear == "T" :
     	pout = pout.replace('$nky0',str(2**l1),1)
     else:
