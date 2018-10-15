@@ -26,6 +26,10 @@ Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
       faultCriterion_(faultCrit) {
   assert(dim_ > 0);
   assert(l_.size() == dim_);
+  
+  // if (LearningLoadModel* learnLM = dynamic_cast<LearningLoadModel*>(loadModel_)) {
+    
+  // }
 }
 
 Task::~Task() {
