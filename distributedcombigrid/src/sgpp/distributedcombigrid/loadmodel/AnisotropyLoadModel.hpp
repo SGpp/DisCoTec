@@ -19,11 +19,11 @@ namespace combigrid {
 
 class AnisotropyLoadModel : public LoadModel {
  public:
-  AnisotropyLoadModel();
+  AnisotropyLoadModel() = default;
 
   inline real eval(const LevelVector& l) const;
 
-  virtual ~AnisotropyLoadModel();
+  virtual ~AnisotropyLoadModel(){} = default;
 };
 
 inline real AnisotropyLoadModel::eval(const LevelVector& l) const {
