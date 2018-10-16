@@ -84,14 +84,11 @@ inline void Stats::initialize() {
 
   initialized_ = true;
   finalized_ = false;
-  // MPI_Barrier(MPI_COMM_WORLD);
   init_time_ = std::chrono::high_resolution_clock::now();
 }
 
 inline void Stats::finalize() {
   assert(initialized_);
-  // MPI_Comm worldComm = theMPISystem()->getWorldComm();
-  // MPI_Barrier(worldComm);
   finalized_ = true;
   initialized_ = false;
 }
