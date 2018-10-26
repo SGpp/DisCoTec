@@ -43,7 +43,20 @@ class LearningLoadModel : public LoadModel {
 
   std::map<LevelVector, std::unique_ptr<csvfile>> files_;
 
-  void addDataPoint(const LevelVector& l, const Stats::Event event, size_t nProcesses);
+  void addDataPoint(const LevelVector& l, const Stats::Event event, size_t nProcesses){ //TODO include "metadata" in model: nrg.dat, parameters etc.
+    createExtensibleData(l);
+    long int duration = (event.end - event.start).count(); 
+    // long int order = event.end.time_since_epoch().count();
+
+    durationInformation info = {duration, nProcesses};
+
+    #ifdef USE_HDF5
+        dataset->write(info, mtype_);
+    #else //def USE_HDF5
+        (*files_[l]) << (info);
+    #endif //def USE_HDF5
+  }
+
   struct durationInformation{
         long int duration;
         size_t nProcesses;
@@ -108,20 +121,7 @@ private:
 #endif //def USE_HDF5
 };
 
-void LearningLoadModel::addDataPoint(const LevelVector& l, const Stats::Event event, size_t nProcesses){ //TODO include "metadata" in model: nrg.dat, parameters etc.
 
-    createExtensibleData(l);
-    long int duration = (event.end - event.start).count(); 
-    // long int order = event.end.time_since_epoch().count();
-
-    durationInformation info = {duration, nProcesses};
-
-    #ifdef USE_HDF5
-        dataset->write(info, mtype_);
-    #else //def USE_HDF5
-        (*files_[l]) << (info);
-    #endif //def USE_HDF5
-}
 
 //using simple averaging for now //TODO
 //inline real LearningLoadModel::eval(const LevelVector& l) const {

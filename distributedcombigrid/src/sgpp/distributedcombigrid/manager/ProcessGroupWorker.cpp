@@ -78,7 +78,9 @@ SignalType ProcessGroupWorker::wait() {
       // execute task
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
-      Stats::stopEvent("worker run first");
+      Stats::Event e = Stats::stopEvent("worker run first");
+      currentTask_->addTimeMeasurement(e,  theMPISystem()->getNumProcs());  
+      
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
@@ -92,6 +94,7 @@ SignalType ProcessGroupWorker::wait() {
         currentTask_ = tasks_[0];
 
         // run first task
+        // if isGENE, this is done in GENE's worker_routines.cpp
         if (!isGENE) {
           Stats::startEvent("worker run");
         }

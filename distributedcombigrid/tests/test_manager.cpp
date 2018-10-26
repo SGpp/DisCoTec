@@ -167,7 +167,11 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
 
+#ifdef TIMING
     LoadModel* loadmodel = new LinearLoadModel();
+#else // TIMING
+    LoadModel* loadmodel = new LearningLoadModel();
+#endif //def TIMING
 
     DimType dim = 2;
     LevelVector lmin(dim, useFG ? 6 : 3);

@@ -26,10 +26,6 @@ Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
       faultCriterion_(faultCrit) {
   assert(dim_ > 0);
   assert(l_.size() == dim_);
-  
-  // if (LearningLoadModel* learnLM = dynamic_cast<LearningLoadModel*>(loadModel_)) {
-    
-  // }
 }
 
 Task::~Task() {
@@ -122,6 +118,12 @@ void Task::broadcast(Task** t, RankType root, CommunicatorType comm) {
       // read class state from archive
       ia >> *t;
     }
+  }
+}
+
+void Task::addTimeMeasurement(const Stats::Event e, size_t numProcs) { 
+  if (LearningLoadModel* learnLM = dynamic_cast<LearningLoadModel*>(loadModel_)) {
+    learnLM->addDataPoint(getLevelVector(), e, numProcs);  
   }
 }
 

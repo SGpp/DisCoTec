@@ -18,6 +18,7 @@
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 
@@ -51,6 +52,8 @@ class Task {
   inline DimType getDim() const;
 
   inline const LevelVector& getLevelVector() const;
+
+  void addTimeMeasurement(const Stats::Event e, size_t numProcs);
 
   inline const std::vector<bool>& getBoundary() const;
 

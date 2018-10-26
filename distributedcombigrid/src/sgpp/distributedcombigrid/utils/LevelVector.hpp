@@ -15,17 +15,7 @@
 namespace combigrid {
 
     typedef IndexVector LevelVector;
-
-    // std::string toString(LevelVector const& l){
-    //     std::stringstream ss;
-    //     for(size_t i = 0; i < l.size(); ++i)
-    //     {
-    //         if(i != 0)
-    //             ss << ",";
-    //         ss << l[i];
-    //     }
-    //     return ss.str();
-    // }
+    std::string toString(combigrid::LevelVector const& l);
 }  // namespace combigrid
 
 #endif /* LEVELVECTOR_HPP_ */

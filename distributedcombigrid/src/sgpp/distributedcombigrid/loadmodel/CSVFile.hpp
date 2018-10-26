@@ -155,15 +155,4 @@ inline static csvfile& flush(csvfile& file)
 
 #endif //def USE_HDF5
 
-std::string toString(combigrid::LevelVector const& l){
-    std::stringstream ss;
-    for(size_t i = 0; i < l.size(); ++i)
-    {
-        if(i != 0)
-            ss << ",";
-        ss << l[i];
-    }
-    return ss.str();
-}
-
-#endif /* LEARNINGLOADMODEL_HPP_ */
+#endif /* CSVFILE_HPP_ */

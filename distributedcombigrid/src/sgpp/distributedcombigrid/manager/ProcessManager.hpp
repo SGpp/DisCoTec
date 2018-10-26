@@ -301,7 +301,7 @@ inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
       newTaskIDs.push_back(i);
     }
     // check if sum of coefficients is 1
-    double sum;
+    double sum = 0.0;
     std::cout << "new coefficients: ";
     for (size_t i = 0; i < newCoeffs.size(); i++) {
       sum += newCoeffs[i];
