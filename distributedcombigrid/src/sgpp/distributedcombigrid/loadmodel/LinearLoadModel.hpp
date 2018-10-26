@@ -20,7 +20,7 @@ class LinearLoadModel : public LoadModel {
 
   ~LinearLoadModel() = default;
 
-  virtual real eval(const LevelVector& l) const;
+  virtual real eval(const LevelVector& l);
 };
 
 } /* namespace combigrid */

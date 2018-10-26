@@ -14,6 +14,7 @@
 #include <memory>
 
 #include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
@@ -34,23 +35,22 @@ class LearningLoadModel : public LoadModel {
  typedef std::chrono::high_resolution_clock::time_point::duration time_d;
  public:
   LearningLoadModel(){
-    createExtensibleData();
   };
 
-  inline real eval(const LevelVector& l) const;
+  inline real eval(const LevelVector& l);
 
   virtual ~LearningLoadModel() = default;
 
+  std::map<LevelVector, std::unique_ptr<csvfile>> files_;
 
   void addDataPoint(const LevelVector& l, const Stats::Event event, size_t nProcesses);
   struct durationInformation{
-        const LevelVector l;
         long int duration;
         size_t nProcesses;
-        long int order;
+        // long int order;
         friend csvfile& operator <<(csvfile& cf, durationInformation const& d)
         {
-            return cf << d.l << (d.duration) << d.nProcesses << d.order << endrow;
+            return cf << (d.duration) << d.nProcesses << endrow;
         }
   };
 
@@ -78,7 +78,7 @@ private:
     mtype_.insertMember("level vector", HOFFSET(durationInformation, l), H5::PredType::NATIVE_INT); //TODO
     mtype_.insertMember("duration", HOFFSET(durationInformation, sex), H5::PredType::C_S1);
     mtype_.insertMember("numberOfProcesses", HOFFSET(durationInformation, height), H5::PredType::NATIVE_INT);
-    mtype_.insertMember("order", HOFFSET(durationInformation, order), H5::PredType::NATIVE_FLOAT);
+    // mtype_.insertMember("order", HOFFSET(durationInformation, order), H5::PredType::NATIVE_FLOAT);
   }
 
   void addDataSetToFile(std::string datasetName = std::to_string(time(0))){
@@ -101,39 +101,44 @@ private:
   }
 #else //def USE_HDF5
 
-  std::unique_ptr<csvfile> file_;
-
-  void createExtensibleData(){
-    file_ = std::unique_ptr<csvfile>(new csvfile("learnloadmodel" + std::to_string(time(0)) + ".csv"));
-    (*file_) << "level vector" << "duration" << "nProcesses" << "order" << endrow;
+  void createExtensibleData(const LevelVector& l){
+    if (files_.find(l)==files_.end())
+      files_.emplace(std::make_pair(l, std::unique_ptr<csvfile>(new csvfile("./learnloadmodel" + std::to_string(time(0)) + "_" + toString(l) + ".csv"))));
   }
 #endif //def USE_HDF5
-
-
 };
 
-void LearningLoadModel::addDataPoint(const LevelVector& l, const Stats::Event event, size_t nProcesses){ //TODO "metadata": nrg.dat etc.
-    long int duration = (event.end - event.start).count(); 
-    long int order = event.end.time_since_epoch().count();
+void LearningLoadModel::addDataPoint(const LevelVector& l, const Stats::Event event, size_t nProcesses){ //TODO include "metadata" in model: nrg.dat, parameters etc.
 
-    durationInformation info = {l, duration, nProcesses, order};
+    createExtensibleData(l);
+    long int duration = (event.end - event.start).count(); 
+    // long int order = event.end.time_since_epoch().count();
+
+    durationInformation info = {duration, nProcesses};
 
     #ifdef USE_HDF5
         dataset->write(info, mtype_);
     #else //def USE_HDF5
-        (*file_) << (info);
+        (*files_[l]) << (info);
     #endif //def USE_HDF5
 }
 
-//using linear load model's eval function for now //TODO
+//using simple averaging for now //TODO
 //inline real LearningLoadModel::eval(const LevelVector& l) const {
-inline real LearningLoadModel::eval(const LevelVector& l) const {
-  real ret(1.0);
-
-  for (size_t i = 0; i < l.size(); ++i) {
-    ret *= std::pow(real(2.0), static_cast<real>(l[i]));
+inline real LearningLoadModel::eval(const LevelVector& l) {
+  real ret(0.0);
+  std::vector<long int> col = files_[l]->readColumn<long int>(0); //TODO make more efficient
+  // if no data yet, use linear load model
+  if(col.empty()){
+    LinearLoadModel llm = LinearLoadModel();
+    ret = llm.eval(l);
   }
-
+  else{
+    std::for_each(col.begin(), col.end(), [&] (int n) {
+        ret += n;
+    });
+    ret /= static_cast<double>(col.size());
+  }
   return ret;
 }
 

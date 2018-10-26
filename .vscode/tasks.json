@@ -68,7 +68,8 @@
                 "-n",
                 "9",
                 //xterm -e gdb 
-                "${workspaceRoot}/distributedcombigrid/tests/test_distributedcombigrid_boost"
+                "${workspaceRoot}/distributedcombigrid/tests/test_distributedcombigrid_boost",
+                // "--run_test=loadmodel"
             ],
             "options": {
                 "env": {

@@ -11,6 +11,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <boost/tokenizer.hpp>
+
 class csvfile;
 
 inline static csvfile& endrow(csvfile& file);
@@ -18,14 +20,16 @@ inline static csvfile& flush(csvfile& file);
 
 class csvfile
 {
+    std::string filename_;
     std::ofstream fs_;
     bool is_first_;
-    const std::string separator_;
+    const char separator_;
     const std::string escape_seq_;
     const std::string special_chars_;
 public:
-    csvfile(const std::string filename, const std::string separator = ",")
-        : fs_()
+    csvfile(const std::string filename, const char separator = ',')
+        : filename_(filename)
+        , fs_()
         , is_first_(true)
         , separator_(separator)
         , escape_seq_("\"")
@@ -39,6 +43,11 @@ public:
     {
         flush();
         fs_.close();
+    }
+
+    //only to be used in test functions!
+    void remove_file(){
+        remove(filename_.c_str());
     }
 
     void flush()
@@ -71,6 +80,32 @@ public:
     csvfile& operator << (const T& val)
     {
         return write(val);
+    }
+
+    //returns a vector of the contents of a column (zero-based indexing), as long as they can be cast to T
+    template<typename T>
+    std::vector<T> readColumn (size_t column) const
+    {
+        std::ifstream in(filename_.c_str());
+        assert (in.is_open());
+
+        std::string line;
+        std::vector<T> vec;
+
+        while (getline(in,line)){
+            boost::tokenizer<boost::escaped_list_separator<char> > tok(line, boost::escaped_list_separator<char>('\\', separator_, '\"'));
+            boost::tokenizer<boost::escaped_list_separator<char> >::iterator i(tok.begin());
+            for (size_t j=0 ; j < column; ++j){
+                ++i;
+            }
+            try{
+                T t = std::strtol ((*i).c_str(),nullptr,10);
+                vec.push_back(t);
+            }
+            catch (const std::invalid_argument& ia) {
+            }
+        }
+        return vec;
     }
 
 private:
@@ -119,5 +154,16 @@ inline static csvfile& flush(csvfile& file)
 }
 
 #endif //def USE_HDF5
+
+std::string toString(combigrid::LevelVector const& l){
+    std::stringstream ss;
+    for(size_t i = 0; i < l.size(); ++i)
+    {
+        if(i != 0)
+            ss << ",";
+        ss << l[i];
+    }
+    return ss.str();
+}
 
 #endif /* LEARNINGLOADMODEL_HPP_ */
