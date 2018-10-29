@@ -14,6 +14,7 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
@@ -42,9 +43,9 @@ class TestFn {
  * methods */
 class TaskAdvectionFDM : public combigrid::Task {
  public:
-  TaskAdvectionFDM(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
+  TaskAdvectionFDM(LevelVector& l, std::vector<bool>& boundary, real coeff,
                    real dt, size_t nsteps)
-      : Task(2, l, boundary, coeff, loadModel), dt_(dt), nsteps_(nsteps) {}
+      : Task(2, l, boundary, coeff), dt_(dt), nsteps_(nsteps) {}
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -167,12 +168,6 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
 
-#ifdef TIMING
-    LoadModel* loadmodel = new LinearLoadModel();
-#else // TIMING
-    LoadModel* loadmodel = new LearningLoadModel();
-#endif //def TIMING
-
     DimType dim = 2;
     LevelVector lmin(dim, useFG ? 6 : 3);
     LevelVector lmax(dim, 6), leval(dim, 6);
@@ -193,7 +188,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskAdvectionFDM(levels[i], boundary, coeffs[i], loadmodel, dt, nsteps);
+      Task* t = new TaskAdvectionFDM(levels[i], boundary, coeffs[i], dt, nsteps);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -201,8 +196,16 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
 
+    BOOST_REQUIRE(true); //if things go wrong weirdly, see where things go wrong
+
+#ifdef TIMING
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LearningLoadModel>(new LearningLoadModel());
+#else // TIMING
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
+#endif //def TIMING
+
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params);
+    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start

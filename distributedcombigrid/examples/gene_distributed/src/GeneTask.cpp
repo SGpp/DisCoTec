@@ -23,12 +23,12 @@ namespace combigrid
 {
 
 GeneTask::GeneTask( DimType dim, LevelVector& l,
-                    std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
+                    std::vector<bool>& boundary, real coeff,
                     std::string& path, real dt, real combitime, size_t nsteps,
                     real shat, real lx, int ky0_ind,
                     IndexVector p , FaultCriterion *faultCrit,
                     IndexType numSpecies, bool GENE_Global, bool GENE_Linear)
-    : Task( dim, l, boundary, coeff, loadModel,faultCrit),
+    : Task( dim, l, boundary, coeff,faultCrit),
       path_( path ),
       dt_( dt ),
       combitime_(combitime),
@@ -48,7 +48,6 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       currentTime_(0.0),
       gyromatrix_buffered_(false)
 {
-  assert(loadModel);
 
 // theres only one boundary configuration allowed at the moment
 assert( boundary[0] == true );//x

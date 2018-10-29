@@ -14,6 +14,7 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/LPOptimizationInterpolation.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
@@ -23,7 +24,11 @@ namespace combigrid {
 class ProcessManager {
  public:
   ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& instances,
-                 CombiParameters& params);
+                 CombiParameters& params, std::unique_ptr<LoadModel> loadModel)
+    : pgroups_(pgroups), tasks_(instances), params_(params)
+    {
+      loadModel_ = std::move(loadModel);
+    }
 
   inline void removeGroups(std::vector<int> removeIndices);
 
@@ -91,11 +96,15 @@ class ProcessManager {
 
   CombiParameters params_;
 
+  std::unique_ptr<LoadModel> loadModel_;
+
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
   inline ProcessGroupManagerID wait();
   inline ProcessGroupManagerID waitAvoid(std::vector<ProcessGroupManagerID>& avoidGroups);
   bool waitAllFinished();
+
+  void sortTasks();
 };
 
 inline void ProcessManager::addTask(Task* t) { tasks_.push_back(t); }

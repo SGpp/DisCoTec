@@ -17,8 +17,6 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
-#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
-#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 
@@ -32,7 +30,7 @@ class Task {
  protected:
   Task();
 
-  Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
+  Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
        FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
   // fault tolerance info
@@ -53,7 +51,7 @@ class Task {
 
   inline const LevelVector& getLevelVector() const;
 
-  void addTimeMeasurement(const Stats::Event e, size_t numProcs);
+  // void addTimeMeasurement(const Stats::Event e, size_t numProcs);
 
   inline const std::vector<bool>& getBoundary() const;
 
@@ -68,7 +66,7 @@ class Task {
   virtual void init(CommunicatorType lcomm,
                     std::vector<IndexVector> decomposition = std::vector<IndexVector>()) = 0;
 
-  inline real estimateRuntime() const;
+  // inline real estimateRuntime() const;
 
   inline bool isFinished() const;
 
@@ -110,8 +108,6 @@ class Task {
 
   static int count;
 
-  LoadModel* loadModel_;
-
   bool isFinished_;
 };
 
@@ -144,7 +140,7 @@ inline bool Task::isInitialized() {
   return false;
 }
 
-inline real Task::estimateRuntime() const { return loadModel_->eval(l_); }
+// inline real Task::estimateRuntime() const { return loadModel_->eval(l_); }
 } /* namespace combigrid */
 
 #endif /* TASK_HPP_ */

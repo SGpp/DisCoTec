@@ -79,7 +79,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("worker run first");
-      currentTask_->addTimeMeasurement(e,  theMPISystem()->getNumProcs());  
+      // currentTask_->addTimeMeasurement(e,  theMPISystem()->getNumProcs());  
       
     } break;
     case RUN_NEXT: {

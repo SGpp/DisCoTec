@@ -14,19 +14,22 @@
 
 namespace combigrid {
 
-bool compareInstances(const Task* instance1, const Task* instance2) {
-  return (instance1->estimateRuntime() > instance2->estimateRuntime());
-}
-
-ProcessManager::ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& tasks,
-                               CombiParameters& params)
-    : pgroups_(pgroups), tasks_(tasks), params_(params) {}
-
 ProcessManager::~ProcessManager() {}
+
+void ProcessManager::sortTasks(){
+  LoadModel* lm = loadModel_.get();
+  assert(lm);
+  std::sort(tasks_.begin(), tasks_.end(), 
+            [lm](const Task* instance1, const Task* instance2){
+                assert(instance1);
+                return (lm->eval(instance1->getLevelVector()) > lm->eval(instance2->getLevelVector()));
+            }
+  );
+}
 
 bool ProcessManager::runfirst() {
   // sort instances in decreasing order
-  std::sort(tasks_.begin(), tasks_.end(), compareInstances);
+  sortTasks();
 
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group

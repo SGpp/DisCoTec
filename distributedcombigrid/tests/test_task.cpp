@@ -17,9 +17,8 @@ class TaskTest : public combigrid::Task {
  public:
   int test;
 
-  TaskTest(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-           LoadModel* loadModel, int t)
-      : Task(dim, l, boundary, coeff, loadModel), test(t) {}
+  TaskTest(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff, int t)
+      : Task(dim, l, boundary, coeff), test(t) {}
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -72,11 +71,10 @@ BOOST_AUTO_TEST_CASE(test) {
   DimType dim = 3;
   LevelVector l(dim, 2);
   std::vector<bool> boundary(dim, true);
-  LoadModel* loadmodel = new combigrid::LinearLoadModel();
 
   Task* t;
   if (TestHelper::getRank(comm) == 0) {
-    t = new TaskTest(dim, l, boundary, 1, loadmodel, 42);
+    t = new TaskTest(dim, l, boundary, 1, 42);
   }
 
   // test broadcast
@@ -94,6 +92,12 @@ BOOST_AUTO_TEST_CASE(test) {
       BOOST_CHECK(static_cast<TaskTest*>(t)->test == 42 + i);
     }
   }
+
+  std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
+
+  assert(loadmodel);
+  LevelVector test_l = t->getLevelVector();
+  loadmodel->eval(test_l);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

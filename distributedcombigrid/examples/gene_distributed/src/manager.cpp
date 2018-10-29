@@ -64,7 +64,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
 }
 
 // recovery in case of faults
-void recoverPreprocessing(ProcessManager manager, int nsteps, size_t i, bool doOnlyRecompute = false){
+void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool doOnlyRecompute = false){
 
   //vector with IDs of faulted tasks (=component grids)
   std::vector<int> faultsID;
@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
   }
 
   // create load model
-  LoadModel* loadmodel = new LinearLoadModel();// LearningLoadModel();
+  std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());// LearningLoadModel();
 
   /* generate a list of levelvectors and coefficients
     * CombiTS_CT will generate a valid combination. however, you could
@@ -348,7 +348,7 @@ int main(int argc, char** argv) {
 
     IndexType numSpecies = numGrids; //generate one grid per species
     Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
-                              loadmodel, path, dt, combitime, nsteps,
+                              path, dt, combitime, nsteps,
                               shat, lx, ky0_ind, p, faultCrit,
                               numSpecies, GENE_Global,GENE_Linear);
     tasks.push_back(t);
@@ -361,7 +361,7 @@ int main(int argc, char** argv) {
   params.setParallelization(p);
 
   // create Manager with process groups
-  ProcessManager manager(pgroups, tasks, params);
+  ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
   // combiparameters need to be set before starting the computation
   Stats::startEvent("update combi parameters");
