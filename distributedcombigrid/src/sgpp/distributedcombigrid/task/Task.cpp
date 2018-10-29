@@ -120,11 +120,4 @@ void Task::broadcast(Task** t, RankType root, CommunicatorType comm) {
   }
 }
 
-// void Task::addTimeMeasurement(const Stats::Event e, size_t numProcs) { 
-//   assert(loadModel_);
-//   if (LearningLoadModel* learnLM = dynamic_cast<LearningLoadModel*>(loadModel_)) {
-//     learnLM->addDataPoint(getLevelVector(), e, numProcs);  
-//   }
-// }
-
 } /* namespace combigrid */

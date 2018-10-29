@@ -80,6 +80,13 @@ SignalType ProcessGroupWorker::wait() {
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("worker run first");
       // currentTask_->addTimeMeasurement(e,  theMPISystem()->getNumProcs());  
+      // void Task::addTimeMeasurement(const Stats::Event e, size_t numProcs) { 
+      //   assert(loadModel_);
+      //   if (LearningLoadModel* learnLM = dynamic_cast<LearningLoadModel*>(loadModel_)) {
+      //     learnLM->addDataPoint(getLevelVector(), e, numProcs);  
+      //   }
+      // }
+      //TODO need to actually send this back to processmanager now
       
     } break;
     case RUN_NEXT: {
@@ -213,7 +220,8 @@ SignalType ProcessGroupWorker::wait() {
     }
   }
   return signal;
-}  // namespace combigrid
+}
+
 void ProcessGroupWorker::decideToKill() {
   // decide if processor was killed during this iteration
   currentTask_->decideToKill();

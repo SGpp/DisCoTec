@@ -81,15 +81,12 @@ void ProcessManager::exit() {
 void ProcessManager::updateCombiParameters() {
   {
     bool fail = waitAllFinished();
-
     assert(!fail && "should not fail here");
   }
 
   for (auto g : pgroups_) g->updateCombiParameters(params_);
-
   {
     bool fail = waitAllFinished();
-
     assert(!fail && "should not fail here");
   }
 }

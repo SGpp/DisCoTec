@@ -51,8 +51,6 @@ class Task {
 
   inline const LevelVector& getLevelVector() const;
 
-  // void addTimeMeasurement(const Stats::Event e, size_t numProcs);
-
   inline const std::vector<bool>& getBoundary() const;
 
   inline int getID();

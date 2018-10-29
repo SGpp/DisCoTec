@@ -127,7 +127,6 @@ private:
 
 
 //using simple averaging for now //TODO
-//inline real LearningLoadModel::eval(const LevelVector& l) const {
 inline real LearningLoadModel::eval(const LevelVector& l) {
   real ret(0.0);
   std::vector<long int> col = files_[l]->readColumn<long int>(0); //TODO make more efficient, store results in memory
