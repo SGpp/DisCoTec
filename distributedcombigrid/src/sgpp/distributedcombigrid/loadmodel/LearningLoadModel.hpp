@@ -35,6 +35,7 @@ class LearningLoadModel : public LoadModel {
  typedef std::chrono::high_resolution_clock::time_point::duration time_d;
  public:
   LearningLoadModel(){
+    //reserve some space in durations vector
   };
 
   inline real eval(const LevelVector& l);
@@ -42,6 +43,7 @@ class LearningLoadModel : public LoadModel {
   virtual ~LearningLoadModel() = default;
 
   std::map<LevelVector, std::unique_ptr<csvfile>> files_;
+  // std::map<LevelVector, std::vector<long int>> durations_;
 
   void addDataPoint(const LevelVector& l, const Stats::Event event, size_t nProcesses){ //TODO include "metadata" in model: nrg.dat, parameters etc.
     createExtensibleData(l);
@@ -115,6 +117,7 @@ private:
 #else //def USE_HDF5
 
   void createExtensibleData(const LevelVector& l){
+    //TODO how often is this even called?
     if (files_.find(l)==files_.end())
       files_.emplace(std::make_pair(l, std::unique_ptr<csvfile>(new csvfile("./learnloadmodel" + std::to_string(time(0)) + "_" + toString(l) + ".csv"))));
   }
@@ -127,7 +130,7 @@ private:
 //inline real LearningLoadModel::eval(const LevelVector& l) const {
 inline real LearningLoadModel::eval(const LevelVector& l) {
   real ret(0.0);
-  std::vector<long int> col = files_[l]->readColumn<long int>(0); //TODO make more efficient
+  std::vector<long int> col = files_[l]->readColumn<long int>(0); //TODO make more efficient, store results in memory
   // if no data yet, use linear load model
   if(col.empty()){
     LinearLoadModel llm = LinearLoadModel();

@@ -57,7 +57,7 @@ class Stats {
   /**
    * stop a timer for event with given name
    */
-  static const Event& stopEvent(const std::string& name);
+  static const Event stopEvent(const std::string& name);
 
   /**
    * set an attribute which can later be used for plotting
@@ -84,7 +84,6 @@ inline void Stats::initialize() {
 
   initialized_ = true;
   finalized_ = false;
-  // MPI_Barrier(MPI_COMM_WORLD);
   init_time_ = std::chrono::high_resolution_clock::now();
 }
 
@@ -100,15 +99,6 @@ inline void Stats::startEvent(const std::string& name) {
   assert(initialized_);
 
   event_[name].emplace_back();
-}
-
-inline const Stats::Event& Stats::stopEvent(const std::string& name) {
-  assert(initialized_);
-  // check if event is not stopped already
-  assert(event_[name].back().end.time_since_epoch().count() == 0);
-
-  event_[name].back().end = std::chrono::high_resolution_clock::now();
-  return event_[name].back();
 }
 
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {
@@ -218,11 +208,25 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
 #else
 inline void Stats::initialize() {}
 inline void Stats::finalize() {}
-inline void Stats::startEvent(const std::string& name) {}
-inline const Event& Stats::stopEvent(const std::string& name) {}
+inline void Stats::startEvent(const std::string& name) {
+  event_[name].emplace_back();
+}
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {}
 inline void Stats::write(const std::string& path, CommunicatorType comm) {}
 #endif
+
+inline const Stats::Event Stats::stopEvent(const std::string& name) {
+  // check if event is not stopped already
+  assert(event_[name].back().end.time_since_epoch().count() == 0);
+
+  event_[name].back().end = std::chrono::high_resolution_clock::now();
+  Event e(event_[name].back());
+#ifndef TIMING
+  //prevent map from growing if TIMING is off
+  event_.erase(name);
+#endif // def TIMING
+  return e;
+}
 }
 // end namespace combigrid
 

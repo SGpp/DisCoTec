@@ -48,6 +48,7 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       currentTime_(0.0),
       gyromatrix_buffered_(false)
 {
+  assert(loadModel);
 
 // theres only one boundary configuration allowed at the moment
 assert( boundary[0] == true );//x

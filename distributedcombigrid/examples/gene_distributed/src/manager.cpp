@@ -204,7 +204,7 @@ int main(int argc, char** argv) {
   }
 
   // create load model
-  LoadModel* loadmodel = new LinearLoadModel();
+  LoadModel* loadmodel = new LinearLoadModel();// LearningLoadModel();
 
   /* generate a list of levelvectors and coefficients
     * CombiTS_CT will generate a valid combination. however, you could
