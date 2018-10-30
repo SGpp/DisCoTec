@@ -28,6 +28,8 @@ void testDataSave(int size){
 
     combigrid::Stats::initialize();
 
+    BOOST_REQUIRE(true); //if things go wrong weirdly, see where things go wrong
+
     size_t ngroup = size;
     size_t nprocs = 64000;
     std::string fileName;
@@ -36,11 +38,15 @@ void testDataSave(int size){
         LevelVector l = { getCommRank(comm), 1, 4, 4, 3, 1 };
         durationsFile::DurationsWriteFile writefile(l);
         fileName = getFilename(l);
-
-        e.end = std::chrono::high_resolution_clock::now();
-
+        
+        e.end = e.start + std::chrono::milliseconds(100);
+        // e.end = e.start + std::chrono::milliseconds(10000000);
+        // e.end = std::chrono::high_resolution_clock::now();
+        
         writefile.write(e, nprocs);
     }
+    std::chrono::milliseconds msec = std::chrono::duration_cast<std::chrono::milliseconds>(e.end - e.start);
+    
 
     BOOST_TEST(getFileSize(fileName) > 0);
 
@@ -51,11 +57,12 @@ void testDataSave(int size){
             lvectorvector.push_back( lv );
         }
         LearningLoadModel llmodel(lvectorvector);
+        llmodel.setNumberOfEntriesExpected(1);
 
         LevelVector l = { 0, 1, 4, 4, 3, 1 };
-        BOOST_TEST(llmodel.eval(l) == (e.end - e.start).count());
+        BOOST_TEST(llmodel.eval(l) == msec.count());
     }
-
+    BOOST_REQUIRE(true); 
     combigrid::Stats::finalize();
 }
 

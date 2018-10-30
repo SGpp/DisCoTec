@@ -36,7 +36,8 @@ namespace combigrid {
   }
 
   void DurationsWriteFile::write(const Stats::Event event, size_t nProcesses){ 
-    long int duration = (event.end - event.start).count(); 
+    std::chrono::milliseconds x = std::chrono::duration_cast<std::chrono::milliseconds>(event.end - event.start);
+    long int duration = x.count();
     // long int order = event.end.time_since_epoch().count();
     durationInformation info = {duration, nProcesses};
     write(&info);

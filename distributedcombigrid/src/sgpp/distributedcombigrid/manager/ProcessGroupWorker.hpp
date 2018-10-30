@@ -97,6 +97,8 @@ class ProcessGroupWorker {
   // std::ofstream betasFile_;
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
+
+  void writeDuration(const LevelVector& l, const Stats::Event e, size_t numProcs);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }

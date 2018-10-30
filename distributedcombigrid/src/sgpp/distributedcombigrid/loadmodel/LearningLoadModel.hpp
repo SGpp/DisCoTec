@@ -24,7 +24,7 @@ namespace combigrid {
     //TODO include "metadata" in model: nrg.dat, parameters etc.
     struct durationInformation{
       // MPI_LONG duration;
-      long int duration; //todo make larger data type
+      long int duration; //todo make larger data type?
       // MPI_UNSIGNED nProcesses;
       uint nProcesses;
       // long int order;
@@ -91,14 +91,16 @@ using namespace durationsFile;
 
 class LearningLoadModel : public LoadModel {
 
- typedef std::chrono::high_resolution_clock::time_point::duration time_d;
-
  public:
   LearningLoadModel(std::vector<LevelVector> levelVectors){
     for(LevelVector& l : levelVectors){
       files_.emplace(std::make_pair(l, std::unique_ptr<DurationsReadFile>(new DurationsReadFile(l))));
     }
     numberOfEntriesExpected_ = 0;
+  }
+
+  void setNumberOfEntriesExpected(size_t numberOfEntriesExpected){
+   numberOfEntriesExpected_ = numberOfEntriesExpected;
   }
 
   inline real eval(const LevelVector& l);
@@ -114,19 +116,20 @@ class LearningLoadModel : public LoadModel {
 //using simple averaging for now //TODO
 inline real LearningLoadModel::eval(const LevelVector& l) {
   real ret(0.0);
-  std::vector<durationInformation> col = files_[l]->readFromBeginning(numberOfEntriesExpected_); //TODO make more efficient, store results in memory
-  assert(col[0].duration != 0);
-  // if no data yet, use linear load model
-  // if(col.empty()){
-  //   LinearLoadModel llm = LinearLoadModel();
-  //   ret = llm.eval(l);
-  // }
-  // else{
+  //if no data yet, use linear load model
+  if(numberOfEntriesExpected_ = 0){
+    LinearLoadModel llm = LinearLoadModel();
+    ret = llm.eval(l);
+  }
+  else{
+    std::vector<durationInformation> col = files_[l]->readFromBeginning(numberOfEntriesExpected_); //TODO make more efficient, store results in memory
+    // assert(col[0].duration != 0);
+  
     std::for_each(col.begin(), col.end(), [&] (durationInformation n) {
       ret += n.duration;
     });
     ret /= static_cast<double>(col.size());
-  // }
+  }
   return ret;
 }
 

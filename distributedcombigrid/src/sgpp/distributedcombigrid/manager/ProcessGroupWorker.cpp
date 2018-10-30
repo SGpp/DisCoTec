@@ -17,6 +17,8 @@
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGrid.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
+
 
 #include <algorithm>
 #include <iostream>
@@ -44,6 +46,11 @@ ProcessGroupWorker::ProcessGroupWorker()
 
 ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 
+
+void ProcessGroupWorker::writeDuration(const LevelVector& l, const Stats::Event e, size_t numProcs) { 
+  durationsFile::DurationsWriteFile writefile(l);
+  writefile.write(e, numProcs);
+}
 
 SignalType ProcessGroupWorker::wait() {
   if (status_ == PROCESS_GROUP_FAIL) {  // in this case worker got reused
@@ -79,15 +86,9 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("worker run first");
-      // currentTask_->addTimeMeasurement(e,  theMPISystem()->getNumProcs());  
-      // void Task::addTimeMeasurement(const Stats::Event e, size_t numProcs) { 
-      //   assert(loadModel_);
-      //   if (LearningLoadModel* learnLM = dynamic_cast<LearningLoadModel*>(loadModel_)) {
-      //     learnLM->addDataPoint(getLevelVector(), e, numProcs);  
-      //   }
-      // }
-      //TODO need to actually send this back to processmanager now
-      
+      MASTER_EXCLUSIVE_SECTION {
+        writeDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
+      }
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
@@ -105,7 +106,15 @@ SignalType ProcessGroupWorker::wait() {
         if (!isGENE) {
           Stats::startEvent("worker run");
         }
+
+        Stats::Event e = Stats::Event();
         currentTask_->run(theMPISystem()->getLocalComm());
+        e.end = std::chrono::high_resolution_clock::now();
+
+        MASTER_EXCLUSIVE_SECTION {
+          writeDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
+        }
+
         if (!isGENE) {
           Stats::stopEvent("worker run");
         }
