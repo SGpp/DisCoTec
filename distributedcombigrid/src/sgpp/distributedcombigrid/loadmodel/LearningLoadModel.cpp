@@ -35,19 +35,27 @@ namespace combigrid {
     return "./loaddata_" + toString(levelVector) + ".mpi_durations";//TODO which directory
   }
 
-  void DurationsWriteFile::write(const Stats::Event event, size_t nProcesses){ //TODO include "metadata" in model: nrg.dat, parameters etc.
+  void DurationsWriteFile::write(const Stats::Event event, size_t nProcesses){ 
     long int duration = (event.end - event.start).count(); 
     // long int order = event.end.time_since_epoch().count();
     durationInformation info = {duration, nProcesses};
     write(&info);
   }
 
-  std::vector<durationInformation> DurationsReadFile::read_all(){
+  std::vector<durationInformation> DurationsReadFile::readFromBeginning(size_t numberOfItems){
     std::vector<durationInformation> content;
+    content.resize(numberOfItems);
     durationInformation buf;
-    // while (){ //TODO
-    //   MPI_File_read_all(fh_,buf,1,durationType_,MPI_STATUS_IGNORE);
-    // }
+    /* Set the file pointer to 0 */
+    MPI_File_seek( fh_, 0, MPI_SEEK_SET ); 
+    MPI_Status status;
+    int flag;
+    MPI_File_read(fh_, &content[0], numberOfItems, durationType_, &status);
+    MPI_Test_cancelled(&status, &flag);
+    assert (!flag);
+    // flag=0;
+    // int count = MPI_Get_count(&status, durationType_, &flag); 
+    // assert( count == numberOfItems );
     return content;
   }
   

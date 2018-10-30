@@ -11,6 +11,11 @@
 
 using namespace combigrid;
 
+std::ifstream::pos_type getFileSize(std::string filename){
+    std::ifstream in(filename.c_str(), std::ifstream::ate | std::ifstream::binary);
+    return in.tellg(); 
+}
+
 void testDataSave(int size){
 
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
@@ -25,24 +30,32 @@ void testDataSave(int size){
 
     size_t ngroup = size;
     size_t nprocs = 64000;
-
+    std::string fileName;
     Stats::Event e = Stats::Event();
+    {
+        LevelVector l = { getCommRank(comm), 1, 4, 4, 3, 1 };
+        durationsFile::DurationsWriteFile writefile(l);
+        fileName = getFilename(l);
 
-    LevelVector l = { getCommRank(comm), 1, 4, 4, 3, 1 };
-    durationsFile::DurationsWriteFile writefile(l);
+        e.end = std::chrono::high_resolution_clock::now();
 
-    // LearningLoadModel llmodel; //TODO
-    e.end = std::chrono::high_resolution_clock::now();
+        writefile.write(e, nprocs);
+    }
 
-    writefile.write(e, nprocs);
+    BOOST_TEST(getFileSize(fileName) > 0);
 
-    // llmodel.addDataPoint(l, e, nprocs);
+    if(getCommRank(comm) == 0){
+        std::vector<LevelVector> lvectorvector;
+        for (int i=0; i < size; ++i){
+            LevelVector lv = { i, 1, 4, 4, 3, 1 };
+            lvectorvector.push_back( lv );
+        }
+        LearningLoadModel llmodel(lvectorvector);
 
-    // BOOST_TEST(llmodel.eval(l) == (e.end - e.start).count());
+        LevelVector l = { 0, 1, 4, 4, 3, 1 };
+        BOOST_TEST(llmodel.eval(l) == (e.end - e.start).count());
+    }
 
-    // for (auto& file: llmodel.files_){
-    //     file.second->remove_file();
-    // }
     combigrid::Stats::finalize();
 }
 

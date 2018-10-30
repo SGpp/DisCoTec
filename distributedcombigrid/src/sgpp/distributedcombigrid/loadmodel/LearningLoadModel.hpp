@@ -20,9 +20,11 @@
 
 namespace combigrid {
   namespace durationsFile{  
+
+    //TODO include "metadata" in model: nrg.dat, parameters etc.
     struct durationInformation{
       // MPI_LONG duration;
-      long int duration;
+      long int duration; //todo make larger data type
       // MPI_UNSIGNED nProcesses;
       uint nProcesses;
       // long int order;
@@ -53,7 +55,7 @@ namespace combigrid {
         durationType_ = createMPIDurationType();
         MPI_File_open(
           MPI_COMM_SELF, filename.c_str(), 
-          MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_APPEND |  MPI_MODE_SEQUENTIAL, 
+          MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_APPEND,// |  MPI_MODE_SEQUENTIAL, 
           MPI_INFO_NULL, &fh_
         ); 
       }
@@ -66,7 +68,7 @@ namespace combigrid {
     public:
       DurationsReadFile(const LevelVector& levelVector) : DurationsReadFile(getFilename(levelVector)) {}
 
-      std::vector<durationInformation> read_all();
+      std::vector<durationInformation> readFromBeginning(size_t numberOfItems);
       
       ~DurationsReadFile(){
         MPI_File_close(&fh_); 
@@ -76,7 +78,7 @@ namespace combigrid {
       DurationsReadFile(std::string filename){
         durationType_ = createMPIDurationType();
         MPI_File_open(MPI_COMM_SELF, filename.c_str(), 
-          MPI_MODE_CREATE|MPI_MODE_RDONLY, 
+          MPI_MODE_RDONLY, //MPI_MODE_CREATE|
           MPI_INFO_NULL, &fh_
         ); 
       }
@@ -85,7 +87,7 @@ namespace combigrid {
     };
   }//namespace durationsFile
 
- using namespace durationsFile;
+using namespace durationsFile;
 
 class LearningLoadModel : public LoadModel {
 
@@ -96,41 +98,35 @@ class LearningLoadModel : public LoadModel {
     for(LevelVector& l : levelVectors){
       files_.emplace(std::make_pair(l, std::unique_ptr<DurationsReadFile>(new DurationsReadFile(l))));
     }
+    numberOfEntriesExpected_ = 0;
   }
 
   inline real eval(const LevelVector& l);
 
   virtual ~LearningLoadModel() = default;
-
+ 
+ private:
+  size_t numberOfEntriesExpected_;
   std::map<LevelVector, std::unique_ptr<DurationsReadFile>> files_;
   // std::map<LevelVector, std::vector<long int>> durations_;
-
-  // void addDataPoint(const LevelVector& l, const Stats::Event event, size_t nProcesses){ //TODO include "metadata" in model: nrg.dat, parameters etc.
-  //   createExtensibleData(l);
-  //   long int duration = (event.end - event.start).count(); 
-  //   // long int order = event.end.time_since_epoch().count();
-
-  //   durationInformation info = {duration, nProcesses};
-  //   (*files_[l])  (info);
-  // }
-
 };
 
 //using simple averaging for now //TODO
 inline real LearningLoadModel::eval(const LevelVector& l) {
   real ret(0.0);
-  std::vector<durationInformation> col = files_[l]->read_all(); //TODO make more efficient, store results in memory
+  std::vector<durationInformation> col = files_[l]->readFromBeginning(numberOfEntriesExpected_); //TODO make more efficient, store results in memory
+  assert(col[0].duration != 0);
   // if no data yet, use linear load model
-  if(col.empty()){
-    LinearLoadModel llm = LinearLoadModel();
-    ret = llm.eval(l);
-  }
-  else{
+  // if(col.empty()){
+  //   LinearLoadModel llm = LinearLoadModel();
+  //   ret = llm.eval(l);
+  // }
+  // else{
     std::for_each(col.begin(), col.end(), [&] (durationInformation n) {
-        ret += n.duration;
+      ret += n.duration;
     });
     ret /= static_cast<double>(col.size());
-  }
+  // }
   return ret;
 }
 
