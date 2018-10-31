@@ -30,7 +30,7 @@ namespace combigrid {
 class GeneTask: public combigrid::Task {
 public:
   GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-            std::string& path, real dt, real combitime, size_t nsteps,
+            LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
             real shat, real lx, int ky0_ind,
             IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
             IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);

@@ -348,7 +348,7 @@ int main(int argc, char** argv) {
 
     IndexType numSpecies = numGrids; //generate one grid per species
     Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
-                              path, dt, combitime, nsteps,
+                              loadmodel.get(), path, dt, combitime, nsteps,
                               shat, lx, ky0_ind, p, faultCrit,
                               numSpecies, GENE_Global,GENE_Linear);
     tasks.push_back(t);

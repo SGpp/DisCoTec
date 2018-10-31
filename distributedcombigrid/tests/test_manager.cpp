@@ -43,9 +43,10 @@ class TestFn {
  * methods */
 class TaskAdvectionFDM : public combigrid::Task {
  public:
-  TaskAdvectionFDM(LevelVector& l, std::vector<bool>& boundary, real coeff,
+  TaskAdvectionFDM(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
                    real dt, size_t nsteps)
-      : Task(2, l, boundary, coeff), dt_(dt), nsteps_(nsteps) {}
+      : Task(2, l, boundary, coeff, 
+      loadModel), dt_(dt), nsteps_(nsteps) {}
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -184,18 +185,6 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
-    // create Tasks
-    TaskContainer tasks;
-    std::vector<int> taskIDs;
-    for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskAdvectionFDM(levels[i], boundary, coeffs[i], dt, nsteps);
-      tasks.push_back(t);
-      taskIDs.push_back(t->getID());
-    }
-
-    // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-
     BOOST_REQUIRE(true); //if things go wrong weirdly, see where things go wrong
 
 #ifdef TIMING
@@ -203,6 +192,19 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
 #else // TIMING
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 #endif //def TIMING
+
+    // create Tasks
+    TaskContainer tasks;
+    std::vector<int> taskIDs;
+    for (size_t i = 0; i < levels.size(); i++) {
+      Task* t = new TaskAdvectionFDM(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps);
+      tasks.push_back(t);
+      taskIDs.push_back(t->getID());
+    }
+
+    // create combiparameters
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
+
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));

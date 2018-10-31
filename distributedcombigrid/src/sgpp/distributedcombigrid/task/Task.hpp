@@ -19,6 +19,8 @@
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
+
 
 namespace combigrid {
 
@@ -31,7 +33,7 @@ class Task {
   Task();
 
   Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
+       LoadModel* loadModel, FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
   // fault tolerance info
   FaultCriterion* faultCriterion_;
@@ -105,6 +107,8 @@ class Task {
   int id_;  // unique id of task, same on manager and worker
 
   static int count;
+
+  LoadModel* loadModel_;
 
   bool isFinished_;
 };
