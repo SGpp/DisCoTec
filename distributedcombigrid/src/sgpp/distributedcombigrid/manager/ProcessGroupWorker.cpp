@@ -57,7 +57,6 @@ void ProcessGroupWorker::runFirst() {
 			theMPISystem()->getManagerRank(),
 			theMPISystem()->getGlobalComm() );
 }
-	std::cout << "running task: " <<  t->getID() << " ";
 // broadcast task to other process of pgroup
 	Task::broadcast(&t, theMPISystem()->getMasterRank(),
 			theMPISystem()->getLocalComm());
@@ -67,17 +66,14 @@ void ProcessGroupWorker::runFirst() {
 	status_ = PROCESS_GROUP_BUSY;
 	// set currentTask
 	currentTask_ = tasks_.back();
-	std::cout << "current task1 " <<  currentTask_->getID() << " ";
 	// initalize task
 	Stats::startEvent("worker init");
 	currentTask_->init(theMPISystem()->getLocalComm());
 	t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
-	std::cout << "current task2 " <<  currentTask_->getID() << " ";
 	Stats::stopEvent("worker init");
 	// execute task
 	Stats::startEvent("worker run first");
 	currentTask_->run(theMPISystem()->getLocalComm());
-	std::cout << "current task3 " <<  currentTask_->getID() << " ";
 	Stats::stopEvent("worker run first");
 }
 
@@ -329,20 +325,16 @@ SignalType ProcessGroupWorker::wait() {
 	  std::cout << "added Expansion: " << theMPISystem()->getWorldRank()<< "\n";
 	  combiScheme_.addExpansion(vec);
   } else if (signal == BEST_EXPANSION){
-	  std::cout << "Worker Start expansion\n";
 	  findBestExpansion();
   }
   if(isGENE){
     // special solution for GENE
     // todo: find better solution and remove this
-	if(signal == RUN_FIRST  || signal == RUN_NEXT || signal == RECOMPUTE || signal == RUN_NEWTASK)
-	  std::cout << "isFinished: " << currentTask_->isFinished() << "\n";
     if( ( signal == RUN_FIRST  || signal == RUN_NEXT || signal == RECOMPUTE || signal == RUN_NEWTASK) && /*!currentTask_->isFinished() &&*/ omitReadySignal )
       return signal;
   }
   // in the general case: send ready signal.
   //if(!omitReadySignal)
-  std::cout << "readCalled with signal: " << signal << "\n";
   ready();
   if(isGENE){
     if(signal == ADD_TASK){ //ready resets currentTask but needs to be set for GENE

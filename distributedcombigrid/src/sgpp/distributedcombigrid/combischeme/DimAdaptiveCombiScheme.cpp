@@ -123,7 +123,7 @@ void DimAdaptiveCombiScheme::addBelowMinNeighbours(const LevelVector& grid){
 	  for(int i = 0; i < grid.size(); ++i){
 		  if(grid.at(i) == lmin_.at(i)){
 			  for(int j = 1; j < lmin_.at(i); ++j){
-				  auto temp {grid};
+				  LevelVector temp {grid};
 				  temp.at(i) = j;
 				  levels_.push_back(temp);
 			  }
