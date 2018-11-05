@@ -439,9 +439,9 @@ int main(int argc, char** argv) {
     std::cout << "The number of detected faults during the simulation is " << nfaults << "\n";
 
     std::cout << "Program finished successfully" << std::endl;
-    std::cout << "To avoid problems with hanging killed processes, we exit with "
-        << "MPI_Abort()" << std::endl;
     if(nfaults > 0){
+      std::cout << "To avoid problems with hanging killed processes, we exit with "
+        << "MPI_Abort()" << std::endl;
       MPI_Abort( MPI_COMM_WORLD, 0 );
     }
     simft::Sim_FT_MPI_Finalize();

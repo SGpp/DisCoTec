@@ -102,7 +102,7 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorTy
   MPI_Comm_size(worldComm_, &worldSize);
   int commSize;
   MPI_Comm_size(comm, &commSize);
-  // assert(commSize == int(ngroup_ * nprocs_ + 1));
+  assert(worldSize == int(ngroup_ * nprocs_ + 1));
 
   MPI_Comm_rank(worldComm_, &worldRank_);
   managerRankWorld_ = worldSize - 1;
