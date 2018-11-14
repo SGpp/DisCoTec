@@ -89,8 +89,6 @@ inline void Stats::initialize() {
 
 inline void Stats::finalize() {
   assert(initialized_);
-  // MPI_Comm worldComm = theMPISystem()->getWorldComm();
-  // MPI_Barrier(worldComm);
   finalized_ = true;
   initialized_ = false;
 }
