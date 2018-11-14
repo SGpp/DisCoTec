@@ -14,7 +14,6 @@
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 
 namespace combigrid {
-  namespace durationsFile{
 
   //the durationInformation data type needs to be communicated to MPI in every process using it
   MPI_Datatype createMPIDurationType(){
@@ -47,47 +46,6 @@ namespace combigrid {
 
     return duration_datatype;
   }
-
-  std::string getFilename(const LevelVector& levelVector){
-    return "./loaddata_" + toString(levelVector) + ".mpi_durations";//TODO which directory
-  }
-
-  void DurationsWriteFile::write(const Stats::Event event, uint nProcesses){ 
-    std::chrono::milliseconds x = std::chrono::duration_cast<std::chrono::milliseconds>(event.end - event.start);
-    long int duration = x.count();
-    // long int order = event.end.time_since_epoch().count();
-    durationInformation info = {duration, nProcesses};
-    write(&info);
-  }
-
-  std::vector<durationInformation> DurationsReadFile::readFromBeginning(size_t numberOfItems){
-    std::vector<durationInformation> content;
-    content.resize(numberOfItems);
-    durationInformation buf;
-    /* Set the file pointer to 0 */
-    MPI_File_seek( fh_, 0, MPI_SEEK_SET ); 
-    MPI_Status status;
-    int flag;
-    MPI_File_read(fh_, &content[0], numberOfItems, durationType_, &status);
-    MPI_Test_cancelled(&status, &flag);
-    // if flag is set, it may be that the file is not ready for reading (yet)
-    for (int i=0; i<100; ++i){
-      if (flag){
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        flag = 0;
-        MPI_File_read(fh_, &content[0], numberOfItems, durationType_, &status);
-        MPI_Test_cancelled(&status, &flag);
-      }else{
-        break;
-      }
-    }
-    assert (!flag);
-    // int count = MPI_Get_count(&status, durationType_, &flag); 
-    // assert( count == numberOfItems );
-    return content;
-  }
-  
-  } /* namespace durationsFile */
  
 } /* namespace combigrid */
 

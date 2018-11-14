@@ -19,8 +19,6 @@
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 namespace combigrid {
-  namespace durationsFile{  
-
     //TODO include "metadata" in model: nrg.dat, parameters etc.
     struct durationInformation{
       // MPI_LONG duration;
@@ -33,74 +31,11 @@ namespace combigrid {
     //this data type needs to be communicated to MPI in every process using it
     MPI_Datatype createMPIDurationType();
 
-    std::string getFilename(const LevelVector& levelVector);
-
-    // each of the performance files will be opened two times: once to write, from the worker process
-    class DurationsWriteFile{
-    public:
-      DurationsWriteFile(const LevelVector& levelVector) : DurationsWriteFile(getFilename(levelVector)) {}
-
-      void write( durationInformation* buf, int bufsize = 1){
-        MPI_File_write(fh_, buf, bufsize, durationType_, MPI_STATUS_IGNORE); 
-      }
-
-      void write(const Stats::Event event, uint nProcesses);
-      
-      ~DurationsWriteFile(){
-        MPI_File_close(&fh_); 
-      }
-
-    private:
-      DurationsWriteFile(std::string filename){
-        durationType_ = createMPIDurationType();
-        MPI_File_open(
-          MPI_COMM_SELF, filename.c_str(), 
-          MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_APPEND,// |  MPI_MODE_SEQUENTIAL, 
-          MPI_INFO_NULL, &fh_
-        ); 
-      }
-      MPI_File fh_;
-      MPI_Datatype durationType_;
-    };
-
-    // to read, in the manager process
-    class DurationsReadFile{
-    public:
-      DurationsReadFile(const LevelVector& levelVector) : DurationsReadFile(getFilename(levelVector)) {}
-
-      std::vector<durationInformation> readFromBeginning(size_t numberOfItems);
-      
-      ~DurationsReadFile(){
-        MPI_File_close(&fh_); 
-      }
-      
-    private:   
-      DurationsReadFile(std::string filename){
-        durationType_ = createMPIDurationType();
-        MPI_File_open(MPI_COMM_SELF, filename.c_str(), 
-          MPI_MODE_RDONLY, //MPI_MODE_CREATE|
-          MPI_INFO_NULL, &fh_
-        ); 
-      }
-      MPI_File fh_;
-      MPI_Datatype durationType_;
-    };
-  }//namespace durationsFile
-
-using namespace durationsFile;
 
 class LearningLoadModel : public LoadModel {
 
  public:
   LearningLoadModel(std::vector<LevelVector> levelVectors){
-    for(LevelVector& l : levelVectors){
-      files_.emplace(std::make_pair(l, std::unique_ptr<DurationsReadFile>(new DurationsReadFile(l))));
-    }
-    numberOfEntriesExpected_ = 0;
-  }
-
-  void setNumberOfEntriesExpected(size_t numberOfEntriesExpected){
-   numberOfEntriesExpected_ = numberOfEntriesExpected;
   }
 
   inline real eval(const LevelVector& l);
@@ -108,28 +43,15 @@ class LearningLoadModel : public LoadModel {
   virtual ~LearningLoadModel() = default;
  
  private:
-  size_t numberOfEntriesExpected_;
-  std::map<LevelVector, std::unique_ptr<DurationsReadFile>> files_;
-  // std::map<LevelVector, std::vector<long int>> durations_;
 };
 
-//using simple averaging for now //TODO
+
 inline real LearningLoadModel::eval(const LevelVector& l) {
   real ret(0.0);
-  //if no data yet, use linear load model
-  if(numberOfEntriesExpected_ == 0){
-    LinearLoadModel llm = LinearLoadModel();
-    ret = llm.eval(l);
-  }
-  else{
-    std::vector<durationInformation> col = files_[l]->readFromBeginning(numberOfEntriesExpected_); //TODO make more efficient, store results in memory
-    // assert(col[0].duration != 0);
-  
-    std::for_each(col.begin(), col.end(), [&] (durationInformation n) {
-      ret += n.duration;
-    });
-    ret /= static_cast<double>(col.size());
-  }
+  //if no data yet, use linear load model //TODO
+  LinearLoadModel llm = LinearLoadModel();
+  ret = llm.eval(l);
+
   return ret;
 }
 

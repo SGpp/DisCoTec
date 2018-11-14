@@ -98,6 +98,8 @@ class ProcessGroupWorker {
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
 
+  MPI_Datatype durationType_;
+
   void processDuration(const LevelVector& l, const Stats::Event e, size_t numProcs);
 };
 

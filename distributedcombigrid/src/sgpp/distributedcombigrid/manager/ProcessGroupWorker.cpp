@@ -41,17 +41,21 @@ ProcessGroupWorker::ProcessGroupWorker()
   MASTER_EXCLUSIVE_SECTION {
     std::string fname = "out/all-betas-" + std::to_string(theMPISystem()->getGlobalRank()) + ".txt";
     // betasFile_ = std::ofstream( fname, std::ofstream::out );
+    durationType_ = createMPIDurationType();
   }
 }
 
 ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 
-
-void ProcessGroupWorker::processDuration(const LevelVector& l, const Stats::Event e, size_t numProcs) { 
-  MASTER_EXCLUSIVE_SECTION {
-    durationsFile::DurationsWriteFile writefile(l);
-    writefile.write(e, numProcs);
-  }
+// Do useful things with the info about how long a task took.
+// this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly multiple times),
+// RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
+void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, size_t numProcs) { 
+  // MASTER_EXCLUSIVE_SECTION {
+  //   // send signal to manager
+  //   MPI_ISend(&signal, 1, durationType_, theMPISystem()->getManagerRank(), durationTag,
+  //            theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+  // }
 }
 
 SignalType ProcessGroupWorker::wait() {
@@ -88,7 +92,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("worker run first");
-      processDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
+      processDuration(&currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
@@ -110,8 +114,7 @@ SignalType ProcessGroupWorker::wait() {
         Stats::Event e = Stats::Event();
         currentTask_->run(theMPISystem()->getLocalComm());
         e.end = std::chrono::high_resolution_clock::now();
-
-        processDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
+        processDuration(&currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
 
         if (!isGENE) {
           Stats::stopEvent("worker run");
@@ -200,7 +203,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::Event e = Stats::Event();
       currentTask_->run(theMPISystem()->getLocalComm());
       e.end = std::chrono::high_resolution_clock::now();
-      processDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
+      processDuration(&currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
 
     } break;
     case RECOVER_COMM: {  // start recovery in case of faults
@@ -265,7 +268,7 @@ void ProcessGroupWorker::ready() {
         Stats::startEvent("worker run");
         currentTask_->run(theMPISystem()->getLocalComm());
         Stats::Event e = Stats::stopEvent("worker run");
-        processDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
+        processDuration(&currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
         if (ENABLE_FT) {
           // with this barrier the local root but also each other process can detect
           // whether a process in the group has failed
