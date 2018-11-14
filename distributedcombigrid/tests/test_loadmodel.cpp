@@ -3,6 +3,8 @@
 
 #include <chrono>
 #include <thread>
+#include <limits>
+#include <random>
 
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
@@ -30,25 +32,51 @@ void testDataSave(int size){
 
     BOOST_REQUIRE(true); //if things go wrong weirdly, see where things go wrong
 
-    size_t ngroup = size;
     size_t nprocs = 64000;
-    std::string fileName;
+
+    std::random_device r; 
+    // Choose a random duration
+    std::default_random_engine e1(r());
+    std::uniform_int_distribution<long> uniform_dist(1/*, default value for upper limit is std::numeric_limits<long>::max()*/);
+    int d = uniform_dist(e1);
+    
     Stats::Event e = Stats::Event();
+    LevelVector l = { getCommRank(comm), 1, 4, 4, 3, 1 };
+    std::string fileName = getFilename(l);
+    remove( fileName.c_str() );
+
     {
-        LevelVector l = { getCommRank(comm), 1, 4, 4, 3, 1 };
         durationsFile::DurationsWriteFile writefile(l);
-        fileName = getFilename(l);
         
-        e.end = e.start + std::chrono::milliseconds(100);
-        // e.end = e.start + std::chrono::milliseconds(10000000);
+        e.end = e.start + std::chrono::milliseconds(d);
+        // std::this_thread::sleep_for(std::chrono::seconds(1));
         // e.end = std::chrono::high_resolution_clock::now();
         
-        writefile.write(e, nprocs);
+        writefile.write(e, nprocs); 
+        writefile.write(e, nprocs); 
+    }
+    {
+        durationsFile::DurationsWriteFile writefile(l);
+        
+        // e.end = e.start + std::chrono::milliseconds(100);
+        // e.end = e.start + std::chrono::milliseconds(10000000);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        e.end = std::chrono::high_resolution_clock::now();
+        
+        writefile.write(e, nprocs); 
+        writefile.write(e, nprocs); 
+        // durationsFile::durationInformation di = {(long int) 1000000, nprocs};
+        // writefile.write(&di);
     }
     std::chrono::milliseconds msec = std::chrono::duration_cast<std::chrono::milliseconds>(e.end - e.start);
-    
 
     BOOST_TEST(getFileSize(fileName) > 0);
+
+    {
+        durationsFile::DurationsReadFile readfile(l);
+        std::vector<durationInformation> result = readfile.readFromBeginning(2);
+        BOOST_TEST(result.back().duration == msec.count());
+    }
 
     if(getCommRank(comm) == 0){
         std::vector<LevelVector> lvectorvector;
@@ -57,7 +85,7 @@ void testDataSave(int size){
             lvectorvector.push_back( lv );
         }
         LearningLoadModel llmodel(lvectorvector);
-        llmodel.setNumberOfEntriesExpected(1);
+        llmodel.setNumberOfEntriesExpected(2);
 
         LevelVector l = { 0, 1, 4, 4, 3, 1 };
         BOOST_TEST(llmodel.eval(l) == msec.count());

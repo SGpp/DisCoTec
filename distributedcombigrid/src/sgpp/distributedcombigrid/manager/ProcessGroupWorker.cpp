@@ -47,9 +47,11 @@ ProcessGroupWorker::ProcessGroupWorker()
 ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 
 
-void ProcessGroupWorker::writeDuration(const LevelVector& l, const Stats::Event e, size_t numProcs) { 
-  durationsFile::DurationsWriteFile writefile(l);
-  writefile.write(e, numProcs);
+void ProcessGroupWorker::processDuration(const LevelVector& l, const Stats::Event e, size_t numProcs) { 
+  MASTER_EXCLUSIVE_SECTION {
+    durationsFile::DurationsWriteFile writefile(l);
+    writefile.write(e, numProcs);
+  }
 }
 
 SignalType ProcessGroupWorker::wait() {
@@ -86,9 +88,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("worker run first");
-      MASTER_EXCLUSIVE_SECTION {
-        writeDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
-      }
+      processDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
@@ -111,9 +111,7 @@ SignalType ProcessGroupWorker::wait() {
         currentTask_->run(theMPISystem()->getLocalComm());
         e.end = std::chrono::high_resolution_clock::now();
 
-        MASTER_EXCLUSIVE_SECTION {
-          writeDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
-        }
+        processDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
 
         if (!isGENE) {
           Stats::stopEvent("worker run");
@@ -199,7 +197,11 @@ SignalType ProcessGroupWorker::wait() {
         setCombinedSolutionUniform(currentTask_);
       }
       // execute task
+      Stats::Event e = Stats::Event();
       currentTask_->run(theMPISystem()->getLocalComm());
+      e.end = std::chrono::high_resolution_clock::now();
+      processDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
+
     } break;
     case RECOVER_COMM: {  // start recovery in case of faults
       theMPISystem()->recoverCommunicators(true);
@@ -262,7 +264,8 @@ void ProcessGroupWorker::ready() {
         currentTask_ = tasks_[i];
         Stats::startEvent("worker run");
         currentTask_->run(theMPISystem()->getLocalComm());
-        Stats::stopEvent("worker run");
+        Stats::Event e = Stats::stopEvent("worker run");
+        processDuration(currentTask_->getLevelVector(), e, getCommSize(theMPISystem()->getLocalComm()));  
         if (ENABLE_FT) {
           // with this barrier the local root but also each other process can detect
           // whether a process in the group has failed

@@ -44,7 +44,7 @@ namespace combigrid {
         MPI_File_write(fh_, buf, bufsize, durationType_, MPI_STATUS_IGNORE); 
       }
 
-      void write(const Stats::Event event, size_t nProcesses);
+      void write(const Stats::Event event, uint nProcesses);
       
       ~DurationsWriteFile(){
         MPI_File_close(&fh_); 
@@ -117,7 +117,7 @@ class LearningLoadModel : public LoadModel {
 inline real LearningLoadModel::eval(const LevelVector& l) {
   real ret(0.0);
   //if no data yet, use linear load model
-  if(numberOfEntriesExpected_ = 0){
+  if(numberOfEntriesExpected_ == 0){
     LinearLoadModel llm = LinearLoadModel();
     ret = llm.eval(l);
   }

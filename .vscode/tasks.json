@@ -50,7 +50,7 @@
         {
             "label": "scons clean",
             "type": "shell",
-            "command": "scons -c && rm -r .scon*",
+            "command": "rm -r .scon* && scons -c",
             "group": "build"
         },
         {

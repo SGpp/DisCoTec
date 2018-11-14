@@ -98,7 +98,7 @@ class ProcessGroupWorker {
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
 
-  void writeDuration(const LevelVector& l, const Stats::Event e, size_t numProcs);
+  void processDuration(const LevelVector& l, const Stats::Event e, size_t numProcs);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
