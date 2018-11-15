@@ -18,33 +18,41 @@ namespace combigrid {
   //the durationInformation data type needs to be communicated to MPI in every process using it
   MPI_Datatype createMPIDurationType(){
     durationInformation dI;
-    MPI_Aint baseaddr, procaddr;
-    MPI_Address ( &dI,   &baseaddr);
+    MPI_Aint baseaddr, duraddr, procaddr;
+    MPI_Address ( &dI.task_id,   &baseaddr);
+    MPI_Address ( &dI.duration,   &duraddr);
     MPI_Address ( &dI.nProcesses, &procaddr); 
     MPI_Datatype duration_datatype;
-    MPI_Datatype types[] = { MPI_LONG, MPI_UNSIGNED }; 
-    int blocklengths[] = { 1, 1 };
+    MPI_Datatype types[] = { MPI_INT, MPI_UNSIGNED_LONG, MPI_UNSIGNED }; 
+    int blocklengths[] = { 1, 1, 1 };
 
-    MPI_Aint displacements[] = { 0, procaddr - baseaddr };
+    MPI_Aint displacements[] = { 0, duraddr - baseaddr, procaddr - baseaddr };
     MPI_Type_create_struct(
-      2, blocklengths, displacements, types,
+      3, blocklengths, displacements, types,
       &duration_datatype
     );
     MPI_Type_commit(&duration_datatype);
 
-    //verify that the first field has the expected length
+    //verify that the fields have the expected length
     MPI_Aint extent;
-    MPI_Type_extent(MPI_LONG, &extent);
-    assert (extent == procaddr - baseaddr);
-    assert (extent == sizeof(long int) );
-    //and the second field, too
+    MPI_Type_extent(MPI_INT, &extent);
+    assert (extent == sizeof(int) );
+    // assert (extent == duraddr - baseaddr); // not true, padding
+    MPI_Type_extent(MPI_UNSIGNED_LONG, &extent);
+    assert (extent == procaddr - duraddr);
+    assert (extent == sizeof(long unsigned int) );
     MPI_Type_extent(MPI_UNSIGNED, &extent);
     assert (extent == sizeof(uint) );
+
     //and the whole structure, too
     MPI_Type_extent(duration_datatype, &extent);
     assert (extent == sizeof(durationInformation) );
 
     return duration_datatype;
+  }
+
+  std::string getFilename(const LevelVector& levelVector){
+    return "./loaddata_" + toString(levelVector) + ".durations";//TODO which directory
   }
  
 } /* namespace combigrid */

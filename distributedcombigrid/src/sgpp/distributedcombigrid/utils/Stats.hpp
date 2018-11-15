@@ -28,6 +28,11 @@ class Stats {
 
     Event() : start(std::chrono::high_resolution_clock::now()) {}
   };
+
+  static long unsigned int getEventDuration(const Stats::Event e){
+    std::chrono::milliseconds x = std::chrono::duration_cast<std::chrono::milliseconds>(e.end - e.start);
+    return x.count();
+  }
   // Stats(){
   //   Stats::initialize();
   // }

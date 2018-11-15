@@ -273,6 +273,7 @@ BOOST_AUTO_TEST_CASE(test_2, * boost::unit_test::tolerance(TestHelper::tolerance
 BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
   // calculate solution on fullgrid
   checkManager(false, true, 1.51188, 10.97143);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
