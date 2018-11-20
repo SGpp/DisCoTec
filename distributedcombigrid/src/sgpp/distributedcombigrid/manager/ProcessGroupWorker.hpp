@@ -15,6 +15,7 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 
 namespace combigrid {
 
@@ -98,9 +99,7 @@ class ProcessGroupWorker {
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
 
-  MPI_Datatype durationType_;
-
-  void processDuration(const LevelVector& l, const Stats::Event e, size_t numProcs);
+  void processDuration(const Task& t, const Stats::Event e, size_t numProcs);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }

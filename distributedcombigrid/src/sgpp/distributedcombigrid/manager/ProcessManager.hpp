@@ -15,6 +15,7 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
@@ -28,7 +29,7 @@ class ProcessManager {
     : pgroups_(pgroups), tasks_(instances), params_(params)
     {
       loadModel_ = std::move(loadModel);
-    }
+  }
 
   inline void removeGroups(std::vector<int> removeIndices);
 
@@ -103,6 +104,8 @@ class ProcessManager {
   inline ProcessGroupManagerID wait();
   inline ProcessGroupManagerID waitAvoid(std::vector<ProcessGroupManagerID>& avoidGroups);
   bool waitAllFinished();
+
+  void receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive);
 
   void sortTasks();
 };

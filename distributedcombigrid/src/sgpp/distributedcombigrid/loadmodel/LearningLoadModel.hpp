@@ -7,10 +7,7 @@
 #ifndef LEARNINGLOADMODEL_HPP_
 #define LEARNINGLOADMODEL_HPP_
 
-// #include <iostream>
 #include <string>
-#include <chrono>
-// #include <memory>
 #include <deque>     
 
 #include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"

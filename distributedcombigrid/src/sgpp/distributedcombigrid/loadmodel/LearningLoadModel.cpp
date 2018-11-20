@@ -31,7 +31,8 @@ namespace combigrid {
       3, blocklengths, displacements, types,
       &duration_datatype
     );
-    MPI_Type_commit(&duration_datatype);
+    int err = MPI_Type_commit(&duration_datatype);
+    assert(!err); // && std::to_string(err));
 
     //verify that the fields have the expected length
     MPI_Aint extent;
