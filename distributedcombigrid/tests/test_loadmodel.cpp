@@ -67,7 +67,21 @@ void testDataSave(int size){
         MPI_Send(&info, 1, durationType_, theMPISystem()->getManagerRank(), durationTag, //TODO see if we can send asynchronously
                 theMPISystem()->getGlobalComm());
     }
-   
+    // see if reading the data works, too
+    WORLD_MANAGER_EXCLUSIVE_SECTION{
+        std::cout << "reading data as if for next run" << std::endl;
+        std::vector<LevelVector> lvv;
+        for (long int i = 1; i < ngroup; ++i){
+            lvv.push_back({i});
+        }
+        auto loadModel = std::unique_ptr<LoadModel>(new LearningLoadModel(lvv));
+
+        //test loadmodel
+        for (long int i = 1; i < ngroup; ++i){
+            // std::cout << "llm eval " << loadModel->eval({i}) << std::endl;
+            BOOST_TEST(loadModel->eval({i}) == 1000000*i);
+        }
+    }
     combigrid::Stats::finalize();
 }
 

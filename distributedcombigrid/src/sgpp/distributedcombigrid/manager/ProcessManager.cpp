@@ -56,16 +56,16 @@ void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurations
     durationInformation recvbuf;
     MPI_Status stat;
 
-    std::cout << "receiving duration" << std::endl;
+    // std::cout << "receiving duration" << std::endl;
     MPI_Recv(&recvbuf, 1, type.get(), 
           MPI_ANY_SOURCE, durationTag, theMPISystem()->getGlobalComm(), &stat);
-    std::cout << "received duration" << std::endl;
+    // std::cout << "received duration" << std::endl;
     
     if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
       llm->addDataPoint(recvbuf, getLevelVectorFromTaskID(tasks_, recvbuf.task_id));
     }
   }
-  std::cout << "done receiving duration" << std::endl;
+  // std::cout << "done receiving duration" << std::endl;
 }
 
 bool ProcessManager::runnext() {

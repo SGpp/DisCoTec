@@ -56,11 +56,11 @@ void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, si
     durationInformation info = {t.getID(), Stats::getEventDuration(e), numProcs};
     // MPI_Request request;
     // send durationInfo to manager
-    std::cout << "sending duration" << std::endl;
+    // std::cout << "sending duration" << std::endl;
     MPI_Send(&info, 1, type.get(), 
             theMPISystem()->getManagerRank(), durationTag, //TODO see if we can send asynchronously
             theMPISystem()->getGlobalComm());
-    std::cout << "sent duration" << std::endl;
+    // std::cout << "sent duration" << std::endl;
   }
 }
 
@@ -98,7 +98,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("worker run first");
-      std::cout << "from runfirst ";
+      // std::cout << "from runfirst ";
       processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
     } break;
     case RUN_NEXT: {
@@ -121,7 +121,7 @@ SignalType ProcessGroupWorker::wait() {
         Stats::Event e = Stats::Event();
         currentTask_->run(theMPISystem()->getLocalComm());
         e.end = std::chrono::high_resolution_clock::now();
-        std::cout << "from runnext ";
+        // std::cout << "from runnext ";
         processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
 
         if (!isGENE) {
@@ -211,7 +211,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::Event e = Stats::Event();
       currentTask_->run(theMPISystem()->getLocalComm());
       e.end = std::chrono::high_resolution_clock::now();
-      std::cout << "from recompute ";
+      // std::cout << "from recompute ";
       processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
 
     } break;
@@ -278,7 +278,7 @@ void ProcessGroupWorker::ready() {
         currentTask_->run(theMPISystem()->getLocalComm());
         Stats::Event e = Stats::stopEvent("worker run");
 
-        std::cout << "from ready ";
+        // std::cout << "from ready ";
         processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
         if (ENABLE_FT) {
           // with this barrier the local root but also each other process can detect

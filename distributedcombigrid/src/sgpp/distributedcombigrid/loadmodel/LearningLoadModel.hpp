@@ -17,7 +17,7 @@
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 namespace combigrid {
-    //TODO include "metadata" in model: nrg.dat, parameters etc.
+    //TODO include "metadata" in model: nrg.dat, parameters etc. ?
     struct durationInformation{
       // MPI_INT task_id;
       int task_id;
@@ -48,6 +48,8 @@ namespace combigrid {
 
     std::string getFilename(const LevelVector& levelVector);
 
+    unsigned long int getAverageOfFirstColumn(std::istream& fs);
+
 class LearningLoadModel : public LoadModel {
 
  public:
@@ -59,22 +61,34 @@ class LearningLoadModel : public LoadModel {
     }
 
     for (const auto & lv: levelVectors){
-      files_.insert(make_pair(lv, std::unique_ptr<std::fstream>(new std::fstream())));
-      files_[lv]->open(getFilename(lv), std::fstream::in | std::fstream::out | std::fstream::app);
+      std::fstream fs;
+      // files_.insert(make_pair(lv, std::unique_ptr<std::fstream>(new std::fstream())));
+      fs.open(getFilename(lv), std::fstream::in | std::fstream::app);
+      fs.seekg(0, std::ios::beg);
+      fs.clear();
+      if (fs.peek() != EOF){
+        last_durations_avg_.insert(make_pair(lv,getAverageOfFirstColumn(fs)));
+      }
+      fs.clear();
+      fs.close();
     }
   }
 
   inline real eval(const LevelVector& l);
 
   ~LearningLoadModel() {
-    //upon destruction, write data gathered to file //TODO re-use in next run
-    for (const auto& item : files_){
+    //upon destruction, write data gathered to file
+    for (const auto& item : *durationsOfLevels_){
+      std::fstream fs;
       LevelVector lv = item.first;
+      fs.open(getFilename(lv), std::fstream::out | std::fstream::app);
+      // assert(fs.good());
       for (const auto& duration : durationsOfLevels_->at(lv)){
-        *(files_[lv]) << std::to_string(duration.first) << ", " << std::to_string(duration.second) << ", " << std::endl;
+        std::cout << "writing data point for " << toString(lv) << " to load model" << std::endl;
+        fs << std::to_string(duration.first) << ", " << std::to_string(duration.second) << ", " << std::endl;
       }
-      // std::cout << "open2: " << std::to_string(files_[lv]->is_open()) << std::endl;
-      files_[lv]->close();
+      // std::cout << "open2: " << std::to_string(fs.is_open()) << std::endl;
+      fs.close();
     }
   }
 
@@ -90,17 +104,25 @@ class LearningLoadModel : public LoadModel {
  
  private:
   std::unique_ptr<std::map<LevelVector,std::deque<std::pair<long unsigned int, uint>>>> durationsOfLevels_;
-  std::map<LevelVector, std::unique_ptr<std::fstream>> files_;
+  // std::map<LevelVector, std::unique_ptr<std::fstream>> files_;
+  std::map<LevelVector, long unsigned int> last_durations_avg_;
 };
 
 
 inline real LearningLoadModel::eval(const LevelVector& l) {
   // std::cout << "eval loadmodel at " << toString(l) << std::endl;
-  real ret(0.0);
-  //if no data yet, use linear load model //TODO read data from last time
+  real ret(0.0); 
   if (durationsOfLevels_->at(l).empty()){
-    LinearLoadModel llm = LinearLoadModel();
-    ret = llm.eval(l);
+    //if no data yet, use linear load model
+    if ( ! last_durations_avg_.count(l) ){
+      std::cout << "using linear load model for initial guess" << std::endl;
+      LinearLoadModel llm = LinearLoadModel();
+      ret = llm.eval(l);
+    }else{
+      // use data from last time
+      std::cout << "using recoded average of " << last_durations_avg_[l] << " for " << toString(l) << std::endl;
+      ret = last_durations_avg_[l];
+    }
   }else{// use simple averaging for now //TODO do fancier things
     for (auto duration : durationsOfLevels_->at(l)){
       ret += duration.first;

@@ -55,6 +55,19 @@ namespace combigrid {
   std::string getFilename(const LevelVector& levelVector){
     return "./loaddata_" + toString(levelVector) + ".durations";//TODO which directory
   }
+
+  unsigned long int getAverageOfFirstColumn(std::istream& fs){
+    std::string line, val;
+    unsigned long int sum=0, count=0;
+    while (std::getline (fs, line)) { 
+      std::stringstream s (line);
+      /* get first value (',' delimited) */
+      getline (s, val, ',');       
+      sum += std::stoul (val);
+      ++count;
+    }
+    return sum/count;
+  }
  
 } /* namespace combigrid */
 
