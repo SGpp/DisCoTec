@@ -67,7 +67,7 @@ class LearningLoadModel : public LoadModel {
   inline real eval(const LevelVector& l);
 
   ~LearningLoadModel() {
-    //upon destruction, write data gathered to file //TODO
+    //upon destruction, write data gathered to file //TODO re-use in next run
     for (const auto& item : files_){
       LevelVector lv = item.first;
       for (const auto& duration : durationsOfLevels_->at(lv)){
@@ -79,10 +79,11 @@ class LearningLoadModel : public LoadModel {
   }
 
   void addDataPoint(durationInformation dI, LevelVector l){
+    // std::cout << "adding data point for " << toString(l) << " to load model" << std::endl;
     addDataPoint(dI.duration, dI.nProcesses, l);
   }
 
-  void addDataPoint(long unsigned int duration, uint nProcesses, LevelVector l){
+  void addDataPoint(long unsigned int duration, uint nProcesses, LevelVector l){ //TODO write to file intermediately for long simulations
     std::pair<long unsigned int, uint> value = std::make_pair(duration, nProcesses);
     durationsOfLevels_->at(l).push_back(value);
   }
@@ -94,6 +95,7 @@ class LearningLoadModel : public LoadModel {
 
 
 inline real LearningLoadModel::eval(const LevelVector& l) {
+  // std::cout << "eval loadmodel at " << toString(l) << std::endl;
   real ret(0.0);
   //if no data yet, use linear load model //TODO read data from last time
   if (durationsOfLevels_->at(l).empty()){

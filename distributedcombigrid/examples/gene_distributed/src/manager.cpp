@@ -203,9 +203,6 @@ int main(int argc, char** argv) {
     );
   }
 
-  // create load model
-  std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());// LearningLoadModel();
-
   /* generate a list of levelvectors and coefficients
     * CombiTS_CT will generate a valid combination. however, you could
     * also read in a list of levelvectors and coefficients from a file */
@@ -284,6 +281,7 @@ int main(int argc, char** argv) {
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
   std::vector<int> fileTaskIDs;
+
   const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
   if (READ_FROM_FILE) { //currently used file produced by preproc.py
     std::ifstream spcfile("spaces.dat");
@@ -310,6 +308,9 @@ int main(int argc, char** argv) {
     levels = combischeme.getCombiSpaces();
     coeffs = combischeme.getCoeffs();
   }
+
+  // create load model
+  std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
 
   // output of combination setup
   std::cout << "lmin = " << lmin << std::endl;
