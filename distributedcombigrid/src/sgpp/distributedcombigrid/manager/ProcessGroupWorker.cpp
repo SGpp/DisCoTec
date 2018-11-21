@@ -51,13 +51,13 @@ ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 // this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly multiple times),
 // RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
 void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, size_t numProcs) { 
-  MPI_Datatype type = createMPIDurationType();
   MASTER_EXCLUSIVE_SECTION {
+    DurationType type = DurationType();
     durationInformation info = {t.getID(), Stats::getEventDuration(e), numProcs};
     // MPI_Request request;
     // send durationInfo to manager
     std::cout << "sending duration" << std::endl;
-    MPI_Send(&info, 1, type, 
+    MPI_Send(&info, 1, type.get(), 
             theMPISystem()->getManagerRank(), durationTag, //TODO see if we can send asynchronously
             theMPISystem()->getGlobalComm());
     std::cout << "sent duration" << std::endl;

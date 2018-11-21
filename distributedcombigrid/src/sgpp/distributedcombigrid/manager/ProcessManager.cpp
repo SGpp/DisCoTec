@@ -51,13 +51,13 @@ void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurations
   if (numDurationsToReceive == 0){
     numDurationsToReceive = tasks_.size();
   }
-  MPI_Datatype type = createMPIDurationType();
+  DurationType type = DurationType();
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
     durationInformation recvbuf;
     MPI_Status stat;
 
     std::cout << "receiving duration" << std::endl;
-    MPI_Recv(&recvbuf, 1, type, 
+    MPI_Recv(&recvbuf, 1, type.get(), 
           MPI_ANY_SOURCE, durationTag, theMPISystem()->getGlobalComm(), &stat);
     std::cout << "received duration" << std::endl;
     

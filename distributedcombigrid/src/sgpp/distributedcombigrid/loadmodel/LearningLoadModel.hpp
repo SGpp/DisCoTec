@@ -31,6 +31,21 @@ namespace combigrid {
     //this data type needs to be communicated to MPI in every process using it
     MPI_Datatype createMPIDurationType();
 
+    class DurationType{
+      public:
+        DurationType(){
+          durationType_ = createMPIDurationType();
+        }
+        ~DurationType(){
+          MPI_Type_free( &durationType_ );
+        }
+        MPI_Datatype get() const {
+          return durationType_;
+        }
+      private:
+        MPI_Datatype durationType_;
+    };
+
     std::string getFilename(const LevelVector& levelVector);
 
 class LearningLoadModel : public LoadModel {
