@@ -688,6 +688,8 @@ void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
   dfg.clearSubspaces();
 }
 
+
+// sparse grid reduce
 template <typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
   // get rank in pgroup communicator.
@@ -726,6 +728,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
   }
 }
 
+// sparse grid reduce with uniform decomposition
 template <typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
   // get global communicator for this operation
@@ -743,7 +746,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     // MPI does not have a real size_t equivalent. int should work in most cases
     // if not we can at least detect this with an assert
-    assert(dsg.getDataSize(i) <= INT_MAX);
+    assert(dsg.getDataSize(i) <= std::numeric_limits<int>::max());
 
     subspaceSizes[i] = int(dsg.getDataSize(i));
   }
@@ -805,7 +808,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
     for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
       std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
 
-      // this is very unlikely but can happen if dsg is different than
+      // this can happen if dsg is different than
       // lmax and lmin of combination scheme
       if (subspaceData.size() == 0 && subspaceSizes[i] == 0) continue;
 
@@ -815,7 +818,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
         subspaceData.resize(subspaceSizes[i]);
       }
 
-      // wenn subspaceData.size() > 0 und subspaceSizes > 0
+      // if subspaceData.size() > 0 and subspaceSizes > 0
       for (size_t j = 0; j < subspaceData.size(); ++j) {
         subspaceData[j] = *buf_it;
         ++buf_it;
