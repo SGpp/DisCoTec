@@ -849,10 +849,10 @@ class DistributedFullGrid {
 
       IndexType subSgId = subspaceAssigmentList_[subFgId];
 
-      // todo: check if this is the right policy in general
-      // set coefficients that are not included in sparse grid solution to zero
+      // coefficients that are not included in sparse grid solution are not changed as they
+      // store information from subspaces that are contained in dfg of the component grid
       if (subSgId < 0) {
-        fullgridVector_[i] = FG_ELEMENT(0);
+        //fullgridVector_[i] = FG_ELEMENT(0);
         continue;
       }
 
