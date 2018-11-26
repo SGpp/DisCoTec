@@ -726,6 +726,12 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
   }
 }
 
+/***
+ * In this method the global reduction of the distributed sparse grid is performed. The global sparse grid is
+ * decomposed geometrically according to the domain decomposition (see Variant 2 in chapter 3.3.3 in marios diss).
+ * We first collect all subspace parts of our domain part and fill all missing subspaces with 0. We then perform
+ * an MPI_Allreduce with all processes from other process groups that own the same geometrical area.
+ */
 template <typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
   // get global communicator for this operation
@@ -772,7 +778,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
     bsize += subspaceSizes[i];
   }
 
-  // put subspace data into buffer
+  // put subspace data into buffer for allreduce
   std::vector<FG_ELEMENT> buf(bsize, FG_ELEMENT(0));
   {
     typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
@@ -793,12 +799,13 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
       }
     }
   }
-
+  // define datatype for full grid elements
   MPI_Datatype dtype =
       abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+  // reduce the local part of sparse grid (distributed according to domain decomposition)
   MPI_Allreduce(MPI_IN_PLACE, buf.data(), bsize, dtype, MPI_SUM, mycomm);
 
-  // extract subspace data
+  // extract subspace data from buffer and write in corresponding subspaces
   {
     typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
 
@@ -815,7 +822,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
         subspaceData.resize(subspaceSizes[i]);
       }
 
-      // wenn subspaceData.size() > 0 und subspaceSizes > 0
+      // in case subspaceData.size() > 0 und subspaceSizes > 0
       for (size_t j = 0; j < subspaceData.size(); ++j) {
         subspaceData[j] = *buf_it;
         ++buf_it;
