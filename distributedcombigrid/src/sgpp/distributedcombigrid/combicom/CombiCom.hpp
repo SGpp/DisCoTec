@@ -730,7 +730,8 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
  * In this method the global reduction of the distributed sparse grid is performed. The global sparse grid is
  * decomposed geometrically according to the domain decomposition (see Variant 2 in chapter 3.3.3 in marios diss).
  * We first collect all subspace parts of our domain part and fill all missing subspaces with 0. We then perform
- * an MPI_Allreduce with all processes from other process groups that own the same geometrical area.
+ * an MPI_Allreduce with all processes from other process groups that own the same geometrical area. Here we follow
+ * the Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
  */
 template <typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
