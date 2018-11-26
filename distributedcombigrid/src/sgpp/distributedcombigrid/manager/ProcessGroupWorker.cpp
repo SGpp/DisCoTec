@@ -336,18 +336,28 @@ t->getID() ) );
   }
 } */
 
+/**
+ * This method reduces the lmax and lmin vectors of the sparse grid according to the reduction
+ * specifications in ctparam. It is taken care of that lmin does not fall below 1 and lmax >= lmin.
+ * We do not reduce the levels in the last combination as we do not want to loose any information for
+ * the final checkpoint.
+ */
 void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
                                   IndexType totalNumberOfCombis, IndexType currentCombi,
                                   LevelVector reduceLmin, LevelVector reduceLmax) {
-  for (size_t i = 0; i < reduceLmin.size(); ++i) {
-    if (lmin[i] > 1) {
-      lmin[i] -= reduceLmin[i];
+  if(currentCombi < totalNumberOfCombis - 1){ // do not reduce in last iteration
+    for (size_t i = 0; i < reduceLmin.size(); ++i) {
+      assert(reduceLmax[i] >= 0 && reduceLmin[i] >= 0); //check for valid reduce values
+      if (lmin[i] > 1) {
+        lmin[i] = std::max((IndexType) 1, lmin[i] - reduceLmin[i]);
+      }
+    }
+    for (size_t i = 0; i < reduceLmax.size(); ++i) {
+      lmax[i] = std::max(lmin[i], lmax[i] - reduceLmax[i]);
     }
   }
-  for (size_t i = 0; i < reduceLmax.size(); ++i) {
-    lmax[i] = std::max(lmin[i], lmax[i] - reduceLmax[i]);
-  }
 }
+
 void ProcessGroupWorker::combineUniform() {
 #ifdef DEBUG_OUTPUT
 
@@ -371,8 +381,6 @@ void ProcessGroupWorker::combineUniform() {
 
   // the dsg can be smaller than lmax because the highest subspaces do not have
   // to be exchanged
-  // todo: use a flag to switch on/off optimized combination
-
   reduceSparseGridCoefficients(lmax, lmin, combiParameters_.getNumberOfCombinations(),
                                currentCombi_, combiParameters_.getLMinReductionVector(),
                                combiParameters_.getLMaxReductionVector());
