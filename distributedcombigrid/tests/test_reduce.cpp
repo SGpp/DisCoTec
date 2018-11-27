@@ -35,13 +35,18 @@ class TaskConst : public combigrid::Task {
     // parallelization
     IndexVector p = {1, nprocs_};
     // IndexVector p = {2, nprocs_/2};
-    decomposition =   std::vector<IndexVector>(2);
-    size_t l0 = getLevelVector()[0];
-    size_t npoint_x1 = l0*l0;
-    
-    decomposition[0].push_back( 0 );
-    for( int r=0; r<nprocs_; ++r ){
-      decomposition[1].push_back( r * (npoint_x1 / nprocs_) );
+    decomposition = std::vector<IndexVector>(2);
+    size_t l1 = getLevelVector()[1];
+    size_t npoint_x1 = pow(2, l1) + 1;
+
+    decomposition[0].push_back(0);
+    decomposition[1].push_back(0);
+
+    // std::cout << "decomposition" << std::endl;
+    for (int r = 1; r < nprocs_; ++r) {
+      decomposition[1].push_back(r * (npoint_x1 / nprocs_));
+
+      // std::cout << decomposition[1].back() << std::endl;
     }
 
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
@@ -53,12 +58,21 @@ class TaskConst : public combigrid::Task {
   }
 
   void run(CommunicatorType lcomm) {
+
+    std::cout << "run " << getCommRank(lcomm) << std::endl;
     for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
       // BOOST_CHECK(abs(dfg_->getData()[li]));
       dfg_->getData()[li] = getLevelVector()[0] / (double)getLevelVector()[1];
     }
     BOOST_CHECK(dfg_);
+    
+    MPI_Barrier(lcomm);
+    std::cout << "barrier" << std::endl;
+
     setFinished(true);
+    
+    MPI_Barrier(lcomm);
+    std::cout << "barrier2" << std::endl;
   }
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
@@ -91,7 +105,7 @@ class TaskConst : public combigrid::Task {
 
 BOOST_CLASS_EXPORT(TaskConst)
 
-void checkCombine(size_t ngroup = 2, size_t nprocs = 1) {
+void checkCombine(size_t ngroup = 2, size_t nprocs = 2) {
   size_t size = ngroup * nprocs + 1;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
