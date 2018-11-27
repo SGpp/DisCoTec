@@ -35,14 +35,14 @@ class TaskConst : public combigrid::Task {
     // parallelization
     IndexVector p = {1, nprocs_};
     // IndexVector p = {2, nprocs_/2};
-    // decomposition =   std::vector<IndexVector>(2);
-    // size_t l0 = getLevelVector()[0];
-    // size_t npoint_x1 = l0*l0 + 1;
+    decomposition =   std::vector<IndexVector>(2);
+    size_t l0 = getLevelVector()[0];
+    size_t npoint_x1 = l0*l0;
     
-    // decomposition[0].push_back( 0 );
-    // for( int r=0; r<nprocs_; ++r ){
-    //   decomposition[1].push_back( r * (npoint_x1 / nprocs_) );
-    // }
+    decomposition[0].push_back( 0 );
+    for( int r=0; r<nprocs_; ++r ){
+      decomposition[1].push_back( r * (npoint_x1 / nprocs_) );
+    }
 
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
                                                   p, false, decomposition);

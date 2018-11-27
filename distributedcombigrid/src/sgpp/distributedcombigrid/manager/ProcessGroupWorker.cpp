@@ -343,6 +343,7 @@ t->getID() ) );
  * the final checkpoint.
  */
 void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
+                                  IndexType totalNumberOfCombis, IndexType currentCombi,
                                   LevelVector reduceLmin, LevelVector reduceLmax) {
   if(currentCombi < totalNumberOfCombis - 1){ // do not reduce in last iteration
     for (size_t i = 0; i < reduceLmin.size(); ++i) {
@@ -378,8 +379,10 @@ void ProcessGroupWorker::combineUniform() {
 
   // the dsg can be smaller than lmax because the highest subspaces do not have
   // to be exchanged
+  // todo: use a flag to switch on/off optimized combination
 
-  reduceSparseGridCoefficients(lmax, lmin, combiParameters_.getLMinReductionVector(),
+  reduceSparseGridCoefficients(lmax, lmin, combiParameters_.getNumberOfCombinations(),
+                               currentCombi_, combiParameters_.getLMinReductionVector(),
                                combiParameters_.getLMaxReductionVector());
 
 #ifdef DEBUG_OUTPUT
