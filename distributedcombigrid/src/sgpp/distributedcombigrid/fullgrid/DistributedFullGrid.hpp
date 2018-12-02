@@ -1441,11 +1441,19 @@ class DistributedFullGrid {
     return decomposition_;
   }
 
-  std::vector<FG_ELEMENT> getSubGrid(IndexType subgridID){
-	  std::vector<FG_ELEMENT> subgrid_elements;
+  std::vector<FG_ELEMENT> getSubGrid(const LevelVector& grid){
+	  std::set<int> subSpaceIndexSet {};
+	  for(int i = 0; i < subspaces_.size(); ++i){
+		  if(subspaces_.at(i).level_ <= grid){
+			  subSpaceIndexSet.insert(i);
+			  break;
+		  }
+	  }
+	  assert(std::accumulate(std::cbegin(grid), std::cend(grid), 1, std::multiplies<LevelType>()) == subSpaceIndexSet.size());
+	  std::vector<FG_ELEMENT> subgrid_elements {};
 
 	  for(size_t i = 0; i < fullgridVector_.size(); ++i){
-		  if(assigmentList_.at(i) <= subgridID){
+		  if(subSpaceIndexSet.count(assigmentList_.at(i)) != 0){
 			  subgrid_elements.push_back(fullgridVector_.at(i));
 		  }
 	  }

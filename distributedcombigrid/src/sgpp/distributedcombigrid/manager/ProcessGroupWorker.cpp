@@ -800,7 +800,7 @@ void ProcessGroupWorker::findBestExpansion(){
 			const bool activeNodeOwned = activeNodeRank == theMPISystem()->getWorldRank();
 			const bool bwdNeighOwned = bwdNeighRank == theMPISystem()->getWorldRank();
 
-
+			auto cmpLevel = cmpPair.second; //use the full backward neighbour
 
 			if(activeNodeOwned){
 				std::vector<CombiDataType> activeSubGrid {};
@@ -808,12 +808,12 @@ void ProcessGroupWorker::findBestExpansion(){
 				if(bwdNeighOwned){ //The proc itself owns both tasks
 					Task *activeNodeTask = getTask(activeTaskID);
 					Task *bwdNeighTask = getTask(bwdTaskID);
-					activeSubGrid = activeNodeTask->getDistributedFullGrid().getSubGrid(0);
-					bwdSubGrid= bwdNeighTask->getDistributedFullGrid().getSubGrid(0);
+					activeSubGrid = activeNodeTask->getDistributedFullGrid().getSubGrid(cmpLevel);
+					bwdSubGrid = bwdNeighTask->getDistributedFullGrid().getSubGrid(cmpLevel);
 					assert(activeSubGrid.size() == bwdSubGrid.size());
 				} else {
 					Task *activeNodeTask = getTask(activeTaskID);
-					activeSubGrid = activeNodeTask->getDistributedFullGrid().getSubGrid(0);
+					activeSubGrid = activeNodeTask->getDistributedFullGrid().getSubGrid(cmpLevel);
 					bwdSubGrid.resize(activeSubGrid.size());
 					MPI_Recv(bwdSubGrid.data(), bwdSubGrid.size(), MPI_DOUBLE, bwdNeighRank, messageTag, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
 				}
@@ -841,7 +841,7 @@ void ProcessGroupWorker::findBestExpansion(){
 				//since the bwd neighbour is smaller it is sent to the proc
 				//with the active node
 				Task *bwdNeighTask = getTask(bwdTaskID);
-				auto bwdSubGrid= bwdNeighTask->getDistributedFullGrid().getSubGrid(0);
+				auto bwdSubGrid= bwdNeighTask->getDistributedFullGrid().getSubGrid(cmpLevel);
 				MPI_Send(bwdSubGrid.data(), static_cast<int>(bwdSubGrid.size()), MPI_DOUBLE, activeNodeRank, messageTag, theMPISystem()->getWorldComm());
 			}
 			//if no if-branch was executed the proc owns nothing so we can simply continue
