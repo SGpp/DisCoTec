@@ -147,6 +147,7 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
   }
 
   bool isExpansion(const LevelVector& grid) const{
+	  /*
 	  //a valid expansions has to fullfill the following constraints:
 	  //1. it must not be contained in the scheme already
 	  if(contains(grid)){
@@ -166,6 +167,8 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 	  //3. have at most one critical bwd neighbour
 	  assert(criticalCount >= 0);
 	  return criticalCount <= 1;
+	  */
+	  return isCritical(grid);
   }
 
   //void expandBest(){
