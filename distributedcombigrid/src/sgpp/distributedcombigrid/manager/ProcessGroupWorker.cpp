@@ -79,7 +79,6 @@ void ProcessGroupWorker::runFirst() {
 
 void ProcessGroupWorker::runNewTask(){
 	std::this_thread::sleep_for(std::chrono::seconds {1});
-	std::cout << "dummytest\n";
 	Task* t;
 	// local root receives task
 	MASTER_EXCLUSIVE_SECTION{
@@ -764,17 +763,11 @@ void ProcessGroupWorker::findBestExpansion(){
 	LevelVector bestExpansion {};
 
 	for(const auto& activeNode : combiScheme_.getActiveNodes()){
-		for(DimType i = 0; i < combiScheme_.dim(); ++i){
-			LevelVector potExpansion = activeNode;
-			++potExpansion.at(i);
-			if(!combiScheme_.isExpansion(potExpansion) || combiScheme_.isBorder(activeNode, i)){
+			if(!(combiScheme_.isCritical(activeNode) && combiScheme_.hasExpansionNeighbour(activeNode))){
 				continue;
 			}
 
-			const auto cmpPair = combiScheme_.getPosNegPair(activeNode, i);
-			std::cout << "active: " << cmpPair.first << "\n";
-			std::cout << "bwd: " << cmpPair.second << "\n";
-			std::cout << "size: " << combiParameters_.getLevelsToIDs().size() << "\n";
+			const auto cmpPair = combiScheme_.getPosNegPair(activeNode);
 
 			for(auto test : combiParameters_.getLevelsToIDs()){
 				std::cout << test.first << " " << test.second << "\n";
@@ -812,12 +805,15 @@ void ProcessGroupWorker::findBestExpansion(){
 
 				double error = 0;
 				if(!activeSubGrid.empty()){
+					std::cout << "active: " << cmpPair.first << "\n";
+					std::cout << "bwd: " << cmpPair.second << "\n";
 					const double expansionGridPoints = std::accumulate(std::begin(activeNode), std::end(activeNode), 1, [](double acc, LevelType val) {
 						return acc * (1 << (val - 1));
 					});
 
 					error = maxRelativeError(activeSubGrid, bwdSubGrid);
-					//error /= expansionGridPoints;
+					std::cout << "old error: " << error << "\n";
+					error /= expansionGridPoints;
 				}
 				MASTER_EXCLUSIVE_SECTION{
 					MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, 0, theMPISystem()->getLocalComm());
@@ -838,7 +834,6 @@ void ProcessGroupWorker::findBestExpansion(){
 			}
 			//if no if-branch was executed the proc owns nothing so we can simply continue
 			++messageTag;
-		}
 	}
 
 	MASTER_EXCLUSIVE_SECTION{

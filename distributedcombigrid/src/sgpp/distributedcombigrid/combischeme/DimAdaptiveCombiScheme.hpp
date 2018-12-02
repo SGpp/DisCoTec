@@ -85,45 +85,43 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 	  return grid.at(dimension) == lmin_.at(dimension);
   }
 
-  std::pair<LevelVector, LevelVector> getPosNegPair(const LevelVector& grid, DimType dimension){
-	  assert(dimension < dim());
+  bool hasExpansionNeighbour(const LevelVector& grid){
+	for(int i = 0; i < dim(); ++i){
+		LevelVector fwdNeigh {grid};
+		++fwdNeigh.at(i);
+		if(isExpansion(fwdNeigh)){
+			return true;
+		}
+	}
+	return false;
+   }
+
+  std::pair<LevelVector, LevelVector> getPosNegPair(const LevelVector& grid){
 	  assert(grid.size() == dim());
-	  assert(grid.at(dimension) >= lmin_.at(dimension));
-	  //If the grid doesn't have a fwd neighbour then it has to be critical so it
-	  //has coefficient 1
-	  DimType searchDim = dimension;
+          assert(isCritical(grid));
+          int searchDim = std::numeric_limits<int>::max();
 	  for(DimType i = 0; i < dim(); ++i){
-		  LevelVector fwdNeigh {grid};
-		  ++fwdNeigh.at(i);
-		  if(contains(fwdNeigh)){
+		  LevelVector bwdNeigh {grid};
+		  --bwdNeigh.at(i);
+		  if(contains(bwdNeigh) && bwdNeigh.at(i) >= lmin_.at(i)){
 			  searchDim = i;
 			  break;
 		  }
 	  }
+	  assert(searchDim < dim());
 
-	  int maxLevel = std::numeric_limits<int>::min();
-	  size_t posIndex = std::numeric_limits<size_t>::max();
-	  for(size_t i = 0; i < combiSpaces_.size(); ++i){
-		  const LevelVector& combiSpace = combiSpaces_.at(i);
-		  if(coefficients_.at(i) == 1 && equalsExceptDim(grid, combiSpace, searchDim) && combiSpace.at(searchDim) > maxLevel){
-			  maxLevel = combiSpace.at(searchDim);
-			  posIndex = i;
-		  }
-	  }
-	  assert(!posIndex <= combiSpaces_.size());
-	  LevelVector posGrid = combiSpaces_.at(posIndex);
-	  maxLevel = std::numeric_limits<int>::min();
 	  size_t negIndex = std::numeric_limits<size_t>::max();
+	  LevelType maxLevel = std::numeric_limits<int>::min();
 	  for(size_t i = 0; i < combiSpaces_.size(); ++i){
 		  const LevelVector& combiSpace = combiSpaces_.at(i);
-		  if(coefficients_.at(i) <= -1 && equalsExceptDim(posGrid, combiSpace, dimension) && combiSpace.at(dimension) > maxLevel){
-			  maxLevel = combiSpace.at(dimension);
+		  if(coefficients_.at(i) <= -1 && equalsExceptDim(grid, combiSpace, searchDim) && combiSpace.at(searchDim) > maxLevel){
+			  maxLevel = combiSpace.at(searchDim);
 			  negIndex = i;
 		  }
 	  }
-	  assert(!negIndex <= combiSpaces_.size());
+	  assert(negIndex < combiSpaces_.size());
 
-	  return std::make_pair(std::move(posGrid), combiSpaces_.at(negIndex));
+	  return std::make_pair(grid, combiSpaces_.at(negIndex));
   }
 
   const std::vector<LevelVector>& getActiveNodes() const noexcept{
