@@ -27,27 +27,27 @@
  */
 class TaskConst : public combigrid::Task {
  public:
-  TaskConst(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
-            size_t nprocs)
-      : Task(2, l, boundary, coeff, loadModel), nprocs_(nprocs) {}
+  TaskConst(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel)
+      : Task(2, l, boundary, coeff, loadModel){}
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
     // parallelization
-    IndexVector p = {1, nprocs_};
-    // IndexVector p = {2, nprocs_/2};
-    decomposition = std::vector<IndexVector>(2);
-    size_t l1 = getLevelVector()[1];
-    size_t npoint_x1 = pow(2, l1) + 1;
+    long nprocs = getCommSize(lcomm);
+    IndexVector p = {1, nprocs};
 
-    decomposition[0].push_back(0);
-    decomposition[1].push_back(0);
+    // decomposition = std::vector<IndexVector>(2);
+    // size_t l1 = getLevelVector()[1];
+    // size_t npoint_x1 = pow(2, l1) + 1;
 
-    // std::cout << "decomposition" << std::endl;
-    for (int r = 1; r < nprocs_; ++r) {
-      decomposition[1].push_back(r * (npoint_x1 / nprocs_));
+    // decomposition[0].push_back(0);
+    // decomposition[1].push_back(0);
 
-      // std::cout << decomposition[1].back() << std::endl;
-    }
+    // // std::cout << "decomposition" << std::endl;
+    // for (int r = 1; r < nprocs_; ++r) {
+    //   decomposition[1].push_back(r * (npoint_x1 / nprocs_));
+
+    //   // std::cout << decomposition[1].back() << std::endl;
+    // }
 
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
                                                   p, false, decomposition);
@@ -65,14 +65,11 @@ class TaskConst : public combigrid::Task {
       dfg_->getData()[li] = getLevelVector()[0] / (double)getLevelVector()[1];
     }
     BOOST_CHECK(dfg_);
-    
-    MPI_Barrier(lcomm);
-    std::cout << "barrier" << std::endl;
 
     setFinished(true);
     
     MPI_Barrier(lcomm);
-    std::cout << "barrier2" << std::endl;
+    std::cerr << "barrier" << std::endl;
   }
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
@@ -94,18 +91,17 @@ class TaskConst : public combigrid::Task {
   friend class boost::serialization::access;
 
   DistributedFullGrid<CombiDataType>* dfg_;
-  size_t nprocs_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     ar& boost::serialization::base_object<Task>(*this);
-    ar& nprocs_;
+    // ar& nprocs_;
   }
 };
 
 BOOST_CLASS_EXPORT(TaskConst)
 
-void checkCombine(size_t ngroup = 2, size_t nprocs = 2) {
+void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
   size_t size = ngroup * nprocs + 1;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
@@ -138,16 +134,16 @@ void checkCombine(size_t ngroup = 2, size_t nprocs = 2) {
     combischeme.createClassicalCombischeme();
 
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
-    std::cout << "levels " << std::endl;
-    for (const auto& level : levels) {
-      std::cout << toString(level) << std::endl;
-    }
+    // std::cout << "levels " << std::endl;
+    // for (const auto& level : levels) {
+    //   std::cout << toString(level) << std::endl;
+    // }
 
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
-    std::cout << "coeffs " << std::endl;
-    for (const auto& coeff : coeffs) {
-      std::cout << coeff << std::endl;
-    }
+    // std::cout << "coeffs " << std::endl;
+    // for (const auto& coeff : coeffs) {
+    //   std::cout << coeff << std::endl;
+    // }
 
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
@@ -155,7 +151,7 @@ void checkCombine(size_t ngroup = 2, size_t nprocs = 2) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel, nprocs);
+      Task* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -210,8 +206,13 @@ void checkCombine(size_t ngroup = 2, size_t nprocs = 2) {
 BOOST_AUTO_TEST_SUITE(reduce)
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
-                                 boost::unit_test::timeout(20)) {
-  checkCombine();
+                                 boost::unit_test::timeout(60)) {
+  checkCombine(1,1);
+}
+
+BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
+                                 boost::unit_test::timeout(60)) {
+  checkCombine(1,2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

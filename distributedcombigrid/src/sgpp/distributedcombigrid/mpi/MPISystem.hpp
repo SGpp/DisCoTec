@@ -547,13 +547,13 @@ std::ostream& operator<<(std::ostream& os, const MPISystemID& ms);
 std::ostream& operator<<(std::ostream& os, const ConstMPISystemID& ms);
 */
 
-static int getCommSize(const CommunicatorType& comm) {
+static inline int getCommSize(const CommunicatorType& comm) {
   int commSize;
   MPI_Comm_size(comm, &commSize);
   return commSize;
 }
 
-static int getCommRank(const CommunicatorType& comm) {
+static inline int getCommRank(const CommunicatorType& comm) {
   int commRank;
   MPI_Comm_rank(comm, &commRank);
   return commRank;
