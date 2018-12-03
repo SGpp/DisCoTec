@@ -763,9 +763,11 @@ void ProcessGroupWorker::findBestExpansion(){
 	LevelVector bestExpansion {};
 
 	for(const auto& activeNode : combiScheme_.getActiveNodes()){
+			std:: cout << "Hallooooo1!\n";
 			if(!(combiScheme_.isCritical(activeNode) && combiScheme_.hasExpansionNeighbour(activeNode))){
 				continue;
 			}
+			std:: cout << "Hallooooo2!\n";
 
 			const auto cmpPair = combiScheme_.getPosNegPair(activeNode);
 
