@@ -1446,10 +1446,9 @@ class DistributedFullGrid {
 	  for(int i = 0; i < subspaces_.size(); ++i){
 		  if(subspaces_.at(i).level_ <= grid){
 			  subSpaceIndexSet.insert(i);
-			  break;
 		  }
 	  }
-	  assert(std::accumulate(std::cbegin(grid), std::cend(grid), 1, std::multiplies<LevelType>()) == subSpaceIndexSet.size());
+	  assert(std::accumulate(std::begin(grid), std::end(grid), 1, std::multiplies<LevelType>()) == subSpaceIndexSet.size());
 	  std::vector<FG_ELEMENT> subgrid_elements {};
 
 	  for(size_t i = 0; i < fullgridVector_.size(); ++i){

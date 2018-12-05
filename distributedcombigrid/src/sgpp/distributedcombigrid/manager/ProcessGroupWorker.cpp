@@ -763,11 +763,9 @@ void ProcessGroupWorker::findBestExpansion(){
 	LevelVector bestExpansion {};
 
 	for(const auto& activeNode : combiScheme_.getActiveNodes()){
-			std:: cout << "Hallooooo1!\n";
 			if(!(combiScheme_.isCritical(activeNode) && combiScheme_.hasExpansionNeighbour(activeNode))){
 				continue;
 			}
-			std:: cout << "Hallooooo2!\n";
 
 			const auto cmpPair = combiScheme_.getPosNegPair(activeNode);
 
@@ -813,7 +811,7 @@ void ProcessGroupWorker::findBestExpansion(){
 						return acc * (1 << (val - 1));
 					});
 
-					error = maxRelativeError(activeSubGrid, bwdSubGrid);
+					error = maxRelativeError2(activeSubGrid, bwdSubGrid);
 					std::cout << "old error: " << error << "\n";
 					error /= expansionGridPoints;
 				}
