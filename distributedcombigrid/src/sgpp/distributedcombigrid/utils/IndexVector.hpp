@@ -32,6 +32,8 @@ inline IndexType sum(const IndexVector& l) {
 inline bool operator==(const IndexVector& l1, const IndexVector& l2) {
   assert(l1.size() == l2.size());
 
+  // std::cout << "== at line number " << __LINE__ << " in file " << __FILE__ << std::endl;
+
   for (std::size_t i = 0; i < l1.size(); ++i) {
     if (l1[i] != l2[i]) return false;
   }

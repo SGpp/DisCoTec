@@ -87,17 +87,16 @@ int MPISystem::getWorldRank() {
   return getCommRank(theMPISystem()->getWorldComm());
 }
 
-void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm = MPI_COMM_WORLD) {
-  assert(!initialized_ && "MPISystem already initialized!");
-
+void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType worldComm = MPI_COMM_WORLD, bool reusable = false) {
+  assert(reusable || !initialized_ && "MPISystem already initialized!");
+  
   ngroup_ = ngroup;
   nprocs_ = nprocs;
-
-  worldComm_ = MPI_COMM_WORLD;
 
   /* init worldComm
    * the manager has highest rank here
    */
+  worldComm_ = worldComm;  
   int worldSize = getCommSize(worldComm_);
   assert(worldSize == int(ngroup_ * nprocs_ + 1));
 
@@ -141,7 +140,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs) {
 
 /*  here the local communicator has already been created by the application */
 void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
-  initSystemConstants(ngroup, nprocs, lcomm);
+  initSystemConstants(ngroup, nprocs);
 
   storeLocalComm(lcomm);
 
@@ -162,20 +161,9 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
 /* overload for initialization with given wold communicator
  * this method can be called multiple times (needed for tests)
  */
-void MPISystem::initWorld(CommunicatorType wcomm, size_t ngroup, size_t nprocs) {
-  ngroup_ = ngroup;
-  nprocs_ = nprocs;
-
-  worldComm_ = wcomm;
-
-  /* init worldComm
-   * the manager has highest rank here
-   */
-  int worldSize = getCommSize(worldComm_);
-  assert(worldSize == int(ngroup_ * nprocs_ + 1));
-
-  worldRank_ = getCommRank(worldComm_);
-  managerRankWorld_ = worldSize - 1;
+void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t nprocs) {
+  
+  initSystemConstants(ngroup, nprocs, wcomm, true);
 
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.

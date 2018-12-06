@@ -32,8 +32,10 @@ class TaskConst : public combigrid::Task {
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
     // parallelization
+    // assert(dfg_ == nullptr);
     long nprocs = getCommSize(lcomm);
-    IndexVector p = {1, nprocs};
+    // IndexVector p = {nprocs, 1};
+    IndexVector p = {nprocs,1};
 
     // decomposition = std::vector<IndexVector>(2);
     // size_t l1 = getLevelVector()[1];
@@ -52,17 +54,20 @@ class TaskConst : public combigrid::Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
                                                   p, false, decomposition);
 
-    for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
-      dfg_->getData()[li] = 10;
+    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    for (auto& element : elements) {
+      element = 10;
     }
   }
 
   void run(CommunicatorType lcomm) {
 
-    std::cout << "run " << getCommRank(lcomm) << std::endl;
-    for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
+    std::cout << "run " << getCommRank(lcomm) << std::endl;    
+    
+    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    for (auto& element : elements) {
       // BOOST_CHECK(abs(dfg_->getData()[li]));
-      dfg_->getData()[li] = getLevelVector()[0] / (double)getLevelVector()[1];
+      element = getLevelVector()[0] / (double)getLevelVector()[1];
     }
     BOOST_CHECK(dfg_);
 
@@ -112,7 +117,8 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
 
   combigrid::Stats::initialize();
 
-  theMPISystem()->initWorld(comm, ngroup, nprocs);
+  theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
+  // theMPISystem()->init(ngroup, nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer pgroups;
@@ -127,11 +133,12 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     LevelVector lmin(dim, 2);
     LevelVector lmax(dim, 4), leval(dim, 4);
 
-    size_t ncombi = 1;
+    size_t ncombi = 2;
     std::vector<bool> boundary(dim, true);
 
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
-    combischeme.createClassicalCombischeme();
+    // combischeme.createClassicalCombischeme();
+    combischeme.createAdaptiveCombischeme();
 
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     // std::cout << "levels " << std::endl;
@@ -158,13 +165,14 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
 
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
+    params.setParallelization({nprocs, 1}); //TODO why??
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
 
     // the combiparameters are sent to all process groups before the
     // computations start
-    manager.updateCombiParameters();
+    manager.updateCombiParameters(); //TODO move to manager constructor or runfirst?
 
     /* distribute task according to load model and start computation for
      * the first time */
@@ -174,8 +182,8 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     for (size_t it = 0; it < ncombi; ++it) {
       // manager.combine();
 
-      std::cout << "run next " << std::endl;
-      manager.runnext();
+      // std::cout << "run next " << std::endl;
+      // manager.runnext();
       std::cout << "combine " << std::endl;
       manager.combine();
     }
@@ -207,11 +215,13 @@ BOOST_AUTO_TEST_SUITE(reduce)
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
+  std::cout << "reduce/test_1"<< std::endl;
   checkCombine(1,1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
+  std::cout << "reduce/test_2"<< std::endl;
   checkCombine(1,2);
 }
 

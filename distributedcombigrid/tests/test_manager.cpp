@@ -158,7 +158,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
 
   size_t ngroup = useFG ? 1 : 6;
   size_t nprocs = 1;
-  theMPISystem()->initWorld(comm, ngroup, nprocs);
+  theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer pgroups;
