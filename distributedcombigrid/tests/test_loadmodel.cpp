@@ -26,7 +26,7 @@ void testDataSave(int size) {
 
   size_t ngroup = size - 1;
   size_t nprocs = 1;
-  theMPISystem()->initWorld(comm, ngroup, nprocs);
+  theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
   MPI_Datatype durationType_ = createMPIDurationType();
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
