@@ -85,7 +85,7 @@ class MPISystem {
   /**
    * initializes MPI system including world communicator; so far only used in tests
    */
-  void initWorld(CommunicatorType wcomm, size_t ngroups, size_t nprocs);
+  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs);
 
   /**
    * get the size of the worldComm_
@@ -269,12 +269,17 @@ class MPISystem {
   /**
    * initializes the members ngroup_, nprocs_, worldComm_,  managerRankWorld_, managerRankFT_
    */
-  void initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm);
+  void initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm, bool reusable);
 
   /**
-   * initializes local comm + FT version if FT_ENABLED
+   * sets up the local comm by splitting from worldComm and stores it
    */
   void initLocalComm();
+
+  /**
+   * stores local comm + FT version if FT_ENABLED
+   */
+  void storeLocalComm(CommunicatorType lcomm_optional = MPI_COMM_NULL);
 
   /**
    * Sets the local rank, disables local communicator if manager
@@ -547,13 +552,13 @@ std::ostream& operator<<(std::ostream& os, const MPISystemID& ms);
 std::ostream& operator<<(std::ostream& os, const ConstMPISystemID& ms);
 */
 
-static int getCommSize(const CommunicatorType& comm) {
+static inline int getCommSize(const CommunicatorType& comm) {
   int commSize;
   MPI_Comm_size(comm, &commSize);
   return commSize;
 }
 
-static int getCommRank(const CommunicatorType& comm) {
+static inline int getCommRank(const CommunicatorType& comm) {
   int commRank;
   MPI_Comm_rank(comm, &commRank);
   return commRank;

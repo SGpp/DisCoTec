@@ -88,6 +88,20 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
 
   throw new std::invalid_argument("MPI_Datatype Convert(abstraction::DataType) failed!");
 }
+
+  template <typename T>
+  inline std::string toString(std::vector<T> const& v){
+      std::stringstream ss;
+      ss << "[[";
+      for(size_t i = 0; i < v.size(); ++i)
+      {
+          if(i != 0)
+              ss << ",";
+          ss << v[i];
+      }
+      ss << "]]";
+      return ss.str();
+  }
 }
 
 #endif /* TYPES_HPP_ */

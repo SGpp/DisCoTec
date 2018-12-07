@@ -70,16 +70,13 @@ class DistributedFullGrid {
                       const std::vector<bool>& hasBdrPoints, const IndexVector& procs,
                       bool forwardDecomposition = true,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>(),
-                      const BasisFunctionBasis* basis = NULL) {
-    dim_ = dim;
-
+                      const BasisFunctionBasis* basis = NULL)
+                      : dim_(dim), levels_(levels), procs_(procs)  {
     assert(levels.size() == dim);
     assert(hasBdrPoints.size() == dim);
     assert(procs.size() == dim);
-    levels_ = levels;
     hasBoundaryPoints_ = hasBdrPoints;
 
-    procs_ = procs;
     InitMPI(comm);  // will also check grids per dim
 
     // set the basis function for the full grid
@@ -1486,7 +1483,7 @@ class DistributedFullGrid {
       // todo: this is not sufficient to check for duplicate entries
       // if last points to the same element as tmp.end()
       // this means all entries in tmp are unique
-      assert(last == tmp.end());
+      assert(last == tmp.end() && "some partition in decomposition is of zero size!");
     }
 
     decomposition_ = decomposition;
