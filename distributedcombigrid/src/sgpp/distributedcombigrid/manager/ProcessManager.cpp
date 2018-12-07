@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <iostream>
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
-#include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 namespace combigrid {

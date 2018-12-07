@@ -87,26 +87,22 @@ int MPISystem::getWorldRank() {
   return getCommRank(theMPISystem()->getWorldComm());
 }
 
-void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm = MPI_COMM_WORLD) {
-  assert(!initialized_ && "MPISystem already initialized!");
-
+void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType worldComm = MPI_COMM_WORLD, bool reusable = false) {
+  assert(reusable || !initialized_ && "MPISystem already initialized!");
+  
   ngroup_ = ngroup;
   nprocs_ = nprocs;
-
-  worldComm_ = MPI_COMM_WORLD;
 
   /* init worldComm
    * the manager has highest rank here
    */
-  int worldSize;
-  MPI_Comm_size(worldComm_, &worldSize);
-  int commSize;
-  MPI_Comm_size(comm, &commSize);
+  worldComm_ = worldComm;  
+  int worldSize = getCommSize(worldComm_);
   assert(worldSize == int(ngroup_ * nprocs_ + 1));
 
-  MPI_Comm_rank(worldComm_, &worldRank_);
+  worldRank_ = getCommRank(worldComm_);
   managerRankWorld_ = worldSize - 1;
-  managerRankFT_ = worldSize - 1;
+  managerRankFT_ = managerRankWorld_;
   
   if (ENABLE_FT) {
     worldCommFT_ = simft::Sim_FT_MPI_COMM_WORLD;
@@ -144,36 +140,9 @@ void MPISystem::init(size_t ngroup, size_t nprocs) {
 
 /*  here the local communicator has already been created by the application */
 void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
-  initSystemConstants(ngroup, nprocs, lcomm);
+  initSystemConstants(ngroup, nprocs);
 
-  /* init localComm
-   * lcomm is the local communicator of its own process group for each worker process.
-   * for manager, lcomm is a group which contains only manager process and can be ignored
-   */
-  // manager is not supposed to have a localComm
-  if (worldRank_ == managerRankWorld_)
-    localComm_ = MPI_COMM_NULL;
-  else {
-    // localComm_ = lcomm;
-    MPI_Comm_dup(lcomm, &localComm_);
-    // todo: think through which side effects changing the master rank would have
-    // in principle this does not have to be 0
-    const int masterRank = 0;
-
-    int localSize;
-    MPI_Comm_size(localComm_, &localSize);
-    assert(masterRank < localSize);
-
-    masterRank_ = masterRank;
-
-    MPI_Comm_rank(localComm_, &localRank_);
-  }
-
-  if (ENABLE_FT) {
-    if (localComm_ != MPI_COMM_NULL) {
-      createCommFT(&localCommFT_, localComm_);
-    }
-  }
+  storeLocalComm(lcomm);
 
   /* create global communicator which contains only the manager and the master
    * process of each process group
@@ -192,21 +161,9 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
 /* overload for initialization with given wold communicator
  * this method can be called multiple times (needed for tests)
  */
-void MPISystem::initWorld(CommunicatorType wcomm, size_t ngroup, size_t nprocs) {
-  ngroup_ = ngroup;
-  nprocs_ = nprocs;
-
-  worldComm_ = wcomm;
-
-  /* init worldComm
-   * the manager has highest rank here
-   */
-  int worldSize;
-  MPI_Comm_size(worldComm_, &worldSize);
-  assert(worldSize == int(ngroup_ * nprocs_ + 1));
-
-  MPI_Comm_rank(worldComm_, &worldRank_);
-  managerRankWorld_ = worldSize - 1;
+void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t nprocs) {
+  
+  initSystemConstants(ngroup, nprocs, wcomm, true);
 
   /* init localComm
    * lcomm is the local communicator of its own process group for each worker process.
@@ -236,21 +193,27 @@ void MPISystem::initLocalComm() {
   /* set group number in Stats. this is necessary for postprocessing */
   Stats::setAttribute("group", std::to_string(color));
 
+  storeLocalComm();
+}
+
+void MPISystem::storeLocalComm(CommunicatorType lcomm_optional /*= MPI_COMM_NULL*/){
+  /* store localComm
+   * lcomm is the local communicator of its own process group for each worker process.
+   * for manager, lcomm is a group which contains only manager process and can be ignored
+   */
   // manager is not supposed to have a localComm
   if (worldRank_ == managerRankWorld_)
     localComm_ = MPI_COMM_NULL;
   else {
+    // duplicate to localComm_ only if lcomm_optional was given, otherwise assume already initialized
+    if(lcomm_optional != MPI_COMM_NULL)  MPI_Comm_dup(lcomm_optional, &localComm_);
     // todo: think through which side effects changing the master rank would have
     // in principle this does not have to be 0
-    const int masterRank = 0;
+    masterRank_ = 0;
 
-    int localSize;
-    MPI_Comm_size(localComm_, &localSize);
-    assert(masterRank < localSize);
-
-    masterRank_ = masterRank;
-
-    MPI_Comm_rank(localComm_, &localRank_);
+    int localSize = getCommSize(localComm_);
+    assert(masterRank_ < localSize);
+    localRank_ = getCommRank(localComm_);
   }
 
   if (ENABLE_FT) {
@@ -747,7 +710,6 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
     key = -1;
     MPI_Comm_split(worldComm_, color, key, &tmp);
   }
-  // initLocalComm();
   std::cout << "initializing global comm \n";
   deleteCommFTAndCcomm(&globalCommFT_, &globalComm_);
   initGlobalComm();

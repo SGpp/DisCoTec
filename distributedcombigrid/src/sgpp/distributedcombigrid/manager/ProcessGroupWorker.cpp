@@ -136,7 +136,7 @@ SignalType ProcessGroupWorker::wait() {
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
       initializeTaskAndFaults();
-      
+
       currentTask_->setZero();
 
       currentTask_->setFinished(true);
@@ -243,7 +243,11 @@ SignalType ProcessGroupWorker::wait() {
     }
   }
   return signal;
+<<<<<<< HEAD
 }
+=======
+}  // namespace combigrid
+>>>>>>> master
 
 void ProcessGroupWorker::decideToKill() {
   // decide if processor was killed during this iteration
@@ -373,18 +377,28 @@ t->getID() ) );
   }
 } */
 
+/**
+ * This method reduces the lmax and lmin vectors of the sparse grid according to the reduction
+ * specifications in ctparam. It is taken care of that lmin does not fall below 1 and lmax >= lmin.
+ * We do not reduce the levels in the last combination as we do not want to loose any information for
+ * the final checkpoint.
+ */
 void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
                                   IndexType totalNumberOfCombis, IndexType currentCombi,
                                   LevelVector reduceLmin, LevelVector reduceLmax) {
-  for (size_t i = 0; i < reduceLmin.size(); ++i) {
-    if (lmin[i] > 1) {
-      lmin[i] -= reduceLmin[i];
+  if(currentCombi < totalNumberOfCombis - 1){ // do not reduce in last iteration
+    for (size_t i = 0; i < reduceLmin.size(); ++i) {
+      assert(reduceLmax[i] >= 0 && reduceLmin[i] >= 0); //check for valid reduce values
+      if (lmin[i] > 1) {
+        lmin[i] = std::max((IndexType) 1, lmin[i] - reduceLmin[i]);
+      }
+    }
+    for (size_t i = 0; i < reduceLmax.size(); ++i) {
+      lmax[i] = std::max(lmin[i], lmax[i] - reduceLmax[i]);
     }
   }
-  for (size_t i = 0; i < reduceLmax.size(); ++i) {
-    lmax[i] = std::max(lmin[i], lmax[i] - reduceLmax[i]);
-  }
 }
+
 void ProcessGroupWorker::combineUniform() {
 #ifdef DEBUG_OUTPUT
 
@@ -392,14 +406,12 @@ void ProcessGroupWorker::combineUniform() {
 #endif
   Stats::startEvent("combine init");
 
-  // each pgrouproot must call reduce function
-  // assert(tasks_.size() > 0);
   if (tasks_.size() == 0) {
     std::cout << "Possible error: task size is 0! \n";
   }
   assert(combiParametersSet_);
-  int numGrids = combiParameters_
-                     .getNumGrids();  // we assume here that every task has the same number of grids
+  // we assume here that every task has the same number of grids, e.g. species in GENE
+  int numGrids = combiParameters_.getNumGrids();
 
   DimType dim = combiParameters_.getDim();
   LevelVector lmin = combiParameters_.getLMin();
@@ -414,12 +426,6 @@ void ProcessGroupWorker::combineUniform() {
                                currentCombi_, combiParameters_.getLMinReductionVector(),
                                combiParameters_.getLMaxReductionVector());
 
-/*for (size_t i = 0; i < lmax.size(); ++i)
-      if (lmin[i] > 1)
-        lmin[i] -= 01;
-for (size_t i = 0; i < lmax.size(); ++i)
-    lmax[i] = std::max(lmin[i],lmax[i] - 2);
-*/
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION {
     std::cout << "lmin: " << lmin << std::endl;
@@ -428,15 +434,13 @@ for (size_t i = 0; i < lmax.size(); ++i)
 #endif
 
   // delete old dsgs
-  for (int g = 0; g < combinedUniDSGVector_.size(); g++) {
-    if (combinedUniDSGVector_[g] != NULL) delete combinedUniDSGVector_[g];
-  }
   combinedUniDSGVector_.clear();
-  // erzeug dsgs
+  // create dsgs
   combinedUniDSGVector_.resize(numGrids);
-  for (int g = 0; g < numGrids; g++) {
-    combinedUniDSGVector_[g] = new DistributedSparseGridUniform<CombiDataType>(
-        dim, lmax, lmin, boundary, theMPISystem()->getLocalComm());
+  for (auto& uniDSG : combinedUniDSGVector_) {
+    uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
+                                                        theMPISystem()->getLocalComm()));
   }
   // todo: move to init function to avoid reregistering
   // register dsgs in all dfgs
@@ -679,7 +683,6 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
   }
 }
 
-
 void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
   Task* t;
 
@@ -691,7 +694,7 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
   // broadcast task to other process of pgroup
   Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
-  if (!mayAlreadyExist){
+  if (!mayAlreadyExist) {
     // check if task already exists on this group
     for (auto tmp : tasks_) assert(tmp->getID() != t->getID());
   }

@@ -22,19 +22,20 @@ for example in examples:
     pfileout = open(str(dir_path)+ "/distributedcombigrid/examples/" + example + "/Makefile" ,'w')
     pfileout.write(temp)
     pfileout.close()
-gene_versions = ["gene_mgr", "gene-non-linear"]
+gene_versions = ["gene_mgr", "gene-non-linear", "gene-dev-exahd"]
 for geneVersion in gene_versions:
-    fname = str(dir_path) + "/"+ geneVersion + "/makefiles/new_machine/new_machine"
-    if(os.path.isfile(fname + ".template")):
-        with open(fname + ".template",'r') as pfilein:
-            temp = pfilein.read()
-        temp = temp.replace('$(SGPP)', str(dir_path))
-        temp = temp.replace('$(GLPK)', GLPK_DIR)
-        temp = temp.replace('$(CC)', CC)
-        temp = temp.replace('$(FC)', FC)
-        temp = temp.replace('$(cc)', cc)
-        with open(fname + ".mk" ,'w') as pfileout:
-            pfileout.write(temp)
+    fnameList = [str(dir_path) + "/"+ geneVersion + "/makefiles/new_machine/new_machine", str(dir_path) + "/"+ geneVersion + "/makefiles/hazel_hen/hazel_hen"]
+    for fname in fnameList:
+        if(os.path.isfile(fname + ".template")):
+            with open(fname + ".template",'r') as pfilein:
+                temp = pfilein.read()
+            temp = temp.replace('$(SGPP)', str(dir_path))
+            temp = temp.replace('$(GLPK)', GLPK_DIR)
+            temp = temp.replace('$(CC)', CC)
+            temp = temp.replace('$(FC)', FC)
+            temp = temp.replace('$(cc)', cc)
+            with open(fname + ".mk" ,'w') as pfileout:
+                pfileout.write(temp)
 pfilein = open(str(dir_path)+ "/distributedcombigrid/examples/gene_distributed/preproc.py" ,'r')
 temp = pfilein.read()
 pfilein.close()

@@ -79,7 +79,7 @@ class ProcessGroupWorker {
   /**
    * Vector containing all distributed sparse grids
    */
-  std::vector<DistributedSparseGridUniform<CombiDataType>*> combinedUniDSGVector_;
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;
 
   bool combinedFGexists_;
 

@@ -160,7 +160,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
 
   size_t ngroup = useFG ? 1 : 6;
   size_t nprocs = 1;
-  theMPISystem()->initWorld(comm, ngroup, nprocs);
+  theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer pgroups;
@@ -260,17 +260,17 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
 
 BOOST_AUTO_TEST_SUITE(manager)
 
-BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(20)) {
+BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
   // use recombination
   checkManager(true, false, 1.54369, 11.28857);
 }
 
-BOOST_AUTO_TEST_CASE(test_2, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(30)) {
+BOOST_AUTO_TEST_CASE(test_2, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
   // don't use recombination
   checkManager(false, false, 1.65104, 12.46828);
 }
 
-BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
+BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(80)) {
   // calculate solution on fullgrid
   checkManager(false, true, 1.51188, 10.97143);
   MPI_Barrier(MPI_COMM_WORLD);

@@ -17,7 +17,6 @@
 #include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
-#include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
 namespace combigrid {
