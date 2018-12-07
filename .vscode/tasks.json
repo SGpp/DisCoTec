@@ -70,7 +70,7 @@
                 "-l",
                 //xterm -e gdb 
                 "${workspaceRoot}/distributedcombigrid/tests/test_distributedcombigrid_boost",
-                "--run_test=reduce"
+                // "--run_test=loadmodel"
             ],
             "options": {
                 "env": {

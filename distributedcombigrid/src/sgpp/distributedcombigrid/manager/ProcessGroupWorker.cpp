@@ -17,6 +17,9 @@
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGrid.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
+
 
 #include <algorithm>
 #include <iostream>
@@ -43,6 +46,23 @@ ProcessGroupWorker::ProcessGroupWorker()
 }
 
 ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
+
+// Do useful things with the info about how long a task took.
+// this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly multiple times),
+// RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
+void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, size_t numProcs) { 
+  MASTER_EXCLUSIVE_SECTION {
+    DurationType type = DurationType();
+    durationInformation info = {t.getID(), Stats::getEventDuration(e), numProcs};
+    // MPI_Request request;
+    // send durationInfo to manager
+    // std::cout << "sending duration" << std::endl;
+    MPI_Send(&info, 1, type.get(), 
+            theMPISystem()->getManagerRank(), durationTag, //TODO see if we can send asynchronously
+            theMPISystem()->getGlobalComm());
+    // std::cout << "sent duration" << std::endl;
+  }
+}
 
 SignalType ProcessGroupWorker::wait() {
   if (status_ == PROCESS_GROUP_FAIL) {  // in this case worker got reused
@@ -77,7 +97,9 @@ SignalType ProcessGroupWorker::wait() {
       // execute task
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
-      Stats::stopEvent("worker run first");
+      Stats::Event e = Stats::stopEvent("worker run first");
+      // std::cout << "from runfirst ";
+      processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
@@ -91,10 +113,17 @@ SignalType ProcessGroupWorker::wait() {
         currentTask_ = tasks_[0];
 
         // run first task
+        // if isGENE, this is done in GENE's worker_routines.cpp
         if (!isGENE) {
           Stats::startEvent("worker run");
         }
+
+        Stats::Event e = Stats::Event();
         currentTask_->run(theMPISystem()->getLocalComm());
+        e.end = std::chrono::high_resolution_clock::now();
+        // std::cout << "from runnext ";
+        processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
+
         if (!isGENE) {
           Stats::stopEvent("worker run");
         }
@@ -179,7 +208,12 @@ SignalType ProcessGroupWorker::wait() {
         setCombinedSolutionUniform(currentTask_);
       }
       // execute task
+      Stats::Event e = Stats::Event();
       currentTask_->run(theMPISystem()->getLocalComm());
+      e.end = std::chrono::high_resolution_clock::now();
+      // std::cout << "from recompute ";
+      processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
+
     } break;
     case RECOVER_COMM: {  // start recovery in case of faults
       theMPISystem()->recoverCommunicators(true);
@@ -209,7 +243,11 @@ SignalType ProcessGroupWorker::wait() {
     }
   }
   return signal;
+<<<<<<< HEAD
+}
+=======
 }  // namespace combigrid
+>>>>>>> master
 
 void ProcessGroupWorker::decideToKill() {
   // decide if processor was killed during this iteration
@@ -231,9 +269,9 @@ void ProcessGroupWorker::ready() {
       std::cout << "rank " << globalRank << " fault detected" << std::endl;
     }
   }
-
   if (status_ != PROCESS_GROUP_FAIL) {
     // check if there are unfinished tasks
+    // all the tasks that are not the first in their process group will be run in this loop
     for (size_t i = 0; i < tasks_.size(); ++i) {
       if (!tasks_[i]->isFinished()) {
         status_ = PROCESS_GROUP_BUSY;
@@ -242,7 +280,10 @@ void ProcessGroupWorker::ready() {
         currentTask_ = tasks_[i];
         Stats::startEvent("worker run");
         currentTask_->run(theMPISystem()->getLocalComm());
-        Stats::stopEvent("worker run");
+        Stats::Event e = Stats::stopEvent("worker run");
+
+        // std::cout << "from ready ";
+        processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
         if (ENABLE_FT) {
           // with this barrier the local root but also each other process can detect
           // whether a process in the group has failed

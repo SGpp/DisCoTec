@@ -144,7 +144,7 @@ class CombiParameters {
     return procs_;
   }
 
-  inline const IndexType getNumberOfCombinations() const { return numberOfCombinations_; }
+  inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
 
   inline CommunicatorType getApplicationComm() const {
     assert(uniformDecomposition);

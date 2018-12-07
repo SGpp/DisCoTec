@@ -44,7 +44,7 @@ typedef int FaultSimulationType;
 const FaultSimulationType RANDOM_FAIL = 0;
 const FaultSimulationType GROUPS_FAIL = 1;
 
-enum TagType { signalTag = 0, statusTag = 1, infoTag = 2 };
+enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3 };
 
 // attention: changing StatusType might require changing the MPI Type
 typedef int StatusType;

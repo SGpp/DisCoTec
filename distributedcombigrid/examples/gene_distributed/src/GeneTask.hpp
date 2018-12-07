@@ -17,7 +17,6 @@
 
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
-#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"

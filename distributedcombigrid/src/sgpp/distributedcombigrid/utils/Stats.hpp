@@ -20,7 +20,8 @@ namespace combigrid {
 
 class Stats {
   typedef std::chrono::high_resolution_clock::time_point time_point;
-
+  
+ public:
   struct Event {
     const time_point start;
     time_point end;
@@ -28,13 +29,10 @@ class Stats {
     Event() : start(std::chrono::high_resolution_clock::now()) {}
   };
 
-  static bool initialized_;
-  static bool finalized_;
-  static time_point init_time_;
-  static std::unordered_map<std::string, std::vector<Event>> event_;
-  static std::unordered_map<std::string, std::string> attributes_;
-
- public:
+  static long unsigned int getEventDuration(const Stats::Event e){
+    std::chrono::milliseconds x = std::chrono::duration_cast<std::chrono::milliseconds>(e.end - e.start);
+    return x.count();
+  }
   // Stats(){
   //   Stats::initialize();
   // }
@@ -64,7 +62,7 @@ class Stats {
   /**
    * stop a timer for event with given name
    */
-  static void stopEvent(const std::string& name);
+  static const Event stopEvent(const std::string& name);
 
   /**
    * set an attribute which can later be used for plotting
@@ -76,6 +74,13 @@ class Stats {
    * only call this after finalize
    */
   static void write(const std::string& path, CommunicatorType comm = theMPISystem()->getWorldComm());
+
+ private:
+  static bool initialized_;
+  static bool finalized_;
+  static time_point init_time_;
+  static std::unordered_map<std::string, std::vector<Event>> event_;
+  static std::unordered_map<std::string, std::string> attributes_;
 };
 
 #ifdef TIMING
@@ -97,14 +102,6 @@ inline void Stats::startEvent(const std::string& name) {
   assert(initialized_);
 
   event_[name].emplace_back();
-}
-
-inline void Stats::stopEvent(const std::string& name) {
-  assert(initialized_);
-  // check if event is not stopped already
-  assert(event_[name].back().end.time_since_epoch().count() == 0);
-
-  event_[name].back().end = std::chrono::high_resolution_clock::now();
 }
 
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {
@@ -214,11 +211,25 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
 #else
 inline void Stats::initialize() {}
 inline void Stats::finalize() {}
-inline void Stats::startEvent(const std::string& name) {}
-inline void Stats::stopEvent(const std::string& name) {}
+inline void Stats::startEvent(const std::string& name) {
+  event_[name].emplace_back();
+}
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {}
 inline void Stats::write(const std::string& path, CommunicatorType comm) {}
 #endif
+
+inline const Stats::Event Stats::stopEvent(const std::string& name) {
+  // check if event is not stopped already
+  assert(event_[name].back().end.time_since_epoch().count() == 0);
+
+  event_[name].back().end = std::chrono::high_resolution_clock::now();
+  Event e(event_[name].back());
+#ifndef TIMING
+  //prevent map from growing if TIMING is off
+  event_.erase(name);
+#endif // def TIMING
+  return e;
+}
 }
 // end namespace combigrid
 
