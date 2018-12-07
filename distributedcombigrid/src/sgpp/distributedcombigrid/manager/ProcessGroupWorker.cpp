@@ -243,11 +243,7 @@ SignalType ProcessGroupWorker::wait() {
     }
   }
   return signal;
-<<<<<<< HEAD
 }
-=======
-}  // namespace combigrid
->>>>>>> master
 
 void ProcessGroupWorker::decideToKill() {
   // decide if processor was killed during this iteration

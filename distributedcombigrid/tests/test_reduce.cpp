@@ -127,7 +127,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
 
-    LoadModel* loadmodel = new LinearLoadModel();
+    auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
     DimType dim = 2;
     LevelVector lmin(dim, 2);
@@ -158,7 +158,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel);
+      Task* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -168,7 +168,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     params.setParallelization({nprocs, 1}); //TODO why??
 
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params);
+    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start
