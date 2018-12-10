@@ -17,6 +17,9 @@
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGrid.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
+
 
 #include <algorithm>
 #include <iostream>
@@ -44,6 +47,22 @@ ProcessGroupWorker::ProcessGroupWorker()
 
 ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 
+// Do useful things with the info about how long a task took.
+// this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly multiple times),
+// RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
+void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, size_t numProcs) { 
+  MASTER_EXCLUSIVE_SECTION {
+    DurationType type = DurationType();
+    durationInformation info = {t.getID(), Stats::getEventDuration(e), numProcs};
+    // MPI_Request request;
+    // send durationInfo to manager
+    // std::cout << "sending duration" << std::endl;
+    MPI_Send(&info, 1, type.get(), 
+            theMPISystem()->getManagerRank(), durationTag, //TODO see if we can send asynchronously
+            theMPISystem()->getGlobalComm());
+    // std::cout << "sent duration" << std::endl;
+  }
+}
 
 SignalType ProcessGroupWorker::wait() {
   if (status_ == PROCESS_GROUP_FAIL) {  // in this case worker got reused
@@ -78,7 +97,9 @@ SignalType ProcessGroupWorker::wait() {
       // execute task
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
-      Stats::stopEvent("worker run first");
+      Stats::Event e = Stats::stopEvent("worker run first");
+      // std::cout << "from runfirst ";
+      processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
@@ -92,10 +113,17 @@ SignalType ProcessGroupWorker::wait() {
         currentTask_ = tasks_[0];
 
         // run first task
+        // if isGENE, this is done in GENE's worker_routines.cpp
         if (!isGENE) {
           Stats::startEvent("worker run");
         }
+
+        Stats::Event e = Stats::Event();
         currentTask_->run(theMPISystem()->getLocalComm());
+        e.end = std::chrono::high_resolution_clock::now();
+        // std::cout << "from runnext ";
+        processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
+
         if (!isGENE) {
           Stats::stopEvent("worker run");
         }
@@ -108,7 +136,7 @@ SignalType ProcessGroupWorker::wait() {
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
       initializeTaskAndFaults();
-      
+
       currentTask_->setZero();
 
       currentTask_->setFinished(true);
@@ -180,7 +208,12 @@ SignalType ProcessGroupWorker::wait() {
         setCombinedSolutionUniform(currentTask_);
       }
       // execute task
+      Stats::Event e = Stats::Event();
       currentTask_->run(theMPISystem()->getLocalComm());
+      e.end = std::chrono::high_resolution_clock::now();
+      // std::cout << "from recompute ";
+      processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
+
     } break;
     case RECOVER_COMM: {  // start recovery in case of faults
       theMPISystem()->recoverCommunicators(true);
@@ -210,7 +243,8 @@ SignalType ProcessGroupWorker::wait() {
     }
   }
   return signal;
-}  // namespace combigrid
+}
+
 void ProcessGroupWorker::decideToKill() {
   // decide if processor was killed during this iteration
   currentTask_->decideToKill();
@@ -231,9 +265,9 @@ void ProcessGroupWorker::ready() {
       std::cout << "rank " << globalRank << " fault detected" << std::endl;
     }
   }
-
   if (status_ != PROCESS_GROUP_FAIL) {
     // check if there are unfinished tasks
+    // all the tasks that are not the first in their process group will be run in this loop
     for (size_t i = 0; i < tasks_.size(); ++i) {
       if (!tasks_[i]->isFinished()) {
         status_ = PROCESS_GROUP_BUSY;
@@ -242,7 +276,10 @@ void ProcessGroupWorker::ready() {
         currentTask_ = tasks_[i];
         Stats::startEvent("worker run");
         currentTask_->run(theMPISystem()->getLocalComm());
-        Stats::stopEvent("worker run");
+        Stats::Event e = Stats::stopEvent("worker run");
+
+        // std::cout << "from ready ";
+        processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
         if (ENABLE_FT) {
           // with this barrier the local root but also each other process can detect
           // whether a process in the group has failed
@@ -368,14 +405,12 @@ void ProcessGroupWorker::combineUniform() {
 #endif
   Stats::startEvent("combine init");
 
-  // each pgrouproot must call reduce function
-  // assert(tasks_.size() > 0);
   if (tasks_.size() == 0) {
     std::cout << "Possible error: task size is 0! \n";
   }
   assert(combiParametersSet_);
-  int numGrids = combiParameters_
-                     .getNumGrids();  // we assume here that every task has the same number of grids
+  // we assume here that every task has the same number of grids, e.g. species in GENE
+  int numGrids = combiParameters_.getNumGrids();
 
   DimType dim = combiParameters_.getDim();
   LevelVector lmin = combiParameters_.getLMin();
@@ -384,16 +419,12 @@ void ProcessGroupWorker::combineUniform() {
 
   // the dsg can be smaller than lmax because the highest subspaces do not have
   // to be exchanged
+  // todo: use a flag to switch on/off optimized combination
+
   reduceSparseGridCoefficients(lmax, lmin, combiParameters_.getNumberOfCombinations(),
                                currentCombi_, combiParameters_.getLMinReductionVector(),
                                combiParameters_.getLMaxReductionVector());
 
-/*for (size_t i = 0; i < lmax.size(); ++i)
-      if (lmin[i] > 1)
-        lmin[i] -= 01;
-for (size_t i = 0; i < lmax.size(); ++i)
-    lmax[i] = std::max(lmin[i],lmax[i] - 2);
-*/
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION {
     std::cout << "lmin: " << lmin << std::endl;
@@ -402,15 +433,13 @@ for (size_t i = 0; i < lmax.size(); ++i)
 #endif
 
   // delete old dsgs
-  for (int g = 0; g < combinedUniDSGVector_.size(); g++) {
-    if (combinedUniDSGVector_[g] != NULL) delete combinedUniDSGVector_[g];
-  }
   combinedUniDSGVector_.clear();
-  // erzeug dsgs
+  // create dsgs
   combinedUniDSGVector_.resize(numGrids);
-  for (int g = 0; g < numGrids; g++) {
-    combinedUniDSGVector_[g] = new DistributedSparseGridUniform<CombiDataType>(
-        dim, lmax, lmin, boundary, theMPISystem()->getLocalComm());
+  for (auto& uniDSG : combinedUniDSGVector_) {
+    uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
+                                                        theMPISystem()->getLocalComm()));
   }
   // todo: move to init function to avoid reregistering
   // register dsgs in all dfgs
@@ -653,7 +682,6 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
   }
 }
 
-
 void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
   Task* t;
 
@@ -665,7 +693,7 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
   // broadcast task to other process of pgroup
   Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
-  if (!mayAlreadyExist){
+  if (!mayAlreadyExist) {
     // check if task already exists on this group
     for (auto tmp : tasks_) assert(tmp->getID() != t->getID());
   }

@@ -17,9 +17,10 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
-#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
+
 
 namespace combigrid {
 
@@ -31,8 +32,8 @@ class Task {
  protected:
   Task();
 
-  Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
-       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
+  Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+       LoadModel* loadModel, FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
   // fault tolerance info
   FaultCriterion* faultCriterion_;
@@ -54,7 +55,7 @@ class Task {
 
   inline const std::vector<bool>& getBoundary() const;
 
-  inline int getID();
+  inline const int getID() const;
 
   virtual void run(CommunicatorType lcomm) = 0;
 
@@ -65,7 +66,7 @@ class Task {
   virtual void init(CommunicatorType lcomm,
                     std::vector<IndexVector> decomposition = std::vector<IndexVector>()) = 0;
 
-  inline real estimateRuntime() const;
+  // inline real estimateRuntime() const;
 
   inline bool isFinished() const;
 
@@ -114,6 +115,14 @@ class Task {
 
 typedef std::vector<Task*> TaskContainer;
 
+inline const LevelVector& getLevelVectorFromTaskID(TaskContainer tasks, int task_id){
+  auto task = std::find_if(tasks.begin(), tasks.end(), 
+    [task_id] (Task* t) {return t->getID() == task_id;}
+  );
+  assert(task != tasks.end());
+  return (*task)->getLevelVector();
+}
+
 template <class Archive>
 void Task::serialize(Archive& ar, const unsigned int version) {
   ar& faultCriterion_;
@@ -130,7 +139,7 @@ inline const LevelVector& Task::getLevelVector() const { return l_; }
 
 inline const std::vector<bool>& Task::getBoundary() const { return boundary_; }
 
-inline int Task::getID() { return id_; }
+inline const int Task::getID() const { return id_; }
 
 inline bool Task::isFinished() const { return isFinished_; }
 
@@ -141,7 +150,7 @@ inline bool Task::isInitialized() {
   return false;
 }
 
-inline real Task::estimateRuntime() const { return loadModel_->eval(l_); }
+// inline real Task::estimateRuntime() const { return loadModel_->eval(l_); }
 } /* namespace combigrid */
 
 #endif /* TASK_HPP_ */

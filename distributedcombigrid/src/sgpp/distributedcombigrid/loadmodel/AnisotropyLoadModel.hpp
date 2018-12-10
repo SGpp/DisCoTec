@@ -19,14 +19,14 @@ namespace combigrid {
 
 class AnisotropyLoadModel : public LoadModel {
  public:
-  AnisotropyLoadModel();
+  AnisotropyLoadModel() = default;
 
-  inline real eval(const LevelVector& l) const;
+  inline real eval(const LevelVector& l);
 
-  virtual ~AnisotropyLoadModel();
+  virtual ~AnisotropyLoadModel(){} = default;
 };
 
-inline real AnisotropyLoadModel::eval(const LevelVector& l) const {
+inline real AnisotropyLoadModel::eval(const LevelVector& l) {
   // number of grid points
   LevelType lsum = sum(l);
 

@@ -25,7 +25,7 @@
                 "RUN_CPPLINT=0",
                 "BUILD_STATICLIB=0",
                 "COMPILER=mpich",
-                "TIMING=1",
+                "TIMING=0",
                 "OPT=1",
                 "CPPFLAGS=-g",
                 "GLPK_LIBRARY_PATH=${workspaceRoot}/glpk/lib",
@@ -50,7 +50,7 @@
         {
             "label": "scons clean",
             "type": "shell",
-            "command": "scons -c && rm -r .scon*",
+            "command": "scons -c FC=gfort && rm -r .scon*",
             "group": "build"
         },
         {
@@ -67,8 +67,10 @@
             "args": [
                 "-n",
                 "9",
+                "-l",
                 //xterm -e gdb 
-                "${workspaceRoot}/distributedcombigrid/tests/test_distributedcombigrid_boost"
+                "${workspaceRoot}/distributedcombigrid/tests/test_distributedcombigrid_boost",
+                // "--run_test=loadmodel"
             ],
             "options": {
                 "env": {

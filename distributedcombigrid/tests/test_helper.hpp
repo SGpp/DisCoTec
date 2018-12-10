@@ -9,7 +9,7 @@ namespace TestHelper{
   static constexpr double tolerance = 1e-12;
   static constexpr double higherTolerance = 1e-5;
 
-  static bool checkNumMPIProcsAvailable(int nprocs) {
+  static inline bool checkNumMPIProcsAvailable(int nprocs) {
     int size;
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     return size >= nprocs;
@@ -28,7 +28,7 @@ namespace TestHelper{
     }
   }
 
-  static int getRank(MPI_Comm comm) {
+  static inline int getRank(MPI_Comm comm) {
     int rank;
     MPI_Comm_rank(comm, &rank);
     return rank;

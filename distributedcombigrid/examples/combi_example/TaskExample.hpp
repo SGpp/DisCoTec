@@ -171,16 +171,6 @@ class TaskExample : public Task {
     if (dfg_ != NULL) delete dfg_;
   }
 
-  ~TaskExample() {
-    if (dfg_ != NULL)
-      delete dfg_;
-  }
-
-  ~TaskExample() {
-    if (dfg_ != NULL)
-      delete dfg_;
-  }
-
  protected:
   /* if there are local variables that have to be initialized at construction
    * you have to do it here. the worker processes will create the task using

@@ -15,7 +15,9 @@ namespace combigrid {
 
 class LoadModel {
  public:
-  virtual real eval(const LevelVector& l) const = 0;
+  virtual ~LoadModel() = default;
+  virtual real eval(const LevelVector& l) = 0;
+
 };
 
 } /* namespace combigrid */
