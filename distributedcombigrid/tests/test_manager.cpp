@@ -188,7 +188,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     BOOST_REQUIRE(true); //if things go wrong weirdly, see where things go wrong
 
 #ifdef TIMING
-    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LearningLoadModel>(new LearningLoadModel());
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LearningLoadModel>(new LearningLoadModel(levels));
 #else // TIMING
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 #endif //def TIMING

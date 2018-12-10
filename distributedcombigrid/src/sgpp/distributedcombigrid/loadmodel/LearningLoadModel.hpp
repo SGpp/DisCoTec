@@ -131,13 +131,13 @@ inline real LearningLoadModel::eval(const LevelVector& l) {
   if (durationsOfLevels_->at(l).empty()) {
     // if no data yet, use linear load model
     if (!last_durations_avg_.count(l)) {
-      std::cout << "using linear load model for initial guess" << std::endl;
+      // std::cout << "using linear load model for initial guess" << std::endl;
       LinearLoadModel llm = LinearLoadModel();
       ret = llm.eval(l);
     } else {
       // use data from last time
-      std::cout << "using recoded average of " << last_durations_avg_[l] << " for " << toString(l)
-                << std::endl;
+      // std::cout << "using recoded average of " << last_durations_avg_[l] << " for " << toString(l)
+                // << std::endl;
       ret = last_durations_avg_[l];
     }
   } else {  // use simple averaging for now //TODO do fancier things, cache results
