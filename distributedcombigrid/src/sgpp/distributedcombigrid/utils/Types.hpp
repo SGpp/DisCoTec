@@ -9,6 +9,7 @@
 
 #include <mpi.h>
 #include <cassert>
+#include <vector>
 #include <stdexcept>
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
 
