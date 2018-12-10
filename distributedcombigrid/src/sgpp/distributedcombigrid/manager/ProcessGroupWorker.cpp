@@ -345,6 +345,9 @@ t->getID() ) );
 void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
                                   IndexType totalNumberOfCombis, IndexType currentCombi,
                                   LevelVector reduceLmin, LevelVector reduceLmax) {
+  //checking for valid combi step
+  assert(currentCombi < totalNumberOfCombis && currentCombi >= 0);
+
   if(currentCombi < totalNumberOfCombis - 1){ // do not reduce in last iteration
     for (size_t i = 0; i < reduceLmin.size(); ++i) {
       assert(reduceLmax[i] >= 0 && reduceLmin[i] >= 0); //check for valid reduce values
