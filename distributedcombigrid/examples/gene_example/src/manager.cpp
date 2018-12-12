@@ -219,9 +219,6 @@ int main(int argc, char** argv) {
     // create Manager with process groups
     ProcessManager manager(pgroups, tasks, params, managerIDgcomm, gcomm);
 
-    // combiparameters need to be set before starting the computation
-    manager.updateCombiParameters();
-
     std::ofstream myfile;
     myfile.open("out/solution.dat");
 

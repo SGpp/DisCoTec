@@ -283,16 +283,11 @@ int main(int argc, char** argv) {
     }
     // create combiparamters
     CombiParameters params( dim, lmin, lmax, boundary, levels,
-                            coeffs, hierarchizationDims, taskIDs, ncombi, numGrids, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
-    params.setParallelization(p);
+                            coeffs, hierarchizationDims, taskIDs, ncombi, numGrids, p, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
 
     // create Manager with process groups
     ProcessManager manager(pgroups, tasks, params);
 
-    // combiparameters need to be set before starting the computation
-    Stats::startEvent("update combi parameters");
-    manager.updateCombiParameters();
-    Stats::stopEvent("update combi parameters");
     bool success = true; //indicates if computation was sucessfull -> false means fault occured
     //start computation
     //we perform ncombi many combinations with
@@ -394,7 +389,6 @@ int main(int argc, char** argv) {
         /* restore combischeme to its original state
          * and send new combiParameters to all surviving groups */
         manager.restoreCombischeme();
-        manager.updateCombiParameters();
         Stats::stopEvent("manager recover postprocessing");
 
       }

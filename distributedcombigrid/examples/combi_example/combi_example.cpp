@@ -115,14 +115,10 @@ int main(int argc, char** argv) {
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
-    params.setParallelization(p);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p);
+    
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
-
-    // the combiparameters are sent to all process groups before the
-    // computations start
-    manager.updateCombiParameters();
 
     std::cout << "set up component grids and run until first combination point" << std::endl;
 
