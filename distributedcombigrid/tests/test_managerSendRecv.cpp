@@ -7,10 +7,6 @@
 // BOOST_CLASS_EXPORT_IMPLEMENT(TaskConst)
 
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
-#include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"

@@ -22,6 +22,7 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
                   std::vector<int>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
+                  const IndexVector parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0))
       : dim_(dim),
@@ -38,6 +39,9 @@ class CombiParameters {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     setLevelsCoeffs(taskIDs, levels, coeffs);
     numTasks_ = taskIDs.size();
+    if (parallelization != IndexVector({0})){
+      this->setParallelization(parallelization);
+    }
   }
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,

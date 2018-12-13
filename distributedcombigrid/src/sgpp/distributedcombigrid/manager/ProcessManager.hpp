@@ -28,6 +28,9 @@ class ProcessManager {
     : pgroups_(pgroups), tasks_(instances), params_(params)
     {
       loadModel_ = std::move(loadModel);
+          // the combiparameters are sent to all process groups before the
+    // computations start
+      updateCombiParameters();
   }
 
   inline void removeGroups(std::vector<int> removeIndices);

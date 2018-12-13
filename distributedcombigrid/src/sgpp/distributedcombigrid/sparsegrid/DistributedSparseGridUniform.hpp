@@ -122,8 +122,6 @@ class DistributedSparseGridUniform {
 
   void setSizes();
 
-  void calcProcAssignment(int procsPerNode);
-
   DimType dim_;
 
   LevelVector nmax_;
@@ -182,16 +180,6 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
   for (size_t i = 0; i < levels_.size(); ++i) subspaces_[i].level_ = levels_[i];
 
   setSizes();
-
-  /*
-   // sort subspaces by datasize in descending order and update levels_ accordingly
-   std::sort( subspaces_.begin(), subspaces_.end(), mycomp<FG_ELEMENT> );
-   for( size_t i=0; i<levels_.size(); ++i )
-   levels_[i] = subspaces_[i].level_;
-
-   subspaceToProc_.resize( subspaces_.size() );
-   calcProcAssignment( int(procsPerNode) );
-   */
 }
 
 template <typename FG_ELEMENT>
@@ -295,36 +283,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setSizes() {
 template <typename FG_ELEMENT>
 inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVector(size_t i) const {
   return levels_[i];
-}
-
-template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::calcProcAssignment(int procsPerNode) {
-  if (procsPerNode == 0) {
-    for (size_t i = 0; i < subspaces_.size(); ++i) subspaceToProc_[i] = int(i) % commSize_;
-  }
-  /*
-   else{
-   // check if commsize a multiple of procs per node
-   assert( (commSize_ % procsPerNode) == 0
-   && "number of procs in comm must be multiple of procsPerNode" );
-   int numNodes = commSize_ / procsPerNode;
-   for( int i=0; i<int( subspaces_.size() ); ++i ){
-   int nodeID = i % numNodes;
-   int procInNodeID = ( i / numNodes ) % procsPerNode;
-   subspaceToProc_[i] = nodeID * procsPerNode + procInNodeID;
-   }
-   }*/
-
-  // use this to assign subspaces to first proc in group
-  else {
-    // todo: ceil
-    int numNodes = static_cast<int>(std::ceil(real(commSize_) / real(procsPerNode)));
-
-    for (int i = 0; i < int(subspaces_.size()); ++i) {
-      int nodeID = i % numNodes;
-      subspaceToProc_[i] = nodeID * procsPerNode;
-    }
-  }
 }
 
 /* get index of space with l. returns -1 if not included */
