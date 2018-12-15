@@ -1,0 +1,3 @@
+[submodule "distributedcombigrid/examples/combi_example_third_level/SimpleAmqpClient"]
+	path = distributedcombigrid/examples/combi_example_third_level/SimpleAmqpClient
+	url = https://github.com/alanxz/SimpleAmqpClient.git
