@@ -2,8 +2,6 @@
 #include "Intermediary.hpp"
 #include "../../../src/sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
 
-extern bool run = true;
-
 void tunnel(const size_t port, const size_t remotePort,
     const std::string& remoteHost);
 
@@ -76,7 +74,6 @@ int main(int argc, char* argv[]) {
 void tunnel(const size_t port, const size_t remotePort,
     const std::string& remoteHost) {
   ServerSocket server(port);
-  server.init();
   for (;;)
   {
     // accept new client
@@ -85,7 +82,6 @@ void tunnel(const size_t port, const size_t remotePort,
 
     // connect to remote host
     ClientSocket* remote = new ClientSocket(remoteHost, remotePort);
-    remote->init();
     assert(remote->isInitialized() && "Initialization of remote failed");
 
     // bidirectional tunnel
