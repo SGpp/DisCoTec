@@ -34,7 +34,7 @@ void Intermediary::acceptClient() {
 void Intermediary::handleClient(ClientSocket* client) {
   std::vector<std::string> argv;
   std::string initmsg;
-  assert(client->isInitialized() && "Accepted client corrupt");
+  assert(client->isInitialized() && "Accepted client is corrupt");
   client->recvallPrefixed(initmsg);
   NetworkUtils::split(initmsg, '#', argv);
 
