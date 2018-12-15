@@ -135,10 +135,16 @@ int main(int argc, char** argv) {
     std::ofstream myfile;
     myfile.open("out/solution.dat");
 
+    double start, finish;
     for (size_t i = 0; i < ncombi; ++i) {
+
+      start = MPI_Wtime();
+
       Stats::startEvent("combine");
       manager.combine();
       Stats::stopEvent("combine");
+      finish = MPI_Wtime();
+      std::cout << "combination " << i << " took: " << finish-start << " seconds" << std::endl;
 
       // evaluate solution
       FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
@@ -164,9 +170,12 @@ int main(int argc, char** argv) {
       std::cout << "run until combination point " << i+1 << std::endl;
 
       // run tasks for next time interval
+      start = MPI_Wtime();
       Stats::startEvent("manager run");
       manager.runnext();
       Stats::stopEvent("manager run");
+      finish = MPI_Wtime();
+      std::cout << "calculation " << i << " took: " << finish-start << " seconds" << std::endl;
     }
 
     myfile.close();
