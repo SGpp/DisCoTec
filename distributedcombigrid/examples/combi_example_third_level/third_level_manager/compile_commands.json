@@ -1,0 +1,22 @@
+[
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++11",
+            "-g",
+            "-fopenmp",
+            "-Wno-deprecated-declarations",
+            "-Wno-unused-local-typedefs",
+            "-Wno-deprecated",
+            "-Wno-uninitialized",
+            "-Wall",
+            "-I../SimpleAmqpClient/src/",
+            "-o",
+            "thirdLevelManager",
+            "thirdLevelManager.cpp"
+        ],
+        "directory": "/home/marci/UNI/HIWI/combi/distributedcombigrid/examples/combi_example_third_level/third_level_manager",
+        "file": "thirdLevelManager.cpp"
+    }
+]
