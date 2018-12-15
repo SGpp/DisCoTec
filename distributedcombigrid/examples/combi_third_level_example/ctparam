@@ -4,7 +4,7 @@ lmin = 3 3
 lmax = 10 10  
 leval = 5 5 
 p = 1 2
-ncombi = 10
+ncombi = 3
 
 [application]
 dt = 1e-3
@@ -12,8 +12,8 @@ nsteps = 100
 
 [manager]
 ngroup = 2
-nprocs = 2 
+nprocs = 2
 
 [thirdLevel]
-host = neon
+host = pcsgs02
 port = 9999
