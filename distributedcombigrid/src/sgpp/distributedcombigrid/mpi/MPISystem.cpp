@@ -256,6 +256,8 @@ void MPISystem::initGlobalReduceCommm() {
     MPI_Comm_split(workerComm, color, key, &globalReduceComm);
 
     globalReduceComm_ = globalReduceComm;
+
+    MPI_Comm_rank( globalReduceComm_, &globalReduceRank_ );
   }
 }
 
