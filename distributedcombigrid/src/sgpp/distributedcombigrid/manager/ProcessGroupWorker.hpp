@@ -44,6 +44,14 @@ class ProcessGroupWorker {
   // Perform combination
   void combine();
 
+  // combination helpers
+  void initCombinedUniDSGVector();
+  void hierarchizeUniformSG();
+  void dehierarchizeUniformSG();
+
+  // reduction
+  void reduceUniformSG();
+
   // combine on sparse grid with uniform decomposition of domain
   void combineUniform();
 
@@ -66,6 +74,8 @@ class ProcessGroupWorker {
 
   // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
   void setCombinedSolutionUniform(Task* t);
+
+  void sendSparseGridToManager();
 
  private:
   TaskContainer tasks_;  // task storage

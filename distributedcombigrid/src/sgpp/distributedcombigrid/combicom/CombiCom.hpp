@@ -755,10 +755,14 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
     assert(dsg.getDataSize(i) <= std::numeric_limits<int>::max());
 
     subspaceSizes[i] = int(dsg.getDataSize(i));
+
+    // std::cerr << combigrid::toString(dsg.getDataVector(i)) << std::endl;
   }
 
   MPI_Allreduce(MPI_IN_PLACE, subspaceSizes.data(), int(subspaceSizes.size()), MPI_INT, MPI_MAX,
                 mycomm);
+
+  // std::cerr << "between allreduces" << std::endl;
 
   // check for implementation errors, the reduced subspace size should not be
   // different from the size of already initialized subspaces
@@ -808,6 +812,8 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   // reduce the local part of sparse grid (distributed according to domain decomposition)
   MPI_Allreduce(MPI_IN_PLACE, buf.data(), bsize, dtype, MPI_SUM, mycomm);
 
+
+
   // extract subspace data from buffer and write in corresponding subspaces
   {
     typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
@@ -830,6 +836,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
         subspaceData[j] = *buf_it;
         ++buf_it;
       }
+      // std::cerr << combigrid::toString(subspaceData) << std::endl;
     }
   }
 }

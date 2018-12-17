@@ -17,7 +17,7 @@ namespace combigrid {
 class CombiParameters {
  public:
   CombiParameters()
-      : procsSet_(false), applicationComm_(MPI_COMM_NULL), applicationCommSet_(false) {}
+      : procsSet_(false), applicationComm_(MPI_COMM_NULL), applicationCommSet_(false), numGridsPerTask_(1) {}
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
@@ -131,7 +131,7 @@ class CombiParameters {
    * this method returns the number of grids a task contains
    * in case we have multiple grids in our simulation
    */
-  inline IndexType getNumGrids() { return numGridsPerTask_; }
+  inline IndexType getNumGrids() const { return numGridsPerTask_; }
   /**
    * this method returns the number of tasks also referred to as component grids (one task might
    * contain multiple grids)

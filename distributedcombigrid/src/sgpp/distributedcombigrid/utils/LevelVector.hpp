@@ -11,6 +11,7 @@
 // #include <sstream>
 // #include <string>
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
+#include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 namespace combigrid {
 

@@ -12,6 +12,8 @@
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
+#include <boost/serialization/vector.hpp>
+
 using namespace combigrid;
 
 /*
@@ -32,6 +34,16 @@ struct SubspaceSGU {
   size_t dataSize_;
 
   std::vector<FG_ELEMENT> data_;
+
+  friend class boost::serialization::access;
+  
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar& level_;
+    ar& sizes_;
+    ar& dataSize_;
+    ar& data_;
+  }
 };
 
 /*
@@ -53,6 +65,7 @@ class DistributedSparseGridUniform {
   DistributedSparseGridUniform(DimType dim, const LevelVector& lmax, const LevelVector& lmin,
                                const std::vector<bool>& boundary, CommunicatorType comm,
                                size_t procsPerNode = 0);
+  DistributedSparseGridUniform(){}
 
   virtual ~DistributedSparseGridUniform();
 
@@ -141,6 +154,11 @@ class DistributedSparseGridUniform {
   int commSize_;
 
   std::vector<SubspaceSGU<FG_ELEMENT> > subspaces_;
+
+  friend class boost::serialization::access;
+  
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version);
 };
 
 }  // namespace
@@ -441,6 +459,72 @@ CommunicatorType DistributedSparseGridUniform<FG_ELEMENT>::getCommunicator() con
 template <typename FG_ELEMENT>
 inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const {
   return commSize_;
+}
+
+template <typename FG_ELEMENT>
+template <class Archive>
+void DistributedSparseGridUniform<FG_ELEMENT>::serialize(Archive& ar, const unsigned int version) {
+  ar & dim_;
+  ar & nmax_;
+  ar & lmin_;
+  ar & levels_;
+  ar & boundary_;
+
+  ar & subspaces_;
+}
+
+template <typename FG_ELEMENT>
+static void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, RankType dst, CommunicatorType comm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
+  // save data to archive
+  std::stringstream ss;
+  {
+    boost::archive::text_oarchive oa(ss);
+    // write class instance to archive
+    oa << dsgu;
+  }
+  // create mpi buffer of archive
+  std::string s = ss.str();
+  int bsize = static_cast<int>(s.size());
+  char* buf = const_cast<char*>(s.c_str());
+  // std::cout << "bsize " << bsize << std::endl;
+  MPI_Send(buf, bsize, MPI_CHAR, dst, 0, comm);
+}
+
+template <typename FG_ELEMENT>
+static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, CommunicatorType comm) {
+  DistributedSparseGridUniform<FG_ELEMENT> * dsgu;
+
+  // receive size of message
+  // todo: not really necessary since size known at compile time
+  MPI_Status status;
+  int bsize;
+  MPI_Probe(src, 0, comm, &status);
+  MPI_Get_count(&status, MPI_CHAR, &bsize);
+  // std::cout << "bsize " << bsize << std::endl;
+
+  // create buffer of appropriate size and receive
+  std::vector<char> buf(bsize);
+
+  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, 0, comm, &status);
+  assert(status.MPI_ERROR == MPI_SUCCESS);
+
+  // create and open an archive for input
+  std::string s(&buf[0], bsize);
+  std::stringstream ss(s);
+  assert(ss.good());
+  {
+    boost::archive::text_iarchive ia(ss);
+    // read class state from archive
+    ia >> dsgu;
+  }
+  assert(dsgu->getDim() > 0);
+  assert(!dsgu->getBoundaryVector().empty());
+  assert(dsgu->getNMax()[0] >= 0);
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
+  return dsgu;
 }
 
 } /* namespace combigrid */

@@ -398,12 +398,7 @@ void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
   }
 }
 
-void ProcessGroupWorker::combineUniform() {
-#ifdef DEBUG_OUTPUT
-
-  MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
-#endif
-  Stats::startEvent("combine init");
+void ProcessGroupWorker::initCombinedUniDSGVector(){
 
   if (tasks_.size() == 0) {
     std::cout << "Possible error: task size is 0! \n";
@@ -450,9 +445,10 @@ void ProcessGroupWorker::combineUniform() {
       dfg.registerUniformSG(*(combinedUniDSGVector_[g]));
     }
   }
-  Stats::stopEvent("combine init");
-  Stats::startEvent("combine hierarchize");
+}
 
+void ProcessGroupWorker::hierarchizeUniformSG(){
+  int numGrids = combiParameters_.getNumGrids();
   real localMax(0.0);
   // std::vector<CombiDataType> beforeCombi;
   for (Task* t : tasks_) {
@@ -479,28 +475,10 @@ void ProcessGroupWorker::combineUniform() {
 #endif
     }
   }
-  Stats::stopEvent("combine hierarchize");
+}  
 
-  // compute global max norm
-  /*
-  real globalMax_tmp;
-  MPI_Allreduce(  &localMax, &globalMax_tmp, 1, MPI_DOUBLE,
-                  MPI_MAX, theMPISystem()->getGlobalReduceComm() );
-
-  real globalMax;
-  MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
-                    MPI_MAX, theMPISystem()->getLocalComm() );
-                    */
-  Stats::startEvent("combine global reduce");
-
-  for (int g = 0; g < numGrids; g++) {
-    CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g]);
-  }
-  Stats::stopEvent("combine global reduce");
-
-  // std::vector<CombiDataType> afterCombi;
-  Stats::startEvent("combine dehierarchize");
-
+void ProcessGroupWorker::dehierarchizeUniformSG(){
+  int numGrids = combiParameters_.getNumGrids();
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       // get handle to dfg
@@ -524,6 +502,47 @@ void ProcessGroupWorker::combineUniform() {
       */
     }
   }
+}
+
+void ProcessGroupWorker::reduceUniformSG(){
+  // we assume here that every task has the same number of grids, e.g. species in GENE
+  int numGrids = combiParameters_.getNumGrids();
+
+  for (int g = 0; g < numGrids; g++) {
+    CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g]);
+  }
+}
+
+void ProcessGroupWorker::combineUniform() {
+#ifdef DEBUG_OUTPUT
+
+  MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
+#endif
+  Stats::startEvent("combine init");
+  initCombinedUniDSGVector();
+  Stats::stopEvent("combine init");
+  
+  Stats::startEvent("combine hierarchize");
+  hierarchizeUniformSG();
+  Stats::stopEvent("combine hierarchize");
+
+  // compute global max norm
+  /*
+  real globalMax_tmp;
+  MPI_Allreduce(  &localMax, &globalMax_tmp, 1, MPI_DOUBLE,
+                  MPI_MAX, theMPISystem()->getGlobalReduceComm() );
+
+  real globalMax;
+  MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
+                    MPI_MAX, theMPISystem()->getLocalComm() );
+                    */
+  Stats::startEvent("combine global reduce");
+  reduceUniformSG();
+  Stats::stopEvent("combine global reduce");
+
+  // std::vector<CombiDataType> afterCombi;
+  Stats::startEvent("combine dehierarchize");
+  dehierarchizeUniformSG();
   Stats::stopEvent("combine dehierarchize");
 
   // test changes
@@ -766,6 +785,19 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
     // dehierarchize dfg
     DistributedHierarchization::dehierarchize<CombiDataType>(
         dfg, combiParameters_.getHierarchizationDims());
+  }
+}
+
+void ProcessGroupWorker::sendSparseGridToManager() {
+  assert(combinedUniDSGVector_.size() != 0);
+  assert(combiParametersSet_);
+
+  // we assume here that every task has the same number of grids
+  int numGrids = combiParameters_.getNumGrids();  
+  
+  for (int g = 0; g < numGrids; g++) {
+    assert(combinedUniDSGVector_[g] != NULL);
+    sendDSGUniform((combinedUniDSGVector_[g].get()), theMPISystem()->getManagerRankWorld(), theMPISystem()->getWorldComm());
   }
 }
 
