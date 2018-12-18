@@ -46,8 +46,10 @@ class ProcessGroupWorker {
 
   // combination helpers
   void initCombinedUniDSGVector();
-  void hierarchizeUniformSG();
-  void dehierarchizeUniformSG();
+  void hierarchizeFullGrids();
+  void addFullGridsToUniformSG();
+  void extractFullGridsFromUniformSG();
+  void dehierarchizeFullGrids();
 
   // reduction
   void reduceUniformSG();
@@ -90,8 +92,6 @@ class ProcessGroupWorker {
    * Vector containing all distributed sparse grids
    */
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;
-
-  bool combinedFGexists_;
 
   CombiParameters combiParameters_;
 

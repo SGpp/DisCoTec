@@ -761,7 +761,7 @@ class DistributedFullGrid {
   void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     // check if dsg already registered
     // if (dsg_ == &dsg)
-    //  return;
+    //   return;
 
     dsg_ = &dsg;
 
