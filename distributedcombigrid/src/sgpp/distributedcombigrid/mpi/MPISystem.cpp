@@ -13,30 +13,6 @@
 
 #include <iostream>
 
-namespace {
-using namespace combigrid;
-
-std::string getMinMaxAvg(RankType r, int size, std::string timerName, bool isTimer, MPI_Comm comm) {
-  double value;
-  /*    if( isTimer )
-        value = theStatsContainer()->getDuration( timerName );
-      else
-        value = theStatsContainer()->getValue( timerName );
-  */
-  double min, max, sum;
-  MPI_Reduce(&value, &min, 1, MPI_DOUBLE, MPI_MIN, r, comm);
-  MPI_Reduce(&value, &max, 1, MPI_DOUBLE, MPI_MAX, r, comm);
-  MPI_Reduce(&value, &sum, 1, MPI_DOUBLE, MPI_SUM, r, comm);
-
-  double avg = sum / static_cast<double>(size);
-
-  std::stringstream ss;
-  ss << timerName << "\t\t" << min << "\t" << max << "\t" << avg;
-
-  return ss.str();
-}
-}  // anonymous namespace
-
 namespace combigrid {
 
 /*!\brief Constructor for the MPISystem class.
@@ -46,7 +22,7 @@ namespace combigrid {
  // Constructor for the MPI System. The default global communicator and local communicator is
  MPI_COMM_WORLD.
  // The total number of MPI processes and the rank of the MPI process in is determined from
- // the communicator. The default root process has rank zero.
+ // the communicator. 
  */
 MPISystem::MPISystem()
     : initialized_(false),

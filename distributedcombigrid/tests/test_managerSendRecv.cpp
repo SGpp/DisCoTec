@@ -104,37 +104,23 @@ void checkGatherSparseGridFromProcessGroup(size_t ngroup = 1, size_t nprocs = 1)
 
     manager.runfirst();
     manager.combine();
-    manager.runnext();
-
-    // evaluate solution //todo remove, test from reduce
-    FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-    manager.gridEval(fg_eval);
-
-    // compare with known results:
-    // point in the middle
-    CombiDataType midResult = fg_eval.getData()[fg_eval.getNrElements() / 2];
-    std::cout << "midResult " << abs(midResult) << std::endl;
-    BOOST_TEST(abs(midResult) == 1.333333333333333);
-
+    std::cerr << "manager get DSG" << std::endl;
+    manager.getDSGFromProcessGroup();
     manager.exit();
 
     std::cout << "manager exit" << std::endl;
-    // TODO introduce signal for grid gathering
+
     int numGrids = params.getNumGrids();
-    std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector(
-        numGrids);
+    auto& combinedUniDSGVector = manager.getOutboundUniDSGVector();
     // iterate first process group
     bool found = false;
     for (size_t i = 0; i < nprocs; ++i) {
       for (int g = 0; g < numGrids; ++g) {
-        combinedUniDSGVector[g].reset(
-            recvDSGUniform<CombiDataType>(i, theMPISystem()->getWorldComm()));
         const auto& dsgu = combinedUniDSGVector[g];
         BOOST_CHECK(dsgu->getDim() > 0);
         BOOST_CHECK(!dsgu->getBoundaryVector().empty());
         BOOST_CHECK(dsgu->getNMax()[0] >= 0);
         BOOST_CHECK(dsgu->getNumSubspaces() > 0);
-        // BOOST_CHECK(!dsgu->getDataVector(0).empty());
 
         LevelVector smallestSubspace = {1, 1};
         std::cerr << combigrid::toString(dsgu->getDataVector(smallestSubspace)) << std::endl;
@@ -193,10 +179,15 @@ BOOST_AUTO_TEST_SUITE(managerSendRecv)
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::timeout(40)) {
-  checkGatherSparseGridFromProcessGroup(1, 2);
+  checkGatherSparseGridFromProcessGroup(1, 1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::timeout(40)) {
+  checkGatherSparseGridFromProcessGroup(1, 2);
+}
+
+BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::timeout(40)) {
   checkGatherSparseGridFromProcessGroup(2, 2);
 }

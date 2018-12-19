@@ -69,6 +69,8 @@ class ProcessManager {
 
   void updateCombiParameters();
 
+  void getDSGFromProcessGroup();
+
   /* Computes group faults in current combi scheme step */
   void getGroupFaultIDs(std::vector<int>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);
@@ -92,6 +94,8 @@ class ProcessManager {
    * to the original combination technique*/
   void restoreCombischeme();
 
+  inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getOutboundUniDSGVector();
+
  private:
   ProcessGroupManagerContainer& pgroups_;
 
@@ -100,6 +104,8 @@ class ProcessManager {
   CombiParameters params_;
 
   std::unique_ptr<LoadModel> loadModel_;
+
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> outboundCachedUniDSGVector_;
 
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
@@ -349,6 +355,10 @@ inline Task* ProcessManager::getTask(int taskID) {
     }
   }
   return nullptr;
+}
+
+inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & ProcessManager::getOutboundUniDSGVector(){
+  return outboundCachedUniDSGVector_;
 }
 
 } /* namespace combigrid */

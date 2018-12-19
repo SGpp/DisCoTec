@@ -11,6 +11,7 @@
 #include <assert.h>
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 
 #include <boost/serialization/vector.hpp>
 
@@ -489,25 +490,24 @@ static void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, Rank
   int bsize = static_cast<int>(s.size());
   char* buf = const_cast<char*>(s.c_str());
   // std::cout << "bsize " << bsize << std::endl;
-  MPI_Send(buf, bsize, MPI_CHAR, dst, 0, comm);
+  MPI_Send(buf, bsize, MPI_CHAR, dst, SEND_DSG_TO_MANAGER, comm);
 }
 
 template <typename FG_ELEMENT>
 static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, CommunicatorType comm) {
   DistributedSparseGridUniform<FG_ELEMENT> * dsgu;
-
   // receive size of message
   // todo: not really necessary since size known at compile time
   MPI_Status status;
   int bsize;
-  MPI_Probe(src, 0, comm, &status);
+  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
   MPI_Get_count(&status, MPI_CHAR, &bsize);
   // std::cout << "bsize " << bsize << std::endl;
 
   // create buffer of appropriate size and receive
   std::vector<char> buf(bsize);
 
-  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, 0, comm, &status);
+  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
   assert(status.MPI_ERROR == MPI_SUCCESS);
 
   // create and open an archive for input
@@ -523,7 +523,7 @@ static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, C
   assert(!dsgu->getBoundaryVector().empty());
   assert(dsgu->getNMax()[0] >= 0);
   assert(dsgu->getNumSubspaces() > 0);
-  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
+
   return dsgu;
 }
 
