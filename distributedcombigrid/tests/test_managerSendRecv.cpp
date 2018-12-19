@@ -108,8 +108,6 @@ void checkGatherSparseGridFromProcessGroup(size_t ngroup = 1, size_t nprocs = 1)
     manager.getDSGFromProcessGroup();
     manager.exit();
 
-    std::cout << "manager exit" << std::endl;
-
     int numGrids = params.getNumGrids();
     auto& combinedUniDSGVector = manager.getOutboundUniDSGVector();
     // iterate first process group
@@ -155,14 +153,6 @@ void checkGatherSparseGridFromProcessGroup(size_t ngroup = 1, size_t nprocs = 1)
       // }
       //   pgroup.dehierarchizeFullGrids();
       // }
-    }
-    std::cout << "worker exit" << std::endl;
-    pgroup.initCombinedUniDSGVector();
-    pgroup.hierarchizeFullGrids();
-    pgroup.addFullGridsToUniformSG();
-    pgroup.reduceUniformSG();
-    if (theMPISystem()->getWorldRank() < nprocs) {
-      pgroup.sendSparseGridToManager();
     }
   }
 

@@ -224,13 +224,11 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("parallel eval");
     } break;
     case SEND_DSG_TO_MANAGER: {  // let manager collect the contents of dsg
-      // if () {
-        Stats::startEvent("send dsg to manager");
-        std::cerr << std::to_string(theMPISystem()->getWorldRank()) << " sending dsg" << std::endl;
-        sendSparseGridToManager();
-        std::cerr << theMPISystem()->getWorldRank() << " sent dsg" << std::endl;
-        Stats::stopEvent("send dsg to manager");
-      // }
+      Stats::startEvent("send dsg to manager");
+      std::cerr << std::to_string(theMPISystem()->getWorldRank()) << " sending dsg" << std::endl;
+      sendSparseGridToManager();
+      std::cerr << theMPISystem()->getWorldRank() << " sent dsg" << std::endl;
+      Stats::stopEvent("send dsg to manager");
     } break;
     default: { assert(false && "signal not implemented"); }
   }
@@ -243,7 +241,11 @@ SignalType ProcessGroupWorker::wait() {
   }
   // in the general case: send ready signal.
   // if(!omitReadySignal)
-  ready();
+
+  if (signal != SEND_DSG_TO_MANAGER) {
+    ready();
+  }
+
   if (isGENE) {
     if (signal == ADD_TASK) {  // ready resets currentTask but needs to be set for GENE
       currentTask_ = tasks_.back();
