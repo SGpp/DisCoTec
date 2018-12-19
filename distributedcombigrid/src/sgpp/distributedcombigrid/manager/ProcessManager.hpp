@@ -95,6 +95,9 @@ class ProcessManager {
   void restoreCombischeme();
 
   inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getOutboundUniDSGVector();
+  inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getInboundUniDSGVector(){
+    return inboundCachedUniDSGVector_;
+  }
 
  private:
   ProcessGroupManagerContainer& pgroups_;
@@ -106,6 +109,7 @@ class ProcessManager {
   std::unique_ptr<LoadModel> loadModel_;
 
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> outboundCachedUniDSGVector_;
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> inboundCachedUniDSGVector_;
 
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state

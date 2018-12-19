@@ -36,8 +36,18 @@ struct SubspaceSGU {
 
   std::vector<FG_ELEMENT> data_;
 
+  SubspaceSGU& operator+=(const SubspaceSGU& rhs) 
+  {                           
+    assert(this->level_ == rhs.level_);
+
+    for(size_t i = 0; i < data_.size(); ++i){
+      this->data_[i] += rhs.data_[i];
+    }
+    
+    return *this; 
+  }
+
   friend class boost::serialization::access;
-  
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     ar& level_;
@@ -128,6 +138,8 @@ class DistributedSparseGridUniform {
   inline CommunicatorType getCommunicator() const;
 
   inline int getCommunicatorSize() const;
+
+  void recvAndAddDSGUniform(RankType src, CommunicatorType comm);
 
  private:
   void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
@@ -460,6 +472,37 @@ CommunicatorType DistributedSparseGridUniform<FG_ELEMENT>::getCommunicator() con
 template <typename FG_ELEMENT>
 inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const {
   return commSize_;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src, CommunicatorType comm) {
+  DistributedSparseGridUniform<FG_ELEMENT> * dsgu;
+  // receive size of message
+  MPI_Status status;
+  int bsize;
+  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
+  MPI_Get_count(&status, MPI_CHAR, &bsize);
+
+  // create buffer of appropriate size and receive
+  std::vector<char> buf(bsize);
+
+  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
+  assert(status.MPI_ERROR == MPI_SUCCESS);
+
+  // create and open an archive for input
+  std::string s(&buf[0], bsize);
+  std::stringstream ss(s);
+  assert(ss.good());
+  {
+    boost::archive::text_iarchive ia(ss);
+    // read class state from archive
+    ia >> dsgu;
+  }
+
+  //add the entries to this grid
+  for (size_t i; i < this->getNumSubspaces(); ++i){
+    this->subspaces_[i] += dsgu->subspaces_[i];
+  }
 }
 
 template <typename FG_ELEMENT>

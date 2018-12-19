@@ -46,7 +46,84 @@ void checkManagerSend() {
   // }
 }
 
-void checkGatherSparseGridFromProcessGroup(size_t ngroup = 1, size_t nprocs = 1) {
+void checkGatherSparseGridFromProcessGroup(ProcessManager* manager = nullptr,
+                                           ProcessGroupWorker* pgw = nullptr,
+                                           CombiParameters params = CombiParameters(),
+                                           size_t nprocs = 1) {
+  if (manager != nullptr) {  // manager code
+    size_t numGrids = params.getNumGrids();
+    auto& combinedUniDSGVector = manager->getOutboundUniDSGVector();
+    // iterate first process group
+    bool found = false;
+    for (size_t i = 0; i < nprocs; ++i) {
+      for (int g = 0; g < numGrids; ++g) {
+        const auto& dsgu = combinedUniDSGVector[g];
+        BOOST_CHECK(dsgu->getDim() > 0);
+        BOOST_CHECK(!dsgu->getBoundaryVector().empty());
+        BOOST_CHECK(dsgu->getNMax()[0] >= 0);
+        BOOST_CHECK(dsgu->getNumSubspaces() > 0);
+
+        LevelVector smallestSubspace = {1, 1};
+        std::cerr << combigrid::toString(dsgu->getDataVector(smallestSubspace)) << std::endl;
+        auto it = std::find_if(dsgu->getDataVector(smallestSubspace).begin(),
+                               dsgu->getDataVector(smallestSubspace).end(), [](CombiDataType& dve) {
+                                 return (abs(dve) - 1.333333333333333) < TestHelper::tolerance;
+                               });
+        if (it != dsgu->getDataVector(smallestSubspace).end()) {
+          found = true;
+        }
+      }
+    }
+    BOOST_TEST(found);
+    return;
+  } else if (pgw != nullptr) {  // worker code
+    // for introspection:
+    // pgw->initCombinedUniDSGVector();
+    // pgw->hierarchizeFullGrids();
+    // pgw->addFullGridsToUniformSG();
+    // pgw->reduceUniformSG();
+    // for (auto& dsg : pgw->combinedUniDSGVector_) {
+    //   for (size_t j = 0; j < dsg->getNumSubspaces(); ++j) {
+    //     std::vector<CombiDataType>& subspaceData = dsg->getDataVector(j);
+    //     std::cerr << combigrid::toString(subspaceData) << std::endl;
+    //   }
+    // }
+    // pgw->dehierarchizeFullGrids();
+    return;
+  }
+  BOOST_CHECK(false);
+}
+
+void checkAddSparseGridToProcessGroup(ProcessManager* manager = nullptr,
+                                      ProcessGroupWorker* pgw = nullptr) {
+  // manager->getInboundUniDSGVector() = manager->getOutboundUniDSGVector();
+
+  if (manager != nullptr) {                                       // manager code
+                                                                  // iterate process group
+    size_t numGrids = manager->getOutboundUniDSGVector().size();  // TODO inbound
+    // iterate second process group
+    for (size_t i = theMPISystem()->getNumProcs(); i < 2 * theMPISystem()->getNumProcs(); ++i) {
+      for (size_t g = 0; g < numGrids; ++g) {
+        sendDSGUniform<CombiDataType>(manager->getOutboundUniDSGVector()[g].get(), i,
+                                      theMPISystem()->getWorldComm());
+      }
+    }
+
+  } else if (pgw != nullptr) {  // worker code
+                                // put subspace data into buffer for allreduce
+    // only second process group
+    if (theMPISystem()->getWorldRank() >= theMPISystem()->getNumProcs() &&
+        theMPISystem()->getWorldRank() < 2 * theMPISystem()->getNumProcs()) {
+      size_t numGrids = pgw->getCombinedUniDSGVector().size();
+      for (size_t g = 0; g < numGrids; ++g) {
+        pgw->getCombinedUniDSGVector()[g]->recvAndAddDSGUniform(
+            theMPISystem()->getManagerRankWorld(), theMPISystem()->getWorldComm());
+      }
+    }
+  }
+}
+
+void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
   size_t size = ngroup * nprocs + 1;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
@@ -106,32 +183,9 @@ void checkGatherSparseGridFromProcessGroup(size_t ngroup = 1, size_t nprocs = 1)
     manager.combine();
     std::cerr << "manager get DSG" << std::endl;
     manager.getDSGFromProcessGroup();
+    checkGatherSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
     manager.exit();
-
-    int numGrids = params.getNumGrids();
-    auto& combinedUniDSGVector = manager.getOutboundUniDSGVector();
-    // iterate first process group
-    bool found = false;
-    for (size_t i = 0; i < nprocs; ++i) {
-      for (int g = 0; g < numGrids; ++g) {
-        const auto& dsgu = combinedUniDSGVector[g];
-        BOOST_CHECK(dsgu->getDim() > 0);
-        BOOST_CHECK(!dsgu->getBoundaryVector().empty());
-        BOOST_CHECK(dsgu->getNMax()[0] >= 0);
-        BOOST_CHECK(dsgu->getNumSubspaces() > 0);
-
-        LevelVector smallestSubspace = {1, 1};
-        std::cerr << combigrid::toString(dsgu->getDataVector(smallestSubspace)) << std::endl;
-        auto it = std::find_if(dsgu->getDataVector(smallestSubspace).begin(),
-                               dsgu->getDataVector(smallestSubspace).end(), [](CombiDataType& dve) {
-                                 return (abs(dve) - 1.333333333333333) < TestHelper::tolerance;
-                               });
-        if (it != dsgu->getDataVector(smallestSubspace).end()) {
-          found = true;
-        }
-      }
-    }
-    BOOST_TEST(found);
+    checkAddSparseGridToProcessGroup(&manager, nullptr);
   }
   else {
     ProcessGroupWorker pgroup;
@@ -139,47 +193,29 @@ void checkGatherSparseGridFromProcessGroup(size_t ngroup = 1, size_t nprocs = 1)
     signal = pgroup.wait();
     while (signal != EXIT) {
       signal = pgroup.wait();
-      // for introspection:
-      // if (signal == RUN_FIRST || signal == RUN_NEXT) {
-      //   pgroup.initCombinedUniDSGVector();
-      //   pgroup.hierarchizeFullGrids();
-      //   pgroup.addFullGridsToUniformSG();
-      //   pgroup.reduceUniformSG();
-      // for (auto& dsg : pgroup.combinedUniDSGVector_) {
-      //   for (size_t j = 0; j < dsg->getNumSubspaces(); ++j) {
-      //     std::vector<CombiDataType>& subspaceData = dsg->getDataVector(j);
-      //     std::cerr << combigrid::toString(subspaceData) << std::endl;
-      //   }
-      // }
-      //   pgroup.dehierarchizeFullGrids();
-      // }
     }
+    checkAddSparseGridToProcessGroup(nullptr, &pgroup);
   }
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
 }
 
-void checkAddSparseGridToProcessGroup() {
-  // put subspace data into buffer for allreduce //TODO
-  // iterate process group
-}
-
 BOOST_AUTO_TEST_SUITE(managerSendRecv)
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::timeout(40)) {
-  checkGatherSparseGridFromProcessGroup(1, 1);
+  testGatherAddDSG(1, 1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::timeout(40)) {
-  checkGatherSparseGridFromProcessGroup(1, 2);
+  testGatherAddDSG(1, 2);
 }
 
 BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::timeout(40)) {
-  checkGatherSparseGridFromProcessGroup(2, 2);
+  testGatherAddDSG(2, 2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
