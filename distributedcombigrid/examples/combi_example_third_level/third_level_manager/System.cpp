@@ -18,34 +18,30 @@ void System::createMessageQueues(AmqpClient::Channel::ptr_t channel)
   _outQueue = channel->DeclareQueue(_name+"_out", false, false, false, true);
 }
 
-void System::sendMessage(const std::string& message,
-    AmqpClient::Channel::ptr_t channel) const
-{
-  AmqpClient::BasicMessage::ptr_t mesg = AmqpClient::BasicMessage::Create(message);
-  channel->BasicPublish("", _inQueue, mesg);
-}
-
-bool System::receiveMessage(AmqpClient::Channel::ptr_t channel,
-    std::string& message, u_int timeout ) const
-{
-  std::string consumer_tag = channel->BasicConsume(_outQueue, "");
-  AmqpClient::Envelope::ptr_t envelope;
-  bool received = channel->BasicConsumeMessage(consumer_tag, envelope, timeout);
-  if (!received)
-  {
-    return false;
-  }
-  else
-  {
-    message = envelope->Message()->Body();
-    return true;
-  }
-}
-
 void System::createDataConnection(u_int port, AmqpClient::Channel::ptr_t channel)
 {
+  // this might break if message arrives too early and this server hasn't made it to listen
+  std::thread sendThread(&MessageUtils::sendMessage, std::to_string(port), _inQueue, channel);
   ServerSocket server(port);
-  // this might break if message arrives too early and server hasn't made it to listen
-  std::thread sendThread(&System::sendMessage, this, std::to_string(port), channel);
-  _dataChannel = std::unique_ptr<ClientSocket>(server.acceptClient());
+  _dataChannel = std::shared_ptr<ClientSocket>(server.acceptClient());
+}
+
+void System::sendMessage(const std::string& message, AmqpClient::Channel::ptr_t channel)
+{
+  MessageUtils::sendMessage(message, _inQueue, channel);
+}
+
+bool System::receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message, int timeout)
+{
+  return MessageUtils::receiveMessage(channel, _outQueue, message, timeout);
+}
+
+std::string System::getName() const
+{
+  return _name;
+}
+
+std::shared_ptr<ClientSocket> System::getDataChannel() const
+{
+  return _dataChannel;
 }

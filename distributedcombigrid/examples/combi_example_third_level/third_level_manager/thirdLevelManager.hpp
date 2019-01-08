@@ -5,18 +5,19 @@
 #include "SimpleAmqpClient/SimpleAmqpClient.h"
 #include "../../../src/sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
 #include "Params.hpp"
+#include "MessageUtils.hpp"
 #include "System.hpp"
 
 using  Systems = std::vector<System>;
 
-const u_int timeout = 1000; // 1 sec
-
 class ThirdLevelManager
 {
   private:
-    const Params& _params;
+    Params _params;
     Systems _systems;
     AmqpClient::Channel::ptr_t _channel;
+    u_int _port      = 9999;
+    u_int _timeout   = 1000; // 1000 msec = 1sec
 
     void processMessage(const std::string& message, System& system);
 
