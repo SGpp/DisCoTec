@@ -20,8 +20,8 @@ LIBS=-lSimpleAmqpClient #-lboost
 
 all: thirdLevelManager
 
-thirdLevelManager: thirdLevelManager.cpp thirdLevelManager.hpp Params.cpp Params.hpp System.cpp System.hpp $(NETWORK_UTILS)/NetworkUtils.hpp $(NETWORK_UTILS)/NetworkUtils.cpp
-	$(CC) $(CFLAGS) $(LDIR) $(INC) -o thirdLevelManager thirdLevelManager.cpp Params.cpp System.cpp $(NETWORK_UTILS)/NetworkUtils.cpp $(LIBS) #> build.log 2>&1
+thirdLevelManager: thirdLevelManager.cpp thirdLevelManager.hpp Params.cpp Params.hpp System.cpp System.hpp MessageUtils.cpp MessageUtils.hpp $(NETWORK_UTILS)/NetworkUtils.hpp $(NETWORK_UTILS)/NetworkUtils.cpp
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o thirdLevelManager thirdLevelManager.cpp Params.cpp System.cpp MessageUtils.cpp $(NETWORK_UTILS)/NetworkUtils.cpp $(LIBS) #> build.log 2>&1
 
 clean:
 	rm -f *.o out/* thirdLevelManager
