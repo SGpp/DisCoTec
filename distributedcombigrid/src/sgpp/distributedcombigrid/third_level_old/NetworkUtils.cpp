@@ -363,7 +363,7 @@ bool Socket::isInitialized() const {
   return initialized_ && sockfd_ > 0;
 }
 
-bool NetworkUtils::tunnel(const ClientSocket* sender,
+bool NetworkUtils::forward(const ClientSocket* sender,
     const ClientSocket* receiver, size_t size, size_t chunksize)
 {
   assert(sender->isInitialized() && "Initialize sender first");
