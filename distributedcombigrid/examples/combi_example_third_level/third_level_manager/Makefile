@@ -16,7 +16,7 @@ MPI_INC=/opt/mpich/include/
 LDIR=-L$(RABBIT_MQ_CLIENT_LIB) -L$(MPI_LIB)
 INC=-I$(RABBIT_MQ_CLIENT_INC) -I$(SGPP_SRC) -I$(MPI_INC)
 
-LIBS=-lSimpleAmqpClient #-lboost
+LIBS=-lSimpleAmqpClient
 
 all: thirdLevelManager
 
