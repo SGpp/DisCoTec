@@ -133,7 +133,6 @@ return tasks_;
 			const auto grid2Val = grid2.at(i);
 			const double diff = std::abs(grid1Val - grid2Val);
 			if(diff != 0){
-				std::cout << "1Val: " << grid1Val << " 2Val: " << grid2Val << " diff: " << diff << " error: " << diff / std::max(std::abs(grid1Val), std::abs(grid2Val)) << "\n";
 				error = std::max(error, diff / std::max(std::abs(grid1Val), std::abs(grid2Val)));
 			}
 		}
@@ -144,16 +143,17 @@ return tasks_;
 	double maxRelativeError2(const std::vector<CombiDataType>& grid1, const std::vector<CombiDataType>& grid2){
 		assert(grid1.size() == grid2.size());
 		double error = 0; //since the error is always >= 0, 0 is the minimum
-		const double maxVal = std::abs(*std::max_element(std::begin(grid1), std::end(grid1), 
+		double maxVal = std::abs(*std::max_element(std::begin(grid1), std::end(grid1),
 			[](CombiDataType el1, CombiDataType el2){
 				return std::abs(el1) < std::abs(el2);
 			}));	
+		MPI_Allreduce(MPI_IN_PLACE, &maxVal, 1, MPI_DOUBLE, MPI_MAX, theMPISystem()->getLocalComm());
+
 		for(size_t i = 0; i < grid1.size(); ++i){
 			const auto grid1Val = grid1.at(i);
 			const auto grid2Val = grid2.at(i);
 			const double diff = std::abs(grid1Val - grid2Val);
 			if(diff != 0){
-				std::cout << "1Val: " << grid1Val << " 2Val: " << grid2Val << " diff: " << diff << " error: " << diff / maxVal << "\n";
 				error = std::max(error, diff / maxVal);
 			}
 		}

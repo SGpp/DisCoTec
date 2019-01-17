@@ -769,9 +769,6 @@ void ProcessGroupWorker::findBestExpansion(){
 
 			const auto cmpPair = combiScheme_.getPosNegPair(activeNode);
 
-			for(auto test : combiParameters_.getLevelsToIDs()){
-				std::cout << test.first << " " << test.second << "\n";
-			}
 			const int activeTaskID = combiParameters_.getID(cmpPair.first);
 			const int bwdTaskID = combiParameters_.getID(cmpPair.second);
 
@@ -799,30 +796,30 @@ void ProcessGroupWorker::findBestExpansion(){
 				} else {
 					Task *activeNodeTask = getTask(activeTaskID);
 					activeSubGrid = activeNodeTask->getDistributedFullGrid().getSubGrid(cmpLevel);
-					bwdSubGrid.resize(activeSubGrid.size());
-					MPI_Recv(bwdSubGrid.data(), bwdSubGrid.size(), MPI_DOUBLE, bwdNeighRank, messageTag, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
+					bwdSubGrid.resize(activeSubGrid.size(), std::numeric_limits<double>::quiet_NaN());
+					MPI_Recv(bwdSubGrid.data(), bwdSubGrid.size(), abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()), bwdNeighRank, messageTag, theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
 				}
 
 				double error = 0;
 				if(!activeSubGrid.empty()){
-					std::cout << "active: " << cmpPair.first << "\n";
-					std::cout << "bwd: " << cmpPair.second << "\n";
 					const double expansionGridPoints = std::accumulate(std::begin(activeNode), std::end(activeNode), 1, [](double acc, LevelType val) {
 						return acc * (1 << (val - 1));
 					});
 
 					error = maxRelativeError2(activeSubGrid, bwdSubGrid);
-					std::cout << "old error: " << error << "\n";
 					error /= expansionGridPoints;
 				}
 				MASTER_EXCLUSIVE_SECTION{
 					MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, 0, theMPISystem()->getLocalComm());
+					std::cout << "active: " << cmpPair.first << "\n";
+					std::cout << "bwd: " << cmpPair.second << "\n";
+					std::cout << "error: " << error << "\n";
 					if(error > bestError){
 						bestError = error;
 						bestExpansion = activeNode;
 					}
 				} else {
-					MPI_Reduce(&error, &error, 1, MPI_DOUBLE, MPI_SUM, 0, theMPISystem()->getLocalComm());
+					MPI_Reduce(&error, &error, 1, MPI_DOUBLE, MPI_MAX, 0, theMPISystem()->getLocalComm());
 				}
 
 			} else if (bwdNeighOwned){ //the proc owns the bwdNeighbour
@@ -830,7 +827,7 @@ void ProcessGroupWorker::findBestExpansion(){
 				//with the active node
 				Task *bwdNeighTask = getTask(bwdTaskID);
 				auto bwdSubGrid= bwdNeighTask->getDistributedFullGrid().getSubGrid(cmpLevel);
-				MPI_Send(bwdSubGrid.data(), static_cast<int>(bwdSubGrid.size()), MPI_DOUBLE, activeNodeRank, messageTag, theMPISystem()->getWorldComm());
+				MPI_Send(bwdSubGrid.data(), static_cast<int>(bwdSubGrid.size()), abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()), activeNodeRank, messageTag, theMPISystem()->getWorldComm());
 			}
 			//if no if-branch was executed the proc owns nothing so we can simply continue
 			++messageTag;
