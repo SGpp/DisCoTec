@@ -43,27 +43,19 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
    */
   bool containsOneActiveBwdNeighbour(const LevelVector& grid) const;
 
-  bool containsOneCriticalBwdNeighbour(const LevelVector& grid) const;
-
   /**
    * Returns true if the scheme contains all forward neighbours of this grid
    */
   bool containsAllFwdNeighbours(const LevelVector& grid) const;
 
-  bool containsOneFwdNeighbour(const LevelVector& grid) const;
-
-  bool isCritical(const LevelVector& grid) const;
-
-  bool hasActiveFwdNeighbour(const LevelVector& grid) const;
+  bool containsFwdNeighbours(const LevelVector& grid) const;
 
 /**
  * Returns true if the scheme contains the given grid
  */
   bool contains(const LevelVector& level) const;
 
-  bool containsActive(const LevelVector& level) const;
-
-  void addNeighbouringExpansions(const LevelVector& grid);
+  bool isActive(const LevelVector& level) const;
 
   void generateActiveNodes();
 
@@ -71,11 +63,7 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 
   void addExpansion(const LevelVector& grid);
 
-  void addExpansionOneDirection(const LevelVector& grid);
-
   void addExpansionAllDirections(const LevelVector& grid);
-
-  void addExpansionAllDirections2(const LevelVector& grid);
 
   void addBelowMinNeighbours(const LevelVector& grid);
 
@@ -85,7 +73,7 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 	  return grid.at(dimension) == lmin_.at(dimension);
   }
 
-  bool hasExpansionNeighbour(const LevelVector& grid){
+  bool hasExpansionNeighbour(const LevelVector& grid) const{
 	for(int i = 0; i < dim(); ++i){
 		LevelVector fwdNeigh {grid};
 		++fwdNeigh.at(i);
@@ -96,9 +84,11 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 	return false;
    }
 
-  std::pair<LevelVector, LevelVector> getPosNegPair(const LevelVector& grid){
+  LevelVector errorMeasurePartner(const LevelVector& grid) const{
 	  assert(grid.size() == dim());
-          assert(isCritical(grid));
+          assert(isActive(grid));
+      //find a sensible search direction. This is any direction
+      //in which at least one backward neighbour exists (that is greater than lmin)
           int searchDim = std::numeric_limits<int>::max();
 	  for(DimType i = 0; i < dim(); ++i){
 		  LevelVector bwdNeigh {grid};
@@ -121,56 +111,21 @@ class DimAdaptiveCombiScheme : public StaticCombiScheme {
 	  }
 	  assert(negIndex < combiSpaces_.size());
 
-	  return std::make_pair(grid, combiSpaces_.at(negIndex));
+	  return combiSpaces_.at(negIndex);
   }
 
   const std::vector<LevelVector>& getActiveNodes() const noexcept{
 	  return activeNodes;
   }
 
-  const LevelVector getCoeffBwdNeighbour(const LevelVector& activeNode, DimType dimension) const noexcept{
-	  assert(dimension < dim() && dimension >= 0);
-	  assert(activeNode.size() == dim());
-	  if(isDummyDim(dimension)){
-		  return LevelVector {};
-	  }
-	  LevelVector potentialCoeffBwdNeigh = activeNode;
-	  while(potentialCoeffBwdNeigh.at(dimension) > 1){
-		  --potentialCoeffBwdNeigh.at(dimension);
-		  if(contains(potentialCoeffBwdNeigh)){
-			  return potentialCoeffBwdNeigh;
-		  }
-
-	  }
-
-	  return LevelVector {};
-  }
-
   bool isExpansion(const LevelVector& grid) const{
-	  //a valid expansions has to fullfill the following constraints:
-	  //1. it must not be contained in the scheme already
-	  if(contains(grid)){
-		  return false;
-	  }
+	  bool isExp = containsOneActiveBwdNeighbour(grid);
 
-	  //2. all bwd Neighbours must be active (since they have this grid as possible expansion)
-	  int criticalCount = 0;
-	  for(const auto& bwdNeigh: generateNonBoundaryBwdNeighbours(grid)){
-		  if(!containsActive(bwdNeigh)){
-			  return false;
-		  }
-		  if(isCritical(bwdNeigh)){
-			  ++criticalCount;
-		  }
-	  }
-	  //3. have at most one critical bwd neighbour
-	  assert(criticalCount >= 0);
-	  return criticalCount <= 1;
+	  //isExp implies !contains(grid)
+	  assert(!isExp || !contains(grid));
+
+	  return isExp <= 1;
   }
-
-  //void expandBest(){
-  //  expand(findBestExpansion());
-  //}
 
 DimAdaptiveCombiScheme(LevelVector lmin, LevelVector lmax)
     : StaticCombiScheme{StaticCombiScheme::createClassicalScheme(lmin, lmax)} {

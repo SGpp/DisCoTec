@@ -123,24 +123,7 @@ return tasks_;
 	void addTask();
 	void recompute();
 
-
-	double maxRelativeError(const std::vector<CombiDataType>& grid1, const std::vector<CombiDataType>& grid2){
-		assert(grid1.size() == grid2.size());
-		double error = 0; //since the error is always >= 0, 0 is the minimum
-		
-		for(size_t i = 0; i < grid1.size(); ++i){
-			const auto grid1Val = grid1.at(i);
-			const auto grid2Val = grid2.at(i);
-			const double diff = std::abs(grid1Val - grid2Val);
-			if(diff != 0){
-				error = std::max(error, diff / std::max(std::abs(grid1Val), std::abs(grid2Val)));
-			}
-		}
-
-		return error;
-	}
-	
-	double maxRelativeError2(const std::vector<CombiDataType>& grid1, const std::vector<CombiDataType>& grid2){
+	static double maxRelativeError(const std::vector<CombiDataType>& grid1, const std::vector<CombiDataType>& grid2){
 		assert(grid1.size() == grid2.size());
 		double error = 0; //since the error is always >= 0, 0 is the minimum
 		double maxVal = std::abs(*std::max_element(std::begin(grid1), std::end(grid1),
@@ -159,22 +142,6 @@ return tasks_;
 		}
 
 		return error;
-	}
-
-	double avgRelativeError(const std::vector<CombiDataType>& grid1, const std::vector<CombiDataType>& grid2){
-		assert(grid1.size() == grid2.size());
-		double error = 0;
-
-		for(size_t i = 0; i < grid1.size(); ++i){
-			const auto grid1Val = grid1.at(i);
-			const auto grid2Val = grid2.at(i);
-			const double diff = std::abs(grid1Val - grid2Val);
-			if(diff != 0){
-				error += std::max(error, diff / std::max(std::abs(grid1Val), std::abs(grid2Val)));
-			}
-		}
-
-		return error / grid1.size();
 	}
 };
 

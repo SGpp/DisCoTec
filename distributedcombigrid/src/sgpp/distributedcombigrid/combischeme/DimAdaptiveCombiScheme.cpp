@@ -35,26 +35,7 @@ bool DimAdaptiveCombiScheme::containsOneActiveBwdNeighbour(const LevelVector& gr
 	for(std::size_t i = 0; i < dim(); ++i){
 	      LevelVector bwdNeigh{grid};
 	      --bwdNeigh.at(i);
-	      if(containsActive(bwdNeigh)){
-	    	  if(!foundOne){
-		          foundOne = true;
-	    	  } else {
-		    	  //found at least two bwd neighbours that are active
-		    	  return false;
-	    	  }
-	      }
-	  }
-
-	  return foundOne;
-}
-
-bool DimAdaptiveCombiScheme::containsOneCriticalBwdNeighbour(const LevelVector& grid) const{
-	bool foundOne = false;
-
-	for(std::size_t i = 0; i < dim(); ++i){
-	      LevelVector bwdNeigh{grid};
-	      --bwdNeigh.at(i);
-	      if(isCritical(bwdNeigh)){
+	      if(isActive(bwdNeigh)){
 	    	  if(!foundOne){
 		          foundOne = true;
 	    	  } else {
@@ -79,7 +60,7 @@ bool DimAdaptiveCombiScheme::containsAllFwdNeighbours(const LevelVector& grid) c
   return true;
 }
 
-bool DimAdaptiveCombiScheme::containsOneFwdNeighbour(const LevelVector& grid) const{
+bool DimAdaptiveCombiScheme::containsFwdNeighbours(const LevelVector& grid) const{
   for(std::size_t i = 0; i < dim(); ++i){
       LevelVector fwdNeigh{grid};
       ++fwdNeigh.at(i);
@@ -91,25 +72,19 @@ bool DimAdaptiveCombiScheme::containsOneFwdNeighbour(const LevelVector& grid) co
   return false;
 }
 
-bool DimAdaptiveCombiScheme::isCritical(const LevelVector& grid) const{
-	return !containsOneFwdNeighbour(grid) && containsActive(grid);
-}
-
 bool DimAdaptiveCombiScheme::contains(const LevelVector& level) const{
   return std::find(std::begin(levels_), std::end(levels_), level) != std::end(levels_);
 }
 
-bool DimAdaptiveCombiScheme::containsActive(const LevelVector& level) const{
+bool DimAdaptiveCombiScheme::isActive(const LevelVector& level) const{
   return std::find(std::begin(activeNodes), std::end(activeNodes), level) != std::end(activeNodes);
 }
 
 void DimAdaptiveCombiScheme::generateActiveNodes(){
 	for(const LevelVector& grid: levels_){
-		if(!containsAllFwdNeighbours(grid) && grid >= lmin_){
-			if(!containsAllBwdNeighbours(grid)){
-				std::cout << grid << '\n';
-				assert(false);
-			}
+		if(!containsFwdNeighbours(grid)){
+			assert(grid >= lmin_);
+			assert(containsAllBwdNeighbours(grid));
 			activeNodes.push_back(grid);
 		}
 	}
@@ -132,7 +107,7 @@ void DimAdaptiveCombiScheme::addBelowMinNeighbours(const LevelVector& grid){
 }
 
 void DimAdaptiveCombiScheme::addExpansionAllDirections(const LevelVector& grid){
-  assert(isCritical(grid));
+  assert(isActive(grid));
   assert(grid.size() == dim());
 
   std::vector<LevelVector> expansions;
@@ -145,67 +120,18 @@ void DimAdaptiveCombiScheme::addExpansionAllDirections(const LevelVector& grid){
 	  }
   }
 
-  //when a node is critical there has to be at least one valid expansion
-  assert(!expansions.empty());
-
   for(const LevelVector& exp : expansions){
 	  addBelowMinNeighbours(exp);
 	  activeNodes.push_back(exp);
 	  levels_.push_back(exp);
   }
 
-  //check for all bwd neighbours if they are still active or not
+  //remove all bwd neighbours
   activeNodes.erase(std::remove_if(std::begin(activeNodes), std::end(activeNodes), [this](const LevelVector& vec){
-	  return containsAllFwdNeighbours(vec);
+	  return containsFwdNeighbours(vec);
   }), std::end(activeNodes));
 
   computeCombiCoeffs();
-}
-
-void DimAdaptiveCombiScheme::addExpansionAllDirections2(const LevelVector& grid){
-  assert(isCritical(grid));
-  assert(grid.size() == dim());
-
-  std::vector<LevelVector> expansions {};
-
-  do{
-	  expansions.clear();
-	  for(DimType i = 0; i < dim(); ++i){
-		  LevelVector possibleExpansion = grid;
-		  ++possibleExpansion.at(i);
-		  if(isExpansion(possibleExpansion)){
-			  expansions.push_back(possibleExpansion);
-		  }
-	  }
-
-	  for(const LevelVector& exp : expansions){
-		  addBelowMinNeighbours(exp);
-		  activeNodes.push_back(exp);
-		  levels_.push_back(exp);
-	  }
-  } while(!expansions.empty());
-
-  //check for all bwd neighbours if they are still active or not
-  activeNodes.erase(std::remove_if(std::begin(activeNodes), std::end(activeNodes), [this](const LevelVector& vec){
-	  return containsAllFwdNeighbours(vec);
-  }), std::end(activeNodes));
-
-  computeCombiCoeffs();
-}
-
-void DimAdaptiveCombiScheme::addExpansionOneDirection(const LevelVector& grid){
-  assert(isExpansion(grid));
-  addBelowMinNeighbours(grid);
-  activeNodes.push_back(grid);
-  levels_.push_back(grid);
-
-  //check for all bwd neighbours if they are still active or not
-  activeNodes.erase(std::remove_if(std::begin(activeNodes), std::end(activeNodes), [this](const LevelVector& vec){
-	  return containsAllFwdNeighbours(vec);
-  }), std::end(activeNodes));
-
-  computeCombiCoeffs();
-
 }
 
 } // end namespace combigrid
