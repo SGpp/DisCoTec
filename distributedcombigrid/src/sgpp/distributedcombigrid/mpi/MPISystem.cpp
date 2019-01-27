@@ -27,6 +27,7 @@ MPISystem::MPISystem() :
     globalComm_(MPI_COMM_NULL),
     localComm_(MPI_COMM_NULL),
     globalReduceComm_(MPI_COMM_NULL),
+    thirdLevelReduceComm_(MPI_COMM_NULL),
     worldRank_(MPI_UNDEFINED),
     globalRank_(MPI_UNDEFINED),
     localRank_(MPI_UNDEFINED),
@@ -82,6 +83,12 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
   initGlobalComm();
 
   initGlobalReduceCommm();
+
+  /*
+   * Create a communicator which contains all processes of the first PG and
+   * the manager.
+   */
+  initThirdLevelReduceComm();
 
   initialized_ = true;
 }
@@ -235,6 +242,31 @@ void MPISystem::initGlobalComm(){
 
   /* mark master processes and manager process in Stats. this is necessary for postprocessing */
   Stats::setAttribute("group_manager", std::to_string(globalComm_ != MPI_COMM_NULL));
+}
+
+void MPISystem::initThirdLevelReduceComm(){
+  MPI_Group worldGroup;
+  MPI_Comm_group( worldComm_, &worldGroup);
+
+  std::vector<int> ranks( nprocs_ + 1 );
+  for (size_t i = 0; i < nprocs_; i++) {
+    ranks[i] = int( i );
+  }
+  ranks.back() = managerRankWorld_;
+
+  MPI_Group thirdLevelReduceGroup;
+  MPI_Group_incl( worldGroup, int( ranks.size() ), &ranks[0], &thirdLevelReduceGroup );
+
+  MPI_Comm_create( worldComm_, thirdLevelReduceGroup, &thirdLevelReduceComm_ );
+
+  if( thirdLevelReduceComm_ != MPI_COMM_NULL ) {
+    int thirdLevelReduceSize;
+    MPI_Comm_size( thirdLevelReduceComm_, &thirdLevelReduceSize );
+
+    thirdLevelReduceManager_ = thirdLevelReduceSize - 1;
+
+    MPI_Comm_rank( thirdLevelReduceComm_, &thirdLevelReduceRank_ );
+  }
 }
 
 void MPISystem::initGlobalReduceCommm() {

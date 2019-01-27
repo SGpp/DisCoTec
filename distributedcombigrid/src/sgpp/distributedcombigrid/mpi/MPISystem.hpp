@@ -130,6 +130,8 @@ class MPISystem {
 
   void initGlobalComm();
 
+  void initThirdLevelReduceComm();
+
   bool initialized_;
 
   CommunicatorType worldComm_;
@@ -140,6 +142,8 @@ class MPISystem {
 
   CommunicatorType globalReduceComm_;
 
+  CommunicatorType thirdLevelReduceComm_;
+
   RankType worldRank_;
 
   RankType globalRank_;
@@ -148,7 +152,11 @@ class MPISystem {
 
   RankType globalReduceRank_;
 
+  RankType thirdLevelReduceRank_;
+
   RankType managerRank_;
+
+  RankType thirdLevelReduceManager_;
 
   RankType managerRankWorld_;
 
@@ -214,6 +222,13 @@ inline const CommunicatorType& MPISystem::getGlobalReduceComm() const{
 }
 
 
+inline const CommunicatorType& MPISystem::getThirdLevelReduceComm() const{
+  checkPreconditions();
+
+  return thirdLevelReduceComm_;
+}
+
+
 inline const RankType& MPISystem::getWorldRank() const{
   checkPreconditions();
 
@@ -272,6 +287,11 @@ inline bool MPISystem::isGlobalManager() const{
 
 inline bool MPISystem::isMaster() const{
   return ( localRank_ == masterRank_ );
+}
+
+
+inline bool MPISystem::isThirdLevelReduceManager() const{
+  return ( thirdLevelReduceRank_ == thirdLevelReduceManager_ );
 }
 
 
