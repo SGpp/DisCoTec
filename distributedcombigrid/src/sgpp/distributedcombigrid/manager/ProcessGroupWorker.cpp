@@ -762,7 +762,7 @@ void ProcessGroupWorker::findBestExpansion(){
 	double bestError = -1;
 	LevelVector bestExpansion {};
 
-	for(const auto& activeGrid : combiScheme_.getActiveNodes()){
+	for(const auto& activeGrid : combiScheme_.getActiveGrids()){
 			if(combiScheme_.hasExpansionNeighbour(activeGrid)){
 				continue;
 			}

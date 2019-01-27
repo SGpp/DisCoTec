@@ -19,129 +19,127 @@ namespace combigrid {
 
 
 class DimAdaptiveCombiScheme : public StaticCombiScheme {
- public:
-  //returns true if and only if l1 and l2 are equal except for the value at position dim
-  static bool equalsExceptDim(const LevelVector& l1, const LevelVector& l2, DimType dim){
-	  assert(l1.size() == l2.size());
-	  for(int i = 0; i < l1.size(); ++i){
-		  if(l1.at(i) != l2.at(i) && i != dim){
-			  return false;
-		  }
-	  }
+public:
 
-	  return true;
-  }
+	DimAdaptiveCombiScheme(LevelVector lmin, LevelVector lmax)
+	: StaticCombiScheme{StaticCombiScheme::createClassicalScheme(lmin, lmax)} {
+		generateActiveNodes();
+		printActive(std::cout);
+	}
 
-  std::vector<LevelVector> generateNonBoundaryBwdNeighbours(const LevelVector& grid) const;
+	/**
+	 * returns true if and only if l1 and l2 are equal except for the value at position dim
+	 */
+	static bool equalsExceptDim(const LevelVector& l1, const LevelVector& l2, DimType dim){
+		assert(l1.size() == l2.size());
+		for(int i = 0; i < l1.size(); ++i){
+			if(l1.at(i) != l2.at(i) && i != dim){
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	/**
 	 * Returns true if the scheme contains all backward neighbours of this grid
 	 */
-  bool containsAllBwdNeighbours(const LevelVector& grid) const;
+	bool containsAllBwdNeighbours(const LevelVector& grid) const;
 
-  /**
-   * Returns true if the scheme contains exactly one backward neighbour that is active
-   */
-  bool containsOneActiveBwdNeighbour(const LevelVector& grid) const;
+	/**
+	 * Returns true if the scheme contains exactly one backward neighbour that is active
+	 */
+	bool containsOneActiveBwdNeighbour(const LevelVector& grid) const;
 
-  /**
-   * Returns true if the scheme contains all forward neighbours of this grid
-   */
-  bool containsAllFwdNeighbours(const LevelVector& grid) const;
+	/**
+	 * Returns true if the scheme contains all forward neighbours of this grid
+	 */
+	bool containsAllFwdNeighbours(const LevelVector& grid) const;
 
-  bool containsFwdNeighbours(const LevelVector& grid) const;
+	/**
+	 * Returns true if the scheme contains any forward neighbour of this grid
+	 */
+	bool containsFwdNeighbours(const LevelVector& grid) const;
 
-/**
- * Returns true if the scheme contains the given grid
- */
-  bool contains(const LevelVector& level) const;
+	/**
+	 * Returns true if the scheme contains the given grid
+	 */
+	bool contains(const LevelVector& level) const;
 
-  bool isActive(const LevelVector& level) const;
+	bool isActive(const LevelVector& level) const;
 
-  void generateActiveNodes();
+	void expand(std::size_t index);
 
-  void expand(std::size_t index);
+	/*
+	 * Expands the scheme around the given grid.
+	 * Currently calls addExpansionAllDirections to do the work.
+	 * This structure should allow for a easier switch between different
+	 * expansion algorithms.
+	 */
+	void addExpansion(const LevelVector& grid);
 
-  void addExpansion(const LevelVector& grid);
+	/*
+	 * Adds all subgrids of this grid, which are below the minimum
+	 * in at least one dimension and which are not currently containd in the grid.
+	 * The reason for these grids to be stored explicitly, is that they are
+	 * needed in the sparse grid classes and generating them later on
+	 * is much more complicated.
+	 */
+	void addBelowMinSubgrids(const LevelVector& grid);
 
-  void addExpansionAllDirections(const LevelVector& grid);
-
-  void addBelowMinNeighbours(const LevelVector& grid);
-
-  bool isBorder(const LevelVector& grid, DimType dimension){
-	  assert(grid.size() == dim());
-	  assert(dimension < dim());
-	  return grid.at(dimension) == lmin_.at(dimension);
-  }
-
-  bool hasExpansionNeighbour(const LevelVector& grid) const{
-	for(int i = 0; i < dim(); ++i){
-		LevelVector fwdNeigh {grid};
-		++fwdNeigh.at(i);
-		if(isExpansion(fwdNeigh)){
-			return true;
-		}
+	/*
+	 * Returns true if the given grid has the same index as lmin in the
+	 * given dimension
+	 */
+	bool isBorder(const LevelVector& grid, DimType dimension){
+		assert(grid.size() == dim());
+		assert(dimension < dim());
+		return grid.at(dimension) == lmin_.at(dimension);
 	}
-	return false;
-   }
 
-  LevelVector errorMeasurePartner(const LevelVector& grid) const{
-	  assert(grid.size() == dim());
-          assert(isActive(grid));
-      //find a sensible search direction. This is any direction
-      //in which at least one backward neighbour exists (that is greater than lmin)
-          int searchDim = std::numeric_limits<int>::max();
-	  for(DimType i = 0; i < dim(); ++i){
-		  LevelVector bwdNeigh {grid};
-		  --bwdNeigh.at(i);
-		  if(contains(bwdNeigh) && bwdNeigh.at(i) >= lmin_.at(i)){
-			  searchDim = i;
-			  break;
-		  }
-	  }
-	  assert(searchDim < dim());
+	/*
+	 * Returns true if the given grid has at least one forward neighbour that
+	 * is a possible expansion
+	 */
+	bool hasExpansionNeighbour(const LevelVector& grid) const;
 
-	  size_t negIndex = std::numeric_limits<size_t>::max();
-	  LevelType maxLevel = std::numeric_limits<int>::min();
-	  for(size_t i = 0; i < combiSpaces_.size(); ++i){
-		  const LevelVector& combiSpace = combiSpaces_.at(i);
-		  if(coefficients_.at(i) <= -1 && equalsExceptDim(grid, combiSpace, searchDim) && combiSpace.at(searchDim) > maxLevel){
-			  maxLevel = combiSpace.at(searchDim);
-			  negIndex = i;
-		  }
-	  }
-	  assert(negIndex < combiSpaces_.size());
+	LevelVector errorMeasurePartner(const LevelVector& grid) const;
 
-	  return combiSpaces_.at(negIndex);
-  }
+	const std::vector<LevelVector>& getActiveGrids() const noexcept{
+		return activeGrids_;
+	}
 
-  const std::vector<LevelVector>& getActiveNodes() const noexcept{
-	  return activeNodes;
-  }
+	bool isExpansion(const LevelVector& grid) const{
+		bool isExp = containsOneActiveBwdNeighbour(grid);
 
-  bool isExpansion(const LevelVector& grid) const{
-	  bool isExp = containsOneActiveBwdNeighbour(grid);
+		//isExp implies !contains(grid)
+		assert(!isExp || !contains(grid));
 
-	  //isExp implies !contains(grid)
-	  assert(!isExp || !contains(grid));
+		return isExp;
+	}
 
-	  return isExp <= 1;
-  }
+	void printActive(std::ostream& os) const{
+		for (uint i = 0; i < activeGrids_.size(); ++i)
+			os << "\t" << i << ". "<< activeGrids_[i] << std::endl;
 
-DimAdaptiveCombiScheme(LevelVector lmin, LevelVector lmax)
-    : StaticCombiScheme{StaticCombiScheme::createClassicalScheme(lmin, lmax)} {
-  generateActiveNodes();
-  printActive(std::cout);
-}
-
-    inline void printActive(std::ostream& os) const{
-  	  for (uint i = 0; i < activeNodes.size(); ++i)
-  	    os << "\t" << i << ". "<< activeNodes[i] << std::endl;
-
-  	  os << std::endl;
-  	}
+		os << std::endl;
+	}
 
 private:
-    std::vector<LevelVector> activeNodes;
+	std::vector<LevelVector> activeGrids_;
+
+	/*
+	 * The implementation of addExpansion which adds all neighbours of the
+	 * given grid that are valid expansions to the scheme
+	 */
+	void addExpansionAllDirections(const LevelVector& grid);
+
+
+	/**
+	 * Generates the active nodes of this scheme from all grids
+	 * that are contained in this scheme
+	 */
+	void generateActiveNodes();
 };
 
 }

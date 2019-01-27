@@ -74,6 +74,13 @@ public:
 
   inline void print(std::ostream& os) const;
 
+  void printLevels(std::ostream& os) const {
+	  for (size_t i = 0; i < levels_.size(); ++i)
+	    os << "\t" << i << ". "<< levels_[i] << std::endl;
+
+	  os << std::endl;
+  }
+
 private:
 
   /* L1 norm of combispaces on the highest diagonal */
@@ -114,6 +121,7 @@ private:
 
   LevelVector getLevelMinima();
 
+
 };
 
 
@@ -130,6 +138,9 @@ inline void CombiMinMaxScheme::print(std::ostream& os) const {
 
   os << std::endl;
 }
+
+
+
 
 }
 #endif /* SRC_SGPP_COMBIGRID_COMBISCHEME_COMBIMINMAXSCHEME_HPP_ */
