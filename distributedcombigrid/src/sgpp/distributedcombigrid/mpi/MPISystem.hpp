@@ -156,7 +156,7 @@ class MPISystem {
 
   RankType managerRank_;
 
-  RankType thirdLevelReduceManager_;
+  RankType thirdLevelReduceManagerRank_;
 
   RankType managerRankWorld_;
 
@@ -275,6 +275,13 @@ inline const RankType& MPISystem::getMasterRank() const{
 }
 
 
+inline const RankType& MPISystem::getThirdLevelReduceManagerRank() const{
+  checkPreconditions();
+
+  return thirdLevelReduceManagerRank_;
+}
+
+
 inline bool MPISystem::isWorldManager() const{
   return ( worldRank_ == managerRankWorld_ );
 }
@@ -291,7 +298,7 @@ inline bool MPISystem::isMaster() const{
 
 
 inline bool MPISystem::isThirdLevelReduceManager() const{
-  return ( thirdLevelReduceRank_ == thirdLevelReduceManager_ );
+  return ( thirdLevelReduceRank_ == thirdLevelReduceManagerRank_ );
 }
 
 

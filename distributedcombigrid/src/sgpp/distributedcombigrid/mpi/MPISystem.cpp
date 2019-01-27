@@ -263,7 +263,7 @@ void MPISystem::initThirdLevelReduceComm(){
     int thirdLevelReduceSize;
     MPI_Comm_size( thirdLevelReduceComm_, &thirdLevelReduceSize );
 
-    thirdLevelReduceManager_ = thirdLevelReduceSize - 1;
+    thirdLevelReduceManagerRank_ = thirdLevelReduceSize - 1;
 
     MPI_Comm_rank( thirdLevelReduceComm_, &thirdLevelReduceRank_ );
   }
