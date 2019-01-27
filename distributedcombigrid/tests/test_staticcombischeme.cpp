@@ -14,9 +14,9 @@
 
 template <class T>
 void cmp_vecs(std::vector<T> vec1, std::vector<T> vec2){
-	BOOST_TEST(vec1.size() == vec2.size());
+	BOOST_REQUIRE(vec1.size() == vec2.size());
 	for(size_t i = 0; i < vec1.size(); ++i){
-		BOOST_TEST(vec1.at(i) == vec2.at(i));
+		BOOST_REQUIRE(vec1.at(i) == vec2.at(i));
 	}
 }
 
