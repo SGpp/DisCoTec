@@ -3,10 +3,12 @@
 
 #include "SimpleAmqpClient/SimpleAmqpClient.h"
 
-const int   noTimeout = -1;
 
 class MessageUtils
 {
+  private:
+    static const int noTimeout = -1;
+
   public:
     static void sendMessage(const std::string&               message,
                             const std::string                queue,
@@ -15,7 +17,7 @@ class MessageUtils
     static bool receiveMessage(const AmqpClient::Channel::ptr_t channel,
                                const std::string                queue,
                                std::string&                     message,
-                               int                              timeout);
+                               int                              timeout = noTimeout);
 };
 
 #endif

@@ -3,7 +3,7 @@
 bool MessageUtils::receiveMessage(const AmqpClient::Channel::ptr_t channel,
                                   const std::string                queue,
                                   std::string&                     message,
-                                  int                            timeout = noTimeout)
+                                  int                              timeout)
 {
   std::string consumer_tag = channel->BasicConsume(queue, "");
   AmqpClient::Envelope::ptr_t envelope;
