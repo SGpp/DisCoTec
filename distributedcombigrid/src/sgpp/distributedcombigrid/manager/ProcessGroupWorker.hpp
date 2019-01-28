@@ -40,6 +40,8 @@ class ProcessGroupWorker {
 
   void combineUniform();
 
+  void combineLocalAndGlobal();
+
   void combineUniformThirdLevel();
 
   void combineUniformToFileThirdLevel();
