@@ -1,10 +1,11 @@
 #include "System.hpp"
 
-System::System(const std::string& name, u_int port, AmqpClient::Channel::ptr_t channel) :
-  _name(name)
+System::System(const std::string& name,
+               const AmqpClient::Channel::ptr_t& channel,
+               const ServerSocket& server) : _name(name)
 {
   createMessageQueues(channel);
-  createDataConnection(port, channel);
+  createDataConnection(server, channel);
 }
 
 /*
@@ -18,12 +19,14 @@ void System::createMessageQueues(AmqpClient::Channel::ptr_t channel)
   _outQueue = channel->DeclareQueue(_name+"_out", false, false, false, true);
 }
 
-void System::createDataConnection(u_int port, AmqpClient::Channel::ptr_t channel)
+// TODO initialization which ensures that remote server accepts.
+void System::createDataConnection(const ServerSocket& server,
+                                  const AmqpClient::Channel::ptr_t& channel)
 {
-  // this might break if message arrives too early and this server hasn't made it to listen
-  std::thread sendThread(&MessageUtils::sendMessage, std::to_string(port), _inQueue, channel);
-  ServerSocket server(port);
-  _dataChannel = std::shared_ptr<ClientSocket>(server.acceptClient());
+  std::string message;
+  receiveMessage(channel, message, -1); // waits until system is ready
+  assert(message == "create_data_conn");
+  _dataConnection = std::shared_ptr<ClientSocket>(server.acceptClient());
 }
 
 void System::sendMessage(const std::string& message, AmqpClient::Channel::ptr_t channel)
@@ -41,7 +44,7 @@ std::string System::getName() const
   return _name;
 }
 
-std::shared_ptr<ClientSocket> System::getDataChannel() const
+std::shared_ptr<ClientSocket> System::getDataConnection() const
 {
-  return _dataChannel;
+  return _dataConnection;
 }

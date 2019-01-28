@@ -3,7 +3,8 @@
 int main(int argc, char* argv[])
 {
   // Load config file
-  Params params("example.ini");
+  Params params;
+  params.loadFromFile("example.ini");
 
   // Run third level manager
   ThirdLevelManager manager(params);
@@ -11,7 +12,10 @@ int main(int argc, char* argv[])
   return 0;
 }
 
-ThirdLevelManager::ThirdLevelManager(const Params& params) : _params(params)
+ThirdLevelManager::ThirdLevelManager(const Params& params)
+  : _params(params),
+    _dataPort(params.getDataPort()),
+    _dataServer(_dataPort)
 {
   // Connect to RabbitMQ Broker
   _channel = AmqpClient::Channel::Create(params.getbrokerURL());
@@ -21,11 +25,9 @@ ThirdLevelManager::ThirdLevelManager(const Params& params) : _params(params)
   _systems.reserve(systemNames.size());
   for (auto nameIt = systemNames.begin(); nameIt != systemNames.end(); nameIt++)
   {
-    _systems.push_back(System(*nameIt, _port, _channel));
+    _systems.push_back(System(*nameIt, _channel, _dataServer));
   }
 }
-
-
 
 void ThirdLevelManager::runtimeLoop()
 {
@@ -53,6 +55,7 @@ void ThirdLevelManager::processCombination(System& system)
 {
   std::string message = "do_send_size";
   system.sendMessage(message, _channel);
+
   system.receiveMessage(_channel, message, noTimeout);
   u_int combiGridSize = std::stoi(message);
 
@@ -67,9 +70,9 @@ void ThirdLevelManager::processCombination(System& system)
       sysIt->sendMessage(message, _channel);
       sysIt->receiveMessage(_channel, message, noTimeout);
       assert(message =="ok");
-      // send common subspaces from one to the other system.
-      NetworkUtils::forward(system.getDataChannel().get(),
-          sysIt->getDataChannel().get(), combiGridSize);
+      // send locally combinated sparse grid from one to the other system.
+      NetworkUtils::forward(system.getDataConnection().get(),
+          sysIt->getDataConnection().get(), combiGridSize);
     }
   }
 }
