@@ -9,6 +9,7 @@ class Params
 {
   private:
     std::string                         _brokerURL       = "localhost";
+    u_int                               _dataPort        = 0;
     u_int                               _numSystems      = 0;
     u_int                               _dimension       = 0;
     u_int                               _numCombinations = 0;
@@ -16,12 +17,12 @@ class Params
     std::vector<combigrid::LevelVector> _commonSubspaces;
 
   public:
-    Params() = delete;
-    Params(const std::string& filename);
+    Params();
 
-    void readParameterFile(const std::string& filename);
+    void loadFromFile(const std::string& filename);
 
     std::string                         getbrokerURL()    const;
+    u_int                               getDataPort()     const;
     u_int                               getNumSystems()   const;
     std::vector<combigrid::LevelVector> getCommonLevels() const;
     std::vector<std::string>            getSystemNames()  const;

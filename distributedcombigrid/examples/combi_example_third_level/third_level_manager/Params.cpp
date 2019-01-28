@@ -1,15 +1,15 @@
 #include "Params.hpp"
 
-Params::Params(const std::string& filename)
+Params::Params()
 {
-  readParameterFile(filename);
 }
 
-void Params::readParameterFile(const std::string& filename)
+void Params::loadFromFile(const std::string& filename)
 {
   boost::property_tree::ptree pt;
   boost::property_tree::ini_parser::read_ini(filename, pt);
-  _brokerURL       = pt.get<std::string>("RabbitMQ.url");
+  _dataPort        = pt.get<u_int>("Connection.dataPort");
+  _brokerURL       = pt.get<std::string>("Connection.RabbitMQUrl");
   _dimension       = pt.get<u_int>("DistributedCombi.dimension");
   _numCombinations = pt.get<u_int>("DistributedCombi.numCombinations");
 
@@ -17,7 +17,7 @@ void Params::readParameterFile(const std::string& filename)
   boost::split(_systemNames, systemsCSV, boost::is_any_of(","));
   _numSystems = _systemNames.size();
 
-  // read list of common subspaces given by l11,l12 l21,l22 ... ln1,ln2 (for 2D)
+  // read list of common subspaces given for 2D by l11,l12 l21,l22 ... ln1,ln2
   std::string commonSubspaces_str = pt.get<std::string>("DistributedCombi.commonSubspaces");
   std::vector<std::string> levels_str;
   boost::split(levels_str, commonSubspaces_str, boost::is_any_of(" "));
@@ -53,4 +53,10 @@ std::vector<combigrid::LevelVector> Params::getCommonLevels() const
 std::vector<std::string> Params::getSystemNames() const
 {
   return _systemNames;
+}
+
+
+u_int Params::getDataPort() const
+{
+  return _dataPort;
 }
