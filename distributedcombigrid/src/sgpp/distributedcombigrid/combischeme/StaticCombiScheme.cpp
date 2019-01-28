@@ -57,19 +57,19 @@ LevelType StaticCombiScheme::getMaxLevelSum() {
 }
 
 void StaticCombiScheme::createLevelsRec(LevelType currMaxSum, size_t currentIndex, LevelVector l) {
-		LevelType x = 1;
-		if(isDummyDim(currentIndex)){
-			x = lmin_.at(currentIndex);
+	LevelType x = 1;
+	if(isDummyDim(currentIndex)){
+		x = lmin_.at(currentIndex);
+	}
+	for (; x <= std::min(lmin_.at(currentIndex) + currMaxSum, lmax_.at(currentIndex)); ++x) {
+		l.at(currentIndex) = x;
+		assert(l <= lmax_);
+		if (currentIndex == 0) {
+			levels_.push_back(l);
+		} else {
+			createLevelsRec(std::min(currMaxSum, currMaxSum - (x - lmin_.at(currentIndex))),	currentIndex - 1, l);
 		}
-		for (; x <= std::min(lmin_.at(currentIndex) + currMaxSum, lmax_.at(currentIndex)); ++x) {
-			l.at(currentIndex) = x;
-			assert(l <= lmax_);
-			if (currentIndex == 0) {
-				levels_.push_back(l);
-			} else {
-				createLevelsRec(std::min(currMaxSum, currMaxSum - (x - lmin_.at(currentIndex))),	currentIndex - 1, l);
-			}
-		}
+	}
 }
 
 void StaticCombiScheme::computeCombiCoeffs() {

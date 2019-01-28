@@ -67,7 +67,7 @@ bool DimAdaptiveCombiScheme::isActive(const LevelVector& level) const{
 	return std::find(std::begin(activeGrids_), std::end(activeGrids_), level) != std::end(activeGrids_);
 }
 
-void DimAdaptiveCombiScheme::generateActiveNodes(){
+void DimAdaptiveCombiScheme::generateActiveGrids(){
 	for(const LevelVector& grid: levels_){
 		if(!containsFwdNeighbours(grid)){
 			assert(grid >= lmin_);

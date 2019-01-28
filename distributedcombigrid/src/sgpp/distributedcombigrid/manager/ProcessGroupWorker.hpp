@@ -21,101 +21,101 @@
 namespace combigrid {
 
 class ProcessGroupWorker {
- public:
-  explicit ProcessGroupWorker();
+public:
+	explicit ProcessGroupWorker();
 
-  ProcessGroupWorker( ProcessGroupWorker const & ) = delete;
+	ProcessGroupWorker( ProcessGroupWorker const & ) = delete;
 
-  ProcessGroupWorker& operator=( ProcessGroupWorker const & ) = delete;
+	ProcessGroupWorker& operator=( ProcessGroupWorker const & ) = delete;
 
-  ~ProcessGroupWorker();
+	~ProcessGroupWorker();
 
-  // wait for command from manager
-  SignalType wait();
+	// wait for command from manager
+	SignalType wait();
 
-  // send ready signal to manager
-  void ready();
+	// send ready signal to manager
+	void ready();
 
-  //decides if current Task needs to be killed
-  void decideToKill();
+	//decides if current Task needs to be killed
+	void decideToKill();
 
-  // todo: maybe only needed for gene?
-  inline Task* getCurrentTask();
+	// todo: maybe only needed for gene?
+	inline Task* getCurrentTask();
 
-  //Perform combination
-  void combine();
+	//Perform combination
+	void combine();
 
-  //combine on sparse grid with uniform decomposition of domain
-  void combineUniform();
+	//combine on sparse grid with uniform decomposition of domain
+	void combineUniform();
 
-  //outdated!
-  void combineFG();
+	//outdated!
+	void combineFG();
 
-  void gridEval();
+	void gridEval();
 
-  //parallel file io of final output grid
-  void parallelEval();
+	//parallel file io of final output grid
+	void parallelEval();
 
-  //parallel file io of final output grid for uniform decomposition
-  void parallelEvalUniform();
+	//parallel file io of final output grid for uniform decomposition
+	void parallelEvalUniform();
 
-  //update combination parameters (for init or after change in FTCT)
-  void updateCombiParameters();
+	//update combination parameters (for init or after change in FTCT)
+	void updateCombiParameters();
 
-  //returns the combi parameters
-  inline CombiParameters& getCombiParameters();
+	//returns the combi parameters
+	inline CombiParameters& getCombiParameters();
 
-  //initializes the component grid from the sparse grid; used to reinitialize tasks after fault
-  void setCombinedSolutionUniform( Task* t );
+	//initializes the component grid from the sparse grid; used to reinitialize tasks after fault
+	void setCombinedSolutionUniform( Task* t );
 
-  void findBestExpansion();
+	void findBestExpansion();
 
-  int getProcTask(int taskID);
+	int getProcTask(int taskID);
 
-  Task* getTask(int id){
-	  auto pos = std::find_if(std::begin(tasks_), std::end(tasks_), [id](const Task *task){
-		  return task->getID() == id;
-	  });
-	  assert(pos != std::end(tasks_));
-	  return *pos;
-  }
+	Task* getTask(int id){
+		auto pos = std::find_if(std::begin(tasks_), std::end(tasks_), [id](const Task *task){
+			return task->getID() == id;
+		});
+		assert(pos != std::end(tasks_));
+		return *pos;
+	}
 
-  //DEBUG ONLY
-  TaskContainer& getTaskContainer(){
-return tasks_;
-  }
+	//DEBUG ONLY
+	TaskContainer& getTaskContainer(){
+		return tasks_;
+	}
 
- private:
-  TaskContainer tasks_; // task storage
+private:
+	TaskContainer tasks_; // task storage
 
-  Task* currentTask_; //task that is currently processed
+	Task* currentTask_; //task that is currently processed
 
-  StatusType status_; //current status of process group (wait -> 0; busy -> 1; fail -> 2)
+	StatusType status_; //current status of process group (wait -> 0; busy -> 1; fail -> 2)
 
-  FullGrid<complex>* combinedFG_;
+	FullGrid<complex>* combinedFG_;
 
-  /**
-   * Vector containing all distributed sparse grids
-   */
-  std::vector<DistributedSparseGridUniform<CombiDataType>*> combinedUniDSGVector_;
+	/**
+	 * Vector containing all distributed sparse grids
+	 */
+	std::vector<DistributedSparseGridUniform<CombiDataType>*> combinedUniDSGVector_;
 
-  bool combinedFGexists_;
+	bool combinedFGexists_;
 
-  CombiParameters combiParameters_;
+	CombiParameters combiParameters_;
 
-  DimAdaptiveCombiScheme combiScheme_;
+	DimAdaptiveCombiScheme combiScheme_;
 
-  bool combiParametersSet_; //indicates if combi parameters variable set
+	bool combiParametersSet_; //indicates if combi parameters variable set
 
-  //fault parameters
-  real t_fault_; //time to fault
+	//fault parameters
+	real t_fault_; //time to fault
 
-  IndexType currentCombi_; //current combination; increased after every combination
+	IndexType currentCombi_; //current combination; increased after every combination
 
-  std::chrono::high_resolution_clock::time_point  startTimeIteration_; //starting time of process computation
+	std::chrono::high_resolution_clock::time_point  startTimeIteration_; //starting time of process computation
 
-  //std::ofstream betasFile_;
-  std::map<int, int> taskToProc_;
+	//std::ofstream betasFile_;
+	std::map<int, int> taskToProc_;
 
 	void runFirst();
 	void runNewTask();
@@ -127,9 +127,9 @@ return tasks_;
 		assert(grid1.size() == grid2.size());
 		double error = 0; //since the error is always >= 0, 0 is the minimum
 		double maxVal = std::abs(*std::max_element(std::begin(grid1), std::end(grid1),
-			[](CombiDataType el1, CombiDataType el2){
-				return std::abs(el1) < std::abs(el2);
-			}));	
+				[](CombiDataType el1, CombiDataType el2){
+			return std::abs(el1) < std::abs(el2);
+		}));
 		MPI_Allreduce(MPI_IN_PLACE, &maxVal, 1, MPI_DOUBLE, MPI_MAX, theMPISystem()->getLocalComm());
 
 		for(size_t i = 0; i < grid1.size(); ++i){
@@ -147,14 +147,14 @@ return tasks_;
 
 
 inline Task* ProcessGroupWorker::getCurrentTask() {
-  return currentTask_;
+	return currentTask_;
 }
 
 
 inline CombiParameters& ProcessGroupWorker::getCombiParameters(){
-  assert(combiParametersSet_);
+	assert(combiParametersSet_);
 
-  return combiParameters_;
+	return combiParameters_;
 }
 
 } /* namespace combigrid */

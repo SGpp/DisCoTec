@@ -23,7 +23,7 @@ public:
 
 	DimAdaptiveCombiScheme(LevelVector lmin, LevelVector lmax)
 	: StaticCombiScheme{StaticCombiScheme::createClassicalScheme(lmin, lmax)} {
-		generateActiveNodes();
+		generateActiveGrids();
 		printActive(std::cout);
 	}
 
@@ -110,12 +110,21 @@ public:
 	}
 
 	bool isExpansion(const LevelVector& grid) const{
-		bool isExp = containsOneActiveBwdNeighbour(grid);
-
+		bool isPotExp = containsOneActiveBwdNeighbour(grid);
 		//isExp implies !contains(grid)
-		assert(!isExp || !contains(grid));
+		assert(!isPotExp || !contains(grid));
+		if(!isPotExp){
+			return false;
+		}
 
-		return isExp;
+		//One musn't expand in a dummy dimension
+		for(int i = 0; i < dim(); ++i){
+			if(isDummyDim(i) && grid.at(i) > lmax_.at(i)){
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	void printActive(std::ostream& os) const{
@@ -139,7 +148,7 @@ private:
 	 * Generates the active nodes of this scheme from all grids
 	 * that are contained in this scheme
 	 */
-	void generateActiveNodes();
+	void generateActiveGrids();
 };
 
 }
