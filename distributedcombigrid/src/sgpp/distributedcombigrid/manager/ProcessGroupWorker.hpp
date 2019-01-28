@@ -42,6 +42,8 @@ class ProcessGroupWorker {
 
   void combineLocalAndGlobal();
 
+  void gatherCommonSubspaces();
+
   void combineUniformThirdLevel();
 
   void combineUniformToFileThirdLevel();

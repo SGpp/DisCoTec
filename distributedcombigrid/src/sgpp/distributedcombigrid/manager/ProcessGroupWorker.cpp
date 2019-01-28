@@ -170,6 +170,18 @@ SignalType ProcessGroupWorker::wait() {
 //      }
 //    }
 
+  } else if (signal == COMBINE_LOCAL_AND_GLOBAL) {
+
+    Stats::startEvent("combineLocalAndGlobal");
+    combineLocalAndGlobal();
+    Stats::stopEvent("combineLocalAndGlobal");
+
+  } else if (signal == GATHER_COMMON_SUBSPACES) {
+
+    Stats::startEvent("gatherCommonSubspaces");
+    gatherCommonSubspaces();
+    Stats::stopEvent("gatherCommonSubspaces");
+
   } else if (signal == COMBINE_THIRD_LEVEL) {
 
     Stats::startEvent("combineThirdLevel");
@@ -401,6 +413,9 @@ void ProcessGroupWorker::parallelEval(){
     assert( false && "not yet implemented" );
 }
 
+void ProcessGroupWorker::gatherCommonSubspaces() {
+  
+}
 
 void ProcessGroupWorker::parallelEvalUniform(){
   assert(uniformDecomposition);
