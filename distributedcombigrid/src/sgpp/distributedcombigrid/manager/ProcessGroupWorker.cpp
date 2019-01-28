@@ -351,33 +351,15 @@ void ProcessGroupWorker::combineUniform() {
 
 }
 
-void ProcessGroupWorker::combineUniformThirdLevel() {
+void ProcessGroupWorker::combineLocalAndGlobal() {
   // each pgrouproot must call reduce function
   assert(tasks_.size() > 0);
-
-  // setup third level
-  if (thirdLevel_ == NULL) {
-    const std::string& remoteHost = combiParameters_.getThirdLevelHost();
-    int port = combiParameters_.getThirdLevelPort();
-    assert( port > 0 && "remote message port not set" );
-    assert( !remoteHost.empty() && "Third_Level host not given" );
-    thirdLevel_ = new ThirdLevelUtils(remoteHost, port);
-  }
 
   assert( combiParametersSet_ );
   DimType dim = combiParameters_.getDim();
   const LevelVector& lmin = combiParameters_.getLMin();
   LevelVector lmax = combiParameters_.getLMax();
   const std::vector<bool>& boundary = combiParameters_.getBoundary();
-
-  // the dsg can be smaller than lmax because the highest subspaces do not have
-  // to be exchanged
-  // todo: use a flag to switch on/off optimized combination
-  /*
-  for (size_t i = 0; i < lmax.size(); ++i)
-    if (lmax[i] > lmin[i])
-      lmax[i] -= 1;
-      */
 
   // todo: delete old dsg
   if (combinedUniDSG_ != NULL)
@@ -404,105 +386,13 @@ void ProcessGroupWorker::combineUniformThirdLevel() {
     DistributedHierarchization::hierarchize<CombiDataType>(
         dfg, combiParameters_.getHierarchizationDims() );
 
-    // lokales reduce auf sg ->
+    // lokales reduce auf sg
     dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
   }
 
-  //CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
-
-  // **************************************************************************
-  // TODO
-  // **************************************************************************
-  // reduce with remote system
-  std::cout << "reducing with third level" << std::endl;
-  assert(thirdLevel_ != NULL);
-  thirdLevel_->reduceGlobalRemote(*combinedUniDSG_);
-
-  for (Task* t : tasks_) {
-    // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-    // extract dfg vom dsg
-    dfg.extractFromUniformSG( *combinedUniDSG_ );
-
-    // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<CombiDataType>(
-        dfg, combiParameters_.getHierarchizationDims() );
-  }
-}
-
-void ProcessGroupWorker::combineUniformToFileThirdLevel() {
-  // each pgrouproot must call reduce function
-  assert(tasks_.size() > 0);
-
-
-  std::cout << "combineUniformToFileThirdLevel()" << std::endl;
-
-  // setup third level
-  if (thirdLevel_ == NULL) {
-    const std::string& remoteHost = combiParameters_.getThirdLevelHost();
-    int port = combiParameters_.getThirdLevelPort();
-    assert( port > 0 && "remote message port not set" );
-    assert( !remoteHost.empty() && "Third_Level host not given" );
-    thirdLevel_ = new ThirdLevelUtils(remoteHost, port);
-  }
-
-  assert( combiParametersSet_ );
-  DimType dim = combiParameters_.getDim();
-  const LevelVector& lmin = combiParameters_.getLMin();
-  LevelVector lmax = combiParameters_.getLMax();
-  const std::vector<bool>& boundary = combiParameters_.getBoundary();
-
-  // the dsg can be smaller than lmax because the highest subspaces do not have
-  // to be exchanged
-  // todo: use a flag to switch on/off optimized combination
-  /*
-  for (size_t i = 0; i < lmax.size(); ++i)
-    if (lmax[i] > lmin[i])
-      lmax[i] -= 1;
-      */
-
-  // todo: delete old dsg
-  if (combinedUniDSG_ != NULL)
-    delete combinedUniDSG_;
-
-  // erzeug dsg
-  combinedUniDSG_ = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
-      lmin, boundary,
-      theMPISystem()->getLocalComm());
-
-  // todo: move to init function to avoid reregistering
-  // register dsg in all dfgs
-  for (Task* t : tasks_) {
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-    dfg.registerUniformSG(*combinedUniDSG_);
-  }
-
-  for (Task* t : tasks_) {
-
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-    // hierarchize dfg
-    DistributedHierarchization::hierarchize<CombiDataType>(
-        dfg, combiParameters_.getHierarchizationDims() );
-
-    // lokales reduce auf sg ->
-    dfg.addToUniformSG( *combinedUniDSG_, combiParameters_.getCoeff( t->getID() ) );
-  }
-
+  // global reduce
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
-
-  // **************************************************************************
-  // TODO
-  // **************************************************************************
-  // reduce onto remote system
-  assert(thirdLevel_ != NULL);
-  
-  std::cout << "running reduceGlobalRemote" << std::endl;
-  thirdLevel_->reduceGlobalToRemoteFile(*combinedUniDSG_);
 }
-
 
 void ProcessGroupWorker::parallelEval(){
   if(uniformDecomposition)
