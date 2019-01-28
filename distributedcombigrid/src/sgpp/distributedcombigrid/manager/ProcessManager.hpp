@@ -1,5 +1,4 @@
-/*
- * ProcessManager.hpp
+/* ProcessManager.hpp
  *
  *  Created on: Oct 8, 2013
  *      Author: heenemo
@@ -9,6 +8,7 @@
 #define PROCESSMANAGER_HPP_
 
 #include <vector>
+#include <numeric>
 
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
@@ -53,6 +53,7 @@ class ProcessManager {
   inline void
   combine();
 
+  template<typename FG_ELEMENT>
   inline void
   combineThirdLevel();
 
@@ -78,16 +79,27 @@ class ProcessManager {
                                      std::string& filename,
                                      size_t groupID );
 
+  void setupThirdLevel();
+
  private:
   ProcessGroupManagerContainer& pgroups_;
+
+  ProcessGroupManagerID TLReducePGroup_;
 
   TaskContainer& tasks_;
 
   CombiParameters params_;
 
+  ThirdLevelUtils thirdLevel_;
+
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
   inline ProcessGroupManagerID wait();
+
+  template<typename FG_ELEMENT>
+  void gatherCommonSubSpacesFromThirdLevelReducePG(
+                              std::vector<FG_ELEMENT>& commonSubspaces,
+                              const MPI_Comm&          thirdLevelReduceComm);
 
   bool waitAllFinished();
 };
@@ -159,7 +171,11 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
+template<typename FG_ELEMENT>
 void ProcessManager::combineThirdLevel() {
+  assert(theMPISystem()->isThirdLevelReduceManager());
+  const CommunicatorType& thirdLevelReduceComm = theMPISystem()->getThirdLevelReduceComm();
+
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
   size_t numWaiting = 0;
@@ -173,14 +189,65 @@ void ProcessManager::combineThirdLevel() {
     }
   }
 
-  // send signal to groups
+  // groups combine local and global first
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->combineThirdLevel();
+    bool success = pgroups_[i]->combineLocalAndGlobal();
     assert(success);
   }
 
   waitAllFinished();
+
+  // obtain instructions from third level manager (ATTENTION: Blocking)
+  thirdLevel_.signalReady();
+  std::string instruction = thirdLevel_.fetchInstruction();
+
+  std::vector<FG_ELEMENT> commonSubspaces;
+
+  if (instruction == "sendSubspaces")
+  {
+    gatherCommonSubSpacesFromThirdLevelReducePG(commonSubspaces, thirdLevelReduceComm);
+    sendCommonSubspacesToRemote();
+    thirdLevel_.sendCommonSubspaces(commonSubspaces);
+    thirdLevel_.receiveCommonSubspaces(commonSubspaces);
+    integrateSubspaces();
+  }
+  else if (instruction == "receiveSubspaces")
+  {
+    thirdLevel_.receiveCommonSubspaces(commonSubspaces);
+    combineRemoteAndLocalSubspaces(); // MPI_Reduce
+    gatherCommonSubSpacesFromThirdLevelReducePG(commonSubspaces, thirdLevelReduceComm);
+    thirdLevel_.sendCommonSubspaces(commonSubspaces);
+  }
 }
+
+template<typename FG_ELEMENT>
+void ProcessManager::gatherCommonSubSpacesFromThirdLevelReducePG(
+                            std::vector<FG_ELEMENT>& commonSubspaces,
+                            const MPI_Comm&          thirdLevelReduceComm) {
+  int thirdLevelReduceCommSize;
+  MPI_Comm_size(thirdLevelReduceComm, &thirdLevelReduceCommSize);
+
+  bool success = TLReducePGroup_->gatherCommonSubspaces();
+  assert(success);
+
+  // receive size of each common subspaces part that a worker holds
+  std::vector<int> commonSSPartsSizes(static_cast<size_t>(thirdLevelReduceCommSize));
+  int dummySize = 0;
+  MPI_Gather(&dummySize, 1, MPI_INT, commonSSPartsSizes.data(), 1, MPI_INT,
+      theMPISystem()->getThirdLevelReduceManagerRank(), thirdLevelReduceComm);
+
+  // receive common subspaces from the workers
+  int buffSize = std::accumulate(commonSSPartsSizes.begin(), commonSSPartsSizes.end(), 0);
+  commonSubspaces.resize(buffSize);
+
+  std::vector<int> displ(static_cast<size_t>(thirdLevelReduceCommSize), 0);
+  for (size_t i = 1; i < static_cast<size_t>(thirdLevelReduceCommSize); i++)
+    displ[i] = displ[i-1] + commonSSPartsSizes[i-1];
+
+  MPI_Gatherv(nullptr, 0, MPI_INT, commonSubspaces.data(), commonSSPartsSizes.data(),
+      displ, MPI_INT, theMPISystem()->getThirdLevelReduceManagerRank(), thirdLevelReduceComm);
+}
+
 
 void ProcessManager::combineToFileThirdLevel() {
   // wait until all process groups are in wait state

@@ -22,9 +22,12 @@ ProcessManager::ProcessManager( ProcessGroupManagerContainer& pgroups,
                                 TaskContainer& tasks,
                                 CombiParameters& params ) :
   pgroups_(pgroups),
+  TLReducePGroup_(pgroups[0]),
   tasks_(tasks),
-  params_(params)
+  params_(params),
+  thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getSystemName())
 {
+
 }
 
 ProcessManager::~ProcessManager() {
@@ -115,6 +118,20 @@ bool ProcessManager::waitAllFinished(){
   return group_failed;
 }
 
+bool ProcessManager::waitLocalAndGlobalCombine() {
+  bool group_failed = false;
+  int i = 0;
+  for( auto p : pgroups_ ){
+    StatusType status = p->waitStatus();
+    if( status == PROCESS_GROUP_FAIL ){
+      group_failed = true;
+    }
+    ++i;
+  }
+
+  return group_failed;
+}
+
 
 void ProcessManager::parallelEval( const LevelVector& leval,
                                    std::string& filename,
@@ -137,6 +154,12 @@ void ProcessManager::parallelEval( const LevelVector& leval,
     assert( !fail && "should not fail here" );
   }
 }
+
+void ProcessManager::setupThirdLevel()
+{
+  thirdLevel_.connectToThirdLevelManager();
+}
+
 
 } /* namespace combigrid */
 
