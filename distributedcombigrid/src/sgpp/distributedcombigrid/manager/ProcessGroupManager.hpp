@@ -62,6 +62,12 @@ class ProcessGroupManager {
   bool
   combineToFileThirdLevel();
 
+  bool
+  combineLocalAndGlobal();
+
+  bool
+  gatherCommonSubspaces();
+
   template<typename FG_ELEMENT>
   bool
   combineFG(FullGrid<FG_ELEMENT>& fg);
