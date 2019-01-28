@@ -22,12 +22,13 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<int>& taskIDs,
-                  std::string thirdLevelHost = "",
-                  int thirdLevelPort = -1) :
+                  const std::string& thirdLevelHost = "",
+                  unsigned short thirdLevelDataPort = 0,
+                  const std::string& systemName = "System0") :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
     applicationCommSet_(false), thirdLevelHost_(thirdLevelHost),
-    thirdLevelPort_(thirdLevelPort)
+    thirdLevelDataPort_(thirdLevelDataPort), systemName_(systemName)
   {
     hierarchizationDims_ = std::vector<bool>(dim_,true);
     setLevelsCoeffs( taskIDs, levels, coeffs );
@@ -36,13 +37,14 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<bool>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<bool>& hierachizationDims,
-                  std::vector<int>& taskIDs, std::string thirdLevelHost = "",
-                  int thirdLevelPort = -1) :
+                  std::vector<int>& taskIDs, const std::string& thirdLevelHost = "",
+                  unsigned short thirdLevelDataPort = 0,
+                  const std::string& systemName = "System0") :
     dim_(dim), lmin_(lmin), lmax_(lmax), boundary_(boundary),
     hierarchizationDims_(hierachizationDims),
     procsSet_(false), applicationComm_(MPI_COMM_NULL),
-    applicationCommSet_(false), thirdLevelHost_(thirdLevelHost),
-    thirdLevelPort_(thirdLevelPort)
+    applicationCommSet_(false), thirdLevelHost_(thirdLevelHost), 
+    thirdLevelDataPort_(thirdLevelDataPort), systemName_(systemName)
   {
     setLevelsCoeffs( taskIDs, levels, coeffs );
   }
@@ -176,8 +178,12 @@ class CombiParameters {
     return thirdLevelHost_;
   }
 
-  inline int getThirdLevelPort() {
-    return thirdLevelPort_;
+  inline unsigned short getThirdLevelPort() {
+    return thirdLevelDataPort_;
+  }
+
+  inline const std::string& getSystemName() {
+    return systemName_;
   }
 
  private:
@@ -209,7 +215,9 @@ class CombiParameters {
 
   std::string thirdLevelHost_;
 
-  int thirdLevelPort_;
+  unsigned short thirdLevelDataPort_;
+
+  std::string systemName_;
 
   friend class boost::serialization::access;
 
@@ -230,7 +238,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& procs_;
   ar& procsSet_;
   ar& thirdLevelHost_;
-  ar& thirdLevelPort_;
+  ar& thirdLevelDataPort_;
 }
 
 }
