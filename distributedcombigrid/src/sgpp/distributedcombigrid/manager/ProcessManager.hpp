@@ -171,6 +171,7 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
+// TODO
 template<typename FG_ELEMENT>
 void ProcessManager::combineThirdLevel() {
   assert(theMPISystem()->isThirdLevelReduceManager());

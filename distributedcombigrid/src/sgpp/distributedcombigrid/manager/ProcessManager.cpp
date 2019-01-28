@@ -118,20 +118,6 @@ bool ProcessManager::waitAllFinished(){
   return group_failed;
 }
 
-bool ProcessManager::waitLocalAndGlobalCombine() {
-  bool group_failed = false;
-  int i = 0;
-  for( auto p : pgroups_ ){
-    StatusType status = p->waitStatus();
-    if( status == PROCESS_GROUP_FAIL ){
-      group_failed = true;
-    }
-    ++i;
-  }
-
-  return group_failed;
-}
-
 
 void ProcessManager::parallelEval( const LevelVector& leval,
                                    std::string& filename,
