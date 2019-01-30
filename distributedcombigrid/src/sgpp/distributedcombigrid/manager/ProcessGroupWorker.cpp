@@ -763,6 +763,8 @@ void ProcessGroupWorker::findBestExpansion(){
 	LevelVector bestExpansion {};
 
 	for(const auto& activeGrid : combiScheme_.getActiveGrids()){
+		//While the algorithm this implementation allows for "expansions"
+		//where 0 grids are added, this is explictly disallowed here.
 		if(!combiScheme_.hasExpansionNeighbour(activeGrid)){
 			continue;
 		}
@@ -785,6 +787,7 @@ void ProcessGroupWorker::findBestExpansion(){
 
 		const LevelVector cmpLevel = partnerGrid; //use the full backward neighbour
 
+		//The node which has the active grid has to do the calculations.
 		if(activeNodeOwned){
 			std::vector<CombiDataType> activeSubGrid {};
 			std::vector<CombiDataType> partnerSubGrid {};
@@ -811,7 +814,7 @@ void ProcessGroupWorker::findBestExpansion(){
 				error /= expansionGridPoints;
 			}
 			MASTER_EXCLUSIVE_SECTION{
-				MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_SUM, 0, theMPISystem()->getLocalComm());
+				MPI_Reduce(MPI_IN_PLACE, &error, 1, MPI_DOUBLE, MPI_MAX, 0, theMPISystem()->getLocalComm());
 				std::cout << "active: " << activeGrid << "\n";
 				std::cout << "partner: " << partnerGrid << "\n";
 				std::cout << "error: " << error << "\n";

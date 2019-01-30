@@ -41,20 +41,18 @@ public:
 		return true;
 	}
 
-	bool containsAllBwdNeighboursInv(const LevelVector& grid) const{
-		for(std::size_t i = 0; i < dim(); ++i){
-			LevelVector bwdNeigh{grid};
-			--bwdNeigh.at(i);
-			if(bwdNeigh.at(i) >= 1 && !contains(bwdNeigh)){
-				return false;
-			}
-		}
-
-		return true;
-	}
+	/**
+	 * There are two containsAllBwdNeighbour functions. containsAllBwdNeighboursInv
+	 * is the technically correct one and it is used in the invariant.
+	 * But when it is determined which expansions are valid backward
+	 * neighbours beyond the lmin boundary don't count since they are
+	 * automatically added when the expansion is chosen.
+	 */
+	bool containsAllBwdNeighboursInv(const LevelVector& grid) const;
 
 	/**
-	 * Returns true if the scheme contains all backward neighbours of this grid
+	 * Returns true if the scheme contains all backward neighbours of this grid that
+	 * are bigger than lmin
 	 */
 	bool containsAllBwdNeighbours(const LevelVector& grid) const;
 
@@ -123,6 +121,9 @@ public:
 	}
 
 	bool isExpansion(const LevelVector& grid) const{
+		//In the expansion algorithm used here one must only expand
+		//when there is only one backward neighbour otherwise the expansion
+		//could result in schemes that cannot be expanden further.
 		bool isPotExp = containsOneActiveBwdNeighbour(grid) && containsAllBwdNeighbours(grid);
 		assert(!contains(grid));
 
@@ -147,6 +148,15 @@ public:
 		os << std::endl;
 	}
 
+	/**
+	 * This invariant isn't complete but it should at least
+	 * ensure that the combischeme is valid and the results calculated
+	 * with it are correct even if the scheme itself may not be the
+	 * desired scheme.
+	 *
+	 * Since the checks are quite expensive it is currently only used for debugging
+	 * purposes.
+	 */
 	void checkInvariant(){
 		for(const LevelVector grid : levels_){
 			assert(containsAllBwdNeighboursInv(grid));

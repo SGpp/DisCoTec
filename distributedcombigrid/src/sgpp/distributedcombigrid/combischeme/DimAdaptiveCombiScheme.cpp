@@ -2,6 +2,18 @@
 
 namespace combigrid{
 
+bool DimAdaptiveCombiScheme::containsAllBwdNeighboursInv(const LevelVector& grid) const{
+	for(std::size_t i = 0; i < dim(); ++i){
+		LevelVector bwdNeigh{grid};
+		--bwdNeigh.at(i);
+		if(bwdNeigh.at(i) >= 1 && !contains(bwdNeigh)){
+			return false;
+		}
+	}
+
+	return true;
+}
+
 bool DimAdaptiveCombiScheme::containsAllBwdNeighbours(const LevelVector& grid) const{
 	for(std::size_t i = 0; i < dim(); ++i){
 		LevelVector bwdNeigh{grid};
@@ -71,7 +83,7 @@ void DimAdaptiveCombiScheme::generateActiveGrids(){
 	for(const LevelVector& grid: levels_){
 		if(!containsFwdNeighbours(grid)){
 			assert(grid >= lmin_);
-			assert(containsAllBwdNeighbours(grid));
+			assert(containsAllBwdNeighboursInv(grid));
 			activeGrids_.push_back(grid);
 		}
 	}
