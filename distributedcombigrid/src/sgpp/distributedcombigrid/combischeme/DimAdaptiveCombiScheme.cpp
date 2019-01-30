@@ -6,7 +6,7 @@ bool DimAdaptiveCombiScheme::containsAllBwdNeighboursInv(const LevelVector& grid
 	for(std::size_t i = 0; i < dim(); ++i){
 		LevelVector bwdNeigh{grid};
 		--bwdNeigh.at(i);
-		if(bwdNeigh.at(i) >= 1 && !contains(bwdNeigh)){
+		if(!isDummyDim(i) && bwdNeigh.at(i) >= 1 && !contains(bwdNeigh)){
 			return false;
 		}
 	}
