@@ -85,6 +85,7 @@ public:
 	 * needed in the sparse grid classes and generating them later on
 	 * is much more complicated.
 	 */
+	void addBelowMinSubgrids_h(const LevelVector& grid, int dim, bool toAdd);
 	void addBelowMinSubgrids(const LevelVector& grid);
 
 	/*
@@ -110,9 +111,9 @@ public:
 	}
 
 	bool isExpansion(const LevelVector& grid) const{
-		bool isPotExp = containsOneActiveBwdNeighbour(grid);
-		//isExp implies !contains(grid)
-		assert(!isPotExp || !contains(grid));
+		bool isPotExp = containsOneActiveBwdNeighbour(grid) && containsAllBwdNeighbours(grid);
+		assert(!contains(grid));
+
 		if(!isPotExp){
 			return false;
 		}

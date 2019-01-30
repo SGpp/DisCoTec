@@ -88,7 +88,7 @@ void StaticCombiScheme::computeCombiCoeffs() {
 
 		if (coeff != 0) {
 			//Grids beyond the border should never have a non-zero index
-
+			assert(combiSpace >= lmin_);
 			combiSpaces_.push_back(combiSpace);
 			coefficients_.push_back(coeff);
 		}

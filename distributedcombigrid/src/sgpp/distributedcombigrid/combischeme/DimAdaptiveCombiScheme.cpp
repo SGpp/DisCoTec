@@ -81,16 +81,29 @@ void DimAdaptiveCombiScheme::addExpansion(const LevelVector& grid){
 	addExpansionAllDirections(grid);
 }
 
-void DimAdaptiveCombiScheme::addBelowMinSubgrids(const LevelVector& grid){
-	for(int i = 0; i < grid.size(); ++i){
-		if(grid.at(i) == lmin_.at(i) && !isDummyDim(i)){
-			for(int j = 1; j < lmin_.at(i); ++j){
-				LevelVector temp {grid};
-				temp.at(i) = j;
-				levels_.push_back(temp);
+void DimAdaptiveCombiScheme::addBelowMinSubgrids_h(const LevelVector& grid, const int dim, bool toAdd){
+	if(dim == -1){
+		if(toAdd){
+			assert(!contains(grid));
+			levels_.push_back(grid);
+		}
+	} else {
+		if(grid.at(dim) == lmin_.at(dim) && !isDummyDim(dim)){
+			LevelVector temp {grid};
+			temp.at(dim) = 1;
+			for(; temp.at(dim) < lmin_.at(dim); ++temp.at(dim)){
+				addBelowMinSubgrids_h(temp, dim - 1, true);
 			}
+			addBelowMinSubgrids_h(temp, dim - 1, toAdd);
+		} else {
+			addBelowMinSubgrids_h(grid, dim - 1, toAdd);
 		}
 	}
+}
+
+void DimAdaptiveCombiScheme::addBelowMinSubgrids(const LevelVector& grid){
+	assert(grid.size() >= 1);
+	addBelowMinSubgrids_h(grid, grid.size() - 1, false);
 }
 
 bool DimAdaptiveCombiScheme::hasExpansionNeighbour(const LevelVector& grid) const{
