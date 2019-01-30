@@ -120,27 +120,20 @@ bool DimAdaptiveCombiScheme::hasExpansionNeighbour(const LevelVector& grid) cons
 LevelVector DimAdaptiveCombiScheme::errorMeasurePartner(const LevelVector& grid) const{
 	assert(grid.size() == dim());
 	assert(isActive(grid));
-	//find a sensible search direction. This is any direction
-	//in which at least one backward neighbour exists (that is greater than lmin)
-	int searchDim = std::numeric_limits<int>::max();
-	for(DimType i = 0; i < dim(); ++i){
-		LevelVector bwdNeigh {grid};
-		--bwdNeigh.at(i);
-		if(contains(bwdNeigh) && bwdNeigh.at(i) >= lmin_.at(i)){
-			searchDim = i;
-			break;
-		}
-	}
-	assert(searchDim < dim());
 
-	//find the concrete partner
+	//Every possible backward direction is searched until a direction
+	//is found in which at least one partner exists.
+	//In this dimension the algorithm chooses the partner
+	//with the most grid points
 	size_t partnerIndex = std::numeric_limits<size_t>::max();
 	LevelType maxLevel = std::numeric_limits<int>::min();
-	for(size_t i = 0; i < combiSpaces_.size(); ++i){
-		const LevelVector& combiSpace = combiSpaces_.at(i);
-		if(coefficients_.at(i) <= -1 && equalsExceptDim(grid, combiSpace, searchDim) && combiSpace.at(searchDim) > maxLevel){
-			maxLevel = combiSpace.at(searchDim);
-			partnerIndex = i;
+	for(DimType searchDim = 0; searchDim < dim() && partnerIndex == std::numeric_limits<size_t>::max(); ++searchDim){
+		for(size_t i = 0; i < combiSpaces_.size(); ++i){
+			const LevelVector& combiSpace = combiSpaces_.at(i);
+			if(coefficients_.at(i) <= -1 && equalsExceptDim(grid, combiSpace, searchDim) && combiSpace.at(searchDim) > maxLevel){
+				maxLevel = combiSpace.at(searchDim);
+				partnerIndex = i;
+			}
 		}
 	}
 	assert(partnerIndex < combiSpaces_.size());
@@ -153,7 +146,6 @@ void DimAdaptiveCombiScheme::addExpansionAllDirections(const LevelVector& grid){
 	assert(grid.size() == dim());
 
 	std::vector<LevelVector> expansions;
-
 	for(DimType i = 0; i < dim(); ++i){
 		LevelVector possibleExpansion = grid;
 		++possibleExpansion.at(i);

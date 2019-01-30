@@ -41,6 +41,18 @@ public:
 		return true;
 	}
 
+	bool containsAllBwdNeighboursInv(const LevelVector& grid) const{
+		for(std::size_t i = 0; i < dim(); ++i){
+			LevelVector bwdNeigh{grid};
+			--bwdNeigh.at(i);
+			if(bwdNeigh.at(i) >= 1 && !contains(bwdNeigh)){
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	/**
 	 * Returns true if the scheme contains all backward neighbours of this grid
 	 */
@@ -133,6 +145,17 @@ public:
 			os << "\t" << i << ". "<< activeGrids_[i] << std::endl;
 
 		os << std::endl;
+	}
+
+	void checkInvariant(){
+		for(const LevelVector grid : levels_){
+			assert(containsAllBwdNeighboursInv(grid));
+		}
+
+		for(const LevelVector grid : activeGrids_){
+			assert(contains(grid));
+			assert(!containsFwdNeighbours(grid));
+		}
 	}
 
 private:
