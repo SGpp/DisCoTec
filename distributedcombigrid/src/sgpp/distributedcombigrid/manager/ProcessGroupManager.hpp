@@ -16,6 +16,7 @@
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/third_level/ThirdLevelUtils.hpp"
 
 namespace combigrid {
 
@@ -56,17 +57,30 @@ class ProcessGroupManager {
   bool
   combine();
 
+  // receive shared ss data from remote, combine and send the updated back
+  template<typename FG_ELEMENT>
   bool
-  combineThirdLevel();
+  exchangeCommonSubspacesThirdLevel(const ThirdLevelUtils& thirdLevel_, CombiParameters& params);
 
+  // exchange shared ss data of workers with remote
+  template<typename FG_ELEMENT>
   bool
-  combineToFileThirdLevel();
+  combineUniformThirdLevel(const ThirdLevelUtils& thirdLevel_, CombiParameters& params);
+
+  // retrieve shared ss data from workers and forward to remote thirdLevel manager
+  // TODO: future usecase like collect on remote
+  template<typename FG_ELEMENT>
+  bool
+  sendallCommonSS(const ThirdLevelUtils& thirdLevel_);
+
+  // retrieve shared ss data from thirdlevel manager and overwrite those at workers.
+  // TODO: future usecase like controlling
+  template<typename FG_ELEMENT>
+  bool
+  recvallCommonSS();
 
   bool
   combineLocalAndGlobal();
-
-  bool
-  gatherCommonSubspaces();
 
   template<typename FG_ELEMENT>
   bool
