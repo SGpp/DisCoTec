@@ -22,7 +22,7 @@ ProcessManager::ProcessManager( ProcessGroupManagerContainer& pgroups,
                                 TaskContainer& tasks,
                                 CombiParameters& params ) :
   pgroups_(pgroups),
-  TLReducePGroup_(pgroups[0]),
+  thirdLevelPGroup_(pgroups[0]), // TODO: changing PG needs adjustment in MPISystem
   tasks_(tasks),
   params_(params),
   thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getSystemName())
