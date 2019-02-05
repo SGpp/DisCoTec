@@ -270,9 +270,10 @@ void MPISystem::initThirdLevelComms(){
     if (comm != MPI_COMM_NULL) {
       thirdLevelComms_.push_back(comm);
       MPI_Comm_rank(comm, &thirdLevelRank_ );
+      if (thirdLevelManagerRank_ == MPI_UNDEFINED)
+      thirdLevelManagerRank_ = int(thirdLevelCommSize - 1);
     }
   }
-  thirdLevelManagerRank_ = int(thirdLevelCommSize - 1);
 }
 
 

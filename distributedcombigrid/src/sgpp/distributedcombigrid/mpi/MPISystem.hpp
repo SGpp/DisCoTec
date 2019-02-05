@@ -40,12 +40,19 @@ namespace combigrid {
  * this communicator contains all processes which have the same rank in
  * LocalComm. it is MPI_COMM_NULL on the manager.
  *
+ * ThirdLevelComms: list of communicators for the thirdLevelCombination. A
+ * communicator connects a woker of the thirdLevel pg (so far the first pg) to
+ * the process manager. The list differs for each caller and contains only the
+ * comms where he participates: The process manager gets all comms whereas a
+ * worker of the third level pg has a single entry. For all other procs the list
+ * is empty.
+ *
  * getXXXCommFT returns the fault tolerant equivalent of Communicator XXX
  *
  * getXXXRank return the rank of the process in the Communicator XXX. If the
  * process is not part of Communicator XXX it returns MPI_UNDEFINED.
  *
- * * getManagerRankWorld returns the rank of the manager process in the
+ * getManagerRankWorld returns the rank of the manager process in the
  * WorldComm.
  *
  * getManagerRank returns the rank of the manager process in the Communicator
@@ -58,6 +65,8 @@ namespace combigrid {
  *
  * isLocalMaster returns true if the calling process is the master process of
  * its process group
+ *
+ * isThirdLevelManager returns true if the process is the manager process.
  */
 class MPISystem {
  public:
@@ -81,6 +90,8 @@ class MPISystem {
 
   inline const CommunicatorType& getGlobalReduceComm() const;
 
+  inline const std::vector<CommunicatorType>& getThirdLevelComms() const;
+
   inline const RankType& getWorldRank() const;
 
   inline const RankType& getGlobalRank() const;
@@ -89,15 +100,21 @@ class MPISystem {
 
   inline const RankType& getGlobalReduceRank() const;
 
+  inline const RankType& getThirdLevelRank() const;
+
   inline const RankType& getManagerRankWorld() const;
 
   inline const RankType& getManagerRank() const;
 
   inline const RankType& getMasterRank() const;
 
+  inline const RankType& getThirdLevelManagerRank() const;
+
   inline bool isWorldManager() const;
 
   inline bool isGlobalManager() const;
+
+  inline bool isThirdLevelManager() const;
 
   inline bool isMaster() const;
 
@@ -222,10 +239,10 @@ inline const CommunicatorType& MPISystem::getGlobalReduceComm() const{
 }
 
 
-inline const CommunicatorType& MPISystem::getThirdLevelReduceComm() const{
+inline const std::vector<CommunicatorType>& MPISystem::getThirdLevelComms() const{
   checkPreconditions();
 
-  return thirdLevelReduceComm_;
+  return thirdLevelComms_;
 }
 
 
@@ -275,10 +292,10 @@ inline const RankType& MPISystem::getMasterRank() const{
 }
 
 
-inline const RankType& MPISystem::getThirdLevelReduceManagerRank() const{
+inline const RankType& MPISystem::getThirdLevelManagerRank() const{
   checkPreconditions();
 
-  return thirdLevelReduceManagerRank_;
+  return thirdLevelManagerRank_;
 }
 
 
