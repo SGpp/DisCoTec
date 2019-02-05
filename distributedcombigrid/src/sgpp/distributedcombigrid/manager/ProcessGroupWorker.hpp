@@ -48,6 +48,9 @@ class ProcessGroupWorker {
   template<typename FG_ELEMENT>
   void combineUniformThirdLevelRecvFirst();
 
+  template<typename FG_ELEMENT>
+  void integrateCommonSS();
+
   void combineFG();
 
   void gridEval();

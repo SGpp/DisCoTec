@@ -67,6 +67,10 @@ class ProcessGroupManager {
   bool
   combineUniformThirdLevel(const ThirdLevelUtils& thirdLevel_, CombiParameters& params);
 
+  // distribute common ss  after thirdLevelReduce and integrate them into dfg
+  bool
+  integrateCommonSS();
+
   // retrieve shared ss data from workers and forward to remote thirdLevel manager
   // TODO: future usecase like collect on remote
   template<typename FG_ELEMENT>

@@ -33,7 +33,8 @@ const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
 const SignalType COMBINE_LOCAL_AND_GLOBAL = 18;
 const SignalType COMBINE_UNIFORM_THIRD_LEVEL = 19;
-const SignalType EXCHANGE_COMMON_SUBSPACES_THIRD_LEVEL= 20;
+const SignalType EXCHANGE_COMMON_SS= 20;
+const SignalType INTEGRATE_COMMON_SS= 21;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
