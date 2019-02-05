@@ -170,29 +170,23 @@ SignalType ProcessGroupWorker::wait() {
 //      }
 //    }
 
+  } else if (signal == COMBINE_UNIFORM_THIRD_LEVEL) {
+
+    Stats::startEvent("combineUniformThirdLevelRecvFirst");
+    combineUniformThirdLevelRecvFirst<CombiDataType>();
+    Stats::stopEvent("combineUniformThirdLevelRecvFirst");
+
+  } else if (signal == EXCHANGE_COMMON_SUBSPACES_THIRD_LEVEL) {
+
+    Stats::startEvent("combineUniformThirdLevelSendFirst");
+    combineUniformThirdLevelSendFirst<CombiDataType>();
+    Stats::stopEvent("combineUniformThirdLevelSendFirst");
+
   } else if (signal == COMBINE_LOCAL_AND_GLOBAL) {
 
     Stats::startEvent("combineLocalAndGlobal");
     combineLocalAndGlobal();
     Stats::stopEvent("combineLocalAndGlobal");
-
-  } else if (signal == GATHER_COMMON_SUBSPACES) {
-
-    Stats::startEvent("gatherCommonSubspaces");
-    gatherCommonSubspaces();
-    Stats::stopEvent("gatherCommonSubspaces");
-
-  } else if (signal == COMBINE_THIRD_LEVEL) {
-
-    Stats::startEvent("combineThirdLevel");
-    combineUniformThirdLevel();
-    Stats::stopEvent("combineThirdLevel");
-
-  } else if (signal == COMBINE_TO_FILE_THIRD_LEVEL) {
-
-    Stats::startEvent("combineOnThirdLevel");
-    combineUniformToFileThirdLevel();
-    Stats::startEvent("combineOnThirdLevel");
 
   } else if (signal == GRID_EVAL) {
 
@@ -406,6 +400,52 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
   CombiCom::distributedGlobalReduce( *combinedUniDSG_ );
 }
 
+template <typename FG_ELEMENT>
+void ProcessGroupWorker::combineUniformThirdLevelSendFirst() {
+  const std::vector<LevelVector> commonSS = combiParameters_.getCommonSubspaces();
+  const size_t numCommonSS = commonSS.size();
+  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
+  const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[0];
+  const RankType& thirdLevelManager = theMPISystem()->getThirdLevelReduceManagerRank();
+
+  // send sizes of common subspace parts
+  std::vector<int> commonSSPartSizes(0);
+  for (size_t ss = 0; ss < numCommonSS; ss++)
+    commonSSPartSizes[ss] = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
+  MPI_Send(commonSSPartSizes.data(), numCommonSS, MPI_INT, theMPISystem()->getThirdLevelManager(), comm);
+
+  // send common subspaces parts sequentially
+  MPI_Datatype dtype = abstraction::getMPIDatatype(
+                         abstraction::getabstractionDataType<FG_ELEMENT>());
+  for (size_t ss = 0; ss < numCommonSS; ss++)
+    MPI_Send(combinedUniDSG_->getData(commonSS[ss]), commonSSPartSizes[ss], dtype, thirdLevelManager, 0, comm);
+
+  // receive and integrate combined common subspace parts from remote
+  for (size_t ss = 0; ss < numCommonSS; ss++)
+    MPI_Recv(combinedUniDSG_->getData(commonSS[ss]), commonSSPartSizes[ss], dtype, thirdLevelManager, 0, comm, MPI_STATUS_IGNORE);
+}
+
+template <typename FG_ELEMENT>
+void ProcessGroupWorker::combineUniformThirdLevelRecvFirst() {
+  const std::vector<LevelVector> commonSS = combiParameters_.getCommonSubspaces();
+  const size_t numCommonSS = commonSS.size();
+  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
+  const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[0];
+  const RankType& thirdLevelManager = theMPISystem()->getThirdLevelReduceManagerRank();
+
+  // send sizes of common subspace parts
+  std::vector<int> commonSSPartSizes(0);
+  for (size_t ss = 0; ss < numCommonSS; ss++)
+    commonSSPartSizes[ss] = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
+  MPI_Send(commonSSPartSizes.data(), numCommonSS, MPI_INT, theMPISystem()->getThirdLevelManager(), comm);
+
+  // allreduce common subspace parts from remote with local
+  MPI_Datatype dtype = abstraction::getMPIDatatype(
+                         abstraction::getabstractionDataType<FG_ELEMENT>());
+  for (size_t ss = 0; ss < numCommonSS; ss++)
+    MPI_Allreduce(MPI_IN_PLACE, combinedUniDSG_->getData(commonSS[ss]), commonSSPartSizes[ss], dtype, MPI_SUM, comm);
+}
+
 void ProcessGroupWorker::parallelEval(){
   if(uniformDecomposition)
     parallelEvalUniform();
@@ -413,9 +453,6 @@ void ProcessGroupWorker::parallelEval(){
     assert( false && "not yet implemented" );
 }
 
-void ProcessGroupWorker::gatherCommonSubspaces() {
-  
-}
 
 void ProcessGroupWorker::parallelEvalUniform(){
   assert(uniformDecomposition);

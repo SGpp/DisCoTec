@@ -42,11 +42,11 @@ class ProcessGroupWorker {
 
   void combineLocalAndGlobal();
 
-  void gatherCommonSubspaces();
+  template<typename FG_ELEMENT>
+  void combineUniformThirdLevelSendFirst();
 
-  void combineUniformThirdLevel();
-
-  void combineUniformToFileThirdLevel();
+  template<typename FG_ELEMENT>
+  void combineUniformThirdLevelRecvFirst();
 
   void combineFG();
 
