@@ -27,7 +27,7 @@ MPISystem::MPISystem() :
     globalComm_(MPI_COMM_NULL),
     localComm_(MPI_COMM_NULL),
     globalReduceComm_(MPI_COMM_NULL),
-    thirdLevelReduceComm_(MPI_COMM_NULL),
+    thirdLevelComms_(),
     worldRank_(MPI_UNDEFINED),
     globalRank_(MPI_UNDEFINED),
     localRank_(MPI_UNDEFINED),
@@ -85,10 +85,16 @@ void MPISystem::init( size_t ngroup, size_t nprocs ){
   initGlobalReduceCommm();
 
   /*
-   * Create a communicator which contains all processes of the first PG and
-   * the manager.
+   * Creates multiple communicators where each contain the process manager and
+   * a worker of the third level process group. The caller receives a list
+   * of those communicators where he participates in. Thus, the process manager
+   * receives all comms whereas the list has only one entry for workers of the
+   * thirdLevel process group. For all the other prcesss the list is empty. In
+   * each communicator the manager has rank 1 and the woker rank 0.
+   * The communicators are used for communication between the process manager and
+   * the workers during third level combine.
    */
-  initThirdLevelReduceComm();
+  initThirdLevelComms();
 
   initialized_ = true;
 }
@@ -244,30 +250,31 @@ void MPISystem::initGlobalComm(){
   Stats::setAttribute("group_manager", std::to_string(globalComm_ != MPI_COMM_NULL));
 }
 
-void MPISystem::initThirdLevelReduceComm(){
+
+void MPISystem::initThirdLevelComms(){
+  size_t thirdLevelCommSize = 2;
   MPI_Group worldGroup;
   MPI_Comm_group( worldComm_, &worldGroup);
 
-  std::vector<int> ranks( nprocs_ + 1 );
-  for (size_t i = 0; i < nprocs_; i++) {
-    ranks[i] = int( i );
+  std::vector<int> ranks(thirdLevelCommSize);
+  for (size_t i=0; i < nprocs_; i++) {
+    ranks.front() = int(i); // ranks of workers in first pg
+    ranks.back()  = managerRankWorld_; // rank of process manager
+
+    MPI_Group thirdLevelReduceGroup;
+    MPI_Group_incl( worldGroup, int( ranks.size() ), ranks.data(), &thirdLevelReduceGroup );
+
+    CommunicatorType comm;
+    MPI_Comm_create( worldComm_, thirdLevelReduceGroup, &comm );
+
+    if (comm != MPI_COMM_NULL) {
+      thirdLevelComms_.push_back(comm);
+      MPI_Comm_rank(comm, &thirdLevelRank_ );
+    }
   }
-  ranks.back() = managerRankWorld_;
-
-  MPI_Group thirdLevelReduceGroup;
-  MPI_Group_incl( worldGroup, int( ranks.size() ), &ranks[0], &thirdLevelReduceGroup );
-
-  MPI_Comm_create( worldComm_, thirdLevelReduceGroup, &thirdLevelReduceComm_ );
-
-  if( thirdLevelReduceComm_ != MPI_COMM_NULL ) {
-    int thirdLevelReduceSize;
-    MPI_Comm_size( thirdLevelReduceComm_, &thirdLevelReduceSize );
-
-    thirdLevelReduceManagerRank_ = thirdLevelReduceSize - 1;
-
-    MPI_Comm_rank( thirdLevelReduceComm_, &thirdLevelReduceRank_ );
-  }
+  thirdLevelManagerRank_ = int(thirdLevelCommSize - 1);
 }
+
 
 void MPISystem::initGlobalReduceCommm() {
   // create communicator which only contains workers

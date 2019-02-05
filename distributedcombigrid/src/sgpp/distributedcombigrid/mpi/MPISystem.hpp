@@ -130,7 +130,7 @@ class MPISystem {
 
   void initGlobalComm();
 
-  void initThirdLevelReduceComm();
+  void initThirdLevelComms();
 
   bool initialized_;
 
@@ -142,7 +142,7 @@ class MPISystem {
 
   CommunicatorType globalReduceComm_;
 
-  CommunicatorType thirdLevelReduceComm_;
+  std::vector<CommunicatorType> thirdLevelComms_;
 
   RankType worldRank_;
 
@@ -152,11 +152,11 @@ class MPISystem {
 
   RankType globalReduceRank_;
 
-  RankType thirdLevelReduceRank_;
+  RankType thirdLevelRank_;
 
   RankType managerRank_;
 
-  RankType thirdLevelReduceManagerRank_;
+  RankType thirdLevelManagerRank_;
 
   RankType managerRankWorld_;
 
@@ -297,8 +297,8 @@ inline bool MPISystem::isMaster() const{
 }
 
 
-inline bool MPISystem::isThirdLevelReduceManager() const{
-  return ( thirdLevelReduceRank_ == thirdLevelReduceManagerRank_ );
+inline bool MPISystem::isThirdLevelManager() const{
+  return ( thirdLevelRank_ == thirdLevelManagerRank_ );
 }
 
 
