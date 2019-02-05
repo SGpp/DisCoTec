@@ -10,6 +10,7 @@
 #include <boost/serialization/export.hpp>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 // compulsory includes for basic functionality
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
@@ -82,8 +83,16 @@ int main(int argc, char** argv) {
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
 
+    // read in third Level specific parameters
+    std::string thirdLevelHost, systemName;
+    unsigned short thirdLevelDataPort;
+    cfg.get<std::string>("thirdLevel.host") >> thirdLevelHost;
+    cfg.get<std::string>("thirdLevel.dataPort") >> thirdLevelDataPort;
+    cfg.get<std::string>("thirdLevel.systemName") >> systemName;
+
     // todo: read in boundary vector from ctparam
-    std::vector<bool> boundary(dim, true);
+    bool hasBoundary = true
+    std::vector<bool> boundary(dim, hasBoundary);
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
@@ -99,11 +108,60 @@ int main(int argc, char** argv) {
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
+    // For example purpose we just split the levels in half, and assign each
+    // half to a system
+    auto mid = levels.begin() + ((levels.size()-1) / 2)
+    std::vector<LevelVector> lowerHalf(levels.begin(), mid);
+    std::vector<LevelVector> upperHalf(mid+1, levels.end());
+    assert( !lowerHalf.empty() && !upperHalf.empty() );
+
+    // compute common subspaces:
+    // therefore we compute the component wise maximum level which is contained
+    // in both sets
+    LevelVector maxLevel(dim);
+    for (size_t i = 0; i < dim; i++) {
+      lowerMax = 0;
+      upperMax = 0;
+      for (size_t j = 0; j < lowerHalf.size(); j++) {
+        if (lowerMax < lowerHalf[j][i])
+          lowerMax = lowerHalf[j][i];
+      }
+      for (size_t j = 0; j < upperHalf.size(); j++) {
+        if (upperMax < upperHalf[j][i])
+          upperMax = upperHalf[j][i];
+      }
+      maxLevel[i] = std::min(lowerMax, upperMax);
+    }
+
+    // by creating a dummy sparse grid, we can extract the subspaces
+    SGrid<real> sg(dim, maxLevel, maxLevel, hasBoundary);
+
+    std::vector<LevelVector> commonSubspaces(sg.getSize());
+    for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
+      const LevelVector& subL = sg.getLevelVector(subspaceID);
+      commonSubspaces.push_back(subL);
+    }
+
     // output combination scheme
-    std::cout << "lmin = " << lmin << std::endl;
-    std::cout << "lmax = " << lmax << std::endl;
-    std::cout << "CombiScheme: " << std::endl;
-    std::cout << combischeme << std::endl;
+    //std::cout << "lmin = " << lmin << std::endl;
+    //std::cout << "lmax = " << lmax << std::endl;
+    //std::cout << "CombiScheme: " << std::endl;
+    //std::cout << combischeme << std::endl;
+    
+    // output combi scheme
+    std::cout << "UpperHalf:" << std::endl;
+    for (int i = 0; i < upperHalf.size(); i++)
+      std::cout << upperHalf[i] << ", " << std::endl;
+    std::cout << std::endl;
+    std::cout << "LowerHalf:" << std::endl;
+    for (int i = 0; i < lowerHalf.size(); i++)
+      std::cout << lowerHalf[i] << ", " << std::endl;
+    std::cout << std::endl;
+
+    // output common subspaces
+    std::cout << "CommonSubspaces:" << std::endl;
+    for (int i = 0; i < commonSubspaces.size(); i++)
+      std::cout << commonSubspaces[i] << ", " << std::endl;
 
     // create Tasks
     TaskContainer tasks;
@@ -115,7 +173,7 @@ int main(int argc, char** argv) {
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p, thirdLevelHost, thirdLevelDataPort, systemName, commonSubspaces);
     
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
@@ -129,9 +187,9 @@ int main(int argc, char** argv) {
     Stats::stopEvent("manager run first");
 
     for (size_t i = 0; i < ncombi; ++i) {
-      Stats::startEvent("combine");
-      manager.combine();
-      Stats::stopEvent("combine");
+      Stats::startEvent("combineThirdLevel");
+      manager.combineThirdLevel();
+      Stats::stopEvent("combineThirdLevel");
 
       // evaluate solution and
       // write solution to file
