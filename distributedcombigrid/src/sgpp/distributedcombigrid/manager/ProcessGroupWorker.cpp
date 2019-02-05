@@ -191,7 +191,7 @@ SignalType ProcessGroupWorker::wait() {
   } else if (signal == INTEGRATE_COMMON_SS) {
 
     Stats::startEvent("integrateCommonSS");
-    integrateCommonSS();
+    integrateCommonSS<CombiDataType>();
     Stats::stopEvent("integrateCommonSS");
 
   } else if (signal == GRID_EVAL) {
