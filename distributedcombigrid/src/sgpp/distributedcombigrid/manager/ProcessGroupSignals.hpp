@@ -31,10 +31,8 @@ const SignalType RECOMPUTE = 14;
 const SignalType CHECK_DEAD_PROCS = 15; // check for dead workers
 const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
-const SignalType COMBINE_THIRD_LEVEL = 18;
-const SignalType COMBINE_TO_FILE_THIRD_LEVEL = 19;
-const SignalType COMBINE_LOCAL_AND_GLOBAL = 20;
-const SignalType GATHER_COMMON_SUBSPACES = 21;
+const SignalType COMBINE_UNIFORM_THIRD_LEVEL = 18;
+const SignalType EXCHANGE_COMMON_SUBSPACES_THIRD_LEVEL= 19;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
