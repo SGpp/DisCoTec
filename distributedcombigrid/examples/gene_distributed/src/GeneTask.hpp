@@ -173,7 +173,7 @@ public:
   /**
    * Returns the current combination step
    */
-  inline int GeneTask::getCombiStep(){
+  inline int getCombiStep(){
       return combiStep_;
   }
   /**
