@@ -169,7 +169,13 @@ public:
   /**
    * Sets the current combination step
    */
-  inline void setCombiStep(int ncombi);
+  inline void setCombiStep(int ncombi);  
+  /**
+   * Returns the current combination step
+   */
+  inline int GeneTask::getCombiStep(){
+      return combiStep_;
+  }
   /**
    * Return boolean to indicate whether GeneTask is initialized.
    */
@@ -380,8 +386,6 @@ inline void GeneTask::setNrg(real nrg){
 inline void GeneTask::setCombiStep(int ncombi){
   combiStep_ = ncombi;
 }
-
-
 
 } /* namespace combigrid */
 
