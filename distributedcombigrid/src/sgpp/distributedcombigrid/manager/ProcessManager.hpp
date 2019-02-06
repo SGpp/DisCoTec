@@ -191,6 +191,7 @@ void ProcessManager::combineThirdLevel() {
   thirdLevel_.signalReady();
   std::string instruction = thirdLevel_.fetchInstruction();
 
+  // perform third level reduce
   if (instruction == "receiveAndCombineSharedSS")
   {
     bool success = thirdLevelPGroup_->combineUniformThirdLevel<CombiDataType>(thirdLevel_, params_);
@@ -201,6 +202,12 @@ void ProcessManager::combineThirdLevel() {
     bool success = thirdLevelPGroup_->exchangeCommonSubspacesThirdLevel<CombiDataType>(thirdLevel_, params_);
     assert(success);
   }
+
+  waitAllFinished();
+
+  // integrate subspaces
+  bool success = thirdLevelPGroup_->integrateCommonSS();
+  assert(success);
 
   waitAllFinished();
 }
