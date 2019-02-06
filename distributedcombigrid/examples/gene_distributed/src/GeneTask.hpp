@@ -17,7 +17,6 @@
 
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
-#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
@@ -170,7 +169,13 @@ public:
   /**
    * Sets the current combination step
    */
-  inline void setCombiStep(int ncombi);
+  inline void setCombiStep(int ncombi);  
+  /**
+   * Returns the current combination step
+   */
+  inline int getCombiStep(){
+      return combiStep_;
+  }
   /**
    * Return boolean to indicate whether GeneTask is initialized.
    */
@@ -381,8 +386,6 @@ inline void GeneTask::setNrg(real nrg){
 inline void GeneTask::setCombiStep(int ncombi){
   combiStep_ = ncombi;
 }
-
-
 
 } /* namespace combigrid */
 

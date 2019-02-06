@@ -9,24 +9,26 @@
 #include <algorithm>
 #include <iostream>
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
-#include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 namespace combigrid {
 
-bool compareInstances(const Task* instance1, const Task* instance2) {
-  return (instance1->estimateRuntime() > instance2->estimateRuntime());
-}
-
-ProcessManager::ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& tasks,
-                               CombiParameters& params)
-    : pgroups_(pgroups), tasks_(tasks), params_(params) {}
-
 ProcessManager::~ProcessManager() {}
+
+void ProcessManager::sortTasks(){
+  LoadModel* lm = loadModel_.get();
+  assert(lm);
+  std::sort(tasks_.begin(), tasks_.end(), 
+            [lm](const Task* instance1, const Task* instance2){
+                assert(instance1);
+                return (lm->eval(instance1->getLevelVector()) > lm->eval(instance2->getLevelVector()));
+            }
+  );
+}
 
 bool ProcessManager::runfirst() {
   // sort instances in decreasing order
-  std::sort(tasks_.begin(), tasks_.end(), compareInstances);
+  sortTasks();
 
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group
@@ -37,8 +39,32 @@ bool ProcessManager::runfirst() {
   }
 
   bool group_failed = waitAllFinished();
+  size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
+  receiveDurationsOfTasksFromGroupMasters(0);
+
   // return true if no group failed
   return !group_failed;
+}
+
+void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive = 0){
+  if (numDurationsToReceive == 0){
+    numDurationsToReceive = tasks_.size();
+  }
+  DurationType type = DurationType();
+  for (size_t i = 0; i < numDurationsToReceive; ++i) {
+    durationInformation recvbuf;
+    MPI_Status stat;
+
+    // std::cout << "receiving duration" << std::endl;
+    MPI_Recv(&recvbuf, 1, type.get(), 
+          MPI_ANY_SOURCE, durationTag, theMPISystem()->getGlobalComm(), &stat);
+    // std::cout << "received duration" << std::endl;
+    
+    if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
+      llm->addDataPoint(recvbuf, getLevelVectorFromTaskID(tasks_, recvbuf.task_id));
+    }
+  }
+  // std::cout << "done receiving duration" << std::endl;
 }
 
 bool ProcessManager::runnext() {
@@ -51,6 +77,9 @@ bool ProcessManager::runnext() {
   }
 
   group_failed = waitAllFinished();
+  
+  size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
+  receiveDurationsOfTasksFromGroupMasters(0);
   // return true if no group failed
   return !group_failed;
 }
@@ -78,15 +107,12 @@ void ProcessManager::exit() {
 void ProcessManager::updateCombiParameters() {
   {
     bool fail = waitAllFinished();
-
     assert(!fail && "should not fail here");
   }
 
   for (auto g : pgroups_) g->updateCombiParameters(params_);
-
   {
     bool fail = waitAllFinished();
-
     assert(!fail && "should not fail here");
   }
 }

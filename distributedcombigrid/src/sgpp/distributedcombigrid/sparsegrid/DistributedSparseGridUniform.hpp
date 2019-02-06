@@ -327,16 +327,23 @@ void DistributedSparseGridUniform<FG_ELEMENT>::calcProcAssignment(int procsPerNo
   }
 }
 
-/* get index of subspace with l. returns -1 if not included */
+/* get index of space with l. returns -1 if not included */
 template <typename FG_ELEMENT>
 IndexType DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
-  // get index of l
+  for (const auto& l_i : l){
+    #ifdef DEBUG_OUTPUT
+    // std::cerr << "getIndex()"<< std::endl;
+    #endif
+    assert(l_i > 0);
+  }
+  // std::cout << "get index of "<< toString(l) <<" before"<< std::endl;
   for (IndexType i = 0; i < IndexType(levels_.size()); ++i) {
+    // std::cout << "...vs "<< toString(levels_[i]) << std::endl;
     if (levels_[i] == l) {
       return i;
     }
   }
-
+  // assert (false && "space not found in levels_");
   return -1;
 }
 

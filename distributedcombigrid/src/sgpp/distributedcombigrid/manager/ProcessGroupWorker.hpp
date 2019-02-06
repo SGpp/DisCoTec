@@ -15,6 +15,7 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 
 namespace combigrid {
 
@@ -78,7 +79,7 @@ class ProcessGroupWorker {
   /**
    * Vector containing all distributed sparse grids
    */
-  std::vector<DistributedSparseGridUniform<CombiDataType>*> combinedUniDSGVector_;
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;
 
   bool combinedFGexists_;
 
@@ -97,6 +98,8 @@ class ProcessGroupWorker {
   // std::ofstream betasFile_;
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
+
+  void processDuration(const Task& t, const Stats::Event e, size_t numProcs);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }

@@ -64,7 +64,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
 }
 
 // recovery in case of faults
-void recoverPreprocessing(ProcessManager manager, int nsteps, size_t i, bool doOnlyRecompute = false){
+void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool doOnlyRecompute = false){
 
   //vector with IDs of faulted tasks (=component grids)
   std::vector<int> faultsID;
@@ -203,9 +203,6 @@ int main(int argc, char** argv) {
     );
   }
 
-  // create load model
-  LoadModel* loadmodel = new LinearLoadModel();
-
   /* generate a list of levelvectors and coefficients
     * CombiTS_CT will generate a valid combination. however, you could
     * also read in a list of levelvectors and coefficients from a file */
@@ -284,6 +281,7 @@ int main(int argc, char** argv) {
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
   std::vector<int> fileTaskIDs;
+
   const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
   if (READ_FROM_FILE) { //currently used file produced by preproc.py
     std::ifstream spcfile("spaces.dat");
@@ -310,6 +308,9 @@ int main(int argc, char** argv) {
     levels = combischeme.getCombiSpaces();
     coeffs = combischeme.getCoeffs();
   }
+
+  // create load model
+  std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
 
   // output of combination setup
   std::cout << "lmin = " << lmin << std::endl;
@@ -348,7 +349,7 @@ int main(int argc, char** argv) {
 
     IndexType numSpecies = numGrids; //generate one grid per species
     Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
-                              loadmodel, path, dt, combitime, nsteps,
+                              loadmodel.get(), path, dt, combitime, nsteps,
                               shat, lx, ky0_ind, p, faultCrit,
                               numSpecies, GENE_Global,GENE_Linear);
     tasks.push_back(t);
@@ -361,7 +362,7 @@ int main(int argc, char** argv) {
   params.setParallelization(p);
 
   // create Manager with process groups
-  ProcessManager manager(pgroups, tasks, params);
+  ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
   // combiparameters need to be set before starting the computation
   Stats::startEvent("update combi parameters");
