@@ -14,9 +14,6 @@
 
 // compulsory includes for basic functionality
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
@@ -32,9 +29,7 @@ using namespace combigrid;
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskExample)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-BOOST_CLASS_EXPORT(FaultCriterion)
+
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
@@ -84,15 +79,12 @@ int main(int argc, char** argv) {
     nsteps = cfg.get<size_t>("application.nsteps");
 
     // read in third Level specific parameters
-    std::string thirdLevelHost, systemName;
-    unsigned short thirdLevelDataPort;
-    cfg.get<std::string>("thirdLevel.host") >> thirdLevelHost;
-    cfg.get<std::string>("thirdLevel.dataPort") >> thirdLevelDataPort;
-    cfg.get<std::string>("thirdLevel.systemName") >> systemName;
+    std::string thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
+    std::string systemName = cfg.get<std::string>("thirdLevel.systemName");
+    unsigned short thirdLevelDataPort = cfg.get<unsigned short>("thirdLevel.dataPort");
 
     // todo: read in boundary vector from ctparam
-    bool hasBoundary = true
-    std::vector<bool> boundary(dim, hasBoundary);
+    std::vector<bool> boundary(dim, true);
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
@@ -110,7 +102,7 @@ int main(int argc, char** argv) {
 
     // For example purpose we just split the levels in half, and assign each
     // half to a system
-    auto mid = levels.begin() + ((levels.size()-1) / 2)
+    auto mid = levels.begin() + ((levels.size()-1) / 2);
     std::vector<LevelVector> lowerHalf(levels.begin(), mid);
     std::vector<LevelVector> upperHalf(mid+1, levels.end());
     assert( !lowerHalf.empty() && !upperHalf.empty() );
@@ -120,8 +112,8 @@ int main(int argc, char** argv) {
     // in both sets
     LevelVector maxLevel(dim);
     for (size_t i = 0; i < dim; i++) {
-      lowerMax = 0;
-      upperMax = 0;
+      int lowerMax = 0;
+      int upperMax = 0;
       for (size_t j = 0; j < lowerHalf.size(); j++) {
         if (lowerMax < lowerHalf[j][i])
           lowerMax = lowerHalf[j][i];
@@ -134,9 +126,9 @@ int main(int argc, char** argv) {
     }
 
     // by creating a dummy sparse grid, we can extract the subspaces
-    SGrid<real> sg(dim, maxLevel, maxLevel, hasBoundary);
+    SGrid<real> sg(dim, maxLevel, maxLevel, boundary);
 
-    std::vector<LevelVector> commonSubspaces(sg.getSize());
+    std::vector<LevelVector> commonSubspaces;
     for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
       const LevelVector& subL = sg.getLevelVector(subspaceID);
       commonSubspaces.push_back(subL);
@@ -147,7 +139,7 @@ int main(int argc, char** argv) {
     //std::cout << "lmax = " << lmax << std::endl;
     //std::cout << "CombiScheme: " << std::endl;
     //std::cout << combischeme << std::endl;
-    
+
     // output combi scheme
     std::cout << "UpperHalf:" << std::endl;
     for (int i = 0; i < upperHalf.size(); i++)
@@ -159,6 +151,7 @@ int main(int argc, char** argv) {
     std::cout << std::endl;
 
     // output common subspaces
+    std::cout << "Num common subspaces: " << commonSubspaces.size() << std::endl;
     std::cout << "CommonSubspaces:" << std::endl;
     for (int i = 0; i < commonSubspaces.size(); i++)
       std::cout << commonSubspaces[i] << ", " << std::endl;
@@ -173,8 +166,8 @@ int main(int argc, char** argv) {
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p, thirdLevelHost, thirdLevelDataPort, systemName, commonSubspaces);
-    
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, thirdLevelHost, thirdLevelDataPort, systemName, commonSubspaces);
+
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
 
