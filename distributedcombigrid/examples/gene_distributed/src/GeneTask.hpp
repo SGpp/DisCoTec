@@ -33,7 +33,7 @@ public:
             LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
             real shat, real lx, int ky0_ind,
             IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
-            IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);
+            IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true, size_t checkpointFrequency = 1);
 
   GeneTask();
 
@@ -177,6 +177,12 @@ public:
       return combiStep_;
   }
   /**
+   * Returns the checkpoint frequency
+   */
+  inline int getCheckpointFrequency(){
+      return checkpointFrequency_;
+  }
+  /**
    * Return boolean to indicate whether GeneTask is initialized.
    */
   inline bool isInitialized(){
@@ -288,6 +294,8 @@ private:
   size_t nsteps_;
   size_t stepsTotal_; //number of time-steps done so far (there might be multiple timesteps in between two combinations)
   size_t combiStep_; //number of combinations done so far
+  /// number of combinations after which a new checkpoint is written to the hard drive
+  size_t checkpointFrequency_;
   IndexVector p_;
   /**
    * some Gene specific physical parameters
@@ -338,6 +346,7 @@ private:
     ar & nsteps_;
     ar & stepsTotal_;
     ar & combiStep_;
+    ar & checkpointFrequency_;
     ar & p_;
     ar & shat_;
     ar & kymin_;

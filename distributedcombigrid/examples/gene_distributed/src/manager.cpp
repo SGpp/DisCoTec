@@ -251,6 +251,8 @@ int main(int argc, char** argv) {
 
   //read application specific variables
   real lx = cfg.get<real>("application.lx");
+  //read checkpoint frequency
+  int checkpointFrequency = cfg.get<int>("application.checkpointFrequency");
   IndexType numGrids = cfg.get<IndexType>("application.numspecies");
   std::string GENE_nonlinear_string = cfg.get<std::string>("application.GENE_nonlinear");
   std::string GENE_local_string = cfg.get<std::string>("application.GENE_local");
@@ -351,7 +353,7 @@ int main(int argc, char** argv) {
     Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
                               loadmodel.get(), path, dt, combitime, nsteps,
                               shat, lx, ky0_ind, p, faultCrit,
-                              numSpecies, GENE_Global,GENE_Linear);
+                              numSpecies, GENE_Global,GENE_Linear, checkpointFrequency);
     tasks.push_back(t);
     taskIDs.push_back( t->getID() );
 
