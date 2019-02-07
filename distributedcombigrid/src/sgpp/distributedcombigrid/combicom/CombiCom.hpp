@@ -44,7 +44,7 @@ class CombiCom {
                                        const std::vector<int>& subspaceSizes);
 
    template<typename FG_ELEMENT>
-   static void createUniformSparseGridBuffer(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+   static void createUniformSparseGridBuffer(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
                                              const std::vector<int>& subspaceSizes,
                                              std::vector<FG_ELEMENT>& buf);
 
@@ -846,7 +846,7 @@ int CombiCom::sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELE
 }
 
 template <typename FG_ELEMENT>
-void CombiCom::createUniformSparseGridBuffer(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+void CombiCom::createUniformSparseGridBuffer(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
                                              const std::vector<int>& subspaceSizes,
                                              std::vector<FG_ELEMENT>& buf)
 {
@@ -874,7 +874,7 @@ void CombiCom::extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
                                              const std::vector<int> subspaceSizes,
                                              DistributedSparseGridUniform<FG_ELEMENT>& dsg)
 {
-  typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
+  auto buf_it = buf.begin();
 
   for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
     std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
