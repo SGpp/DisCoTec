@@ -53,7 +53,6 @@ class ProcessManager {
   inline void
   combine();
 
-  template<typename FG_ELEMENT>
   inline void
   combineThirdLevel();
 
@@ -163,8 +162,6 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
-// TODO
-template<typename FG_ELEMENT>
 void ProcessManager::combineThirdLevel() {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
