@@ -13,3 +13,8 @@ nsteps = 100
 [manager]
 ngroup = 2
 nprocs = 2 
+
+[thirdLevel]
+host = "localhost"
+dataPort = 9999
+systemName = "System1"
