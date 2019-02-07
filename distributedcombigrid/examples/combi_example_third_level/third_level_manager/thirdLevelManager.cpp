@@ -56,7 +56,7 @@ void ThirdLevelManager::processCombination(System& system)
   std::string message = "do_send_size";
   system.sendMessage(message, _channel);
 
-  system.receiveMessage(_channel, message, noTimeout);
+  system.receiveMessage(_channel, message);
   u_int combiGridSize = std::stoi(message);
 
   message = "do_send_data";
@@ -68,7 +68,7 @@ void ThirdLevelManager::processCombination(System& system)
     if (sysIt->getName() != system.getName())
     {
       sysIt->sendMessage(message, _channel);
-      sysIt->receiveMessage(_channel, message, noTimeout);
+      sysIt->receiveMessage(_channel, message);
       assert(message =="ok");
       // send locally combinated sparse grid from one to the other system.
       NetworkUtils::forward(system.getDataConnection().get(),

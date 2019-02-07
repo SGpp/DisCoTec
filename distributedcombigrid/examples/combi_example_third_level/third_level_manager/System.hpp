@@ -22,7 +22,7 @@ class System
            const ServerSocket& server);
 
     void sendMessage(const std::string& message, AmqpClient::Channel::ptr_t channel);
-    bool receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message, int timeout);
+    bool receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message);
 
     std::shared_ptr<ClientSocket> getDataConnection() const;
     std::string                   getName() const;

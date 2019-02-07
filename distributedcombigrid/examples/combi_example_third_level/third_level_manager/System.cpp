@@ -24,7 +24,7 @@ void System::createDataConnection(const ServerSocket& server,
                                   const AmqpClient::Channel::ptr_t& channel)
 {
   std::string message;
-  receiveMessage(channel, message, -1); // waits until system is ready
+  receiveMessage(channel, message); // waits until system is ready
   assert(message == "create_data_conn");
   _dataConnection = std::shared_ptr<ClientSocket>(server.acceptClient());
 }
@@ -34,9 +34,9 @@ void System::sendMessage(const std::string& message, AmqpClient::Channel::ptr_t 
   MessageUtils::sendMessage(message, _inQueue, channel);
 }
 
-bool System::receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message, int timeout)
+bool System::receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message)
 {
-  return MessageUtils::receiveMessage(channel, _outQueue, message, timeout);
+  return MessageUtils::receiveMessage(channel, _outQueue, message);
 }
 
 std::string System::getName() const
