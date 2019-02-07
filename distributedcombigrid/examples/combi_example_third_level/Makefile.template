@@ -1,20 +1,22 @@
-CC=$(CC)
+CC=g++
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall
 
-SGPP_DIR=$(SGPP)
-GLPK_DIR=$(GLPK)
+SGPP_DIR=../../../
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
-INC_GLPK=-I$(GLPK_DIR)/include
-LD_GLPK=-L$(GLPK_DIR)/lib
-INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ 
+LD_MPI=-L/path/to/mpi # or use mpich.mpic++ as compiler
+LD_SIMPLE_AMQP=-L$(SGPP_DIR)/distributedcombigrid/SimpleAmqpClient/build
 
-LDIR=$(LD_SGPP) $(LD_GLPK)
-INC=$(INC_SGPP) $(INC_GLPK)
+INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
+INC_SIMPLE_AMQP=-I$(SGPP_DIR)/distributedcombigrid/SimpleAmqpClient/src/
+INC_MPI=-I/path/to/mpi # or use mpich.mpic++ as compiler
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization
+LDIR=$(LD_SGPP) $(LD_SIMPLE_AMQP) $(LD_MPI)
+INC=$(INC_SGPP) $(INC_SIMPLE_AMQP) $(INC_MPI)
 
-all: combi_example 
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lSimpleAmqpClient -lmpi
+
+all: combi_example
 
 combi_example: combi_example.cpp TaskExample.hpp
 	$(CC) $(CFLAGS) $(LDIR) $(INC) -o combi_example combi_example.cpp $(LIBS)
