@@ -715,7 +715,7 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
   t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
   Stats::stopEvent("task init in worker");
 }
-/*
+
 // todo: this is just a temporary function which will drop out some day
 // also this function requires a modified fgreduce method which uses allreduce
 // instead reduce in manger
@@ -723,7 +723,7 @@ void ProcessGroupWorker::combineFG() {
   // gridEval();
 
   // TODO: Sync back to fullgrids
-}*/
+}
 
 void ProcessGroupWorker::updateCombiParameters() {
   CombiParameters tmp;
