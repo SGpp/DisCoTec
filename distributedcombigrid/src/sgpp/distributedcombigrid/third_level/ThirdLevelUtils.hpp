@@ -6,9 +6,6 @@
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
-#include <boost/archive/text_iarchive.hpp>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/serialization/vector.hpp>
 #include "SimpleAmqpClient/SimpleAmqpClient.h"
 #include "MessageUtils.hpp"
 #include <stdlib.h>
@@ -31,8 +28,6 @@ namespace combigrid {
       std::string outQueue_;
       std::string systemName_;
       bool isConnected_ = false;
-
-      void createDataConnection();
 
       void connectToIntermediary();
 
