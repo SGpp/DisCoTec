@@ -523,13 +523,14 @@ void ProcessGroupWorker::combineUniform() {
   MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
                     MPI_MAX, theMPISystem()->getLocalComm() );
                     */
-  Stats::startEvent("combine global reduce");
+  if(combiParameters_.getNumTasks() > 1){
+    Stats::startEvent("combine global reduce");
 
-  for(int g=0; g<numGrids; g++){
-    CombiCom::distributedGlobalReduce( *combinedUniDSGVector_[g] );
+    for(int g=0; g<numGrids; g++){
+      CombiCom::distributedGlobalReduce( *combinedUniDSGVector_[g] );
+    }
+    Stats::stopEvent("combine global reduce");
   }
-  Stats::stopEvent("combine global reduce");
-
   //std::vector<CombiDataType> afterCombi;
   Stats::startEvent("combine dehierarchize");
 
@@ -734,7 +735,7 @@ void ProcessGroupWorker::gridEval() { //not supported anymore
                         theMPISystem()->getGlobalComm() );
   }
 }
-
+/*
 //todo: this is just a temporary function which will drop out some day
 // also this function requires a modified fgreduce method which uses allreduce
 // instead reduce in manger
@@ -742,7 +743,7 @@ void ProcessGroupWorker::combineFG() {
   //gridEval();
 
   // TODO: Sync back to fullgrids
-}
+}*/
 
 void ProcessGroupWorker::updateCombiParameters() {
   CombiParameters tmp;
