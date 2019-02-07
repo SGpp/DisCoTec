@@ -12,7 +12,7 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <unistd.h>
 #include <fstream>
-#include "CombiGeneConverter.hpp"
+//#include "CombiGeneConverter.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include <math.h>
@@ -27,8 +27,8 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
                     std::string& path, real dt, real combitime, size_t nsteps,
                     real shat, real lx, int ky0_ind,
                     IndexVector p , FaultCriterion *faultCrit,
-                    IndexType numSpecies, bool GENE_Global, bool GENE_Linear)
-    : Task( dim, l, boundary, coeff, loadModel,faultCrit),
+                    IndexType numSpecies, bool GENE_Global, bool GENE_Linear, size_t checkpointFrequency)
+    : Task( dim, l, boundary, coeff, loadModel, faultCrit),
       path_( path ),
       dt_( dt ),
       combitime_(combitime),
@@ -46,7 +46,8 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       _GENE_Global(GENE_Global),
       _GENE_Linear(GENE_Linear),
       currentTime_(0.0),
-      gyromatrix_buffered_(false)
+      gyromatrix_buffered_(false),
+      checkpointFrequency_(checkpointFrequency)
 {
 
 // theres only one boundary configuration allowed at the moment

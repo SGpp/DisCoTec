@@ -7,10 +7,11 @@
 #ifndef TYPES_HPP_
 #define TYPES_HPP_
 
-#include <stdexcept>
 #include <mpi.h>
-#include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include <cassert>
+#include <vector>
+#include <stdexcept>
+#include "sgpp/distributedcombigrid/utils/Config.hpp"
 
 /* only change these types of if you know what you're doing! */
 
@@ -28,12 +29,7 @@ typedef size_t DimType;
 typedef MPI_Comm CommunicatorType;
 
 typedef int RankType;
-
-
-
 }
-
-
 
 namespace abstraction {
 
@@ -45,27 +41,27 @@ typedef enum {
   type_float_complex
 } DataType;
 
-template<class T>
+template <class T>
 DataType getabstractionDataType() {
   throw new std::invalid_argument("Datatype is not supported!");
 }
 
-template<>
+template <>
 inline DataType getabstractionDataType<float>() {
   return abstraction::type_float;
 }
 
-template<>
+template <>
 inline DataType getabstractionDataType<double>() {
   return abstraction::type_double;
 }
 
-template<>
+template <>
 inline DataType getabstractionDataType<std::complex<double> >() {
   return abstraction::type_double_complex;
 }
 
-template<>
+template <>
 inline DataType getabstractionDataType<std::complex<float> >() {
   return abstraction::type_float_complex;
 }
@@ -88,13 +84,25 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
       throw new std::invalid_argument("Type unknown ConvertType!");
 
     default:
-      assert( false && "you should never get here" );
+      assert(false && "you should never get here");
   };
 
-  throw new std::invalid_argument(
-    "MPI_Datatype Convert(abstraction::DataType) failed!");
+  throw new std::invalid_argument("MPI_Datatype Convert(abstraction::DataType) failed!");
 }
 
+  template <typename T>
+  inline std::string toString(std::vector<T> const& v){
+      std::stringstream ss;
+      ss << "[[";
+      for(size_t i = 0; i < v.size(); ++i)
+      {
+          if(i != 0)
+              ss << ",";
+          ss << v[i];
+      }
+      ss << "]]";
+      return ss.str();
+  }
 }
 
 #endif /* TYPES_HPP_ */

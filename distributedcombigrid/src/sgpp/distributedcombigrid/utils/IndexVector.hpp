@@ -8,15 +8,14 @@
 #ifndef INDEXVECTOR_HPP_
 #define INDEXVECTOR_HPP_
 
-#include <vector>
 #include <assert.h>
-#include <ostream>
 #include <iostream>
+#include <ostream>
+#include <vector>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-
 
 namespace combigrid {
 
@@ -25,8 +24,7 @@ typedef std::vector<IndexType> IndexVector;
 inline IndexType sum(const IndexVector& l) {
   IndexType lsum(0);
 
-  for (std::size_t d = 0; d < l.size(); ++d)
-    lsum += l[d];
+  for (std::size_t d = 0; d < l.size(); ++d) lsum += l[d];
 
   return lsum;
 }
@@ -34,9 +32,10 @@ inline IndexType sum(const IndexVector& l) {
 inline bool operator==(const IndexVector& l1, const IndexVector& l2) {
   assert(l1.size() == l2.size());
 
+  // std::cout << "== at line number " << __LINE__ << " in file " << __FILE__ << std::endl;
+
   for (std::size_t i = 0; i < l1.size(); ++i) {
-    if (l1[i] != l2[i])
-      return false;
+    if (l1[i] != l2[i]) return false;
   }
 
   return true;
@@ -47,8 +46,7 @@ inline bool operator<=(const IndexVector& l1, const IndexVector& l2) {
   assert(l1.size() == l2.size());
 
   for (std::size_t i = 0; i < l1.size(); ++i) {
-    if (l1[i] > l2[i])
-      return false;
+    if (l1[i] > l2[i]) return false;
   }
 
   return true;
@@ -59,8 +57,7 @@ inline bool operator<(const IndexVector& l1, const IndexVector& l2) {
   assert(l1.size() == l2.size());
 
   for (std::size_t i = 0; i < l1.size(); ++i) {
-    if (!(l1[i] < l2[i]))
-      return false;
+    if (!(l1[i] < l2[i])) return false;
   }
 
   return true;
@@ -71,8 +68,7 @@ inline bool operator>(const IndexVector& l1, const IndexVector& l2) {
   assert(l1.size() == l2.size());
 
   for (std::size_t i = 0; i < l1.size(); ++i) {
-    if (!(l1[i] > l2[i]))
-      return false;
+    if (!(l1[i] > l2[i])) return false;
   }
 
   return true;
@@ -84,8 +80,7 @@ inline bool operator>=(const IndexVector& l1, const IndexVector& l2) {
   assert(l1.size() == l2.size());
 
   for (std::size_t i = 0; i < l1.size(); ++i) {
-    if (l1[i] < l2[i])
-      return false;
+    if (l1[i] < l2[i]) return false;
   }
 
   return true;
@@ -96,8 +91,7 @@ inline IndexVector operator+(const IndexVector& l1, const IndexVector& l2) {
 
   IndexVector tmp(l1.size());
 
-  for (std::size_t i = 0; i < l1.size(); ++i)
-    tmp[i] = l1[i] + l2[i];
+  for (std::size_t i = 0; i < l1.size(); ++i) tmp[i] = l1[i] + l2[i];
 
   return tmp;
 }
@@ -105,8 +99,7 @@ inline IndexVector operator+(const IndexVector& l1, const IndexVector& l2) {
 inline std::ostream& operator<<(std::ostream& os, const IndexVector& l) {
   os << "[";
 
-  for (size_t i = 0; i < l.size(); ++i)
-    os << l[i] << " ";
+  for (size_t i = 0; i < l.size(); ++i) os << l[i] << " ";
 
   os << "]";
 
@@ -115,7 +108,7 @@ inline std::ostream& operator<<(std::ostream& os, const IndexVector& l) {
 
 inline IndexVector operator-(const IndexVector& l1, const IndexVector& l2) {
   assert(l1.size() == l2.size());
-//  assert(l1 >= l2);
+  //  assert(l1 >= l2);
 
   IndexVector tmp(l1.size());
 
@@ -129,8 +122,7 @@ inline IndexVector operator-(const IndexVector& l1, const IndexVector& l2) {
 inline IndexType l1(const IndexVector& l) {
   IndexType lsum(0);
 
-  for (std::size_t d = 0; d < l.size(); ++d)
-    lsum += std::abs(l[d]);
+  for (std::size_t d = 0; d < l.size(); ++d) lsum += std::abs(l[d]);
 
   return lsum;
 }
@@ -143,12 +135,11 @@ inline IndexVector& operator>>(std::string str, IndexVector& ivec) {
 
   assert(ivec.size() == strs.size());
 
-  for (size_t i = 0; i < strs.size(); ++i)
-    ivec[i] = boost::lexical_cast<int>(strs[i]);
+  for (size_t i = 0; i < strs.size(); ++i) ivec[i] = boost::lexical_cast<int>(strs[i]);
 
   return ivec;
 }
 
-} // namespace combigrid
+}  // namespace combigrid
 
 #endif /* LEVELVECTOR_HPP_ */

@@ -78,7 +78,7 @@ void test2D() {
   decomposition[1] = { 0, 4 };
 
   // create distributed fg and fill with test function
-  DistributedFullGrid<complex> dfg(dim, l, comm, boundary, gpd, decomposition);
+  DistributedFullGrid<complex> dfg(dim, l, comm, boundary, gpd, true, decomposition);
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
     std::vector<double> coords(dim);
     dfg.getCoordsLocal(li, coords);
@@ -279,7 +279,7 @@ void test6D() {
   decomposition[5] = { 0 };
 
   // create distributed fg and fill with test function
-  DistributedFullGrid<complex> dfg(dim, l, comm, boundary, gpd, decomposition );
+  DistributedFullGrid<complex> dfg(dim, l, comm, boundary, gpd, true, decomposition );
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
     std::vector<double> coords(dim);
     dfg.getCoordsLocal(li, coords);

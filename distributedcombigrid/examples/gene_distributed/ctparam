@@ -28,7 +28,7 @@ hierarchization_dims = 0 0 1 1 1 0
 
 #possibility to reduce the level of the sparse grid for the combination step
 reduceCombinationDimsLmin = 0 0 0 0 0 0
-reduceCombinationDimsLmax = 0 0 0 0 0 0
+reduceCombinationDimsLmax = 1 1 1 1 1 0
 
 [application]
 #timestep size
@@ -50,6 +50,8 @@ numspecies = 1
 GENE_local = F
 #T for nonlinear F for linear runs
 GENE_nonlinear = T
+#The number of combinations after which we write out checkpoint to memory
+checkpointFrequency = 50
 
 [preproc]
 #name of gene instance folders
@@ -57,7 +59,7 @@ basename = ginstance
 #executable name of gene manager
 executable = ./gene_new_machine
 #used mpi version
-mpi = mpirun
+mpi = mpirun.mpich
 startscript = start.bat
 
 [manager]

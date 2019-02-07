@@ -36,9 +36,12 @@ void recoverComm(){
   }
 }
 
-
+//start with e.g. mpirun.mpich -n 5 ./test_ft_sim 2
 int main(int argc, char** argv) {
   assert( argc == 2 );
+
+  //TODO this thread https://stackoverflow.com/questions/2642996/why-does-mpi-init-accept-pointers-to-argc-and-argv
+  // indicates that this might not make sense before MPI_Init
   int rank_fail = atoi(argv[1]);
 
   //MPI_Init(&argc, &argv);

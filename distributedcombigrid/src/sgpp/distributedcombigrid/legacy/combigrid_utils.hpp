@@ -7,22 +7,22 @@
 #define COMBIGRID_ULTILS_HPP_
 
 /** In this hpp file we define the utilities for the combination technique */
-#include <math.h>
 #include <assert.h>
 #include <float.h>
+#include <math.h>
 
 // include open mp for shared memory programming
 #include <omp.h>
 
-#include <iostream>
-#include <typeinfo>
-#include <stack>
-#include <functional>
-#include <string>
 #include <cassert>
-#include <fstream>
-#include <vector>
 #include <complex>
+#include <fstream>
+#include <functional>
+#include <iostream>
+#include <stack>
+#include <string>
+#include <typeinfo>
+#include <vector>
 
 #define ABS(x) x < 0 ? -x : x
 #define UNDEFINED_OPERATION_EXCEPTION -1
@@ -223,9 +223,9 @@ inline void vect_diff(std::vector<double>* v1, std::vector<double>* v2) {
 /** v1 = coefv1*v1 + coefv2 * v2 */
 inline void vect_add_mul(double coefv1, std::vector<double>* v1, double coefv2,
                          std::vector<double>* v2) {
-  COMBIGRID_ERROR_TEST(v1->size() == v2->size(), " vect_add_mul , size do not match v1->size():"
-                                                     << v1->size()
-                                                     << " , v2->size():" << v2->size());
+  COMBIGRID_ERROR_TEST(v1->size() == v2->size(),
+                       " vect_add_mul , size do not match v1->size():"
+                           << v1->size() << " , v2->size():" << v2->size());
 
   for (unsigned int i = 0; i < v1->size(); i++) {
     v1->at(i) = coefv1 * v1->at(i) + coefv2 * v2->at(i);
@@ -234,9 +234,9 @@ inline void vect_add_mul(double coefv1, std::vector<double>* v1, double coefv2,
 
 /** computes the scalar product of two vectors */
 inline void scalar_product(std::vector<double>* v1, std::vector<double>* v2, double& result) {
-  COMBIGRID_ERROR_TEST(v1->size() == v2->size(), " vect_add_mul , size do not match v1->size():"
-                                                     << v1->size()
-                                                     << " , v2->size():" << v2->size());
+  COMBIGRID_ERROR_TEST(v1->size() == v2->size(),
+                       " vect_add_mul , size do not match v1->size():"
+                           << v1->size() << " , v2->size():" << v2->size());
   result = 0.0;
 
   for (unsigned int i = 0; i < v1->size(); i++) {

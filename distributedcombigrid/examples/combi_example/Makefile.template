@@ -12,7 +12,7 @@ INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
 LDIR=$(LD_SGPP) $(LD_GLPK)
 INC=$(INC_SGPP) $(INC_GLPK)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
+LIBS=-lsgppdistributedcombigrid -lboost_serialization
 
 all: combi_example 
 

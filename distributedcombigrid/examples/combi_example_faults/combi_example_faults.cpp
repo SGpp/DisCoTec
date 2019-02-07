@@ -211,7 +211,7 @@ int main(int argc, char** argv) {
     manager.exit();
   }
 
-//  // worker code
+// worker code
   else {
     // create abstraction of the process group from the worker's view
     ProcessGroupWorker pgroup;
