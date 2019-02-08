@@ -423,9 +423,9 @@ int main(int argc, char** argv) {
   // std::cout << "Computation finished leval 1! \n";
 
   // evaluate solution on the grid defined by leval2
-  Stats::startEvent("manager parallel eval 2");
-  manager.parallelEval( leval2, fg_file_path2, 0 );
-  Stats::stopEvent("manager parallel eval 2");
+  //Stats::startEvent("manager parallel eval 2");
+  //manager.parallelEval( leval2, fg_file_path2, 0 );
+  //Stats::stopEvent("manager parallel eval 2");
 
   std::cout << "Computation finished evaluating on target grid! \n";
 
@@ -436,12 +436,10 @@ int main(int argc, char** argv) {
   Stats::finalize();
   /* write stats to json file for postprocessing */
   Stats::write( "timers.json" );
-  
+  std::cout << "Program finished successfully" << std::endl;  
   //terminate the program
   if( ENABLE_FT ){
     std::cout << "The number of detected faults during the simulation is " << nfaults << "\n";
-
-    std::cout << "Program finished successfully" << std::endl;
     if(nfaults > 0){
       std::cout << "To avoid problems with hanging killed processes, we exit with "
         << "MPI_Abort()" << std::endl;
