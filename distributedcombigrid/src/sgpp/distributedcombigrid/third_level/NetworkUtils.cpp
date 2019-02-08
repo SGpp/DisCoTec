@@ -1,5 +1,4 @@
 #include "NetworkUtils.hpp"
-
 ClientSocket::ClientSocket(const std::string& host, const int port)
   : Socket(), remotePort_(port), remoteHost_(host){
 }
@@ -84,6 +83,33 @@ bool ClientSocket::sendall(const char* buf, size_t len) const {
   return true;
 }
 
+template<typename FG_ELEMENT>
+bool ClientSocket::sendallBinary(std::vector<FG_ELEMENT>& buf, int flags) const {
+  char* rawBuf = reinterpret_cast<char*>(buf.data());
+  size_t rawSize = buf.data() * sizeof(FG_ELEMENT);
+
+  char isLittleEndian = static_cast<char>(NetworkUtils::isLittleEndian());
+  bool success = sendall(&isLittleEndian, 1);
+  if (!success) 
+    return false;
+  return sendall(rawBuf, rawSize);
+}
+
+// Sends the given buffer in binary form. The first byte sent specifies
+// if the system is little-endian. The next bytes specify the length of
+// the following buffer and are sperated by an # from the following raw data. 
+template<typename FG_ELEMENT>
+bool ClientSocket::sendallBinaryPrefixed(std::vector<FG_ELEMENT>& buf, int flags) const {
+  char* rawBuf = reinterpret_cast<char*>(buf.data());
+  size_t rawSize = buf.data() * sizeof(FG_ELEMENT);
+
+  char isLittleEndian = static_cast<char>(NetworkUtils::isLittleEndian());
+  bool success = sendall(&isLittleEndian, 1);
+  if (!success)
+    return false;
+  return sendallPrefixed(rawBuf, rawSize);
+}
+
 bool ClientSocket::sendallPrefixed(const std::string& mesg) const {
   assert(isInitialized() && "Client Socket not initialized");
   std::string lenstr = std::to_string(mesg.size()) + "#";
@@ -122,19 +148,20 @@ bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
 }
 
 bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
-    size_t chunksize) const
+    size_t chunksize, int flags) const
 {
   // receive endianness first
   assert(isInitialized() && "Client Socket not initialized");
   std::ofstream file(filename, std::ofstream::binary);
   bool success = false;
 
-  char* endianness = nullptr;
-  success = recvall(endianness, 1);
+  char temp;
+  success = recvall(&temp, 1);
   if (!success) {
     file.close();
     return false;
   }
+  bool endianness = temp;
 
   int err;
   long n = -1;
@@ -159,21 +186,19 @@ bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
     return false;
   }
 
-  if ((bool) *endianness != NetworkUtils::isLittleEndian()) {
+  if (endianness != NetworkUtils::isLittleEndian()) {
     // TODO correct endiannes in file
   }
 
   file.close();
-  delete[] endianness;
   delete[] buff;
   return true;
 }
 
-bool ClientSocket::recvall(char* &buf, size_t len, int flags) const {
+bool ClientSocket::recvall(char* buf, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   int err;
   long n = -1;
-  buf = new char[len];
   size_t total = 0;
   while (total < len) {
     n = recv(sockfd_, &buf[total], len-total, flags);
@@ -198,8 +223,42 @@ bool ClientSocket::recvall(char* &buf, size_t len, int flags) const {
   return true;
 }
 
+bool ClientSocket::recvallPrefixed(char* buf, int flags) const {
+  assert(isInitialized() && "Client Socket not initialized");
+
+  // receive length
+  int err;
+  long n = -1;
+  std::string lenstr = "";
+  char temp = ' ';
+  do {
+    n = recv(sockfd_, &temp, 1, flags);
+    err = errno;
+    if (n <= 0)
+      break;
+    lenstr += temp;
+  } while (temp != '#');
+  if (n == -1) {
+    std::cerr << "Receive of length failed: " << std::to_string(err)
+      << std::endl;
+    return false;
+  } else if (n == 0) {
+    std::cerr << "Receive of length failed, sender terminated too early: " <<
+      std::to_string(err) << std::endl;
+    return false;
+  }
+  lenstr.pop_back();
+  assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
+  size_t len = (size_t) std::stoi(lenstr);
+
+  // receive data
+  return recvall(buf, len);
+}
+
 bool ClientSocket::recvallPrefixed(std::string& mesg, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
+
+  // receive length
   mesg.clear();
   int err;
   long n = -1;
@@ -224,17 +283,24 @@ bool ClientSocket::recvallPrefixed(std::string& mesg, int flags) const {
   lenstr.pop_back();
   assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
   size_t len = (size_t) std::stoi(lenstr);
+
+  // receive data
   return recvall(mesg, len);
 }
 
 
-//TODO
-bool ClientSocket::recvallPrefixed(const char* buf, size_t len, int flags) const {
+template<typename FG_ELEMENT>
+bool ClientSocket::recvallBinaryPrefixedCorrectInPlace(std::vector<FG_ELEMENT>& buff, size_t chunksize, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
+  // receive endianness
+  char temp = ' ';
+  assert(recvall(&temp, 1)&& "Receiving Endianess failed");
+  bool endianness = temp;
+
+  // receive length
   int err;
   long n = -1;
   std::string lenstr = "";
-  char temp = ' ';
   do {
     n = recv(sockfd_, &temp, 1, flags);
     err = errno;
@@ -252,11 +318,109 @@ bool ClientSocket::recvallPrefixed(const char* buf, size_t len, int flags) const
     return false;
   }
   lenstr.pop_back();
-  return recvall(mesg, len);
+  assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
+  size_t len = (size_t) std::stoi(lenstr);
+
+  buff.resize(len);
+  char* rawBuffer = reinterpret_cast<char*>(buff.data());
+
+  // receive binary data and correct endianness in place
+  std::vector<char> tempBuff(chunksize);
+  std::vector<char> overhead(sizeof(FG_ELEMENT));
+  size_t total = 0;
+  size_t oldSize = 0;
+  size_t newSize = 0;
+  while(total < len) {
+    n = recv(sockfd_, tempBuff.data(), len-total, flags);
+
+    err = errno;
+    if (n <= 0)
+      break;
+
+    // tempBuff example for sizeof(FG_ELEMENT)=4:
+    //
+    //        recv k-1                     recv k
+    //                     old     tail               new
+    //  [ oo|xxxx|...|xxxx|o ] -> [ ooo|xxxx|...|xxxx|oo ]
+    //                              0                  n-1
+    if (total == 0) //first run
+      oldSize = n % sizeof(FG_ELEMENT);
+    else
+      oldSize = newSize;
+
+    if (endianness != NetworkUtils::isLittleEndian()) {
+      size_t tailSize = sizeof(FG_ELEMENT) - oldSize;
+      size_t rawSize = total + tailSize;
+      newSize = (tailSize - n) % sizeof(FG_ELEMENT);
+      size_t blocksSize = (n - tailSize - newSize);
+      if (tailSize > 0) {
+        // fill remaining block
+        for (size_t i = 0; i < tailSize; i++)
+          rawBuffer[total-oldSize-1 + i] = tempBuff[i];
+      }
+      if (blocksSize > 0) {
+        // append correct sized blocks
+        for (size_t i = rawSize; i < rawSize+n-newSize; i+=sizeof(FG_ELEMENT)) {
+          for (size_t j = sizeof(FG_ELEMENT)-1; j >= 0; j--) {
+            rawBuffer[i+(sizeof(FG_ELEMENT)-1-j)] = tempBuff[i-rawSize+j];
+          }
+        }
+      }
+      if (newSize > 0) {
+        rawSize += n-newSize;
+        // append new overhead
+        for (size_t i = rawSize; i < rawSize+newSize; i++){
+          size_t j = n - (i-rawSize) -1;
+          rawBuffer[i] = tempBuff[j];
+        }
+      }
+    }
+
+    total += n;
+  }
+  if ( n == -1) {
+    std::cerr << "Receive failed: " << std::to_string(err) << std::endl;
+    return false;
+  } else if (n == 0) {
+    std::cerr << "Receive failed, sender terminated too early: " <<
+      std::to_string(err) << std::endl;
+    return false;
+  }
+  return true;
 }
 
+template<typename FG_ELEMENT>
+bool ClientSocket::recvallBinaryPrefixed(std::vector<FG_ELEMENT>& buff, bool& endianness, int flags) const
+{
+  assert(isInitialized() && "Client Socket not initialized");
+
+  // receive endianness
+  char temp = ' ';
+  assert(recvall(&temp, 1)&& "Receiving Endianess failed");
+  endianness = temp;
+
+  // receive binary data
+  char* rawBuf = reinterpret_cast<char*>(buff.data());
+  return recvallPrefixed(rawBuf, flags);
+
+}
+
+template<typename FG_ELEMENT>
+bool ClientSocket::recvallBinary(std::vector<FG_ELEMENT>& buff, size_t len,
+    bool& endianness, int flags) const {
+  // receive endianness
+  char temp = ' ';
+  assert(recvall(&temp, 1)&& "Receiving Endianess failed");
+  endianness = temp;
+
+  // receive binary data
+  char* rawBuf = reinterpret_cast<char*>(buff.data());
+  return recvall(rawBuf, len*sizeof(FG_ELEMENT), flags);
+}
 
 bool ClientSocket::isReadable(int timeout) const {
+  assert(isInitialized() && "Client Socket not initialized");
+
   struct timeval tv;
   fd_set readfds;
 
@@ -276,6 +440,8 @@ bool ClientSocket::isReadable(int timeout) const {
 }
 
 bool ClientSocket::isWriteable(int timeout) const {
+  assert(isInitialized() && "Client Socket not initialized");
+
   struct timeval tv;
   fd_set writefds;
 
@@ -390,6 +556,7 @@ Socket::Socket() : sockfd_(-1), initialized_(false) {
 }
 
 Socket::~Socket(){
+  close(sockfd_);
 }
 
 int Socket::getFileDescriptor() const {

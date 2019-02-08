@@ -17,6 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <fstream>
+#include <memory>
 
 /*
  * C++ abstraction layer to simplify the usage of
@@ -30,11 +31,17 @@
 
 class Socket {
   public:
+
     Socket();
+
     virtual ~Socket();
+
     virtual bool init() = 0;
+
     bool isInitialized() const;
+
     int getFileDescriptor() const;
+
   protected:
     int sockfd_ = -1;
     bool initialized_ = false;
@@ -47,36 +54,80 @@ class ClientSocket : public Socket {
     ClientSocket(const std::string& host,
           const int port);
     virtual ~ClientSocket();
+
     bool init();
+
     bool sendall(const std::string& mesg) const;
+
     bool sendall(const char* buf, size_t len) const;
+
     bool sendallPrefixed(const std::string& mesg) const;
+
     bool sendallPrefixed(const char* buf, size_t len) const;
+
+    template<typename FG_ELEMENT>
+    bool sendallBinary(std::vector<FG_ELEMENT>& buf, int flags = 0) const;
+
+    template<typename FG_ELEMENT>
+    bool sendallBinaryPrefixed(std::vector<FG_ELEMENT>& buf, int flags = 0) const;
+
     bool recvall(std::string& buff, size_t len, int flags = 0) const;
-    bool recvall(char* &buf, size_t len, int flags = 0) const;
-    bool recvallBinaryToFile(const std::string& filename, size_t len,
-        size_t chunksize = 2048) const;
+
+    bool recvall(char* buf, size_t len, int flags = 0)  const;
+
     bool recvallPrefixed(std::string& buff, int flags = 0) const;
-    bool recvallPrefixed(char* &buf, size_t len, int flags = 0) const;
+
+    bool recvallPrefixed(char* buf, int flags = 0) const;
+
+    template<typename FG_ELEMENT>
+    bool recvallBinary(std::vector<FG_ELEMENT>& buff, size_t len,
+        bool& endianness, int flags) const;
+
+    template<typename FG_ELEMENT>
+    bool recvallBinaryPrefixed(std::vector<FG_ELEMENT>& buff, bool& endiannes,
+        int flags = 0) const;
+
+    template<typename FG_ELEMENT>
+    bool recvallBinaryPrefixedCorrectInPlace(std::vector<FG_ELEMENT>& data,
+        size_t chunksize = 2048, int flags = 0) const;
+
+    bool recvallBinaryToFile(const std::string& filename, size_t len,
+        size_t chunksize = 2048, int flags = 0) const;
+
     std::string getRemoteHost() const;
+
     int getRemotePort() const;
+
     bool isReadable(int timeout = -1) const;
+
     bool isWriteable(int timeout = -1) const;
 
   private:
     ClientSocket(); // for ServerSocket only
+
+    bool sendSize();
+
     int remotePort_;
+
     std::string remoteHost_;
+
 };
 
 class ServerSocket : public Socket {
   public:
+
     ServerSocket();
+
     virtual ~ServerSocket();
+
     ServerSocket(const unsigned short port);
+
     bool init();
+
     ClientSocket* acceptClient() const;
+
     int getPort();
+
   private:
     int port_;
 };
@@ -157,6 +208,22 @@ class NetworkUtils {
         std::cout << "recvBinary finished!" << std::endl;
         return true;
       }
+
+    template<typename T>
+    static void reverseEndianness(std::vector<T>& buf)
+    {
+      char* rawBuf = reinterpret_cast<char*>(buf.data());
+      size_t rawSize = buf.size() * sizeof(T);
+      for (size_t i = 0; i < rawSize; i+=sizeof(T))
+      {
+        // swap entrys of block
+        for (size_t j = 0; j < sizeof(T)/2; j++) {
+          rawBuf[i+j] ^= rawBuf[i+(sizeof(T))-j];
+          rawBuf[i+(sizeof(T))-j] ^= rawBuf[i+j];
+          rawBuf[i+j] ^= rawBuf[i+(sizeof(T))-j];
+        }
+      }
+    }
 };
 
 #endif
