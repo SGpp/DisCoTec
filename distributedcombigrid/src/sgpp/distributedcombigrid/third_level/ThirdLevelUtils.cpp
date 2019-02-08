@@ -46,18 +46,18 @@ std::string ThirdLevelUtils::fetchInstruction() const
 template <typename FG_ELEMENT>
 void ThirdLevelUtils::receiveCommonSubspaces(std::vector<FG_ELEMENT>& commonSubspaces) const
 {
-  // non serialized
-  char* rawData = reinterpret_cast<char*>(commonSubspaces.data());
-  size_t rawSize = commonSubspaces.size() * sizeof(FG_ELEMENT);
-  dataConnection_->sendallPrefixed(rawData, rawSize);
+  dataConnection_->recvallBinary(commonSubspaces);
 }
 
-// TODO
+// TODO: check if inplace is better
 template <typename FG_ELEMENT>
 void ThirdLevelUtils::sendCommonSubspaces(const std::vector<FG_ELEMENT>& commonSubspaces) const
 {
-  // non serialized
-  char* rawData = reinterpret_cast<char*>(commonSubspaces.data());
+  bool dataIsLittleEndian = false;
+  dataConnection_->sendallBinary(commonSubspaces);
+  if (dataIsLittleEndian != NetworkUtils::isLittleEndian()) {
+    NetworkUtils::reverseEndianness(commonSubspaces);
+  }
 }
 
 void ThirdLevelUtils::sendMessage(const std::string& message) const
