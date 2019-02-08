@@ -5,6 +5,6 @@ rm -r ginstance*
 rm out/*
 python3 preproc.py
 cd ginstance
-echo "offset 0\n" > offset.txt
+echo "offset 0" > offset.txt
 source start.bat
 cd ..
