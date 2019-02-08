@@ -183,6 +183,12 @@ public:
       return checkpointFrequency_;
   }
   /**
+   * Returns the offset for the diagnostic numbering
+   */
+  inline int getOffsetDiagnostics(){
+      return offsetForDiagnostics_;
+  }
+  /**
    * Return boolean to indicate whether GeneTask is initialized.
    */
   inline bool isInitialized(){
