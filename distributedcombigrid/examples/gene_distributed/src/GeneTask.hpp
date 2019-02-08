@@ -349,6 +349,7 @@ private:
     ar & stepsTotal_;
     ar & combiStep_;
     ar & checkpointFrequency_;
+    ar & offsetForDiagnostics_;
     ar & p_;
     ar & shat_;
     ar & kymin_;
