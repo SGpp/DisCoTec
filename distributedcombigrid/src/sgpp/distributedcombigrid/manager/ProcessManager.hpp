@@ -184,7 +184,7 @@ void ProcessManager::combineThirdLevel() {
 
   waitAllFinished();
 
-  // obtain instructions from third level manager (ATTENTION: Blocking)
+  // obtain instructions from third level manager
   thirdLevel_.signalReady();
   std::string instruction = thirdLevel_.fetchInstruction();
 
