@@ -43,23 +43,6 @@ std::string ThirdLevelUtils::fetchInstruction() const
   return instruction;
 }
 
-template <typename FG_ELEMENT>
-void ThirdLevelUtils::receiveCommonSubspaces(std::vector<FG_ELEMENT>& commonSubspaces) const
-{
-  dataConnection_->recvallBinary(commonSubspaces);
-}
-
-// TODO: check if inplace is better
-template <typename FG_ELEMENT>
-void ThirdLevelUtils::sendCommonSubspaces(const std::vector<FG_ELEMENT>& commonSubspaces) const
-{
-  bool dataIsLittleEndian = false;
-  dataConnection_->sendallBinary(commonSubspaces);
-  if (dataIsLittleEndian != NetworkUtils::isLittleEndian()) {
-    NetworkUtils::reverseEndianness(commonSubspaces);
-  }
-}
-
 void ThirdLevelUtils::sendMessage(const std::string& message) const
 {
   MessageUtils::sendMessage(message, outQueue_, messageChannel_);

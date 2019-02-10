@@ -1,16 +1,16 @@
 #ifndef THIRDLEVELUTILSHPP_
 #define THIRDLEVELUTILSHPP_
 
+#include <stdlib.h>
+#include <ctime>
+#include <sstream>
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
+#include "sgpp/distributedcombigrid/third_level/MessageUtils.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "SimpleAmqpClient/SimpleAmqpClient.h"
-#include "MessageUtils.hpp"
-#include <stdlib.h>
-#include <ctime>
-#include <sstream>
 
 namespace combigrid {
 
@@ -47,12 +47,27 @@ namespace combigrid {
       std::string fetchInstruction() const;
 
       template<typename FG_ELEMENT>
-      void receiveCommonSubspaces(std::vector<FG_ELEMENT>& commonSubspaces) const;
+      void receiveCommonSSPart(std::vector<FG_ELEMENT>& commonSSPart) const;
 
       template<typename FG_ELEMENT>
-      void sendCommonSubspaces(const std::vector<FG_ELEMENT>& commonSubspaces) const;
+      void sendCommonSSPart(const std::vector<FG_ELEMENT>& commonSSPart) const;
   };
 
+  template <typename FG_ELEMENT>
+  void ThirdLevelUtils::receiveCommonSSPart(std::vector<FG_ELEMENT>& commonSSPart) const
+  {
+    bool dataIsLittleEndian = false;
+    dataConnection_->recvallBinary(commonSSPart, dataIsLittleEndian);
+    if (dataIsLittleEndian != NetworkUtils::isLittleEndian())
+      NetworkUtils::reverseEndianness(commonSSPart);
+  }
+
+  // TODO: check if inplace is better
+  template <typename FG_ELEMENT>
+  void ThirdLevelUtils::sendCommonSSPart(const std::vector<FG_ELEMENT>& commonSSPart) const
+  {
+    dataConnection_->sendallBinary(commonSSPart);
+  }
 }
 
 #endif
