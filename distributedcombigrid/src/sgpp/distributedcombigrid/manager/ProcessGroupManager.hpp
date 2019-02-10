@@ -60,12 +60,12 @@ class ProcessGroupManager {
   // receive shared ss data from remote, combine and send the updated back
   template<typename FG_ELEMENT>
   bool
-  exchangeCommonSubspacesThirdLevel(const ThirdLevelUtils& thirdLevel_, CombiParameters& params);
+  exchangeCommonSubspacesThirdLevel(const ThirdLevelUtils& thirdLevel, CombiParameters& params);
 
   // exchange shared ss data of workers with remote
   template<typename FG_ELEMENT>
   bool
-  combineUniformThirdLevel(const ThirdLevelUtils& thirdLevel_, CombiParameters& params);
+  combineUniformThirdLevel(const ThirdLevelUtils& thirdLevel, CombiParameters& params);
 
   // distribute common ss  after thirdLevelReduce and integrate them into dfg
   bool
@@ -232,6 +232,146 @@ bool ProcessGroupManager::gridGather(LevelVector& leval) {
   return true;
 }
 
+template <typename FG_ELEMENT>
+bool ProcessGroupManager::exchangeCommonSubspacesThirdLevel(const ThirdLevelUtils& thirdLevel,
+                                                                  CombiParameters& params) {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  SignalType signal = EXCHANGE_COMMON_SS;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  const std::vector<LevelVector> commonSS = params.getCommonSubspaces();
+  const size_t numCommonSS = commonSS.size();
+  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
+
+  MPI_Datatype dtype = abstraction::getMPIDatatype(
+                         abstraction::getabstractionDataType<FG_ELEMENT>());
+
+  // receive sizes
+  std::vector<std::vector<int>> commonSSPartSizes;
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    std::vector<int> sizes(numCommonSS);
+    MPI_Recv(sizes.data(), static_cast<int>(numCommonSS), MPI_INT, 0, 0, thirdLevelComms[p],
+        MPI_STATUS_IGNORE);
+    commonSSPartSizes.push_back(std::move(sizes));
+  }
+
+  // calculate sizes of each workers part
+  std::vector<size_t> partSizes(theMPISystem()->getNumProcs());
+  size_t maxPartSize = 0;
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    for (size_t ss = 0; ss < numCommonSS; ss++)
+      partSizes[p] += static_cast<size_t>(commonSSPartSizes[p][ss]);
+    if (maxPartSize < partSizes[p])
+      maxPartSize = partSizes[p];
+  }
+
+  // reserve buffer with size of greatest part
+  std::vector<FG_ELEMENT> commonSSPart;
+  commonSSPart.reserve(maxPartSize);
+
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    const CommunicatorType& comm = thirdLevelComms[p];
+
+    // receive subspace data from worker
+    commonSSPart.resize(partSizes[p]);
+    size_t stride = 0;
+    for (size_t ss = 0; ss < numCommonSS; ss++) {
+      MPI_Recv(commonSSPart.data()+stride, commonSSPartSizes[p][ss], dtype, 0, 0,
+          comm, MPI_STATUS_IGNORE);
+      stride += static_cast<size_t>(commonSSPartSizes[p][ss]);
+    }
+
+    // send subspace data to remote
+    thirdLevel.sendCommonSSPart(commonSSPart);
+    // receive combined data from remote
+    thirdLevel.receiveCommonSSPart(commonSSPart);
+
+    // send combined subspace data to worker
+    stride = 0;
+    for (size_t ss = 0; ss < numCommonSS; ss++) {
+      MPI_Send(commonSSPart.data()+stride, commonSSPartSizes[p][ss], dtype, 0, 0, comm);
+      stride += static_cast<size_t>(commonSSPartSizes[p][ss]);
+    }
+  }
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+
+  return true;
+}
+
+// TODO: Check Sizes
+template<typename FG_ELEMENT>
+bool ProcessGroupManager::combineUniformThirdLevel(const ThirdLevelUtils& thirdLevel,
+                                                          CombiParameters& params) {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  SignalType signal = COMBINE_UNIFORM_THIRD_LEVEL;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  const std::vector<LevelVector> commonSS = params.getCommonSubspaces();
+  const size_t numCommonSS = commonSS.size();
+  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
+
+  MPI_Datatype dtype = abstraction::getMPIDatatype(
+                         abstraction::getabstractionDataType<FG_ELEMENT>());
+
+  // receive sizes
+  std::vector<std::vector<int>> commonSSPartSizes;
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    std::vector<int> sizes(numCommonSS);
+    MPI_Recv(sizes.data(), static_cast<int>(numCommonSS), MPI_INT, 0, 0, thirdLevelComms[p],
+        MPI_STATUS_IGNORE);
+    commonSSPartSizes.push_back(std::move(sizes));
+  }
+
+  // calculate sizes of each workers part
+  std::vector<size_t> partSizes(theMPISystem()->getNumProcs());
+  size_t maxPartSize = 0;
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    for (size_t ss = 0; ss < numCommonSS; ss++)
+      partSizes[p] += static_cast<size_t>(commonSSPartSizes[p][ss]);
+    if (maxPartSize < partSizes[p])
+      maxPartSize = partSizes[p];
+  }
+  // reserve buffer with size of greatest part
+  std::vector<FG_ELEMENT> commonSSPart;
+  commonSSPart.reserve(maxPartSize);
+
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    const CommunicatorType& comm = thirdLevelComms[p];
+    assert(comm != MPI_COMM_NULL);
+
+    commonSSPart.resize(partSizes[p]);
+
+    // receive data from remote
+    thirdLevel.receiveCommonSSPart(commonSSPart);
+
+    // combine subspaces sequentially
+    size_t stride = 0;
+    for (size_t ss = 0; ss < numCommonSS; ss++) {
+      MPI_Allreduce(MPI_IN_PLACE, commonSSPart.data()+stride, commonSSPartSizes[p][ss], dtype, MPI_SUM, comm);
+      stride += static_cast<size_t>(commonSSPartSizes[p][ss]);
+    }
+
+    // send data back to remote
+    thirdLevel.sendCommonSSPart(commonSSPart);
+  }
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+
+  return true;
+}
 
 inline void ProcessGroupManager::setMasterRank( int pGroupRootID ){
   pgroupRootID_ = pGroupRootID;
