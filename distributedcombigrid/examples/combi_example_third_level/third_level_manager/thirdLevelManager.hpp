@@ -13,12 +13,12 @@ using  Systems = std::vector<System>;
 class ThirdLevelManager
 {
   private:
-    Params _params;
-    Systems _systems;
-    u_int                      _dataPort = 9999;
-    u_int                      _timeout  = 1000; // 1000 msec = 1sec
-    ServerSocket               _dataServer;
-    AmqpClient::Channel::ptr_t _channel;
+    Params params_;
+    Systems systems_;
+    unsigned short             dataPort_ = 9999;
+    int                        timeout_  = 1000; // 1000 msec = 1sec
+    ServerSocket               dataServer_;
+    AmqpClient::Channel::ptr_t channel_;
 
     void processMessage(const std::string& message, System& system);
 

@@ -13,30 +13,30 @@ int main(int argc, char* argv[])
 }
 
 ThirdLevelManager::ThirdLevelManager(const Params& params)
-  : _params(params),
-    _dataPort(params.getDataPort()),
-    _dataServer(_dataPort)
+  : params_(params),
+    dataPort_(params.getDataPort()),
+    dataServer_(dataPort_)
 {
   // Connect to RabbitMQ Broker
-  _channel = AmqpClient::Channel::Create(params.getbrokerURL());
+  channel_ = AmqpClient::Channel::Create(params.getbrokerURL());
 
   // Create abstraction of each system and establish message queues and data channel
   std::vector<std::string> systemNames = params.getSystemNames();
-  _systems.reserve(systemNames.size());
+  systems_.reserve(systemNames.size());
   for (auto nameIt = systemNames.begin(); nameIt != systemNames.end(); nameIt++)
   {
-    _systems.push_back(System(*nameIt, _channel, _dataServer));
+    systems_.push_back(System(*nameIt, channel_, dataServer_));
   }
 }
-
+ 
 void ThirdLevelManager::runtimeLoop()
 {
-  while (_systems.size() > 0)
+  while (systems_.size() > 0)
   {
-    for (auto sysIt = _systems.begin(); sysIt != _systems.end(); sysIt++)
+    for (auto sysIt = systems_.begin(); sysIt != systems_.end(); sysIt++)
     {
       std::string message;
-      bool received = sysIt->receiveMessage(_channel, message, _timeout);
+      bool received = sysIt->receiveMessage(channel_, message, timeout_);
       if (received)
         processMessage(message, *sysIt);
     }
@@ -53,35 +53,37 @@ void ThirdLevelManager::processMessage(const std::string& message, System& syste
 
 void ThirdLevelManager::processCombination(System& system)
 {
-  std::string message = "do_send_size";
-  system.sendMessage(message, _channel);
+  std::string message = "send_size";
+  system.sendMessage(message, channel_);
 
-  system.receiveMessage(_channel, message);
-  u_int combiGridSize = std::stoi(message);
+  system.receiveMessage(channel_, message);
+  size_t transferSize = std::stoi(message);
 
-  message = "do_send_data";
-  system.sendMessage(message, _channel);
+  message = "combine_third_level_send_first";
+  system.sendMessage(message, channel_);
 
-  message = "receive_data";
-  for (auto sysIt = _systems.begin(); sysIt != _systems.end(); sysIt++)
+  for (auto sysIt = systems_.begin(); sysIt != systems_.end(); sysIt++)
   {
     if (sysIt->getName() != system.getName())
     {
-      sysIt->sendMessage(message, _channel);
-      sysIt->receiveMessage(_channel, message);
-      assert(message =="ok");
+      sysIt->receiveMessage(channel_, message, timeout_);
+      assert(message =="ready_to_combine");
+      system.sendMessage("send_size", channel_);
+      size_t expectedSize = std::stoi(message);
+      assert(expectedSize == transferSize);
+      sysIt->sendMessage("combine_third_level_recv_first", channel_);
       // send locally combinated sparse grid from one to the other system.
       NetworkUtils::forward(system.getDataConnection().get(),
-          sysIt->getDataConnection().get(), combiGridSize);
+          sysIt->getDataConnection().get(), transferSize);
     }
   }
 }
 
 void ThirdLevelManager::processFinished(System& system)
 {
-  for (auto sysIt = _systems.begin(); sysIt != _systems.end(); sysIt++)
+  for (auto sysIt = systems_.begin(); sysIt != systems_.end(); sysIt++)
   {
     if (sysIt->getName() == system.getName())
-      _systems.erase(sysIt);
+      systems_.erase(sysIt);
   }
 }
