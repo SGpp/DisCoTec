@@ -57,6 +57,7 @@ void ThirdLevelManager::processCombination(System& system)
   system.sendMessage(message, channel_);
 
   system.receiveMessage(channel_, message);
+  assert(NetworkUtils::isInteger(message));
   size_t transferSize = std::stoi(message);
 
   message = "combine_third_level_send_first";
