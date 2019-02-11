@@ -57,15 +57,27 @@ class ProcessGroupManager {
   bool
   combine();
 
+  std::vector<std::vector<int>>
+  gatherCommonSSPartSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params);
+
+  std::vector<size_t>
+  calcWorkersSSPartSizes(std::vector<std::vector<int>>& commonSSPartSizes);
+
   // receive shared ss data from remote, combine and send the updated back
   template<typename FG_ELEMENT>
   bool
-  exchangeCommonSubspacesThirdLevel(const ThirdLevelUtils& thirdLevel, CombiParameters& params);
+  reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils& thirdLevel,
+                                          CombiParameters& params,
+                                    const std::vector<std::vector<int>>& commonSSPartSizes,
+                                    const std::vector<size_t>& partSizes);
 
   // exchange shared ss data of workers with remote
   template<typename FG_ELEMENT>
   bool
-  combineUniformThirdLevel(const ThirdLevelUtils& thirdLevel, CombiParameters& params);
+  reduceUniformThirdLevelSendFirst(const ThirdLevelUtils& thirdLevel,
+                                 CombiParameters& params,
+                           const std::vector<std::vector<int>>& commonSSPartSizes,
+                           const std::vector<size_t>& partSizes);
 
   // distribute common ss  after thirdLevelReduce and integrate them into dfg
   bool
@@ -120,6 +132,7 @@ class ProcessGroupManager {
   std::vector<CombiDataType> allBetas_;
 
   void recvStatus();
+
 
   /* sets the rank of the process group's master in global comm. should only
    * be called by ProcessManager.
@@ -233,8 +246,10 @@ bool ProcessGroupManager::gridGather(LevelVector& leval) {
 }
 
 template <typename FG_ELEMENT>
-bool ProcessGroupManager::exchangeCommonSubspacesThirdLevel(const ThirdLevelUtils& thirdLevel,
-                                                                  CombiParameters& params) {
+bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils& thirdLevel,
+                                                                  CombiParameters& params,
+                                                            const std::vector<std::vector<int>>& commonSSPartSizes,
+                                                            const std::vector<size_t>& partSizes) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -251,26 +266,9 @@ bool ProcessGroupManager::exchangeCommonSubspacesThirdLevel(const ThirdLevelUtil
   MPI_Datatype dtype = abstraction::getMPIDatatype(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
 
-  // receive sizes
-  std::vector<std::vector<int>> commonSSPartSizes;
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    std::vector<int> sizes(numCommonSS);
-    MPI_Recv(sizes.data(), static_cast<int>(numCommonSS), MPI_INT, 0, 0, thirdLevelComms[p],
-        MPI_STATUS_IGNORE);
-    commonSSPartSizes.push_back(std::move(sizes));
-  }
-
-  // calculate sizes of each workers part
-  std::vector<size_t> partSizes(theMPISystem()->getNumProcs());
-  size_t maxPartSize = 0;
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    for (size_t ss = 0; ss < numCommonSS; ss++)
-      partSizes[p] += static_cast<size_t>(commonSSPartSizes[p][ss]);
-    if (maxPartSize < partSizes[p])
-      maxPartSize = partSizes[p];
-  }
 
   // reserve buffer with size of greatest part
+  size_t maxPartSize = *std::max_element(partSizes.begin(), partSizes.end());
   std::vector<FG_ELEMENT> commonSSPart;
   commonSSPart.reserve(maxPartSize);
 
@@ -305,10 +303,12 @@ bool ProcessGroupManager::exchangeCommonSubspacesThirdLevel(const ThirdLevelUtil
   return true;
 }
 
-// TODO: Check Sizes
+// TODO: Check if sending sizes work
 template<typename FG_ELEMENT>
-bool ProcessGroupManager::combineUniformThirdLevel(const ThirdLevelUtils& thirdLevel,
-                                                          CombiParameters& params) {
+bool ProcessGroupManager::reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils& thirdLevel,
+                                                           CombiParameters& params,
+                                                   const std::vector<std::vector<int>>& commonSSPartSizes,
+                                                   const std::vector<size_t>& partSizes) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -325,25 +325,8 @@ bool ProcessGroupManager::combineUniformThirdLevel(const ThirdLevelUtils& thirdL
   MPI_Datatype dtype = abstraction::getMPIDatatype(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
 
-  // receive sizes
-  std::vector<std::vector<int>> commonSSPartSizes;
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    std::vector<int> sizes(numCommonSS);
-    MPI_Recv(sizes.data(), static_cast<int>(numCommonSS), MPI_INT, 0, 0, thirdLevelComms[p],
-        MPI_STATUS_IGNORE);
-    commonSSPartSizes.push_back(std::move(sizes));
-  }
-
-  // calculate sizes of each workers part
-  std::vector<size_t> partSizes(theMPISystem()->getNumProcs());
-  size_t maxPartSize = 0;
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    for (size_t ss = 0; ss < numCommonSS; ss++)
-      partSizes[p] += static_cast<size_t>(commonSSPartSizes[p][ss]);
-    if (maxPartSize < partSizes[p])
-      maxPartSize = partSizes[p];
-  }
   // reserve buffer with size of greatest part
+  size_t maxPartSize = *std::max_element(partSizes.begin(), partSizes.end());
   std::vector<FG_ELEMENT> commonSSPart;
   commonSSPart.reserve(maxPartSize);
 

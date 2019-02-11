@@ -185,18 +185,27 @@ void ProcessManager::combineThirdLevel() {
   waitAllFinished();
 
   // obtain instructions from third level manager
-  thirdLevel_.signalReady();
+  thirdLevel_.signalReadyToCombine();
   std::string instruction = thirdLevel_.fetchInstruction();
+  assert(instruction == "send_size");
+
+  std::vector<std::vector<int>> commonSSPartSizes = thirdLevelPGroup_->gatherCommonSSPartSizes(thirdLevel_, params_);
+  std::vector<size_t> partSizes = thirdLevelPGroup_->calcWorkersSSPartSizes(commonSSPartSizes);
+  size_t wholeTransferSize = 0;
+  for (auto it = partSizes.begin(); it != partSizes.end(); it++)
+    wholeTransferSize += *it * sizeof(CombiDataType) + 1; // additional bit for endianness
+
+  thirdLevel_.sendSize(wholeTransferSize);
 
   // perform third level reduce
-  if (instruction == "receiveAndCombineSharedSS")
+  if (instruction == "reduce_third_level_recv_first")
   {
-    bool success = thirdLevelPGroup_->combineUniformThirdLevel<CombiDataType>(thirdLevel_, params_);
+    bool success = thirdLevelPGroup_->reduceUniformThirdLevelRecvFirst<CombiDataType>(thirdLevel_, params_, commonSSPartSizes, partSizes);
     assert(success);
   }
-  else if (instruction == "sendAndReceiveSharedSS")
+  else if (instruction == "reduce_third_level_send_first")
   {
-    bool success = thirdLevelPGroup_->exchangeCommonSubspacesThirdLevel<CombiDataType>(thirdLevel_, params_);
+    bool success = thirdLevelPGroup_->reduceUniformThirdLevelSendFirst<CombiDataType>(thirdLevel_, params_, commonSSPartSizes, partSizes);
     assert(success);
   }
 
