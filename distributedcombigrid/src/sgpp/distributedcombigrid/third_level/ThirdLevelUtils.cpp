@@ -22,6 +22,9 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   MessageUtils::createMessageQueue(systemName_+"_out", messageChannel_);
 
   // create data connection
+  std::string message;
+  receiveMessage(message);
+  assert(messge == "create_data_conn")
   dataConnection_ = std::make_shared<ClientSocket>(remoteHost_, dataPort_);
   assert(dataConnection_->init() && "Establishing data connection failed");
 
