@@ -18,11 +18,8 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   // connect to message broker
   messageChannel_ = AmqpClient::Channel::Create(remoteHost_);
 
-  // create message queues.
-  // Queues are non passive, non durable, non exclusive and delete themselves
-  // automatically when the last using application dies.
-  inQueue_ = messageChannel_->DeclareQueue(systemName_+"_in", false, false, false, true);
-  outQueue_ = messageChannel_->DeclareQueue(systemName_+"_out", false, false, false, true);
+  MessageUtils::createMessageQueue(systemName_+"_in", messageChannel_);
+  MessageUtils::createMessageQueue(systemName_+"_out", messageChannel_);
 
   // create data connection
   dataConnection_ = std::make_shared<ClientSocket>(remoteHost_, dataPort_);
@@ -31,9 +28,9 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   isConnected_ = true;
 }
 
-void ThirdLevelUtils::signalReady() const
+void ThirdLevelUtils::signalReadyToCombine() const
 {
-  sendMessage("ready");
+  sendMessage("ready_to_combine");
 }
 
 std::string ThirdLevelUtils::fetchInstruction() const
@@ -51,4 +48,10 @@ void ThirdLevelUtils::sendMessage(const std::string& message) const
 void ThirdLevelUtils::receiveMessage(std::string& message) const
 {
   MessageUtils::receiveMessage(messageChannel_, inQueue_, message);
+}
+
+void ThirdLevelUtils::sendSize(size_t size) const
+{
+  assert(isConnected_);
+  sendMessage(std::to_string(size));
 }

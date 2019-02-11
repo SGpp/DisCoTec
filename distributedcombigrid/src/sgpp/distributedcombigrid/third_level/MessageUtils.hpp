@@ -6,10 +6,13 @@
 
 class MessageUtils
 {
-  private:
+  public:
     static const int noTimeout = -1;
 
-  public:
+
+    static std::string createMessageQueue(const std::string&               name,
+                                          const AmqpClient::Channel::ptr_t channel);
+
     static void sendMessage(const std::string&               message,
                             const std::string                queue,
                             const AmqpClient::Channel::ptr_t channel);

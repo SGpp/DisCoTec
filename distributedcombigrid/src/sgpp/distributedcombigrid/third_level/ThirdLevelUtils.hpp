@@ -42,7 +42,9 @@ namespace combigrid {
 
       void connectToThirdLevelManager();
 
-      void signalReady() const;
+      void signalReadyToCombine() const;
+
+      void sendSize(size_t size) const;
 
       std::string fetchInstruction() const;
 
