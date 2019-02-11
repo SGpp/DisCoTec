@@ -8,13 +8,13 @@
 class Params
 {
   private:
-    std::string                         _brokerURL       = "localhost";
-    u_int                               _dataPort        = 0;
-    u_int                               _numSystems      = 0;
-    u_int                               _dimension       = 0;
-    u_int                               _numCombinations = 0;
-    std::vector<std::string>            _systemNames;
-    std::vector<combigrid::LevelVector> _commonSubspaces;
+    std::string                         brokerURL_       = "localhost";
+    u_int                               dataPort_        = 0;
+    u_int                               numSystems_      = 0;
+    u_int                               dimension_       = 0;
+    u_int                               numCombinations_ = 0;
+    std::vector<std::string>            systemNames_;
+    std::vector<combigrid::LevelVector> commonSubspaces_;
 
   public:
     Params();

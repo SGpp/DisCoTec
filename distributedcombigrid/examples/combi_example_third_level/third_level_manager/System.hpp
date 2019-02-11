@@ -6,10 +6,10 @@
 class System
 {
   private:
-    std::string                   _name;
-    std::string                   _inQueue;     // used for sending messages to the system
-    std::string                   _outQueue;    // used for receiving messages from the system
-    std::shared_ptr<ClientSocket> _dataConnection; // data connection
+    std::string                   name_;
+    std::string                   inQueue_;     // used for sending messages to the system
+    std::string                   outQueue_;    // used for receiving messages from the system
+    std::shared_ptr<ClientSocket> dataConnection_; // data connection
 
     void createMessageQueues(AmqpClient::Channel::ptr_t channel);
 
@@ -22,7 +22,7 @@ class System
            const ServerSocket& server);
 
     void sendMessage(const std::string& message, AmqpClient::Channel::ptr_t channel);
-    bool receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message);
+    bool receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message, int timeout=MessageUtils::noTimeout);
 
     std::shared_ptr<ClientSocket> getDataConnection() const;
     std::string                   getName() const;
