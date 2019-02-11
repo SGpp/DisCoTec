@@ -16,16 +16,14 @@ System::System(const std::string& name,
 void System::createMessageQueues(AmqpClient::Channel::ptr_t channel)
 {
   inQueue_ = MessageUtils::createMessageQueue(name_+"_in", channel);
-  outQueue_ = MessageUtils::createMessageQueue(name_+"_in", channel);
+  outQueue_ = MessageUtils::createMessageQueue(name_+"_out", channel);
 }
 
-// TODO initialization which ensures that remote server accepts.
 void System::createDataConnection(const ServerSocket& server,
                                   const AmqpClient::Channel::ptr_t& channel)
 {
-  std::string message;
-  receiveMessage(channel, message); // waits until system is ready
-  assert(message == "create_data_conn");
+  std::string message = "create_data_conn";
+  sendMessage(message, channel);
   dataConnection_ = std::shared_ptr<ClientSocket>(server.acceptClient());
 }
 
