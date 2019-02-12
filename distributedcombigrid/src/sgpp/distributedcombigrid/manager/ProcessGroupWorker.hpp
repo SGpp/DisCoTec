@@ -13,7 +13,6 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
-#include "sgpp/distributedcombigrid/third_level/ThirdLevelUtils.hpp"
 
 namespace combigrid {
 
@@ -73,8 +72,6 @@ class ProcessGroupWorker {
   FullGrid<complex>* combinedFG_;
 
   DistributedSparseGridUniform<CombiDataType>* combinedUniDSG_;
-
-  ThirdLevelUtils* thirdLevel_;
 
   bool combinedFGexists_;
 

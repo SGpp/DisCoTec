@@ -25,7 +25,6 @@ ProcessGroupWorker::ProcessGroupWorker() :
     status_(PROCESS_GROUP_WAIT),
     combinedFG_( NULL),
     combinedUniDSG_(NULL),
-    thirdLevel_(NULL),
     combinedFGexists_(false),
     combiParameters_(),
     combiParametersSet_(false)
@@ -34,7 +33,6 @@ ProcessGroupWorker::ProcessGroupWorker() :
 
 ProcessGroupWorker::~ProcessGroupWorker() {
   delete combinedFG_;
-  delete thirdLevel_;
 }
 
 SignalType ProcessGroupWorker::wait() {
