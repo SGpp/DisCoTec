@@ -40,7 +40,12 @@ int main(int argc, char** argv) {
 
   // read in parameter file
   boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini("ctparam", cfg);
+  if (argc > 1) {
+    boost::property_tree::ini_parser::read_ini(argv[1], cfg);
+  } else {
+    std::cout << "Usage:\n ./combi_example parameterFile";
+    return 0;
+  }
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
