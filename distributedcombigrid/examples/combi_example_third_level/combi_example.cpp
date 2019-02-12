@@ -186,13 +186,17 @@ int main(int argc, char** argv) {
       taskIDs.push_back(t->getID());
     }
 
+    assert(!tasks.empty());
+
     // create combiparameters
     params = CombiParameters(dim, lmin, lmax, boundary, upperHalf, upperCoeffs, taskIDs, thirdLevelHost, thirdLevelDataPort, systemName, commonSubspaces);
 
-    assert(!tasks.empty());
-
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
+
+    // the combiparameters are sent to all process groups before the
+    // computations start
+    manager.updateCombiParameters();
 
     std::cout << "set up component grids and run until first combination point" << std::endl;
 
