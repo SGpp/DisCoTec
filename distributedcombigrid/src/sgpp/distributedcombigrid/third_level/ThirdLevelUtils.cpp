@@ -24,7 +24,7 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   // create data connection
   std::string message;
   receiveMessage(message);
-  assert(messge == "create_data_conn")
+  assert(message == "create_data_conn");
   dataConnection_ = std::make_shared<ClientSocket>(remoteHost_, dataPort_);
   assert(dataConnection_->init() && "Establishing data connection failed");
 
