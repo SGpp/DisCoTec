@@ -27,7 +27,7 @@ ProcessManager::ProcessManager( ProcessGroupManagerContainer& pgroups,
   params_(params),
   thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getSystemName())
 {
-
+  setupThirdLevel();
 }
 
 ProcessManager::~ProcessManager() {
