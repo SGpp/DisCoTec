@@ -16,6 +16,7 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   if (isConnected_)
     return;
   // connect to message broker
+  std::cout << "Connecting to RabbitMQ broker at host " << remoteHost_ << " on port " << brokerPort_ << std::endl;
   messageChannel_ = AmqpClient::Channel::Create(remoteHost_);
 
   MessageUtils::createMessageQueue(systemName_+"_in", messageChannel_);
