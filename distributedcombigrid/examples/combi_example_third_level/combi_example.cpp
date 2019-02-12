@@ -102,17 +102,17 @@ int main(int argc, char** argv) {
      * from a file */
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
-    std::vector<LevelVector> levels = combischeme.getCombiSpaces();
-    std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+    std::vector<LevelVector> fullScheme = combischeme.getCombiSpaces();
+    std::vector<combigrid::real> fullSchemeCoeffs = combischeme.getCoeffs();
 
     // For example purpose we just split the levels in half, and assign each
     // half to a system
-    auto mid = levels.begin() + ((levels.size()-1) / 2);
-    auto midCoeffs = coeffs.begin() + ((coeffs.size()-1) / 2);
-    std::vector<LevelVector> lowerHalf(levels.begin(), mid);
-    std::vector<combigrid::real> lowerCoeffs(coeffs.begin(), midCoeffs);
-    std::vector<LevelVector> upperHalf(mid+1, levels.end());
-    std::vector<combigrid::real> upperCoeffs(midCoeffs+1, coeffs.end());
+    auto mid = fullScheme.begin() + ((fullScheme.size()-1) / 2);
+    auto midC = fullSchemeCoeffs.begin() + ((fullSchemeCoeffs.size()-1) / 2);
+    std::vector<LevelVector> lowerHalf(fullScheme.begin(), mid);
+    std::vector<combigrid::real> lowerCoeffs(fullSchemeCoeffs.begin(), midC);
+    std::vector<LevelVector> upperHalf(mid+1, fullScheme.end());
+    std::vector<combigrid::real> upperCoeffs(midC+1, fullSchemeCoeffs.end());
     assert( !lowerHalf.empty() && !upperHalf.empty() );
 
     // compute common subspaces:
@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
       maxLevel[i] = std::min(lowerMax, upperMax);
     }
 
-    // by creating a dummy sparse grid, we can extract the subspaces
+    // by creating a dummy sparse grid with this level, we can extract the subspaces
     SGrid<real> sg(dim, maxLevel, maxLevel, boundary);
 
     std::vector<LevelVector> commonSubspaces;
@@ -168,27 +168,28 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     CombiParameters params;
-    if (systemName == "neon") {
-      for (size_t i = 0; i < lowerHalf.size(); i++) {
-        Task* t = new TaskExample(dim, lowerHalf[i], boundary, lowerCoeffs[i], loadmodel, dt, nsteps, p);
-        tasks.push_back(t);
-        taskIDs.push_back(t->getID());
-      }
 
-    // create combiparameters
-    params = CombiParameters(dim, lmin, lmax, boundary, lowerHalf, lowerCoeffs, taskIDs, thirdLevelHost, thirdLevelDataPort, systemName, commonSubspaces);
+    std::vector<LevelVector>& levels = fullScheme;
+    std::vector<combigrid::real>& coeffs = fullSchemeCoeffs;
+    if (systemName == "neon") {
+      levels = upperHalf;
+      coeffs = upperCoeffs;
     }
     if (systemName == "helium") {
-      for (size_t i = 0; i < upperHalf.size(); i++) {
-        Task* t = new TaskExample(dim, upperHalf[i], boundary, upperCoeffs[i], loadmodel, dt, nsteps, p);
-        tasks.push_back(t);
-        taskIDs.push_back(t->getID());
-      }
+      levels = lowerHalf;
+      coeffs = lowerCoeffs;
+    }
+
+    for (size_t i = 0; i < upperHalf.size(); i++) {
+      Task* t = new TaskExample(dim, upperHalf[i], boundary, upperCoeffs[i], loadmodel, dt, nsteps, p);
+      tasks.push_back(t);
+      taskIDs.push_back(t->getID());
+    }
 
     // create combiparameters
     params = CombiParameters(dim, lmin, lmax, boundary, upperHalf, upperCoeffs, taskIDs, thirdLevelHost, thirdLevelDataPort, systemName, commonSubspaces);
-    }
 
+    assert(!tasks.empty());
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
