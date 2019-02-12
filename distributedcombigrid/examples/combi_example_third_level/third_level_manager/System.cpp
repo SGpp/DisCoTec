@@ -34,7 +34,12 @@ void System::sendMessage(const std::string& message, AmqpClient::Channel::ptr_t 
 
 bool System::receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message, int timeout)
 {
-  return MessageUtils::receiveMessage(channel, outQueue_, message);
+  if (MessageUtils::receiveMessage(channel, outQueue_, message))
+  {
+    std::cout << "Received message: " << message << "from System " << name_ << std::endl;
+    return true;
+  }
+  return false;
 }
 
 std::string System::getName() const
