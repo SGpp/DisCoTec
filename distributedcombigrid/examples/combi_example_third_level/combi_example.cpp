@@ -103,8 +103,11 @@ int main(int argc, char** argv) {
     // For example purpose we just split the levels in half, and assign each
     // half to a system
     auto mid = levels.begin() + ((levels.size()-1) / 2);
+    auto midCoeffs = coeffs.begin() + ((coeffs.size()-1) / 2);
     std::vector<LevelVector> lowerHalf(levels.begin(), mid);
+    std::vector<combigrid::real> lowerCoeffs(coeffs.begin(), midCoeffs);
     std::vector<LevelVector> upperHalf(mid+1, levels.end());
+    std::vector<combigrid::real> upperCoeffs(midCoeffs+1, coeffs.end());
     assert( !lowerHalf.empty() && !upperHalf.empty() );
 
     // compute common subspaces:
@@ -159,14 +162,28 @@ int main(int argc, char** argv) {
     // create Tasks
     TaskContainer tasks;
     std::vector<int> taskIDs;
-    for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel, dt, nsteps, p);
-      tasks.push_back(t);
-      taskIDs.push_back(t->getID());
-    }
+    CombiParameters params;
+    if (systemName == "neon") {
+      for (size_t i = 0; i < lowerHalf.size(); i++) {
+        Task* t = new TaskExample(dim, lowerHalf[i], boundary, lowerCoeffs[i], loadmodel, dt, nsteps, p);
+        tasks.push_back(t);
+        taskIDs.push_back(t->getID());
+      }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, thirdLevelHost, thirdLevelDataPort, systemName, commonSubspaces);
+    params = CombiParameters(dim, lmin, lmax, boundary, lowerHalf, lowerCoeffs, taskIDs, thirdLevelHost, thirdLevelDataPort, systemName, commonSubspaces);
+    }
+    if (systemName == "helium") {
+      for (size_t i = 0; i < upperHalf.size(); i++) {
+        Task* t = new TaskExample(dim, upperHalf[i], boundary, upperCoeffs[i], loadmodel, dt, nsteps, p);
+        tasks.push_back(t);
+        taskIDs.push_back(t->getID());
+      }
+
+    // create combiparameters
+    params = CombiParameters(dim, lmin, lmax, boundary, upperHalf, upperCoeffs, taskIDs, thirdLevelHost, thirdLevelDataPort, systemName, commonSubspaces);
+    }
+
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params);
