@@ -13,8 +13,6 @@ class System
 
     void createMessageQueues(AmqpClient::Channel::ptr_t channel);
 
-    void createDataConnection(const ServerSocket& server,
-                              const AmqpClient::Channel::ptr_t& channel);
 
   public:
 
@@ -26,4 +24,7 @@ class System
 
     std::shared_ptr<ClientSocket> getDataConnection() const;
     std::string                   getName() const;
+
+    void createDataConnection(const ServerSocket& server,
+                              const AmqpClient::Channel::ptr_t& channel);
 };

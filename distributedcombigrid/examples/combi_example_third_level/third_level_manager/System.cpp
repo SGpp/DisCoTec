@@ -5,7 +5,6 @@ System::System(const std::string& name,
                const ServerSocket& server) : name_(name)
 {
   createMessageQueues(channel);
-  createDataConnection(server, channel);
 }
 
 /*

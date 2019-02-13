@@ -23,7 +23,9 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   MessageUtils::createMessageQueue(systemName_+"_out", messageChannel_);
 
   // create data connection
-  std::string message;
+  std::cout << "Connecting to ThirdLevel manager at host " << remoteHost_ << " on port " << dataPort_  << std::endl;
+  std::string message = "hello";
+  sendMessage(message);
   receiveMessage(message);
   assert(message == "create_data_conn");
   dataConnection_ = std::make_shared<ClientSocket>(remoteHost_, dataPort_);

@@ -38,7 +38,18 @@ ThirdLevelManager::ThirdLevelManager(const Params& params)
   for (auto nameIt = systemNames.begin(); nameIt != systemNames.end(); nameIt++)
   {
     systems_.push_back(System(*nameIt, channel_, dataServer_));
-    std::cout << "  added system: " << *nameIt << std::endl;
+  }
+  // establish data connection
+  for (auto system = systems_.begin(); system != systems_.end(); system++)
+  {
+    std::string message;
+    bool success =  system->receiveMessage(channel_, message, timeout_);
+    if (success) 
+    {
+      assert(message == "hello");
+      system->sendMessage("ok", channel_);
+      system->createDataConnection(dataServer_, channel_);
+    }
   }
 }
 
