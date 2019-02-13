@@ -138,7 +138,7 @@ private:
 template <typename FG_ELEMENT>
 DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     const DimAdaptiveCombiScheme& scheme, const std::vector<bool>& boundary,
-    CommunicatorType comm, size_t procsPerNode = 0) : dim_(scheme.dim()) {
+    CommunicatorType comm, size_t procsPerNode) : dim_(scheme.dim()) {
 
   MPI_Comm_rank(comm, &rank_);
   MPI_Comm_size(comm, &commSize_);
@@ -329,7 +329,7 @@ const IndexVector& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSizes(
 }
 
 template <typename FG_ELEMENT>
-const IndexVector& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSize(size_t i) const {
+size_t DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSize(size_t i) const {
   return subspaces_[i].dataSize_;
 }
 
