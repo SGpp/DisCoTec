@@ -34,7 +34,8 @@ MPISystem::MPISystem() :
     globalReduceRank_(MPI_UNDEFINED),
     managerRank_(MPI_UNDEFINED),
     managerRankWorld_(MPI_UNDEFINED),
-    masterRank_(MPI_UNDEFINED)
+    masterRank_(MPI_UNDEFINED),
+    thirdLevelManagerRank_(MPI_UNDEFINED)
 {
   // check if MPI was initialized (e.g. by MPI_Init or similar)
   int mpiInitialized(0);
@@ -271,7 +272,7 @@ void MPISystem::initThirdLevelComms(){
       thirdLevelComms_.push_back(comm);
       MPI_Comm_rank(comm, &thirdLevelRank_ );
       if (thirdLevelManagerRank_ == MPI_UNDEFINED)
-      thirdLevelManagerRank_ = int(thirdLevelCommSize - 1);
+        thirdLevelManagerRank_ = int(thirdLevelCommSize - 1);
     }
   }
 }

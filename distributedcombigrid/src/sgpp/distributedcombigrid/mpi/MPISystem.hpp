@@ -40,12 +40,12 @@ namespace combigrid {
  * this communicator contains all processes which have the same rank in
  * LocalComm. it is MPI_COMM_NULL on the manager.
  *
- * ThirdLevelComms: list of communicators for the thirdLevelCombination. A
- * communicator connects a woker of the thirdLevel pg (so far the first pg) to
+ * ThirdLevelComms: list of communicators for the thirdLevelCombination. Each
+ * communicator connects a worker of the thirdLevel pg (so far the first) to
  * the process manager. The list differs for each caller and contains only the
  * comms where he participates: The process manager gets all comms whereas a
- * worker of the third level pg has a single entry. For all other procs the list
- * is empty.
+ * worker of the third level pg has a single entry. For all other processes the
+ * list is empty.
  *
  * getXXXCommFT returns the fault tolerant equivalent of Communicator XXX
  *
@@ -173,11 +173,11 @@ class MPISystem {
 
   RankType managerRank_;
 
-  RankType thirdLevelManagerRank_;
-
   RankType managerRankWorld_;
 
   RankType masterRank_;
+
+  RankType thirdLevelManagerRank_;
 
   size_t ngroup_;
 
