@@ -47,7 +47,6 @@ ThirdLevelManager::ThirdLevelManager(const Params& params)
     if (success) 
     {
       assert(message == "hello");
-      system->sendMessage("ok", channel_);
       system->createDataConnection(dataServer_, channel_);
     }
   }
