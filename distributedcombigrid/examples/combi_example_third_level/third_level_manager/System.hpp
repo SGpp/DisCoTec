@@ -9,6 +9,7 @@ class System
     std::string                   name_;
     std::string                   inQueue_;     // used for sending messages to the system
     std::string                   outQueue_;    // used for receiving messages from the system
+    std::string                   consumerTag_; // used for receiving from the outQueue_
     std::shared_ptr<ClientSocket> dataConnection_; // data connection
 
     void createMessageQueues(AmqpClient::Channel::ptr_t channel);

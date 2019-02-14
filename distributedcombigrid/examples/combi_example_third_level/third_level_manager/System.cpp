@@ -5,6 +5,7 @@ System::System(const std::string& name,
                const ServerSocket& server) : name_(name)
 {
   createMessageQueues(channel);
+  consumerTag_ = MessageUtils::setupConsumer(channel, outQueue_);
 }
 
 /*
@@ -33,7 +34,7 @@ void System::sendMessage(const std::string& message, AmqpClient::Channel::ptr_t 
 
 bool System::receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message, int timeout)
 {
-  if (MessageUtils::receiveMessage(channel, outQueue_, message))
+  if (MessageUtils::receiveMessage(channel, consumerTag_, outQueue_, message))
   {
     std::cout << "Received message: " << message << "from System " << name_ << std::endl;
     return true;
