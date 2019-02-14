@@ -195,7 +195,10 @@ void ProcessManager::combineThirdLevel() {
   for (auto it = partSizes.begin(); it != partSizes.end(); it++)
     wholeTransferSize += *it * sizeof(CombiDataType) + 1; // additional bit for endianness
 
+  std::cout << "sending Sizes to third level";
   thirdLevel_.sendSize(wholeTransferSize);
+
+  waitAllFinished();
 
   // perform third level reduce
   if (instruction == "reduce_third_level_recv_first")
