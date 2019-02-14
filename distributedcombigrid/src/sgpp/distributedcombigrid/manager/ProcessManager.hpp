@@ -198,6 +198,8 @@ void ProcessManager::combineThirdLevel() {
   std::cout << "sending Sizes to third level";
   thirdLevel_.sendSize(wholeTransferSize);
 
+  instruction = thirdLevel_.fetchInstruction();
+
   waitAllFinished();
 
   // perform third level reduce
