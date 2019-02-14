@@ -115,6 +115,8 @@ private:
   std::chrono::high_resolution_clock::time_point  startTimeIteration_; //starting time of process computation
 
   //std::ofstream betasFile_;
+  void initializeTaskAndFaults(bool mayAlreadyExist = true);
+
   std::map<int, int> taskToProc_;
 
   static double maxRelativeError(const std::vector<CombiDataType>& grid1, const std::vector<CombiDataType>& grid2){
