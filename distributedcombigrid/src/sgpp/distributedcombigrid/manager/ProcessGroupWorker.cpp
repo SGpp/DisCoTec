@@ -483,20 +483,15 @@ void ProcessGroupWorker::combineUniformThirdLevelRecvFirst() {
   const size_t numCommonSS = commonSS.size();
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
   const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[0];
-  const RankType& thirdLevelManager = theMPISystem()->getThirdLevelManagerRank();
-
-  // send sizes of common subspace parts
-  std::vector<int> commonSSPartSizes(0);
-  for (size_t ss = 0; ss < numCommonSS; ss++)
-    commonSSPartSizes[ss] = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
-  MPI_Send(commonSSPartSizes.data(), static_cast<int>(numCommonSS), MPI_INT,
-      thirdLevelManager, 0, comm);
 
   // allreduce common subspace parts from remote with local
   MPI_Datatype dtype = abstraction::getMPIDatatype(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
-  for (size_t ss = 0; ss < numCommonSS; ss++)
-    MPI_Allreduce(MPI_IN_PLACE, combinedUniDSG_->getData(commonSS[ss]), commonSSPartSizes[ss], dtype, MPI_SUM, comm);
+  for (size_t ss = 0; ss < numCommonSS; ss++) {
+    int ssSize = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
+    MPI_Allreduce(MPI_IN_PLACE, combinedUniDSG_->getData(commonSS[ss]), ssSize, dtype, MPI_SUM, comm);
+  }
+
 }
 
 void ProcessGroupWorker::parallelEval(){
