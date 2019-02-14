@@ -31,7 +31,7 @@ ThirdLevelManager::ThirdLevelManager(const Params& params)
   channel_ = AmqpClient::Channel::Create(params.getbrokerURL());
 
 
-  // Create abstraction of each system and establish message queues and data channel
+  // Create abstraction for each system and establish message queues and data channel
   std::cout << "Creating abstraction for systems" << std::endl;
   std::vector<std::string> systemNames = params.getSystemNames();
   systems_.reserve(systemNames.size());
@@ -114,7 +114,7 @@ void ThirdLevelManager::processCombination(System& system)
 
       sysIt->sendMessage("combine_third_level_recv_first", channel_);
 
-      // establish exchange of locally combinated subspaces.
+      // port forwarding for exchanging the common subspaces.
       std::cout << "Forwarding " << transferSize << " Bytes between systems: " << system.getName()  << " and " << sysIt->getName() << std::endl;
       NetworkUtils::forward(system.getDataConnection().get(),
           sysIt->getDataConnection().get(), transferSize);
