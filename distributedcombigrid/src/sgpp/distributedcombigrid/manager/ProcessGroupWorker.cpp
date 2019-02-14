@@ -446,7 +446,7 @@ void ProcessGroupWorker::gatherCommonSSPartSizes() {
   const RankType& thirdLevelManager = theMPISystem()->getThirdLevelManagerRank();
 
   // send sizes of common subspace parts
-  std::vector<int> commonSSPartSizes(0);
+  std::vector<int> commonSSPartSizes(numCommonSS);
   for (size_t ss = 0; ss < numCommonSS; ss++)
     commonSSPartSizes[ss] = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
   MPI_Send(commonSSPartSizes.data(), static_cast<int>(numCommonSS), MPI_INT,
