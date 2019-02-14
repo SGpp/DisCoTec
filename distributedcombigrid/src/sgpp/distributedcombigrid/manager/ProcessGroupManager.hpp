@@ -253,7 +253,7 @@ bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  SignalType signal = EXCHANGE_COMMON_SS;
+  SignalType signal = COMBINE_UNIFORM_THIRD_LEVEL_SEND_FIRST;
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
 
   // set status
@@ -312,7 +312,7 @@ bool ProcessGroupManager::reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  SignalType signal = COMBINE_UNIFORM_THIRD_LEVEL;
+  SignalType signal = COMBINE_UNIFORM_THIRD_LEVEL_RECV_FIRST;
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
 
   // set status
