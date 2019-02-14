@@ -235,6 +235,12 @@ std::vector<std::vector<int>> ProcessGroupManager::gatherCommonSSPartSizes(
     commonSSPartSizes.push_back(std::move(sizes));
   }
 
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+
   return commonSSPartSizes;
 }
 
