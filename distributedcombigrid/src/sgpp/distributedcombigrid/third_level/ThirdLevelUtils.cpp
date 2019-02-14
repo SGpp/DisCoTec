@@ -19,8 +19,10 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   std::cout << "Connecting to RabbitMQ broker at host " << remoteHost_ << " on port " << brokerPort_ << std::endl;
   messageChannel_ = AmqpClient::Channel::Create(remoteHost_);
 
-  MessageUtils::createMessageQueue(systemName_+"_in", messageChannel_);
-  MessageUtils::createMessageQueue(systemName_+"_out", messageChannel_);
+  inQueue_ = MessageUtils::createMessageQueue(systemName_+"_in", messageChannel_);
+  outQueue_ = MessageUtils::createMessageQueue(systemName_+"_out", messageChannel_);
+
+  consumerTag_ = MessageUtils::setupConsumer(messageChannel_, inQueue_);
 
   // create data connection
   std::cout << "Connecting to ThirdLevel manager at host " << remoteHost_ << " on port " << dataPort_  << std::endl;
@@ -53,7 +55,7 @@ void ThirdLevelUtils::sendMessage(const std::string& message) const
 
 void ThirdLevelUtils::receiveMessage(std::string& message) const
 {
-  MessageUtils::receiveMessage(messageChannel_, inQueue_, message);
+  MessageUtils::receiveMessage(messageChannel_, consumerTag_, inQueue_, message);
 }
 
 void ThirdLevelUtils::sendSize(size_t size) const

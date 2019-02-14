@@ -26,6 +26,7 @@ namespace combigrid {
       std::shared_ptr<ClientSocket> dataConnection_;
       std::string inQueue_;
       std::string outQueue_;
+      std::string consumerTag_;
       std::string systemName_;
       bool isConnected_ = false;
 
