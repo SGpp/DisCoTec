@@ -248,8 +248,8 @@ bool ProcessGroupManager::gridGather(LevelVector& leval) {
 template <typename FG_ELEMENT>
 bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils& thirdLevel,
                                                                   CombiParameters& params,
-                                                            const std::vector<std::vector<int>>& commonSSPartSizes,
-                                                            const std::vector<size_t>& partSizes) {
+                                                           const std::vector<std::vector<int>>& commonSSPartSizes,
+                                                           const std::vector<size_t>& partSizes) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -303,12 +303,11 @@ bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils
   return true;
 }
 
-// TODO: Check if sending sizes work
 template<typename FG_ELEMENT>
 bool ProcessGroupManager::reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils& thirdLevel,
                                                            CombiParameters& params,
-                                                   const std::vector<std::vector<int>>& commonSSPartSizes,
-                                                   const std::vector<size_t>& partSizes) {
+                                                           const std::vector<std::vector<int>>& commonSSPartSizes,
+                                                           const std::vector<size_t>& partSizes) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
