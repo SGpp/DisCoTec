@@ -168,13 +168,19 @@ SignalType ProcessGroupWorker::wait() {
 //      }
 //    }
 
-  } else if (signal == COMBINE_UNIFORM_THIRD_LEVEL) {
+  } else if (signal == GATHER_COMMON_SS_SIZES) {
+
+    Stats::startEvent("gatherCommonSSPartSizes");
+    gatherCommonSSPartSizes();
+    Stats::stopEvent("gatherCommonSSPartSizes");
+
+  } else if (signal == COMBINE_UNIFORM_THIRD_LEVEL_RECV_FIRST) {
 
     Stats::startEvent("combineUniformThirdLevelRecvFirst");
     combineUniformThirdLevelRecvFirst<CombiDataType>();
     Stats::stopEvent("combineUniformThirdLevelRecvFirst");
 
-  } else if (signal == EXCHANGE_COMMON_SS) {
+  } else if (signal == COMBINE_UNIFORM_THIRD_LEVEL_SEND_FIRST) {
 
     Stats::startEvent("combineUniformThirdLevelSendFirst");
     combineUniformThirdLevelSendFirst<CombiDataType>();
@@ -432,8 +438,7 @@ void ProcessGroupWorker::integrateCommonSS() {
   }
 }
 
-template <typename FG_ELEMENT>
-void ProcessGroupWorker::combineUniformThirdLevelSendFirst() {
+void ProcessGroupWorker::gatherCommonSSPartSizes() {
   const std::vector<LevelVector> commonSS = combiParameters_.getCommonSubspaces();
   const size_t numCommonSS = commonSS.size();
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
@@ -446,18 +451,30 @@ void ProcessGroupWorker::combineUniformThirdLevelSendFirst() {
     commonSSPartSizes[ss] = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
   MPI_Send(commonSSPartSizes.data(), static_cast<int>(numCommonSS), MPI_INT,
       thirdLevelManager, 0, comm);
+}
+
+template <typename FG_ELEMENT>
+void ProcessGroupWorker::combineUniformThirdLevelSendFirst() {
+  const std::vector<LevelVector> commonSS = combiParameters_.getCommonSubspaces();
+  const size_t numCommonSS = commonSS.size();
+  const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[0];
+  const RankType& thirdLevelManager = theMPISystem()->getThirdLevelManagerRank();
 
   // send common subspaces parts sequentially
   MPI_Datatype dtype = abstraction::getMPIDatatype(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
-  for (size_t ss = 0; ss < numCommonSS; ss++)
-    MPI_Send(combinedUniDSG_->getData(commonSS[ss]), commonSSPartSizes[ss],
+  for (size_t ss = 0; ss < numCommonSS; ss++) {
+    int ssSize = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
+    MPI_Send(combinedUniDSG_->getData(commonSS[ss]), ssSize,
         dtype, thirdLevelManager, 0, comm);
+  }
 
   // receive and integrate combined common subspace parts from remote
-  for (size_t ss = 0; ss < numCommonSS; ss++)
-    MPI_Recv(combinedUniDSG_->getData(commonSS[ss]), commonSSPartSizes[ss],
+  for (size_t ss = 0; ss < numCommonSS; ss++) {
+    int ssSize = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
+    MPI_Recv(combinedUniDSG_->getData(commonSS[ss]), ssSize,
         dtype, thirdLevelManager, 0, comm, MPI_STATUS_IGNORE);
+  }
 }
 
 template <typename FG_ELEMENT>

@@ -50,6 +50,8 @@ class ProcessGroupWorker {
   template<typename FG_ELEMENT>
   void integrateCommonSS();
 
+  void gatherCommonSSPartSizes();
+
   void combineFG();
 
   void gridEval();
