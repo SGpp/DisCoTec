@@ -36,7 +36,7 @@ bool System::receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& mes
 {
   if (MessageUtils::receiveMessage(channel, consumerTag_, outQueue_, message))
   {
-    std::cout << "Received message: " << message << "from System " << name_ << std::endl;
+    std::cout << "Received message: \"" << message << "\" from System " << name_ << std::endl;
     return true;
   }
   return false;
