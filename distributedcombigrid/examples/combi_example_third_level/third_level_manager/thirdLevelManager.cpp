@@ -44,7 +44,7 @@ ThirdLevelManager::ThirdLevelManager(const Params& params)
   {
     std::string message;
     bool success =  system->receiveMessage(channel_, message, timeout_);
-    if (success) 
+    if (success)
     {
       assert(message == "hello");
       system->createDataConnection(dataServer_, channel_);
@@ -54,7 +54,7 @@ ThirdLevelManager::ThirdLevelManager(const Params& params)
 
 /*
  * Loops over the systems and checks if messages are available. If a message 
- * exists, it is fetched and deligated to be processed.
+ * exists, it is fetched and delegated to be processed.
  */
 void ThirdLevelManager::runtimeLoop()
 {
@@ -82,7 +82,7 @@ void ThirdLevelManager::processMessage(const std::string& message, System& syste
 }
 
 /*
- * Processes and manges the third level combination, initiated by a system
+ * Processes and manages the third level combination, initiated by a system
  * which signals ready after local and global combination.
  */
 void ThirdLevelManager::processCombination(System& system)
@@ -105,9 +105,13 @@ void ThirdLevelManager::processCombination(System& system)
     {
       sysIt->receiveMessage(channel_, message, timeout_);
       assert(message =="ready_to_combine");
+
       system.sendMessage("send_size", channel_);
+      system.receiveMessage(channel_, message);
+      assert(NetworkUtils::isInteger(message));
       size_t expectedSize = std::stoi(message);
       assert(expectedSize == transferSize);
+
       sysIt->sendMessage("combine_third_level_recv_first", channel_);
 
       // establish exchange of locally combinated subspaces.
