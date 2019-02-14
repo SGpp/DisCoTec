@@ -32,6 +32,7 @@ MPISystem::MPISystem() :
     globalRank_(MPI_UNDEFINED),
     localRank_(MPI_UNDEFINED),
     globalReduceRank_(MPI_UNDEFINED),
+    thirdLevelRank_(MPI_UNDEFINED),
     managerRank_(MPI_UNDEFINED),
     managerRankWorld_(MPI_UNDEFINED),
     masterRank_(MPI_UNDEFINED),
