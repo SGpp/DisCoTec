@@ -6,7 +6,7 @@ std::string MessageUtils::createMessageQueue(const std::string& name,
   // create a message queue.
   // Queue is non passive, non durable, non exclusive and delete itself
   // automatically when the last using application dies.
-  return channel->DeclareQueue(name+"_in", false, false, false, true);
+  return channel->DeclareQueue(name, false, false, false, true);
 }
 
 bool MessageUtils::receiveMessage(const AmqpClient::Channel::ptr_t channel,
