@@ -9,14 +9,22 @@ std::string MessageUtils::createMessageQueue(const std::string& name,
   return channel->DeclareQueue(name, false, false, false, true);
 }
 
+std::string MessageUtils::setupConsumer(const AmqpClient::Channel::ptr_t channel,
+                                const std::string                queue)
+{
+  // subscribes to the given queue as an exclusive consumer with automatic ack
+  // and no serverside buffering.
+  return channel->BasicConsume(queue, "", true, true, true);
+}
+
 bool MessageUtils::receiveMessage(const AmqpClient::Channel::ptr_t channel,
+                                  const std::string                consumerTag,
                                   const std::string                queue,
                                   std::string&                     message,
                                   int                              timeout)
 {
-  std::string consumer_tag = channel->BasicConsume(queue, "");
   AmqpClient::Envelope::ptr_t envelope;
-  bool received = channel->BasicConsumeMessage(consumer_tag, envelope, timeout);
+  bool received = channel->BasicConsumeMessage(consumerTag, envelope, timeout);
   if (!received)
   {
     return false;

@@ -18,9 +18,13 @@ class MessageUtils
                             const AmqpClient::Channel::ptr_t channel);
 
     static bool receiveMessage(const AmqpClient::Channel::ptr_t channel,
+                               const std::string                consumerTag,
                                const std::string                queue,
                                std::string&                     message,
                                int                              timeout = noTimeout);
+
+    static std::string setupConsumer(const AmqpClient::Channel::ptr_t channel,
+                                     const std::string                queue);
 };
 
 #endif
