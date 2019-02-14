@@ -45,6 +45,7 @@ std::string ThirdLevelUtils::fetchInstruction() const
 {
   std::string instruction;
   receiveMessage(instruction);
+  std::cout << "Fetched instruction: " << instruction << std::endl;
   return instruction;
 }
 
