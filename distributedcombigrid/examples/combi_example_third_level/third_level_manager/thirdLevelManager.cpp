@@ -138,6 +138,9 @@ void ThirdLevelManager::processFinished(System& system)
   for (auto sysIt = systems_.begin(); sysIt != systems_.end(); sysIt++)
   {
     if (sysIt->getName() == system.getName())
+    {
       systems_.erase(sysIt);
+      break;
+    }
   }
 }
