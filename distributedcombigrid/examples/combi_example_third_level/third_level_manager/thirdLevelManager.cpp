@@ -106,8 +106,8 @@ void ThirdLevelManager::processCombination(System& system)
       sysIt->receiveMessage(channel_, message, timeout_);
       assert(message =="ready_to_combine");
 
-      system.sendMessage("send_size", channel_);
-      system.receiveMessage(channel_, message);
+      sysIt->sendMessage("send_size", channel_);
+      sysIt->receiveMessage(channel_, message);
       assert(NetworkUtils::isInteger(message));
       size_t expectedSize = std::stoi(message);
       assert(expectedSize == transferSize);
