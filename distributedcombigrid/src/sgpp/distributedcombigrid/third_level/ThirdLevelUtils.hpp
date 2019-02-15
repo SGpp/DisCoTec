@@ -36,10 +36,14 @@ namespace combigrid {
 
       void sendMessage(const std::string& message) const;
 
+      void signalFinalize() const;
+
     public:
       ThirdLevelUtils(const std::string& remoteHost, int dataPort,
                       const std::string& systemName,
                       int brokerPort = RabbitMQPort);
+
+      ~ThirdLevelUtils();
 
       void connectToThirdLevelManager();
 

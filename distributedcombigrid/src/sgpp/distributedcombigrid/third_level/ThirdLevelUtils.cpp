@@ -11,6 +11,10 @@ ThirdLevelUtils::ThirdLevelUtils(const std::string& remoteHost, int dataPort,
 
 }
 
+ThirdLevelUtils::~ThirdLevelUtils(){
+  signalFinalize();
+}
+
 void ThirdLevelUtils::connectToThirdLevelManager()
 {
   if (isConnected_)
@@ -47,6 +51,11 @@ std::string ThirdLevelUtils::fetchInstruction() const
   receiveMessage(instruction);
   std::cout << "Fetched instruction: " << instruction << std::endl;
   return instruction;
+}
+
+void ThirdLevelUtils::signalFinalize() const
+{
+  sendMessage("finished_computation");
 }
 
 void ThirdLevelUtils::sendMessage(const std::string& message) const
