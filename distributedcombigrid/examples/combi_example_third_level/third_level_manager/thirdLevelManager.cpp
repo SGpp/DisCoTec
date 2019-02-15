@@ -96,7 +96,7 @@ void ThirdLevelManager::processCombination(System& system)
   assert(NetworkUtils::isInteger(message));
   size_t transferSize = std::stoi(message);
 
-  message = "combine_third_level_send_first";
+  message = "reduce_third_level_send_first";
   system.sendMessage(message, channel_);
 
   for (auto sysIt = systems_.begin(); sysIt != systems_.end(); sysIt++)
@@ -112,7 +112,7 @@ void ThirdLevelManager::processCombination(System& system)
       size_t expectedSize = std::stoi(message);
       assert(expectedSize == transferSize);
 
-      sysIt->sendMessage("combine_third_level_recv_first", channel_);
+      sysIt->sendMessage("reduce_third_level_recv_first", channel_);
 
       // port forwarding for exchanging the common subspaces.
       std::cout << "Forwarding " << transferSize << " Bytes between systems: " << system.getName()  << " and " << sysIt->getName() << std::endl;
