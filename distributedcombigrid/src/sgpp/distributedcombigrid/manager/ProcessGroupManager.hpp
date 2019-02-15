@@ -343,6 +343,7 @@ bool ProcessGroupManager::reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils
     thirdLevel.receiveCommonSSPart(commonSSPart);
 
     // combine subspaces sequentially
+    std::cout << "performing allreduce with received part" << std::endl;
     size_t stride = 0;
     for (size_t ss = 0; ss < numCommonSS; ss++) {
       MPI_Allreduce(MPI_IN_PLACE, commonSSPart.data()+stride, commonSSPartSizes[p][ss], dtype, MPI_SUM, comm);
