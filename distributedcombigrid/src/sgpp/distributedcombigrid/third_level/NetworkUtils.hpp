@@ -351,6 +351,7 @@ bool ClientSocket::recvallBinary(std::vector<FG_ELEMENT>& buff,
   // receive binary data
   char* rawBuf = reinterpret_cast<char*>(buff.data());
   size_t rawSize = buff.size()*sizeof(FG_ELEMENT);
+  std::cout << "receiving " << rawSize << "Bytes" << std::endl;
   return recvall(rawBuf, rawSize, flags);
 }
 
