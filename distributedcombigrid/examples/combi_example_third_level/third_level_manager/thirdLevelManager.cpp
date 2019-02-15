@@ -60,7 +60,7 @@ void ThirdLevelManager::runtimeLoop()
 {
   while (systems_.size() > 0)
   {
-    for (auto sysIt = systems_.begin(); sysIt != systems_.end(); sysIt++)
+    for (auto sysIt = systems_.begin(); sysIt != systems_.end() && systems_.size() > 0; sysIt++)
     {
       std::string message;
       bool received = sysIt->receiveMessage(channel_, message, timeout_);
