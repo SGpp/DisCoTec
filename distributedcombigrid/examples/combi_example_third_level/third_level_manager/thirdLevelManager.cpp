@@ -116,11 +116,15 @@ void ThirdLevelManager::processCombination(System& system)
 
       // port forwarding for exchanging the common subspaces.
       std::cout << "Forwarding " << transferSize << " Bytes between systems: " << system.getName()  << " and " << sysIt->getName() << std::endl;
-      NetworkUtils::forward(system.getDataConnection().get(),
-          sysIt->getDataConnection().get(), transferSize);
 
-      NetworkUtils::forward(sysIt->getDataConnection().get(),
-          system.getDataConnection().get(), transferSize);
+      std::thread t1(&NetworkUtils::forward, std::cref(*system.getDataConnection()),
+          std::cref(*sysIt->getDataConnection()), transferSize, 2048);
+
+      std::thread t2(&NetworkUtils::forward, std::cref(*sysIt->getDataConnection()),
+          std::cref(*system.getDataConnection()), transferSize, 2048);
+
+      t1.join();
+      t2.join();
     }
   }
 }

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <thread>
 #include <boost/property_tree/ini_parser.hpp>
 #include "SimpleAmqpClient/SimpleAmqpClient.h"
 #include "../../../src/sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
