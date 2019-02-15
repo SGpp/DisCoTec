@@ -124,8 +124,8 @@ bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
 bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
     size_t chunksize, int flags) const
 {
-  // receive endianness first
   assert(isInitialized() && "Client Socket not initialized");
+  // receive endianness first
   std::ofstream file(filename, std::ofstream::binary);
   bool success = false;
 
@@ -426,7 +426,7 @@ bool NetworkUtils::forward(const ClientSocket* sender,
     std::cout << "Start tunneling of " << size << " Bytes with same Endianess:" << std::endl;
     while (totalRecvd < size)
     {
-      std::cout << ".";
+      std::cout << "." << std::flush;
       // receive a max of chunksize bytes
       recvd = recv(sendFd, buff, chunksize, 0);
       err = errno;
@@ -449,6 +449,7 @@ bool NetworkUtils::forward(const ClientSocket* sender,
         return false;
       }
     }
+    std::cout << std::endl;
   } else { // tunnel until sender disconnects
     while (recvd > 0 && sendSuccess)
     {

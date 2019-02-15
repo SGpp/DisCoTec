@@ -60,7 +60,8 @@ namespace combigrid {
   void ThirdLevelUtils::receiveCommonSSPart(std::vector<FG_ELEMENT>& commonSSPart) const
   {
     bool dataIsLittleEndian = false;
-    dataConnection_->recvallBinary(commonSSPart, dataIsLittleEndian);
+    bool success = dataConnection_->recvallBinary(commonSSPart, dataIsLittleEndian);
+    assert(success && "receiving common ss data failed");
     if (dataIsLittleEndian != NetworkUtils::isLittleEndian())
       NetworkUtils::reverseEndianness(commonSSPart);
   }
@@ -69,7 +70,9 @@ namespace combigrid {
   template <typename FG_ELEMENT>
   void ThirdLevelUtils::sendCommonSSPart(const std::vector<FG_ELEMENT>& commonSSPart) const
   {
-    dataConnection_->sendallBinary(commonSSPart);
+    bool success = dataConnection_->sendallBinary(commonSSPart);
+    assert(success && "sending common ss data failed");
+    std::cout << "completed sending common ss part" << std::endl;
   }
 }
 
