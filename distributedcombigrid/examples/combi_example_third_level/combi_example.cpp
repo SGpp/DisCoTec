@@ -214,9 +214,9 @@ int main(int argc, char** argv) {
       // evaluate solution and
       // write solution to file
       std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
-      //Stats::startEvent("manager write solution");
-      //manager.parallelEval(leval, filename, 0);
-      //Stats::stopEvent("manager write solution");
+      Stats::startEvent("manager write solution");
+      manager.parallelEval(leval, filename, 0);
+      Stats::stopEvent("manager write solution");
 
       std::cout << "run until combination point " << i + 1 << std::endl;
 
