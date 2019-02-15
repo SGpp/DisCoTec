@@ -251,6 +251,15 @@ int main(int argc, char** argv) {
 
   //read application specific variables
   real lx = cfg.get<real>("application.lx");
+  //read checkpoint frequency
+  int checkpointFrequency = cfg.get<int>("application.checkpointFrequency");
+  std::fstream offsetfile("offset.txt", std::ios_base::in);
+  std::string offsetString;
+  offsetfile >> offsetString;
+  // offset for diagnostic file numbering
+  int offset;
+  offsetfile >> offset;
+  std::cout << "Used offset for diagnostics: " << offset << "\n";
   IndexType numGrids = cfg.get<IndexType>("application.numspecies");
   std::string GENE_nonlinear_string = cfg.get<std::string>("application.GENE_nonlinear");
   std::string GENE_local_string = cfg.get<std::string>("application.GENE_local");
@@ -351,7 +360,7 @@ int main(int argc, char** argv) {
     Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
                               loadmodel.get(), path, dt, combitime, nsteps,
                               shat, lx, ky0_ind, p, faultCrit,
-                              numSpecies, GENE_Global,GENE_Linear);
+                              numSpecies, GENE_Global,GENE_Linear, checkpointFrequency, offset);
     tasks.push_back(t);
     taskIDs.push_back( t->getID() );
 
@@ -421,9 +430,9 @@ int main(int argc, char** argv) {
   // std::cout << "Computation finished leval 1! \n";
 
   // evaluate solution on the grid defined by leval2
-  Stats::startEvent("manager parallel eval 2");
-  manager.parallelEval( leval2, fg_file_path2, 0 );
-  Stats::stopEvent("manager parallel eval 2");
+  //Stats::startEvent("manager parallel eval 2");
+  //manager.parallelEval( leval2, fg_file_path2, 0 );
+  //Stats::stopEvent("manager parallel eval 2");
 
   std::cout << "Computation finished evaluating on target grid! \n";
 
@@ -434,12 +443,10 @@ int main(int argc, char** argv) {
   Stats::finalize();
   /* write stats to json file for postprocessing */
   Stats::write( "timers.json" );
-  
+  std::cout << "Program finished successfully" << std::endl;  
   //terminate the program
   if( ENABLE_FT ){
     std::cout << "The number of detected faults during the simulation is " << nfaults << "\n";
-
-    std::cout << "Program finished successfully" << std::endl;
     if(nfaults > 0){
       std::cout << "To avoid problems with hanging killed processes, we exit with "
         << "MPI_Abort()" << std::endl;

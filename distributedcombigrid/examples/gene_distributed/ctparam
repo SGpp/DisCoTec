@@ -50,6 +50,8 @@ numspecies = 1
 GENE_local = F
 #T for nonlinear F for linear runs
 GENE_nonlinear = T
+#The number of combinations after which we write out checkpoint to memory
+checkpointFrequency = 50
 
 [preproc]
 #name of gene instance folders
