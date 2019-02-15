@@ -360,6 +360,7 @@ template<typename FG_ELEMENT>
 bool ClientSocket::sendallBinary(const std::vector<FG_ELEMENT>& buf, int flags) const {
   const char* rawBuf = reinterpret_cast<const char*>(buf.data());
   size_t rawSize = buf.size() * sizeof(FG_ELEMENT);
+  std::cout << "sending " << rawSize << "Bytes" << std::endl;
 
   char isLittleEndian = static_cast<char>(NetworkUtils::isLittleEndian());
   bool success = sendall(&isLittleEndian, 1);
