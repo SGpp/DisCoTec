@@ -411,16 +411,16 @@ bool Socket::isInitialized() const {
   return initialized_ && sockfd_ > 0;
 }
 
-bool NetworkUtils::forward(const ClientSocket* sender,
-    const ClientSocket* receiver, size_t size, size_t chunksize)
+bool NetworkUtils::forward(const ClientSocket& sender,
+    const ClientSocket& receiver, size_t size, size_t chunksize)
 {
-  assert(sender->isInitialized() && "Initialize sender first");
-  assert(receiver->isInitialized() && "Initialize receiver first");
+  assert(sender.isInitialized() && "Initialize sender first");
+  assert(receiver.isInitialized() && "Initialize receiver first");
   int err;
   size_t totalRecvd = 0;
   long recvd = 0;
   bool sendSuccess = false;
-  int sendFd = sender->getFileDescriptor();
+  int sendFd = sender.getFileDescriptor();
   char* buff = new char[chunksize];
   if (size != 0) {
     std::cout << "Start tunneling of " << size << " Bytes with same Endianess:" << std::endl;
@@ -442,7 +442,7 @@ bool NetworkUtils::forward(const ClientSocket* sender,
       totalRecvd += static_cast<size_t>(recvd);
 
       // send received bytes to receiver
-      sendSuccess = receiver->sendall(buff, static_cast<size_t>(recvd));
+      sendSuccess = receiver.sendall(buff, static_cast<size_t>(recvd));
       if (!sendSuccess) {
         std::cerr << "Unexpected fail of receiver";
         delete[] buff;
@@ -463,7 +463,7 @@ bool NetworkUtils::forward(const ClientSocket* sender,
       }
 
       // send received bytes to receiver
-      sendSuccess = receiver->sendall(buff, static_cast<size_t>(recvd));
+      sendSuccess = receiver.sendall(buff, static_cast<size_t>(recvd));
       if (!sendSuccess) {
         std::cerr << "Unexpected fail of receiver";
         delete[] buff;
