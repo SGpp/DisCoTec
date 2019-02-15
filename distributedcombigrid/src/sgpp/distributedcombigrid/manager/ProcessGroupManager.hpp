@@ -272,13 +272,17 @@ bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils
   std::vector<FG_ELEMENT> commonSSPart;
   commonSSPart.reserve(maxPartSize);
 
+  assert(theMPISystem()->getNumProcs() == thirdLevelComms.size() && "initialisation of third level failed");
+
   for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
     const CommunicatorType& comm = thirdLevelComms[p];
 
     // receive subspace data from worker
+    std::cout << "receiving subspace data from worker with id " << p << std::endl;
     commonSSPart.resize(partSizes[p]);
     size_t stride = 0;
     for (size_t ss = 0; ss < numCommonSS; ss++) {
+      std::cout << "  receiving subspace with id " << ss << std::endl;
       MPI_Recv(commonSSPart.data()+stride, commonSSPartSizes[p][ss], dtype, 0, 0,
           comm, MPI_STATUS_IGNORE);
       stride += static_cast<size_t>(commonSSPartSizes[p][ss]);
