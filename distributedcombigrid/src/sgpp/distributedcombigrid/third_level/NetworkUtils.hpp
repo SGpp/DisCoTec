@@ -133,7 +133,7 @@ class ServerSocket : public Socket {
 
 class NetworkUtils {
   public:
-    static bool forward(const ClientSocket* sender, const ClientSocket* receiver,
+    static bool forward(const ClientSocket& sender, const ClientSocket& receiver,
         size_t size = 0, size_t  chunksize = 2048);
 
     static bool isInteger(const std::string& s);
