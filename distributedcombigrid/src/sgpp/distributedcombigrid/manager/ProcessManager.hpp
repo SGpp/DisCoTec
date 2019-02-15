@@ -195,7 +195,7 @@ void ProcessManager::combineThirdLevel() {
   for (auto it = partSizes.begin(); it != partSizes.end(); it++)
     wholeTransferSize += *it * sizeof(CombiDataType) + 1; // additional bit for endianness
 
-  std::cout << "sending Sizes to third level";
+  std::cout << "sending Sizes to third level" << std::endl;
   thirdLevel_.sendSize(wholeTransferSize);
 
   instruction = thirdLevel_.fetchInstruction();
