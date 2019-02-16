@@ -11,7 +11,6 @@ namespace combigrid {
 
 FaultCriterion::FaultCriterion() {
   // TODO Auto-generated constructor stub
-
 }
 
 FaultCriterion::~FaultCriterion() {

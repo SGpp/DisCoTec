@@ -11,22 +11,22 @@
 #include <stddef.h>
 #include <cmath>
 #include <vector>
+#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 
 namespace combigrid {
 
-class AnisotropyLoadModel: public LoadModel {
+class AnisotropyLoadModel : public LoadModel {
  public:
-  AnisotropyLoadModel();
+  AnisotropyLoadModel() = default;
 
-  inline real eval(const LevelVector& l) const;
+  inline real eval(const LevelVector& l);
 
-  virtual ~AnisotropyLoadModel();
+  virtual ~AnisotropyLoadModel(){} = default;
 };
 
-inline real AnisotropyLoadModel::eval(const LevelVector& l) const {
+inline real AnisotropyLoadModel::eval(const LevelVector& l) {
   // number of grid points
   LevelType lsum = sum(l);
 
@@ -56,8 +56,7 @@ inline real AnisotropyLoadModel::eval(const LevelVector& l) const {
   // anisotropy vector
   std::vector<real> s(l.size(), 0.0);
 
-  for (size_t i = 0; i < s.size(); ++i)
-    s[i] = static_cast<real>(l[i]) / static_cast<real>(lsum);
+  for (size_t i = 0; i < s.size(); ++i) s[i] = static_cast<real>(l[i]) / static_cast<real>(lsum);
 
   // variables for aniso model
   const real s1 = s[0];
@@ -71,8 +70,8 @@ inline real AnisotropyLoadModel::eval(const LevelVector& l) const {
   h += c1 * s1 + c2 * s2 + c3 * s3;
 
   // p=2 polynomial contribution
-  h += c11 * s1 * s1 + c21 * s2 * s1 + c31 * s3 * s1 + c22 * s2 * s2
-       + c32 * s3 * s2 + c33 * s3 * s3;
+  h +=
+      c11 * s1 * s1 + c21 * s2 * s1 + c31 * s3 * s1 + c22 * s2 * s2 + c32 * s3 * s2 + c33 * s3 * s3;
 
   return r * h;
 }

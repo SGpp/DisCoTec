@@ -1,7 +1,10 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
 #include <random>
+#include <numeric>
+#include <valarray>
+
 namespace combigrid {
-template<typename T>
+template <typename T>
 T str_to_number(const std::string& no) {
   T value;
   std::stringstream stream(no);
@@ -16,22 +19,12 @@ T str_to_number(const std::string& no) {
   return value;
 }
 
-template<typename T>
-void remove(std::vector<T>& vec, size_t pos) {
-  auto it = vec.begin();
-  std::advance(it, pos);
-  vec.erase(it);
-}
-
-std::string python_code_caller(const std::string& script_name,
-    const LevelVectorList& levels, const int& dim) {
-  LevelType levels_no = 0;
-  LevelType level_size = 0;
+std::string python_code_caller(const std::string& script_name, const LevelVectorList& levels,
+                               const int& dim) {
+  LevelType levels_no = static_cast<LevelType>(levels.size());
+  LevelType level_size = static_cast<LevelType>(levels[0].size());
   LevelType one_level = 0;
   std::stringstream caller;
-
-  levels_no = static_cast<LevelType>(levels.size());
-  level_size = static_cast<LevelType>(levels[0].size());
 
   caller << "python " << script_name << " " << dim << " ";
 
@@ -87,40 +80,6 @@ CombigridDict get_python_data(const std::string& script_run, const int& dim) {
   return dict;
 }
 
-matrix create_M_matrix(const CombigridDict& aux_downset, const int& dim) {
-  int size_downset = static_cast<int>(aux_downset.size());
-  int i = 0;
-  int j = 0;
-
-  matrix M(size_downset, std::vector<real>(size_downset, 0.0));
-
-  for (auto ii = aux_downset.begin(); ii != aux_downset.end(); ++ii) {
-    i = static_cast<int>(ii->second);
-    j = 0;
-
-    LevelVector w;
-    for (int it = 0; it < dim; ++it) {
-      w.push_back(ii->first[it]);
-    }
-
-    for (auto jj = aux_downset.begin(); jj != aux_downset.end(); ++jj) {
-      LevelVector c;
-      for (int it = 0; it < dim; ++it) {
-        c.push_back(jj->first[it]);
-      }
-      j = static_cast<int>(jj->second);
-
-      if (test_greater(c, w)) {
-        M[i][j] = 1.0;
-      } else {
-        M[i][j] = 0.0;
-      }
-    }
-  }
-
-  return M;
-}
-
 matrix get_inv_M(const CombigridDict& aux_downset, const int& dim) {
   int size_downset = static_cast<int>(aux_downset.size());
   int i = 0;
@@ -147,8 +106,8 @@ matrix get_inv_M(const CombigridDict& aux_downset, const int& dim) {
 
       diff = c - w;
 
-      if (((diff.sum() > 0) || (diff.sum() <= dim))
-          && ((diff.max() <= 1) && (diff >= zeros).min())) {
+      if (((diff.sum() > 0) || (diff.sum() <= dim)) &&
+          ((diff.max() <= 1) && (diff >= zeros).min())) {
         M_inv[i][j] = pow(-1, diff.sum());
       }
     }
@@ -158,7 +117,7 @@ matrix get_inv_M(const CombigridDict& aux_downset, const int& dim) {
 }
 
 CombigridDict set_entire_downset_dict(const LevelVectorList levels,
-    const CombigridDict& received_dict, const int& dim) {
+                                      const CombigridDict& received_dict, const int& dim) {
   LevelVector level_min = levels.front();
   LevelVector level_max = levels.back();
   CombigridDict active_downset;
@@ -184,8 +143,8 @@ CombigridDict set_entire_downset_dict(const LevelVectorList levels,
     level_active_downset = ii->first;
 
     for (unsigned int i = 0; i < all_levels.size(); ++i) {
-      if (test_greater(level_active_downset, all_levels[i])
-          && test_greater(all_levels[i], level_min)) {
+      if (test_greater(level_active_downset, all_levels[i]) &&
+          test_greater(all_levels[i], level_min)) {
         feasible_levels.push_back(all_levels[i]);
       }
     }
@@ -207,8 +166,7 @@ CombigridDict set_entire_downset_dict(const LevelVectorList levels,
   return output;
 }
 
-CombigridDict create_aux_entire_dict(const CombigridDict& entire_downset,
-    const int& dim) {
+CombigridDict create_aux_entire_dict(const CombigridDict& entire_downset, const int& dim) {
   real key = 0;
   int i = 0;
 
@@ -229,8 +187,7 @@ CombigridDict create_aux_entire_dict(const CombigridDict& entire_downset,
   return aux_dict;
 }
 
-LevelVectorList get_downset_indices(const CombigridDict& entire_downset,
-    const int& dim) {
+LevelVectorList get_downset_indices(const CombigridDict& entire_downset, const int& dim) {
   LevelVectorList indices;
 
   for (auto ii = entire_downset.begin(); ii != entire_downset.end(); ++ii) {
@@ -247,7 +204,7 @@ LevelVectorList get_downset_indices(const CombigridDict& entire_downset,
 }
 
 LevelVectorList filter_faults(const LevelVectorList& faults_input, const IndexType& l_max,
-    const CombigridDict& received_dict) {
+                              const CombigridDict& received_dict) {
   int no_faults = 0;
   int level_fault = 0;
   LevelVectorList faults_output;
@@ -258,8 +215,7 @@ LevelVectorList filter_faults(const LevelVectorList& faults_input, const IndexTy
     auto it = received_dict.find(faults_input[i]);
 
     if (it != received_dict.end()) {
-      level_fault = std::accumulate(faults_input[i].begin(),
-          faults_input[i].end(), 0);
+      level_fault = std::accumulate(faults_input[i].begin(), faults_input[i].end(), 0);
 
       if ((level_fault == l_max) || (level_fault == (l_max - 1))) {
         faults_output.push_back(faults_input[i]);
@@ -270,8 +226,8 @@ LevelVectorList filter_faults(const LevelVectorList& faults_input, const IndexTy
   return faults_output;
 }
 
-CombigridDict create_out_dict(const CombigridDict& given_downset,
-    const std::vector<real>& new_c, const int& dim) {
+CombigridDict create_out_dict(const CombigridDict& given_downset, const std::vector<real>& new_c,
+                              const int& dim) {
   real key = 0;
   int i = 0;
 
@@ -307,31 +263,6 @@ int generate_random_fault(const int& no_of_levels) {
   return rand_num(rng);
 }
 
-std::vector<double> gen_rand(const int& size) {
-  double rand_var = 0.0;
-  std::vector<double> output;
-
-  for (int i = 0; i < size; ++i) {
-    rand_var = 1e-2 * (std::rand() % 10);
-    output.push_back(rand_var);
-  }
-
-  return output;
-}
-
-int get_size_downset(const std::vector<int>& level_max, const int& dim) {
-  int size = 1;
-  int min_level_max = *std::min_element(level_max.begin(), level_max.end());
-
-  for (int i = 0; i < dim; ++i) {
-    size *= (min_level_max + i);
-  }
-
-  size = static_cast<int>(size / (factorial(dim)));
-
-  return size;
-}
-
 int l1_norm(const LevelVector& u) {
   int norm = 0;
 
@@ -340,18 +271,6 @@ int l1_norm(const LevelVector& u) {
   }
 
   return norm;
-}
-
-int factorial(const int& dim) {
-  int fact = 0;
-
-  if (dim == 0 || dim == 1) {
-    fact = 1;
-  } else {
-    fact = dim * factorial(dim - 1);
-  }
-
-  return fact;
 }
 
 bool test_greater(const LevelVector& b, const LevelVector& a) {
@@ -375,9 +294,7 @@ LevelVectorList mindex(const int& dimension, const LevelVector& level_max) {
 
   auto upper_limit = std::max_element(level_max.begin(), level_max.end());
 
-  for (auto elem : level_max) {
-    sum_level_max += elem;
-  }
+  sum_level_max = std::accumulate(level_max.begin(), level_max.end(), 0);
 
   while (true) {
     norm = l1_norm(temp);
@@ -393,15 +310,14 @@ LevelVectorList mindex(const int& dimension, const LevelVector& level_max) {
         temp[j] = 1;
     }
 
-    if (j < 0)
-      break;
+    if (j < 0) break;
   }
 
   return mindex_result;
 }
 
 LevelVectorList check_dimensionality(const LevelVectorList& input_levels,
-    LevelVector& ignored_dimensions) {
+                                     LevelVector& ignored_dimensions) {
   LevelVector l_min = input_levels[0];
   LevelVector l_max = input_levels[1];
 
@@ -409,7 +325,7 @@ LevelVectorList check_dimensionality(const LevelVectorList& input_levels,
   LevelVector new_l_max;
   LevelVectorList new_levels;
 
-  for ( size_t i = 0; i < l_min.size(); ++i) {
+  for (size_t i = 0; i < l_min.size(); ++i) {
     if (l_max[i] == l_min[i]) {
       ignored_dimensions.push_back(i);
     } else {
@@ -425,15 +341,15 @@ LevelVectorList check_dimensionality(const LevelVectorList& input_levels,
 }
 
 LevelVectorList check_faults(const LevelVectorList& input_faults,
-    const LevelVector& ignored_dimensions) {
+                             const LevelVector& ignored_dimensions) {
   LevelVectorList new_faults;
 
   for (unsigned int i = 0; i < input_faults.size(); ++i) {
     LevelVector new_fault;
 
     for (unsigned int j = 0; j < input_faults[0].size(); ++j) {
-      if (std::find(ignored_dimensions.begin(), ignored_dimensions.end(), j)
-          == ignored_dimensions.end()) {
+      if (std::find(ignored_dimensions.begin(), ignored_dimensions.end(), j) ==
+          ignored_dimensions.end()) {
         new_fault.push_back(input_faults[i][j]);
       }
     }
@@ -445,21 +361,21 @@ LevelVectorList check_faults(const LevelVectorList& input_faults,
 }
 
 CombigridDict set_new_given_dict(const CombigridDict& given_dict,
-    const LevelVector& ignored_dimensions, const int& dim) {
+                                 const LevelVector& ignored_dimensions, const int& dim) {
   real key = 0.0;
   CombigridDict new_given_dict;
 
-  for (auto ii = given_dict.begin(); ii != given_dict.end(); ++ii) {
+  for (const auto & ii : given_dict) {
     LevelVector new_level;
 
     for (int i = 0; i < dim; ++i) {
-      if (std::find(ignored_dimensions.begin(), ignored_dimensions.end(), i)
-          == ignored_dimensions.end()) {
-        new_level.push_back(ii->first[i]);
+      if (std::find(ignored_dimensions.begin(), ignored_dimensions.end(), i) ==
+          ignored_dimensions.end()) {
+        new_level.push_back(ii.first[i]);
       }
     }
 
-    key = ii->second;
+    key = ii.second;
     new_given_dict.insert(std::make_pair(new_level, key));
   }
 
@@ -471,30 +387,28 @@ void check_input_levels(const LevelVectorList& levels) {
   LevelVector l_max = levels[1];
   LevelVector c;
 
-  for (unsigned int i = 0; i < l_min.size(); ++i) {
-    c.push_back(l_max[i] - l_min[i]);
-  }
+  // cf. https://stackoverflow.com/questions/3642700/vector-addition-operation
+  c.reserve( l_min.size() );
+  // for (unsigned int i = 0; i < l_min.size(); ++i) {
+  //   c.push_back(l_max[i] - l_min[i]);
+  // }
+  std::transform(l_max.begin(), l_max.end(), l_min.begin(), std::back_inserter(c), std::minus<IndexType>());
 
-  if (std::adjacent_find(c.begin(), c.end(), std::not_equal_to<int>())
-      == c.end()) {
-    std::cout << "Correct input levels!" << std::endl;
-  } else {
-    std::cout << "Input levels are incorrect!" << std::endl;
-    std::cout
-        << "Please input them of the form: l_max = l_min + c*ones(dim), c>=1, integer"
-        << std::endl;
-    exit(0);
-  }
+  assert (std::adjacent_find(c.begin(), c.end(), std::not_equal_to<int>()) == c.end() &&
+    "Input levels are incorrect!" &&
+    "Please input them of the form: l_max = l_min + c*ones(dim), c>=1, integer"
+  );
 }
 
 std::vector<double> select_coeff_downset(const std::vector<double>& all_c,
-    const CombigridDict& given_downset, const CombigridDict& aux_downset) {
+                                         const CombigridDict& given_downset,
+                                         const CombigridDict& aux_downset) {
   int given_downset_index = 0;
   std::vector<double> donwset_c;
 
-  for (auto ii = aux_downset.begin(); ii != aux_downset.end(); ++ii) {
-    if (given_downset.find(ii->first) != given_downset.end()) {
-      given_downset_index = static_cast<int>(ii->second);
+  for (const auto & ii : aux_downset) {
+    if (given_downset.find(ii.first) != given_downset.end()) {
+      given_downset_index = static_cast<int>(ii.second);
       donwset_c.push_back(all_c.at(given_downset_index));
     }
   }
@@ -502,4 +416,4 @@ std::vector<double> select_coeff_downset(const std::vector<double>& all_c,
   return donwset_c;
 }
 
-} // namespace combigrid
+}  // namespace combigrid

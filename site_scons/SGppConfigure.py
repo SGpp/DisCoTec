@@ -289,12 +289,14 @@ def configureGNUCompiler(config):
     config.env["CC"] = ("mpicc.openmpi")
     config.env["LINK"] = ("mpic++.openmpi")
     config.env["CXX"] = ("mpic++.openmpi")
+    config.env["FC"] = ("mpifort.openmpi")
     config.env["CPPDEFINES"]["USE_MPI"] = "1"
     Helper.printInfo("Using openmpi.")
   elif config.env["COMPILER"] == "mpich":
     config.env["CC"] = ("mpicc.mpich")
-    config.env["LINK"] = ("mpic++.mpich")
-    config.env["CXX"] = ("mpic++.mpich")
+    config.env["LINK"] = ("mpicxx.mpich")
+    config.env["CXX"] = ("mpicxx.mpich")
+    config.env["FC"] = ("mpifort.mpich")
     config.env["CPPDEFINES"]["USE_MPI"] = "1"
     Helper.printInfo("Using mpich.")
 
@@ -330,7 +332,8 @@ def configureGNUCompiler(config):
   
   if config.env["DEBUG_OUTPUT"]:
     config.env.Append(CPPFLAGS=["-DDEBUG_OUTPUT"])  
-
+  if config.env["TIMING"]:
+    config.env.Append(CPPFLAGS=["-DTIMING"])
   if config.env["BUILD_STATICLIB"]:
     config.env.Append(CPPFLAGS=["-D_BUILD_STATICLIB"])
 

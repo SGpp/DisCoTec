@@ -1,7 +1,7 @@
-CC=mpic++.mpich
+CC=mpicxx.mpich
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic
 
-SGPP_DIR=$(HOME)/path/to/SGpp
+SGPP_DIR=../../..
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 

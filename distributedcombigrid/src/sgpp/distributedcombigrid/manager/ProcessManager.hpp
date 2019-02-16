@@ -10,78 +10,68 @@
 
 #include <vector>
 
+#include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/LPOptimizationInterpolation.hpp"
+#include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
-#include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/LPOptimizationInterpolation.hpp"
-#include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 
 namespace combigrid {
 
 class ProcessManager {
  public:
-  ProcessManager(ProcessGroupManagerContainer& pgroups,
-                 TaskContainer& instances,
-                 CombiParameters& params );
+  ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& instances,
+                 CombiParameters& params, std::unique_ptr<LoadModel> loadModel)
+    : pgroups_(pgroups), tasks_(instances), params_(params), taskToProc {}
+    {
+      loadModel_ = std::move(loadModel);
+  }
 
-  inline void
-  removeGroups(std::vector<int> removeIndices);
+  inline void removeGroups(std::vector<int> removeIndices);
 
   // todo: use general class AppInstance here
   // todo: add remove function
-  inline void
-  addTask(Task* t);
+  inline void addTask(Task* t);
 
-  bool
-  runfirst();
+  bool runfirst();
 
   bool runNewTasks();
 
-  void
-  exit();
+  void exit();
 
-  virtual
-  ~ProcessManager();
+  virtual ~ProcessManager();
 
   template<typename FG_ELEMENT>
-  inline FG_ELEMENT
-  eval(const std::vector<real>& coords);
+  inline FG_ELEMENT eval(const std::vector<real>& coords);
 
-  bool
-  runnext();
+  bool runnext();
 
-  inline void
-  combine();
+  inline void combine();
 
   template<typename FG_ELEMENT>
-  inline void
-  combineFG(FullGrid<FG_ELEMENT>& fg);
+  inline void combineFG(FullGrid<FG_ELEMENT>& fg);
 
   template<typename FG_ELEMENT>
-  inline void
-  gridEval(FullGrid<FG_ELEMENT>& fg);
+  inline void gridEval(FullGrid<FG_ELEMENT>& fg);
 
   /* Generates no_faults random faults from the combischeme */
-  inline void
-  createRandomFaults( std::vector<int>& faultIds, int no_faults );
+  inline void createRandomFaults(std::vector<int>& faultIds, int no_faults);
 
-  inline void
-  recomputeOptimumCoefficients( std::string prob_name,
-                                std::vector<int>& faultsID,
+  inline void recomputeOptimumCoefficients(std::string prob_name, std::vector<int>& faultsID,
                                 std::vector<int>& redistributefaultsID,
                                 std::vector<int>& recomputeFaultsID);
 
   inline Task* getTask( int taskID );
 
-  void
-  updateCombiParameters();
-
+  void updateCombiParameters();
 
   /* Computes group faults in current combi scheme step */
-  void
-  getGroupFaultIDs( std::vector< int>& faultsID, std::vector< ProcessGroupManagerID>& groupFaults );
+  void getGroupFaultIDs(std::vector<int>& faultsID,
+                        std::vector<ProcessGroupManagerID>& groupFaults);
 
   void setCombiParameters(const CombiParameters& params){
 	  params_ = params;
@@ -89,17 +79,17 @@ class ProcessManager {
 
   inline CombiParameters& getCombiParameters();
 
-  void parallelEval( const LevelVector& leval,
-                                     std::string& filename,
-                                     size_t groupID );
+  void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
   
   void redistribute( std::vector<int>& taskID );
 
   void redistributeAll();
 
-  void reInitializeGroup( std::vector< ProcessGroupManagerID>& taskID, std::vector<int>& tasksToIgnore  );
+  void reInitializeGroup(std::vector<ProcessGroupManagerID>& taskID,
+                         std::vector<int>& tasksToIgnore);
 
-  void recompute( std::vector<int>& taskID, bool failedRecovery, std::vector< ProcessGroupManagerID>& recoveredGroups );
+  void recompute(std::vector<int>& taskID, bool failedRecovery,
+                 std::vector<ProcessGroupManagerID>& recoveredGroups);
 
   void recover(int i, int nsteps);
 
@@ -131,17 +121,20 @@ class ProcessManager {
 
   std::map<int, int> taskToProc;
 
+  std::unique_ptr<LoadModel> loadModel_;
+
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
   inline ProcessGroupManagerID wait();
   inline ProcessGroupManagerID waitAvoid( std::vector< ProcessGroupManagerID>& avoidGroups);
   bool waitAllFinished();
+
+  void receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive);
+
+  void sortTasks();
 };
 
-
-inline void ProcessManager::addTask(Task* t) {
-  tasks_.push_back(t);
-}
+inline void ProcessManager::addTask(Task* t) { tasks_.push_back(t); }
 
 inline ProcessGroupManagerID ProcessManager::wait() {
   while (true) {
@@ -157,10 +150,12 @@ inline ProcessGroupManagerID ProcessManager::wait() {
   }
 }
 
-inline ProcessGroupManagerID ProcessManager::waitAvoid( std::vector< ProcessGroupManagerID>& avoidGroups) {
+inline ProcessGroupManagerID ProcessManager::waitAvoid(
+    std::vector<ProcessGroupManagerID>& avoidGroups) {
   while (true) {
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (std::find(avoidGroups.begin(), avoidGroups.end(), pgroups_[i]) == avoidGroups.end()){//ignore tasks that are recomputed
+      if (std::find(avoidGroups.begin(), avoidGroups.end(), pgroups_[i]) ==
+          avoidGroups.end()) {  // ignore tasks that are recomputed
         StatusType status = pgroups_[i]->getStatus();
         //      std::cout << status << " is the status of : "<< i << "\n";
         assert(status >= 0); //check for invalid values
@@ -183,16 +178,14 @@ inline FG_ELEMENT ProcessManager::eval(const std::vector<real>& coords) {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
     }
   }
 
   FG_ELEMENT res(0);
 
   // call eval function of each process group
-  for (size_t i = 0; i < pgroups_.size(); ++i)
-    res += pgroups_[i]->eval(coords);
+  for (size_t i = 0; i < pgroups_.size(); ++i) res += pgroups_[i]->eval(coords);
 
   return res;
 }
@@ -212,8 +205,7 @@ void ProcessManager::combine() {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
     }
   }
 
@@ -242,8 +234,7 @@ void ProcessManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
     }
   }
 
@@ -271,8 +262,7 @@ void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
     }
   }
 
@@ -282,24 +272,18 @@ void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
     assert(success);
   }
 
-  CombiCom::FGReduce<FG_ELEMENT>( fg,
-                                  theMPISystem()->getManagerRank(),
+  CombiCom::FGReduce<FG_ELEMENT>(fg, theMPISystem()->getManagerRank(),
                                   theMPISystem()->getGlobalComm() );
 }
 
-
-CombiParameters& ProcessManager::getCombiParameters() {
-  return params_;
-}
-
+CombiParameters& ProcessManager::getCombiParameters() { return params_; }
 
 /*
  * Create a certain given number of random faults, considering that the faulty processes
  * simply cannot give the evaluation results, but they are still available in the MPI
  * communication scheme (the nodes are not dead)
  */
-inline void
-ProcessManager::createRandomFaults( std::vector<int>& faultIds, int no_faults ) {
+inline void ProcessManager::createRandomFaults(std::vector<int>& faultIds, int no_faults) {
   int fault_id;
 
   // create random faults
@@ -317,26 +301,22 @@ ProcessManager::createRandomFaults( std::vector<int>& faultIds, int no_faults ) 
  * Recompute coefficients for the combination technique based on given grid faults using
  * an optimization scheme
  */
-inline void
-ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
+inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
                             std::vector<int>& faultsID,
                             std::vector<int>& redistributeFaultsID,
                             std::vector<int>& recomputeFaultsID) {
-
   CombigridDict given_dict = params_.getCombiDict();
 
   std::map<int, LevelVector> IDsToLevels = params_.getLevelsDict();
   LevelVectorList faultLevelVectors;
-  for (auto id : faultsID)
-    faultLevelVectors.push_back(IDsToLevels[id]);
-
+  for (auto id : faultsID) faultLevelVectors.push_back(IDsToLevels[id]);
 
   LevelVectorList lvlminmax;
   lvlminmax.push_back(params_.getLMin());
   lvlminmax.push_back(params_.getLMax());
-  LP_OPT_INTERP opt_interp(lvlminmax,static_cast<int>(params_.getDim()),GLP_MAX,given_dict,faultLevelVectors);
+  LP_OPT_INTERP opt_interp(lvlminmax, static_cast<int>(params_.getDim()), GLP_MAX, given_dict,
+                           faultLevelVectors);
   if ( opt_interp.getNumFaults() != 0 ) {
-
     opt_interp.init_opti_prob(prob_name);
     opt_interp.set_constr_matrix();
     opt_interp.solve_opti_problem();
@@ -357,9 +337,9 @@ ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
       newTaskIDs.push_back(i);
     }
     //check if sum of coefficients is 1
-    double sum;
+    double sum = 0.0;
     std::cout << "new coefficients: ";
-    for(int i = 0; i < newCoeffs.size(); i++){
+    for (size_t i = 0; i < newCoeffs.size(); i++) {
       sum+=newCoeffs[i];
       std::cout << newCoeffs[i] << " ";
     }
@@ -378,15 +358,13 @@ ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
     std::sort(faultsID.begin(), faultsID.end());
     std::sort(recomputeFaultsID.begin(), recomputeFaultsID.end());
 
-    std::set_difference(faultsID.begin(), faultsID.end(),
-                        recomputeFaultsID.begin(), recomputeFaultsID.end(),
+    std::set_difference(faultsID.begin(), faultsID.end(), recomputeFaultsID.begin(),
+                        recomputeFaultsID.end(),
                         std::inserter(redistributeFaultsID, redistributeFaultsID.begin()));
   }
 }
 
-inline Task*
-ProcessManager::getTask( int taskID ){
-
+inline Task* ProcessManager::getTask(int taskID) {
   for ( Task* tmp : tasks_ ) {
     if ( tmp->getID() == taskID ) {
       return tmp;
@@ -394,7 +372,6 @@ ProcessManager::getTask( int taskID ){
   }
   return nullptr;
 }
-
 
 } /* namespace combigrid */
 #endif /* PROCESSMANAGER_HPP_ */

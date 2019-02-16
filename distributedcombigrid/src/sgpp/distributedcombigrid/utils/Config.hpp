@@ -10,6 +10,16 @@
 
 #include <complex>
 
+#define ASSERT(cond, msg) {\
+    if(!(cond))\
+    {\
+        std::stringstream str;\
+        str << msg;\
+        std::cerr << msg;\
+        BOOST_ASSERT_MSG(cond, str.str().c_str());\
+    }\
+}
+
 namespace combigrid{
 
 /* With this config class the distributed combigrid module can be configured
@@ -21,10 +31,8 @@ namespace combigrid{
  */
 typedef double real;
 
-
 // the datatype for complex numbers will change accordingly. do not modify this.
 typedef std::complex<real> complex;
-
 
 /* set the datatype for the values stored in any type of grid. essentially you
  * have two options: real values or complex numbers. other datatypes like int
@@ -34,21 +42,18 @@ typedef std::complex<real> complex;
 //typedef real CombiDataType;
 typedef complex CombiDataType;
 
-
 /* nonblocking mpi collective calls (MPI_Iallreduce and the likes) usually yield
  * better performance in some of the operations in CombiCom. if you observe
  * problems with these functions uncomment to fall back to blocking counterpart
  * of the function.
  */
-const bool USE_NONBLOCKING_MPI_COLLECTIVE = true;
-
+constexpr bool USE_NONBLOCKING_MPI_COLLECTIVE = true;
 
 /* for some applications it is necessary to send the ready signal while the
  * process is in the application code. in this case this flag can be set to
  * true to avoid that the ready signal is sent automatically.
  */
-const bool omitReadySignal = true;
-
+constexpr bool omitReadySignal = true;
 
 /* using a uniform domain decomposition for all component grids (the same
  * number of processes in each dimension) yields a significantly better performance
@@ -56,7 +61,7 @@ const bool omitReadySignal = true;
  * to enable the uniform operations set this to true.
  * so far, only the uniform operations are properly implemented
  */
-const bool uniformDecomposition = true;
+constexpr bool uniformDecomposition = true;
 
 /* switch on fault tolerance functionality */
 const bool ENABLE_FT = false;
@@ -64,7 +69,5 @@ const bool isGENE = true;
 //const bool GENE_Global = true;
 //const bool GENE_Linear = true;
 }
-
-
 
 #endif /* DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_UTILS_CONFIG_HPP_ */

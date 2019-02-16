@@ -1,14 +1,14 @@
 #ifndef MPISYSTEM_HPP
 #define MPISYSTEM_HPP
 
+#include <assert.h>
 #include <mpi.h>
 #include <ostream>
 #include <vector>
-#include <assert.h>
 
 #include "sgpp/distributedcombigrid/mpi/MPISystemID.hpp"
-#include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
+#include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 #define MASTER_EXCLUSIVE_SECTION if( combigrid::theMPISystem()->isMaster() )
 
@@ -65,7 +65,6 @@ namespace combigrid {
 class ProcessGroupManager;
 class MPISystem {
  public:
-
   ~MPISystem();
 
   MPISystem( MPISystem const & ) = delete;
@@ -86,7 +85,17 @@ class MPISystem {
   /**
    * initializes MPI system including world communicator; so far only used in tests
    */
-  void initWorld( CommunicatorType wcomm, size_t ngroups, size_t nprocs);
+  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs);
+
+  /**
+   * get the size of the worldComm_
+   */
+  int getWorldSize();
+
+  /**
+   * get the rank in the worldComm_
+   */
+  int getWorldRank();
 
   /**
   * returns the world communicator which contains all ranks (excluding spare ranks)
@@ -200,7 +209,9 @@ class MPISystem {
    * groupAlive indicates if the process group of the calling rank is alive
    * failedGroups is a vector of the failed process groups
    */
-  bool recoverCommunicators( bool groupAlive, std::vector< std::shared_ptr< ProcessGroupManager >> failedGroups = std::vector< std::shared_ptr< ProcessGroupManager >>(0) );
+  bool recoverCommunicators(bool groupAlive,
+                            std::vector<std::shared_ptr<ProcessGroupManager>> failedGroups =
+                                std::vector<std::shared_ptr<ProcessGroupManager>>(0));
 
   /**
    * This routine frees the specified fault tolerant MPI communicator
@@ -238,6 +249,7 @@ class MPISystem {
   explicit MPISystem();
 
   friend MPISystemID theMPISystem();
+
   /**
    * checks if initialized
    */
@@ -261,9 +273,24 @@ class MPISystem {
   void createCommFT( simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm );
 
   /**
-   * initializes local comm + FT version if FT_ENABLED
+   * initializes the members ngroup_, nprocs_, worldComm_,  managerRankWorld_, managerRankFT_
+   */
+  void initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm, bool reusable);
+
+  /**
+   * sets up the local comm by splitting from worldComm and stores it
    */
   void initLocalComm();
+
+  /**
+   * stores local comm + FT version if FT_ENABLED
+   */
+  void storeLocalComm(CommunicatorType lcomm_optional = MPI_COMM_NULL);
+
+  /**
+   * Sets the local rank, disables local communicator if manager
+   */
+  void setLocalRank();
 
   /**
    * initializes global comm + FT version if FT_ENABLED
@@ -300,8 +327,10 @@ class MPISystem {
   void sendShrinkSignal(std::vector<RankType>& reusableRanks);
 
   /**
-   * When splitting the world comm after fault all spare processors need to be excluded from world comm.
-   * This routine sends a signal to all waiting spare processes so that they start the MPI split and exclude themselves.
+   * When splitting the world comm after fault all spare processors need to be excluded from world
+   * comm.
+   * This routine sends a signal to all waiting spare processes so that they start the MPI split and
+   * exclude themselves.
    */
   void sendExcludeSignal(std::vector<RankType>& reusableRanks);
 
@@ -333,14 +362,9 @@ class MPISystem {
    */
   std::vector<RankType> getFailedRanks( int numFailedProcs );
 
-
-
   bool initialized_; //is MPISystem initialized?
 
   CommunicatorType worldComm_; //contains all processes that are active
-
-  //contains alive procs from dead process groups and manager
-  simft::Sim_FT_MPI_Comm spareCommFT_;
 
   CommunicatorType globalComm_; //contains the manager and master processes
 
@@ -355,6 +379,9 @@ class MPISystem {
   simft::Sim_FT_MPI_Comm worldCommFT_; //FT version of world comm
 
   simft::Sim_FT_MPI_Comm globalCommFT_; //FT version of global comm
+
+   // contains alive procs from dead process groups and manager
+  simft::Sim_FT_MPI_Comm spareCommFT_;
 
   simft::Sim_FT_MPI_Comm localCommFT_; //FT version of local comm
 
@@ -405,17 +432,14 @@ inline MPISystemID theMPISystem() {
   return system;
 }
 
-
 inline void MPISystem::checkPreconditions() const{
   assert( initialized_ && "MPI System not initialized!");
 }
-
 
 inline void MPISystem::checkPreconditionsFT() const{
   checkPreconditions();
   assert( ENABLE_FT && "Fault Tolerance not enabled!" );
 }
-
 
 inline const CommunicatorType& MPISystem::getWorldComm() const {
   checkPreconditions();
@@ -423,20 +447,17 @@ inline const CommunicatorType& MPISystem::getWorldComm() const {
   return worldComm_;
 }
 
-
 inline const CommunicatorType& MPISystem::getGlobalComm() const{
   checkPreconditions();
 
   return globalComm_;
 }
 
-
 inline const CommunicatorType& MPISystem::getLocalComm() const{
   checkPreconditions();
 
   return localComm_;
 }
-
 
 inline const CommunicatorType& MPISystem::getGlobalReduceComm() const{
   checkPreconditions();
@@ -462,13 +483,11 @@ inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalCommFT(){
   return globalCommFT_;
 }
 
-
 inline simft::Sim_FT_MPI_Comm MPISystem::getLocalCommFT(){
   checkPreconditionsFT();
 
   return localCommFT_;
 }
-
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalReduceCommFT(){
   checkPreconditionsFT();
@@ -476,13 +495,11 @@ inline simft::Sim_FT_MPI_Comm MPISystem::getGlobalReduceCommFT(){
   return globalReduceCommFT_;
 }
 
-
 inline const RankType& MPISystem::getWorldRank() const{
   checkPreconditions();
 
   return worldRank_;
 }
-
 
 inline const RankType& MPISystem::getGlobalRank() const{
   checkPreconditions();
@@ -490,13 +507,11 @@ inline const RankType& MPISystem::getGlobalRank() const{
   return globalRank_;
 }
 
-
 inline const RankType& MPISystem::getLocalRank() const{
   checkPreconditions();
 
   return localRank_;
 }
-
 
 inline const RankType& MPISystem::getManagerRankWorld() const{
   checkPreconditions();
@@ -504,13 +519,11 @@ inline const RankType& MPISystem::getManagerRankWorld() const{
   return managerRankWorld_;
 }
 
-
 inline const RankType& MPISystem::getManagerRank() const{
   checkPreconditions();
 
   return managerRank_;
 }
-
 
 inline const RankType& MPISystem::getMasterRank() const{
   checkPreconditions();
@@ -518,21 +531,11 @@ inline const RankType& MPISystem::getMasterRank() const{
   return masterRank_;
 }
 
+inline bool MPISystem::isWorldManager() const { return (worldRank_ == managerRankWorld_); }
 
-inline bool MPISystem::isWorldManager() const{
-  return ( worldRank_ == managerRankWorld_ );
-}
+inline bool MPISystem::isGlobalManager() const { return (globalRank_ == managerRank_); }
 
-
-inline bool MPISystem::isGlobalManager() const{
-  return ( globalRank_ == managerRank_ );
-}
-
-
-inline bool MPISystem::isMaster() const{
-  return ( localRank_ == masterRank_ );
-}
-
+inline bool MPISystem::isMaster() const { return (localRank_ == masterRank_); }
 
 inline size_t MPISystem::getNumGroups() const{
   checkPreconditions();
@@ -546,10 +549,7 @@ inline size_t MPISystem::getNumProcs() const{
   return nprocs_;
 }
 
-
-inline bool MPISystem::isInitialized() const{
-  return initialized_;
-}
+inline bool MPISystem::isInitialized() const { return initialized_; }
 
 /*
 // operators
@@ -558,9 +558,18 @@ std::ostream& operator<<(std::ostream& os, const MPISystemID& ms);
 std::ostream& operator<<(std::ostream& os, const ConstMPISystemID& ms);
 */
 
-} //namespace combigrid
+static inline int getCommSize(const CommunicatorType& comm) {
+  int commSize;
+  MPI_Comm_size(comm, &commSize);
+  return commSize;
+}
 
+static inline int getCommRank(const CommunicatorType& comm) {
+  int commRank;
+  MPI_Comm_rank(comm, &commRank);
+  return commRank;
+}
 
-
+}  // namespace combigrid
 
 #endif // MPISYSTEM_HPP
