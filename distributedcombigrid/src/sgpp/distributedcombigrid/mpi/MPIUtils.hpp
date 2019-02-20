@@ -8,18 +8,17 @@
 #ifndef SRC_SGPP_COMBIGRID_MPI_MPIUTILS_HPP_
 #define SRC_SGPP_COMBIGRID_MPI_MPIUTILS_HPP_
 
-#include <string>
-#include <sstream>
-#include <boost/archive/text_oarchive.hpp>
-#include <boost/archive/text_iarchive.hpp>
 #include <mpi.h>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <sstream>
+#include <string>
 
 namespace combigrid {
 
 class MPIUtils {
-
  public:
-  template<typename T>
+  template <typename T>
   static void sendClass(T* t, RankType dst, CommunicatorType comm) {
     // save data to archive
     std::stringstream ss;
@@ -35,7 +34,7 @@ class MPIUtils {
     MPI_Send(buf, bsize, MPI_CHAR, dst, 0, comm);
   }
 
-  template<typename T>
+  template <typename T>
   static void receiveClass(T* t, RankType src, CommunicatorType comm) {
     // receive size of message
     // todo: not really necessary since size known at compile time
@@ -58,7 +57,7 @@ class MPIUtils {
     }
   }
 
-  template<typename T>
+  template <typename T>
   static void broadcastClass(T* t, RankType root, CommunicatorType comm) {
     RankType myID;
     MPI_Comm_rank(comm, &myID);
@@ -108,9 +107,7 @@ class MPIUtils {
       }
     }
   }
-
 };
-
 }
 
 #endif /* SRC_SGPP_COMBIGRID_MPI_MPIUTILS_HPP_ */

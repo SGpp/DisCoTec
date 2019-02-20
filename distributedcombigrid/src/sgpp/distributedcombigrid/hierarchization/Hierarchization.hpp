@@ -8,8 +8,8 @@
 #ifndef HIERARCHIZATION_HPP_
 #define HIERARCHIZATION_HPP_
 
-#include "boost/lexical_cast.hpp"
 #include <cstdlib>
+#include "boost/lexical_cast.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
@@ -26,41 +26,38 @@ namespace {
 
 using namespace combigrid;
 
-template<typename FG_ELEMENT>
-inline static void hierarchize1DUnoptimizedNoBoundary(
-  combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
-  IndexType size, DimType dim);
+template <typename FG_ELEMENT>
+inline static void hierarchize1DUnoptimizedNoBoundary(combigrid::FullGrid<FG_ELEMENT>& fg,
+                                                      IndexType start, IndexType stride,
+                                                      IndexType size, DimType dim);
 
-template<typename FG_ELEMENT>
-inline static void hierarchize1DUnoptimizedBoundary(
-  combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
-  IndexType size, DimType dim);
+template <typename FG_ELEMENT>
+inline static void hierarchize1DUnoptimizedBoundary(combigrid::FullGrid<FG_ELEMENT>& fg,
+                                                    IndexType start, IndexType stride,
+                                                    IndexType size, DimType dim);
 
-template<typename FG_ELEMENT>
-inline void dehierarchize1DUnoptimizedBoundary(
-  combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
-  IndexType size, DimType dim);
+template <typename FG_ELEMENT>
+inline void dehierarchize1DUnoptimizedBoundary(combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start,
+                                               IndexType stride, IndexType size, DimType dim);
 
-template<typename FG_ELEMENT>
-inline void dehierarchize1DUnoptimizedNoBoundary(
-  combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
-  IndexType size, DimType dim);
+template <typename FG_ELEMENT>
+inline void dehierarchize1DUnoptimizedNoBoundary(combigrid::FullGrid<FG_ELEMENT>& fg,
+                                                 IndexType start, IndexType stride, IndexType size,
+                                                 DimType dim);
 
-template<typename FG_ELEMENT>
-static void printValues2DArr(FG_ELEMENT* val, IndexType size, IndexType offset,
-                             IndexType n0);
+template <typename FG_ELEMENT>
+static void printValues2DArr(FG_ELEMENT* val, IndexType size, IndexType offset, IndexType n0);
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 static void printValues(combigrid::FullGrid<FG_ELEMENT>& fg);
 }
 
 namespace combigrid {
 
 class Hierarchization {
-
  public:
   // inplace hierarchization
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void hierarchize(FullGrid<FG_ELEMENT>& fg) {
     assert(!fg.isHierarchized());
 
@@ -76,7 +73,7 @@ class Hierarchization {
       }
     }
 
-    const IndexType size = fg.getNrElements(); // number of grid points
+    const IndexType size = fg.getNrElements();  // number of grid points
 
     IndexType stride = 1;
     IndexType jump;
@@ -88,14 +85,14 @@ class Hierarchization {
     IndexType start = -100;
 
     if (fg.returnBoundaryFlags()[0] == false) {
-      #pragma omp parallel for schedule(static) firstprivate (ndim, nbrOfPoles, start)
+#pragma omp parallel for schedule(static) firstprivate(ndim, nbrOfPoles, start)
 
       for (IndexType kk = 0; kk < nbrOfPoles; kk++) {
         start = kk * ndim;
         hierarchize1DUnoptimizedNoBoundary(fg, start, 1, ndim, 0);
       }
     } else {
-      #pragma omp parallel for schedule(static) firstprivate (ndim, nbrOfPoles, start)
+#pragma omp parallel for schedule(static) firstprivate(ndim, nbrOfPoles, start)
 
       for (IndexType kk = 0; kk < nbrOfPoles; kk++) {
         start = kk * ndim;
@@ -103,36 +100,40 @@ class Hierarchization {
       }
     }
 
-    for (DimType dim = 1; dim < d; dim++) { // hierarchize for all dims
+    // end dimension 1
+    for (DimType dim = 1; dim < d; dim++) {  // hierarchize for all dims
       stride *= ndim;
       ndim = n[dim];
       jump = stride * ndim;
       nbrOfPoles = size / ndim;
 
-      //      std::cout << "dim " << dim << "size " << size << "ndim " << ndim << "nbrpoles" << nbrOfPoles << std::endl;
+      //      std::cout << "dim " << dim << "size " << size << "ndim " << ndim << "nbrpoles" <<
+      //      nbrOfPoles << std::endl;
       if (fg.returnBoundaryFlags()[dim] == false) {
-        #pragma omp parallel for schedule(static) firstprivate (divresult, stride, dim, ndim, nbrOfPoles, start, jump)
+#pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
+                                                       start, jump)
 
         for (IndexType nn = 0; nn < nbrOfPoles;
-             nn++) { // integer operations form bottleneck here -- nested loops are twice as slow
+             nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
           divresult = std::lldiv(nn, stride);
           start = divresult.quot * jump + divresult.rem;
           hierarchize1DUnoptimizedNoBoundary(fg, start, stride, ndim, dim);
         }
       } else {
-        #pragma omp parallel for schedule(static) firstprivate (divresult, stride, dim, ndim, nbrOfPoles, start, jump)
+#pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
+                                                       start, jump)
 
         for (IndexType nn = 0; nn < nbrOfPoles;
-             nn++) { // integer operations form bottleneck here -- nested loops are twice as slow
+             nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
           divresult = std::lldiv(nn, stride);
           start = divresult.quot * jump + divresult.rem;
           hierarchize1DUnoptimizedBoundary(fg, start, stride, ndim, dim);
         }
       }
 
-    } // end loop over dimension 2 to d
+    }  // end loop over dimension 2 to d
 
-    //printValues(fg);
+    // printValues(fg);
 
     // set fg to hierarchized
     fg.isHierarchized_ = true;
@@ -141,7 +142,7 @@ class Hierarchization {
   }
 
   // inplace dehierarchization
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void dehierarchize(FullGrid<FG_ELEMENT>& fg) {
     assert(fg.isHierarchized());
 
@@ -157,7 +158,7 @@ class Hierarchization {
       }
     }
 
-    const IndexType size = fg.getNrElements(); // number of grid points
+    const IndexType size = fg.getNrElements();  // number of grid points
 
     IndexType stride = 1;
     IndexType jump;
@@ -169,14 +170,14 @@ class Hierarchization {
     IndexType start = -100;
 
     if (fg.returnBoundaryFlags()[0] == false) {
-      #pragma omp parallel for schedule(static) firstprivate (ndim, nbrOfPoles, start)
+#pragma omp parallel for schedule(static) firstprivate(ndim, nbrOfPoles, start)
 
       for (IndexType kk = 0; kk < nbrOfPoles; kk++) {
         start = kk * ndim;
         dehierarchize1DUnoptimizedNoBoundary(fg, start, 1, ndim, 0);
       }
     } else {
-      #pragma omp parallel for schedule(static) firstprivate (ndim, nbrOfPoles, start)
+#pragma omp parallel for schedule(static) firstprivate(ndim, nbrOfPoles, start)
 
       for (IndexType kk = 0; kk < nbrOfPoles; kk++) {
         start = kk * ndim;
@@ -187,26 +188,28 @@ class Hierarchization {
     // end dimension 1
     //      printValues(fg);
 
-    for (DimType dim = 1; dim < d; dim++) { // hierarchize for all dims
+    for (DimType dim = 1; dim < d; dim++) {  // hierarchize for all dims
       stride *= ndim;
       ndim = n[dim];
       jump = stride * ndim;
       nbrOfPoles = size / ndim;
 
       if (fg.returnBoundaryFlags()[dim] == false) {
-        #pragma omp parallel for schedule(static) firstprivate (divresult, stride, dim, ndim, nbrOfPoles, start, jump)
+#pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
+                                                       start, jump)
 
         for (IndexType nn = 0; nn < nbrOfPoles;
-             nn++) { // integer operations form bottleneck here -- nested loops are twice as slow
+             nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
           divresult = std::lldiv(nn, stride);
           start = divresult.quot * jump + divresult.rem;
           dehierarchize1DUnoptimizedNoBoundary(fg, start, stride, ndim, dim);
         }
       } else {
-        #pragma omp parallel for schedule(static) firstprivate (divresult, stride, dim, ndim, nbrOfPoles, start, jump)
+#pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
+                                                       start, jump)
 
         for (IndexType nn = 0; nn < nbrOfPoles;
-             nn++) { // integer operations form bottleneck here -- nested loops are twice as slow
+             nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
           divresult = std::lldiv(nn, stride);
           start = divresult.quot * jump + divresult.rem;
           dehierarchize1DUnoptimizedBoundary(fg, start, stride, ndim, dim);
@@ -215,18 +218,16 @@ class Hierarchization {
 
       //        printValues(fg);
 
-    } // end loop over dimension 2 to d
+    }  // end loop over dimension 2 to d
 
     // set fg to unhierarchized
     fg.isHierarchized_ = false;
 
     return;
-
   }
-
 };
 
-} // namespace combigrid
+}  // namespace combigrid
 
 namespace {
 
@@ -234,11 +235,9 @@ using namespace combigrid;
 /**
  * Solves the Hierarchization for a specific 1D problem
  */
-template<typename FG_ELEMENT>
-inline void hierarchize1DUnoptimizedNoBoundary(
-  combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
-  IndexType size, DimType dim) {
-
+template <typename FG_ELEMENT>
+inline void hierarchize1DUnoptimizedNoBoundary(combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start,
+                                               IndexType stride, IndexType size, DimType dim) {
   IndexType steps;
   IndexType ctr;
   IndexType offset, parentOffset;
@@ -258,8 +257,7 @@ inline void hierarchize1DUnoptimizedNoBoundary(
 
   for (ll--; ll > 0; ll--) {
     parOffsetStrided = parentOffset * stride;
-    val[start + offset * stride] -= 0.5
-                                    * val[start + offset * stride + parOffsetStrided];
+    val[start + offset * stride] -= 0.5 * val[start + offset * stride + parOffsetStrided];
     offset += stepsize;
     parL = 0.5 * val[start + offset * stride - parOffsetStrided];
 
@@ -283,11 +281,9 @@ inline void hierarchize1DUnoptimizedNoBoundary(
   return;
 }
 
-template<typename FG_ELEMENT>
-inline void hierarchize1DUnoptimizedBoundary(
-  combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
-  IndexType size, DimType dim) {
-
+template <typename FG_ELEMENT>
+inline void hierarchize1DUnoptimizedBoundary(combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start,
+                                             IndexType stride, IndexType size, DimType dim) {
   IndexType steps;
   IndexType ctr;
   IndexType offset, parentOffset;
@@ -301,12 +297,12 @@ inline void hierarchize1DUnoptimizedBoundary(
 
   IndexType ll = fg.getLevels()[dim];
   steps = (1 << (ll - 1));
-  offset = 1; // 1 da boundary
+  offset = 1;  // 1 da boundary
   stepsize = 2;
   parentOffset = 1;
 
   for (ll--; ll > -1;
-       ll--) { // hier is index um 1 geschiftet da vorher level 2 manuell behandelt wurde
+       ll--) {  // hier is index um 1 geschiftet da vorher level 2 manuell behandelt wurde
     parOffsetStrided = parentOffset * stride;
     parL = 0.5 * val[start + offset * stride - parOffsetStrided];
 
@@ -321,7 +317,7 @@ inline void hierarchize1DUnoptimizedBoundary(
     }
 
     steps = steps >> 1;
-    offset = (1 << (fg.getLevels()[dim] - ll)); // boundary case
+    offset = (1 << (fg.getLevels()[dim] - ll));  // boundary case
     parentOffset = stepsize;
     stepsize = stepsize << 1;
   }
@@ -329,11 +325,10 @@ inline void hierarchize1DUnoptimizedBoundary(
   return;
 }
 
-template<typename FG_ELEMENT>
-inline void dehierarchize1DUnoptimizedNoBoundary(
-  combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
-  IndexType size, DimType dim) {
-
+template <typename FG_ELEMENT>
+inline void dehierarchize1DUnoptimizedNoBoundary(combigrid::FullGrid<FG_ELEMENT>& fg,
+                                                 IndexType start, IndexType stride, IndexType size,
+                                                 DimType dim) {
   //        std::cout << "start " << start
   //                  << "stride " << stride
   //                  << "size " << size
@@ -352,16 +347,17 @@ inline void dehierarchize1DUnoptimizedNoBoundary(
 
   LevelType maxL = fg.getLevels()[dim];
   //        int maxL = l[dim];
-  //      start = start +stride; // nun mit offset = 1;start war vorher der erste gitterpunkt (welcher randpunkt ist) und ist nun der erste zu hierarchisierende Gitterpunkt.
+  //      start = start +stride; // nun mit offset = 1;start war vorher der erste gitterpunkt
+  //      (welcher randpunkt ist) und ist nun der erste zu hierarchisierende Gitterpunkt.
   steps = 2;
-  offset = (1 << (maxL - 2)) - 1; // offset =1 da boundary.
+  offset = (1 << (maxL - 2)) - 1;  // offset =1 da boundary.
   stepsize = (1 << (maxL - 1));
   parentOffset = (1 << (maxL - 2));
 
   for (IndexType ll = 2; ll <= maxL; ll++) {
     parOffsetStrided = parentOffset * stride;
     parL = 0.5 * val[start + offset * stride +
-                     parOffsetStrided]; //eigentlich rechts hier aber einmal umkopieren sparen.
+                     parOffsetStrided];  // eigentlich rechts hier aber einmal umkopieren sparen.
     val[start + offset * stride] += parL;
     offset += stepsize;
     //        parL= 0.5*val[start+offset*stride -parOffsetStrided];
@@ -378,7 +374,7 @@ inline void dehierarchize1DUnoptimizedNoBoundary(
 
     val[start + offset * stride] += parL;
     steps = steps << 1;
-    offset = (1 << (maxL - (ll + 1))) - 1; // boundary case
+    offset = (1 << (maxL - (ll + 1))) - 1;  // boundary case
     parentOffset = parentOffset >> 1;
     stepsize = stepsize >> 1;
     //        std::cout << "after hierarchizing level " << ll << std::endl;
@@ -388,10 +384,9 @@ inline void dehierarchize1DUnoptimizedNoBoundary(
   return;
 }
 
-template<typename FG_ELEMENT>
-inline void dehierarchize1DUnoptimizedBoundary(
-  combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start, IndexType stride,
-  IndexType size, DimType dim) {
+template <typename FG_ELEMENT>
+inline void dehierarchize1DUnoptimizedBoundary(combigrid::FullGrid<FG_ELEMENT>& fg, IndexType start,
+                                               IndexType stride, IndexType size, DimType dim) {
   IndexType steps;
   IndexType ctr;
   IndexType offset, parentOffset;
@@ -405,14 +400,15 @@ inline void dehierarchize1DUnoptimizedBoundary(
 
   LevelType maxL = fg.getLevels()[dim];
   //        int maxL = l[dim];
-  //      start = start +stride; // nun mit offset = 1;start war vorher der erste gitterpunkt (welcher randpunkt ist) und ist nun der erste zu hierarchisierende Gitterpunkt.
+  //      start = start +stride; // nun mit offset = 1;start war vorher der erste gitterpunkt
+  //      (welcher randpunkt ist) und ist nun der erste zu hierarchisierende Gitterpunkt.
   steps = 1;
-  offset = (1 << (maxL - 1)); // offset =1 da boundary.
+  offset = (1 << (maxL - 1));  // offset =1 da boundary.
   stepsize = (1 << maxL);
   parentOffset = (1 << (maxL - 1));
 
   for (LevelType ll = 1; ll <= maxL;
-       ll++) { // couting with offset of one as level 2 was hierarchized manually before
+       ll++) {  // couting with offset of one as level 2 was hierarchized manually before
     // just convers setting of strides and co.
     parOffsetStrided = parentOffset * stride;
     parL = 0.5 * val[start + offset * stride - parOffsetStrided];
@@ -430,7 +426,7 @@ inline void dehierarchize1DUnoptimizedBoundary(
 
     //        val[start+offset*stride] -= parR;
     steps = steps << 1;
-    offset = (1 << (maxL - (ll + 1))); // boundary case
+    offset = (1 << (maxL - (ll + 1)));  // boundary case
     parentOffset = parentOffset >> 1;
     stepsize = stepsize >> 1;
   }
@@ -438,21 +434,19 @@ inline void dehierarchize1DUnoptimizedBoundary(
   return;
 }
 
-template<typename FG_ELEMENT>
-static void printValues2DArr(FG_ELEMENT* val, IndexType size, IndexType offset,
-                             IndexType n0) {
+template <typename FG_ELEMENT>
+static void printValues2DArr(FG_ELEMENT* val, IndexType size, IndexType offset, IndexType n0) {
   for (IndexType i = 1; i <= size; i++) {
     std::cout << val[offset + i - 1] << "\t";
 
-    if (i % n0 == 0)
-      std::cout << std::endl;
+    if (i % n0 == 0) std::cout << std::endl;
   }
 
   std::cout << std::endl;
   return;
 }
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 static void printValues(combigrid::FullGrid<FG_ELEMENT>& fg) {
   printf("\n");
   const DimType d = fg.getDimension();
@@ -473,7 +467,8 @@ static void printValues(combigrid::FullGrid<FG_ELEMENT>& fg) {
     for (IndexType ctr = 0; ctr < nbrOfChunks; ctr++) {
       std::cout << std::endl;
       printValues2DArr(val, chunkSize, ctr * chunkSize, n[0]);
-      // rest is only for formatting - make an additioanl new line when increasing the level for d >= 2
+      // rest is only for formatting - make an additioanl new line when increasing the level for d
+      // >= 2
       currentLevels[2]++;
 
       for (IndexType dd = 2; dd < d; dd++) {

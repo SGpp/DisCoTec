@@ -8,13 +8,13 @@
 #ifndef COMBICOM_HPP_
 #define COMBICOM_HPP_
 
-#include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
-#include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
-#include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
-#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGridNonUniform.hpp"
+#include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGrid.hpp"
+#include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 namespace {
 struct mycomplex {
@@ -56,61 +56,55 @@ class CombiCom {
  public:
   // after SGReduce sg will have full size
   // sg will be available on ALL members of comm
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void SGReduce(SGrid<FG_ELEMENT>& sg, MPI_Comm comm);
 
   // reduced fg will ONLY be available on r
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void FGReduce(FullGrid<FG_ELEMENT>& fg, RankType r, MPI_Comm comm);
 
   // reduced fg will be available on all member of comm
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm);
 
-  template<typename FG_ELEMENT>
-  static void BetasReduce( std::vector<FG_ELEMENT>& betas, RankType r, MPI_Comm comm);
-
   // multiply dfg with coeff and add to dsg. dfg will not be changed
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void distributedLocalReduce(DistributedFullGrid<FG_ELEMENT>& dfg,
                                      DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff);
 
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
                                        DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff);
 
-  template<typename FG_ELEMENT>
-  static void distributedLocalReduceBlock(
-    DistributedFullGridNonUniform<FG_ELEMENT>& dfg,
-    DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff);
+  template <typename FG_ELEMENT>
+  static void distributedLocalReduceBlock(DistributedFullGridNonUniform<FG_ELEMENT>& dfg,
+                                          DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff);
 
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void distributedLocalReduceRed(DistributedFullGrid<FG_ELEMENT>& dfg,
                                         DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff);
 
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void distributedLocalReduceSGR(DistributedFullGrid<FG_ELEMENT>& dfg,
                                         DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff);
 
   // extract subspaces of dfg from
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
                                       DistributedSparseGrid<FG_ELEMENT>& dsg);
 
-  template<typename FG_ELEMENT>
+  template <typename FG_ELEMENT>
   static void distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg);
 
-  template<typename FG_ELEMENT>
-  static void
-  distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg);
+  template <typename FG_ELEMENT>
+  static void distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg);
 };
 
-template<>
+template <>
 inline void CombiCom::SGReduce<double>(SGrid<double>& sg, MPI_Comm comm) {
   // init all empty subspaces
   for (size_t i = 0; i < sg.getSize(); ++i)
-    if (sg.getDataSize(i) == 0)
-      sg.initHierarchicalSpace(i, 0.0);
+    if (sg.getDataSize(i) == 0) sg.initHierarchicalSpace(i, 0.0);
 
   // erzeuge buffer in der größe vom vollen sg
   std::vector<double> buf(sg.getCombinedDataSize());
@@ -128,9 +122,7 @@ inline void CombiCom::SGReduce<double>(SGrid<double>& sg, MPI_Comm comm) {
   }
 
   // mpi allreduce
-  MPI_Allreduce( MPI_IN_PLACE, &buf[0], static_cast<int>(buf.size()),
-                 MPI_DOUBLE,
-                 MPI_SUM, comm);
+  MPI_Allreduce(MPI_IN_PLACE, &buf[0], static_cast<int>(buf.size()), MPI_DOUBLE, MPI_SUM, comm);
 
   // kopiere buffer in richtige stelle an sg_tmp
   idx = 0;
@@ -143,13 +135,11 @@ inline void CombiCom::SGReduce<double>(SGrid<double>& sg, MPI_Comm comm) {
   }
 }
 
-template<>
+template <>
 inline void CombiCom::SGReduce<float>(SGrid<float>& sg, MPI_Comm comm) {
-
   // init all empty subspaces
   for (size_t i = 0; i < sg.getSize(); ++i)
-    if (sg.getDataSize(i) == 0)
-      sg.initHierarchicalSpace(i, 0.0);
+    if (sg.getDataSize(i) == 0) sg.initHierarchicalSpace(i, 0.0);
 
   // erzeuge buffer in der größe vom vollen sg
   std::vector<float> buf(sg.getCombinedDataSize());
@@ -167,8 +157,7 @@ inline void CombiCom::SGReduce<float>(SGrid<float>& sg, MPI_Comm comm) {
   }
 
   // mpi allreduce
-  MPI_Allreduce( MPI_IN_PLACE, &buf[0], static_cast<int>(buf.size()), MPI_FLOAT,
-                 MPI_SUM, comm);
+  MPI_Allreduce(MPI_IN_PLACE, &buf[0], static_cast<int>(buf.size()), MPI_FLOAT, MPI_SUM, comm);
 
   // kopiere buffer in richtige stelle an sg_tmp
   idx = 0;
@@ -181,18 +170,16 @@ inline void CombiCom::SGReduce<float>(SGrid<float>& sg, MPI_Comm comm) {
   }
 }
 
-template<>
-inline void CombiCom::SGReduce<std::complex<double> >(
-  SGrid<std::complex<double> >& sg, MPI_Comm comm) {
-
+template <>
+inline void CombiCom::SGReduce<std::complex<double> >(SGrid<std::complex<double> >& sg,
+                                                      MPI_Comm comm) {
   int rank;
   MPI_Comm_rank(comm, &rank);
   std::cout << "rank " << rank << " starting SGreduce" << std::endl;
 
   // init all empty subspaces
   for (size_t i = 0; i < sg.getSize(); ++i)
-    if (sg.getDataSize(i) == 0)
-      sg.initHierarchicalSpace(i, 0.0);
+    if (sg.getDataSize(i) == 0) sg.initHierarchicalSpace(i, 0.0);
 
   // erzeuge buffer in der größe vom vollen sg
   std::vector<mycomplex> buf(sg.getCombinedDataSize());
@@ -209,8 +196,8 @@ inline void CombiCom::SGReduce<std::complex<double> >(
   }
 
   // mpi allreduce
-  MPI_Allreduce( MPI_IN_PLACE, &buf[0], static_cast<int>(buf.size()),
-                 MPI_DOUBLE_COMPLEX, MPI_SUM, comm);
+  MPI_Allreduce(MPI_IN_PLACE, &buf[0], static_cast<int>(buf.size()), MPI_DOUBLE_COMPLEX, MPI_SUM,
+                comm);
 
   // kopiere buffer in richtige stelle an sg_tmp
   idx = 0;
@@ -224,11 +211,9 @@ inline void CombiCom::SGReduce<std::complex<double> >(
   }
 }
 
-template<>
-inline void CombiCom::FGReduce<double>(FullGrid<double>& fg, RankType r,
-                                       MPI_Comm comm) {
-  if (!fg.isGridCreated())
-    fg.createFullGrid();
+template <>
+inline void CombiCom::FGReduce<double>(FullGrid<double>& fg, RankType r, MPI_Comm comm) {
+  if (!fg.isGridCreated()) fg.createFullGrid();
 
   std::vector<double>& sendbuf = fg.getElementVector();
   std::vector<double> recvbuf(sendbuf.size());
@@ -237,18 +222,17 @@ inline void CombiCom::FGReduce<double>(FullGrid<double>& fg, RankType r,
   MPI_Comm_rank(comm, &myrank);
 
   if (myrank == r) {
-    MPI_Reduce( MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()),
-                MPI_DOUBLE, MPI_SUM, r, comm);
+    MPI_Reduce(MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()), MPI_DOUBLE, MPI_SUM, r,
+               comm);
   } else {
-    MPI_Reduce(&sendbuf[0], &recvbuf[0], static_cast<int>(sendbuf.size()),
-               MPI_DOUBLE, MPI_SUM, r, comm);
+    MPI_Reduce(&sendbuf[0], &recvbuf[0], static_cast<int>(sendbuf.size()), MPI_DOUBLE, MPI_SUM, r,
+               comm);
   }
 }
 
-template<>
+template <>
 inline void CombiCom::FGAllreduce<double>(FullGrid<double>& fg, MPI_Comm comm) {
-  if (!fg.isGridCreated())
-    fg.createFullGrid();
+  if (!fg.isGridCreated()) fg.createFullGrid();
 
   std::vector<double>& sendbuf = fg.getElementVector();
   std::vector<double> recvbuf(sendbuf.size());
@@ -256,15 +240,14 @@ inline void CombiCom::FGAllreduce<double>(FullGrid<double>& fg, MPI_Comm comm) {
   int myrank;
   MPI_Comm_rank(comm, &myrank);
 
-  MPI_Allreduce( MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()),
-                 MPI_DOUBLE, MPI_SUM, comm);
+  MPI_Allreduce(MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()), MPI_DOUBLE, MPI_SUM,
+                comm);
 }
 
-template<>
-inline void CombiCom::FGReduce<std::complex<double> >(
-  FullGrid<std::complex<double> >& fg, RankType r, MPI_Comm comm) {
-  if (!fg.isGridCreated())
-    fg.createFullGrid();
+template <>
+inline void CombiCom::FGReduce<std::complex<double> >(FullGrid<std::complex<double> >& fg,
+                                                      RankType r, MPI_Comm comm) {
+  if (!fg.isGridCreated()) fg.createFullGrid();
 
   std::vector<complex>& sendbuf = fg.getElementVector();
 
@@ -274,19 +257,18 @@ inline void CombiCom::FGReduce<std::complex<double> >(
   MPI_Comm_rank(comm, &myrank);
 
   if (myrank == r) {
-    MPI_Reduce( MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()),
-                MPI_DOUBLE_COMPLEX, MPI_SUM, r, comm);
+    MPI_Reduce(MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()), MPI_DOUBLE_COMPLEX,
+               MPI_SUM, r, comm);
   } else {
-    MPI_Reduce(&sendbuf[0], &recvbuf[0], static_cast<int>(sendbuf.size()),
-               MPI_DOUBLE_COMPLEX, MPI_SUM, r, comm);
+    MPI_Reduce(&sendbuf[0], &recvbuf[0], static_cast<int>(sendbuf.size()), MPI_DOUBLE_COMPLEX,
+               MPI_SUM, r, comm);
   }
 }
 
-template<>
-inline void CombiCom::FGAllreduce<std::complex<double> >(
-  FullGrid<std::complex<double> >& fg, MPI_Comm comm) {
-  if (!fg.isGridCreated())
-    fg.createFullGrid();
+template <>
+inline void CombiCom::FGAllreduce<std::complex<double> >(FullGrid<std::complex<double> >& fg,
+                                                         MPI_Comm comm) {
+  if (!fg.isGridCreated()) fg.createFullGrid();
 
   std::vector<complex>& sendbuf = fg.getElementVector();
   std::vector<complex> recvbuf(sendbuf.size());
@@ -294,47 +276,26 @@ inline void CombiCom::FGAllreduce<std::complex<double> >(
   int myrank;
   MPI_Comm_rank(comm, &myrank);
 
-  MPI_Allreduce( MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()),
-                 MPI_DOUBLE_COMPLEX, MPI_SUM, comm);
-}
-template<>
-inline void CombiCom::BetasReduce<double>( std::vector<double>& betas, RankType r, MPI_Comm comm ){
-
-  int myrank;
-  MPI_Comm_rank(comm, &myrank);
-
-  std::vector<double> recvBetas(betas.size());
-
-  if ( myrank == r ) {
-    MPI_Reduce( MPI_IN_PLACE, &betas[0], static_cast<int>(betas.size()),
-        MPI_DOUBLE, MPI_MAX, r, comm);
-  } else {
-    MPI_Reduce(&betas[0], &recvBetas[0], static_cast<int>(betas.size()),
-        MPI_DOUBLE, MPI_MAX, r, comm);
-  }
+  MPI_Allreduce(MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()), MPI_DOUBLE_COMPLEX,
+                MPI_SUM, comm);
 }
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 void CombiCom::SGReduce(SGrid<FG_ELEMENT>& sg, MPI_Comm comm) {
   assert(!"this type is not yet implemented");
 }
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 void CombiCom::FGReduce(FullGrid<FG_ELEMENT>& fg, RankType r, MPI_Comm comm) {
   assert(!"this type is not yet implemented");
 }
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
   assert(!"this type is not yet implemented");
 }
 
-template<typename FG_ELEMENT>
-void CombiCom::BetasReduce(std::vector<FG_ELEMENT>& betas, RankType r, MPI_Comm comm) {
-  assert(!"this type is not yet implemented");
-}
-
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 void CombiCom::distributedLocalReduce(DistributedFullGrid<FG_ELEMENT>& dfg,
                                       DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
   assert(dfg.getDimension() == dsg.getDim());
@@ -362,8 +323,7 @@ void CombiCom::distributedLocalReduce(DistributedFullGrid<FG_ELEMENT>& dfg,
   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
     const LevelVector& gatherL = dfgSubspacesLevels[i];
 
-    if (!dsg.isContained(gatherL))
-      continue;
+    if (!dsg.isContained(gatherL)) continue;
 
     std::vector<FG_ELEMENT> buf;
 
@@ -390,8 +350,8 @@ void CombiCom::distributedLocalReduce(DistributedFullGrid<FG_ELEMENT>& dfg,
     double avg = sum / static_cast<double>(dfg.getCommunicatorSize());
 
     if (rank == dst) {
-      std::cout << gatherL << " size = " << buf.size() << " times = " << min
-                << " " << max << " " << avg << std::endl;
+      std::cout << gatherL << " size = " << buf.size() << " times = " << min << " " << max << " "
+                << avg << std::endl;
     }
 
     // add the subspace data of dfg to dsg weighted by coeff
@@ -407,9 +367,9 @@ void CombiCom::distributedLocalReduce(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 void CombiCom::distributedLocalReduceRed(DistributedFullGrid<FG_ELEMENT>& dfg,
-    DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
+                                         DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
   assert(dfg.getDimension() == dsg.getDim());
   assert(dfg.returnBoundaryFlags() == dsg.getBoundaryVector());
   assert(dfg.getCommunicatorSize() == dsg.getCommunicatorSize());
@@ -438,8 +398,7 @@ void CombiCom::distributedLocalReduceRed(DistributedFullGrid<FG_ELEMENT>& dfg,
   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
     const LevelVector& gatherL = dfgSubspacesLevels[i];
 
-    if (!dsg.isContained(gatherL))
-      continue;
+    if (!dsg.isContained(gatherL)) continue;
 
     // index of the current subspace in dsg
     size_t dsgSubID = dsg.getIndex(gatherL);
@@ -448,12 +407,12 @@ void CombiCom::distributedLocalReduceRed(DistributedFullGrid<FG_ELEMENT>& dfg,
     RankType dst = dsg.getRank(dsgSubID);
 
     // start timing
-    //double tstart = MPI_Wtime();
+    // double tstart = MPI_Wtime();
 
     dfg.gatherSubspaceRed(gatherL, dst, buf);
 
     // stop timing
-    //double time = MPI_Wtime() - tstart;
+    // double time = MPI_Wtime() - tstart;
 
     // output min, max, avg
     /*
@@ -463,7 +422,7 @@ void CombiCom::distributedLocalReduceRed(DistributedFullGrid<FG_ELEMENT>& dfg,
      MPI_Reduce( &time, &sum, 1, MPI_DOUBLE, MPI_SUM, dst, dfg.getCommunicator() );
      */
 
-    //double avg = sum / static_cast<double>( dfg.getCommunicatorSize() );
+    // double avg = sum / static_cast<double>( dfg.getCommunicatorSize() );
     /*
      if( rank == dst ){
      std::cout << gatherL << " size = " << buf.size()
@@ -483,15 +442,11 @@ void CombiCom::distributedLocalReduceRed(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
-template<typename FG_ELEMENT>
-void CombiCom::distributedLocalReduceBlock(
-  DistributedFullGridNonUniform<FG_ELEMENT>& dfg,
-  DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
-
+template <typename FG_ELEMENT>
+void CombiCom::distributedLocalReduceBlock(DistributedFullGridNonUniform<FG_ELEMENT>& dfg,
+                                           DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
   // copy data into subspace datastructures
   dfg.fillSubspaces();
-
-
 
   // get a list of all the subspaces in dfg
   std::vector<LevelVector> dfgSubspacesLevels;
@@ -510,8 +465,7 @@ void CombiCom::distributedLocalReduceBlock(
   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
     const LevelVector& gatherL = dfgSubspacesLevels[i];
 
-    if (!dsg.isContained(gatherL))
-      continue;
+    if (!dsg.isContained(gatherL)) continue;
 
     std::vector<FG_ELEMENT> buf;
 
@@ -522,8 +476,8 @@ void CombiCom::distributedLocalReduceBlock(
     RankType dst = dsg.getRank(dsgSubID);
 
     // get send and recvdata for this subspace
-    dfg.gatherSubspaceBlock(gatherL, dst, senddata, sendsizes, sendsubspaces,
-                            recvsizes, recvsubspaces);
+    dfg.gatherSubspaceBlock(gatherL, dst, senddata, sendsizes, sendsubspaces, recvsizes,
+                            recvsubspaces);
   }
 
   // start send and recv operations to all other processes
@@ -532,8 +486,8 @@ void CombiCom::distributedLocalReduceBlock(
 
   for (int r = 0; r < dfg.getCommunicatorSize(); ++r) {
     MPI_Request sendrequest;
-    MPI_Isend(senddata[r].data(), int(senddata[r].size()),
-              MPI_INT, r, 0, dfg.getCommunicator(), &sendrequest);
+    MPI_Isend(senddata[r].data(), int(senddata[r].size()), MPI_INT, r, 0, dfg.getCommunicator(),
+              &sendrequest);
     requests.push_back(sendrequest);
 
     totalsendsize += senddata[r].size();
@@ -541,14 +495,12 @@ void CombiCom::distributedLocalReduceBlock(
     // calc recv data size
     int rsize = 0;
 
-    for (auto s : recvsizes[r])
-      rsize += s;
+    for (auto s : recvsizes[r]) rsize += s;
 
     recvdata[r].resize(rsize);
 
     MPI_Request recvrequest;
-    MPI_Irecv(recvdata[r].data(), rsize, MPI_INT, r, 0, dfg.getCommunicator(),
-              &recvrequest);
+    MPI_Irecv(recvdata[r].data(), rsize, MPI_INT, r, 0, dfg.getCommunicator(), &recvrequest);
     requests.push_back(recvrequest);
 
     totalrecvsize += rsize;
@@ -560,8 +512,8 @@ void CombiCom::distributedLocalReduceBlock(
 
   for (int r = 0; r < dfg.getCommunicatorSize(); ++r) {
     if (r == rank) {
-      std::cout << "rank " << rank << " tot send " << totalsendsize
-                << " tot recv " << totalrecvsize << std::endl;
+      std::cout << "rank " << rank << " tot send " << totalsendsize << " tot recv " << totalrecvsize
+                << std::endl;
     }
 
     MPI_Barrier(dfg.getCommunicator());
@@ -570,7 +522,7 @@ void CombiCom::distributedLocalReduceBlock(
   // todo: for own dsg subspaces -> put togheter subspace data from recvdata
 }
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
                                         DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
   assert(dfg.getDimension() == dsg.getDim());
@@ -601,8 +553,7 @@ void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
     const LevelVector& gatherL = dfgSubspacesLevels[i];
 
-    if (!dsg.isContained(gatherL))
-      continue;
+    if (!dsg.isContained(gatherL)) continue;
 
     // get buffer for this subspace
     std::vector<FG_ELEMENT>& buf = buffers[i];
@@ -619,14 +570,12 @@ void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // wait for requests
   if (requests.size() > 0)
-    MPI_Waitall(static_cast<int>(requests.size()), &requests[0],
-                MPI_STATUSES_IGNORE);
+    MPI_Waitall(static_cast<int>(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
 
   // each process adds the buffers it is responsible for to the corresponding
   // subpsace in dsg
   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
-    if (buffers[i].size() == 0)
-      continue;
+    if (buffers[i].size() == 0) continue;
 
     const LevelVector& gatherL = dfgSubspacesLevels[i];
 
@@ -645,12 +594,11 @@ void CombiCom::distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
       data[j] = coeff * buf[j];
     }
   }
-
 }
 
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 void CombiCom::distributedLocalReduceSGR(DistributedFullGrid<FG_ELEMENT>& dfg,
-    DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
+                                         DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
   assert(dfg.getDimension() == dsg.getDim());
   assert(dfg.returnBoundaryFlags() == dsg.getBoundaryVector());
   assert(dfg.getCommunicatorSize() == dsg.getCommunicatorSize());
@@ -672,8 +620,7 @@ void CombiCom::distributedLocalReduceSGR(DistributedFullGrid<FG_ELEMENT>& dfg,
   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
     const LevelVector& gatherL = dfgSubspacesLevels[i];
 
-    if (!dsg.isContained(gatherL))
-      continue;
+    if (!dsg.isContained(gatherL)) continue;
 
     commonSubspaces.push_back(gatherL);
     commonSubspacesRanks.push_back(dsg.getRank(gatherL));
@@ -706,20 +653,18 @@ void CombiCom::distributedLocalReduceSGR(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // mpi reduce on buffer
     if (dfg.getMpiRank() == r) {
-      MPI_Reduce( MPI_IN_PLACE, buffers[r].data(), bsize, dfg.getMPIDatatype(),
-                  MPI_SUM, r, dfg.getCommunicator());
+      MPI_Reduce(MPI_IN_PLACE, buffers[r].data(), bsize, dfg.getMPIDatatype(), MPI_SUM, r,
+                 dfg.getCommunicator());
     } else {
-      MPI_Reduce(buffers[r].data(), buffers[r].data(), bsize,
-                 dfg.getMPIDatatype(), MPI_SUM, r, dfg.getCommunicator());
+      MPI_Reduce(buffers[r].data(), buffers[r].data(), bsize, dfg.getMPIDatatype(), MPI_SUM, r,
+                 dfg.getCommunicator());
     }
 
-    if (dfg.getMpiRank() != r)
-      buffers[r].resize(0);
+    if (dfg.getMpiRank() != r) buffers[r].resize(0);
   }
 }
 
-
-template<typename FG_ELEMENT>
+template <typename FG_ELEMENT>
 void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
                                        DistributedSparseGrid<FG_ELEMENT>& dsg) {
   assert(dfg.getDimension() == dsg.getDim());
@@ -737,12 +682,12 @@ void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
   dfg.getSubspacesLevelVectors(dfgSubspacesLevels);
 
   // loop over all subspaces include in dfg
-  // and scatter all sparse grid subspaces contained in dfg those which are contained in the sparse grid
+  // and scatter all sparse grid subspaces contained in dfg those which are contained in the sparse
+  // grid
   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
     const LevelVector& scatterL = dfgSubspacesLevels[i];
 
-    if (!dsg.isContained(scatterL))
-      continue;
+    if (!dsg.isContained(scatterL)) continue;
 
     // index of the current subspace in dsg
     size_t dsgSubID = dsg.getIndex(scatterL);
@@ -762,7 +707,9 @@ void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
   dfg.clearSubspaces();
 }
 
-template<typename FG_ELEMENT>
+
+// sparse grid reduce
+template <typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
   // get rank in pgroup communicator.
   int lrank;
@@ -772,8 +719,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
 
   for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
     // skip all subspaces which are not stored on lrank
-    if (dsg.getRank(i) != lrank)
-      continue;
+    if (dsg.getRank(i) != lrank) continue;
 
     MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
 
@@ -783,17 +729,16 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
 
     FG_ELEMENT* buf = dsg.getData(i);
     int bsize = int(dsg.getDataSize(i));
-    MPI_Datatype dtype = abstraction::getMPIDatatype(
-                           abstraction::getabstractionDataType<FG_ELEMENT>());
+    MPI_Datatype dtype =
+        abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
     // mpi allreduce
     if (USE_NONBLOCKING_MPI_COLLECTIVE) {
       MPI_Request request;
-      MPI_Iallreduce( MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm,
-                      &request);
+      MPI_Iallreduce(MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm, &request);
       myrequests.push_back(request);
     } else {
-      MPI_Allreduce( MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm);
+      MPI_Allreduce(MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm);
     }
   }
 
@@ -810,7 +755,7 @@ void CombiCom::updateSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     // MPI does not have a real size_t equivalent. int should work in most cases
     // if not we can at least detect this with an assert
-    assert(dsg.getDataSize(i) <= INT_MAX);
+    assert(dsg.getDataSize(i) <= std::numeric_limits<int>::max());
 
     subspaceSizes[i] = int(dsg.getDataSize(i));
   }
@@ -833,10 +778,11 @@ int CombiCom::sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELE
 
     if (!check) {
       int rank;
-      MPI_Comm_rank( MPI_COMM_WORLD, &rank);
-      std::cout << "l = " << dsg.getLevelVector(i) << " " << "rank = " << rank
-                << " " << "ssize = " << subspaceSizes[i] << " " << "dsize = "
-                << dsg.getDataSize(i) << std::endl;
+      MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+      std::cout << "l = " << dsg.getLevelVector(i) << " "
+                << "rank = " << rank << " "
+                << "ssize = " << subspaceSizes[i] << " "
+                << "dsize = " << dsg.getDataSize(i) << std::endl;
       assert(false);
     }
 
@@ -898,6 +844,13 @@ void CombiCom::extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
   }
 }
 
+/***
+ * In this method the global reduction of the distributed sparse grid is performed. The global sparse grid is
+ * decomposed geometrically according to the domain decomposition (see Variant 2 in chapter 3.3.3 in marios diss).
+ * We first collect all subspace parts of our domain part and fill all missing subspaces with 0. We then perform
+ * an MPI_Allreduce with all processes from other process groups that own the same geometrical area. Here we follow
+ * the Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
+ */
 template<typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(
   DistributedSparseGridUniform<FG_ELEMENT>& dsg) {

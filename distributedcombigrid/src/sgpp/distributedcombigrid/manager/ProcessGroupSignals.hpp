@@ -28,14 +28,16 @@ const SignalType GRID_GATHER = 11;
 const SignalType UPDATE_COMBI_PARAMETERS = 12;
 const SignalType ADD_TASK = 13;
 const SignalType RECOMPUTE = 14;
-const SignalType CHECK_DEAD_PROCS = 15; // check for dead workers
+const SignalType CHECK_DEAD_PROCS = 15;  // check for dead workers
 const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
-const SignalType GATHER_COMMON_SS_SIZES = 18;
-const SignalType COMBINE_LOCAL_AND_GLOBAL = 19;
-const SignalType COMBINE_UNIFORM_THIRD_LEVEL_SEND_FIRST = 20;
-const SignalType COMBINE_UNIFORM_THIRD_LEVEL_RECV_FIRST= 21;
-const SignalType INTEGRATE_COMMON_SS= 22;
+const SignalType DO_NOTHING = 18;
+const SignalType RESET_TASKS = 19;
+const SignalType GATHER_COMMON_SS_SIZES = 20;
+const SignalType COMBINE_LOCAL_AND_GLOBAL = 21;
+const SignalType COMBINE_UNIFORM_THIRD_LEVEL_SEND_FIRST = 22;
+const SignalType COMBINE_UNIFORM_THIRD_LEVEL_RECV_FIRST= 23;
+const SignalType INTEGRATE_COMMON_SS= 24;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
@@ -47,9 +49,7 @@ typedef int FaultSimulationType;
 const FaultSimulationType RANDOM_FAIL = 0;
 const FaultSimulationType GROUPS_FAIL = 1;
 
-enum TagType {
-  signalTag = 0, statusTag = 1, infoTag = 2
-};
+enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3 };
 
 // attention: changing StatusType might require changing the MPI Type
 typedef int StatusType;
@@ -57,7 +57,6 @@ typedef int StatusType;
 const StatusType PROCESS_GROUP_WAIT = 0;
 const StatusType PROCESS_GROUP_BUSY = 1;
 const StatusType PROCESS_GROUP_FAIL = 2;
-
 
 } /* namespace combigrid */
 

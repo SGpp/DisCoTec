@@ -1,0 +1,74 @@
+[ct]
+#last element has to be 1 -> specify species with special field
+#dimension of problem
+dim = 6
+#minimum and maximum level of combination technique
+#lmin = 7 4 3 4 3 1  
+#lmax = 9 5 5 6 5 1
+lmin = 2 3 3 3 3 1  
+lmax = 3 4 4 4 4 1
+
+#levelvector at which 2 final outputs are evaluated (with potential interpolation)
+leval = 7 5 5 6 5 1
+leval2 = 7 4 4 4 4 1
+#indicates number of processors per dimension in domain decomposition
+#this is the same for each process group
+p = 1 1 2 2 2 1
+#number of combination steps
+ncombi = 5
+#indicates whether combischeme is read from file
+readspaces = 1
+#indicates the file name of the 2 plot files
+fg_file_path = ../plot.dat
+fg_file_path2 = ../plot2.dat
+#indicates which dimensions have boundary points
+boundary = 1 1 1 1 1 0
+#indicates which dimensions will be hierarchized
+hierarchization_dims = 0 0 1 1 1 0
+
+#possibility to reduce the level of the sparse grid for the combination step
+reduceCombinationDimsLmin = 0 0 0 0 0 0
+reduceCombinationDimsLmax = 0 0 0 0 0 0
+
+[application]
+#timestep size
+dt = 0.6960E-02
+#timesteps 100000
+#number of timesteps between combinations
+nsteps = 10
+#allowed maximal simulation time (physical time) between combination steps
+#if it would be exceeded finish also with less steps as defined above
+combitime = 10
+#physical parameters
+#shat = 0.7960
+kymin = 0.1525E-01
+#box size
+lx = 540.000
+#numbers of species
+numspecies = 1
+#T for local runs F for global runs
+GENE_local = F
+#T for nonlinear F for linear runs
+GENE_nonlinear = T
+
+[preproc]
+#name of gene instance folders
+basename = ginstance
+#executable name of gene manager
+executable = ./gene_new_machine
+#used mpi version
+mpi = mpirun
+startscript = start.bat
+
+[manager]
+#number of mpi ranks in each group
+ngroup = 2 
+#number of process groups
+nprocs = 8 
+
+[faults]
+#number of faults
+num_faults = 0
+iteration_faults = 2 4 7 8
+global_rank_faults = 2 1 7 0
+

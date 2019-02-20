@@ -29,7 +29,7 @@ pysgpp/pysgpp_wrap.cc
 pysgpp/pysgpp_wrap.h
 
 #ignoreing build output
-lib/*
+lib/sgpp/*
 *.log
 Doxyfile
 base/doc/doxygen/examples.doxy

@@ -6,8 +6,8 @@
 #ifndef COMBIDOMAIN1D_HPP_
 #define COMBIDOMAIN1D_HPP_
 
-#include <sgpp/distributedcombigrid/legacy/CombiEquidistantStretching.hpp>
 #include <sgpp/distributedcombigrid/legacy/AbstractStretchingMaker.hpp>
+#include <sgpp/distributedcombigrid/legacy/CombiEquidistantStretching.hpp>
 #include <sgpp/distributedcombigrid/legacy/combigrid_utils.hpp>
 
 #include <vector>
