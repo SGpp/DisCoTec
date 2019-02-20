@@ -33,9 +33,12 @@ class ProcessManager {
       tasks_(instances),
       params_(params)
       thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getSystemName())
-    {
+  {
       loadModel_ = std::move(loadModel);
       setupThirdLevel();
+      // the combiparameters are sent to all process groups before the
+      // computations start
+      //updateCombiParameters();
   }
 
   inline void removeGroups(std::vector<int> removeIndices);
@@ -77,6 +80,8 @@ class ProcessManager {
 
   void updateCombiParameters();
 
+  void getDSGFromProcessGroup();
+
   /* Computes group faults in current combi scheme step */
   void getGroupFaultIDs(std::vector<int>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);
@@ -102,6 +107,11 @@ class ProcessManager {
 
   void setupThirdLevel();
 
+  inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getOutboundUniDSGVector();
+  inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getInboundUniDSGVector(){
+    return inboundCachedUniDSGVector_;
+  }
+
  private:
   ProcessGroupManagerContainer& pgroups_;
 
@@ -114,6 +124,9 @@ class ProcessManager {
   ThirdLevelUtils thirdLevel_;
 
   std::unique_ptr<LoadModel> loadModel_;
+
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> outboundCachedUniDSGVector_;
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> inboundCachedUniDSGVector_;
 
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
@@ -424,6 +437,10 @@ inline Task* ProcessManager::getTask(int taskID) {
     }
   }
   return nullptr;
+}
+
+inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & ProcessManager::getOutboundUniDSGVector(){
+  return outboundCachedUniDSGVector_;
 }
 
 } /* namespace combigrid */

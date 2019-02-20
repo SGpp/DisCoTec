@@ -105,6 +105,8 @@ class ProcessGroupManager {
 
   bool updateCombiParameters(CombiParameters& params);
 
+  bool getDSGFromProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound);
+
   /* Check if group fault occured at this combination step using the fault simulator */
   bool isGroupFault();
 
@@ -130,8 +132,6 @@ class ProcessGroupManager {
   MPI_Request statusRequest_;
 
   simft::Sim_FT_MPI_Request statusRequestFT_;
-
-  std::vector<CombiDataType> allBetas_;
 
   void recvStatus();
 

@@ -758,6 +758,8 @@ void CombiCom::updateSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT
     assert(dsg.getDataSize(i) <= std::numeric_limits<int>::max());
 
     subspaceSizes[i] = int(dsg.getDataSize(i));
+
+    // std::cerr << combigrid::toString(dsg.getDataVector(i)) << std::endl;
   }
 
   MPI_Allreduce( MPI_IN_PLACE, subspaceSizes.data(), int(subspaceSizes.size()),

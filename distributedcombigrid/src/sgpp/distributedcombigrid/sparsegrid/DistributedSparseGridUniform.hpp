@@ -11,6 +11,9 @@
 #include <assert.h>
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
+
+#include <boost/serialization/vector.hpp>
 
 using namespace combigrid;
 
@@ -32,6 +35,26 @@ struct SubspaceSGU {
   size_t dataSize_;
 
   std::vector<FG_ELEMENT> data_;
+
+  SubspaceSGU& operator+=(const SubspaceSGU& rhs) 
+  {                           
+    assert(this->level_ == rhs.level_);
+
+    for(size_t i = 0; i < data_.size(); ++i){
+      this->data_[i] += rhs.data_[i];
+    }
+    
+    return *this; 
+  }
+
+  friend class boost::serialization::access;
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar& level_;
+    ar& sizes_;
+    ar& dataSize_;
+    ar& data_;
+  }
 };
 
 /*
@@ -53,6 +76,7 @@ class DistributedSparseGridUniform {
   DistributedSparseGridUniform(DimType dim, const LevelVector& lmax, const LevelVector& lmin,
                                const std::vector<bool>& boundary, CommunicatorType comm,
                                size_t procsPerNode = 0);
+  DistributedSparseGridUniform(){}
 
   virtual ~DistributedSparseGridUniform();
 
@@ -115,14 +139,14 @@ class DistributedSparseGridUniform {
 
   inline int getCommunicatorSize() const;
 
+  void recvAndAddDSGUniform(RankType src, CommunicatorType comm);
+
  private:
   void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
   void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax);
 
   void setSizes();
-
-  void calcProcAssignment(int procsPerNode);
 
   DimType dim_;
 
@@ -143,6 +167,11 @@ class DistributedSparseGridUniform {
   int commSize_;
 
   std::vector<SubspaceSGU<FG_ELEMENT> > subspaces_;
+
+  friend class boost::serialization::access;
+  
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version);
 };
 
 }  // namespace
@@ -182,16 +211,6 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
   for (size_t i = 0; i < levels_.size(); ++i) subspaces_[i].level_ = levels_[i];
 
   setSizes();
-
-  /*
-   // sort subspaces by datasize in descending order and update levels_ accordingly
-   std::sort( subspaces_.begin(), subspaces_.end(), mycomp<FG_ELEMENT> );
-   for( size_t i=0; i<levels_.size(); ++i )
-   levels_[i] = subspaces_[i].level_;
-
-   subspaceToProc_.resize( subspaces_.size() );
-   calcProcAssignment( int(procsPerNode) );
-   */
 }
 
 template <typename FG_ELEMENT>
@@ -295,36 +314,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setSizes() {
 template <typename FG_ELEMENT>
 inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVector(size_t i) const {
   return levels_[i];
-}
-
-template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::calcProcAssignment(int procsPerNode) {
-  if (procsPerNode == 0) {
-    for (size_t i = 0; i < subspaces_.size(); ++i) subspaceToProc_[i] = int(i) % commSize_;
-  }
-  /*
-   else{
-   // check if commsize a multiple of procs per node
-   assert( (commSize_ % procsPerNode) == 0
-   && "number of procs in comm must be multiple of procsPerNode" );
-   int numNodes = commSize_ / procsPerNode;
-   for( int i=0; i<int( subspaces_.size() ); ++i ){
-   int nodeID = i % numNodes;
-   int procInNodeID = ( i / numNodes ) % procsPerNode;
-   subspaceToProc_[i] = nodeID * procsPerNode + procInNodeID;
-   }
-   }*/
-
-  // use this to assign subspaces to first proc in group
-  else {
-    // todo: ceil
-    int numNodes = static_cast<int>(std::ceil(real(commSize_) / real(procsPerNode)));
-
-    for (int i = 0; i < int(subspaces_.size()); ++i) {
-      int nodeID = i % numNodes;
-      subspaceToProc_[i] = nodeID * procsPerNode;
-    }
-  }
 }
 
 /* get index of space with l. returns -1 if not included */
@@ -483,6 +472,102 @@ CommunicatorType DistributedSparseGridUniform<FG_ELEMENT>::getCommunicator() con
 template <typename FG_ELEMENT>
 inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const {
   return commSize_;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src, CommunicatorType comm) {
+  DistributedSparseGridUniform<FG_ELEMENT> * dsgu;
+  // receive size of message
+  MPI_Status status;
+  int bsize;
+  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
+  MPI_Get_count(&status, MPI_CHAR, &bsize);
+
+  // create buffer of appropriate size and receive
+  std::vector<char> buf(bsize);
+
+  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
+  assert(status.MPI_ERROR == MPI_SUCCESS);
+
+  // create and open an archive for input
+  std::string s(&buf[0], bsize);
+  std::stringstream ss(s);
+  assert(ss.good());
+  {
+    boost::archive::text_iarchive ia(ss);
+    // read class state from archive
+    ia >> dsgu;
+  }
+
+  //add the entries to this grid
+  for (size_t i; i < this->getNumSubspaces(); ++i){
+    this->subspaces_[i] += dsgu->subspaces_[i];
+  }
+}
+
+template <typename FG_ELEMENT>
+template <class Archive>
+void DistributedSparseGridUniform<FG_ELEMENT>::serialize(Archive& ar, const unsigned int version) {
+  ar & dim_;
+  ar & nmax_;
+  ar & lmin_;
+  ar & levels_;
+  ar & boundary_;
+
+  ar & subspaces_;
+}
+
+template <typename FG_ELEMENT>
+static void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, RankType dst, CommunicatorType comm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
+  // save data to archive
+  std::stringstream ss;
+  {
+    boost::archive::text_oarchive oa(ss);
+    // write class instance to archive
+    oa << dsgu;
+  }
+  // create mpi buffer of archive
+  std::string s = ss.str();
+  int bsize = static_cast<int>(s.size());
+  char* buf = const_cast<char*>(s.c_str());
+  // std::cout << "bsize " << bsize << std::endl;
+  MPI_Send(buf, bsize, MPI_CHAR, dst, SEND_DSG_TO_MANAGER, comm);
+}
+
+template <typename FG_ELEMENT>
+static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, CommunicatorType comm) {
+  DistributedSparseGridUniform<FG_ELEMENT> * dsgu;
+  // receive size of message
+  // todo: not really necessary since size known at compile time
+  MPI_Status status;
+  int bsize;
+  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
+  MPI_Get_count(&status, MPI_CHAR, &bsize);
+  // std::cout << "bsize " << bsize << std::endl;
+
+  // create buffer of appropriate size and receive
+  std::vector<char> buf(bsize);
+
+  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
+  assert(status.MPI_ERROR == MPI_SUCCESS);
+
+  // create and open an archive for input
+  std::string s(&buf[0], bsize);
+  std::stringstream ss(s);
+  assert(ss.good());
+  {
+    boost::archive::text_iarchive ia(ss);
+    // read class state from archive
+    ia >> dsgu;
+  }
+  assert(dsgu->getDim() > 0);
+  assert(!dsgu->getBoundaryVector().empty());
+  assert(dsgu->getNMax()[0] >= 0);
+  assert(dsgu->getNumSubspaces() > 0);
+
+  return dsgu;
 }
 
 } /* namespace combigrid */

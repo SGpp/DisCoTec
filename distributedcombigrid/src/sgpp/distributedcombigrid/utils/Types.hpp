@@ -17,18 +17,33 @@
 
 namespace combigrid {
 
-// IndexType must be signed! because we use -1 in some functions as a return
-// value. and large enough so that all grid points can be
-// numbered. i.e levelsum (with boundary) < 30 for int32 and < 62 for int64
-typedef int64_t IndexType;
+  // IndexType must be signed! because we use -1 in some functions as a return
+  // value. and large enough so that all grid points can be
+  // numbered. i.e levelsum (with boundary) < 30 for int32 and < 62 for int64
+  typedef int64_t IndexType;
 
-typedef IndexType LevelType;
+  typedef IndexType LevelType;
 
-typedef size_t DimType;
+  typedef size_t DimType;
 
-typedef MPI_Comm CommunicatorType;
+  typedef MPI_Comm CommunicatorType;
 
-typedef int RankType;
+  typedef int RankType;
+
+
+  template <typename T>
+  inline std::string toString(std::vector<T> const& v){
+      std::stringstream ss;
+      ss << "[[";
+      for(size_t i = 0; i < v.size(); ++i)
+      {
+          if(i != 0)
+              ss << ",";
+          ss << v[i];
+      }
+      ss << "]]";
+      return ss.str();
+  }
 }
 
 namespace abstraction {
@@ -90,19 +105,6 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
   throw new std::invalid_argument("MPI_Datatype Convert(abstraction::DataType) failed!");
 }
 
-  template <typename T>
-  inline std::string toString(std::vector<T> const& v){
-      std::stringstream ss;
-      ss << "[[";
-      for(size_t i = 0; i < v.size(); ++i)
-      {
-          if(i != 0)
-              ss << ",";
-          ss << v[i];
-      }
-      ss << "]]";
-      return ss.str();
-  }
 }
 
 #endif /* TYPES_HPP_ */

@@ -83,9 +83,9 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
       taskIDs.push_back(t->getID());
     }
 
+    IndexVector parallelization = {nprocs, 1};
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({nprocs, 1}); //TODO why??
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, parallelization);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
@@ -96,10 +96,6 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     manager.runfirst();
 
     for (size_t it = 0; it < ncombi; ++it) {
-      // manager.combine();
-
-      // std::cout << "run next " << std::endl;
-      // manager.runnext();
       std::cout << "combine " << std::endl;
       manager.combine();
     }
@@ -107,7 +103,6 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     // evaluate solution
     FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
     manager.gridEval(fg_eval);
-    // std::cout << "fg_eval "<< fg_eval << std::endl;
 
     // compare with known results:
     // point in the middle
@@ -139,6 +134,18 @@ BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::higherTole
                                  boost::unit_test::timeout(60)) {
   std::cout << "reduce/test_2"<< std::endl;
   checkCombine(1,2);
+}
+
+BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
+                                 boost::unit_test::timeout(60)) {
+  std::cout << "reduce/test_3"<< std::endl;
+  checkCombine(2,2);
+}
+
+BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
+                                 boost::unit_test::timeout(60)) {
+  std::cout << "reduce/test_4"<< std::endl;
+  checkCombine(2,4);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

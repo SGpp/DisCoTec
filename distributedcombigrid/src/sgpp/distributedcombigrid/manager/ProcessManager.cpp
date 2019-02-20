@@ -105,12 +105,29 @@ void ProcessManager::exit() {
 }
 
 void ProcessManager::updateCombiParameters() {
+  outboundCachedUniDSGVector_ =
+      std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>(params_.getNumGrids());
   {
     bool fail = waitAllFinished();
     assert(!fail && "should not fail here");
   }
 
   for (auto g : pgroups_) g->updateCombiParameters(params_);
+  {
+    bool fail = waitAllFinished();
+    assert(!fail && "should not fail here");
+  }
+}
+
+void ProcessManager::getDSGFromProcessGroup() {
+  {
+    bool fail = waitAllFinished();
+    assert(!fail && "should not fail here");
+  }
+
+  auto g = pgroups_[0];
+  g->getDSGFromProcessGroup(outboundCachedUniDSGVector_);
+
   {
     bool fail = waitAllFinished();
     assert(!fail && "should not fail here");

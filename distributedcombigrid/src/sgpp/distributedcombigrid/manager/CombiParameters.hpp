@@ -17,11 +17,12 @@ namespace combigrid {
 class CombiParameters {
  public:
   CombiParameters()
-      : procsSet_(false), applicationComm_(MPI_COMM_NULL), applicationCommSet_(false) {}
+      : procsSet_(false), applicationComm_(MPI_COMM_NULL), applicationCommSet_(false), numGridsPerTask_(1) {}
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
                   std::vector<int>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
+                  const IndexVector parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
                   std::vector<int>& taskIDs, const std::string& thirdLevelHost = "",
@@ -47,6 +48,9 @@ class CombiParameters {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     setLevelsCoeffs(taskIDs, levels, coeffs);
     numTasks_ = taskIDs.size();
+    if (parallelization != IndexVector({0})){
+      this->setParallelization(parallelization);
+    }
   }
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
@@ -145,7 +149,7 @@ class CombiParameters {
    * this method returns the number of grids a task contains
    * in case we have multiple grids in our simulation
    */
-  inline IndexType getNumGrids() { return numGridsPerTask_; }
+  inline IndexType getNumGrids() const { return numGridsPerTask_; }
   /**
    * this method returns the number of tasks also referred to as component grids (one task might
    * contain multiple grids)

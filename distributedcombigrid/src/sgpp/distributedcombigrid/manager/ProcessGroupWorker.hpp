@@ -44,6 +44,16 @@ class ProcessGroupWorker {
   // Perform combination
   void combine();
 
+  // combination helpers
+  void initCombinedUniDSGVector();
+  void hierarchizeFullGrids();
+  void addFullGridsToUniformSG();
+  void extractFullGridsFromUniformSG();
+  void dehierarchizeFullGrids();
+
+  // reduction
+  void reduceUniformSG();
+
   // combine on sparse grid with uniform decomposition of domain
   void combineUniform();
 
@@ -80,6 +90,12 @@ class ProcessGroupWorker {
   // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
   void setCombinedSolutionUniform(Task* t);
 
+  void sendSparseGridToManager();
+
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
+    return combinedUniDSGVector_;
+  }
+
  private:
   TaskContainer tasks_;  // task storage
 
@@ -93,8 +109,6 @@ class ProcessGroupWorker {
    * Vector containing all distributed sparse grids
    */
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;
-
-  bool combinedFGexists_;
 
   CombiParameters combiParameters_;
 

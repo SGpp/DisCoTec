@@ -76,7 +76,7 @@ class LearningLoadModel : public LoadModel {
     std::pair<long unsigned int, uint> value = std::make_pair(duration, nProcesses);
     durationsOfLevels_->at(l).push_back(value);
     // write to file intermediately for long simulations
-    int maxsize = 500;
+    size_t maxsize = 500;
     if (durationsOfLevels_->at(l).size() > maxsize) {
       writeDurationsToFile(l, durationsOfLevels_->at(l), 200);
     }
@@ -142,7 +142,7 @@ inline real LearningLoadModel::eval(const LevelVector& l) {
     }
   } else {  // use simple averaging for now //TODO do fancier things, cache results
     for (auto duration : durationsOfLevels_->at(l)) {
-      ret += duration.first;
+      ret += static_cast<double>(duration.first);
     }
     ret /= static_cast<double>(durationsOfLevels_->at(l).size());
   }

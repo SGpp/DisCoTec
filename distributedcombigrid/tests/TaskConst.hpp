@@ -46,12 +46,13 @@ class TaskConst : public combigrid::Task {
   void run(CommunicatorType lcomm) {
 
     std::cout << "run " << getCommRank(lcomm) << std::endl;    
-    
+
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     for (auto& element : elements) {
-      // BOOST_CHECK(abs(dfg_->getData()[li]));
       element = getLevelVector()[0] / (double)getLevelVector()[1];
+      // std::cout << "e " << element << std::endl;
     }
+
     BOOST_CHECK(dfg_);
 
     setFinished(true);

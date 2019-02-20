@@ -31,13 +31,14 @@ const SignalType RECOMPUTE = 14;
 const SignalType CHECK_DEAD_PROCS = 15;  // check for dead workers
 const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
-const SignalType DO_NOTHING = 18;
+// const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
 const SignalType GATHER_COMMON_SS_SIZES = 20;
 const SignalType COMBINE_LOCAL_AND_GLOBAL = 21;
 const SignalType COMBINE_UNIFORM_THIRD_LEVEL_SEND_FIRST = 22;
 const SignalType COMBINE_UNIFORM_THIRD_LEVEL_RECV_FIRST= 23;
 const SignalType INTEGRATE_COMMON_SS= 24;
+const SignalType SEND_DSG_TO_MANAGER = 25;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
