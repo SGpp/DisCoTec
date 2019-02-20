@@ -325,7 +325,7 @@ void ProcessManager::recover(int i, int nsteps) {  // outdated
   }
   std::cout << "updateing Combination Parameters \n";
   // needs to be after reInitialization!
-  updateCombiParameters();
+  this->updateCombiParameters();
   /* redistribute failed tasks to living groups */
   // redistribute(faultsID);
 }
@@ -342,6 +342,8 @@ void ProcessManager::restoreCombischeme() {
   for (size_t i = 0; i < levels.size(); ++i) {
     params_.setCoeff(params_.getID(levels[i]), coeffs[i]);
   }
+
+  this->updateCombiParameters();
 }
 
 bool ProcessManager::waitAllFinished() {

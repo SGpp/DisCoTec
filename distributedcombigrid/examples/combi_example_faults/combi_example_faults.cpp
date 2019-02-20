@@ -121,14 +121,10 @@ int main(int argc, char** argv) {
     }
 
     /* create combi parameters */
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
-    params.setParallelization(p);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p);
 
     /* create Manager with process groups */
     ProcessManager manager( pgroups, tasks, params );
-
-    /* send combi parameters to workers */
-    manager.updateCombiParameters();
 
     /* distribute task according to load model and start computation for
      * the first time */
@@ -196,7 +192,6 @@ int main(int argc, char** argv) {
         /* restore combischeme to its original state
          * and send new combiParameters to all surviving groups */
         manager.restoreCombischeme();
-        manager.updateCombiParameters();
       }
 
       /* run tasks for next time interval */
