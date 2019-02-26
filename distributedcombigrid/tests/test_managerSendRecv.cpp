@@ -77,12 +77,12 @@ void checkGatherSparseGridFromProcessGroup(ProcessManager* manager = nullptr,
     BOOST_TEST(found);
     return;
   } else if (pgw != nullptr) {  // worker code
-    // for introspection:
+    // // for introspection:
     // pgw->initCombinedUniDSGVector();
     // pgw->hierarchizeFullGrids();
     // pgw->addFullGridsToUniformSG();
     // pgw->reduceUniformSG();
-    // for (auto& dsg : pgw->combinedUniDSGVector_) {
+    // for (auto& dsg : pgw->getCombinedUniDSGVector()) {
     //   for (size_t j = 0; j < dsg->getNumSubspaces(); ++j) {
     //     std::vector<CombiDataType>& subspaceData = dsg->getDataVector(j);
     //     std::cerr << combigrid::toString(subspaceData) << std::endl;
@@ -111,15 +111,18 @@ void checkAddSparseGridToProcessGroup(ProcessManager* manager = nullptr,
 
   } else if (pgw != nullptr) {  // worker code
                                 // put subspace data into buffer for allreduce
-    // only second process group
-    if (theMPISystem()->getWorldRank() >= theMPISystem()->getNumProcs() &&
-        theMPISystem()->getWorldRank() < 2 * theMPISystem()->getNumProcs()) {
+    // // only second process group
+    // if (theMPISystem()->getWorldRank() >= theMPISystem()->getNumProcs() &&
+    //     theMPISystem()->getWorldRank() < 2 * theMPISystem()->getNumProcs()) {
       size_t numGrids = pgw->getCombinedUniDSGVector().size();
+
       for (size_t g = 0; g < numGrids; ++g) {
+
+        //TODO I dont know why but the MPI_Probe in here stalls although the message is being sent
         pgw->getCombinedUniDSGVector()[g]->recvAndAddDSGUniform(
             theMPISystem()->getManagerRankWorld(), theMPISystem()->getWorldComm());
       }
-    }
+    // }
   }
 }
 
@@ -185,6 +188,8 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     manager.getDSGFromProcessGroup();
     checkGatherSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
     manager.exit();
+
+    std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;
     checkAddSparseGridToProcessGroup(&manager, nullptr);
   }
   else {
@@ -194,6 +199,7 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     while (signal != EXIT) {
       signal = pgroup.wait();
     }
+    std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;
     checkAddSparseGridToProcessGroup(nullptr, &pgroup);
   }
 
@@ -203,18 +209,21 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
 
 BOOST_AUTO_TEST_SUITE(managerSendRecv)
 
-BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                 boost::unit_test::timeout(40)) {
+BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) 
+                                                                ) {
+                                //  * boost::unit_test::timeout(40)) {
   testGatherAddDSG(1, 1);
 }
 
-BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                 boost::unit_test::timeout(40)) {
+BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) 
+                                                                ) {
+                                //  * boost::unit_test::timeout(40)) {
   testGatherAddDSG(1, 2);
 }
 
-BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                 boost::unit_test::timeout(40)) {
+BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) 
+                                                                ) {
+                                //  * boost::unit_test::timeout(40)) {
   testGatherAddDSG(2, 2);
 }
 

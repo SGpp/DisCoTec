@@ -480,14 +480,17 @@ void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src
   // receive size of message
   MPI_Status status;
   int bsize;
-  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
+  std::cerr << "probing from " << src << " signal " << SEND_DSG << "comm" << comm << std::endl;
+  MPI_Probe(src, SEND_DSG, comm, &status);
   MPI_Get_count(&status, MPI_CHAR, &bsize);
 
   // create buffer of appropriate size and receive
   std::vector<char> buf(bsize);
+  // std::cerr << "receiving bytes # " << bsize << std::endl;
 
-  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
+  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG, comm, &status);
   assert(status.MPI_ERROR == MPI_SUCCESS);
+  // std::cerr << "received bytes # " << bsize << std::endl;
 
   // create and open an archive for input
   std::string s(&buf[0], bsize);
@@ -502,6 +505,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src
   //add the entries to this grid
   for (size_t i; i < this->getNumSubspaces(); ++i){
     this->subspaces_[i] += dsgu->subspaces_[i];
+    std::cerr << "added subspace " << i << std::endl;
   }
 }
 
@@ -532,8 +536,8 @@ static void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, Rank
   std::string s = ss.str();
   int bsize = static_cast<int>(s.size());
   char* buf = const_cast<char*>(s.c_str());
-  // std::cout << "bsize " << bsize << std::endl;
-  MPI_Send(buf, bsize, MPI_CHAR, dst, SEND_DSG_TO_MANAGER, comm);
+  std::cerr << "sending bytes # " << bsize << " to " << dst << " signal " << SEND_DSG << " comm " << comm << std::endl;
+  MPI_Send(buf, bsize, MPI_CHAR, dst, SEND_DSG, comm);
 }
 
 template <typename FG_ELEMENT>
@@ -543,15 +547,17 @@ static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, C
   // todo: not really necessary since size known at compile time
   MPI_Status status;
   int bsize;
-  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
+  std::cerr << "probing from " << src << " signal " << SEND_DSG << " comm " << comm << std::endl;
+  MPI_Probe(src, SEND_DSG, comm, &status);
   MPI_Get_count(&status, MPI_CHAR, &bsize);
-  // std::cout << "bsize " << bsize << std::endl;
 
   // create buffer of appropriate size and receive
   std::vector<char> buf(bsize);
 
-  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
+  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG, comm, &status);
   assert(status.MPI_ERROR == MPI_SUCCESS);
+
+  // std::cerr << "received bytes # " << bsize << std::endl;
 
   // create and open an archive for input
   std::string s(&buf[0], bsize);

@@ -90,8 +90,6 @@ class ProcessGroupWorker {
 
   StatusType status_;  // current status of process group (wait -> 0; busy -> 1; fail -> 2)
 
-  FullGrid<complex>* combinedFG_;
-
   /**
    * Vector containing all distributed sparse grids
    */

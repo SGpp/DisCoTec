@@ -30,7 +30,7 @@ namespace combigrid {
 ProcessGroupWorker::ProcessGroupWorker()
     : currentTask_(NULL),
       status_(PROCESS_GROUP_WAIT),
-      combinedFG_(NULL),
+      // combinedFG_(NULL),
       combinedUniDSGVector_(0),
       combiParameters_(),
       combiParametersSet_(false),
@@ -43,7 +43,9 @@ ProcessGroupWorker::ProcessGroupWorker()
   }
 }
 
-ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
+ProcessGroupWorker::~ProcessGroupWorker() { 
+  // delete combinedFG_; 
+}
 
 // Do useful things with the info about how long a task took.
 // this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly
@@ -223,7 +225,7 @@ SignalType ProcessGroupWorker::wait() {
       parallelEval();
       Stats::stopEvent("parallel eval");
     } break;
-    case SEND_DSG_TO_MANAGER: {  // let manager collect the contents of dsg
+    case SEND_DSG: {  // let manager collect the contents of dsg
       Stats::startEvent("send dsg to manager");
       std::cerr << std::to_string(theMPISystem()->getWorldRank()) << " sending dsg" << std::endl;
       sendSparseGridToManager();
@@ -242,7 +244,7 @@ SignalType ProcessGroupWorker::wait() {
   // in the general case: send ready signal.
   // if(!omitReadySignal)
 
-  if (signal != SEND_DSG_TO_MANAGER) {
+  if (signal != SEND_DSG) {
     ready();
   }
 

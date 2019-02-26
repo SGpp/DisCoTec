@@ -115,7 +115,7 @@ bool ProcessGroupManager::getDSGFromProcessGroup(std::vector<std::unique_ptr<Dis
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  sendSignalToProcessGroup(SEND_DSG_TO_MANAGER);
+  sendSignalToProcessGroup(SEND_DSG);
 
   size_t numGrids = outbound.size();
   // iterate first process group
