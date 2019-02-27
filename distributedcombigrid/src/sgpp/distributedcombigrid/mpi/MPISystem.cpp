@@ -64,7 +64,7 @@ int MPISystem::getWorldRank() {
 }
 
 void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType worldComm = MPI_COMM_WORLD, bool reusable = false) {
-  assert(reusable || !initialized_ && "MPISystem already initialized!");
+  assert( (reusable || !initialized_) && "MPISystem already initialized!");
   
   ngroup_ = ngroup;
   nprocs_ = nprocs;

@@ -45,7 +45,7 @@ class TaskConst : public combigrid::Task {
 
   void run(CommunicatorType lcomm) {
 
-    std::cout << "run " << getCommRank(lcomm) << std::endl;    
+    // std::cout << "run " << getCommRank(lcomm) << std::endl;    
 
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     for (auto& element : elements) {
@@ -58,7 +58,7 @@ class TaskConst : public combigrid::Task {
     setFinished(true);
     
     MPI_Barrier(lcomm);
-    std::cerr << "barrier" << std::endl;
+    // std::cerr << "barrier" << std::endl;
   }
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {

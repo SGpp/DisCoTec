@@ -6,6 +6,8 @@
 #include "test_helper.hpp"
 // BOOST_CLASS_EXPORT_IMPLEMENT(TaskConst)
 
+#include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
+
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
@@ -16,6 +18,66 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
+
+DistributedSparseGridUniform<CombiDataType> getSmallTestDSG(){
+  // set up a dsg for sending
+  LevelVector levels = {2, 2};
+  const DimType dim = levels.size();
+  std::vector<bool> boundary(2, true);
+  LevelVector lmin = levels;
+  LevelVector lmax = levels;
+  for (DimType d = 0; d < dim; ++d) {
+    lmax[d] *= 2;
+  }
+  return DistributedSparseGridUniform<CombiDataType>{dim, lmax, lmin, boundary, MPI_COMM_SELF};
+}
+DistributedSparseGridUniform<CombiDataType>* getNewSmallTestDSG(){
+  // set up a dsg for sending
+  LevelVector levels = {2, 2};
+  const DimType dim = levels.size();
+  std::vector<bool> boundary(2, true);
+  LevelVector lmin = levels;
+  LevelVector lmax = levels;
+  for (DimType d = 0; d < dim; ++d) {
+    lmax[d] *= 2;
+  }
+  return new DistributedSparseGridUniform<CombiDataType>{dim, lmax, lmin, boundary, MPI_COMM_SELF};
+}
+
+void pingPongTest(){
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(2));
+
+  CommunicatorType comm = TestHelper::getComm(2);
+  if (comm == MPI_COMM_NULL) {
+    return;
+  }
+
+  DistributedSparseGridUniform<CombiDataType> myDSG = getSmallTestDSG();
+  DistributedSparseGridUniform<CombiDataType> myDSGCopy {myDSG};
+
+  // send one way
+  if (TestHelper::getRank(comm) == 1){
+    RankType src = 0;
+    DistributedSparseGridUniform<CombiDataType> * myDSG2 = recvDSGUniform<CombiDataType>(src, (CommunicatorType) comm);
+    myDSG = DistributedSparseGridUniform<CombiDataType>(*myDSG2);
+  }else{
+    sendDSGUniform(&myDSG,1,comm);
+  }
+
+  // send the other way and add to existing
+  if (TestHelper::getRank(comm) == 0){
+    RankType src = 1;
+    myDSG.recvAndAddDSGUniform(src, comm);
+  }else{
+    sendDSGUniform(&myDSG,0,comm);
+  }
+
+  // for (size_t i = 0; i < myDSG.getNumSubspaces(); ++i){
+  //   BOOST_TEST(myDSG.subspaces_[i].data_ == (myDSGCopy.subspaces_[i].data_ * 2)); //TODO
+  // }
+
+  MPI_Barrier(comm);
+}
 
 void checkManagerRecv() {
   // Recv algorithm:
@@ -46,7 +108,7 @@ void checkManagerSend() {
   // }
 }
 
-void checkGatherSparseGridFromProcessGroup(ProcessManager* manager = nullptr,
+void checkGatheredSparseGridFromProcessGroup(ProcessManager* manager = nullptr,
                                            ProcessGroupWorker* pgw = nullptr,
                                            CombiParameters params = CombiParameters(),
                                            size_t nprocs = 1) {
@@ -101,8 +163,10 @@ void checkAddSparseGridToProcessGroup(ProcessManager* manager = nullptr,
   if (manager != nullptr) {                                       // manager code
                                                                   // iterate process group
     size_t numGrids = manager->getOutboundUniDSGVector().size();  // TODO inbound
-    // iterate second process group
-    for (size_t i = theMPISystem()->getNumProcs(); i < 2 * theMPISystem()->getNumProcs(); ++i) {
+
+    // iterate first process group
+    // for (size_t i = theMPISystem()->getNumProcs(); i < 2 * theMPISystem()->getNumProcs(); ++i) {
+    for (size_t i = 0; i < theMPISystem()->getNumProcs(); ++i) {
       for (size_t g = 0; g < numGrids; ++g) {
         sendDSGUniform<CombiDataType>(manager->getOutboundUniDSGVector()[g].get(), i,
                                       theMPISystem()->getWorldComm());
@@ -114,17 +178,19 @@ void checkAddSparseGridToProcessGroup(ProcessManager* manager = nullptr,
     // // only second process group
     // if (theMPISystem()->getWorldRank() >= theMPISystem()->getNumProcs() &&
     //     theMPISystem()->getWorldRank() < 2 * theMPISystem()->getNumProcs()) {
+    // only first process group
+    if (theMPISystem()->getWorldRank() < theMPISystem()->getNumProcs()) {
       size_t numGrids = pgw->getCombinedUniDSGVector().size();
-
       for (size_t g = 0; g < numGrids; ++g) {
-
-        //TODO I dont know why but the MPI_Probe in here stalls although the message is being sent
-        pgw->getCombinedUniDSGVector()[g]->recvAndAddDSGUniform(
-            theMPISystem()->getManagerRankWorld(), theMPISystem()->getWorldComm());
+        RankType src = theMPISystem()->getManagerRankWorld();
+        CommunicatorType comm = theMPISystem()->getWorldComm();
+        pgw->getCombinedUniDSGVector()[g]->recvAndAddDSGUniform(src, comm);
       }
-    // }
+    }
   }
 }
+
+
 
 void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
   size_t size = ngroup * nprocs + 1;
@@ -184,13 +250,12 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
 
     manager.runfirst();
     manager.combine();
-    std::cerr << "manager get DSG" << std::endl;
     manager.getDSGFromProcessGroup();
-    checkGatherSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
+    checkGatheredSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
     manager.exit();
 
     std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;
-    checkAddSparseGridToProcessGroup(&manager, nullptr);
+    checkAddSparseGridToProcessGroup(&manager, nullptr); //TODO add adding to signals
   }
   else {
     ProcessGroupWorker pgroup;
@@ -209,21 +274,23 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
 
 BOOST_AUTO_TEST_SUITE(managerSendRecv)
 
+BOOST_AUTO_TEST_CASE(test_pp, *boost::unit_test::tolerance(TestHelper::tolerance) 
+                                 * boost::unit_test::timeout(10)) {
+  pingPongTest();
+}
+
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                                                ) {
-                                //  * boost::unit_test::timeout(40)) {
+                                 * boost::unit_test::timeout(40)) {
   testGatherAddDSG(1, 1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                                                ) {
-                                //  * boost::unit_test::timeout(40)) {
+                                 * boost::unit_test::timeout(40)) {
   testGatherAddDSG(1, 2);
 }
 
 BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                                                ) {
-                                //  * boost::unit_test::timeout(40)) {
+                                 * boost::unit_test::timeout(40)) {
   testGatherAddDSG(2, 2);
 }
 

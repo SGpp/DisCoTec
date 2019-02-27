@@ -748,12 +748,12 @@ void ProcessGroupWorker::updateCombiParameters() {
   // local root receives task
   MASTER_EXCLUSIVE_SECTION {
     MPIUtils::receiveClass(&tmp, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-    std::cout << "master received combiparameters \n";
+    // std::cout << "master received combiparameters \n";
   }
 
   // broadcast task to other process of pgroup
   MPIUtils::broadcastClass(&tmp, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-  std::cout << "worker received combiparameters \n";
+  // std::cout << "worker received combiparameters \n";
   if (combiParameters_.isApplicationCommSet()) {
     CommunicatorType free = combiParameters_.getApplicationComm();
     if (free != NULL && free != MPI_COMM_NULL) {

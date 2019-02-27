@@ -475,41 +475,6 @@ inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const
 }
 
 template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src, CommunicatorType comm) {
-  DistributedSparseGridUniform<FG_ELEMENT> * dsgu;
-  // receive size of message
-  MPI_Status status;
-  int bsize;
-  std::cerr << "probing from " << src << " signal " << SEND_DSG << "comm" << comm << std::endl;
-  MPI_Probe(src, SEND_DSG, comm, &status);
-  MPI_Get_count(&status, MPI_CHAR, &bsize);
-
-  // create buffer of appropriate size and receive
-  std::vector<char> buf(bsize);
-  // std::cerr << "receiving bytes # " << bsize << std::endl;
-
-  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG, comm, &status);
-  assert(status.MPI_ERROR == MPI_SUCCESS);
-  // std::cerr << "received bytes # " << bsize << std::endl;
-
-  // create and open an archive for input
-  std::string s(&buf[0], bsize);
-  std::stringstream ss(s);
-  assert(ss.good());
-  {
-    boost::archive::text_iarchive ia(ss);
-    // read class state from archive
-    ia >> dsgu;
-  }
-
-  //add the entries to this grid
-  for (size_t i; i < this->getNumSubspaces(); ++i){
-    this->subspaces_[i] += dsgu->subspaces_[i];
-    std::cerr << "added subspace " << i << std::endl;
-  }
-}
-
-template <typename FG_ELEMENT>
 template <class Archive>
 void DistributedSparseGridUniform<FG_ELEMENT>::serialize(Archive& ar, const unsigned int version) {
   ar & dim_;
@@ -536,7 +501,7 @@ static void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, Rank
   std::string s = ss.str();
   int bsize = static_cast<int>(s.size());
   char* buf = const_cast<char*>(s.c_str());
-  std::cerr << "sending bytes # " << bsize << " to " << dst << " signal " << SEND_DSG << " comm " << comm << std::endl;
+  // std::cerr << "sending bytes # " << bsize << " to " << dst << " signal " << SEND_DSG << " comm " << comm << std::endl;
   MPI_Send(buf, bsize, MPI_CHAR, dst, SEND_DSG, comm);
 }
 
@@ -547,7 +512,7 @@ static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, C
   // todo: not really necessary since size known at compile time
   MPI_Status status;
   int bsize;
-  std::cerr << "probing from " << src << " signal " << SEND_DSG << " comm " << comm << std::endl;
+  // std::cerr << "probing from " << src << " signal " << SEND_DSG << " comm " << comm << std::endl;
   MPI_Probe(src, SEND_DSG, comm, &status);
   MPI_Get_count(&status, MPI_CHAR, &bsize);
 
@@ -574,6 +539,18 @@ static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, C
   assert(dsgu->getNumSubspaces() > 0);
 
   return dsgu;
+}
+
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src, CommunicatorType comm) {
+  DistributedSparseGridUniform<FG_ELEMENT> * dsgu = recvDSGUniform<FG_ELEMENT>(src, comm);
+
+  //add to this grid
+  for (size_t i = 0; i < this->getNumSubspaces(); ++i){
+    this->subspaces_[i] += dsgu->subspaces_[i];
+  }
+  // dsgu->addToUniformSG(*this, 1); //TODO
 }
 
 } /* namespace combigrid */
