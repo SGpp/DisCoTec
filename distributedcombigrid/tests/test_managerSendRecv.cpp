@@ -125,13 +125,13 @@ void checkGatheredSparseGridFromProcessGroup(ProcessManager* manager = nullptr,
         BOOST_CHECK(dsgu->getNMax()[0] >= 0);
         BOOST_CHECK(dsgu->getNumSubspaces() > 0);
 
-        LevelVector smallestSubspace = {1, 1};
-        std::cerr << combigrid::toString(dsgu->getDataVector(smallestSubspace)) << std::endl;
-        auto it = std::find_if(dsgu->getDataVector(smallestSubspace).begin(),
-                               dsgu->getDataVector(smallestSubspace).end(), [](CombiDataType& dve) {
+        size_t subspaceNo = 0;
+        std::cerr << combigrid::toString(dsgu->getDataVector(subspaceNo)) << std::endl;
+        auto it = std::find_if(dsgu->getDataVector(subspaceNo).begin(),
+                               dsgu->getDataVector(subspaceNo).end(), [](CombiDataType& dve) {
                                  return (abs(dve) - 1.333333333333333) < TestHelper::tolerance;
                                });
-        if (it != dsgu->getDataVector(smallestSubspace).end()) {
+        if (it != dsgu->getDataVector(subspaceNo).end()) {
           found = true;
         }
       }
@@ -217,8 +217,8 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
     DimType dim = 2;
-    LevelVector lmin(dim, 2);
-    LevelVector lmax(dim, 4), leval(dim, 4);
+    LevelVector lmin(dim, 4);
+    LevelVector lmax(dim, 6);
 
     size_t ncombi = 2;
     std::vector<bool> boundary(dim, false);
@@ -280,18 +280,28 @@ BOOST_AUTO_TEST_CASE(test_pp, *boost::unit_test::tolerance(TestHelper::tolerance
 }
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(40)) {
+                                 * boost::unit_test::timeout(10)) {
   testGatherAddDSG(1, 1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(40)) {
+                                 * boost::unit_test::timeout(10)) {
   testGatherAddDSG(1, 2);
 }
 
 BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(40)) {
+                                 * boost::unit_test::timeout(10)) {
   testGatherAddDSG(2, 2);
+}
+
+BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance) 
+                                 * boost::unit_test::timeout(40)) {
+  testGatherAddDSG(4, 2);
+}
+
+BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance) 
+                                 * boost::unit_test::timeout(40)) {
+  testGatherAddDSG(2, 4);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
