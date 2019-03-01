@@ -235,10 +235,15 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
+      // std::cerr << "task" << i<< std::endl;
       Task* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel.get());
+      BOOST_CHECK(true);
+
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
+
+    BOOST_CHECK(true);
 
     IndexVector parallelization = {nprocs, 1};
     // create combiparameters
@@ -250,12 +255,24 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
 
     manager.runfirst();
     manager.combine();
-    manager.getDSGFromProcessGroup();
-    checkGatheredSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
+    // manager.getDSGFromProcessGroup();
+    // checkGatheredSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
+      
+    int processesToGo = nprocs; 
+    manager.initiateGetAndSetDSGInProcessGroup();
+    while( processesToGo != 0){
+      manager.getDSGFromNextProcess();
+      checkGatheredSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
+      manager.copyOutboundToInboundGrid();
+      std::cerr << " starting add to " << processesToGo << std::endl;
+      processesToGo = manager.addDSGToNextProcess();
+      std::cerr << " done add, to go: " << processesToGo << std::endl;
+    }
+    manager.combine(); // TODO broadcast
     manager.exit();
 
-    std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;
-    checkAddSparseGridToProcessGroup(&manager, nullptr); //TODO add adding to signals
+    // std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;
+    // checkAddSparseGridToProcessGroup(&manager, nullptr);
   }
   else {
     ProcessGroupWorker pgroup;
@@ -264,8 +281,8 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     while (signal != EXIT) {
       signal = pgroup.wait();
     }
-    std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;
-    checkAddSparseGridToProcessGroup(nullptr, &pgroup);
+    // std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;
+    // checkAddSparseGridToProcessGroup(nullptr, &pgroup); //TODO check that doubled
   }
 
   combigrid::Stats::finalize();

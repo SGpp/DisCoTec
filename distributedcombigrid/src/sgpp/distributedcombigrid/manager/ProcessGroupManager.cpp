@@ -58,6 +58,10 @@ void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
 }
 
+void ProcessGroupManager::sendSignalToProcess(SignalType signal, RankType rank) { //TODO send only to process in this pgroup
+  MPI_Send(&signal, 1, MPI_INT, rank, signalTag, theMPISystem()->getGlobalComm());
+}
+
 inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
   // set status
   status_ = PROCESS_GROUP_BUSY;
@@ -112,21 +116,97 @@ bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
 }
 
 bool ProcessGroupManager::getDSGFromProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound) {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  sendSignalToProcessGroup(SEND_DSG);
-
-  size_t numGrids = outbound.size();
-  // iterate first process group
+  // this is not really useful, as it immediately overwrites the same outbound grid, so just here for illustration on the idea
+  initiateGetDSGFromProcessGroup();
   for (size_t i = 0; i < theMPISystem()->getNumProcs(); ++i) {
-    for (size_t g = 0; g < numGrids; ++g) {
-      outbound[g].reset(
-          recvDSGUniform<CombiDataType>(i, theMPISystem()->getWorldComm()));
-    }
+    getDSGFromNextProcess(outbound);
   }
   return true;
 }
+
+bool ProcessGroupManager::initiateGetDSGFromProcessGroup() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+  status_ = PROCESS_GROUP_BUSY;
+
+  sendSignalToProcessGroup(SEND_DSG_AND_CONTINUE);
+
+  return true;
+}
+
+bool ProcessGroupManager::getAndSetDSGInProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound) {
+  // this is not really useful, as it immediately overwrites the same outbound grid, so just here for illustration on the idea
+  initiateGetAndSetDSGInProcessGroup();
+  for (size_t i = 0; i < theMPISystem()->getNumProcs(); ++i) {
+    getDSGFromNextProcess(outbound);
+  }
+  addDSGToProcessGroup(outbound);
+  return true;
+}
+
+bool ProcessGroupManager::initiateGetAndSetDSGInProcessGroup() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+  status_ = PROCESS_GROUP_BUSY;
+
+  sendSignalToProcessGroup(SEND_DSG_AND_WAIT_FOR_ADD);
+
+  return true;
+}
+
+
+void getDSGFrom(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound, size_t from) {
+  size_t numGrids = outbound.size();
+  for (size_t g = 0; g < numGrids; ++g) {
+    outbound[g].reset(recvDSGUniform<CombiDataType>(from, theMPISystem()->getWorldComm()));
+  }
+}
+
+size_t ProcessGroupManager::getDSGFromNextProcess(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound) {
+  // static variable to iterate the processes in the first group
+  static size_t from = 0;
+  getDSGFrom(outbound, from);
+  size_t processesLeft = (theMPISystem()->getNumProcs() - 1) - from;
+
+  from = (from+1) % theMPISystem()->getNumProcs(); //TODO get actual indices in case of not first process group
+  if(processesLeft == 0){
+    status_ = PROCESS_GROUP_WAIT; //TODO
+  }
+  
+  return processesLeft;
+}
+
+bool ProcessGroupManager::addDSGToProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound){
+  // this is not really useful, as it overwrites with the same inbound grid, so just here for illustration on the idea
+  for (size_t i = 0; i < theMPISystem()->getNumProcs(); ++i) {
+    addDSGToNextProcess(inbound);
+  }
+  return true;
+}
+
+void addDSGTo(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound, size_t to) {
+  size_t numGrids = inbound.size();
+  for (size_t g = 0; g < numGrids; ++g) {
+    sendDSGUniform<CombiDataType>(inbound[g].get(), to, theMPISystem()->getWorldComm());
+  }
+}
+
+size_t ProcessGroupManager::addDSGToNextProcess(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound) {
+  // static variable to iterate the processes in the first group
+  static size_t to = 0;
+  // std::cerr << "adding inbound to " << to << std::endl;
+
+  addDSGTo(inbound, to);
+
+  size_t processesLeft = (theMPISystem()->getNumProcs() - 1) - to;
+  if(processesLeft == 0){
+    status_ = PROCESS_GROUP_WAIT; //TODO
+  }
+
+  to = (to+1) % theMPISystem()->getNumProcs(); //TODO get actual indices in case of not first process group
+  return processesLeft;
+}
+
 
 bool ProcessGroupManager::addTask(Task* t) {
   return storeTaskReferenceAndSendTaskToProcessGroup(t, ADD_TASK);

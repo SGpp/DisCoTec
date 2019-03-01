@@ -501,8 +501,8 @@ static void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, Rank
   std::string s = ss.str();
   int bsize = static_cast<int>(s.size());
   char* buf = const_cast<char*>(s.c_str());
-  // std::cerr << "sending bytes # " << bsize << " to " << dst << " signal " << SEND_DSG << " comm " << comm << std::endl;
-  MPI_Send(buf, bsize, MPI_CHAR, dst, SEND_DSG, comm);
+  // std::cerr << "sending bytes # " << bsize << " to " << dst << " signal " << sendDSGTag << " comm " << comm << std::endl;
+  MPI_Send(buf, bsize, MPI_CHAR, dst, sendDSGTag, comm);
 }
 
 template <typename FG_ELEMENT>
@@ -512,17 +512,25 @@ static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, C
   // todo: not really necessary since size known at compile time
   MPI_Status status;
   int bsize;
-  // std::cerr << "probing from " << src << " signal " << SEND_DSG << " comm " << comm << std::endl;
-  MPI_Probe(src, SEND_DSG, comm, &status);
+  // std::cerr << "probing from " << src << " signal " << sendDSGTag << " comm " << comm << std::endl;
+  MPI_Probe(src, sendDSGTag, comm, &status);
   MPI_Get_count(&status, MPI_CHAR, &bsize);
 
   // create buffer of appropriate size and receive
   std::vector<char> buf(bsize);
 
-  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG, comm, &status);
-  assert(status.MPI_ERROR == MPI_SUCCESS);
+  int recv = MPI_Recv(&buf[0], bsize, MPI_CHAR, src, sendDSGTag, comm, &status);
 
   // std::cerr << "received bytes # " << bsize << std::endl;
+
+  assert(status.MPI_ERROR != MPI_ERR_COUNT);
+  assert(status.MPI_ERROR != MPI_ERR_TYPE);
+  assert(status.MPI_ERROR != MPI_ERR_TAG);
+  assert(status.MPI_ERROR != MPI_ERR_COMM);
+  assert(status.MPI_ERROR != MPI_ERR_RANK);
+  assert(recv == 0);
+  // std::cerr << "err " << status.MPI_ERROR << std::endl;
+  // assert(status.MPI_ERROR == MPI_SUCCESS); //TODO why random error numbers?
 
   // create and open an archive for input
   std::string s(&buf[0], bsize);

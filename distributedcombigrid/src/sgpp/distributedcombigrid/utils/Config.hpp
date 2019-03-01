@@ -64,8 +64,8 @@ constexpr bool omitReadySignal = true;
 constexpr bool uniformDecomposition = true;
 
 /* switch on fault tolerance functionality */
-constexpr bool ENABLE_FT = true; //TODO move this switch to a more sensible place
-constexpr bool isGENE = true;    //TODO move this switch to a more sensible place
+constexpr bool ENABLE_FT = false; //TODO move this switch to a more sensible place
+constexpr bool isGENE = false;    //TODO move this switch to a more sensible place
 // const bool GENE_Global = true;
 // const bool GENE_Linear = true;
 }

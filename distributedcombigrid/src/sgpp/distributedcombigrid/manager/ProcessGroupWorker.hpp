@@ -79,6 +79,8 @@ class ProcessGroupWorker {
 
   void sendSparseGridToManager();
 
+  void addSparseGridFromManager();
+
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
     return combinedUniDSGVector_;
   }

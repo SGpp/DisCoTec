@@ -134,6 +134,44 @@ void ProcessManager::getDSGFromProcessGroup() {
   }
 }
 
+void ProcessManager::initiateGetDSGFromProcessGroup(){
+  {
+    bool fail = waitAllFinished();
+    assert(!fail && "should not fail here");
+  }
+
+  auto g = pgroups_[0];
+  g->initiateGetDSGFromProcessGroup();
+}
+
+
+void ProcessManager::initiateGetAndSetDSGInProcessGroup(){
+  {
+    bool fail = waitAllFinished();
+    assert(!fail && "should not fail here");
+  }
+
+  auto g = pgroups_[0];
+  g->initiateGetAndSetDSGInProcessGroup();
+}
+
+size_t ProcessManager::getDSGFromNextProcess(){
+  auto g = pgroups_[0];
+  return g->getDSGFromNextProcess(outboundCachedUniDSGVector_);
+}
+
+size_t ProcessManager::addDSGToNextProcess(){
+  auto g = pgroups_[0];
+  return g->addDSGToNextProcess(inboundCachedUniDSGVector_);
+}
+
+int ProcessManager::copyOutboundToInboundGrid(){
+  inboundCachedUniDSGVector_.resize(outboundCachedUniDSGVector_.size());
+  for (size_t i = 0; i < outboundCachedUniDSGVector_.size(); ++i){
+    inboundCachedUniDSGVector_[i].reset(new DistributedSparseGridUniform<CombiDataType>(*outboundCachedUniDSGVector_[i]));
+  }
+}
+
 /*
  * Compute the group faults that occured at this combination step using the fault simulator
  */

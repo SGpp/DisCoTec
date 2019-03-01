@@ -71,6 +71,17 @@ class ProcessManager {
 
   void getDSGFromProcessGroup();
 
+  void initiateGetDSGFromProcessGroup();
+
+  void initiateGetAndSetDSGInProcessGroup();
+
+  size_t getDSGFromNextProcess();
+
+  size_t addDSGToNextProcess();
+
+  // for testing purposes only
+  int copyOutboundToInboundGrid();
+
   /* Computes group faults in current combi scheme step */
   void getGroupFaultIDs(std::vector<int>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);

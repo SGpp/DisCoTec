@@ -33,7 +33,8 @@ const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
 // const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
-const SignalType SEND_DSG = 20;
+const SignalType SEND_DSG_AND_WAIT_FOR_ADD = 20;
+const SignalType SEND_DSG_AND_CONTINUE = 21; //TODO implement
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
@@ -45,7 +46,7 @@ typedef int FaultSimulationType;
 const FaultSimulationType RANDOM_FAIL = 0;
 const FaultSimulationType GROUPS_FAIL = 1;
 
-enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3 };
+enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3, sendDSGTag = 4};
 
 // attention: changing StatusType might require changing the MPI Type
 typedef int StatusType;

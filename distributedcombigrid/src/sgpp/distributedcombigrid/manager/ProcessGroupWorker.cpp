@@ -225,12 +225,20 @@ SignalType ProcessGroupWorker::wait() {
       parallelEval();
       Stats::stopEvent("parallel eval");
     } break;
-    case SEND_DSG: {  // let manager collect the contents of dsg
+    case SEND_DSG_AND_WAIT_FOR_ADD: {  // let manager collect the contents of dsg
       Stats::startEvent("send dsg to manager");
-      std::cerr << std::to_string(theMPISystem()->getWorldRank()) << " sending dsg" << std::endl;
       sendSparseGridToManager();
-      std::cerr << theMPISystem()->getWorldRank() << " sent dsg" << std::endl;
       Stats::stopEvent("send dsg to manager");
+
+      Stats::startEvent("add dsg from manager");
+      addSparseGridFromManager();
+      // std::cerr << theMPISystem()->getWorldRank() << " added dsg" << std::endl;
+      Stats::stopEvent("add dsg from manager");
+
+      Stats::startEvent("broadcast added dsg");
+      // std::cerr << std::to_string(theMPISystem()->getWorldRank()) << " adding dsg" << std::endl;
+      // broadcastDSGToOtherProcessGroups(); //TODO
+      Stats::stopEvent("broadcast added dsg");
     } break;
     default: { assert(false && "signal not implemented"); }
   }
@@ -244,7 +252,7 @@ SignalType ProcessGroupWorker::wait() {
   // in the general case: send ready signal.
   // if(!omitReadySignal)
 
-  if (signal != SEND_DSG) {
+  if (signal != SEND_DSG_AND_WAIT_FOR_ADD) {
     ready();
   }
 
@@ -795,8 +803,22 @@ void ProcessGroupWorker::sendSparseGridToManager() {
   int numGrids = combiParameters_.getNumGrids();
 
   for (int g = 0; g < numGrids; g++) {
-    assert(combinedUniDSGVector_[g] != NULL);
+    assert(combinedUniDSGVector_[g] != nullptr);
     sendDSGUniform((combinedUniDSGVector_[g].get()), theMPISystem()->getManagerRankWorld(),
+                   theMPISystem()->getWorldComm());
+  }
+}
+
+void ProcessGroupWorker::addSparseGridFromManager() {
+  assert(combinedUniDSGVector_.size() != 0);
+  assert(combiParametersSet_);
+
+  // we assume here that every task has the same number of grids
+  int numGrids = combiParameters_.getNumGrids();
+
+  for (int g = 0; g < numGrids; g++) {
+    assert(combinedUniDSGVector_[g] != nullptr);
+    combinedUniDSGVector_[g]->recvAndAddDSGUniform(theMPISystem()->getManagerRankWorld(),
                    theMPISystem()->getWorldComm());
   }
 }
