@@ -108,52 +108,33 @@ void checkManagerSend() {
   // }
 }
 
-void checkGatheredSparseGridFromProcessGroup(ProcessManager* manager = nullptr,
-                                           ProcessGroupWorker* pgw = nullptr,
+bool checkGatheredSparseGridFromProcessGroup(ProcessManager* manager = nullptr,
                                            CombiParameters params = CombiParameters(),
                                            size_t nprocs = 1) {
-  if (manager != nullptr) {  // manager code
-    size_t numGrids = params.getNumGrids();
-    auto& combinedUniDSGVector = manager->getOutboundUniDSGVector();
-    // iterate first process group
-    bool found = false;
-    for (size_t i = 0; i < nprocs; ++i) {
-      for (int g = 0; g < numGrids; ++g) {
-        const auto& dsgu = combinedUniDSGVector[g];
-        BOOST_CHECK(dsgu->getDim() > 0);
-        BOOST_CHECK(!dsgu->getBoundaryVector().empty());
-        BOOST_CHECK(dsgu->getNMax()[0] >= 0);
-        BOOST_CHECK(dsgu->getNumSubspaces() > 0);
+  size_t numGrids = params.getNumGrids();
+  auto& combinedUniDSGVector = manager->getOutboundUniDSGVector();
+  
+  bool found = false;
+  for (size_t i = 0; i < nprocs; ++i) {
+    for (int g = 0; g < numGrids; ++g) {
+      const auto& dsgu = combinedUniDSGVector[g];
+      BOOST_CHECK(dsgu->getDim() > 0);
+      BOOST_CHECK(!dsgu->getBoundaryVector().empty());
+      BOOST_CHECK(dsgu->getNMax()[0] >= 0);
+      BOOST_CHECK(dsgu->getNumSubspaces() > 0);
 
-        size_t subspaceNo = 0;
-        std::cerr << combigrid::toString(dsgu->getDataVector(subspaceNo)) << std::endl;
-        auto it = std::find_if(dsgu->getDataVector(subspaceNo).begin(),
-                               dsgu->getDataVector(subspaceNo).end(), [](CombiDataType& dve) {
-                                 return (abs(dve) - 1.333333333333333) < TestHelper::tolerance;
-                               });
-        if (it != dsgu->getDataVector(subspaceNo).end()) {
-          found = true;
-        }
+      size_t subspaceNo = 0;
+      std::cerr << combigrid::toString(dsgu->getDataVector(subspaceNo)) << std::endl;
+      auto it = std::find_if(dsgu->getDataVector(subspaceNo).begin(),
+                              dsgu->getDataVector(subspaceNo).end(), [](CombiDataType& dve) {
+                                return (abs(dve) - 1.11666666666667) < TestHelper::tolerance;
+                              });
+      if (it != dsgu->getDataVector(subspaceNo).end()) {
+        found = true;
       }
     }
-    BOOST_TEST(found);
-    return;
-  } else if (pgw != nullptr) {  // worker code
-    // // for introspection:
-    // pgw->initCombinedUniDSGVector();
-    // pgw->hierarchizeFullGrids();
-    // pgw->addFullGridsToUniformSG();
-    // pgw->reduceUniformSG();
-    // for (auto& dsg : pgw->getCombinedUniDSGVector()) {
-    //   for (size_t j = 0; j < dsg->getNumSubspaces(); ++j) {
-    //     std::vector<CombiDataType>& subspaceData = dsg->getDataVector(j);
-    //     std::cerr << combigrid::toString(subspaceData) << std::endl;
-    //   }
-    // }
-    // pgw->dehierarchizeFullGrids();
-    return;
   }
-  BOOST_CHECK(false);
+  return found;
 }
 
 void checkAddSparseGridToProcessGroup(ProcessManager* manager = nullptr,
@@ -258,16 +239,16 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     // manager.getDSGFromProcessGroup();
     // checkGatheredSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
       
-    int processesToGo = nprocs; 
+    size_t processesToGo = nprocs; 
+    bool found = false;
     manager.initiateGetAndSetDSGInProcessGroup();
     while( processesToGo != 0){
       manager.getDSGFromNextProcess();
-      checkGatheredSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
+      found = checkGatheredSparseGridFromProcessGroup(&manager, params, nprocs) || found;
       manager.copyOutboundToInboundGrid();
-      std::cerr << " starting add to " << processesToGo << std::endl;
       processesToGo = manager.addDSGToNextProcess();
-      std::cerr << " done add, to go: " << processesToGo << std::endl;
     }
+    BOOST_TEST(found);
     manager.combine(); // TODO broadcast
     manager.exit();
 
@@ -297,17 +278,17 @@ BOOST_AUTO_TEST_CASE(test_pp, *boost::unit_test::tolerance(TestHelper::tolerance
 }
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(10)) {
+                                 * boost::unit_test::timeout(20)) {
   testGatherAddDSG(1, 1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(10)) {
+                                 * boost::unit_test::timeout(30)) {
   testGatherAddDSG(1, 2);
 }
 
 BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(10)) {
+                                 * boost::unit_test::timeout(30)) {
   testGatherAddDSG(2, 2);
 }
 
