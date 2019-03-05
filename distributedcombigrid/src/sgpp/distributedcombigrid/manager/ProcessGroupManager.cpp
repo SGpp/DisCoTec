@@ -100,6 +100,15 @@ bool ProcessGroupManager::combine() {
   return true;
 }
 
+bool ProcessGroupManager::broadcastUpdatedDSG() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  sendSignalAndReceive(BROADCAST_DSG);
+
+  return true;
+}
+
 bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);

@@ -20,10 +20,10 @@ const SignalType GRID_EVAL = 3;
 const SignalType COMBINE = 4;
 const SignalType EXIT = 5;
 const SignalType SYNC_TASKS = 6;
-const SignalType TEST_CONVERSION = 7;
+// const SignalType TEST_CONVERSION = 7;
 const SignalType COMBINE_FG = 8;
-const SignalType EV_CALC_FG = 9;
-const SignalType EV_CALC_FG_INIT = 10;
+// const SignalType EV_CALC_FG = 9;
+// const SignalType EV_CALC_FG_INIT = 10;
 const SignalType GRID_GATHER = 11;
 const SignalType UPDATE_COMBI_PARAMETERS = 12;
 const SignalType ADD_TASK = 13;
@@ -35,6 +35,7 @@ const SignalType PARALLEL_EVAL = 17;
 const SignalType RESET_TASKS = 19;
 const SignalType SEND_DSG_AND_WAIT_FOR_ADD = 20;
 const SignalType SEND_DSG_AND_CONTINUE = 21; //TODO implement
+const SignalType BROADCAST_DSG = 22;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;

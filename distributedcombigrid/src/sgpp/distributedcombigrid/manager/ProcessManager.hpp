@@ -52,6 +52,8 @@ class ProcessManager {
 
   inline void combine();
 
+  void broadcastUpdatedDSG();
+
   template <typename FG_ELEMENT>
   inline void combineFG(FullGrid<FG_ELEMENT>& fg);
 

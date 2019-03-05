@@ -57,6 +57,8 @@ class ProcessGroupWorker {
   // combine on sparse grid with uniform decomposition of domain
   void combineUniform();
 
+  void broadcastDSG();
+
   // outdated!
   void combineFG();
 

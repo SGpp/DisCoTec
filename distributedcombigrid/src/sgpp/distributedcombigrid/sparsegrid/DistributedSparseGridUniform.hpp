@@ -549,6 +549,40 @@ static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, C
   return dsgu;
 }
 
+template <typename FG_ELEMENT>
+static void broadcastDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, RankType src, CommunicatorType comm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
+  // if(getCommRank(comm) == src){
+  // save data to archive
+  std::stringstream ss;
+  {
+    boost::archive::text_oarchive oa(ss);
+    // write class instance to archive
+    oa << dsgu;
+  }
+  // create mpi buffer of archive
+  std::string s = ss.str();
+  int bsize = static_cast<int>(s.size());
+  char* buf = const_cast<char*>(s.c_str());
+  MPI_Bcast(buf, bsize, MPI_CHAR, src, comm);
+  if(getCommRank(comm) != src){
+    // create and open an archive for input
+    std::string s(&buf[0], bsize);
+    std::stringstream ss(s);
+    assert(ss.good());
+    {
+      boost::archive::text_iarchive ia(ss);
+      // read class state from archive
+      ia >> dsgu;
+    }
+  }
+  assert(dsgu->getDim() > 0);
+  assert(!dsgu->getBoundaryVector().empty());
+  assert(dsgu->getNMax()[0] >= 0);
+  assert(dsgu->getNumSubspaces() > 0);
+}
+
 
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src, CommunicatorType comm) {

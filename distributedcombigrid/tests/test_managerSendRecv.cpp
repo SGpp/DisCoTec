@@ -31,18 +31,6 @@ DistributedSparseGridUniform<CombiDataType> getSmallTestDSG(){
   }
   return DistributedSparseGridUniform<CombiDataType>{dim, lmax, lmin, boundary, MPI_COMM_SELF};
 }
-DistributedSparseGridUniform<CombiDataType>* getNewSmallTestDSG(){
-  // set up a dsg for sending
-  LevelVector levels = {2, 2};
-  const DimType dim = levels.size();
-  std::vector<bool> boundary(2, true);
-  LevelVector lmin = levels;
-  LevelVector lmax = levels;
-  for (DimType d = 0; d < dim; ++d) {
-    lmax[d] *= 2;
-  }
-  return new DistributedSparseGridUniform<CombiDataType>{dim, lmax, lmin, boundary, MPI_COMM_SELF};
-}
 
 void pingPongTest(){
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(2));
@@ -87,8 +75,8 @@ void checkManagerRecv() {
   //  listen & receive
   //  write into extra process group's recv-memory, one after the other process
   //  //  notify manager if completed
-  //  notify process of process group of completion, upon which they call the second
-  //  combine/allreduce
+  //  notify process of process group of completion, upon which they call the 
+  //  broadcast updated dsg
   // }
 
   // technology considerations If receiver as extra thread: MPI+threads or MPI+MPI(with RMA)?
@@ -103,8 +91,8 @@ void checkManagerSend() {
   // after every first combine from manager{
   //  gather grid
   //  stream it to middleman/other machines
-  //  notify process of process group of completion, upon which they call the second
-  //  combine/allreduce
+  //  notify process of process group of completion, upon which they call the 
+  //  broadcast updated dsg
   // }
 }
 
@@ -235,10 +223,10 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     manager.runfirst();
-    manager.combine();
+    manager.combine(); // TODO no dehierarchization
     // manager.getDSGFromProcessGroup();
     // checkGatheredSparseGridFromProcessGroup(&manager, nullptr, params, nprocs);
-      
+
     size_t processesToGo = nprocs; 
     bool found = false;
     manager.initiateGetAndSetDSGInProcessGroup();
@@ -249,7 +237,7 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
       processesToGo = manager.addDSGToNextProcess();
     }
     BOOST_TEST(found);
-    manager.combine(); // TODO broadcast
+    manager.broadcastUpdatedDSG();
     manager.exit();
 
     // std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;

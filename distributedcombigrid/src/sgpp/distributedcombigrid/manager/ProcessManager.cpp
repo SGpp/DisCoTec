@@ -84,6 +84,18 @@ bool ProcessManager::runnext() {
   return !group_failed;
 }
 
+/* This function broadcasts the updated distributed sparse grid 
+ * from the updated process group to the others
+ */
+void ProcessManager::broadcastUpdatedDSG(){
+  // send signal to each group
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->broadcastUpdatedDSG();
+  }
+
+  waitAllFinished();
+}
+
 void ProcessManager::exit() {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible

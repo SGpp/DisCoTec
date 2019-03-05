@@ -53,6 +53,8 @@ class ProcessGroupManager {
 
   bool combine();
 
+  bool broadcastUpdatedDSG();
+
   template <typename FG_ELEMENT>
   bool combineFG(FullGrid<FG_ELEMENT>& fg);
 

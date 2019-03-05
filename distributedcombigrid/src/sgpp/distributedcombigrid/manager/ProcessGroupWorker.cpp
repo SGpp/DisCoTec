@@ -180,6 +180,13 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("combine");
 
     } break;
+    case BROADCAST_DSG: {  // start combination
+
+      Stats::startEvent("broadcast dsg");
+      broadcastDSG();
+      Stats::stopEvent("broadcast dsg");
+
+    } break;
     case GRID_EVAL: {  // not supported anymore
 
       Stats::startEvent("eval");
@@ -589,6 +596,28 @@ void ProcessGroupWorker::combineUniform() {
 
    std::cout << "\n";
    */
+}
+
+/** broadcast the updated dsg from one pg to the others
+ * here assuming the updated dsg to be in the first process group
+ */
+void ProcessGroupWorker::broadcastDSG(){
+  int nprocs = getCommSize(theMPISystem()->getLocalComm());
+
+  int numGrids = combiParameters_.getNumGrids();
+
+  CommunicatorType reduceComm = theMPISystem()->getGlobalReduceComm();
+  RankType broadcastSrc = 0;
+  if(getCommRank(reduceComm)==0){
+    assert(getCommRank(MPI_COMM_WORLD) < theMPISystem()->getNumProcs());
+  }
+  for (int g = 0; g < numGrids; g++) {
+    assert(combinedUniDSGVector_[g] != nullptr);
+    broadcastDSGUniform( combinedUniDSGVector_[g].get(),
+      broadcastSrc,
+      reduceComm
+      );
+  }
 }
 
 void ProcessGroupWorker::parallelEval() {
