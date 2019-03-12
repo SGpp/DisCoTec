@@ -25,10 +25,9 @@ class CombiParameters {
                   const IndexVector parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
-                  std::vector<int>& taskIDs, const std::string& thirdLevelHost = "",
+                  const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelDataPort = 0,
-                  const std::string& thirdLevelSystemName = "System0",
-                  const std::vector<LevelVector> thirdLevelCommonSubspaces = {})
+                  const std::string& thirdLevelSystemName = "System0")
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
@@ -42,8 +41,7 @@ class CombiParameters {
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
         thirdLevelDataPort_(thirdLevelDataPort),
-        thirdLevelSystemName_(thirdLevelSystemName),
-        thirdLevelCommonSubspaces_(thirdLevelCommonSubspaces)
+        thirdLevelSystemName_(thirdLevelSystemName)
   {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     setLevelsCoeffs(taskIDs, levels, coeffs);
@@ -77,8 +75,7 @@ class CombiParameters {
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
         thirdLevelDataPort_(thirdLevelDataPort),
-        thirdLevelSystemName_(thirdLevelSystemName),
-        thirdLevelCommonSubspaces_(thirdLevelCommonSubspaces)
+        thirdLevelSystemName_(thirdLevelSystemName)
   {
     setLevelsCoeffs(taskIDs, levels, coeffs);
     numTasks_ = taskIDs.size();
@@ -188,10 +185,6 @@ class CombiParameters {
     return thirdLevelSystemName_;
   }
 
-  inline const std::vector<LevelVector>& getThirdLevelCommonSubspaces() {
-    return thirdLevelCommonSubspaces_;
-  }
-
   inline bool isApplicationCommSet() const {
     return false;
     // return applicationCommSet_;
@@ -251,8 +244,6 @@ class CombiParameters {
 
   std::string thirdLevelSystemName_;
 
-  std::vector<LevelVector> thirdLevelCommonSubspaces_;
-
   friend class boost::serialization::access;
   IndexType numberOfCombinations_;  // total number of combinations
   IndexType numGridsPerTask_;       // number of grids per task
@@ -302,7 +293,6 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& thirdLevelHost_;
   ar& thirdLevelDataPort_;
   ar& thirdLevelSystemName_;
-  ar& thirdLevelCommonSubspaces_;
 }
 }
 
