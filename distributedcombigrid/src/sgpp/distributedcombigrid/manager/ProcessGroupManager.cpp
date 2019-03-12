@@ -117,7 +117,7 @@ bool ProcessGroupManager::integrateCommonSS() {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  SignalType signal = INTEGRATE_COMMON_SS;
+  SignalType signal = INTEGRATE_COMBINED_DSGU;
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
 
   // set status
@@ -227,48 +227,6 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
   setProcessGroupBusyAndReceive();
 
   return true;
-}
-
-// TODO sizes of whole part is sufficient
-std::vector<std::vector<int>> ProcessGroupManager::gatherCommonSSPartSizes(
-    const ThirdLevelUtils& thirdLevel, CombiParameters& params) {
-  SignalType signal = GATHER_COMMON_SS_SIZES;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
-  const std::vector<LevelVector> commonSS = params.getCommonSubspaces();
-  const size_t numCommonSS = commonSS.size();
-  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
-
-  // receive sizes
-  std::vector<std::vector<int>> commonSSPartSizes;
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    std::vector<int> sizes(numCommonSS);
-    MPI_Recv(sizes.data(), static_cast<int>(numCommonSS), MPI_INT, 0, 0, thirdLevelComms[p],
-        MPI_STATUS_IGNORE);
-    commonSSPartSizes.push_back(std::move(sizes));
-  }
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
-
-  return commonSSPartSizes;
-}
-
-std::vector<size_t> ProcessGroupManager::calcWorkersSSPartSizes(
-    std::vector<std::vector<int>>& commonSSPartSizes) {
-
-  std::vector<size_t> partSizes(theMPISystem()->getNumProcs());
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    for (size_t ss = 0; ss < commonSSPartSizes[p].size(); ss++)
-      partSizes[p] += static_cast<size_t>(commonSSPartSizes[p][ss]);
-  }
-  return partSizes;
 }
 
 void ProcessGroupManager::recvStatus() {

@@ -52,43 +52,28 @@ class ProcessGroupManager {
 
   inline void removeTask(Task* t);
 
-  std::vector<std::vector<int>>
-  gatherCommonSSPartSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params);
-
-  std::vector<size_t>
-  calcWorkersSSPartSizes(std::vector<std::vector<int>>& commonSSPartSizes);
-
-  // receive shared ss data from remote, combine and send the updated back
+  /*
+  * Third Level reduce: receives the remote data first, combines with local and
+  * sends it back to remote.
+  */
   template<typename FG_ELEMENT>
   bool
   reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils& thirdLevel,
-                                          CombiParameters& params,
-                                    const std::vector<std::vector<int>>& commonSSPartSizes,
-                                    const std::vector<size_t>& partSizes);
+                                          CombiParameters& params);
 
-  // exchange shared ss data of workers with remote
+  /*
+   * Third Level reduce: sends the global reduced data to remote first and
+   * recieves and integrates the remotely combined data.
+   */
   template<typename FG_ELEMENT>
   bool
   reduceUniformThirdLevelSendFirst(const ThirdLevelUtils& thirdLevel,
-                                 CombiParameters& params,
-                           const std::vector<std::vector<int>>& commonSSPartSizes,
-                           const std::vector<size_t>& partSizes);
+                                         CombiParameters& params);
 
   // distribute common ss  after thirdLevelReduce and integrate them into dfg
   bool
   integrateCommonSS();
 
-  // retrieve shared ss data from workers and forward to remote thirdLevel manager
-  // TODO: future usecase like collect on remote
-  template<typename FG_ELEMENT>
-  bool
-  sendallCommonSS(const ThirdLevelUtils& thirdLevel_);
-
-  // retrieve shared ss data from thirdlevel manager and overwrite those at workers.
-  // TODO: future usecase like controlling
-  template<typename FG_ELEMENT>
-  bool
-  recvallCommonSS();
 
   bool
   combineLocalAndGlobal();
@@ -283,9 +268,7 @@ inline bool ProcessGroupManager::gridGather(LevelVector& leval) {
 
 template <typename FG_ELEMENT>
 bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils& thirdLevel,
-                                                                  CombiParameters& params,
-                                                           const std::vector<std::vector<int>>& commonSSPartSizes,
-                                                           const std::vector<size_t>& partSizes) {
+                                                                  CombiParameters& params) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -295,45 +278,27 @@ bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils
   // set status
   status_ = PROCESS_GROUP_BUSY;
 
-  const std::vector<LevelVector> commonSS = params.getCommonSubspaces();
-  const size_t numCommonSS = commonSS.size();
   const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
+  assert(theMPISystem()->getNumProcs() == thirdLevelComms.size() &&
+      "initialisation of third level communicator failed");
 
-  MPI_Datatype dtype = abstraction::getMPIDatatype(
-                         abstraction::getabstractionDataType<FG_ELEMENT>());
-
-
-  // reserve buffer with size of greatest part
-  size_t maxPartSize = *std::max_element(partSizes.begin(), partSizes.end());
-  std::vector<FG_ELEMENT> commonSSPart;
-  commonSSPart.reserve(maxPartSize);
-
-  assert(theMPISystem()->getNumProcs() == thirdLevelComms.size() && "initialisation of third level failed");
-
+  // receive serialized grid from worker in third level comm (rank 0) and send it to remote
+  IndexType numGrids = params.getNumGrids();
   for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
     const CommunicatorType& comm = thirdLevelComms[p];
+    std::cout << "forwarding grids from worker with rank: " << p << std::endl;
+    for (IndexType g = 0; g < numGrids; g++)
+      thirdLevel.sendDSGUniformSerialized(recvDSGUniformSerialized(0, comm));
+  }
+  thirdLevel.signalReady();
 
-    // receive subspace data from worker
-    std::cout << "receiving subspace data from worker with id " << p << std::endl;
-    commonSSPart.resize(partSizes[p]);
-    size_t stride = 0;
-    for (size_t ss = 0; ss < numCommonSS; ss++) {
-      std::cout << "  receiving subspace with id " << ss << std::endl;
-      MPI_Recv(commonSSPart.data()+stride, commonSSPartSizes[p][ss], dtype, 0, 0,
-          comm, MPI_STATUS_IGNORE);
-      stride += static_cast<size_t>(commonSSPartSizes[p][ss]);
-    }
-
-    // send subspace data to remote
-    thirdLevel.sendCommonSSPart(commonSSPart);
-    // receive combined data from remote
-    thirdLevel.receiveCommonSSPart(commonSSPart);
-
-    // send combined subspace data to worker
-    stride = 0;
-    for (size_t ss = 0; ss < numCommonSS; ss++) {
-      MPI_Send(commonSSPart.data()+stride, commonSSPartSizes[p][ss], dtype, 0, 0, comm);
-      stride += static_cast<size_t>(commonSSPartSizes[p][ss]);
+  // receive combined data from remote and send it to worker
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    const CommunicatorType& comm = thirdLevelComms[p];
+    for (IndexType g = 0; g < numGrids; g++) {
+      std::string serializedDSGU(thirdLevel.recvDSGUniformSerialized());
+      MPI_Send(serializedDSGU.data(), static_cast<int>(serializedDSGU.size()),
+          MPI_CHAR, 0, SEND_DSG_TO_MANAGER, comm);
     }
   }
 
@@ -343,12 +308,17 @@ bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils
   return true;
 }
 
+/*
+ * TODO Till now,  after sending reduced data, this proc must wait until remote
+ * process sends grid to worker, as we send dsgus in rounds.
+ * This could be circumvented by sending and receiving the whole serialized grids as one part.
+ * BUT: Since we dont know the sizes of the serialized grid beforehand due to
+ * serialization with boost, we must send data in rounds the first time in the
+ * reduceUniformThirdLevelSendFirst method.
+ */
 template<typename FG_ELEMENT>
 bool ProcessGroupManager::reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils& thirdLevel,
-                                                           CombiParameters& params,
-                                                           const std::vector<std::vector<int>>& commonSSPartSizes,
-                                                           const std::vector<size_t>& partSizes) {
-  // can only send sync signal when in wait state
+                                                                 CombiParameters& params) {
   assert(status_ == PROCESS_GROUP_WAIT);
 
   SignalType signal = COMBINE_UNIFORM_THIRD_LEVEL_RECV_FIRST;
@@ -357,47 +327,38 @@ bool ProcessGroupManager::reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils
   // set status
   status_ = PROCESS_GROUP_BUSY;
 
-  const std::vector<LevelVector> commonSS = params.getCommonSubspaces();
-  const size_t numCommonSS = commonSS.size();
   const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
+  assert(theMPISystem()->getNumProcs() == thirdLevelComms.size() &&
+      "initialisation of third level communicator failed");
+  // can only send sync signal when in wait state
 
-  MPI_Datatype dtype = abstraction::getMPIDatatype(
-                         abstraction::getabstractionDataType<FG_ELEMENT>());
-
-  // reserve buffer with size of greatest part
-  size_t maxPartSize = *std::max_element(partSizes.begin(), partSizes.end());
-  std::vector<FG_ELEMENT> commonSSPart;
-  commonSSPart.reserve(maxPartSize);
-
+  // receive dsgus from remote and send them to workers
+  size_t numGrids = static_cast<size_t>(params.getNumGrids());
   for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
     const CommunicatorType& comm = thirdLevelComms[p];
     assert(comm != MPI_COMM_NULL);
 
-    commonSSPart.resize(partSizes[p]);
-
-    // receive data from remote
-    thirdLevel.receiveCommonSSPart(commonSSPart);
-
-    // combine subspaces sequentially
-    std::cout << "performing allreduce with received part" << std::endl;
-    size_t stride = 0;
-    for (size_t ss = 0; ss < numCommonSS; ss++) {
-      MPI_Allreduce(MPI_IN_PLACE, commonSSPart.data()+stride, commonSSPartSizes[p][ss], dtype, MPI_SUM, comm);
-      stride += static_cast<size_t>(commonSSPartSizes[p][ss]);
+    for (size_t g = 0; g < numGrids; g++) {
+      std::string serializedDSGU = thirdLevel.recvDSGUniformSerialized();
+      MPI_Send(serializedDSGU.data(), static_cast<size_t>(serializedDSGU.size()),
+          MPI_CHAR, 0, SEND_DSG_TO_MANAGER, comm);
     }
-
-    // send data back to remote
-    thirdLevel.sendCommonSSPart(commonSSPart);
   }
+
+  // receive reduced dsgus from workers and send them back to remote system
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[p];
+    assert(comm != MPI_COMM_NULL);
+    for (size_t g = 0; g < numGrids; g++)
+      thirdLevel.sendDSGUniformSerialized(recvDSGUniformSerialized(0, comm));
+  }
+
+  thirdLevel.signalReady();
 
   // start non-blocking MPI_IRecv to receive status
   recvStatus();
 
   return true;
-}
-
-inline void ProcessGroupManager::setMasterRank( int pGroupRootID ){
-  pgroupRootID_ = pGroupRootID;
 }
 
 inline void ProcessGroupManager::setMasterRank(int pGroupRootID) { pgroupRootID_ = pGroupRootID; }
