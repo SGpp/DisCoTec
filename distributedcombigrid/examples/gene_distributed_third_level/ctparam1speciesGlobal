@@ -5,17 +5,17 @@ dim = 6
 #minimum and maximum level of combination technique
 #lmin = 7 4 3 4 3 1  
 #lmax = 9 5 5 6 5 1
-lmin = 2 2 3 3 3 1  
-lmax = 3 3 4 4 4 1
+lmin = 2 3 3 3 3 1  
+lmax = 3 4 4 4 4 1
 
 #levelvector at which 2 final outputs are evaluated (with potential interpolation)
 leval = 7 5 5 6 5 1
 leval2 = 7 4 4 4 4 1
 #indicates number of processors per dimension in domain decomposition
 #this is the same for each process group
-p = 1 1 1 2 2 1
+p = 1 1 2 2 2 1
 #number of combination steps
-ncombi = 100
+ncombi = 5
 #indicates whether combischeme is read from file
 readspaces = 1
 #indicates the file name of the 2 plot files
@@ -28,7 +28,7 @@ hierarchization_dims = 0 0 1 1 1 0
 
 #possibility to reduce the level of the sparse grid for the combination step
 reduceCombinationDimsLmin = 0 0 0 0 0 0
-reduceCombinationDimsLmax = 1 1 1 1 1 0
+reduceCombinationDimsLmax = 0 0 0 0 0 0
 
 [application]
 #timestep size
@@ -57,14 +57,14 @@ basename = ginstance
 #executable name of gene manager
 executable = ./gene_new_machine
 #used mpi version
-mpi = mpirun.mpich
+mpi = mpirun
 startscript = start.bat
 
 [manager]
 #number of mpi ranks in each group
 ngroup = 2 
 #number of process groups
-nprocs = 4 
+nprocs = 8 
 
 [faults]
 #number of faults

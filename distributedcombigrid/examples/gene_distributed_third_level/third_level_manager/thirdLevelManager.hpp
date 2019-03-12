@@ -27,6 +27,8 @@ class ThirdLevelManager
 
     void processFinished(System& system);
 
+    void forwardData(System& sender, System& receiver) const;
+
   public:
     ThirdLevelManager() = delete;
     ThirdLevelManager(const Params& params);

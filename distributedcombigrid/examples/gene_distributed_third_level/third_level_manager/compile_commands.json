@@ -11,12 +11,102 @@
             "-Wno-deprecated",
             "-Wno-uninitialized",
             "-Wall",
-            "-I../SimpleAmqpClient/src/",
+            "-I../../../SimpleAmqpClient/src/",
+            "-I../../../src/",
+            "-I/opt/mpich/include/",
+            "-o",
+            "thirdLevelManager",
+            "../../../src/sgpp/distributedcombigrid/third_level/MessageUtils.cpp"
+        ],
+        "directory": "/home/marci/UNI/HIWI/combi/distributedcombigrid/examples/combi_example_third_level/third_level_manager",
+        "file": "../../../src/sgpp/distributedcombigrid/third_level/MessageUtils.cpp"
+    },
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++11",
+            "-g",
+            "-fopenmp",
+            "-Wno-deprecated-declarations",
+            "-Wno-unused-local-typedefs",
+            "-Wno-deprecated",
+            "-Wno-uninitialized",
+            "-Wall",
+            "-I../../../SimpleAmqpClient/src/",
+            "-I../../../src/",
+            "-I/opt/mpich/include/",
+            "-o",
+            "thirdLevelManager",
+            "../../../src/sgpp/distributedcombigrid/third_level/NetworkUtils.cpp"
+        ],
+        "directory": "/home/marci/UNI/HIWI/combi/distributedcombigrid/examples/combi_example_third_level/third_level_manager",
+        "file": "../../../src/sgpp/distributedcombigrid/third_level/NetworkUtils.cpp"
+    },
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++11",
+            "-g",
+            "-fopenmp",
+            "-Wno-deprecated-declarations",
+            "-Wno-unused-local-typedefs",
+            "-Wno-deprecated",
+            "-Wno-uninitialized",
+            "-Wall",
+            "-I../../../SimpleAmqpClient/src/",
+            "-I../../../src/",
+            "-I/opt/mpich/include/",
             "-o",
             "thirdLevelManager",
             "thirdLevelManager.cpp"
         ],
         "directory": "/home/marci/UNI/HIWI/combi/distributedcombigrid/examples/combi_example_third_level/third_level_manager",
         "file": "thirdLevelManager.cpp"
+    },
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++11",
+            "-g",
+            "-fopenmp",
+            "-Wno-deprecated-declarations",
+            "-Wno-unused-local-typedefs",
+            "-Wno-deprecated",
+            "-Wno-uninitialized",
+            "-Wall",
+            "-I../../../SimpleAmqpClient/src/",
+            "-I../../../src/",
+            "-I/opt/mpich/include/",
+            "-o",
+            "thirdLevelManager",
+            "Params.cpp"
+        ],
+        "directory": "/home/marci/UNI/HIWI/combi/distributedcombigrid/examples/combi_example_third_level/third_level_manager",
+        "file": "Params.cpp"
+    },
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++11",
+            "-g",
+            "-fopenmp",
+            "-Wno-deprecated-declarations",
+            "-Wno-unused-local-typedefs",
+            "-Wno-deprecated",
+            "-Wno-uninitialized",
+            "-Wall",
+            "-I../../../SimpleAmqpClient/src/",
+            "-I../../../src/",
+            "-I/opt/mpich/include/",
+            "-o",
+            "thirdLevelManager",
+            "System.cpp"
+        ],
+        "directory": "/home/marci/UNI/HIWI/combi/distributedcombigrid/examples/combi_example_third_level/third_level_manager",
+        "file": "System.cpp"
     }
 ]

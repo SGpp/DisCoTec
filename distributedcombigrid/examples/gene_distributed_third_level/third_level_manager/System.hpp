@@ -20,8 +20,9 @@ class System
     System(const std::string& name, const AmqpClient::Channel::ptr_t& channel,
            const ServerSocket& server);
 
-    void sendMessage(const std::string& message, AmqpClient::Channel::ptr_t channel);
-    bool receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message, int timeout=MessageUtils::noTimeout);
+    void sendMessage(const std::string& message, AmqpClient::Channel::ptr_t channel) const;
+    bool receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message, int timeout=MessageUtils::noTimeout) const;
+    bool receivePosNumber(AmqpClient::Channel::ptr_t channel, size_t& number, int timeout=MessageUtils::noTimeout) const;
 
     std::shared_ptr<ClientSocket> getDataConnection() const;
     std::string                   getName() const;
