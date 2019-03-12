@@ -135,7 +135,8 @@ void ProcessManager::getDSGFromProcessGroup() {
 }
 
 /*
- * Compute the group faults that occured at this combination step using the fault simulator
+ * Compute the group faults that occured at this combination step using the
+ * fault simulator
  */
 void ProcessManager::getGroupFaultIDs(std::vector<int>& faultsID,
                                       std::vector<ProcessGroupManagerID>& groupFaults) {

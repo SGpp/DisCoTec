@@ -31,8 +31,8 @@ class ProcessManager {
     : pgroups_(pgroups),
       thirdLevelPGroup_(pgroups[0]), // TODO: changing PG needs adjustment in MPISystem
       tasks_(instances),
-      params_(params)
-      thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getSystemName())
+      params_(params),
+      thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getThirdLevelSystemName())
   {
       loadModel_ = std::move(loadModel);
       setupThirdLevel();
@@ -247,34 +247,22 @@ void ProcessManager::combineThirdLevel() {
 
   // obtain instructions from third level manager
   thirdLevel_.signalReadyToCombine();
+
   std::string instruction = thirdLevel_.fetchInstruction();
-  assert(instruction == "send_size");
-
-  std::vector<std::vector<int>> gridSizes = thirdLevelPGroup_->gatherGridSizes(thirdLevel_, params_);
-  std::vector<size_t> outboundSizes = thirdLevelPGroup_->calcWorkersSSPartSizes(commonSSPartSizes);
-  size_t wholeTransferSize = 0;
-  for (auto it = partSizes.begin(); it != partSizes.end(); it++)
-    wholeTransferSize += *it * sizeof(CombiDataType) + 1; // additional bit for endianness
-
-  std::cout << "sending Sizes to third level" << std::endl;
-  thirdLevel_.sendSize(wholeTransferSize);
-
-  instruction = thirdLevel_.fetchInstruction();
-
   waitAllFinished();
 
   // perform third level reduce
   if (instruction == "reduce_third_level_recv_first")
   {
-    bool success = thirdLevelPGroup_->reduceUniformThirdLevelRecvFirst<CombiDataType>(thirdLevel_, params_, commonSSPartSizes, partSizes);
+    bool success = thirdLevelPGroup_->reduceUniformThirdLevelRecvFirst<CombiDataType>(thirdLevel_, params_);
     assert(success);
   }
   else if (instruction == "reduce_third_level_send_first")
   {
-    bool success = thirdLevelPGroup_->reduceUniformThirdLevelSendFirst<CombiDataType>(thirdLevel_, params_, commonSSPartSizes, partSizes);
+    // send number of grids first
+    bool success = thirdLevelPGroup_->reduceUniformThirdLevelSendFirst<CombiDataType>(thirdLevel_, params_);
     assert(success);
   }
-
   waitAllFinished();
 
   // integrate subspaces
