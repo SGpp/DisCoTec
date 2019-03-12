@@ -30,7 +30,7 @@ namespace combigrid {
 ProcessGroupWorker::ProcessGroupWorker()
     : currentTask_(NULL),
       status_(PROCESS_GROUP_WAIT),
-      combinedFG_(NULL),
+      // combinedFG_(NULL),
       combinedUniDSGVector_(0),
       combiParameters_(),
       combiParametersSet_(false),
@@ -43,7 +43,9 @@ ProcessGroupWorker::ProcessGroupWorker()
   }
 }
 
-ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
+ProcessGroupWorker::~ProcessGroupWorker() { 
+  // delete combinedFG_; 
+}
 
 // Do useful things with the info about how long a task took.
 // this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly
@@ -209,6 +211,13 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("combine");
 
     } break;
+    case BROADCAST_DSG: {  // start combination
+
+      Stats::startEvent("broadcast dsg");
+      broadcastDSG();
+      Stats::stopEvent("broadcast dsg");
+
+    } break;
     case GRID_EVAL: {  // not supported anymore
 
       Stats::startEvent("eval");
@@ -254,12 +263,20 @@ SignalType ProcessGroupWorker::wait() {
       parallelEval();
       Stats::stopEvent("parallel eval");
     } break;
-    case SEND_DSG_TO_MANAGER: {  // let manager collect the contents of dsg
+    case SEND_DSG_AND_WAIT_FOR_ADD: {  // let manager collect the contents of dsg
       Stats::startEvent("send dsg to manager");
-      std::cerr << std::to_string(theMPISystem()->getWorldRank()) << " sending dsg" << std::endl;
       sendSparseGridToManager();
-      std::cerr << theMPISystem()->getWorldRank() << " sent dsg" << std::endl;
       Stats::stopEvent("send dsg to manager");
+
+      Stats::startEvent("add dsg from manager");
+      addSparseGridFromManager();
+      // std::cerr << theMPISystem()->getWorldRank() << " added dsg" << std::endl;
+      Stats::stopEvent("add dsg from manager");
+
+      Stats::startEvent("broadcast added dsg");
+      // std::cerr << std::to_string(theMPISystem()->getWorldRank()) << " adding dsg" << std::endl;
+      // broadcastDSGToOtherProcessGroups(); //TODO
+      Stats::stopEvent("broadcast added dsg");
     } break;
     default: { assert(false && "signal not implemented"); }
   }
@@ -273,7 +290,7 @@ SignalType ProcessGroupWorker::wait() {
   // in the general case: send ready signal.
   // if(!omitReadySignal)
 
-  if (signal != SEND_DSG_TO_MANAGER) {
+  if (signal != SEND_DSG_AND_WAIT_FOR_ADD) {
     ready();
   }
 
@@ -613,7 +630,6 @@ void ProcessGroupWorker::combineUniform() {
    */
 }
 
-
 void ProcessGroupWorker::combineLocalAndGlobal() {
 #ifdef DEBUG_OUTPUT
 
@@ -860,12 +876,12 @@ void ProcessGroupWorker::updateCombiParameters() {
   // local root receives task
   MASTER_EXCLUSIVE_SECTION {
     MPIUtils::receiveClass(&tmp, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-    std::cout << "master received combiparameters \n";
+    // std::cout << "master received combiparameters \n";
   }
 
   // broadcast task to other process of pgroup
   MPIUtils::broadcastClass(&tmp, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-  std::cout << "worker received combiparameters \n";
+  // std::cout << "worker received combiparameters \n";
   if (combiParameters_.isApplicationCommSet()) {
     CommunicatorType free = combiParameters_.getApplicationComm();
     if (free != NULL && free != MPI_COMM_NULL) {
@@ -915,6 +931,20 @@ void ProcessGroupWorker::sendSparseGridToManager() {
     assert(combinedUniDSGVector_[g] != NULL);
     sendDSGUniform(combinedUniDSGVector_[g].get(), manager,
                    comm);
+  }
+}
+
+void ProcessGroupWorker::addSparseGridFromManager() {
+  assert(combinedUniDSGVector_.size() != 0);
+  assert(combiParametersSet_);
+
+  // we assume here that every task has the same number of grids
+  int numGrids = combiParameters_.getNumGrids();
+
+  for (int g = 0; g < numGrids; g++) {
+    assert(combinedUniDSGVector_[g] != nullptr);
+    combinedUniDSGVector_[g]->recvAndAddDSGUniform(theMPISystem()->getManagerRankWorld(),
+                   theMPISystem()->getWorldComm());
   }
 }
 

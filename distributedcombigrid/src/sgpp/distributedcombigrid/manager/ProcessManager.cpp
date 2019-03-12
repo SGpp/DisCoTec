@@ -84,6 +84,18 @@ bool ProcessManager::runnext() {
   return !group_failed;
 }
 
+/* This function broadcasts the updated distributed sparse grid 
+ * from the updated process group to the others
+ */
+void ProcessManager::broadcastUpdatedDSG(){
+  // send signal to each group
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->broadcastUpdatedDSG();
+  }
+
+  waitAllFinished();
+}
+
 void ProcessManager::exit() {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
@@ -131,6 +143,44 @@ void ProcessManager::getDSGFromProcessGroup() {
   {
     bool fail = waitAllFinished();
     assert(!fail && "should not fail here");
+  }
+}
+
+void ProcessManager::initiateGetDSGFromProcessGroup(){
+  {
+    bool fail = waitAllFinished();
+    assert(!fail && "should not fail here");
+  }
+
+  auto g = pgroups_[0];
+  g->initiateGetDSGFromProcessGroup();
+}
+
+
+void ProcessManager::initiateGetAndSetDSGInProcessGroup(){
+  {
+    bool fail = waitAllFinished();
+    assert(!fail && "should not fail here");
+  }
+
+  auto g = pgroups_[0];
+  g->initiateGetAndSetDSGInProcessGroup();
+}
+
+size_t ProcessManager::getDSGFromNextProcess(){
+  auto g = pgroups_[0];
+  return g->getDSGFromNextProcess(outboundCachedUniDSGVector_);
+}
+
+size_t ProcessManager::addDSGToNextProcess(){
+  auto g = pgroups_[0];
+  return g->addDSGToNextProcess(inboundCachedUniDSGVector_);
+}
+
+int ProcessManager::copyOutboundToInboundGrid(){
+  inboundCachedUniDSGVector_.resize(outboundCachedUniDSGVector_.size());
+  for (size_t i = 0; i < outboundCachedUniDSGVector_.size(); ++i){
+    inboundCachedUniDSGVector_[i].reset(new DistributedSparseGridUniform<CombiDataType>(*outboundCachedUniDSGVector_[i]));
   }
 }
 

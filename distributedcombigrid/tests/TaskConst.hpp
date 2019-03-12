@@ -41,11 +41,12 @@ class TaskConst : public combigrid::Task {
     for (auto& element : elements) {
       element = 10;
     }
+    BOOST_CHECK(true);
   }
 
   void run(CommunicatorType lcomm) {
 
-    std::cout << "run " << getCommRank(lcomm) << std::endl;    
+    // std::cout << "run " << getCommRank(lcomm) << std::endl;    
 
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     for (auto& element : elements) {
@@ -58,16 +59,17 @@ class TaskConst : public combigrid::Task {
     setFinished(true);
     
     MPI_Barrier(lcomm);
-    std::cerr << "barrier" << std::endl;
+    BOOST_CHECK(true);
   }
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
+    BOOST_CHECK(true);
     dfg_->gatherFullGrid(fg, r);
   }
 
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
-  void setZero() {}
+  void setZero() { BOOST_CHECK(true); }
 
   ~TaskConst() {
     if (dfg_ != NULL) delete dfg_;
@@ -89,4 +91,4 @@ class TaskConst : public combigrid::Task {
 };
 
 
-#endif // def TASKCONST_HPP_
+#endif // def TASKCONST_HPP_    BOOST_CHECK(true);

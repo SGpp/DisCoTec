@@ -67,7 +67,7 @@ int MPISystem::getWorldRank() {
 }
 
 void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType worldComm = MPI_COMM_WORLD, bool reusable = false) {
-  assert(reusable || !initialized_ && "MPISystem already initialized!");
+  assert( (reusable || !initialized_) && "MPISystem already initialized!");
   
   ngroup_ = ngroup;
   nprocs_ = nprocs;
@@ -241,7 +241,7 @@ void MPISystem::initGlobalComm() {
     int globalSize = getCommSize( globalComm_);
 
     managerRank_ = globalSize - 1;
-    std::cout << "new manager rank: " << managerRank_ << " \n";
+    // std::cout << "new manager rank: " << managerRank_ << " \n";
     globalRank_ = getCommRank(globalComm_);
   }
 
@@ -295,7 +295,7 @@ void MPISystem::initGlobalReduceCommm() {
       createCommFT(&globalReduceCommFT_, globalReduceComm_);
     }
     int size = getCommSize(globalReduceComm_);
-    std::cout << "size if global reduce comm " << size << "\n";
+    // std::cout << "size if global reduce comm " << size << "\n";
     MPI_Barrier(globalReduceComm_);
   } else {
     MPI_Comm_split(worldComm_, MPI_UNDEFINED, -1, &globalReduceComm_);

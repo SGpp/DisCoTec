@@ -475,37 +475,6 @@ inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const
 }
 
 template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src, CommunicatorType comm) {
-  DistributedSparseGridUniform<FG_ELEMENT> * dsgu;
-  // receive size of message
-  MPI_Status status;
-  int bsize;
-  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
-  MPI_Get_count(&status, MPI_CHAR, &bsize);
-
-  // create buffer of appropriate size and receive
-  std::vector<char> buf(bsize);
-
-  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
-  assert(status.MPI_ERROR == MPI_SUCCESS);
-
-  // create and open an archive for input
-  std::string s(&buf[0], bsize);
-  std::stringstream ss(s);
-  assert(ss.good());
-  {
-    boost::archive::text_iarchive ia(ss);
-    // read class state from archive
-    ia >> dsgu;
-  }
-
-  //add the entries to this grid
-  for (size_t i; i < this->getNumSubspaces(); ++i){
-    this->subspaces_[i] += dsgu->subspaces_[i];
-  }
-}
-
-template <typename FG_ELEMENT>
 template <class Archive>
 void DistributedSparseGridUniform<FG_ELEMENT>::serialize(Archive& ar, const unsigned int version) {
   ar & dim_;
@@ -532,8 +501,8 @@ static void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, Rank
   std::string s = ss.str();
   int bsize = static_cast<int>(s.size());
   char* buf = const_cast<char*>(s.c_str());
-  // std::cout << "bsize " << bsize << std::endl;
-  MPI_Send(buf, bsize, MPI_CHAR, dst, SEND_DSG_TO_MANAGER, comm);
+  // std::cerr << "sending bytes # " << bsize << " to " << dst << " signal " << sendDSGTag << " comm " << comm << std::endl;
+  MPI_Send(buf, bsize, MPI_CHAR, dst, sendDSGTag, comm);
 }
 
 template <typename FG_ELEMENT>
@@ -543,15 +512,25 @@ static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, C
   // todo: not really necessary since size known at compile time
   MPI_Status status;
   int bsize;
-  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
+  // std::cerr << "probing from " << src << " signal " << sendDSGTag << " comm " << comm << std::endl;
+  MPI_Probe(src, sendDSGTag, comm, &status);
   MPI_Get_count(&status, MPI_CHAR, &bsize);
-  // std::cout << "bsize " << bsize << std::endl;
 
   // create buffer of appropriate size and receive
   std::vector<char> buf(bsize);
 
-  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
-  assert(status.MPI_ERROR == MPI_SUCCESS);
+  int recv = MPI_Recv(&buf[0], bsize, MPI_CHAR, src, sendDSGTag, comm, &status);
+
+  // std::cerr << "received bytes # " << bsize << std::endl;
+
+  assert(status.MPI_ERROR != MPI_ERR_COUNT);
+  assert(status.MPI_ERROR != MPI_ERR_TYPE);
+  assert(status.MPI_ERROR != MPI_ERR_TAG);
+  assert(status.MPI_ERROR != MPI_ERR_COMM);
+  assert(status.MPI_ERROR != MPI_ERR_RANK);
+  assert(recv == 0);
+  // std::cerr << "err " << status.MPI_ERROR << std::endl;
+  // assert(status.MPI_ERROR == MPI_SUCCESS); //TODO why random error numbers?
 
   // create and open an archive for input
   std::string s(&buf[0], bsize);
@@ -570,7 +549,6 @@ static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, C
   return dsgu;
 }
 
-
 static std::string recvDSGUniformSerialized(RankType src, CommunicatorType comm) {
   // receive size of message
   // todo: not really necessary since size known at compile time
@@ -586,6 +564,52 @@ static std::string recvDSGUniformSerialized(RankType src, CommunicatorType comm)
   MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
 
   return std::string(&buf[0], bsize);
+}
+
+template <typename FG_ELEMENT>
+static void broadcastDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, RankType src, CommunicatorType comm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
+  // if(getCommRank(comm) == src){
+  // save data to archive
+  std::stringstream ss;
+  {
+    boost::archive::text_oarchive oa(ss);
+    // write class instance to archive
+    oa << dsgu;
+  }
+  // create mpi buffer of archive
+  std::string s = ss.str();
+  int bsize = static_cast<int>(s.size());
+  char* buf = const_cast<char*>(s.c_str());
+  MPI_Bcast(buf, bsize, MPI_CHAR, src, comm);
+  if(getCommRank(comm) != src){
+    // create and open an archive for input
+    std::string s(&buf[0], bsize);
+    std::stringstream ss(s);
+    assert(ss.good());
+    {
+      boost::archive::text_iarchive ia(ss);
+      // read class state from archive
+      ia >> dsgu;
+    }
+  }
+  assert(dsgu->getDim() > 0);
+  assert(!dsgu->getBoundaryVector().empty());
+  assert(dsgu->getNMax()[0] >= 0);
+  assert(dsgu->getNumSubspaces() > 0);
+}
+
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src, CommunicatorType comm) {
+  DistributedSparseGridUniform<FG_ELEMENT> * dsgu = recvDSGUniform<FG_ELEMENT>(src, comm);
+
+  //add to this grid
+  for (size_t i = 0; i < this->getNumSubspaces(); ++i){
+    this->subspaces_[i] += dsgu->subspaces_[i];
+  }
+  // dsgu->addToUniformSG(*this, 1); //TODO
 }
 
 } /* namespace combigrid */

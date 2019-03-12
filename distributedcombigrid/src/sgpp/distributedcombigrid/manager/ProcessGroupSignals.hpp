@@ -20,10 +20,10 @@ const SignalType GRID_EVAL = 3;
 const SignalType COMBINE = 4;
 const SignalType EXIT = 5;
 const SignalType SYNC_TASKS = 6;
-const SignalType TEST_CONVERSION = 7;
+// const SignalType TEST_CONVERSION = 7;
 const SignalType COMBINE_FG = 8;
-const SignalType EV_CALC_FG = 9;
-const SignalType EV_CALC_FG_INIT = 10;
+// const SignalType EV_CALC_FG = 9;
+// const SignalType EV_CALC_FG_INIT = 10;
 const SignalType GRID_GATHER = 11;
 const SignalType UPDATE_COMBI_PARAMETERS = 12;
 const SignalType ADD_TASK = 13;
@@ -50,7 +50,7 @@ typedef int FaultSimulationType;
 const FaultSimulationType RANDOM_FAIL = 0;
 const FaultSimulationType GROUPS_FAIL = 1;
 
-enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3 };
+enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3, sendDSGTag = 4};
 
 // attention: changing StatusType might require changing the MPI Type
 typedef int StatusType;

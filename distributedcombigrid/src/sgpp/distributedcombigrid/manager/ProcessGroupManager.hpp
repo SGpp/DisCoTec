@@ -80,6 +80,8 @@ class ProcessGroupManager {
 
   bool combine();
 
+  bool broadcastUpdatedDSG();
+
   template <typename FG_ELEMENT>
   bool combineFG(FullGrid<FG_ELEMENT>& fg);
 
@@ -91,6 +93,18 @@ class ProcessGroupManager {
   bool updateCombiParameters(CombiParameters& params);
 
   bool getDSGFromProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound);
+
+  bool initiateGetDSGFromProcessGroup();
+
+  bool getAndSetDSGInProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inoutbound);
+
+  bool initiateGetAndSetDSGInProcessGroup();
+
+  size_t getDSGFromNextProcess(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound);
+
+  bool addDSGToProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound);
+
+  size_t addDSGToNextProcess(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound);
 
   /* Check if group fault occured at this combination step using the fault simulator */
   bool isGroupFault();
@@ -130,6 +144,8 @@ class ProcessGroupManager {
   void sendSignalAndReceive(SignalType signal);
 
   void sendSignalToProcessGroup(SignalType signal);
+
+  void sendSignalToProcess(SignalType signal, RankType rank);
 
   inline void setProcessGroupBusyAndReceive();
 
