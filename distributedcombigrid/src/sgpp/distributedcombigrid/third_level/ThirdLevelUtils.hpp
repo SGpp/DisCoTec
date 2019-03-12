@@ -38,6 +38,8 @@ namespace combigrid {
 
       void signalFinalize() const;
 
+      void sendSize(size_t size) const;
+
     public:
       ThirdLevelUtils(const std::string& remoteHost, int dataPort,
                       const std::string& systemName,
@@ -49,34 +51,50 @@ namespace combigrid {
 
       void signalReadyToCombine() const;
 
-      void sendSize(size_t size) const;
+      void signalReady() const;
+
+      size_t receiveSize() const;
 
       std::string fetchInstruction() const;
 
-      template<typename FG_ELEMENT>
-      void receiveCommonSSPart(std::vector<FG_ELEMENT>& commonSSPart) const;
+      template <typename FG_ELEMENT>
+      DistributedSparseGridUniform<FG_ELEMENT> recvDSGUniform() const;
 
-      template<typename FG_ELEMENT>
-      void sendCommonSSPart(const std::vector<FG_ELEMENT>& commonSSPart) const;
+      std::string recvDSGUniformSerialized() const;
+
+      template <typename FG_ELEMENT>
+      void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT>& dsgu) const;
+
+      void sendDSGUniformSerialized(const std::string& serializedDSGU) const;
   };
 
   template <typename FG_ELEMENT>
-  void ThirdLevelUtils::receiveCommonSSPart(std::vector<FG_ELEMENT>& commonSSPart) const
+  DistributedSparseGridUniform<FG_ELEMENT> ThirdLevelUtils::recvDSGUniform() const
   {
-    bool dataIsLittleEndian = false;
-    bool success = dataConnection_->recvallBinary(commonSSPart, dataIsLittleEndian);
-    assert(success && "receiving common ss data failed");
-    if (dataIsLittleEndian != NetworkUtils::isLittleEndian())
-      NetworkUtils::reverseEndianness(commonSSPart);
+    size_t rawSize = receiveSize();
+    std::stringstream ss(recvDSGUniformSerialized());
+    DistributedSparseGridUniform<FG_ELEMENT> dsgu;
+    {
+      boost::archive::text_iarchive ia(ss);
+      // read class state from archive
+      ia >> dsgu;
+    }
+    return dsgu;
   }
 
-  // TODO: check if inplace is better
   template <typename FG_ELEMENT>
-  void ThirdLevelUtils::sendCommonSSPart(const std::vector<FG_ELEMENT>& commonSSPart) const
+  void ThirdLevelUtils::sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT>& dsgu) const
   {
-    bool success = dataConnection_->sendallBinary(commonSSPart);
+    std::stringstream ss;
+    {
+      boost::archive::text_oarchive oa(ss);
+      // read class state from archive
+      oa << dsgu;
+    }
+    std::string serializedDSGU(ss.str());
+    sendSize(serializedDSGU.size());
+    bool success = dataConnection_->sendall(serializedDSGU);
     assert(success && "sending common ss data failed");
-    std::cout << "completed sending common ss part" << std::endl;
   }
 }
 
