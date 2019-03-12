@@ -32,7 +32,12 @@ EnsureSConsVersion(2, 1)
 Helper.printInfo("Platform: {}".format(", ".join(platform.uname())))
 Helper.printInfo("Using SCons {} on Python {}".format(SCons.__version__, platform.python_version()))
 Helper.printInfo("SCons command line: {}".format(" ".join([pipes.quote(arg) for arg in sys.argv])))
-
+# print, to see if scons forgets this when in jenkins build
+try:
+    ldpath = os.environ["LD_LIBRARY_PATH"]
+    Helper.printInfo("LD_LIBRARY_PATH: {}".format(ldpath))
+except SomeException as e:
+    print("LD_LIBRARY_PATH not set!")
 sconsVersion = SConsEnvironment()._get_major_minor_revision(SCons.__version__)
 if sconsVersion < (2, 3, 0):
   Helper.printWarning("You are using an older version of scons than we do!",
