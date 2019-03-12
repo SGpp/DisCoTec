@@ -37,14 +37,14 @@ struct SubspaceSGU {
   std::vector<FG_ELEMENT> data_;
 
   SubspaceSGU& operator+=(const SubspaceSGU& rhs) 
-  {                           
+  {
     assert(this->level_ == rhs.level_);
 
     for(size_t i = 0; i < data_.size(); ++i){
       this->data_[i] += rhs.data_[i];
     }
-    
-    return *this; 
+
+    return *this;
   }
 
   friend class boost::serialization::access;
@@ -169,7 +169,7 @@ class DistributedSparseGridUniform {
   std::vector<SubspaceSGU<FG_ELEMENT> > subspaces_;
 
   friend class boost::serialization::access;
-  
+
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version);
 };
@@ -568,6 +568,24 @@ static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, C
   assert(dsgu->getNumSubspaces() > 0);
 
   return dsgu;
+}
+
+
+static std::string recvDSGUniformSerialized(RankType src, CommunicatorType comm) {
+  // receive size of message
+  // todo: not really necessary since size known at compile time
+  MPI_Status status;
+  int bsize;
+  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
+  MPI_Get_count(&status, MPI_CHAR, &bsize);
+  // std::cout << "bsize " << bsize << std::endl;
+
+  // create buffer of appropriate size and receive
+  std::vector<char> buf(bsize);
+
+  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
+
+  return std::string(&buf[0], bsize);
 }
 
 } /* namespace combigrid */
