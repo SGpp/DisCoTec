@@ -37,7 +37,7 @@ const SignalType GATHER_COMMON_SS_SIZES = 20;
 const SignalType COMBINE_LOCAL_AND_GLOBAL = 21;
 const SignalType COMBINE_UNIFORM_THIRD_LEVEL_SEND_FIRST = 22;
 const SignalType COMBINE_UNIFORM_THIRD_LEVEL_RECV_FIRST= 23;
-const SignalType INTEGRATE_COMMON_SS= 24;
+const SignalType INTEGRATE_COMBINED_DSGU = 24;
 const SignalType SEND_DSG_TO_MANAGER = 25;
 
 typedef int NormalizationType;
