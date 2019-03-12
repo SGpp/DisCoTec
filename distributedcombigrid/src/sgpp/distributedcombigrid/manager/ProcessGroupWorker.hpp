@@ -60,13 +60,13 @@ class ProcessGroupWorker {
   void combineLocalAndGlobal();
 
   template<typename FG_ELEMENT>
-  void combineUniformThirdLevelSendFirst();
+  void reduceUniformThirdLevelSendFirst();
 
   template<typename FG_ELEMENT>
-  void combineUniformThirdLevelRecvFirst();
+  void reduceUniformThirdLevelRecvFirst();
 
   template<typename FG_ELEMENT>
-  void integrateCommonSS();
+  void integrateCombinedDSG();
 
   void gatherCommonSSPartSizes();
 
@@ -105,7 +105,7 @@ class ProcessGroupWorker {
 
   FullGrid<complex>* combinedFG_;
 
-  /**
+  /*
    * Vector containing all distributed sparse grids
    */
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;

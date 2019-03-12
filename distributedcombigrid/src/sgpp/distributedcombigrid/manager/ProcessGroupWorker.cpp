@@ -51,7 +51,7 @@ ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, size_t numProcs) {
   MASTER_EXCLUSIVE_SECTION {
     DurationType type = DurationType();
-    durationInformation info = {t.getID(), Stats::getEventDuration(e), numProcs};
+    durationInformation info = {t.getID(), Stats::getEventDuration(e), static_cast<uint>(numProcs)};
     // MPI_Request request;
     // send durationInfo to manager
     // std::cout << "sending duration" << std::endl;
@@ -170,15 +170,15 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE_UNIFORM_THIRD_LEVEL_RECV_FIRST: {
-    Stats::startEvent("combineUniformThirdLevelRecvFirst");
-    combineUniformThirdLevelRecvFirst<CombiDataType>();
-    Stats::stopEvent("combineUniformThirdLevelRecvFirst");
+    Stats::startEvent("reduceUniformThirdLevelRecvFirst");
+    reduceUniformThirdLevelRecvFirst<CombiDataType>();
+    Stats::stopEvent("reduceUniformThirdLevelRecvFirst");
 
     } break;
     case COMBINE_UNIFORM_THIRD_LEVEL_SEND_FIRST: {
-    Stats::startEvent("combineUniformThirdLevelSendFirst");
-    combineUniformThirdLevelSendFirst<CombiDataType>();
-    Stats::stopEvent("combineUniformThirdLevelSendFirst");
+    Stats::startEvent("reduceUniformThirdLevelSendFirst");
+    reduceUniformThirdLevelSendFirst<CombiDataType>();
+    Stats::stopEvent("reduceUniformThirdLevelSendFirst");
 
     } break;
     case COMBINE_LOCAL_AND_GLOBAL: {
@@ -187,11 +187,11 @@ SignalType ProcessGroupWorker::wait() {
     Stats::stopEvent("combineLocalAndGlobal");
 
     } break;
-    case INTEGRATE_COMMON_SS: {
-    Stats::startEvent("integrateCommonSS");
-    integrateCommonSS<CombiDataType>();
+    case INTEGRATE_COMBINED_DSGU: {
+    Stats::startEvent("integrateCombineDSGU");
+    integrateCombinedDSGUniform<CombiDataType>();
     currentCombi_++;
-    Stats::stopEvent("integrateCommonSS");
+    Stats::stopEvent("integrateCombineDSGU");
 
     } break;
     case SYNC_TASKS: {
@@ -620,209 +620,82 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
   MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
 #endif
   Stats::startEvent("combine init");
-
-  if (tasks_.size() == 0) {
-    std::cout << "Possible error: task size is 0! \n";
-  }
-  assert(combiParametersSet_);
-  // we assume here that every task has the same number of grids, e.g. species in GENE
-  int numGrids = combiParameters_.getNumGrids();
-
-  DimType dim = combiParameters_.getDim();
-  LevelVector lmin = combiParameters_.getLMin();
-  LevelVector lmax = combiParameters_.getLMax();
-  const std::vector<bool>& boundary = combiParameters_.getBoundary();
-
-  // the dsg can be smaller than lmax because the highest subspaces do not have
-  // to be exchanged
-  // todo: use a flag to switch on/off optimized combination
-
-  reduceSparseGridCoefficients(lmax, lmin, combiParameters_.getNumberOfCombinations(),
-                               currentCombi_, combiParameters_.getLMinReductionVector(),
-                               combiParameters_.getLMaxReductionVector());
-
-#ifdef DEBUG_OUTPUT
-  MASTER_EXCLUSIVE_SECTION {
-    std::cout << "lmin: " << lmin << std::endl;
-    std::cout << "lmax: " << lmax << std::endl;
-  }
-#endif
-
-  // delete old dsgs
-  combinedUniDSGVector_.clear();
-  // create dsgs
-  combinedUniDSGVector_.resize(numGrids);
-  for (auto& uniDSG : combinedUniDSGVector_) {
-    uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
-                                                        theMPISystem()->getLocalComm()));
-  }
-  // todo: move to init function to avoid reregistering
-  // register dsgs in all dfgs
-  for (Task* t : tasks_) {
-    for (int g = 0; g < numGrids; g++) {
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-
-      dfg.registerUniformSG(*(combinedUniDSGVector_[g]));
-    }
-  }
+  initCombinedUniDSGVector();
   Stats::stopEvent("combine init");
+
   Stats::startEvent("combine hierarchize");
-
-  real localMax(0.0);
-  // std::vector<CombiDataType> beforeCombi;
-  for (Task* t : tasks_) {
-    for (int g = 0; g < numGrids; g++) {
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-      // std::vector<CombiDataType> datavector(dfg.getElementVector());
-      // beforeCombi = datavector;
-      // compute max norm
-      /*
-      real max = dfg.getLpNorm(0);
-      if( max > localMax )
-        localMax = max;
-        */
-
-      // hierarchize dfg
-      DistributedHierarchization::hierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims());
-
-      // lokales reduce auf sg ->
-      dfg.addToUniformSG(*combinedUniDSGVector_[g], combiParameters_.getCoeff(t->getID()));
-#ifdef DEBUG_OUTPUT
-      std::cout << "Combination: added task " << t->getID() << " with coefficient "
-                << combiParameters_.getCoeff(t->getID()) << "\n";
-#endif
-    }
-  }
+  hierarchizeFullGrids();
+  addFullGridsToUniformSG();
   Stats::stopEvent("combine hierarchize");
 
-  // compute global max norm
-  /*
-  real globalMax_tmp;
-  MPI_Allreduce(  &localMax, &globalMax_tmp, 1, MPI_DOUBLE,
-                  MPI_MAX, theMPISystem()->getGlobalReduceComm() );
-
-  real globalMax;
-  MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
-                    MPI_MAX, theMPISystem()->getLocalComm() );
-                    */
   Stats::startEvent("combine global reduce");
-
-  for (int g = 0; g < numGrids; g++) {
-    CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g]);
-  }
+  reduceUniformSG();
   Stats::stopEvent("combine global reduce");
 }
 
-// TODO
+
 template <typename FG_ELEMENT>
-void ProcessGroupWorker::integrateCommonSS() {
-  const std::vector<LevelVector> commonSS = combiParameters_.getCommonSubspaces();
+void ProcessGroupWorker::integrateCombinedDSG() {
   int numGrids = combiParameters_.getNumGrids();
 
-  // broadcast grids global comm
+  // broadcast grids to global comm
   MPI_Datatype dtype = abstraction::getMPIDatatype(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
   for (int g = 0; g < numGrids; g++) {
-    size_t gridSize = combinedUniDSGVector_[g]->getData().size();
-    FG_ELEMENT* ssData = combinedUniDSG_->getData(commonSS[ss]);
-    MPI_Bcast(ssData, ssSize, dtype, 0, theMPISystem()->getGlobalReduceComm());
-  }
-
-  // extract dfg and dehierarchize
-  for (Task* t : tasks_) {
-    for (int g = 0; g < numGrids; g++) {
-      // get handle to dfg
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-
-      // extract dfg vom dsg
-      dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-
-      // dehierarchize dfg
-      DistributedHierarchization::dehierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims());
-
-      // std::vector<CombiDataType> datavector(dfg.getElementVector());
-      // afterCombi = datavector;
-      // if exceeds normalization limit, normalize dfg with global max norm
-      /*
-      if( globalMax > 1000 ){
-        dfg.mul( 1.0 / globalMax );
-        std::cout << "normalized dfg with " << globalMax << std::endl;
-      }
-      */
+    DistributedSparseGridUniform<FG_ELEMENT>& uniDSG = *combinedUniDSGVector_[g];
+    int numSS = uniDSG.getNumSubspaces();
+    for (int ss = 0; ss < numSS; ss++) {
+      size_t ssSize = uniDSG.getDataSize(ss);
+      FG_ELEMENT* ssData = uniDSG.getData(ss);
+      MPI_Bcast(ssData, ssSize, dtype, 0, theMPISystem()->getGlobalReduceComm());
     }
   }
-}
 
-// TODO not needed we must calculate the size of the serialized buffer
-void ProcessGroupWorker::sendGridSizesToManager() {
-  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
-  const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[0];
-  const RankType& thirdLevelManager = theMPISystem()->getThirdLevelManagerRank();
-  assert(thirdLevelManager == 1 && "init thirdLevel communicator failed");
-  int numGrids = combiParameters_.getNumGrids();
-
-  // place sizes into buffer
-  std::vector<int> gridSizes(numGrids);
-  for (size_t ss = 0; ss < numCommonSS; ss++)
-    gridSizes[ss] = static_cast<int>(combinedUniDSGVector_[g]->getDataSize(commonSS[ss]));
-
-  // send sizes to manager
-  MPI_Send(commonSSPartSizes.data(), static_cast<int>(numCommonSS), MPI_INT,
-           thirdLevelManager, 0, comm);
+  Stats::startEvent("combine dehierarchize");
+  extractFullGridsFromUniformSG();
+  dehierarchizeFullGrids();
+  Stats::stopEvent("combine dehierarchize");
 }
 
 
-// TODO
 template <typename FG_ELEMENT>
-void ProcessGroupWorker::combineUniformThirdLevelSendFirst() {
-  const std::vector<LevelVector> commonSS = combiParameters_.getCommonSubspaces();
-  const size_t numCommonSS = commonSS.size();
-
+void ProcessGroupWorker::reduceUniformThirdLevelSendFirst() {
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
   const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[0];
   const RankType& thirdLevelManager = theMPISystem()->getThirdLevelManagerRank();
   assert(thirdLevelManager == 1 && "init thirdLevel communicator failed");
 
   // send common subspaces parts sequentially
-  MPI_Datatype dtype = abstraction::getMPIDatatype(
-                         abstraction::getabstractionDataType<FG_ELEMENT>());
-  for (size_t ss = 0; ss < numCommonSS; ss++) {
-    int ssSize = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
-    MPI_Send(combinedUniDSG_->getData(commonSS[ss]), ssSize,
-             dtype, thirdLevelManager, 0, comm);
-  }
+  sendSparseGridToManager();
 
   // receive remotely combined common subspace parts and integrate them into dsg
-  for (size_t ss = 0; ss < numCommonSS; ss++) {
-    int ssSize = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
-    MPI_Recv(combinedUniDSG_->getData(commonSS[ss]), ssSize,
-             dtype, thirdLevelManager, 0, comm, MPI_STATUS_IGNORE);
-  }
+  int numGrids = combiParameters_.getNumGrids();
+  for (int g = 0; g < numGrids; g++)
+    combinedUniDSGVector_[g].reset(recvDSGUniform<FG_ELEMENT>(thirdLevelManager, comm));
 }
 
-//TODO
+
 template <typename FG_ELEMENT>
-void ProcessGroupWorker::combineUniformThirdLevelRecvFirst() {
-  const std::vector<LevelVector> commonSS = combiParameters_.getCommonSubspaces();
-  const size_t numCommonSS = commonSS.size();
+void ProcessGroupWorker::reduceUniformThirdLevelRecvFirst() {
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
   const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[0];
+  RankType manager = theMPISystem()->getThirdLevelManagerRank();
+  assert(manager == 1 && "init thirdLevel communicator failed");
 
-  // reduce local and remote common subspace part
   MPI_Datatype dtype = abstraction::getMPIDatatype(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
-  for (size_t ss = 0; ss < numCommonSS; ss++) {
-    int ssSize = static_cast<int>(combinedUniDSG_->getDataSize(commonSS[ss]));
-    MPI_Allreduce(MPI_IN_PLACE, combinedUniDSG_->getData(commonSS[ss]),
-                  ssSize, dtype, MPI_SUM, comm);
-  }
 
+  // reduce with remote grids
+  size_t numGrids = combiParameters_.getNumGrids();
+  for (size_t g = 0; g < numGrids; g++)
+    combinedUniDSGVector_[g]->recvAndAddDSGUniform(manager, comm);
+
+  // send reduced data back to manager
+  for (size_t g = 0; g < numGrids; g++)
+    sendDSGUniform(combinedUniDSGVector_[g].get(), manager, comm);
 }
 
-void ProcessGroupWorker::parallelEval(){
+void ProcessGroupWorker::parallelEval() {
   if(uniformDecomposition)
     parallelEvalUniform();
   else
@@ -1030,13 +903,18 @@ void ProcessGroupWorker::sendSparseGridToManager() {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
 
+  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
+  const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[0];
+  const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
+  assert(manager == 1 && "init thirdLevel communicator failed");
+
   // we assume here that every task has the same number of grids
   int numGrids = combiParameters_.getNumGrids();
 
   for (int g = 0; g < numGrids; g++) {
     assert(combinedUniDSGVector_[g] != NULL);
-    sendDSGUniform((combinedUniDSGVector_[g].get()), theMPISystem()->getManagerRankWorld(),
-                   theMPISystem()->getWorldComm());
+    sendDSGUniform(combinedUniDSGVector_[g].get(), manager,
+                   comm);
   }
 }
 
