@@ -11,8 +11,8 @@ import re
 import Helper
 
 def doConfigure(env, moduleFolders, languageWrapperFolders):
-  print
-  print "Checking programs and libraries:"
+  print()
+  print("Checking programs and libraries:")
 
   config = env.Configure(custom_tests={"CheckExec" : Helper.CheckExec,
                                        "CheckJNI" : Helper.CheckJNI,
@@ -113,8 +113,8 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   config.env.AppendUnique(LIBPATH=[config.env['GLPK_LIBRARY_PATH']])
   env = config.Finish()
 
-  print "Configuration done."
-  print
+  print("Configuration done.")
+  print()
 
 def checkCpp11(config):
   # check C++11 support
