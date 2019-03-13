@@ -36,7 +36,7 @@ Helper.printInfo("SCons command line: {}".format(" ".join([pipes.quote(arg) for 
 try:
     ldpath = os.environ["LD_LIBRARY_PATH"]
     Helper.printInfo("LD_LIBRARY_PATH: {}".format(ldpath))
-except Exception as e:
+except SomeException as e:
     print("LD_LIBRARY_PATH not set!")
 sconsVersion = SConsEnvironment()._get_major_minor_revision(SCons.__version__)
 if sconsVersion < (2, 3, 0):
