@@ -136,6 +136,7 @@ void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool do
  */
 int main(int argc, char** argv) {
 
+  std::chrono::high_resolution_clock::time_point init_time = std::chrono::high_resolution_clock::now();
   Stats::initialize();
 
   if (ENABLE_FT){
@@ -320,6 +321,7 @@ int main(int argc, char** argv) {
 
   // create load model
   std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
+  // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
   // output of combination setup
   std::cout << "lmin = " << lmin << std::endl;
@@ -352,8 +354,11 @@ int main(int argc, char** argv) {
       faultCrit = new WeibullFaults(0.7, abs(faultsInfo.numFaults_), ncombi, true);
     }
     else{ //use predefined static number and timing of faults
-      //if numFaults = 0 there are no faults
+      //if numFaults == 0 there are no faults
       faultCrit = new StaticFaults(faultsInfo);
+    }
+    if(faultsInfo.numFaults_ != 0 && dynamic_cast<LearningLoadModel*>(loadmodel.get()) != nullptr){
+      assert(false && "writing load data is not compatible with actual faults yet!");
     }
 
     IndexType numSpecies = numGrids; //generate one grid per species
@@ -458,5 +463,8 @@ int main(int argc, char** argv) {
     MPI_Finalize();
   }
 
+  std::chrono::high_resolution_clock::time_point end_time = std::chrono::high_resolution_clock::now();
+  std::cout << "total " << std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count() << " ";
+  
   return 0;
 }

@@ -80,6 +80,9 @@ class Task {
 
   virtual void setZero() = 0;
 
+  // override if there is adaptive timestepping in the solver
+  virtual real getCurrentTimestep() const { return 0.; }
+
   virtual void decideToKill() { std::cout << "Kill function not implemented for this task! \n"; }
 
   virtual std::vector<IndexVector> getDecomposition() { return std::vector<IndexVector>(); }

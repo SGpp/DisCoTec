@@ -25,7 +25,10 @@
                 "RUN_CPPLINT=0",
                 "BUILD_STATICLIB=0",
                 "COMPILER=mpich",
-                "TIMING=1",
+                "FC=mpifort.mpich",
+                "CC=mpicc.mpich",
+                "CXX=mpicxx.mpich",
+                "TIMING=0",
                 "OPT=1",
                 "CPPFLAGS=-g",
                 "GLPK_LIBRARY_PATH=${workspaceRoot}/glpk/lib",
@@ -194,7 +197,7 @@
             "options": {
                 "env": {
                     "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH",
-                    "PYTHONPATH": "${workspaceRoot}/../gene_python_interface_clean/src:${workspaceRoot}/../gene_python_interface_clean/src/tools:$PYTHONPATH"
+                    "PYTHONPATH": "${workspaceRoot}/../gene_python_interface_clean/src:$PYTHONPATH"
                 },
                 "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed"
             },
