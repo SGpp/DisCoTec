@@ -655,17 +655,9 @@ void ProcessGroupWorker::integrateCombinedDSG() {
   int numGrids = combiParameters_.getNumGrids();
 
   // broadcast grids to global comm
-  MPI_Datatype dtype = abstraction::getMPIDatatype(
-                         abstraction::getabstractionDataType<FG_ELEMENT>());
-  for (int g = 0; g < numGrids; g++) {
-    DistributedSparseGridUniform<FG_ELEMENT>& uniDSG = *combinedUniDSGVector_[g];
-    int numSS = uniDSG.getNumSubspaces();
-    for (int ss = 0; ss < numSS; ss++) {
-      size_t ssSize = uniDSG.getDataSize(ss);
-      FG_ELEMENT* ssData = uniDSG.getData(ss);
-      MPI_Bcast(ssData, ssSize, dtype, 0, theMPISystem()->getGlobalReduceComm());
-    }
-  }
+  // TODO: Watch out when changing third level pg (root no longer rank 0)
+  for (int g = 0; g < numGrids; g++)
+    broadcastDSGUniform(combinedUniDSGVector_[g].get(), 0, theMPISystem()->getGlobalReduceComm());
 
   Stats::startEvent("combine dehierarchize");
   extractFullGridsFromUniformSG();
