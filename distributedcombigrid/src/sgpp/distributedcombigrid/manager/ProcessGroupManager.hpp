@@ -325,12 +325,11 @@ bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils
 }
 
 /*
- * TODO Till now,  after sending reduced data, this proc must wait until remote
+ * TODO Till now, after sending reduced data, this proc must wait until remote
  * process sends grid to worker, as we send dsgus in rounds.
  * This could be circumvented by sending and receiving the whole serialized grids as one part.
- * BUT: Since we dont know the sizes of the serialized grid beforehand due to
- * serialization with boost, we must send data in rounds the first time in the
- * reduceUniformThirdLevelSendFirst method.
+ * The only benefit would be that one system can terminate the simulation earlier.
+ * During combinations the systems have to wait for each other anyways.
  */
 template<typename FG_ELEMENT>
 bool ProcessGroupManager::reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils& thirdLevel,
