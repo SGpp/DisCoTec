@@ -554,14 +554,25 @@ static std::string recvDSGUniformSerialized(RankType src, CommunicatorType comm)
   // todo: not really necessary since size known at compile time
   MPI_Status status;
   int bsize;
-  MPI_Probe(src, SEND_DSG_TO_MANAGER, comm, &status);
+  // std::cerr << "probing from " << src << " signal " << sendDSGTag << " comm " << comm << std::endl;
+  MPI_Probe(src, sendDSGTag, comm, &status);
   MPI_Get_count(&status, MPI_CHAR, &bsize);
-  // std::cout << "bsize " << bsize << std::endl;
 
   // create buffer of appropriate size and receive
   std::vector<char> buf(bsize);
 
-  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, SEND_DSG_TO_MANAGER, comm, &status);
+  int recv = MPI_Recv(&buf[0], bsize, MPI_CHAR, src, sendDSGTag, comm, &status);
+
+  // std::cerr << "received bytes # " << bsize << std::endl;
+
+  assert(status.MPI_ERROR != MPI_ERR_COUNT);
+  assert(status.MPI_ERROR != MPI_ERR_TYPE);
+  assert(status.MPI_ERROR != MPI_ERR_TAG);
+  assert(status.MPI_ERROR != MPI_ERR_COMM);
+  assert(status.MPI_ERROR != MPI_ERR_RANK);
+  assert(recv == 0);
+  // std::cerr << "err " << status.MPI_ERROR << std::endl;
+  // assert(status.MPI_ERROR == MPI_SUCCESS); //TODO why random error numbers?
 
   return std::string(&buf[0], bsize);
 }
