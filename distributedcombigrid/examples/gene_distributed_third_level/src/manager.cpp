@@ -127,6 +127,77 @@ void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool do
   }
 }
 
+/*
+ * Computes distribution of a given combischeme to the systems of the third level
+ * combination.
+ * We assume only 2 systems participating.
+ * For example purpose we just split the scheme in half, and assign each half 
+ * to a system
+ */
+void createThirdLevelCombischeme(std::vector<LevelVector>& levels,
+                                 std::vector<combigrid::real>& coeffs,
+                                 unsigned int systemNumber) {
+  std::vector<LevelVector> fullScheme(levels);
+  std::vector<combigrid::real> fullCoeffs(coeffs);
+  auto mid = fullScheme.begin() + ((fullScheme.size()-1) / 2);
+  auto midC = fullSchemeCoeffs.begin() + ((fullSchemeCoeffs.size()-1) / 2);
+  std::vector<LevelVector> lowerHalf(fullScheme.begin(), mid);
+  std::vector<combigrid::real> lowerCoeffs(fullSchemeCoeffs.begin(), midC);
+  std::vector<LevelVector> upperHalf(mid+1, fullScheme.end());
+  std::vector<combigrid::real> upperCoeffs(midC+1, fullSchemeCoeffs.end());
+  assert( !lowerHalf.empty() && !upperHalf.empty() );
+
+  // compute common subspaces:
+  // therefore we compute the component wise maximum level which is contained
+  // in both sets
+  /*
+  LevelVector maxLevel(dim);
+  for (size_t i = 0; i < dim; i++) {
+    int lowerMax = 0;
+    int upperMax = 0;
+    for (size_t j = 0; j < lowerHalf.size(); j++) {
+      if (lowerMax < lowerHalf[j][i])
+        lowerMax = lowerHalf[j][i];
+    }
+    for (size_t j = 0; j < upperHalf.size(); j++) {
+      if (upperMax < upperHalf[j][i])
+        upperMax = upperHalf[j][i];
+    }
+    maxLevel[i] = std::min(lowerMax, upperMax);
+  }
+
+  // by creating a dummy sparse grid with this level, we can extract the subspaces
+  SGrid<real> sg(dim, maxLevel, maxLevel, boundary);
+
+  std::vector<LevelVector> commonSubspaces;
+  for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
+    const LevelVector& subL = sg.getLevelVector(subspaceID);
+    commonSubspaces.push_back(subL);
+  }
+  */
+
+  // output combi scheme
+  std::cout << "UpperHalf:" << std::endl;
+  for (int i = 0; i < upperHalf.size(); i++)
+    std::cout << upperHalf[i] << ", " << std::endl;
+  std::cout << std::endl;
+  std::cout << "LowerHalf:" << std::endl;
+  for (int i = 0; i < lowerHalf.size(); i++)
+    std::cout << lowerHalf[i] << ", " << std::endl;
+  std::cout << std::endl;
+
+  // assign half to system
+  switch(systemNumber) {
+    case 0:
+      levels = lowerHalf;
+      coeffs = lowerCoeffs;
+      break;
+    case 1:
+      levels = upperHalf;
+      coeffs = upperCoeffs;
+      break;
+  }
+}
 
 /**
  * This example performs the fault tolerant combination technique on Gene.
@@ -239,6 +310,12 @@ int main(int argc, char** argv) {
   faultsInfo.numFaults_ = cfg.get<int>("faults.num_faults");
   std::cout << "Selected timestep is: " << dt << " and combination interval time: " << combitime << "\n";
 
+  // read in third Level specific parameters
+  std::string thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
+  std::string systemName = cfg.get<std::string>("thirdLevel.systemName");
+  unsigned int systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
+  unsigned short thirdLevelDataPort = cfg.get<unsigned short>("thirdLevel.dataPort");
+
   //read the ranks that shoudl fail in case of static faults (means numFaults > 0)
   if( faultsInfo.numFaults_ > 0 ){
     faultsInfo.iterationFaults_.resize(faultsInfo.numFaults_);
@@ -309,6 +386,11 @@ int main(int argc, char** argv) {
     coeffs = combischeme.getCoeffs();
   }
 
+  // create system dependent scheme for ThirdLevel combination
+  // TODO hopefully this suffices and won't conflict with other parameters e.g.
+  // reduceCombinationDimsL{min, max}
+  createThirdLevelCombischeme(levels, coeffs, systemNumber);
+
   // create load model
   std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
 
@@ -358,7 +440,10 @@ int main(int argc, char** argv) {
   }
   // create combiparamters
   CombiParameters params( dim, lmin, lmax, boundary, levels,
-                          coeffs, hierarchizationDims, taskIDs, ncombi, numGrids, p, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
+                          coeffs, hierarchizationDims, taskIDs,
+                          ncombi, numGrids, p, reduceCombinationDimsLmin,
+                          reduceCombinationDimsLmax, thirdLevelHost, thirdLevelDataPort,
+                          systemName + systemNumber);
 
   // create Manager with process groups
   ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
@@ -390,9 +475,12 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager recover preprocessing");
     }
     //combine grids
-    Stats::startEvent("manager combine");
-    manager.combine();
-    Stats::stopEvent("manager combine");
+    //Stats::startEvent("manager combine");
+    //manager.combine();
+    //Stats::stopEvent("manager combine");
+    Stats::startEvent("manager combine third level");
+    manager.combineThirdLevel();
+    Stats::stopEvent("manager combine third level");
 
     //postprocessing in case of errors
     if ( !success ){
