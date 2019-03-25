@@ -29,7 +29,7 @@ class ProcessManager {
   ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& instances,
                  CombiParameters& params, std::unique_ptr<LoadModel> loadModel)
     : pgroups_(pgroups),
-      thirdLevelPGroup_(pgroups[0]), // TODO: changing PG needs adjustment in MPISystem
+      thirdLevelPGroup_(pgroups[0]), // TODO: changing PG requires adjustments in integrateDSGUniform function from worker
       tasks_(instances),
       params_(params),
       thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getThirdLevelSystemName())
@@ -82,17 +82,6 @@ class ProcessManager {
 
   void getDSGFromProcessGroup();
 
-  void initiateGetDSGFromProcessGroup();
-
-  void initiateGetAndSetDSGInProcessGroup();
-
-  size_t getDSGFromNextProcess();
-
-  size_t addDSGToNextProcess();
-
-  // for testing purposes only
-  int copyOutboundToInboundGrid();
-
   /* Computes group faults in current combi scheme step */
   void getGroupFaultIDs(std::vector<int>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);
@@ -118,11 +107,6 @@ class ProcessManager {
 
   void setupThirdLevel();
 
-  inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getOutboundUniDSGVector();
-  inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getInboundUniDSGVector(){
-    return inboundCachedUniDSGVector_;
-  }
-
  private:
   ProcessGroupManagerContainer& pgroups_;
 
@@ -136,9 +120,6 @@ class ProcessManager {
 
   std::unique_ptr<LoadModel> loadModel_;
 
-  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> outboundCachedUniDSGVector_;
-  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> inboundCachedUniDSGVector_;
-
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
   inline ProcessGroupManagerID wait();
@@ -148,6 +129,12 @@ class ProcessManager {
   void receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive);
 
   void sortTasks();
+
+  void sendDSGUniformToRemote(ProcessGroupManagerID& pg);
+
+  void recvDSGUniformFromRemote(ProcessGroupManagerID& pg);
+
+  void recvAndAddDSGUniformFromRemote(ProcessGroupManagerID& pg);
 };
 
 inline void ProcessManager::addTask(Task* t) { tasks_.push_back(t); }
@@ -263,21 +250,27 @@ void ProcessManager::combineThirdLevel() {
   waitAllFinished();
 
   // perform third level reduce
+  bool success;
   if (instruction == "reduce_third_level_recv_first")
   {
-    bool success = thirdLevelPGroup_->reduceUniformThirdLevelRecvFirst<CombiDataType>(thirdLevel_, params_);
+    success = thirdLevelPGroup_->recvAndAddDSGUniformFromRemote(thirdLevel_, params_);
+    assert(success);
+    waitAllFinished();
+    thirdLevelPGroup_->sendDSGUniformToRemote(thirdLevel_, params_);
     assert(success);
   }
   else if (instruction == "reduce_third_level_send_first")
   {
-    // send number of grids first
-    bool success = thirdLevelPGroup_->reduceUniformThirdLevelSendFirst<CombiDataType>(thirdLevel_, params_);
+    thirdLevelPGroup_->sendDSGUniformToRemote(thirdLevel_, params_);
+    assert(success);
+    waitAllFinished();
+    thirdLevelPGroup_->recvDSGUniformFromRemote(thirdLevel_, params_);
     assert(success);
   }
   waitAllFinished();
 
   // integrate subspaces
-  bool success = thirdLevelPGroup_->integrateCommonSS();
+  success = thirdLevelPGroup_->integrateCombinedDSGUniform();
   assert(success);
 
   waitAllFinished();
@@ -436,10 +429,6 @@ inline Task* ProcessManager::getTask(int taskID) {
     }
   }
   return nullptr;
-}
-
-inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & ProcessManager::getOutboundUniDSGVector(){
-  return outboundCachedUniDSGVector_;
 }
 
 } /* namespace combigrid */

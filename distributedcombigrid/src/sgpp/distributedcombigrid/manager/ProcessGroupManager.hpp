@@ -70,10 +70,17 @@ class ProcessGroupManager {
   reduceUniformThirdLevelSendFirst(const ThirdLevelUtils& thirdLevel,
                                          CombiParameters& params);
 
-  // distribute common ss  after thirdLevelReduce and integrate them into dfg
   bool
-  integrateCommonSS();
+  integrateCombinedDSGUniform();
 
+  bool sendDSGUniformToRemote(const ThirdLevelUtils& thirdLevel,
+                                      CombiParameters& params);
+
+  bool recvDSGUniformFromRemote(const ThirdLevelUtils& thirdLevel,
+                                      CombiParameters& params);
+
+  bool recvAndAddDSGUniformFromRemote(const ThirdLevelUtils& thirdLevel,
+                                            CombiParameters& params);
 
   bool
   combineLocalAndGlobal();
@@ -91,20 +98,6 @@ class ProcessGroupManager {
   bool gridGather(LevelVector& leval);
 
   bool updateCombiParameters(CombiParameters& params);
-
-  bool getDSGFromProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound);
-
-  bool initiateGetDSGFromProcessGroup();
-
-  bool getAndSetDSGInProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inoutbound);
-
-  bool initiateGetAndSetDSGInProcessGroup();
-
-  size_t getDSGFromNextProcess(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound);
-
-  bool addDSGToProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound);
-
-  size_t addDSGToNextProcess(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound);
 
   /* Check if group fault occured at this combination step using the fault simulator */
   bool isGroupFault();
@@ -148,6 +141,12 @@ class ProcessGroupManager {
   void sendSignalToProcess(SignalType signal, RankType rank);
 
   inline void setProcessGroupBusyAndReceive();
+
+  bool forwardDSGUFromRemoteToPG(const ThirdLevelUtils& thirdLevel,
+                                       CombiParameters& params);
+
+  bool forwardDSGUFromPGToRemote(const ThirdLevelUtils& thirdLevel,
+                                       CombiParameters& params);
 
   /* sets the rank of the process group's master in global comm. should only
    * be called by ProcessManager.
@@ -278,100 +277,6 @@ inline bool ProcessGroupManager::gridGather(LevelVector& leval) {
   std::vector<int> tmp(leval.begin(), leval.end());
   MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
            theMPISystem()->getGlobalComm());
-
-  return true;
-}
-
-template <typename FG_ELEMENT>
-bool ProcessGroupManager::reduceUniformThirdLevelSendFirst(const ThirdLevelUtils& thirdLevel,
-                                                                  CombiParameters& params) {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  SignalType signal = COMBINE_UNIFORM_THIRD_LEVEL_SEND_FIRST;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
-  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
-  assert(theMPISystem()->getNumProcs() == thirdLevelComms.size() &&
-      "initialisation of third level communicator failed");
-
-  // receive serialized grid from worker in third level comm (rank 0) and send it to remote
-  IndexType numGrids = params.getNumGrids();
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    const CommunicatorType& comm = thirdLevelComms[p];
-    std::cout << "forwarding grids from worker with rank: " << p << std::endl;
-    for (IndexType g = 0; g < numGrids; g++)
-      thirdLevel.sendDSGUniformSerialized(recvDSGUniformSerialized(0, comm));
-  }
-  thirdLevel.signalReady();
-
-  // receive combined data from remote and send it to worker
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    const CommunicatorType& comm = thirdLevelComms[p];
-    for (IndexType g = 0; g < numGrids; g++) {
-      std::string serializedDSGU(thirdLevel.recvDSGUniformSerialized());
-      MPI_Send(serializedDSGU.data(), static_cast<int>(serializedDSGU.size()),
-          MPI_CHAR, 0, SEND_DSG_TO_MANAGER, comm);
-    }
-  }
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
-
-  return true;
-}
-
-/*
- * TODO Till now, after sending reduced data, this proc must wait until remote
- * process sends grid to worker, as we send dsgus in rounds.
- * This could be circumvented by sending and receiving the whole serialized grids as one part.
- * The only benefit would be that one system can terminate the simulation earlier.
- * During combinations the systems have to wait for each other anyways.
- */
-template<typename FG_ELEMENT>
-bool ProcessGroupManager::reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils& thirdLevel,
-                                                                 CombiParameters& params) {
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  SignalType signal = COMBINE_UNIFORM_THIRD_LEVEL_RECV_FIRST;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
-  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
-  assert(theMPISystem()->getNumProcs() == thirdLevelComms.size() &&
-      "initialisation of third level communicator failed");
-  // can only send sync signal when in wait state
-
-  // receive dsgus from remote and send them to workers
-  size_t numGrids = static_cast<size_t>(params.getNumGrids());
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    const CommunicatorType& comm = thirdLevelComms[p];
-    assert(comm != MPI_COMM_NULL);
-
-    for (size_t g = 0; g < numGrids; g++) {
-      std::string serializedDSGU = thirdLevel.recvDSGUniformSerialized();
-      MPI_Send(serializedDSGU.data(), static_cast<size_t>(serializedDSGU.size()),
-          MPI_CHAR, 0, SEND_DSG_TO_MANAGER, comm);
-    }
-  }
-
-  // receive reduced dsgus from workers and send them back to remote system
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[p];
-    assert(comm != MPI_COMM_NULL);
-    for (size_t g = 0; g < numGrids; g++)
-      thirdLevel.sendDSGUniformSerialized(recvDSGUniformSerialized(0, comm));
-  }
-
-  thirdLevel.signalReady();
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
 
   return true;
 }

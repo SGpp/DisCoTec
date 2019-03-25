@@ -100,6 +100,98 @@ bool ProcessGroupManager::combine() {
   return true;
 }
 
+bool ProcessGroupManager::sendDSGUniformToRemote(const ThirdLevelUtils& thirdLevel,
+                                                       CombiParameters& params)
+{
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  SignalType signal = SEND_DSGU_TO_MANAGER;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  forwardDSGUFromPGToRemote(thirdLevel, params);
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+  return true;
+}
+
+bool ProcessGroupManager::recvDSGUniformFromRemote(const ThirdLevelUtils& thirdLevel,
+                                                         CombiParameters& params) {
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  SignalType signal = RECV_DSGU_FROM_MANAGER;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  forwardDSGUFromRemoteToPG(thirdLevel, params);
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+  return true;
+}
+
+bool ProcessGroupManager::recvAndAddDSGUniformFromRemote(const ThirdLevelUtils& thirdLevel, 
+                                                               CombiParameters& params) {
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  SignalType signal = RECV_AND_ADD_DSGU_FROM_MANAGER;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  forwardDSGUFromRemoteToPG(thirdLevel, params);
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+  return true;
+}
+
+bool ProcessGroupManager::forwardDSGUFromRemoteToPG(const ThirdLevelUtils& thirdLevel,
+                                                          CombiParameters& params) {
+  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
+  assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
+      "initialisation of third level communicator failed");
+
+  // receive dsgus from remote and forward them to workers
+  size_t numGrids = static_cast<size_t>(params.getNumGrids());
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    const CommunicatorType& comm = thirdLevelComms[p];
+    assert(comm != MPI_COMM_NULL);
+
+    for (size_t g = 0; g < numGrids; g++) {
+      std::string serializedDSGU = thirdLevel.recvDSGUniformSerialized();
+      MPI_Send(serializedDSGU.data(), static_cast<int>(serializedDSGU.size()),
+          MPI_CHAR, 0, sendDSGTag, comm);
+    }
+  }
+  thirdLevel.signalReady();
+  return true;
+}
+
+bool ProcessGroupManager::forwardDSGUFromPGToRemote(const ThirdLevelUtils& thirdLevel,
+                                                          CombiParameters& params) {
+  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
+  assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
+      "initialisation of third level communicator failed");
+
+  // receive grid from worker and send it to remote
+  IndexType numGrids = params.getNumGrids();
+  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
+    const CommunicatorType& comm = thirdLevelComms[p];
+    std::cout << "forwarding grids from worker with rank: " << p << std::endl;
+    for (IndexType g = 0; g < numGrids; g++)
+      thirdLevel.sendDSGUniformSerialized(recvDSGUniformSerialized(0, comm));
+  }
+  thirdLevel.signalReady();
+  return true;
+}
+
 
 bool ProcessGroupManager::combineLocalAndGlobal() {
   // can only send sync signal when in wait state
@@ -117,7 +209,7 @@ bool ProcessGroupManager::combineLocalAndGlobal() {
   return true;
 }
 
-bool ProcessGroupManager::integrateCommonSS() {
+bool ProcessGroupManager::integrateCombinedDSGUniform() {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -149,98 +241,12 @@ bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
   return true;
 }
 
-bool ProcessGroupManager::getDSGFromProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound) {
-  // this is not really useful, as it immediately overwrites the same outbound grid, so just here for illustration on the idea
-  initiateGetDSGFromProcessGroup();
-  for (size_t i = 0; i < theMPISystem()->getNumProcs(); ++i) {
-    getDSGFromNextProcess(outbound);
-  }
-  return true;
-}
-
-bool ProcessGroupManager::initiateGetDSGFromProcessGroup() {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
-  status_ = PROCESS_GROUP_BUSY;
-
-  sendSignalToProcessGroup(SEND_DSG_AND_CONTINUE);
-
-  return true;
-}
-
-bool ProcessGroupManager::getAndSetDSGInProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound) {
-  // this is not really useful, as it immediately overwrites the same outbound grid, so just here for illustration on the idea
-  initiateGetAndSetDSGInProcessGroup();
-  for (size_t i = 0; i < theMPISystem()->getNumProcs(); ++i) {
-    getDSGFromNextProcess(outbound);
-  }
-  addDSGToProcessGroup(outbound);
-  return true;
-}
-
-bool ProcessGroupManager::initiateGetAndSetDSGInProcessGroup() {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
-  status_ = PROCESS_GROUP_BUSY;
-
-  sendSignalToProcessGroup(SEND_DSG_AND_WAIT_FOR_ADD);
-
-  return true;
-}
-
-
 void getDSGFrom(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound, size_t from) {
   size_t numGrids = outbound.size();
   for (size_t g = 0; g < numGrids; ++g) {
     outbound[g].reset(recvDSGUniform<CombiDataType>(from, theMPISystem()->getWorldComm()));
   }
 }
-
-size_t ProcessGroupManager::getDSGFromNextProcess(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& outbound) {
-  // static variable to iterate the processes in the first group
-  static size_t from = 0;
-  getDSGFrom(outbound, from);
-  size_t processesLeft = (theMPISystem()->getNumProcs() - 1) - from;
-
-  from = (from+1) % theMPISystem()->getNumProcs(); //TODO get actual indices in case of not first process group
-  if(processesLeft == 0){
-    status_ = PROCESS_GROUP_WAIT; //TODO
-  }
-  
-  return processesLeft;
-}
-
-bool ProcessGroupManager::addDSGToProcessGroup(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound){
-  // this is not really useful, as it overwrites with the same inbound grid, so just here for illustration on the idea
-  for (size_t i = 0; i < theMPISystem()->getNumProcs(); ++i) {
-    addDSGToNextProcess(inbound);
-  }
-  return true;
-}
-
-void addDSGTo(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound, size_t to) {
-  size_t numGrids = inbound.size();
-  for (size_t g = 0; g < numGrids; ++g) {
-    sendDSGUniform<CombiDataType>(inbound[g].get(), to, theMPISystem()->getWorldComm());
-  }
-}
-
-size_t ProcessGroupManager::addDSGToNextProcess(std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& inbound) {
-  // static variable to iterate the processes in the first group
-  static size_t to = 0;
-  // std::cerr << "adding inbound to " << to << std::endl;
-
-  addDSGTo(inbound, to);
-
-  size_t processesLeft = (theMPISystem()->getNumProcs() - 1) - to;
-  if(processesLeft == 0){
-    status_ = PROCESS_GROUP_WAIT; //TODO
-  }
-
-  to = (to+1) % theMPISystem()->getNumProcs(); //TODO get actual indices in case of not first process group
-  return processesLeft;
-}
-
 
 bool ProcessGroupManager::addTask(Task* t) {
   return storeTaskReferenceAndSendTaskToProcessGroup(t, ADD_TASK);
