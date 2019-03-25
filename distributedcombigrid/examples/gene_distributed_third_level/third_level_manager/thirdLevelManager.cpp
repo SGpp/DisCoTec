@@ -35,9 +35,7 @@ ThirdLevelManager::ThirdLevelManager(const Params& params)
   std::vector<std::string> systemNames = params.getSystemNames();
   systems_.reserve(systemNames.size());
   for (auto nameIt = systemNames.begin(); nameIt != systemNames.end(); nameIt++)
-  {
     systems_.push_back(System(*nameIt, channel_, dataServer_));
-  }
   // establish data connection
   for (auto system = systems_.begin(); system != systems_.end(); system++)
     system->createDataConnection(dataServer_, channel_);
@@ -74,14 +72,14 @@ void ThirdLevelManager::processMessage(const std::string& message, System& syste
 
 /*
  * Processes and manages the third level combination, initiated by a system
- * which signals ready after his local and global combination.
+ * which signals ready after its local and global combination.
  * ATTENTION: Implemented only for 2 systems
  */
 void ThirdLevelManager::processCombination(System& initiator)
 {
   assert(systems_.size() == 2 && "Not implemented for different amount of systems");
 
-  // TODO maybe cleaner to pass id of initiator
+  // TODO maybe cleaner to pass id of initiator as argument
   System& other = systems_[0];
   for (System& sys : systems_)
   {
@@ -93,16 +91,21 @@ void ThirdLevelManager::processCombination(System& initiator)
   }
 
   std::cout << "Processing third level combination" << std::endl;
-  std::string message = "reduce_third_level_send_first";
-  initiator.sendMessage(message, channel_);
+  initiator.sendMessage("reduce_third_level_send_first" , channel_);
+  other.sendMessage("reduce_third_level_recv_first" , channel_);
 
-  // transfer data from initiator to other system
+  std::string message;
+  // transfer grids from initiator to other system
   do
   {
     initiator.receiveMessage(channel_, message);
     if (message == "sending_data")
       forwardData(initiator, other);
   } while (message != "ready");
+
+  // wait for other system to finish receiving
+  other.receiveMessage(channel_, message);
+  assert(message == "ready");
 
   // transfer reduced data from other system back to initiator
   do
@@ -111,10 +114,14 @@ void ThirdLevelManager::processCombination(System& initiator)
     if (message == "sending_data")
       forwardData(other, initiator);
   } while (message != "ready");
+
+  // wait for system to finish receiving
+  initiator.receiveMessage(channel_, message);
+  assert(message == "ready");
 }
 
 /*
- * If a system has finished the simulation, it should log of from the
+ * If a system has finished the simulation, it should log off the
  * third level manager
  */
 void ThirdLevelManager::processFinished(System& system)
@@ -130,13 +137,12 @@ void ThirdLevelManager::processFinished(System& system)
 }
 
 /*
- * Forwards data from sender to receiver
-*/
+ * Forwards data from sender to receiver.
+ * The size is communicated first from sender to receiver.
+ */
 void ThirdLevelManager::forwardData(System& sender, System& receiver) const {
-  // receive size of serialized grid  data
   size_t dataSize;
   sender.receivePosNumber(channel_, dataSize);
-  // send size of serialized grid to other system
   receiver.sendMessage(std::to_string(dataSize), channel_);
 
   // forward data to other system
