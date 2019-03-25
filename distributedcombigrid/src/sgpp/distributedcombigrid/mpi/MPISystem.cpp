@@ -116,13 +116,13 @@ void MPISystem::init(size_t ngroup, size_t nprocs) {
 
   /*
    * Creates multiple communicators where each contain the process manager and
-   * a worker of the third level process group. The caller receives a list
+   * all workers of a group. The caller receives a list
    * of those communicators where he participates in. Thus, the process manager
-   * receives all comms whereas the list has only one entry for workers of the
-   * thirdLevel process group. For all the other prcesss the list is empty. In
-   * each communicator the manager has rank 1 and the woker rank 0.
-   * The communicators are used for communication between the process manager and
-   * the workers during third level combine.
+   * receives a comm for each process group whereas the list has only one entry
+   * for workers of a process group. For all the other prcesss the list is empty.
+   * In each communicator the manager has rank _nprocs.
+   * The communicators are used so far for communication between the process
+   * manager and the workers during third level combine.
    */
   initThirdLevelComms();
 
@@ -256,13 +256,14 @@ void MPISystem::initGlobalComm() {
 
 
 void MPISystem::initThirdLevelComms(){
-  size_t thirdLevelCommSize = 2;
   MPI_Group worldGroup;
   MPI_Comm_group( worldComm_, &worldGroup);
 
-  std::vector<int> ranks(thirdLevelCommSize);
-  for (size_t i=0; i < nprocs_; i++) {
-    ranks.front() = int(i); // ranks of workers in first pg
+  for (size_t g = 0; g < ngroup_; g++) {
+    std::vector<int> ranks(nprocs_ + 1);
+    for (size_t p = 0; p < nprocs_; p++) {
+      ranks.push_back(static_cast<int>(g*nprocs_ + g)); // ranks of workers in first pg
+    }
     ranks.back()  = managerRankWorld_; // rank of process manager
 
     MPI_Group thirdLevelReduceGroup;
@@ -275,7 +276,7 @@ void MPISystem::initThirdLevelComms(){
       thirdLevelComms_.push_back(comm);
       MPI_Comm_rank(comm, &thirdLevelRank_ );
       if (thirdLevelManagerRank_ == MPI_UNDEFINED)
-        thirdLevelManagerRank_ = int(thirdLevelCommSize - 1);
+        thirdLevelManagerRank_ = int(nprocs_);
     }
   }
 }

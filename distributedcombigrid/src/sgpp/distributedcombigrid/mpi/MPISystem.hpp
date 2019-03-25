@@ -44,11 +44,10 @@ namespace combigrid {
  * LocalComm. it is MPI_COMM_NULL on the manager.
  *
  * ThirdLevelComms: list of communicators for the thirdLevelCombination. Each
- * communicator connects a worker of the thirdLevel pg (so far the first) to
+ * communicator connects all workers of a pg to
  * the process manager. The list differs for each caller and contains only the
- * comms where he participates: The process manager gets all comms whereas a
- * worker of the third level pg has a single entry. For all other processes the
- * list is empty.
+ * comms where he participates: The process manager gets all comms whereas each
+ * worker has a single entry.
  *
  * getXXXCommFT returns the fault tolerant equivalent of Communicator XXX
  *
