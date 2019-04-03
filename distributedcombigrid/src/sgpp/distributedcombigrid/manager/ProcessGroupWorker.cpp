@@ -63,9 +63,8 @@ SignalType ProcessGroupWorker::wait() {
     status_ = PROCESS_GROUP_WAIT;
   }
   if (status_ != PROCESS_GROUP_WAIT) {
-    int myRank;
-    MPI_Comm_rank(theMPISystem()->getWorldComm(), &myRank);
 #ifdef DEBUG_OUTPUT
+    int myRank = theMPISystem()->getWorldRank();
     std::cout << "status is " << status_ << "of rank " << myRank << "\n";
     std::cout << "executing next task\n";
 #endif
@@ -602,7 +601,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
     // create dfg
     bool forwardDecomposition = !isGENE;
     DistributedFullGrid<CombiDataType> dfg(
-        dim, leval, combiParameters_.getApplicationComm(), combiParameters_.getBoundary(),
+        dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
         combiParameters_.getParallelization(), forwardDecomposition);
 
     // register dsg
@@ -730,12 +729,6 @@ void ProcessGroupWorker::updateCombiParameters() {
   // broadcast task to other process of pgroup
   MPIUtils::broadcastClass(&tmp, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
   //std::cout << "worker received combiparameters \n";
-  if (combiParameters_.isApplicationCommSet()) {
-    CommunicatorType free = combiParameters_.getApplicationComm();
-    if (free != NULL && free != MPI_COMM_NULL) {
-      MPI_Comm_free(&free);
-    }
-  }
   combiParameters_ = tmp;
 
   combiParametersSet_ = true;

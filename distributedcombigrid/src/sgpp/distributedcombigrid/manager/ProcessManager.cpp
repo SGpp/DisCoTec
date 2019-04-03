@@ -52,7 +52,6 @@ void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurations
   }
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
     durationInformation recvbuf;
-    MPI_Status stat;
 
     MPIUtils::receiveClass(&recvbuf, MPI_ANY_SOURCE, theMPISystem()->getGlobalComm());
     
