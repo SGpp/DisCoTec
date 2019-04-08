@@ -14,7 +14,6 @@ class Params
     u_int                               dimension_       = 0;
     u_int                               numCombinations_ = 0;
     std::vector<std::string>            systemNames_;
-    std::vector<combigrid::LevelVector> commonSubspaces_;
 
   public:
     Params();
@@ -24,6 +23,5 @@ class Params
     std::string                         getbrokerURL()    const;
     u_int                               getDataPort()     const;
     u_int                               getNumSystems()   const;
-    std::vector<combigrid::LevelVector> getCommonLevels() const;
     std::vector<std::string>            getSystemNames()  const;
 };
