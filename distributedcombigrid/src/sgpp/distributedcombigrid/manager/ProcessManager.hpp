@@ -63,6 +63,8 @@ class ProcessManager {
   inline void
   combineThirdLevel();
 
+  inline void combineLocalAndGlobal();
+
   template <typename FG_ELEMENT>
   inline void combineFG(FullGrid<FG_ELEMENT>& fg);
 
@@ -221,7 +223,8 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
-void ProcessManager::combineThirdLevel() {
+
+void ProcessManager::combineLocalAndGlobal() {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
   size_t numWaiting = 0;
@@ -242,36 +245,37 @@ void ProcessManager::combineThirdLevel() {
   }
 
   waitAllFinished();
+}
+
+void ProcessManager::combineThirdLevel() {
+  combineLocalAndGlobal();
 
   // obtain instructions from third level manager
   thirdLevel_.signalReadyToCombine();
-
   std::string instruction = thirdLevel_.fetchInstruction();
-  waitAllFinished();
 
   // perform third level reduce
   bool success;
-  if (instruction == "reduce_third_level_recv_first")
-  {
-    success = thirdLevelPGroup_->recvAndAddDSGUniformFromRemote(thirdLevel_, params_);
+  if (instruction == "reduce_third_level_recv_first") {
+    recvDSGUniformFromRemote(thirdLevelPGroup_);
     assert(success);
     waitAllFinished();
-    thirdLevelPGroup_->sendDSGUniformToRemote(thirdLevel_, params_);
+    sendDSGUniformToRemote(thirdLevelPGroup_);
     assert(success);
-  }
-  else if (instruction == "reduce_third_level_send_first")
-  {
-    thirdLevelPGroup_->sendDSGUniformToRemote(thirdLevel_, params_);
+  } else if (instruction == "reduce_third_level_send_first") {
+    sendDSGUniformToRemote(thirdLevelPGroup_);
     assert(success);
     waitAllFinished();
-    thirdLevelPGroup_->recvDSGUniformFromRemote(thirdLevel_, params_);
+    recvDSGUniformFromRemote(thirdLevelPGroup_);
     assert(success);
   }
   waitAllFinished();
 
-  // integrate subspaces
-  success = thirdLevelPGroup_->integrateCombinedDSGUniform();
-  assert(success);
+  // TODO integrate into receive method
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    success = pgroups_[i]->integrateCombinedDSGUniform();
+    assert(success);
+  }
 
   waitAllFinished();
 }

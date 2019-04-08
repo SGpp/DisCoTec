@@ -18,7 +18,7 @@ ProcessManager::~ProcessManager() {}
 void ProcessManager::sortTasks(){
   LoadModel* lm = loadModel_.get();
   assert(lm);
-  std::sort(tasks_.begin(), tasks_.end(), 
+  std::sort(tasks_.begin(), tasks_.end(),
             [lm](const Task* instance1, const Task* instance2){
                 assert(instance1);
                 return (lm->eval(instance1->getLevelVector()) > lm->eval(instance2->getLevelVector()));
@@ -77,7 +77,7 @@ bool ProcessManager::runnext() {
   }
 
   group_failed = waitAllFinished();
-  
+
   size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   receiveDurationsOfTasksFromGroupMasters(0);
   // return true if no group failed
