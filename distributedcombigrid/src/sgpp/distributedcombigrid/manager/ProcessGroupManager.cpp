@@ -101,16 +101,8 @@ bool ProcessGroupManager::combine() {
 }
 
 bool ProcessGroupManager::sendDSGUniformToRemote(const ThirdLevelUtils& thirdLevel,
-                                                       CombiParameters& params)
-{
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  SignalType signal = SEND_DSGU_TO_MANAGER;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
+                                                       CombiParameters& params) {
+  sendSignalSendDSGU();
   forwardDSGUFromPGToRemote(thirdLevel, params);
 
   // start non-blocking MPI_IRecv to receive status
@@ -120,14 +112,7 @@ bool ProcessGroupManager::sendDSGUniformToRemote(const ThirdLevelUtils& thirdLev
 
 bool ProcessGroupManager::recvDSGUniformFromRemote(const ThirdLevelUtils& thirdLevel,
                                                          CombiParameters& params) {
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  SignalType signal = RECV_DSGU_FROM_MANAGER;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
+  sendSignalRecvDSGU();
   forwardDSGUFromRemoteToPG(thirdLevel, params);
 
   // start non-blocking MPI_IRecv to receive status
@@ -137,6 +122,38 @@ bool ProcessGroupManager::recvDSGUniformFromRemote(const ThirdLevelUtils& thirdL
 
 bool ProcessGroupManager::recvAndAddDSGUniformFromRemote(const ThirdLevelUtils& thirdLevel, 
                                                                CombiParameters& params) {
+  sendSignalRecvAndAdd();
+  forwardDSGUFromRemoteToPG(thirdLevel, params);
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+  return true;
+}
+
+
+bool ProcessGroupManager::sendSignalSendDSGU() {
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  SignalType signal = SEND_DSGU_TO_MANAGER;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+  return true;
+}
+
+bool ProcessGroupManager::sendSignalRecvDSGU() {
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  SignalType signal = RECV_DSGU_FROM_MANAGER;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+  return true;
+}
+
+bool ProcessGroupManager::sendSignalRecvAndAdd() {
   assert(status_ == PROCESS_GROUP_WAIT);
 
   SignalType signal = RECV_AND_ADD_DSGU_FROM_MANAGER;
@@ -144,11 +161,6 @@ bool ProcessGroupManager::recvAndAddDSGUniformFromRemote(const ThirdLevelUtils& 
 
   // set status
   status_ = PROCESS_GROUP_BUSY;
-
-  forwardDSGUFromRemoteToPG(thirdLevel, params);
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
   return true;
 }
 

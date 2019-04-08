@@ -140,8 +140,15 @@ class ProcessGroupManager {
 
   void sendSignalToProcess(SignalType signal, RankType rank);
 
+  bool sendSignalSendDSGU();
+
+  bool sendSignalRecvDSGU();
+
+  bool sendSignalRecvAndAdd();
+
   inline void setProcessGroupBusyAndReceive();
 
+  // Third level forwarding methods
   bool forwardDSGUFromRemoteToPG(const ThirdLevelUtils& thirdLevel,
                                        CombiParameters& params);
 
