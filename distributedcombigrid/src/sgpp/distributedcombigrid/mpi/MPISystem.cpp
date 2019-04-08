@@ -330,7 +330,7 @@ bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks,
     recoveryFailed = false;
     std::vector<MPI_Request> requests2(failedRanks.size());
     for (size_t i = 0; i < failedRanks.size(); i++) {
-      MPI_Isend(&recoveryFailed, 1, MPI::BOOL, reusableRanks[i], FT_RECOVERY_STATUS_TAG,
+      MPI_Isend(&recoveryFailed, 1, MPI_C_BOOL, reusableRanks[i], FT_RECOVERY_STATUS_TAG,
                 theMPISystem()->getSpareCommFT()->c_comm, &requests2[i]);
     }
     for (size_t i = 0; i < failedRanks.size(); i++) {
@@ -345,7 +345,7 @@ void MPISystem::sendRecoveryStatus(bool failedRecovery,
                                    std::vector<RankType>& newReusableRanks) {  // toDo matching send
   std::vector<MPI_Request> requests(newReusableRanks.size());
   for (size_t i = 0; i < newReusableRanks.size(); i++) {
-    MPI_Isend(&failedRecovery, 1, MPI::BOOL, newReusableRanks[i], FT_RECOVERY_STATUS_TAG,
+    MPI_Isend(&failedRecovery, 1, MPI_C_BOOL, newReusableRanks[i], FT_RECOVERY_STATUS_TAG,
               theMPISystem()->getWorldComm(), &requests[i]);
   }
   for (size_t i = 0; i < newReusableRanks.size(); i++) {
@@ -403,7 +403,7 @@ bool MPISystem::receiveRecoverStatus() {
   bool recoveryState;
 
   // receive recovery state
-  MPI_Recv(&recoveryState, 1, MPI::BOOL, managerRankWorld_, FT_RECOVERY_STATUS_TAG,
+  MPI_Recv(&recoveryState, 1, MPI_C_BOOL, managerRankWorld_, FT_RECOVERY_STATUS_TAG,
            theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
   return recoveryState;
 }
@@ -432,7 +432,7 @@ void MPISystem::waitForReuse() {
       newRankFlag = 0;
       // receive recovery state to check if recovery really succeeded
       bool recoveryFailed;
-      MPI_Recv(&recoveryFailed, 1, MPI::BOOL, managerRankFT_, FT_RECOVERY_STATUS_TAG,
+      MPI_Recv(&recoveryFailed, 1, MPI_C_BOOL, managerRankFT_, FT_RECOVERY_STATUS_TAG,
                theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
       if (!recoveryFailed) {
         worldRank_ = rankID;
