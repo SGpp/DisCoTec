@@ -2,10 +2,14 @@
 
 int main(int argc, char* argv[])
 {
+  if (argc < 2) {
+    std::cout << "Usage:\n ./thirdLevelManager paramfile" << std::endl;
+    return 0;
+  }
   // Load config file
   std::cout << "Loading parameters" << std::endl;
   Params params;
-  params.loadFromFile("example.ini");
+  params.loadFromFile(argv[1]);
 
   // Run third level manager
   std::cout << "Setup third level manager" << std::endl;
@@ -27,7 +31,7 @@ ThirdLevelManager::ThirdLevelManager(const Params& params)
     dataServer_(dataPort_)
 {
   // Connect to RabbitMQ Broker
-  std::cout << "Connecting to RabbitMQ broker" << std::endl;
+  std::cout << "Connecting to RabbitMQ broker at " << params.getbrokerURL() << std::endl;
   channel_ = AmqpClient::Channel::Create(params.getbrokerURL());
 
   // Create abstraction for each system and establish message queues
