@@ -387,8 +387,6 @@ int main(int argc, char** argv) {
   }
 
   // create system dependent scheme for ThirdLevel combination
-  // TODO hopefully this suffices and won't conflict with other parameters e.g.
-  // reduceCombinationDimsL{min, max}
   createThirdLevelCombischeme(levels, coeffs, systemNumber);
 
   // create load model
@@ -475,9 +473,6 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager recover preprocessing");
     }
     //combine grids
-    //Stats::startEvent("manager combine");
-    //manager.combine();
-    //Stats::stopEvent("manager combine");
     Stats::startEvent("manager combine third level");
     manager.combineThirdLevel();
     Stats::stopEvent("manager combine third level");
