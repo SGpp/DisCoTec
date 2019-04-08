@@ -16,7 +16,7 @@ The Building steps are the following:
 3. Use `ccmake ..` to set the corrseponding paths
    (use c to save your configuration). For rabbitmq-c the includes are under
    rabbitmq-c/librabbitmq and the library is under
-   rabbitmq-c/librabbitmq/build/librabbitmq/librabbitmq.so
+   rabbitmq-c/build/librabbitmq/librabbitmq.so
 4. Use `cmake ..` again, this time there should not be any error.
 5. Use `make` to build the library.
 
