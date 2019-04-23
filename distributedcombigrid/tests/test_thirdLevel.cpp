@@ -166,15 +166,17 @@ void checkAddSparseGridToProcessGroup(ProcessManager* manager = nullptr,
 }
 
 void runRabbitMQServer() {
+  std::cout << "starting rabbitMQ server..." << std::endl;
   system("rabbitmq-server &");
   // give rabbitmq some time to set up
   sleep(10);
 }
 
 void runThirdLevelManager() {
+  std::cout << "starting thirdLevelManager..." << std::endl;
   system("../examples/gene_distributed_third_level/third_level_manager/run.sh &");
   // give thirdLevelManger some time to set up
-  sleep(5);
+  sleep(1);
 }
 
 void killInfrastructure() {
@@ -188,14 +190,14 @@ void startInfrastructure() {
 }
 
 void runOtherSystem(size_t numProcs) {
+  std::cout << "starting other system..." << std::endl;
   std::string command = "mpirun -n " + std::to_string(numProcs) +
-                        "../tests/test_distributedcombigrid_boost"
-                        "--run_test=managerSendRecv system2 &";
+                        " /home/marci/UNI/HIWI/combi/distributedcombigrid/tests/test_distributedcombigrid_boost "
+                        "--run_test=managerSendRecv -- system2 &";
   system(command.c_str());
 }
 
-void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1,
-                     const std::string& sysName = "system1") {
+void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
   size_t size = ngroup * nprocs + 1;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
@@ -211,6 +213,19 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1,
 
   // set up a constant valued distributed fullgrid in the process groups
   WORLD_MANAGER_EXCLUSIVE_SECTION {
+    int argc = boost::unit_test::framework::master_test_suite().argc;
+    char** argv = boost::unit_test::framework::master_test_suite().argv;
+
+    //
+    // Starting other system
+    //
+    std::string sysName = "system1";
+    if (argc == 1) {
+      startInfrastructure();
+      runOtherSystem(ngroup * nprocs + 1);
+    } else {
+      sysName = "system2";
+    }
 
     ProcessGroupManagerContainer pgroups;
     for (int i = 0; i < ngroup; ++i) {
@@ -258,9 +273,15 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1,
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
+    std::cout << "running first";
     manager.runfirst();
+    std::cout << "running combineThirdLevel";
     manager.combineThirdLevel();
     manager.exit();
+
+    if (argc == 1) {
+      killInfrastructure();
+    }
   }
   else {
     ProcessGroupWorker pgroup;
@@ -268,6 +289,7 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1,
     signal = pgroup.wait();
     while (signal != EXIT) {
       signal = pgroup.wait();
+      std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " received signal " << signal << std::endl; 
     }
     // std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;
     // checkAddSparseGridToProcessGroup(nullptr, &pgroup); //TODO check that doubled
@@ -304,22 +326,10 @@ BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)
 */
 
 BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)) {
-  size_t ngroup = 4;
-  size_t nprocs = 2;
-  int argc = boost::unit_test::framework::master_test_suite().argc;
-  char** argv = boost::unit_test::framework::master_test_suite().argv;
+  size_t ngroup = 1;
+  size_t nprocs = 1;
 
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-  if (argc == 1 && rank == 0) {
-    startInfrastructure();
-    runOtherSystem(ngroup * nprocs + 1);
-    testGatherAddDSG(ngroup, nprocs);
-    killInfrastructure();
-  } else {
-    testGatherAddDSG(ngroup, nprocs, argv[1]);
-  }
+  testGatherAddDSG(ngroup, nprocs);
 }
 
 /*
