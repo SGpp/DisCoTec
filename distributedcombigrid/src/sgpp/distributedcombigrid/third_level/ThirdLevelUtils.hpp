@@ -22,7 +22,7 @@ namespace combigrid {
       std::string remoteHost_;
       int brokerPort_;
       int dataPort_;
-      AmqpClient::Channel::ptr_t messageChannel_;
+      AmqpClient::Channel::ptr_t messageChannel_ = nullptr;
       std::shared_ptr<ClientSocket> dataConnection_;
       std::string inQueue_;
       std::string outQueue_;

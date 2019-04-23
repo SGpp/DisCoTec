@@ -13,6 +13,7 @@ ThirdLevelUtils::ThirdLevelUtils(const std::string& remoteHost, int dataPort,
 
 ThirdLevelUtils::~ThirdLevelUtils(){
   signalFinalize();
+  isConnected_ = false;
 }
 
 void ThirdLevelUtils::connectToThirdLevelManager()
@@ -32,6 +33,7 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   std::string message;
   std::cout << "Connecting to ThirdLevel manager at host " << remoteHost_ << " on port " << dataPort_  << std::endl;
   receiveMessage(message);
+  std::cout <<  systemName_ << " received message " << message << std::endl;
   assert(message == "create_data_conn");
   dataConnection_ = std::make_shared<ClientSocket>(remoteHost_, dataPort_);
   assert(dataConnection_->init() && "Establishing data connection failed");
@@ -64,24 +66,24 @@ void ThirdLevelUtils::signalFinalize() const
 
 void ThirdLevelUtils::sendMessage(const std::string& message) const
 {
+  assert(messageChannel_ != nullptr);
   MessageUtils::sendMessage(message, outQueue_, messageChannel_);
 }
 
 void ThirdLevelUtils::receiveMessage(std::string& message) const
 {
+  assert(messageChannel_ != nullptr);
   MessageUtils::receiveMessage(messageChannel_, consumerTag_, inQueue_, message);
 }
 
 void ThirdLevelUtils::sendSize(size_t size) const
 {
-  assert(isConnected_);
   sendMessage("sending_data");
   sendMessage(std::to_string(size));
 }
 
 size_t ThirdLevelUtils::receiveSize() const
 {
-  assert(isConnected_);
   std::string sizeStr;
   receiveMessage(sizeStr);
 
@@ -100,6 +102,7 @@ void ThirdLevelUtils::sendDSGUniformSerialized(const std::string& serializedDSGU
 
 std::string ThirdLevelUtils::recvDSGUniformSerialized() const
 {
+  assert(isConnected_);
   size_t rawSize = receiveSize();
   std::string serializedDSGU;
   bool success = dataConnection_->recvall(serializedDSGU, rawSize);
