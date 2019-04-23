@@ -19,7 +19,7 @@ from SCons.Script.SConscript import SConsEnvironment
 import Helper
 import SGppConfigure
 rootDirectory = str(Dir('#').abspath)
-print rootDirectory
+print(rootDirectory)
 sys.stdout = Helper.Logger(sys.stdout)
 sys.stderr = Helper.Logger(sys.stderr)
 finalMessagePrinter = Helper.FinalMessagePrinter()
@@ -360,7 +360,7 @@ def lintAction(target, source, env):
       parts = line.split(":  ")
       location = parts[0]
       message = ":  ".join(parts[1:])
-      print location + ": warning: " + message
+      print(location + ": warning: " + message)
   # touch file without writing anything
   # (to indicate for the next run of SCons that we already checked this file)
   with open(target[0].abspath, "w"): pass
@@ -501,9 +501,9 @@ def printInstructions(target, source, env):
 
   with open(filename) as f:
     instructionsTemplate = string.Template(f.read())
-    print
-    print instructionsTemplate.safe_substitute(SGPP_BUILD_PATH=BUILD_DIR.abspath,
-                                               PYSGPP_PACKAGE_PATH=PYSGPP_PACKAGE_PATH.abspath)
+    print()
+    print(instructionsTemplate.safe_substitute(SGPP_BUILD_PATH=BUILD_DIR.abspath,
+                                               PYSGPP_PACKAGE_PATH=PYSGPP_PACKAGE_PATH.abspath))
 
 if env["PRINT_INSTRUCTIONS"]:
     printInstructionsTarget = env.Command("printInstructions", [], printInstructions)

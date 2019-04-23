@@ -27,7 +27,7 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
                     std::string& path, real dt, real combitime, size_t nsteps,
                     real shat, real lx, int ky0_ind,
                     IndexVector p , FaultCriterion *faultCrit,
-                    IndexType numSpecies, bool GENE_Global, bool GENE_Linear)
+                    IndexType numSpecies, bool GENE_Global, bool GENE_Linear, size_t checkpointFrequency, size_t offsetForDiagnostics)
     : Task( dim, l, boundary, coeff, loadModel, faultCrit),
       path_( path ),
       dt_( dt ),
@@ -46,7 +46,9 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       _GENE_Global(GENE_Global),
       _GENE_Linear(GENE_Linear),
       currentTime_(0.0),
-      gyromatrix_buffered_(false)
+      gyromatrix_buffered_(false),
+      checkpointFrequency_(checkpointFrequency),
+      offsetForDiagnostics_(offsetForDiagnostics)
 {
 
 // theres only one boundary configuration allowed at the moment
