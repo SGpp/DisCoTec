@@ -310,12 +310,11 @@ int ClientSocket::getRemotePort() const {
   return remotePort_;
 }
 
-ServerSocket::ServerSocket(const unsigned short port) : Socket(), port_(port) {
-  init();
+ServerSocket::ServerSocket() : Socket(), port_(0) {
 }
 
-ServerSocket::ServerSocket() : Socket(), port_(0) {
-  init();
+ServerSocket::ServerSocket(const unsigned short port) : Socket(), port_(port) {
+  assert(init());
 }
 
 ServerSocket::~ServerSocket() {
@@ -363,6 +362,7 @@ bool ServerSocket::init() {
       return false;
     } else {
       port_ = ntohs(servAddr.sin_port);
+      std::cout << "Server runs on port: " << port_ << std::endl;
     }
   }
   initialized_ = true;
