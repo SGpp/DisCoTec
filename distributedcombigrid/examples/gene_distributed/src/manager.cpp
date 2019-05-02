@@ -138,6 +138,7 @@ int main(int argc, char** argv) {
 
   std::chrono::high_resolution_clock::time_point init_time = std::chrono::high_resolution_clock::now();
   Stats::initialize();
+  Stats::startEvent("manager initialization");
 
   if (ENABLE_FT){
     simft::Sim_FT_MPI_Init(&argc, &argv);
@@ -383,6 +384,10 @@ int main(int argc, char** argv) {
   manager.updateCombiParameters();
   Stats::stopEvent("update combi parameters");
   bool success = true; //indicates if computation was sucessfull -> false means fault occured
+
+  std::chrono::high_resolution_clock::time_point after_init_time = std::chrono::high_resolution_clock::now();
+  std::cout << "initialization took " << std::chrono::duration_cast<std::chrono::microseconds>(after_init_time - init_time).count() << "us " << std::endl;
+  Stats::stopEvent("manager initialization");
   //start computation
   //we perform ncombi many combinations with
   //fixed stepsize or simulation time between each combination
@@ -390,9 +395,9 @@ int main(int argc, char** argv) {
     if( i == 0 ){
       /* distribute task according to load model and start computation for
         * the first time */
-      Stats::startEvent("manager run");
+      Stats::startEvent("manager run first");
       success = manager.runfirst();
-      Stats::stopEvent("manager run");
+      Stats::stopEvent("manager run first");
 
     } else {
       // run tasks for next time interval
@@ -464,7 +469,7 @@ int main(int argc, char** argv) {
   }
 
   std::chrono::high_resolution_clock::time_point end_time = std::chrono::high_resolution_clock::now();
-  std::cout << "total " << std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count() << " ";
+  std::cout << "total " << std::chrono::duration_cast<std::chrono::microseconds>(end_time - init_time).count() << " " << std::endl;
   
   return 0;
 }
