@@ -52,8 +52,8 @@ ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 // RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
 void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, size_t numProcs) { 
   MASTER_EXCLUSIVE_SECTION {
-    durationInformation info = {t.getID(), Stats::getEventDurationInUsec(e), t.getCurrentTimestep(), theMPISystem()->getWorldRank(), numProcs};
-    //TODO see if we can send asynchronously
+    // durationInformation info(e, t, numProcs);
+    durationInformation info = {t.getID(), Stats::getEventDurationInUsec(e), t.getCurrentTime(), t.getCurrentTimestep(), theMPISystem()->getWorldRank(), numProcs};
     MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
 }

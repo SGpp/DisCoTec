@@ -21,8 +21,18 @@
 namespace combigrid {
 // TODO include "metadata" in model: nrg.dat, parameters etc. ?
 struct durationInformation {
+  // durationInformation(const Stats::Event& e, const Task& t, uint nProcesses_)
+  // :task_id(t.getID()),
+  // ,duration(Stats::getEventDurationInUsec(e))
+  // ,simtime_now(t.getCurrentTime())
+  // ,real_dt(t.getCurrentTimestep())
+  // ,pgroup_id(theMPISystem()->getWorldRank())
+  // ,nProcesses(nProcesses_)
+  // {}
+
   int task_id;
   long unsigned int duration;
+  real simtime_now;
   real real_dt;
   int pgroup_id;
   uint nProcesses;
@@ -31,6 +41,7 @@ struct durationInformation {
   void serialize(Archive& ar, const unsigned int version) {
     ar& task_id;
     ar& duration;
+    ar& simtime_now;
     ar& real_dt;
     ar& pgroup_id;
     ar& nProcesses;
@@ -47,7 +58,7 @@ unsigned long int getAverageOfFirstColumn(std::istream& fs);
 class LearningLoadModel : public LoadModel {
  public:
   LearningLoadModel(std::vector<LevelVector> levelVectors) :
-  writeEveryNCombis_(20)
+  writeEveryNCombis_(50)
   {
     durationsOfLevels_ =
         std::unique_ptr<std::map<LevelVector, std::deque<durationInformation>>>(
@@ -93,7 +104,8 @@ class LearningLoadModel : public LoadModel {
     for (size_t i = 0; i < num_entries && !durations.empty(); ++i) {
       durationInformation duration = durations.front();
       fs << std::to_string(duration.duration) << " " << std::to_string(duration.real_dt) << " " 
-        //  << std::to_string(duration.task_id)  << " " 
+        //  << std::to_string(duration.task_id)  << " "
+        << std::to_string(duration.simtime_now)  << " " 
         << std::to_string(duration.pgroup_id) << " " << std::to_string(duration.nProcesses) << " "
          << std::endl;
       durations.pop_front();

@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
     }
 
     // create load model
-    LoadModel* loadmodel = new LinearLoadModel();
-
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+    
     /* generate a list of levelvectors and coefficients
      * CombiTS_CT will generate a valid combination. however, you could
      * also read in a list of levelvectors and coefficients from a file */
@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
 
       IndexType numSpecies = numGrids; //generate one grid per species
       Task* t = new GeneTask(dim, levels[i], boundary, coeffs[i],
-                                loadmodel, path, dt, combitime, nsteps,
+                                loadmodel.get(), path, dt, combitime, nsteps,
                                 shat, lx, ky0_ind, p, faultCrit,
                                 numSpecies, GENE_Global,GENE_Linear);
       tasks.push_back(t);
@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
     params.setParallelization(p);
 
     // create Manager with process groups
-    ProcessManager manager(pgroups, tasks, params);
+    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     // combiparameters need to be set before starting the computation
     Stats::startEvent("update combi parameters");
