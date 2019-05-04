@@ -22,6 +22,7 @@ void System::createMessageQueues(AmqpClient::Channel::ptr_t channel)
 void System::createDataConnection(const ServerSocket& server,
                                   const AmqpClient::Channel::ptr_t& channel)
 {
+  std::cout << "creating data connection for system: " << name_ << std::endl;
   std::string message = "create_data_conn";
   sendMessage(message, channel);
   dataConnection_ = std::shared_ptr<ClientSocket>(server.acceptClient());
