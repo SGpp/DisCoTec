@@ -35,7 +35,8 @@ class ProcessManager {
       thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getThirdLevelSystemName())
   {
       loadModel_ = std::move(loadModel);
-      setupThirdLevel();
+      if (params.getThirdLevelHost() != "")
+        setupThirdLevel();
       // the combiparameters are sent to all process groups before the
       // computations start
       //updateCombiParameters();
@@ -247,33 +248,45 @@ void ProcessManager::combineLocalAndGlobal() {
   waitAllFinished();
 }
 
+/** Combination with third level parallelism e.g. between two HPC systems
+ *
+ * This process manager induces a local and global combination first.
+ * Then he signals ready to the third level manager who decides about the role
+ * of sender and receiver.
+ *
+ * In the role of the sender, the process manager
+ * transfers the DSGU data from workers of the third level pg to the third level
+ * manager, who then finally sends it to the remote system. After sending he
+ * receives the remotely reduced data from the third level manager and sends it
+ * back to the third level pg.
+ * In the role of the receiver, the process manager receives the DSGU data from
+ * the third level manager and sends it to the workers who combine the remote
+ * solution with their local solution. Afterward, the final solution is sent
+ * back to the remote system.
+ */
 void ProcessManager::combineThirdLevel() {
   combineLocalAndGlobal();
 
   // obtain instructions from third level manager
+  std::cout << "Signaling ready to combine..." << std::endl;
   thirdLevel_.signalReadyToCombine();
   std::string instruction = thirdLevel_.fetchInstruction();
 
   // perform third level reduce
-  bool success;
   if (instruction == "reduce_third_level_recv_first") {
-    recvDSGUniformFromRemote(thirdLevelPGroup_);
-    assert(success);
+    recvAndAddDSGUniformFromRemote(thirdLevelPGroup_);
     waitAllFinished();
     sendDSGUniformToRemote(thirdLevelPGroup_);
-    assert(success);
   } else if (instruction == "reduce_third_level_send_first") {
     sendDSGUniformToRemote(thirdLevelPGroup_);
-    assert(success);
     waitAllFinished();
     recvDSGUniformFromRemote(thirdLevelPGroup_);
-    assert(success);
   }
   waitAllFinished();
 
   // TODO integrate into receive method
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    success = pgroups_[i]->integrateCombinedDSGUniform();
+    bool success = pgroups_[i]->integrateCombinedDSGUniform();
     assert(success);
   }
 
