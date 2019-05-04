@@ -21,13 +21,13 @@ class ThirdLevelManager
     ServerSocket               dataServer_;
     AmqpClient::Channel::ptr_t channel_;
 
-    void processMessage(const std::string& message, System& system);
+    void processMessage(const std::string& message, size_t sysIndex);
 
-    void processCombination(System& system);
+    void processCombination(size_t initiatorIndex);
 
-    void processFinished(System& system);
+    void processFinished(size_t sysIndex);
 
-    void forwardData(System& sender, System& receiver) const;
+    void forwardData(const System& sender, const System& receiver) const;
 
   public:
     ThirdLevelManager() = delete;

@@ -21,15 +21,15 @@ int main(int argc, char* argv[])
   return 0;
 }
 
-/*
- * Initiates the third level manager by reading in parameters and creating
- * abstractions for each managed system.
+/** Initiates the third level manager by reading in parameters and creating
+ *  abstractions for each managed system.
  */
 ThirdLevelManager::ThirdLevelManager(const Params& params)
   : params_(params),
     dataPort_(params.getDataPort()),
     dataServer_(dataPort_)
 {
+  std::cout << "Data forwarding server running on port: " << dataPort_ << std::endl;
   // Connect to RabbitMQ Broker
   std::cout << "Connecting to RabbitMQ broker at " << params.getbrokerURL() << std::endl;
   channel_ = AmqpClient::Channel::Create(params.getbrokerURL());
@@ -38,73 +38,66 @@ ThirdLevelManager::ThirdLevelManager(const Params& params)
   std::cout << "Creating abstraction for systems" << std::endl;
   std::vector<std::string> systemNames = params.getSystemNames();
   systems_.reserve(systemNames.size());
-  for (auto nameIt = systemNames.begin(); nameIt != systemNames.end(); nameIt++)
-    systems_.push_back(System(*nameIt, channel_, dataServer_));
+  for (std::string& name : systemNames)
+    systems_.push_back(System(name, channel_, dataServer_));
   // establish data connection
-  for (auto system = systems_.begin(); system != systems_.end(); system++)
-    system->createDataConnection(dataServer_, channel_);
+  for (System& system : systems_)
+    system.createDataConnection(dataServer_, channel_);
+  std::cout << "All systems connected successfully" << std::endl;
 }
 
-/*
- * Loops over the systems and checks if messages are available. If a message
- * exists, it is fetched and delegated to be processed.
+/** Loops over the systems and checks if messages are available. If a message
+ *  exists, it is fetched and delegated to be processed.
  */
 void ThirdLevelManager::runtimeLoop()
 {
   while (systems_.size() > 0)
   {
-    for (auto sysIt = systems_.begin(); sysIt != systems_.end() && systems_.size() > 0; sysIt++)
+    for (size_t s = 0; s < systems_.size(); s++)
     {
       std::string message;
-      bool received = sysIt->receiveMessage(channel_, message, timeout_);
+      bool received = systems_[s].receiveMessage(channel_, message, timeout_);
       if (received)
-        processMessage(message, *sysIt);
+        processMessage(message, s);
     }
   }
 }
 
-/*
- * Identifies main operation and initiates appropriate action.
- */
-void ThirdLevelManager::processMessage(const std::string& message, System& system)
+/** Identifies main operation and initiates appropriate action. */
+void ThirdLevelManager::processMessage(const std::string& message, size_t sysIndex)
 {
   if (message == "ready_to_combine")
-    processCombination(system);
+    processCombination(sysIndex);
   if (message == "finished_computation")
-    processFinished(system);
+    processFinished(sysIndex);
 }
 
-/*
- * Processes and manages the third level combination, initiated by a system
- * which signals ready after its local and global combination.
- * ATTENTION: Implemented only for 2 systems
+/** Processes and manages the third level combination, initiated by a system
+ *  which signals ready after its local and global combination.
+ *  ATTENTION: Implemented only for 2 systems
  */
-void ThirdLevelManager::processCombination(System& initiator)
+void ThirdLevelManager::processCombination(size_t initiatorIndex)
 {
   assert(systems_.size() == 2 && "Not implemented for different amount of systems");
-
-  // TODO maybe cleaner to pass id of initiator as argument
-  System& other = systems_[0];
-  for (System& sys : systems_)
-  {
-    if (sys.getName() != initiator.getName())
-    {
-      other = sys;
-      break;
-    }
-  }
-
-  std::cout << "Processing third level combination" << std::endl;
-  initiator.sendMessage("reduce_third_level_send_first" , channel_);
-  other.sendMessage("reduce_third_level_recv_first" , channel_);
+  System& initiator = systems_[initiatorIndex];
+  size_t otherIndex = initiatorIndex + 1 % systems_.size();
+  System& other = systems_[otherIndex];
 
   std::string message;
+  std::cout << "Processing third level combination" << std::endl;
+  initiator.sendMessage("reduce_third_level_send_first" , channel_);
+  other.receiveMessage(channel_, message);
+  assert(message == "ready_to_combine");
+  other.sendMessage("reduce_third_level_recv_first" , channel_);
+
   // transfer grids from initiator to other system
   do
   {
     initiator.receiveMessage(channel_, message);
     if (message == "sending_data")
+    {
       forwardData(initiator, other);
+    }
   } while (message != "ready");
 
   // wait for other system to finish receiving
@@ -124,29 +117,22 @@ void ThirdLevelManager::processCombination(System& initiator)
   assert(message == "ready");
 }
 
-/*
- * If a system has finished the simulation, it should log off the
- * third level manager
+/** If a system has finished the simulation, it should log off the
+ *  third level manager
  */
-void ThirdLevelManager::processFinished(System& system)
+void ThirdLevelManager::processFinished(size_t sysIndex)
 {
-  for (auto sysIt = systems_.begin(); sysIt != systems_.end(); sysIt++)
-  {
-    if (sysIt->getName() == system.getName())
-    {
-      systems_.erase(sysIt);
-      break;
-    }
-  }
+  std::cout << "System " << systems_[sysIndex].getName() << " finished simulation" << std::endl;
+  systems_.erase(systems_.begin()+sysIndex);
 }
 
-/*
- * Forwards data from sender to receiver.
- * The size is communicated first from sender to receiver.
+/** Forwards data from sender to receiver.
+ *  The size is communicated first from sender to receiver.
  */
-void ThirdLevelManager::forwardData(System& sender, System& receiver) const {
+void ThirdLevelManager::forwardData(const System& sender, const System& receiver) const {
   size_t dataSize;
   sender.receivePosNumber(channel_, dataSize);
+  std::cout << "Want to forward " << std::to_string(dataSize) << " Bytes" << std::endl;
   receiver.sendMessage(std::to_string(dataSize), channel_);
 
   // forward data to other system
