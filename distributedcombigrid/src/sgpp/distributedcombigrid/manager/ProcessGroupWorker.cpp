@@ -266,7 +266,7 @@ SignalType ProcessGroupWorker::wait() {
   }
   // in the general case: send ready signal.
   // if(!omitReadySignal)
-
+  ready();
   if (isGENE) {
     if (signal == ADD_TASK) {  // ready resets currentTask but needs to be set for GENE
       currentTask_ = tasks_.back();
@@ -878,7 +878,7 @@ void ProcessGroupWorker::recvDSGUniformFromManager() {
   Stats::startEvent("receive dsgu from manager");
   for (size_t g = 0; g < numGrids; g++) {
     assert(combinedUniDSGVector_[g] != NULL);
-    sendDSGUniform(combinedUniDSGVector_[g].get(), manager, comm);
+    combinedUniDSGVector_[g].reset(recvDSGUniform<CombiDataType>(manager, comm));
   }
   Stats::stopEvent("receive dsgu from manager");
 }
