@@ -1,4 +1,5 @@
 #include "NetworkUtils.hpp"
+
 ClientSocket::ClientSocket(const std::string& host, const int port)
   : Socket(), remotePort_(port), remoteHost_(host){
 }
@@ -13,31 +14,26 @@ ClientSocket::~ClientSocket() {
 
 bool ClientSocket::init() {
   assert(!isInitialized() && "Client is already initialized");
-  int err;
   struct sockaddr_in servAddr;
   struct hostent *server;
   sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
-  err = errno;
   if (sockfd_ < 0) {
-    std::cerr << "Opening client socket failed: " << err << std::endl;
+    perror("ClientSocket::init() opening client socket failed");
     return false;
   }
   server = gethostbyname(remoteHost_.c_str());
-  err = errno;
   if (server == NULL) {
-    std::cerr << "No such host " << remoteHost_ << ": " << err
-      << std::endl;
+    perror(("ClientSocket::init() no such host " + remoteHost_).c_str());
     return false;
   }
   servAddr.sin_family = AF_INET;
   bcopy((char*) server->h_addr, (char*)& servAddr.sin_addr.s_addr,
-      server->h_length);
+      static_cast<size_t>(server->h_length));
   servAddr.sin_port = htons(remotePort_);
   int connStat = connect(sockfd_, (struct sockaddr*) &servAddr,
       sizeof(servAddr));
-  err = errno;
   if (connStat < 0) {
-    std::cerr << "Connect failed: " << err << std::endl;
+    perror("ClientSocket::init() connect failed");
     return false;
   }
   this->initialized_ = true;
@@ -46,85 +42,100 @@ bool ClientSocket::init() {
 
 bool ClientSocket::sendall(const std::string& mesg) const {
   assert(isInitialized() && "Client Socket not initialized");
-  int err;
-  long n = -1;
+  assert(mesg.size() > 0);
+  long sent = -1;
   size_t total = 0;
   const size_t& len = mesg.size();
   while (total < len) {
-    n = send(sockfd_, mesg.data() + total, len - total, 0);
-    err = errno;
-    if (n == -1)
+    sent = send(sockfd_, mesg.data() + total, len - total, 0);
+    if (sent <= 0)
       break;
-    total += n;
+    total += static_cast<size_t>(sent);
   }
-  if ( n == -1) {
-    std::cerr << "Send failed: " << std::to_string(err) << std::endl;
-    return false;
+  switch (sent) {
+    case 0:
+      std::cerr << "ClientSocket::sendall() failed receiver terminated too early" << std::endl;
+      return false;
+    case -1:
+      perror("ClientSocket::sendall() failed");
+      return false;
+    default:
+      return true;
   }
-  return true;
 }
 
 bool ClientSocket::sendall(const char* buf, size_t len) const {
   assert(isInitialized() && "Client Socket not initialized");
-  int err;
-  long n = -1;
+  assert(len > 0);
+  long sent = -1;
   size_t total = 0;
   while (total < len) {
-    n = send(sockfd_, &buf[total], len - total, 0);
-    err = errno;
-    if (n == -1)
+    sent = send(sockfd_, &buf[total], len - total, 0);
+    if (sent <= 0)
       break;
-    total += n;
+    total += static_cast<size_t>(sent);
   }
-  if ( n == -1) {
-    std::cerr << "Send failed: " << std::to_string(err) << std::endl;
-    return false;
+  switch (sent) {
+    case 0:
+      std::cerr << "ClientSocket::sendall() failed receiver terminated too early" << std::endl;
+      return false;
+    case -1:
+      perror("ClientSocket::sendall() failed");
+      return false;
+    default:
+      return true;
   }
-  return true;
 }
 
 
 bool ClientSocket::sendallPrefixed(const std::string& mesg) const {
   assert(isInitialized() && "Client Socket not initialized");
+  assert(mesg.size() > 0);
   std::string lenstr = std::to_string(mesg.size()) + "#";
   return this->sendall(lenstr + mesg);
 }
 
 bool ClientSocket::sendallPrefixed(const char* buf, size_t len) const {
   assert(isInitialized() && "Client Socket not initialized");
+  assert(len > 0);
   std::string lenstr = std::to_string(len) + "#";
   bool ok = this->sendall(lenstr);
   if (not ok)
-    return ok;
+    return false;
   return this->sendall(buf, len);
 }
 
 bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
-  int err;
-  long n = -1;
-  char* buff = new char[len];
+  assert(len > 0);
+  std::cout << "Trying to receive " << len << "Bytes" << std::endl;
+  long recvd = -1;
+  std::unique_ptr<char[]> buff(new char[len]);
   size_t total = 0;
   while (total < len) {
-    n = recv(sockfd_, &buff[total], len-total, flags);
-    err = errno;
-    if (n == -1)
+    recvd = recv(sockfd_, &buff[total], len-total, flags);
+    if (recvd <= 0)
       break;
-    total += n;
+    total += static_cast<size_t>(recvd);
   }
-  if ( n == -1) {
-    std::cerr << "Receive failed: " << std::to_string(err) << std::endl;
-    return false;
+  switch (recvd) {
+    case 0:
+      std::cerr << "ClientSocket::recvall() failed sender terminated too early" << std::endl;
+      return false;
+    case -1:
+      perror("ClientSocket::recvall() failed");
+      return false;
+    default:
+      mesg = std::string(buff.get(), len);
+      return true;
   }
-  mesg = std::string(buff, len);
-  delete[] buff;
-  return true;
 }
 
 bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
     size_t chunksize, int flags) const
 {
   assert(isInitialized() && "Client Socket not initialized");
+  assert(len > 0);
   // receive endianness first
   std::ofstream file(filename, std::ofstream::binary);
   bool success = false;
@@ -137,129 +148,117 @@ bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
   }
   bool endianness = temp;
 
-  int err;
-  long n = -1;
+  long recvd = -1;
   size_t total = 0;
-  char* buff = new char[chunksize];
+  std::unique_ptr<char[]> buff(new char[chunksize]);
   while (total < len) {
-    n = recv(sockfd_, buff, chunksize, 0);
-    err = errno;
-    if (n <= 0)
+    recvd = recv(sockfd_, buff.get(), chunksize, 0);
+    if (recvd <= 0)
       break;
-    total += static_cast<size_t>(n);
-    file.write(buff, static_cast<std::streamsize>(n));
+    total += static_cast<size_t>(recvd);
+    file.write(buff.get(), static_cast<std::streamsize>(recvd));
     file.seekp(static_cast<std::streamoff>(total)); // append to file next round
   }
-  if ( n == -1) {
-    std::cerr << "Receive failed: " << std::to_string(err) << std::endl;
-    file.close();
-    return false;
-  } else if (n == 0) {
-    std::cerr << "Receive failed, sender terminated too early: " <<
-      std::to_string(err) << std::endl;
-    return false;
+  switch (recvd) {
+    case 0:
+      std::cerr << "ClientSocket::recvallBinaryToFile() failed, sender terminated too early" << std::endl;
+      file.close();
+      return false;
+    case -1:
+      perror("ClientSocket::recvallBinaryToFile() failed");
+      file.close();
+      return false;
+    default:
+      if (endianness != NetworkUtils::isLittleEndian()) {
+        // TODO correct endiannes in file
+      }
+      file.close();
+      return true;
   }
-
-  if (endianness != NetworkUtils::isLittleEndian()) {
-    // TODO correct endiannes in file
-  }
-
-  file.close();
-  delete[] buff;
-  return true;
 }
 
 bool ClientSocket::recvall(char* buf, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
-  int err;
-  long n = -1;
+  assert(len > 0);
+  long recvd = -1;
   size_t total = 0;
   while (total < len) {
-    n = recv(sockfd_, &buf[total], len-total, flags);
-
-    err = errno;
-    if (n <= 0)
+    recvd = recv(sockfd_, &buf[total], len-total, flags);
+    if (recvd <= 0)
       break;
-    total += n;
-
-    if (len  == 67584)
-      std::cout << "received: " << total << std::endl;
-
+    total += static_cast<size_t>(recvd);
   }
-  if ( n == -1) {
-    std::cerr << "Receive failed: " << std::to_string(err) << std::endl;
-    return false;
-  } else if (n == 0) {
-    std::cerr << "Receive failed, sender terminated too early: " <<
-      std::to_string(err) << std::endl;
-    return false;
+  switch (recvd) {
+    case 0:
+      std::cerr << "ClientSocket::recvall() failed, sender terminated too early" << std::endl;
+      return false;
+    case -1:
+      perror("ClientSocket::recvall() failed");
+      return false;
+    default:
+      return true;
   }
-  return true;
 }
 
 bool ClientSocket::recvallPrefixed(char* buf, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
-
   // receive length
-  int err;
   long n = -1;
   std::string lenstr = "";
   char temp = ' ';
   do {
     n = recv(sockfd_, &temp, 1, flags);
-    err = errno;
     if (n <= 0)
       break;
     lenstr += temp;
   } while (temp != '#');
-  if (n == -1) {
-    std::cerr << "Receive of length failed: " << std::to_string(err)
-      << std::endl;
-    return false;
-  } else if (n == 0) {
-    std::cerr << "Receive of length failed, sender terminated too early: " <<
-      std::to_string(err) << std::endl;
-    return false;
-  }
-  lenstr.pop_back();
-  assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
-  size_t len = (size_t) std::stoi(lenstr);
 
-  // receive data
-  return recvall(buf, len);
+  switch (n) {
+    case 0:
+      std::cerr << "ClientSocket::recvallPrefixed() recieve of length failed, sender terminated too early" << std::endl;
+      return false;
+    case -1:
+      perror("ClientSocket::recvallPrefixed() receive of length failed");
+      return false;
+    default:
+      lenstr.pop_back();
+      assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
+      size_t len = (size_t) std::stoi(lenstr);
+      assert(len > 0);
+      // receive data
+      return recvall(buf, len);
+  }
 }
 
 bool ClientSocket::recvallPrefixed(std::string& mesg, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
-
   // receive length
   mesg.clear();
-  int err;
-  long n = -1;
+  long recvd = -1;
   std::string lenstr = "";
   char temp = ' ';
   do {
-    n = recv(sockfd_, &temp, 1, flags);
-    err = errno;
-    if (n <= 0)
+    recvd = recv(sockfd_, &temp, 1, flags);
+    if (recvd <= 0)
       break;
     lenstr += temp;
   } while (temp != '#');
-  if (n == -1) {
-    std::cerr << "Receive of length failed: " << std::to_string(err)
-      << std::endl;
-    return false;
-  } else if (n == 0) {
-    std::cerr << "Receive of length failed, sender terminated too early: " <<
-      std::to_string(err) << std::endl;
-    return false;
-  }
-  lenstr.pop_back();
-  assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
-  size_t len = (size_t) std::stoi(lenstr);
 
-  // receive data
-  return recvall(mesg, len);
+  switch (recvd) {
+    case 0:
+      std::cerr << "ClientSocket::recvallPrefixed() recieve of length failed, sender terminated too early" << std::endl;
+      return false;
+    case -1:
+      perror("ClientSocket::recvallPrefixed() receive of length failed");
+      return false;
+    default:
+      lenstr.pop_back();
+      assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
+      size_t len = (size_t) std::stoi(lenstr);
+      assert(len > 0);
+      // receive data
+      return recvall(mesg, len);
+  }
 }
 
 bool ClientSocket::isReadable(int timeout) const {
@@ -322,13 +321,11 @@ ServerSocket::~ServerSocket() {
 }
 
 bool ServerSocket::init() {
-  int err;
   struct sockaddr_in servAddr;
 
   sockfd_ = socket( AF_INET, SOCK_STREAM, 0 );
-  err = errno;
   if (sockfd_ < 0) {
-    std::cerr << "Opening server socket failed: " << err << std::endl;
+    perror("ServerSocket::init() opening server socket failed");
     return false;
   }
 
@@ -337,17 +334,14 @@ bool ServerSocket::init() {
   servAddr.sin_port = htons(port_);
   servAddr.sin_addr.s_addr = INADDR_ANY;
   int bindstat = bind(sockfd_, (struct sockaddr*) &servAddr, sizeof(servAddr));
-  err = errno;
   if (bindstat < 0) {
-    std::cerr << "Binding to port " << port_ << " failed: " << err
-      << std::endl;
+    perror(("ServerSocket::init() binding to port " + std::to_string(port_) + " failed").c_str());
     return false;
   }
 
   int listenstat = listen(sockfd_, 1);
-  err = errno;
   if (listenstat < 0) {
-    std::cerr << "Listen failed: " << err << std::endl;
+    perror("ServerSocket::init() listen failed");
     return false;
   }
 
@@ -355,10 +349,8 @@ bool ServerSocket::init() {
   if (this->port_ == 0) {
     socklen_t len = sizeof(servAddr);
     int stat =  getsockname(sockfd_, (struct sockaddr *)&servAddr, &len);
-    err = errno;
     if (stat < 0) {
-      std::cerr << "Querying port failed: " << err
-        << std::endl;
+      perror("ServerSocket::init() querying port failed");
       return false;
     } else {
       port_ = ntohs(servAddr.sin_port);
@@ -372,14 +364,13 @@ bool ServerSocket::init() {
 ClientSocket* ServerSocket::acceptClient() const {
   assert(isInitialized() && "Server Socket not initialized");
   ClientSocket* client = new ClientSocket();
-  int err;
+
   // blocks until a new client connects
   struct sockaddr_in cliAddr;
   socklen_t cliLen = sizeof(cliAddr);
   int clientfd = accept(sockfd_, (struct sockaddr*) &cliAddr, &cliLen);
-  err = errno;
   if (clientfd < 0) {
-    std::cerr << "Accept failed: " << err << std::endl;
+    perror("ServerSocket::acceptClient() accept failed");
     return client;
   }
   // initialize ClientSocket
@@ -416,36 +407,32 @@ bool NetworkUtils::forward(const ClientSocket& sender,
 {
   assert(sender.isInitialized() && "Initialize sender first");
   assert(receiver.isInitialized() && "Initialize receiver first");
-  int err;
   size_t totalRecvd = 0;
   long recvd = 0;
   bool sendSuccess = false;
   int sendFd = sender.getFileDescriptor();
-  char* buff = new char[chunksize];
+  std::unique_ptr<char[]> buff(new char[chunksize]);
   if (size != 0) {
     std::cout << "Start tunneling of " << size << " Bytes with same Endianess:" << std::endl;
     while (totalRecvd < size)
     {
       std::cout << "." << std::flush;
       // receive a max of chunksize bytes
-      recvd = recv(sendFd, buff, chunksize, 0);
-      err = errno;
-      if (recvd == -1) {
-          std::cerr << "Unexpected fail of sender" << err;
-          delete[] buff;
+      recvd = recv(sendFd, buff.get(), chunksize, 0);
+      switch (recvd) {
+        case 0:
+          std::cerr << "NetworkUtils::forward() sender terminated too early" << std::endl;
           return false;
-      } else if (recvd == 0) {
-          std::cerr << "Unexpected close of sender" << err;
-          delete[] buff;
+        case -1:
+          perror("NetworkUtils::forward() unexpected fail of sender");
           return false;
       }
       totalRecvd += static_cast<size_t>(recvd);
 
       // send received bytes to receiver
-      sendSuccess = receiver.sendall(buff, static_cast<size_t>(recvd));
+      sendSuccess = receiver.sendall(buff.get(), static_cast<size_t>(recvd));
       if (!sendSuccess) {
-        std::cerr << "Unexpected fail of receiver";
-        delete[] buff;
+        std::cerr << "NetworkUtils::forward() unexpected fail of receiver";
         return false;
       }
     }
@@ -454,25 +441,21 @@ bool NetworkUtils::forward(const ClientSocket& sender,
     while (recvd > 0 && sendSuccess)
     {
       // receive a max of chunksize bytes
-      recvd = recv(sendFd, buff, chunksize, 0);
-      err = errno;
+      recvd = recv(sendFd, buff.get(), chunksize, 0);
       if (recvd == -1) {
-          std::cerr << "Unexpected fail of sender" << err;
-          delete[] buff;
+          perror("NetworkUtils::forward() unexpected fail of sender");
           return false;
       }
 
       // send received bytes to receiver
-      sendSuccess = receiver.sendall(buff, static_cast<size_t>(recvd));
+      sendSuccess = receiver.sendall(buff.get(), static_cast<size_t>(recvd));
       if (!sendSuccess) {
-        std::cerr << "Unexpected fail of receiver";
-        delete[] buff;
+        perror("NetworkUtils::forward() unexpected fail of receiver");
         return false;
       }
     }
   }
   std::cout << std::endl;
-  delete[] buff;
   return true;
 }
 

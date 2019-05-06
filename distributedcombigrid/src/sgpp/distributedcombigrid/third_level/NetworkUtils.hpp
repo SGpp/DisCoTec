@@ -1,6 +1,7 @@
 #ifndef NETWORK_UTILS_H
 #define NETWORK_UTILS_H
 
+#include <stdio.h>
 #include <string>
 #include <sys/types.h>
 #include <sys/socket.h>
