@@ -2,10 +2,10 @@
 #include <mpi.h>
 #include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
+#include "TaskConstParaboloid.hpp"
 #include "TaskConst.hpp"
 #include "test_helper.hpp"
 #include "stdlib.h"
-// BOOST_CLASS_EXPORT_IMPLEMENT(TaskConst)
 
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 
@@ -20,6 +20,8 @@
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
+BOOST_CLASS_EXPORT(TaskConstParaboloid)
+
 DistributedSparseGridUniform<CombiDataType> getSmallTestDSG(){
   // set up a dsg for sending
   LevelVector levels = {2, 2};
@@ -33,175 +35,106 @@ DistributedSparseGridUniform<CombiDataType> getSmallTestDSG(){
   return DistributedSparseGridUniform<CombiDataType>{dim, lmax, lmin, boundary, MPI_COMM_SELF};
 }
 
-void pingPongTest(){
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(2));
 
-  CommunicatorType comm = TestHelper::getComm(2);
-  if (comm == MPI_COMM_NULL) {
-    return;
+/*
+ * Computes distribution of a given combischeme to the systems of the third level
+ * combination.
+ * We assume only 2 systems participating.
+ * For example purpose we just split the scheme in half, and assign each half
+ * to a system.
+ */
+void createThirdLevelCombischeme(std::vector<LevelVector>& levels,
+                                 std::vector<combigrid::real>& coeffs,
+                                 unsigned int systemNumber) {
+  std::vector<LevelVector> fullScheme(levels);
+  std::vector<combigrid::real> fullSchemeCoeffs(coeffs);
+  auto mid = fullScheme.begin() + ((fullScheme.size()-1) / 2);
+  auto midC = fullSchemeCoeffs.begin() + ((fullSchemeCoeffs.size()-1) / 2);
+  std::vector<LevelVector> lowerHalf(fullScheme.begin(), mid);
+  std::vector<combigrid::real> lowerCoeffs(fullSchemeCoeffs.begin(), midC);
+  std::vector<LevelVector> upperHalf(mid+1, fullScheme.end());
+  std::vector<combigrid::real> upperCoeffs(midC+1, fullSchemeCoeffs.end());
+  assert( !lowerHalf.empty() && !upperHalf.empty() );
+
+  // assign half to system
+  switch(systemNumber) {
+    case 0:
+      levels = lowerHalf;
+      coeffs = lowerCoeffs;
+      break;
+    case 1:
+      levels = upperHalf;
+      coeffs = upperCoeffs;
+      break;
   }
-
-  DistributedSparseGridUniform<CombiDataType> myDSG = getSmallTestDSG();
-  DistributedSparseGridUniform<CombiDataType> myDSGCopy {myDSG};
-
-  // send one way
-  if (TestHelper::getRank(comm) == 1){
-    RankType src = 0;
-    DistributedSparseGridUniform<CombiDataType> * myDSG2 = recvDSGUniform<CombiDataType>(src, (CommunicatorType) comm);
-    myDSG = DistributedSparseGridUniform<CombiDataType>(*myDSG2);
-  }else{
-    sendDSGUniform(&myDSG,1,comm);
-  }
-
-  // send the other way and add to existing
-  if (TestHelper::getRank(comm) == 0){
-    RankType src = 1;
-    myDSG.recvAndAddDSGUniform(src, comm);
-  }else{
-    sendDSGUniform(&myDSG,0,comm);
-  }
-
-  // for (size_t i = 0; i < myDSG.getNumSubspaces(); ++i){
-  //   BOOST_TEST(myDSG.subspaces_[i].data_ == (myDSGCopy.subspaces_[i].data_ * 2)); //TODO
-  // }
-
-  MPI_Barrier(comm);
 }
 
-void checkManagerRecv() {
-  // Recv algorithm:
-  // get handle to process group to write to
-  // set up receive channel to middleman
-  // after every first combine from manager{
-  //  listen & receive
-  //  write into extra process group's recv-memory, one after the other process
-  //  //  notify manager if completed
-  //  notify process of process group of completion, upon which they call the 
-  //  broadcast updated dsg
-  // }
 
-  // technology considerations If receiver as extra thread: MPI+threads or MPI+MPI(with RMA)?
-  // cf wgropp.cs.illinois.edu/courses/cs598-s16/lectures/lecture36.pdf
-  // => rather advises towards RMA
-}
+/**
+ * Checks if combination was successful.
+ * Since both systems get the full combination scheme and the task is constant,
+ * the expected result should be twice the initial function values.
+ */
+bool checkReducedFullGrid(ProcessGroupWorker& worker) {
+  TaskContainer& tasks = worker.getTasks();
+  int numGrids = (int) worker.getCombiParameters().getNumGrids();
 
-void checkManagerSend() {
-  // Send algorithm:
-  // get handle to process group to read from
-  // set up send channel to middleman
-  // after every first combine from manager{
-  //  gather grid
-  //  stream it to middleman/other machines
-  //  notify process of process group of completion, upon which they call the 
-  //  broadcast updated dsg
-  // }
-}
-
-bool checkGatheredSparseGridFromProcessGroup(ProcessManager* manager = nullptr,
-                                           CombiParameters params = CombiParameters(),
-                                           size_t nprocs = 1) {
-  /*
-  size_t numGrids = params.getNumGrids();
-  auto& combinedUniDSGVector = manager->getOutboundUniDSGVector();
-
-  bool found = false;
-  for (size_t i = 0; i < nprocs; ++i) {
-    for (int g = 0; g < numGrids; ++g) {
-      const auto& dsgu = combinedUniDSGVector[g];
-      BOOST_CHECK(dsgu->getDim() > 0);
-      BOOST_CHECK(!dsgu->getBoundaryVector().empty());
-      BOOST_CHECK(dsgu->getNMax()[0] >= 0);
-      BOOST_CHECK(dsgu->getNumSubspaces() > 0);
-
-      size_t subspaceNo = 0;
-      std::cerr << combigrid::toString(dsgu->getDataVector(subspaceNo)) << std::endl;
-      auto it = std::find_if(dsgu->getDataVector(subspaceNo).begin(),
-                              dsgu->getDataVector(subspaceNo).end(), [](CombiDataType& dve) {
-                                return (abs(dve) - 1.11666666666667) < TestHelper::tolerance;
-                              });
-      if (it != dsgu->getDataVector(subspaceNo).end()) {
-        found = true;
+  for (Task* t : tasks) {
+    for (int g = 0; g < numGrids; g++) {
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+      ParaboloidFn<CombiDataType> initialFunction;
+      for (IndexType li = 0; li < dfg.getNrElements(); ++li) {
+        std::vector<double> coords(dfg.getDimension());
+        dfg.getCoordsLocal(li, coords);
+        CombiDataType expected = CombiDataType(2.) * initialFunction(coords);
+        CombiDataType occuring = dfg.getData()[li];
+        double diff = abs(occuring - expected);
+        if (diff > TestHelper::tolerance) {
+          std::cout << "Found value that does not match expected at index "
+                    << li  << ": "  << occuring << " != " 
+                    << expected << ", diff = " << diff << std::endl;
+          return false;
+        }
       }
     }
   }
-  return found;
-  */
   return true;
 }
 
-void checkAddSparseGridToProcessGroup(ProcessManager* manager = nullptr,
-                                      ProcessGroupWorker* pgw = nullptr) {
-  /*
-  // manager->getInboundUniDSGVector() = manager->getOutboundUniDSGVector();
-
-  if (manager != nullptr) {                                       // manager code
-                                                                  // iterate process group
-    size_t numGrids = manager->getOutboundUniDSGVector().size();  // TODO inbound
-
-    // iterate first process group
-    // for (size_t i = theMPISystem()->getNumProcs(); i < 2 * theMPISystem()->getNumProcs(); ++i) {
-    for (size_t i = 0; i < theMPISystem()->getNumProcs(); ++i) {
-      for (size_t g = 0; g < numGrids; ++g) {
-        sendDSGUniform<CombiDataType>(manager->getOutboundUniDSGVector()[g].get(), i,
-                                      theMPISystem()->getWorldComm());
-      }
-    }
-
-  } else if (pgw != nullptr) {  // worker code
-                                // put subspace data into buffer for allreduce
-    // // only second process group
-    // if (theMPISystem()->getWorldRank() >= theMPISystem()->getNumProcs() &&
-    //     theMPISystem()->getWorldRank() < 2 * theMPISystem()->getNumProcs()) {
-    // only first process group
-    if (theMPISystem()->getWorldRank() < theMPISystem()->getNumProcs()) {
-      size_t numGrids = pgw->getCombinedUniDSGVector().size();
-      for (size_t g = 0; g < numGrids; ++g) {
-        RankType src = theMPISystem()->getManagerRankWorld();
-        CommunicatorType comm = theMPISystem()->getWorldComm();
-        pgw->getCombinedUniDSGVector()[g]->recvAndAddDSGUniform(src, comm);
-      }
-    }
-  }
-  */
-}
-
+/** Runs the RabbitMQ server */
 void runRabbitMQServer() {
-  std::cout << "starting rabbitMQ server..." << std::endl;
-  system("rabbitmq-server &");
+  std::string command = "rabbitmq-server &";
+  std::cout << "starting RabbitMQ server..." << std::endl;
+  system(command.c_str());
   // give rabbitmq some time to set up
   sleep(10);
 }
 
+/** Runs the third level manager in the background as forked child process */
 void runThirdLevelManager() {
   std::cout << "starting thirdLevelManager..." << std::endl;
-  system("../examples/gene_distributed_third_level/third_level_manager/run.sh &");
+  std::string command = "../examples/gene_distributed_third_level/third_level_manager/run.sh &";
+  system(command.c_str());
+
   // give thirdLevelManger some time to set up
   sleep(1);
 }
 
+/** Kills the tl manager and rabbit mq server */
 void killInfrastructure() {
-  system("killall rabbitmq-server");
-  system("killall thirdLevelManager");
+  //system("killall rabbitmq-server");
+  //system("killall thirdLevelManager");
 }
 
+/** Runs the tl manager and RabbitMQ server*/
 void startInfrastructure() {
   //runRabbitMQServer();
-  runThirdLevelManager();
+  //runThirdLevelManager();
 }
 
-void runOtherSystem(size_t numProcs) {
-  std::cout << "starting other system..." << std::endl;
-  std::string command = "mpirun -n " + std::to_string(numProcs) +
-                        " /home/marci/UNI/HIWI/combi/distributedcombigrid/tests/test_distributedcombigrid_boost "
-                        "--run_test=managerSendRecv -- system2 &";
-  system(command.c_str());
-}
-
-void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
+void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::string& sysName = "system1", CommunicatorType comm = MPI_COMM_NULL) {
   size_t size = ngroup * nprocs + 1;
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
-  CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) {
     return;
   }
@@ -209,23 +142,10 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
   combigrid::Stats::initialize();
 
   theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
-  // theMPISystem()->init(ngroup, nprocs);
 
-  // set up a constant valued distributed fullgrid in the process groups
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     int argc = boost::unit_test::framework::master_test_suite().argc;
     char** argv = boost::unit_test::framework::master_test_suite().argv;
-
-    //
-    // Starting other system
-    //
-    std::string sysName = "system1";
-    if (argc == 1) {
-      startInfrastructure();
-      runOtherSystem(ngroup * nprocs + 1);
-    } else {
-      sysName = "system2";
-    }
 
     ProcessGroupManagerContainer pgroups;
     for (int i = 0; i < ngroup; ++i) {
@@ -248,14 +168,21 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
+    // create third level specific scheme
+    /*
+    if (sysName == "system1")
+      createThirdLevelCombischeme(levels, coeffs, 0);
+    else
+      createThirdLevelCombischeme(levels, coeffs, 1);
+    */
+
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
     // create Tasks
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      // std::cerr << "task" << i<< std::endl;
-      Task* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel.get());
+      Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
       BOOST_CHECK(true);
 
       tasks.push_back(t);
@@ -273,6 +200,10 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
+    // the combiparameters are sent to all process groups before the
+    // computations start
+    manager.updateCombiParameters();
+
     std::cout << "running first";
     manager.runfirst();
     std::cout << "running combineThirdLevel";
@@ -289,54 +220,72 @@ void testGatherAddDSG(size_t ngroup = 1, size_t nprocs = 1) {
     signal = pgroup.wait();
     while (signal != EXIT) {
       signal = pgroup.wait();
-      std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " received signal " << signal << std::endl; 
+      std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " processed signal " << signal << std::endl; 
     }
-    // std::cerr << "start checkAddSparseGridToProcessGroup" << std::endl;
-    // checkAddSparseGridToProcessGroup(nullptr, &pgroup); //TODO check that doubled
+
+    // after combination check workers grids
+    BOOST_CHECK(checkReducedFullGrid(pgroup));
   }
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
 }
 
-BOOST_AUTO_TEST_SUITE(managerSendRecv)
+BOOST_AUTO_TEST_SUITE(thirdLevel)
 
-/*
-BOOST_AUTO_TEST_CASE(test_pp, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(10)) {
-  pingPongTest();
+BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+
+  int argc = boost::unit_test::framework::master_test_suite().argc;
+  char** const & argv =  boost::unit_test::framework::master_test_suite().argv;
+
+  if (argc != 3) {
+    std::cout << "Please specify number of groups and procs per group" << std::endl;
+    return;
+  }
+
+  size_t ngroup = static_cast<size_t>(std::stoi(argv[1]));
+  size_t nprocs = static_cast<size_t>(std::stoi(argv[2]));
+
+  int rank, size, color;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+  size_t procsPerSys = ngroup * nprocs + 1;
+
+  if (size < 2*procsPerSys) {
+    std::cout << "Failed running test: Number of Processes given: " << size << " required: " 
+              << 2*procsPerSys << std::endl;
+    return;
+  }
+
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable( 2*procsPerSys ));
+
+  if (rank == 0)
+    startInfrastructure();
+
+  // assign procs to systems
+  std::string systemName;
+  if (rank < procsPerSys) {
+    color = 0;
+    systemName = "system1";
+  } else if (rank < 2 * procsPerSys) {
+    color = 1;
+    systemName = "system2";
+  } else {
+    color = 2;
+  }
+
+  MPI_Comm newcomm;
+  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &newcomm);
+
+  // remove unnecessary procs
+  if (color == 2)
+    return;
+
+  testCombineThirdLevel(ngroup, nprocs, systemName, newcomm);
+
+  if (rank == 0)
+    killInfrastructure();
 }
-*/
-
-/*
-BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(20)) {
-  testGatherAddDSG(1, 1);
-}
-
-BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(30)) {
-  testGatherAddDSG(1, 2);
-}
-
-BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(30)) {
-  testGatherAddDSG(2, 2);
-}
-*/
-
-BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)) {
-  size_t ngroup = 1;
-  size_t nprocs = 1;
-
-  testGatherAddDSG(ngroup, nprocs);
-}
-
-/*
-BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance) 
-                                 * boost::unit_test::timeout(40)) {
-  testGatherAddDSG(2, 4);
-}
-*/
 
 BOOST_AUTO_TEST_SUITE_END()
