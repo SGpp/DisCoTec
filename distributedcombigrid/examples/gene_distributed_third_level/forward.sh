@@ -1,7 +1,7 @@
 #! /bin/bash
 if [ $# -eq 0 ]
 then
-	echo "Usage: forward.sh fromPort toPort"
+	echo "Usage:\n forward.sh fromPort toPort"
 	exit 0
 fi
 
