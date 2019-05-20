@@ -209,6 +209,10 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
+    // the combiparameters are sent to all process groups before the
+    // computations start
+    manager.updateCombiParameters();
+
     /* distribute task according to load model and start computation for
      * the first time */
     manager.runfirst();
