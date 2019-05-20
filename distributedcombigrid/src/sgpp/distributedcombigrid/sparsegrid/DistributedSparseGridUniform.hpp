@@ -39,6 +39,7 @@ struct SubspaceSGU {
   SubspaceSGU& operator+=(const SubspaceSGU& rhs) 
   {
     assert(this->level_ == rhs.level_);
+    assert(data_.size() == rhs.data_.size());
 
     for(size_t i = 0; i < data_.size(); ++i){
       this->data_[i] += rhs.data_[i];
@@ -615,6 +616,8 @@ static void broadcastDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src, CommunicatorType comm) {
   DistributedSparseGridUniform<FG_ELEMENT> * dsgu = recvDSGUniform<FG_ELEMENT>(src, comm);
+
+  assert(dsgu->getNumSubspaces() == this->getNumSubspaces());
 
   //add to this grid
   for (size_t i = 0; i < this->getNumSubspaces(); ++i){
