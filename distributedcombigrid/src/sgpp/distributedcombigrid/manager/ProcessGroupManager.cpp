@@ -177,7 +177,7 @@ bool ProcessGroupManager::forwardDSGUFromRemoteToPG(const ThirdLevelUtils& third
     assert(comm != MPI_COMM_NULL);
 
     for (size_t g = 0; g < numGrids; g++) {
-      std::string serializedDSGU = thirdLevel.recvDSGUniformSerialized();
+      const std::string& serializedDSGU = thirdLevel.recvDSGUniformSerialized();
       MPI_Send(serializedDSGU.data(), static_cast<int>(serializedDSGU.size()),
           MPI_CHAR, 0, sendDSGTag, comm);
     }
