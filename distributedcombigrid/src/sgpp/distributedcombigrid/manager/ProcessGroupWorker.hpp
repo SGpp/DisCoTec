@@ -92,6 +92,10 @@ class ProcessGroupWorker {
     return combinedUniDSGVector_;
   }
 
+  TaskContainer& getTasks(){
+    return tasks_;
+  }
+
  private:
   TaskContainer tasks_;  // task storage
 
