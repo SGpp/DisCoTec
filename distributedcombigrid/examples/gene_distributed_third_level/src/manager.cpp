@@ -138,7 +138,7 @@ void createThirdLevelCombischeme(std::vector<LevelVector>& levels,
                                  std::vector<combigrid::real>& coeffs,
                                  unsigned int systemNumber) {
   std::vector<LevelVector> fullScheme(levels);
-  std::vector<combigrid::real> fullCoeffs(coeffs);
+  std::vector<combigrid::real> fullSchemeCoeffs(coeffs);
   auto mid = fullScheme.begin() + ((fullScheme.size()-1) / 2);
   auto midC = fullSchemeCoeffs.begin() + ((fullSchemeCoeffs.size()-1) / 2);
   std::vector<LevelVector> lowerHalf(fullScheme.begin(), mid);
