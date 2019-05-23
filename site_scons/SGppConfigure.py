@@ -345,6 +345,17 @@ def configureGNUCompiler(config):
   if config.env["BUILD_STATICLIB"]:
     config.env.Append(CPPFLAGS=["-D_BUILD_STATICLIB"])
 
+  if config.env["USENONBLOCKINGMPICOLLECTIVE"]:
+    config.env.Append(CPPFLAGS=["-DUSENONBLOCKINGMPICOLLECTIVE"])
+  if config.env["OMITREADYSIGNAL"]:
+    config.env.Append(CPPFLAGS=["-DOMITREADYSIGNAL"])
+  if config.env["UNIFORMDECOMPOSITION"]:
+    config.env.Append(CPPFLAGS=["-DUNIFORMDECOMPOSITION"])
+  if config.env["ENABLEFT"]:
+    config.env.Append(CPPFLAGS=["-DENABLEFT"])  
+  if config.env["ISGENE"]:
+    config.env.Append(CPPFLAGS=["-DISGENE"])
+
   if config.env["ARCH"] == "sse3":
     config.env.AppendUnique(CPPFLAGS=["-msse3"])
   elif config.env["ARCH"] == "sse42":
