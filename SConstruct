@@ -146,10 +146,10 @@ vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', roo
 vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
 
 
-vars.Add(BoolVariable("USENONBLOCKINGMPICOLLECTIVE","",True))
-vars.Add(BoolVariable("OMITREADYSIGNAL","",True))
-vars.Add(BoolVariable("UNIFORMDECOMPOSITION","",True))
-vars.Add(BoolVariable("ENABLEFT","",True))
+vars.Add(BoolVariable("USENONBLOCKINGMPICOLLECTIVE","Nonblocking mpi collective calls (MPI_Iallreduce and the likes)",True))
+vars.Add(BoolVariable("OMITREADYSIGNAL","Set to true to avoid that the ready signal is sent automatically",True))
+vars.Add(BoolVariable("UNIFORMDECOMPOSITION","To enable the uniform operations set this to true",True))
+vars.Add(BoolVariable("ENABLEFT","Switch on fault tolerance functionality",True))
 vars.Add(BoolVariable("ISGENE","",True))
 
 
