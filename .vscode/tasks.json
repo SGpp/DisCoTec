@@ -5,7 +5,8 @@
     "tasks": [
         {
             "label": "scons build",
-            "command": "scons",
+            "command": "python2",
+            // "command": "scons",
             "type": "shell",
             "group": "build",
             // "options": {
@@ -15,6 +16,7 @@
                 "reveal": "always"
             },
             "args": [
+                "/usr/bin/scons",
                 "-j8",
                 "SG_JAVA=0",
                 "COMPILE_BOOST_TESTS=1",
@@ -53,7 +55,8 @@
         {
             "label": "scons clean",
             "type": "shell",
-            "command": "scons -c FC=gfort && rm -r .scon*",
+            "command": "python2 /usr/bin/scons -c FC=gfort && rm -r .scon*",
+            // "command": "scons -c FC=gfort && rm -r .scon*",
             "group": "build"
         },
         {
