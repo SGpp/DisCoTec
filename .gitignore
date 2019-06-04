@@ -30,6 +30,7 @@ pysgpp/pysgpp_wrap.h
 
 #ignoreing build output
 lib/sgpp/*
+lib/
 *.log
 Doxyfile
 base/doc/doxygen/examples.doxy
@@ -53,6 +54,7 @@ base/doc/doxygen/modules.doxy
 doc/html
 doc/xml
 
+
 #ignoring code coverage files
 coverage.info
 coverage
@@ -62,3 +64,24 @@ coverage
 
 # ignoring uq tests
 datadriven/tests/uq/
+
+#
+.idea/
+.vscode/ipch/
+.vscode/c_cpp_properties.json
+distributedcombigrid/src/sgpp/.vscode/
+
+#jsgpp/java/
+
+#Makefiles
+distributedcombigrid/examples/combi_example/Makefile
+distributedcombigrid/examples/combi_example/combi_example
+distributedcombigrid/examples/combi_example_faults/Makefile
+distributedcombigrid/examples/gene_distributed/Makefile
+distributedcombigrid/examples/gene_distributed_linear/Makefile
+
+
+
+tmp/
+#loaddata
+loaddata_*.durations
