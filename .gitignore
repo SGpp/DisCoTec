@@ -70,6 +70,7 @@ datadriven/tests/uq/
 .vscode/ipch/
 .vscode/c_cpp_properties.json
 distributedcombigrid/src/sgpp/.vscode/
+.vscode/settings.json
 
 #jsgpp/java/
 

@@ -1,5 +1,5 @@
 CC=$(CC)
-CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall
+CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DTIMING
 
 SGPP_DIR=$(SGPP)
 GLPK_DIR=$(GLPK)
