@@ -118,7 +118,9 @@ int main(int argc, char** argv) {
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
     params.setParallelization(p);
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params);
+    // inserted LinearLoadModel as default as it was not compiling else wise
+    // trying to use pointer created
+    ProcessManager manager(pgroups, tasks, params, std::unique_ptr<LoadModel>(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start
