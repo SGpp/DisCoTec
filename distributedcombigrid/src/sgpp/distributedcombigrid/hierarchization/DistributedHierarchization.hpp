@@ -1211,6 +1211,9 @@ static IndexType getFirstIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, Di
   return idxMax + 1;
 }
 
+/**
+ * Not used
+ */
 template <typename FG_ELEMENT>
 static void hierarchizeX(DistributedFullGrid<FG_ELEMENT>& dfg,
                          LookupTable<FG_ELEMENT>& lookupTable) {
@@ -1225,6 +1228,7 @@ static void hierarchizeX(DistributedFullGrid<FG_ELEMENT>& dfg,
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
   IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
 
+  
   for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
     // get globalIndexVector of block start
     // this is the base IndexVector of this block
@@ -1287,6 +1291,9 @@ static void hierarchizeX(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+/**
+ * Used
+ */
 template <typename FG_ELEMENT>
 static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                         LookupTable<FG_ELEMENT>& lookupTable) {
@@ -1373,6 +1380,9 @@ static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+/**
+ * Used
+ */
 template <typename FG_ELEMENT>
 static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                           LookupTable<FG_ELEMENT>& lookupTable) {
@@ -1459,6 +1469,9 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+/**
+ * Used
+ */
 template <typename FG_ELEMENT>
 static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                       LookupTable<FG_ELEMENT>& lookupTable) {
@@ -1531,6 +1544,9 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+/**
+ * Used
+ */
 template <typename FG_ELEMENT>
 static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                         LookupTable<FG_ELEMENT>& lookupTable) {
@@ -1768,7 +1784,11 @@ inline void hierarchizeX_inner_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
   return;
 }
 
-// function hierarchizeN
+/**
+ *   function hierarchizeN
+ *  Un used
+ *  deprecated??
+ * */
 template <typename FG_ELEMENT>
 void hierarchizeN_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                            LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -1837,6 +1857,10 @@ void hierarchizeN_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+
+/**
+ * Used
+ */
 template <typename FG_ELEMENT>
 void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -1904,6 +1928,10 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+/**
+ * Used 
+ * equal exept for kernel call to hierarchizeN_opt_boundary
+ */
 template <typename FG_ELEMENT>
 void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -1998,6 +2026,9 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+/**
+ * Used
+ */
 template <typename FG_ELEMENT>
 void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -2065,6 +2096,9 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+/**
+ * Used
+ */
 template <typename FG_ELEMENT>
 void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                    LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -2157,6 +2191,10 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+/**
+ * Not used
+ */
+/* 
 template <typename FG_ELEMENT>
 void hierarchizeN_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                              LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -2253,7 +2291,7 @@ void hierarchizeN_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     }
   }
 }
-
+// Not used
 template <typename FG_ELEMENT>
 void dehierarchizeN_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -2349,7 +2387,7 @@ void dehierarchizeN_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       }
     }
   }
-}
+}*/
 
 }  // unnamed namespace
 
@@ -2373,6 +2411,9 @@ class DistributedHierarchization {
       exchangeData1d(dfg, dim, remoteData);
 
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
+
+
+
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
         hierarchizeX_opt_boundary(dfg, lookupTable);
