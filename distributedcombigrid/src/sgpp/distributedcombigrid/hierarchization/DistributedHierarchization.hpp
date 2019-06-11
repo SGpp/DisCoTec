@@ -1469,6 +1469,7 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+
 /**
  * Used
  */
@@ -1859,8 +1860,8 @@ void hierarchizeN_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
 
 /**
- * Used
- */
+ *Replaced via templates
+ */ /* 
 template <typename FG_ELEMENT>
 void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -1926,16 +1927,16 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     // copy pole back
     for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
   }
-}
+}*/
 
 /**
  * Used 
  * equal exept for kernel call to hierarchizeN_opt_boundary
  */
-template <typename FG_ELEMENT>
-void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
+template <typename FG_ELEMENT,bool boundary>
+void hierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
-  assert(dfg.returnBoundaryFlags()[dim] == false);
+  assert(dfg.returnBoundaryFlags()[dim] == boundary);
 
   LevelType lmax = dfg.getLevels()[dim];
   IndexType size = dfg.getNrLocalElements();
@@ -1989,35 +1990,42 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     // copy local data
     for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
 
-    // hierarchization kernel
-    IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+    if(boundary){
+      // hierarchize tmp array with hupp function
+      hierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
+    }
+    else
+    {
+      // hierarchization kernel
+      IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
 
-    for (LevelType l = lmax; l > 0; --l) {
-      // get first local point of level and corresponding stride
-      IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
-      IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
-      IndexType levelStride = parentOffset * 2;
+      for (LevelType l = lmax; l > 0; --l) {
+        // get first local point of level and corresponding stride
+        IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
+        IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
+        IndexType levelStride = parentOffset * 2;
 
-      // loop over points of this level with level specific stride
-      // as long as inside domain
-      for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
-        // when no boundary in this dimension we have to check if
-        // 1d indices outside domain
-        FG_ELEMENT left(0.0);
-        FG_ELEMENT right(0.0);
+        // loop over points of this level with level specific stride
+        // as long as inside domain
+        for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
+          // when no boundary in this dimension we have to check if
+          // 1d indices outside domain
+          FG_ELEMENT left(0.0);
+          FG_ELEMENT right(0.0);
 
-        if (idx - parentOffset > 0) {
-          left = tmp[idx - parentOffset];
+          if (idx - parentOffset > 0) {
+            left = tmp[idx - parentOffset];
+          }
+
+          if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
+            right = tmp[idx + parentOffset];
+          }
+
+          // do calculation
+          FG_ELEMENT buf = -0.5 * left;
+          tmp[idx] -= 0.5 * right;
+          tmp[idx] += buf;
         }
-
-        if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
-          right = tmp[idx + parentOffset];
-        }
-
-        // do calculation
-        FG_ELEMENT buf = -0.5 * left;
-        tmp[idx] -= 0.5 * right;
-        tmp[idx] += buf;
       }
     }
 
@@ -2027,8 +2035,8 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 }
 
 /**
- * Used
- */
+ * Replaced via template
+ 
 template <typename FG_ELEMENT>
 void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -2094,15 +2102,15 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     // copy pole back
     for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
   }
-}
+}*/
 
 /**
  * Used
  */
-template <typename FG_ELEMENT>
-void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
+template <typename FG_ELEMENT,bool boundary>
+void dehierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
                                    LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
-  assert(dfg.returnBoundaryFlags()[dim] == false);
+  assert(dfg.returnBoundaryFlags()[dim] == boundary);
 
   LevelType lmax = dfg.getLevels()[dim];
   IndexType size = dfg.getNrLocalElements();
@@ -2156,33 +2164,41 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     // copy local data
     for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
 
+
+
     // dehierarchization kernel
-    for (LevelType l = 2; l <= lmax; ++l) {
-      // get first local point of level and corresponding stride
-      IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
-      IndexType first = parentOffset - 1;
-      IndexType levelStride = parentOffset * 2;
+    if(boundary){
+      // hierarchize tmp array with hupp function
+    dehierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
+    }
+    else{  
+      for (LevelType l = 2; l <= lmax; ++l) {
+        // get first local point of level and corresponding stride
+        IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
+        IndexType first = parentOffset - 1;
+        IndexType levelStride = parentOffset * 2;
 
-      // loop over points of this level with level specific stride
-      // as long as inside domain
-      for (IndexType idx = first; idx < dfg.getGlobalSizes()[dim]; idx += levelStride) {
-        // when no boundary in this dimension we have to check if
-        // 1d indices outside domain
-        FG_ELEMENT left(0.0);
-        FG_ELEMENT right(0.0);
+        // loop over points of this level with level specific stride
+        // as long as inside domain
+        for (IndexType idx = first; idx < dfg.getGlobalSizes()[dim]; idx += levelStride) {
+          // when no boundary in this dimension we have to check if
+          // 1d indices outside domain
+          FG_ELEMENT left(0.0);
+          FG_ELEMENT right(0.0);
 
-        if (idx - parentOffset > 0) {
-          left = tmp[idx - parentOffset];
+          if (idx - parentOffset > 0) {
+            left = tmp[idx - parentOffset];
+          }
+
+          if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
+            right = tmp[idx + parentOffset];
+          }
+
+          // do calculation
+          FG_ELEMENT buf = 0.5 * left;
+          tmp[idx] += 0.5 * right;
+          tmp[idx] += buf;
         }
-
-        if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
-          right = tmp[idx + parentOffset];
-        }
-
-        // do calculation
-        FG_ELEMENT buf = 0.5 * left;
-        tmp[idx] += 0.5 * right;
-        tmp[idx] += buf;
       }
     }
 
@@ -2433,9 +2449,9 @@ class DistributedHierarchization {
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
         // hierarchizeN_boundary( dfg, lookupTable, dim );
-        hierarchizeN_opt_boundary(dfg, lookupTable, dim);
+        hierarchizeN_opt<FG_ELEMENT,true>(dfg, lookupTable, dim);
       } else {
-        hierarchizeN_opt_noboundary(dfg, lookupTable, dim);
+        hierarchizeN_opt<FG_ELEMENT,false>(dfg, lookupTable, dim);
       }
 
       ++hierCount;
@@ -2463,7 +2479,7 @@ class DistributedHierarchization {
       exchangeData1dDehierarchization(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
-      if (dfg.returnBoundaryFlags()[dim] == true) {
+      if (dfg.returnBoundaryFlags()[dim] == true) {//TODO 
         dehierarchizeX_opt_boundary(dfg, lookupTable);
       } else {
         dehierarchizeX_opt_noboundary(dfg, lookupTable);
@@ -2480,9 +2496,9 @@ class DistributedHierarchization {
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
-        dehierarchizeN_opt_boundary(dfg, lookupTable, dim);
+        dehierarchizeN_opt<FG_ELEMENT,true>(dfg, lookupTable, dim);
       } else {
-        dehierarchizeN_opt_noboundary(dfg, lookupTable, dim);
+        dehierarchizeN_opt<FG_ELEMENT,false>(dfg, lookupTable, dim);
       }
     }
   }
