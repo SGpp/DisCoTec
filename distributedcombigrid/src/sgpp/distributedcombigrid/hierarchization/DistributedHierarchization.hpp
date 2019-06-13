@@ -1625,6 +1625,8 @@ inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
   return;
 }
 
+
+
 /*
  * this algorithm can only work if the domain decompostion is powers of two
  *
@@ -1908,37 +1910,37 @@ void dehierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
   // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
   // LevelType level_idxend = dfg.getLevel(dim, idxend);
 
+  //#pragma omp parallel for firstprivate(lo)
   for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
     divresult = std::lldiv(nn, stride);
     start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
     // compute global vector index of start
-    dfg.getLocalVectorIndex(start, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
+    dfg.getLocalVectorIndex(start, localIndexVector); //§  localIndexVector
+    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);//§ tmpGlobalIndexVector
     assert(localIndexVector[dim] == 0);
 
     // copy remote data to tmp
-    std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
+    std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();//! rdcs
 
     if (rdcs.size() > 0) {
       // go through remote containers
       for (size_t i = 0; i < rdcs.size(); ++i) {
         IndexType global1didx = rdcs[i].getKeyIndex();
         tmpGlobalIndexVector[dim] = global1didx;
-        tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+        tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);//! rdcs
       }
     }
 
     // copy local data
-    for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
-
-
+    for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];//§ ldata
+ 
 
     // dehierarchization kernel
     if(boundary){
       // hierarchize tmp array with hupp function
-    dehierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
+    dehierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);//todo check
     }
     else{  
       for (LevelType l = 2; l <= lmax; ++l) {
@@ -1949,7 +1951,7 @@ void dehierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
 
         // loop over points of this level with level specific stride
         // as long as inside domain
-        for (IndexType idx = first; idx < dfg.getGlobalSizes()[dim]; idx += levelStride) {
+        for (IndexType idx = first; idx < dfg.getGlobalSizes()[dim]; idx += levelStride) {//§ check 
           // when no boundary in this dimension we have to check if
           // 1d indices outside domain
           FG_ELEMENT left(0.0);
