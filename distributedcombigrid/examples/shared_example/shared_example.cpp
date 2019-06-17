@@ -41,6 +41,7 @@ int main(int argc, char** argv) {
    * initialized at the beginning of the program. (and finalized in the end)
    */
   Stats::initialize();
+  
 
   // read in parameter file
   boost::property_tree::ptree cfg;
@@ -56,8 +57,9 @@ int main(int argc, char** argv) {
 
   // this code is only executed by the manager process
   WORLD_MANAGER_EXCLUSIVE_SECTION {
+    Stats::startEvent("total time");
     /* create an abstraction of the process groups for the manager's view
-     * a pgroup is identified by the ID in gcomm
+    * a pgroup is identified by the ID in gcomm
      */
     ProcessGroupManagerContainer pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
@@ -156,6 +158,7 @@ int main(int argc, char** argv) {
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
+    Stats::stopEvent("total time");
   }
 
   // this code is only execute by the worker processes
@@ -168,7 +171,7 @@ int main(int argc, char** argv) {
 
     while (signal != EXIT) signal = pgroup.wait();
   }
-
+  
   Stats::finalize();
 
   /* write stats to json file for postprocessing */
