@@ -52,6 +52,7 @@ class TaskAdvectionFDM : public combigrid::Task {
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     // only use one process per group
     IndexVector p(getDim(), 1);
+
     dfg_ =
         new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p);
     phi_.resize(dfg_->getNrElements());
@@ -86,6 +87,7 @@ class TaskAdvectionFDM : public combigrid::Task {
       phi_.swap(dfg_->getElementVector());
 
       for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
+
         IndexVector ai(getDim());
         dfg_->getGlobalVectorIndex(li, ai);
 
@@ -149,7 +151,7 @@ BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 
 BOOST_CLASS_EXPORT(FaultCriterion)
-void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
+void checkManager(bool useCombine, bool useFG, double l0err, double l2err, size_t ncombi) {
   int size = useFG ? 2 : 7;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
@@ -177,7 +179,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
     combigrid::real dt = 0.0001;
 
     size_t nsteps = 100;
-    size_t ncombi = 100;
+    //size_t ncombi = 0;
     std::vector<bool> boundary(dim, true);
 
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
@@ -240,8 +242,8 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
 
     // calculate error
     fg_exact.add(fg_eval, -1);
-    printf("Error: %f", fg_exact.getlpNorm(0));
-    printf("Error2: %f", fg_exact.getlpNorm(2));
+    printf("LP Norm: %f\n", fg_exact.getlpNorm(0));
+    printf("LP Norm2: %f\n", fg_exact.getlpNorm(2));
     // results recorded previously
     BOOST_CHECK(abs( fg_exact.getlpNorm(0) - l0err) < TestHelper::higherTolerance);
     BOOST_CHECK(abs( fg_exact.getlpNorm(2) - l2err) < TestHelper::higherTolerance);
@@ -262,18 +264,35 @@ BOOST_AUTO_TEST_SUITE(manager)
 
 BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
   // use recombination
-  checkManager(true, false, 1.54369, 11.28857);
+  checkManager(true, false, 1.54369, 11.28857,100);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
   // don't use recombination
-  checkManager(false, false, 1.65104, 12.46828);
+  checkManager(false, false, 1.65104, 12.46828,100);
 }
 
 BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(80)) {
   // calculate solution on fullgrid
-  checkManager(false, true, 1.51188, 10.97143);
+  checkManager(false, true, 1.51188, 10.97143,100);
   MPI_Barrier(MPI_COMM_WORLD);
+}
+
+BOOST_AUTO_TEST_CASE(test_4, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
+  // use recombination
+  checkManager(true, false, 0.083211, 0.473448,0);
+}
+
+BOOST_AUTO_TEST_CASE(test_5, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
+  // don't use recombination
+  checkManager(false, false, 0.083211, 0.473448,0);
+}
+
+BOOST_AUTO_TEST_CASE(test_6, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(80)) {
+  // calculate solution on fullgrid
+  checkManager(false, true, 0.060058, 0.347316,0);
+  MPI_Barrier(MPI_COMM_WORLD);
+
 }
 
 BOOST_AUTO_TEST_SUITE_END()
