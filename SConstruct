@@ -144,7 +144,7 @@ vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing S
 vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', rootDirectory + "/glpk/include/")
 vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', rootDirectory + "/glpk/lib/")
 vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
-
+vars.Add("TEST_THREAD_COUNT", "How many Threads per processes are used for parallel test cases", "1")
 
 # create temporary environment to check which system and compiler we should use
 # (the Environment call without "tools=[]" crashes with MinGW,
@@ -379,7 +379,8 @@ if env["RUN_PYTHON_TESTS"] and env["SG_PYTHON"]:
 
 if env["COMPILE_BOOST_TESTS"]:
   proc_count = int(env["TEST_PROCESS_COUNT"])
-  run_cmd = "mpirun.mpich  -n %s " % proc_count if proc_count > 1 else ""
+  thread_count=int(env["TEST_THREAD_COUNT"])
+  run_cmd = "OMP_NUM_THREADS=%d mpirun.mpich  -n %s "% (thread_count , proc_count) if proc_count > 1 else ""
   builder = Builder(action=run_cmd + "./$SOURCE")
   env.Append(BUILDERS={"BoostTest" : builder})
 
