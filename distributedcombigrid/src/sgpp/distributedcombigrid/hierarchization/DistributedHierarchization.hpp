@@ -1913,7 +1913,7 @@ void dehierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
 
-    #pragma omp parallel for  //default(none)// firstprivate(lo)
+    #pragma omp for  //default(none)// firstprivate(lo)
     for (IndexType nn = 0; nn < nbrOfPoles;
         ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
       lldiv_t divresult = std::lldiv(nn, stride);
