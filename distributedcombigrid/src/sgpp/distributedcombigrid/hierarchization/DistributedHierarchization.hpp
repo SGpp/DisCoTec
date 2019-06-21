@@ -1465,70 +1465,60 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   const DimType dim = 0;
   assert(dfg.returnBoundaryFlags()[dim] == true);
 
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
+  const LevelType lmax = dfg.getLevels()[dim];
+  const IndexType ndim = dfg.getLocalSizes()[dim];
 
   // size of xBlcok
-  IndexType xSize = ndim;
+  const IndexType xSize = ndim;
 
-  // create tmp array to store xblock
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
-  IndexVector localIndexVector(dfg.getDimension());
-  IndexVector baseGlobalIndexVector(dfg.getDimension());
-  IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
-  IndexType gstart = dfg.getLowerBounds()[dim];
+  const IndexType gstart = dfg.getLowerBounds()[dim];
 
-  // first global index for hierarchization kernel
-  // first nonboundary point
-  IndexType idxstart = gstart;
-
-  if (gstart == 0) idxstart += 1;
-
-  // last global index inside subdomain.
-  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
-
-  // level of gend
-  // LevelType level_idxend = dfg.getLevel(dim, idxend);
-  IndexType linIdxBlockStart;
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
-  IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
+  const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
+  #pragma omp parallel
+  {
+    IndexVector localIndexVector(dfg.getDimension());
+    IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
-  for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
-    // get globalIndexVector of block start
-    // this is the base IndexVector of this block
-    // only dim component is varied
-    linIdxBlockStart = xBlock * ndim;
+    // create tmp array to store xblock
+    std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+    #pragma omp for
+    for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
+      // get globalIndexVector of block start
+      // this is the base IndexVector of this block
+      // only dim component is varied
+      IndexType linIdxBlockStart = xBlock * ndim;
 
-    dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
-    assert(localIndexVector[dim] == 0);
+      dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
+      dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
+      assert(localIndexVector[dim] == 0);
 
-    // copy local data to tmp
-    for (IndexType i = 0; i < xSize; ++i) tmp[gstart + i] = localData[linIdxBlockStart + i];
+      // copy local data to tmp
+      for (IndexType i = 0; i < xSize; ++i) tmp[gstart + i] = localData[linIdxBlockStart + i];
 
-    // copy remote data to tmp
-    std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
+      // copy remote data to tmp
+      std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
 
-    if (rdcs.size() > 0) {
       // go through remote containers
       for (size_t i = 0; i < rdcs.size(); ++i) {
         IndexType global1didx = rdcs[i].getKeyIndex();
         tmpGlobalIndexVector[dim] = global1didx;
         tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
       }
-    }
+      
 
-    // hierarchizeX_inner_boundary_kernel( &tmp[0], lmax,
-    //            idxstart, idxend,level_idxend );
-    dehierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
+      // hierarchizeX_inner_boundary_kernel( &tmp[0], lmax,
+      //            idxstart, idxend,level_idxend );
+      dehierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
 
-    // copy local data back
-    for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
-  }
+      // copy local data back
+      for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
+    }//#end omp for
+  }//#end omp parallel
 }
 
 template <typename FG_ELEMENT>
