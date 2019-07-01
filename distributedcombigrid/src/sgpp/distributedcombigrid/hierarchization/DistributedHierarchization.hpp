@@ -1208,83 +1208,88 @@ static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   const DimType dim = 0;
   assert(dfg.returnBoundaryFlags()[dim] == false);
 
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-  IndexType ndim = dfg.getLocalSizes()[dim];
+  const LevelType lmax = dfg.getLevels()[dim];
+  const IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+  const IndexType ndim = dfg.getLocalSizes()[dim];
 
   // size of xBlcok
-  IndexType xSize = dfg.getLocalSizes()[0];
+  const IndexType xSize = dfg.getLocalSizes()[0];
 
   // FG_ELEMENT zeroVal(0);
 
-  // create tmp array to store xblock
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
   IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
 
-  for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
-    // get globalIndexVector of block start
-    // this is the base IndexVector of this block
-    // only dim component is varied
-    IndexType linIdxBlockStart = xBlock * ndim;
 
-    IndexVector localIndexVector(dfg.getDimension());
-    IndexVector baseGlobalIndexVector(dfg.getDimension());
-    dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, baseGlobalIndexVector);
-    assert(localIndexVector[dim] == 0);
+  {
 
-    // copy local data to tmp
-    for (IndexType i = 0; i < xSize; ++i)
-      tmp[baseGlobalIndexVector[dim] + i] = localData[linIdxBlockStart + i];
+    // create tmp array to store xblock
+    std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+    for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
+      // get globalIndexVector of block start
+      // this is the base IndexVector of this block
+      // only dim component is varied
+      IndexType linIdxBlockStart = xBlock * ndim;
 
-    // copy remote data to tmp
-    std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
-    IndexVector tmpGlobalIndexVector = baseGlobalIndexVector;
+      IndexVector localIndexVector(dfg.getDimension());
+      IndexVector baseGlobalIndexVector(dfg.getDimension());
+      dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
+      dfg.getGlobalVectorIndex(localIndexVector, baseGlobalIndexVector);
+      assert(localIndexVector[dim] == 0);
 
-    if (rdcs.size() > 0) {
-      // go through remote containers
-      for (size_t i = 0; i < rdcs.size(); ++i) {
-        IndexType global1didx = rdcs[i].getKeyIndex();
-        tmpGlobalIndexVector[dim] = global1didx;
-        tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
-      }
-    }
+      // copy local data to tmp
+      for (IndexType i = 0; i < xSize; ++i)
+        tmp[baseGlobalIndexVector[dim] + i] = localData[linIdxBlockStart + i];
 
-    for (LevelType l = lmax; l > 0; --l) {
-      // get first local point of level and corresponding stride
-      IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
-      IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
-      IndexType levelStride = parentOffset * 2;
+      // copy remote data to tmp
+      std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
+      IndexVector tmpGlobalIndexVector = baseGlobalIndexVector;
 
-      // loop over points of this level with level specific stride
-      // as long as inside domain
-      for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
-        // when no boundary in this dimension we have to check if
-        // 1d indices outside domain
-        FG_ELEMENT left(0.0);
-        FG_ELEMENT right(0.0);
-
-        if (idx - parentOffset > 0) {
-          left = tmp[idx - parentOffset];
+      if (rdcs.size() > 0) {
+        // go through remote containers
+        for (size_t i = 0; i < rdcs.size(); ++i) {
+          IndexType global1didx = rdcs[i].getKeyIndex();
+          tmpGlobalIndexVector[dim] = global1didx;
+          tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
         }
-
-        if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
-          right = tmp[idx + parentOffset];
-        }
-
-        // do calculation
-        FG_ELEMENT buf = -0.5 * left;
-        tmp[idx] -= 0.5 * right;
-        tmp[idx] += buf;
       }
-    }
 
-    // copy local data back
-    for (IndexType i = 0; i < xSize; ++i)
-      localData[linIdxBlockStart + i] = tmp[baseGlobalIndexVector[dim] + i];
+      for (LevelType l = lmax; l > 0; --l) {
+        // get first local point of level and corresponding stride
+        IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
+        IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
+        IndexType levelStride = parentOffset * 2;
+
+        // loop over points of this level with level specific stride
+        // as long as inside domain
+        for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
+          // when no boundary in this dimension we have to check if
+          // 1d indices outside domain
+          FG_ELEMENT left(0.0);
+          FG_ELEMENT right(0.0);
+
+          if (idx - parentOffset > 0) {
+            left = tmp[idx - parentOffset];
+          }
+
+          if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
+            right = tmp[idx + parentOffset];
+          }
+
+          // do calculation
+          FG_ELEMENT buf = -0.5 * left;
+          tmp[idx] -= 0.5 * right;
+          tmp[idx] += buf;
+        }
+      }
+
+      // copy local data back
+      for (IndexType i = 0; i < xSize; ++i)
+        localData[linIdxBlockStart + i] = tmp[baseGlobalIndexVector[dim] + i];
+    }
   }
 }
 
@@ -1390,69 +1395,69 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   const DimType dim = 0;
   assert(dfg.returnBoundaryFlags()[dim] == true);
 
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
+  const LevelType lmax = dfg.getLevels()[dim];
+  const IndexType ndim = dfg.getLocalSizes()[dim];
 
   // size of xBlcok
-  IndexType xSize = ndim;
+  const IndexType xSize = ndim;
 
-  // create tmp array to store xblock
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
-  IndexVector localIndexVector(dfg.getDimension());
-  IndexVector baseGlobalIndexVector(dfg.getDimension());
-  IndexVector tmpGlobalIndexVector(dfg.getDimension());
+  
 
-  IndexType gstart = dfg.getLowerBounds()[dim];
+  const IndexType gstart = dfg.getLowerBounds()[dim];
 
-  // first global index for hierarchization kernel
-  // first nonboundary point
-  IndexType idxstart = gstart;
-
-  if (gstart == 0) idxstart += 1;
 
   // last global index inside subdomain.
   // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
 
   // level of gend
   // LevelType level_idxend = dfg.getLevel(dim, idxend);
-  IndexType linIdxBlockStart;
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
-  IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
+  const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
 
-  for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
-    // get globalIndexVector of block start
-    // this is the base IndexVector of this block
-    // only dim component is varied
-    linIdxBlockStart = xBlock * ndim;
+  {
+    IndexVector localIndexVector(dfg.getDimension());
+    IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
-    dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
-    assert(localIndexVector[dim] == 0);
+    // create tmp array to store xblock
+    std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
 
-    // copy local data to tmp
-    for (IndexType i = 0; i < xSize; ++i) tmp[gstart + i] = localData[linIdxBlockStart + i];
+    for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
+      // get globalIndexVector of block start
+      // this is the base IndexVector of this block
+      // only dim component is varied
+      IndexType linIdxBlockStart = xBlock * ndim;
 
-    // copy remote data to tmp
-    std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
+      dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
+      dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
+      assert(localIndexVector[dim] == 0);
 
-    if (rdcs.size() > 0) {
-      // go through remote containers
-      for (size_t i = 0; i < rdcs.size(); ++i) {
-        IndexType global1didx = rdcs[i].getKeyIndex();
-        tmpGlobalIndexVector[dim] = global1didx;
-        tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+      
+
+      // copy local data to tmp
+      for (IndexType i = 0; i < xSize; ++i) tmp[gstart + i] = localData[linIdxBlockStart + i];
+
+      // copy remote data to tmp
+      std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
+
+      if (rdcs.size() > 0) {
+        // go through remote containers
+        for (size_t i = 0; i < rdcs.size(); ++i) {
+          IndexType global1didx = rdcs[i].getKeyIndex();
+          tmpGlobalIndexVector[dim] = global1didx;
+          tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+        }
       }
+
+      // hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
+      //                                   level_idxend);
+      hierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
+
+      // copy local data back
+      for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
     }
-
-    // hierarchizeX_inner_boundary_kernel(&tmp[0], lmax, idxstart, idxend,
-    //                                   level_idxend);
-    hierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
-
-    // copy local data back
-    for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
   }
 }
 
@@ -1765,106 +1770,100 @@ void hierarchizeN_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
 /**
  * Used 
- * equal exept for kernel call to hierarchizeN_opt_boundary
  */
 template <typename FG_ELEMENT,bool boundary>
 void hierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                 LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
+                                 LookupTable<FG_ELEMENT>& lookupTable,const DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == boundary);
 
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType size = dfg.getNrLocalElements();
-  IndexType stride = dfg.getLocalOffsets()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
-  IndexType jump = stride * ndim;
-  IndexType nbrOfPoles = size / ndim;
+  const LevelType lmax = dfg.getLevels()[dim];
+  const IndexType size = dfg.getNrLocalElements();
+  const IndexType stride = dfg.getLocalOffsets()[dim];
+  const IndexType ndim = dfg.getLocalSizes()[dim];
+  const IndexType jump = stride * ndim;
+  const IndexType nbrOfPoles = size / ndim;
 
-  IndexVector localIndexVector(dfg.getDimension());
-  IndexVector baseGlobalIndexVector(dfg.getDimension());
-  IndexVector tmpGlobalIndexVector(dfg.getDimension());
-
-  // loop over poles
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
-  lldiv_t divresult;
-  IndexType start;
-  IndexType gstart = dfg.getLowerBounds()[dim];
 
-  // first global index for hierarchization kernel. may not be a boundary point
-  IndexType idxstart = gstart;
+  const IndexType gstart = dfg.getLowerBounds()[dim];
 
-  if (gstart == 0) idxstart += 1;
 
-  // last global index inside subdomain and corresponding level
-  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
-  // LevelType level_idxend = dfg.getLevel(dim, idxend);
+  {
+    IndexVector localIndexVector(dfg.getDimension());
+    IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
-  for (IndexType nn = 0; nn < nbrOfPoles;
+    
+    std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+    // loop over poles
+
+    for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
-    divresult = std::lldiv(nn, stride);
-    start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
+      lldiv_t divresult = std::lldiv(nn, stride);
+      IndexType start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
-    // compute global vector index of start
-    dfg.getLocalVectorIndex(start, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
-    assert(localIndexVector[dim] == 0);
+      // compute global vector index of start
+      dfg.getLocalVectorIndex(start, localIndexVector);
+      dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
+      assert(localIndexVector[dim] == 0);
 
-    // copy remote data to tmp
-    std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
+      // copy remote data to tmp
+      std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
 
-    if (rdcs.size() > 0) {
-      // go through remote containers
-      for (size_t i = 0; i < rdcs.size(); ++i) {
-        IndexType global1didx = rdcs[i].getKeyIndex();
-        tmpGlobalIndexVector[dim] = global1didx;
-        tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
-      }
-    }
-
-    // copy local data
-    for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
-
-    if(boundary){
-      // hierarchize tmp array with hupp function
-      hierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
-    }
-    else
-    {
-      // hierarchization kernel
-      IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-
-      for (LevelType l = lmax; l > 0; --l) {
-        // get first local point of level and corresponding stride
-        IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
-        IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
-        IndexType levelStride = parentOffset * 2;
-
-        // loop over points of this level with level specific stride
-        // as long as inside domain
-        for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
-          // when no boundary in this dimension we have to check if
-          // 1d indices outside domain
-          FG_ELEMENT left(0.0);
-          FG_ELEMENT right(0.0);
-
-          if (idx - parentOffset > 0) {
-            left = tmp[idx - parentOffset];
-          }
-
-          if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
-            right = tmp[idx + parentOffset];
-          }
-
-          // do calculation
-          FG_ELEMENT buf = -0.5 * left;
-          tmp[idx] -= 0.5 * right;
-          tmp[idx] += buf;
+      if (rdcs.size() > 0) {
+        // go through remote containers
+        for (size_t i = 0; i < rdcs.size(); ++i) {
+          IndexType global1didx = rdcs[i].getKeyIndex();
+          tmpGlobalIndexVector[dim] = global1didx;
+          tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
         }
       }
-    }
 
-    // copy pole back
-    for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
+      // copy local data
+      for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
+
+      if(boundary){
+        // hierarchize tmp array with hupp function
+        hierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
+      }
+      else
+      {
+        // hierarchization kernel
+        IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+
+        for (LevelType l = lmax; l > 0; --l) {
+          // get first local point of level and corresponding stride
+          IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
+          IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
+          IndexType levelStride = parentOffset * 2;
+
+          // loop over points of this level with level specific stride
+          // as long as inside domain
+          for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
+            // when no boundary in this dimension we have to check if
+            // 1d indices outside domain
+            FG_ELEMENT left(0.0);
+            FG_ELEMENT right(0.0);
+
+            if (idx - parentOffset > 0) {
+              left = tmp[idx - parentOffset];
+            }
+
+            if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
+              right = tmp[idx + parentOffset];
+            }
+
+            // do calculation
+            FG_ELEMENT buf = -0.5 * left;
+            tmp[idx] -= 0.5 * right;
+            tmp[idx] += buf;
+          }
+        }
+      }
+
+      // copy pole back
+      for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
+    }
   }
 }
 
