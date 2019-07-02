@@ -11,9 +11,6 @@
 #include <iostream>
 #include <numeric>
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiBasisFunctionBasis.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiGridDomain.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"

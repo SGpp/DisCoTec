@@ -26,8 +26,6 @@ using namespace combigrid;
  */
 namespace {
 
-static int hierCount = 0;
-
 /* The RemoteDataContainer is meant to store a (d-1)-dimensional block of a
  * d-dimensional DistributedFullGrid. The RemoteDataContainer is d-dimensional,
  * but has exactly one point in (at least) one dimension.
@@ -2396,8 +2394,6 @@ class DistributedHierarchization {
       } else {
         hierarchizeN_opt_noboundary(dfg, lookupTable, dim);
       }
-
-      ++hierCount;
     }
   }
 

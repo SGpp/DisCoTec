@@ -238,7 +238,7 @@ public:
   /**
    * Returns the current time in the simulation. This is uses to update the time in GENE after restart.
    */
-  real getCurrentTime(){
+  real getCurrentTime() const override {
     return currentTime_;
   }
   /**

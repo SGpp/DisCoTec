@@ -17,7 +17,7 @@ namespace combigrid {
 class CombiParameters {
  public:
   CombiParameters()
-      : procsSet_(false), applicationComm_(MPI_COMM_NULL), applicationCommSet_(false) {}
+      : procsSet_(false) {}
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
@@ -29,8 +29,6 @@ class CombiParameters {
         lmax_(lmax),
         boundary_(boundary),
         procsSet_(false),
-        applicationComm_(MPI_COMM_NULL),
-        applicationCommSet_(false),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
@@ -52,8 +50,6 @@ class CombiParameters {
         boundary_(boundary),
         hierarchizationDims_(hierachizationDims),
         procsSet_(false),
-        applicationComm_(MPI_COMM_NULL),
-        applicationCommSet_(false),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
@@ -146,29 +142,6 @@ class CombiParameters {
 
   inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
 
-  inline CommunicatorType getApplicationComm() const {
-    assert(uniformDecomposition);
-    return theMPISystem()->getLocalComm();
-    // assert( uniformDecomposition && applicationCommSet_ );
-
-    // return applicationComm_;
-  }
-
-  inline bool isApplicationCommSet() const {
-    return false;
-    // return applicationCommSet_;
-  }
-
-  inline void setApplicationComm(CommunicatorType comm) {
-    assert(uniformDecomposition);
-    return;  // outdated
-    // make sure it is set only once
-    if (applicationCommSet_ == true) return;
-
-    MPI_Comm_dup(comm, &applicationComm_);
-    applicationCommSet_ = true;
-  }
-
   /* set the common parallelization
    * this function can only be used in the uniform mode
    */
@@ -201,10 +174,6 @@ class CombiParameters {
   IndexVector procs_;
 
   bool procsSet_;
-
-  CommunicatorType applicationComm_;
-
-  bool applicationCommSet_;
 
   friend class boost::serialization::access;
   IndexType numberOfCombinations_;  // total number of combinations

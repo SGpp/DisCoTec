@@ -9,52 +9,12 @@
 #include <chrono>
 #include <memory>
 #include <thread>
+#include <sys/stat.h>
 
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 
 namespace combigrid {
-
-  //the durationInformation data type needs to be communicated to MPI in every process using it
-  MPI_Datatype createMPIDurationType(){
-    durationInformation dI;
-    MPI_Aint baseaddr, duraddr, procaddr;
-    MPI_Address ( &dI.task_id,   &baseaddr);
-    MPI_Address ( &dI.duration,   &duraddr);
-    MPI_Address ( &dI.nProcesses, &procaddr); 
-    MPI_Datatype duration_datatype;
-    MPI_Datatype types[] = { MPI_INT, MPI_UNSIGNED_LONG, MPI_UNSIGNED }; 
-    int blocklengths[] = { 1, 1, 1 };
-
-    MPI_Aint displacements[] = { 0, duraddr - baseaddr, procaddr - baseaddr };
-    MPI_Type_create_struct(
-      3, blocklengths, displacements, types,
-      &duration_datatype
-    );
-    int err = MPI_Type_commit(&duration_datatype);
-    assert(!err); // && std::to_string(err));
-
-    //verify that the fields have the expected length
-    MPI_Aint extent;
-    MPI_Type_extent(MPI_INT, &extent);
-    assert (extent == sizeof(int) );
-    // assert (extent == duraddr - baseaddr); // not true, padding
-    MPI_Type_extent(MPI_UNSIGNED_LONG, &extent);
-    assert (extent == procaddr - duraddr);
-    assert (extent == sizeof(long unsigned int) );
-    MPI_Type_extent(MPI_UNSIGNED, &extent);
-    assert (extent == sizeof(uint) );
-
-    //and the whole structure, too
-    MPI_Type_extent(duration_datatype, &extent);
-    assert (extent == sizeof(durationInformation) );
-
-    return duration_datatype;
-  }
-
-  std::string getFilename(const LevelVector& levelVector){
-    return "./loaddata_" + toString(levelVector) + ".durations";//TODO which directory
-  }
 
   unsigned long int getAverageOfFirstColumn(std::istream& fs){
     std::string line, val;
@@ -69,5 +29,29 @@ namespace combigrid {
     return sum/count;
   }
  
+  void LearningLoadModel::addLevelVectorToLoadModel(const LevelVector& lv) {
+    durationsOfLevels_->insert(make_pair(lv, std::deque<durationInformation>()));
+
+    struct stat buf;
+    // if file exists, read contents
+    if (stat(getFilename(lv).c_str(), &buf) != -1){
+      std::fstream fs;
+      fs.open(getFilename(lv), std::fstream::in | std::fstream::app);
+      fs.seekg(0, std::ios::beg);
+      fs.clear();
+      if (fs.peek() != EOF) {
+        last_durations_avg_.insert(make_pair(lv, getAverageOfFirstColumn(fs)));
+      }
+      fs.clear();
+      fs.close();
+    }
+    // else, make new empty file
+    else{
+      std::fstream fs;
+      fs.open(getFilename(lv), std::fstream::out);    
+      fs.close();
+    }
+
+  }
 } /* namespace combigrid */
 

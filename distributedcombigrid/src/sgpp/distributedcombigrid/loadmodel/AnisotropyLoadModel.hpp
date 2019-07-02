@@ -23,7 +23,7 @@ class AnisotropyLoadModel : public LoadModel {
 
   inline real eval(const LevelVector& l);
 
-  virtual ~AnisotropyLoadModel(){} = default;
+  virtual ~AnisotropyLoadModel() = default;
 };
 
 inline real AnisotropyLoadModel::eval(const LevelVector& l) {
