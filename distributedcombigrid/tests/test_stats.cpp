@@ -54,7 +54,7 @@ void testMeasureTime(int size, long for_milliseconds) {
   long unsigned int dur_usec = combigrid::Stats::getEventDurationInUsec(e);
 
   BOOST_TEST(dur_usec >= for_milliseconds*1000);
-  BOOST_TEST(dur_usec < 10*for_milliseconds*1000);
+  BOOST_TEST(dur_usec < 40*for_milliseconds*1000);
 
   combigrid::Stats::finalize();
 }
