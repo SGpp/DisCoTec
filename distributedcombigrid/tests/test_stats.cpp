@@ -61,11 +61,11 @@ void testMeasureTime(int size, long for_milliseconds) {
 
 BOOST_AUTO_TEST_SUITE(stats)
 
-BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::timeout(20)) {
+BOOST_AUTO_TEST_CASE((test_3, * boost::unit_test::timeout(20))) {
     checkStats(1);
 }
 
-BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::timeout(20)) {
+BOOST_AUTO_TEST_CASE((test_1, * boost::unit_test::timeout(20))){
     checkStats(9);
 }
 
