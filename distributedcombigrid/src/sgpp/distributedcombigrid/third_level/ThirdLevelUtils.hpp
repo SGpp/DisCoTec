@@ -63,38 +63,34 @@ namespace combigrid {
       std::string recvDSGUniformSerialized() const;
 
       template <typename FG_ELEMENT>
-      void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT>& dsgu) const;
+      void sendData(const FG_ELEMENT* const data, size_t size) const;
 
-      void sendDSGUniformSerialized(const std::string& serializedDSGU) const;
+      template <typename FG_ELEMENT>
+      void recvData(FG_ELEMENT*& data, size_t& size) const;
   };
 
+
   template <typename FG_ELEMENT>
-  DistributedSparseGridUniform<FG_ELEMENT> ThirdLevelUtils::recvDSGUniform() const
+  void ThirdLevelUtils::sendData(const FG_ELEMENT* data, size_t size) const
   {
-    size_t rawSize = receiveSize();
-    std::stringstream ss(recvDSGUniformSerialized());
-    DistributedSparseGridUniform<FG_ELEMENT> dsgu;
-    {
-      boost::archive::text_iarchive ia(ss);
-      // read class state from archive
-      ia >> dsgu;
-    }
-    return dsgu;
+    assert(isConnected_);
+    size_t rawSize = size * sizeof(FG_ELEMENT);
+    sendSize(rawSize);
+    std::cout << "Manager tries to send " << rawSize << " Bytes" << std::endl;
+    dataConnection_->sendall(reinterpret_cast<const char*>(data), rawSize);
   }
 
   template <typename FG_ELEMENT>
-  void ThirdLevelUtils::sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT>& dsgu) const
+  void ThirdLevelUtils::recvData(FG_ELEMENT*& data, size_t& size) const
   {
-    std::stringstream ss;
-    {
-      boost::archive::text_oarchive oa(ss);
-      // read class state from archive
-      oa << dsgu;
-    }
-    std::string serializedDSGU(ss.str());
-    sendSize(serializedDSGU.size());
-    bool success = dataConnection_->sendall(serializedDSGU);
-    assert(success && "sending common ss data failed");
+    assert(isConnected_);
+    size_t rawSize = receiveSize();
+    char* rawData = new char[rawSize];
+    std::cout << "Manager tries to receive " << rawSize << " Bytes" << std::endl;
+    bool success = dataConnection_->recvall(rawData, rawSize);
+    assert(success && "receiving dsgu data failed");
+    data = reinterpret_cast<FG_ELEMENT*>(rawData);
+    size = rawSize / sizeof(FG_ELEMENT);
   }
 }
 

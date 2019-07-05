@@ -34,10 +34,12 @@ const SignalType PARALLEL_EVAL = 17;
 // const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
 const SignalType COMBINE_LOCAL_AND_GLOBAL = 20;
-const SignalType INTEGRATE_COMBINED_DSGU = 21;
-const SignalType SEND_DSGU_TO_MANAGER = 22;
-const SignalType RECV_DSGU_FROM_MANAGER = 23;
-const SignalType RECV_AND_ADD_DSGU_FROM_MANAGER = 24;
+const SignalType BROADCAST_COMMON_SS = 21;
+// Third level specific signals
+const SignalType WAIT_FOR_UPDATE = 22;
+const SignalType SEND_COMMON_SS_TO_MANAGER = 23;
+const SignalType RECV_COMMON_SS_FROM_MANAGER_AND_INTEGRATE = 24;
+const SignalType ADD_COMMON_SS_FROM_MANAGER_AND_INTEGRATE = 25;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
@@ -49,7 +51,7 @@ typedef int FaultSimulationType;
 const FaultSimulationType RANDOM_FAIL = 0;
 const FaultSimulationType GROUPS_FAIL = 1;
 
-enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3, sendDSGTag = 4};
+enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3, sendSSTag = 4};
 
 // attention: changing StatusType might require changing the MPI Type
 typedef int StatusType;

@@ -92,20 +92,3 @@ size_t ThirdLevelUtils::receiveSize() const
   ss >> size;
   return size;
 }
-
-void ThirdLevelUtils::sendDSGUniformSerialized(const std::string& serializedDSGU) const
-{
-  assert(isConnected_);
-  sendSize(serializedDSGU.size());
-  dataConnection_->sendall(serializedDSGU);
-}
-
-std::string ThirdLevelUtils::recvDSGUniformSerialized() const
-{
-  assert(isConnected_);
-  size_t rawSize = receiveSize();
-  std::string serializedDSGU;
-  bool success = dataConnection_->recvall(serializedDSGU, rawSize);
-  assert(success && "receiving dsgu data failed");
-  return serializedDSGU;
-}
