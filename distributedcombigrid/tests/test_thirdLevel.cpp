@@ -45,7 +45,9 @@ DistributedSparseGridUniform<CombiDataType> getSmallTestDSG(){
  */
 void createThirdLevelCombischeme(std::vector<LevelVector>& levels,
                                  std::vector<combigrid::real>& coeffs,
-                                 unsigned int systemNumber) {
+                                 unsigned int systemNumber,
+                                 const std::vector<bool>& boundary,
+                                 std::vector<LevelVector>& commonSubspaces) {
   std::vector<LevelVector> fullScheme(levels);
   std::vector<combigrid::real> fullSchemeCoeffs(coeffs);
   auto mid = fullScheme.begin() + ((fullScheme.size()-1) / 2);
@@ -67,6 +69,33 @@ void createThirdLevelCombischeme(std::vector<LevelVector>& levels,
       coeffs = upperCoeffs;
       break;
   }
+
+  // compute common subspaces:
+  // therefore we compute the component wise maximum level which is contained
+  // in both sets
+  size_t dim = levels[0].size();
+  LevelVector maxLevel(dim);
+  for (size_t i = 0; i < dim; i++) {
+    long lowerMax = 0;
+    long upperMax = 0;
+    for (size_t j = 0; j < lowerHalf.size(); j++) {
+      if (lowerMax < lowerHalf[j][i])
+        lowerMax = lowerHalf[j][i];
+    }
+    for (size_t j = 0; j < upperHalf.size(); j++) {
+      if (upperMax < upperHalf[j][i])
+        upperMax = upperHalf[j][i];
+    }
+    maxLevel[i] = std::min(lowerMax, upperMax);
+  }
+
+  // by creating a dummy sparse grid with this level, we can extract the subspaces
+  SGrid<real> sg(dim, maxLevel, maxLevel, boundary);
+
+  for (size_t ssID = 0; ssID < sg.getSize(); ++ssID) {
+    const LevelVector& ss = sg.getLevelVector(ssID);
+    commonSubspaces.push_back(ss);
+  }
 }
 
 
@@ -86,12 +115,12 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker) {
       for (IndexType li = 0; li < dfg.getNrElements(); ++li) {
         std::vector<double> coords(dfg.getDimension());
         dfg.getCoordsLocal(li, coords);
-        CombiDataType expected = CombiDataType(2.) * initialFunction(coords);
+        CombiDataType expected = CombiDataType(1.) * initialFunction(coords);
         CombiDataType occuring = dfg.getData()[li];
         double diff = abs(occuring - expected);
         if (diff > TestHelper::tolerance) {
           std::cout << "Found value that does not match expected at index "
-                    << li  << ": "  << occuring << " != " 
+                    << li  << ": "  << occuring << " != "
                     << expected << ", diff = " << diff << std::endl;
           return false;
         }
@@ -106,11 +135,12 @@ void runRabbitMQServer() {
   std::string command = "rabbitmq-server &";
   std::cout << "starting RabbitMQ server..." << std::endl;
   system(command.c_str());
+
   // give rabbitmq some time to set up
   sleep(10);
 }
 
-/** Runs the third level manager in the background as forked child process */
+/** Runs the third level manager in the background as a forked child process */
 void runThirdLevelManager() {
   std::cout << "starting thirdLevelManager..." << std::endl;
   std::string command = "../examples/gene_distributed_third_level/third_level_manager/run.sh &";
@@ -162,19 +192,22 @@ void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::stri
     size_t ncombi = 1;
     std::vector<bool> boundary(dim, false);
 
+    // create third level specific scheme
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
-    // combischeme.createClassicalCombischeme();
-    combischeme.createAdaptiveCombischeme();
+
+    std::vector<LevelVector> commonSubspaces;
+    std::cout << "Combischeme " << sysName << ":" << std::endl;
+    if (sysName == "system1") {
+      combischeme.createClassicalThirdLevelCombischeme(0, boundary, commonSubspaces);
+      //combischeme.createAdaptiveThirdLevelCombischeme(0, commonSubspaces);
+    } else {
+      combischeme.createClassicalThirdLevelCombischeme(1, boundary, commonSubspaces);
+      //combischeme.createAdaptiveThirdLevelCombischeme(1, commonSubspaces);
+    }
+    //combischeme.print(std::cout);
+
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
-
-    // create third level specific scheme
-    /*
-    if (sysName == "system1")
-      createThirdLevelCombischeme(levels, coeffs, 0);
-    else
-      createThirdLevelCombischeme(levels, coeffs, 1);
-    */
 
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
@@ -195,7 +228,7 @@ void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::stri
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
                            parallelization, std::vector<IndexType>(0),
-                           std::vector<IndexType>(0), "localhost", 9999, sysName);
+                           std::vector<IndexType>(0), "localhost", 9999, sysName, commonSubspaces, 0);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
@@ -252,7 +285,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance)
 
   size_t procsPerSys = ngroup * nprocs + 1;
 
-  if (size < 2*procsPerSys) {
+  if (size_t(size) < 2*procsPerSys) {
     std::cout << "Failed running test: Number of Processes given: " << size << " required: " 
               << 2*procsPerSys << std::endl;
     return;
@@ -265,10 +298,10 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance)
 
   // assign procs to systems
   std::string systemName;
-  if (rank < procsPerSys) {
+  if (size_t(rank) < procsPerSys) {
     color = 0;
     systemName = "system1";
-  } else if (rank < 2 * procsPerSys) {
+  } else if (size_t(rank) < 2 * procsPerSys) {
     color = 1;
     systemName = "system2";
   } else {
