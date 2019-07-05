@@ -75,6 +75,9 @@ void ThirdLevelManager::processMessage(const std::string& message, size_t sysInd
 /** Processes and manages the third level combination, initiated by a system
  *  which signals ready after its local and global combination.
  *  ATTENTION: Implemented only for 2 systems
+ *
+ *  TODO optimization: forward both directions at the same time, this would
+ *  allow sending back a subspace immediately after summation.
  */
 void ThirdLevelManager::processCombination(size_t initiatorIndex)
 {
