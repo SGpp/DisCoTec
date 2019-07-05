@@ -52,35 +52,16 @@ class ProcessGroupManager {
 
   inline void removeTask(Task* t);
 
-  /*
-  * Third Level reduce: receives the remote data first, combines with local and
-  * sends it back to remote.
-  */
-  template<typename FG_ELEMENT>
-  bool
-  reduceUniformThirdLevelRecvFirst(const ThirdLevelUtils& thirdLevel,
-                                          CombiParameters& params);
+  bool sendSubspacesToRemote(const ThirdLevelUtils& thirdLevel,
+                                   CombiParameters& params);
 
-  /*
-   * Third Level reduce: sends the global reduced data to remote first and
-   * recieves and integrates the remotely combined data.
-   */
-  template<typename FG_ELEMENT>
-  bool
-  reduceUniformThirdLevelSendFirst(const ThirdLevelUtils& thirdLevel,
-                                         CombiParameters& params);
+  bool recvAndIntegrateSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
+                                                 CombiParameters& params);
 
-  bool
-  integrateCombinedDSGUniform();
+  bool addAndIntegrateSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
+                                                CombiParameters& params);
 
-  bool sendDSGUniformToRemote(const ThirdLevelUtils& thirdLevel,
-                                      CombiParameters& params);
-
-  bool recvDSGUniformFromRemote(const ThirdLevelUtils& thirdLevel,
-                                      CombiParameters& params);
-
-  bool recvAndAddDSGUniformFromRemote(const ThirdLevelUtils& thirdLevel,
-                                            CombiParameters& params);
+  bool waitForUpdate();
 
   bool
   combineLocalAndGlobal();
@@ -140,20 +121,24 @@ class ProcessGroupManager {
 
   void sendSignalToProcess(SignalType signal, RankType rank);
 
-  bool sendSignalSendDSGU();
+  bool sendSignalSendSubspaces();
 
-  bool sendSignalRecvDSGU();
+  bool sendSignalRecvAndIntegrateSubspaces();
 
-  bool sendSignalRecvAndAdd();
+  bool sendSignalAddAndIntegrateSubspaces();
+
+  bool sendSignalWaitForUpdate();
 
   inline void setProcessGroupBusyAndReceive();
 
   // Third level forwarding methods
-  bool forwardDSGUFromRemoteToPG(const ThirdLevelUtils& thirdLevel,
-                                       CombiParameters& params);
+  template <typename FG_ELEMENT>
+  bool forwardCommonSubspacesFromRemoteToPG(const ThirdLevelUtils& thirdLevel,
+                                                  CombiParameters& params);
 
-  bool forwardDSGUFromPGToRemote(const ThirdLevelUtils& thirdLevel,
-                                       CombiParameters& params);
+  template <typename FG_ELEMENT>
+  bool forwardCommonSubpacesFromPGToRemote(const ThirdLevelUtils& thirdLevel,
+                                                 CombiParameters& params);
 
   /* sets the rank of the process group's master in global comm. should only
    * be called by ProcessManager.

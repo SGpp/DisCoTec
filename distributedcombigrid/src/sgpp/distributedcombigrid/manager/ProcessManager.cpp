@@ -351,13 +351,17 @@ void ProcessManager::restoreCombischeme() {
 bool ProcessManager::waitAllFinished() {
   bool group_failed = false;
   for (auto p : pgroups_) {
-    StatusType status = p->waitStatus();
-    if (status == PROCESS_GROUP_FAIL) {
+    if (waitForPG(p))
       group_failed = true;
-    }
   }
-
   return group_failed;
+}
+
+bool ProcessManager::waitForPG(ProcessGroupManagerID pg) {
+  StatusType status = pg->waitStatus();
+  if (status == PROCESS_GROUP_FAIL)
+    return true;
+  return false;
 }
 
 void ProcessManager::parallelEval(const LevelVector& leval, std::string& filename, size_t groupID) {
@@ -384,17 +388,4 @@ void ProcessManager::setupThirdLevel()
 {
   thirdLevel_.connectToThirdLevelManager();
 }
-
-void ProcessManager::sendDSGUniformToRemote(ProcessGroupManagerID& pg) {
-  pg->sendDSGUniformToRemote(thirdLevel_, params_);
-}
-
-void ProcessManager::recvDSGUniformFromRemote(ProcessGroupManagerID& pg) {
-  pg->recvDSGUniformFromRemote(thirdLevel_, params_);
-}
-
-void ProcessManager::recvAndAddDSGUniformFromRemote(ProcessGroupManagerID& pg) {
-  pg->recvAndAddDSGUniformFromRemote(thirdLevel_, params_);
-}
-
 } /* namespace combigrid */

@@ -29,12 +29,13 @@ class ProcessManager {
   ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& instances,
                  CombiParameters& params, std::unique_ptr<LoadModel> loadModel)
     : pgroups_(pgroups),
-      thirdLevelPGroup_(pgroups[0]), // TODO: changing PG requires adjustments in integrateDSGUniform function from worker
+      thirdLevelPGroup_(pgroups[params.getThirdLevelPG()]),
       tasks_(instances),
       params_(params),
       thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getThirdLevelSystemName())
   {
       loadModel_ = std::move(loadModel);
+      // only setup third level if explicitly wanted
       if (params.getThirdLevelHost() != "")
         setupThirdLevel();
       // the combiparameters are sent to all process groups before the
@@ -128,16 +129,11 @@ class ProcessManager {
   inline ProcessGroupManagerID wait();
   inline ProcessGroupManagerID waitAvoid(std::vector<ProcessGroupManagerID>& avoidGroups);
   bool waitAllFinished();
+  bool waitForPG(ProcessGroupManagerID pg);
 
   void receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive);
 
   void sortTasks();
-
-  void sendDSGUniformToRemote(ProcessGroupManagerID& pg);
-
-  void recvDSGUniformFromRemote(ProcessGroupManagerID& pg);
-
-  void recvAndAddDSGUniformFromRemote(ProcessGroupManagerID& pg);
 };
 
 inline void ProcessManager::addTask(Task* t) { tasks_.push_back(t); }
@@ -255,17 +251,27 @@ void ProcessManager::combineLocalAndGlobal() {
  * of sender and receiver.
  *
  * In the role of the sender, the process manager
- * transfers the DSGU data from workers of the third level pg to the third level
- * manager, who then finally sends it to the remote system. After sending he
+ * transfers the common subspaces from workers of the third level pg to the third level
+ * manager, who then sends it to the remote system. After sending he
  * receives the remotely reduced data from the third level manager and sends it
  * back to the third level pg.
- * In the role of the receiver, the process manager receives the DSGU data from
- * the third level manager and sends it to the workers who combine the remote
- * solution with their local solution. Afterward, the final solution is sent
- * back to the remote system.
+ * In the role of the receiver, the process manager receives the common subspace
+ * data from the third level manager and sends it to the workers who combine
+ * the remote solution with their local solution. Afterward, the final solution
+ * is sent back to the remote system.
+ *
+ * After the global reduce all pg which do not participate in the third level
+ * combination idle in a broadcast function and wait for their updated from the
+ * third level pg.
  */
 void ProcessManager::combineThirdLevel() {
   combineLocalAndGlobal();
+
+  // tell other pg to idle and wait for update
+  for (auto pg : pgroups_) {
+    if (pg != thirdLevelPGroup_)
+      pg->waitForUpdate();
+  }
 
   // obtain instructions from third level manager
   std::cout << "Signaling ready to combine..." << std::endl;
@@ -274,22 +280,14 @@ void ProcessManager::combineThirdLevel() {
 
   // perform third level reduce
   if (instruction == "reduce_third_level_recv_first") {
-    recvAndAddDSGUniformFromRemote(thirdLevelPGroup_);
-    waitAllFinished();
-    sendDSGUniformToRemote(thirdLevelPGroup_);
+    thirdLevelPGroup_->addAndIntegrateSubspacesFromRemote(thirdLevel_, params_);
+    waitForPG(thirdLevelPGroup_);
+    thirdLevelPGroup_->sendSubspacesToRemote(thirdLevel_, params_);
   } else if (instruction == "reduce_third_level_send_first") {
-    sendDSGUniformToRemote(thirdLevelPGroup_);
-    waitAllFinished();
-    recvDSGUniformFromRemote(thirdLevelPGroup_);
+    thirdLevelPGroup_->sendSubspacesToRemote(thirdLevel_, params_);
+    waitForPG(thirdLevelPGroup_);
+    thirdLevelPGroup_->recvAndIntegrateSubspacesFromRemote(thirdLevel_, params_);
   }
-  waitAllFinished();
-
-  // TODO integrate into receive method
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->integrateCombinedDSGUniform();
-    assert(success);
-  }
-
   waitAllFinished();
 }
 

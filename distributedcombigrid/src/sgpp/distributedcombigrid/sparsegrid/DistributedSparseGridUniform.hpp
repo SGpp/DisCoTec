@@ -475,155 +475,122 @@ inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const
   return commSize_;
 }
 
-template <typename FG_ELEMENT>
-template <class Archive>
-void DistributedSparseGridUniform<FG_ELEMENT>::serialize(Archive& ar, const unsigned int version) {
-  ar & dim_;
-  ar & nmax_;
-  ar & lmin_;
-  ar & levels_;
-  ar & boundary_;
 
-  ar & subspaces_;
-}
-
+/*
+ * Root broadcasts all subspaces to the other ranks in communicator comm.
+ *
+ * TODO: For now, we broadcast all subspaces sequentially instead of sending the whole
+ * dsgu in a single call. (Sending the whole dsgu takes approx. double the communication volume)
+ * Sending the whole dsgu could be faster.
+ */
 template <typename FG_ELEMENT>
-static void sendDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, RankType dst, CommunicatorType comm) {
+static void broadcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, 
+                               const std::vector<LevelVector>& subspaces,
+                               RankType root, CommunicatorType comm) {
   assert(dsgu->getNumSubspaces() > 0);
   assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
-  // save data to archive
-  std::stringstream ss;
-  {
-    boost::archive::text_oarchive oa(ss);
-    // write class instance to archive
-    oa << dsgu;
+
+  for (const LevelVector& ss : subspaces) {
+    std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
+    assert(ssData.size() > 0 && "Subspace not initialized");
+    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+    MPI_Bcast(ssData.data(), ssData.size(), dataType, static_cast<int>(root), comm);
   }
-  // create mpi buffer of archive
-  std::string s = ss.str();
-  int bsize = static_cast<int>(s.size());
-  char* buf = const_cast<char*>(s.c_str());
-  // std::cerr << "sending bytes # " << bsize << " to " << dst << " signal " << sendDSGTag << " comm " << comm << std::endl;
-  MPI_Send(buf, bsize, MPI_CHAR, dst, sendDSGTag, comm);
 }
 
+/*
+ * Sends all subspaces to the receiver in communicator comm.
+ */
 template <typename FG_ELEMENT>
-static DistributedSparseGridUniform<FG_ELEMENT> * recvDSGUniform(RankType src, CommunicatorType comm) {
-  DistributedSparseGridUniform<FG_ELEMENT> * dsgu;
-  // receive size of message
-  // todo: not really necessary since size known at compile time
-  MPI_Status status;
-  int bsize;
-  // std::cerr << "probing from " << src << " signal " << sendDSGTag << " comm " << comm << std::endl;
-  MPI_Probe(src, sendDSGTag, comm, &status);
-  MPI_Get_count(&status, MPI_CHAR, &bsize);
-
-  // create buffer of appropriate size and receive
-  std::vector<char> buf(bsize);
-
-  int recv = MPI_Recv(&buf[0], bsize, MPI_CHAR, src, sendDSGTag, comm, &status);
-
-  // std::cerr << "received bytes # " << bsize << std::endl;
-
-  assert(status.MPI_ERROR != MPI_ERR_COUNT);
-  assert(status.MPI_ERROR != MPI_ERR_TYPE);
-  assert(status.MPI_ERROR != MPI_ERR_TAG);
-  assert(status.MPI_ERROR != MPI_ERR_COMM);
-  assert(status.MPI_ERROR != MPI_ERR_RANK);
-  assert(recv == 0);
-  // std::cerr << "err " << status.MPI_ERROR << std::endl;
-  // assert(status.MPI_ERROR == MPI_SUCCESS); //TODO why random error numbers?
-
-  // create and open an archive for input
-  std::string s(&buf[0], bsize);
-  std::stringstream ss(s);
-  assert(ss.good());
-  {
-    boost::archive::text_iarchive ia(ss);
-    // read class state from archive
-    ia >> dsgu;
-  }
-  assert(dsgu->getDim() > 0);
-  assert(!dsgu->getBoundaryVector().empty());
-  assert(dsgu->getNMax()[0] >= 0);
-  assert(dsgu->getNumSubspaces() > 0);
-
-  return dsgu;
-}
-
-static std::string recvDSGUniformSerialized(RankType src, CommunicatorType comm) {
-  // receive size of message
-  // todo: not really necessary since size known at compile time
-  MPI_Status status;
-  int bsize;
-  // std::cerr << "probing from " << src << " signal " << sendDSGTag << " comm " << comm << std::endl;
-  MPI_Probe(src, sendDSGTag, comm, &status);
-  MPI_Get_count(&status, MPI_CHAR, &bsize);
-
-  // create buffer of appropriate size and receive
-  std::vector<char> buf(bsize);
-
-  int recv = MPI_Recv(&buf[0], bsize, MPI_CHAR, src, sendDSGTag, comm, &status);
-
-  // std::cerr << "received bytes # " << bsize << std::endl;
-
-  assert(status.MPI_ERROR != MPI_ERR_COUNT);
-  assert(status.MPI_ERROR != MPI_ERR_TYPE);
-  assert(status.MPI_ERROR != MPI_ERR_TAG);
-  assert(status.MPI_ERROR != MPI_ERR_COMM);
-  assert(status.MPI_ERROR != MPI_ERR_RANK);
-  assert(recv == 0);
-  // std::cerr << "err " << status.MPI_ERROR << std::endl;
-  // assert(status.MPI_ERROR == MPI_SUCCESS); //TODO why random error numbers?
-
-  return std::string(&buf[0], bsize);
-}
-
-template <typename FG_ELEMENT>
-static void broadcastDSGUniform(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, RankType src, CommunicatorType comm) {
+static void sendSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+                          const std::vector<LevelVector>& subspaces,
+                          RankType dest, CommunicatorType comm) {
   assert(dsgu->getNumSubspaces() > 0);
   assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
-  // if(getCommRank(comm) == src){
-  // save data to archive
-  std::stringstream ss;
-  {
-    boost::archive::text_oarchive oa(ss);
-    // write class instance to archive
-    oa << dsgu;
+
+  for (const LevelVector& ss : subspaces) {
+    std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
+    assert(ssData.size() > 0 && "Subspace not initialized");
+
+    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+    MPI_Send(ssData.data(), ssData.size(), dataType, static_cast<int>(dest), sendSSTag, comm);
+    //std::cout << "Worker sent ss with size " << ssData.size() << " to manager" << std::endl;
   }
-  // create mpi buffer of archive
-  std::string s = ss.str();
-  int bsize = static_cast<int>(s.size());
-  char* buf = const_cast<char*>(s.c_str());
-  MPI_Bcast(buf, bsize, MPI_CHAR, src, comm);
-  if(getCommRank(comm) != src){
-    // create and open an archive for input
-    std::string s(&buf[0], bsize);
-    std::stringstream ss(s);
-    assert(ss.good());
-    {
-      boost::archive::text_iarchive ia(ss);
-      // read class state from archive
-      ia >> dsgu;
-    }
-  }
-  assert(dsgu->getDim() > 0);
-  assert(!dsgu->getBoundaryVector().empty());
-  assert(dsgu->getNMax()[0] >= 0);
-  assert(dsgu->getNumSubspaces() > 0);
 }
 
-
+/*
+ * Receives subspaces from the sender in communicator recvComm and concurrently
+ * distributes them inside bcastComm.
+ */
 template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::recvAndAddDSGUniform(RankType src, CommunicatorType comm) {
-  DistributedSparseGridUniform<FG_ELEMENT> * dsgu = recvDSGUniform<FG_ELEMENT>(src, comm);
+static std::vector<MPI_Request> recvAndBcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, 
+                                                      const std::vector<LevelVector>& subspaces,
+                                                      RankType recvSrc,
+                                                      CommunicatorType recvComm,
+                                                      RankType bcastRoot,
+                                                      CommunicatorType bcastComm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
 
-  assert(dsgu->getNumSubspaces() == this->getNumSubspaces());
+  std::vector<MPI_Request> requests;
+  requests.reserve(subspaces.size());
 
-  //add to this grid
-  for (size_t i = 0; i < this->getNumSubspaces(); ++i){
-    this->subspaces_[i] += dsgu->subspaces_[i];
+  for (const LevelVector& ss : subspaces) {
+    std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
+    assert(ssData.size() > 0 && "Subspace not initialized");
+
+    // receive subspace from manager
+    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+    MPI_Status status;
+    MPI_Recv(ssData.data(), ssData.size(), dataType, static_cast<int>(recvSrc), sendSSTag, recvComm, &status);
+    //std::cout << "Worker recieved ss with size " << ssData.size() << " from manager" << std::endl;
+
+    // distribute subspace
+    MPI_Request request;
+    MPI_Ibcast(ssData.data(), ssData.size(), dataType, static_cast<int>(bcastRoot), bcastComm, &request);
+    requests.push_back(request);
   }
-  // dsgu->addToUniformSG(*this, 1); //TODO
+  return requests;
+}
+
+/*
+ * Sequentially adds all received subspaces to the dsgu and concurrently
+ * broadcasts them inside bcastComm.
+ */
+template <typename FG_ELEMENT>
+static std::vector<MPI_Request> recvAndAddAndBcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+                                                            const std::vector<LevelVector>& subspaces,
+                                                            RankType recvSrc,
+                                                            CommunicatorType recvComm,
+                                                            RankType bcastRoot,
+                                                            CommunicatorType bcastComm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
+
+  std::vector<MPI_Request> requests;
+  requests.reserve(subspaces.size());
+
+  for (const LevelVector& ss : subspaces) {
+    std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
+    std::unique_ptr<FG_ELEMENT[]> buf(new FG_ELEMENT[ssData.size()]);
+    assert(ssData.size() > 0 && "Subspace not initialized");
+
+    // receive subspace from manager
+    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+    MPI_Status status;
+    MPI_Recv(buf.get(), ssData.size(), dataType, static_cast<int>(recvSrc), sendSSTag, recvComm, &status);
+    //std::cout << "Worker recieved ss with size " << ssData.size() << " from manager" << std::endl;
+
+    // add subspace
+    MPI_Reduce_local(buf.get(), ssData.data(), ssData.size(), dataType, MPI_SUM);
+    buf.release();
+
+    // distribute subspace
+    MPI_Request request;
+    MPI_Ibcast(ssData.data(), ssData.size(), dataType, static_cast<int>(bcastRoot), bcastComm, &request);
+    requests.push_back(request);
+  }
+  return requests;
 }
 
 } /* namespace combigrid */

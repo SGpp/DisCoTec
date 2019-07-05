@@ -59,9 +59,6 @@ class ProcessGroupWorker {
 
   void combineLocalAndGlobal();
 
-  template<typename FG_ELEMENT>
-  void integrateCombinedDSGUniform();
-
   // outdated!
   void combineFG();
 
@@ -82,11 +79,13 @@ class ProcessGroupWorker {
   // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
   void setCombinedSolutionUniform(Task* t);
 
-  void sendDSGUniformToManager();
+  void updateSubspacesAndIntegrate();
 
-  void addDSGUniformFromManager();
+  void sendCommonSubspacesToManager();
 
-  void recvDSGUniformFromManager();
+  void recvCommonSubspacesFromManagerAndDistribute();
+
+  void addCommonSubspacesFromManagerAndDistribute();
 
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
     return combinedUniDSGVector_;
@@ -127,6 +126,8 @@ class ProcessGroupWorker {
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
 
   void processDuration(const Task& t, const Stats::Event e, size_t numProcs);
+
+  void broadcastCommonSS();
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
