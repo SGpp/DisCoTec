@@ -9,7 +9,7 @@ ngroup=1
 nprocs=1
 total=$(( 2*(ngroup * nprocs + 1) ))
 
-# Use to simplify Debug:
+# Use this to simplify Debug:
 #$MPI_PATH/mpirun -n $total -l xterm -hold -e gdb -ex run --args ./test_distributedcombigrid_boost --run_test=thirdLevel -- $ngroup $nprocs # additional params
 
 $MPI_PATH/mpirun -n $total -l ./test_distributedcombigrid_boost --run_test=thirdLevel -- $ngroup $nprocs # additional params
