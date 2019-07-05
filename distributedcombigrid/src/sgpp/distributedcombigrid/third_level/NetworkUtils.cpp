@@ -95,7 +95,7 @@ bool ClientSocket::sendallPrefixed(const std::string& mesg) const {
   return this->sendall(lenstr + mesg);
 }
 
-bool ClientSocket::sendallPrefixed(const char* buf, size_t len) const {
+bool ClientSocket::sendallPrefixed(const char* const buf, size_t len) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(len > 0);
   std::string lenstr = std::to_string(len) + "#";
@@ -267,7 +267,6 @@ bool ClientSocket::isReadable(int timeout) const {
   struct timeval tv;
   fd_set readfds;
 
-
   FD_ZERO(&readfds);
   FD_SET(sockfd_, &readfds);
 
@@ -417,8 +416,12 @@ bool NetworkUtils::forward(const ClientSocket& sender,
     while (totalRecvd < size)
     {
       std::cout << "." << std::flush;
-      // receive a max of chunksize bytes
-      recvd = recv(sendFd, buff.get(), chunksize, 0);
+      // receive at max chunksize bytes
+      size_t rest = size - totalRecvd;
+      if (rest < chunksize)
+        recvd = recv(sendFd, buff.get(), rest, 0);
+      else
+        recvd = recv(sendFd, buff.get(), chunksize, 0);
       switch (recvd) {
         case 0:
           std::cerr << "NetworkUtils::forward() sender terminated too early" << std::endl;
@@ -440,7 +443,7 @@ bool NetworkUtils::forward(const ClientSocket& sender,
   } else { // tunnel until sender disconnects
     while (recvd > 0 && sendSuccess)
     {
-      // receive a max of chunksize bytes
+      // receive at max chunksize bytes
       recvd = recv(sendFd, buff.get(), chunksize, 0);
       if (recvd == -1) {
           perror("NetworkUtils::forward() unexpected fail of sender");
