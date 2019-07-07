@@ -19,5 +19,8 @@ all: shared_example
 shared_example: shared_example.cpp TaskExample.hpp
 	$(CC) $(CFLAGS) $(LDIR) $(INC) -o shared_example shared_example.cpp $(LIBS)
 
+only_hierachization: only_hierachization.cpp
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o only_hierachization only_hierachization.cpp $(LIBS)
+
 clean:
-	rm -f *.o out/* shared_example
+	rm -f *.o out/* shared_example only_hierachization
