@@ -5,6 +5,7 @@
  *      Author: heenemo
  */
 #include <mpi.h>
+#include <omp.h>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
@@ -29,6 +30,8 @@
 
 using namespace combigrid;
 
+
+
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskExample)
 BOOST_CLASS_EXPORT(StaticFaults)
@@ -42,14 +45,34 @@ int main(int argc, char** argv) {
    */
   Stats::initialize();
   
+  char opt;
+	int number_of_used_options = 2;//Name and filename; take as argument?
+  std::string paramfile="ctparam";
+  std::string statfile="timers.json";
+
+	while ((opt = getopt(argc, argv, "c:t:")) != -1) {
+		switch (opt) {
+			case 'c':
+				paramfile= optarg;
+        break;
+      case 't':
+				statfile= optarg;
+        break;
+      default:
+        std::cout <<" unsupported option -"<< opt <<" \n Usage [-c] ctparam_file [-t] timing file";
+    }
+  }
 
   // read in parameter file
   boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini("ctparam", cfg);
+  boost::property_tree::ini_parser::read_ini(paramfile, cfg);
+  
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
   size_t nprocs = cfg.get<size_t>("manager.nprocs");
+  size_t nthreads= cfg.get<size_t>("manager.nthreads");
+  omp_set_num_threads(nthreads);
 
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
@@ -57,6 +80,7 @@ int main(int argc, char** argv) {
 
   // this code is only executed by the manager process
   WORLD_MANAGER_EXCLUSIVE_SECTION {
+    std::cout << "using " << nthreads<<" Threads\n"; 
     Stats::startEvent("total time");
     /* create an abstraction of the process groups for the manager's view
     * a pgroup is identified by the ID in gcomm
@@ -175,7 +199,7 @@ int main(int argc, char** argv) {
   Stats::finalize();
 
   /* write stats to json file for postprocessing */
-  Stats::write("timers.json");
+  Stats::write(statfile);
 
   MPI_Finalize();
 
