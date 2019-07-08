@@ -15,6 +15,7 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
+#include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
@@ -124,78 +125,6 @@ void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool do
   if(!doOnlyRecompute){
     /* communicate new combination scheme*/
     manager.updateCombiParameters();
-  }
-}
-
-/*
- * Computes distribution of a given combischeme to the systems of the third level
- * combination.
- * We assume only 2 systems participating.
- * For example purpose we just split the scheme in half, and assign each half 
- * to a system
- */
-void createThirdLevelCombischeme(std::vector<LevelVector>& levels,
-                                 std::vector<combigrid::real>& coeffs,
-                                 unsigned int systemNumber) {
-  std::vector<LevelVector> fullScheme(levels);
-  std::vector<combigrid::real> fullSchemeCoeffs(coeffs);
-  auto mid = fullScheme.begin() + ((fullScheme.size()-1) / 2);
-  auto midC = fullSchemeCoeffs.begin() + ((fullSchemeCoeffs.size()-1) / 2);
-  std::vector<LevelVector> lowerHalf(fullScheme.begin(), mid);
-  std::vector<combigrid::real> lowerCoeffs(fullSchemeCoeffs.begin(), midC);
-  std::vector<LevelVector> upperHalf(mid+1, fullScheme.end());
-  std::vector<combigrid::real> upperCoeffs(midC+1, fullSchemeCoeffs.end());
-  assert( !lowerHalf.empty() && !upperHalf.empty() );
-
-  // compute common subspaces:
-  // therefore we compute the component wise maximum level which is contained
-  // in both sets
-  /*
-  LevelVector maxLevel(dim);
-  for (size_t i = 0; i < dim; i++) {
-    int lowerMax = 0;
-    int upperMax = 0;
-    for (size_t j = 0; j < lowerHalf.size(); j++) {
-      if (lowerMax < lowerHalf[j][i])
-        lowerMax = lowerHalf[j][i];
-    }
-    for (size_t j = 0; j < upperHalf.size(); j++) {
-      if (upperMax < upperHalf[j][i])
-        upperMax = upperHalf[j][i];
-    }
-    maxLevel[i] = std::min(lowerMax, upperMax);
-  }
-
-  // by creating a dummy sparse grid with this level, we can extract the subspaces
-  SGrid<real> sg(dim, maxLevel, maxLevel, boundary);
-
-  std::vector<LevelVector> commonSubspaces;
-  for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
-    const LevelVector& subL = sg.getLevelVector(subspaceID);
-    commonSubspaces.push_back(subL);
-  }
-  */
-
-  // output combi scheme
-  std::cout << "UpperHalf:" << std::endl;
-  for (int i = 0; i < upperHalf.size(); i++)
-    std::cout << upperHalf[i] << ", " << std::endl;
-  std::cout << std::endl;
-  std::cout << "LowerHalf:" << std::endl;
-  for (int i = 0; i < lowerHalf.size(); i++)
-    std::cout << lowerHalf[i] << ", " << std::endl;
-  std::cout << std::endl;
-
-  // assign half to system
-  switch(systemNumber) {
-    case 0:
-      levels = lowerHalf;
-      coeffs = lowerCoeffs;
-      break;
-    case 1:
-      levels = upperHalf;
-      coeffs = upperCoeffs;
-      break;
   }
 }
 
@@ -314,6 +243,7 @@ int main(int argc, char** argv) {
   std::string thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
   std::string systemName = cfg.get<std::string>("thirdLevel.systemName");
   unsigned int systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
+  unsigned int numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
   unsigned short thirdLevelDataPort = cfg.get<unsigned short>("thirdLevel.dataPort");
 
   //read the ranks that shoudl fail in case of static faults (means numFaults > 0)
@@ -359,6 +289,7 @@ int main(int argc, char** argv) {
   std::vector<combigrid::real> coeffs;
   std::vector<int> fileTaskIDs;
 
+  std::vector<LevelVector> commonSubspaces;
   const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
   if (READ_FROM_FILE) { //currently used file produced by preproc.py
     std::ifstream spcfile("spaces.dat");
@@ -380,14 +311,12 @@ int main(int argc, char** argv) {
     spcfile.close();
   } else {
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
-    combischeme.createAdaptiveCombischeme();
     combischeme.makeFaultTolerant();
     levels = combischeme.getCombiSpaces();
     coeffs = combischeme.getCoeffs();
   }
 
-  // create system dependent scheme for ThirdLevel combination
-  createThirdLevelCombischeme(levels, coeffs, systemNumber);
+  CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, systemNumber, numSystems);
 
   // create load model
   std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
@@ -441,7 +370,7 @@ int main(int argc, char** argv) {
                           coeffs, hierarchizationDims, taskIDs,
                           ncombi, numGrids, p, reduceCombinationDimsLmin,
                           reduceCombinationDimsLmax, thirdLevelHost, thirdLevelDataPort,
-                          systemName + systemNumber);
+                          systemName, commonSubspaces, 0);
 
   // create Manager with process groups
   ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
