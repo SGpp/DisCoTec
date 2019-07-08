@@ -19,3 +19,4 @@ host = localhost
 dataPort = 9999
 systemName = helium
 systemNumber = 1
+numSystems = 2

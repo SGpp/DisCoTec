@@ -19,3 +19,4 @@ host = helium
 dataPort = 9999
 systemName = neon
 systemNumber = 1
+numSystems = 2
