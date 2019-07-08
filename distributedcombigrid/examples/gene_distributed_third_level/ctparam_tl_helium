@@ -15,6 +15,7 @@ ngroup = 2
 nprocs = 2 
 
 [thirdLevel]
-host = helium
+host = localhost
 dataPort = 9999
-systemName = neon
+systemName = helium
+systemNumber = 1
