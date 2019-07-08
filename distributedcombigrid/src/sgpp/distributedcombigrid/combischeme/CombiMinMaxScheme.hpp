@@ -56,22 +56,6 @@ class CombiMinMaxScheme {
    * */
   void createAdaptiveCombischeme();
 
-  /*
-   * Computes the distribution of a classical scheme to the systems of the
-   * third level combination.
-   */
-  void createClassicalThirdLevelCombischeme(unsigned int systemNumber,
-                                            std::vector<bool> boundary,
-                                            std::vector<LevelVector>& commonSubspaces);
-
-  /*
-   * Computes the distribution of an adaptive scheme to the systems of the
-   * third level combination.
-   */
-  void createAdaptiveThirdLevelCombischeme(unsigned int systemNumber,
-                                           std::vector<bool> boundary,
-                                           std::vector<LevelVector>& commonSubspaces);
-
   /* Generates the fault tolerant combination technique with extra
    * grids used in case of faults
    * */
@@ -118,20 +102,6 @@ class CombiMinMaxScheme {
   /* Calculate the coefficients of the adaptive CT using the formula in Alfredo's
    * SDC paper (from Brendan Harding)*/
   void computeCombiCoeffsAdaptive();
-
-  /*
-   * We assume only 2 systems participating.
-   * For example purpose we just split the scheme in half, and assign each half
-   * to a system.
-   * TODO Implement for arbitrary number of systems
-   */
-  void splitScheme(std::vector<std::vector<LevelVector>>& splittedScheme,
-                                      std::vector<std::vector<real>>& splittedCoeffs,
-                                      size_t numSystems);
-  /*
-   * Computes the common subspaces for a given splitted
-   */
-  std::vector<LevelVector> computeCommonSubspaces(const std::vector<std::vector<LevelVector>>& splittedScheme, const std::vector<bool>& boundary);
 
   LevelVector getLevelMinima();
 };
