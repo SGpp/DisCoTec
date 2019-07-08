@@ -10,6 +10,7 @@
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
+#include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
@@ -22,87 +23,10 @@
 
 BOOST_CLASS_EXPORT(TaskConstParaboloid)
 
-DistributedSparseGridUniform<CombiDataType> getSmallTestDSG(){
-  // set up a dsg for sending
-  LevelVector levels = {2, 2};
-  const DimType dim = levels.size();
-  std::vector<bool> boundary(2, true);
-  LevelVector lmin = levels;
-  LevelVector lmax = levels;
-  for (DimType d = 0; d < dim; ++d) {
-    lmax[d] *= 2;
-  }
-  return DistributedSparseGridUniform<CombiDataType>{dim, lmax, lmin, boundary, MPI_COMM_SELF};
-}
-
-
-/*
- * Computes distribution of a given combischeme to the systems of the third level
- * combination.
- * We assume only 2 systems participating.
- * For example purpose we just split the scheme in half, and assign each half
- * to a system.
- */
-void createThirdLevelCombischeme(std::vector<LevelVector>& levels,
-                                 std::vector<combigrid::real>& coeffs,
-                                 unsigned int systemNumber,
-                                 const std::vector<bool>& boundary,
-                                 std::vector<LevelVector>& commonSubspaces) {
-  std::vector<LevelVector> fullScheme(levels);
-  std::vector<combigrid::real> fullSchemeCoeffs(coeffs);
-  auto mid = fullScheme.begin() + ((fullScheme.size()-1) / 2);
-  auto midC = fullSchemeCoeffs.begin() + ((fullSchemeCoeffs.size()-1) / 2);
-  std::vector<LevelVector> lowerHalf(fullScheme.begin(), mid);
-  std::vector<combigrid::real> lowerCoeffs(fullSchemeCoeffs.begin(), midC);
-  std::vector<LevelVector> upperHalf(mid+1, fullScheme.end());
-  std::vector<combigrid::real> upperCoeffs(midC+1, fullSchemeCoeffs.end());
-  assert( !lowerHalf.empty() && !upperHalf.empty() );
-
-  // assign half to system
-  switch(systemNumber) {
-    case 0:
-      levels = lowerHalf;
-      coeffs = lowerCoeffs;
-      break;
-    case 1:
-      levels = upperHalf;
-      coeffs = upperCoeffs;
-      break;
-  }
-
-  // compute common subspaces:
-  // therefore we compute the component wise maximum level which is contained
-  // in both sets
-  size_t dim = levels[0].size();
-  LevelVector maxLevel(dim);
-  for (size_t i = 0; i < dim; i++) {
-    long lowerMax = 0;
-    long upperMax = 0;
-    for (size_t j = 0; j < lowerHalf.size(); j++) {
-      if (lowerMax < lowerHalf[j][i])
-        lowerMax = lowerHalf[j][i];
-    }
-    for (size_t j = 0; j < upperHalf.size(); j++) {
-      if (upperMax < upperHalf[j][i])
-        upperMax = upperHalf[j][i];
-    }
-    maxLevel[i] = std::min(lowerMax, upperMax);
-  }
-
-  // by creating a dummy sparse grid with this level, we can extract the subspaces
-  SGrid<real> sg(dim, maxLevel, maxLevel, boundary);
-
-  for (size_t ssID = 0; ssID < sg.getSize(); ++ssID) {
-    const LevelVector& ss = sg.getLevelVector(ssID);
-    commonSubspaces.push_back(ss);
-  }
-}
-
-
 /**
  * Checks if combination was successful.
- * Since both systems get the full combination scheme and the task is constant,
- * the expected result should be twice the initial function values.
+ * Since its a constant task the expected result should match the initial
+ * function values.
  */
 bool checkReducedFullGrid(ProcessGroupWorker& worker) {
   TaskContainer& tasks = worker.getTasks();
@@ -115,7 +39,7 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker) {
       for (IndexType li = 0; li < dfg.getNrElements(); ++li) {
         std::vector<double> coords(dfg.getDimension());
         dfg.getCoordsLocal(li, coords);
-        CombiDataType expected = CombiDataType(1.) * initialFunction(coords);
+        CombiDataType expected = initialFunction(coords);
         CombiDataType occuring = dfg.getData()[li];
         double diff = abs(occuring - expected);
         if (diff > TestHelper::tolerance) {
@@ -132,8 +56,8 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker) {
 
 /** Runs the RabbitMQ server */
 void runRabbitMQServer() {
-  std::string command = "rabbitmq-server &";
   std::cout << "starting RabbitMQ server..." << std::endl;
+  std::string command = "rabbitmq-server &";
   system(command.c_str());
 
   // give rabbitmq some time to set up
@@ -146,7 +70,7 @@ void runThirdLevelManager() {
   std::string command = "../examples/gene_distributed_third_level/third_level_manager/run.sh &";
   system(command.c_str());
 
-  // give thirdLevelManger some time to set up
+  // give the thirdLevelManger some time to set up
   sleep(1);
 }
 
@@ -194,20 +118,17 @@ void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::stri
 
     // create third level specific scheme
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
+    std::vector<LevelVector> levels = combischeme.getCombiSpaces();
+    std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
     std::vector<LevelVector> commonSubspaces;
     std::cout << "Combischeme " << sysName << ":" << std::endl;
     if (sysName == "system1") {
-      combischeme.createClassicalThirdLevelCombischeme(0, boundary, commonSubspaces);
-      //combischeme.createAdaptiveThirdLevelCombischeme(0, commonSubspaces);
+      CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, 0, 2);
     } else {
-      combischeme.createClassicalThirdLevelCombischeme(1, boundary, commonSubspaces);
-      //combischeme.createAdaptiveThirdLevelCombischeme(1, commonSubspaces);
+      CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, 0, 2);
     }
-    //combischeme.print(std::cout);
 
-    std::vector<LevelVector> levels = combischeme.getCombiSpaces();
-    std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
