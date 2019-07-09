@@ -90,12 +90,15 @@ class TaskExample : public Task {
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     
     // ? Numa considerations does this work with touching memeory first?
-    #pragma omp parallel for 
-    for (size_t i = 0; i < elements.size(); ++i) {
-      IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
+    #pragma omp parallel
+    {
       std::vector<real> globalCoords(dim);
-      dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
-      elements[i] = TaskExample::myfunction(globalCoords, 0.0);
+      #pragma omp for 
+      for (size_t i = 0; i < elements.size(); ++i) {
+        IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
+        dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
+        elements[i] = TaskExample::myfunction(globalCoords, 0.0);
+      }
     }
 
     initialized_ = true;
@@ -118,13 +121,15 @@ class TaskExample : public Task {
 
     for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
       real time = step * dt_;
-
-      #pragma omp parallel for 
-      for (size_t i = 0; i < elements.size(); ++i) {
-        IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
+      #pragma omp parallel
+      {
         std::vector<real> globalCoords(this->getDim());
-        dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
-        elements[i] = TaskExample::myfunction(globalCoords, time);
+        #pragma omp for 
+        for (size_t i = 0; i < elements.size(); ++i) {
+          IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
+          dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
+          elements[i] = TaskExample::myfunction(globalCoords, time);
+        }
       }
 
       MPI_Barrier(lcomm);
