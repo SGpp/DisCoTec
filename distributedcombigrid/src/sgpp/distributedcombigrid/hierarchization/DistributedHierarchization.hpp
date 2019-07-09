@@ -1221,21 +1221,22 @@ static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
-  IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
+  const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
 
-
+  #pragma omp parallel 
   {
-
+    IndexVector localIndexVector(dfg.getDimension());
+    IndexVector baseGlobalIndexVector(dfg.getDimension());
     // create tmp array to store xblock
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+    #pragma omp for
     for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
       // get globalIndexVector of block start
       // this is the base IndexVector of this block
       // only dim component is varied
       IndexType linIdxBlockStart = xBlock * ndim;
 
-      IndexVector localIndexVector(dfg.getDimension());
-      IndexVector baseGlobalIndexVector(dfg.getDimension());
+      
       dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
       dfg.getGlobalVectorIndex(localIndexVector, baseGlobalIndexVector);
       assert(localIndexVector[dim] == 0);
@@ -1416,14 +1417,14 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
   const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
-
+  #pragma omp parallel 
   {
     IndexVector localIndexVector(dfg.getDimension());
     IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
     // create tmp array to store xblock
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
-
+    #pragma omp for
     for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
       // get globalIndexVector of block start
       // this is the base IndexVector of this block
@@ -1697,7 +1698,7 @@ inline void hierarchizeX_inner_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
  *   function hierarchizeN
  *  Un used
  *  deprecated??
- * */
+ * 
 template <typename FG_ELEMENT>
 void hierarchizeN_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                            LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
@@ -1764,7 +1765,7 @@ void hierarchizeN_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       }
     }
   }
-}
+}*/
 
 
 
@@ -1788,7 +1789,7 @@ void hierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   const IndexType gstart = dfg.getLowerBounds()[dim];
 
-
+  #pragma omp parallel 
   {
     IndexVector localIndexVector(dfg.getDimension());
     IndexVector tmpGlobalIndexVector(dfg.getDimension());
@@ -1796,7 +1797,7 @@ void hierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
     
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
     // loop over poles
-
+    #pragma omp for
     for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
       lldiv_t divresult = std::lldiv(nn, stride);
@@ -2049,13 +2050,15 @@ class DistributedHierarchization {
       exchangeData1dDehierarchization(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
+      Stats::startEvent("only dehierarchize");
       if (dfg.returnBoundaryFlags()[dim] == true) {//TODO 
         dehierarchizeX_opt_boundary(dfg, lookupTable);
       } else {
         dehierarchizeX_opt_noboundary(dfg, lookupTable);
       }
+      Stats::stopEvent("only dehierarchize");
     }
-
+    //
     // dehierarchize other dimensions
     for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
@@ -2065,11 +2068,13 @@ class DistributedHierarchization {
       exchangeData1dDehierarchization(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
+      Stats::startEvent("only dehierarchize");
       if (dfg.returnBoundaryFlags()[dim] == true) {
         dehierarchizeN_opt<FG_ELEMENT,true>(dfg, lookupTable, dim);
       } else {
         dehierarchizeN_opt<FG_ELEMENT,false>(dfg, lookupTable, dim);
       }
+      Stats::stopEvent("only dehierarchize");
     }
   }
 
