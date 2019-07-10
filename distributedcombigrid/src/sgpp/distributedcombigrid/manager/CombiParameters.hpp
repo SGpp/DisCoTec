@@ -168,7 +168,6 @@ class CombiParameters {
 
   inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
 
-<<<<<<< HEAD
   inline CommunicatorType getApplicationComm() const {
     assert(uniformDecomposition);
     return theMPISystem()->getLocalComm();
