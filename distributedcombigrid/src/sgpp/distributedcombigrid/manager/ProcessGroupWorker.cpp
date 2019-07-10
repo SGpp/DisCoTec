@@ -51,15 +51,9 @@ ProcessGroupWorker::~ProcessGroupWorker() {
 // multiple times), RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
 void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, size_t numProcs) {
   MASTER_EXCLUSIVE_SECTION {
-    DurationType type = DurationType();
-    durationInformation info = {t.getID(), Stats::getEventDuration(e), static_cast<uint>(numProcs)};
-    // MPI_Request request;
-    // send durationInfo to manager
-    // std::cout << "sending duration" << std::endl;
-    MPI_Send(&info, 1, type.get(), theMPISystem()->getManagerRank(),
-             durationTag,  // TODO see if we can send asynchronously
-             theMPISystem()->getGlobalComm());
-    // std::cout << "sent duration" << std::endl;
+    // durationInformation info(e, t, numProcs);
+    durationInformation info = {t.getID(), Stats::getEventDurationInUsec(e), t.getCurrentTime(), t.getCurrentTimestep(), theMPISystem()->getWorldRank(), numProcs};
+    MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
 }
 
@@ -68,9 +62,8 @@ SignalType ProcessGroupWorker::wait() {
     status_ = PROCESS_GROUP_WAIT;
   }
   if (status_ != PROCESS_GROUP_WAIT) {
-    int myRank;
-    MPI_Comm_rank(theMPISystem()->getWorldComm(), &myRank);
 #ifdef DEBUG_OUTPUT
+    int myRank = theMPISystem()->getWorldRank();
     std::cout << "status is " << status_ << "of rank " << myRank << "\n";
     std::cout << "executing next task\n";
 #endif
@@ -688,7 +681,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
     // create dfg
     bool forwardDecomposition = !isGENE;
     DistributedFullGrid<CombiDataType> dfg(
-        dim, leval, combiParameters_.getApplicationComm(), combiParameters_.getBoundary(),
+        dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
         combiParameters_.getParallelization(), forwardDecomposition);
 
     // register dsg
@@ -810,18 +803,12 @@ void ProcessGroupWorker::updateCombiParameters() {
   // local root receives task
   MASTER_EXCLUSIVE_SECTION {
     MPIUtils::receiveClass(&tmp, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-    // std::cout << "master received combiparameters \n";
+    //std::cout << "master received combiparameters \n";
   }
 
   // broadcast task to other process of pgroup
   MPIUtils::broadcastClass(&tmp, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-  // std::cout << "worker received combiparameters \n";
-  if (combiParameters_.isApplicationCommSet()) {
-    CommunicatorType free = combiParameters_.getApplicationComm();
-    if (free != NULL && free != MPI_COMM_NULL) {
-      MPI_Comm_free(&free);
-    }
-  }
+  //std::cout << "worker received combiparameters \n";
   combiParameters_ = tmp;
 
   combiParametersSet_ = true;

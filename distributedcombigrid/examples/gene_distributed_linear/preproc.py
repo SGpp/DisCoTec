@@ -1,7 +1,7 @@
 #path to python interface
 from sys import path
-path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src')
-path.append('/import/home_local/oberstei/Documents/ExaHD/gene_python_interface_clean/src/tools')
+path.append('/home/keerthi/combi/distributedcombigrid/examples/gene_distributed_linear/gene_python_interface_clean/src')
+path.append('/home/keerthi/combi/distributedcombigrid/examples/gene_distributed_linear/gene_python_interface_clean/src/tools')
 
 from ConfigParser import SafeConfigParser
 import collections

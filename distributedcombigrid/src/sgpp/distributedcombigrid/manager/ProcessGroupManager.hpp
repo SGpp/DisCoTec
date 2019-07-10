@@ -145,6 +145,7 @@ class ProcessGroupManager {
    */
   friend class ProcessManager;
   inline void setMasterRank(int pGroupRootID);
+  inline int getMasterRank();
 };
 
 typedef std::shared_ptr<ProcessGroupManager> ProcessGroupManagerID;
@@ -274,6 +275,7 @@ inline bool ProcessGroupManager::gridGather(LevelVector& leval) {
 }
 
 inline void ProcessGroupManager::setMasterRank(int pGroupRootID) { pgroupRootID_ = pGroupRootID; }
+inline int ProcessGroupManager::getMasterRank() { return pgroupRootID_; }
 
 } /* namespace combigrid */
 

@@ -58,14 +58,6 @@ MPISystem::~MPISystem() {
   // todo: the fault tolerant communicator are initialized with new -> delete
 }
 
-int MPISystem::getWorldSize() {
-  return getCommSize(theMPISystem()->getWorldComm());
-}
-
-int MPISystem::getWorldRank() {
-  return getCommRank(theMPISystem()->getWorldComm());
-}
-
 void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType worldComm = MPI_COMM_WORLD, bool reusable = false) {
   assert( (reusable || !initialized_) && "MPISystem already initialized!");
 
@@ -330,7 +322,7 @@ void MPISystem::initGlobalReduceCommm() {
       createCommFT(&globalReduceCommFT_, globalReduceComm_);
     }
     int size = getCommSize(globalReduceComm_);
-    // std::cout << "size if global reduce comm " << size << "\n";
+    //std::cout << "size if global reduce comm " << size << "\n";
     MPI_Barrier(globalReduceComm_);
   } else {
     MPI_Comm_split(worldComm_, MPI_UNDEFINED, -1, &globalReduceComm_);
@@ -706,42 +698,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   std::cout << "performing MPI split \n";
 
   MPI_Comm_split(spareCommFT_->c_comm, color, key, &worldComm_);
-
-  //  //get new rank ids from reusable ranks after splitting
-  //  WORLD_MANAGER_EXCLUSIVE_SECTION{
-  //    getReusableRanksSpare(newReusableRanks);
-  //  }
-  /*color = (!groupAlive) ? 1 : MPI_UNDEFINED; //all alive procs from dead process groups
-  WORLD_MANAGER_EXCLUSIVE_SECTION{
-     color = 1;
-  }
-  int key = worldRank_;
-  MPI_Comm_split( newCommWorld, color, key, &spareComm_ );*/
-
-  // early exit for dead procs; not existing anymore
-  // if( worldComm_ == MPI_COMM_NULL)
-  //  return;
-  /*
-    // todo: remove
-    // output new commWorld
-    {
-      int newRank, newSize;
-      MPI_Comm_rank( worldComm_, &newRank );
-      MPI_Comm_size( worldComm_, &newSize );
-
-      if( newRank == 0 )
-        std::cout << "new WorldComm:" << std::endl;
-      for( auto r=0; r < newSize; ++r ){
-          if( newRank == r ){
-            std::cout << "rank " << theMPISystem()->getWorldRank()
-                      << " new rank " << newRank
-                      << " new size " << newSize
-                      << std::endl;
-          }
-          MPI_Barrier( worldComm_ );
-      }
-    }
-  */
+  
   int worldSize = getWorldSize();
   assert((worldSize - 1) % nprocs_ == 0);
   ngroup_ = (worldSize - 1) / nprocs_;

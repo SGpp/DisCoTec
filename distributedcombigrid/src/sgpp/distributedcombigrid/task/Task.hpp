@@ -55,7 +55,7 @@ class Task {
 
   inline const std::vector<bool>& getBoundary() const;
 
-  inline const int getID() const;
+  inline int getID() const;
 
   virtual void run(CommunicatorType lcomm) = 0;
 
@@ -79,6 +79,12 @@ class Task {
   virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) = 0;
 
   virtual void setZero() = 0;
+
+  // override if there is adaptive timestepping in the solver
+  virtual real getCurrentTimestep() const { return 0.; }
+
+  // override to really get the current time in the solver
+  virtual real getCurrentTime() const {return 0.;}
 
   virtual void decideToKill() { std::cout << "Kill function not implemented for this task! \n"; }
 
@@ -139,7 +145,7 @@ inline const LevelVector& Task::getLevelVector() const { return l_; }
 
 inline const std::vector<bool>& Task::getBoundary() const { return boundary_; }
 
-inline const int Task::getID() const { return id_; }
+inline int Task::getID() const { return id_; }
 
 inline bool Task::isFinished() const { return isFinished_; }
 

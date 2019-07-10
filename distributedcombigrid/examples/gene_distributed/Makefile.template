@@ -1,5 +1,5 @@
 CC=$(CC)
-CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb
+CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb #-DTIMING
 
 SGPP_DIR=$(SGPP)
 GLPK_DIR=$(GLPK)
@@ -12,7 +12,7 @@ INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
 LDIR=$(LD_SGPP) $(LD_GLPK)
 INC=$(INC_SGPP) $(INC_GLPK)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk#-DDEBUG_OUTPUT
+LIBS=-lsgppdistributedcombigrid -lboost_serialization #-lglpk#-DDEBUG_OUTPUT
 
 CPP_FILES := $(wildcard src/*.cpp)
 OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))

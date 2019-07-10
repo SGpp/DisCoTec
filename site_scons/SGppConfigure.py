@@ -11,8 +11,8 @@ import re
 import Helper
 
 def doConfigure(env, moduleFolders, languageWrapperFolders):
-  print
-  print "Checking programs and libraries:"
+  print()
+  print("Checking programs and libraries:")
 
   config = env.Configure(custom_tests={"CheckExec" : Helper.CheckExec,
                                        "CheckJNI" : Helper.CheckJNI,
@@ -113,8 +113,8 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   config.env.AppendUnique(LIBPATH=[config.env['GLPK_LIBRARY_PATH']])
   env = config.Finish()
 
-  print "Configuration done."
-  print
+  print("Configuration done.")
+  print()
 
 def checkCpp11(config):
   # check C++11 support
@@ -323,19 +323,38 @@ def configureGNUCompiler(config):
   config.env.Append(CPPFLAGS=allWarnings + [
       "-fno-strict-aliasing",
       "-funroll-loops", "-mfpmath=sse",
+      # "-fsanitize=address",
+      # "-DDEBUG_OUTPUT=1",
       "-DDEFAULT_RES_THRESHOLD=-1.0", "-DTASKS_PARALLEL_UPDOWN=4"])
   config.env.Append(CPPFLAGS=["-fopenmp"])
-  config.env.Append(LINKFLAGS=["-fopenmp"])
+  config.env.Append(LINKFLAGS=[
+    "-fopenmp",
+    # "-fsanitize=leak",
+    # "-fsanitize=address"#,"-lasan","-lubsan" ## ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=$(shell which llvm-symbolizer)# cf https://gist.github.com/kwk/4171e37f4bcdf7705329
+    ])
 
   # required for profiling
   config.env.Append(CPPFLAGS=["-fno-omit-frame-pointer"])
   
+  print("config: "+ str(config.env))
+
   if config.env["DEBUG_OUTPUT"]:
     config.env.Append(CPPFLAGS=["-DDEBUG_OUTPUT"])  
   if config.env["TIMING"]:
     config.env.Append(CPPFLAGS=["-DTIMING"])
   if config.env["BUILD_STATICLIB"]:
     config.env.Append(CPPFLAGS=["-D_BUILD_STATICLIB"])
+
+  if config.env["USENONBLOCKINGMPICOLLECTIVE"]:
+    config.env.Append(CPPFLAGS=["-DUSENONBLOCKINGMPICOLLECTIVE"])
+  if config.env["OMITREADYSIGNAL"]:
+    config.env.Append(CPPFLAGS=["-DOMITREADYSIGNAL"])
+  if config.env["UNIFORMDECOMPOSITION"]:
+    config.env.Append(CPPFLAGS=["-DUNIFORMDECOMPOSITION"])
+  if config.env["ENABLEFT"]:
+    config.env.Append(CPPFLAGS=["-DENABLEFT"])  
+  if config.env["ISGENE"]:
+    config.env.Append(CPPFLAGS=["-DISGENE"])
 
   if config.env["ARCH"] == "sse3":
     config.env.AppendUnique(CPPFLAGS=["-msse3"])

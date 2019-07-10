@@ -233,7 +233,7 @@ public:
   /**
    * Returns the current timestep in the simulation. This is uses to update the timestep in GENE after restart.
    */
-  real getCurrentTimestep(){
+  real getCurrentTimestep() const {
     return currentTimestep_;
   }
   /**

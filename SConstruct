@@ -19,7 +19,7 @@ from SCons.Script.SConscript import SConsEnvironment
 import Helper
 import SGppConfigure
 rootDirectory = str(Dir('#').abspath)
-print rootDirectory
+print(rootDirectory)
 sys.stdout = Helper.Logger(sys.stdout)
 sys.stderr = Helper.Logger(sys.stderr)
 finalMessagePrinter = Helper.FinalMessagePrinter()
@@ -144,6 +144,13 @@ vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing S
 vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', rootDirectory + "/glpk/include/")
 vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', rootDirectory + "/glpk/lib/")
 vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
+
+
+vars.Add(BoolVariable("USENONBLOCKINGMPICOLLECTIVE","Nonblocking mpi collective calls (MPI_Iallreduce and the likes)",True))
+vars.Add(BoolVariable("OMITREADYSIGNAL","Set to true to avoid that the ready signal is sent automatically",True))
+vars.Add(BoolVariable("UNIFORMDECOMPOSITION","To enable the uniform operations set this to true",True))
+vars.Add(BoolVariable("ENABLEFT","Switch on fault tolerance functionality",True))
+vars.Add(BoolVariable("ISGENE","",True))
 
 
 # create temporary environment to check which system and compiler we should use
@@ -360,7 +367,7 @@ def lintAction(target, source, env):
       parts = line.split(":  ")
       location = parts[0]
       message = ":  ".join(parts[1:])
-      print location + ": warning: " + message
+      print(location + ": warning: " + message)
   # touch file without writing anything
   # (to indicate for the next run of SCons that we already checked this file)
   with open(target[0].abspath, "w"): pass
@@ -379,7 +386,7 @@ if env["RUN_PYTHON_TESTS"] and env["SG_PYTHON"]:
 
 if env["COMPILE_BOOST_TESTS"]:
   proc_count = int(env["TEST_PROCESS_COUNT"])
-  run_cmd = "mpiexec -n %s " % proc_count if proc_count > 1 else ""
+  run_cmd = "mpiexec.mpich -np %s " % proc_count if proc_count > 1 else ""
   builder = Builder(action=run_cmd + "./$SOURCE")
   env.Append(BUILDERS={"BoostTest" : builder})
 
@@ -501,9 +508,9 @@ def printInstructions(target, source, env):
 
   with open(filename) as f:
     instructionsTemplate = string.Template(f.read())
-    print
-    print instructionsTemplate.safe_substitute(SGPP_BUILD_PATH=BUILD_DIR.abspath,
-                                               PYSGPP_PACKAGE_PATH=PYSGPP_PACKAGE_PATH.abspath)
+    print()
+    print(instructionsTemplate.safe_substitute(SGPP_BUILD_PATH=BUILD_DIR.abspath,
+                                               PYSGPP_PACKAGE_PATH=PYSGPP_PACKAGE_PATH.abspath))
 
 if env["PRINT_INSTRUCTIONS"]:
     printInstructionsTarget = env.Command("printInstructions", [], printInstructions)

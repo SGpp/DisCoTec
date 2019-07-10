@@ -17,7 +17,7 @@ namespace combigrid {
 class CombiParameters {
  public:
   CombiParameters()
-      : procsSet_(false), applicationComm_(MPI_COMM_NULL), applicationCommSet_(false), numGridsPerTask_(1) {}
+      : procsSet_(false) {}
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
@@ -36,8 +36,6 @@ class CombiParameters {
         lmax_(lmax),
         boundary_(boundary),
         procsSet_(false),
-        applicationComm_(MPI_COMM_NULL),
-        applicationCommSet_(false),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
@@ -73,8 +71,6 @@ class CombiParameters {
         boundary_(boundary),
         hierarchizationDims_(hierachizationDims),
         procsSet_(false),
-        applicationComm_(MPI_COMM_NULL),
-        applicationCommSet_(false),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
@@ -172,6 +168,7 @@ class CombiParameters {
 
   inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
 
+<<<<<<< HEAD
   inline CommunicatorType getApplicationComm() const {
     assert(uniformDecomposition);
     return theMPISystem()->getLocalComm();
