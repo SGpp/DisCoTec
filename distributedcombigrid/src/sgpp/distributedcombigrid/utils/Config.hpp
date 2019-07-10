@@ -81,6 +81,7 @@ typedef complex CombiDataType;
 #endif
 #ifdef ISGENE
 	constexpr bool isGENE = true;    //TODO move this switch to a more sensible place
+	// todo static assert complex is combidatatype
 #else
 	constexpr bool isGENE = false;
 #endif	

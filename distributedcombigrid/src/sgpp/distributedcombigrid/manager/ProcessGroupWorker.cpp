@@ -128,13 +128,16 @@ SignalType ProcessGroupWorker::wait() {
     case ADD_TASK: {  // add a new task to the process group
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
+      // TODO test if this signal works in case of not-GENE
       initializeTaskAndFaults();
 
       currentTask_->setZero();
 
       currentTask_->setFinished(true);
 
-      currentTask_->changeDir(theMPISystem()->getLocalComm());
+      if (isGENE) { 
+        currentTask_->changeDir(theMPISystem()->getLocalComm());
+      }
     } break;
     case RESET_TASKS: {  // deleta all tasks (used in process recovery)
       std::cout << "resetting tasks" << std::endl;
