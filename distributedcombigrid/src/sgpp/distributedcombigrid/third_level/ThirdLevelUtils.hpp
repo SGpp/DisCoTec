@@ -76,8 +76,10 @@ namespace combigrid {
     assert(isConnected_);
     size_t rawSize = size * sizeof(FG_ELEMENT);
     sendSize(rawSize);
-    std::cout << "Manager tries to send " << rawSize << " Bytes" << std::endl;
-    dataConnection_->sendall(reinterpret_cast<const char*>(data), rawSize);
+    if (size != 0) {
+      //std::cout << "Manager tries to send " << rawSize << " Bytes" << std::endl;
+      dataConnection_->sendall(reinterpret_cast<const char*>(data), rawSize);
+    }
   }
 
   template <typename FG_ELEMENT>
@@ -85,12 +87,14 @@ namespace combigrid {
   {
     assert(isConnected_);
     size_t rawSize = receiveSize();
-    char* rawData = new char[rawSize];
-    std::cout << "Manager tries to receive " << rawSize << " Bytes" << std::endl;
-    bool success = dataConnection_->recvall(rawData, rawSize);
-    assert(success && "receiving dsgu data failed");
-    data = reinterpret_cast<FG_ELEMENT*>(rawData);
     size = rawSize / sizeof(FG_ELEMENT);
+    if(size != 0) {
+      char* rawData = new char[rawSize];
+      //std::cout << "Manager tries to receive " << rawSize << " Bytes" << std::endl;
+      bool success = dataConnection_->recvall(rawData, rawSize);
+      assert(success && "receiving dsgu data failed");
+      data = reinterpret_cast<FG_ELEMENT*>(rawData);
+    }
   }
 }
 

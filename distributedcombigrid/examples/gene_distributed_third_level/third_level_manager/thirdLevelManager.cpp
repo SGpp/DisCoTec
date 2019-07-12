@@ -139,5 +139,6 @@ void ThirdLevelManager::forwardData(const System& sender, const System& receiver
   receiver.sendMessage(std::to_string(dataSize), channel_);
 
   // forward data to other system
-  NetworkUtils::forward(*sender.getDataConnection(), *receiver.getDataConnection(), 2048, dataSize);
+  if (dataSize != 0)
+    NetworkUtils::forward(*sender.getDataConnection(), *receiver.getDataConnection(), 2048, dataSize);
 }
