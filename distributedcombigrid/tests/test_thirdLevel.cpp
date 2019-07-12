@@ -24,10 +24,10 @@
 BOOST_CLASS_EXPORT(TaskConstParaboloid)
 
 /**
- * Checks if combination was successful.
- * Since its a constant task the expected result should match the initial
- * function values.
- */
+* Checks if combination was successful.
+* Since the task doesn't evolve over time the expected result should match the
+* initial function values.
+*/
 bool checkReducedFullGrid(ProcessGroupWorker& worker) {
   TaskContainer& tasks = worker.getTasks();
   int numGrids = (int) worker.getCombiParameters().getNumGrids();
@@ -36,7 +36,7 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker) {
     for (int g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       ParaboloidFn<CombiDataType> initialFunction;
-      for (IndexType li = 0; li < dfg.getNrElements(); ++li) {
+      for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         std::vector<double> coords(dfg.getDimension());
         dfg.getCoordsLocal(li, coords);
         CombiDataType expected = initialFunction(coords);
@@ -111,23 +111,37 @@ void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::stri
 
     DimType dim = 2;
     LevelVector lmin(dim, 4);
-    LevelVector lmax(dim, 6);
+    LevelVector lmax(dim, 7);
 
     size_t ncombi = 1;
     std::vector<bool> boundary(dim, false);
 
     // create third level specific scheme
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
+    combischeme.createClassicalCombischeme();
+    //combischeme.createAdaptiveCombischeme();
+
+
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
     std::vector<LevelVector> commonSubspaces;
-    std::cout << "Combischeme " << sysName << ":" << std::endl;
+
+    unsigned int sysNum;
     if (sysName == "system1") {
-      CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, 0, 2);
+      sysNum = 0;
+      CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, sysNum, 2);
+      std::cout << "Common Subspace" << std::endl;
+      for (const auto& ss : commonSubspaces)
+        std::cout << toString(ss) << std::endl;
     } else {
-      CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, 0, 2);
+      sysNum = 1;
+      CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, sysNum, 2);
     }
+
+    //std::cout << "Combischeme " << sysName << ":" << std::endl;
+    //for (const auto& l : levels)
+    //  std::cout << toString(l) << std::endl;
 
 
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
