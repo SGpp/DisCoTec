@@ -37,9 +37,10 @@ const SignalType COMBINE_LOCAL_AND_GLOBAL = 20;
 const SignalType BROADCAST_COMMON_SS = 21;
 // Third level specific signals
 const SignalType WAIT_FOR_UPDATE = 22;
-const SignalType SEND_COMMON_SS_TO_MANAGER = 23;
-const SignalType RECV_COMMON_SS_FROM_MANAGER_AND_INTEGRATE = 24;
-const SignalType ADD_COMMON_SS_FROM_MANAGER_AND_INTEGRATE = 25;
+const SignalType INTEGRATE_SOLUTION = 23;
+const SignalType SEND_COMMON_SS_TO_MANAGER = 24;
+const SignalType RECV_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE = 25;
+const SignalType ADD_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE = 26;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
