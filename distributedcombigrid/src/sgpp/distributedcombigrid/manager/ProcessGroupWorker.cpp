@@ -170,19 +170,24 @@ SignalType ProcessGroupWorker::wait() {
     Stats::stopEvent("waitForUpdate");
 
     } break;
-    case RECV_COMMON_SS_FROM_MANAGER_AND_INTEGRATE: {
+    case INTEGRATE_SOLUTION: {
+    Stats::startEvent("integrateCombinedSolution");
+    integrateCombinedSolution();
+    currentCombi_++;
+    Stats::stopEvent("integrateCombinedSolution");
+
+    } break;
+    case RECV_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE: {
     Stats::startEvent("recvCommonSubspacesFromManagerAndDistribute");
     std::cout << "Worker performs recvCommonSubspacesFromManagerAndDistribute" << std::endl;
     recvCommonSubspacesFromManagerAndDistribute();
-    currentCombi_++;
     Stats::stopEvent("recvCommonSubspacesFromManagerAndDistribute");
 
     } break;
-    case ADD_COMMON_SS_FROM_MANAGER_AND_INTEGRATE: {
+    case ADD_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE: {
     Stats::startEvent("addCommonSubspacesFromManagerAndDistribute");
     std::cout << "Worker performs addCommonSubspacesFromManagerAndDistribute" << std::endl;
     addCommonSubspacesFromManagerAndDistribute();
-    currentCombi_++;
     Stats::stopEvent("addCommonSubspacesFromManagerAndDistribute");
 
     } break;
@@ -626,16 +631,12 @@ void ProcessGroupWorker::updateSubspacesAndIntegrate() {
   const std::vector<LevelVector>& commonSubspaces = combiParameters_.getThirdLevelCommonSubspaces();
   RankType thirdLevelPG = combiParameters_.getThirdLevelPG();
 
-  // receive update from global comm
+  // receive update from global reduce comm
   Stats::startEvent("broadcasting reduced grids");
   broadcastCommonSS();
   Stats::stopEvent("broadcasting reduced grids");
 
-  // integrate combined solution
-  Stats::startEvent("integrating combined solution");
-  extractFullGridsFromUniformSG();
-  dehierarchizeFullGrids();
-  Stats::stopEvent("integrating combined solution");
+  integrateCombinedSolution();
 }
 
 void ProcessGroupWorker::parallelEval() {
@@ -836,9 +837,10 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
   }
 }
 
+
 /**
- *
- */
+*
+*/
 void ProcessGroupWorker::sendCommonSubspacesToManager() {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
@@ -861,8 +863,8 @@ void ProcessGroupWorker::sendCommonSubspacesToManager() {
 }
 
 /**
- *
- */
+*
+*/
 void ProcessGroupWorker::recvCommonSubspacesFromManagerAndDistribute() {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
@@ -885,7 +887,13 @@ void ProcessGroupWorker::recvCommonSubspacesFromManagerAndDistribute() {
     recvAndBcastSubspaces(combinedUniDSGVector_[g].get(), commonSubpaces, manager, managerComm, bcastRoot, globalReduceComm);
   }
   Stats::stopEvent("receive dsgu from manager");
-  std::cout << "Finished recvCommonSubspacesFromManagerAndDistribute" << std::endl;
+}
+
+void ProcessGroupWorker::integrateCombinedSolution() {
+  Stats::startEvent("integrating combined solution");
+  extractFullGridsFromUniformSG();
+  dehierarchizeFullGrids();
+  Stats::stopEvent("integrating combined solution");
 }
 
 
@@ -914,12 +922,11 @@ void ProcessGroupWorker::addCommonSubspacesFromManagerAndDistribute() {
     recvAndAddAndBcastSubspaces(combinedUniDSGVector_[g].get(), commonSubpaces, manager, managerComm, bcastRoot, globalReduceComm);
   }
   Stats::stopEvent("add dsgu from manager");
-  std::cout << "Finished addCommonSubspacesFromManagerAndDistribute" << std::endl;
 }
 
-/*
- *
- */
+/**
+*
+*/
 void ProcessGroupWorker::broadcastCommonSS() {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);

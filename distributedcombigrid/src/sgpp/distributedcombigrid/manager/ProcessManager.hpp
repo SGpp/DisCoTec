@@ -245,25 +245,25 @@ void ProcessManager::combineLocalAndGlobal() {
 }
 
 /** Combination with third level parallelism e.g. between two HPC systems
- *
- * This process manager induces a local and global combination first.
- * Then he signals ready to the third level manager who decides about the role
- * of sender and receiver.
- *
- * In the role of the sender, the process manager
- * transfers the common subspaces from workers of the third level pg to the third level
- * manager, who then sends it to the remote system. After sending he
- * receives the remotely reduced data from the third level manager and sends it
- * back to the third level pg.
- * In the role of the receiver, the process manager receives the common subspace
- * data from the third level manager and sends it to the workers who combine
- * the remote solution with their local solution. Afterward, the final solution
- * is sent back to the remote system.
- *
- * After the global reduce all pg which do not participate in the third level
- * combination idle in a broadcast function and wait for their updated from the
- * third level pg.
- */
+*
+* This process manager induces a local and global combination first.
+* Then he signals ready to the third level manager who decides about the role
+* of sender and receiver.
+*
+* In the role of the sender, the process manager
+* transfers the common subspaces from workers of the third level pg to the third level
+* manager, who then sends it to the remote system. After sending he
+* receives the remotely reduced data from the third level manager and sends it
+* back to the third level pg.
+* In the role of the receiver, the process manager receives the common subspace
+* data from the third level manager and sends it to the workers who combine
+* the remote solution with their local solution. Afterward, the final solution
+* is sent back to the remote system.
+*
+* After the global reduce all pg which do not participate in the third level
+* combination idle in a broadcast function and wait for their updated from the
+* third level pg.
+*/
 void ProcessManager::combineThirdLevel() {
   combineLocalAndGlobal();
 
@@ -280,23 +280,29 @@ void ProcessManager::combineThirdLevel() {
 
   // perform third level reduce
   if (instruction == "reduce_third_level_recv_first") {
-    thirdLevelPGroup_->addAndIntegrateSubspacesFromRemote(thirdLevel_, params_);
+    thirdLevelPGroup_->addAndDistributeSubspacesFromRemote(thirdLevel_, params_);
     waitForPG(thirdLevelPGroup_);
     thirdLevelPGroup_->sendSubspacesToRemote(thirdLevel_, params_);
+    waitForPG(thirdLevelPGroup_);
+    std::cout << "TLGP integrating solution" << std::endl;
+    thirdLevelPGroup_->integrateCombinedSolution();
   } else if (instruction == "reduce_third_level_send_first") {
     thirdLevelPGroup_->sendSubspacesToRemote(thirdLevel_, params_);
     waitForPG(thirdLevelPGroup_);
-    thirdLevelPGroup_->recvAndIntegrateSubspacesFromRemote(thirdLevel_, params_);
+    thirdLevelPGroup_->recvAndDistributeSubspacesFromRemote(thirdLevel_, params_);
+    waitForPG(thirdLevelPGroup_);
+    std::cout << "TLGP integrating solution" << std::endl;
+    thirdLevelPGroup_->integrateCombinedSolution();
   }
   waitAllFinished();
 }
 
-/* This function performs the so-called recombination. First, the combination
- * solution will be evaluated with the resolution of the given full grid.
- * Afterwards, the local component grids will be updated with the combination
- * solution. The combination solution will also be available on the manager
- * process.
- */
+/** This function performs the so-called recombination. First, the combination
+* solution will be evaluated with the resolution of the given full grid.
+* Afterwards, the local component grids will be updated with the combination
+* solution. The combination solution will also be available on the manager
+* process.
+*/
 template <typename FG_ELEMENT>
 void ProcessManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
   // wait until all process groups are in wait state
@@ -320,11 +326,11 @@ void ProcessManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
   CombiCom::FGAllreduce<FG_ELEMENT>(fg, theMPISystem()->getGlobalComm());
 }
 
-/* Evaluate the combination solution with the resolution of the given full grid.
- * In constrast to the combineFG function, the solution will only be available
- * on the manager. No recombination is performed, i.e. the local component grids
- * won't be updated.
- */
+/** Evaluate the combination solution with the resolution of the given full grid.
+* In constrast to the combineFG function, the solution will only be available
+* on the manager. No recombination is performed, i.e. the local component grids
+* won't be updated.
+*/
 template <typename FG_ELEMENT>
 void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
   // wait until all process groups are in wait state
@@ -351,11 +357,11 @@ void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
 
 CombiParameters& ProcessManager::getCombiParameters() { return params_; }
 
-/*
- * Create a certain given number of random faults, considering that the faulty processes
- * simply cannot give the evaluation results, but they are still available in the MPI
- * communication scheme (the nodes are not dead)
- */
+/**
+* Create a certain given number of random faults, considering that the faulty processes
+* simply cannot give the evaluation results, but they are still available in the MPI
+* communication scheme (the nodes are not dead)
+*/
 inline void ProcessManager::createRandomFaults(std::vector<int>& faultIds, int no_faults) {
   int fault_id;
 
@@ -370,10 +376,10 @@ inline void ProcessManager::createRandomFaults(std::vector<int>& faultIds, int n
   }
 }
 
-/*
- * Recompute coefficients for the combination technique based on given grid faults using
- * an optimization scheme
- */
+/**
+* Recompute coefficients for the combination technique based on given grid faults using
+* an optimization scheme
+*/
 inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
                                                          std::vector<int>& faultsID,
                                                          std::vector<int>& redistributeFaultsID,

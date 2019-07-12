@@ -81,6 +81,8 @@ class ProcessGroupWorker {
 
   void updateSubspacesAndIntegrate();
 
+  void integrateCombinedSolution();
+
   void sendCommonSubspacesToManager();
 
   void recvCommonSubspacesFromManagerAndDistribute();

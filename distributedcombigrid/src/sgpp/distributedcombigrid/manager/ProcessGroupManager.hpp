@@ -55,13 +55,15 @@ class ProcessGroupManager {
   bool sendSubspacesToRemote(const ThirdLevelUtils& thirdLevel,
                                    CombiParameters& params);
 
-  bool recvAndIntegrateSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
+  bool recvAndDistributeSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
                                                  CombiParameters& params);
 
-  bool addAndIntegrateSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
+  bool addAndDistributeSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
                                                 CombiParameters& params);
 
   bool waitForUpdate();
+
+  bool integrateCombinedSolution();
 
   bool
   combineLocalAndGlobal();
@@ -123,11 +125,9 @@ class ProcessGroupManager {
 
   bool sendSignalSendSubspaces();
 
-  bool sendSignalRecvAndIntegrateSubspaces();
+  bool sendSignalRecvAndDistributeSubspaces();
 
-  bool sendSignalAddAndIntegrateSubspaces();
-
-  bool sendSignalWaitForUpdate();
+  bool sendSignalAddAndDistributeSubspaces();
 
   inline void setProcessGroupBusyAndReceive();
 

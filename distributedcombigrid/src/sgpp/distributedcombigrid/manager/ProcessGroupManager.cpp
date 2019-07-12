@@ -110,9 +110,9 @@ bool ProcessGroupManager::sendSubspacesToRemote(const ThirdLevelUtils& thirdLeve
   return true;
 }
 
-bool ProcessGroupManager::recvAndIntegrateSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
+bool ProcessGroupManager::recvAndDistributeSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
                                                          CombiParameters& params) {
-  sendSignalRecvAndIntegrateSubspaces();
+  sendSignalRecvAndDistributeSubspaces();
   forwardCommonSubspacesFromRemoteToPG<CombiDataType>(thirdLevel, params);
 
   // start non-blocking MPI_IRecv to receive status
@@ -120,9 +120,9 @@ bool ProcessGroupManager::recvAndIntegrateSubspacesFromRemote(const ThirdLevelUt
   return true;
 }
 
-bool ProcessGroupManager::addAndIntegrateSubspacesFromRemote(const ThirdLevelUtils& thirdLevel, 
+bool ProcessGroupManager::addAndDistributeSubspacesFromRemote(const ThirdLevelUtils& thirdLevel, 
                                                                CombiParameters& params) {
-  sendSignalAddAndIntegrateSubspaces();
+  sendSignalAddAndDistributeSubspaces();
   forwardCommonSubspacesFromRemoteToPG<CombiDataType>(thirdLevel, params);
 
   // start non-blocking MPI_IRecv to receive status
@@ -142,10 +142,10 @@ bool ProcessGroupManager::sendSignalSendSubspaces() {
   return true;
 }
 
-bool ProcessGroupManager::sendSignalRecvAndIntegrateSubspaces() {
+bool ProcessGroupManager::sendSignalRecvAndDistributeSubspaces() {
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  SignalType signal = RECV_COMMON_SS_FROM_MANAGER_AND_INTEGRATE;
+  SignalType signal = RECV_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE;
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
 
   // set status
@@ -153,10 +153,10 @@ bool ProcessGroupManager::sendSignalRecvAndIntegrateSubspaces() {
   return true;
 }
 
-bool ProcessGroupManager::sendSignalAddAndIntegrateSubspaces() {
+bool ProcessGroupManager::sendSignalAddAndDistributeSubspaces() {
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  SignalType signal = ADD_COMMON_SS_FROM_MANAGER_AND_INTEGRATE;
+  SignalType signal = ADD_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE;
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
 
   // set status
@@ -166,18 +166,17 @@ bool ProcessGroupManager::sendSignalAddAndIntegrateSubspaces() {
 
 template <typename FG_ELEMENT>
 bool ProcessGroupManager::forwardCommonSubspacesFromRemoteToPG(const ThirdLevelUtils& thirdLevel,
-                                                          CombiParameters& params) {
+                                                                     CombiParameters& params) {
   const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
   assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
       "initialisation of third level communicator failed");
+  const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
   // receive subspaces sequentially from remote and forward them to workers
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
   IndexType numGrids = params.getNumGrids();
   const std::vector<LevelVector>& commonSubspaces = params.getThirdLevelCommonSubspaces();
   for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    const CommunicatorType& comm = thirdLevelComms[p];
-    std::cout << "forwarding grids from worker with rank: " << p << std::endl;
     for (IndexType g = 0; g < numGrids; g++) {
       for (const LevelVector& ss : commonSubspaces) {
         // receive subspace from remote
@@ -186,8 +185,9 @@ bool ProcessGroupManager::forwardCommonSubspacesFromRemoteToPG(const ThirdLevelU
         thirdLevel.recvData(ssData, ssSize);
 
         // forward subspace to worker
-        MPI_Send(ssData, ssSize, dataType, 0, sendSSTag, comm);
-        delete[] ssData;
+        MPI_Send(ssData, ssSize, dataType, p, sendSSTag, comm);
+        if (ssSize != 0)
+          delete[] ssData;
       }
     }
   }
@@ -202,25 +202,24 @@ bool ProcessGroupManager::forwardCommonSubpacesFromPGToRemote(const ThirdLevelUt
   const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
   assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
       "initialisation of third level communicator failed");
+  const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
   // receive subspaces sequentially from workers and forward them to remote
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
   IndexType numGrids = params.getNumGrids();
   const std::vector<LevelVector>& commonSubspaces = params.getThirdLevelCommonSubspaces();
   for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    const CommunicatorType& comm = thirdLevelComms[p];
-    std::cout << "forwarding grids from worker with rank: " << p << std::endl;
     for (IndexType g = 0; g < numGrids; g++) {
       for (const LevelVector& ss : commonSubspaces) {
         // get subspace size
         int ssSize;
         MPI_Status status;
-        MPI_Probe(0, sendSSTag, comm, &status);
+        MPI_Probe(p, sendSSTag, comm, &status);
         MPI_Get_count(&status, dataType, &ssSize);
 
         // receive subspace
         FG_ELEMENT* ssData = new FG_ELEMENT[ssSize];
-        MPI_Recv(ssData, ssSize, dataType, 0, sendSSTag, comm, &status);
+        MPI_Recv(ssData, ssSize, dataType, p, sendSSTag, comm, &status);
 
         // send subspace to remote
         thirdLevel.sendData(ssData, ssSize);
@@ -255,6 +254,22 @@ bool ProcessGroupManager::waitForUpdate() {
   assert(status_ == PROCESS_GROUP_WAIT);
 
   SignalType signal = WAIT_FOR_UPDATE;
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+
+  // set status
+  status_ = PROCESS_GROUP_BUSY;
+
+  // start non-blocking MPI_IRecv to receive status
+  recvStatus();
+
+  return true;
+}
+
+bool ProcessGroupManager::integrateCombinedSolution() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  SignalType signal = INTEGRATE_SOLUTION;
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
 
   // set status
