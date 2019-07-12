@@ -1,4 +1,5 @@
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
+#include <algorithm>
 
 namespace combigrid {
 

@@ -50,6 +50,8 @@ void CombiThirdLevelScheme::decomposeScheme(std::vector<LevelVector>& fullScheme
   std::vector<real> upperCoeffs(midC, fullSchemeCoeffs.end());
 
   assert( !lowerHalf.empty() && !upperHalf.empty() );
+  assert(lowerHalf.size() + upperHalf.size() == fullScheme.size());
+  assert(lowerCoeffs.size() + upperCoeffs.size() == fullSchemeCoeffs.size());
   //
 
   decomposedScheme.reserve(numSystems);
@@ -63,12 +65,14 @@ void CombiThirdLevelScheme::decomposeScheme(std::vector<LevelVector>& fullScheme
 
 /**
 * Computes the common subspaces for a given decomposed scheme.
+* TODO: probably very inefficient implementation, if crucial for
+* performance implement more direct way of computing the common subspaces
 */
 std::vector<LevelVector> CombiThirdLevelScheme::computeCommonSubspaces(
                   const std::vector<std::vector<LevelVector>>& decomposedScheme,
                   const std::vector<bool>& boundary){
-  // therefore we compute the component wise maximum level which is contained
-  // in all sets
+  // therefore we compute the component wise maximum level which is contained in
+  // all sets
   long longMax = 2147483647;
   size_t dim = decomposedScheme[0][0].size();
   LevelVector maxLevel(dim, longMax);
@@ -80,23 +84,51 @@ std::vector<LevelVector> CombiThirdLevelScheme::computeCommonSubspaces(
         if (level[d] > dimMax)
           dimMax = level[d];
       }
-      // minimum of all largest ss is contained in all sets
       if (dimMax < maxLevel[d])
         maxLevel[d] = dimMax;
     }
   }
 
-  // by creating a dummy sg with this level we can extract the subspaces
-  std::vector<LevelVector> commonSubspaces;
+  // by creating a dummy sg with this level we can extract possible subspaces
+  std::vector<LevelVector> possibleCommonSubspaces;
   SGrid<real> sg(dim, maxLevel, maxLevel, boundary);
 
   for (size_t ssID = 0; ssID < sg.getSize(); ++ssID) {
     const LevelVector& ss = sg.getLevelVector(ssID);
-    commonSubspaces.push_back(ss);
-    std::cout << toString(ss) << std::endl;
+    possibleCommonSubspaces.push_back(ss);
   }
 
-  return commonSubspaces;
+  // removing subspaces which cannot be in the set leads to the common subspaces
+  std::vector<LevelVector> elementsToDelete;
+  for (const auto& ss : possibleCommonSubspaces) {
+    for (const auto& levels : decomposedScheme) {
+      int numLevelsNotContained = 0;
+      for (const auto& level : levels ) {
+        for (size_t d = 0; d < dim; d++) {
+          if (ss[d] > level[d]) {
+            numLevelsNotContained++;
+            break;
+          }
+        }
+      }
+      if (numLevelsNotContained == levels.size()) {
+        elementsToDelete.push_back(ss);
+        break;
+      }
+    }
+  }
+
+  if (elementsToDelete.size() > 0) {
+    std::vector<LevelVector> commonSubspaces;
+    commonSubspaces.reserve(possibleCommonSubspaces.size());
+    for (const auto& ss : possibleCommonSubspaces) {
+      if (std::find(elementsToDelete.begin(), elementsToDelete.end(), ss) == elementsToDelete.end())
+        commonSubspaces.push_back(ss);
+    }
+    return commonSubspaces;
+  }
+
+  return possibleCommonSubspaces;
 }
 
 }
