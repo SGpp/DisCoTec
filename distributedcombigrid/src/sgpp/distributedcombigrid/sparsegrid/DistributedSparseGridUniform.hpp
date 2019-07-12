@@ -476,13 +476,13 @@ inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const
 }
 
 
-/*
- * Root broadcasts all subspaces to the other ranks in communicator comm.
- *
- * TODO: For now, we broadcast all subspaces sequentially instead of sending the whole
- * dsgu in a single call. (Sending the whole dsgu takes approx. double the communication volume)
- * Sending the whole dsgu could be faster.
- */
+/**
+* Root broadcasts all subspaces to the other ranks in communicator comm.
+*
+* TODO: For now, we broadcast all subspaces sequentially instead of sending the whole
+* dsgu in a single call. (Sending the whole dsgu takes approx. double the communication volume)
+* Sending the whole dsgu could be faster.
+*/
 template <typename FG_ELEMENT>
 static void broadcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, 
                                const std::vector<LevelVector>& subspaces,
@@ -492,15 +492,18 @@ static void broadcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 
   for (const LevelVector& ss : subspaces) {
     std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
-    assert(ssData.size() > 0 && "Subspace not initialized");
+    //assert(ssData.size() > 0 && "Subspace not initialized");
     MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-    MPI_Bcast(ssData.data(), ssData.size(), dataType, static_cast<int>(root), comm);
+    MPI_Request request;
+    MPI_Ibcast(ssData.data(), ssData.size(), dataType, static_cast<int>(root), comm, &request);
+    MPI_Wait(&request, MPI_STATUS_IGNORE);
   }
 }
 
-/*
- * Sends all subspaces to the receiver in communicator comm.
- */
+
+/**
+* Sends all subspaces to the receiver in communicator comm.
+*/
 template <typename FG_ELEMENT>
 static void sendSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           const std::vector<LevelVector>& subspaces,
@@ -510,18 +513,18 @@ static void sendSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 
   for (const LevelVector& ss : subspaces) {
     std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
-    assert(ssData.size() > 0 && "Subspace not initialized");
+    //assert(ssData.size() > 0 && "Subspace not initialized");
 
     MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-    MPI_Send(ssData.data(), ssData.size(), dataType, static_cast<int>(dest), sendSSTag, comm);
+    MPI_Send(ssData.data(), ssData.size(), dataType, dest, sendSSTag, comm);
     //std::cout << "Worker sent ss with size " << ssData.size() << " to manager" << std::endl;
   }
 }
 
-/*
- * Receives subspaces from the sender in communicator recvComm and concurrently
- * distributes them inside bcastComm.
- */
+/**
+* Receives subspaces from the sender in communicator recvComm and concurrently
+* distributes them inside bcastComm.
+*/
 template <typename FG_ELEMENT>
 static std::vector<MPI_Request> recvAndBcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, 
                                                       const std::vector<LevelVector>& subspaces,
@@ -537,26 +540,26 @@ static std::vector<MPI_Request> recvAndBcastSubspaces(DistributedSparseGridUnifo
 
   for (const LevelVector& ss : subspaces) {
     std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
-    assert(ssData.size() > 0 && "Subspace not initialized");
+    //assert(ssData.size() > 0 && "Subspace not initialized");
 
     // receive subspace from manager
     MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
     MPI_Status status;
-    MPI_Recv(ssData.data(), ssData.size(), dataType, static_cast<int>(recvSrc), sendSSTag, recvComm, &status);
+    MPI_Recv(ssData.data(), ssData.size(), dataType, recvSrc, sendSSTag, recvComm, &status);
     //std::cout << "Worker recieved ss with size " << ssData.size() << " from manager" << std::endl;
 
-    // distribute subspace
+    // distribute subspace asynchronously
     MPI_Request request;
-    MPI_Ibcast(ssData.data(), ssData.size(), dataType, static_cast<int>(bcastRoot), bcastComm, &request);
+    MPI_Ibcast(ssData.data(), ssData.size(), dataType, bcastRoot, bcastComm, &request);
     requests.push_back(request);
   }
   return requests;
 }
 
-/*
- * Sequentially adds all received subspaces to the dsgu and concurrently
- * broadcasts them inside bcastComm.
- */
+/**
+* Sequentially adds all received subspaces to the dsgu and concurrently
+* broadcasts them inside bcastComm.
+*/
 template <typename FG_ELEMENT>
 static std::vector<MPI_Request> recvAndAddAndBcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                                                             const std::vector<LevelVector>& subspaces,
@@ -573,21 +576,21 @@ static std::vector<MPI_Request> recvAndAddAndBcastSubspaces(DistributedSparseGri
   for (const LevelVector& ss : subspaces) {
     std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
     std::unique_ptr<FG_ELEMENT[]> buf(new FG_ELEMENT[ssData.size()]);
-    assert(ssData.size() > 0 && "Subspace not initialized");
+    //assert(ssData.size() > 0 && "Subspace not initialized");
 
     // receive subspace from manager
     MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
     MPI_Status status;
-    MPI_Recv(buf.get(), ssData.size(), dataType, static_cast<int>(recvSrc), sendSSTag, recvComm, &status);
+    MPI_Recv(buf.get(), ssData.size(), dataType, recvSrc, sendSSTag, recvComm, &status);
     //std::cout << "Worker recieved ss with size " << ssData.size() << " from manager" << std::endl;
 
     // add subspace
     MPI_Reduce_local(buf.get(), ssData.data(), ssData.size(), dataType, MPI_SUM);
     buf.release();
 
-    // distribute subspace
+    // distribute subspace asynchronously
     MPI_Request request;
-    MPI_Ibcast(ssData.data(), ssData.size(), dataType, static_cast<int>(bcastRoot), bcastComm, &request);
+    MPI_Ibcast(ssData.data(), ssData.size(), dataType, bcastRoot, bcastComm, &request);
     requests.push_back(request);
   }
   return requests;
