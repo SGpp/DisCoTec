@@ -246,23 +246,27 @@ void ProcessManager::combineLocalAndGlobal() {
 
 /** Combination with third level parallelism e.g. between two HPC systems
 *
-* This process manager induces a local and global combination first.
-* Then he signals ready to the third level manager who decides about the role
-* of sender and receiver.
+* The process manager induces a local and global combination first.
+* Then he signals ready to the third level manager who decides which system
+* sends and receives first.
 *
-* In the role of the sender, the process manager
-* transfers the common subspaces from workers of the third level pg to the third level
-* manager, who then sends it to the remote system. After sending he
-* receives the remotely reduced data from the third level manager and sends it
-* back to the third level pg.
-* In the role of the receiver, the process manager receives the common subspace
-* data from the third level manager and sends it to the workers who combine
-* the remote solution with their local solution. Afterward, the final solution
-* is sent back to the remote system.
+* Senders role:
+* The processGroupManager
+* transfers the common subspaces from workers of the third level pg to the
+* third level manager, who then forwards it to the remote system. After sending
+* the processGroupManager receives the remotely reduced data from the third
+* level manager and sends it back to the third level pg.
+*
+* Receivers role:
+* In the role of the receiver, the ProcessGroupManager receives the common
+* subspace data from the third level manager and forwards it to the workers who
+* combine the remote solution with their local solution. Afterward, the
+* solution is sent back to the remote system the other way.
 *
 * After the global reduce all pg which do not participate in the third level
 * combination idle in a broadcast function and wait for their updated from the
 * third level pg.
+*
 */
 void ProcessManager::combineThirdLevel() {
   combineLocalAndGlobal();
@@ -358,10 +362,10 @@ void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
 CombiParameters& ProcessManager::getCombiParameters() { return params_; }
 
 /**
-* Create a certain given number of random faults, considering that the faulty processes
-* simply cannot give the evaluation results, but they are still available in the MPI
-* communication scheme (the nodes are not dead)
-*/
+ * Create a certain given number of random faults, considering that the faulty processes
+ * simply cannot give the evaluation results, but they are still available in the MPI
+ * communication scheme (the nodes are not dead)
+ */
 inline void ProcessManager::createRandomFaults(std::vector<int>& faultIds, int no_faults) {
   int fault_id;
 
@@ -377,9 +381,9 @@ inline void ProcessManager::createRandomFaults(std::vector<int>& faultIds, int n
 }
 
 /**
-* Recompute coefficients for the combination technique based on given grid faults using
-* an optimization scheme
-*/
+ * Recompute coefficients for the combination technique based on given grid faults using
+ * an optimization scheme
+ */
 inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
                                                          std::vector<int>& faultsID,
                                                          std::vector<int>& redistributeFaultsID,

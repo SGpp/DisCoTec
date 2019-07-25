@@ -1,10 +1,9 @@
 #include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
 
 namespace combigrid {
-/**
-* Computes the distribution of a classical scheme to the systems of the
-* third level combination.
-*/
+/**Computes the distribution of a classical scheme to the systems of the
+ * third level combination.
+ */
 void CombiThirdLevelScheme::createThirdLevelScheme(std::vector<LevelVector>& levels,
                                                    std::vector<real>& coeffs,
                                                    std::vector<LevelVector>& commonSubspaces,
@@ -26,22 +25,20 @@ void CombiThirdLevelScheme::createThirdLevelScheme(std::vector<LevelVector>& lev
 }
 
 
-/**
-* Computes an optimal disjunct decomposition of the given combination scheme,
-* such that each part can be assigned to a system in the third level reduce and
-* the amount shared grid points is minimal.
-*
-* We assume only 2 systems participating.
-* For example purpose we just split the scheme in half and later assign each half
-* to a system.
-* TODO Implement for arbitrary number of systems
-*/
+/**Computes an optimal disjunct decomposition of the given combination scheme.
+ * Each part can be assigned to a system in the third level reduce and
+ * the amount of shared grid points is minimal.
+ *
+ * We assume only 2 systems participating.
+ * For example purpose we just split the scheme in half and later assign each half
+ * to a system.
+ * TODO Implement for arbitrary number of systems
+ */
 void CombiThirdLevelScheme::decomposeScheme(std::vector<LevelVector>& fullScheme,
                                             std::vector<real> fullSchemeCoeffs,
                                             std::vector<std::vector<LevelVector>>& decomposedScheme,
                                             std::vector<std::vector<real>>& decomposedCoeffs,
                                             size_t numSystems) {
-  // TODO
   auto mid = fullScheme.begin() + fullScheme.size()/2;
   auto midC = fullSchemeCoeffs.begin() + fullSchemeCoeffs.size()/2;
   std::vector<LevelVector> lowerHalf(fullScheme.begin(), mid);
@@ -63,11 +60,11 @@ void CombiThirdLevelScheme::decomposeScheme(std::vector<LevelVector>& fullScheme
 }
 
 
-/**
-* Computes the common subspaces for a given decomposed scheme.
-* TODO: probably very inefficient implementation, if crucial for
-* performance implement more direct way of computing the common subspaces
-*/
+/**Computes the common subspaces for a given decomposed scheme.
+ *
+ * TODO: probably very inefficient implementation, if crucial for
+ * performance implement more direct way of computing the common subspaces
+ */
 std::vector<LevelVector> CombiThirdLevelScheme::computeCommonSubspaces(
                   const std::vector<std::vector<LevelVector>>& decomposedScheme,
                   const std::vector<bool>& boundary){

@@ -6,10 +6,13 @@ namespace combigrid {
 class CombiThirdLevelScheme {
 
   public:
-    /*
-     * Creates system specific scheme for third level combination based on the
+    /**Creates system specific scheme for third level combination based on the
      * given full scheme (levels, coeffs). Additionally returns the list of
      * subspaces which all participating systems have in common.
+     *
+     * I packed that into a separate class because scheme generation should be
+     * supported for other schemes than minmax e.g. schemes read directly from
+     * file.
      */
     static void createThirdLevelScheme(std::vector<LevelVector>& levels,
                                        std::vector<real>& coeffs,
