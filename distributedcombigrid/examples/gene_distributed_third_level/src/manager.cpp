@@ -147,9 +147,12 @@ int main(int argc, char** argv) {
   // read in parameter file
   boost::property_tree::ptree cfg;
   /*
-   * Read input from ctparam
+   * Read input from given param file
    */
-  boost::property_tree::ini_parser::read_ini("ctparam", cfg);
+  if (argc > 1)
+    boost::property_tree::ini_parser::read_ini(argv[1], cfg);
+  else
+    boost::property_tree::ini_parser::read_ini("ctparam", cfg);
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
@@ -289,7 +292,6 @@ int main(int argc, char** argv) {
   std::vector<combigrid::real> coeffs;
   std::vector<int> fileTaskIDs;
 
-  std::vector<LevelVector> commonSubspaces;
   const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
   if (READ_FROM_FILE) { //currently used file produced by preproc.py
     std::ifstream spcfile("spaces.dat");
@@ -316,6 +318,7 @@ int main(int argc, char** argv) {
     coeffs = combischeme.getCoeffs();
   }
 
+  std::vector<LevelVector> commonSubspaces;
   CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, systemNumber, numSystems);
 
   // create load model
@@ -368,9 +371,10 @@ int main(int argc, char** argv) {
   // create combiparamters
   CombiParameters params( dim, lmin, lmax, boundary, levels,
                           coeffs, hierarchizationDims, taskIDs,
-                          ncombi, numGrids, p, reduceCombinationDimsLmin,
+                          ncombi, numGrids, reduceCombinationDimsLmin,
                           reduceCombinationDimsLmax, thirdLevelHost, thirdLevelDataPort,
                           systemName, commonSubspaces, 0);
+
 
   // create Manager with process groups
   ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
