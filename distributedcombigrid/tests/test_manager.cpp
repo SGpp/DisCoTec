@@ -24,6 +24,8 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "test_helper.hpp"
 
+using namespace combigrid;
+
 /* functor for exact solution */
 class TestFn {
  public:

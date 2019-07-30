@@ -21,8 +21,6 @@
 
 //#define UNIFORM_SG
 
-using namespace combigrid;
-
 /*
  * Instead of having private static functions, I put these functions in an
  * unnamed namespace. So, they are not accessible from outside the file, as well.
@@ -32,14 +30,14 @@ using namespace combigrid;
  */
 namespace {
 
-combigrid::real get1dSubspaceCoord(LevelType l, bool boundary, IndexType i) {
+combigrid::real get1dSubspaceCoord(combigrid::LevelType l, bool boundary, combigrid::IndexType i) {
   if (l == 1) {
     if (boundary)
-      return combigrid::real(i) * oneOverPowOfTwo[l];
+      return combigrid::real(i) * combigrid::oneOverPowOfTwo[l];
     else
-      return combigrid::real(i + 1) * oneOverPowOfTwo[l];
+      return combigrid::real(i + 1) * combigrid::oneOverPowOfTwo[l];
   } else {
-    return combigrid::real(2 * i + 1) * oneOverPowOfTwo[l];
+    return combigrid::real(2 * i + 1) * combigrid::oneOverPowOfTwo[l];
   }
 }
 
