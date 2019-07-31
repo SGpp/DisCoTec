@@ -4,7 +4,7 @@
 #include <thread>
 #include <boost/property_tree/ini_parser.hpp>
 #include "SimpleAmqpClient/SimpleAmqpClient.h"
-#include "../../../src/sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
+#include "sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
 #include "Params.hpp"
 #include "sgpp/distributedcombigrid/third_level/MessageUtils.hpp"
 #include "System.hpp"
