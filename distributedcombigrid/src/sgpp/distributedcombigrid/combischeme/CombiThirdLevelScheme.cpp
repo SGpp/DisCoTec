@@ -12,6 +12,9 @@ void CombiThirdLevelScheme::createThirdLevelScheme(std::vector<LevelVector>& lev
                                                    unsigned int numSystems) {
   assert(!levels.empty() && !coeffs.empty());
 
+  if (numSystems < 2)
+    return;
+
   // decompose scheme
   std::vector<std::vector<LevelVector>> decomposedScheme;
   std::vector<std::vector<combigrid::real>> decomposedCoeffs;
