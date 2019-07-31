@@ -83,7 +83,7 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
 {
   assert(systems_.size() == 2 && "Not implemented for different amount of systems");
   System& initiator = systems_[initiatorIndex];
-  size_t otherIndex = initiatorIndex + 1 % systems_.size();
+  size_t otherIndex = (initiatorIndex + 1) % systems_.size();
   System& other = systems_[otherIndex];
 
   std::string message;
