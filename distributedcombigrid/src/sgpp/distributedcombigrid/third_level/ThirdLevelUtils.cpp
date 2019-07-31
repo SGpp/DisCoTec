@@ -12,8 +12,10 @@ ThirdLevelUtils::ThirdLevelUtils(const std::string& remoteHost, int dataPort,
 }
 
 ThirdLevelUtils::~ThirdLevelUtils(){
-  signalFinalize();
-  isConnected_ = false;
+  if (isConnected_) {
+    signalFinalize();
+    isConnected_ = false;
+  }
 }
 
 void ThirdLevelUtils::connectToThirdLevelManager()
