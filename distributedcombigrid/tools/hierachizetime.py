@@ -10,6 +10,21 @@ if len(sys.argv) == 1:
 else:
 	filename=sys.argv[1]
 
+
+
+
+def gather_stats(tagname,outerlist,durationlist):
+	for i in range(len(data)-1):
+		r = "rank" + str(i)
+		outerlist.append(data[r]["events"][tagname])
+		durationlist.append([])
+
+	for i in range(len(outerlist)):
+		for j in range(len(outerlist[i])):
+			durationlist[i].append(outerlist[i][j][1]-outerlist[i][j][0])
+
+
+
 data = json.load(open(filename))
 htimes=[]
 durations=[]
@@ -19,6 +34,8 @@ o_htimes=[]
 o_durations=[]
 o_dtimes=[]
 o_ddurations=[]
+
+
 for i in range(len(data)-1):
 	r = "rank" + str(i)
 	htimes.append(data[r]["events"]["combine hierarchize"])
@@ -40,7 +57,14 @@ for i in range(len(htimes)):
 	for j in range(len(o_dtimes[i])):
 		o_ddurations[i].append(o_dtimes[i][j][1]-o_dtimes[i][j][0])
 
+		
+
 print("total time",(data["rank" +str(len(data)-1)]["events"]["total time"][0][1]-data["rank"+str(len(data)-1)]["events"]["total time"][0][0])/1000000,"s")
+
+def printstat(tagname,outlist,durlist):
+	print(tagname)
+	for i in range(len(outlist)):
+		print(i,": ", statistics.mean(durlist[i])/1000,"ms\t",max(durlist[i])/1000,"ms")
 
 print("Hierachize")
 for i in range(len(htimes)):
@@ -57,3 +81,12 @@ for i in range(len(o_htimes)):
 print("Only Dehierachize")
 for i in range(len(o_dtimes)):
 	print(i,": ", sum(o_ddurations[i])/(1000*len(dtimes[i])),"ms\t")
+
+
+for i in range (2,len(sys.argv)):
+	extratag=sys.argv[i]
+
+	ext1=[]
+	ext2=[]
+	gather_stats(extratag,ext1,ext2)
+	printstat(extratag,ext1,ext2)
