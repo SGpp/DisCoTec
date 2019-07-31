@@ -23,6 +23,26 @@
 
 BOOST_CLASS_EXPORT(TaskConstParaboloid)
 
+class TestParams{
+  public:
+    DimType dim = 2;
+    LevelVector lmin;
+    LevelVector lmax;
+    size_t ngroup = 1;
+    size_t nprocs = 1;
+    size_t ncombi = 1;
+    std::string systemName = "";
+    std::string host = "localhost";
+    unsigned short dataPort = 9999;
+
+    TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax, size_t ngroup,
+               size_t nprocs, size_t ncombi, const std::string& systemName,
+               const std::string& host = "localhost", unsigned short dataPort = 9999)
+               : dim(dim), lmin(lmin), lmax(lmax), ngroup(ngroup), nprocs(nprocs),
+                 ncombi(ncombi), host(host), systemName(systemName),
+                 dataPort(dataPort) {}
+};
+
 /**
 * Checks if combination was successful.
 * Since the task doesn't evolve over time the expected result should match the
@@ -54,6 +74,34 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker) {
   return true;
 }
 
+void assignProcToSystem(size_t ngroup, size_t nprocs, CommunicatorType& newcomm,
+                        std::string& systemName) {
+  int rank, size, color;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+  size_t procsPerSys = ngroup * nprocs + 1;
+
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable( 2*procsPerSys ));
+
+  // assign procs to systems
+  if (size_t(rank) < procsPerSys) {
+    color = 0;
+    systemName = "system0";
+  } else if (size_t(rank) < 2 * procsPerSys) {
+    color = 1;
+    systemName = "system1";
+  } else {
+    color = 2;
+  }
+
+  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &newcomm);
+
+  // remove unnecessary procs
+  if (color == 2)
+    return;
+}
+
 /** Runs the RabbitMQ server */
 void runRabbitMQServer() {
   std::cout << "starting RabbitMQ server..." << std::endl;
@@ -67,7 +115,7 @@ void runRabbitMQServer() {
 /** Runs the third level manager in the background as a forked child process */
 void runThirdLevelManager() {
   std::cout << "starting thirdLevelManager..." << std::endl;
-  std::string command = "../examples/gene_distributed_third_level/third_level_manager/run.sh &";
+  std::string command = "../../distributedcombigrid/third_level_manager/run.sh &";
   system(command.c_str());
 
   // give the thirdLevelManger some time to set up
@@ -76,48 +124,49 @@ void runThirdLevelManager() {
 
 /** Kills the tl manager and rabbit mq server */
 void killInfrastructure() {
-  //system("killall rabbitmq-server");
-  //system("killall thirdLevelManager");
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  if (rank == 0) {
+    //system("killall rabbitmq-server");
+    //system("killall thirdLevelManager");
+  }
 }
 
 /** Runs the tl manager and RabbitMQ server*/
 void startInfrastructure() {
-  //runRabbitMQServer();
-  //runThirdLevelManager();
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  if (rank == 0) {
+    //runRabbitMQServer();
+    //runThirdLevelManager();
+  }
 }
 
-void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::string& sysName = "system1", CommunicatorType comm = MPI_COMM_NULL) {
-  size_t size = ngroup * nprocs + 1;
+void testCombineThirdLevel(TestParams& testParams, CommunicatorType& comm) {
 
-  if (comm == MPI_COMM_NULL) {
-    return;
-  }
+  BOOST_CHECK(comm != MPI_COMM_NULL);
+
+  size_t size = testParams.ngroup * testParams.nprocs + 1;
 
   combigrid::Stats::initialize();
 
-  theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
+  theMPISystem()->initWorldReusable(comm, testParams.ngroup, testParams.nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    int argc = boost::unit_test::framework::master_test_suite().argc;
-    char** argv = boost::unit_test::framework::master_test_suite().argv;
 
     ProcessGroupManagerContainer pgroups;
-    for (int i = 0; i < ngroup; ++i) {
+    for (int i = 0; i < testParams.ngroup; ++i) {
       int pgroupRootID(i);
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-
-    DimType dim = 2;
-    LevelVector lmin(dim, 4);
-    LevelVector lmax(dim, 7);
-
-    size_t ncombi = 1;
-    std::vector<bool> boundary(dim, false);
+    std::vector<bool> boundary(testParams.dim, false);
 
     // create third level specific scheme
-    CombiMinMaxScheme combischeme(dim, lmin, lmax);
+    CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
     combischeme.createClassicalCombischeme();
     //combischeme.createAdaptiveCombischeme();
 
@@ -128,7 +177,7 @@ void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::stri
     std::vector<LevelVector> commonSubspaces;
 
     unsigned int sysNum;
-    if (sysName == "system1") {
+    if (testParams.systemName == "system0") {
       sysNum = 0;
       CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, sysNum, 2);
       std::cout << "Common Subspace" << std::endl;
@@ -139,7 +188,7 @@ void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::stri
       CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, sysNum, 2);
     }
 
-    //std::cout << "Combischeme " << sysName << ":" << std::endl;
+    //std::cout << "Combischeme " << systemName << ":" << std::endl;
     //for (const auto& l : levels)
     //  std::cout << toString(l) << std::endl;
 
@@ -159,28 +208,38 @@ void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::stri
 
     BOOST_CHECK(true);
 
-    IndexVector parallelization = {static_cast<long>(nprocs), 1};
+    IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
-                           parallelization, std::vector<IndexType>(0),
-                           std::vector<IndexType>(0), "localhost", 9999, sysName, commonSubspaces, 0);
+    CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax,
+                                boundary, levels, coeffs, taskIDs, testParams.ncombi,
+                                1, parallelization, std::vector<IndexType>(0),
+                                std::vector<IndexType>(0), testParams.host,
+                                testParams.dataPort, testParams.systemName,
+                                commonSubspaces, 0);
 
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+    ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start
     manager.updateCombiParameters();
 
-    std::cout << "running first";
-    manager.runfirst();
-    std::cout << "running combineThirdLevel";
-    manager.combineThirdLevel();
-    manager.exit();
-
-    if (argc == 1) {
-      killInfrastructure();
+    for (int i = 0; i < testParams.ncombi; i++) {
+      if (i == 0) {
+        Stats::startEvent("manager run");
+        manager.runfirst();
+        Stats::stopEvent("manager run");
+      } else {
+        Stats::startEvent("manager run");
+        manager.runnext();
+        Stats::stopEvent("manager run");
+      }
+      //combine grids
+      Stats::startEvent("manager combine third level");
+      manager.combineThirdLevel();
+      Stats::stopEvent("manager combine third level");
     }
+    manager.exit();
   }
   else {
     ProcessGroupWorker pgroup;
@@ -201,59 +260,72 @@ void testCombineThirdLevel(size_t ngroup = 1, size_t nprocs = 1, const std::stri
 
 BOOST_AUTO_TEST_SUITE(thirdLevel)
 
+/*
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+  DimType dim   = 2;
+  size_t ngroup = 1;
+  size_t nprocs = 1;
+  size_t ncombi  = 10;
+  LevelVector lmin(dim, 4);
+  LevelVector lmax(dim, 7);
+  std::string systemName = "";
 
-  int argc = boost::unit_test::framework::master_test_suite().argc;
-  char** const & argv =  boost::unit_test::framework::master_test_suite().argv;
+  CommunicatorType newcomm;
+  assignProcToSystem(ngroup, nprocs, newcomm, systemName);
+  TestParams testParams(dim, lmin, lmax, ngroup, nprocs, ncombi, systemName);
 
-  if (argc != 3) {
-    std::cout << "Please specify number of groups and procs per group" << std::endl;
-    return;
+  startInfrastructure();
+
+  if (systemName != "") {
+    testCombineThirdLevel(testParams, newcomm);
   }
 
-  size_t ngroup = static_cast<size_t>(std::stoi(argv[1]));
-  size_t nprocs = static_cast<size_t>(std::stoi(argv[2]));
-
-  int rank, size, color;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
-
-  size_t procsPerSys = ngroup * nprocs + 1;
-
-  if (size_t(size) < 2*procsPerSys) {
-    std::cout << "Failed running test: Number of Processes given: " << size << " required: " 
-              << 2*procsPerSys << std::endl;
-    return;
-  }
-
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable( 2*procsPerSys ));
-
-  if (rank == 0)
-    startInfrastructure();
-
-  // assign procs to systems
-  std::string systemName;
-  if (size_t(rank) < procsPerSys) {
-    color = 0;
-    systemName = "system1";
-  } else if (size_t(rank) < 2 * procsPerSys) {
-    color = 1;
-    systemName = "system2";
-  } else {
-    color = 2;
-  }
-
-  MPI_Comm newcomm;
-  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &newcomm);
-
-  // remove unnecessary procs
-  if (color == 2)
-    return;
-
-  testCombineThirdLevel(ngroup, nprocs, systemName, newcomm);
-
-  if (rank == 0)
-    killInfrastructure();
+  MPI_Barrier(MPI_COMM_WORLD);
 }
+
+BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+  DimType dim   = 2;
+  size_t ngroup = 1;
+  size_t nprocs = 4;
+  size_t ncombi  = 10;
+  LevelVector lmin(dim, 4);
+  LevelVector lmax(dim, 7);
+  std::string systemName = "";
+
+  CommunicatorType newcomm;
+  assignProcToSystem(ngroup, nprocs, newcomm, systemName);
+  TestParams testParams(dim, lmin, lmax, ngroup, nprocs, ncombi, systemName);
+
+  startInfrastructure();
+
+  if (systemName != "")
+    testCombineThirdLevel(testParams, newcomm);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+}*/
+
+BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+  DimType dim   = 2;
+  size_t ngroup = 2;
+  size_t nprocs = 2;
+  size_t ncombi  = 10;
+  LevelVector lmin(dim, 4);
+  LevelVector lmax(dim, 7);
+  std::string systemName = "";
+
+  CommunicatorType newcomm;
+  assignProcToSystem(ngroup, nprocs, newcomm, systemName);
+  TestParams testParams(dim, lmin, lmax, ngroup, nprocs, ncombi, systemName);
+
+  startInfrastructure();
+
+  if (systemName != "")
+    testCombineThirdLevel(testParams, newcomm);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  killInfrastructure();
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()
