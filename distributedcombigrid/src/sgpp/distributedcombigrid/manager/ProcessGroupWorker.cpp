@@ -24,6 +24,8 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+#include <sched.h>
+#include <numa.h>
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
@@ -441,7 +443,9 @@ void ProcessGroupWorker::combineUniform() {
         new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
                                                         theMPISystem()->getLocalComm()));
   }
+
   // todo: move to init function to avoid reregistering
+  //??? only the last dsg stays registered and that is done in add to UniformSparseGrid
   // register dsgs in all dfgs
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
@@ -453,7 +457,7 @@ void ProcessGroupWorker::combineUniform() {
   Stats::stopEvent("combine init");
   Stats::startEvent("combine hierarchize");
 
-  real localMax(0.0);
+  //real localMax(0.0);
   // std::vector<CombiDataType> beforeCombi;
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
@@ -468,11 +472,15 @@ void ProcessGroupWorker::combineUniform() {
         */
 
       // hierarchize dfg
+      //Stats::startEvent("only hierarchize");
       DistributedHierarchization::hierarchize<CombiDataType>(
           dfg, combiParameters_.getHierarchizationDims());
+      
 
       // lokales reduce auf sg ->
+      Stats::startEvent("only hierarchize");
       dfg.addToUniformSG(*combinedUniDSGVector_[g], combiParameters_.getCoeff(t->getID()));
+      Stats::stopEvent("only hierarchize"); 
 #ifdef DEBUG_OUTPUT
       std::cout << "Combination: added task " << t->getID() << " with coefficient "
                 << combiParameters_.getCoeff(t->getID()) << "\n";
@@ -500,19 +508,37 @@ void ProcessGroupWorker::combineUniform() {
 
   // std::vector<CombiDataType> afterCombi;
   Stats::startEvent("combine dehierarchize");
-
+  Stats::startEvent("only dehierarchize");
+  #pragma omp parallel 
+  {
+    #pragma omp for schedule(dynamic,1)//separted for debug output
+    for (int i=0;i<tasks_.size();i++) {// extract dfg vom dsg
+      for (int g = 0; g < numGrids; g++) {
+        
+        DistributedFullGrid<CombiDataType>& dfg = tasks_[i]->getDistributedFullGrid(g);
+        dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
+      }
+    }/* 
+    #pragma omp critical
+    {
+    int cpu=sched_getcpu();
+    std::cout <<"NUMA rank"<<theMPISystem()->getGlobalRank()<< " cpu: "<<cpu<<"numa: "<<numa_node_of_cpu(cpu)<<std::endl; 
+    }*/
+  }
+  Stats::stopEvent("only dehierarchize");
+  
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       // get handle to dfg
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
       // extract dfg vom dsg
-      dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
 
       // dehierarchize dfg
+      //Stats::startEvent("only dehierarchize");
       DistributedHierarchization::dehierarchize<CombiDataType>(
           dfg, combiParameters_.getHierarchizationDims());
-
+      //Stats::stopEvent("only dehierarchize");
       // std::vector<CombiDataType> datavector(dfg.getElementVector());
       // afterCombi = datavector;
       // if exceeds normalization limit, normalize dfg with global max norm
