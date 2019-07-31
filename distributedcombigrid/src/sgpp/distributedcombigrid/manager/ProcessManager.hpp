@@ -29,7 +29,7 @@ class ProcessManager {
   ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& instances,
                  CombiParameters& params, std::unique_ptr<LoadModel> loadModel)
     : pgroups_(pgroups),
-      thirdLevelPGroup_(pgroups[params.getThirdLevelPG()]),
+      thirdLevelPGroup_(pgroups_[params.getThirdLevelPG()]),
       tasks_(instances),
       params_(params),
       thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getThirdLevelSystemName())
@@ -271,8 +271,8 @@ void ProcessManager::combineLocalAndGlobal() {
 void ProcessManager::combineThirdLevel() {
   combineLocalAndGlobal();
 
-  // tell other pg to idle and wait for update
-  for (auto pg : pgroups_) {
+  // tell other pgroups to idle and wait for update
+  for (auto& pg : pgroups_) {
     if (pg != thirdLevelPGroup_)
       pg->waitForUpdate();
   }

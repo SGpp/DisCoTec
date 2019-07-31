@@ -43,7 +43,8 @@ class CombiParameters {
         thirdLevelHost_(thirdLevelHost),
         thirdLevelDataPort_(thirdLevelDataPort),
         thirdLevelSystemName_(thirdLevelSystemName),
-        thirdLevelCommonSubspaces_(thirdLevelCommonSubspaces)
+        thirdLevelCommonSubspaces_(thirdLevelCommonSubspaces),
+        thirdLevelPG_(thirdLevelPG)
   {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     setLevelsCoeffs(taskIDs, levels, coeffs);
@@ -78,7 +79,8 @@ class CombiParameters {
         thirdLevelHost_(thirdLevelHost),
         thirdLevelDataPort_(thirdLevelDataPort),
         thirdLevelSystemName_(thirdLevelSystemName),
-        thirdLevelCommonSubspaces_(thirdLevelCommonSubspaces)
+        thirdLevelCommonSubspaces_(thirdLevelCommonSubspaces),
+        thirdLevelPG_(thirdLevelPG)
   {
     setLevelsCoeffs(taskIDs, levels, coeffs);
     numTasks_ = taskIDs.size();
