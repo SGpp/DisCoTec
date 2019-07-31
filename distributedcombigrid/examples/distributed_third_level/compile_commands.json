@@ -1,0 +1,52 @@
+[
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-I/opt/mpich/include",
+            "-std=c++11",
+            "-g",
+            "-fopenmp",
+            "-Wno-deprecated-declarations",
+            "-Wno-unused-local-typedefs",
+            "-Wno-deprecated",
+            "-Wno-uninitialized",
+            "-Wall",
+            "-I../../..//distributedcombigrid/src/",
+            "-I/include",
+            "-I../../..//distributedcombigrid/SimpleAmqpClient/src/",
+            "-DUNIFORMDECOMPOSITION",
+            "-DTIME",
+            "-o",
+            "combi_example",
+            "combi_example.cpp"
+        ],
+        "directory": "/home/marci/UNI/HIWI/combi/distributedcombigrid/examples/distributed_third_level",
+        "file": "combi_example.cpp"
+    },
+    {
+        "arguments": [
+            "g++",
+            "-c",
+            "-std=c++11",
+            "-g",
+            "-fopenmp",
+            "-Wno-deprecated-declarations",
+            "-Wno-unused-local-typedefs",
+            "-Wno-deprecated",
+            "-Wno-uninitialized",
+            "-Wall",
+            "-I../../..//distributedcombigrid/src/",
+            "-I/include",
+            "-I../../..//distributedcombigrid/SimpleAmqpClient/src/",
+            "-DUNIFORMDECOMPOSITION",
+            "-DTIME",
+            "-I/opt/mpich/include",
+            "-o",
+            "combi_example",
+            "combi_example.cpp"
+        ],
+        "directory": "/home/marci/UNI/HIWI/combi/distributedcombigrid/examples/distributed_third_level",
+        "file": "combi_example.cpp"
+    }
+]

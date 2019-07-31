@@ -1,0 +1,23 @@
+[ct]
+dim = 2
+lmin = 3 3
+lmax = 5 5
+leval = 5 5
+p = 1 1
+ncombi = 10
+
+[application]
+dt = 1e-3
+nsteps = 100
+
+[manager]
+ngroup = 1
+nprocs = 1
+
+[thirdLevel]
+host = localhost
+dataPort = 9999
+systemName = system1
+# counting has to start at 0
+systemNumber = 1
+numSystems = 2
