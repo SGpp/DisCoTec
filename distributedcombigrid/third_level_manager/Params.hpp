@@ -2,7 +2,6 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/algorithm/string.hpp>
 #include <string>
-#include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
 
 class Params
