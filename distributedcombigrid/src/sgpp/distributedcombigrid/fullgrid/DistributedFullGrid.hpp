@@ -17,8 +17,6 @@
 //#define DEBUG_OUTPUT
 #define UNIFORM_SG
 
-using namespace combigrid;
-
 namespace combigrid {
 
 template <typename FG_ELEMENT>
