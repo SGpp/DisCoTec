@@ -762,7 +762,8 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
 
   // check for implementation errors, the reduced subspace size should not be
   // different from the size of already initialized subspaces
-  int bsize = 0;
+  IndexType bsize = 0;
+  IndexVector subspaceStarts(subspaceSizes.size());
 
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     bool check = (subspaceSizes[i] == 0 || dsg.getDataSize(i) == 0 ||
@@ -778,42 +779,65 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
       assert(false);
     }
 
+    subspaceStarts[i] =bsize;
     bsize += subspaceSizes[i];
   }
+  
 
   // put subspace data into buffer for allreduce
+  Stats::startEvent("cvectoralloc");
   std::vector<FG_ELEMENT> buf(bsize, FG_ELEMENT(0));
+  Stats::stopEvent("cvectoralloc");
   {
-    typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
-
+    //typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
+    Stats::startEvent("grcopy");
+    #pragma omp parallel 
+    {
+    #pragma omp for schedule(dynamic,4) 
     for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
       std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
+      IndexType buf_ind=subspaceStarts[i];
 
       // if subspace does not exist on this process this part of the buffer is
       // left empty
+      /* 
       if (subspaceData.size() == 0) {
         buf_it += subspaceSizes[i];
         continue;
-      }
+      }*/
 
+      #pragma omp simd
       for (size_t j = 0; j < subspaceData.size(); ++j) {
-        *buf_it = subspaceData[j];
-        ++buf_it;
+        buf[buf_ind+j] = subspaceData[j];
       }
     }
+    
+    #pragma omp critical
+    {
+    int cpu=sched_getcpu();
+    std::cout <<"NUMA rank"<<theMPISystem()->getGlobalRank()<< " cpu: "<<cpu<<"numa: "<<numa_node_of_cpu(cpu)<<std::endl; 
+    }
+    }
+    Stats::stopEvent("grcopy");
   }
+  
   // define datatype for full grid elements
+  Stats::startEvent("combine_allreduce");
   MPI_Datatype dtype =
       abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
   // reduce the local part of sparse grid (distributed according to domain decomposition)
   MPI_Allreduce(MPI_IN_PLACE, buf.data(), bsize, dtype, MPI_SUM, mycomm);
+  Stats::stopEvent("combine_allreduce");
+
 
   // extract subspace data from buffer and write in corresponding subspaces
   {
-    typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
-
+    //typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
+    Stats::startEvent("grcopyback");
+    #pragma omp parallel for schedule(dynamic,4)
     for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
       std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
+      IndexType buf_ind=subspaceStarts[i];
 
       // this can happen if dsg is different than
       // lmax and lmin of combination scheme
@@ -826,11 +850,12 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
       }
 
       // in case subspaceData.size() > 0 und subspaceSizes > 0
+      #pragma omp simd
       for (size_t j = 0; j < subspaceData.size(); ++j) {
-        subspaceData[j] = *buf_it;
-        ++buf_it;
+        subspaceData[j] = buf[j+buf_ind];
       }
     }
+    Stats::stopEvent("grcopyback");
   }
 }
 
