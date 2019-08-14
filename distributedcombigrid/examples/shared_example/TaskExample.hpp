@@ -78,14 +78,15 @@ class TaskExample : public Task {
       p = p_;
     }
 
-    if (lrank == 0) {
-      std::cout << "init task " << this->getID() << " with l = " << this->getLevelVector()
-                << " and p = " << p << std::endl;
-    }
+    
 
     // create local subgrid on each process
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
+    if (lrank == 0) {
+      std::cout << "init task " << this->getID() << " with l = " << this->getLevelVector()
+                << " and p = " << p << "size "<< (sizeof(CombiDataType)* dfg_->getNrElements()/1024)/1024.0 <<"mib"<< std::endl;
+    }
     /* loop over local subgrid and set initial values */
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     
@@ -155,7 +156,7 @@ class TaskExample : public Task {
 
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
-  static real myfunction(std::vector<real>& coords, real t) {
+  inline static real myfunction(std::vector<real>& coords, real t) {
     real u = std::cos(M_PI * t);
 
     for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(2.0 * M_PI * coords[d]);

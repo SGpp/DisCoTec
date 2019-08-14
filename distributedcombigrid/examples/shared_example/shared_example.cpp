@@ -11,6 +11,9 @@
 #include <boost/serialization/export.hpp>
 #include <string>
 #include <vector>
+//Testing your thread affinty settings
+#include <sched.h>
+#include <numa.h> 
 
 // compulsory includes for basic functionality
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
@@ -38,7 +41,14 @@ BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  int _threadlevelresult;
+  MPI_Init_thread(&argc, &argv,MPI_THREAD_FUNNELED,&_threadlevelresult);
+  if(_threadlevelresult<MPI_THREAD_FUNNELED)
+  {
+    std::cout << "your mpi implementation claims not to support threads, even though"<<
+    "this thread level should function as it was not there for mpi"<<_threadlevelresult;
+    return -2;
+  }
 
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
@@ -46,17 +56,24 @@ int main(int argc, char** argv) {
   Stats::initialize();
   
   char opt;
-	int number_of_used_options = 2;//Name and filename; take as argument?
   std::string paramfile="ctparam";
   std::string statfile="timers.json";
+  std::string filesuffix="";
+  int thread_override=-1;
 
-	while ((opt = getopt(argc, argv, "c:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "c:n:o:t:")) != -1) {
 		switch (opt) {
 			case 'c':
 				paramfile= optarg;
         break;
       case 't':
 				statfile= optarg;
+        break;
+      case 'n':
+        thread_override=std::stoi(optarg);
+        break;
+      case 'o':
+        filesuffix=optarg;
         break;
       default:
         std::cout <<" unsupported option -"<< opt <<" \n Usage [-c] ctparam_file [-t] timing file";
@@ -72,7 +89,7 @@ int main(int argc, char** argv) {
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
   size_t nprocs = cfg.get<size_t>("manager.nprocs");
   size_t nthreads= cfg.get<size_t>("manager.nthreads");
-  omp_set_num_threads(nthreads);
+  omp_set_num_threads(thread_override>0?thread_override:nthreads);
 
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
@@ -80,7 +97,10 @@ int main(int argc, char** argv) {
 
   // this code is only executed by the manager process
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    std::cout << "using " << nthreads<<" Threads\n"; 
+    std::cout << "using " << omp_get_max_threads()<<" Threads\n"; 
+    char hostname[HOST_NAME_MAX+1] ;
+    gethostname(hostname,HOST_NAME_MAX+1);
+    std::cout <<"HOST rank"<<theMPISystem()->getGlobalRank()<<" on node "<<hostname<<std::endl;
     Stats::startEvent("total time");
     /* create an abstraction of the process groups for the manager's view
     * a pgroup is identified by the ID in gcomm
@@ -161,15 +181,17 @@ int main(int argc, char** argv) {
     Stats::stopEvent("manager run first");
 
     for (size_t i = 0; i < ncombi; ++i) {
+      //int cpu=sched_getcpu();
+      //std::cout <<"NUMA master cpu: "<<cpu<<"numa: "<<numa_node_of_cpu(cpu)<<std::endl; 
       Stats::startEvent("combine");
       manager.combine();
       Stats::stopEvent("combine");
 
       // evaluate solution and
       // write solution to file
-      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
+      
       Stats::startEvent("manager write solution");
-      manager.parallelEval(leval, filename, 0);
+      //manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");
 
       std::cout << "run until combination point " << i + 1 << std::endl;
@@ -179,6 +201,12 @@ int main(int argc, char** argv) {
       manager.runnext();
       Stats::stopEvent("manager run");
     }
+    Stats::startEvent("manager write solution");
+    auto localFilenameInd=paramfile.find_first_of('/');
+    std::string filename("out/solution_" + paramfile.substr(localFilenameInd+1)+filesuffix+ ".dat");
+    std::cout <<filename<<"\n";
+    manager.parallelEval(leval,filename, 0);
+    Stats::stopEvent("manager write solution");
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
@@ -188,6 +216,10 @@ int main(int argc, char** argv) {
   // this code is only execute by the worker processes
   else {
     // create abstraction of the process group from the worker's view
+    char hostname[HOST_NAME_MAX+1] ;
+    gethostname(hostname,HOST_NAME_MAX+1);
+    std::cout <<"HOST rank"<<theMPISystem()->getGlobalRank()<<" on node "<<hostname<<std::endl;
+
     ProcessGroupWorker pgroup;
 
     // wait for instructions from manager
