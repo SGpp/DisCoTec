@@ -16,6 +16,9 @@
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
+#include <sched.h>
+#include <numa.h>
+
 namespace {
 struct mycomplex {
   combigrid::real r;
@@ -786,7 +789,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
 
   // put subspace data into buffer for allreduce
   Stats::startEvent("cvectoralloc");
-  std::vector<FG_ELEMENT> buf(bsize, FG_ELEMENT(0));
+  FG_ELEMENT* buf=static_cast<FG_ELEMENT*>(malloc(bsize*sizeof( FG_ELEMENT)));
   Stats::stopEvent("cvectoralloc");
   {
     //typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
@@ -800,23 +803,27 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
 
       // if subspace does not exist on this process this part of the buffer is
       // left empty
-      /* 
+      
       if (subspaceData.size() == 0) {
-        buf_it += subspaceSizes[i];
+        #pragma omp simd
+        for (size_t j = 0; j < subspaceSizes[i]; ++j) {
+          buf[buf_ind+j] = FG_ELEMENT(0);
+        }
         continue;
-      }*/
+      }
 
       #pragma omp simd
       for (size_t j = 0; j < subspaceData.size(); ++j) {
         buf[buf_ind+j] = subspaceData[j];
       }
     }
-    
+    /*
     #pragma omp critical
     {
     int cpu=sched_getcpu();
-    std::cout <<"NUMA rank"<<theMPISystem()->getGlobalRank()<< " cpu: "<<cpu<<"numa: "<<numa_node_of_cpu(cpu)<<std::endl; 
-    }
+    std::cout <<"NUMA rank"<<theMPISystem()->getGlobalRank()<<" thread_id:" << omp_get_thread_num()<<
+     " cpu: "<<cpu<<"numa: "<<numa_node_of_cpu(cpu)<<std::endl; 
+    }*/
     }
     Stats::stopEvent("grcopy");
   }
@@ -826,7 +833,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   MPI_Datatype dtype =
       abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
   // reduce the local part of sparse grid (distributed according to domain decomposition)
-  MPI_Allreduce(MPI_IN_PLACE, buf.data(), bsize, dtype, MPI_SUM, mycomm);
+  MPI_Allreduce(MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm);
   Stats::stopEvent("combine_allreduce");
 
 
@@ -857,6 +864,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
     }
     Stats::stopEvent("grcopyback");
   }
+  free(buf);
 }
 
 } /* namespace combigrid */

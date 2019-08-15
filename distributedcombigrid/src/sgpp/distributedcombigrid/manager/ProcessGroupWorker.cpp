@@ -24,8 +24,7 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
-#include <sched.h>
-#include <numa.h>
+
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
@@ -434,15 +433,29 @@ void ProcessGroupWorker::combineUniform() {
   }
 #endif
 
-  // delete old dsgs
-  combinedUniDSGVector_.clear();
-  // create dsgs
-  combinedUniDSGVector_.resize(numGrids);
-  for (auto& uniDSG : combinedUniDSGVector_) {
-    uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
-                                                        theMPISystem()->getLocalComm()));
+  if(combinedUniDSGVector_.size()!=numGrids){
+    // delete old dsgs (Someone doesn't trust the move assignment operator)
+    combinedUniDSGVector_.clear();
+    // create dsgs 
+    combinedUniDSGVector_.resize(numGrids);
+    for (auto& uniDSG : combinedUniDSGVector_) {
+      uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+          new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
+                                                          theMPISystem()->getLocalComm()));
+    }
+  } else{
+    for (auto& uniDSG : combinedUniDSGVector_) {
+      if(uniDSG->getDim()!=dim||uniDSG->getNMax()!=lmax||uniDSG->getNMin()!=lmin||uniDSG->getBoundaryVector()!=boundary){
+        uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+          new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
+                                                          theMPISystem()->getLocalComm()));
+      } else{
+        uniDSG->zeroOutSubspaces();
+      }
+      
+    }
   }
+  
 
   // todo: move to init function to avoid reregistering
   //??? only the last dsg stays registered and that is done in add to UniformSparseGrid
@@ -509,21 +522,16 @@ void ProcessGroupWorker::combineUniform() {
   // std::vector<CombiDataType> afterCombi;
   Stats::startEvent("combine dehierarchize");
   Stats::startEvent("only dehierarchize");
-  #pragma omp parallel 
+  //#pragma omp parallel 
   {
-    #pragma omp for schedule(dynamic,1)//separted for debug output
+    //#pragma omp for schedule(dynamic,1)
     for (int i=0;i<tasks_.size();i++) {// extract dfg vom dsg
       for (int g = 0; g < numGrids; g++) {
         
         DistributedFullGrid<CombiDataType>& dfg = tasks_[i]->getDistributedFullGrid(g);
         dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
       }
-    }/* 
-    #pragma omp critical
-    {
-    int cpu=sched_getcpu();
-    std::cout <<"NUMA rank"<<theMPISystem()->getGlobalRank()<< " cpu: "<<cpu<<"numa: "<<numa_node_of_cpu(cpu)<<std::endl; 
-    }*/
+    }
   }
   Stats::stopEvent("only dehierarchize");
   

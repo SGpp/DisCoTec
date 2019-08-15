@@ -115,6 +115,8 @@ class DistributedSparseGridUniform {
 
   inline int getCommunicatorSize() const;
 
+  void zeroOutSubspaces();
+
  private:
   void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
@@ -289,6 +291,18 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setSizes() {
     for (auto s : sizes) tmp *= s;
 
     subspaces_[i].dataSize_ = size_t(tmp);
+  }
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::zeroOutSubspaces() {
+  #pragma omp parallel for schedule(dynamic,4)
+  for (size_t i = 0; i < subspaces_.size(); ++i) {
+    for (size_t j = 0; j < subspaces_[i].data_.size(); j++)
+    {
+      subspaces_[i].data_[j]=0;
+    }
+    
   }
 }
 

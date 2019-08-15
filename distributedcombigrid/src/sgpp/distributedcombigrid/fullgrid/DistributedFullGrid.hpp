@@ -836,7 +836,7 @@ class DistributedFullGrid {
     // test if dsg has already been registered
     if (&dsg != dsg_) registerUniformSG(dsg);
 
-    ///**
+    /**
     // create iterator for each subspace in dfg
     typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
     typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList_.size());
@@ -847,7 +847,7 @@ class DistributedFullGrid {
       IndexType subSgId = subspaceAssigmentList_[subFgId];
 
       it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
-    }//*/
+    }*/
 
      /* 
     std::cout <<"\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
@@ -855,7 +855,7 @@ class DistributedFullGrid {
     {
       std::cout << assigmentList_[i] <<((i+1)%nrLocalPoints_[0]?" ":" \n");
     } */
-    /* 
+    
     #pragma omp parallel
     {
       int tId=omp_get_thread_num();
@@ -896,8 +896,8 @@ class DistributedFullGrid {
         ++it_sub[subFgId];
       }
     }
-    */
-    ///* reenable for
+    
+    /* reenable for
     // loop over all grid points
     for (size_t i = 0; i < fullgridVector_.size(); ++i) {
       // get subspace_fg id
@@ -918,7 +918,7 @@ class DistributedFullGrid {
       fullgridVector_[i] = *it_sub[subFgId];
 
       ++it_sub[subFgId];//!  parallelize
-    }//*/
+    }*/ 
   }
 
   void writeBackSubspaces() {
