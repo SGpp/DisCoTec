@@ -789,8 +789,11 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
 
   // put subspace data into buffer for allreduce
   Stats::startEvent("cvectoralloc");
+  // malloc is used, as vector initialization is not parallel and therefore to slow
   FG_ELEMENT* buf=static_cast<FG_ELEMENT*>(malloc(bsize*sizeof( FG_ELEMENT)));
+  ASSERT(buf!=NULL,"Allocating"<< bsize*sizeof(FG_ELEMENT)<<"bytes failed\n");
   Stats::stopEvent("cvectoralloc");
+  std::cout<<"line 798F"<<bsize<<"\n";
   {
     //typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
     Stats::startEvent("grcopy");
@@ -827,7 +830,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
     }
     Stats::stopEvent("grcopy");
   }
-  
+  std::cout<<"line 835G "<<sysconf(_SC_AVPHYS_PAGES)<<"\n" ;
   // define datatype for full grid elements
   Stats::startEvent("combine_allreduce");
   MPI_Datatype dtype =
@@ -835,7 +838,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   // reduce the local part of sparse grid (distributed according to domain decomposition)
   MPI_Allreduce(MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm);
   Stats::stopEvent("combine_allreduce");
-
+  std::cout<<"line 843H\n";
 
   // extract subspace data from buffer and write in corresponding subspaces
   {

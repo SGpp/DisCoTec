@@ -1,5 +1,5 @@
 CC=mpicxx.mpich
-CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DTIMING
+CFLAGS=-std=c++11 -g -O3 -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DTIMING
 
 SGPP_DIR=/home/sven/uni/ba/combi
 GLPK_DIR=/home/sven/uni/ba/combi/glpk
@@ -12,12 +12,20 @@ INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
 LDIR=$(LD_SGPP) $(LD_GLPK)
 INC=$(INC_SGPP) $(INC_GLPK)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lnuma
 
 all: shared_example 
 
 shared_example: shared_example.cpp TaskExample.hpp
 	mpicxx.mpich $(CFLAGS) $(LDIR) $(INC) -o shared_example shared_example.cpp $(LIBS)
 
+only_hierachization: only_hierachization.cpp
+	mpicxx.mpich $(CFLAGS) $(LDIR) $(INC) -o only_hierachization only_hierachization.cpp $(LIBS)
+
+mpitest: mpitest.cpp
+	mpicxx.mpich $(CFLAGS) -o mpitest mpitest.cpp 
 clean:
-	rm -f *.o out/* shared_example
+	rm -f *.o out/* shared_example only_hierachization mpitest
+
+advection_example: shared_example.cpp AdaptiveTaskExample.hpp
+	mpicxx.mpich $(CFLAGS) -DADVECTION   $(LDIR) $(INC) -o advection_example shared_example.cpp $(LIBS)

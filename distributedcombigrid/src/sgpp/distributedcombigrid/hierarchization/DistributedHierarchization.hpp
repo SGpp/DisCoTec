@@ -2050,13 +2050,13 @@ class DistributedHierarchization {
       exchangeData1dDehierarchization(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
-      Stats::startEvent("only dehierarchize");
+      //Stats::startEvent("only dehierarchize");
       if (dfg.returnBoundaryFlags()[dim] == true) {//TODO 
         dehierarchizeX_opt_boundary(dfg, lookupTable);
       } else {
         dehierarchizeX_opt_noboundary(dfg, lookupTable);
       }
-      Stats::stopEvent("only dehierarchize");
+      //Stats::stopEvent("only dehierarchize");
     }
     //
     // dehierarchize other dimensions
@@ -2068,13 +2068,13 @@ class DistributedHierarchization {
       exchangeData1dDehierarchization(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
-      Stats::startEvent("only dehierarchize");
+      //Stats::startEvent("only dehierarchize");
       if (dfg.returnBoundaryFlags()[dim] == true) {
         dehierarchizeN_opt<FG_ELEMENT,true>(dfg, lookupTable, dim);
       } else {
         dehierarchizeN_opt<FG_ELEMENT,false>(dfg, lookupTable, dim);
       }
-      Stats::stopEvent("only dehierarchize");
+      //Stats::stopEvent("only dehierarchize");
     }
   }
 

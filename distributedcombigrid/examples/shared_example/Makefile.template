@@ -12,7 +12,7 @@ INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
 LDIR=$(LD_SGPP) $(LD_GLPK)
 INC=$(INC_SGPP) $(INC_GLPK)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lnuma
 
 all: shared_example 
 
@@ -22,5 +22,10 @@ shared_example: shared_example.cpp TaskExample.hpp
 only_hierachization: only_hierachization.cpp
 	$(CC) $(CFLAGS) $(LDIR) $(INC) -o only_hierachization only_hierachization.cpp $(LIBS)
 
+mpitest: mpitest.cpp
+	$(CC) $(CFLAGS) -o mpitest mpitest.cpp 
 clean:
-	rm -f *.o out/* shared_example only_hierachization
+	rm -f *.o out/* shared_example only_hierachization mpitest
+
+advection_example: shared_example.cpp AdaptiveTaskExample.hpp
+	$(CC) $(CFLAGS) -DADVECTION   $(LDIR) $(INC) -o advection_example shared_example.cpp $(LIBS)

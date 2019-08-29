@@ -2,7 +2,7 @@ CC=mpicxx.mpich
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall 
 CFLAGS+=-DSIMFTMPI -rdynamic
 
-SGPP_DIR=$(HOME)/Documents/ExaHD/mergetest/combi-ft-gene
+SGPP_DIR=$(HOME)/combi/
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp -L../lib/
 
@@ -11,7 +11,7 @@ INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/ -I../src/
 LDIR=$(LD_SGPP)
 INC=$(INC_SGPP)
 
-LIBS=-Wl,-Bdynamic -lgenetask -lsgppdistributedcombigrid -lboost_serialization timing.o
+LIBS=-Wl,-Bdynamic  -lsgppdistributedcombigrid -lboost_serialization timing.o
 
 all: testDistributedHierarchization
 

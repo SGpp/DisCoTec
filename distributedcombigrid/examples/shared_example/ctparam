@@ -1,9 +1,9 @@
 [ct]
-dim = 2
-lmin = 3 3 
-lmax = 16 16  
-leval = 5 5 
-p = 1 4
+dim = 4
+lmin = 4 4 4 4 
+lmax = 7 7 7 7
+leval = 3 3 3 3
+p = 1 1 1 1
 ncombi = 10
 
 [application]
@@ -12,4 +12,5 @@ nsteps = 1
 
 [manager]
 ngroup = 1
-nprocs = 4 
+nprocs = 1
+nthreads=1 

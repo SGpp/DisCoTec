@@ -29,7 +29,12 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 // include user specific task. this is the interface to your application
+#ifndef ADVECTION
 #include "TaskExample.hpp"
+#else 
+#include "AdaptiveTaskExample.hpp"
+#endif
+
 
 using namespace combigrid;
 

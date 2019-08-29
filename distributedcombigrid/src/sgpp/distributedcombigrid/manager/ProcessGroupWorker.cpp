@@ -512,6 +512,9 @@ void ProcessGroupWorker::combineUniform() {
   MPI_Allreduce(  &globalMax_tmp, &globalMax, 1, MPI_DOUBLE,
                     MPI_MAX, theMPISystem()->getLocalComm() );
                     */
+  #ifdef DEBUG_OUTPUT
+      std::cout << "Started global reduce\n";
+  #endif
   Stats::startEvent("combine global reduce");
 
   for (int g = 0; g < numGrids; g++) {
@@ -519,6 +522,9 @@ void ProcessGroupWorker::combineUniform() {
   }
   Stats::stopEvent("combine global reduce");
 
+  #ifdef DEBUG_OUTPUT
+      std::cout << "Finished global reduce\n";
+  #endif
   // std::vector<CombiDataType> afterCombi;
   Stats::startEvent("combine dehierarchize");
   Stats::startEvent("only dehierarchize");

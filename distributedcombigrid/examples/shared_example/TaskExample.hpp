@@ -159,8 +159,7 @@ class TaskExample : public Task {
   inline static real myfunction(std::vector<real>& coords, real t) {
     real u = std::cos(M_PI * t);
 
-    for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(2.0 * M_PI * coords[d]);
-
+    for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(0.4 * M_PI * coords[d]);
     return u;
 
     /*
