@@ -273,6 +273,9 @@ void MPISystem::initGlobalReduceCommm() {
     int key = workerID / int(nprocs_);
     MPI_Comm_split(worldComm_, color, key, &globalReduceComm_);
 
+
+
+
     if (ENABLE_FT) {
       createCommFT(&globalReduceCommFT_, globalReduceComm_);
     }
@@ -282,6 +285,25 @@ void MPISystem::initGlobalReduceCommm() {
   } else {
     MPI_Comm_split(worldComm_, MPI_UNDEFINED, -1, &globalReduceComm_);
   }
+}
+
+void MPISystem::initThreadedGlobalreduce(int num_threads,int providedThreadlevel){
+  checkPreconditions();
+  if(num_threads==1||worldRank_==managerRankWorld_)
+    return;
+  assert(providedThreadlevel==MPI_THREAD_MULTIPLE&&"Your implementation does not support concuurent MPI\
+   or you did not request it via MPI_init_thread and num_threads>1");
+  
+  globalReduceThreads_=num_threads;
+  globalReduceParComm_.reserve(num_threads);
+  globalReduceParComm_.push_back(globalReduceComm_);
+  for(int i=1;i<num_threads;i++)
+  {
+    CommunicatorType ecomm;
+    MPI_Comm_dup(globalReduceComm_,&ecomm);
+    globalReduceParComm_.push_back(ecomm);
+  }
+
 }
 
 void MPISystem::createCommFT(simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm) {

@@ -87,6 +87,7 @@ class MPISystem {
    */
   void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs);
 
+  void initThreadedGlobalreduce(int num_threads,int providedThreadlevel);
   /**
    * get the size of the worldComm_
    */
@@ -203,6 +204,9 @@ class MPISystem {
    * returns boolean that indicates if MPISystem is initialized
    */
   inline bool isInitialized() const;
+
+  inline int getGlobalReduceThreads() const;
+  inline const std::vector<CommunicatorType>& getGlobalReduceParComm() const;
 
   /**
    * This routine starts the recovery procesdure.
@@ -370,6 +374,10 @@ class MPISystem {
    */
   CommunicatorType globalReduceComm_;
 
+  int globalReduceThreads_=1;
+  std::vector<CommunicatorType> globalReduceParComm_;
+
+
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
   simft::Sim_FT_MPI_Comm globalCommFT_;  // FT version of global comm
@@ -457,6 +465,13 @@ inline const CommunicatorType& MPISystem::getGlobalReduceComm() const {
   checkPreconditions();
 
   return globalReduceComm_;
+}
+
+inline int MPISystem::getGlobalReduceThreads() const{
+  return globalReduceThreads_;
+}
+inline const std::vector<CommunicatorType>& MPISystem::getGlobalReduceParComm() const{
+  return globalReduceParComm_;
 }
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getWorldCommFT() {

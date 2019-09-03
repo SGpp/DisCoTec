@@ -836,7 +836,27 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   MPI_Datatype dtype =
       abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
   // reduce the local part of sparse grid (distributed according to domain decomposition)
-  MPI_Allreduce(MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm);
+  auto mpisys=theMPISystem();
+  if(mpisys->getGlobalReduceThreads()==1)
+  {
+    MPI_Allreduce(MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm);
+  } else {
+    IndexType numParallelMPI=mpisys->getGlobalReduceThreads();
+    std::cout<<numParallelMPI<<"gg\n";
+    IndexVector startIndeces(numParallelMPI+1);
+    for(IndexType i=0;i<numParallelMPI;i++)
+    {
+      startIndeces[i]=i*(bsize/numParallelMPI);
+    }
+    startIndeces[numParallelMPI]=bsize;
+
+    #pragma omp parallel for schedule(static,1)
+    for(int i=0;i<numParallelMPI;i++)
+    {
+      std::cout <<i<<": start "<<startIndeces[i]<<" end "<< startIndeces[i+1]<<"\n";
+      MPI_Allreduce(MPI_IN_PLACE, &buf[startIndeces[i]], startIndeces[i+1]-startIndeces[i], dtype, MPI_SUM, mpisys->getGlobalReduceParComm()[i]);
+    }
+  }
   Stats::stopEvent("combine_allreduce");
   std::cout<<"line 843H\n";
 

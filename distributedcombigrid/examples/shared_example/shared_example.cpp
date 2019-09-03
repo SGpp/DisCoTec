@@ -47,13 +47,14 @@ BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
 int main(int argc, char** argv) {
   int _threadlevelresult;
-  MPI_Init_thread(&argc, &argv,MPI_THREAD_FUNNELED,&_threadlevelresult);
+  MPI_Init_thread(&argc, &argv,MPI_THREAD_MULTIPLE,&_threadlevelresult);
   if(_threadlevelresult<MPI_THREAD_FUNNELED)
   {
     std::cout << "your mpi implementation claims not to support threads, even though"<<
     "this thread level should function as it was not there for mpi"<<_threadlevelresult;
     return -2;
   }
+  
 
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
@@ -65,8 +66,9 @@ int main(int argc, char** argv) {
   std::string statfile="timers.json";
   std::string filesuffix="";
   int thread_override=-1;
+  int allreduce_threads=1;
 
-	while ((opt = getopt(argc, argv, "c:n:o:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "a:c:n:o:t:")) != -1) {
 		switch (opt) {
 			case 'c':
 				paramfile= optarg;
@@ -79,6 +81,9 @@ int main(int argc, char** argv) {
         break;
       case 'o':
         filesuffix=optarg;
+        break;
+      case 'a':
+        allreduce_threads=std::stoi(optarg);
         break;
       default:
         std::cout <<" unsupported option -"<< opt <<" \n Usage [-c] ctparam_file [-t] timing file";
@@ -98,7 +103,11 @@ int main(int argc, char** argv) {
 
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
-  theMPISystem()->init(ngroup, nprocs);
+  auto thempi=theMPISystem();
+  thempi->init(ngroup, nprocs);
+  if(_threadlevelresult==MPI_THREAD_MULTIPLE){
+    thempi->initThreadedGlobalreduce(allreduce_threads,_threadlevelresult);
+  }
 
   // this code is only executed by the manager process
   WORLD_MANAGER_EXCLUSIVE_SECTION {
