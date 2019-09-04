@@ -66,7 +66,8 @@ int main(int argc, char** argv) {
     }
 
     // create load model
-    LoadModel* loadmodel = new LinearLoadModel();
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+
 
     /* read in parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
@@ -109,7 +110,7 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel, dt, nsteps, p);
+      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -118,7 +119,7 @@ int main(int argc, char** argv) {
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
     params.setParallelization(p);
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params);
+    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start

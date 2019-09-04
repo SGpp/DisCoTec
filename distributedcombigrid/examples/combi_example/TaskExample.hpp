@@ -111,7 +111,7 @@ class TaskExample : public Task {
     MPI_Comm_rank(lcomm, &lrank);
 
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    //TODO if your Example uses another data structure, you need to copy
+    // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure
 
     /* pseudo timestepping to demonstrate the behaviour of your typical
@@ -133,7 +133,7 @@ class TaskExample : public Task {
 
     stepsTotal_ += nsteps_;
 
-    //TODO if your Example uses another data structure, you need to copy
+    // TODO if your Example uses another data structure, you need to copy
     // the data from that data structure to elements/dfg_
 
     this->setFinished(true);
