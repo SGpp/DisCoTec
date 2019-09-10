@@ -92,6 +92,10 @@ void CombiMinMaxScheme::makeFaultTolerant() {
   }
 }
 
+/*
+returns a levelvector wich has the same value like lmax at the index, where the difference between
+lmin and lmax is biggest
+*/
 LevelVector CombiMinMaxScheme::getLevelMinima() {
   LevelVector tmp = lmax_ - lmin_;
   std::vector<IndexType>::iterator result = std::max_element(tmp.begin(), tmp.end());

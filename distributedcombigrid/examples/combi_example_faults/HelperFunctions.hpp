@@ -66,19 +66,19 @@ void readParameterFile(const std::string& fileName, size_t &ngroup, size_t &npro
   boost::property_tree::ini_parser::read_ini(fileName, cfg);
 
   ngroup = cfg.get<size_t>("manager.ngroup");
-  nprocs = cfg.get<size_t>("manager.nprocs");
+  nprocs = cfg.get<size_t>("manager.nprocs"); //this here is the partition
 
-  dim = cfg.get<DimType>("ct.dim");
+  dim = cfg.get<DimType>("ct.dim");   //this is the dim, i assume dimX=dimV
 
   lmin.resize(dim);
   lmax.resize(dim);
   leval.resize(dim);
   p.resize(dim);
 
-  cfg.get<std::string>("ct.lmin") >> lmin;
+  cfg.get<std::string>("ct.lmin") >> lmin; //lmin und lmax bekomm ich aus degreeX=lmax
   cfg.get<std::string>("ct.lmax") >> lmax;
-  cfg.get<std::string>("ct.leval") >> leval;
-  cfg.get<std::string>("ct.p") >> p;
+  cfg.get<std::string>("ct.leval") >> leval; //was ist leval????
+  cfg.get<std::string>("ct.p") >> p; // p are the parameters -> i need to calculate these
   ncombi = cfg.get<size_t>("ct.ncombi");
 
   dt = cfg.get<combigrid::real>("application.dt");

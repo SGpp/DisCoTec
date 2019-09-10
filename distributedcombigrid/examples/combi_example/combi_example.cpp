@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
 
-    // todo: read in boundary vector from ctparam
+    // TODO: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
 
     // check whether parallelization vector p agrees with nprocs
@@ -116,6 +116,10 @@ int main(int argc, char** argv) {
     }
 
     // create combiparameters
+    //dim, lmin,lmax kann ich aus json lesen.
+    //boundary i have to read from ct params but how
+    // levels is just array of levels between lim and lmax
+    //taskID for each level we create a new task and here are the IDs
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
     params.setParallelization(p);
     // create abstraction for Manager
