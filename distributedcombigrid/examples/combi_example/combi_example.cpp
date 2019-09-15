@@ -26,6 +26,8 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
+#include "DataConverter.cpp"
+#include "DataConverter.hpp"
 
 using namespace combigrid;
 
@@ -83,6 +85,8 @@ int main(int argc, char** argv) {
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
 
+    Converter converter("ct.param");
+    converter.print();
     // TODO: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
 

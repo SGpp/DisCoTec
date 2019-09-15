@@ -4,7 +4,7 @@ lmin = 3 3
 lmax = 10 10  
 leval = 5 5 
 p = 1 1
-ncombi = 10 t
+ncombi = 10
 
 [application]
 dt = 1e-3
