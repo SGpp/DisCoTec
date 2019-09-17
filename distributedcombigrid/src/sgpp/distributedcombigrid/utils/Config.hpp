@@ -39,8 +39,8 @@ typedef std::complex<real> complex;
  * have not been tested and operations on the grids like evaluation or
  * hierarchization might produce unexpected results.
  */
-// typedef real CombiDataType;
-typedef complex CombiDataType;
+typedef real CombiDataType;
+//typedef complex CombiDataType;
 
 /* nonblocking mpi collective calls (MPI_Iallreduce and the likes) usually yield
  * better performance in some of the operations in CombiCom. if you observe
