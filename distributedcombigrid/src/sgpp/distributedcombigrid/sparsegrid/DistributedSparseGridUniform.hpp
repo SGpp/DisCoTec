@@ -12,6 +12,7 @@
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
+using namespace combigrid;
 
 /*
  * Instead of having private static functions, I put these functions in an
@@ -24,9 +25,9 @@ namespace {
 
 template <typename FG_ELEMENT>
 struct SubspaceSGU {
-  combigrid::LevelVector level_;
+  LevelVector level_;
 
-  combigrid::IndexVector sizes_;
+  IndexVector sizes_;
 
   size_t dataSize_;
 
@@ -113,6 +114,8 @@ class DistributedSparseGridUniform {
   inline CommunicatorType getCommunicator() const;
 
   inline int getCommunicatorSize() const;
+
+  void zeroOutSubspaces();
 
  private:
   void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
@@ -276,8 +279,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setSizes() {
 
     // loop over all dimensions
     for (size_t j = 0; j < dim_; ++j) {
-
-      // if we have reached the lowest level, consider boundary points, too
       if (l[j] == 1 && boundary_[j]) {
         sizes[j] = (size_t(std::pow(2.0, real(l[j] - 1))) + size_t(2));
       } else {
@@ -285,9 +286,23 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setSizes() {
       }
     }
 
-    IndexType tmp = std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<IndexType>());
+    IndexType tmp(1);
+
+    for (auto s : sizes) tmp *= s;
 
     subspaces_[i].dataSize_ = size_t(tmp);
+  }
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::zeroOutSubspaces() {
+  #pragma omp parallel for schedule(dynamic,4)
+  for (size_t i = 0; i < subspaces_.size(); ++i) {
+    for (size_t j = 0; j < subspaces_[i].data_.size(); j++)
+    {
+      subspaces_[i].data_[j]=0;
+    }
+    
   }
 }
 
