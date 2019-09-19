@@ -8,13 +8,11 @@ LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
 LD_GLPK=-L$(GLPK_DIR)/lib
 INC_GLPK=-I$(GLPK_DIR)/include
-LD_SIMPLEAMQPCLIENT=-L$(SGPP_DIR)/distributedcombigrid/SimpleAmqpClient/build/
-INC_SIMPLEAMQPCLIENT=-I$(SGPP_DIR)/distributedcombigrid/SimpleAmqpClient/src/
 
 LDIR=$(LD_SGPP) $(LD_GLPK) $(LD_SIMPLEAMQPCLIENT)
 INC=$(INC_SGPP) $(INC_GLPK) $(INC_SIMPLEAMQPCLIENT)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization -lSimpleAmqpClient
+LIBS=-lsgppdistributedcombigrid -lboost_serialization
 
 all: combi_example
 
