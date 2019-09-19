@@ -11,12 +11,13 @@ int main(int argc, char* argv[])
   Params params;
   params.loadFromFile(argv[1]);
 
-  // Run third level manager
+  // Setup third level manager
   std::cout << "Setup third level manager" << std::endl;
   ThirdLevelManager manager(params);
+  manager.init();
 
-  std::cout << std::endl;
-  std::cout << "Running third level manager" << std::endl;
+  // Run third level manager
+  std::cout << std::endl << "Running third level manager" << std::endl;
   manager.runtimeLoop();
   return 0;
 }
@@ -26,25 +27,36 @@ int main(int argc, char* argv[])
  */
 ThirdLevelManager::ThirdLevelManager(const Params& params)
   : params_(params),
-    dataPort_(params.getDataPort()),
-    dataServer_(dataPort_)
-{
-  std::cout << "Data forwarding server running on port: " << dataPort_ << std::endl;
-  // Connect to RabbitMQ Broker
-  std::cout << "Connecting to RabbitMQ broker at " << params.getbrokerURL() << std::endl;
-  channel_ = AmqpClient::Channel::Create(params.getbrokerURL());
+    port_(params.getPort()),
+    server_(port_)
 
-  // Create abstraction for each system and establish message queues
+{
+}
+
+void ThirdLevelManager::init()
+{
+  if (not params_.areLoaded())
+  {
+    std::cout << "ThirdLevelManager::init(): Params are not loaded!" << std::endl;
+    exit(0);
+  }
+  assert(server_.init());
+  if (not server_.isInitialized())
+    exit(0);
+  std::cout << "Third level manager running on port: " << port_ << std::endl;
+
+  // Create abstraction for each system
   std::cout << "Creating abstraction for systems" << std::endl;
-  std::vector<std::string> systemNames = params.getSystemNames();
-  systems_.reserve(systemNames.size());
-  for (std::string& name : systemNames)
-    systems_.push_back(System(name, channel_, dataServer_));
-  // establish data connection
-  for (System& system : systems_)
-    system.createDataConnection(dataServer_, channel_);
+  for (u_int i = 0; i < params_.getNumSystems(); i++) {
+    std::cout << " Waiting for system (" << i+1 << "/" << params_.getNumSystems() << ")" << std::endl;
+    std::shared_ptr<ClientSocket> connection = std::shared_ptr<ClientSocket>(server_.acceptClient());
+    assert(connection != nullptr && "Connecting to system failed");
+    System sys(connection);
+    systems_.push_back(std::move(sys));
+  }
   std::cout << "All systems connected successfully" << std::endl;
 }
+
 
 /** Loops over the systems and checks if messages are available. If a message
  *  exists, it is fetched and delegated to be processed.
@@ -56,7 +68,7 @@ void ThirdLevelManager::runtimeLoop()
     for (size_t s = 0; s < systems_.size(); s++)
     {
       std::string message;
-      bool received = systems_[s].receiveMessage(channel_, message, timeout_);
+      bool received = systems_[s].receiveMessage(message, timeout_);
       if (received)
         processMessage(message, s);
     }
@@ -88,15 +100,15 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
 
   std::string message;
   std::cout << "Processing third level combination" << std::endl;
-  initiator.sendMessage("reduce_third_level_send_first" , channel_);
-  other.receiveMessage(channel_, message);
+  initiator.sendMessage("reduce_third_level_send_first" );
+  other.receiveMessage( message);
   assert(message == "ready_to_combine");
-  other.sendMessage("reduce_third_level_recv_first" , channel_);
+  other.sendMessage("reduce_third_level_recv_first" );
 
   // transfer grids from initiator to other system
   do
   {
-    initiator.receiveMessage(channel_, message);
+    initiator.receiveMessage(message);
     if (message == "sending_data")
     {
       forwardData(initiator, other);
@@ -104,19 +116,19 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
   } while (message != "ready");
 
   // wait for other system to finish receiving
-  other.receiveMessage(channel_, message);
+  other.receiveMessage(message);
   assert(message == "ready");
 
   // transfer reduced data from other system back to initiator
   do
   {
-    other.receiveMessage(channel_, message);
+    other.receiveMessage(message);
     if (message == "sending_data")
       forwardData(other, initiator);
   } while (message != "ready");
 
   // wait for system to finish receiving
-  initiator.receiveMessage(channel_, message);
+  initiator.receiveMessage(message);
   assert(message == "ready");
 }
 
@@ -125,7 +137,7 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
  */
 void ThirdLevelManager::processFinished(size_t sysIndex)
 {
-  std::cout << "System " << systems_[sysIndex].getName() << " finished simulation" << std::endl;
+  std::cout << "System " << sysIndex << " finished simulation" << std::endl;
   systems_.erase(systems_.begin()+sysIndex);
 }
 
@@ -134,11 +146,11 @@ void ThirdLevelManager::processFinished(size_t sysIndex)
  */
 void ThirdLevelManager::forwardData(const System& sender, const System& receiver) const {
   size_t dataSize;
-  sender.receivePosNumber(channel_, dataSize);
+  sender.receivePosNumber(dataSize);
   std::cout << "Want to forward " << std::to_string(dataSize) << " Bytes" << std::endl;
-  receiver.sendMessage(std::to_string(dataSize), channel_);
+  receiver.sendMessage(std::to_string(dataSize));
 
   // forward data to other system
   if (dataSize != 0)
-    NetworkUtils::forward(*sender.getDataConnection(), *receiver.getDataConnection(), 2048, dataSize);
+    NetworkUtils::forward(*sender.getConnection(), *receiver.getConnection(), 2048, dataSize);
 }

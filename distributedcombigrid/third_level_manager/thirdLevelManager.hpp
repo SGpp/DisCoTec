@@ -3,10 +3,8 @@
 #include <vector>
 #include <thread>
 #include <boost/property_tree/ini_parser.hpp>
-#include "SimpleAmqpClient/SimpleAmqpClient.h"
 #include "sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
 #include "Params.hpp"
-#include "sgpp/distributedcombigrid/third_level/MessageUtils.hpp"
 #include "System.hpp"
 
 using  Systems = std::vector<System>;
@@ -16,10 +14,9 @@ class ThirdLevelManager
   private:
     Params params_;
     Systems systems_;
-    unsigned short             dataPort_ = 9999;
-    int                        timeout_  = 1000; // 1000 msec = 1sec
-    ServerSocket               dataServer_;
-    AmqpClient::Channel::ptr_t channel_;
+    unsigned short port_    = 9999;
+    int            timeout_ = 1;
+    ServerSocket   server_;
 
     void processMessage(const std::string& message, size_t sysIndex);
 
@@ -32,6 +29,8 @@ class ThirdLevelManager
   public:
     ThirdLevelManager() = delete;
     ThirdLevelManager(const Params& params);
+
+    void init();
 
     void runtimeLoop();
 };
