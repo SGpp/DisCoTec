@@ -1,52 +1,29 @@
 #include "System.hpp"
 
-System::System(const std::string& name,
-               const AmqpClient::Channel::ptr_t& channel,
-               const ServerSocket& server) : name_(name)
+System::System(std::shared_ptr<ClientSocket>& connection)
+  : connection_(connection)
 {
-  createMessageQueues(channel);
-  consumerTag_ = MessageUtils::setupConsumer(channel, outQueue_);
 }
 
-/*
- * Creates queues in both directions to communicate with the system.
- * Queues are non passive, non durable, non exclusive and delete themselves
- * automatically when the last using application dies.
- */
-void System::createMessageQueues(AmqpClient::Channel::ptr_t channel)
+void System::sendMessage(const std::string& message) const
 {
-  inQueue_ = MessageUtils::createMessageQueue(name_+"_in", channel);
-  outQueue_ = MessageUtils::createMessageQueue(name_+"_out", channel);
+  connection_->sendallPrefixed(message);
 }
 
-void System::createDataConnection(const ServerSocket& server,
-                                  const AmqpClient::Channel::ptr_t& channel)
+bool System::receiveMessage(std::string& message, int timeout) const
 {
-  std::cout << "creating data connection for system: " << name_ << std::endl;
-  std::string message = "create_data_conn";
-  sendMessage(message, channel);
-  dataConnection_ = std::shared_ptr<ClientSocket>(server.acceptClient());
-}
-
-void System::sendMessage(const std::string& message, AmqpClient::Channel::ptr_t channel) const
-{
-  MessageUtils::sendMessage(message, inQueue_, channel);
-}
-
-bool System::receiveMessage(AmqpClient::Channel::ptr_t channel, std::string& message, int timeout) const
-{
-  if (MessageUtils::receiveMessage(channel, consumerTag_, outQueue_, message))
+  if (connection_->isReadable(timeout))
   {
-    std::cout << "Received message: \"" << message << "\" from System " << name_ << std::endl;
+    connection_->recvallPrefixed(message);
     return true;
   }
   return false;
 }
 
-bool System::receivePosNumber(AmqpClient::Channel::ptr_t channel, size_t& number, int timeout) const
+bool System::receivePosNumber(size_t& number, int timeout) const
 {
   std::string message;
-  if (MessageUtils::receiveMessage(channel, consumerTag_, outQueue_, message))
+  if (receiveMessage(message))
   {
     assert(NetworkUtils::isInteger(message));
     number = std::stoul(message);
@@ -55,12 +32,7 @@ bool System::receivePosNumber(AmqpClient::Channel::ptr_t channel, size_t& number
   return false;
 }
 
-std::string System::getName() const
+std::shared_ptr<ClientSocket> System::getConnection() const
 {
-  return name_;
-}
-
-std::shared_ptr<ClientSocket> System::getDataConnection() const
-{
-  return dataConnection_;
+  return connection_;
 }
