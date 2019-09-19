@@ -137,7 +137,7 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
  */
 void ThirdLevelManager::processFinished(size_t sysIndex)
 {
-  std::cout << "System " << sysIndex << " finished simulation" << std::endl;
+  std::cout << "System finished simulation" << std::endl;
   systems_.erase(systems_.begin()+sysIndex);
 }
 
