@@ -1,14 +1,9 @@
 #include "sgpp/distributedcombigrid/third_level/ThirdLevelUtils.hpp"
 
-
-ThirdLevelUtils::ThirdLevelUtils(const std::string& remoteHost, int dataPort,
-                                 const std::string& systemName,
-                                 int brokerPort) : remoteHost_(remoteHost),
-                                                   brokerPort_(brokerPort),
-                                                   dataPort_(dataPort),
-                                                   systemName_(systemName)
+ThirdLevelUtils::ThirdLevelUtils(const std::string& host, int port)
+                                                 : host_(host),
+                                                   port_(port)
 {
-
 }
 
 ThirdLevelUtils::~ThirdLevelUtils(){
@@ -22,23 +17,12 @@ void ThirdLevelUtils::connectToThirdLevelManager()
 {
   if (isConnected_)
     return;
-  // connect to message broker
-  std::cout << "Connecting to RabbitMQ broker at host " << remoteHost_ << " on port " << brokerPort_ << std::endl;
-  messageChannel_ = AmqpClient::Channel::Create(remoteHost_);
 
-  inQueue_ = MessageUtils::createMessageQueue(systemName_+"_in", messageChannel_);
-  outQueue_ = MessageUtils::createMessageQueue(systemName_+"_out", messageChannel_);
-
-  consumerTag_ = MessageUtils::setupConsumer(messageChannel_, inQueue_);
-
-  // create data connection
+  // create connection to third level manager and send system name
   std::string message;
-  std::cout << "Connecting to ThirdLevel manager at host " << remoteHost_ << " on port " << dataPort_  << std::endl;
-  receiveMessage(message);
-  std::cout <<  systemName_ << " received message " << message << std::endl;
-  assert(message == "create_data_conn");
-  dataConnection_ = std::make_shared<ClientSocket>(remoteHost_, dataPort_);
-  assert(dataConnection_->init() && "Establishing data connection failed");
+  std::cout << "Connecting to third level manager at host " << host_ << " on port " << port_  << std::endl;
+  connection_ = std::make_shared<ClientSocket>(host_, port_);
+  assert(connection_->init() && "Establishing data connection failed");
 
   isConnected_ = true;
 }
@@ -68,19 +52,21 @@ void ThirdLevelUtils::signalFinalize() const
 
 void ThirdLevelUtils::sendMessage(const std::string& message) const
 {
-  assert(messageChannel_ != nullptr);
-  MessageUtils::sendMessage(message, outQueue_, messageChannel_);
+  connection_->sendallPrefixed(message);
 }
 
 void ThirdLevelUtils::receiveMessage(std::string& message) const
 {
-  assert(messageChannel_ != nullptr);
-  MessageUtils::receiveMessage(messageChannel_, consumerTag_, inQueue_, message);
+  connection_->recvallPrefixed(message);
+}
+
+void ThirdLevelUtils::signalizeSendData() const
+{
+  sendMessage("sending_data");
 }
 
 void ThirdLevelUtils::sendSize(size_t size) const
 {
-  sendMessage("sending_data");
   sendMessage(std::to_string(size));
 }
 

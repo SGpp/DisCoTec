@@ -26,8 +26,7 @@ class CombiParameters {
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
                   const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelDataPort = 0,
-                  const std::string& thirdLevelSystemName = "System0",
+                  unsigned short thirdLevelPort = 0,
                   const std::vector<LevelVector>& thirdLevelCommonSubspaces = {},
                   size_t thirdLevelPG = 0
                   )
@@ -41,8 +40,7 @@ class CombiParameters {
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
-        thirdLevelDataPort_(thirdLevelDataPort),
-        thirdLevelSystemName_(thirdLevelSystemName),
+        thirdLevelPort_(thirdLevelPort),
         thirdLevelCommonSubspaces_(thirdLevelCommonSubspaces),
         thirdLevelPG_(thirdLevelPG)
   {
@@ -61,8 +59,7 @@ class CombiParameters {
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
                   const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelDataPort = 0,
-                  const std::string& thirdLevelSystemName = "System0",
+                  unsigned short thirdLevelPort = 0,
                   const std::vector<LevelVector>& thirdLevelCommonSubspaces = {},
                   size_t thirdLevelPG = 0
                   )
@@ -77,8 +74,7 @@ class CombiParameters {
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
-        thirdLevelDataPort_(thirdLevelDataPort),
-        thirdLevelSystemName_(thirdLevelSystemName),
+        thirdLevelPort_(thirdLevelPort),
         thirdLevelCommonSubspaces_(thirdLevelCommonSubspaces),
         thirdLevelPG_(thirdLevelPG)
   {
@@ -183,11 +179,7 @@ class CombiParameters {
   }
 
   inline unsigned short getThirdLevelPort() {
-    return thirdLevelDataPort_;
-  }
-
-  inline const std::string& getThirdLevelSystemName() {
-    return thirdLevelSystemName_;
+    return thirdLevelPort_;
   }
 
   inline const std::vector<LevelVector>& getThirdLevelCommonSubspaces() {
@@ -253,9 +245,7 @@ class CombiParameters {
 
   std::string thirdLevelHost_;
 
-  unsigned short thirdLevelDataPort_;
-
-  std::string thirdLevelSystemName_;
+  unsigned short thirdLevelPort_;
 
   std::vector<LevelVector> thirdLevelCommonSubspaces_;
 
@@ -308,8 +298,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& reduceCombinationDimsLmin_;
   ar& reduceCombinationDimsLmax_;
   ar& thirdLevelHost_;
-  ar& thirdLevelDataPort_;
-  ar& thirdLevelSystemName_;
+  ar& thirdLevelPort_;
   ar& thirdLevelCommonSubspaces_;
   ar& thirdLevelPG_;
 }

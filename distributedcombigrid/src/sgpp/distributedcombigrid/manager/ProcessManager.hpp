@@ -32,7 +32,7 @@ class ProcessManager {
       thirdLevelPGroup_(pgroups_[params.getThirdLevelPG()]),
       tasks_(instances),
       params_(params),
-      thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort(), params.getThirdLevelSystemName())
+      thirdLevel_(params.getThirdLevelHost(), params.getThirdLevelPort())
   {
       loadModel_ = std::move(loadModel);
       // only setup third level if explicitly wanted

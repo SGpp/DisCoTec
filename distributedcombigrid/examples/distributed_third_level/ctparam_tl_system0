@@ -16,8 +16,7 @@ nprocs = 1
 
 [thirdLevel]
 host = localhost
-dataPort = 9999
-systemName = system0
-# counting has to start at 0
+port = 9999
+# counting has to start at 0, needed only for distribution of combischeme
 systemNumber = 0
 numSystems = 2

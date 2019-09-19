@@ -6,28 +6,18 @@
 #include <sstream>
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/third_level/NetworkUtils.hpp"
-#include "sgpp/distributedcombigrid/third_level/MessageUtils.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
-#include "SimpleAmqpClient/SimpleAmqpClient.h"
 
 namespace combigrid {
-
-  static const int RabbitMQPort = 5672;
 
   class ThirdLevelUtils
   {
     private:
-      std::string remoteHost_;
-      int brokerPort_;
-      int dataPort_;
-      AmqpClient::Channel::ptr_t messageChannel_ = nullptr;
-      std::shared_ptr<ClientSocket> dataConnection_;
-      std::string inQueue_;
-      std::string outQueue_;
-      std::string consumerTag_;
-      std::string systemName_;
+      std::string host_;
+      int port_;
+      std::shared_ptr<ClientSocket> connection_;
       bool isConnected_ = false;
 
       void connectToIntermediary();
@@ -38,12 +28,12 @@ namespace combigrid {
 
       void signalFinalize() const;
 
+      void signalizeSendData() const;
+
       void sendSize(size_t size) const;
 
     public:
-      ThirdLevelUtils(const std::string& remoteHost, int dataPort,
-                      const std::string& systemName,
-                      int brokerPort = RabbitMQPort);
+      ThirdLevelUtils(const std::string& host, int port);
 
       ~ThirdLevelUtils();
 
@@ -75,10 +65,11 @@ namespace combigrid {
   {
     assert(isConnected_);
     size_t rawSize = size * sizeof(FG_ELEMENT);
+    signalizeSendData();
     sendSize(rawSize);
     if (size != 0) {
       //std::cout << "Manager tries to send " << rawSize << " Bytes" << std::endl;
-      dataConnection_->sendall(reinterpret_cast<const char*>(data), rawSize);
+      connection_->sendall(reinterpret_cast<const char*>(data), rawSize);
     }
   }
 
@@ -91,7 +82,7 @@ namespace combigrid {
     if(size != 0) {
       char* rawData = new char[rawSize];
       //std::cout << "Manager tries to receive " << rawSize << " Bytes" << std::endl;
-      bool success = dataConnection_->recvall(rawData, rawSize);
+      bool success = connection_->recvall(rawData, rawSize);
       assert(success && "receiving dsgu data failed");
       data = reinterpret_cast<FG_ELEMENT*>(rawData);
     }

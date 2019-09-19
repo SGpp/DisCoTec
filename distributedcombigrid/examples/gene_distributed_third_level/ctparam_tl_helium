@@ -16,7 +16,7 @@ nprocs = 2
 
 [thirdLevel]
 host = localhost
-dataPort = 9999
-systemName = helium
-systemNumber = 1
+port = 9999
+# counting has to start at 0, needed only for distribution of combischeme
+systemNumber = 0
 numSystems = 2

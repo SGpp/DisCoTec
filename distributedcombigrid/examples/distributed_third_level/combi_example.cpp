@@ -87,17 +87,16 @@ int main(int argc, char** argv) {
     nsteps = cfg.get<size_t>("application.nsteps");
 
     // read in third level parameters if available
-    std::string thirdLevelHost, systemName;
+    std::string thirdLevelHost;
     unsigned int systemNumber = 0, numSystems = 0;
-    unsigned short thirdLevelDataPort = 0;
+    unsigned short thirdLevelPort = 0;
     bool useThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
     if (useThirdLevel) {
       std::cout << "Using third-level parallelism" << std::endl;
       thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
-      systemName = cfg.get<std::string>("thirdLevel.systemName");
-      systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
-      numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
-      thirdLevelDataPort = cfg.get<unsigned short>("thirdLevel.dataPort");
+      systemNumber   = cfg.get<unsigned int>("thirdLevel.systemNumber");
+      numSystems     = cfg.get<unsigned int>("thirdLevel.numSystems");
+      thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
     }
 
     // todo: read in boundary vector from ctparam
@@ -147,7 +146,7 @@ int main(int argc, char** argv) {
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,
                            ncombi, 1, p, std::vector<IndexType>(0),
                            std::vector<IndexType>(0), thirdLevelHost,
-                           thirdLevelDataPort, systemName, commonSubspaces, 0);
+                           thirdLevelPort, commonSubspaces, 0);
     
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));

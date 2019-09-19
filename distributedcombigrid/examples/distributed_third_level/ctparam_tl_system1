@@ -16,8 +16,7 @@ nprocs = 1
 
 [thirdLevel]
 host = localhost
-dataPort = 9999
-systemName = system1
+port = 9999
 # counting has to start at 0
 systemNumber = 1
 numSystems = 2
