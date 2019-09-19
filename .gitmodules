@@ -7,6 +7,3 @@
 [submodule "gene-dev-exahd"]
 	path = gene-dev-exahd
 	url = git@gitlab.mpcdf.mpg.de:GENE/gene-dev.git
-[submodule "distributedcombigrid/SimpleAmqpClient"]
-	path = distributedcombigrid/SimpleAmqpClient
-	url = https://github.com/alanxz/SimpleAmqpClient.git
