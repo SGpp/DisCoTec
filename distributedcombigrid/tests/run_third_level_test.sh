@@ -11,7 +11,15 @@ total=$(( 2*(maxNgroup * maxNprocs + 1) ))
 
 numCombinations=10
 
-# Use this to simplify Debug:
-$MPI_PATH/mpirun -n $total -l xterm -hold -e gdb -ex run --args ./test_distributedcombigrid_boost --run_test=thirdLevel
+PORT=9999
+PORT_USAGE=$(lsof -P -i tcp:$PORT)
 
-#$MPI_PATH/mpirun -n $total -l ./test_distributedcombigrid_boost --run_test=thirdLevel -- # additional params
+if [ "$PORT_USAGE" == "" ]; then
+  $MPI_PATH/mpirun -n $total -l ./test_distributedcombigrid_boost --run_test=thirdLevel -- # additional params
+else
+  echo -e "Port $PORT is already in use: \n$PORT_USAGE"
+fi
+
+
+# Use this to simplify Debug:
+#$MPI_PATH/mpirun -n $total -l xterm -hold -e gdb -ex run --args ./test_distributedcombigrid_boost --run_test=thirdLevel
