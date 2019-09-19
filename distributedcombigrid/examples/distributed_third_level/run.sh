@@ -1,10 +1,8 @@
 #!/bin/bash
 SGPP_DIR=../../../
-LIB_SIMPLE_AMQP_DIR=$SGPP_DIR/distributedcombigrid/SimpleAmqpClient/build
 LIB_BOOST_DIR=/usr/lib/
 
 export LD_LIBRARY_PATH=$SGPP_DIR/lib/sgpp\
-                       :$LIB_SIMPLE_AMQP_DIR\
                        :$LIB_BOOST_DIR\
                        :$LD_LIBRARY_PATH
 
