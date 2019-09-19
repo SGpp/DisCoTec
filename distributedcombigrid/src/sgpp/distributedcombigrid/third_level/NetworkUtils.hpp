@@ -29,7 +29,6 @@
  * here. Man in the middle and other attacks are
  * possible.
  */
-
 class Socket {
   public:
 
@@ -98,9 +97,9 @@ class ClientSocket : public Socket {
 
     int getRemotePort() const;
 
-    bool isReadable(int timeout = -1) const;
+    bool isReadable(int timeoutSec = -1) const;
 
-    bool isWriteable(int timeout = -1) const;
+    bool isWriteable(int timeoutSec = -1) const;
 
   private:
     ClientSocket(); // for ServerSocket only
@@ -134,6 +133,8 @@ class ServerSocket : public Socket {
 
 class NetworkUtils {
   public:
+    static const int noTimeout = -1;
+
     static bool forward(const ClientSocket& sender, const ClientSocket& receiver,
         size_t chunksize = 2048, size_t size = 0);
 
@@ -279,7 +280,7 @@ bool ClientSocket::recvallBinaryPrefixedCorrectInPlace(std::vector<FG_ELEMENT>& 
     //                     old     tail               new
     //  [ oo|xxxx|...|xxxx|o ] -> [ ooo|xxxx|...|xxxx|oo ]
     //                              0                  n-1
-    if (total == 0) //first run
+    if (total == 0) // first run
       oldSize = n % sizeof(FG_ELEMENT);
     else
       oldSize = newSize;
@@ -372,7 +373,7 @@ bool ClientSocket::sendallBinary(const std::vector<FG_ELEMENT>& buf, int flags) 
 
 // Sends the given buffer in binary form. The first byte sent specifies
 // if the system is little-endian. The next bytes specify the length of
-// the following buffer and are sperated by an # from the following raw data. 
+// the following buffer and are sperated by an # from the following raw data.
 template<typename FG_ELEMENT>
 bool ClientSocket::sendallBinaryPrefixed(const std::vector<FG_ELEMENT>& buf, int flags) const {
   const char* rawBuf = reinterpret_cast<const char*>(buf.data());

@@ -108,7 +108,7 @@ bool ClientSocket::sendallPrefixed(const char* const buf, size_t len) const {
 bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(len > 0);
-  std::cout << "Trying to receive " << len << "Bytes" << std::endl;
+  //std::cout << "Trying to receive " << len << "Bytes" << std::endl;
   long recvd = -1;
   std::unique_ptr<char[]> buff(new char[len]);
   size_t total = 0;
@@ -261,7 +261,7 @@ bool ClientSocket::recvallPrefixed(std::string& mesg, int flags) const {
   }
 }
 
-bool ClientSocket::isReadable(int timeout) const {
+bool ClientSocket::isReadable(int timeoutSec) const {
   assert(isInitialized() && "Client Socket not initialized");
 
   struct timeval tv;
@@ -270,8 +270,8 @@ bool ClientSocket::isReadable(int timeout) const {
   FD_ZERO(&readfds);
   FD_SET(sockfd_, &readfds);
 
-  if (timeout > -1) {
-    tv.tv_sec = timeout;
+  if (timeoutSec > -1) {
+    tv.tv_sec = timeoutSec;
     tv.tv_usec = 0;
     select(sockfd_+1, &readfds, NULL, NULL, &tv);
   }
@@ -281,19 +281,19 @@ bool ClientSocket::isReadable(int timeout) const {
   return FD_ISSET(sockfd_, &readfds);
 }
 
-bool ClientSocket::isWriteable(int timeout) const {
+bool ClientSocket::isWriteable(int timeoutSec) const {
   assert(isInitialized() && "Client Socket not initialized");
 
   struct timeval tv;
   fd_set writefds;
 
-  tv.tv_sec = timeout;
+  tv.tv_sec = timeoutSec;
   tv.tv_usec = 0;
 
   FD_ZERO(&writefds);
   FD_SET(sockfd_, &writefds);
 
-  if (timeout > -1)
+  if (timeoutSec > -1)
     select(sockfd_+1, NULL, &writefds, NULL, &tv);
   else
     select(sockfd_+1, NULL, &writefds, NULL, NULL);
@@ -312,7 +312,6 @@ ServerSocket::ServerSocket() : Socket(), port_(0) {
 }
 
 ServerSocket::ServerSocket(const unsigned short port) : Socket(), port_(port) {
-  assert(init());
 }
 
 ServerSocket::~ServerSocket() {
