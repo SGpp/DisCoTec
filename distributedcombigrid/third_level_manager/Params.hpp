@@ -7,20 +7,16 @@
 class Params
 {
   private:
-    std::string                         brokerURL_       = "localhost";
-    u_int                               dataPort_        = 0;
-    u_int                               numSystems_      = 0;
-    u_int                               dimension_       = 0;
-    u_int                               numCombinations_ = 0;
-    std::vector<std::string>            systemNames_;
+    u_int port_           = 0;
+    u_int numSystems_     = 0;
+    bool  loadedFromFile_ = false;
 
   public:
     Params();
 
     void loadFromFile(const std::string& filename);
 
-    std::string                         getbrokerURL()    const;
-    u_int                               getDataPort()     const;
-    u_int                               getNumSystems()   const;
-    std::vector<std::string>            getSystemNames()  const;
+    bool  areLoaded()     const;
+    u_int getPort()       const;
+    u_int getNumSystems() const;
 };
