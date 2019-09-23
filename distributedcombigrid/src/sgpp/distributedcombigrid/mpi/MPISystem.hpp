@@ -87,7 +87,7 @@ class MPISystem {
    */
   void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs);
 
-  void initThreadedGlobalreduce(int num_threads,int providedThreadlevel);
+  void initThreadedGlobalreduce(int num_threads,int providedThreadlevel,bool async=false);
   /**
    * get the size of the worldComm_
    */
@@ -206,8 +206,10 @@ class MPISystem {
   inline bool isInitialized() const;
 
   inline int getGlobalReduceThreads() const;
+
   inline const std::vector<CommunicatorType>& getGlobalReduceParComm() const;
 
+  inline bool isAsyncGlobalReduce() const;
   /**
    * This routine starts the recovery procesdure.
    * groupAlive indicates if the process group of the calling rank is alive
@@ -374,9 +376,18 @@ class MPISystem {
    */
   CommunicatorType globalReduceComm_;
 
+  /**
+   * Number of threads performing allreduce in the globalreduction in parallel
+   */
   int globalReduceThreads_=1;
+  /**
+   * stores globalReduceThreads_ number copies of globalReduceComm_
+   */
   std::vector<CommunicatorType> globalReduceParComm_;
-
+  /**
+   * 
+   */
+  bool asyncGlobalReduce_=false;
 
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
@@ -470,8 +481,14 @@ inline const CommunicatorType& MPISystem::getGlobalReduceComm() const {
 inline int MPISystem::getGlobalReduceThreads() const{
   return globalReduceThreads_;
 }
+
+
 inline const std::vector<CommunicatorType>& MPISystem::getGlobalReduceParComm() const{
   return globalReduceParComm_;
+}
+
+inline bool MPISystem::isAsyncGlobalReduce() const{
+  return asyncGlobalReduce_;
 }
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getWorldCommFT() {

@@ -849,12 +849,22 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
       startIndeces[i]=i*(bsize/numParallelMPI);
     }
     startIndeces[numParallelMPI]=bsize;
-
-    #pragma omp parallel for schedule(static,1)
-    for(int i=0;i<numParallelMPI;i++)
+    if(!mpisys->isAsyncGlobalReduce())
     {
-      std::cout <<i<<": start "<<startIndeces[i]<<" end "<< startIndeces[i+1]<<"\n";
-      MPI_Allreduce(MPI_IN_PLACE, &buf[startIndeces[i]], startIndeces[i+1]-startIndeces[i], dtype, MPI_SUM, mpisys->getGlobalReduceParComm()[i]);
+      #pragma omp parallel for num_threads(numParallelMPI)
+      for(int i=0;i<numParallelMPI;i++)
+      {
+        std::cout <<i<<": start "<<startIndeces[i]<<" end "<< startIndeces[i+1]<<"\n";
+        MPI_Allreduce(MPI_IN_PLACE, &buf[startIndeces[i]], startIndeces[i+1]-startIndeces[i], dtype, MPI_SUM, mpisys->getGlobalReduceParComm()[i]);
+      }
+    }else {
+      std::vector<MPI_Request> reqs(numParallelMPI);
+
+      for(int i=0;i<numParallelMPI;i++)
+      {
+        MPI_Iallreduce(MPI_IN_PLACE, &buf[startIndeces[i]], startIndeces[i+1]-startIndeces[i], dtype, MPI_SUM, mpisys->getGlobalReduceParComm()[i],&reqs[i]);
+      }
+      MPI_Waitall((int)numParallelMPI,reqs.data(),MPI_STATUS_IGNORE);
     }
   }
   Stats::stopEvent("combine_allreduce");

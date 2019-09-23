@@ -1441,7 +1441,7 @@ class DistributedFullGrid {
    * [threadStarts[n] ,threadStarts[n+1]) is the interval the nth thread uses in 
    * extract- and addToUniformSG
    */
-  std::vector<u_long> threadStarts_;
+  std::vector<size_t> threadStarts_;
   /**
    * contains how many Elements are in each subspace before the starting index of the corresponding thread
    */
@@ -1743,7 +1743,7 @@ class DistributedFullGrid {
   {
     int numThreads=omp_get_max_threads();
     threadStarts_.resize(numThreads+1);
-    threadAssignmentListStart_.resize(numThreads);//todo fill directly
+    threadAssignmentListStart_.resize(numThreads);
     threadStarts_[0]=0;
     for(int i=0;i<numThreads;i++)
     {

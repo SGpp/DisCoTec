@@ -16,20 +16,21 @@ while argi<argc and argv[argi][0]!="-":
 
 #print ("filenames",filenames)
 
-options,events= getopt.getopt(argv[argi:],"ADGHO")
+options,events= getopt.getopt(argv[argi:],"ACDGHO")
 for i,j in options:
 	if i=='-H':
 		events.append("combine hierarchize")
 	elif i=='-D':
 		events.append("combine dehierarchize")
-	if i=='-O':
+	elif i=='-O':
 		events.append("only hierarchize")
 		events.append("only dehierarchize")
-	if i=='-A':
+	elif i=='-A':
 		events.append("combine_allreduce")
 	elif i=='-G':
 		events.append("combine global reduce")
-	
+	elif i=='-C':
+		events.append("combine")
 
 
 # define functions
@@ -66,6 +67,11 @@ def collectmax(outlist,durlist):
 		tmp.append(max(durlist[i]))
 	return max(tmp)
 
+def collectavgmax(outlist,durlist):
+	tmp=[]
+	for i in range(len(outlist)):
+		tmp.append(max(durlist[i]))
+	return max(tmp)
 
 
 

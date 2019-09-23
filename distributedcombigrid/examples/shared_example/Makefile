@@ -16,7 +16,7 @@ LIBS=-lsgppdistributedcombigrid -lboost_serialization -lnuma
 
 all: shared_example 
 
-shared_example: shared_example.cpp TaskExample.hpp
+shared_example: shared_example.cpp TaskExample.hpp 
 	mpicxx.mpich $(CFLAGS) $(LDIR) $(INC) -o shared_example shared_example.cpp $(LIBS)
 
 only_hierachization: only_hierachization.cpp

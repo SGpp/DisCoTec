@@ -174,7 +174,23 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
   MPI_Offset pos;
   MPI_Scan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
   pos -= len;
-
+  #ifdef INTEL_FILE_BUG
+  std::vector<MPI_Offset> lenghtbuf(size); 
+  MPI_Gather(&len,1,MPI_LONG,lenghtbuf.data(),1,MPI_LONG,size-1,comm);
+  if(rank==size-1){
+  std::ofstream file(path);
+    for(int i=0;i<size-1;i++){
+      std::vector<char> recbuf(lenghtbuf[i]);
+      MPI_Recv(recbuf.data(),lenghtbuf[i],MPI_CHAR,i,i,comm,MPI_STATUS_IGNORE);
+      file.write(recbuf.data(),lenghtbuf[i]);
+   }
+   file.write(buffer.str().c_str(),len);
+   file.close();
+  }
+  else{
+    MPI_Send(buffer.str().c_str(),len,MPI_CHAR,size-1,rank,comm);
+  }
+  #else
   // get total file length
   MPI_Offset file_len;
   MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, comm);
@@ -207,6 +223,7 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
   // write to single file with MPI-IO
   MPI_File_write_at_all(fh, pos, buffer.str().c_str(), (int)len, MPI_CHAR, MPI_STATUS_IGNORE);
   MPI_File_close(&fh);
+  #endif
 }
 #else
 inline void Stats::initialize() {}

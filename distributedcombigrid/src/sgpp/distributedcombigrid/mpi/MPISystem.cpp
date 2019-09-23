@@ -287,11 +287,11 @@ void MPISystem::initGlobalReduceCommm() {
   }
 }
 
-void MPISystem::initThreadedGlobalreduce(int num_threads,int providedThreadlevel){
+void MPISystem::initThreadedGlobalreduce(int num_threads,int providedThreadlevel,bool async){
   checkPreconditions();
   if(num_threads==1||worldRank_==managerRankWorld_)
     return;
-  assert(providedThreadlevel==MPI_THREAD_MULTIPLE&&"Your implementation does not support concuurent MPI\
+  assert((providedThreadlevel==MPI_THREAD_MULTIPLE||async)&&"Your implementation does not support concuurent MPI\
    or you did not request it via MPI_init_thread and num_threads>1");
   
   globalReduceThreads_=num_threads;
@@ -303,7 +303,7 @@ void MPISystem::initThreadedGlobalreduce(int num_threads,int providedThreadlevel
     MPI_Comm_dup(globalReduceComm_,&ecomm);
     globalReduceParComm_.push_back(ecomm);
   }
-
+  asyncGlobalReduce_=async;
 }
 
 void MPISystem::createCommFT(simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm) {

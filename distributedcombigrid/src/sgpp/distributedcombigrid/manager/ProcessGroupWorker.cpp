@@ -411,7 +411,7 @@ void ProcessGroupWorker::combineUniform() {
   }
   assert(combiParametersSet_);
   // we assume here that every task has the same number of grids, e.g. species in GENE
-  int numGrids = combiParameters_.getNumGrids();
+  IndexType numGrids = combiParameters_.getNumGrids();
 
   DimType dim = combiParameters_.getDim();
   LevelVector lmin = combiParameters_.getLMin();

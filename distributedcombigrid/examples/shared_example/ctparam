@@ -1,6 +1,6 @@
 [ct]
 dim = 4
-lmin = 4 4 4 4 
+lmin = 3 3 3 3 
 lmax = 7 7 7 7
 leval = 3 3 3 3
 p = 1 1 1 1
@@ -11,6 +11,6 @@ dt = 1e-3
 nsteps = 1
 
 [manager]
-ngroup = 1
+ngroup = 3
 nprocs = 1
 nthreads=1 

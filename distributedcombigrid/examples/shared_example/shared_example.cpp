@@ -54,7 +54,16 @@ int main(int argc, char** argv) {
     "this thread level should function as it was not there for mpi"<<_threadlevelresult;
     return -2;
   }
-  
+  int tmprank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&tmprank);//just for debug output
+  if(tmprank==0)
+  {
+    for(int i=0;i<argc;i++)
+    {
+      std::cout << argv[i]<<" ";
+    }
+    std::cout <<"\n";
+  }
 
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
@@ -67,8 +76,9 @@ int main(int argc, char** argv) {
   std::string filesuffix="";
   int thread_override=-1;
   int allreduce_threads=1;
+  bool async=false;
 
-	while ((opt = getopt(argc, argv, "a:c:n:o:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "Aa:c:n:o:t:")) != -1) {
 		switch (opt) {
 			case 'c':
 				paramfile= optarg;
@@ -84,6 +94,9 @@ int main(int argc, char** argv) {
         break;
       case 'a':
         allreduce_threads=std::stoi(optarg);
+        break;
+      case 'A':
+        async=true;
         break;
       default:
         std::cout <<" unsupported option -"<< opt <<" \n Usage [-c] ctparam_file [-t] timing file";
@@ -106,7 +119,7 @@ int main(int argc, char** argv) {
   auto thempi=theMPISystem();
   thempi->init(ngroup, nprocs);
   if(_threadlevelresult==MPI_THREAD_MULTIPLE){
-    thempi->initThreadedGlobalreduce(allreduce_threads,_threadlevelresult);
+    thempi->initThreadedGlobalreduce(allreduce_threads,_threadlevelresult,async);
   }
 
   // this code is only executed by the manager process
@@ -114,7 +127,7 @@ int main(int argc, char** argv) {
     std::cout << "using " << omp_get_max_threads()<<" Threads\n"; 
     char hostname[HOST_NAME_MAX+1] ;
     gethostname(hostname,HOST_NAME_MAX+1);
-    std::cout <<"HOST rank"<<theMPISystem()->getGlobalRank()<<" on node "<<hostname<<std::endl;
+    std::cout <<"HOST rank"<<theMPISystem()->getWorldRank()<<" on node "<<hostname<<std::endl;
     Stats::startEvent("total time");
     /* create an abstraction of the process groups for the manager's view
     * a pgroup is identified by the ID in gcomm
