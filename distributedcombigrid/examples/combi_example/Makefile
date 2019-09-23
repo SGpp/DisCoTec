@@ -16,7 +16,7 @@ LIBS=-lsgppdistributedcombigrid -lboost_serialization
 
 all: combi_example 
 
-combi_example: combi_example.cpp TaskExample.hpp
+combi_example: combi_example.cpp TaskExample.hpp DataConverter.cpp
 	mpicxx.mpich $(CFLAGS) $(LDIR) $(INC) -o combi_example combi_example.cpp $(LIBS)
 
 clean:

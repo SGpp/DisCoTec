@@ -20,13 +20,14 @@ using namespace combigrid;
 
 class Converter{
     public:
-    Converter(std::string filename):_fileName(filename){};
+    
     Converter();
-    void print();
-    //reads the data from the file and stores it in the given variables.
-    void readFile(DimType dim,LevelVector lmin, LevelVector lmax, LevelVector leval, IndexVector p,size_t ncombi, std::vector<bool> boundary);
+    //reads the data from a json file and stores it in param file
+    
+    void toParam(std::string, std::string);
 
-    private:
-    const std::string _fileName;
+    //reads in data from an ini file and stores it in  newname.json file
+    void toJSON(std::string, std::string);
+
 };
 #endif

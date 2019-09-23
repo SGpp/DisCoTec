@@ -85,8 +85,9 @@ int main(int argc, char** argv) {
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
 
-    Converter converter("ct.param");
-    converter.print();
+    Converter converter;
+    converter.toParam("p2.json","ctparam2");
+    converter.toJSON("ctparam","p2.json");
     // TODO: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
 
