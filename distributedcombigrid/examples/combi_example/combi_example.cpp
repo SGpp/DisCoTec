@@ -85,6 +85,8 @@ int main(int argc, char** argv) {
 
     // todo: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
+    // use no hierarchization in this example
+    std::vector<bool> hierarchizationDims(dim, false);
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
@@ -115,8 +117,10 @@ int main(int argc, char** argv) {
       taskIDs.push_back(t->getID());
     }
 
-    // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
+    // create combiparamters
+    CombiParameters params( dim, lmin, lmax, boundary, levels,
+                            coeffs, hierarchizationDims, taskIDs, ncombi, tasks[0]->getNumGrids());//, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
+
     params.setParallelization(p);
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
