@@ -31,8 +31,40 @@ class TestFn {
   }
 };
 
-void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vector<bool>& boundary,
+template <typename dfgTestCombiType>
+void compareResults(const DimType dim, DistributedFullGrid<dfgTestCombiType>& dfg,
+                    DistributedFullGrid<dfgTestCombiType>& dfg2) {
+  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+    std::vector<double> coords(dim);
+    dfg.getCoordsLocal(li, coords);
+    BOOST_TEST(2.1 * dfg.getData()[li] == dfg2.getData()[li]);
+  }
+}
+
+template <typename dfgTestCombiType>
+void testGatherFullGrid(LevelVector& levels, std::vector<bool>& boundary, TestFn f,
+                        DistributedFullGrid<dfgTestCombiType>& dfg, CommunicatorType comm) {
+  const DimType dim = levels.size();
+
+  // test gatherFullgrid
+  FullGrid<std::complex<double>> fg(dim, levels, boundary);
+  dfg.gatherFullGrid(fg, 0);
+
+  // only check on rank 0
+  if (TestHelper::getRank(comm) != 0) {
+    return;
+  }
+
+  for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
+    std::vector<double> coords(dim);
+    fg.getCoords(i, coords);
+    BOOST_TEST(fg.getData()[i] == f(coords));
+  }
+}
+
+void checkDistributedFullgridLinDG(LevelVector& levels, IndexVector& procs, std::vector<bool>& boundary,
                               int size, bool forward = false) {
+  using dfgTestCombiType = std::complex<double>;
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) return;
 
@@ -40,7 +72,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   const DimType dim = levels.size();
 
   // create dfg
-  DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+  DistributedFullGrid<dfgTestCombiType> dfg(dim, levels, comm, boundary, procs, forward);
 
   IndexType nrElements = 1;
   for (DimType d = 0; d < dim; ++d) {
@@ -61,31 +93,55 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   for (DimType d = 0; d < dim; ++d) {
     lmax[d] *= 2;
   }
-  DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, boundary, comm);
+
+  DistributedSparseGridUniform<dfgTestCombiType> dsg(dim, lmax, lmin, boundary, comm);
   dfg.addToUniformSG(dsg, 2.1);
-  DistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
+  DistributedFullGrid<dfgTestCombiType> dfg2(dim, levels, comm, boundary, procs, forward);
   dfg2.extractFromUniformSG(dsg);
 
+  compareResults(dim, dfg, dfg2);
+  testGatherFullGrid(levels, boundary, f, dfg, comm);
+}
+
+void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vector<bool>& boundary,
+                              int size, bool forward = false) {
+  using dfgTestCombiType = std::complex<double>;
+  CommunicatorType comm = TestHelper::getComm(size);
+  if (comm == MPI_COMM_NULL) return;
+
+  TestFn f;
+  const DimType dim = levels.size();
+
+  // create dfg
+  DistributedFullGrid<dfgTestCombiType> dfg(dim, levels, comm, boundary, procs, forward);
+
+  IndexType nrElements = 1;
+  for (DimType d = 0; d < dim; ++d) {
+    nrElements *= (1 << levels[d]) + (boundary[d] ? 1 : -1);
+  }
+  BOOST_CHECK(nrElements == dfg.getNrElements());
+
+  // set function values
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
     std::vector<double> coords(dim);
     dfg.getCoordsLocal(li, coords);
-    BOOST_TEST(2.1 * dfg.getData()[li] == dfg2.getData()[li]);
+    dfg.getData()[li] = f(coords);
   }
 
-  // test gatherFullgrid
-  FullGrid<std::complex<double>> fg(dim, levels, boundary);
-  dfg.gatherFullGrid(fg, 0);
-
-  // only check on rank 0
-  if (TestHelper::getRank(comm) != 0) {
-    return;
+  // test addToUniformSG, extractFromUniformSG
+  LevelVector lmin = levels;
+  LevelVector lmax = levels;
+  for (DimType d = 0; d < dim; ++d) {
+    lmax[d] *= 2;
   }
 
-  for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
-    std::vector<double> coords(dim);
-    fg.getCoords(i, coords);
-    BOOST_TEST(fg.getData()[i] == f(coords));
-  }
+  DistributedSparseGridUniform<dfgTestCombiType> dsg(dim, lmax, lmin, boundary, comm);
+  dfg.addToUniformSG(dsg, 2.1);
+  DistributedFullGrid<dfgTestCombiType> dfg2(dim, levels, comm, boundary, procs, forward);
+  dfg2.extractFromUniformSG(dsg);
+
+  compareResults(dim, dfg, dfg2);
+  testGatherFullGrid(levels, boundary, f, dfg, comm);
 }
 
 BOOST_AUTO_TEST_SUITE(distributedfullgrid)
