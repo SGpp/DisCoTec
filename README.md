@@ -45,10 +45,26 @@ git submodule update
 ```
 and then you just hope you can `make` it by adapting the local library flags ;)
 
+Third-Level-Manager
+-------------------
+The third-level-manager handles the synchronization and data transfer of and
+between the systems. The following steps will guide you from compilation to
+execution:
+
+* To compile first navigate to combi/distributedcombigrid/third_level_manager.
+  The folder contains a Makefile.template which you can adjust to fit your needs.
+
+* The manager takes a .ini file as an input parameter. The same folder holds the
+  file example.ini where the number of systems and the port on which the manager
+  will listen can be adjusted. Currently, only 2 systems are supported.
+
+* Use the run script to execute the manager. You can pass your own parameter
+  file to the script whereas by default it reads the example.ini.
+
 On Hazel Hen
 ------------
 
-# Prerequisites
+### Prerequisites
 
 * load modules: PrgEnv-gnu, scons, python 2.7
 
@@ -61,7 +77,7 @@ On Hazel Hen
 * Allow dynamic linking:
   `export CRAYPE_LINK_TYPE=dynamic`
 
-# Compilation
+### Compilation
 
 Unfortunately, the boost module on Hazel Hen does not work with our code any more.
 Hence, you have to install boost yourself, e.g. use version >= 1.58
@@ -73,7 +89,7 @@ Compile by first adapt the compile.sh script to use the HLRS specific command.
 (the linking of the boost tests might fail. however this is not a problem, the
 sg++ libraries should be there)
 
-# Execution
+### Execution
 
 Let's assume we want to run the example under
 combi/distributedcombigrid/examples/distributed_third_level/ and distribute our
@@ -82,8 +98,8 @@ HLRS login node eslogin002 at port 9999. The following steps are necessary:
 
 * Since data connections to the HLRS are not possible without using ssh tunnels,
   we set them up in advance. Run
-  `ssh -L  9999:localhost:9999 username@eslogin002.hww.de` from helium to login
-  into HLRS while creating an ssh tunnel.
+  `ssh -L  9999:localhost:9999 username@eslogin002.hww.de` from helium, to log
+  in to HLRS while creating an ssh tunnel.
 
 * Adjust the parameter files on HLRS and helium to fit the simulation.
   Use hostname=eslogin002 on HLRS and hostname=localhost on helium. Set
@@ -91,4 +107,5 @@ HLRS login node eslogin002 at port 9999. The following steps are necessary:
 
 * Run the third-level-manger
 
-* Start the simulation. The example directory holds a separate run file for the HLRS. 
+* Start the simulation. The example directory holds a separate run file which
+  has to be modified to fit HLRS and Helium.
