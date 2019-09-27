@@ -295,6 +295,8 @@ void DistributedSparseGrid<FG_ELEMENT>::setSizes() {
 
     // loop over all dimensions
     for (size_t j = 0; j < dim_; ++j) {
+
+      // if we have reached the lowest level, consider boundary points, too
       if (l[j] == 1 && boundary_[j]) {
         sizes[j] = (size_t(std::pow(2.0, real(l[j] - 1))) + size_t(2));
       } else {
@@ -302,9 +304,9 @@ void DistributedSparseGrid<FG_ELEMENT>::setSizes() {
       }
     }
 
-    IndexType tmp(1);
+    IndexType tmp = std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<IndexType>());
 
-    for (auto s : sizes) tmp *= s;
+    // for (auto s : sizes) tmp *= s;
 
     subspaces_[i].dataSize_ = size_t(tmp);
   }

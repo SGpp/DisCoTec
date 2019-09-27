@@ -78,6 +78,9 @@ class Task {
   // This method returns the local part of the n-th distributedFullGrid
   virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) = 0;
 
+  // return the number of grids in a given task; default is one
+  virtual size_t getNumGrids() {return 1;}
+
   virtual void setZero() = 0;
 
   // override if there is adaptive timestepping in the solver
