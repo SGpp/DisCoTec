@@ -432,7 +432,7 @@ void ProcessGroupWorker::combineUniform() {
     std::cout << "lmax: " << lmax << std::endl;
   }
 #endif
-
+  Stats::startEvent("zerosub");
   if(combinedUniDSGVector_.size()!=numGrids){
     // delete old dsgs (Someone doesn't trust the move assignment operator)
     combinedUniDSGVector_.clear();
@@ -442,6 +442,7 @@ void ProcessGroupWorker::combineUniform() {
       uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
           new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
                                                           theMPISystem()->getLocalComm()));
+      std::cout <<"why\n";
     }
   } else{
     for (auto& uniDSG : combinedUniDSGVector_) {
@@ -449,14 +450,14 @@ void ProcessGroupWorker::combineUniform() {
         uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
           new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
                                                           theMPISystem()->getLocalComm()));
+        std::cout <<"create new grid\n";
       } else{
         uniDSG->zeroOutSubspaces();
       }
       
     }
   }
-  
-
+  Stats::stopEvent("zerosub");
   // todo: move to init function to avoid reregistering
   //??? only the last dsg stays registered and that is done in add to UniformSparseGrid
   // register dsgs in all dfgs
@@ -467,6 +468,7 @@ void ProcessGroupWorker::combineUniform() {
       dfg.registerUniformSG(*(combinedUniDSGVector_[g]));
     }
   }
+  
   Stats::stopEvent("combine init");
   Stats::startEvent("combine hierarchize");
 
@@ -485,15 +487,15 @@ void ProcessGroupWorker::combineUniform() {
         */
 
       // hierarchize dfg
-      //Stats::startEvent("only hierarchize");
+      Stats::startEvent("only hierarchize");
       DistributedHierarchization::hierarchize<CombiDataType>(
           dfg, combiParameters_.getHierarchizationDims());
-      
+      Stats::stopEvent("only hierarchize"); 
 
       // lokales reduce auf sg ->
-      Stats::startEvent("only hierarchize");
+      Stats::startEvent("addSG");
       dfg.addToUniformSG(*combinedUniDSGVector_[g], combiParameters_.getCoeff(t->getID()));
-      Stats::stopEvent("only hierarchize"); 
+      Stats::stopEvent("addSG"); 
 #ifdef DEBUG_OUTPUT
       std::cout << "Combination: added task " << t->getID() << " with coefficient "
                 << combiParameters_.getCoeff(t->getID()) << "\n";
@@ -527,7 +529,7 @@ void ProcessGroupWorker::combineUniform() {
   #endif
   // std::vector<CombiDataType> afterCombi;
   Stats::startEvent("combine dehierarchize");
-  Stats::startEvent("only dehierarchize");
+  Stats::startEvent("extSG");
   //#pragma omp parallel 
   {
     //#pragma omp for schedule(dynamic,1)
@@ -539,8 +541,8 @@ void ProcessGroupWorker::combineUniform() {
       }
     }
   }
-  Stats::stopEvent("only dehierarchize");
-  
+  Stats::stopEvent("extSG");
+  Stats::startEvent("only dehierarchize");
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       // get handle to dfg
@@ -564,6 +566,7 @@ void ProcessGroupWorker::combineUniform() {
       */
     }
   }
+  Stats::stopEvent("only dehierarchize");
   Stats::stopEvent("combine dehierarchize");
 
   // test changes

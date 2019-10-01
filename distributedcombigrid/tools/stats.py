@@ -16,7 +16,8 @@ while argi<argc and argv[argi][0]!="-":
 
 #print ("filenames",filenames)
 
-options,events= getopt.getopt(argv[argi:],"ACDGHO")
+useMaxMax=False
+options,events= getopt.getopt(argv[argi:],"ACDGHOm")
 for i,j in options:
 	if i=='-H':
 		events.append("combine hierarchize")
@@ -31,6 +32,8 @@ for i,j in options:
 		events.append("combine global reduce")
 	elif i=='-C':
 		events.append("combine")
+	elif i=='-m':
+		useMaxMax=True
 
 
 # define functions
@@ -69,9 +72,12 @@ def collectmax(outlist,durlist):
 
 def collectavgmax(outlist,durlist):
 	tmp=[]
-	for i in range(len(outlist)):
-		tmp.append(max(durlist[i]))
-	return max(tmp)
+	for j in range(len(durlist[0])):
+		imax=0
+		for i in range(len(durlist)):
+			imax =max((imax,durlist[i][j]))
+		tmp.append(imax)
+	return statistics.mean(tmp)
 
 
 
@@ -95,7 +101,10 @@ for e in events:
 		ext1=[]
 		ext2=[]
 		gather_stats(e,ext1,ext2,data)
-		flist.append((f,collectmax(ext1,ext2)))
+		if useMaxMax:
+			flist.append((f,collectmax(ext1,ext2)))
+		else:
+			flist.append((f,collectavgmax(ext1,ext2)))
 	slist.append((e,flist))
 
 for e,fl in slist:
