@@ -81,6 +81,8 @@ On Hazel Hen
 
 Unfortunately, the boost module on Hazel Hen does not work with our code any more.
 Hence, you have to install boost yourself, e.g. use version >= 1.58
+(always compile boost with the intel compiler `PrgEnv-intel`, otherways there
+will be linkage errors when compiling the examples)
 Do not forget to set boost paths in SConfigure, i.e. BOOST_INCLUDE_PATH, 
 BOOST_LIBRARY_PATH.
 
@@ -93,19 +95,27 @@ sg++ libraries should be there)
 
 Let's assume we want to run the example under
 combi/distributedcombigrid/examples/distributed_third_level/ and distribute our
-combischeme to HLRS and helium, while the third-level-manager is running on the
-HLRS login node eslogin002 at port 9999. The following steps are necessary:
+combischeme to HLRS and helium, while the third-level-manager is running on
+helium at port 9999. The following steps are necessary:
 
 * Since data connections to the HLRS are not possible without using ssh tunnels,
   we set them up in advance. Run
-  `ssh -L  9999:localhost:9999 username@eslogin002.hww.de` from helium, to log
+  `ssh -R  9998:localhost:9999 username@eslogin002.hww.de` from helium, to log
   in to HLRS while creating an ssh tunnel.
 
 * Adjust the parameter files on HLRS and helium to fit the simulation.
   Use hostname=eslogin002 on HLRS and hostname=localhost on helium. Set
   dataport=9999 on both systems.
 
-* Run the third-level-manger
+* Run the third-level-manger on helium
+
+* Connect to eslogin002 in a different terminal and run the forwarding script:
+  `forward.sh 9999 9998 pipe1`
+  This will forward the port 9998 to 9999 on eslogin002. We only need the local
+  forwarding because the configuration of the ssh server on HLRS does not allow
+  us to acces the ssh tunnel from a different host than eslogin002. Since our
+  application runs on the compute nodes this detour is necessary.
 
 * Start the simulation. The example directory holds a separate run file which
-  has to be modified to fit HLRS and Helium.
+  needs to be modified to fit HLRS and Helium. Also set the corresponding boost
+  library location.
