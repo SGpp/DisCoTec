@@ -26,6 +26,6 @@ typedef std::shared_ptr<MPISystem> MPISystemID;
  */
 typedef std::shared_ptr<const MPISystem> ConstMPISystemID;
 
-} // namespace combigrid
+}  // namespace combigrid
 
-#endif // MPISYSTEMID_HPP
+#endif  // MPISYSTEMID_HPP

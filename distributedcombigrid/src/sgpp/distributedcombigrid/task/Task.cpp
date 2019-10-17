@@ -7,25 +7,29 @@
 
 #include "../../distributedcombigrid/task/Task.hpp"
 
-#include <sstream>
-#include <boost/archive/text_oarchive.hpp>
 #include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <sstream>
 
 namespace combigrid {
 
-Task::Task():
-    isFinished_(false){
-}
+Task::Task() : isFinished_(false) {}
 
-Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-    LoadModel* loadModel, FaultCriterion *faultCrit) :
-  dim_(dim), l_(l), boundary_(boundary), id_(count++), loadModel_(
-    loadModel), isFinished_(false), faultCriterion_(faultCrit){
+Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff, 
+    LoadModel* loadModel, FaultCriterion* faultCrit)
+    : dim_(dim),
+      l_(l),
+      boundary_(boundary),
+      id_(count++),
+      loadModel_(loadModel),
+      isFinished_(false),
+      faultCriterion_(faultCrit) {
   assert(dim_ > 0);
   assert(l_.size() == dim_);
 }
 
 Task::~Task() {
+  delete faultCriterion_;
 }
 
 int Task::count = 0;

@@ -8,16 +8,14 @@
 #ifndef LEVELVECTOR_HPP_
 #define LEVELVECTOR_HPP_
 
-#include <vector>
-#include <assert.h>
-#include <ostream>
-#include "sgpp/distributedcombigrid/utils/Types.hpp"
+// #include <sstream>
+// #include <string>
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 
 namespace combigrid {
 
-typedef IndexVector LevelVector;
-
-} // namespace combigrid
+    typedef IndexVector LevelVector;
+    std::string toString(combigrid::LevelVector const& l);
+}  // namespace combigrid
 
 #endif /* LEVELVECTOR_HPP_ */

@@ -5,25 +5,25 @@
  *      Author: heenemo
  */
 #include <mpi.h>
-#include <vector>
-#include <string>
-#include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
+#include <string>
+#include <vector>
 
 // compulsory includes for basic functionality
-#include "sgpp/distributedcombigrid/task/Task.hpp"
-#include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
+#include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/utils/Types.hpp"
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
 
@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
 
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
-  theMPISystem()->init( ngroup, nprocs );
+  theMPISystem()->init(ngroup, nprocs);
 
   // this code is only executed by the manager process
   WORLD_MANAGER_EXCLUSIVE_SECTION {
@@ -62,13 +62,12 @@ int main(int argc, char** argv) {
     ProcessGroupManagerContainer pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(
-          std::make_shared< ProcessGroupManager > ( pgroupRootID )
-                          );
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
 
     // create load model
-    LoadModel* loadmodel = new LinearLoadModel();
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+
 
     /* read in parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
@@ -89,8 +88,7 @@ int main(int argc, char** argv) {
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
-    for (auto k : p)
-      checkProcs *= k;
+    for (auto k : p) checkProcs *= k;
     assert(checkProcs == IndexType(nprocs));
 
     /* generate a list of levelvectors and coefficients
@@ -112,24 +110,22 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i],
-                                loadmodel, dt, nsteps, p);
+      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
       tasks.push_back(t);
-      taskIDs.push_back( t->getID() );
+      taskIDs.push_back(t->getID());
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,ncombi, 1 );
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
     params.setParallelization(p);
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params);
+    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start
     manager.updateCombiParameters();
 
-    std::cout << "set up component grids and run until first combination point"
-              << std::endl;
+    std::cout << "set up component grids and run until first combination point" << std::endl;
 
     /* distribute task according to load model and start computation for
      * the first time */
@@ -144,12 +140,12 @@ int main(int argc, char** argv) {
 
       // evaluate solution and
       // write solution to file
-      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat" );
+      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
       Stats::startEvent("manager write solution");
-      manager.parallelEval( leval, filename, 0 );
+      manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");
 
-      std::cout << "run until combination point " << i+1 << std::endl;
+      std::cout << "run until combination point " << i + 1 << std::endl;
 
       // run tasks for next time interval
       Stats::startEvent("manager run");
@@ -169,14 +165,13 @@ int main(int argc, char** argv) {
     // wait for instructions from manager
     SignalType signal = -1;
 
-    while (signal != EXIT)
-      signal = pgroup.wait();
+    while (signal != EXIT) signal = pgroup.wait();
   }
 
   Stats::finalize();
 
   /* write stats to json file for postprocessing */
-  Stats::write( "timers.json" );
+  Stats::write("timers.json");
 
   MPI_Finalize();
 

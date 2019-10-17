@@ -181,59 +181,59 @@ def prepareDoxyfile(modules):
         else:
           doxyFile.write(line)
   # create example menu page
-  with open("base/doc/doxygen/examples.doxy", "w") as examplesFile:
-    examplesFile.write('''/**
-@page examples Examples
+#   with open("base/doc/doxygen/examples.doxy", "w") as examplesFile:
+#     examplesFile.write('''/**
+# @page examples Examples
 
-This is a collection of examples from all modules.
+# This is a collection of examples from all modules.
 
-If you're new to SG++ or want to try out quickly,
-read the @ref code_examples_tutorial first.
+# If you're new to SG++ or want to try out quickly,
+# read the @ref code_examples_tutorial first.
 
-To add new examples to the documentation,
-go to the respective folder MODULE_NAME/doc/doxygen/ and
-add a new example file code_examples_NAME.doxy with doxygen-internal
-name code_examples_NAME.
+# To add new examples to the documentation,
+# go to the respective folder MODULE_NAME/doc/doxygen/ and
+# add a new example file code_examples_NAME.doxy with doxygen-internal
+# name code_examples_NAME.
 
-Note that SCons automatically compiles (but not runs)
-all C++ examples on each run.
-For this to work, the examples must lie in the directories of the form
-\c /path/to/SGpp/trunk/MODULE_NAME/examples.
+# Note that SCons automatically compiles (but not runs)
+# all C++ examples on each run.
+# For this to work, the examples must lie in the directories of the form
+# \c /path/to/SGpp/trunk/MODULE_NAME/examples.
 
-''')
+# ''')
 
-    modules.sort()
-    tutorial = "code_examples_tutorial"
+#     modules.sort()
+#     tutorial = "code_examples_tutorial"
 
-    for moduleName in modules:
-      examplesFile.write("<h2>Module {}</h2>\n".format(moduleName))
-      subpages = glob.glob(os.path.join(
-        moduleName, "doc", "doxygen", "code_examples_*.doxy"))
-      subpages = [os.path.split(path)[-1][:-5]
-            for path in glob.glob(os.path.join(
-              moduleName, "doc", "doxygen",
-              "code_examples_*.doxy"))]
-      subpages.sort()
-      if tutorial in subpages:
-        del subpages[subpages.index(tutorial)]
-        subpages = [tutorial] + subpages
+#     for moduleName in modules:
+#       examplesFile.write("<h2>Module {}</h2>\n".format(moduleName))
+#       subpages = glob.glob(os.path.join(
+#         moduleName, "doc", "doxygen", "code_examples_*.doxy"))
+#       subpages = [os.path.split(path)[-1][:-5]
+#             for path in glob.glob(os.path.join(
+#               moduleName, "doc", "doxygen",
+#               "code_examples_*.doxy"))]
+#       subpages.sort()
+#       if tutorial in subpages:
+#         del subpages[subpages.index(tutorial)]
+#         subpages = [tutorial] + subpages
 
-      for subpage in subpages:
-        examplesFile.write("- @subpage {}\n".format(subpage))
+#       for subpage in subpages:
+#         examplesFile.write("- @subpage {}\n".format(subpage))
 
-    examplesFile.write("**/\n")
+#     examplesFile.write("**/\n")
 
-  # create module page
-  with open("base/doc/doxygen/modules.doxy", "w") as modulesFile:
-    with open("base/doc/doxygen/modules.stub0", "r") as stubFile:
-      modulesFile.write(stubFile.read())
+#   # create module page
+#   with open("base/doc/doxygen/modules.doxy", "w") as modulesFile:
+#     with open("base/doc/doxygen/modules.stub0", "r") as stubFile:
+#       modulesFile.write(stubFile.read())
 
-    for moduleName in modules:
-      for subpage in glob.glob(os.path.join(moduleName, "doc", "doxygen", "module_*.doxy")):
-        modulesFile.write("- @subpage " + os.path.splitext(os.path.split(subpage)[-1])[0] + "\n")
+#     for moduleName in modules:
+#       for subpage in glob.glob(os.path.join(moduleName, "doc", "doxygen", "module_*.doxy")):
+#         modulesFile.write("- @subpage " + os.path.splitext(os.path.split(subpage)[-1])[0] + "\n")
 
-    with open("base/doc/doxygen/modules.stub1", "r") as stubFile:
-      modulesFile.write(stubFile.read())
+#     with open("base/doc/doxygen/modules.stub1", "r") as stubFile:
+#       modulesFile.write(stubFile.read())
 
 
 def flatDependencyGraph(dependencies, acc):

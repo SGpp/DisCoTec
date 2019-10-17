@@ -17,7 +17,6 @@
 
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
-#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
@@ -32,9 +31,9 @@ class GeneTask: public combigrid::Task {
 public:
   GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
             LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
-            real shat, real kymin, real lx, int ky0_ind,
+            real shat, real lx, int ky0_ind,
             IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
-            IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);
+            IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true, size_t checkpointFrequency = 1, size_t offsetForDiagnostics = 0);
 
   GeneTask();
 
@@ -141,11 +140,12 @@ public:
    * sets boundary parameters for global simulations
    * is directly set in GENE execution before writing checkpoint
    */
-  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q ){
+  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q, double *kymin ){
     C_y_ = C_y;
     size_Cy_ = *size_Cy;
     q_prof_= q_prof;
     size_q_ = *size_q;
+    kymin_ = *kymin;
   }
   /* This method copies dfg data to local checkpoint
    * This is used to get the data from our framework to GENE
@@ -169,7 +169,25 @@ public:
   /**
    * Sets the current combination step
    */
-  inline void setCombiStep(int ncombi);
+  inline void setCombiStep(int ncombi);  
+  /**
+   * Returns the current combination step
+   */
+  inline int getCombiStep(){
+      return combiStep_;
+  }
+  /**
+   * Returns the checkpoint frequency
+   */
+  inline int getCheckpointFrequency(){
+      return checkpointFrequency_;
+  }
+  /**
+   * Returns the offset for the diagnostic numbering
+   */
+  inline int getOffsetDiagnostics(){
+      return offsetForDiagnostics_;
+  }
   /**
    * Return boolean to indicate whether GeneTask is initialized.
    */
@@ -220,7 +238,7 @@ public:
   /**
    * Returns the current time in the simulation. This is uses to update the time in GENE after restart.
    */
-  real getCurrentTime(){
+  real getCurrentTime() const override {
     return currentTime_;
   }
   /**
@@ -282,6 +300,10 @@ private:
   size_t nsteps_;
   size_t stepsTotal_; //number of time-steps done so far (there might be multiple timesteps in between two combinations)
   size_t combiStep_; //number of combinations done so far
+  /// number of combinations after which a new checkpoint is written to the hard drive
+  size_t checkpointFrequency_;
+  /// offset for diagnostics numbering to avoid overwritting diagnostics from previous runs that are continued
+  size_t offsetForDiagnostics_;
   IndexVector p_;
   /**
    * some Gene specific physical parameters
@@ -308,7 +330,7 @@ private:
 
   bool initialized_; //indicates if GeneTask is initialized
   bool checkpointInitialized_; //indicates if checkpoint is initialized
-
+  bool geneXBoundariesIncluded_; //indicates if gene boundaries are set on both sides -> this is important for boundary conditions
   int nspecies_; //number of species
   MPI_Request * requestArray_;
   std::vector<CombiDataType *> receiveBufferArray_;
@@ -332,6 +354,8 @@ private:
     ar & nsteps_;
     ar & stepsTotal_;
     ar & combiStep_;
+    ar & checkpointFrequency_;
+    ar & offsetForDiagnostics_;
     ar & p_;
     ar & shat_;
     ar & kymin_;
@@ -380,8 +404,6 @@ inline void GeneTask::setNrg(real nrg){
 inline void GeneTask::setCombiStep(int ncombi){
   combiStep_ = ncombi;
 }
-
-
 
 } /* namespace combigrid */
 

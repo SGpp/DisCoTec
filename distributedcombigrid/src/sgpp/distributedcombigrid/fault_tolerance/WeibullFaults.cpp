@@ -7,34 +7,33 @@
 
 #include "WeibullFaults.hpp"
 #include <math.h>
-#include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include <random>
+#include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 namespace combigrid {
 
-WeibullFaults::WeibullFaults(real k, real lambda, int numberOfCombis, bool faultMaster): k_(k), lambda_(lambda), numberOfCombis_(numberOfCombis), faultMaster_(faultMaster), t_fault_(-1.0) {
+WeibullFaults::WeibullFaults(real k, real lambda, int numberOfCombis, bool faultMaster)
+    : k_(k),
+      lambda_(lambda),
+      numberOfCombis_(numberOfCombis),
+      faultMaster_(faultMaster),
+      t_fault_(-1.0) {}
 
-}
-
-WeibullFaults::WeibullFaults(): k_(0.7), lambda_(1000), faultMaster_(false),t_fault_(-1.0) {
-
-}
+WeibullFaults::WeibullFaults() : k_(0.7), lambda_(1000), faultMaster_(false), t_fault_(-1.0) {}
 
 WeibullFaults::~WeibullFaults() {
   // TODO Auto-generated destructor stub
 }
 
-bool WeibullFaults::failNow(int ncombi, real t_iter, int globalRank){
-  if(!faultMaster_){
-    MASTER_EXCLUSIVE_SECTION {
-      return false;
-    }
+bool WeibullFaults::failNow(int ncombi, real t_iter, int globalRank) {
+  if (!faultMaster_) {
+    MASTER_EXCLUSIVE_SECTION { return false; }
   }
-  if(ncombi == numberOfCombis_ - 1){ //do not fault in last iteration
+  if (ncombi == numberOfCombis_ - 1) {  // do not fault in last iteration
     return false;
   }
-  //random probability p
-   //Will be used to obtain a seed for the random number engine
-  //std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+  // random probability p
+  // Will be used to obtain a seed for the random number engine
+  // std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
   /*std::uniform_real_distribution<> dis(0, 1);
   real p = dis(gen);
   //t= lambda*(-ln(1-p))^(1/k)
@@ -44,24 +43,25 @@ bool WeibullFaults::failNow(int ncombi, real t_iter, int globalRank){
 
   std::chrono::duration<real> dur = std::chrono::high_resolution_clock::now() - startTimeIteration_;
   real t_running = dur.count();
-  std::cout << "Sampled time for fault: " << t_fault_ << " simulation time needed " << t_running << "\n";
-  if(t_fault_ < t_running){
-    //std::cout << "Sampled time for fault: " << t_fault  << " with p: " << p << "\n";
+  std::cout << "Sampled time for fault: " << t_fault_ << " simulation time needed " << t_running
+            << "\n";
+  if (t_fault_ < t_running) {
+    // std::cout << "Sampled time for fault: " << t_fault  << " with p: " << p << "\n";
 
     return true;
   }
   return false;
 }
 
-real  WeibullFaults::init(std::chrono::high_resolution_clock::time_point  startTimeIteration, real t_fault) {
-  if(t_fault< 0){
+real WeibullFaults::init(std::chrono::high_resolution_clock::time_point startTimeIteration,
+                         real t_fault) {
+  if (t_fault < 0) {
     std::random_device rd;
-    std::weibull_distribution<real> distribution(k_,lambda_);
+    std::weibull_distribution<real> distribution(k_, lambda_);
     t_fault_ = distribution(rd);
     std::cout << "Sampled time for fault: " << t_fault_ << "\n";
 
-  }
-  else{
+  } else {
     t_fault_ = t_fault;
   }
   startTimeIteration_ = startTimeIteration;

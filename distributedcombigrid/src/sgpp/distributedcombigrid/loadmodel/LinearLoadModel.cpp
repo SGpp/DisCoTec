@@ -1,8 +1,8 @@
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 
-namespace combigrid{
+namespace combigrid {
 
-real LinearLoadModel::eval(const LevelVector& l) const {
+real LinearLoadModel::eval(const LevelVector& l) {
   real ret(1.0);
 
   for (size_t i = 0; i < l.size(); ++i) {
@@ -11,5 +11,4 @@ real LinearLoadModel::eval(const LevelVector& l) const {
 
   return ret;
 }
-
 }

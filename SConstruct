@@ -2,10 +2,12 @@
 # This file is part of the SG++ project. For conditions of distribution and
 # use, please see the copyright notice provided with SG++ or at
 # sgpp.sparsegrids.org
+from subprocess import call
+import os
+#call(os.path.join(os.getcwd(), 'adjust_examples.py'))
 
 import atexit
 import glob
-import os
 import pipes
 import platform
 import subprocess
@@ -16,7 +18,8 @@ from SCons.Script.SConscript import SConsEnvironment
 
 import Helper
 import SGppConfigure
-
+rootDirectory = str(Dir('#').abspath)
+print(rootDirectory)
 sys.stdout = Helper.Logger(sys.stdout)
 sys.stderr = Helper.Logger(sys.stderr)
 finalMessagePrinter = Helper.FinalMessagePrinter()
@@ -134,12 +137,20 @@ vars.Add(BoolVariable("USE_GMMPP", "Set if Gmm++ should be used " +
 vars.Add(BoolVariable("USE_UMFPACK", "Set if UMFPACK should be used " +
                                      "(only relevant for sgpp::optimization)", False))
 vars.Add(BoolVariable("DEBUG_OUTPUT", "Set if you want to have additional output for debugging ", False))
+vars.Add(BoolVariable("TIMING", "Set if you want to have timing output", True))
 vars.Add(BoolVariable("BUILD_STATICLIB", "Set if static libraries should be built " +
                                          "instead of shared libraries", False))
 vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing SG++", True))
-vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', '/usr/include')
-vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', '/usr/lib/x86_64-linux-gnu')
+vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', rootDirectory + "/glpk/include/")
+vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', rootDirectory + "/glpk/lib/")
 vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
+
+
+vars.Add(BoolVariable("USENONBLOCKINGMPICOLLECTIVE","Nonblocking mpi collective calls (MPI_Iallreduce and the likes)",True))
+vars.Add(BoolVariable("OMITREADYSIGNAL","Set to true to avoid that the ready signal is sent automatically",True))
+vars.Add(BoolVariable("UNIFORMDECOMPOSITION","To enable the uniform operations set this to true",True))
+vars.Add(BoolVariable("ENABLEFT","Switch on fault tolerance functionality",True))
+vars.Add(BoolVariable("ISGENE","",True))
 
 
 # create temporary environment to check which system and compiler we should use
@@ -163,7 +174,7 @@ finalMessagePrinter.env = env
 
 # fail if unknown variables where encountered on the command line
 unknownVariables = [var for var in vars.UnknownVariables()
-                    if var not in ["CXX", "CC", "CFLAGS", "CPPDEFINES"]]
+                    if var not in ["CXX", "CC", "FC", "CFLAGS", "CPPDEFINES"]]
 if len(unknownVariables) > 0:
   Helper.printErrorAndExit("The following command line variables could not be recognized:",
                            unknownVariables,
@@ -193,6 +204,9 @@ if "CXX" in ARGUMENTS:
 if "CC" in ARGUMENTS:
   Helper.printInfo("CC: {}".format(ARGUMENTS["CC"]))
   env["CC"] = ARGUMENTS["CC"]
+if "FC" in ARGUMENTS:
+  Helper.printInfo("FC: {}".format(ARGUMENTS["FC"]))
+  env["FC"] = ARGUMENTS["FC"]
 if "CPPFLAGS" in ARGUMENTS:
   env["CPPFLAGS"] = ARGUMENTS["CPPFLAGS"].split(",")
 if "CFLAGS" in ARGUMENTS:
@@ -353,7 +367,7 @@ def lintAction(target, source, env):
       parts = line.split(":  ")
       location = parts[0]
       message = ":  ".join(parts[1:])
-      print location + ": warning: " + message
+      print(location + ": warning: " + message)
   # touch file without writing anything
   # (to indicate for the next run of SCons that we already checked this file)
   with open(target[0].abspath, "w"): pass
@@ -372,7 +386,7 @@ if env["RUN_PYTHON_TESTS"] and env["SG_PYTHON"]:
 
 if env["COMPILE_BOOST_TESTS"]:
   proc_count = int(env["TEST_PROCESS_COUNT"])
-  run_cmd = "mpiexec -n %s " % proc_count if proc_count > 1 else ""
+  run_cmd = "mpiexec.mpich -np %s " % proc_count if proc_count > 1 else ""
   builder = Builder(action=run_cmd + "./$SOURCE")
   env.Append(BUILDERS={"BoostTest" : builder})
 
@@ -494,9 +508,9 @@ def printInstructions(target, source, env):
 
   with open(filename) as f:
     instructionsTemplate = string.Template(f.read())
-    print
-    print instructionsTemplate.safe_substitute(SGPP_BUILD_PATH=BUILD_DIR.abspath,
-                                               PYSGPP_PACKAGE_PATH=PYSGPP_PACKAGE_PATH.abspath)
+    print()
+    print(instructionsTemplate.safe_substitute(SGPP_BUILD_PATH=BUILD_DIR.abspath,
+                                               PYSGPP_PACKAGE_PATH=PYSGPP_PACKAGE_PATH.abspath))
 
 if env["PRINT_INSTRUCTIONS"]:
     printInstructionsTarget = env.Command("printInstructions", [], printInstructions)
@@ -545,6 +559,8 @@ for module in moduleFolders:
 
 # Default targets
 #########################################################################
+call([os.path.join(os.getcwd(),'adjust_examples.py'),  config.env["CXX"],  config.env["FC"], config.env["CC"]])
+
 
 finalMessagePrinter.sgppBuildPath = BUILD_DIR.abspath
 finalMessagePrinter.pysgppPackagePath = PYSGPP_PACKAGE_PATH.abspath

@@ -8,14 +8,16 @@
 #ifndef LOADMODEL_HPP_
 #define LOADMODEL_HPP_
 
-#include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
+#include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 namespace combigrid {
 
 class LoadModel {
-public:
-  virtual real eval(const LevelVector& l) const = 0;
+ public:
+  virtual ~LoadModel() = default;
+  virtual real eval(const LevelVector& l) = 0;
+
 };
 
 } /* namespace combigrid */

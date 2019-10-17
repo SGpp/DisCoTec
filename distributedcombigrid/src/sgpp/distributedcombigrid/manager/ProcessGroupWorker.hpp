@@ -8,13 +8,14 @@
 #ifndef PROCESSGROUPWORKER_HPP_
 #define PROCESSGROUPWORKER_HPP_
 
+#include <chrono>
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
-#include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
-#include <chrono>
+#include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 
 namespace combigrid {
 
@@ -22,9 +23,9 @@ class ProcessGroupWorker {
  public:
   explicit ProcessGroupWorker();
 
-  ProcessGroupWorker( ProcessGroupWorker const & ) = delete;
+  ProcessGroupWorker(ProcessGroupWorker const&) = delete;
 
-  ProcessGroupWorker& operator=( ProcessGroupWorker const & ) = delete;
+  ProcessGroupWorker& operator=(ProcessGroupWorker const&) = delete;
 
   ~ProcessGroupWorker();
 
@@ -34,75 +35,75 @@ class ProcessGroupWorker {
   // send ready signal to manager
   void ready();
 
-  //decides if current Task needs to be killed
+  // decides if current Task needs to be killed
   void decideToKill();
 
   // todo: maybe only needed for gene?
   inline Task* getCurrentTask();
 
-  //Perform combination
+  // Perform combination
   void combine();
 
-  //combine on sparse grid with uniform decomposition of domain
+  // combine on sparse grid with uniform decomposition of domain
   void combineUniform();
 
-  //combine on sparse grid with uniform decomposition of domain with noblocking reduce
+  // combine on sparse grid with uniform decomposition of domain with noblocking reduce
   void combineUniformAsync();
 
-  //combine on sparse grid with uniform decomposition of domain with noblocking reduce
+  // combine on sparse grid with uniform decomposition of domain with noblocking reduce
   bool isDistributedGlobalReduceAsyncCompleted();
 
-  //Initialization of noblocking reduce
+  // Initialization of noblocking reduce
   void combineUniformAsyncInitHierarchizeReduce();
 
-  //Termination of noblocking reduce
+  // Termination of noblocking reduce
   void combineUniformAsyncHierarchizeUpdate();
 
-  //combine on sparse grid with uniform decomposition of domain with noblocking reduce
+  // combine on sparse grid with uniform decomposition of domain with noblocking reduce
   void combineUniformAsyncOddEven();
 
-  //combine on sparse grid with uniform decomposition of domain with noblocking reduce
+  // combine on sparse grid with uniform decomposition of domain with noblocking reduce
   bool isDistributedGlobalReduceAsyncOddEvenCompleted(bool isEven);
-  //Initialization of noblocking reduce
+  // Initialization of noblocking reduce
   void combineUniformAsyncOddEvenInitHierarchizeReduce(bool isEven, bool isLast);
 
-  //Termination of noblocking reduce
+  // Termination of noblocking reduce
   void combineUniformAsyncOddEvenHierarchizeUpdate(bool isEven, bool isFirst);
 
 
-  //outdated!
+  // outdated!
   void combineFG();
 
   void gridEval();
 
-  //parallel file io of final output grid
+  // parallel file io of final output grid
   void parallelEval();
 
-  //parallel file io of final output grid for uniform decomposition
+  // parallel file io of final output grid for uniform decomposition
   void parallelEvalUniform();
 
-  //update combination parameters (for init or after change in FTCT)
+  // update combination parameters (for init or after change in FTCT)
   void updateCombiParameters();
 
-  //returns the combi parameters
+  // returns the combi parameters
   inline CombiParameters& getCombiParameters();
 
-  //initializes the component grid from the sparse grid; used to reinitialize tasks after fault
-  void setCombinedSolutionUniform( Task* t );
+  // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
+  void setCombinedSolutionUniform(Task* t);
 
  private:
-  TaskContainer tasks_; // task storage
+  TaskContainer tasks_;  // task storage
 
-  Task* currentTask_; //task that is currently processed
+  Task* currentTask_;  // task that is currently processed
 
-  StatusType status_; //current status of process group (wait -> 0; busy -> 1; fail -> 2)
+  StatusType status_;  // current status of process group (wait -> 0; busy -> 1; fail -> 2)
 
   FullGrid<complex>* combinedFG_;
 
   /**
    * Vector containing all distributed sparse grids
    */
-  std::vector<DistributedSparseGridUniform<CombiDataType>*> combinedUniDSGVector_;
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;
 
   /**
    * Vector containing all distributed sparse grids
@@ -113,26 +114,26 @@ class ProcessGroupWorker {
 
   CombiParameters combiParameters_;
 
-  bool combiParametersSet_; //indicates if combi parameters variable set
+  bool combiParametersSet_;  // indicates if combi parameters variable set
 
-  //fault parameters
-  real t_fault_; //time to fault
+  // fault parameters
+  real t_fault_;  // time to fault
 
-  IndexType currentCombi_; //current combination; increased after every combination
+  IndexType currentCombi_;  // current combination; increased after every combination
 
-  std::chrono::high_resolution_clock::time_point  startTimeIteration_; //starting time of process computation
+  std::chrono::high_resolution_clock::time_point
+      startTimeIteration_;  // starting time of process computation
 
-  //std::ofstream betasFile_;
+  // std::ofstream betasFile_;
 
+  void initializeTaskAndFaults(bool mayAlreadyExist = true);
+
+  void processDuration(const Task& t, const Stats::Event e, size_t numProcs);
 };
 
+inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
 
-inline Task* ProcessGroupWorker::getCurrentTask() {
-  return currentTask_;
-}
-
-
-inline CombiParameters& ProcessGroupWorker::getCombiParameters(){
+inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
   assert(combiParametersSet_);
 
   return combiParameters_;

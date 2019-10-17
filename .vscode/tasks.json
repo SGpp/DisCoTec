@@ -1,0 +1,348 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "scons build",
+            "command": "python2",
+            // "command": "scons",
+            "type": "shell",
+            "group": "build",
+            // "options": {
+            //     "cwd": "${workspaceRoot}"
+            // },
+            "presentation": {
+                "reveal": "always"
+            },
+            "args": [
+                "/usr/bin/scons",
+                "-j8",
+                "SG_JAVA=0",
+                "COMPILE_BOOST_TESTS=1",
+                "SG_ALL=0 ",
+                "SG_DISTRIBUTEDCOMBIGRID=1 ",
+                "VERBOSE=1",
+                "RUN_BOOST_TESTS=0",
+                "RUN_CPPLINT=0",
+                "BUILD_STATICLIB=0",
+                "COMPILER=mpich",
+                "FC=mpifort.mpich",
+                "CC=mpicc.mpich",
+                "CXX=mpicxx.mpich",
+                "TIMING=0",
+                "OPT=1",
+                "CPPFLAGS=-g",
+                "GLPK_LIBRARY_PATH=${workspaceRoot}/glpk/lib",
+                "GLPK_INCLUDE_PATH=${workspaceRoot}/glpk/include"
+            ],
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceRoot}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },
+        {
+            "label": "scons clean",
+            "type": "shell",
+            "command": "python2 /usr/bin/scons -c FC=gfort && rm -r .scon*",
+            // "command": "scons -c FC=gfort && rm -r .scon*",
+            "group": "build"
+        },
+        {
+            "label": "boost tests",
+            "command": "mpirun.mpich",
+            "type": "shell",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
+            },
+            "args": [
+                "-n",
+                "9",
+                "-l",
+                //xterm -e gdb 
+                "${workspaceRoot}/distributedcombigrid/tests/test_distributedcombigrid_boost",
+                // "--run_test=loadmodel"
+            ],
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:${workspaceRoot}/../hlrs-tools/glpk/lib:$LD_LIBRARY_PATH"
+                }
+            }
+        },
+        {
+            "label": "make combi_example",
+            "command": "make clean && make && ./run.sh",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/combi_example"
+            }
+        },
+        {
+            "label": "make combi_example_faults",
+            "command": "make && ./run.sh",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:${workspaceRoot}/../hlrs-tools/glpk/lib:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/combi_example_faults"
+            }
+        },
+        {
+            "label": "combi_example_faults_test_1",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim test_ft_sim.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 5 ./test_ft_sim 2",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/combi_example_faults"
+            }
+        },
+        {
+            "label": "combi_example_faults_test_2",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_2 test_ft_sim_2.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 2 ./test_ft_sim_2 1",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/combi_example_faults"
+            }
+        },
+        {
+            "label": "combi_example_faults_test_3",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_3 test_ft_sim_3.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 4 ./test_ft_sim_3 1",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/combi_example_faults"
+            }
+        },
+        {
+            "label": "combi_example_faults_test_4",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o test_ft_sim_4 test_ft_sim_4.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 4 ./test_ft_sim_4 1",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/combi_example_faults"
+            }
+        },
+        {
+            "label": "make gene_example",
+            "command": "make && ./run.sh",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_example"
+            }
+        },
+        {
+            "label": "make & run gene_distributed",
+            "command": "make -j8 && ./run.sh",  // make sure makefile does what we want //TODO timing
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH",
+                    "PYTHONPATH": "${workspaceRoot}/../gene_python_interface_clean/src:$PYTHONPATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed"
+            },
+            "problemMatcher": {
+                "owner": "cpp",
+                "fileLocation": [
+                    "relative",
+                    "${workspaceRoot}"
+                ],
+                "pattern": {
+                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "column": 3,
+                    "severity": 4,
+                    "message": 5
+                }
+            }
+        },  
+        {
+            "label": "clean gene_distributed",
+            "command": "make clean", 
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed"
+            }
+        },         
+        {
+            "label": "make gene-non-linear",
+            "command": "make -j8", // make sure makefile does what we want
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH",
+                },
+                "cwd": "${workspaceRoot}/gene-non-linear"
+            }
+        },    
+        {
+            "label": "clean gene-non-linear",
+            "command": "make distclean",
+            "type": "shell",
+            "group": "test",
+            "options": {
+                "cwd": "${workspaceRoot}/gene-non-linear"
+            }
+        }, 
+        {
+            "label": "base start.bat",
+            "command": "mpirun.mpich -n 4 ./gene_new_machine :  -n 1 ./manager",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:${workspaceRoot}/distributedcombigrid/examples/gene_distributed/lib:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed/ginstance"
+            }
+        },
+        { // this is how to currently build the distributed combi with gene
+            "label": "Full gene_distributed",
+            "dependsOn": [
+                "make gene-non-linear",
+                "make & run gene_distributed",
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "Clean full gene_distributed",
+            "dependsOn": [
+                "clean gene-non-linear",
+                "clean e",
+            ],
+            "presentation": {
+                "reveal": "always"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "make gene_distributed testBoundaryZ",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o testBoundaryZ testBoundaryZ.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 4 ./testBoundaryZ test_fg.dat .",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed/tools"
+            }
+        },
+        {
+            "label": "make gene_distributed testDistributedHierarchization",
+            "command": "mpicxx.mpich -std=c++11 -g -fopenmp -Wall -L${workspaceRoot}/lib/sgpp -I${workspaceRoot}/distributedcombigrid/src/  -o testDistributedHierarchization testDistributedHierarchization.cpp -lsgppdistributedcombigrid -lboost_serialization && mpirun.mpich -n 2 ./testDistributedHierarchization",
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH",
+                    "PYTHONPATH": "${workspaceRoot}/lib:$PYTHONPATH"
+                },
+                "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed/tools"
+            }
+        },
+        {
+            "label": "run gene-dev-exahd",
+            "command": "mkdir -p out && mpiexec.mpich -n 8 ./gene_new_machine", 
+            "type": "shell",
+            "group": "test",
+            "presentation": {
+                "reveal": "always"
+            },
+            "options": {
+                "env": {
+                    "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:${workspaceRoot}/distributedcombigrid/examples/gene_distributed/lib:$LD_LIBRARY_PATH",
+                    "PYTHONPATH": "${workspaceRoot}/lib:$PYTHONPATH"
+                },
+                "cwd": "${workspaceRoot}/../gene-dev-exahd/prob01" //put parameters file into that folder too
+            }
+        }
+    ]
+}
