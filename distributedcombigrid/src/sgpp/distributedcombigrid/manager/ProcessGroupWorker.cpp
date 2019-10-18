@@ -717,18 +717,13 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
 #endif
 
   //delete old dsgs
-  for(int g=0; g<combinedUniDSGVector_.size(); g++){
-
-    if (combinedUniDSGVector_[g] != NULL)
-      delete combinedUniDSGVector_[g];
-  }
   combinedUniDSGVector_.clear();
   // erzeug dsgs
   combinedUniDSGVector_.resize(numGrids);
-  for(int g=0; g<numGrids; g++){
-    combinedUniDSGVector_[g] = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
-      lmin, boundary,
-      theMPISystem()->getLocalComm());
+  for (auto& uniDSG : combinedUniDSGVector_) {
+    uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
+                                                        theMPISystem()->getLocalComm()));
   }
   // todo: move to init function to avoid reregistering
   // register dsgs in all dfgs
@@ -874,12 +869,7 @@ void ProcessGroupWorker::combineUniformAsyncOddEvenInitHierarchizeReduce(bool is
 
   reduceSparseGridCoefficients(lmax,lmin,combiParameters_.getNumberOfCombinations(),currentCombi_,
       combiParameters_.getLMinReductionVector(), combiParameters_.getLMaxReductionVector());
-  /*for (size_t i = 0; i < lmax.size(); ++i)
-        if (lmin[i] > 1)
-          lmin[i] -= 01;
-  for (size_t i = 0; i < lmax.size(); ++i)
-      lmax[i] = std::max(lmin[i],lmax[i] - 2);
-  */
+
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION{
     std::cout << "lmin: "<< lmin << std::endl;
@@ -887,21 +877,16 @@ void ProcessGroupWorker::combineUniformAsyncOddEvenInitHierarchizeReduce(bool is
   }
 #endif
 
-  std::vector<DistributedSparseGridUniform<CombiDataType>*> & combinedUniDSGVectorOddEven = ((isEven)? combinedUniDSGVector_ : combinedUniDSGVector2_);
+  auto combinedUniDSGVectorOddEven = ((isEven)? & combinedUniDSGVector2_ : & combinedUniDSGVector_);
 
   //delete old dsgs
-  for(int g=0; g<combinedUniDSGVectorOddEven.size(); g++){
-
-    if (combinedUniDSGVectorOddEven[g] != NULL)
-      delete combinedUniDSGVectorOddEven[g];
-  }
-  combinedUniDSGVectorOddEven.clear();
+  combinedUniDSGVectorOddEven->clear();
   // erzeug dsgs
-  combinedUniDSGVectorOddEven.resize(numGrids);
-  for(int g=0; g<numGrids; g++){
-    combinedUniDSGVectorOddEven[g] = new DistributedSparseGridUniform<CombiDataType>(dim, lmax,
-      lmin, boundary,
-      theMPISystem()->getLocalComm());
+  combinedUniDSGVectorOddEven->resize(numGrids);
+  for (auto& uniDSG : *combinedUniDSGVectorOddEven) {
+    uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
+                                                        theMPISystem()->getLocalComm()));
   }
   // todo: move to init function to avoid reregistering
   // register dsgs in all dfgs
@@ -910,7 +895,7 @@ void ProcessGroupWorker::combineUniformAsyncOddEvenInitHierarchizeReduce(bool is
 
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
-      dfg.registerUniformSG(*(combinedUniDSGVectorOddEven[g]));
+      dfg.registerUniformSG(*((*combinedUniDSGVectorOddEven)[g]));
     }
   }
   Stats::stopEvent("combine init");
@@ -930,7 +915,7 @@ void ProcessGroupWorker::combineUniformAsyncOddEvenInitHierarchizeReduce(bool is
           dfg, combiParameters_.getHierarchizationDims() );
 
       // lokales reduce auf sg ->
-      dfg.addToUniformSG( *combinedUniDSGVectorOddEven[g], combiParameters_.getCoeff( t->getID() ) );
+      dfg.addToUniformSG( *(*combinedUniDSGVectorOddEven)[g], combiParameters_.getCoeff( t->getID() ) );
 #ifdef DEBUG_OUTPUT
       std::cout << "Combination: added task " << t->getID() << " with coefficient " << combiParameters_.getCoeff( t->getID() ) <<"\n";
 #endif
@@ -958,14 +943,14 @@ void ProcessGroupWorker::combineUniformAsyncOddEvenInitHierarchizeReduce(bool is
       }
     }
     for(int g=0; g<numGrids; g++){
-      CombiCom::distributedGlobalReduceAsyncInit( *combinedUniDSGVectorOddEven[g], Task::subspaceSizes[g], Task::bufAsyncEven[g], Task::requestAsyncEven[g]);
+      CombiCom::distributedGlobalReduceAsyncInit( *(*combinedUniDSGVectorOddEven)[g], Task::subspaceSizes[g], Task::bufAsyncEven[g], Task::requestAsyncEven[g]);
     }
   }else{
     Task::requestAsyncOdd = new MPI_Request[numGrids];
     Task::bufAsyncOdd = new std::vector<CombiDataType>[numGrids];
 
     for(int g=0; g<numGrids; g++){
-      CombiCom::distributedGlobalReduceAsyncInit( *combinedUniDSGVectorOddEven[g], Task::subspaceSizes[g], Task::bufAsyncOdd[g], Task::requestAsyncOdd[g]);
+      CombiCom::distributedGlobalReduceAsyncInit( *(*combinedUniDSGVectorOddEven)[g], Task::subspaceSizes[g], Task::bufAsyncOdd[g], Task::requestAsyncOdd[g]);
     }
   }
 
@@ -974,7 +959,7 @@ void ProcessGroupWorker::combineUniformAsyncOddEvenInitHierarchizeReduce(bool is
 
 void ProcessGroupWorker::combineUniformAsyncOddEvenHierarchizeUpdate(bool isEven, bool isFirst){
 
-  std::vector<DistributedSparseGridUniform<CombiDataType>*> & combinedUniDSGVectorOddEven = ((isEven)? combinedUniDSGVector2_ : combinedUniDSGVector_);
+  auto combinedUniDSGVectorOddEven = ((isEven)? & combinedUniDSGVector2_ : & combinedUniDSGVector_);
 
   //std::vector<CombiDataType> afterCombi;
 
@@ -1003,11 +988,11 @@ void ProcessGroupWorker::combineUniformAsyncOddEvenHierarchizeUpdate(bool isEven
   Stats::startEvent("combine global reduce extract");
   if(isEven){
     for(int g=0; g<numGrids; g++){
-      CombiCom::distributedGlobalReduceAsyncExtractSubspace( *combinedUniDSGVectorOddEven[g], Task::subspaceSizes[g], Task::bufAsyncOdd[g] );
+      CombiCom::distributedGlobalReduceAsyncExtractSubspace( *(*combinedUniDSGVectorOddEven)[g], Task::subspaceSizes[g], Task::bufAsyncOdd[g] );
     }
   } else{
     for(int g=0; g<numGrids; g++){
-      CombiCom::distributedGlobalReduceAsyncExtractSubspace( *combinedUniDSGVectorOddEven[g], Task::subspaceSizes[g], Task::bufAsyncEven[g] );
+      CombiCom::distributedGlobalReduceAsyncExtractSubspace( *(*combinedUniDSGVectorOddEven)[g], Task::subspaceSizes[g], Task::bufAsyncEven[g] );
     }
   }
 
@@ -1021,7 +1006,7 @@ void ProcessGroupWorker::combineUniformAsyncOddEvenHierarchizeUpdate(bool isEven
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
       // extract dfg vom dsg
-      dfg.extractFromUniformSG( *combinedUniDSGVectorOddEven[g] );
+      dfg.extractFromUniformSG( *(*combinedUniDSGVectorOddEven)[g] );
 
       // dehierarchize dfg
       DistributedHierarchization::dehierarchize<CombiDataType>(

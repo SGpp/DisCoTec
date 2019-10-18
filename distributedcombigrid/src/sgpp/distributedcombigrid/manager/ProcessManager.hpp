@@ -49,6 +49,10 @@ class ProcessManager {
 
   inline void combine();
 
+  inline void combineAsync();
+
+  inline void combineAsyncOddEven();
+
   template <typename FG_ELEMENT>
   inline void combineFG(FullGrid<FG_ELEMENT>& fg);
 
