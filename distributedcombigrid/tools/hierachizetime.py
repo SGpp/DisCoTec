@@ -42,7 +42,7 @@ for i in range(len(data)-1):
 	durations.append([])
 	dtimes.append(data[r]["events"]["combine dehierarchize"])
 	ddurations.append([])
-	o_htimes.append(data[r]["events"]["only hierarchize"])
+	o_htimes.append(data[r]["events"]["only hierarchize"])#["zerosub"])#
 	o_durations.append([])
 	o_dtimes.append(data[r]["events"]["only dehierarchize"])
 	o_ddurations.append([])
@@ -82,6 +82,14 @@ print("Only Dehierachize")
 for i in range(len(o_dtimes)):
 	print(i,": ", sum(o_ddurations[i])/(1000*len(dtimes[i])),"ms\t")
 
+print("Only H short times")
+for i in o_durations:
+	print("  ")
+	for j in range(len(i)):
+		if j%(len(i)/10)==(len(i)/10)-1:
+			print(i[j])
+		else:
+			print(i[j],end=' ')
 
 for i in range (2,len(sys.argv)):
 	extratag=sys.argv[i]

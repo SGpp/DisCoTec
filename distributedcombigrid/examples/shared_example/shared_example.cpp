@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
     std::cout <<"HOST rank"<<theMPISystem()->getWorldRank()<<" on node "<<hostname<<std::endl;
     Stats::startEvent("total time");
     /* create an abstraction of the process groups for the manager's view
-    * a pgroup is identified by the ID in gcomm
+     * a pgroup is identified by the ID in gcomm
      */
     ProcessGroupManagerContainer pgroups;
     for (size_t i = 0; i < ngroup; ++i) {

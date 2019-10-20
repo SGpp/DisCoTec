@@ -17,24 +17,34 @@ while argi<argc and argv[argi][0]!="-":
 #print ("filenames",filenames)
 
 useMaxMax=False
-options,events= getopt.getopt(argv[argi:],"ACDGHOm")
+combine =False
+specialevents=[]
+sortingId=1
+options,events= getopt.getopt(argv[argi:],"ACDEGHOms")
 for i,j in options:
 	if i=='-H':
 		events.append("combine hierarchize")
 	elif i=='-D':
 		events.append("combine dehierarchize")
 	elif i=='-O':
-		events.append("only hierarchize")
-		events.append("only dehierarchize")
+		specialevents.append("only hierarchize")
+		specialevents.append("only dehierarchize")
+		onlyhier=True
 	elif i=='-A':
 		events.append("combine_allreduce")
 	elif i=='-G':
 		events.append("combine global reduce")
 	elif i=='-C':
-		events.append("combine")
+		#events.append("combine")
+		combine=True
 	elif i=='-m':
 		useMaxMax=True
-
+	elif i=='-s':
+		sortingId=0#sorts after file name
+	elif i=='-E':
+		specialevents.append("extSG")
+		specialevents.append("addSG")
+steps=10
 
 # define functions
 		 
@@ -79,6 +89,27 @@ def collectavgmax(outlist,durlist):
 		tmp.append(imax)
 	return statistics.mean(tmp)
 
+def collectavgmaxspecial(outlist,durlist,steps_):
+	tmp=[]
+	dlist=[]
+	for i in range(len(durlist)):
+		tasksperp=len(durlist[i])//steps_
+		chunks = [durlist[i][x:x+tasksperp] for x in range(0, len(durlist[i]), tasksperp)]
+		if len(chunks) != steps_:
+			print("Error:",len(chunks))
+		dlist.append([sum(chunks[x]) for x in range(len(chunks))])
+	
+
+	for j in range(len(dlist[0])):
+		imax=0
+		for i in range(len(dlist)):
+			imax =max((imax,dlist[i][j]))
+		tmp.append(imax)
+	return statistics.mean(tmp)
+
+
+
+
 
 
 dataset=[]
@@ -86,13 +117,29 @@ for f in filenames:
 	dataset.append((f,json.load(open(f))))
 
 totaltimes=[]
+combitime=[]
 for f,data in dataset:
 	totaltimes.append((f,(data["rank" +str(len(data)-1)]["events"]["total time"][0][1]-data["rank"+str(len(data)-1)]["events"]["total time"][0][0])/1000000))
+	ctemp= [0]*steps
+	for i in range (steps):
+		ctemp[i]=(data["rank" +str(len(data)-1)]["events"]["combine"][i][1]-data["rank"+str(len(data)-1)]["events"]["combine"][i][0])/1000
+	combitime.append((f,statistics.mean(ctemp)))
 
-print("Total times")
-totaltimes.sort(key=lambda x:x[1])
+
+
+
+print("Total time")
+totaltimes.sort(key=lambda x:x[sortingId])
 for f,time in totaltimes:
 	print(f,"  ",time,"s")
+
+
+if(combine):
+	print("\n combine:")
+	combitime.sort(key=lambda x:x[sortingId])
+	for f,time in combitime:
+		print(f,"  ",time,"ms")
+	
 
 slist=[]
 for e in events:
@@ -107,8 +154,26 @@ for e in events:
 			flist.append((f,collectavgmax(ext1,ext2)))
 	slist.append((e,flist))
 
+for e in specialevents:
+	flist=[]
+	for f,data in dataset:
+		ext1=[]
+		ext2=[]
+		gather_stats(e,ext1,ext2,data)
+		if useMaxMax:
+			flist.append((f,collectmax(ext1,ext2)))
+			print("maxmax not supported for",e)
+		else:
+			flist.append((f,collectavgmaxspecial(ext1,ext2,steps)))
+	slist.append((e,flist))
+
+
+
+
+
+
 for e,fl in slist:
 	print("\n",e)
-	res=sorted(fl,key=lambda x:x[1])
+	res=sorted(fl,key=lambda x:x[sortingId])
 	for f,time in res:
 		print(f,"  ",time/1000,"ms")

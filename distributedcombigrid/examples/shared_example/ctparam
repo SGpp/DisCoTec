@@ -11,6 +11,6 @@ dt = 1e-3
 nsteps = 1
 
 [manager]
-ngroup = 3
+ngroup = 1
 nprocs = 1
 nthreads=1 

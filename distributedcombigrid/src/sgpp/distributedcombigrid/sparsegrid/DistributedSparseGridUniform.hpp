@@ -298,6 +298,7 @@ template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::zeroOutSubspaces() {
   #pragma omp parallel for schedule(dynamic,4)
   for (size_t i = 0; i < subspaces_.size(); ++i) {
+    #pragma omp simd
     for (size_t j = 0; j < subspaces_[i].data_.size(); j++)
     {
       subspaces_[i].data_[j]=0;

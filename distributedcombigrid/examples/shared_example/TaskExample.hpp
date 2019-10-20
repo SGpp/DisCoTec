@@ -84,8 +84,8 @@ class TaskExample : public Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
     if (lrank == 0) {
-      std::cout << "init task " << this->getID() << " with l = " << this->getLevelVector()
-                << " and p = " << p << "size "<< (sizeof(CombiDataType)* dfg_->getNrElements()/1024)/1024.0 <<"mib"<< std::endl;
+      std::cout << "init task " << this->getID() << " on groupmanager="<<theMPISystem()->getGlobalRank() <<" with l = " << this->getLevelVector()
+                << " and p = " << p << "size ="<< (sizeof(CombiDataType)* dfg_->getNrElements()/1024)/1024.0 <<"mib"<< std::endl;
     }
     /* loop over local subgrid and set initial values */
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
