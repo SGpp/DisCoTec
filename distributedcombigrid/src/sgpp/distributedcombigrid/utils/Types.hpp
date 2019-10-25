@@ -8,6 +8,22 @@
 #include <vector>
 #include <stdexcept>
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
+#include <stdint.h>
+#include <limits.h>
+
+#if SIZE_MAX == UCHAR_MAX
+   #define MPI_SIZE_T MPI_UNSIGNED_CHAR
+#elif SIZE_MAX == USHRT_MAX
+   #define MPI_SIZE_T MPI_UNSIGNED_SHORT
+#elif SIZE_MAX == UINT_MAX
+   #define MPI_SIZE_T MPI_UNSIGNED
+#elif SIZE_MAX == ULONG_MAX
+   #define MPI_SIZE_T MPI_UNSIGNED_LONG
+#elif SIZE_MAX == ULLONG_MAX
+   #define MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
+#else
+   #error "size_t is some strange datatype"
+#endif
 
 /* only change these types of if you know what you're doing! */
 
@@ -34,7 +50,8 @@ typedef enum {
   type_float,
   type_double,
   type_double_complex,
-  type_float_complex
+  type_float_complex,
+  type_size_t
 } DataType;
 
 template <class T>
@@ -62,6 +79,11 @@ inline DataType getabstractionDataType<std::complex<float> >() {
   return abstraction::type_float_complex;
 }
 
+template <>
+inline DataType getabstractionDataType<size_t>() {
+  return abstraction::type_size_t;
+}
+
 inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
   switch (type) {
     case abstraction::type_float:
@@ -75,6 +97,9 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
 
     case abstraction::type_float_complex:
       return MPI_COMPLEX;
+
+    case abstraction::type_size_t:
+      return MPI_SIZE_T;
 
     case abstraction::type_unknown:
       throw new std::invalid_argument("Type unknown ConvertType!");
