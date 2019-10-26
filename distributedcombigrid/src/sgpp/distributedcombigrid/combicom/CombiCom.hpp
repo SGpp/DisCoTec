@@ -797,29 +797,33 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   {
     //typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
     Stats::startEvent("grcopy");
+    #ifdef HYBRID_OMP
     #pragma omp parallel 
+    #endif
     {
-    #pragma omp for schedule(dynamic,4) 
-    for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
-      std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
-      IndexType buf_ind=subspaceStarts[i];
+      #ifdef HYBRID_OMP
+      #pragma omp for schedule(dynamic,4) 
+      #endif
+      for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
+        std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
+        IndexType buf_ind=subspaceStarts[i];
 
-      // if subspace does not exist on this process this part of the buffer is
-      // left empty
-      
-      if (subspaceData.size() == 0) {
-        #pragma omp simd
-        for (size_t j = 0; j < subspaceSizes[i]; ++j) {
-          buf[buf_ind+j] = FG_ELEMENT(0);
+        // if subspace does not exist on this process this part of the buffer is
+        // left empty
+        
+        if (subspaceData.size() == 0) {
+          #pragma omp simd
+          for (size_t j = 0; j < subspaceSizes[i]; ++j) {
+            buf[buf_ind+j] = FG_ELEMENT(0);
+          }
+          continue;
         }
-        continue;
-      }
 
-      #pragma omp simd
-      for (size_t j = 0; j < subspaceData.size(); ++j) {
-        buf[buf_ind+j] = subspaceData[j];
+        #pragma omp simd
+        for (size_t j = 0; j < subspaceData.size(); ++j) {
+          buf[buf_ind+j] = subspaceData[j];
+        }
       }
-    }
     /*
     #pragma omp critical
     {
@@ -851,12 +855,16 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
     startIndeces[numParallelMPI]=bsize;
     if(!mpisys->isAsyncGlobalReduce())
     {
+      #ifdef HYBRID_OMP
       #pragma omp parallel for num_threads(numParallelMPI)
       for(int i=0;i<numParallelMPI;i++)
       {
         std::cout <<i<<": start "<<startIndeces[i]<<" end "<< startIndeces[i+1]<<"\n";
         MPI_Allreduce(MPI_IN_PLACE, &buf[startIndeces[i]], startIndeces[i+1]-startIndeces[i], dtype, MPI_SUM, mpisys->getGlobalReduceParComm()[i]);
       }
+      #else
+        assert(false&&"multithreaded MPI_Allreduce is only supported with OpenMp support enabled");
+      #endif
     }else {
       std::vector<MPI_Request> reqs(numParallelMPI);
 
@@ -874,7 +882,9 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   {
     //typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
     Stats::startEvent("grcopyback");
+    #ifdef HYBRID_OMP
     #pragma omp parallel for schedule(dynamic,4)
+    #endif
     for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
       std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
       IndexType buf_ind=subspaceStarts[i];

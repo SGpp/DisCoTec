@@ -794,6 +794,37 @@ class DistributedFullGrid {
   void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
     // test if dsg has already been registered
     if (&dsg != dsg_) registerUniformSG(dsg);
+    
+    #ifndef HYBRID_OMP
+    //TODO insert master
+      typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
+      typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList_.size());
+
+      for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
+        if (subspaceAssigmentList_[subFgId] < 0) continue;
+
+        IndexType subSgId = subspaceAssigmentList_[subFgId];
+
+        it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
+      }
+
+      for (size_t i = 0; i < fullgridVector_.size(); ++i) {
+        // get subspace_fg id
+        size_t subFgId(assigmentList_[i]);
+
+        if (subspaceAssigmentList_[subFgId] < 0) continue;
+
+        IndexType subSgId = subspaceAssigmentList_[subFgId];
+
+        assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
+
+        // add grid point to subspace, mul with coeff
+        *it_sub[subFgId] += coeff * fullgridVector_[i];
+
+        ++it_sub[subFgId];
+
+      }
+    #else
     #pragma omp parallel
     {
       int tId=omp_get_thread_num();
@@ -830,25 +861,48 @@ class DistributedFullGrid {
         ++it_sub[subFgId];
       }
     }
+    #endif
   }
 
   void extractFromUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     // test if dsg has already been registered
     if (&dsg != dsg_) registerUniformSG(dsg);
 
-    /**
-    // create iterator for each subspace in dfg
-    typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
-    typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList_.size());
+    #ifndef HYBRID_OMP
+      // create iterator for each subspace in dfg
+      typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
+      typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList_.size());
 
-    for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
-      if (subspaceAssigmentList_[subFgId] < 0) continue;
+      for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
+        if (subspaceAssigmentList_[subFgId] < 0) continue;
 
-      IndexType subSgId = subspaceAssigmentList_[subFgId];
+        IndexType subSgId = subspaceAssigmentList_[subFgId];
 
-      it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
-    }*/
+        it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
+      }
 
+      // loop over all grid points
+      for (size_t i = 0; i < fullgridVector_.size(); ++i) {
+        // get subspace_fg id
+        size_t subFgId(assigmentList_[i]);
+
+        IndexType subSgId = subspaceAssigmentList_[subFgId];
+
+        // coefficients that are not included in sparse grid solution are not changed as they
+        // store information from subspaces that are contained in dfg of the component grid
+        if (subSgId < 0) {
+          //fullgridVector_[i] = FG_ELEMENT(0);
+          continue;
+        }
+
+        assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
+
+        // copy add grid point to subspace, mul with coeff
+        fullgridVector_[i] = *it_sub[subFgId];
+
+        ++it_sub[subFgId];
+      }
+    #else
      /* 
     std::cout <<"\nxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
     for(int i=0;i<assigmentList_.size();i++)
@@ -896,29 +950,8 @@ class DistributedFullGrid {
         ++it_sub[subFgId];
       }
     }
+    #endif
     
-    /* reenable for
-    // loop over all grid points
-    for (size_t i = 0; i < fullgridVector_.size(); ++i) {
-      // get subspace_fg id
-      size_t subFgId(assigmentList_[i]);
-
-      IndexType subSgId = subspaceAssigmentList_[subFgId];
-
-      // coefficients that are not included in sparse grid solution are not changed as they
-      // store information from subspaces that are contained in dfg of the component grid
-      if (subSgId < 0) {
-        //fullgridVector_[i] = FG_ELEMENT(0);
-        continue;
-      }
-
-      assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
-
-      // copy add grid point to subspace, mul with coeff
-      fullgridVector_[i] = *it_sub[subFgId];
-
-      ++it_sub[subFgId];//!  parallelize
-    }*/ 
   }
 
   void writeBackSubspaces() {
@@ -1741,6 +1774,7 @@ class DistributedFullGrid {
    */
   void calcThreadAssignmentStart()
   {
+    #ifdef HYBRID_OMP
     int numThreads=omp_get_max_threads();
     threadStarts_.resize(numThreads+1);
     threadAssignmentListStart_.resize(numThreads);
@@ -1771,6 +1805,7 @@ class DistributedFullGrid {
         threadAssignmentListStart_[i][j]+=threadAssignmentListStart_[i-1][j];
       }
     }
+    #endif
   }  
 
 

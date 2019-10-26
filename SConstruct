@@ -144,7 +144,8 @@ vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing S
 vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', rootDirectory + "/glpk/include/")
 vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', rootDirectory + "/glpk/lib/")
 vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
-vars.Add("TEST_THREAD_COUNT", "How many Threads per processes are used for parallel test cases", "1")
+vars.Add("TEST_THREAD_COUNT", "How many Threads per processes are used for parallel test cases", "1")#TODO As the pure MPI-test already use openMP for comparison
+vars.Add(BoolVariable("USE_HYBRID_OPENMP","Enables additional parallelization with OpenMP",False)) 
 
 # create temporary environment to check which system and compiler we should use
 # (the Environment call without "tools=[]" crashes with MinGW,

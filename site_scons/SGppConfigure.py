@@ -347,6 +347,8 @@ def configureGNUCompiler(config):
 
   if config.env["ARCH"] == "sse3":
     config.env.AppendUnique(CPPFLAGS=["-msse3"])
+  if config.env["USE_HYBRID_OPENMP"]:
+    config.env.Append(CPPFLAGS=["-DHYBRID_OMP"])
   elif config.env["ARCH"] == "sse42":
     config.env.AppendUnique(CPPFLAGS=["-msse4.2"])
   elif config.env["ARCH"] == "avx":

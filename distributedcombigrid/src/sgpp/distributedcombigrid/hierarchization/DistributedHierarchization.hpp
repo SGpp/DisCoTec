@@ -1222,14 +1222,17 @@ static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
   const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
-
+  #ifdef HYBRID_OMP
   #pragma omp parallel 
+  #endif
   {
     IndexVector localIndexVector(dfg.getDimension());
     IndexVector baseGlobalIndexVector(dfg.getDimension());
     // create tmp array to store xblock
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+    #ifdef HYBRID_OMP
     #pragma omp for
+    #endif
     for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
       // get globalIndexVector of block start
       // this is the base IndexVector of this block
@@ -1314,7 +1317,9 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
   const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
 
-  #pragma omp parallel 
+  #ifdef HYBRID_OMP
+  #pragma omp parallel
+  #endif 
   {
     IndexVector localIndexVector(dfg.getDimension());
     IndexVector baseGlobalIndexVector(dfg.getDimension());
@@ -1322,7 +1327,9 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     IndexType copyBackOffset;
     // create tmp array to store xblock
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+    #ifdef HYBRID_OMP
     #pragma omp for
+    #endif
     for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
       // get globalIndexVector of block start
       // this is the base IndexVector of this block
@@ -1417,14 +1424,18 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
   const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
+  #ifdef HYBRID_OMP
   #pragma omp parallel 
+  #endif
   {
     IndexVector localIndexVector(dfg.getDimension());
     IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
     // create tmp array to store xblock
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+    #ifdef HYBRID_OMP
     #pragma omp for
+    #endif
     for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
       // get globalIndexVector of block start
       // this is the base IndexVector of this block
@@ -1485,14 +1496,18 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
   const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
+  #ifdef HYBRID_OMP
   #pragma omp parallel
+  #endif
   {
     IndexVector localIndexVector(dfg.getDimension());
     IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
     // create tmp array to store xblock
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+    #ifdef HYBRID_OMP
     #pragma omp for
+    #endif
     for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
       // get globalIndexVector of block start
       // this is the base IndexVector of this block
@@ -1789,7 +1804,9 @@ void hierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   const IndexType gstart = dfg.getLowerBounds()[dim];
 
-  #pragma omp parallel 
+  #ifdef HYBRID_OMP
+  #pragma omp parallel
+  #endif 
   {
     IndexVector localIndexVector(dfg.getDimension());
     IndexVector tmpGlobalIndexVector(dfg.getDimension());
@@ -1797,7 +1814,9 @@ void hierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
     
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
     // loop over poles
+    #ifdef HYBRID_OMP
     #pragma omp for
+    #endif
     for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
       lldiv_t divresult = std::lldiv(nn, stride);
@@ -1898,15 +1917,17 @@ void dehierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg,
   // last global index inside subdomain and corresponding level
   // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
   // LevelType level_idxend = dfg.getLevel(dim, idxend);
-  
+  #ifdef HYBRID_OMP
   #pragma omp parallel
+  #endif
   {
     IndexVector localIndexVector(dfg.getDimension());
     IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
-
+    #ifdef HYBRID_OMP
     #pragma omp for  //default(none)// firstprivate(lo)
+    #endif
     for (IndexType nn = 0; nn < nbrOfPoles;
         ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
       lldiv_t divresult = std::lldiv(nn, stride);
