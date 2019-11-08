@@ -529,32 +529,35 @@ void ProcessGroupWorker::combineUniform() {
   #endif
   // std::vector<CombiDataType> afterCombi;
   Stats::startEvent("combine dehierarchize");
-  Stats::startEvent("extSG");
+  
   //#pragma omp parallel 
+  /*
   {
     //#pragma omp for schedule(dynamic,1)
     for (int i=0;i<tasks_.size();i++) {// extract dfg vom dsg
       for (int g = 0; g < numGrids; g++) {
         
         DistributedFullGrid<CombiDataType>& dfg = tasks_[i]->getDistributedFullGrid(g);
-        dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
+        
       }
     }
-  }
-  Stats::stopEvent("extSG");
-  Stats::startEvent("only dehierarchize");
+  }*/
+  //
+  //Stats::startEvent("only dehierarchize");
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       // get handle to dfg
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
       // extract dfg vom dsg
-
+      Stats::startEvent("extSG");
+      dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
+      Stats::stopEvent("extSG");
       // dehierarchize dfg
-      //Stats::startEvent("only dehierarchize");
+      Stats::startEvent("only dehierarchize");
       DistributedHierarchization::dehierarchize<CombiDataType>(
           dfg, combiParameters_.getHierarchizationDims());
-      //Stats::stopEvent("only dehierarchize");
+      Stats::stopEvent("only dehierarchize");
       // std::vector<CombiDataType> datavector(dfg.getElementVector());
       // afterCombi = datavector;
       // if exceeds normalization limit, normalize dfg with global max norm
@@ -566,7 +569,7 @@ void ProcessGroupWorker::combineUniform() {
       */
     }
   }
-  Stats::stopEvent("only dehierarchize");
+  //Stats::stopEvent("only dehierarchize");
   Stats::stopEvent("combine dehierarchize");
 
   // test changes

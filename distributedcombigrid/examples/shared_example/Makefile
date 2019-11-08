@@ -1,5 +1,5 @@
 CC=mpicxx.mpich
-CFLAGS=-std=c++11 -g -O3 -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DTIMING
+CFLAGS=-std=c++11 -g -O3 -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DTIMING -DHYBRID_OMP
 
 SGPP_DIR=/home/sven/uni/ba/combi
 GLPK_DIR=/home/sven/uni/ba/combi/glpk

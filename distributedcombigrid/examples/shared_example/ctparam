@@ -8,7 +8,7 @@ ncombi = 10
 
 [application]
 dt = 1e-3
-nsteps = 1
+nsteps = 0
 
 [manager]
 ngroup = 1

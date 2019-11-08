@@ -764,6 +764,9 @@ class DistributedFullGrid {
     // check if dsg already registered
     // if (dsg_ == &dsg)
     //  return;
+    // /\ this check does not work as the address of the sparse grid can stay the same even if the grid changes
+    if(dsg_!=nullptr && dsg.getUniqueId()==dsg_->getUniqueId())
+      return;
 
     dsg_ = &dsg;
 
@@ -796,7 +799,6 @@ class DistributedFullGrid {
     if (&dsg != dsg_) registerUniformSG(dsg);
     
     #ifndef HYBRID_OMP
-    //TODO insert master
       typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
       typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList_.size());
 
@@ -853,7 +855,7 @@ class DistributedFullGrid {
 
         IndexType subSgId = subspaceAssigmentList_[subFgId];
 
-        assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
+        //assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
         // add grid point to subspace, mul with coeff
         *it_sub[subFgId] += coeff * fullgridVector_[i];
@@ -895,6 +897,7 @@ class DistributedFullGrid {
           continue;
         }
 
+        // TODO this assertion uses 1/6 of this functions runtime
         assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
         // copy add grid point to subspace, mul with coeff

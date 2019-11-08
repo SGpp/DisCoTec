@@ -260,7 +260,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err) {
 
 BOOST_AUTO_TEST_SUITE(manager)
 
-BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
+BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
   // use recombination
   checkManager(true, false, 1.54369, 11.28857);
 }

@@ -82,6 +82,7 @@ print("Only Dehierachize")
 for i in range(len(o_dtimes)):
 	print(i,": ", sum(o_ddurations[i])/(1000*len(dtimes[i])),"ms\t")
 
+
 print("Only H short times")
 for i in o_durations:
 	print("  ")

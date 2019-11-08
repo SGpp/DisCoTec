@@ -117,6 +117,8 @@ class DistributedSparseGridUniform {
 
   void zeroOutSubspaces();
 
+  inline int getUniqueId() const;
+
  private:
   void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
@@ -145,6 +147,9 @@ class DistributedSparseGridUniform {
   int commSize_;
 
   std::vector<SubspaceSGU<FG_ELEMENT> > subspaces_;
+
+  static uint64_t uniqueIdCounter_;
+  uint64_t uniqueId_;
 };
 
 }  // namespace
@@ -168,6 +173,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
   for (size_t i = 0; i < lmin.size(); ++i) assert(lmin[i] > 0);
 
   assert(boundary.size() == dim);
+  uniqueId_=uniqueIdCounter_++;
 
   MPI_Comm_rank(comm, &rank_);
   MPI_Comm_size(comm, &commSize_);
@@ -297,15 +303,19 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setSizes() {
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::zeroOutSubspaces() {
   #ifdef HYBRID_OMP
-  #pragma omp parallel for schedule(dynamic,4)
+  #pragma omp parallel for schedule(static,4)
   #endif
-  for (size_t i = 0; i < subspaces_.size(); ++i) {
+  for (int64_t i = subspaces_.size()-1; i >=0 ; --i) {
+    /* //This part is slower than resizing
     #pragma omp simd
     for (size_t j = 0; j < subspaces_[i].data_.size(); j++)
     {
       subspaces_[i].data_[j]=0;
-    }
-    
+    }*/
+    size_t tmp=subspaces_[i].data_.size();
+    subspaces_[i].data_.resize(0);
+    subspaces_[i].data_.resize(tmp);
+
   }
 }
 
@@ -501,6 +511,13 @@ template <typename FG_ELEMENT>
 inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const {
   return commSize_;
 }
+
+template <typename FG_ELEMENT>
+inline int DistributedSparseGridUniform<FG_ELEMENT>::getUniqueId() const{
+  return uniqueId_;
+}
+template <typename FG_ELEMENT>
+uint64_t DistributedSparseGridUniform<FG_ELEMENT>::uniqueIdCounter_=0;
 
 } /* namespace combigrid */
 

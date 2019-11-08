@@ -802,7 +802,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
     #endif
     {
       #ifdef HYBRID_OMP
-      #pragma omp for schedule(dynamic,4) 
+      #pragma omp for schedule (dynamic,16) 
       #endif
       for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
         std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
@@ -834,7 +834,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
     }
     Stats::stopEvent("grcopy");
   }
-  std::cout<<"line 835G "<<sysconf(_SC_AVPHYS_PAGES)<<"\n" ;
+  //std::cout<<"line 835G "<<sysconf(_SC_AVPHYS_PAGES)<<"\n" ;
   // define datatype for full grid elements
   Stats::startEvent("combine_allreduce");
   MPI_Datatype dtype =
@@ -859,7 +859,9 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
       #pragma omp parallel for num_threads(numParallelMPI)
       for(int i=0;i<numParallelMPI;i++)
       {
+        #ifdef DEBUG_OUTPUT
         std::cout <<i<<": start "<<startIndeces[i]<<" end "<< startIndeces[i+1]<<"\n";
+        #endif
         MPI_Allreduce(MPI_IN_PLACE, &buf[startIndeces[i]], startIndeces[i+1]-startIndeces[i], dtype, MPI_SUM, mpisys->getGlobalReduceParComm()[i]);
       }
       #else
@@ -876,14 +878,14 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
     }
   }
   Stats::stopEvent("combine_allreduce");
-  std::cout<<"line 843H\n";
+  //std::cout<<"line 881H\n";
 
   // extract subspace data from buffer and write in corresponding subspaces
   {
     //typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
     Stats::startEvent("grcopyback");
     #ifdef HYBRID_OMP
-    #pragma omp parallel for schedule(dynamic,4)
+    #pragma omp parallel for schedule(dynamic,16)
     #endif
     for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
       std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
