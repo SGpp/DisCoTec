@@ -10,6 +10,7 @@
 #include <iostream>
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "sgpp/distributedcombigrid/task/Task.hpp"
 
 namespace combigrid {
 
@@ -29,14 +30,17 @@ void ProcessManager::sortTasks(){
 bool ProcessManager::runfirst() {
   // sort instances in decreasing order
   sortTasks();
-
+  std::cout <<"Tasks this is the beginn" ;
+  
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group
     ProcessGroupManagerID g = wait();
-
+    std::cout <<"ID:"<< tasks_[i]->getID() << std::endl;
     // assign instance to group
     g->runfirst(tasks_[i]);
   }
+
+  std::cout <<"this is the end"<< std::endl;
 
   bool group_failed = waitAllFinished();
   size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
@@ -357,9 +361,9 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
 
     assert(!fail && "should not fail here");
   }
-
+  std::cout<<"parallel in mansger";
   assert(groupID < pgroups_.size());
-
+  std::cout<<"parallel in mansger";
   auto g = pgroups_[groupID];
   g->parallelEval(leval, filename);
 

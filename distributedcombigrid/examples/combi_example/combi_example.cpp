@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
     // TODO: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
     // use no hierarchization in this example
-    std::vector<bool> hierarchizationDims(dim, false);
+    std::vector<bool> hierarchizationDims(dim, true);
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
@@ -112,12 +112,15 @@ int main(int argc, char** argv) {
     std::cout << "lmax = " << lmax << std::endl;
     std::cout << "CombiScheme: " << std::endl;
     std::cout << combischeme << std::endl;
+    std::cout << "Levels:" << std::endl;
+    //std::cout << levels << std::endl;
 
     // create Tasks
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
+      converter.toJSON("ctparam","p"+std::to_string(i)+".json", levels[i]);
+      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),"p"+std::to_string(i)+".json", dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -155,6 +158,7 @@ int main(int argc, char** argv) {
       // write solution to file
       std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
       Stats::startEvent("manager write solution");
+      std::cout <<"now paral";
       manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");
 

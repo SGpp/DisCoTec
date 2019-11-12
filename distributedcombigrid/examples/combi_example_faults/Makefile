@@ -20,7 +20,7 @@ LIBS=-lsgppdistributedcombigrid -lboost_serialization
 all: combi_example_faults
 
 combi_example_faults: combi_example_faults.cpp TaskExample.hpp 
-	mpicxx.mpich $(CFLAGS) $(LDIR) $(INC) -o combi_example_faults combi_example_faults.cpp $(LIBS)
+	mpicxx $(CFLAGS) $(LDIR) $(INC) -o combi_example_faults combi_example_faults.cpp $(LIBS)
 
 clean:
 	rm -f *.o out/* combi_example_faults

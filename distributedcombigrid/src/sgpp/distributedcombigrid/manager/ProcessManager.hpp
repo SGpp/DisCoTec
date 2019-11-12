@@ -158,7 +158,7 @@ inline FG_ELEMENT ProcessManager::eval(const std::vector<real>& coords) {
   }
 
   FG_ELEMENT res(0);
-
+  std::cout << "val in manaager";
   // call eval function of each process group
   for (size_t i = 0; i < pgroups_.size(); ++i) res += pgroups_[i]->eval(coords);
 
@@ -175,7 +175,7 @@ void ProcessManager::combine() {
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
   size_t numWaiting = 0;
-
+  std::cout << "Im combining";
   while (numWaiting != pgroups_.size()) {
     numWaiting = 0;
 

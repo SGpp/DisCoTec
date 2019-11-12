@@ -59,6 +59,7 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
 }
 
 void CombiMinMaxScheme::createAdaptiveCombischeme() {
+  std::cout << "hier"<< dim_<<std::endl;
   LevelVector lm = getLevelMinima();
   n_ = std::accumulate(lm.begin(), lm.end(), 0);
   LevelVector l(dim_);
@@ -126,10 +127,10 @@ void CombiMinMaxScheme::createLevelsRec(DimType dim, LevelType n, DimType d, Lev
 void CombiMinMaxScheme::computeCombiCoeffsAdaptive() {
   for (size_t i = 0; i < combiSpaces_.size(); i++) {
     real coeff = 0;
-    LevelVector tmp(combiSpaces_[i]);
+    LevelVector tmp(combiSpaces_[i]); 
     tmp = tmp + LevelVector(dim_, 1);
     for (auto nbr : combiSpaces_) {
-      if (nbr >= combiSpaces_[i] && nbr <= tmp) {
+      if (nbr >= combiSpaces_[i] && nbr <= tmp) { // get the levels which are just one above
         LevelVector diff = nbr - combiSpaces_[i];
         coeff += std::pow(-1.0, std::accumulate(diff.begin(), diff.end(), 0));
       }

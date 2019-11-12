@@ -8,7 +8,7 @@ from setuptools import setup
 libpath = os.path.join("lib", "pysgpp")
 
 # list of all available modules -> all folders in the root directory
-moduleFolders = [filename for filename in os.listdir(".")
+moduleFolders = [filename for filename in os.listdir("../")
                  if os.path.isdir(filename)]
 
 # select the ones which have a python extension

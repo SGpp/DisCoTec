@@ -1,8 +1,8 @@
 [ct]
 dim=2
-lmin=[10 0 ]
-lmax=[10 0 ]
-leval=[10 0 ]
+lmin=[1 0 ]
+lmax=[1 0 ]
+leval=[1 0 ]
 p=1 1
 
 ncombi=10

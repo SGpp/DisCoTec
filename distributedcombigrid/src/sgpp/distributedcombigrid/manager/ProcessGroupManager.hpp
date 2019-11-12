@@ -172,6 +172,7 @@ inline StatusType ProcessGroupManager::waitStatus() {
 
 inline complex ProcessGroupManager::eval(const std::vector<real>& x) {
   // todo: implement
+  std::cout << "eval";
   throw std::runtime_error("Not yet implemented: " + std::string(x.begin(), x.end()) + __FILE__ +
                            " " + std::to_string(__LINE__));
   return complex(0.0, 0.0);

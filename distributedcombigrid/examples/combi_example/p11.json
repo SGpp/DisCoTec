@@ -14,14 +14,14 @@
         "PeriodicX": "true",
         "PeriodicV": "true",
         "NSubdivisionsX": {
-            "X": "16",
-            "Y": "16",
-            "Z": "16"
+            "X": "32",
+            "Y": "32",
+            "Z": "32"
         },
         "NSubdivisionsV": {
-            "X": "8",
-            "Y": "8",
-            "Z": "8"
+            "X": "256",
+            "Y": "256",
+            "Z": "256"
         }
     },
     "SpatialDiscretization": {

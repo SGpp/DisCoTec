@@ -62,6 +62,7 @@ class Task {
   virtual void changeDir(CommunicatorType lcomm) {
     // do nothing
   }
+  
 
   virtual void init(CommunicatorType lcomm,
                     std::vector<IndexVector> decomposition = std::vector<IndexVector>()) = 0;

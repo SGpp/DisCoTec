@@ -7,6 +7,7 @@
 # Needed Pathes
 ###################################################################
 SRCDIR=./../../../src/sgpp
+-I/home/sgsscratch/goehrims/matrixfree-install/include
 #only for extensions:
 #####################
 # Intel Array Building Blocks

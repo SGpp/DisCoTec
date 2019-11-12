@@ -18,6 +18,7 @@ ProcessGroupManager::ProcessGroupManager(RankType pgroupRootID)
       statusRequestFT_(nullptr) {}
 
 bool ProcessGroupManager::runfirst(Task* t) {
+  std::cout << "here" << t->getID();
   return storeTaskReferenceAndSendTaskToProcessGroup(t, RUN_FIRST);
 }
 
@@ -164,7 +165,7 @@ bool ProcessGroupManager::recompute(Task* t) {
 bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& filename) {
   // can only send sync signal when in wait state, so check first
   assert(status_ == PROCESS_GROUP_WAIT);
-
+  
   sendSignalToProcessGroup(PARALLEL_EVAL);
 
   // send levelvector

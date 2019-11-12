@@ -19,9 +19,9 @@
             "Z": "16"
         },
         "NSubdivisionsV": {
-            "X": "8",
-            "Y": "8",
-            "Z": "8"
+            "X": "512",
+            "Y": "512",
+            "Z": "512"
         }
     },
     "SpatialDiscretization": {

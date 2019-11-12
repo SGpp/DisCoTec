@@ -11,6 +11,9 @@
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
+//#include "../../../hyper.deal.combi/include/functionalities/dynamic_convergence_table.h"
+#include <deal.II/base/timer.h>
+
 namespace combigrid {
 
 class TaskExample : public Task {
@@ -19,7 +22,7 @@ class TaskExample : public Task {
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
   TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-              LoadModel* loadModel, real dt, size_t nsteps, IndexVector p = IndexVector(0),
+              LoadModel* loadModel,std::string filename,  real dt, size_t nsteps, IndexVector p = IndexVector(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
@@ -27,6 +30,7 @@ class TaskExample : public Task {
         p_(p),
         initialized_(false),
         stepsTotal_(0),
+        _filename(filename),
         dfg_(NULL) {}
 
   void init(CommunicatorType lcomm,
@@ -88,13 +92,21 @@ class TaskExample : public Task {
 
     /* loop over local subgrid and set initial values */
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
-
+    
     for (size_t i = 0; i < elements.size(); ++i) {
       IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
       std::vector<real> globalCoords(dim);
       dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
+      
       elements[i] = TaskExample::myfunction(globalCoords, 0.0);
     }
+
+
+    //hyperdeal::DynamicConvergenceTable table;
+    //TODO: size_x und size_v bestimmen
+    //Problem problem(lcomm, size_x, size_v, table);
+    //problem.reinit(_filename);
+
 
     initialized_ = true;
   }
@@ -104,20 +116,28 @@ class TaskExample : public Task {
    * only lcomm or a subset of it as communicator.
    * important: don't forget to set the isFinished flag at the end of the computation.
    */
+
+  
   void run(CommunicatorType lcomm) {
     assert(initialized_);
-
-    int lrank;
-    MPI_Comm_rank(lcomm, &lrank);
-
+    std::cout << "Run of Task"<< this->getID()<<std::endl;
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure
+   
+    //problem.set_result();
+    //problem.reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + nsteps_)*dt_);
 
+    // process problem
+    //problem.solve();
+
+    //std::vector<std::array<Number, dim_x + dim_v + 1>> result = problem.get_result();
+// TODO if your Example uses another data structure, you need to copy
+    // the data from that data structure to elements/dfg_
+
+  
     /* pseudo timestepping to demonstrate the behaviour of your typical
-     * time-dependent simulation problem. */
-    // TODO replace by your time time stepping algorithm
-
+     * time-dependent simulation problem. 
     for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
       real time = step * dt_;
 
@@ -129,13 +149,11 @@ class TaskExample : public Task {
       }
 
       MPI_Barrier(lcomm);
-    }
+    }*/
 
     stepsTotal_ += nsteps_;
 
-    // TODO if your Example uses another data structure, you need to copy
-    // the data from that data structure to elements/dfg_
-
+    
     this->setFinished(true);
   }
 
@@ -156,7 +174,7 @@ class TaskExample : public Task {
 
   static real myfunction(std::vector<real>& coords, real t) {
     real u = std::cos(M_PI * t);
-
+    
     for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(2.0 * M_PI * coords[d]);
 
     return u;
@@ -178,6 +196,7 @@ class TaskExample : public Task {
     if (dfg_ != NULL) delete dfg_;
   }
 
+
  protected:
   /* if there are local variables that have to be initialized at construction
    * you have to do it here. the worker processes will create the task using
@@ -192,6 +211,7 @@ class TaskExample : public Task {
   // new variables that are set by manager. need to be added to serialize
   real dt_;
   size_t nsteps_;
+  std::string _filename;
   IndexVector p_;
 
   // pure local variables that exist only on the worker processes

@@ -1,8 +1,8 @@
 [ct]
 dim = 2
-lmin = 3 3 
-lmax = 10 10  
-leval = 5 5 
+lmin = 2 2 
+lmax = 4 5
+leval = 5 5
 p = 1 1
 ncombi = 1
 
