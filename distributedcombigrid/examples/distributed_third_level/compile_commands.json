@@ -3,7 +3,6 @@
         "arguments": [
             "g++",
             "-c",
-            "-I/opt/mpich/include",
             "-std=c++11",
             "-g",
             "-fopenmp",
@@ -14,9 +13,9 @@
             "-Wall",
             "-I../../..//distributedcombigrid/src/",
             "-I/include",
-            "-I../../..//distributedcombigrid/SimpleAmqpClient/src/",
             "-DUNIFORMDECOMPOSITION",
             "-DTIME",
+            "-I/opt/mpich/include",
             "-o",
             "combi_example",
             "combi_example.cpp"
@@ -28,6 +27,7 @@
         "arguments": [
             "g++",
             "-c",
+            "-I/opt/mpich/include",
             "-std=c++11",
             "-g",
             "-fopenmp",
@@ -38,10 +38,8 @@
             "-Wall",
             "-I../../..//distributedcombigrid/src/",
             "-I/include",
-            "-I../../..//distributedcombigrid/SimpleAmqpClient/src/",
             "-DUNIFORMDECOMPOSITION",
             "-DTIME",
-            "-I/opt/mpich/include",
             "-o",
             "combi_example",
             "combi_example.cpp"
