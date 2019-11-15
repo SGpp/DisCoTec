@@ -41,6 +41,8 @@ namespace combigrid {
 
       void signalReadyToCombine() const;
 
+      void signalReadyToUnifySubspaceSizes() const;
+
       void signalReady() const;
 
       size_t receiveSize() const;
@@ -52,11 +54,16 @@ namespace combigrid {
 
       std::string recvDSGUniformSerialized() const;
 
+      /** Sends the given data to the third level manager
+       */
       template <typename FG_ELEMENT>
       void sendData(const FG_ELEMENT* const data, size_t size) const;
 
+      /** Receives upcoming data from the third level manager, returns the data
+       * and its size.
+       */
       template <typename FG_ELEMENT>
-      void recvData(FG_ELEMENT*& data, size_t& size) const;
+      void recvData(FG_ELEMENT* data, size_t& size) const;
   };
 
 
@@ -74,7 +81,7 @@ namespace combigrid {
   }
 
   template <typename FG_ELEMENT>
-  void ThirdLevelUtils::recvData(FG_ELEMENT*& data, size_t& size) const
+  void ThirdLevelUtils::recvData(FG_ELEMENT* data, size_t& size) const
   {
     assert(isConnected_);
     size_t rawSize = receiveSize();
