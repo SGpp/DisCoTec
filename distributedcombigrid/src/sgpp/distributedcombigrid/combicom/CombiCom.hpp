@@ -845,12 +845,13 @@ void CombiCom::extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
   }
 }
 
-/***
- * In this method the global reduction of the distributed sparse grid is performed. The global sparse grid is
- * decomposed geometrically according to the domain decomposition (see Variant 2 in chapter 3.3.3 in marios diss).
- * We first collect all subspace parts of our domain part and fill all missing subspaces with 0. We then perform
- * an MPI_Allreduce with all processes from other process groups that own the same geometrical area. Here we follow
- * the Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
+/*** In this method the global reduction of the distributed sparse grid is
+ * performed. The global sparse grid is decomposed geometrically according to
+ * the domain decomposition (see Variant 2 in chapter 3.3.3 in marios diss). We
+ * first collect all subspace parts of our domain part and fill all missing
+ * subspaces with 0. We then perform an MPI_Allreduce with all processes from
+ * other process groups that own the same geometrical area. Here we follow the
+ * Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
  */
 template<typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(
@@ -860,27 +861,15 @@ void CombiCom::distributedGlobalReduce(
 
   assert(mycomm != MPI_COMM_NULL);
 
-  /* get sizes of all partial subspaces in communicator
-   * we have to do this, because size information of uninitialized subspaces
-   * is not available in dsg. at the moment this information is only available
-   * in dfg.
-   */
-  std::vector<int> subspaceSizes(dsg.getNumSubspaces());
-  updateSubspaceSizes(dsg, subspaceSizes, mycomm);
+  assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
 
-  int bsize = sumAndCheckSubspaceSizes(dsg, subspaceSizes);
-
-  // put subspace data into buffer
-  std::vector<FG_ELEMENT> buf(bsize, FG_ELEMENT(0));
-  createUniformSparseGridBuffer(dsg, subspaceSizes, buf);
+  FG_ELEMENT* subspacesData = dsg.getRawData();
+  size_t subspacesDataSize = dsg.getRawDataSize();
 
   // global reduce
   MPI_Datatype dtype = abstraction::getMPIDatatype(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
-  MPI_Allreduce( MPI_IN_PLACE, buf.data(), bsize, dtype, MPI_SUM, mycomm);
-
-  // extract subspace data
-  extractSubspaceDataFromBuffer(buf, subspaceSizes, dsg);
+  MPI_Allreduce( MPI_IN_PLACE, subspacesData, subspacesDataSize, dtype, MPI_SUM, mycomm);
 }
 
 } /* namespace combigrid */
