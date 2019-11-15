@@ -90,8 +90,8 @@ int main(int argc, char** argv) {
     std::string thirdLevelHost;
     unsigned int systemNumber = 0, numSystems = 0;
     unsigned short thirdLevelPort = 0;
-    bool useThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
-    if (useThirdLevel) {
+    bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
+    if (hasThirdLevel) {
       std::cout << "Using third-level parallelism" << std::endl;
       thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
       systemNumber   = cfg.get<unsigned int>("thirdLevel.systemNumber");
@@ -113,14 +113,15 @@ int main(int argc, char** argv) {
      * from a file */
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
-    std::vector<LevelVector> levels = combischeme.getCombiSpaces();
-    std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+    std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
+    std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
 
-    //create third-level combischeme
-    std::vector<LevelVector> commonSubspaces;
-    CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs,
-                                                  commonSubspaces, boundary,
-                                                  systemNumber, numSystems);
+    // split scheme and assign each half to a system
+    std::vector<LevelVector> levels;
+    std::vector<combigrid::real> coeffs;
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs,
+                                                  boundary, systemNumber,
+                                                  2, levels, coeffs);
 
     // create load model
     // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
@@ -146,8 +147,8 @@ int main(int argc, char** argv) {
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,
                            ncombi, 1, p, std::vector<IndexType>(0),
                            std::vector<IndexType>(0), thirdLevelHost,
-                           thirdLevelPort, commonSubspaces, 0);
-    
+                           thirdLevelPort, 0);
+
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
@@ -160,6 +161,13 @@ int main(int argc, char** argv) {
     manager.runfirst();
     Stats::stopEvent("manager run first");
 
+    // exchange subspace sizes to unify the dsgs in the third level case
+    if (hasThirdLevel) {
+      Stats::startEvent("manager unify subspace sizes with remote");
+      manager.unifySubspaceSizesThirdLevel(),
+      Stats::startEvent("manager unify subspace sizes with remote");
+    }
+
     double start, finish;
 
     for (size_t i = 0; i < ncombi; ++i) {
@@ -167,7 +175,7 @@ int main(int argc, char** argv) {
       start = MPI_Wtime();
 
       Stats::startEvent("combine");
-      if (useThirdLevel)
+      if (hasThirdLevel)
         manager.combineThirdLevel();
       else
         manager.combine();

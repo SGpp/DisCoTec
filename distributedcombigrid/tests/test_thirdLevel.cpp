@@ -50,7 +50,7 @@ class TestParams{
 
 /**
 * Checks if combination was successful.
-* Since the task doesn't evolve over time the expected result should match the
+* Since the tasks don't evolve over time the expected result should match the
 * initial function values.
 */
 bool checkReducedFullGrid(ProcessGroupWorker& worker) {
@@ -149,26 +149,23 @@ void testCombineThirdLevel(TestParams& testParams) {
     //combischeme.createAdaptiveCombischeme();
 
 
-    std::vector<LevelVector> levels = combischeme.getCombiSpaces();
-    std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+    // get full scheme first
+    std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
+    std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
 
-    std::vector<LevelVector> commonSubspaces;
-
-    if (testParams.sysNum == 0) {
-      CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, testParams.sysNum, 2);
-      std::cout << "Common Subspace" << std::endl;
-      for (const auto& ss : commonSubspaces)
-        std::cout << toString(ss) << std::endl;
-    } else {
-      CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, testParams.sysNum, 2);
-    }
+    // split scheme and assign each half to a system
+    std::vector<LevelVector> levels;
+    std::vector<combigrid::real> coeffs;
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs,
+                                                  boundary, testParams.sysNum,
+                                                  2, levels, coeffs);
 
     //std::cout << "Combischeme " << systemName << ":" << std::endl;
     //for (const auto& l : levels)
     //  std::cout << toString(l) << std::endl;
 
 
-    BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(procsPerSys));
+    BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable((int)procsPerSys));
 
     // create Tasks
     TaskContainer tasks;
@@ -189,7 +186,7 @@ void testCombineThirdLevel(TestParams& testParams) {
                                 boundary, levels, coeffs, taskIDs, testParams.ncombi,
                                 1, parallelization, std::vector<IndexType>(0),
                                 std::vector<IndexType>(0), testParams.host,
-                                testParams.port, commonSubspaces, 0);
+                                testParams.port, 0);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
@@ -203,6 +200,11 @@ void testCombineThirdLevel(TestParams& testParams) {
         Stats::startEvent("manager run");
         manager.runfirst();
         Stats::stopEvent("manager run");
+
+        // exchange subspace sizes to unify the dsgs with the remote system
+        Stats::startEvent("manager unify subspace sizes with remote");
+        manager.unifySubspaceSizesThirdLevel(),
+        Stats::startEvent("manager unify subspace sizes with remote");
       } else {
         Stats::startEvent("manager run");
         manager.runnext();
