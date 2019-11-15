@@ -307,7 +307,6 @@ void MPISystem::initThirdLevelComms(){
   }
 }
 
-
 void MPISystem::initGlobalReduceCommm() {
 
   if (worldRank_ != managerRankWorld_) {
