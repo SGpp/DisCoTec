@@ -36,11 +36,10 @@ const SignalType RESET_TASKS = 19;
 const SignalType COMBINE_LOCAL_AND_GLOBAL = 20;
 const SignalType BROADCAST_COMMON_SS = 21;
 // Third level specific signals
-const SignalType WAIT_FOR_UPDATE = 22;
-const SignalType INTEGRATE_SOLUTION = 23;
-const SignalType SEND_COMMON_SS_TO_MANAGER = 24;
-const SignalType RECV_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE = 25;
-const SignalType ADD_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE = 26;
+const SignalType COMBINE_THIRD_LEVEL = 22;
+const SignalType WAIT_FOR_TL_COMBI_RESULT = 23;
+const SignalType REDUCE_SUBSPACE_SIZES_TL = 24;
+const SignalType WAIT_FOR_TL_SIZE_UPDATE = 25;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
@@ -52,7 +51,7 @@ typedef int FaultSimulationType;
 const FaultSimulationType RANDOM_FAIL = 0;
 const FaultSimulationType GROUPS_FAIL = 1;
 
-enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3, sendSSTag = 4};
+enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3};
 
 // attention: changing StatusType might require changing the MPI Type
 typedef int StatusType;
