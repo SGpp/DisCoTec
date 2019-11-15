@@ -12,6 +12,7 @@
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
+#include <numeric>
 
 #include <boost/serialization/vector.hpp>
 
@@ -28,33 +29,26 @@ namespace {
 
 template <typename FG_ELEMENT>
 struct SubspaceSGU {
-  LevelVector level_;
+  LevelVector level_; // level of the subspace
 
-  IndexVector sizes_;
+  IndexVector sizes_; // contains the number of points per dim of the whole ss
 
-  size_t dataSize_;
+  size_t size_; // contains the number of Points of the whole ss
 
-  std::vector<FG_ELEMENT> data_;
+  FG_ELEMENT * data_; // contains the values at the data points (Attention: Due to the decomposition, only part of the full ss may be stored)
 
-  SubspaceSGU& operator+=(const SubspaceSGU& rhs) 
+  size_t dataSize_; // contains the number of values stored in data_ == size of the ss part.
+
+  SubspaceSGU& operator+=(const SubspaceSGU& rhs)
   {
     assert(this->level_ == rhs.level_);
-    assert(data_.size() == rhs.data_.size());
+    assert(dataSize_ == rhs.dataSize_);
 
-    for(size_t i = 0; i < data_.size(); ++i){
+    for(size_t i = 0; i < dataSize_; ++i){
       this->data_[i] += rhs.data_[i];
     }
 
     return *this;
-  }
-
-  friend class boost::serialization::access;
-  template <class Archive>
-  void serialize(Archive& ar, const unsigned int version) {
-    ar& level_;
-    ar& sizes_;
-    ar& dataSize_;
-    ar& data_;
   }
 };
 
@@ -68,20 +62,43 @@ struct SubspaceSGU {
 
 namespace combigrid {
 
+/* This class can store a distributed sparse grid with a uniform space
+ * decomposition. During construction no data is created and the data size of
+ * the subspaces is initialized to zero (data sizes are usually set the
+ * first time by registering the dsg in a distributed fullgrid (for local reduce)).
+ */
 template <typename FG_ELEMENT>
 class DistributedSparseGridUniform {
  public:
   /** create sparse grid of dimension d and specify for each dimension the
-   *  the maximum discretization level and whether there is a boundary or not
+   * maximum discretization level and whether there is a boundary or not
+   * No data is allocated and the sizes of the subspace data is initialized to 0.
    */
   DistributedSparseGridUniform(DimType dim, const LevelVector& lmax, const LevelVector& lmin,
                                const std::vector<bool>& boundary, CommunicatorType comm,
                                size_t procsPerNode = 0);
+
+  /**
+   * create an empty (no data) sparse grid with given subspaces.
+   */
+  DistributedSparseGridUniform(DimType dim,
+                               const std::vector<LevelVector>& subspaces,
+                               const std::vector<bool>& boundary,
+                               CommunicatorType comm,
+                               size_t procsPerNode = 0);
+
   DistributedSparseGridUniform(){}
 
   virtual ~DistributedSparseGridUniform();
 
   void print(std::ostream& os) const;
+
+  // allocates memory for subspace data and sets pointers to subspaces
+  // this must be called before accessing any data
+  void createSubspaceData();
+
+  // deletes memory for subspace data and invalids pointers to subspaces
+  void deleteSubspaceData();
 
   // return level vector of subspace i
   inline const LevelVector& getLevelVector(size_t i) const;
@@ -91,17 +108,14 @@ class DistributedSparseGridUniform {
 
   inline const std::vector<bool>& getBoundaryVector() const;
 
-  // get pointer to first element in subspace with l
+  // returns a pointer to first element in subspace with l
   inline FG_ELEMENT* getData(const LevelVector& l);
 
-  // get pointer to first element in subspace i
+  // returns a pointer to first element in subspace i
   inline FG_ELEMENT* getData(size_t i);
 
-  // get reference to data vector of subspace i.
-  inline std::vector<FG_ELEMENT>& getDataVector(size_t i);
-
-  // get reference to data vector of subspace with l.
-  inline std::vector<FG_ELEMENT>& getDataVector(const LevelVector& l);
+  // allows a linear access to the whole subspace data stored in this dsg
+  inline FG_ELEMENT* getRawData();
 
   inline size_t getDim() const;
 
@@ -132,15 +146,30 @@ class DistributedSparseGridUniform {
   // unlike getIndex this will not throw an assert in case l is not contained
   bool isContained(const LevelVector& l) const;
 
+  // data size of the subspace at index i
   inline size_t getDataSize(size_t i) const;
 
+  // data size of the subspace with level l
   inline size_t getDataSize(const LevelVector& l) const;
+
+  // sets data size of subspace with index i to newSize
+  inline void setDataSize(size_t i, size_t newSize);
+
+  // sets data size of subspace with level l to newSize
+  inline void setDataSize(const LevelVector& l, size_t newSize);
+
+  // returns the number of allocated grid points == size of the raw data vector
+  inline size_t getRawDataSize() const;
 
   inline CommunicatorType getCommunicator() const;
 
   inline int getCommunicatorSize() const;
 
-  void recvAndAddDSGUniform(RankType src, CommunicatorType comm);
+  // allows linear access to the data sizes of all subspaces
+  const std::vector<size_t>& getSubspaceDataSizes() const;
+
+  // returns true if data for the subspaces has been created
+  bool isSubspaceDataCreated() const;
 
  private:
   void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
@@ -167,7 +196,11 @@ class DistributedSparseGridUniform {
 
   int commSize_;
 
-  std::vector<SubspaceSGU<FG_ELEMENT> > subspaces_;
+  std::vector<SubspaceSGU<FG_ELEMENT> > subspaces_; // subspaces of the dsg
+
+  std::vector<FG_ELEMENT> subspacesData_; // subspaces data stored in a linear fashion
+
+  std::vector<size_t> subspaceDataSizes_; // data sizes of all subspaces in linear array
 
   friend class boost::serialization::access;
 
@@ -209,16 +242,90 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
 
   subspaces_.resize(levels_.size());
 
-  for (size_t i = 0; i < levels_.size(); ++i) subspaces_[i].level_ = levels_[i];
+  subspaceDataSizes_.resize(levels_.size());
+
+  // set subspaces
+  for (size_t i = 0; i < levels_.size(); ++i) {
+    subspaces_[i].level_ = levels_[i];
+    subspaces_[i].dataSize_ = subspaceDataSizes_[i];
+  }
 
   setSizes();
+}
+
+// at construction create only levels, no data
+template <typename FG_ELEMENT>
+DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
+    DimType dim,
+    const std::vector<LevelVector>& subspaces,
+    const std::vector<bool>& boundary,
+    CommunicatorType comm,
+    size_t procsPerNode /*= 0*/)
+    : boundary_(boundary),
+      comm_(comm),
+      dim_(dim),
+      subspaceDataSizes_(subspaces.size())
+{
+  // init subspaces
+  subspaces_.reserve(subspaces.size());
+  for (int i = 0; i < subspaces.size(); i++) {
+   subspaces_.push_back({
+                          /*.level_    =*/ subspaces[i],
+                          /*.sizes_    =*/ IndexVector(0),
+                          /*.size_     =*/ 0,
+                          /*.data_     =*/ nullptr,
+                          /*.dataSize_ =*/ subspaceDataSizes_[i]});
+  }
+  setSizes();
+
+  MPI_Comm_rank(comm_, &rank_);
+  MPI_Comm_size(comm_, &commSize_);
+
+  // one should think about removing them since they are part of the underlying
+  // combi scheme and not of a generalized sparse grid.
+  nmax_ = LevelVector(0);
+  lmin_ = LevelVector(0);
+}
+
+template <typename FG_ELEMENT>
+bool DistributedSparseGridUniform<FG_ELEMENT>::isSubspaceDataCreated() const {
+  return subspacesData_.size() == 0;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
+  size_t numDataPoints = std::accumulate(subspaceDataSizes_.begin(), subspaceDataSizes_.end(), 0);
+
+  if (not isSubspaceDataCreated() && numDataPoints > 0) {
+    subspacesData_ = std::vector<FG_ELEMENT>(numDataPoints);
+
+    // update pointers in subspaces
+    size_t offset = 0;
+    for (int i = 0; i < subspaces_.size(); i++) {
+      subspaces_[i].data_ = subspacesData_.data() + offset;
+      offset += subspaceDataSizes_[i];
+    }
+  }
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
+  if (isSubspaceDataCreated()) {
+    subspacesData_ = std::vector<FG_ELEMENT>();
+
+    // update pointers in subspaces
+    for (auto& ss : subspaces_) {
+      ss.data_ = nullptr;
+      ss.dataSize_ = 0;
+    }
+  }
 }
 
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::print(std::ostream& os) const {
   for (size_t i = 0; i < subspaces_.size(); ++i) {
     os << i << " " << subspaces_[i].level_ << " " << subspaces_[i].sizes_ << " "
-       << subspaces_[i].dataSize_ << std::endl;
+       << subspaces_[i].size_ << std::endl;
   }
 }
 
@@ -308,7 +415,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setSizes() {
 
     for (auto s : sizes) tmp *= s;
 
-    subspaces_[i].dataSize_ = size_t(tmp);
+    subspaces_[i].size_ = size_t(tmp);
   }
 }
 
@@ -352,30 +459,17 @@ inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(const Level
     assert(false);
   }
 
-  return &subspaces_[i].data_[0];
+  return subspaces_[i].data_;
 }
 
 template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(size_t i) {
-  return &subspaces_[i].data_[0];
-}
-
-template <typename FG_ELEMENT>
-inline std::vector<FG_ELEMENT>& DistributedSparseGridUniform<FG_ELEMENT>::getDataVector(size_t i) {
   return subspaces_[i].data_;
 }
 
 template <typename FG_ELEMENT>
-inline std::vector<FG_ELEMENT>& DistributedSparseGridUniform<FG_ELEMENT>::getDataVector(
-    const LevelVector& l) {
-  IndexType i = getIndex(l);
-
-  if (i < 0) {
-    std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
-    assert(false);
-  }
-
-  return subspaces_[i].data_;
+inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getRawData() {
+  return subspacesData_.data();
 }
 
 template <typename FG_ELEMENT>
@@ -433,7 +527,7 @@ const IndexVector& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSizes(
 
 template <typename FG_ELEMENT>
 size_t DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSize(size_t i) const {
-  return subspaces_[i].dataSize_;
+  return subspaces_[i].size_;
 }
 
 template <typename FG_ELEMENT>
@@ -445,12 +539,17 @@ size_t DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSize(const LevelVect
     assert(false);
   }
 
-  return subspaces_[i].dataSize_;
+  return subspaces_[i].size_;
 }
 
 template <typename FG_ELEMENT>
 size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(size_t i) const {
-  return subspaces_[i].data_.size();
+  if (i >= getNumSubspaces()) {
+    std::cout << "Index too large, no subspace with this index included in distributed sparse grid" << std::endl;
+    assert(false);
+  }
+
+  return subspaces_[i].dataSize_;
 }
 
 template <typename FG_ELEMENT>
@@ -462,7 +561,37 @@ size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(const LevelVector& 
     assert(false);
   }
 
-  return subspaces_[i].data_.size();
+  return subspaces_[i].dataSize_;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(size_t i, size_t newSize) {
+  if (i >= getNumSubspaces()) {
+    std::cout << "Index too large, no subspace with this index included in distributed sparse grid" << std::endl;
+    assert(false);
+  }
+
+  subspaceDataSizes_[i] = newSize;
+  subspaces_[i].dataSize_ = newSize;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(const LevelVector& l, size_t newSize) {
+  IndexType i = getIndex(l);
+
+  if (i < 0) {
+    std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
+    assert(false);
+  }
+
+  subspaceDataSizes_[i] = newSize;
+  subspaces_[i].dataSize_ = newSize;
+}
+
+
+template <typename FG_ELEMENT>
+inline size_t DistributedSparseGridUniform<FG_ELEMENT>::getRawDataSize() const {
+  return subspacesData_.size();
 }
 
 template <typename FG_ELEMENT>
@@ -475,125 +604,144 @@ inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const
   return commSize_;
 }
 
-
-/**
-* Root broadcasts all subspaces to the other ranks in communicator comm.
-*
-* TODO: For now, we broadcast all subspaces sequentially instead of sending the whole
-* dsgu in a single call. (Sending the whole dsgu takes approx. double the communication volume)
-* Sending the whole dsgu could be faster.
-*/
 template <typename FG_ELEMENT>
-static void broadcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, 
-                               const std::vector<LevelVector>& subspaces,
-                               RankType root, CommunicatorType comm) {
-  assert(dsgu->getNumSubspaces() > 0);
-  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
-
-  for (const LevelVector& ss : subspaces) {
-    std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
-    //assert(ssData.size() > 0 && "Subspace not initialized");
-    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-    MPI_Request request;
-    MPI_Ibcast(ssData.data(), ssData.size(), dataType, static_cast<int>(root), comm, &request);
-    MPI_Wait(&request, MPI_STATUS_IGNORE);
-  }
+inline const std::vector<size_t>& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes() const {
+  return subspaceDataSizes_;
 }
 
-
 /**
-* Sends all subspaces to the receiver in communicator comm.
+* Sends the raw dsg data to the destination process in communicator comm.
 */
 template <typename FG_ELEMENT>
-static void sendSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+                          RankType dest, CommunicatorType comm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->isSubspaceDataCreated() && "Sending without data does not make sense!");
+
+  FG_ELEMENT* data = dsgu->getRawData();
+  size_t dataSize  = dsgu->getRawDataSize();
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+
+  MPI_Send(data, dataSize, dataType, dest, MPI_ANY_TAG, comm);
+}
+
+/**
+* Recvs the raw dsg data from the source process in communicator comm.
+*/
+template <typename FG_ELEMENT>
+static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+                          RankType source, CommunicatorType comm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->isSubspaceDataCreated() && "Receiving into empty buffer does not make sense!");
+
+  FG_ELEMENT* data = dsgu->getRawData();
+  size_t dataSize  = dsgu->getRawDataSize();
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+
+  MPI_Recv(data, dataSize, dataType, source, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
+}
+
+/**
+ * Asynchronous Bcast of the raw dsg data in the communicator comm.
+ */
+template <typename FG_ELEMENT>
+static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+                              RankType root, CommunicatorType comm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->isSubspaceDataCreated() && "Bcasting without data does not make sense!");
+
+  FG_ELEMENT* data = dsgu->getRawData();
+  size_t dataSize  = dsgu->getRawDataSize();
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+  MPI_Request request;
+
+  MPI_Ibcast(data, dataSize, dataType, root, comm, &request);
+  return request;
+}
+
+/**
+ * Bcast of the raw dsg data in the communicator comm.
+ */
+template <typename FG_ELEMENT>
+static MPI_Request bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+                              RankType root, CommunicatorType comm) {
+  assert(dsgu->getNumSubspaces() > 0);
+  assert(dsgu->isSubspaceDataCreated() && "Bcasting without data does not make sense!");
+
+  FG_ELEMENT* data = dsgu->getRawData();
+  size_t dataSize  = dsgu->getRawDataSize();
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+
+  MPI_Bcast(data, dataSize, dataType, root, comm);
+}
+
+/**
+* Sends all subspace data sizes to the receiver in communicator comm.
+*/
+template <typename FG_ELEMENT>
+static void sendSubspaceDataSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           const std::vector<LevelVector>& subspaces,
                           RankType dest, CommunicatorType comm) {
   assert(dsgu->getNumSubspaces() > 0);
-  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
 
-  for (const LevelVector& ss : subspaces) {
-    std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
-    //assert(ssData.size() > 0 && "Subspace not initialized");
-
-    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-    MPI_Send(ssData.data(), ssData.size(), dataType, dest, sendSSTag, comm);
-    //std::cout << "Worker sent ss with size " << ssData.size() << " to manager" << std::endl;
-  }
+  const std::vector<int>& subspaceDataSizes = dsgu->getSubspaceDataSizes();
+  MPI_Send(subspaceDataSizes.data(), subspaceDataSizes.size(), MPI_INT, dest, MPI_ANY_TAG, comm);
 }
 
 /**
-* Receives subspaces from the sender in communicator recvComm and concurrently
-* distributes them inside bcastComm.
+* Receives reduced subspace data sizes from the sender in communicator recvComm
+* and concurrently distributes them inside bcastComm.
 */
 template <typename FG_ELEMENT>
-static std::vector<MPI_Request> recvAndBcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu, 
-                                                      const std::vector<LevelVector>& subspaces,
-                                                      RankType recvSrc,
-                                                      CommunicatorType recvComm,
-                                                      RankType bcastRoot,
-                                                      CommunicatorType bcastComm) {
+static MPI_Request recvAndBcastSubspaceDataSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+                                         RankType recvSrc,
+                                         CommunicatorType recvComm,
+                                         RankType bcastRoot,
+                                         CommunicatorType bcastComm) {
   assert(dsgu->getNumSubspaces() > 0);
-  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
+  const std::vector<int>& subspaceDataSizes = dsgu->getSubspaceDataSizes();
+  std::vector<int> buf(subspaceDataSizes.size());
 
-  std::vector<MPI_Request> requests;
-  requests.reserve(subspaces.size());
+  // receive subspace data sizes from manager
+  MPI_Status status;
+  MPI_Recv(buf.data(), buf.size(), MPI_INT, recvSrc, MPI_ANY_TAG, recvComm, &status);
 
-  for (const LevelVector& ss : subspaces) {
-    std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
-    //assert(ssData.size() > 0 && "Subspace not initialized");
+  // distribute subspace sizes asynchronously
+  MPI_Request request;
+  MPI_Ibcast(buf.data(), buf.size(), MPI_INT, bcastRoot, bcastComm, &request);
 
-    // receive subspace from manager
-    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-    MPI_Status status;
-    MPI_Recv(ssData.data(), ssData.size(), dataType, recvSrc, sendSSTag, recvComm, &status);
-    //std::cout << "Worker recieved ss with size " << ssData.size() << " from manager" << std::endl;
-
-    // distribute subspace asynchronously
-    MPI_Request request;
-    MPI_Ibcast(ssData.data(), ssData.size(), dataType, bcastRoot, bcastComm, &request);
-    requests.push_back(request);
+  // update subspace data sizes of dsgu
+  for (int i = 0; i < subspaceDataSizes.size(); i++) {
+    dsgu->setDataSize(i, buf[i]);
   }
-  return requests;
+  return request;
 }
 
-/**
-* Sequentially adds all received subspaces to the dsgu and concurrently
-* broadcasts them inside bcastComm.
-*/
+
+/** Performs a max allreduce in comm with subspace sizes of each dsg
+ *
+ * After calling, all workers which share the same spatial decomposition will
+ * have the same subspace sizes and therefor in the end have equally sized dsgs.
+ */
 template <typename FG_ELEMENT>
-static std::vector<MPI_Request> recvAndAddAndBcastSubspaces(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
-                                                            const std::vector<LevelVector>& subspaces,
-                                                            RankType recvSrc,
-                                                            CommunicatorType recvComm,
-                                                            RankType bcastRoot,
-                                                            CommunicatorType bcastComm) {
+static void reduceSubspaceSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+                               CommunicatorType comm) {
   assert(dsgu->getNumSubspaces() > 0);
-  assert(dsgu->getDataVector(dsgu->getNumSubspaces() - 1).size() >= 0);
 
-  std::vector<MPI_Request> requests;
-  requests.reserve(subspaces.size());
+  // prepare for MPI call in globalReduceComm
+  MPI_Datatype dtype = getMPIDatatype(
+                        abstraction::getabstractionDataType<size_t>());
 
-  for (const LevelVector& ss : subspaces) {
-    std::vector<FG_ELEMENT>& ssData = dsgu->getDataVector(ss);
-    std::unique_ptr<FG_ELEMENT[]> buf(new FG_ELEMENT[ssData.size()]);
-    //assert(ssData.size() > 0 && "Subspace not initialized");
+  const std::vector<size_t>& subspaceDataSizes = dsgu->getSubspaceDataSizes();
+  std::vector<size_t> buf(subspaceDataSizes.size());
 
-    // receive subspace from manager
-    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-    MPI_Status status;
-    MPI_Recv(buf.get(), ssData.size(), dataType, recvSrc, sendSSTag, recvComm, &status);
-    //std::cout << "Worker recieved ss with size " << ssData.size() << " from manager" << std::endl;
+  // perform allreduce
+  MPI_Allreduce(subspaceDataSizes.data(), buf.data(), buf.size(), dtype, MPI_MAX, comm);
 
-    // add subspace
-    MPI_Reduce_local(buf.get(), ssData.data(), ssData.size(), dataType, MPI_SUM);
-    buf.release();
-
-    // distribute subspace asynchronously
-    MPI_Request request;
-    MPI_Ibcast(ssData.data(), ssData.size(), dataType, bcastRoot, bcastComm, &request);
-    requests.push_back(request);
+  // set updated sizes in dsg
+  for (int i = 0; i < subspaceDataSizes.size(); i++) {
+    dsgu->setDataSize(i, buf[i]);
   }
-  return requests;
 }
 
 } /* namespace combigrid */
