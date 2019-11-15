@@ -63,7 +63,7 @@ namespace combigrid {
        * and its size.
        */
       template <typename FG_ELEMENT>
-      void recvData(FG_ELEMENT* data, size_t& size) const;
+      void recvData(FG_ELEMENT* &data, size_t& size) const;
   };
 
 
@@ -81,7 +81,7 @@ namespace combigrid {
   }
 
   template <typename FG_ELEMENT>
-  void ThirdLevelUtils::recvData(FG_ELEMENT* data, size_t& size) const
+  void ThirdLevelUtils::recvData(FG_ELEMENT* &data, size_t& size) const
   {
     assert(isConnected_);
     size_t rawSize = receiveSize();
