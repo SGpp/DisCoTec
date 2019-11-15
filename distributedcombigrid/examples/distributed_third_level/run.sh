@@ -1,10 +1,9 @@
 #!/bin/bash
 SGPP_DIR=../../../
 LIB_BOOST_DIR=/usr/lib/
+LIB_GLPK=$(SGPP_DIR)
 
-export LD_LIBRARY_PATH=$SGPP_DIR/lib/sgpp\
-                       :$LIB_BOOST_DIR\
-                       :$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$SGPP_DIR/lib/sgpp:LIB_BOOST_DIR:$LD_LIBRARY_PATH
 
 paramfile="ctparam"
 # allows to read the parameter file from the arguments.
