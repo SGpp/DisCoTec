@@ -14,23 +14,20 @@ class CombiThirdLevelScheme {
      * supported for other schemes than minmax e.g. schemes read directly from
      * file.
      */
-    static void createThirdLevelScheme(std::vector<LevelVector>& levels,
-                                       std::vector<real>& coeffs,
-                                       std::vector<LevelVector>& commonSubspaces,
+    static void createThirdLevelScheme(const std::vector<LevelVector>& levels,
+                                       const std::vector<real>& coeffs,
                                        const std::vector<bool>& boundary,
                                        unsigned int systemNumber,
-                                       unsigned int numSystems);
+                                       unsigned int numSystems,
+                                       std::vector<LevelVector>& newLevels,
+                                       std::vector<real>& newCoeffs);
 
   private:
-    static void decomposeScheme(std::vector<LevelVector>& fullScheme,
-                                std::vector<real> fullSchemeCoeffs,
+    static void decomposeScheme(const std::vector<LevelVector>& fullScheme,
+                                const std::vector<real> fullSchemeCoeffs,
                                 std::vector<std::vector<LevelVector>>& decomposedScheme,
                                 std::vector<std::vector<real>>& decomposedCoeffs,
                                 size_t numSystems = 2);
-
-    static std::vector<LevelVector> computeCommonSubspaces(
-                    const std::vector<std::vector<LevelVector>>& splittedScheme,
-                    const std::vector<bool>& boundary);
 };
 
 }
