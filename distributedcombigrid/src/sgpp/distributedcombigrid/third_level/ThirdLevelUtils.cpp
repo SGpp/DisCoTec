@@ -32,6 +32,11 @@ void ThirdLevelUtils::signalReadyToCombine() const
   sendMessage("ready_to_combine");
 }
 
+void ThirdLevelUtils::signalReadyToUnifySubspaceSizes() const
+{
+  sendMessage("ready_to_unify_subspace_sizes");
+}
+
 void ThirdLevelUtils::signalReady() const
 {
   sendMessage("ready");
