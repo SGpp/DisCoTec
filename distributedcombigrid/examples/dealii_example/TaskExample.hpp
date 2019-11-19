@@ -96,22 +96,53 @@ class TaskExample : public Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
     /* loop over local subgrid and set initial values */
+    this->problem = std::make_shared<Problem>(lcomm,  table);
+    this->problem->reinit(_filename);
+
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    
+    std::vector<std::array<Number, Problem::dim_ >> element_coords(elements.size());
+    std::vector<std::array<Number, Problem::dim_ + 1>> coords_dealii = problem->get_result();
+    size_result=coords_dealii.size();
     for (size_t i = 0; i < elements.size(); ++i) {
       IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
       std::vector<real> globalCoords(dim);
       dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
+      for(size_t l=0; l<dim;++l)
+        element_coords[i][l]=globalCoords[l];
       
       elements[i] = 0;
+
     }
-    
-    //TODO: size_x und size_v bestimmen
-    
-    this->problem = std::make_shared<Problem>(lcomm,  table);
-    this->problem->reinit(_filename);
+   
+    int i=0;
+    double eps=5*10e-16;
+    index_mapping.resize(element_coords.size());
 
+    for(unsigned int el_index=0;el_index<(element_coords.size());el_index++){
+      //Create the point for the point of combi
+      i=0;
+      Point<Problem::dim_> combi;
+      for(auto y:element_coords[el_index])
+        combi[i++]=y;
+      //loop over dealii points
+      for(unsigned int x2=(coords_dealii.size())-1;x2>=numbers::invalid_unsigned_int;x2--){
+        //create Point
+        Point<Problem::dim_> dealii;
+        i=0;
+        for(auto y:coords_dealii[x2])
+          dealii[i++]=y;
 
+        //check if the points are equal
+        if(combi.distance(dealii)<=eps)
+        {
+          index_mapping[el_index]=x2;
+          //std::cout << x2 << " ";
+          //std::cout <<"Combi Point: "<<combi << " Dealii: "<<dealii<<std::endl;
+          break;//break is bad
+        }
+      }
+    }
+      
     initialized_ = true;
   }
 
@@ -125,19 +156,26 @@ class TaskExample : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
     std::cout << "Run of Task"<< this->getID()<<std::endl;
-    //std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    // TODO if your Example uses another data structure, you need to copy
-    // the data from elements to that data structure
-   
-    //std::vector<std::array<Number, Problem::dim_ + 1>> old_result;
-   // problem->set_result(old_result);
+    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    
+    
+    std::vector<std::array<Number, Problem::dim_ + 1>> old_result(size_result);
+   // 
+   if(stepsTotal_>0)
+    for(unsigned int i = 0; i < index_mapping.size(); i++)
+      old_result[index_mapping[i]][Problem::dim_]=elements[i].real();
+    
+    problem->set_result(old_result);
     problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + nsteps_)*dt_);
 
     //process problem
     problem->solve();
 
-    //std::vector<std::array<Number, Problem::dim_ + 1>> result = problem->get_result();
-
+    std::vector<std::array<Number, Problem::dim_ + 1>> result = problem->get_result();
+    
+    for(unsigned int i = 0; i < index_mapping.size(); i++)
+      elements[i]=result[index_mapping[i]][Problem::dim_];
+    
     stepsTotal_ += nsteps_;
 
     
@@ -172,7 +210,7 @@ class TaskExample : public Task {
    * this constructor before overwriting the variables that are set by the
    * manager. here we need to set the initialized variable to make sure it is
    * set to false. */
-  TaskExample() : initialized_(false), stepsTotal_(1), dfg_(NULL) {std::cout <<" i am called";}
+  TaskExample() : initialized_(false), stepsTotal_(0), dfg_(NULL) {}
 
  private:
   friend class boost::serialization::access;
@@ -180,7 +218,8 @@ class TaskExample : public Task {
   // new variables that are set by manager. need to be added to serialize
   real dt_;       // TODO
   size_t nsteps_; // TODO
-  
+  size_t size_result;
+  std::vector<Number> index_mapping;
   IndexVector p_;
   std::shared_ptr<Problem> problem;
 

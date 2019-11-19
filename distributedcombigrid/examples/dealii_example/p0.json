@@ -29,7 +29,7 @@
         },
         "VTK": {
             "Enabled": "true",
-            "Prefix": "solution_0"
+            "Prefix": "solution\/solution_0"
         }
     }
 }

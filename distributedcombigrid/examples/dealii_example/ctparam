@@ -11,5 +11,5 @@ dt = 1e-3
 nsteps = 100
 
 [manager]
-ngroup = 2
+ngroup = 1
 nprocs = 1
