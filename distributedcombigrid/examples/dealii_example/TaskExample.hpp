@@ -16,7 +16,7 @@
 #include <hyper.deal.combi/include/functionalities/dynamic_convergence_table.h>
 #include <hyper.deal.combi/include/functionalities/vector_dummy.h>
 #include <hyper.deal.combi/applications/advection_reference_dealii/include/application.h>
-
+const bool do_combine=true;
 namespace combigrid {
 
 class TaskExample : public Task {
@@ -115,7 +115,7 @@ class TaskExample : public Task {
     }
    
     int i=0;
-    double eps=5*10e-16;
+    double eps=5*10e-8;
     index_mapping.resize(element_coords.size());
 
     for(unsigned int el_index=0;el_index<(element_coords.size());el_index++){
@@ -125,7 +125,8 @@ class TaskExample : public Task {
       for(auto y:element_coords[el_index])
         combi[i++]=y;
       //loop over dealii points
-      for(unsigned int x2=(coords_dealii.size())-1;x2>=numbers::invalid_unsigned_int;x2--){
+      for(unsigned int x2=(coords_dealii.size())-1;x2<numbers::invalid_unsigned_int;x2--){
+      //for(unsigned int x2=0;x2<(coords_dealii.size());x2++){
         //create Point
         Point<Problem::dim_> dealii;
         i=0;
@@ -136,6 +137,7 @@ class TaskExample : public Task {
         if(combi.distance(dealii)<=eps)
         {
           index_mapping[el_index]=x2;
+          std::cout<<"Hier ";
           //std::cout << x2 << " ";
           //std::cout <<"Combi Point: "<<combi << " Dealii: "<<dealii<<std::endl;
           break;//break is bad
@@ -161,21 +163,32 @@ class TaskExample : public Task {
     
     std::vector<std::array<Number, Problem::dim_ + 1>> old_result(size_result);
    // 
-   if(stepsTotal_>0)
-    for(unsigned int i = 0; i < index_mapping.size(); i++)
-      old_result[index_mapping[i]][Problem::dim_]=elements[i].real();
+   if(stepsTotal_>0 && do_combine)
+   {
+      for(unsigned int i = 0; i < index_mapping.size(); i++)
+        old_result[index_mapping[i]][Problem::dim_]=elements[i].real();
     
-    problem->set_result(old_result);
+      problem->set_result(old_result);
+   }
     problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + nsteps_)*dt_);
 
     //process problem
     problem->solve();
 
     std::vector<std::array<Number, Problem::dim_ + 1>> result = problem->get_result();
-    
-    for(unsigned int i = 0; i < index_mapping.size(); i++)
-      elements[i]=result[index_mapping[i]][Problem::dim_];
-    
+    std::cout << "Result ";
+    for(auto x:result)
+      std::cout << x[Problem::dim_] << " ";
+    if(do_combine){
+      for(unsigned int i = 0; i < index_mapping.size(); i++)
+        {
+          elements[i]=result[index_mapping[i]][Problem::dim_];
+          std::cout << i << " wird auf "<< index_mapping[i] <<" gemappt. ";
+        }
+    }
+    std::cout << std::endl <<"Elements ";
+    for(auto x:elements)
+      std::cout << x << " ";
     stepsTotal_ += nsteps_;
 
     
