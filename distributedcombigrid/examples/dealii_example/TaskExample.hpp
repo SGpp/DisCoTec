@@ -125,18 +125,18 @@ class TaskExample : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
     std::cout << "Run of Task"<< this->getID()<<std::endl;
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    //std::vector<CombiDataType>& elements = dfg_->getElementVector();
     // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure
    
-    std::vector<std::array<Number, Problem::dim_ + 1>> old_result;
-    problem->set_result(old_result);
+    //std::vector<std::array<Number, Problem::dim_ + 1>> old_result;
+   // problem->set_result(old_result);
     problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + nsteps_)*dt_);
 
     //process problem
     problem->solve();
 
-    std::vector<std::array<Number, Problem::dim_ + 1>> result = problem->get_result();
+    //std::vector<std::array<Number, Problem::dim_ + 1>> result = problem->get_result();
 
     stepsTotal_ += nsteps_;
 

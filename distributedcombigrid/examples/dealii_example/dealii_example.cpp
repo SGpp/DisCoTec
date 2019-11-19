@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       std::string file_name = std::string("p")+std::to_string(i)+".json";
-      converter.toJSONForDealII("ctparam",file_name, levels[i]);
+      converter.toJSONForDealII("ctparam",file_name, levels[i],i);
       usleep(10);
       Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt, nsteps, p);
       tasks.push_back(t);

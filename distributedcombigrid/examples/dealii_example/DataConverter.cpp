@@ -173,7 +173,7 @@ using namespace combigrid;
         }
     }
 
-    void Converter::toJSONForDealII(std::string _fileName, std::string newname,LevelVector l){
+    void Converter::toJSONForDealII(std::string _fileName, std::string newname,LevelVector l, int output_prefix){
         namespace pt = boost::property_tree;
 
         // Create a root
@@ -189,6 +189,10 @@ using namespace combigrid;
 
             //degree is 1 per default
             int deg=root.get<int>("ct.degree",1);
+
+
+            double dt=root.get<int>("ct.dt",1);
+            int nsteps=root.get<int>("ct.nsteps",1);
 
             // case is per default hyperrectangle and periodic is per default 
             //nrefinments is set to 0 and the distribution is controlled via subdivisions
@@ -206,9 +210,9 @@ using namespace combigrid;
 
             json_case.put("NRefinements",0);
             json_case.put("Periodic",true);
-            jsubX.put("X",pow(2,lmax[0]));
-            jsubX.put("Y",pow(2,lmax[0]));
-            jsubX.put("Z",pow(2,lmax[0]));
+            jsubX.put("X",pow(2,lmax[std::min(std::max(dim-1, 0),0)]));
+            jsubX.put("Y",pow(2,lmax[std::min(std::max(dim-1, 1),1)]));
+            jsubX.put("Z",pow(2,lmax[std::min(std::max(dim-1, 2),2)]));
             json_case.add_child("NSubdivisions",jsubX);
             json_root.add_child("Case", json_case);
 
@@ -217,13 +221,14 @@ using namespace combigrid;
             json_SpatialDiscretization.put("FE","FE_Q");
             json_root.add_child("SpatialDiscretization",json_SpatialDiscretization);
 
-            json_TemporalDiscretization.put("FinalTime",2);
+            json_TemporalDiscretization.put("FinalTime",dt*nsteps);
             json_TemporalDiscretization.put("CFLNumber",0.15);
             json_root.add_child("TemporalDiscretization",json_TemporalDiscretization);
             
             jsout.put("Tick",0.1);
             json_postprocessing.add_child("StandardOutput",jsout);
-            jVTK.put("Enabled",false);
+            jVTK.put("Enabled",true);
+            jVTK.put("Prefix","solution_"+std::to_string(output_prefix));
             json_postprocessing.add_child("VTK",jVTK);
             
             json_root.add_child("Postprocessing", json_postprocessing);

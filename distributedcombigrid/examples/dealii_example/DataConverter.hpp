@@ -26,7 +26,7 @@ class Converter{
     
     void toParam(std::string, std::string);
 
-    void toJSONForDealII(std::string, std::string, LevelVector);
+    void toJSONForDealII(std::string, std::string, LevelVector, int);
 
     //
     void toJSON(std::string, std::string, LevelVector );

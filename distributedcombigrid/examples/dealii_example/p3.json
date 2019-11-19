@@ -10,8 +10,8 @@
         "Periodic": "true",
         "NSubdivisions": {
             "X": "8",
-            "Y": "8",
-            "Z": "8"
+            "Y": "16",
+            "Z": "4294967296"
         }
     },
     "SpatialDiscretization": {
@@ -20,7 +20,7 @@
         "FE": "FE_Q"
     },
     "TemporalDiscretization": {
-        "FinalTime": "2",
+        "FinalTime": "1",
         "CFLNumber": "0.14999999999999999"
     },
     "Postprocessing": {
@@ -28,7 +28,8 @@
             "Tick": "0.10000000000000001"
         },
         "VTK": {
-            "Enabled": "false"
+            "Enabled": "true",
+            "Prefix": "solution_3"
         }
     }
 }
