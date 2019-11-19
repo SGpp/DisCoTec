@@ -94,83 +94,6 @@ using namespace combigrid;
     }
     
     //converts the data from the ini file to a json format and stores the data in newname.json
-    void Converter::toJSON(std::string _fileName, std::string newname){
-        namespace pt = boost::property_tree;
-
-        // Create a root
-        pt::ptree root;
-        pt::ptree json_root, json_general, json_case, json_SpatialDiscretization, json_TemporalDiscretization, json_postprocessing;
-        pt::ptree jsubX, jsubV,jsout, jVTK;
-        
-        // Load the ini file in this ptree
-        try{
-            pt::read_ini(_fileName, root);
-            std::cout << "Name "<<_fileName;
-            int dim=root.get<int>("ct.dim",2);
-            int dimx=root.get<int>("ct.dimx",dim/2);
-            int dimv=root.get<int>("ct.dimv",dim/2);
-
-            //degree is 1 per default
-            int degx=root.get<int>("ct.degreex",1);
-            int degv=root.get<int>("ct.degreev",1);
-
-            // case is per default hyperrectangle and periodic is per default 
-            //nrefinments is set to 0 and the distribution is controlled via subdivisions
-
-            //lmax:
-            LevelVector lmax(dimx+dimv),p(dimx+dimv);
-            root.get<std::string>("ct.lmax") >> lmax;
-            root.get<std::string>("ct.p") >> p;
-            
-            json_general.put("DimX", dimx);
-            json_general.put("DimV", dimv);
-            json_general.put("DegreeX", degx);
-            json_general.put("DegreeV", degx);
-            json_general.put("PartitionX", p[0]);
-            json_general.put("PartitionV", p[1]);
-            json_general.put("Case","hyperrectangle");
-            json_root.add_child("General", json_general);
-
-            json_case.put("NRefinementsX",0);
-            json_case.put("NRefinementsV",0);
-            json_case.put("PeriodicX",true);
-            json_case.put("PeriodicV",true);
-            jsubX.put("X",pow(2,lmax[0]));
-            jsubX.put("Y",pow(2,lmax[0]));
-            jsubX.put("Z",pow(2,lmax[0]));
-            jsubV.put("X",pow(2,lmax[1]));
-            jsubV.put("Y",pow(2,lmax[1]));
-            jsubV.put("Z",pow(2,lmax[1]));
-            json_case.add_child("NSubdivisionsX",jsubX);
-            json_case.add_child("NSubdivisionsV",jsubV);
-            json_root.add_child("Case", json_case);
-
-            json_SpatialDiscretization.put("TriangulationType","FullyDistributed");
-            json_SpatialDiscretization.put("MappingX",1);
-            json_SpatialDiscretization.put("MappingV",1);
-            json_root.add_child("SpatialDiscretization",json_SpatialDiscretization);
-
-            json_TemporalDiscretization.put("FinalTime",2);
-            json_TemporalDiscretization.put("CFLNumber",0.15);
-            json_root.add_child("TemporalDiscretization",json_TemporalDiscretization);
-            
-            jsout.put("Tick",0.1);
-            json_postprocessing.add_child("StandardOutput",jsout);
-            jVTK.put("Enabled",false);
-            json_postprocessing.add_child("VTK",jVTK);
-            
-            json_root.add_child("Postprocessing", json_postprocessing);
-            pt::write_json(newname,json_root);
-           
-            
-        }
-        catch(pt::ini_parser::ini_parser_error error){
-            std::cout<< "Not a valid file";
-        }
-        catch(...){
-            std::cout << "Something went wrong";
-        }
-    }
 
     void Converter::toJSON(std::string _fileName, std::string newname,LevelVector l){
         namespace pt = boost::property_tree;
@@ -226,6 +149,72 @@ using namespace combigrid;
             json_SpatialDiscretization.put("TriangulationType","FullyDistributed");
             json_SpatialDiscretization.put("MappingX",1);
             json_SpatialDiscretization.put("MappingV",1);
+            json_root.add_child("SpatialDiscretization",json_SpatialDiscretization);
+
+            json_TemporalDiscretization.put("FinalTime",2);
+            json_TemporalDiscretization.put("CFLNumber",0.15);
+            json_root.add_child("TemporalDiscretization",json_TemporalDiscretization);
+            
+            jsout.put("Tick",0.1);
+            json_postprocessing.add_child("StandardOutput",jsout);
+            jVTK.put("Enabled",false);
+            json_postprocessing.add_child("VTK",jVTK);
+            
+            json_root.add_child("Postprocessing", json_postprocessing);
+            pt::write_json(newname,json_root);
+           
+            
+        }
+        catch(pt::ini_parser::ini_parser_error error){
+            std::cout<< "Not a valid File";
+        }
+        catch(...){
+            std::cout << "Something went wrong";
+        }
+    }
+
+    void Converter::toJSONForDealII(std::string _fileName, std::string newname,LevelVector l){
+        namespace pt = boost::property_tree;
+
+        // Create a root
+        pt::ptree root;
+        pt::ptree json_root, json_general, json_case, json_SpatialDiscretization, json_TemporalDiscretization, json_postprocessing;
+        pt::ptree jsubX, jsubV,jsout, jVTK;
+        
+        // Load the ini file in this ptree
+        try{
+            pt::read_ini(_fileName, root);
+            std::cout << "Name "<<_fileName;
+            int dim=root.get<int>("ct.dim",2);
+
+            //degree is 1 per default
+            int deg=root.get<int>("ct.degree",1);
+
+            // case is per default hyperrectangle and periodic is per default 
+            //nrefinments is set to 0 and the distribution is controlled via subdivisions
+
+            //lmax:
+            LevelVector lmax(dim),p(dim);
+            lmax=l;
+            root.get<std::string>("ct.p") >> p;
+            
+            json_general.put("Dim", dim);
+            json_general.put("Degree", deg);
+            json_general.put("Partition", p[0]);
+            json_general.put("Case","hyperrectangle");
+            json_root.add_child("General", json_general);
+
+            json_case.put("NRefinements",0);
+            json_case.put("Periodic",true);
+            jsubX.put("X",pow(2,lmax[0]));
+            jsubX.put("Y",pow(2,lmax[0]));
+            jsubX.put("Z",pow(2,lmax[0]));
+            json_case.add_child("NSubdivisions",jsubX);
+            json_root.add_child("Case", json_case);
+
+            json_SpatialDiscretization.put("TriangulationType","FullyDistributed");
+            json_SpatialDiscretization.put("Mapping",1);
+            json_SpatialDiscretization.put("FE","FE_Q");
             json_root.add_child("SpatialDiscretization",json_SpatialDiscretization);
 
             json_TemporalDiscretization.put("FinalTime",2);

@@ -11,8 +11,11 @@
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
-//#include "../../../hyper.deal.combi/include/functionalities/dynamic_convergence_table.h"
 #include <deal.II/base/timer.h>
+#include <deal.II/lac/la_parallel_vector.h>
+#include <hyper.deal.combi/include/functionalities/dynamic_convergence_table.h>
+#include <hyper.deal.combi/include/functionalities/vector_dummy.h>
+#include <hyper.deal.combi/applications/advection_reference_dealii/include/application.h>
 
 namespace combigrid {
 
@@ -100,12 +103,18 @@ class TaskExample : public Task {
       
       elements[i] = TaskExample::myfunction(globalCoords, 0.0);
     }
-
-
-    //hyperdeal::DynamicConvergenceTable table;
+    assert(dim==2);
+    const int dim_=2;
+    const int degree=1;
+    typedef double                     Number;
+    typedef dealii::VectorizedArray<Number, 1> VectorizedArrayType;
+    typedef dealii::LinearAlgebra::distributed::Vector<Number> VectorType;
+    typedef Application<dim_, degree, degree + 1, Number, VectorizedArrayType, VectorType> Problem;
+    hyperdeal::DynamicConvergenceTable table;
     //TODO: size_x und size_v bestimmen
-    //Problem problem(lcomm, size_x, size_v, table);
-    //problem.reinit(_filename);
+    int size_x=1,size_v=1;
+    Problem problem(lcomm,  table);
+    problem.reinit(_filename);
 
 
     initialized_ = true;
@@ -203,7 +212,7 @@ class TaskExample : public Task {
    * this constructor before overwriting the variables that are set by the
    * manager. here we need to set the initialized variable to make sure it is
    * set to false. */
-  TaskExample() : initialized_(false), stepsTotal_(1), dfg_(NULL) {}
+  TaskExample() : initialized_(false), stepsTotal_(1), dfg_(NULL) {std::cout <<" i am called";}
 
  private:
   friend class boost::serialization::access;
@@ -236,6 +245,7 @@ class TaskExample : public Task {
     ar& dt_;
     ar& nsteps_;
     ar& p_;
+    ar& _filename;
   }
 };
 

@@ -26,8 +26,7 @@ class Converter{
     
     void toParam(std::string, std::string);
 
-    //reads in data from an ini file and stores it in  newname.json file
-    void toJSON(std::string, std::string);
+    void toJSONForDealII(std::string, std::string, LevelVector);
 
     //
     void toJSON(std::string, std::string, LevelVector );

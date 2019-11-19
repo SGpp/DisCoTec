@@ -1,24 +1,14 @@
 {
     "General": {
-        "DimX": "1",
-        "DimV": "1",
-        "DegreeX": "1",
-        "DegreeV": "1",
-        "PartitionX": "1",
-        "PartitionV": "1",
+        "Dim": "2",
+        "Degree": "1",
+        "Partition": "1",
         "Case": "hyperrectangle"
     },
     "Case": {
-        "NRefinementsX": "0",
-        "NRefinementsV": "0",
-        "PeriodicX": "true",
-        "PeriodicV": "true",
-        "NSubdivisionsX": {
-            "X": "8",
-            "Y": "8",
-            "Z": "8"
-        },
-        "NSubdivisionsV": {
+        "NRefinements": "0",
+        "Periodic": "true",
+        "NSubdivisions": {
             "X": "8",
             "Y": "8",
             "Z": "8"
@@ -26,8 +16,8 @@
     },
     "SpatialDiscretization": {
         "TriangulationType": "FullyDistributed",
-        "MappingX": "1",
-        "MappingV": "1"
+        "Mapping": "1",
+        "FE": "FE_Q"
     },
     "TemporalDiscretization": {
         "FinalTime": "2",
