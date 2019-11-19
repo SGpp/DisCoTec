@@ -103,18 +103,11 @@ class TaskExample : public Task {
       
       elements[i] = TaskExample::myfunction(globalCoords, 0.0);
     }
-    assert(dim==2);
-    const int dim_=2;
-    const int degree=1;
-    typedef double                     Number;
-    typedef dealii::VectorizedArray<Number, 1> VectorizedArrayType;
-    typedef dealii::LinearAlgebra::distributed::Vector<Number> VectorType;
-    typedef Application<dim_, degree, degree + 1, Number, VectorizedArrayType, VectorType> Problem;
-    hyperdeal::DynamicConvergenceTable table;
+    
     //TODO: size_x und size_v bestimmen
     int size_x=1,size_v=1;
-    Problem problem(lcomm,  table);
-    problem.reinit(_filename);
+    this->problem = std::make_shared<Problem>(lcomm,  table);
+    this->problem->reinit(_filename);
 
 
     initialized_ = true;
@@ -222,6 +215,7 @@ class TaskExample : public Task {
   size_t nsteps_;
   std::string _filename;
   IndexVector p_;
+  std::shared_ptr<Problem> problem;
 
   // pure local variables that exist only on the worker processes
   bool initialized_;

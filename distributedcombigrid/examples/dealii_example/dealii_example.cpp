@@ -25,13 +25,24 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
+#include <deal.II/base/timer.h>
+#include <deal.II/lac/la_parallel_vector.h>
 
 typedef double                     Number;
-//typedef VectorizedArray<Number, 1> VectorizedArrayType;
 
 const unsigned int dim    = 2;
 const unsigned int degree = 3; /*dummy value*/
 
+typedef dealii::VectorizedArray<Number, 1> VectorizedArrayType;
+typedef dealii::LinearAlgebra::distributed::Vector<Number> VectorType;
+
+
+#include <hyper.deal.combi/include/functionalities/dynamic_convergence_table.h>
+#include <hyper.deal.combi/include/functionalities/vector_dummy.h>
+#include <hyper.deal.combi/applications/advection_reference_dealii/include/application.h>
+
+typedef Application<dim, degree, degree + 1, Number, VectorizedArrayType, VectorType> Problem;
+hyperdeal::DynamicConvergenceTable table;
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
 #include "DataConverter.cpp"
