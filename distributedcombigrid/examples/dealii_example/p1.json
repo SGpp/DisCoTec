@@ -1,0 +1,42 @@
+{
+    "General": {
+        "Dim": 2,
+        "Degree": 1,
+        "PartitionX": 1, //partition fällt komplett weg 
+        "PartitionV": 1,
+        "Case": "hyperrectangle"
+    },
+    "Case": {
+        "NRefinementsX": 0,
+        "NRefinementsV": 0,
+        "PeriodicX": true,
+        "PeriodicV": true,
+        "NSubdivisionsX": {
+            "X": 16,
+            "Y": 16,
+            "Z": 16
+        },
+        "NSubdivisionsV": {
+            "X": 8,
+            "Y": 8,
+            "Z": 8
+        } // es kommt curved hinzu und alles halt nur für X
+    },
+    "SpatialDiscretization": {
+        "TriangulationType": "FullyDistributed",
+        "MappingX": 1,
+        "MappingV": 1 //Mapping auch nur in X und FE kommt noch hinzu
+    },
+    "TemporalDiscretization": {
+        "FinalTime": 2,
+        "CFLNumber": 0.14999999999999999
+    },
+    "Postprocessing": {
+        "StandardOutput": {
+            "Tick": 0.10000000000000001
+        },
+        "VTK": {
+            "Enabled": false
+        }
+    }
+}

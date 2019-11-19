@@ -1,0 +1,30 @@
+{
+    "General": {
+        "Dim": 2,
+        "Degree": 3,
+        "Case": "hyperrectangle"
+    },
+    "Case": {
+        "NRefinements": 4,
+        "NSubdivisions": {"X" : 1, "Y" : 1, "Z" : 1},
+        "Periodic": true,
+        "Curved": false
+    },
+    "SpatialDiscretization" : {
+        "TriangulationType": "FullyDistributed",
+        "Mapping": 1,
+        "FE": "FE_Q"
+    },
+    "TemporalDiscretization": {
+        "FinalTime": 2.0,
+        "CFLNumber": 0.15
+    },
+    "Postprocessing" : {
+        "StandardOutput": {
+            "Tick": 0.25
+        },
+        "VTK" : {
+            "Enabled": false
+        }
+    }
+}

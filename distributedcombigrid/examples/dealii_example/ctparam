@@ -1,0 +1,15 @@
+[ct]
+dim = 2
+lmin = 2 2 
+lmax = 4 5
+leval = 5 5
+p = 1 1
+ncombi = 1
+
+[application]
+dt = 1e-3
+nsteps = 100
+
+[manager]
+ngroup = 2
+nprocs = 1
