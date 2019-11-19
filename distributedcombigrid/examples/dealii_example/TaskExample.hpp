@@ -21,6 +21,8 @@ namespace combigrid {
 
 class TaskExample : public Task {
  public:
+  typedef Application<dim, degree, degree + 1, Number, VectorizedArrayType, VectorType> Problem;
+
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
@@ -101,7 +103,7 @@ class TaskExample : public Task {
       std::vector<real> globalCoords(dim);
       dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
       
-      elements[i] = TaskExample::myfunction(globalCoords, 0.0);
+      elements[i] = 0;
     }
     
     //TODO: size_x und size_v bestimmen
@@ -123,35 +125,18 @@ class TaskExample : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
     std::cout << "Run of Task"<< this->getID()<<std::endl;
-    //std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    std::vector<CombiDataType>& elements = dfg_->getElementVector();
     // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure
    
-    //problem.set_result();
-    //problem.reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + nsteps_)*dt_);
+    std::vector<std::array<Number, Problem::dim_ + 1>> old_result;
+    problem->set_result(old_result);
+    problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + nsteps_)*dt_);
 
-    // process problem
-    //problem.solve();
+    //process problem
+    problem->solve();
 
-    //std::vector<std::array<Number, dim_x + dim_v + 1>> result = problem.get_result();
-// TODO if your Example uses another data structure, you need to copy
-    // the data from that data structure to elements/dfg_
-
-  
-    /* pseudo timestepping to demonstrate the behaviour of your typical
-     * time-dependent simulation problem. 
-    for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
-      real time = step * dt_;
-
-      for (size_t i = 0; i < elements.size(); ++i) {
-        IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
-        std::vector<real> globalCoords(this->getDim());
-        dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
-        elements[i] = TaskExample::myfunction(globalCoords, time);
-      }
-
-      MPI_Barrier(lcomm);
-    }*/
+    std::vector<std::array<Number, Problem::dim_ + 1>> result = problem->get_result();
 
     stepsTotal_ += nsteps_;
 
@@ -174,24 +159,6 @@ class TaskExample : public Task {
 
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
-  static real myfunction(std::vector<real>& coords, real t) {
-    real u = std::cos(M_PI * t);
-    
-    for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(2.0 * M_PI * coords[d]);
-
-    return u;
-
-    /*
-    double res = 1.0;
-    for (size_t i = 0; i < coords.size(); ++i) {
-      res *= -4.0 * coords[i] * (coords[i] - 1);
-    }
-
-
-    return res;
-    */
-  }
-
   void setZero() {}
 
   ~TaskExample() {
@@ -211,8 +178,8 @@ class TaskExample : public Task {
   friend class boost::serialization::access;
 
   // new variables that are set by manager. need to be added to serialize
-  real dt_;
-  size_t nsteps_;
+  real dt_;       // TODO
+  size_t nsteps_; // TODO
   
   IndexVector p_;
   std::shared_ptr<Problem> problem;

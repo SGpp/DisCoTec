@@ -29,8 +29,8 @@ LIBS=-lsgppdistributedcombigrid -lboost_serialization -ldeal_II.g
 
 all: dealii_example 
 
-dealii_example: dealii_example.cpp TaskExample.hpp DataConverter.cpp
-	$(CC) $(CFLAGS) $(LDIR) $(INC) -o dealii_example dealii_example.cpp $(LIBS)
+dealii_example: dealii_example.cpp TaskExample.hpp DataConverter.cpp parameter_handler.cc
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o dealii_example dealii_example.cpp parameter_handler.cc $(LIBS)
 
 clean:
 	rm -f *.o out/* dealii_example

@@ -1,15 +1,10 @@
-/*
- * combi_example.cpp
- *
- *  Created on: Sep 23, 2015
- *      Author: heenemo
- */
 #include <mpi.h>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
 #include <string>
 #include <vector>
+#include <unistd.h>
 
 // compulsory includes for basic functionality
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
@@ -28,21 +23,20 @@
 #include <deal.II/base/timer.h>
 #include <deal.II/lac/la_parallel_vector.h>
 
-typedef double                     Number;
-
+//TODO: global variables needed in hyperdeal
+typedef double Number;
 const unsigned int dim    = 2;
 const unsigned int degree = 3; /*dummy value*/
-
 typedef dealii::VectorizedArray<Number, 1> VectorizedArrayType;
 typedef dealii::LinearAlgebra::distributed::Vector<Number> VectorType;
 
-
+//hyperdeal includes
 #include <hyper.deal.combi/include/functionalities/dynamic_convergence_table.h>
 #include <hyper.deal.combi/include/functionalities/vector_dummy.h>
 #include <hyper.deal.combi/applications/advection_reference_dealii/include/application.h>
 
-typedef Application<dim, degree, degree + 1, Number, VectorizedArrayType, VectorType> Problem;
 hyperdeal::DynamicConvergenceTable table;
+
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
 #include "DataConverter.cpp"
@@ -139,6 +133,7 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < levels.size(); i++) {
       std::string file_name = std::string("p")+std::to_string(i)+".json";
       converter.toJSONForDealII("ctparam",file_name, levels[i]);
+      usleep(10);
       Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
