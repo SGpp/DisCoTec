@@ -32,9 +32,9 @@ class TaskExample : public Task {
         nsteps_(nsteps),
         p_(p),
         initialized_(false),
-        stepsTotal_(0),
-        _filename(filename),
-        dfg_(NULL) {}
+        stepsTotal_(0),dfg_(NULL),
+        _filename(filename){}
+        
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -105,7 +105,7 @@ class TaskExample : public Task {
     }
     
     //TODO: size_x und size_v bestimmen
-    int size_x=1,size_v=1;
+    
     this->problem = std::make_shared<Problem>(lcomm,  table);
     this->problem->reinit(_filename);
 
@@ -123,7 +123,7 @@ class TaskExample : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
     std::cout << "Run of Task"<< this->getID()<<std::endl;
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    //std::vector<CombiDataType>& elements = dfg_->getElementVector();
     // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure
    
@@ -213,7 +213,7 @@ class TaskExample : public Task {
   // new variables that are set by manager. need to be added to serialize
   real dt_;
   size_t nsteps_;
-  std::string _filename;
+  
   IndexVector p_;
   std::shared_ptr<Problem> problem;
 
@@ -221,6 +221,7 @@ class TaskExample : public Task {
   bool initialized_;
   size_t stepsTotal_;
   DistributedFullGrid<CombiDataType>* dfg_;
+  std::string _filename;
 
   /**
    * The serialize function has to be extended by the new member variables.

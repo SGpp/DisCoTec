@@ -85,7 +85,7 @@ using namespace combigrid;
             pt::write_ini(newname,ini_root);
 
         }
-        catch(pt::json_parser::json_parser_error error){
+        catch(const pt::json_parser::json_parser_error& error){
             std::cout<< "Not a valid json File";
         }
         catch(...){
@@ -126,7 +126,7 @@ using namespace combigrid;
             json_general.put("DimX", dimx);
             json_general.put("DimV", dimv);
             json_general.put("DegreeX", degx);
-            json_general.put("DegreeV", degx);
+            json_general.put("DegreeV", degv);
             json_general.put("PartitionX", p[0]);
             json_general.put("PartitionV", p[1]);
             json_general.put("Case","hyperrectangle");
@@ -165,7 +165,7 @@ using namespace combigrid;
            
             
         }
-        catch(pt::ini_parser::ini_parser_error error){
+        catch(const pt::ini_parser::ini_parser_error& error){
             std::cout<< "Not a valid File";
         }
         catch(...){
@@ -231,7 +231,7 @@ using namespace combigrid;
            
             
         }
-        catch(pt::ini_parser::ini_parser_error error){
+        catch(const pt::ini_parser::ini_parser_error& error){
             std::cout<< "Not a valid File";
         }
         catch(...){
