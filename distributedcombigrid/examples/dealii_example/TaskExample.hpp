@@ -24,14 +24,13 @@ class TaskExample : public Task {
   typedef Application<dim, degree, degree + 1, Number, VectorizedArrayType, VectorType> Problem;
 
   /* if the constructor of the base task class is not sufficient we can provide an
-   * own implementation. here, we add dt, nsteps, and p as a new parameters.
+   * own implementation. here, we add dt, and p as a new parameters.
    */
   TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-              LoadModel* loadModel,std::string filename,  real dt, size_t nsteps, IndexVector p = IndexVector(0),
+              LoadModel* loadModel,std::string filename,  real dt,  IndexVector p = IndexVector(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
-        dt_(dt),
-        nsteps_(nsteps),
+        dt_(dt),        
         p_(p),
         initialized_(false),
         stepsTotal_(0),dfg_(NULL),
@@ -137,7 +136,6 @@ class TaskExample : public Task {
         if(combi.distance(dealii)<=eps)
         {
           index_mapping[el_index]=x2;
-          std::cout<<"Hier ";
           //std::cout << x2 << " ";
           //std::cout <<"Combi Point: "<<combi << " Dealii: "<<dealii<<std::endl;
           break;//break is bad
@@ -170,26 +168,19 @@ class TaskExample : public Task {
     
       problem->set_result(old_result);
    }
-    problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + nsteps_)*dt_);
+    problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + 1)*dt_);
 
     //process problem
     problem->solve();
 
     std::vector<std::array<Number, Problem::dim_ + 1>> result = problem->get_result();
-    std::cout << "Result ";
-    for(auto x:result)
-      std::cout << x[Problem::dim_] << " ";
+    
     if(do_combine){
       for(unsigned int i = 0; i < index_mapping.size(); i++)
-        {
           elements[i]=result[index_mapping[i]][Problem::dim_];
-          std::cout << i << " wird auf "<< index_mapping[i] <<" gemappt. ";
-        }
     }
-    std::cout << std::endl <<"Elements ";
-    for(auto x:elements)
-      std::cout << x << " ";
-    stepsTotal_ += nsteps_;
+    
+    stepsTotal_ ++;
 
     
     this->setFinished(true);
@@ -230,7 +221,7 @@ class TaskExample : public Task {
 
   // new variables that are set by manager. need to be added to serialize
   real dt_;       // TODO
-  size_t nsteps_; // TODO
+  
   size_t size_result;
   std::vector<Number> index_mapping;
   IndexVector p_;
@@ -257,7 +248,7 @@ class TaskExample : public Task {
 
     // add our new variables
     ar& dt_;
-    ar& nsteps_;
+    
     ar& p_;
     ar& _filename;
   }

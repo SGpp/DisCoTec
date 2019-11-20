@@ -90,14 +90,14 @@ int main(int argc, char** argv) {
     LevelVector lmin(dim), lmax(dim), leval(dim);
     IndexVector p(dim);
     combigrid::real dt;
-    size_t nsteps, ncombi;
+    size_t ncombi;
     cfg.get<std::string>("ct.lmin") >> lmin;
     cfg.get<std::string>("ct.lmax") >> lmax;
     cfg.get<std::string>("ct.leval") >> leval;
     cfg.get<std::string>("ct.p") >> p;
     ncombi = cfg.get<size_t>("ct.ncombi");
     dt = cfg.get<combigrid::real>("application.dt");
-    nsteps = cfg.get<size_t>("application.nsteps");
+    
 
     Converter converter;
     // TODO: read in boundary vector from ctparam
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
       std::string file_name = std::string("p")+std::to_string(i)+".json";
       converter.toJSONForDealII("ctparam",file_name, levels[i],i);
       usleep(10);
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt, nsteps, p);
+      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt,  p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }

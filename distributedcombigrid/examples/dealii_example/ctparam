@@ -4,11 +4,11 @@ lmin = 2 2
 lmax = 4 5
 leval = 5 5
 p = 1 1
-ncombi = 1
+ncombi = 10
 
 [application]
-dt = 1e-3
-nsteps = 100
+dt = 0.1
+ 
 
 [manager]
 ngroup = 1
