@@ -138,6 +138,8 @@ int main(int argc, char** argv) {
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
+    
+    //gridout.write_pvtu
 
     // create combiparameters
     //dim, lmin,lmax kann ich aus json lesen.
@@ -186,6 +188,24 @@ int main(int argc, char** argv) {
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
+    {
+
+      DataOut<1> gridout;
+      std::vector<std::pair<double, std::string>> pvd_labels;
+      for(unsigned int t = 0; t< ncombi; t++ )
+      {
+        std::vector<std::string> pvtu_labels;
+        for(unsigned int l = 0; l< levels.size(); l++ )
+          pvtu_labels.push_back("solution_" +  std::to_string(l) + "_" + Utilities::int_to_string(t, 3) + ".vtu");
+
+        pvd_labels.emplace_back(t, "solution_" + std::to_string(t) + ".pvtu");
+        std::ofstream outfile ("solution/solution_" + std::to_string(t) + ".pvtu");
+        gridout.write_pvtu_record(outfile, pvtu_labels);
+      }
+      std::ofstream outfile ("solution/solution.pvd");
+      DataOutBase::write_pvd_record(outfile, pvd_labels);
+      
+    }
   }
 
   // this code is only execute by the worker processes

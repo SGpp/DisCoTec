@@ -95,7 +95,11 @@ class TaskExample : public Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
     /* loop over local subgrid and set initial values */
-    this->problem = std::make_shared<Problem>(lcomm,  table);
+    Point<Problem::dim_> offset;
+    for(unsigned int i=0;i<dim;i++)
+      offset[i]=l[i]*1.1;
+
+    this->problem = std::make_shared<Problem>(lcomm, table,offset);
     this->problem->reinit(_filename);
 
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
