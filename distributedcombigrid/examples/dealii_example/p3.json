@@ -2,7 +2,9 @@
     "General": {
         "Dim": "2",
         "Degree": "1",
-        "Partition": "1",
+        "PartitionX": "2",
+        "PartitionY": "2",
+        "PartitionZ": "32",
         "Case": "hyperrectangle"
     },
     "Case": {

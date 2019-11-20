@@ -204,7 +204,9 @@ using namespace combigrid;
             
             json_general.put("Dim", dim);
             json_general.put("Degree", deg);
-            json_general.put("Partition", p[0]);
+            json_general.put("PartitionX", p[std::min(std::max(dim-1, 0),0)]);
+            json_general.put("PartitionY", p[std::min(std::max(dim-1, 1),1)]);
+            json_general.put("PartitionZ", p[std::min(std::max(dim-1, 2),2)]);
             json_general.put("Case","hyperrectangle");
             json_root.add_child("General", json_general);
 
