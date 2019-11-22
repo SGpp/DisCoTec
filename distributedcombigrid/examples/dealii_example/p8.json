@@ -1,36 +1,28 @@
 {
     "General": {
-        "DimX": "1",
-        "DimV": "1",
-        "DegreeX": "1",
-        "DegreeV": "1",
+        "Dim": "2",
+        "Degree": "1",
         "PartitionX": "1",
-        "PartitionV": "1",
+        "PartitionY": "1",
+        "PartitionZ": "32",
         "Case": "hyperrectangle"
     },
     "Case": {
-        "NRefinementsX": "0",
-        "NRefinementsV": "0",
-        "PeriodicX": "true",
-        "PeriodicV": "true",
-        "NSubdivisionsX": {
-            "X": "32",
-            "Y": "32",
-            "Z": "32"
-        },
-        "NSubdivisionsV": {
-            "X": "128",
-            "Y": "128",
-            "Z": "128"
+        "NRefinements": "0",
+        "Periodic": "true",
+        "NSubdivisions": {
+            "X": "16",
+            "Y": "512",
+            "Z": "4294967296"
         }
     },
     "SpatialDiscretization": {
         "TriangulationType": "FullyDistributed",
-        "MappingX": "1",
-        "MappingV": "1"
+        "Mapping": "1",
+        "FE": "FE_Q"
     },
     "TemporalDiscretization": {
-        "FinalTime": "2",
+        "FinalTime": "1",
         "CFLNumber": "0.14999999999999999"
     },
     "Postprocessing": {
@@ -38,7 +30,8 @@
             "Tick": "0.10000000000000001"
         },
         "VTK": {
-            "Enabled": "false"
+            "Enabled": "true",
+            "Prefix": "solution\/solution_8"
         }
     }
 }

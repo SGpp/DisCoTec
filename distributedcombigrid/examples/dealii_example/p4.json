@@ -2,8 +2,8 @@
     "General": {
         "Dim": "2",
         "Degree": "1",
-        "PartitionX": "2",
-        "PartitionY": "2",
+        "PartitionX": "1",
+        "PartitionY": "1",
         "PartitionZ": "32",
         "Case": "hyperrectangle"
     },
@@ -19,7 +19,7 @@
     "SpatialDiscretization": {
         "TriangulationType": "FullyDistributed",
         "Mapping": "1",
-        "FE": "FE_Q"
+        "FE": "FE_DGQ"
     },
     "TemporalDiscretization": {
         "FinalTime": "1",

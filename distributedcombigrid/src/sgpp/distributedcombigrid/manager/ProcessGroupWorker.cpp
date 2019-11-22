@@ -407,7 +407,7 @@ void ProcessGroupWorker::combineUniform() {
   assert(combiParametersSet_);
   // we assume here that every task has the same number of grids, e.g. species in GENE
   int numGrids = combiParameters_.getNumGrids();
-
+  std::cout << " Number of grids:"<< numGrids << std::endl;
   DimType dim = combiParameters_.getDim();
   LevelVector lmin = combiParameters_.getLMin();
   LevelVector lmax = combiParameters_.getLMax();
@@ -416,7 +416,6 @@ void ProcessGroupWorker::combineUniform() {
   // the dsg can be smaller than lmax because the highest subspaces do not have
   // to be exchanged
   // todo: use a flag to switch on/off optimized combination
-
   reduceSparseGridCoefficients(lmax, lmin, combiParameters_.getNumberOfCombinations(),
                                currentCombi_, combiParameters_.getLMinReductionVector(),
                                combiParameters_.getLMaxReductionVector());

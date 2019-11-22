@@ -12,7 +12,7 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
 //#include "../../../hyper.deal.combi/include/functionalities/dynamic_convergence_table.h"
-#include <deal.II/base/timer.h>
+//#include <deal.II/base/timer.h>
 
 namespace combigrid {
 

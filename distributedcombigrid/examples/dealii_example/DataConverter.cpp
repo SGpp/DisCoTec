@@ -193,6 +193,7 @@ using namespace combigrid;
 
             double dt=root.get<int>("ct.dt",1);
             int nsteps=root.get<int>("ct.nsteps",1);
+            std::string isDG=root.get<std::string>("ct.FE","FE_Q");
 
             // case is per default hyperrectangle and periodic is per default 
             //nrefinments is set to 0 and the distribution is controlled via subdivisions
@@ -220,7 +221,7 @@ using namespace combigrid;
 
             json_SpatialDiscretization.put("TriangulationType","FullyDistributed");
             json_SpatialDiscretization.put("Mapping",1);
-            json_SpatialDiscretization.put("FE","FE_Q");
+            json_SpatialDiscretization.put("FE",isDG);
             json_root.add_child("SpatialDiscretization",json_SpatialDiscretization);
 
             json_TemporalDiscretization.put("FinalTime",dt*nsteps);

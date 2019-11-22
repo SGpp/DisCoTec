@@ -35,10 +35,18 @@ typedef dealii::LinearAlgebra::distributed::Vector<Number> VectorType;
 #include <hyper.deal.combi/include/functionalities/vector_dummy.h>
 #include <hyper.deal.combi/applications/advection_reference_dealii/include/application.h>
 
+typedef Application<dim, degree, degree + 1, Number, VectorizedArrayType, VectorType> Problem;
+
 hyperdeal::DynamicConvergenceTable table;
 
 // include user specific task. this is the interface to your application
+
+const bool do_combine=true;
+
+
 #include "TaskExample.hpp"
+#include "TaskEnsemble.hpp"
+
 #include "DataConverter.cpp"
 #include "DataConverter.hpp"
 
@@ -46,6 +54,7 @@ using namespace combigrid;
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskExample)
+BOOST_CLASS_EXPORT(TaskEnsemble)
 BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
@@ -91,6 +100,8 @@ int main(int argc, char** argv) {
     IndexVector p(dim);
     combigrid::real dt;
     size_t ncombi;
+    bool isdg=("FE_DGQ"==cfg.get<std::string>("ct.FE","FE_Q"));
+    std::cout << "Is dg:"<<isdg;
     cfg.get<std::string>("ct.lmin") >> lmin;
     cfg.get<std::string>("ct.lmax") >> lmax;
     cfg.get<std::string>("ct.leval") >> leval;
@@ -134,7 +145,12 @@ int main(int argc, char** argv) {
       std::string file_name = std::string("p")+std::to_string(i)+".json";
       converter.toJSONForDealII("ctparam",file_name, levels[i],i);
       usleep(10);
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt,  p);
+      Task* t;
+
+      if(!isdg)
+        t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt,  p);
+      else
+        t = new TaskEnsemble(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt,  p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }

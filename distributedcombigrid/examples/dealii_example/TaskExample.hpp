@@ -16,13 +16,11 @@
 #include <hyper.deal.combi/include/functionalities/dynamic_convergence_table.h>
 #include <hyper.deal.combi/include/functionalities/vector_dummy.h>
 #include <hyper.deal.combi/applications/advection_reference_dealii/include/application.h>
-const bool do_combine=true;
+
 namespace combigrid {
 
 class TaskExample : public Task {
  public:
-  typedef Application<dim, degree, degree + 1, Number, VectorizedArrayType, VectorType> Problem;
-
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, and p as a new parameters.
    */
@@ -104,7 +102,7 @@ class TaskExample : public Task {
 
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     std::vector<std::array<Number, Problem::dim_ >> element_coords(elements.size());
-    std::vector<std::array<Number, Problem::dim_ + 1>> coords_dealii = problem->get_result();
+    std::vector<std::array<Number, Problem::dim_ + 2>> coords_dealii = problem->get_result();
     size_result=coords_dealii.size();
     for (size_t i = 0; i < elements.size(); ++i) {
       IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
@@ -159,11 +157,10 @@ class TaskExample : public Task {
   
   void run(CommunicatorType lcomm) {
     assert(initialized_);
-    std::cout << "Run of Task"<< this->getID()<<std::endl;
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     
     
-    std::vector<std::array<Number, Problem::dim_ + 1>> old_result(size_result);
+    std::vector<std::array<Number, Problem::dim_ + 2>> old_result(size_result);
    // 
    if(stepsTotal_>0 && do_combine)
    {
@@ -177,7 +174,7 @@ class TaskExample : public Task {
     //process problem
     problem->solve();
 
-    std::vector<std::array<Number, Problem::dim_ + 1>> result = problem->get_result();
+    std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
     
     if(do_combine){
       for(unsigned int i = 0; i < index_mapping.size(); i++)
