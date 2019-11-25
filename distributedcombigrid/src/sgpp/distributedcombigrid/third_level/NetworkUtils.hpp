@@ -68,9 +68,6 @@ class ClientSocket : public Socket {
     template<typename FG_ELEMENT>
     bool sendallBinary(const std::vector<FG_ELEMENT>& buf, int flags = 0) const;
 
-    template<typename FG_ELEMENT>
-    bool sendallBinaryPrefixed(const std::vector<FG_ELEMENT>& buf, int flags = 0) const;
-
     bool recvall(std::string& buff, size_t len, int flags = 0) const;
 
     bool recvall(char* buf, size_t len, int flags = 0)  const;
@@ -79,12 +76,12 @@ class ClientSocket : public Socket {
 
     bool recvallPrefixed(char* buf, int flags = 0) const;
 
-    template<typename FG_ELEMENT>
-    bool recvallBinary(std::vector<FG_ELEMENT>& buff, bool& endianness, int flags = 0) const;
+    template <typename FG_ELEMENT, typename FUNC>
+    bool recvallBinaryAndReduceInPlace(FG_ELEMENT* const buff, size_t buffSize, FUNC reduceOp, size_t chunksize, int flags) const;
 
     template<typename FG_ELEMENT>
-    bool recvallBinaryPrefixed(std::vector<FG_ELEMENT>& buff, bool& endiannes,
-        int flags = 0) const;
+    bool recvallBinaryAndCorrectInPlace(FG_ELEMENT* const buff, size_t buffSize,
+                                        size_t chunksize, int flags) const;
 
     template<typename FG_ELEMENT>
     bool recvallBinaryPrefixedCorrectInPlace(std::vector<FG_ELEMENT>& data,
@@ -171,11 +168,10 @@ class NetworkUtils {
         if (!socket.isInitialized())
           return false;
         bool success = false;
-        //recv endianness first
-        char* endianness = nullptr;
-        success = socket.recvall(endianness, 1);
-        if (!success)
-          return false;
+        // receive endianness
+        char temp = ' ';
+        assert(socket.recvall(&temp, 1)&& "Receiving Endianess failed");
+        bool endianness = temp;
         //recv data
         char* raw = nullptr;
         size_t dataSize = len*sizeof(T);
@@ -184,7 +180,7 @@ class NetworkUtils {
           return false;
         buf.clear();
         buf.reserve(len);
-        if ((bool) *endianness == NetworkUtils::isLittleEndian()) { //same endianness
+        if (endianness == NetworkUtils::isLittleEndian()) { //same endianness
           T* values = reinterpret_cast<T*>(raw);
           // copy values to buf
           for (size_t i = 0; i < len; i++) {
@@ -202,7 +198,6 @@ class NetworkUtils {
           }
           delete[] rightOrder;
         }
-        delete[] endianness;
         delete[] raw;
 
         std::cout << "recvBinary finished!" << std::endl;
@@ -210,115 +205,102 @@ class NetworkUtils {
       }
 
     template<typename T>
-    static void reverseEndianness(std::vector<T>& buf)
+    inline static T reverseEndianness(const T& value)
     {
-      char* rawBuf = reinterpret_cast<char*>(buf.data());
-      size_t rawSize = buf.size() * sizeof(T);
-      for (size_t i = 0; i < rawSize; i+=sizeof(T))
-      {
-        // swap entrys of block
-        for (size_t j = 0; j < sizeof(T)/2; j++) {
-          rawBuf[i+j] ^= rawBuf[i+(sizeof(T))-j];
-          rawBuf[i+(sizeof(T))-j] ^= rawBuf[i+j];
-          rawBuf[i+j] ^= rawBuf[i+(sizeof(T))-j];
-        }
-      }
+      size_t retValue;
+      char* rawValue = reinterpret_cast<char*>(&value);
+      char* rawRet = reinterpret_cast<char*>(retValue);
+
+      // reverse bytes
+      for (size_t j = 0; j < sizeof(T); j++)
+          rawRet[j] = rawValue[sizeof(T)-j];
+
+      return retValue;
     }
 };
 
 template<typename FG_ELEMENT>
-bool ClientSocket::recvallBinaryPrefixedCorrectInPlace(std::vector<FG_ELEMENT>& buff, size_t chunksize, int flags) const {
+bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* const buff, size_t buffSize, size_t chunksize, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   // receive endianness
   char temp = ' ';
   assert(recvall(&temp, 1)&& "Receiving Endianess failed");
-  bool endianness = temp;
+  bool hasSameEndianness = bool(temp) && NetworkUtils::isLittleEndian();
 
-  // receive length
+  // for recv()
   int err;
-  long n = -1;
-  std::string lenstr = "";
-  do {
-    n = recv(sockfd_, &temp, 1, flags);
-    err = errno;
-    if (n <= 0)
-      break;
-    lenstr += temp;
-  } while (temp != '#');
-  if (n == -1) {
-    std::cerr << "Receive of length failed: " << std::to_string(err)
-      << std::endl;
-    return false;
-  } else if (n == 0) {
-    std::cerr << "Receive of length failed, sender terminated too early: " <<
-      std::to_string(err) << std::endl;
-    return false;
-  }
-  lenstr.pop_back();
-  assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
-  size_t len = (size_t) std::stoi(lenstr);
-
-  buff.resize(len);
-  char* rawBuffer = reinterpret_cast<char*>(buff.data());
+  ssize_t recvd = -1;
+  size_t totalRecvd = 0;
+  std::vector<char> recvBuff(chunksize);
+  size_t rawSize = buffSize * sizeof(FG_ELEMENT);
 
   // receive binary data and correct endianness in place
-  std::vector<char> tempBuff(chunksize);
-  std::vector<char> overhead(sizeof(FG_ELEMENT));
-  size_t total = 0;
-  size_t oldSize = 0;
-  size_t newSize = 0;
-  while(total < len) {
-    n = recv(sockfd_, tempBuff.data(), len-total, flags);
+  std::vector<char> remaining;
+  remaining.reserve(sizeof(FG_ELEMENT));
+  ssize_t head_k1 = 0;
+  ssize_t head_k = 0;
+  ssize_t tail_k = 0;
+  ssize_t numAdded = 0;
+  while(totalRecvd < rawSize) {
+    recvd = recv(sockfd_, recvBuff.data(), std::min(rawSize-totalRecvd, chunksize), flags);
 
     err = errno;
-    if (n <= 0)
+    if (recvd <= 0)
       break;
 
-    // tempBuff example for sizeof(FG_ELEMENT)=4:
+    // recvBuff example for sizeof(FG_ELEMENT)=4:
     //
     //        recv k-1                     recv k
-    //                     old     tail               new
+    //
+    //    tail_k1          head_k1  tail_k            head_k
+    //    v                v        v                 v
     //  [ oo|xxxx|...|xxxx|o ] -> [ ooo|xxxx|...|xxxx|oo ]
-    //                              0                  n-1
-    if (total == 0) // first run
-      oldSize = n % sizeof(FG_ELEMENT);
-    else
-      oldSize = newSize;
+    //                              0                  recvd-1
 
-    if (endianness != NetworkUtils::isLittleEndian()) {
-      size_t tailSize = sizeof(FG_ELEMENT) - oldSize;
-      size_t rawSize = total + tailSize;
-      newSize = (tailSize - n) % sizeof(FG_ELEMENT);
-      size_t blocksSize = (n - tailSize - newSize);
-      if (tailSize > 0) {
-        // fill remaining block
-        for (size_t i = 0; i < tailSize; i++)
-          rawBuffer[total-oldSize-1 + i] = tempBuff[i];
-      }
-      if (blocksSize > 0) {
-        // append correct sized blocks
-        for (size_t i = rawSize; i < rawSize+n-newSize; i+=sizeof(FG_ELEMENT)) {
-          for (size_t j = sizeof(FG_ELEMENT)-1; j >= 0; j--) {
-            rawBuffer[i+(sizeof(FG_ELEMENT)-1-j)] = tempBuff[i-rawSize+j];
-          }
-        }
-      }
-      if (newSize > 0) {
-        rawSize += n-newSize;
-        // append new overhead
-        for (size_t i = rawSize; i < rawSize+newSize; i++){
-          size_t j = n - (i-rawSize) -1;
-          rawBuffer[i] = tempBuff[j];
-        }
+    tail_k = (sizeof(FG_ELEMENT) - head_k1) % sizeof(FG_ELEMENT);
+    head_k = (recvd-tail_k) % sizeof(FG_ELEMENT);
+
+    // push tail into remaining
+    for (long i = 0; i < tail_k; ++i)
+      remaining.push_back(recvBuff[size_t(i)]);
+
+    // if remaining has sizeof(FG_ELEMENT) entries, append to buff and clear
+    // remaining
+    if (remaining.size() == sizeof(FG_ELEMENT)) {
+      FG_ELEMENT& remainingVal = *reinterpret_cast<FG_ELEMENT*>(remaining.data());
+      if (hasSameEndianness)
+        buff[numAdded++] =  remainingVal;
+      else
+        buff[numAdded++] = reverseEndianness(remainingVal);
+      remaining.clear();
+    }
+
+    // append correct sized blocks
+    const ssize_t&& numCorrect = recvd-head_k;
+    for (ssize_t i = tail_k; i < numCorrect; i+=sizeof(FG_ELEMENT)) {
+      if (hasSameEndianness) {
+        FG_ELEMENT& val = *reinterpret_cast<FG_ELEMENT*>(recvBuff[i]);
+        buff[numAdded++] = val;
+      } else {
+        FG_ELEMENT& val = *reinterpret_cast<FG_ELEMENT*>(recvBuff[i]);
+        buff[numAdded++] = reverseEndianness(val);
+        numAdded++;
       }
     }
 
-    total += n;
+    // push head into remaining
+    for (ssize_t i = recvd-head_k; i < recvd; ++i)
+      remaining.push_back(recvBuff[size_t(i)]);
+
+    // overwrite old head
+    head_k1 = head_k;
+
+    totalRecvd += (size_t)recvd;
   }
-  if ( n == -1) {
+  if ( recvd == -1) {
     std::cerr << "Receive failed: " << std::to_string(err) << std::endl;
     return false;
-  } else if (n == 0) {
+  } else if (recvd == 0) {
     std::cerr << "Receive failed, sender terminated too early: " <<
       std::to_string(err) << std::endl;
     return false;
@@ -326,38 +308,95 @@ bool ClientSocket::recvallBinaryPrefixedCorrectInPlace(std::vector<FG_ELEMENT>& 
   return true;
 }
 
-template<typename FG_ELEMENT>
-bool ClientSocket::recvallBinaryPrefixed(std::vector<FG_ELEMENT>& buff, bool& endianness, int flags) const
-{
+template <typename FG_ELEMENT, typename FUNC>
+bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* const buff, size_t buffSize, FUNC reduceOp, size_t chunksize, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
-
   // receive endianness
   char temp = ' ';
   assert(recvall(&temp, 1)&& "Receiving Endianess failed");
-  endianness = temp;
+  bool hasSameEndianness = bool(temp) && NetworkUtils::isLittleEndian();
 
-  // receive binary data
-  char* rawBuf = reinterpret_cast<char*>(buff.data());
-  return recvallPrefixed(rawBuf, flags);
+  // for recv()
+  int err;
+  ssize_t recvd = -1;
+  std::vector<char> recvBuff(chunksize);
+  size_t totalRecvd = 0;
+  size_t rawSize = buffSize * sizeof(FG_ELEMENT);
 
+  // for oddly received data
+  std::vector<char> remaining;
+  remaining.reserve(sizeof(FG_ELEMENT));
+  ssize_t head_k1 = 0;
+  ssize_t head_k = 0;
+  ssize_t tail_k = 0;
+  ssize_t numAdded = 0;
+
+  while(totalRecvd < rawSize) {
+    recvd = recv(sockfd_, recvBuff.data(), std::min(rawSize-totalRecvd, chunksize), flags);
+    err = errno;
+    if (recvd <= 0)
+      break;
+
+    // recvBuff example for sizeof(FG_ELEMENT)=4:
+    //
+    //        recv k-1                     recv k
+    //
+    //    tail_k1          head_k1  tail_k            head_k
+    //    v                v        v                 v
+    //  [ oo|xxxx|...|xxxx|o ] -> [ ooo|xxxx|...|xxxx|oo ]
+    //                              0                  recvd-1
+
+    tail_k = (sizeof(FG_ELEMENT) - head_k1) % sizeof(FG_ELEMENT);
+    head_k = (recvd-tail_k) % sizeof(FG_ELEMENT);
+
+    // push tail into remaining
+    for (long i = 0; i < tail_k; ++i)
+      remaining.push_back(recvBuff[size_t(i)]);
+
+    // if remaining has sizeof(FG_ELEMENT) entries, add to buff and clear
+    // remaining
+    if (remaining.size() == sizeof(FG_ELEMENT)) {
+      FG_ELEMENT remainingVal = *reinterpret_cast<FG_ELEMENT*>(remaining.data());
+      if (hasSameEndianness)
+        buff[numAdded++] = reduceOp(buff[numAdded], remainingVal);
+      else
+        buff[numAdded++] = reduceOp(buff[numAdded], reverseEndianness(remainingVal));
+      remaining.clear();
+    }
+
+    // add correctly received data
+    const ssize_t&& numCorrect = recvd-head_k;
+    for (ssize_t i = tail_k; i < numCorrect; i+=sizeof(FG_ELEMENT)) {
+      FG_ELEMENT val = *reinterpret_cast<FG_ELEMENT*>(recvBuff[i]);
+      if (hasSameEndianness)
+        buff[numAdded++] = reduceOp(buff[numAdded], val);
+      else
+        buff[numAdded++] = reduceOp(buff[numAdded], reverseEndianness(val));
+    }
+
+    // push head into remaining
+    for (ssize_t i = recvd-head_k; i < recvd; ++i)
+      remaining.push_back(recvBuff[size_t(i)]);
+
+    // overwrite old head
+    head_k1 = head_k;
+  }
+
+  if ( recvd == -1) {
+    std::cerr << "Receive failed: " << std::to_string(err) << std::endl;
+    return false;
+  } else if (recvd == 0) {
+    std::cerr << "Receive failed, sender terminated too early: " <<
+      std::to_string(err) << std::endl;
+    return false;
+  }
+  return true;
 }
 
-template<typename FG_ELEMENT>
-bool ClientSocket::recvallBinary(std::vector<FG_ELEMENT>& buff,
-    bool& endianness, int flags) const {
-  // receive endianness
-  char temp = ' ';
-  assert(recvall(&temp, 1)&& "Receiving Endianess failed");
-  endianness = temp;
-
-  // receive binary data
-  char* rawBuf = reinterpret_cast<char*>(buff.data());
-  size_t rawSize = buff.size()*sizeof(FG_ELEMENT);
-  std::cout << "receiving " << rawSize << "Bytes" << std::endl;
-  return recvall(rawBuf, rawSize, flags);
-}
-
-
+/** Sends the given buffer in binary form.
+ * The first byte sent specifies the endianess of the system and is followed by
+ * the raw binary data.
+ */
 template<typename FG_ELEMENT>
 bool ClientSocket::sendallBinary(const std::vector<FG_ELEMENT>& buf, int flags) const {
   const char* rawBuf = reinterpret_cast<const char*>(buf.data());
@@ -370,21 +409,5 @@ bool ClientSocket::sendallBinary(const std::vector<FG_ELEMENT>& buf, int flags) 
     return false;
   return sendall(rawBuf, rawSize);
 }
-
-// Sends the given buffer in binary form. The first byte sent specifies
-// if the system is little-endian. The next bytes specify the length of
-// the following buffer and are sperated by an # from the following raw data.
-template<typename FG_ELEMENT>
-bool ClientSocket::sendallBinaryPrefixed(const std::vector<FG_ELEMENT>& buf, int flags) const {
-  const char* rawBuf = reinterpret_cast<const char*>(buf.data());
-  size_t rawSize = buf.size() * sizeof(FG_ELEMENT);
-
-  char isLittleEndian = static_cast<char>(NetworkUtils::isLittleEndian());
-  bool success = sendall(&isLittleEndian, 1);
-  if (!success)
-    return false;
-  return sendallPrefixed(rawBuf, rawSize);
-}
-
 
 #endif
