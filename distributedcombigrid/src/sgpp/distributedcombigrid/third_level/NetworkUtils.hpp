@@ -74,7 +74,8 @@ class ClientSocket : public Socket {
 
     bool recvallPrefixed(std::string& buff, int flags = 0) const;
 
-    bool recvallPrefixed(char* buf, int flags = 0) const;
+    bool recvallPrefixed(std::unique_ptr<char[]>& buff, size_t& len,
+                         int flags = 0) const;
 
     template <typename FG_ELEMENT, typename FUNC>
     bool recvallBinaryAndReduceInPlace(FG_ELEMENT* const buff, size_t buffSize,

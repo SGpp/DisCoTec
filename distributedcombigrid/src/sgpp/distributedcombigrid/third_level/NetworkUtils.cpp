@@ -64,13 +64,13 @@ bool ClientSocket::sendall(const std::string& mesg) const {
   }
 }
 
-bool ClientSocket::sendall(const char* buf, size_t len) const {
+bool ClientSocket::sendall(const char* buff, size_t len) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(len > 0);
   ssize_t sent = -1;
   size_t total = 0;
   while (total < len) {
-    sent = send(sockfd_, &buf[total], len - total, 0);
+    sent = send(sockfd_, &buff[total], len - total, 0);
     if (sent <= 0)
       break;
     total += static_cast<size_t>(sent);
@@ -95,14 +95,14 @@ bool ClientSocket::sendallPrefixed(const std::string& mesg) const {
   return this->sendall(lenstr + mesg);
 }
 
-bool ClientSocket::sendallPrefixed(const char* const buf, size_t len) const {
+bool ClientSocket::sendallPrefixed(const char* const buff, size_t len) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(len > 0);
   std::string lenstr = std::to_string(len) + "#";
   bool ok = this->sendall(lenstr);
   if (not ok)
     return false;
-  return this->sendall(buf, len);
+  return this->sendall(buff, len);
 }
 
 bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
@@ -177,13 +177,13 @@ bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
   }
 }
 
-bool ClientSocket::recvall(char* buf, size_t len, int flags) const {
+bool ClientSocket::recvall(char* buff, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(len > 0);
   ssize_t recvd = -1;
   size_t total = 0;
   while (total < len) {
-    recvd = recv(sockfd_, &buf[total], len-total, flags);
+    recvd = recv(sockfd_, &buff[total], len-total, flags);
     if (recvd <= 0)
       break;
     total += static_cast<size_t>(recvd);
@@ -200,7 +200,7 @@ bool ClientSocket::recvall(char* buf, size_t len, int flags) const {
   }
 }
 
-bool ClientSocket::recvallPrefixed(char* buf, int flags) const {
+bool ClientSocket::recvallPrefixed(std::unique_ptr<char[]>& buff, size_t& len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   // receive length
   ssize_t n = -1;
@@ -226,7 +226,8 @@ bool ClientSocket::recvallPrefixed(char* buf, int flags) const {
       size_t len = (size_t) std::stoi(lenstr);
       assert(len > 0);
       // receive data
-      return recvall(buf, len);
+      buff.reset(new char[len]);
+      return recvall(buff.get(), len);
   }
 }
 
