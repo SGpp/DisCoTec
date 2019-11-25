@@ -43,7 +43,7 @@ bool ClientSocket::init() {
 bool ClientSocket::sendall(const std::string& mesg) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(mesg.size() > 0);
-  long sent = -1;
+  ssize_t sent = -1;
   size_t total = 0;
   const size_t& len = mesg.size();
   while (total < len) {
@@ -67,7 +67,7 @@ bool ClientSocket::sendall(const std::string& mesg) const {
 bool ClientSocket::sendall(const char* buf, size_t len) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(len > 0);
-  long sent = -1;
+  ssize_t sent = -1;
   size_t total = 0;
   while (total < len) {
     sent = send(sockfd_, &buf[total], len - total, 0);
@@ -109,7 +109,7 @@ bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(len > 0);
   //std::cout << "Trying to receive " << len << "Bytes" << std::endl;
-  long recvd = -1;
+  ssize_t recvd = -1;
   std::unique_ptr<char[]> buff(new char[len]);
   size_t total = 0;
   while (total < len) {
@@ -148,7 +148,7 @@ bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
   }
   bool endianness = temp;
 
-  long recvd = -1;
+  ssize_t recvd = -1;
   size_t total = 0;
   std::unique_ptr<char[]> buff(new char[chunksize]);
   while (total < len) {
@@ -180,7 +180,7 @@ bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
 bool ClientSocket::recvall(char* buf, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(len > 0);
-  long recvd = -1;
+  ssize_t recvd = -1;
   size_t total = 0;
   while (total < len) {
     recvd = recv(sockfd_, &buf[total], len-total, flags);
@@ -203,7 +203,7 @@ bool ClientSocket::recvall(char* buf, size_t len, int flags) const {
 bool ClientSocket::recvallPrefixed(char* buf, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   // receive length
-  long n = -1;
+  ssize_t n = -1;
   std::string lenstr = "";
   char temp = ' ';
   do {
@@ -234,7 +234,7 @@ bool ClientSocket::recvallPrefixed(std::string& mesg, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   // receive length
   mesg.clear();
-  long recvd = -1;
+  ssize_t recvd = -1;
   std::string lenstr = "";
   char temp = ' ';
   do {
@@ -406,7 +406,7 @@ bool NetworkUtils::forward(const ClientSocket& sender,
   assert(sender.isInitialized() && "Initialize sender first");
   assert(receiver.isInitialized() && "Initialize receiver first");
   size_t totalRecvd = 0;
-  long recvd = 0;
+  ssize_t recvd = 0;
   bool sendSuccess = false;
   int sendFd = sender.getFileDescriptor();
   std::unique_ptr<char[]> buff(new char[chunksize]);
