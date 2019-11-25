@@ -77,16 +77,16 @@ class ClientSocket : public Socket {
     bool recvallPrefixed(char* buf, int flags = 0) const;
 
     template <typename FG_ELEMENT, typename FUNC>
-    bool recvallBinaryAndReduceInPlace(FG_ELEMENT* const buff, size_t buffSize, FUNC reduceOp, size_t chunksize, int flags) const;
+    bool recvallBinaryAndReduceInPlace(FG_ELEMENT* const buff, size_t buffSize,
+                                       FUNC reduceOp, size_t chunksize = 2048,
+                                       int flags = 0) const;
 
     template<typename FG_ELEMENT>
     bool recvallBinaryAndCorrectInPlace(FG_ELEMENT* const buff, size_t buffSize,
-                                        size_t chunksize, int flags) const;
+                                        size_t chunksize = 2048,
+                                        int flags = 0) const;
 
-    template<typename FG_ELEMENT>
-    bool recvallBinaryPrefixedCorrectInPlace(std::vector<FG_ELEMENT>& data,
-        size_t chunksize = 2048, int flags = 0) const;
-
+    // TODO
     bool recvallBinaryToFile(const std::string& filename, size_t len,
         size_t chunksize = 2048, int flags = 0) const;
 
@@ -220,7 +220,8 @@ class NetworkUtils {
 };
 
 template<typename FG_ELEMENT>
-bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* const buff, size_t buffSize, size_t chunksize, int flags) const {
+bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* const buff,
+                           size_t buffSize, size_t chunksize, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   // receive endianness
   char temp = ' ';
@@ -309,7 +310,8 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* const buff, size_t
 }
 
 template <typename FG_ELEMENT, typename FUNC>
-bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* const buff, size_t buffSize, FUNC reduceOp, size_t chunksize, int flags) const {
+bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* const buff,
+            size_t buffSize, FUNC reduceOp, size_t chunksize, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   // receive endianness
   char temp = ' ';
