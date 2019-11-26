@@ -615,8 +615,11 @@ inline const std::vector<size_t>& DistributedSparseGridUniform<FG_ELEMENT>::getS
 template <typename FG_ELEMENT>
 static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           RankType dest, CommunicatorType comm) {
-  assert(dsgu->getNumSubspaces() > 0);
   assert(dsgu->isSubspaceDataCreated() && "Sending without data does not make sense!");
+  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
+                                           "transferred in a single MPI Call (not "
+                                           "supported yet) try a more refined"
+                                           "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
   size_t dataSize  = dsgu->getRawDataSize();
@@ -631,8 +634,11 @@ static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 template <typename FG_ELEMENT>
 static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           RankType source, CommunicatorType comm) {
-  assert(dsgu->getNumSubspaces() > 0);
   assert(dsgu->isSubspaceDataCreated() && "Receiving into empty buffer does not make sense!");
+  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
+                                           "transferred in a single MPI Call (not "
+                                           "supported yet) try a more refined"
+                                           "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
   size_t dataSize  = dsgu->getRawDataSize();
@@ -647,8 +653,11 @@ static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 template <typename FG_ELEMENT>
 static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                               RankType root, CommunicatorType comm) {
-  assert(dsgu->getNumSubspaces() > 0);
   assert(dsgu->isSubspaceDataCreated() && "Bcasting without data does not make sense!");
+  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
+                                           "transferred in a single MPI Call (not "
+                                           "supported yet) try a more refined"
+                                           "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
   size_t dataSize  = dsgu->getRawDataSize();
@@ -665,14 +674,38 @@ static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * 
 template <typename FG_ELEMENT>
 static MPI_Request bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                               RankType root, CommunicatorType comm) {
-  assert(dsgu->getNumSubspaces() > 0);
   assert(dsgu->isSubspaceDataCreated() && "Bcasting without data does not make sense!");
+  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
+                                           "transferred in a single MPI Call (not "
+                                           "supported yet) try a more refined"
+                                           "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
   size_t dataSize  = dsgu->getRawDataSize();
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
   MPI_Bcast(data, dataSize, dataType, root, comm);
+}
+
+/** Performs an in place allreduce on the dsgu data with all procs in
+ * communicator comm.
+ */
+template <typename FG_ELEMENT>
+static void reduceDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+                               CommunicatorType comm) {
+  assert(dsgu->isSubspaceDataCreated() && "Reducing without data does not make sense!");
+  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
+                                           "transferred in a single MPI Call (not "
+                                           "supported yet) try a more refined"
+                                           "decomposition");
+
+  // prepare for MPI call in globalReduceComm
+  MPI_Datatype dtype = getMPIDatatype(
+                        abstraction::getabstractionDataType<size_t>());
+  const std::vector<size_t>& dsguData = dsgu->getRawData();
+
+  // perform allreduce
+  MPI_Allreduce(MPI_IN_PLACE, dsguData.data(), dsguData.size(), dtype, MPI_MAX, comm);
 }
 
 /**
