@@ -567,6 +567,11 @@ void ProcessGroupWorker::parallelEval() {
   else
     assert(false && "not yet implemented");
 }
+// cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
+static bool endsWith(const std::string& str, const std::string& suffix)
+{
+    return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+}
 
 void ProcessGroupWorker::parallelEvalUniform() {
   assert(uniformDecomposition);
@@ -616,10 +621,14 @@ void ProcessGroupWorker::parallelEvalUniform() {
     // dehierarchize dfg
     DistributedHierarchization::dehierarchize<CombiDataType>(
         dfg, combiParameters_.getHierarchizationDims());
-    std::string fn = filename;
-    fn = fn + std::to_string(g);
     // save dfg to file with MPI-IO
-    dfg.writePlotFile(fn.c_str());
+    if(endsWith(filename, ".vtk")){
+      dfg.writePlotFileVTK(filename.c_str());
+    }else{
+      std::string fn = filename;
+      fn = fn + std::to_string(g);
+      dfg.writePlotFile(fn.c_str());
+    }
   }
 }
 
