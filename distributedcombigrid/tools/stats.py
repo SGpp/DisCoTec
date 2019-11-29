@@ -3,6 +3,8 @@ import sys
 import os
 import statistics
 import getopt
+import numpy as np
+import matplotlib.pyplot as plt
 
 argv=sys.argv
 argc=len(argv)
@@ -18,9 +20,10 @@ while argi<argc and argv[argi][0]!="-":
 
 useMaxMax=False
 combine =False
+plotstuff=False
 specialevents=[]
 sortingId=1
-options,events= getopt.getopt(argv[argi:],"ACDEGHOms")
+options,events= getopt.getopt(argv[argi:],"ACDEGHOmps")
 for i,j in options:
 	if i=='-H':
 		events.append("combine hierarchize")
@@ -41,6 +44,9 @@ for i,j in options:
 		useMaxMax=True
 	elif i=='-s':
 		sortingId=0#sorts after file name
+	elif i=="-p":
+		sortingId=0
+		plotstuff=True
 	elif i=='-E':
 		specialevents.append("extSG")
 		specialevents.append("addSG")
@@ -177,3 +183,34 @@ for e,fl in slist:
 	res=sorted(fl,key=lambda x:x[sortingId])
 	for f,time in res:
 		print(f,"  ",time/1000,"ms")
+
+if plotstuff:
+	N=len(filenames)
+	ind = np.arange(N)    # the x locations for the groups
+	width = 0.35
+
+
+	elist=list(zip(slist))
+	
+	plots=[]
+	i=0
+	rsum=np.zeros(N)
+	for ex in elist:
+		for (e,reslist) in ex:
+			rs= np.array([r[1]/1000 for r in reslist])
+			if i==0:
+				plots.append(plt.bar(ind,rs))
+			else:
+				plots.append(plt.bar(ind,rs,bottom=rsum))
+			rsum=rsum+rs
+			i+=1
+		
+	plt.ylabel('Time in ms')
+	#plt.title('Scores by group and gender')
+	#plt.xticks(ind, filenames)
+	#plt.legend([p[0] for p in plots],[e[0] for e in slist])
+	plt.xticks(ind, ["3G 8N 14T","6G 4N 14T","12G 2N 14T","25G 1N 14T","11G 32N 1T","5G 64N 1T","22G 16N 1T"])
+	abc=["Global Reduction","Hierarchization","Dehierarchization","Extraction from SG","Addition to SG"]
+	plt.legend([p[0] for p in reversed(plots)],list(reversed(abc)))
+	plt.show()
+
