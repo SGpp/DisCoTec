@@ -184,7 +184,7 @@ class DistributedSparseGridUniform {
 
   LevelVector lmin_;
 
-  std::vector<LevelVector> levels_;
+  std::vector<LevelVector> levels_; // linear access to all subspaces
 
   std::vector<bool> boundary_;
 
@@ -200,7 +200,7 @@ class DistributedSparseGridUniform {
 
   std::vector<FG_ELEMENT> subspacesData_; // subspaces data stored in a linear fashion
 
-  std::vector<size_t> subspaceDataSizes_; // data sizes of all subspaces in linear array
+  std::vector<size_t> subspaceDataSizes_; // data sizes of all subspaces in linear array stored in a machine independent type
 
   friend class boost::serialization::access;
 
@@ -264,6 +264,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     : boundary_(boundary),
       comm_(comm),
       dim_(dim),
+      levels_(subspaces);
       subspaceDataSizes_(subspaces.size())
 {
   // init subspaces
@@ -616,10 +617,10 @@ template <typename FG_ELEMENT>
 static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           RankType dest, CommunicatorType comm) {
   assert(dsgu->isSubspaceDataCreated() && "Sending without data does not make sense!");
-  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
-                                           "transferred in a single MPI Call (not "
-                                           "supported yet) try a more refined"
-                                           "decomposition");
+  assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
+                                            "transferred in a single MPI Call (not "
+                                            "supported yet) try a more refined"
+                                            "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
   size_t dataSize  = dsgu->getRawDataSize();
@@ -635,10 +636,10 @@ template <typename FG_ELEMENT>
 static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           RankType source, CommunicatorType comm) {
   assert(dsgu->isSubspaceDataCreated() && "Receiving into empty buffer does not make sense!");
-  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
-                                           "transferred in a single MPI Call (not "
-                                           "supported yet) try a more refined"
-                                           "decomposition");
+  assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
+                                            "transferred in a single MPI Call (not "
+                                            "supported yet) try a more refined"
+                                            "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
   size_t dataSize  = dsgu->getRawDataSize();
@@ -654,10 +655,10 @@ template <typename FG_ELEMENT>
 static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                               RankType root, CommunicatorType comm) {
   assert(dsgu->isSubspaceDataCreated() && "Bcasting without data does not make sense!");
-  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
-                                           "transferred in a single MPI Call (not "
-                                           "supported yet) try a more refined"
-                                           "decomposition");
+  assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
+                                            "transferred in a single MPI Call (not "
+                                            "supported yet) try a more refined"
+                                            "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
   size_t dataSize  = dsgu->getRawDataSize();
@@ -675,10 +676,10 @@ template <typename FG_ELEMENT>
 static MPI_Request bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                               RankType root, CommunicatorType comm) {
   assert(dsgu->isSubspaceDataCreated() && "Bcasting without data does not make sense!");
-  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
-                                           "transferred in a single MPI Call (not "
-                                           "supported yet) try a more refined"
-                                           "decomposition");
+  assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
+                                            "transferred in a single MPI Call (not "
+                                            "supported yet) try a more refined"
+                                            "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
   size_t dataSize  = dsgu->getRawDataSize();
@@ -694,10 +695,10 @@ template <typename FG_ELEMENT>
 static void reduceDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                                CommunicatorType comm) {
   assert(dsgu->isSubspaceDataCreated() && "Reducing without data does not make sense!");
-  assert(dsgu->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
-                                           "transferred in a single MPI Call (not "
-                                           "supported yet) try a more refined"
-                                           "decomposition");
+  assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
+                                            "transferred in a single MPI Call (not "
+                                            "supported yet) try a more refined"
+                                            "decomposition");
 
   // prepare for MPI call in globalReduceComm
   MPI_Datatype dtype = getMPIDatatype(
