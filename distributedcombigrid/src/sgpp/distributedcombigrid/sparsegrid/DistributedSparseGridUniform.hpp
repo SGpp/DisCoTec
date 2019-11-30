@@ -264,7 +264,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     : boundary_(boundary),
       comm_(comm),
       dim_(dim),
-      levels_(subspaces);
+      levels_(subspaces),
       subspaceDataSizes_(subspaces.size())
 {
   // init subspaces
