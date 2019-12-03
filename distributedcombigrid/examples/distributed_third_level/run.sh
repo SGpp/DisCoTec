@@ -1,9 +1,9 @@
 #!/bin/bash
 SGPP_DIR=../../../
 LIB_BOOST_DIR=/usr/lib/
-LIB_GLPK=$(SGPP_DIR)
+LIB_GLPK=$SGPP_DIR/glpk/lib/
 
-export LD_LIBRARY_PATH=$SGPP_DIR/lib/sgpp:LIB_BOOST_DIR:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$SGPP_DIR/lib/sgpp:$LIB_GLPK:LIB_BOOST_DIR:$LD_LIBRARY_PATH
 
 paramfile="ctparam"
 # allows to read the parameter file from the arguments.
@@ -20,7 +20,7 @@ mpiprocs=$((ngroup*nprocs+1))
 
 # General
 MPI_PATH=/opt/mpich/bin/
-$MPI_PATH/mpirun -n "$mpiprocs" ./combi_example $paramfile
+$MPI_PATH/mpirun -n "$mpiprocs" -l ./combi_example $paramfile
 # Use for debugging
 #$MPI_PATH/mpirun -n "$mpiprocs" xterm -hold -e gdb -ex run --args ./combi_example $paramfile
 
