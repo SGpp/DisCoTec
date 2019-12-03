@@ -18,8 +18,7 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   if (isConnected_)
     return;
 
-  // create connection to third level manager and send system name
-  std::string message;
+  // create connection to third level manager
   std::cout << "Connecting to third level manager at host " << host_ << " on port " << port_  << std::endl;
   connection_ = std::make_shared<ClientSocket>(host_, port_);
   assert(connection_->init() && "Establishing data connection failed");
@@ -46,7 +45,6 @@ std::string ThirdLevelUtils::fetchInstruction() const
 {
   std::string instruction;
   receiveMessage(instruction);
-  std::cout << "Fetched instruction: " << instruction << std::endl;
   return instruction;
 }
 

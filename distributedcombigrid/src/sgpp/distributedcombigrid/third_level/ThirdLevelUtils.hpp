@@ -54,16 +54,25 @@ namespace combigrid {
 
       std::string recvDSGUniformSerialized() const;
 
-      /** Sends the given data to the third level manager
+      /** Sends the given data in binary form to the third level manager
        */
       template <typename FG_ELEMENT>
       void sendData(const FG_ELEMENT* const data, size_t size) const;
 
-      /** Receives upcoming data from the third level manager, returns the data
-       * and its size.
+      /** Receives binary data from the third level manager.
        */
       template <typename FG_ELEMENT>
-      void recvData(FG_ELEMENT* &data, size_t& size) const;
+      void recvData(FG_ELEMENT* data, size_t size) const;
+
+      /** Receives upcoming data from the third level manager and directly adds
+       * it to the provided buffer. The implementation does not wait with the
+       * summation until all remote data is received. Instead, each received
+       * chunk is added directly to the provided buffer. Therefor the memory
+       * overhead is usually much lower (chunksize can be adjusted) compared to
+       * the classical way.
+       */
+      template <typename FG_ELEMENT>
+      void recvAndAddToData(FG_ELEMENT* data, size_t size) const;
   };
 
 
@@ -71,29 +80,34 @@ namespace combigrid {
   void ThirdLevelUtils::sendData(const FG_ELEMENT* data, size_t size) const
   {
     assert(isConnected_);
-    size_t rawSize = size * sizeof(FG_ELEMENT);
     signalizeSendData();
+    size_t rawSize = size * sizeof(FG_ELEMENT) + 1; // + 1 due to endianness
     sendSize(rawSize);
-    if (size != 0) {
-      //std::cout << "Manager tries to send " << rawSize << " Bytes" << std::endl;
-      connection_->sendall(reinterpret_cast<const char*>(data), rawSize);
-    }
+    connection_->sendallBinary(data, size);
   }
 
   template <typename FG_ELEMENT>
-  void ThirdLevelUtils::recvData(FG_ELEMENT* &data, size_t& size) const
+  void ThirdLevelUtils::recvData(FG_ELEMENT* data, size_t size) const
   {
     assert(isConnected_);
     size_t rawSize = receiveSize();
-    size = rawSize / sizeof(FG_ELEMENT);
-    if(size != 0) {
-      char* rawData = new char[rawSize];
-      //std::cout << "Manager tries to receive " << rawSize << " Bytes" << std::endl;
-      bool success = connection_->recvall(rawData, rawSize);
-      assert(success && "receiving dsgu data failed");
-      data = reinterpret_cast<FG_ELEMENT*>(rawData);
-    }
+    size_t recvSize = (rawSize - 1) / sizeof(FG_ELEMENT); // - 1 due to endianness
+    assert(recvSize == size && "Size mismatch receiving data size does not match expected");
+    bool success = connection_->recvallBinaryAndCorrectInPlace(data, size);
+    assert(success && "receiving dsgu data failed");
+  }
+
+
+  template <typename FG_ELEMENT>
+  void ThirdLevelUtils::recvAndAddToData(FG_ELEMENT* data, size_t size) const
+  {
+    assert(isConnected_);
+    size_t rawSize = receiveSize();
+    size_t recvSize = (rawSize - 1) / sizeof(FG_ELEMENT); // - 1 due to endianness
+    assert(recvSize == size && "Size mismatch cannot add vectors of different size");
+    bool success = connection_->recvallBinaryAndReduceInPlace<FG_ELEMENT>(data, size,
+        [](const FG_ELEMENT& lhs, const FG_ELEMENT& rhs) -> FG_ELEMENT {return lhs + rhs;});
+    assert(success && "receiving dsgu data failed");
   }
 }
-
 #endif
