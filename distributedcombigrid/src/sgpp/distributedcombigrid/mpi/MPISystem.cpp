@@ -299,10 +299,8 @@ void MPISystem::initGlobalReduceCommm() {
     if (ENABLE_FT) {
       createCommFT(&globalReduceCommFT_, globalReduceComm_);
     }
-    int size = getCommSize(globalReduceComm_);
-    //std::cout << "size if global reduce comm " << size << "\n";
-    MPI_Barrier(globalReduceComm_);
     MPI_Comm_rank(globalReduceComm_, &globalReduceRank_);
+    MPI_Barrier(globalReduceComm_);
   } else {
     MPI_Comm_split(worldComm_, MPI_UNDEFINED, -1, &globalReduceComm_);
   }
