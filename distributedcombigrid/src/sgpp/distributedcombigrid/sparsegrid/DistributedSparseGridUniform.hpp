@@ -290,7 +290,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
 
 template <typename FG_ELEMENT>
 bool DistributedSparseGridUniform<FG_ELEMENT>::isSubspaceDataCreated() const {
-  return subspacesData_.size() == 0;
+  return subspacesData_.size() != 0;
 }
 
 template <typename FG_ELEMENT>
@@ -300,9 +300,10 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
   if (not isSubspaceDataCreated() && numDataPoints > 0) {
     subspacesData_ = std::vector<FG_ELEMENT>(numDataPoints);
 
-    // update pointers in subspaces
+    // update pointers and sizes in subspaces
     size_t offset = 0;
     for (int i = 0; i < subspaces_.size(); i++) {
+      subspaces_[i].dataSize_ = subspaceDataSizes_[i];
       subspaces_[i].data_ = subspacesData_.data() + offset;
       offset += subspaceDataSizes_[i];
     }
@@ -626,7 +627,7 @@ static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
   size_t dataSize  = dsgu->getRawDataSize();
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
-  MPI_Send(data, dataSize, dataType, dest, MPI_ANY_TAG, comm);
+  MPI_Send(data, dataSize, dataType, dest, 0, comm);
 }
 
 /**
@@ -719,7 +720,7 @@ static void sendSubspaceDataSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsg
   assert(dsgu->getNumSubspaces() > 0);
 
   const std::vector<int>& subspaceDataSizes = dsgu->getSubspaceDataSizes();
-  MPI_Send(subspaceDataSizes.data(), subspaceDataSizes.size(), MPI_INT, dest, MPI_ANY_TAG, comm);
+  MPI_Send(subspaceDataSizes.data(), subspaceDataSizes.size(), MPI_INT, dest, 0, comm);
 }
 
 /**
