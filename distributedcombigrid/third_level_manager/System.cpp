@@ -1,7 +1,7 @@
 #include "System.hpp"
 
-System::System(std::shared_ptr<ClientSocket>& connection)
-  : connection_(connection)
+System::System(std::shared_ptr<ClientSocket>& connection, size_t id)
+  : connection_(connection), id_(id)
 {
 }
 
@@ -35,4 +35,9 @@ bool System::receivePosNumber(size_t& number, int timeout) const
 std::shared_ptr<ClientSocket> System::getConnection() const
 {
   return connection_;
+}
+
+size_t System::getId() const
+{
+  return id_;
 }
