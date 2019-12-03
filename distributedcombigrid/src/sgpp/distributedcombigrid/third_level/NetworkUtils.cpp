@@ -411,51 +411,30 @@ bool NetworkUtils::forward(const ClientSocket& sender,
   bool sendSuccess = false;
   int sendFd = sender.getFileDescriptor();
   std::unique_ptr<char[]> buff(new char[chunksize]);
-  if (size != 0) {
-    std::cout << "Start tunneling of " << size << " Bytes with same Endianess:" << std::endl;
-    while (totalRecvd < size)
-    {
-      std::cout << "." << std::flush;
-      // receive at max chunksize bytes
-      size_t rest = size - totalRecvd;
-      if (rest < chunksize)
-        recvd = recv(sendFd, buff.get(), rest, 0);
-      else
-        recvd = recv(sendFd, buff.get(), chunksize, 0);
-      switch (recvd) {
-        case 0:
-          std::cerr << "NetworkUtils::forward() sender terminated too early" << std::endl;
-          return false;
-        case -1:
-          perror("NetworkUtils::forward() unexpected fail of sender");
-          return false;
-      }
-      totalRecvd += static_cast<size_t>(recvd);
-
-      // send received bytes to receiver
-      sendSuccess = receiver.sendall(buff.get(), static_cast<size_t>(recvd));
-      if (!sendSuccess) {
-        std::cerr << "NetworkUtils::forward() unexpected fail of receiver";
-        return false;
-      }
-    }
-    std::cout << std::endl;
-  } else { // tunnel until sender disconnects
-    while (recvd > 0 && sendSuccess)
-    {
-      // receive at max chunksize bytes
+  while (totalRecvd < size)
+  {
+    std::cout << "." << std::flush;
+    // receive at max chunksize bytes
+    size_t rest = size - totalRecvd;
+    if (rest < chunksize)
+      recvd = recv(sendFd, buff.get(), rest, 0);
+    else
       recvd = recv(sendFd, buff.get(), chunksize, 0);
-      if (recvd == -1) {
-          perror("NetworkUtils::forward() unexpected fail of sender");
-          return false;
-      }
-
-      // send received bytes to receiver
-      sendSuccess = receiver.sendall(buff.get(), static_cast<size_t>(recvd));
-      if (!sendSuccess) {
-        perror("NetworkUtils::forward() unexpected fail of receiver");
+    switch (recvd) {
+      case 0:
+        std::cerr << "NetworkUtils::forward() sender terminated too early" << std::endl;
         return false;
-      }
+      case -1:
+        perror("NetworkUtils::forward() unexpected fail of sender");
+        return false;
+    }
+    totalRecvd += static_cast<size_t>(recvd);
+
+    // send received bytes to receiver
+    sendSuccess = receiver.sendall(buff.get(), static_cast<size_t>(recvd));
+    if (!sendSuccess) {
+      std::cerr << "NetworkUtils::forward() unexpected fail of receiver";
+      return false;
     }
   }
   std::cout << std::endl;
