@@ -8,7 +8,7 @@ void Params::loadFromFile(const std::string& filename)
 {
   boost::property_tree::ptree pt;
   boost::property_tree::ini_parser::read_ini(filename, pt);
-  port_           = pt.get<u_int>("Connection.port");
+  port_           = pt.get<u_short>("Connection.port");
   numSystems_     = pt.get<u_int>("DistributedCombi.numSystems");
   loadedFromFile_ = true;
 }
@@ -18,7 +18,7 @@ u_int Params::getNumSystems() const
   return numSystems_;
 }
 
-u_int Params::getPort() const
+u_short Params::getPort() const
 {
   return port_;
 }
