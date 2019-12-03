@@ -100,187 +100,226 @@ bool ProcessGroupManager::combine() {
   return true;
 }
 
-bool ProcessGroupManager::sendSubspacesToRemote(const ThirdLevelUtils& thirdLevel,
-                                                       CombiParameters& params) {
-  sendSignalSendSubspaces();
-  forwardCommonSubpacesFromPGToRemote<CombiDataType>(thirdLevel, params);
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
-  return true;
-}
-
-bool ProcessGroupManager::recvAndDistributeSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
-                                                         CombiParameters& params) {
-  sendSignalRecvAndDistributeSubspaces();
-  forwardCommonSubspacesFromRemoteToPG<CombiDataType>(thirdLevel, params);
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
-  return true;
-}
-
-bool ProcessGroupManager::addAndDistributeSubspacesFromRemote(const ThirdLevelUtils& thirdLevel, 
-                                                               CombiParameters& params) {
-  sendSignalAddAndDistributeSubspaces();
-  forwardCommonSubspacesFromRemoteToPG<CombiDataType>(thirdLevel, params);
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
-  return true;
-}
-
-
-bool ProcessGroupManager::sendSignalSendSubspaces() {
+bool ProcessGroupManager::initDsgus() {
+  // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  SignalType signal = SEND_COMMON_SS_TO_MANAGER;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  sendSignalAndReceive(INIT_DSGUS);
 
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
   return true;
 }
 
-bool ProcessGroupManager::sendSignalRecvAndDistributeSubspaces() {
-  assert(status_ == PROCESS_GROUP_WAIT);
+bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
+                                            CombiParameters& params,
+                                            bool isSendingFirst) {
+  sendSignalAndReceive(COMBINE_THIRD_LEVEL);
 
-  SignalType signal = RECV_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  if (isSendingFirst)
+    exchangeDsgus(thirdLevel, params, true);
+  else
+    exchangeDsgus(thirdLevel, params, false);
 
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
   return true;
 }
 
-bool ProcessGroupManager::sendSignalAddAndDistributeSubspaces() {
-  assert(status_ == PROCESS_GROUP_WAIT);
 
-  SignalType signal = ADD_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+/*
+ * Differs from third level reduce since we have enough memory space to collect
+ * the subspace sizes from all dsgs of all procs in the third level pg in a single
+ * MPI_Gather call.
+ */
+bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel,
+                                       CombiParameters& params,
+                                       bool isSendingFirst)
+{
+  // tell workers to perform reduce
+  sendSignalAndReceive(REDUCE_SUBSPACE_SIZES_TL);
 
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
+  // prepare buffers
+  std::unique_ptr<uint64_t[]> sendBuff;
+  std::unique_ptr<uint64_t[]> recvBuff;
+  size_t buffSize;
+  std::vector<int> numSubspacesPerWorker;
+
+  // gather subspace sizes from workers
+  collectSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
+  recvBuff.reset(new uint64_t[buffSize]);
+
+  /* TODO can be easily parallelized by removing the condition and call send and
+     receive in a separate thread*/
+  if (isSendingFirst) {
+    // send subspace sizes to remote
+    thirdLevel.sendData(sendBuff.get(), buffSize);
+    // receive remote subspace sizes
+    thirdLevel.recvData(recvBuff.get(), buffSize);
+  } else {
+    // receive remote subspace sizes
+    thirdLevel.recvData(recvBuff.get(), buffSize);
+    // send subspace sizes to remote
+    thirdLevel.sendData(sendBuff.get(), buffSize);
+  }
+
+  // perform max reduce
+  for (size_t i = 0; i < buffSize; ++i)
+    sendBuff[i] = std::max(sendBuff[i], recvBuff[i]);
+
+  // set accumulated dsgu sizes per worker
+  dsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
+  uint64_t* sizePtr = sendBuff.get();
+  for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
+    int sum = 0;
+    for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
+      sum += (int) *(sizePtr++);
+    }
+    dsguDataSizePerWorker_[w] = sum;
+  }
+
+  // scatter data back to workers
+  distributeSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
   return true;
 }
 
-template <typename FG_ELEMENT>
-bool ProcessGroupManager::forwardCommonSubspacesFromRemoteToPG(const ThirdLevelUtils& thirdLevel,
-                                                                     CombiParameters& params) {
+
+void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel,
+                                             CombiParameters& params,
+                                             bool isSendingFirst) {
   const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
   assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
       "initialisation of third level communicator failed");
   const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
-  // receive subspaces sequentially from remote and forward them to workers
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+  // exchange dsgus
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
   IndexType numGrids = params.getNumGrids();
-  const std::vector<LevelVector>& commonSubspaces = params.getThirdLevelCommonSubspaces();
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    for (IndexType g = 0; g < numGrids; g++) {
-      for (const LevelVector& ss : commonSubspaces) {
-        // receive subspace from remote
-        FG_ELEMENT* ssData;
-        size_t ssSize;
-        thirdLevel.recvData(ssData, ssSize);
+  std::unique_ptr<CombiDataType[]> dsguData;
+  for (IndexType g = 0; g < numGrids; g++) {
+    for (RankType p = 0; p < (RankType) theMPISystem()->getNumProcs(); p++) {
+      // we assume here that all dsgus have the same size otherwise size collection must change
+      size_t dsguSize = (size_t) (dsguDataSizePerWorker_[(size_t)p]/numGrids);
+      assert(dsguSize < INT_MAX && "dsgu is larger than what we can send in a "
+                                  "single mpi call");
+      // recv dsgu from worker
+      dsguData.reset(new CombiDataType[dsguSize]);
+      MPI_Recv(dsguData.get(), (int) dsguSize, dataType, p, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
 
-        // forward subspace to worker
-        MPI_Send(ssData, ssSize, dataType, p, sendSSTag, comm);
-        if (ssSize != 0)
-          delete[] ssData;
+      if (isSendingFirst) {
+        // send dsgu to remote
+        thirdLevel.sendData(dsguData.get(), dsguSize);
+        // recv combined dsgu from remote
+        thirdLevel.recvData(dsguData.get(), dsguSize);
+        // send to worker
+        MPI_Send(dsguData.get(), (int) dsguSize, dataType, p, 0, comm);
+      } else {
+        // recv and combine dsgu from remote
+        thirdLevel.recvAndAddToData(dsguData.get(), dsguSize);
+        // send combined solution to remote
+        thirdLevel.sendData(dsguData.get(), dsguSize);
+        // send to worker
+        MPI_Send(dsguData.get(), (int) dsguSize, dataType, p, 0, comm);
       }
     }
   }
-  // tell third level manager that we finished receiving
-  thirdLevel.signalReady();
-  return true;
 }
 
-template <typename FG_ELEMENT>
-bool ProcessGroupManager::forwardCommonSubpacesFromPGToRemote(const ThirdLevelUtils& thirdLevel,
-                                                                    CombiParameters& params) {
-  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
-  assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
-      "initialisation of third level communicator failed");
-  const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
-  // receive subspaces sequentially from workers and forward them to remote
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-  IndexType numGrids = params.getNumGrids();
-  const std::vector<LevelVector>& commonSubspaces = params.getThirdLevelCommonSubspaces();
-  for (size_t p = 0; p < theMPISystem()->getNumProcs(); p++) {
-    for (IndexType g = 0; g < numGrids; g++) {
-      for (const LevelVector& ss : commonSubspaces) {
-        // get subspace size
-        int ssSize;
-        MPI_Status status;
-        MPI_Probe(p, sendSSTag, comm, &status);
-        MPI_Get_count(&status, dataType, &ssSize);
+bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel,
+                                               CombiParameters& params,
+                                               std::unique_ptr<uint64_t[]>& buff,
+                                               size_t& buffSize,
+                                               std::vector<int>& numSubspacesPerWorker) {
 
-        // receive subspace
-        FG_ELEMENT* ssData = new FG_ELEMENT[ssSize];
-        MPI_Recv(ssData, ssSize, dataType, p, sendSSTag, comm, &status);
+  // prepare args of MPI_Gather
+  const CommunicatorType& comm =
+    theMPISystem()->getThirdLevelComms()[(size_t)pgroupRootID_];
+  size_t nprocs = theMPISystem()->getNumProcs();
+  std::vector<int> recvCounts(nprocs + 1); // includes master
+  RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
+  int dummy = 0;
 
-        // send subspace to remote
-        thirdLevel.sendData(ssData, ssSize);
-        delete[] ssData;
-      }
-    }
+  // gather number of subspaces in all dsgus per worker for upcoming MPI_Gatherv
+  // for now all workers should have the same number of subspaces
+  MPI_Gather(&dummy, 1, MPI_INT, recvCounts.data(), (int) 1,
+             MPI_INT, thirdLevelManagerRank, comm);
+
+  buffSize = std::accumulate(recvCounts.begin(),
+                             recvCounts.end(), 0U);
+
+  std::unique_ptr<size_t[]> mdBuff(new size_t[buffSize]); // size_t is machine dependent
+  assert(buffSize < INT_MAX && "bufSize is larger than what we can send in a "
+                               "single mpi call");
+
+  // prepare displacements for MPI_Gatherv
+  std::vector<int> displacements(nprocs + 1); // includes master
+  int disp = 0;
+  for (size_t i = 0; i < displacements.size(); ++i) {
+    displacements[i] = disp;
+    disp += recvCounts[i];
   }
-  // tell third level manager that we finished sending
-  thirdLevel.signalReady();
+  // perform gather of subspace sizes
+  MPI_Datatype dataType = getMPIDatatype(
+                        abstraction::getabstractionDataType<size_t>());
+  MPI_Gatherv(&dummy, 0, dataType, mdBuff.get(), recvCounts.data(),
+      displacements.data(), dataType, thirdLevelManagerRank, comm);
+
+  // remove master
+  numSubspacesPerWorker = recvCounts;
+  numSubspacesPerWorker.pop_back();
+
+  // create machine independent buffer
+  buff.reset(new size_t[buffSize]);
+  for (size_t i = 0; i < buffSize; ++i)
+    buff[i] = static_cast<uint64_t>(mdBuff[i]);
+
   return true;
 }
 
+
+bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel,
+                                                  CombiParameters& params,
+                                                  const std::unique_ptr<uint64_t[]>& buff,
+                                                  size_t buffSize,
+                                                  const std::vector<int>& numSubspacesPerWorker) {
+  // prepare args of MPI_Scatterv
+  const CommunicatorType& comm =
+    theMPISystem()->getThirdLevelComms()[(size_t)pgroupRootID_];
+  RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
+  std::vector<int> sendCounts(numSubspacesPerWorker);
+  sendCounts.push_back(0); // append manager
+  std::vector<int> displacements(sendCounts.size());
+  int disp = 0;
+  for (size_t i = 0; i < displacements.size(); ++i) {
+    displacements[i] = disp;
+    disp += sendCounts[i];
+  }
+
+  // create machine dependent buffer
+  std::unique_ptr<size_t[]> mdBuff(new size_t[buffSize]);
+  for (size_t i = 0; i < buffSize; ++i)
+    mdBuff[i] = static_cast<size_t>(buff[i]);
+
+  // perform scatter of subspace sizes
+  MPI_Datatype dataType = getMPIDatatype(
+                        abstraction::getabstractionDataType<size_t>());
+  MPI_Scatterv(mdBuff.get(), sendCounts.data(), displacements.data(), dataType,
+               nullptr, 0, dataType, thirdLevelManagerRank, comm);
+
+  return true;
+}
 
 bool ProcessGroupManager::combineLocalAndGlobal() {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  SignalType signal = COMBINE_LOCAL_AND_GLOBAL;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
-
+  sendSignalAndReceive(COMBINE_LOCAL_AND_GLOBAL);
   return true;
 }
 
-bool ProcessGroupManager::waitForUpdate() {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  SignalType signal = WAIT_FOR_UPDATE;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
-
+bool ProcessGroupManager::waitForThirdLevelCombiResult() {
+  sendSignalAndReceive(WAIT_FOR_TL_COMBI_RESULT);
   return true;
 }
 
-bool ProcessGroupManager::integrateCombinedSolution() {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  SignalType signal = INTEGRATE_SOLUTION;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
-
+bool ProcessGroupManager::waitForThirdLevelSizeUpdate() {
+  sendSignalAndReceive(WAIT_FOR_TL_SIZE_UPDATE);
   return true;
 }
-
 
 bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
   // can only send sync signal when in wait state

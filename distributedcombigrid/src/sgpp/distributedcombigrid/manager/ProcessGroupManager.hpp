@@ -20,6 +20,7 @@
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/third_level/ThirdLevelUtils.hpp"
+#include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 namespace combigrid {
 class ProcessGroupManager {
@@ -38,6 +39,8 @@ class ProcessGroupManager {
 
   bool exit();
 
+  bool initDsgus();
+
   /* non-blocking call to retrieve status of process group */
   inline StatusType getStatus();
 
@@ -52,23 +55,15 @@ class ProcessGroupManager {
 
   inline void removeTask(Task* t);
 
-  bool sendSubspacesToRemote(const ThirdLevelUtils& thirdLevel,
-                                   CombiParameters& params);
-
-  bool recvAndDistributeSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
-                                                 CombiParameters& params);
-
-  bool addAndDistributeSubspacesFromRemote(const ThirdLevelUtils& thirdLevel,
-                                                CombiParameters& params);
-
-  bool waitForUpdate();
-
-  bool integrateCombinedSolution();
-
-  bool
-  combineLocalAndGlobal();
-
   bool combine();
+
+  // third Level stuff
+  bool combineThirdLevel(const ThirdLevelUtils& thirdLevel,
+                               CombiParameters& params,
+                               bool isSendingFirst);
+
+  bool combineLocalAndGlobal();
+
 
   bool broadcastUpdatedDSG();
 
@@ -108,6 +103,9 @@ class ProcessGroupManager {
 
   simft::Sim_FT_MPI_Request statusRequestFT_;
 
+  // stores the accumulated dsgu sizes per worker
+  std::vector<int> dsguDataSizePerWorker_;
+
   void recvStatus();
 
   // Helper functions for Communication with ProcessGroups
@@ -123,22 +121,32 @@ class ProcessGroupManager {
 
   void sendSignalToProcess(SignalType signal, RankType rank);
 
-  bool sendSignalSendSubspaces();
-
-  bool sendSignalRecvAndDistributeSubspaces();
-
-  bool sendSignalAddAndDistributeSubspaces();
-
   inline void setProcessGroupBusyAndReceive();
 
-  // Third level forwarding methods
-  template <typename FG_ELEMENT>
-  bool forwardCommonSubspacesFromRemoteToPG(const ThirdLevelUtils& thirdLevel,
-                                                  CombiParameters& params);
+  void exchangeDsgus(const ThirdLevelUtils& thirdLevel,
+                           CombiParameters& params,
+                           bool isSendingFirst);
 
-  template <typename FG_ELEMENT>
-  bool forwardCommonSubpacesFromPGToRemote(const ThirdLevelUtils& thirdLevel,
-                                                 CombiParameters& params);
+  bool collectSubspaceSizes(const ThirdLevelUtils& thirdLevel,
+                            CombiParameters& params,
+                            std::unique_ptr<uint64_t[]>& buff,
+                            size_t& buffSize,
+                            std::vector<int>& numSubspacesPerWorker);
+
+  bool distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel,
+                               CombiParameters& params,
+                               const std::unique_ptr<uint64_t[]>& buff,
+                               size_t buffSize,
+                               const std::vector<int>& numSubspacesPerWorker);
+
+  bool reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel,
+                                         CombiParameters& params,
+                                         bool isSendingFirst);
+
+  bool waitForThirdLevelSizeUpdate();
+
+  bool waitForThirdLevelCombiResult();
+
 
   /* sets the rank of the process group's master in global comm. should only
    * be called by ProcessManager.

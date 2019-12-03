@@ -43,7 +43,7 @@ ProcessGroupWorker::ProcessGroupWorker()
 }
 
 ProcessGroupWorker::~ProcessGroupWorker() {
-  // delete combinedFG_; 
+  // delete combinedFG_;
 }
 
 // Do useful things with the info about how long a task took.
@@ -90,7 +90,6 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("worker run first");
-      // std::cout << "from runfirst ";
       processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));
     } break;
     case RUN_NEXT: {
@@ -157,47 +156,6 @@ SignalType ProcessGroupWorker::wait() {
       }
 
     } break;
-    case COMBINE_LOCAL_AND_GLOBAL: {
-    Stats::startEvent("combineLocalAndGlobal");
-    combineLocalAndGlobal();
-    Stats::stopEvent("combineLocalAndGlobal");
-
-    } break;
-    case WAIT_FOR_UPDATE: {
-    Stats::startEvent("waitForUpdate");
-    updateSubspacesAndIntegrate();
-    currentCombi_++;
-    Stats::stopEvent("waitForUpdate");
-
-    } break;
-    case INTEGRATE_SOLUTION: {
-    Stats::startEvent("integrateCombinedSolution");
-    integrateCombinedSolution();
-    currentCombi_++;
-    Stats::stopEvent("integrateCombinedSolution");
-
-    } break;
-    case RECV_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE: {
-    Stats::startEvent("recvCommonSubspacesFromManagerAndDistribute");
-    std::cout << "Worker performs recvCommonSubspacesFromManagerAndDistribute" << std::endl;
-    recvCommonSubspacesFromManagerAndDistribute();
-    Stats::stopEvent("recvCommonSubspacesFromManagerAndDistribute");
-
-    } break;
-    case ADD_COMMON_SS_FROM_MANAGER_AND_DISTRIBUTE: {
-    Stats::startEvent("addCommonSubspacesFromManagerAndDistribute");
-    std::cout << "Worker performs addCommonSubspacesFromManagerAndDistribute" << std::endl;
-    addCommonSubspacesFromManagerAndDistribute();
-    Stats::stopEvent("addCommonSubspacesFromManagerAndDistribute");
-
-    } break;
-    case SEND_COMMON_SS_TO_MANAGER: {
-    Stats::startEvent("sendDSGUniformToManager");
-    std::cout << "Worker performs sendDSGUniformToManager" << std::endl;
-    sendCommonSubspacesToManager();
-    Stats::stopEvent("sendDSGUniformToManager");
-
-    } break;
     case SYNC_TASKS: {
       MASTER_EXCLUSIVE_SECTION {
         for (size_t i = 0; i < tasks_.size(); ++i) {
@@ -205,12 +163,50 @@ SignalType ProcessGroupWorker::wait() {
         }
       }
     } break;
+    case INIT_DSGUS: {
+      Stats::startEvent("initializeCombinedUniDSGVector");
+      initCombinedUniDSGVector();
+      Stats::stopEvent("initializeCombinedUniDSGVector");
+
+    } break;
     case COMBINE: {  // start combination
 
       Stats::startEvent("combine");
       combineUniform();
       currentCombi_++;
       Stats::stopEvent("combine");
+
+    } break;
+    case COMBINE_LOCAL_AND_GLOBAL: {
+      Stats::startEvent("combineLocalAndGlobal");
+      combineLocalAndGlobal();
+      Stats::stopEvent("combineLocalAndGlobal");
+
+    } break;
+    case COMBINE_THIRD_LEVEL: {
+      Stats::startEvent("combineThirdLevel");
+      combineThirdLevel();
+      currentCombi_++;
+      Stats::stopEvent("combineThirdLevel");
+
+    } break;
+    case WAIT_FOR_TL_COMBI_RESULT: {
+      Stats::startEvent("waitForThirdLevelCombiResult");
+      waitForThirdLevelCombiResult();
+      currentCombi_++;
+      Stats::stopEvent("waitForThirdLevelCombiResult");
+
+    } break;
+    case REDUCE_SUBSPACE_SIZES_TL: {
+      Stats::startEvent("unifySubspaceSizesThirdLevel");
+      reduceSubspaceSizesThirdLevel();
+      Stats::stopEvent("unifySubspaceSizesThirdLevel");
+
+    } break;
+    case WAIT_FOR_TL_SIZE_UPDATE: {
+      Stats::startEvent("waitForThirdLevelSizeUpdate");
+      waitForThirdLevelSizeUpdate();
+      Stats::stopEvent("waitForThirdLevelSizeUpdate");
 
     } break;
     case GRID_EVAL: {  // not supported anymore
@@ -430,13 +426,14 @@ void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
   }
 }
 
+
 void ProcessGroupWorker::initCombinedUniDSGVector() {
   if (tasks_.size() == 0) {
     std::cout << "Possible error: task size is 0! \n";
   }
   assert(combiParametersSet_);
   // we assume here that every task has the same number of grids, e.g. species in GENE
-  int numGrids = combiParameters_.getNumGrids();
+  long numGrids = combiParameters_.getNumGrids();
 
   DimType dim = combiParameters_.getDim();
   LevelVector lmin = combiParameters_.getLMin();
@@ -458,24 +455,36 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   }
 #endif
 
-  // delete old dsgs
-  combinedUniDSGVector_.clear();
+  // get all subspaces in the (optimized) combischeme
+  SGrid<real> sg(dim, lmax, lmin, boundary);
+  std::vector<LevelVector> subspaces;
+  for (size_t ssID = 0; ssID < sg.getSize(); ++ssID) {
+    const LevelVector& ss = sg.getLevelVector(ssID);
+    subspaces.push_back(ss);
+  }
+
   // create dsgs
-  combinedUniDSGVector_.resize(numGrids);
+  combinedUniDSGVector_.resize((size_t) numGrids);
   for (auto& uniDSG : combinedUniDSGVector_) {
     uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
+        new DistributedSparseGridUniform<CombiDataType>(dim, subspaces, boundary,
                                                         theMPISystem()->getLocalComm()));
   }
-  // todo: move to init function to avoid reregistering
+
+  // set subspace sizes local and global
+
   // register dsgs in all dfgs
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-
-      dfg.registerUniformSG(*(combinedUniDSGVector_[g]));
+      dfg.registerUniformSG(*(combinedUniDSGVector_[(size_t) g]));
     }
   }
+
+  // global reduce of subspace sizes
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+  for (int g = 0; g < numGrids; g++)
+    reduceSubspaceSizes(combinedUniDSGVector_[(size_t)g].get(), globalReduceComm);
 }
 
 void ProcessGroupWorker::hierarchizeFullGrids() {
@@ -549,9 +558,7 @@ void ProcessGroupWorker::combineUniform() {
 
   MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
 #endif
-  Stats::startEvent("combine init");
-  initCombinedUniDSGVector();
-  Stats::stopEvent("combine init");
+  initDsgsData();
 
   Stats::startEvent("combine hierarchize");
   hierarchizeFullGrids();
@@ -604,16 +611,15 @@ void ProcessGroupWorker::combineUniform() {
 
    std::cout << "\n";
    */
+
+  deleteDsgsData();
 }
 
 void ProcessGroupWorker::combineLocalAndGlobal() {
 #ifdef DEBUG_OUTPUT
-
   MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
 #endif
-  Stats::startEvent("combine init");
-  initCombinedUniDSGVector();
-  Stats::stopEvent("combine init");
+  initDsgsData();
 
   Stats::startEvent("combine hierarchize");
   hierarchizeFullGrids();
@@ -623,20 +629,6 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
   Stats::startEvent("combine global reduce");
   reduceUniformSG();
   Stats::stopEvent("combine global reduce");
-}
-
-
-void ProcessGroupWorker::updateSubspacesAndIntegrate() {
-  int numGrids = combiParameters_.getNumGrids();
-  const std::vector<LevelVector>& commonSubspaces = combiParameters_.getThirdLevelCommonSubspaces();
-  RankType thirdLevelPG = combiParameters_.getThirdLevelPG();
-
-  // receive update from global reduce comm
-  Stats::startEvent("broadcasting reduced grids");
-  broadcastCommonSS();
-  Stats::stopEvent("broadcasting reduced grids");
-
-  integrateCombinedSolution();
 }
 
 void ProcessGroupWorker::parallelEval() {
@@ -654,9 +646,6 @@ void ProcessGroupWorker::parallelEvalUniform() {
                      .getNumGrids();  // we assume here that every task has the same number of grids
 
   const int dim = static_cast<int>(combiParameters_.getDim());
-
-  // combine must have been called before this function
-  assert(combinedUniDSGVector_.size() != 0 && "you must combine before you can eval");
 
   // receive leval and broadcast to group members
   std::vector<int> tmp(dim);
@@ -837,106 +826,156 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
   }
 }
 
-
-/**
-*
-*/
-void ProcessGroupWorker::sendCommonSubspacesToManager() {
-  assert(combinedUniDSGVector_.size() != 0);
-  assert(combiParametersSet_);
-
-  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
-  const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[0];
-  const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
-
-  // we assume here that every task has the same number of grids
-  size_t numGrids = static_cast<size_t>(combiParameters_.getNumGrids());
-  const std::vector<LevelVector>& commonSubpaces = combiParameters_.getThirdLevelCommonSubspaces();
-
-  // send subspaces
-  Stats::startEvent("send dsgu to manager");
-  for (size_t g = 0; g < numGrids; g++) {
-    assert(combinedUniDSGVector_[g] != NULL);
-    sendSubspaces(combinedUniDSGVector_[g].get(), commonSubpaces, manager, comm);
-  }
-  Stats::stopEvent("send dsgu to manager");
-}
-
-/**
-*
-*/
-void ProcessGroupWorker::recvCommonSubspacesFromManagerAndDistribute() {
-  assert(combinedUniDSGVector_.size() != 0);
-  assert(combiParametersSet_);
-
-  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
-  const CommunicatorType& managerComm = theMPISystem()->getThirdLevelComms()[0];
-  const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
-
-  const CommunicatorType& globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  const RankType& bcastRoot = static_cast<RankType>(combiParameters_.getThirdLevelPG()); // should match rank in globalReduceComm
-
-  // we assume here that every task has the same number of grids
-  size_t numGrids = static_cast<size_t>(combiParameters_.getNumGrids());
-  const std::vector<LevelVector>& commonSubpaces = combiParameters_.getThirdLevelCommonSubspaces();
-
-  // recv and distribute updated ss to workers with same localRank in other pgs
-  Stats::startEvent("receive dsgu from manager");
-  for (size_t g = 0; g < numGrids; g++) {
-    assert(combinedUniDSGVector_[g] != NULL);
-    recvAndBcastSubspaces(combinedUniDSGVector_[g].get(), commonSubpaces, manager, managerComm, bcastRoot, globalReduceComm);
-  }
-  Stats::stopEvent("receive dsgu from manager");
-}
-
 void ProcessGroupWorker::integrateCombinedSolution() {
+
   Stats::startEvent("integrating combined solution");
   extractFullGridsFromUniformSG();
   dehierarchizeFullGrids();
   Stats::stopEvent("integrating combined solution");
+
+  deleteDsgsData();
 }
 
-
-/**
- *
- */
-void ProcessGroupWorker::addCommonSubspacesFromManagerAndDistribute() {
+void ProcessGroupWorker::combineThirdLevel() {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
 
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
   const CommunicatorType& managerComm = theMPISystem()->getThirdLevelComms()[0];
+  const CommunicatorType& globalReduceComm = theMPISystem()->getGlobalReduceComm();
+  const RankType& globalReduceRank = theMPISystem()->getGlobalReduceRank();
   const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
 
-  const CommunicatorType& globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  const RankType& bcastRoot = static_cast<RankType>(combiParameters_.getThirdLevelPG()); // should match rank in globalReduceComm
+  std::vector<MPI_Request> requests;
+  for (auto& dsg : combinedUniDSGVector_) {
+    assert(dsg->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
+                                             "sent in a single MPI Call (not "
+                                             "supported yet) try a more refined"
+                                             "decomposition");
+    // send dsg data to manager
+    sendDsgData(dsg.get(), manager, managerComm);
 
-  // we assume here that every task has the same number of grids
-  size_t numGrids = static_cast<size_t>(combiParameters_.getNumGrids());
-  const std::vector<LevelVector>& commonSubpaces = combiParameters_.getThirdLevelCommonSubspaces();
+    // recv combined dsgu from manager
+    recvDsgData(dsg.get(), manager, managerComm);
 
-  // recv, add and distribute updated ss to workers with same localRank in other pgs
-  Stats::startEvent("add dsgu from manager");
-  for (size_t g = 0; g < numGrids; g++) {
-    assert(combinedUniDSGVector_[g] != nullptr);
-    recvAndAddAndBcastSubspaces(combinedUniDSGVector_[g].get(), commonSubpaces, manager, managerComm, bcastRoot, globalReduceComm);
+    // distribute solution in globalReduceComm to other pgs
+    MPI_Request request = asyncBcastDsgData(dsg.get(), globalReduceRank, globalReduceComm);
+    requests.push_back(request);
   }
-  Stats::stopEvent("add dsgu from manager");
+  // update fgs
+  integrateCombinedSolution();
+
+  // wait for bcasts to other pgs in globalReduceComm
+  for (MPI_Request request : requests)
+    MPI_Wait(&request, MPI_STATUS_IGNORE);
+
+  // free space for computation
+  deleteDsgsData();
 }
 
-/**
-*
-*/
-void ProcessGroupWorker::broadcastCommonSS() {
-  assert(combinedUniDSGVector_.size() != 0);
+/** Reduces subspace sizes with remote.
+ */
+void ProcessGroupWorker::reduceSubspaceSizesThirdLevel() {
   assert(combiParametersSet_);
 
+  // prepare a buffer with enough space for all subspace sizes from all dsgs
+  int bufSize = 0;
   for (auto& dsg : combinedUniDSGVector_)
-    broadcastSubspaces(dsg.get(),
-                       combiParameters_.getThirdLevelCommonSubspaces(),
-                       static_cast<RankType>(combiParameters_.getThirdLevelPG()), // should match rank in globalReduceComm
-                       theMPISystem()->getGlobalReduceComm()
-                      );
+    bufSize += dsg->getSubspaceDataSizes().size();
+  std::vector<size_t> buff;
+  buff.reserve((size_t)bufSize);
+
+  // fill the buffer with the subspace sizes
+  for (auto& dsg : combinedUniDSGVector_) {
+    for(size_t size : dsg->getSubspaceDataSizes()) {
+      buff.push_back(size);
+    }
+  }
+
+  // prepare for MPI calls to manager
+  CommunicatorType thirdLevelComm = theMPISystem()->getThirdLevelComms()[0];
+  RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
+
+  // send size of buffer to manager
+  MPI_Gather(&bufSize, 1, MPI_INT, nullptr, 0, MPI_INT, thirdLevelManagerRank,
+             thirdLevelComm);
+
+  // send subspace sizes to manager
+  MPI_Datatype dtype = getMPIDatatype(
+                        abstraction::getabstractionDataType<size_t>());
+  MPI_Gatherv(buff.data(), bufSize, dtype, nullptr, nullptr,
+              nullptr, dtype, thirdLevelManagerRank, thirdLevelComm);
+
+  // receive updated sizes from manager
+  MPI_Scatterv(nullptr, 0, nullptr, dtype,
+               buff.data(), bufSize, dtype, thirdLevelManagerRank, thirdLevelComm);
+
+  // distribute updated sizes to workers with same decomposition (global reduce comm)
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+  RankType globalReduceRank = theMPISystem()->getGlobalReduceRank();
+  MPI_Bcast(buff.data(), bufSize, dtype, globalReduceRank, globalReduceComm);
+
+  // set updated sizes in dsgs
+  std::vector<size_t>::iterator buffIt = buff.begin();
+  for (auto& dsg : combinedUniDSGVector_) {
+    for(size_t i = 0; i < dsg->getNumSubspaces(); ++i) {
+      dsg->setDataSize(i, *(buffIt++));
+    }
+  }
 }
 
+void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
+  // prepare a buffer with enough space for all subspace sizes from all dsgs
+  int buffSize = 0;
+  for (auto& dsg : combinedUniDSGVector_)
+    buffSize += dsg->getSubspaceDataSizes().size();
+  std::vector<size_t> buff((size_t) buffSize);
+
+  // receive updated sizes from third level pgroup (global reduce comm)
+  RankType thirdLevelPG = (RankType) combiParameters_.getThirdLevelPG();
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+  MPI_Datatype dtype = getMPIDatatype(
+                        abstraction::getabstractionDataType<size_t>());
+  MPI_Bcast(buff.data(), buffSize, dtype, thirdLevelPG, globalReduceComm);
+
+  // set updated sizes in dsgs
+  std::vector<size_t>::iterator buffIt = buff.begin();
+  for (auto& dsg : combinedUniDSGVector_) {
+    for(size_t i = 0; i < dsg->getNumSubspaces(); ++i) {
+      dsg->setDataSize(i, *(buffIt++));
+    }
+  }
+}
+
+void ProcessGroupWorker::waitForThirdLevelCombiResult() {
+  // receive result third level combi result from third level pgroup (global reduce comm)
+  RankType thirdLevelPG = (RankType) combiParameters_.getThirdLevelPG();
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+
+  for (auto& dsg : combinedUniDSGVector_) {
+    MPI_Request request = asyncBcastDsgData(dsg.get(), thirdLevelPG, globalReduceComm);
+    MPI_Wait(&request, MPI_STATUS_IGNORE);
+  }
+
+  integrateCombinedSolution();
+  // free space for computation
+  deleteDsgsData();
+}
+
+void ProcessGroupWorker::initDsgsData() {
+  for (auto& dsg : combinedUniDSGVector_)
+    dsg->createSubspaceData();
+}
+
+void ProcessGroupWorker::deleteDsgsData() {
+  for (auto& dsg : combinedUniDSGVector_)
+    dsg->deleteSubspaceData();
+}
+
+bool ProcessGroupWorker::isDsgsDataInitialized() {
+  for (auto& dsg : combinedUniDSGVector_)
+    if (not dsg->isSubspaceDataCreated())
+      return false;
+  return true;
+}
 } /* namespace combigrid */

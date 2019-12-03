@@ -87,7 +87,8 @@ void ProcessManager::exit() {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
     }
   }
 
@@ -96,6 +97,29 @@ void ProcessManager::exit() {
     bool success = pgroups_[i]->exit();
     assert(success);
   }
+}
+
+void ProcessManager::initDsgus() {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  // tell groups to init Dsgus
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    bool success = pgroups_[i]->initDsgus();
+    assert(success);
+  }
+
+  waitAllFinished();
 }
 
 void ProcessManager::updateCombiParameters() {

@@ -60,10 +60,13 @@ class ProcessManager {
 
   bool runnext();
 
+  void initDsgus();
+
   inline void combine();
 
-  inline void
-  combineThirdLevel();
+  inline void combineThirdLevel();
+
+  inline void unifySubspaceSizesThirdLevel();
 
   inline void combineLocalAndGlobal();
 
@@ -235,7 +238,7 @@ void ProcessManager::combineLocalAndGlobal() {
     }
   }
 
-  // groups combine local and global first
+  // tell groups to combine local and global
   for (size_t i = 0; i < pgroups_.size(); ++i) {
     bool success = pgroups_[i]->combineLocalAndGlobal();
     assert(success);
@@ -248,56 +251,87 @@ void ProcessManager::combineLocalAndGlobal() {
 *
 * The process manager induces a local and global combination first.
 * Then he signals ready to the third level manager who decides which system
-* sends and receives first.
+* sends and receives first. All pgs which do not participate in the third level
+* combination directly idle in a broadcast function and wait for their update
+* from the third level pg.
+*
+* Different roles of the manager:
 *
 * Senders role:
-* The processGroupManager
-* transfers the common subspaces from workers of the third level pg to the
-* third level manager, who then forwards it to the remote system. After sending
-* the processGroupManager receives the remotely reduced data from the third
-* level manager and sends it back to the third level pg.
+* The processGroupManager transfers the dsgus from the workers of the third
+* level pg to the third level manager, who further forwards them to the remote
+* system. After sending, he receives the remotely reduced data and sends it back
+* to the third level pg.
 *
 * Receivers role:
-* In the role of the receiver, the ProcessGroupManager receives the common
-* subspace data from the third level manager and forwards it to the workers who
-* combine the remote solution with their local solution. Afterward, the
-* solution is sent back to the remote system the other way.
-*
-* After the global reduce all pg which do not participate in the third level
-* combination idle in a broadcast function and wait for their updated from the
-* third level pg.
-*
+* In the role of the receiver, the ProcessGroupManager receives the remote dsgus
+* and reduces it with the local solution.
+* Afterwards, he sends the solution  back to the remote system and to the local
+* workers.
 */
 void ProcessManager::combineThirdLevel() {
+  // first combine local and global
   combineLocalAndGlobal();
+  waitAllFinished();
 
-  // tell other pgroups to idle and wait for update
+  // tell other pgroups to idle and wait for the combination result
   for (auto& pg : pgroups_) {
     if (pg != thirdLevelPGroup_)
-      pg->waitForUpdate();
+      pg->waitForThirdLevelCombiResult();
   }
-
   // obtain instructions from third level manager
-  std::cout << "Signaling ready to combine..." << std::endl;
   thirdLevel_.signalReadyToCombine();
   std::string instruction = thirdLevel_.fetchInstruction();
 
-  // perform third level reduce
-  if (instruction == "reduce_third_level_recv_first") {
-    thirdLevelPGroup_->addAndDistributeSubspacesFromRemote(thirdLevel_, params_);
-    waitForPG(thirdLevelPGroup_);
-    thirdLevelPGroup_->sendSubspacesToRemote(thirdLevel_, params_);
-    waitForPG(thirdLevelPGroup_);
-    std::cout << "TLGP integrating solution" << std::endl;
-    thirdLevelPGroup_->integrateCombinedSolution();
-  } else if (instruction == "reduce_third_level_send_first") {
-    thirdLevelPGroup_->sendSubspacesToRemote(thirdLevel_, params_);
-    waitForPG(thirdLevelPGroup_);
-    thirdLevelPGroup_->recvAndDistributeSubspacesFromRemote(thirdLevel_, params_);
-    waitForPG(thirdLevelPGroup_);
-    std::cout << "TLGP integrating solution" << std::endl;
-    thirdLevelPGroup_->integrateCombinedSolution();
+  // combine
+  if (instruction == "send_first") {
+    thirdLevelPGroup_->combineThirdLevel(thirdLevel_, params_, true);
+  } else if (instruction == "recv_first") {
+    thirdLevelPGroup_->combineThirdLevel(thirdLevel_, params_, false);
   }
+  thirdLevel_.signalReady();
+
+  waitAllFinished();
+}
+
+/** Unifys the subspace sizes of all dsgus which are collectively combined
+ * during third level reduce
+ *
+ * First, the processGroupManager collects the subspace sizes from all workers
+ * dsgus. This is achieved in a single MPI_Gatherv call. The sizes of the send
+ * buffers are gathered beforehand. Afterwards, the process manager signals
+ * ready to the third level manager who then decides which system sends and
+ * receives first.
+ *
+ * Senders role: The processGroupManager sends and receives data from the third
+ * level manager.
+ *
+ * Receivers role: The ProcessGroupManager receives and sends data to the third
+ * level manager.
+ *
+ * In both roles the manager locally reduces the data and scatters the updated
+ * sizes back to the workers of the third level pg who will then distribute it
+ * to the other pgs.
+ */
+void ProcessManager::unifySubspaceSizesThirdLevel() {
+  // tell other pgroups to idle and wait for update
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_)
+      pg->waitForThirdLevelSizeUpdate();
+  }
+
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToUnifySubspaceSizes();
+  std::string instruction = thirdLevel_.fetchInstruction();
+
+  // exchange sizes with remote
+  if (instruction == "send_first") {
+    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_, true);
+  } else if (instruction == "recv_first") {
+    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_, false);
+  }
+  thirdLevel_.signalReady();
+
   waitAllFinished();
 }
 
@@ -427,7 +461,7 @@ inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
       std::cout << newCoeffs[i] << " ";
     }
     std::cout << "\n";
-    int roundedSum = round(sum);
+    int roundedSum = (int) round(sum);
     std::cout << "Coefficient sum: " << roundedSum << "\n";
 
     assert(roundedSum == 1);
@@ -455,6 +489,5 @@ inline Task* ProcessManager::getTask(int taskID) {
   }
   return nullptr;
 }
-
 } /* namespace combigrid */
 #endif /* PROCESSMANAGER_HPP_ */

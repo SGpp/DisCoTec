@@ -79,15 +79,18 @@ class ProcessGroupWorker {
   // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
   void setCombinedSolutionUniform(Task* t);
 
-  void updateSubspacesAndIntegrate();
+  // performes a sparse grid reduce with the remote system, bcasts solution and
+  // updates fgs.
+  void combineThirdLevel();
 
-  void integrateCombinedSolution();
+  // waits until the third level pg bcasts the combined solution and updates fgs
+  void waitForThirdLevelCombiResult();
 
-  void sendCommonSubspacesToManager();
+  // computes a max reduce on the dsg's subspace sizes with the other systems
+  void reduceSubspaceSizesThirdLevel();
 
-  void recvCommonSubspacesFromManagerAndDistribute();
-
-  void addCommonSubspacesFromManagerAndDistribute();
+  // receives reduced sizes from tl pgroup and updates the dsgs
+  void waitForThirdLevelSizeUpdate();
 
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
     return combinedUniDSGVector_;
@@ -129,7 +132,26 @@ class ProcessGroupWorker {
 
   void processDuration(const Task& t, const Stats::Event e, size_t numProcs);
 
+  void integrateCombinedSolution();
+
+  //
+  void getLocalSubspaceSizes(const std::vector<LevelVector>& subspaces,
+                             std::vector<size_t>& subspaceSizes);
+
+  void getGlobalSubspaceSizes(std::vector<size_t>& subspaceSizes);
+
+  void getThirdLevelSubspaceSizes(const std::vector<LevelVector>& subspaces,
+                                  std::vector<size_t>& subspaceSizes);
   void broadcastCommonSS();
+
+  /* allocates data in dsgs */
+  void initDsgsData();
+
+  /* deallocates data the dsgs */
+  void deleteDsgsData();
+
+  /*checks if data in dsgs is allocated*/
+  bool isDsgsDataInitialized();
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
