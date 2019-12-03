@@ -22,6 +22,8 @@ class ThirdLevelManager
 
     void processCombination(size_t initiatorIndex);
 
+    void processUnifySubspaceSizes(size_t initiatorIndex);
+
     void processFinished(size_t sysIndex);
 
     void forwardData(const System& sender, const System& receiver) const;
