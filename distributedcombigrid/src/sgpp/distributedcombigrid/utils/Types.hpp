@@ -14,6 +14,7 @@
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include <stdint.h>
 #include <limits.h>
+#include <boost/cstdint.hpp>
 
 #if SIZE_MAX == UCHAR_MAX
    #define MPI_SIZE_T MPI_UNSIGNED_CHAR
