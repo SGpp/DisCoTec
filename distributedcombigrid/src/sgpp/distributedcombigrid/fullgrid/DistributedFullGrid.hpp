@@ -755,7 +755,7 @@ class DistributedFullGrid {
   /*
    * Resizes all subspaces of the dsg that the dfg and dsg have in common. The
    * size of a subspace in the dsg is chosen according to the corresponding
-   * subspace in the dfg.
+   * subspace size in the dfg.
    *
    * Attention: no data is allocated only sizes are set.
    */
@@ -794,7 +794,7 @@ class DistributedFullGrid {
     // test if dsg has already been registered
     if (&dsg != dsg_) registerUniformSG(dsg);
     // test if data in dsg is created
-    if (dsg.isSubspaceDataCreated()) dsg.createSubspaceData();
+    assert(dsg.isSubspaceDataCreated());
 
     // create pointer for each subspace in dsg
     std::vector<FG_ELEMENT*> it_sub(subspaceAssigmentList_.size());
