@@ -2,7 +2,7 @@ CC=$(CC)
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall
 
 SGPP_DIR=../../../
-GLPK_DIR=$(GLPK)
+GLPK_DIR=$(SGPP_DIR)/glpk/
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
