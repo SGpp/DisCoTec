@@ -35,11 +35,12 @@ const SignalType PARALLEL_EVAL = 17;
 const SignalType RESET_TASKS = 19;
 const SignalType COMBINE_LOCAL_AND_GLOBAL = 20;
 const SignalType BROADCAST_COMMON_SS = 21;
+const SignalType INIT_DSGUS = 22;
 // Third level specific signals
-const SignalType COMBINE_THIRD_LEVEL = 22;
-const SignalType WAIT_FOR_TL_COMBI_RESULT = 23;
-const SignalType REDUCE_SUBSPACE_SIZES_TL = 24;
-const SignalType WAIT_FOR_TL_SIZE_UPDATE = 25;
+const SignalType COMBINE_THIRD_LEVEL = 23;
+const SignalType WAIT_FOR_TL_COMBI_RESULT = 24;
+const SignalType REDUCE_SUBSPACE_SIZES_TL = 25;
+const SignalType WAIT_FOR_TL_SIZE_UPDATE = 26;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
