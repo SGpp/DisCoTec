@@ -82,7 +82,7 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker) {
 void assignProcsToSystems(unsigned int ngroup, unsigned int nprocs,
                           unsigned int numSystems, unsigned int& sysNum,
                           CommunicatorType& newcomm) {
-  int rank, size, color;
+  int rank, size, color, key;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
@@ -93,12 +93,9 @@ void assignProcsToSystems(unsigned int ngroup, unsigned int nprocs,
   // assign procs to systems
   sysNum = unsigned(rank) / procsPerSys;
   color = int(sysNum);
+  key = rank % (int) procsPerSys;
 
-  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &newcomm);
-
-  // remove unnecessary procs
-  if (color == int(numSystems))
-    return;
+  MPI_Comm_split(MPI_COMM_WORLD, color, key, &newcomm);
 }
 
 /** Runs the third level manager in the background as a forked child process */
@@ -147,12 +144,9 @@ void testCombineThirdLevel(TestParams& testParams) {
     CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
     combischeme.createClassicalCombischeme();
     //combischeme.createAdaptiveCombischeme();
-
-
     // get full scheme first
     std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
-
     // split scheme and assign each half to a system
     std::vector<LevelVector> levels;
     std::vector<combigrid::real> coeffs;
@@ -172,16 +166,13 @@ void testCombineThirdLevel(TestParams& testParams) {
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
-      BOOST_CHECK(true);
 
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
 
-    BOOST_CHECK(true);
-
-    IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
     // create combiparameters
+    IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax,
                                 boundary, levels, coeffs, taskIDs, testParams.ncombi,
                                 1, parallelization, std::vector<IndexType>(0),
@@ -200,6 +191,10 @@ void testCombineThirdLevel(TestParams& testParams) {
         Stats::startEvent("manager run");
         manager.runfirst();
         Stats::stopEvent("manager run");
+
+        Stats::startEvent("manager init dsgus");
+        manager.initDsgus();
+        Stats::stopEvent("manager init dsgus");
 
         // exchange subspace sizes to unify the dsgs with the remote system
         Stats::startEvent("manager unify subspace sizes with remote");
@@ -291,12 +286,14 @@ BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
   assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
-  TestParams testParams(dim, lmin, lmax, ngroup, nprocs, ncombi, sysNum, newcomm);
 
-  startInfrastructure();
+  if (sysNum < numSystems) { // remove unnecessary procs
+    TestParams testParams(dim, lmin, lmax, ngroup, nprocs, ncombi, sysNum, newcomm);
 
-  testCombineThirdLevel(testParams);
+    startInfrastructure();
 
+    testCombineThirdLevel(testParams);
+  }
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
