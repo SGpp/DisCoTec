@@ -97,7 +97,7 @@ sg++ libraries should be there)
 Let's assume we want to run the example under
 combi/distributedcombigrid/examples/distributed_third_level/ and distribute our
 combischeme to **HLRS** and **helium**, while the third-level-manager is running on
-**helium** at port 9999. The following steps are necessary:
+helium at port 9999. The following steps are necessary:
 
 1. Since data connections to the HLRS are not possible without using ssh
    tunnels, we set them up in advance. Run `ssh -R  9998:localhost:9999
