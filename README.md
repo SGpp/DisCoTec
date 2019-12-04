@@ -9,18 +9,18 @@ Please do use feature branches in development.
 
 Guidelines
 ---------
-*  Please develop new features in a new branch and then create a merge request 
-to notify other users about the changes. So everyone can check whether there are 
-side-effects to other branches.
-* Of course, you are still very welcome to directly fix obvious bugs in the 
-master branch.
+* Please develop new features in a new branch and then create a merge request to
+  notify other users about the changes. So everyone can check whether there are
+  side-effects to other branches.
+* Of course, you are still very welcome to directly fix obvious bugs in the
+  master branch.
 * Before merging new features to the master branch, please make sure that they
-are sufficiently commented. 
+  are sufficiently commented. 
 * Although the distributed combigrid module is independent of the other modules
-in SG++, it will remain a part of this project. To ensure compability please
-make sure that you only change files in the distributedcombigrid folder. 
-* In the future the automated testing and code style checking on commits that is 
-done in SG++ will also be done for this project.
+  in SG++, it will remain a part of this project. To ensure compability please
+  make sure that you only change files in the distributedcombigrid folder. 
+* In the future the automated testing and code style checking on commits that is
+  done in SG++ will also be done for this project.
 
 Installation instructions:
 --------------------------
@@ -80,24 +80,24 @@ On Hazel Hen
 
 ### Compilation
 
-Unfortunately, the boost module on Hazel Hen does not work with our code any more.
-Hence, you have to install boost yourself, e.g. use version >= 1.58
-(always compile boost with the intel compiler `PrgEnv-intel`, otherways there
-will be linkage errors when compiling the examples)
-Do not forget to set boost paths in SConfigure, i.e. BOOST_INCLUDE_PATH, 
-BOOST_LIBRARY_PATH.
+Unfortunately, the boost module on Hazel Hen does not work with our code any
+more. Hence, you have to install boost yourself, e.g. use version >= 1.58
+(always compile boost with the intel compiler `PrgEnv-intel`, otherwise there
+will be linkage errors when compiling the examples) Do not forget to set boost
+paths in SConfigure, i.e. BOOST_INCLUDE_PATH, BOOST_LIBRARY_PATH.
 
-Compile by first adapt the compile.sh script to use the HLRS specific command.
+Compile by first adapting the compile.sh script to use the HLRS specific
+command.
 
-(the linking of the boost tests might fail. however this is not a problem, the
+(the linking of the boost tests might fail. However this is not a problem, the
 sg++ libraries should be there)
 
 ### Execution
 
 Let's assume we want to run the example under
 combi/distributedcombigrid/examples/distributed_third_level/ and distribute our
-combischeme to **HLRS** and **helium**, while the third-level-manager is running on
-helium at port 9999. The following steps are necessary:
+combischeme to **HLRS** and **helium**, while the third-level-manager is running
+on helium at port 9999. The following steps are necessary:
 
 1. Since data connections to the HLRS are not possible without using ssh
    tunnels, we set them up in advance. Run `ssh -R  9998:localhost:9999
