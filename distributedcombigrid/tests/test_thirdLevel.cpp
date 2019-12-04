@@ -103,9 +103,6 @@ void runThirdLevelManager() {
   std::cout << "starting thirdLevelManager..." << std::endl;
   std::string command = "../../distributedcombigrid/third_level_manager/run.sh &";
   system(command.c_str());
-
-  // give the thirdLevelManger some time to set up
-  sleep(2);
 }
 
 /** Runs the tl manager*/
@@ -116,6 +113,8 @@ void startInfrastructure() {
   if (rank == 0) {
     runThirdLevelManager();
   }
+  // give infrastructure some time to set up
+  sleep(2);
 }
 
 void testCombineThirdLevel(TestParams& testParams) {
