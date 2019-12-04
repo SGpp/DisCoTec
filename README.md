@@ -47,19 +47,20 @@ and then you just hope you can `make` it by adapting the local library flags ;)
 
 Third-Level-Manager
 -------------------
-The third-level-manager handles the synchronization and data transfer of and
-between the systems. The following steps will guide you from compilation to
-execution:
+The third-level-manager handles the synchronization and data transfer between
+the systems. The following steps will guide you from compilation to execution:
 
-* To compile first navigate to combi/distributedcombigrid/third_level_manager.
-  The folder contains a Makefile.template which you can adjust to fit your needs.
+1. To compile first navigate to combi/distributedcombigrid/third_level_manager.
+   The folder contains a Makefile.template which you can adjust to make it
+   compatible with your maschine.
 
-* The manager takes a .ini file as an input parameter. The same folder holds the
-  file example.ini where the number of systems and the port on which the manager
-  will listen can be adjusted. Currently, only 2 systems are supported.
+2. The manager takes a .ini file as an input parameter. The same folder as in 1.
+   holds the example file `example.ini` where the number of systems and the port
+   on which the manager listens can be adjusted. Currently, only 2 systems are
+   supported.
 
-* Use the run script to execute the manager. You can pass your own parameter
-  file to the script whereas by default it reads the example.ini.
+3. Use the run script to execute the manager. You can pass your own parameter
+   file to the script whereas by default it reads the example.ini.
 
 On Hazel Hen
 ------------
@@ -95,27 +96,27 @@ sg++ libraries should be there)
 
 Let's assume we want to run the example under
 combi/distributedcombigrid/examples/distributed_third_level/ and distribute our
-combischeme to HLRS and helium, while the third-level-manager is running on
-helium at port 9999. The following steps are necessary:
+combischeme to `HLRS` and `helium`, while the third-level-manager is running on
+`helium` at port 9999. The following steps are necessary:
 
-* Since data connections to the HLRS are not possible without using ssh tunnels,
-  we set them up in advance. Run
-  `ssh -R  9998:localhost:9999 username@eslogin002.hww.de` from helium, to log
-  in to HLRS while creating an ssh tunnel.
+1. Since data connections to the `HLRS` are not possible without using ssh
+   tunnels, we set them up in advance. Run `ssh -R  9998:localhost:9999
+   username@eslogin002.hww.de` from helium, to log in to HLRS while creating an
+   ssh tunnel.
 
-* Adjust the parameter files on HLRS and helium to fit the simulation.
-  Use hostname=eslogin002 on HLRS and hostname=localhost on helium. Set
-  dataport=9999 on both systems.
+2. Adjust the parameter files on `HLRS` and `helium` to fit the simulation. Use
+   hostname=eslogin002 on `HLRS` and hostname=localhost on `helium`. Set
+   dataport=9999 on both systems.
 
-* Run the third-level-manger on helium
+3. Run the third-level-manger on `helium`
 
-* Connect to eslogin002 in a different terminal and run the forwarding script:
-  `forward.sh 9999 9998 pipe1`
-  This will forward the port 9998 to 9999 on eslogin002. We only need the local
-  forwarding because the configuration of the ssh server on HLRS does not allow
-  us to acces the ssh tunnel from a different host than eslogin002. Since our
-  application runs on the compute nodes this detour is necessary.
+4. Connect to `eslogin002` in a different terminal and run the forwarding
+   script: `forward.sh 9999 9998 pipe1` This will forward the port 9998 to 9999
+   on `eslogin002`. We only need the local forwarding because the configuration
+   of the ssh server on the `HLRS` does not allow us to acces the ssh tunnel
+   from a different host than `eslogin002`. Since our application runs on the
+   compute nodes (for now) this detour is necessary.
 
-* Start the simulation. The example directory holds a separate run file which
-  needs to be modified to fit HLRS and Helium. Also set the corresponding boost
-  library location.
+5. Start the simulation. The example directory holds a separate run file which
+   needs to be modified to fit `HLRS` and `helium`. Also set the corresponding
+   boost library location.
