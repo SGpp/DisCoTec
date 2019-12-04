@@ -24,9 +24,8 @@ Guidelines
 
 Installation instructions:
 --------------------------
-Use the provided compile.sh for compilation. The script also contains compilation
-commands for the most common scenarios.
-Or run
+Use the provided compile.sh for compilation. The script also contains
+compilation commands for the most common scenarios. Or run
 ```
 scons -j4 SG_JAVA=0 COMPILE_BOOST_TESTS=1 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 COMPILER=mpich OPT=1
 ``` 
@@ -35,8 +34,8 @@ and for debugging, add
 CPPFLAGS=-g
 ``` 
 
-There are gene versions as submodules: a linear one in the gene_mgr folder, and 
-a nonlinear one in gene-non-linear. To get them, you need access to their 
+There are gene versions as submodules: a linear one in the gene_mgr folder, and
+a nonlinear one in gene-non-linear. To get them, you need access to their
 respective repos. Then go into the folder and
 
 ```
@@ -101,7 +100,7 @@ on helium at port 9999. The following steps are necessary:
 
 1. Since data connections to the HLRS are not possible without using ssh
    tunnels, we set them up in advance. Run `ssh -R  9998:localhost:9999
-   username@eslogin002.hww.de` from helium, to log in to HLRS while creating an
+   username@eslogin002.hww.de` from helium to log in to HLRS while creating an
    ssh tunnel.
 
 2. Adjust the parameter files on HLRS and helium to fit the simulation. Use
@@ -111,12 +110,12 @@ on helium at port 9999. The following steps are necessary:
 3. Run the third-level-manger on helium.
 
 4. Connect to eslogin002 in a different terminal and run the forwarding
-   script: `forward.sh 9999 9998 pipe1` This will forward the port 9998 to 9999
-   on eslogin002. We only need the local forwarding because the configuration
-   of the ssh server on the HLRS does not allow us to acces the ssh tunnel
+   script `forward.sh 9999 9998 pipe1`. This will forward the port 9998 to 9999
+   on eslogin002. (We only need the local forwarding because the configuration
+   of the ssh server on the HLRS does not allow us to access the ssh tunnel
    from a different host than eslogin002. Since our application runs on the
-   compute nodes (for now) this detour is necessary.
+   compute nodes (for now) this detour is necessary.)
 
-5. Start the simulation. The example directory holds a separate run file which
-   needs to be modified to fit HLRS and helium. Also set the corresponding
-   boost library location.
+5. Start the simulation. The example directory holds a separate run file
+   `run.sh` which needs to be modified to fit HLRS and helium. Also set the
+   corresponding boost library location.
