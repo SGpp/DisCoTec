@@ -25,7 +25,7 @@ $MPI_PATH/mpirun -n "$mpiprocs" -l ./combi_example $paramfile
 #$MPI_PATH/mpirun -n "$mpiprocs" xterm -hold -e gdb -ex run --args ./combi_example $paramfile
 
 # On Helium
-#mpiexec.mpich·-n·"$mpiprocs"·./combi_example·$paramfile
+#mpiexec.mpich -n "$mpiprocs" ./combi_example $paramfile
 # Use for debugging
 #mpiexec.mpich -n "$mpiprocs" xterm -hold -e gdb -ex run --args ./combi_example $paramfile
 
