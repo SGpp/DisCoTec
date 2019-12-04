@@ -96,27 +96,27 @@ sg++ libraries should be there)
 
 Let's assume we want to run the example under
 combi/distributedcombigrid/examples/distributed_third_level/ and distribute our
-combischeme to `HLRS` and `helium`, while the third-level-manager is running on
-`helium` at port 9999. The following steps are necessary:
+combischeme to **HLRS** and **helium**, while the third-level-manager is running on
+**helium** at port 9999. The following steps are necessary:
 
-1. Since data connections to the `HLRS` are not possible without using ssh
+1. Since data connections to the **HLRS** are not possible without using ssh
    tunnels, we set them up in advance. Run `ssh -R  9998:localhost:9999
    username@eslogin002.hww.de` from helium, to log in to HLRS while creating an
    ssh tunnel.
 
-2. Adjust the parameter files on `HLRS` and `helium` to fit the simulation. Use
-   hostname=eslogin002 on `HLRS` and hostname=localhost on `helium`. Set
+2. Adjust the parameter files on **HLRS** and **helium** to fit the simulation. Use
+   hostname=eslogin002 on **HLRS** and hostname=localhost on **helium**. Set
    dataport=9999 on both systems.
 
-3. Run the third-level-manger on `helium`
+3. Run the third-level-manger on **helium**
 
-4. Connect to `eslogin002` in a different terminal and run the forwarding
+4. Connect to **eslogin002** in a different terminal and run the forwarding
    script: `forward.sh 9999 9998 pipe1` This will forward the port 9998 to 9999
-   on `eslogin002`. We only need the local forwarding because the configuration
-   of the ssh server on the `HLRS` does not allow us to acces the ssh tunnel
-   from a different host than `eslogin002`. Since our application runs on the
+   on **eslogin002**. We only need the local forwarding because the configuration
+   of the ssh server on the **HLRS** does not allow us to acces the ssh tunnel
+   from a different host than **eslogin002**. Since our application runs on the
    compute nodes (for now) this detour is necessary.
 
 5. Start the simulation. The example directory holds a separate run file which
-   needs to be modified to fit `HLRS` and `helium`. Also set the corresponding
+   needs to be modified to fit **HLRS** and **helium**. Also set the corresponding
    boost library location.
