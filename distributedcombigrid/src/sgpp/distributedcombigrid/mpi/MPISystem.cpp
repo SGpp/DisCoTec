@@ -1,12 +1,3 @@
-/*
- * MPISetup.cpp
- *
- *  Created on: Jan 23, 2013
- *      Author: mh
- *
- *  Partially copied from the pe Physics Engine class MPISystem
- */
-
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"

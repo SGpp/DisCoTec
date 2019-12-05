@@ -1,10 +1,3 @@
-/*
- * ProcessGroupCommands.hpp
- *
- *  Created on: Jun 24, 2014
- *      Author: heenemo
- */
-
 #ifndef PROCESSGROUPSIGNALS_HPP_
 #define PROCESSGROUPSIGNALS_HPP_
 

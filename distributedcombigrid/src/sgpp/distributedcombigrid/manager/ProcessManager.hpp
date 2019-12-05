@@ -1,10 +1,3 @@
-/*
- * ProcessManager.hpp
- *
- *  Created on: Oct 8, 2013
- *      Author: heenemo
- */
-
 #ifndef PROCESSMANAGER_HPP_
 #define PROCESSMANAGER_HPP_
 

@@ -1,10 +1,3 @@
-/*
- * MultiArray.hpp
- *
- *  Created on: Aug 8, 2016
- *      Author: heenemo
- */
-
 #ifndef MULTIARRAY_HPP_
 #define MULTIARRAY_HPP_
 

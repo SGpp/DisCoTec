@@ -1,4 +1,3 @@
-// @author Mario Heene
 #ifndef DISTRIBUTEDCOMBIFULLGRID_HPP_
 #define DISTRIBUTEDCOMBIFULLGRID_HPP_
 

@@ -1,10 +1,3 @@
-/*
- *  Sim_FT_finalize.cpp
- *
- *  Created on: 27.08.2015
- *      Author: Johannes Walter
- */
-
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>
