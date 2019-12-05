@@ -1,0 +1,7 @@
+In order for this GENE example to work, please change the following line in the file $path_to_project/SConstruct from
+
+vars.Add(BoolVariable("ISGENE","",False)) #Turn this on for the GENE examples
+
+to
+
+vars.Add(BoolVariable("ISGENE","",True)) #Turn this on for the GENE examples
