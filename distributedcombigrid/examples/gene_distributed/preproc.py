@@ -5,8 +5,7 @@ standard_library.install_aliases()
 from builtins import str
 from builtins import range
 from sys import path
-path.append('../../../gene_python_interface/src')
-path.append('../../../gene_python_interface/src/tools')
+path.append('./gene_python_interface')
 
 from configparser import SafeConfigParser
 import collections
@@ -18,7 +17,7 @@ import combinationScheme as cS
 import numpy as np
 
 #SGPP Directory set by Scons
-SGPP_LIB="$(SGPP)/lib/sgpp"
+SGPP_LIB="/home/user/rentrop/dist_combi/lib/sgpp"
 print ("SGPP_LIB =", SGPP_LIB)
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))

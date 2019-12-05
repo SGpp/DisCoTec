@@ -1,7 +1,6 @@
 #path to python interface
 from sys import path
-path.append('/home/heenemo/workspace/gene_python_interface_master/src')
-path.append('/home/heenemo/workspace/gene_python_interface_master/src/tools')
+path.append('gene_python_interface_master')
 
 from ConfigParser import SafeConfigParser
 import collections

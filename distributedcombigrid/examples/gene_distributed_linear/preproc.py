@@ -1,7 +1,6 @@
 #path to python interface
 from sys import path
-path.append('/home/keerthi/combi/distributedcombigrid/examples/gene_distributed_linear/gene_python_interface_clean/src')
-path.append('/home/keerthi/combi/distributedcombigrid/examples/gene_distributed_linear/gene_python_interface_clean/src/tools')
+path.append('gene_python_interface')
 
 from ConfigParser import SafeConfigParser
 import collections
@@ -13,7 +12,7 @@ import combinationScheme as cS
 import numpy as np
 
 #SGPP Directory set by Scons
-SGPP_LIB="$(SGPP)/lib/sgpp"
+SGPP_LIB="/home/user/rentrop/dist_combi/lib/sgpp"
 print "SGPP_LIB =", SGPP_LIB
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
