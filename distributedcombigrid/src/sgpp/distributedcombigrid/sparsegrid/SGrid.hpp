@@ -1,10 +1,3 @@
-/*
- * SGrid.hpp
- *
- *  Created on: May 14, 2013
- *      Author: heenemo
- */
-
 #ifndef SGRID_HPP_
 #define SGRID_HPP_
 

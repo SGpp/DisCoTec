@@ -1,9 +1,3 @@
-/*
- * Types.hpp
- *
- *  Created on: May 14, 2013
- *      Author: heenemo
- */
 #ifndef TYPES_HPP_
 #define TYPES_HPP_
 

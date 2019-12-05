@@ -1,9 +1,3 @@
-/*
- *  MPI-FT.cpp
- *
- *  Created on: 03.08.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <cmath>

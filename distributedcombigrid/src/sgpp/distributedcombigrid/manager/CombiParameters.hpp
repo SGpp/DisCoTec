@@ -1,10 +1,3 @@
-/*
- * CombiParameters.hpp
- *
- *  Created on: Dec 8, 2015
- *      Author: heenemo
- */
-
 #ifndef SRC_SGPP_COMBIGRID_MANAGER_COMBIPARAMETERS_HPP_
 #define SRC_SGPP_COMBIGRID_MANAGER_COMBIPARAMETERS_HPP_
 

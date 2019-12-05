@@ -1,9 +1,3 @@
-/*
- *  MPI-FT_ULFM.cpp
- *
- *  Created on: 18.10.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 

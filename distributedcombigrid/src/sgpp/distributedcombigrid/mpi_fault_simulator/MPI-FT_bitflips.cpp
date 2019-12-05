@@ -1,9 +1,3 @@
-/*
- *  MPI-FT_bitflips.cpp
- *
- *  Created on: 03.01.2016
- *      Author: Johannes Walter
- */
 #include <algorithm>
 #include <cstdlib>
 #include <ctime>

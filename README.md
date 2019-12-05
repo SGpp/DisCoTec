@@ -42,6 +42,12 @@ git submodule update
 ```
 and then you just hope you can `make` it by adapting the local library flags ;)
 
+Requirements
+--------------
+scons (Python2, >= 2.4.1-1)
+libboost-all-dev (>= 1.60)
+libmpich-dev (>= 3.2-6)
+
 
 On Hazel Hen
 --------------

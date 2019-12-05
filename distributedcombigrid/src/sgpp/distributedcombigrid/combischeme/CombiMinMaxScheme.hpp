@@ -1,10 +1,3 @@
-/*
- * CombiMinMaxScheme.hpp
- *
- *  Created on: Oct 2, 2015
- *      Author: sccs
- */
-
 #ifndef SRC_SGPP_COMBIGRID_COMBISCHEME_COMBIMINMAXSCHEME_HPP_
 #define SRC_SGPP_COMBIGRID_COMBISCHEME_COMBIMINMAXSCHEME_HPP_
 
