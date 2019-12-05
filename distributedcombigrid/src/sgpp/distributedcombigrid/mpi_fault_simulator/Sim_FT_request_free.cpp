@@ -1,9 +1,3 @@
-/*
- *  Sim_FT_request_free.cpp
- *
- *  Created on: 17.10.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 

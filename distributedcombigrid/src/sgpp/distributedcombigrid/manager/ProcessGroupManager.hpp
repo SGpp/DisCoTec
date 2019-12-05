@@ -1,10 +1,3 @@
-/*
- * ProcessGroupManager.hpp
- *
- *  Created on: Jul 17, 2014
- *      Author: heenemo
- */
-
 #ifndef PROCESSGROUPMANAGER_HPP_
 #define PROCESSGROUPMANAGER_HPP_
 

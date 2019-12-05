@@ -1,10 +1,3 @@
-/*
- * ProcessGroupWorker.cpp
- *
- *  Created on: Jun 24, 2014
- *      Author: heenemo
- */
-
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 
 #include "boost/lexical_cast.hpp"

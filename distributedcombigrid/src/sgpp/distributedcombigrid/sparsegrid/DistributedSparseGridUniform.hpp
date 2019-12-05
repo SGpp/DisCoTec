@@ -1,10 +1,3 @@
-/*
- * DistributedSparseGrid.h
- *
- *  Created on: Oct 19, 2015
- *      Author: heenemo
- */
-
 #ifndef SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRIDUNIFORM_HPP_
 #define SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRIDUNIFORM_HPP_
 

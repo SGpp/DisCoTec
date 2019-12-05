@@ -1,9 +1,3 @@
-/*
- *  Sim_FT_bcast.cpp
- *
- *  Created on: 01.08.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>

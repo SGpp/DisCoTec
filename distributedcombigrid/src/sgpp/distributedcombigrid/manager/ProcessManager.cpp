@@ -1,10 +1,3 @@
-/*
- * ProcessManager.cpp
- *
- *  Created on: Oct 8, 2013
- *      Author: heenemo
- */
-
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
 #include <algorithm>
 #include <iostream>

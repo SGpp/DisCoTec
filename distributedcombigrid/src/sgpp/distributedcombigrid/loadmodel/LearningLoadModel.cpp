@@ -1,9 +1,3 @@
-/*
- * LearningLoadModel.hpp
- *
- *      Author: pollinta
- */
-
 #include <iostream>
 #include <string>
 #include <chrono>

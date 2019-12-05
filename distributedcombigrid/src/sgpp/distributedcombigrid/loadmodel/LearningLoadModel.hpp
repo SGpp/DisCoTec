@@ -1,9 +1,3 @@
-/*
- * LearningLoadModel.hpp
- *
- *      Author: pollinta
- */
-
 #ifndef LEARNINGLOADMODEL_HPP_
 #define LEARNINGLOADMODEL_HPP_
 
