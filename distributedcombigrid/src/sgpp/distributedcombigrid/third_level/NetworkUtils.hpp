@@ -169,7 +169,7 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
   // receive endianness
   char temp = ' ';
   assert(recvall(&temp, 1)&& "Receiving Endianess failed");
-  bool hasSameEndianness = bool(temp) && NetworkUtils::isLittleEndian();
+  bool hasSameEndianness = bool(temp) == NetworkUtils::isLittleEndian();
 
   // for recv()
   int err;
@@ -260,7 +260,7 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
   // receive endianness
   char temp = ' ';
   assert(recvall(&temp, 1)&& "Receiving Endianess failed");
-  bool hasSameEndianness = bool(temp) && NetworkUtils::isLittleEndian();
+  bool hasSameEndianness = bool(temp) == NetworkUtils::isLittleEndian();
 
   // for recv()
   int err;
