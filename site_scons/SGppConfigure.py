@@ -326,7 +326,7 @@ def configureGNUCompiler(config):
       "-funroll-loops", "-mfpmath=sse",
       # "-fsanitize=address",
       # "-DDEBUG_OUTPUT=1",
-      "-DDEFAULT_RES_THRESHOLD=-1.0", "-DTASKS_PARALLEL_UPDOWN=4"])
+      ])
   config.env.Append(CPPFLAGS=["-fopenmp"])
   config.env.Append(LINKFLAGS=[
     "-fopenmp",
