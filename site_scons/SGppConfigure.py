@@ -92,7 +92,6 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   checkDoxygen(config)
   checkDot(config)
   checkOpenCL(config)
-  checkBoostTests(config)
   checkSWIG(config)
   checkPython(config)
   checkJava(config)
@@ -111,6 +110,8 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
     # glpk library
   config.env.AppendUnique(CPPPATH=[config.env['GLPK_INCLUDE_PATH']])   
   config.env.AppendUnique(LIBPATH=[config.env['GLPK_LIBRARY_PATH']])
+
+  checkBoostTests(config)
   env = config.Finish()
 
   print("Configuration done.")
