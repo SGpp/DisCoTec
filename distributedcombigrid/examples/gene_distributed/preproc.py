@@ -17,8 +17,9 @@ import combinationScheme as cS
 import numpy as np
 
 #SGPP Directory set by Scons
-SGPP_LIB="/home/user/rentrop/dist_combi/lib/sgpp"
+SGPP_LIB="../../../lib/sgpp"
 print ("SGPP_LIB =", SGPP_LIB)
+GLPK_LIB="../../../glpk/lib"
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 TASK_LIB= str(dir_path) + "/lib"
@@ -230,7 +231,7 @@ call(["ln","-s","../manager",'./' + config.basename + '/manager'])
 call(["cp","./ctparam",'./' + config.basename + '/'])
 
 # create start script in base folder
-scmd = "export LD_LIBRARY_PATH=" + SGPP_LIB + ":" + TASK_LIB + ":/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
+scmd = "export LD_LIBRARY_PATH=" + os.path.abspath(SGPP_LIB) + ":" + os.path.abspath(GLPK_LIB) + ":" + TASK_LIB + ":/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
 #scmd = "source xprtld.bat\n"
 scmd += config.mpi
 scmd += " -n " + str(config.nprocs*config.ngroup) + ' ' + config.executable
