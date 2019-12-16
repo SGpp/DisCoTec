@@ -1274,7 +1274,7 @@ class DistributedFullGrid {
     MPI_File_set_view(fh, offset, getMPIDatatype(), mysubarray, "native", MPI_INFO_NULL);
 
     // write subarray
-    MPI_File_write_all(fh, getData(), getNrLocalElements(), getMPIDatatype(), MPI_STATUS_IGNORE);
+    MPI_File_write_all(fh, getData(), static_cast<int>(getNrLocalElements()), getMPIDatatype(), MPI_STATUS_IGNORE);
 
     // close file
     MPI_File_close(&fh);
@@ -1395,7 +1395,7 @@ class DistributedFullGrid {
 
     if (status == MPI_CART) {
       // check if process grid of comm uses the required ordering
-      auto maxdims = procs_.size();
+      auto maxdims = static_cast<int>(procs_.size());
       std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
       MPI_Cart_get(comm, static_cast<int>(maxdims), &cartdims[0], &periods[0], &coords[0]);
 
