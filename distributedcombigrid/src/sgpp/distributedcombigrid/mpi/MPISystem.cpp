@@ -640,8 +640,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   int worldSize = getWorldSize();
   assert((worldSize - 1) % nprocs_ == 0);
   ngroup_ = (worldSize - 1) / nprocs_;
-
-  worldRank_ = getWorldRank();
+  MPI_Comm_rank(worldComm_, &worldRank_); 
   managerRankWorld_ = worldSize - 1;
 
   if (worldComm_ != MPI_COMM_NULL) {
