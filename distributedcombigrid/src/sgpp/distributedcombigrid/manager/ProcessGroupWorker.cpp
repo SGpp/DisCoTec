@@ -150,7 +150,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case EXIT: {
       if (isGENE) {
-        chdir("../ginstance");
+        if(chdir("../ginstance"));
       }
 
     } break;
