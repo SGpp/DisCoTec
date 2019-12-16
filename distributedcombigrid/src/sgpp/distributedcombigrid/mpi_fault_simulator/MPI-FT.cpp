@@ -79,7 +79,7 @@ int simft::Sim_FT_Check_dead_processes(simft::Sim_FT_MPI_Comm f_comm, simft::Nex
     int addReserveSize = 2;
     if (option == simft::NextOp::Comm_free) {
       addReserveSize +=
-          f_comm->NBC_Vector_Send.size();  // NBC_Vector_Send will be attached, reserve its size
+          static_cast<int>(f_comm->NBC_Vector_Send.size());  // NBC_Vector_Send will be attached, reserve its size
     }
 
     Send_Vector.reserve(f_comm->Dead_Processes_Root.size() + addReserveSize);

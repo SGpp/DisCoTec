@@ -69,7 +69,7 @@ class TaskConst : public combigrid::Task {
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     for (auto& element : elements) {
       // BOOST_CHECK(abs(dfg_->getData()[li]));
-      element = getLevelVector()[0] / (double)getLevelVector()[1];
+      element = static_cast<double>(getLevelVector()[0]) / getLevelVector()[1];
     }
     BOOST_CHECK(dfg_);
 
@@ -110,8 +110,7 @@ BOOST_CLASS_EXPORT(TaskConst)
 
 void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
   size_t size = ngroup * nprocs + 1;
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
-
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(static_cast<int>(size)));
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) {
     return;
@@ -124,7 +123,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer pgroups;
-    for (int i = 0; i < ngroup; ++i) {
+    for (int i = 0; i < static_cast<int>(ngroup); ++i) {
       int pgroupRootID(i);
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
@@ -154,8 +153,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     //   std::cout << coeff << std::endl;
     // }
 
-    BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
-
+    BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(static_cast<int>(size)));
     // create Tasks
     TaskContainer tasks;
     std::vector<int> taskIDs;
@@ -167,7 +165,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
 
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({nprocs, 1}); //TODO why??
+    params.setParallelization({static_cast<long int>(nprocs), 1}); //TODO why??
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
