@@ -150,7 +150,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case EXIT: {
       if (isGENE) {
-        if(chdir("../ginstance"));
+        if(chdir("../ginstance")){};
       }
 
     } break;
@@ -442,7 +442,7 @@ void ProcessGroupWorker::combineUniform() {
   Stats::stopEvent("combine init");
   Stats::startEvent("combine hierarchize");
 
-  real localMax(0.0);
+  //real localMax(0.0);
   // std::vector<CombiDataType> beforeCombi;
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
