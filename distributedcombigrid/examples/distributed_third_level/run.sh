@@ -3,7 +3,7 @@ SGPP_DIR=../../../
 LIB_BOOST_DIR=/usr/lib/
 LIB_GLPK=$SGPP_DIR/glpk/lib/
 
-export LD_LIBRARY_PATH=$SGPP_DIR/lib/sgpp:$LIB_GLPK:LIB_BOOST_DIR:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$SGPP_DIR/lib/sgpp:$LIB_GLPK:$LIB_BOOST_DIR:$LD_LIBRARY_PATH
 
 paramfile="ctparam"
 # allows to read the parameter file from the arguments.
