@@ -1,25 +1,41 @@
-CC=g++
-CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall
+CC=/opt/mpich/bin/mpic++
+CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb
 
-SGPP_DIR=/home/marci/UNI/HIWI/combi/
+SGPP_DIR=../../../
+GLPK_DIR=$(GLPK)
+SIMPLEAMQP_DIR=../../SimpleAmqpClient/
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
-LD_MPI=-L/opt/mpich/lib
-LD_SIMPLE_AMQP=-L$(SGPP_DIR)/distributedcombigrid/SimpleAmqpClient/build
-
+INC_GLPK=-I$(GLPK_DIR)/include
+LD_GLPK=-L$(GLPK_DIR)/lib
 INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
-INC_MPI=-I/opt/mpich/include
-INC_SIMPLE_AMQP=-I$(SGPP_DIR)/distributedcombigrid/SimpleAmqpClient/src/
+LD_SIMPLEAMQP=-L$(SIMPLEAMQP_DIR)/build/
+INC_SIMPLEAMQP=-I$(SIMPLEAMQP_DIR)/src/
 
-LDIR=$(LD_SGPP) $(LD_MPI) $(LD_SIMPLE_AMQP)
-INC=$(INC_SGPP) $(INC_MPI) $(INC_SIMPLE_AMQP)
+LDIR=$(LD_SGPP) $(LD_GLPK) $(LD_SIMPLEAMQP)
+INC=$(INC_SGPP) $(INC_GLPK) $(INC_SIMPLEAMQP)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization -lmpi -lSimpleAmqpClient
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk -lSimpleAmqpClient#-DDEBUG_OUTPUT
 
-all: combi_example
+CPP_FILES := $(wildcard src/*.cpp)
+OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))
 
-combi_example: combi_example.cpp TaskExample.hpp
-	$(CC) $(CFLAGS) $(LDIR) $(INC) -o combi_example combi_example.cpp $(LIBS)
+all: manager lib timing errorCalc
+
+manager: $(OBJ_FILES)
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o $@ $^ $(LIBS)
+
+obj/%.o: src/%.cpp
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -c -o $@ $< $(LIBS)
+
+lib: $(OBJ_FILES)
+	$(CC) -shared -o lib/libgenetask.so $^
+
+timing: tools/timing.c tools/timing.h
+	$(CC) $(CFLAGS) -c tools/timing.c -o tools/timing.o
+
+errorCalc: tools/errorCalcNew.cpp
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o errorCalc tools/errorCalcNew.cpp $(LIBS) tools/timing.o
 
 clean:
-	rm -f *.o out/* combi_example
+	rm obj/*.o out/* manager lib/*

@@ -18,7 +18,9 @@ import combinationScheme as cS
 import numpy as np
 
 #SGPP Directory set by Scons
-SGPP_LIB="$(SGPP)/lib/sgpp"
+#SGPP_LIB="$(SGPP)/lib/sgpp"
+SGPP_DIR="/home/marci/UNI/HIWI/combi/"
+SGPP_LIB=SGPP_DIR + "/lib/sgpp"
 print ("SGPP_LIB =", SGPP_LIB)
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -29,8 +31,9 @@ print ("TASK_LIB =", TASK_LIB)
 spcfile = 'spaces.dat'
         
 # read parameter file
+paramfile = './ctparam_tl_system0'
 parser = SafeConfigParser()
-parser.read('ctparam')
+parser.read(paramfile)
 
 config = collections.namedtuple('Config', 'lmin lmax ntimesteps_total dt_max ntimesteps_combi basename executable mpi startscript ngroup nprocs shat kymin lx numFaults combitime')
 
@@ -73,7 +76,7 @@ if( len( sys.argv ) > 1 ):
     parser.set( 'ct', 'dt_max', str( config.dt_max ) )
     parser.set( 'ct', 'ntimesteps_combi', str( config.ntimesteps_combi ) )
     parser.set( 'ct', 'ntimesteps_ev_calc', str( config.ntimesteps_ev_calc ) )
-    cfgfile = open('./ctparam','w')
+    cfgfile = open(paramfile,'w')
     parser.write(cfgfile)
     cfgfile.close()
 '''
@@ -228,10 +231,11 @@ sfile.close()
 call(["ln","-s","../manager",'./' + config.basename + '/manager'])
 
 # copy param file to base folder 
-call(["cp","./ctparam",'./' + config.basename + '/'])
+call(["cp", paramfile,'./' + config.basename + '/'])
 
 # create start script in base folder
-scmd = "export LD_LIBRARY_PATH=" + SGPP_LIB + ":" + TASK_LIB + ":/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
+SIMPLE_AMQP_LIB = SGPP_DIR + "/distributedcombigrid/SimpleAmqpClient/build"
+scmd = "export LD_LIBRARY_PATH=" + SGPP_LIB + ":" + TASK_LIB + ":" + SIMPLE_AMQP_LIB + ":" "$LIB_:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
 #scmd = "source xprtld.bat\n"
 scmd += config.mpi
 scmd += " -n " + str(config.nprocs*config.ngroup) + ' ' + config.executable
