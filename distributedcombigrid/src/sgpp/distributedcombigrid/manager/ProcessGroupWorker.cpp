@@ -832,8 +832,6 @@ void ProcessGroupWorker::integrateCombinedSolution() {
   extractFullGridsFromUniformSG();
   dehierarchizeFullGrids();
   Stats::stopEvent("integrating combined solution");
-
-  deleteDsgsData();
 }
 
 void ProcessGroupWorker::combineThirdLevel() {
@@ -866,10 +864,10 @@ void ProcessGroupWorker::combineThirdLevel() {
   integrateCombinedSolution();
 
   // wait for bcasts to other pgs in globalReduceComm
-  for (MPI_Request request : requests)
+  for (MPI_Request& request : requests)
     MPI_Wait(&request, MPI_STATUS_IGNORE);
 
-  // free space for computation
+  // free dsgu space for computation
   deleteDsgsData();
 }
 
@@ -958,7 +956,8 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   }
 
   integrateCombinedSolution();
-  // free space for computation
+
+  // free dsgu space for computation
   deleteDsgsData();
 }
 
