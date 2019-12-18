@@ -147,7 +147,7 @@ def checkDot(config):
                         "Check the PATH environment variable!")
   else:
     Helper.printInfo("Using " +
-        subprocess.check_output(["dot", "-V"], stderr=subprocess.STDOUT).strip() + ".")
+        str(subprocess.check_output(["dot", "-V"], stderr=subprocess.STDOUT)).strip() + ".")
 
 def checkOpenCL(config):
   if config.env["USE_OCL"]:
