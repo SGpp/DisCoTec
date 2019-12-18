@@ -22,6 +22,9 @@ if [ "$PORT_USAGE" == "" ]; then
 
   # Use this to simplify Debug:
   #$MPI_PATH/mpirun -n $total -l xterm -hold -e gdb -ex run --args ./test_distributedcombigrid_boost --run_test=thirdLevel
+
+  # Use this to find memory leaks and other bad stuff
+  #$MPI_PATH/mpirun -n $total -l xterm -hold -e valgrind --leak-check=full ./test_distributedcombigrid_boost --run_test=thirdLevel
 else
   echo -e "Port $PORT is already in use: \n$PORT_USAGE"
 fi
