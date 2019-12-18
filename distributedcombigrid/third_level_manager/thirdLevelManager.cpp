@@ -68,9 +68,11 @@ void ThirdLevelManager::runtimeLoop()
     for (size_t s = 0; s < systems_.size(); s++)
     {
       std::string message;
-      bool received = systems_[s].receiveMessage(message, timeout_);
-      if (received)
+      bool hasMessage = systems_[s].hasMessage(timeout_);
+      if (hasMessage) {
+        systems_[s].receiveMessage(message);
         processMessage(message, s);
+      }
     }
   }
 }
