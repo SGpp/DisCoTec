@@ -4,10 +4,7 @@ CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typ
 SGPP_SRC=../src/
 THIRD_LEVEL_INC=$(SGPP_SRC)/sgpp/distributedcombigrid/third_level/
 
-LDIR=
 INC=-I$(SGPP_SRC)
-
-LIBS=
 
 all: thirdLevelManager
 
@@ -15,9 +12,9 @@ thirdLevelManager: thirdLevelManager.cpp thirdLevelManager.hpp Params.cpp\
                    Params.hpp System.cpp System.hpp\
                    $(THIRD_LEVEL_INC)/NetworkUtils.hpp\
                    $(THIRD_LEVEL_INC)/NetworkUtils.cpp
-	$(CC) $(CFLAGS) $(LDIR) $(INC) -o thirdLevelManager thirdLevelManager.cpp\
-                                    Params.cpp System.cpp\
-                                    $(THIRD_LEVEL_INC)/NetworkUtils.cpp $(LIBS) #> build.log 2>&1
+	$(CC) $(CFLAGS) $(INC) -o thirdLevelManager thirdLevelManager.cpp\
+                            Params.cpp System.cpp\
+                            $(THIRD_LEVEL_INC)/NetworkUtils.cpp #> build.log 2>&1
 
 clean:
 	rm -f *.o out/* thirdLevelManager
