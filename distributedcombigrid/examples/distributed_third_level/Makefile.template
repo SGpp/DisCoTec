@@ -4,15 +4,15 @@ CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typ
 SGPP_DIR=../../../
 GLPK_DIR=$(SGPP_DIR)/glpk/
 
-LD_SGPP=$(SGPP_DIR)/lib/sgpp
-INC_SGPP=$(SGPP_DIR)/distributedcombigrid/src/
-LD_GLPK=$(GLPK_DIR)/lib
-INC_GLPK=$(GLPK_DIR)/include
+LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
+INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
+LD_GLPK=-L$(GLPK_DIR)/lib
+INC_GLPK=-I$(GLPK_DIR)/include
 LD_BOOST=
 INC_BOOST=
 
-LDIR=-L$(LD_SGPP) -L$(LD_GLPK) -L$(LD_BOOST)
-INC=-I$(INC_SGPP) -I$(INC_GLPK) -I$(INC_BOOST)
+LDIR=$(LD_SGPP) $(LD_GLPK) $(LD_BOOST)
+INC=$(INC_SGPP) $(INC_GLPK) $(INC_BOOST)
 
 LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
 
