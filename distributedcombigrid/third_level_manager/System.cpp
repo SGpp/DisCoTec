@@ -12,15 +12,10 @@ void System::sendMessage(const std::string& message) const
 
 bool System::receiveMessage(std::string& message, int timeout) const
 {
-  if (connection_->isReadable(timeout))
-  {
-    connection_->recvallPrefixed(message);
-    return true;
-  }
-  return false;
+  return connection_->recvallPrefixed(message);
 }
 
-bool System::receivePosNumber(size_t& number, int timeout) const
+bool System::receivePosNumber(size_t& number) const
 {
   std::string message;
   if (receiveMessage(message))
@@ -30,6 +25,10 @@ bool System::receivePosNumber(size_t& number, int timeout) const
     return true;
   }
   return false;
+}
+
+bool System::hasMessage(int timeout) {
+  return connection_->isReadable(timeout);
 }
 
 std::shared_ptr<ClientSocket> System::getConnection() const
