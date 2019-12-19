@@ -168,7 +168,7 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
   assert(isInitialized() && "Client Socket not initialized");
   // receive endianness
   char temp = ' ';
-  assert(recvall(&temp, 1)&& "Receiving Endianess failed");
+  assert(recvall(&temp, 1) && "Receiving Endianess failed");
   bool hasSameEndianness = bool(temp) == NetworkUtils::isLittleEndian();
 
   // for recv()
@@ -227,7 +227,6 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
       } else {
         FG_ELEMENT& val = *reinterpret_cast<FG_ELEMENT*>(&recvBuff[i]);
         buff[numAppended++] = NetworkUtils::reverseEndianness(val);
-        numAppended++;
       }
     }
 
@@ -275,7 +274,7 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
   ssize_t head_k1 = 0;
   ssize_t head_k = 0;
   ssize_t tail_k = 0;
-  ssize_t numAdded = 0;
+  ssize_t numReduced = 0;
 
   while(totalRecvd < rawSize) {
     recvd = recv(sockfd_, recvBuff.data(), std::min(rawSize-totalRecvd, chunksize), flags);
@@ -304,9 +303,9 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
     if (remaining.size() == sizeof(FG_ELEMENT)) {
       FG_ELEMENT remainingVal = *reinterpret_cast<FG_ELEMENT*>(remaining.data());
       if (hasSameEndianness)
-        buff[numAdded++] = reduceOp(buff[numAdded], remainingVal);
+        buff[numReduced++] = reduceOp(buff[numReduced], remainingVal);
       else
-        buff[numAdded++] = reduceOp(buff[numAdded], NetworkUtils::reverseEndianness(remainingVal));
+        buff[numReduced++] = reduceOp(buff[numReduced], NetworkUtils::reverseEndianness(remainingVal));
       remaining.clear();
     }
 
@@ -315,9 +314,9 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
     for (ssize_t i = tail_k; i < numCorrect; i+=sizeof(FG_ELEMENT)) {
       FG_ELEMENT val = *reinterpret_cast<FG_ELEMENT*>(&recvBuff[i]);
       if (hasSameEndianness)
-        buff[numAdded++] = reduceOp(buff[numAdded], val);
+        buff[numReduced++] = reduceOp(buff[numReduced], val);
       else
-        buff[numAdded++] = reduceOp(buff[numAdded], NetworkUtils::reverseEndianness(val));
+        buff[numReduced++] = reduceOp(buff[numReduced], NetworkUtils::reverseEndianness(val));
     }
 
     // push head into remaining
