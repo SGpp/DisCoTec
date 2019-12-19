@@ -197,7 +197,7 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
     //        recv k-1                     recv k
     //
     //    tail_k1          head_k1  tail_k            head_k
-    //    v                v        v                 v
+    //    =2               =1       =3                =2
     //  [ oo|xxxx|...|xxxx|o ] -> [ ooo|xxxx|...|xxxx|oo ]
     //                              0                  recvd-1
 
@@ -287,7 +287,7 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
     //        recv k-1                     recv k
     //
     //    tail_k1          head_k1  tail_k            head_k
-    //    v                v        v                 v
+    //    =2               =1       =3                =2
     //  [ oo|xxxx|...|xxxx|o ] -> [ ooo|xxxx|...|xxxx|oo ]
     //                              0                  recvd-1
 
