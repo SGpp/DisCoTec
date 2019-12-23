@@ -360,9 +360,9 @@ bool ServerSocket::init() {
   return true;
 }
 
-ClientSocket* ServerSocket::acceptClient() const {
+std::shared_ptr<ClientSocket> ServerSocket::acceptClient() const {
   assert(isInitialized() && "Server Socket not initialized");
-  ClientSocket* client = new ClientSocket();
+  std::shared_ptr<ClientSocket> client;
 
   // blocks until a new client connects
   struct sockaddr_in cliAddr;
@@ -373,6 +373,7 @@ ClientSocket* ServerSocket::acceptClient() const {
     return client;
   }
   // initialize ClientSocket
+  client.reset(new ClientSocket);
   unsigned short port = cliAddr.sin_port;
   std::string host = std::string(inet_ntoa(cliAddr.sin_addr));
   client->remoteHost_ = host;

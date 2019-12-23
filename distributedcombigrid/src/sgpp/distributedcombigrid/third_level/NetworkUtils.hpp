@@ -19,6 +19,7 @@
 #include <vector>
 #include <fstream>
 #include <memory>
+#include <string.h>
 
 template <typename FG_ELEMENT>
 using ReduceFcn = FG_ELEMENT(*)(const FG_ELEMENT&, const FG_ELEMENT&);
@@ -125,7 +126,7 @@ class ServerSocket : public Socket {
 
     bool init();
 
-    ClientSocket* acceptClient() const;
+    std::shared_ptr<ClientSocket> acceptClient() const;
 
     int getPort();
 
@@ -162,6 +163,20 @@ class NetworkUtils {
     }
 };
 
+/* Receives buffSize elements of type FG_ELEMENT and corrects the endianness of
+ * the receiving data in place. The first byte of the received data encodes the
+ * endianness of the sending system.
+ *
+ * @param buff pointer to return buffer of size buffSize
+ * @param buffSize number of elements to be received
+ * @param chunksize determines the maximum number of elements of type
+ *                  FG_ELEMENTS which can be received during a single recv(2)
+ *                  call and how much memory is allocated for the receive buffer
+ * @param flags flags to manipulate the underlying recv(2) method.
+ *
+ * @return boolean value which is true if all data has been successfully
+ *         received and false if not.
+ */
 template<typename FG_ELEMENT>
 bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
                            size_t buffSize, size_t chunksize, int flags) const {
@@ -178,7 +193,7 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
   std::vector<char> recvBuff(chunksize);
   size_t rawSize = buffSize * sizeof(FG_ELEMENT);
 
-  // receive binary data and correct endianness in place
+  // for oddly received data
   std::vector<char> remaining;
   remaining.reserve(sizeof(FG_ELEMENT));
   ssize_t head_k1 = 0;
@@ -211,7 +226,8 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
     // if remaining has sizeof(FG_ELEMENT) entries, append to buff and clear
     // remaining
     if (remaining.size() == sizeof(FG_ELEMENT)) {
-      FG_ELEMENT& remainingVal = *reinterpret_cast<FG_ELEMENT*>(remaining.data());
+      FG_ELEMENT remainingVal = FG_ELEMENT();
+      memcpy(&remainingVal, remaining.data(), sizeof(FG_ELEMENT));
       if (hasSameEndianness)
         buff[numAppended++] =  remainingVal;
       else
@@ -221,11 +237,11 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
 
     // append correct sized blocks
     for (ssize_t i = tail_k; i < recvd - head_k; i+=sizeof(FG_ELEMENT)) {
+      FG_ELEMENT val = FG_ELEMENT();
+      memcpy(&val, &recvBuff[i], sizeof(FG_ELEMENT));
       if (hasSameEndianness) {
-        FG_ELEMENT& val = *reinterpret_cast<FG_ELEMENT*>(&recvBuff[i]);
         buff[numAppended++] = val;
       } else {
-        FG_ELEMENT& val = *reinterpret_cast<FG_ELEMENT*>(&recvBuff[i]);
         buff[numAppended++] = NetworkUtils::reverseEndianness(val);
       }
     }
@@ -250,6 +266,25 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
   return true;
 }
 
+/* Receives buffSize elements of type FG_ELEMENT and reduces them in place with
+ * the provided buffer. Additionally the endianness of the received data is
+ * corrected if necessary before being reduced. The endiannes of the sending
+ * system is encoded in the first byte of the received data. To save memory the
+ * data is received and processed chunk-wise compared to storing it first in a
+ * large receive buffer and processing it later.
+ *
+ * @param buff pointer to the local data of size buffSize. Since this method
+ *             operates in places this also is the return buffer.
+ * @param buffSize number of elements to be reduced
+ * @param chunksize determines the maximum number of elements of type
+ *                  FG_ELEMENTS which can be received during a single recv(2)
+ *                  call and how much memory is allocated for the receive buffer
+ * @param reduceOp operation exectued to reduce the receiving and local
+ * @param flags flags to manipulate the underlying recv(2) method.
+ *
+ * @return boolean value which is true if all data has been succesfully
+ *         received and false if not.
+ */
 template <typename FG_ELEMENT>
 bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
                 size_t buffSize,
@@ -301,7 +336,8 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
     // if remaining has sizeof(FG_ELEMENT) entries, add to buff and clear
     // remaining
     if (remaining.size() == sizeof(FG_ELEMENT)) {
-      FG_ELEMENT remainingVal = *reinterpret_cast<FG_ELEMENT*>(remaining.data());
+      FG_ELEMENT remainingVal = FG_ELEMENT();
+      memmove(&remainingVal, remaining.data(), sizeof(FG_ELEMENT));
       if (hasSameEndianness)
         buff[numReduced++] = reduceOp(buff[numReduced], remainingVal);
       else
@@ -312,7 +348,8 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
     // add correctly received data
     const ssize_t&& numCorrect = recvd-head_k;
     for (ssize_t i = tail_k; i < numCorrect; i+=sizeof(FG_ELEMENT)) {
-      FG_ELEMENT val = *reinterpret_cast<FG_ELEMENT*>(&recvBuff[i]);
+      FG_ELEMENT val = FG_ELEMENT();
+      memmove(&val, &recvBuff[i], sizeof(FG_ELEMENT));
       if (hasSameEndianness)
         buff[numReduced++] = reduceOp(buff[numReduced], val);
       else
