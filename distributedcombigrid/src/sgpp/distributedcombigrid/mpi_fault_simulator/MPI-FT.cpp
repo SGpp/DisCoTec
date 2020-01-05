@@ -1,9 +1,3 @@
-/*
- *  MPI-FT.cpp
- *
- *  Created on: 03.08.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <cmath>
@@ -684,9 +678,7 @@ void simft::Sim_FT_Complete_nb_operations(
 }
 
 bool simft::Sim_FT_Check_comm_revoked(simft::Sim_FT_MPI_Comm f_comm) {
-  int current_rank;
-  MPI_Comm_rank(f_comm->c_comm, &current_rank);
-  if (current_rank == f_comm->Root_Rank) {
+  if (f_comm->comm_rank == f_comm->Root_Rank) {
     if (f_comm->comm_size == 1) {
       return f_comm->comm_revoked;
     }
@@ -756,7 +748,7 @@ bool simft::Sim_FT_Check_comm_revoked(simft::Sim_FT_MPI_Comm f_comm) {
         return true;
       } else {
         std::cout << "++####### ERROR RECV MS Msg =" << BCast_Revoke_Message[0] << "bei Rank "
-                  << current_rank << "\n";
+                  << f_comm->comm_rank << "\n";
         return false;
       }
     } else {

@@ -36,3 +36,4 @@ errorCalc: tools/errorCalcNew.cpp
 
 clean:
 	rm obj/*.o out/* manager lib/*
+

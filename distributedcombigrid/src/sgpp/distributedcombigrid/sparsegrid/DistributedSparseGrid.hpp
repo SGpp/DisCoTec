@@ -1,18 +1,9 @@
-/*
- * DistributedSparseGrid.h
- *
- *  Created on: Oct 19, 2015
- *      Author: heenemo
- */
-
 #ifndef SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRID_HPP_
 #define SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRID_HPP_
 
 #include <assert.h>
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-
-using namespace combigrid;
 
 /*
  * Instead of having private static functions, I put these functions in an
@@ -25,9 +16,9 @@ namespace {
 
 template <typename FG_ELEMENT>
 struct SubspaceSG {
-  LevelVector level_;
+  combigrid::LevelVector level_;
 
-  IndexVector sizes_;
+  combigrid::IndexVector sizes_;
 
   size_t dataSize_;
 
@@ -40,6 +31,7 @@ bool mycomp(const SubspaceSG<FG_ELEMENT>& ss1, const SubspaceSG<FG_ELEMENT>& ss2
 }
 
 }  // end anonymous namespace
+
 
 namespace combigrid {
 
@@ -165,6 +157,7 @@ class DistributedSparseGrid {
 };
 
 }  // namespace
+
 
 namespace combigrid {
 
@@ -499,5 +492,6 @@ inline int DistributedSparseGrid<FG_ELEMENT>::getCommunicatorSize() const {
 }
 
 } /* namespace combigrid */
+
 
 #endif /* SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRID_HPP_ */

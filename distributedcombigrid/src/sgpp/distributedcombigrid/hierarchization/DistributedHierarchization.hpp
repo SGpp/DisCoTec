@@ -1,10 +1,3 @@
-/*
- * DistributedHierarchization.hpp
- *
- *  Created on: 02.09.2014
- *      Author: P. Butz
- */
-
 #ifndef DISTRIBUTEDHIERARCHIZATION_HPP_
 #define DISTRIBUTEDHIERARCHIZATION_HPP_
 
@@ -25,8 +18,6 @@ using namespace combigrid;
  * class. So we avoid recompilation of all files that use the class.
  */
 namespace {
-
-static int hierCount = 0;
 
 /* The RemoteDataContainer is meant to store a (d-1)-dimensional block of a
  * d-dimensional DistributedFullGrid. The RemoteDataContainer is d-dimensional,
@@ -2045,8 +2036,6 @@ class DistributedHierarchization {
       } else {
         hierarchizeN_opt<FG_ELEMENT,false>(dfg, lookupTable, dim);
       }
-
-      ++hierCount;
     }
   }
 

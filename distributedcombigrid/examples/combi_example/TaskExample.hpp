@@ -110,9 +110,13 @@ class TaskExample : public Task {
     int lrank;
     MPI_Comm_rank(lcomm, &lrank);
 
+    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    // TODO if your Example uses another data structure, you need to copy
+    // the data from elements to that data structure
+
     /* pseudo timestepping to demonstrate the behaviour of your typical
      * time-dependent simulation problem. */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    // TODO replace by your time time stepping algorithm
 
     for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
       real time = step * dt_;
@@ -128,6 +132,9 @@ class TaskExample : public Task {
     }
 
     stepsTotal_ += nsteps_;
+
+    // TODO if your Example uses another data structure, you need to copy
+    // the data from that data structure to elements/dfg_
 
     this->setFinished(true);
   }

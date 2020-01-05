@@ -1,10 +1,3 @@
-/*
- * WeibullFaults.cpp
- *
- *  Created on: Feb 27, 2017
- *      Author: oberstei
- */
-
 #include "WeibullFaults.hpp"
 #include <math.h>
 #include <random>

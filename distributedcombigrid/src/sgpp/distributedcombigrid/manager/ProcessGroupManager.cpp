@@ -1,10 +1,3 @@
-/*
- * ProcessGroupManager.cpp
- *
- *  Created on: Jul 17, 2014
- *      Author: heenemo
- */
-
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"

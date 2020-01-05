@@ -33,6 +33,10 @@ class Stats {
     std::chrono::milliseconds x = std::chrono::duration_cast<std::chrono::milliseconds>(e.end - e.start);
     return x.count();
   }
+  static long unsigned int getEventDurationInUsec(const Stats::Event e){
+    std::chrono::microseconds x = std::chrono::duration_cast<std::chrono::microseconds>(e.end - e.start);
+    return x.count();
+  }
   // Stats(){
   //   Stats::initialize();
   // }
@@ -63,6 +67,16 @@ class Stats {
    * stop a timer for event with given name
    */
   static const Event stopEvent(const std::string& name);
+
+  /**
+   * get the event with given name
+   */
+  static const Event& getEvent(const std::string& name);
+
+  /**
+   * get the stopped time for event with given name
+   */
+  static long unsigned int getDuration(const std::string& name);
 
   /**
    * set an attribute which can later be used for plotting
@@ -246,6 +260,14 @@ inline const Stats::Event Stats::stopEvent(const std::string& name) {
   event_.erase(name);
 #endif // def TIMING
   return e;
+}
+
+inline const Stats::Event& Stats::getEvent(const std::string& name){
+  return event_[name].back();
+}
+
+inline long unsigned int Stats::getDuration(const std::string& name){
+  return getEventDuration(getEvent(name));
 }
 }
 // end namespace combigrid

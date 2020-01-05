@@ -89,16 +89,6 @@ class MPISystem {
 
   void initThreadedGlobalreduce(int num_threads,int providedThreadlevel,bool async=false);
   /**
-   * get the size of the worldComm_
-   */
-  int getWorldSize();
-
-  /**
-   * get the rank in the worldComm_
-   */
-  int getWorldRank();
-
-  /**
   * returns the world communicator which contains all ranks (excluding spare ranks)
   */
   inline const CommunicatorType& getWorldComm() const;
@@ -149,6 +139,8 @@ class MPISystem {
    * returns MPI rank number in world comm
    */
   inline const RankType& getWorldRank() const;
+
+   RankType getWorldSize() const;
 
   /**
    * returns MPI rank number in global comm
@@ -595,6 +587,13 @@ static inline int getCommRank(const CommunicatorType& comm) {
   MPI_Comm_rank(comm, &commRank);
   return commRank;
 }
+
+inline RankType MPISystem::getWorldSize() const {
+  int worldSize = getCommSize(getWorldComm());
+
+  return worldSize;
+}
+
 
 }  // namespace combigrid
 

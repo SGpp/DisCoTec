@@ -13,6 +13,8 @@
 
 #include "test_helper.hpp"
 
+using namespace combigrid;
+
 class TaskTest : public combigrid::Task {
  public:
   int test;

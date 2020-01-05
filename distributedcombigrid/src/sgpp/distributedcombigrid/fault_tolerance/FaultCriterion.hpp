@@ -1,10 +1,3 @@
-/*
- * FaultCriterion.h
- *
- *  Created on: Feb 24, 2017
- *      Author: oberstei
- */
-
 #ifndef DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_FAULT_TOLERANCE_FAULTCRITERION_HPP_
 #define DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_FAULT_TOLERANCE_FAULTCRITERION_HPP_
 #include <boost/serialization/access.hpp>

@@ -5,7 +5,8 @@
     "tasks": [
         {
             "label": "scons build",
-            "command": "scons",
+            "command": "python2",
+            // "command": "scons",
             "type": "shell",
             "group": "build",
             // "options": {
@@ -15,6 +16,7 @@
                 "reveal": "always"
             },
             "args": [
+                "/usr/bin/scons",
                 "-j8",
                 "SG_JAVA=0",
                 "COMPILE_BOOST_TESTS=1",
@@ -25,6 +27,9 @@
                 "RUN_CPPLINT=0",
                 "BUILD_STATICLIB=0",
                 "COMPILER=mpich",
+                "FC=mpifort.mpich",
+                "CC=mpicc.mpich",
+                "CXX=mpicxx.mpich",
                 "TIMING=0",
                 "OPT=1",
                 "CPPFLAGS=-g",
@@ -50,7 +55,8 @@
         {
             "label": "scons clean",
             "type": "shell",
-            "command": "scons -c FC=gfort && rm -r .scon*",
+            "command": "python2 /usr/bin/scons -c FC=gfort && rm -r .scon*",
+            // "command": "scons -c FC=gfort && rm -r .scon*",
             "group": "build"
         },
         {
@@ -194,7 +200,7 @@
             "options": {
                 "env": {
                     "LD_LIBRARY_PATH": "${workspaceRoot}/lib/sgpp:$LD_LIBRARY_PATH",
-                    "PYTHONPATH": "${workspaceRoot}/../gene_python_interface_clean/src:${workspaceRoot}/../gene_python_interface_clean/src/tools:$PYTHONPATH"
+                    "PYTHONPATH": "${workspaceRoot}/../gene_python_interface_clean/src:$PYTHONPATH"
                 },
                 "cwd": "${workspaceRoot}/distributedcombigrid/examples/gene_distributed"
             },

@@ -1,10 +1,3 @@
-/*
- * LoadModel.hpp
- *
- *  Created on: Oct 9, 2013
- *      Author: heenemo
- */
-
 #ifndef LOADMODEL_HPP_
 #define LOADMODEL_HPP_
 

@@ -1,10 +1,3 @@
-/*
- * CombiCom.hpp
- *
- *  Created on: Aug 16, 2014
- *      Author: heenemo
- */
-
 #ifndef COMBICOM_HPP_
 #define COMBICOM_HPP_
 
@@ -696,8 +689,7 @@ void CombiCom::distributedLocalScatter(DistributedFullGrid<FG_ELEMENT>& dfg,
 template <typename FG_ELEMENT>
 void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
   // get rank in pgroup communicator.
-  int lrank;
-  MPI_Comm_rank(dsg.getCommunicator(), &lrank);
+  RankType lrank = getCommRank(dsg.getCommunicator());
 
   std::vector<MPI_Request> myrequests;
 

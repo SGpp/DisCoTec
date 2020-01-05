@@ -1,10 +1,3 @@
-/*
- * ProcessGroupWorker.cpp
- *
- *  Created on: Jun 24, 2014
- *      Author: heenemo
- */
-
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 
 #include "boost/lexical_cast.hpp"
@@ -53,15 +46,9 @@ ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 // RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
 void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, size_t numProcs) { 
   MASTER_EXCLUSIVE_SECTION {
-    DurationType type = DurationType();
-    durationInformation info = {t.getID(), Stats::getEventDuration(e), numProcs};
-    // MPI_Request request;
-    // send durationInfo to manager
-    // std::cout << "sending duration" << std::endl;
-    MPI_Send(&info, 1, type.get(), 
-            theMPISystem()->getManagerRank(), durationTag, //TODO see if we can send asynchronously
-            theMPISystem()->getGlobalComm());
-    // std::cout << "sent duration" << std::endl;
+    // durationInformation info(e, t, numProcs);
+    durationInformation info = {t.getID(), Stats::getEventDurationInUsec(e), t.getCurrentTime(), t.getCurrentTimestep(), theMPISystem()->getWorldRank(), numProcs};
+    MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
 }
 
@@ -70,9 +57,8 @@ SignalType ProcessGroupWorker::wait() {
     status_ = PROCESS_GROUP_WAIT;
   }
   if (status_ != PROCESS_GROUP_WAIT) {
-    int myRank;
-    MPI_Comm_rank(theMPISystem()->getWorldComm(), &myRank);
 #ifdef DEBUG_OUTPUT
+    int myRank = theMPISystem()->getWorldRank();
     std::cout << "status is " << status_ << "of rank " << myRank << "\n";
     std::cout << "executing next task\n";
 #endif
@@ -136,13 +122,16 @@ SignalType ProcessGroupWorker::wait() {
     case ADD_TASK: {  // add a new task to the process group
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
+      // TODO test if this signal works in case of not-GENE
       initializeTaskAndFaults();
 
       currentTask_->setZero();
 
       currentTask_->setFinished(true);
 
-      currentTask_->changeDir(theMPISystem()->getLocalComm());
+      if (isGENE) { 
+        currentTask_->changeDir(theMPISystem()->getLocalComm());
+      }
     } break;
     case RESET_TASKS: {  // deleta all tasks (used in process recovery)
       std::cout << "resetting tasks" << std::endl;
@@ -654,7 +643,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
     // create dfg
     bool forwardDecomposition = !isGENE;
     DistributedFullGrid<CombiDataType> dfg(
-        dim, leval, combiParameters_.getApplicationComm(), combiParameters_.getBoundary(),
+        dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
         combiParameters_.getParallelization(), forwardDecomposition);
 
     // register dsg
@@ -782,12 +771,6 @@ void ProcessGroupWorker::updateCombiParameters() {
   // broadcast task to other process of pgroup
   MPIUtils::broadcastClass(&tmp, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
   //std::cout << "worker received combiparameters \n";
-  if (combiParameters_.isApplicationCommSet()) {
-    CommunicatorType free = combiParameters_.getApplicationComm();
-    if (free != NULL && free != MPI_COMM_NULL) {
-      MPI_Comm_free(&free);
-    }
-  }
   combiParameters_ = tmp;
 
   combiParametersSet_ = true;

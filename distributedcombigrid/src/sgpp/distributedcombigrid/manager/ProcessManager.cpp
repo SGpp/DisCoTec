@@ -1,10 +1,3 @@
-/*
- * ProcessManager.cpp
- *
- *  Created on: Oct 8, 2013
- *      Author: heenemo
- */
-
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
 #include <algorithm>
 #include <iostream>
@@ -50,21 +43,15 @@ void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurations
   if (numDurationsToReceive == 0){
     numDurationsToReceive = tasks_.size();
   }
-  DurationType type = DurationType();
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
     durationInformation recvbuf;
-    MPI_Status stat;
 
-    // std::cout << "receiving duration" << std::endl;
-    MPI_Recv(&recvbuf, 1, type.get(), 
-          MPI_ANY_SOURCE, durationTag, theMPISystem()->getGlobalComm(), &stat);
-    // std::cout << "received duration" << std::endl;
+    MPIUtils::receiveClass(&recvbuf, MPI_ANY_SOURCE, theMPISystem()->getGlobalComm());
     
     if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
       llm->addDataPoint(recvbuf, getLevelVectorFromTaskID(tasks_, recvbuf.task_id));
     }
   }
-  // std::cout << "done receiving duration" << std::endl;
 }
 
 bool ProcessManager::runnext() {

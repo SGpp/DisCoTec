@@ -1,9 +1,3 @@
-/* ****************************************************************************
- * Copyright (C) 2011 Technische Universitaet Muenchen                         *
- * This file is part of the SG++ project. For conditions of distribution and   *
- * use, please see the copyright notice at http://www5.in.tum.de/SGpp          *
- **************************************************************************** */
-// @author Mario Heene
 #ifndef DISTRIBUTEDCOMBIFULLGRIDNONUNIFORM_HPP_
 #define DISTRIBUTEDCOMBIFULLGRIDNONUNIFORM_HPP_
 
@@ -11,9 +5,6 @@
 #include <iostream>
 #include <numeric>
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiBasisFunctionBasis.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiGridDomain.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
@@ -24,8 +15,6 @@
 
 //#define UNIFORM_SG
 
-using namespace combigrid;
-
 /*
  * Instead of having private static functions, I put these functions in an
  * unnamed namespace. So, they are not accessible from outside the file, as well.
@@ -35,14 +24,14 @@ using namespace combigrid;
  */
 namespace {
 
-combigrid::real get1dSubspaceCoord(LevelType l, bool boundary, IndexType i) {
+combigrid::real get1dSubspaceCoord(combigrid::LevelType l, bool boundary, combigrid::IndexType i) {
   if (l == 1) {
     if (boundary)
-      return combigrid::real(i) * oneOverPowOfTwo[l];
+      return combigrid::real(i) * combigrid::oneOverPowOfTwo[l];
     else
-      return combigrid::real(i + 1) * oneOverPowOfTwo[l];
+      return combigrid::real(i + 1) * combigrid::oneOverPowOfTwo[l];
   } else {
-    return combigrid::real(2 * i + 1) * oneOverPowOfTwo[l];
+    return combigrid::real(2 * i + 1) * combigrid::oneOverPowOfTwo[l];
   }
 }
 

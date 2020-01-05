@@ -1,12 +1,3 @@
-/*
- * MPISystemID.hpp
- *
- *  Created on: Jan 23, 2013
- *      Author: mh
- *
- *  Partially copied from the pe Physics Engine class MPISystemID
- */
-
 #ifndef MPISYSTEMID_HPP
 #define MPISYSTEMID_HPP
 

@@ -1,10 +1,3 @@
-/*
- * ProcessGroupWorker.hpp
- *
- *  Created on: Jun 24, 2014
- *      Author: heenemo
- */
-
 #ifndef PROCESSGROUPWORKER_HPP_
 #define PROCESSGROUPWORKER_HPP_
 

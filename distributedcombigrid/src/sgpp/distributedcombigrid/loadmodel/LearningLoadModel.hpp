@@ -1,9 +1,3 @@
-/*
- * LearningLoadModel.hpp
- *
- *      Author: pollinta
- */
-
 #ifndef LEARNINGLOADMODEL_HPP_
 #define LEARNINGLOADMODEL_HPP_
 
@@ -16,42 +10,53 @@
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 
 namespace combigrid {
 // TODO include "metadata" in model: nrg.dat, parameters etc. ?
 struct durationInformation {
-  // MPI_INT task_id;
+  // durationInformation(const Stats::Event& e, const Task& t, uint nProcesses_)
+  // :task_id(t.getID()),
+  // ,duration(Stats::getEventDurationInUsec(e))
+  // ,simtime_now(t.getCurrentTime())
+  // ,real_dt(t.getCurrentTimestep())
+  // ,pgroup_id(theMPISystem()->getWorldRank())
+  // ,nProcesses(nProcesses_)
+  // {}
+
   int task_id;
-  // MPI_UNSIGNED_LONG duration;
   long unsigned int duration;
-  // MPI_UNSIGNED nProcesses;
+  real simtime_now;
+  real real_dt;
+  int pgroup_id;
   uint nProcesses;
-  // long int order;
+
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar& task_id;
+    ar& duration;
+    ar& simtime_now;
+    ar& real_dt;
+    ar& pgroup_id;
+    ar& nProcesses;
+  }
 };
 
-// this data type needs to be communicated to MPI in every process using it
-MPI_Datatype createMPIDurationType();
 
-class DurationType {
- public:
-  DurationType() { durationType_ = createMPIDurationType(); }
-  ~DurationType() { MPI_Type_free(&durationType_); }
-  MPI_Datatype get() const { return durationType_; }
-
- private:
-  MPI_Datatype durationType_;
-};
-
-std::string getFilename(const LevelVector& levelVector);
+static std::string getFilename(const LevelVector& levelVector){
+  return "./l_" + toString(levelVector) + ".durations";//TODO which directory
+}
 
 unsigned long int getAverageOfFirstColumn(std::istream& fs);
 
 class LearningLoadModel : public LoadModel {
  public:
-  LearningLoadModel(std::vector<LevelVector> levelVectors) {
+  LearningLoadModel(std::vector<LevelVector> levelVectors) :
+  writeEveryNCombis_(50)
+  {
     durationsOfLevels_ =
-        std::unique_ptr<std::map<LevelVector, std::deque<std::pair<long unsigned int, uint>>>>(
-            new std::map<LevelVector, std::deque<std::pair<long unsigned int, uint>>>);
+        std::unique_ptr<std::map<LevelVector, std::deque<durationInformation>>>(
+            new std::map<LevelVector, std::deque<durationInformation>>);
     for (const auto& lv : levelVectors) {
       addLevelVectorToLoadModel(lv);
     }
@@ -68,47 +73,34 @@ class LearningLoadModel : public LoadModel {
   }
 
   void addDataPoint(durationInformation dI, LevelVector l) {
-    // std::cout << "adding data point for " << toString(l) << " to load model" << std::endl;
-    addDataPoint(dI.duration, dI.nProcesses, l);
-  }
-
-  void addDataPoint(long unsigned int duration, uint nProcesses, LevelVector l) {
-    std::pair<long unsigned int, uint> value = std::make_pair(duration, nProcesses);
-    durationsOfLevels_->at(l).push_back(value);
+    durationsOfLevels_->at(l).push_back(dI);
     // write to file intermediately for long simulations
-    int maxsize = 500;
-    if (durationsOfLevels_->at(l).size() > maxsize) {
-      writeDurationsToFile(l, durationsOfLevels_->at(l), 200);
+    // if (durationsOfLevels_->at(l).size() > writeEveryNCombis_*2) {
+    if (durationsOfLevels_->at(l).size() > writeEveryNCombis_) {
+      writeDurationsToFile(l, durationsOfLevels_->at(l), writeEveryNCombis_);
     }
-    assert(durationsOfLevels_->at(l).size() < maxsize + 1);
+    assert(durationsOfLevels_->at(l).size() < writeEveryNCombis_ + 1);
   }
 
  private:
-  void addLevelVectorToLoadModel(const LevelVector& lv) {
-    durationsOfLevels_->insert(make_pair(lv, std::deque<std::pair<long unsigned int, uint>>()));
+  size_t writeEveryNCombis_;
 
-    std::fstream fs;
-    fs.open(getFilename(lv), std::fstream::in | std::fstream::app);
-    fs.seekg(0, std::ios::beg);
-    fs.clear();
-    if (fs.peek() != EOF) {
-      last_durations_avg_.insert(make_pair(lv, getAverageOfFirstColumn(fs)));
-    }
-    fs.clear();
-    fs.close();
-  }
+  void addLevelVectorToLoadModel(const LevelVector& lv);
 
   // durations that are written to file will be removed from the referenced deque
   void writeDurationsToFile(const LevelVector& lv,
-                            std::deque<std::pair<long unsigned int, uint>>& durations,
-                            int num_entries = std::numeric_limits<int>::max()) {
+                            std::deque<durationInformation>& durations,
+                            size_t num_entries = std::numeric_limits<size_t>::max()) {
     std::fstream fs;
     fs.open(getFilename(lv), std::fstream::out | std::fstream::app);
     // std::cout << "writing data points for " << toString(lv) << " to load model" << std::endl;
     // assert(fs.good());
-    for (int i = 0; i < num_entries && !durations.empty(); ++i) {
-      std::pair<long unsigned int, uint> duration = durations.front();
-      fs << std::to_string(duration.first) << ", " << std::to_string(duration.second) << ", "
+    for (size_t i = 0; i < num_entries && !durations.empty(); ++i) {
+      durationInformation duration = durations.front();
+      fs << std::to_string(duration.duration) << " " << std::to_string(duration.real_dt) << " " 
+        //  << std::to_string(duration.task_id)  << " "
+        << std::to_string(duration.simtime_now)  << " " 
+        << std::to_string(duration.pgroup_id) << " " << std::to_string(duration.nProcesses) << " "
          << std::endl;
       durations.pop_front();
     }
@@ -120,7 +112,7 @@ class LearningLoadModel : public LoadModel {
     writeDurationsToFile(lv, durationsOfLevels_->at(lv));
   }
 
-  std::unique_ptr<std::map<LevelVector, std::deque<std::pair<long unsigned int, uint>>>>
+  std::unique_ptr<std::map<LevelVector, std::deque<durationInformation>>>
       durationsOfLevels_;
   std::map<LevelVector, long unsigned int> last_durations_avg_;
 };
@@ -142,7 +134,7 @@ inline real LearningLoadModel::eval(const LevelVector& l) {
     }
   } else {  // use simple averaging for now //TODO do fancier things, cache results
     for (auto duration : durationsOfLevels_->at(l)) {
-      ret += duration.first;
+      ret += duration.duration;
     }
     ret /= static_cast<double>(durationsOfLevels_->at(l).size());
   }

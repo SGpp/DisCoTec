@@ -1,4 +1,3 @@
-// @author Mario Heene
 #ifndef DISTRIBUTEDCOMBIFULLGRID_HPP_
 #define DISTRIBUTEDCOMBIFULLGRID_HPP_
 
@@ -8,9 +7,6 @@
 #include <omp.h>
 #include <iterator>
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiBasisFunctionBasis.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiGridDomain.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
@@ -21,8 +17,6 @@
 
 //#define DEBUG_OUTPUT
 #define UNIFORM_SG
-
-using namespace combigrid;
 
 namespace combigrid {
 
@@ -48,9 +42,6 @@ struct SubspaceDFG {
  * implementation. <br>
  *  Nk=2^level[k]+1 for every k for the directions with boundary points and Nk=2^level[k]-1 for the
  * directions without boundary. <br>
- *  <br>
- *  The full grid can also be scaled which is done with a separate "combigrid::GridDomain" object.
- * <br>
  *
  *  The layout of the process grid, i.e. the ordering of procs is the same as of
  *  levels. The same holds for every function involving partition coordinates, e.g.
@@ -1365,9 +1356,7 @@ class DistributedFullGrid {
                   &fh);
 
     // rank 0 write dim and resolution (and data format?)
-    int rank;
-    MPI_Comm_rank(getCommunicator(), &rank);
-    if (rank == 0) {
+    if (rank_ == 0) {
       MPI_File_write(fh, &dim, 1, MPI_INT, MPI_STATUS_IGNORE);
 
       std::vector<int> res(sizes.begin(), sizes.end());

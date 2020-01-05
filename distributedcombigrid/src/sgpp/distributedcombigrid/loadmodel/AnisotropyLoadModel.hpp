@@ -1,10 +1,3 @@
-/*
- * AnisotropyLoadModel.hpp
- *
- *  Created on: Oct 9, 2013
- *      Author: heenemo
- */
-
 #ifndef ANISOTROPYLOADMODEL_HPP_
 #define ANISOTROPYLOADMODEL_HPP_
 
@@ -23,7 +16,7 @@ class AnisotropyLoadModel : public LoadModel {
 
   inline real eval(const LevelVector& l);
 
-  virtual ~AnisotropyLoadModel(){} = default;
+  virtual ~AnisotropyLoadModel() = default;
 };
 
 inline real AnisotropyLoadModel::eval(const LevelVector& l) {

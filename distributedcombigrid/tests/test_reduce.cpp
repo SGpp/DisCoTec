@@ -23,6 +23,8 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "test_helper.hpp"
 
+using namespace combigrid;
+
 /* simple task class to set all values on the grid to $levelVector_1 / levelVector_2$
  */
 class TaskConst : public combigrid::Task {
@@ -196,8 +198,8 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     // compare with known results:
     // point in the middle
     CombiDataType midResult = fg_eval.getData()[fg_eval.getNrElements() / 2];
-    std::cout << "midResult " << abs(midResult) << std::endl;
-    BOOST_TEST(abs(midResult) == 1.333333333);
+    std::cout << "midResult " << fabs(midResult) << std::endl;
+    BOOST_TEST(fabs(midResult) == 1.333333333);
 
     manager.exit();
   }

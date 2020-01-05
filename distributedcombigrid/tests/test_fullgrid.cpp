@@ -14,6 +14,8 @@
 
 #include "test_helper.hpp"
 
+using namespace combigrid;
+
 /**
  * functor for test function $f(x) = \sum_{i=0}^d x_i * (i+1)$
  * which maps to points on a hyperplane

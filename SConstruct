@@ -92,6 +92,11 @@ vars.Add(BoolVariable("SG_ALL", "Default value for the other SG_* variables; " +
                                 "if True, the modules must be disabled explicitly, e.g., " +
                                 "by setting SG_DATADRIVEN=0; " +
                                 "if False, the modules must be enabled explicitly, e.g., " +
+                                "by setting SG_DATADRIVEN=1", False))
+vars.Add(BoolVariable("SG_DISTRIBUTEDCOMBIGRID", "Default value for the other SG_* variables; " +
+                                "if True, the modules must be disabled explicitly, e.g., " +
+                                "by setting SG_DATADRIVEN=0; " +
+                                "if False, the modules must be enabled explicitly, e.g., " +
                                 "by setting SG_DATADRIVEN=1", True))
 vars.Add(BoolVariable("SG_PYTHON", "Build with Python support (default: value of SG_ALL)", None))
 vars.Add(BoolVariable("SG_JAVA", "Build with Java support (default: value of SG_ALL)", None))
@@ -147,6 +152,13 @@ vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test ca
 vars.Add("TEST_THREAD_COUNT", "How many Threads per processes are used for parallel test cases", "1")#TODO As the pure MPI-test already use openMP for comparison
 vars.Add(BoolVariable("USE_HYBRID_OPENMP","Enables additional parallelization with OpenMP",False)) 
 
+vars.Add(BoolVariable("USENONBLOCKINGMPICOLLECTIVE","Nonblocking mpi collective calls (MPI_Iallreduce and the likes)",True))
+vars.Add(BoolVariable("OMITREADYSIGNAL","Set to true to avoid that the ready signal is sent automatically",True))
+vars.Add(BoolVariable("UNIFORMDECOMPOSITION","To enable the uniform operations set this to true",True))
+vars.Add(BoolVariable("ENABLEFT","Switch on fault tolerance functionality",True))
+vars.Add(BoolVariable("ISGENE","",False)) #Turn this on for the GENE examples
+
+
 # create temporary environment to check which system and compiler we should use
 # (the Environment call without "tools=[]" crashes with MinGW,
 # so we do it like that)
@@ -195,12 +207,18 @@ if not env.GetOption("clean"):
 if "CXX" in ARGUMENTS:
   Helper.printInfo("CXX: {}".format(ARGUMENTS["CXX"]))
   env["CXX"] = ARGUMENTS["CXX"]
+else:
+  env["CXX"] = "mpicxx.mpich"
 if "CC" in ARGUMENTS:
   Helper.printInfo("CC: {}".format(ARGUMENTS["CC"]))
   env["CC"] = ARGUMENTS["CC"]
+else:
+  env["CC"] = "mpicc.mpich"
 if "FC" in ARGUMENTS:
   Helper.printInfo("FC: {}".format(ARGUMENTS["FC"]))
   env["FC"] = ARGUMENTS["FC"]
+else:
+  env["FC"] = "mpifort.mpich"
 if "CPPFLAGS" in ARGUMENTS:
   env["CPPFLAGS"] = ARGUMENTS["CPPFLAGS"].split(",")
 if "CFLAGS" in ARGUMENTS:
@@ -381,7 +399,7 @@ if env["RUN_PYTHON_TESTS"] and env["SG_PYTHON"]:
 if env["COMPILE_BOOST_TESTS"]:
   proc_count = int(env["TEST_PROCESS_COUNT"])
   thread_count=int(env["TEST_THREAD_COUNT"])
-  run_cmd = "OMP_NUM_THREADS=%d mpirun.mpich  -n %s "% (thread_count , proc_count) if proc_count > 1 else ""
+  run_cmd = "OMP_NUM_THREADS=%d mpiexec.mpich  -np %s "% (thread_count , proc_count) if proc_count > 1 else ""
   builder = Builder(action=run_cmd + "./$SOURCE")
   env.Append(BUILDERS={"BoostTest" : builder})
 

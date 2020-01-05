@@ -1,9 +1,3 @@
-/*
- *  Sim_FT_init.cpp
- *
- *  Created on: 31.07.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>
@@ -22,6 +16,8 @@ MPI_Op simft::customOp;
 #endif
 
 int simft::Sim_FT_MPI_Init(int *argc, char ***argv) {
+  int ret = MPI_Init(argc, argv);
+  
   simft::Sim_FT_MPI_COMM_WORLD = new simft::Sim_FT_MPI_Comm_struct; //TODO make_unique
   simft::Sim_FT_MPI_COMM_WORLD->c_comm = MPI_COMM_WORLD;
 
@@ -29,7 +25,6 @@ int simft::Sim_FT_MPI_Init(int *argc, char ***argv) {
 
   simft::Sim_FT_MPI_REQUEST_NULL.c_request = MPI_REQUEST_NULL;
 
-  int ret = MPI_Init(argc, argv);
   // int worldSize;
   // MPI_Comm_size(MPI_COMM_WORLD, &worldSize );
   // simft::Sim_FT_MPI_COMM_WORLD->Root_Rank = worldSize - 1;

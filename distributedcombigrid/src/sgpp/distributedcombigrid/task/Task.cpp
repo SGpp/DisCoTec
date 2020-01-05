@@ -1,10 +1,3 @@
-/*
- * Task.cpp
- *
- *  Created on: Jul 10, 2014
- *      Author: heenemo
- */
-
 #include "../../distributedcombigrid/task/Task.hpp"
 
 #include <boost/archive/text_iarchive.hpp>
