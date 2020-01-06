@@ -121,7 +121,7 @@ int main(int argc, char** argv) {
     std::vector<combigrid::real> coeffs;
     CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs,
                                                   boundary, systemNumber,
-                                                  2, levels, coeffs);
+                                                  numSystems, levels, coeffs);
 
     // create load model
     // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
@@ -132,7 +132,8 @@ int main(int argc, char** argv) {
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
     std::cout << "CombiScheme: " << std::endl;
-    std::cout << combischeme << std::endl;
+    for (const LevelVector& level : levels)
+    std::cout << level << std::endl;
 
     // create Tasks
     TaskContainer tasks;
