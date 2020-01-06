@@ -2,20 +2,17 @@ CC=/opt/mpich/bin/mpic++
 CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb
 
 SGPP_DIR=../../../
-GLPK_DIR=$(GLPK)
-SIMPLEAMQP_DIR=../../SimpleAmqpClient/
+GLPK_DIR=$(SGPP_DIR)/glpk/lib/
 
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 INC_GLPK=-I$(GLPK_DIR)/include
 LD_GLPK=-L$(GLPK_DIR)/lib
 INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
-LD_SIMPLEAMQP=-L$(SIMPLEAMQP_DIR)/build/
-INC_SIMPLEAMQP=-I$(SIMPLEAMQP_DIR)/src/
 
-LDIR=$(LD_SGPP) $(LD_GLPK) $(LD_SIMPLEAMQP)
-INC=$(INC_SGPP) $(INC_GLPK) $(INC_SIMPLEAMQP)
+LDIR=$(LD_SGPP) $(LD_GLPK)
+INC=$(INC_SGPP) $(INC_GLPK)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk -lSimpleAmqpClient#-DDEBUG_OUTPUT
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk#-DDEBUG_OUTPUT
 
 CPP_FILES := $(wildcard src/*.cpp)
 OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))
