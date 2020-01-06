@@ -243,11 +243,17 @@ int main(int argc, char** argv) {
   std::cout << "Selected timestep is: " << dt << " and combination interval time: " << combitime << "\n";
 
   // read in third Level specific parameters
-  std::string thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
-  std::string systemName = cfg.get<std::string>("thirdLevel.systemName");
-  unsigned int systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
-  unsigned int numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
-  unsigned short thirdLevelDataPort = cfg.get<unsigned short>("thirdLevel.dataPort");
+  std::string thirdLevelHost;
+  unsigned int systemNumber = 0, numSystems = 1;
+  unsigned short thirdLevelPort = 0;
+  bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
+  if (hasThirdLevel) {
+    std::cout << "Using third-level parallelism" << std::endl;
+    thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
+    systemNumber   = cfg.get<unsigned int>("thirdLevel.systemNumber");
+    numSystems     = cfg.get<unsigned int>("thirdLevel.numSystems");
+    thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
+  }
 
   //read the ranks that shoudl fail in case of static faults (means numFaults > 0)
   if( faultsInfo.numFaults_ > 0 ){
@@ -288,8 +294,8 @@ int main(int argc, char** argv) {
 
   // read combi levels and spaces from file as long as min max scheme does
   // not work properly
-  std::vector<LevelVector> levels;
-  std::vector<combigrid::real> coeffs;
+  std::vector<LevelVector> fullLevels;
+  std::vector<combigrid::real> fullCoeffs;
   std::vector<int> fileTaskIDs;
 
   const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
@@ -306,20 +312,24 @@ int main(int argc, char** argv) {
         ss >> l[i];
       ss >> coeff;
 
-      levels.push_back(l);
-      coeffs.push_back(coeff);
+      fullLevels.push_back(l);
+      fullCoeffs.push_back(coeff);
       fileTaskIDs.push_back(id);
     }
     spcfile.close();
   } else {
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.makeFaultTolerant();
-    levels = combischeme.getCombiSpaces();
-    coeffs = combischeme.getCoeffs();
+    fullLevels = combischeme.getCombiSpaces();
+    fullCoeffs = combischeme.getCoeffs();
   }
 
-  std::vector<LevelVector> commonSubspaces;
-  CombiThirdLevelScheme::createThirdLevelScheme(levels, coeffs, commonSubspaces, boundary, systemNumber, numSystems);
+  // split scheme and assign each half to a system
+  std::vector<LevelVector> levels;
+  std::vector<combigrid::real> coeffs;
+  CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs,
+                                                boundary, systemNumber,
+                                                numSystems, levels, coeffs);
 
   // create load model
   std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
@@ -372,9 +382,8 @@ int main(int argc, char** argv) {
   CombiParameters params( dim, lmin, lmax, boundary, levels,
                           coeffs, hierarchizationDims, taskIDs,
                           ncombi, numGrids, reduceCombinationDimsLmin,
-                          reduceCombinationDimsLmax, thirdLevelHost, thirdLevelDataPort,
-                          systemName, commonSubspaces, 0);
-
+                          reduceCombinationDimsLmax, thirdLevelHost,
+                          thirdLevelPort, 0);
 
   // create Manager with process groups
   ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
