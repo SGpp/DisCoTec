@@ -6,4 +6,4 @@ cache:
 before_install:
   - sh ./get_mpich.sh
 script:
-  - ./compile.sh
+  - sh ./compile.sh
