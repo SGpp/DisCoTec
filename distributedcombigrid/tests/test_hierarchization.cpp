@@ -112,16 +112,18 @@ class TestFn_3 {
   std::complex<double> operator()(IndexVector& index) {
     std::complex<double> result(1, 1);
     for (size_t d = 0; d < index.size(); ++d) {
-      std::vector<double> coeff = {0.25};
+      std::vector<double> coeff = {0, 0};
+      std::vector<double> coeff2 = {0.0, 1.0};
       for (int l = 1; l < levels_[d] + 1; ++l) {
         for (int i = 0; i < 1 << l; ++i) {
-          if (i % 2 == 0) {
+          if (i % 2) {
             coeff.insert(coeff.begin() + i, -std::pow(2.0, -2 * l));
+            coeff2.insert(coeff2.begin() + i, -std::pow(2.0, -2 * l));
           }
         }
       }
       result.real(result.real() * coeff[index[d]]);
-      result.imag(result.imag() * coeff[index[d]]);
+      result.imag(result.imag() * coeff2[index[d]]);
     }
     return result;
   }
