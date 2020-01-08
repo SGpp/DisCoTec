@@ -1,0 +1,9 @@
+sudo: false
+language: c
+cache:
+  directories:
+  - mpich
+before_install:
+  - sh ./get_mpich.sh
+script:
+  - ./compile.sh
