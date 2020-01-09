@@ -5,6 +5,7 @@ cache:
   - mpich
 before_install:
   - sh ./get_mpich.sh
-addons: gitlab.mpcdf.mpg.de
+before_script:
+  - echo -e "Host gitlab.mpcdf.mpg.de\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
 script:
   - sh ./compile.sh
