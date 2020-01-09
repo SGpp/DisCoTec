@@ -6,6 +6,6 @@ cache:
 before_install:
   - sh ./get_mpich.sh
 install:
-  - echo 'SHA256:Wa2jvNFwBumy0hZLgD3TykkP6OKot9nSmV4I1+Prv54' >> $HOME/.ssh/known_hosts
+  - echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC5U/JW3mQ97dUtl8xatc0yUH+RcJKNpLiMXgIBIHcPMOmlR5oCTu+9VCUadyQlmbZpZlfg9bGivtsh57t8Pev7JmZshGdP15HnIWq/gEhYT38wCnwljYVeJVati4LspASbxztlYKhsmJtRJlt1RXGdT5KlCQR2jEFVObHNJ+r5PsEoYBXe5juXELdTI0v6rG8kHdpkjiWC+dPtMaaTFZTakDkUaiwBId+Jtxnl+luhCcidp79xGWUlO5cUmk969FKSeTg+a+spZnIzvmytugMwPUIAk3A/B6W1g3s6cp5jN0dP6Y9ZDQGzZw5Zs7yIp89F1AgGc8YpmPoUzv2cBaBCyXpwH0/SOwQYUSVBO8Or7T0ThBblgxr0eUGIq70tdVYfzP7crDUWWQVYTqAdAuJ6NFFktrdGxzky7r32cgB+KfwK/DqyFZ5CnVDU5kiRl/CG3T0cKAXOBgg/48bo0hK+qfc3sLDc91y3RIYqOmogeSIADBQvpEO8VzQK+FyIyFYCP0zSqtan6x6skn4H+n9YVrIp/m0+5vy8uBmQhT3XMhl9tBOK4WCMyxKSaFEicDIi4kLZPiIyO2XnLYkk+lmamDJ5xUoeyEZ91KsR3owjDamzR4jGCc4Zh8b6/s2UIRjNCzZO22gMcW9MHtbTyGzYctZOvhlg6JxZ5dbn6b5YZw== keerthigaddameedi@gmail.com' >> $HOME/.ssh/known_hosts
 script:
   - sh ./compile.sh
