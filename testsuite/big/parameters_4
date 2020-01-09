@@ -1,0 +1,129 @@
+&parallelization
+!n_procs_s =   2
+!n_procs_v =   1
+max_npv=2
+!n_procs_w =   2
+!n_procs_x =   1
+!n_procs_y =   2
+max_npy=2
+!n_procs_z =  16
+max_npz=32
+!n_procs_sim =    128
+/
+
+&box
+n_spec =    2
+nx0    =   96
+nky0   =   32
+nz0    =  128
+nv0    =   48
+nw0    =    8
+
+kymin =   0.5000E-01
+lv    =     3.00    
+lw    =     9.00    
+lx    =   183.824    
+nexc  =  -1
+adapt_lx = F
+mu_grid_type = 'gau_lag'
+/
+
+&in_out
+diagdir = '/out'
+
+read_checkpoint  = F
+write_checkpoint = T
+
+istep_field =      50
+istep_mom   =      50
+istep_nrg   =      10
+istep_vsp   =     500
+istep_schpt =    5000
+istep_energy =     100
+
+write_std = T
+chpt_h5 = F
+chpt_hac = F
+momentum_flux = F
+/
+
+&general
+nonlinear =   T
+comp_type = 'IV'
+!perf_vec  =  1 1 2 1 1 1 2 1 1
+!nblocks   =     192
+arakawa_zv =   T
+arakawa_zv_order =   4
+
+timescheme = 'RK4'
+dt_max     =   0.1060E-01
+courant    =     1.25
+
+timelim    =      83000
+ntimesteps =        100
+
+beta       =   0.10000000E-02
+debye2     =    0.0000000    
+collision_op = 'none'
+
+init_cond = 'ppj'
+
+hyp_z =    5.000    
+hyp_v =   0.5000    
+
+/
+
+&geometry
+magn_geometry = 'tracer'
+q0       =    1.1100000    
+shat     =  -0.1088
+geomdir = 'tracer'
+geomfile = 'hm128.dat'
+minor_r  =    1.0000000    
+norm_flux_projection  = F
+/
+
+&species
+name   = 'ions'
+omn    =    0.0000000    
+omt    =    4.0000000    
+
+mass   =    1.0000000    
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge =  1
+/
+
+&species
+name   = 'electrons'
+omn    =    0.0000000    
+omt    =    0.0000000    
+
+mass   =   0.25000000E-02
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge = -1
+/
+
+&info
+comment = two species stellarator ITG nonlinear
+q0     =    1.1100000    
+step_time  =     8.1735
+number of computed time steps =     100
+time for initial value solver =    817.347
+calc_dt = T
+init_time = 24307.4006
+n_fields = 2
+n_moms   =  6
+lx =   183.824    
+ly =   125.664    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+SVN_REV = 3943M               
+RELEASE = 1.6 - alpha 0
+/
+
+&units
+/
+

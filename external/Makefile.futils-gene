@@ -1,0 +1,102 @@
+#GENE-specific FUTILS Makefile which will be used to overwrite
+#the makefile shipped with the futils-gene.tar.gz
+
+#note: the following variable are or might be set by 
+#      the GENE makefile (see makefiles/rules.mk and external/Makefile)
+#      FUTILSDIR MPFC FC FFLAGS LDFLAGS MPCC CC CFLAGS 
+#      HDF5PATH ARCHIVE HDF5_LIBS HDF5VAR COMPILER OPT 
+#      SET_F2003_STANDARD PREPROC_FLAG
+#      F90, LD_FLAGS, C_FLAGS, HDF5LIBS, HDF5, AR
+
+#note: replace cutils.o in this files by cutils_bgl.o on BlueGene architectures!
+
+PREFIX=$(HOME)
+
+#F90FLAGS = $(FFLAGS)
+#note: cannot use GENE's FFLAGS at the moment since FUTILS 'double precision'
+#variable definitions seem to be incompatible with compiler siwtches as, e.g.,
+#"-r8"
+
+F90FLAGS = $(OPT)
+F90FLAGS += -I. -I${HDF5}/include${HDF5VAR} -I${HDF5}/lib
+CFLAGS = $(C_FLAGS)
+
+LDFLAGS = $(LD_FLAGS) -L. -L${HDF5}/lib
+LIBS = -lfutils $(HDF5LIBS)
+
+ifeq ($(COMPILER),)
+ ifeq ($(findstring mpcc,$(CC)),mpcc)
+ #add -qlanglvl=stdc99 on IBM compilers if not set in CFLAGS
+ CFLAGS += -qlanglvl=stdc99
+ endif
+ ifeq ($(findstring xlf,$(F90)),xlf)
+ F90FLAGS += -qsuffix=cpp=f90 -qextname=fu_fsize:fu_ftos:fu_stof:fu_stostdout
+ # the following variable is set by loading the 
+ # HDF5 module.
+ ifeq ($(HDF5_HAS_FORTRAN2003_INTERFACES),yes)
+ F90FLAGS += -qlanglvl=2003std -WF,-DHDF5_FORTRAN2003 -qflag=i:w
+ endif
+ endif
+
+ ifeq ($(findstring mpif90,$(F90)),mpif90)
+ F90FLAGS += -fpp
+ ifeq ($(HDF5_HAS_FORTRAN2003_INTERFACES),yes)
+ F90FLAGS += -stand f2003 -DHDF5_FORTRAN2003
+ endif
+ endif
+
+ # Vampirtrace compiler wrappers
+ ifeq ($(findstring vtf90,$(F90)),vtf90)
+ F90FLAGS += -fpp
+ ifeq ($(HDF5_HAS_FORTRAN2003_INTERFACES),yes)
+ F90FLAGS += -stand f2003 -DHDF5_FORTRAN2003
+ endif
+ endif
+
+ ifeq ($(findstring mpiifort,$(F90)),mpiifort)
+ F90FLAGS += -fpp
+ ifeq ($(HDF5_HAS_FORTRAN2003_INTERFACES),yes)
+ F90FLAGS += -stand f2003 -DHDF5_FORTRAN2003
+ endif
+ endif
+else
+ ifeq ($(HDF5_HAS_FORTRAN2003_INTERFACES),yes)
+ F90FLAGS += $(SET_F2003_STANDARD) -DHDF5_FORTRAN2003
+ endif
+
+ F90FLAGS += $(PREPROC_FLAG)
+endif 
+
+.SUFFIXES:
+.SUFFIXES: .o .c .f90
+
+.f90.o:
+	$(F90) $(F90FLAGS) -c $<
+
+lib: libfutils.a getfile
+
+getfile: Makefile getfile.o
+	$(F90) $(LDFLAGS) -o $@ getfile.o $(LIBS)
+
+libfutils.a: Makefile futils.o cutils.o buffer.o
+	$(AR) $@ futils.o cutils.o buffer.o
+	ranlib $@
+
+futils.o: append.tpl zappend.tpl \
+          putarr.tpl cputarr.tpl putarrnd.tpl cputarrnd.tpl \
+          getarr.tpl cgetarr.tpl getarrnd.tpl cgetarrnd.tpl
+
+buffer.o: futils.o
+
+test:
+	make "F90_FFLAGS=$(F90FLAGS)" "LD_FLAGS=$(LDFLAGS)" \
+	-C ../examples test_s test_p
+
+getfile.o:	libfutils.a
+
+clean:
+	-rm -f *.o *~ a.out fort.* *.h5* *.mod *.a getfile
+
+distclean: clean
+	-rm -f getfile *.a *.mod TAGS
+

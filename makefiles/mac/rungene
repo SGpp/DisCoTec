@@ -1,0 +1,2 @@
+#!/bin/sh
+mpirun -l -n 2 ./gene_mac > GENE.out

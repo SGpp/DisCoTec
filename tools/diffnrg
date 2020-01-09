@@ -1,0 +1,71 @@
+#!/usr/bin/perl
+# Usage: diffnrg nrg_filename1 nrg_filename2
+# shows all lines where nrg entries differ
+# more than $limit
+
+use strict;
+use File::Copy;
+
+if ($#ARGV eq 1) {
+    exit(diffnrg($ARGV[0],$ARGV[1]));
+} else {
+    print "Usage: diffnrg nrg_filename1 nrg_filename2\n"
+    }
+
+sub diffnrg {
+# returns true if nrg file entries differ more than
+# the value specified by $limit
+    my $nrg1 = shift;
+    my $nrg2 = shift;
+    my $limit = 1e-15;
+    my $i;
+    my $diff = 0;
+    my $listdiff = 0;
+    my $line1;
+    my $line2;
+    my @list1;
+    my @list2;
+    open(FILE1,"<$nrg1") || {
+	open(FILE1,"<nrg_$nrg1") || 
+	    die "error: neither $nrg1 nor nrg_$nrg1 found"};
+    open(FILE2,"<$nrg2") || {
+	 open(FILE2,"<nrg_$nrg2") ||
+	     die "error: neither $nrg2 nor nrg_$nrg2 found"};
+    while (($line1=<FILE1>) && ($line2=<FILE2>)) {
+	@list1 = split(' ',$line1);
+	@list2 = split(' ',$line2);
+	$i=0;
+	$listdiff=0;
+	while (($i<=$#list1) && !($listdiff)) {
+	    my @first=split(/E/,$list1[$i]);
+	    my @second=split(/E/,$list2[$i]);
+	    if ((abs($list1[$i]-$list2[$i]) > $limit) &&
+		(abs($first[0]-$second[0])>0.00011)) {
+		print "< $line1";
+		print "> $line2\n";
+		$listdiff=1;
+		$diff=1;
+		}
+	    $i++;
+	}
+    }
+
+    # show rest of files if not end of file reached
+    if ($line1=<FILE1>) {
+	$diff=1;
+	print "< $line1";
+	while ($line1=<FILE1>) {
+	    print "< $line1";
+	}
+    }
+    close(FILE1);
+    if ($line2=<FILE2>) {
+	$diff=1;
+	print "> $line2";
+	while ($line2=<FILE2>) {
+	    print "> $line2";
+	}
+    }
+    close(FILE2);
+    return($diff);
+}

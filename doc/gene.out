@@ -1,0 +1,52 @@
+\BOOKMARK [1][-]{section.1}{Introduction}{}% 1
+\BOOKMARK [2][-]{subsection.1.1}{A few words on the code}{section.1}% 2
+\BOOKMARK [2][-]{subsection.1.2}{A few words on the basic equations}{section.1}% 3
+\BOOKMARK [2][-]{subsection.1.3}{A few words on magnetic geometry}{section.1}% 4
+\BOOKMARK [2][-]{subsection.1.4}{A few words on algorithmic issues}{section.1}% 5
+\BOOKMARK [2][-]{subsection.1.5}{A few words on computer resources}{section.1}% 6
+\BOOKMARK [1][-]{section.2}{Installing Gene on your machine}{}% 7
+\BOOKMARK [2][-]{subsection.2.1}{Getting the source code}{section.2}% 8
+\BOOKMARK [2][-]{subsection.2.2}{Creating a new machine-specific makefile}{section.2}% 9
+\BOOKMARK [2][-]{subsection.2.3}{Testing your installation}{section.2}% 10
+\BOOKMARK [2][-]{subsection.2.4}{Using the CHEASE interface module}{section.2}% 11
+\BOOKMARK [2][-]{subsection.2.5}{Installing and running Gene on Mac OS}{section.2}% 12
+\BOOKMARK [1][-]{section.3}{Setting up a computation}{}% 13
+\BOOKMARK [2][-]{subsection.3.1}{The Gene launcher}{section.3}% 14
+\BOOKMARK [3][-]{subsubsection.3.1.1}{Description of the interface}{subsection.3.1}% 15
+\BOOKMARK [2][-]{subsection.3.2}{The parameters file}{section.3}% 16
+\BOOKMARK [3][-]{subsubsection.3.2.1}{The parallelization namelist}{subsection.3.2}% 17
+\BOOKMARK [3][-]{subsubsection.3.2.2}{The box namelist}{subsection.3.2}% 18
+\BOOKMARK [3][-]{subsubsection.3.2.3}{The in\137out namelist}{subsection.3.2}% 19
+\BOOKMARK [3][-]{subsubsection.3.2.4}{The general namelist}{subsection.3.2}% 20
+\BOOKMARK [3][-]{subsubsection.3.2.5}{The external\137contr namelist}{subsection.3.2}% 21
+\BOOKMARK [3][-]{subsubsection.3.2.6}{The geometry namelist}{subsection.3.2}% 22
+\BOOKMARK [3][-]{subsubsection.3.2.7}{The species namelist}{subsection.3.2}% 23
+\BOOKMARK [3][-]{subsubsection.3.2.8}{The units namelist \(optional\)}{subsection.3.2}% 24
+\BOOKMARK [2][-]{subsection.3.3}{Running the code}{section.3}% 25
+\BOOKMARK [2][-]{subsection.3.4}{The scan script}{section.3}% 26
+\BOOKMARK [3][-]{subsubsection.3.4.1}{How to specify scan parameters:}{subsection.3.4}% 27
+\BOOKMARK [3][-]{subsubsection.3.4.2}{Options \(short form in brackets\):}{subsection.3.4}% 28
+\BOOKMARK [3][-]{subsubsection.3.4.3}{Gene parallelization over parameter sets}{subsection.3.4}% 29
+\BOOKMARK [3][-]{subsubsection.3.4.4}{Autoparallelization and scanscript}{subsection.3.4}% 30
+\BOOKMARK [3][-]{subsubsection.3.4.5}{Checkpoint reading in scans}{subsection.3.4}% 31
+\BOOKMARK [1][-]{section.4}{Output files}{}% 32
+\BOOKMARK [2][-]{subsection.4.1}{The nrg file}{section.4}% 33
+\BOOKMARK [2][-]{subsection.4.2}{The field file}{section.4}% 34
+\BOOKMARK [2][-]{subsection.4.3}{The mom file}{section.4}% 35
+\BOOKMARK [2][-]{subsection.4.4}{The vsp file}{section.4}% 36
+\BOOKMARK [2][-]{subsection.4.5}{The neoclass file}{section.4}% 37
+\BOOKMARK [2][-]{subsection.4.6}{The energy file}{section.4}% 38
+\BOOKMARK [2][-]{subsection.4.7}{The checkpoint files}{section.4}% 39
+\BOOKMARK [2][-]{subsection.4.8}{The omega file}{section.4}% 40
+\BOOKMARK [2][-]{subsection.4.9}{The eigenvalues file}{section.4}% 41
+\BOOKMARK [2][-]{subsection.4.10}{The autopar file}{section.4}% 42
+\BOOKMARK [1][-]{section.5}{The Diagnostic Tool}{}% 43
+\BOOKMARK [2][-]{subsection.5.1}{The graphical user interface}{section.5}% 44
+\BOOKMARK [2][-]{subsection.5.2}{The configuration file}{section.5}% 45
+\BOOKMARK [1][-]{section.6}{Tools}{}% 46
+\BOOKMARK [1][-]{section.7}{Reporting bugs and submitting changes}{}% 47
+\BOOKMARK [1][-]{section.8}{Frequently Asked Questions}{}% 48
+\BOOKMARK [1][-]{appendix.A}{Normalizations}{}% 49
+\BOOKMARK [2][-]{subsection.A.1}{species dependent}{appendix.A}% 50
+\BOOKMARK [2][-]{subsection.A.2}{reference quantities}{appendix.A}% 51
+\BOOKMARK [3][-]{subsubsection.A.2.1}{derived reference quantities}{subsection.A.2}% 52

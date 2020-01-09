@@ -1,0 +1,123 @@
+&parallelization
+n_procs_s = 2
+!n_procs_v = 1
+n_procs_w  = 64
+!n_procs_x = 1
+!n_procs_y = 1
+!n_procs_z = 4
+/
+
+&box
+n_spec =     2
+nx0    =   256 !1024
+nky0   =    32
+nz0    =    24 ! 32
+nv0    =    96 !64
+nw0    =    64 !16
+
+n0_global = 3
+
+lv    =      5 
+lw    =     16
+lx    =    240
+x0    =      0.5
+/
+
+&in_out
+diagdir = './out/' 
+
+read_checkpoint  = F
+write_checkpoint = F
+
+istep_field =     100
+istep_mom   =    1000
+istep_nrg   =      10
+istep_vsp   =       0
+istep_schpt =   20000
+/
+
+&general
+
+nonlinear = T
+x_local   = F
+
+calc_dt = .f.
+
+dt_max     =     1.0E-4 !insert the SLEPC value
+courant    =     0.30
+
+timelim    =      32000
+ntimesteps =          1
+underflow_limit =   0.1000E-09
+
+beta       =    0.001
+debye2     =    0.000    
+
+collision_op = 'none'
+
+init_cond = 'db'
+
+hyp_x =    1.000    
+hyp_z =    1.000    
+hyp_v =    0.200
+/
+
+&nonlocal_x
+u_buffer_size =   0.5000E-01
+ucoef_krook   =    5.000    
+ck_heat =   0.3000E-01
+rad_bc_type =  2
+arakawa = .t.
+/
+
+&geometry
+magn_geometry = 'circular'
+!q0      =   1.500    
+!trpeps  =   0.1800
+minor_r  =   0.3600
+major_R  =   1.000    
+mag_prof =   T
+q_coeffs =   0.9500, 0.0,  2.200
+rhostar  =   0.004 !1/250
+/
+
+&species
+name   = 'ions'
+prof_type =  3
+kappa_T   =  6.9000
+LT_center =  0.5000    
+LT_width  =  0.5000E-01
+
+kappa_n   =  3.0
+Ln_center =  0.5000
+Ln_width  =  0.5000E-01
+
+delta_x_T  = 0.2500
+delta_x_n  = 0.2500
+
+mass   =    1.000    
+temp   =    1.000    
+dens   =    1.000    
+charge =  1
+/
+
+&species
+name   = 'electrons'
+prof_type =  3
+kappa_T   =   6.900
+LT_center =   0.5000    
+LT_width  =   0.5000E-01
+
+kappa_n   =   3.00
+Ln_center =   0.5000    
+Ln_width  =   0.5000E-01
+
+delta_x_T  =  0.2500    
+delta_x_n  =  0.2500    
+
+mass   =    5.446E-4
+temp   =    3.  !we don't want ETG at the moment
+dens   =    1.000    
+charge = -1
+/
+

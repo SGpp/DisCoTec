@@ -1,0 +1,55 @@
+#!/bin/bash
+#creates makefile dependencies for Fortran files
+#to be used for updating the files.mk file
+#WARNING: conditional dependencies are not treated 
+#i.e., some global module dependencies are screwed up and 
+#need to be fixed by hand
+
+if [ $# -lt 1 ]; then
+    echo "usage: makedep filename(s)"
+    exit
+fi
+
+OBJDIRSTR="\$(OBJDIR)"
+
+TAB=$(printf "\t")
+EOL=$(printf "\n")
+first=1;
+
+for filename in $*;
+do
+  echo -n "$OBJDIRSTR/${filename/%F90/o}:"
+  uselist=`grep -i -e '^[ \t]*use ' $filename | awk 'BEGIN { FS = "^[ \t\n]*[uU][sS][eE][ \t]*" } ; { print $2 }' | awk 'BEGIN { FS = "[ ,]" } ; { print $1 }'`
+
+  if [ "$uselist" == "" ]; then
+      echo ""
+  else
+      for usemod in $uselist;
+      do
+	  if [ "$usemod" != "mpi" ]; then
+	      if [ "$usemod" == "fourier" ]; then
+		  f90depname="fourier_\$(FFTLIB).F90"
+	      else
+		  f90depname=`grep -l -i -e "module $usemod\b" *.F90 *.f90`
+	      fi
+	      if [ "$f90depname" == "" ]; then
+		  echo ""
+		  echo "WARNING: Haven't found module $usemod"
+	      else 
+		  if [ $first -eq 1 ]; then
+		      first=0;
+		  else
+		      echo "\\"
+		      echo -n "$TAB$TAB"
+		  fi
+		  echo -n "$TAB$OBJDIRSTR/${f90depname/%F90/o}"
+	      fi
+	  fi
+      done
+      echo ""
+  fi
+  echo ""
+  
+  first=1;
+  
+done

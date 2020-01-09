@@ -1,0 +1,43 @@
+#!/bin/sh
+#run chain tool, requires parameters, nrg.dat
+if [ ! -f parameters ]
+then
+  echo "rc_overfl error: no parameters file" > rcerror.msg
+  exit 1
+fi
+diagdirline=`grep diagdir parameters | sed -e "s/ [ ]*/ /g" | grep "diagdir ="`
+nspecline=`grep n_spec parameters | sed -e "s/ [ ]*/ /g" | grep "n_spec ="`
+if [ `echo $diagdirline | wc -l` -ne 1 ] || [ `echo $nspecline | wc -l` -ne 1 ]
+then
+  echo "rc_overfl error: missing parameters: n_spec or diagdir" > rcerror.msg
+  exit 1
+fi
+diagdir=`echo $diagdirline | tr "'" " " | tr '"' ' ' | tr "=" " " | sed -e "s/ [ ]*/ /g" | cut -d " " -f 2`
+if [ ! "`echo $diagdir | awk '{ print substr($0,length($0),length($0)) }'`" == "/" ]
+then
+  diagdir="${diagdir}/"
+fi
+nspec=`echo $nspecline | tr "=" " " | sed -e "s/ [ ]*/ /g" | cut -d " " -f 2`
+if [ ! -f ${diagdir}nrg.dat ]
+then
+  echo "rc_overfl error: no nrg file" > rcerror.msg
+  exit 1
+fi
+nrgfields=`tail -n $nspec ${diagdir}nrg.dat`
+nrgmaxexp=0
+for nrgfield in $nrgfields
+do
+  nrgexp=`echo $nrgfield | sed -e "s/+//g" | cut -d "E" -f 2`
+  if [ $nrgmaxexp -lt $nrgexp ]
+  then
+    nrgmaxexp=$nrgexp
+  fi
+done
+if [ $nrgmaxexp -ge 5 ]
+then
+  echo "rc_overfl error: overflow detected" > rcerror.msg
+  exit 1
+else
+  echo "no overflow"
+fi
+exit 0

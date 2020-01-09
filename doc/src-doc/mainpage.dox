@@ -1,0 +1,13 @@
+/** @mainpage GENE11 - source code documentation
+*
+* @authors GENE development team (assisted by doxygen)
+*
+* @section intro Introduction
+* To be filled
+*
+* @section more Further reading
+* - Our webpage: http://www.ipp.mpg.de/~fsj/gene
+* - The <A HREF="./../../gene.pdf"> GENE documentation </A> (compile gene.tex in doc-directory)
+* - The <A HREF="./../../style_guide.pdf"> style guide </A> for GENE developers (compile style_guide.tex in doc-directory)
+*
+*/

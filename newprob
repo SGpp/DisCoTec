@@ -1,0 +1,122 @@
+#!/usr/bin/perl
+# Usage: newprob <optional number>
+# newprob creates a new directory containing all 
+# files specifying the GENE input parameters
+# <optional number> changes source from /src/svprob
+# to prob<optional number>
+
+use strict;
+use File::Copy;
+use Getopt::Long;
+use Cwd;
+# use subroutine module of scanscript: add folder to perl path variable @INC
+use lib "./tools/perl";
+use parmod_routines;  #only  replace_entry
+
+my $svpath = "./makefiles";
+my $helptext=0;
+my $dev=0;
+my $cdir=0;
+GetOptions("help"=> \$helptext,
+	   "dev"=> \$dev,
+	   "copy:i"=> \$cdir,
+	   );
+
+if ($helptext) {
+    show_help();
+    exit(0);
+}
+
+#from parmod_routnines: copy scanscript to tools and set lib path
+set_scanscript_lib();
+
+my $source='';
+if ($cdir gt 0) {
+    $source = sprintf("prob%02d",$cdir);
+}else{
+    $source = $svpath;
+}
+
+my $dir_name='prob';
+
+# find last prob directory
+my $i = 1;
+my $newpath=sprintf("%s%02d",$dir_name,$i);
+while(-d "$newpath") {
+    $i += 1;
+    $newpath=sprintf("%s%02d",$dir_name,$i);
+}
+
+# make new prob directory
+mkdir("$newpath");
+print "created $newpath\n";
+
+# copy parameters 
+copy("$source/parameters","$newpath");
+symlink("../tools/perl/scanscript","$newpath/scanscript");
+print "copied parameters\n";
+
+my $MACHINE = `make -f makefile mach_wrapper`;
+chomp($MACHINE);
+if ($dev) {
+    # create arch dependent subdir and files
+    if ($MACHINE ne "") {
+	if (-d "$svpath/$MACHINE") {
+	    system("cp $svpath/$MACHINE/* $newpath");
+	    system("touch $newpath/make_local");
+	    symlink("$newpath/$MACHINE/gene_$MACHINE","$newpath/gene_$MACHINE");
+	    print "copied makefiles, remember to call 'gmake -f ../makefile -j' in the $newpath directory\n";
+	} else {
+	    print "no files for your architecture available";
+	}
+    }
+}
+else{
+    symlink("../bin/gene_$MACHINE","$newpath/gene_$MACHINE");
+    #copy only submit scripts
+    system("cp makefiles/$MACHINE/* $newpath");
+    system("rm $newpath/$MACHINE.mk");
+    if (-f "./bin/gene_$MACHINE"){
+	print "created link to the GENE executable in the bin directory\n";
+    }else{
+	print "GENE has not been compiled yet, remember to call 'gmake -j' in the GENE base directory before submitting a simulation!\n";
+    }
+}
+
+if ($MACHINE ne "") {
+    # modify parameters file
+    if ($source eq $svpath) {
+	my $parfile = "$newpath/parameters";
+	my $USER = $ENV{'USER'};
+	if ($MACHINE eq "vip_p6") {
+	    replace_entry("$parfile","diagdir","'/ptmp/$USER/'");
+	    replace_entry("$parfile","chptdir","'/ptmp/$USER/'");
+	} elsif ($MACHINE eq "cluster") {
+	    replace_entry("$parfile","diagdir","'/scratch/$USER/'");
+	    replace_entry("$parfile","chptdir","'/scratch/$USER/'");
+	} elsif ($MACHINE eq "altix") {
+	    replace_entry("$parfile","diagdir","'$ENV{'OPT_TMP'}/'");
+	    replace_entry("$parfile","chptdir","'$ENV{'OPT_TMP'}/'");
+	} elsif ($MACHINE eq "genius_bgp") {
+	    replace_entry("$parfile","diagdir","'/ptmp/$USER/'");
+	    replace_entry("$parfile","chptdir","'/ptmp/$USER/'");
+	} elsif ($MACHINE eq "BG_epfl") {
+	    replace_entry("$parfile","diagdir","'/bglscratch/$USER/'");
+	    replace_entry("$parfile","chptdir","'/bglscratch/$USER/'");
+	} elsif ($MACHINE eq "bob_cluster") {
+	    replace_entry("$parfile","diagdir","'/gpfs/ipp/$USER/'");
+	    replace_entry("$parfile","chptdir","'/gpfs/ipp/$USER/'");
+	}
+    }
+}
+
+sub show_help {
+    print "script to create a new problem directory\n";
+    print "usage: ./newprob\n";
+    print "options: \n";
+    print "-dev : creates a problem directory which does not link to the gene executable in bin 
+       but has separate makefile, executable and object files (for code development) \n";
+    print "-copy <integer> : copies the parameter file from an existing problem directory instead 
+       of the default parameter file\n";    
+    print "-help : display this help text\n";
+}

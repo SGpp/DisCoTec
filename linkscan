@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+# Usage: linkscan
+# linkscan re-links the scanscript in prob directories 
+# call in GENE (trunk) directory
+# sets lib path in /tools/perl/scanscript
+
+use strict;
+use File::Copy;
+use Cwd;
+use lib "./tools/perl";
+use parmod_routines;  #only  replace_entry,set_scanscript_lib
+
+#from parmod_routnines: set lib path for scanscript
+set_scanscript_lib();
+
+opendir(PATH,".");         
+my @content=readdir(PATH);
+closedir(PATH);      
+
+my $path = "";
+foreach $path(@content){
+   if (-d $path) {
+      if (-l "$path/scanscript"){
+         unlink("$path/scanscript");
+         print "re-linked scanscript in $path\n";
+         symlink("../tools/perl/scanscript","$path/scanscript");
+      }
+   }
+}
+
+
+

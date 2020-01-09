@@ -1,0 +1,117 @@
+&parallelization
+!n_procs_s =   2
+!n_procs_v =   1
+!n_procs_w =   4
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   1
+!n_procs_sim =      8
+/
+
+&box
+n_spec =    2
+nx0    =    1
+nky0   =    1
+nz0    =   24
+nv0    =   32
+nw0    =   16
+
+kymin =   0.3000    
+lv    =     3.00    
+lw    =     9.00    
+lx    =   10.0000    
+nexc  =   0
+adapt_lx = F
+ky0_ind =   0
+mu_grid_type = 'gau_lag'
+/
+
+&in_out
+diagdir = '/out'
+
+read_checkpoint  = F
+write_checkpoint = T
+
+istep_field =       1
+istep_mom   =       1
+istep_nrg   =       1
+istep_omega =       0
+istep_vsp   =       1
+istep_schpt =       0
+
+write_std = T
+momentum_flux  = F
+/
+
+&general
+nonlinear =   F
+comp_type = 'NC'
+!perf_vec  =  2 2 1 1 1 2 2 1 2
+!nblocks   =     128
+
+include_f0_contr = .true.
+
+timelim    =     500000
+
+beta       =    0.0000000    
+debye2     =    0.0000000    
+collision_op = 'on'
+coll         =   0.10000000E-02
+coll_cons_model  = 'self_adj'
+coll_f_fm_on  = T
+
+init_cond = 'zero'
+
+
+/
+
+&geometry
+magn_geometry = 's_alpha'
+q0       =    2.0000000    
+shat     =   1.0000
+trpeps   =   0.16666000    
+major_R  =    3.0000000    
+major_R  =    3.0000000    
+norm_flux_projection  = F
+/
+
+&species
+name   = 'ions'
+omn    =    1.0000000    
+omt    =    3.0000000    
+
+mass   =    1.0000000    
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge =  1
+/
+
+&species
+name   = 'electrons'
+omn    =    1.0000000    
+omt    =    3.0000000    
+
+mass   =   0.27320000E-03
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge = -1
+/
+
+&info
+comment = two species GA standard case, realistic mass ratio, NC
+time for nc equilibrium solver =      1.985
+init_time =     0.3756
+n_fields = 1
+n_moms   =  6
+lx =   10.0000    
+ly =   0.00000    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+SVN_REV = 3971M               
+RELEASE = 1.6 - alpha 0
+/
+
+&units
+/
+

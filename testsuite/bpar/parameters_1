@@ -1,0 +1,142 @@
+&parallelization
+!n_procs_s =   2
+!n_procs_v =   1
+!n_procs_w =   8
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   2
+!n_procs_sim =     32
+/
+
+&box
+n_spec =    2
+nx0    =   15
+nky0   =    1
+nz0    =   24
+nv0    =   48
+nw0    =    8
+
+kymin =   0.2000    
+
+lv    =     3.00    
+lw    =     9.00    
+
+adapt_lx = T
+adapt_ly = T
+
+mu_grid_type = 'gau_lag'
+/
+
+&in_out
+diagdir = './out'
+
+read_checkpoint  = F
+write_checkpoint = F
+
+istep_field =     500
+istep_mom   =    1000
+istep_nrg   =      10
+istep_omega =      20
+istep_vsp   =    5000
+istep_schpt =    1000
+istep_energy =     50
+
+write_std = T
+/
+
+&general
+nonlinear =   F
+comp_type = 'IV'
+
+arakawa_zv =   T
+arakawa_zv_order =   4
+hypz_opt = F
+
+timescheme = 'RK4'
+dt_max     =  0.2240E-02
+
+timelim    =       1700
+ntimesteps =        200
+
+beta       =    -1
+debye2     =    0.0000000    
+bpar   =   T
+collision_op = 'none'
+
+init_cond = 'alm'
+
+hyp_x =   0.0500    
+hyp_z =    8.000    
+hyp_v =   0.2000    
+
+/
+
+&geometry
+magn_geometry = 'miller'
+major_R = 1.0
+minor_r = 0.36
+trpeps =  0.20
+kappa =   1.30
+delta =   0.150
+s_kappa = 0.05
+s_delta = 0.20
+drR  =    -0.09
+q0   =    1.80
+shat =    0.60
+amhd =    -1
+rhostar = -1
+dpdx_pm = -2
+
+/
+
+&species
+name   = 'ions'
+omn    =    3.000  
+omt    =    5.000
+
+mass   =    1.0000000    
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge =  1
+/
+
+&species
+name   = 'electrons'
+omn    =    3.00   
+omt    =    7.00
+
+mass   =    0.27244000E-03
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge = -1
+/
+
+&info
+comment = 'linear ITG/TEM, with bpar, miller'
+q0     =    1.8000000    
+step_time  =     0.0052
+number of computed time steps =     200
+time for initial value solver =      1.041
+calc_dt = T
+init_time =     3.0437
+n_fields = 3
+n_moms   =  9
+nrgcols  = 10
+lx =   6.10012    
+ly =   31.9383    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+SVN_REV = 4352M               
+RELEASE = 1.7 - alpha 0
+/
+
+&units
+Tref = 2.0
+nref = 5.0
+mref = 2.0
+Bref = 1.5
+Lref = 1.7
+/
+
+

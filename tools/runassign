@@ -1,0 +1,40 @@
+#!/bin/sh
+#renames *.dat to *_[id] where [id] can be any number or string
+#usage: runassign [id]
+
+if [[ `ls *_$1 *_${1}.dat 2> /dev/null | wc -l` -gt 0 ]]; then
+  overwrite="y"
+  echo "target already exists: overwrite (y/n)?"
+  read overwrite
+  if [ "$overwrite" != "y" ]
+  then
+    echo "exiting"
+    exit
+  fi
+fi
+
+taken_action=0
+
+if [[ `ls *.dat 2> /dev/null | wc -l` -gt 0 ]]; then
+  echo "renaming *.dat to *_${1}"
+  for file_in in *.dat
+  do
+    file_out=`echo $file_in | sed -e "s/\(.*\).dat/\1_${1}/"`
+    mv $file_in $file_out
+  done
+  taken_action=1
+fi
+
+if [[ `ls *.dat.h5 2> /dev/null | wc -l` -gt 0 ]]; then
+  echo "renaming *.dat.h5 to *_${1}.h5"
+  for file_in in *.dat.h5
+  do
+  file_out=`echo $file_in | sed -e "s/\(.*\).dat.h5/\1_${1}.h5/"`
+  mv $file_in $file_out
+  done
+  taken_action=1
+fi
+
+if [[ $taken_action -ne 1 ]]; then
+  echo "no .dat or .dat.h5 files found"
+fi

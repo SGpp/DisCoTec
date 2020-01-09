@@ -1,0 +1,34 @@
+\newpage
+\section{Frequently Asked Questions}
+
+\begin{description}
+\item[\hypertarget{hyp-advice}{What should I set the diffusivities to?}]\hspace*{1em}\\
+If a simulation makes use of an adiabatic response, is electrostatic, or has no (or very small) shear,
+\texttt{hyp\_z} should be set to the approximate linear growth rate; 
+otherwise, higher values are required and it is recommended to scale up \texttt{hyp\_z} with increasing resolution.
+This is achieved by setting negative values, where
+\texttt{hyp\_z}$=-0.5$ is a good starting point (larger absolute value increases the dissipation).
+Especially, \texttt{hyp\_z}$=-1$ is equivalent to \texttt{hyp\_z}$=4/(3\Delta z)$, 
+which mimics 3rd order upwind dissipation, however neglecting the advection prefactor. 
+\texttt{hyp\_x} can be set to zero for most cases, and \texttt{hyp\_v} = 0.2.
+In simulations with collisions, these provide a physical velocity space diffusion;
+if the collisionality is large enough, \texttt{hyp\_v} may thus be reduced.
+
+\item[How can I recover my forgotten password for the GENE repository?]\hspace*{1em}\\ 
+If you have already downloaded GENE via subversion (checkout) you can first try to have a look at 
+\verb|$HOME/.subversion/auth/svn.simple| 
+and search the files therein for 'password'. 
+If successful, the next but one line after this keyword will be your password, else visit 
+\url{https://solps-mdsplus.aug.ipp.mpg.de/passwd.html}, type your preferred user name and password combination and send the encrypted result to gene@ipp.mpg.de. 
+
+\item[Repeating a nonlinear simulation with identical initial condition]\hspace*{1em}\\
+{\em I did this exercise and got different time traces. Is this a bug?}\hspace*{1em}\\
+Both, GENE and FFTW, run some internal optimization before actually starting the simulation. Hence, the cache or MPI distribution might not be completely identical but might yield differences on the last digits. However, in a turbulence simulation even tiny deviations in the initial state can have a visible influence after some time. Hence, as long as the time averaged observables are similar there is no need for any concern. For a rigorous test, you need to fix the parallelization, the \texttt{perf\_vec}, the \texttt{nblocks} value and switch off any optimization in the FFT library, e.g., by using MKL instead of FFTW.
+
+\end{description}
+
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "gene"
+%%% End: 

@@ -1,0 +1,121 @@
+&parallelization
+!n_procs_s =   2
+!n_procs_v =   2
+!n_procs_w =   8
+!n_procs_x =   1
+!n_procs_y =   1
+!n_procs_z =   1
+!n_procs_sim =     32
+/
+
+&box
+n_spec =    2
+nx0    =   16
+nky0   =    1
+nz0    =   24
+nv0    =   48
+nw0    =    8
+
+kymin =   0.2000    
+lv    =     3.00    
+lw    =     9.00    
+adapt_lx = T
+ky0_ind =   1
+mu_grid_type = 'gau_lag'
+/
+
+&in_out
+diagdir = '/out'
+
+read_checkpoint  = F
+write_checkpoint = F
+
+istep_field =     100
+istep_mom   =     200
+istep_nrg   =     10
+istep_energy=    500
+istep_omega =     20
+istep_vsp   =    5000
+istep_schpt =    1000
+
+write_std = T
+momentum_flux=.f.
+/
+
+&general
+arakawa_zv = F
+nonlinear =   F
+comp_type = 'IV'
+!perf_vec  =  1 2 3 1 1 1 1 1 2
+!nblocks   =      36
+
+timescheme = 'RK4'
+dt_max     =   0.2780E-02
+
+timelim    =       1700
+ntimesteps =    100000
+
+beta       =   0.20000000E-01
+debye2     =    0.0000000    
+bpar       =   T
+collision_op = 'none'
+
+init_cond = 'alm'
+
+hyp_x =   0.2000    
+hyp_z =    8.000    
+hyp_v =   0.2000    
+
+/
+
+&geometry
+magn_geometry = 's_alpha'
+shat     =   0.7960
+trpeps   =   0.18000000    
+major_R  =    1.0000000    
+q0       =    1.4000000    
+/
+
+&species
+name   = 'ions'
+omn    =    2.2200000    
+omt    =    6.9200000    
+
+mass   =    1.0000000    
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge =  1
+/
+
+&species
+name   = 'electrons'
+omn    =    2.2200000    
+omt    =    6.9200000    
+
+mass   =   0.54460000E-03
+temp   =    1.0000000    
+dens   =    1.0000000    
+charge = -1
+/
+
+&info
+comment = 'linear ITG/TEM, with bpar and no arakawa_zv'
+step_time  =     0.0045
+number of computed time steps =      20
+time for initial value solver =      0.090
+calc_dt = T
+init_time =     4.9474
+n_fields = 3
+n_moms   =  9
+n_energies   =  2
+lx =  6.28141    
+ly =  31.4159    
+PRECISION  = DOUBLE
+ENDIANNESS = LITTLE
+OMP_NUM_THREADS =   1
+RELEASE = 1.6 - alpha 0
+/
+
+&units
+/
+
