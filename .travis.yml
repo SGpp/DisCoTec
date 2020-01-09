@@ -5,8 +5,7 @@ cache:
   - mpich
 before_install:
   - sh ./get_mpich.sh
-before_script:
-  - echo -e "Host gitlab.mpcdf.mpg.de\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
-  - echo -e "Host github.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+install:
+  - echo 'SHA256:Wa2jvNFwBumy0hZLgD3TykkP6OKot9nSmV4I1+Prv54' >> $HOME/.ssh/known_hosts
 script:
   - sh ./compile.sh
