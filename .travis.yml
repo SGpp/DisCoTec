@@ -3,10 +3,10 @@ language: c
 cache:
   directories:
   - mpich
-before_install:
-  - sh ./get_mpich.sh
 addons:
   ssh_known_hosts:
   - git.example.com
+before_install:
+  - sh ./get_mpich.sh
 script:
   - sh ./compile.sh
