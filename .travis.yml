@@ -5,7 +5,7 @@ cache:
   - mpich
 addons:
   ssh_known_hosts:
-  - git.example.com
+  - gitlab.mpcdf.mpg.de
 before_install:
   - sh ./get_mpich.sh
 script:
