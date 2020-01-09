@@ -9,5 +9,8 @@ addons:
   - simsgs.informatik.uni-stuttgart.de
 before_install:
   - sh ./get_mpich.sh
+before_script:
+  - echo -e "Host gitlab.mpcdf.mpg.de\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+  - echo -e "Host simsgs.informatik.uni-stuttgart.de\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
 script:
   - sh ./compile.sh
