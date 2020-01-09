@@ -1,16 +1,18 @@
-sudo: false
 language: c
 cache:
   directories:
   - mpich
+git:
+  submodules: false
 addons:
   ssh_known_hosts:
   - gitlab.mpcdf.mpg.de
   - simsgs.informatik.uni-stuttgart.de
+  packages:
+  - scons
 before_install:
   - sh ./get_mpich.sh
-before_script:
-  - echo -e "Host gitlab.mpcdf.mpg.de\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
-  - echo -e "Host simsgs.informatik.uni-stuttgart.de\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
 script:
   - sh ./compile.sh
+deploy:
+  github-token: $GITHUB_TOKEN
