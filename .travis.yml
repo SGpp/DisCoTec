@@ -6,6 +6,7 @@ cache:
 addons:
   ssh_known_hosts:
   - gitlab.mpcdf.mpg.de
+  - simsgs.informatik.uni-stuttgart.de
 before_install:
   - sh ./get_mpich.sh
 script:
