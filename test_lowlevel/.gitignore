@@ -1,8 +1,0 @@
-test_lowlevel.o*
-dependencies.mk
-nldrv
-nldrv_*
-timing.dat
-*.dot
-preproc
-obj
