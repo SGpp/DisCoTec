@@ -1,4 +1,4 @@
-language: c
+language: cpp
 git:
   submodules: false
 addons:
@@ -11,6 +11,7 @@ addons:
     - scons
     - libboost-all-dev
     - libmpich-dev
+    - boost1.67
 before_install:
   - sh ./get_mpich.sh
   - "export PYTHONPATH=$PYTHONPATH:$(pwd)"
