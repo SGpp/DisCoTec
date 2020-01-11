@@ -9,8 +9,6 @@ addons:
     packages:
     - python2.7
     - scons
-    - libboost-all-dev
-    - libmpich-dev
 before_install:
   - sh ./get_mpich.sh
   - "export PYTHONPATH=$PYTHONPATH:$(pwd)"
