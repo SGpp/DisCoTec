@@ -21,6 +21,6 @@ before_script:
   - cd $HOME
   - tar -xzvf boost_1_70_0.tar.gz >/dev/null
 script:
-  - sh ./compile.sh
+  -./compile.sh
 deploy:
   github-token: $GITHUB_TOKEN
