@@ -1,22 +1,19 @@
-matrix:
-  include:
-  - language: python
-    python: 2.7
-	
-  - language: c
-cache:
-  directories:
-  - mpich
+language: c
 git:
   submodules: false
 addons:
   ssh_known_hosts:
   - gitlab.mpcdf.mpg.de
   - simsgs.informatik.uni-stuttgart.de
-  packages:
-  - scons
+  apt:
+    packages:
+    - python2.7
+    - scons
+    - libboost-all-dev
+    - libmpich-dev
 before_install:
   - sh ./get_mpich.sh
+  - "export PYTHONPATH=$PYTHONPATH:$(pwd)"
 install:
   - sudo apt-get update -y
   - sudo apt-get install -y scons 
