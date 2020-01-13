@@ -22,6 +22,7 @@ install:
   - ./bootstrap.sh
   - ./b2 headers
   - cd -
+  - sudo apt-get install libboost-test-dev
 script:
   - sh ./compile.sh
 deploy:
