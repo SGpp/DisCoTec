@@ -397,7 +397,7 @@ if env["RUN_PYTHON_TESTS"] and env["SG_PYTHON"]:
 
 if env["COMPILE_BOOST_TESTS"]:
   proc_count = int(env["TEST_PROCESS_COUNT"])
-  run_cmd = "mpiexec.mpich -np %s " % proc_count if proc_count > 1 else ""
+  run_cmd = "mpiexec -np %s " % proc_count if proc_count > 1 else ""
   builder = Builder(action=run_cmd + "./$SOURCE")
   env.Append(BUILDERS={"BoostTest" : builder})
 

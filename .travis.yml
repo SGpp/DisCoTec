@@ -27,7 +27,5 @@ install:
   - sh ./get_mpich.sh
 script:
   - sh ./compile.sh
-  - echo $BOOST_LIBRARY_PATH
-  - echo $BOOST_INCLUDE_PATH
 deploy:
   github-token: $GITHUB_TOKEN
