@@ -4,7 +4,8 @@ CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typ
 SGPP_SRC=../src/
 THIRD_LEVEL_INC=$(SGPP_SRC)/sgpp/distributedcombigrid/third_level/
 
-INC=-I$(SGPP_SRC)
+BOOST_INC=
+INC=-I$(SGPP_SRC) $(BOOST_INC)
 
 all: thirdLevelManager
 
