@@ -18,12 +18,15 @@ before_install:
   - ./bootstrap.sh --prefix=/usr/
   - ./b2
   - sudo ./b2 install
-  - "export BOOST_LIBRARY_PATH=$BOOST_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu"
-  - "export BOOST_INCLUDE_PATH=$BOOST_INCLUDE_PATH:/usr/include"
   - cd -
+  - echo $BOOST_LIBRARY_PATH
+  - echo $BOOST_INCLUDE_PATH
+  - echo $(pwd)
 install:
   - sh ./get_mpich.sh
 script:
   - sh ./compile.sh
+  - echo $BOOST_LIBRARY_PATH
+  - echo $BOOST_INCLUDE_PATH
 deploy:
   github-token: $GITHUB_TOKEN
