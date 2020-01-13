@@ -1,7 +1,7 @@
 #ifndef ENABLEFT
 #define BOOST_TEST_DYN_LINK
 #include <mpi.h>
-#include <boost/test/unit_test.hpp>
+#include <boost/test/included/unit_test.hpp>
 #include <cmath>
 #include <complex>
 #include <cstdarg>
