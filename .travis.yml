@@ -19,9 +19,8 @@ install:
   - sudo apt-get install -y scons 
 before_script:
   - sudo apt-get update -qq
-  - wget https://sourceforge.net/projects/boost/files/boost/1.70.0/boost_1_70_0.tar.gz -P $HOME
-  - cd $HOME
-  - tar -xzvf boost_1_70_0.tar.gz >/dev/null
+  - sudo apt-get install --only-upgrade libboost-all-dev 
+  - sudo apt-get install --only-upgrade libmpich-dev
   - cd -
 script:
   - sh ./compile.sh
