@@ -17,7 +17,7 @@ install:
   - sudo apt-get update -y
   - sudo apt-get install -y scons 
   - travis_retry wget --quiet -O boost_1_72_0.tar.gz https://sourceforge.net/projects/boost/files/boost/1.72.0/boost_1_72_0.tar.gz/download
-  - tar xzvf boost_1_72_0.tar.gz 
+  - tar xzvf boost_1_72_0.tar.gz >> log.txt
   - cd boost_1_72_0
   - sudo apt-get update
   - sudo apt-get install build-essential g++ python-dev autotools-dev libicu-dev build-essential libbz2-dev libboost-all-dev
