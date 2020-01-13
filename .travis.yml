@@ -16,13 +16,16 @@ install:
   - sh ./get_mpich.sh
   - sudo apt-get update -y
   - sudo apt-get install -y scons 
-  - BOOST_URL="http://github.com/boostorg/boost.git"
-  - travis_retry git clone --depth 1 --recursive --quiet http://github.com/boostorg/boost.git || exit 1
-  - cd  boost 
-  - ./bootstrap.sh
-  - ./b2 headers
-  - cd -
+  - travis_retry wget --quiet -O boost_1_72_0.tar.gz https://sourceforge.net/projects/boost/files/boost/1.72.0/boost_1_72_0.tar.gz/download
+  - tar xzvf boost_1_72_0.tar.gz 
+  - cd boost_1_72_0
+  - sudo apt-get update
+  - sudo apt-get install build-essential g++ python-dev autotools-dev libicu-dev build-essential libbz2-dev libboost-all-dev
+  - ./bootstrap.sh --prefix=/usr/
+  - ./b2
+  - sudo ./b2 install
   - sudo apt-get install libboost-test-dev
+  - cd -
 script:
   - sh ./compile.sh
 deploy:
