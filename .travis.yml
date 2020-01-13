@@ -21,6 +21,7 @@ install:
   - cd  boost 
   - ./bootstrap.sh
   - ./b2 headers
+  - cd -
 script:
   - sh ./compile.sh
 deploy:
