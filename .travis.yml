@@ -10,18 +10,17 @@ addons:
     - python2.7
     - scons
     - libmpich-dev
-    - libboost-all-dev
 before_install:
   - "export PYTHONPATH=$PYTHONPATH:$(pwd)"
 install:
   - sh ./get_mpich.sh
   - sudo apt-get update -y
   - sudo apt-get install -y scons 
-before_script:
-  - sudo apt-get update -qq
-  - sudo apt-get install --only-upgrade libboost-all-dev 
-  - sudo apt-get install --only-upgrade libmpich-dev
-  - dpkg -s libboost-dev | grep 'Version'
+  - BOOST_URL="http://github.com/boostorg/boost.git"
+  - travis_retry git clone --depth 1 --recursive --quiet http://github.com/boostorg/boost.git || exit 1
+  - cd  boost 
+  - ./bootstrap.sh
+  - ./b2 headers
 script:
   - sh ./compile.sh
 deploy:
