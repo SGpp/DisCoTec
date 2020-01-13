@@ -1,7 +1,7 @@
 #define BOOST_TEST_DYN_LINK
 #define BOOST_TEST_MODULE SGppDistributedCombigridModule
 #include <mpi.h>
-#include <boost/test/included/unit_test.hpp>
+#include <boost/test/unit_test.hpp>
 
 struct MpiOnOff {
   MpiOnOff() { MPI_Init(NULL, NULL); }
