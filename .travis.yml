@@ -15,12 +15,12 @@ before_install:
 install:
   - sh ./get_mpich.sh
   - sudo apt-get update -y
-  - sudo apt-get install -y scons 
-  - travis_retry wget --quiet -O boost_1_72_0.tar.gz https://sourceforge.net/projects/boost/files/boost/1.72.0/boost_1_72_0.tar.gz/download
-  - tar xzvf boost_1_72_0.tar.gz >> log.txt
-  - cd boost_1_72_0
+  - sudo apt-get install -y scons
   - sudo apt-get update
-  - sudo apt-get install build-essential g++ python-dev autotools-dev libicu-dev build-essential libbz2-dev libboost-all-dev
+  - sudo apt-get install build-essential g++ python-dev autotools-dev libicu-dev build-essential libbz2-dev libboost-all-dev 
+  - travis_retry wget --quiet -O boost_1_65_1.tar.gz https://sourceforge.net/projects/boost/files/boost/1.65.1/boost_1_65_1.tar.gz/download
+  - tar xzvf boost_1_65_1.tar.gz >> log.txt
+  - cd boost_1_65_1
   - ./bootstrap.sh --prefix=/usr/
   - ./b2
   - sudo ./b2 install
