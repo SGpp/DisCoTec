@@ -231,7 +231,6 @@ class MPISystem {
    */
   void sendFailedSignal();
 
-  inline bool isInitialized() const;
 
  private:
   explicit MPISystem();
@@ -444,7 +443,7 @@ inline const CommunicatorType& MPISystem::getGlobalComm() const {
 inline const CommunicatorType& MPISystem::getLocalComm() const {
   checkPreconditions();
 
-  return localComm_;
+  return localComm_;inline bool isInitialized() const;
 }
 
 inline const CommunicatorType& MPISystem::getGlobalReduceComm() const {
@@ -538,10 +537,6 @@ inline size_t MPISystem::getNumProcs() const {
 }
 
 inline bool MPISystem::isInitialized() const { return initialized_; }
-
-inline bool MPISystem::isInitialized() const{
-  return initialized_;
-}
 
 /*
 // operators
