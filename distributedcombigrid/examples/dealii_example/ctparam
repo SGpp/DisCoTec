@@ -1,11 +1,12 @@
 [ct]
-dim = 3
-lmin = 2 2 2
-lmax =  5 5 5
-leval = 5 5 5
-p = 2 1 1
+dim = 2
+degree=1
+lmin = 8 8
+lmax = 8 8
+leval= 10 10
+p = 2 2
 ncombi = 10
-FE=FE_DGQ
+FE=FE_Q
 
 [application]
 dt = 0.1
@@ -13,4 +14,4 @@ dt = 0.1
 
 [manager]
 ngroup = 1
-nprocs = 2
+nprocs = 4

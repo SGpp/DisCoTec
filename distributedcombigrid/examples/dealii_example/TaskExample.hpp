@@ -25,10 +25,10 @@ class TaskExample : public Task {
    * own implementation. here, we add dt, and p as a new parameters.
    */
   TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-              LoadModel* loadModel,std::string filename,  real dt,  IndexVector p = IndexVector(0),
+              LoadModel* loadModel,std::string filename,  real dt, IndexVector p = IndexVector(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
-        dt_(dt),        
+        dt_(dt),   
         p_(p),
         initialized_(false),
         stepsTotal_(0),dfg_(NULL),
@@ -115,42 +115,64 @@ class TaskExample : public Task {
 
     }
    
-    int i=0;
-    double eps=5*10e-8;
+    int Nx=std::pow(2,l[0])+1;
+    int Ny=std::pow(2,l[1])+1;
+    int Nz=1;
+    if(dim==3)
+      Nz=std::pow(2,l[2])+1;
     index_mapping.resize(element_coords.size());
-
+    std::vector<int> index_sub(Nx*Ny*Nz,0);
+    
+    int z=0;
+    int x=0,y=0,linearized_index=0;
+    //index mapping is done via hashing:
+    //each point is mapped to its linearized index in the grid -> O(n)
+    
     for(unsigned int el_index=0;el_index<(element_coords.size());el_index++){
-      //Create the point for the point of combi
-      i=0;
-      Point<Problem::dim_> combi;
-      for(auto y:element_coords[el_index])
-        combi[i++]=y;
-      //loop over dealii points
-      for(unsigned int x2=(coords_dealii.size())-1;x2<numbers::invalid_unsigned_int;x2--){
-      //for(unsigned int x2=0;x2<(coords_dealii.size());x2++){
-        //create Point
-        Point<Problem::dim_> dealii;
-        i=0;
-        for(auto y:coords_dealii[x2])
-          dealii[i++]=y;
-
-        //check if the points are equal
-        if(combi.distance(dealii)<=eps)
-        {
-          index_mapping[el_index]=x2;
-          //std::cout << x2 << " ";
-          //std::cout <<"Combi Point: "<<combi << " Dealii: "<<dealii<<std::endl;
-          break;//break is bad
-        }
-      }
-    }
       
+      x=element_coords[el_index][0]*(Nx-1);
+      y=element_coords[el_index][1]*(Ny-1);      
+      if(dim==2){               
+        linearized_index=y*(Nx)+x;
+      }
+      else if(dim==3){
+        z=element_coords[el_index][2]*Nz; 
+        linearized_index=(Nx+1)*y+x+z*(Nx+1)*(Ny+1);
+      }
+      
+      if(linearized_index>=index_sub.size()){
+        std::cout << linearized_index << " ";
+        std::cout << "[" << x<<y << "]"<< element_coords[el_index][0] <<" "<< element_coords[el_index][1];
+        
+      }
+      index_sub[linearized_index]=el_index;
+    }
+    
+    //same for the deal.II points ->O(2n)
+    for(unsigned int x2=0; x2<(coords_dealii.size());x2++){
+      x=coords_dealii[x2][0]*(Nx-1);
+      y=coords_dealii[x2][1]*(Ny-1);      
+      if(dim==2){               
+        linearized_index=y*(Nx)+x;
+      }
+      else if(dim==3){
+        z=coords_dealii[x2][2]*Nz; 
+        linearized_index=(Nx+1)*y+x+z*(Nx+1)*(Ny+1);
+      }
+      //            here i get the element that has the same linearized index
+      
+      assert(linearized_index<index_sub.size());
+      index_mapping[index_sub[linearized_index]]=x2;
+    }
+    
+    
     initialized_ = true;
   }
 
   /* this is were the application code kicks in and all the magic happens.
    * do whatever you have to do, but make sure that your application uses
-   * only lcomm or a subset of it as communicator.
+  ssh pcsgs04
+  * only lcomm or a subset of it as communicator.
    * important: don't forget to set the isFinished flag at the end of the computation.
    */
 
@@ -170,11 +192,12 @@ class TaskExample : public Task {
     
       problem->set_result(old_result);
    }
+    Stats::startEvent("Task "+std::to_string(this->getID()));
     problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + 1)*dt_);
 
     //process problem
     problem->solve();
-
+    Stats::stopEvent("Task "+std::to_string(this->getID()));
     std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
     
     if(do_combine){
@@ -225,7 +248,7 @@ class TaskExample : public Task {
   real dt_;       // TODO
   
   size_t size_result;
-  std::vector<Number> index_mapping;
+  std::vector<int> index_mapping;
   IndexVector p_;
   std::shared_ptr<Problem> problem;
 
@@ -234,7 +257,6 @@ class TaskExample : public Task {
   size_t stepsTotal_;
   DistributedFullGrid<CombiDataType>* dfg_;
   std::string _filename;
-
   /**
    * The serialize function has to be extended by the new member variables.
    * However this concerns only member variables that need to be exchanged

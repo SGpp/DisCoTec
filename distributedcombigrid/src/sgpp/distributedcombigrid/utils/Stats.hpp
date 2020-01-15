@@ -14,7 +14,7 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 
 /* comment this line to switch of timing */
-//#define TIMING
+#define TIMING
 
 namespace combigrid {
 
@@ -97,7 +97,7 @@ class Stats {
   static std::unordered_map<std::string, std::string> attributes_;
 };
 
-#ifdef TIMING
+//#ifdef TIMING
 inline void Stats::initialize() {
   assert(!initialized_);
 
@@ -222,7 +222,7 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
   MPI_File_write_at_all(fh, pos, buffer.str().c_str(), (int)len, MPI_CHAR, MPI_STATUS_IGNORE);
   MPI_File_close(&fh);
 }
-#else
+/*#else
 inline void Stats::initialize() {}
 inline void Stats::finalize() {}
 inline void Stats::startEvent(const std::string& name) {
@@ -230,7 +230,7 @@ inline void Stats::startEvent(const std::string& name) {
 }
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {}
 inline void Stats::write(const std::string& path, CommunicatorType comm) {}
-#endif
+#endif */
 
 inline const Stats::Event Stats::stopEvent(const std::string& name) {
   // check if event is not stopped already
