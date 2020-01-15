@@ -13,6 +13,7 @@ before_install:
   - "export PYTHONPATH=$PYTHONPATH:$(pwd)"
   - echo $PYTHONPATH
   - sudo apt-get install libmpich-dev
+  - mpiexec --version
   - travis_retry wget --quiet -O boost_1_65_1.tar.gz https://sourceforge.net/projects/boost/files/boost/1.65.1/boost_1_65_1.tar.gz/download
   - tar xzvf boost_1_65_1.tar.gz >> log.txt
   - cd boost_1_65_1
@@ -20,10 +21,6 @@ before_install:
   - ./b2
   - sudo ./b2 install
   - cd -
-  - sh ./get_mpich.sh
-  - "export PATH=$PATH:$(pwd)/mpich/bin"
-  - which mpich
-  - which mpiexec
 script:
   - sh ./compile.sh
 deploy:
