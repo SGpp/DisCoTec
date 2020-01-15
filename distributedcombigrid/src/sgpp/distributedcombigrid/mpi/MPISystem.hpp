@@ -443,7 +443,7 @@ inline const CommunicatorType& MPISystem::getGlobalComm() const {
 inline const CommunicatorType& MPISystem::getLocalComm() const {
   checkPreconditions();
 
-  return localComm_;inline bool isInitialized() const;
+  return localComm_;
 }
 
 inline const CommunicatorType& MPISystem::getGlobalReduceComm() const {
