@@ -1,12 +1,11 @@
 [ct]
-dim = 2
-lmin = 2 2 
-lmax = 4 5
-leval = 5 5
-p = 1 1
+dim = 3
+lmin = 2 2 2
+lmax =  5 5 5
+leval = 5 5 5
+p = 2 1 1
 ncombi = 10
 FE=FE_DGQ
-
 
 [application]
 dt = 0.1
@@ -14,4 +13,4 @@ dt = 0.1
 
 [manager]
 ngroup = 1
-nprocs = 1
+nprocs = 2

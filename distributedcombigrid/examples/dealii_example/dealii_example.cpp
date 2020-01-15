@@ -25,7 +25,7 @@
 
 //TODO: global variables needed in hyperdeal
 typedef double Number;
-const unsigned int dim    = 2;
+const unsigned int dim    = 3;
 const unsigned int degree = 1; /*dummy value*/
 typedef dealii::VectorizedArray<Number, 1> VectorizedArrayType;
 typedef dealii::LinearAlgebra::distributed::Vector<Number> VectorType;
@@ -178,30 +178,41 @@ int main(int argc, char** argv) {
     /* distribute task according to load model and start computation for
      * the first time */
     Stats::startEvent("manager run first");
+    std::chrono::high_resolution_clock::time_point start_first=std::chrono::high_resolution_clock::now();
     manager.runfirst();
+    std::chrono::high_resolution_clock::time_point now=std::chrono::high_resolution_clock::now();
+    std::chrono::nanoseconds duration=std::chrono::duration_cast<std::chrono::nanoseconds>(now - start_first);
+    std::cout << "time duration:"<< duration.count();
     Stats::stopEvent("manager run first");
-
+    
+    std::chrono::nanoseconds duration_combination=std::chrono::nanoseconds::zero();
     for (size_t i = 0; i < ncombi; ++i) {
       Stats::startEvent("combine");
+      now=std::chrono::high_resolution_clock::now();
       manager.combine();
+      duration_combination+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - now);
       Stats::stopEvent("combine");
 
       // evaluate solution and
       // write solution to file
-      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
+      std::string filename("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/cs"  +"mi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ev_"+toString(leval)+".dat");
       Stats::startEvent("manager write solution");
-      std::cout <<"now paral";
       manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");
 
-      std::cout << "run until combination point " << i + 1 << std::endl;
 
       // run tasks for next time interval
       Stats::startEvent("manager run");
+      now=std::chrono::high_resolution_clock::now();
       manager.runnext();
+      duration+=std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now() - now);
       Stats::stopEvent("manager run");
+      table.print(false);
     }
-
+    std::cout << "Overall time duration (in nanosec):"<< duration.count() << std::endl;
+    std::cout << "Overall time duration of combination (in nanosec):"<< duration_combination.count() << std::endl;
+    //table.stop_and_set("time->fullgrid");
+    table.print(false);
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
     {

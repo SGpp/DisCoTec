@@ -203,7 +203,7 @@ class TaskEnsemble : public Task {
         //iterate here over all points of this grid
         for(unsigned int l = 0; l < elements.size(); l++) {       
 
-          old_result[index_mapping[i][l]][Problem::dim_]=elements[l].real();
+          old_result[index_mapping[i][l]][Problem::dim_]=elements[l];
           //old_result[index_mapping[i][l]][Problem::dim_+1]=i;
         }
       }
@@ -224,15 +224,13 @@ class TaskEnsemble : public Task {
   
         //iterate over the elements of this dfg
         for(unsigned int l=0; l<elements.size(); l++){
+          //TODO: missing values at boundary
           elements[l]=result[index_mapping[i][l]][Problem::dim_];
 
         }
       }          
     }
     stepsTotal_ ++;
-
-    // TODO if your Example uses another data structure, you need to copy
-    // the data from that data structure to elements/dfg_
 
     this->setFinished(true);
   }

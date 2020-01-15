@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
 
       // evaluate solution and
       // write solution to file
-      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
+      std::string filename("out/solution_" + std::to_string(i) + ".out");
       Stats::startEvent("manager write solution");
       std::cout <<"now paral";
       manager.parallelEval(leval, filename, 0);

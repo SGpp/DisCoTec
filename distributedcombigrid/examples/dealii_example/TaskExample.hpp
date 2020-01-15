@@ -157,6 +157,7 @@ class TaskExample : public Task {
   
   void run(CommunicatorType lcomm) {
     assert(initialized_);
+    table.start("time->fullgrid");
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     
     
@@ -165,7 +166,7 @@ class TaskExample : public Task {
    if(stepsTotal_>0 && do_combine)
    {
       for(unsigned int i = 0; i < index_mapping.size(); i++)
-        old_result[index_mapping[i]][Problem::dim_]=elements[i].real();
+        old_result[index_mapping[i]][Problem::dim_]=elements[i];
     
       problem->set_result(old_result);
    }
@@ -182,7 +183,7 @@ class TaskExample : public Task {
     }
     
     stepsTotal_ ++;
-
+    table.stop("time->fullgrid");
     
     this->setFinished(true);
   }
