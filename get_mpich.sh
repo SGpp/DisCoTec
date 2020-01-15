@@ -8,7 +8,7 @@ else
   echo "configuring and building mpich."
   cd mpich-3.2
   ./configure \
-          --prefix=`pwd`/../mpich \
+          --prefix=`pwd`/mpich \
           --enable-static=false \
           --enable-alloca=true \
           --disable-long-double \
@@ -20,7 +20,6 @@ else
   make -j4
   make install
   cd -
-  rm -rf mpich-3.2
 fi
 
 
