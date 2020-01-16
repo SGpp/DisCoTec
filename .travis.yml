@@ -19,7 +19,9 @@ before_install:
   - ./bootstrap.sh 
   - ./b2
   - sudo ./b2 install
+  - ls
   - cd -
+  - ls
 script:
   - sh ./compile.sh
 deploy:
