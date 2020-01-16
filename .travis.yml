@@ -20,8 +20,6 @@ before_install:
   - ./b2
   - sudo ./b2 install
   - ls
-  - cd boost_1_65_1
-  - ls
   - cd ../../../../../..
   - ls
   - cd usr/local/lib
