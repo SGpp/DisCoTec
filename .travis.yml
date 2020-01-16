@@ -13,15 +13,12 @@ addons:
     - libmpich-dev
 before_install:
   - "export PYTHONPATH=$PYTHONPATH:$(pwd)"
-  - echo $PYTHONPATH
-  - mpiexec --version
   - travis_retry wget --quiet -O boost_1_65_1.tar.gz https://sourceforge.net/projects/boost/files/boost/1.65.1/boost_1_65_1.tar.gz/download
   - tar xzvf boost_1_65_1.tar.gz >> log.txt
   - cd boost_1_65_1
   - ./bootstrap.sh 
   - ./b2
   - sudo ./b2 install
-  - "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/boost_1_65_1/boost/lib"
   - cd -
 script:
   - sh ./compile.sh
