@@ -15,15 +15,15 @@ class LoadModel {
   virtual ~LoadModel() = default;
 
   /**
-   * Calculates the expected load of a task.
+   * Calculates the expected load of a given task.
    *
    * The calculated load is in no specific unit. However, the 
    * "greater than"-relation for two tasks has to be correct.
    *
-   * @param l The level vector corresponding to a task.
+   * @param lvlVec The level vector corresponding to the task.
    * @returns Expected load of the given task.
    */
-  virtual real eval(const LevelVector& l) = 0;
+  virtual real eval(const LevelVector& lvlVec) = 0;
 
 };
 

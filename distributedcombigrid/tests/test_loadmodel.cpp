@@ -6,7 +6,7 @@
 #include <random>
 #include <thread>
 
-#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/AveragingLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
@@ -34,14 +34,14 @@ void testDataSave(int size) {
     for (long int i = 0; i < ngroup; ++i) {
       lvv.push_back({i});
     }
-    auto loadModel = std::unique_ptr<LoadModel>(new LearningLoadModel(lvv));
+    auto loadModel = std::unique_ptr<LoadModel>(new AveragingLoadModel(lvv));
     for (size_t j = 0; j < 600; ++j) {
       for (size_t i = 0; i < ngroup; ++i) {
-        durationInformation recvbuf;
+        DurationInformation recvbuf;
         MPI_Status stat;
         MPIUtils::receiveClass(&recvbuf, MPI_ANY_SOURCE, theMPISystem()->getGlobalComm());
         if (LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel.get())) {
-          llm->addDataPoint(recvbuf, lvv.at(recvbuf.task_id)); 
+          llm->addDurationInformation(recvbuf, lvv.at(recvbuf.task_id)); 
         }
       }
     }
@@ -59,7 +59,7 @@ void testDataSave(int size) {
 
     Stats::Event e = Stats::Event();
     e.end = e.start + std::chrono::microseconds(d);
-    durationInformation info = {TestHelper::getRank(comm), Stats::getEventDurationInUsec(e), 12.34, 0.00001, 1234, nprocs};
+    DurationInformation info = {TestHelper::getRank(comm), Stats::getEventDurationInUsec(e), 12.34, 0.00001, 1234, nprocs};
     // MPI_Request request;
     // send durationInfo to manager
     for (size_t i = 0; i < 600; ++i) { 

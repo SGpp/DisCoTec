@@ -3,6 +3,7 @@
 #include <iostream>
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 
 namespace combigrid {
 
@@ -44,12 +45,12 @@ void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurations
     numDurationsToReceive = tasks_.size();
   }
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
-    durationInformation recvbuf;
+    DurationInformation recvbuf;
 
     MPIUtils::receiveClass(&recvbuf, MPI_ANY_SOURCE, theMPISystem()->getGlobalComm());
     
     if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
-      llm->addDataPoint(recvbuf, getLevelVectorFromTaskID(tasks_, recvbuf.task_id));
+      llm->addDurationInformation(recvbuf, getLevelVectorFromTaskID(tasks_, recvbuf.task_id));
     }
   }
 }

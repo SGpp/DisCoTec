@@ -92,7 +92,7 @@ class ProcessGroupWorker {
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
 
-  void processDuration(const Task& t, const Stats::Event e, size_t numProcs);
+  void processDuration(const Task& t, const Stats::Event e);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }

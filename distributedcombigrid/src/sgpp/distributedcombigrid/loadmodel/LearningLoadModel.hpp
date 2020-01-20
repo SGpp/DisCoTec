@@ -12,18 +12,19 @@ namespace combigrid {
  * This POD only contains fields that change over the runtime of the simulation.
  */
 struct DurationInformation {
-  long unsigned int duration;
+  int task_id; /**< included for easy identification of corresponding task */
+  unsigned long duration;
   real simtime_now;
   real real_dt;
   int pgroup_id;
-  uint nProcesses;
+  unsigned int nProcesses;
 
   /**
-   * Function to serialize the struct into the given archive. It is used to 
-   * send this POD via an MPI message.
+   * Function to serialize the struct. See "Boost Serialization".
    */
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
+    ar & task_id;
     ar & duration;
     ar & simtime_now;
     ar & real_dt;
@@ -39,12 +40,13 @@ struct DurationInformation {
  */
 class LearningLoadModel : public LoadModel {
  public:
+  virtual ~LearningLoadModel() = default;
 
   /**
    * Adds duration information about a task.
    *
-   * @param info the duration information to add
-   * @param lvlVec the level vector of the task to add the information to
+   * @param info The duration information to add.
+   * @param lvlVec The level vector of the task to add the information to.
    */
   virtual void addDurationInformation(DurationInformation info, 
                                       LevelVector lvlVec) = 0;
