@@ -2,7 +2,7 @@
 #define LOADMODEL_HPP_
 
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
-#include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "sgpp/distributedcombigrid/utils/Config.hpp"
 
 namespace combigrid {
 
