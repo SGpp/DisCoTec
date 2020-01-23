@@ -1,5 +1,9 @@
 #include "sgpp/distributedcombigrid/rescheduler/RebalancingTaskRescheduler.hpp"
 
+#include <algorithm>
+#include <numeric>
+#include <map>
+
 namespace combigrid {
 
 std::vector<std::pair<LevelVector, int>> RebalancingTaskRescheduler::eval(
