@@ -48,9 +48,9 @@ class RebalancingTaskRescheduler : public TaskRescheduler {
    *          its level vector) has to be moved to the process group (defined 
    *          by its process group id).
    */
-  virtual std::vector<std::pair<LevelVector, int>> eval(
+  std::vector<std::pair<LevelVector, int>> eval(
       const std::map<LevelVector, int>& levelVectorToProcessGroupIndex,
-      const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration);
+      const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration) override;
 
  private:
   std::shared_ptr<SpecificUOTLearningLoadModel> sllm_;

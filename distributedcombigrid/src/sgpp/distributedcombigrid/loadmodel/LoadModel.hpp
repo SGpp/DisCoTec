@@ -24,7 +24,6 @@ class LoadModel {
    * @returns Expected load of the given task.
    */
   virtual real eval(const LevelVector& lvlVec) = 0;
-
 };
 
 } /* namespace combigrid */

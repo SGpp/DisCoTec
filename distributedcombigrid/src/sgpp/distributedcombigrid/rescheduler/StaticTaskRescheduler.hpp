@@ -21,9 +21,9 @@ class StaticTaskRescheduler : public TaskRescheduler {
    *                                  run function.
    * @returns An empty vector.
    */
-  virtual std::vector<std::pair<LevelVector, int>> eval(
+  std::vector<std::pair<LevelVector, int>> eval(
       const std::map<LevelVector, int>& levelVectorToProcessGroupIndex,
-      const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration) {
+      const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration) override {
     return {};
   }
 };

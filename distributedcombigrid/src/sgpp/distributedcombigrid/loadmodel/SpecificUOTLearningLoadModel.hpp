@@ -17,15 +17,14 @@ namespace combigrid {
 class SpecificUOTLearningLoadModel : public LearningLoadModel {
  public:
 
-   /**
-    * Calculates the expected load of a given task in microseconds.
-    *
-    * @param lvlVec The level vector corresponding to the task.
-    * @returns Expected load of the given task. For consistency; if no accurate 
-    *          calculation is possible return 0 seconds.
-    */
-   virtual std::chrono::microseconds evalSpecificUOT(const LevelVector& lvlVec) = 0;
-
+  /**
+   * Calculates the expected load of a given task in microseconds.
+   *
+   * @param lvlVec The level vector corresponding to the task.
+   * @returns Expected load of the given task. For consistency; if no accurate 
+   *          calculation is possible return 0 seconds.
+   */
+  virtual std::chrono::microseconds evalSpecificUOT(const LevelVector& lvlVec) = 0;
 };
 
 } /* namespace combigrid */
