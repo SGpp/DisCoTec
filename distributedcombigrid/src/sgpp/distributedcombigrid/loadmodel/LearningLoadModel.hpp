@@ -12,7 +12,7 @@ namespace combigrid {
  * This POD only contains fields that change over the runtime of the simulation.
  */
 struct DurationInformation {
-  int task_id; /**< included for easy identification of corresponding task */
+  int task_id; /**< included for easy identification of the corresponding task */
   unsigned long duration;
   real simtime_now;
   real real_dt;
@@ -40,7 +40,6 @@ struct DurationInformation {
  */
 class LearningLoadModel : public LoadModel {
  public:
-  virtual ~LearningLoadModel() = default;
 
   /**
    * Adds duration information about a task.
