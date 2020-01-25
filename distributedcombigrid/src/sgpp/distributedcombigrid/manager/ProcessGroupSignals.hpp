@@ -27,6 +27,20 @@ const SignalType PARALLEL_EVAL = 17;
 const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
 
+/**
+ * Signal for adding a task for rescheduling.
+ *
+ * Call only after combine and before run_next.
+ */
+const SignalType RESCHEDULE_ADD_TASK = 20;
+
+/**
+ * Signal for removing a task for rescheduling.
+ *
+ * Call only after combine and before run_next.
+ */
+const SignalType RESCHEDULE_REMOVE_TASK = 21;
+
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
 const NormalizationType L1_NORMALIZATION = 1;
