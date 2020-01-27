@@ -1,4 +1,4 @@
-#ifndef ENABLEFT
+#ifdef RUN_BOOST_TESTS
 #define BOOST_TEST_DYN_LINK
 #include <mpi.h>
 #include <boost/test/unit_test.hpp>

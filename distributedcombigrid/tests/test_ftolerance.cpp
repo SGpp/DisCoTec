@@ -2,6 +2,11 @@
 #include <mpi.h>
 #include <vector>
 #include <set>
+#include <cmath>
+#include <complex>
+#include <cstdarg>
+#include <iostream>
+#include <vector>
 #include <boost/test/unit_test.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/ini_parser.hpp>
@@ -201,9 +206,9 @@ BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
 
 
-void checkFtolerance(double l0err, double l2err, int nfaults,int iteration_faults, int global_rank_faults) {
+void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, size_t ncombi, int nfaults,int iteration_faults, int global_rank_faults) {
   
-  int size = 7;
+  int size = useFG ? 2 : 7;
 
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
@@ -212,19 +217,15 @@ void checkFtolerance(double l0err, double l2err, int nfaults,int iteration_fault
 
   combigrid::Stats::initialize();
 
-  size_t ngroup = 6;
+  size_t ngroup = useFG ? 1 : 6;
   size_t nprocs = 1;
   DimType dim = 2;
-  LevelVector lmin(dim,3), lmax(dim,6), leval(dim,6);
-  size_t ncombi = 3;
+  LevelVector lmin(dim, useFG ? 6 : 3);
+  LevelVector lmax(dim,6), leval(dim,6);
+  //size_t ncombi = 3;
   size_t nsteps = 1;
-  combigrid::real dt = 0.01;
-  FaultsInfo faultsInfo;
-  faultsInfo.numFaults_ = nfaults;
-  IndexVector glob_ranks(nfaults,global_rank_faults);
-  IndexVector it_fault(nfaults,iteration_faults);
-  faultsInfo.globalRankFaults_ = glob_ranks;
-  faultsInfo.iterationFaults_ = it_fault;
+  combigrid::real dt = useFG ? 0.0001 : 0.01;
+
   std::vector<bool> boundary(dim,true);
   theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
 
@@ -239,7 +240,17 @@ void checkFtolerance(double l0err, double l2err, int nfaults,int iteration_fault
   
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
+
+ #ifdef ENABLEFT
+  FaultsInfo faultsInfo;
+  faultsInfo.numFaults_ = nfaults;
+  IndexVector glob_ranks(nfaults,global_rank_faults);
+  IndexVector it_fault(nfaults,iteration_faults);
+  faultsInfo.globalRankFaults_ = glob_ranks;
+  faultsInfo.iterationFaults_ = it_fault;
   combischeme.makeFaultTolerant();
+  #endif
+
   std::vector<LevelVector> levels = combischeme.getCombiSpaces();
   std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
@@ -255,28 +266,30 @@ void checkFtolerance(double l0err, double l2err, int nfaults,int iteration_fault
    TaskContainer tasks;
     std::vector<int> taskIDs;
 
-    for (size_t i = 0; i < levels.size(); i++) {
-      //create FaultCriterion
-      FaultCriterion *faultCrit;
-      //create fault criterion
-      if(faultsInfo.numFaults_ < 0){ //use random distributed faults
-        //if numFaults is smallerthan 0 we use the absolute value
-        //as lambda value for the weibull distribution
-        faultCrit = new WeibullFaults(0.7, abs(faultsInfo.numFaults_), ncombi, true);
+    #ifdef ENABLEFT
+      for (size_t i = 0; i < levels.size(); i++) {
+        //create FaultCriterion
+        FaultCriterion *faultCrit;
+        //create fault criterion
+        if(faultsInfo.numFaults_ < 0){ //use random distributed faults
+          //if numFaults is smallerthan 0 we use the absolute value
+          //as lambda value for the weibull distribution
+          faultCrit = new WeibullFaults(0.7, abs(faultsInfo.numFaults_), ncombi, true);
+        }
+        else{ //use predefined static number and timing of faults
+          //if numFaults = 0 there are no faults
+          faultCrit = new StaticFaults(faultsInfo);
+        }
+      Task* t = new TaskAdvFDM( levels[i], boundary, coeffs[i], 
+                                loadmodel.get(), dt, nsteps, faultCrit);
+        tasks.push_back(t);
+        taskIDs.push_back(t->getID());
       }
-      else{ //use predefined static number and timing of faults
-        //if numFaults = 0 there are no faults
-        faultCrit = new StaticFaults(faultsInfo);
-      }
-     Task* t = new TaskAdvFDM( levels[i], boundary, coeffs[i], 
-                              loadmodel.get(), dt, nsteps, faultCrit);
-      tasks.push_back(t);
-      taskIDs.push_back(t->getID());
-    }
 
-    /* create combi parameters */
+      /* create combi parameters */
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
     
+        
     /* create Manager with process groups */
     //ProcessManager manager( pgroups, tasks, params );
      ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
@@ -351,6 +364,35 @@ for (size_t i = 1; i < ncombi; ++i){
       /* run tasks for next time interval */
       success = manager.runnext();
     }
+    #else
+      for (size_t i = 0; i < levels.size(); i++) {
+      Task* t = new TaskAdvFDM(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps);
+      tasks.push_back(t);
+      taskIDs.push_back(t->getID());
+    }
+    // create combiparameters
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
+
+    // create abstraction for Manager
+    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+
+    // the combiparameters are sent to all process groups before the
+    // computations start
+    manager.updateCombiParameters();
+
+    /* distribute task according to load model and start computation for
+     * the first time */
+    manager.runfirst();
+
+    for (size_t it = 0; it < ncombi; ++it) {
+      if (useCombine) {
+        manager.combine();
+      }
+      manager.runnext();
+    }
+    #endif
+
+
 // evaluate solution
     FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
     manager.gridEval(fg_eval);
@@ -383,7 +425,7 @@ else {
     while (signal != EXIT) 
       signal = pgroup.wait();
   }
-  printf("enable ft is : %d\n", ENABLE_FT);
+  #if ENABLEFT
   if( ENABLE_FT ){
     WORLD_MANAGER_EXCLUSIVE_SECTION{
       std::cout << "Program finished successfully" << std::endl;
@@ -393,15 +435,47 @@ else {
     }
      //simft::Sim_FT_MPI_Finalize();
   }
-
+  #endif
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
 }
 
 BOOST_AUTO_TEST_SUITE(ftolerance)
 
+#ifdef ENABLEFT
 BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(20)) {
-  checkFtolerance(0.295448, 2.283454,1,1,3);
+  checkFtolerance(false, false, 0.295448, 2.283454, 3, 1, 1, 3);
+}
+#else
+BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
+  // use recombination
+  checkFtolerance(true, false, 0.973230, 7.820831,100, 0, 0, 0);
 }
 
+BOOST_AUTO_TEST_CASE(test_2, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
+  // don't use recombination
+  checkFtolerance(false, false, 1.428688, 10.692053,100, 0, 0, 0);
+}
+
+BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(80)) {
+  // calculate solution on fullgrid
+  checkFtolerance(false, true, 0.060661, 0.350710, 100, 0, 0, 0);
+  MPI_Barrier(MPI_COMM_WORLD);
+}
+
+BOOST_AUTO_TEST_CASE(test_4, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
+  // use recombination
+  checkFtolerance(true, false, 0.043363, 0.300988, 0, 0, 0, 0);
+}
+
+BOOST_AUTO_TEST_CASE(test_5, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
+  // don't use recombination
+  checkFtolerance(false, false, 0.043363, 0.300988,0, 0, 0, 0);
+}
+
+BOOST_AUTO_TEST_CASE(test_6, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(80)) {
+  // calculate solution on fullgrid
+  checkFtolerance(false, true, 0.000623, 0.003553,0, 0, 0, 0);
+}
+#endif
 BOOST_AUTO_TEST_SUITE_END()
