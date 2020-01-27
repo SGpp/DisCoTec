@@ -5,6 +5,7 @@
 #include <map>
 
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 
 namespace combigrid {
 
@@ -20,6 +21,8 @@ class TaskRescheduler {
    * @param levelVectorToProcessGroupIndex The current task distribution.
    * @param levelVectorToTaskDuration The last measured durations of the tasks 
    *                                  run function.
+   * @param loadModel The load model to use for the prognosis of future task 
+   *                  loads.
    * @returns Vector of pair with level vector and process group. To realize 
    *          the calculated optimized task distribution; the task (defined by 
    *          its level vector) has to be moved to the process group (defined 
@@ -27,7 +30,8 @@ class TaskRescheduler {
    */
   virtual std::vector<std::pair<LevelVector, int>> eval(
       const std::map<LevelVector, int>& levelVectorToProcessGroupIndex,
-      const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration) = 0;
+      const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration,
+      LoadModel *loadModel) = 0;
 };
 
 } /* namespace combigrid */

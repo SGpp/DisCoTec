@@ -19,6 +19,16 @@ namespace combigrid {
 template<typename LM = LinearLoadModel>
 class AverageOfLastNLoadModel : public SpecificUOTLearningLoadModel {
  public:
+  /**
+   * The constructor for this load model.
+   *
+   * @param n Count of past runtimes to be used for the calculation of the load 
+   *          prognosis.
+   * @param tasks The level vectors of all tasks in this simulation.
+   * @param loadModelIfNoHistory The load model used for the calculation of 
+   *                             LoadModel::eval when no past duration 
+   *                             information is available.
+   */
   AverageOfLastNLoadModel(unsigned int n, std::vector<LevelVector> tasks, 
                           LM loadModelIfNoHistory = {});
 

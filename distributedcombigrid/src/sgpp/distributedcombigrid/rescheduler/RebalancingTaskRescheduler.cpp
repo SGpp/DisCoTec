@@ -8,7 +8,16 @@ namespace combigrid {
 
 std::vector<std::pair<LevelVector, int>> RebalancingTaskRescheduler::eval(
     const std::map<LevelVector, int>& levelVectorToProcessGroupIndex,
-    const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration) {
+    const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration,
+    LoadModel *loadModel) {
+
+  SpecificUOTLearningLoadModel *sllm = dynamic_cast<SpecificUOTLearningLoadModel *>(loadModel);
+
+  assert(sllm);
+  if (!sllm) {
+    // abort scheduling
+    return {};
+  }
 		
 	unsigned int iteration = 0;
 
@@ -65,7 +74,7 @@ std::vector<std::pair<LevelVector, int>> RebalancingTaskRescheduler::eval(
     for (const auto& t : levelVectorToProcessGroupIndexMutCopy) {
       if (slowestGroup.first == levelVectorToProcessGroupIndexMutCopy[t.first]) {
         levelVectorToPrognosisOfTaskDurationsOfSlowestProcessGroup.insert(
-            {t.first, this->sllm_->evalSpecificUOT(t.first).count()}); // use load model for prognosis
+            {t.first, sllm->evalSpecificUOT(t.first).count()}); // use load model for prognosis
       }
     }
 

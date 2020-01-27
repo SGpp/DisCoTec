@@ -15,20 +15,17 @@ namespace combigrid {
 class RebalancingTaskRescheduler : public TaskRescheduler {
  public:
   /**
-   * Constructor for a rebalancing task rescheduler with the specific UOT load 
-   * model to use.
+   * Constructor for a rebalancing task rescheduler with specific scheduling 
+   * parameters.
    *
-   * @param sllm The load model to use for prognosis of future task loads.
    * @param max_iterations The maximum of allowed iterations. In every 
    *                       iteration a maximum of one task is going to be able 
    *                       to be rescheduled.
    * @param min_inbalance The minimum of load inbalance necessary to start the 
    *                      search for a task to reschedule.
    */
-  RebalancingTaskRescheduler(std::shared_ptr<SpecificUOTLearningLoadModel> sllm,
-                             unsigned int max_iterations,
+  RebalancingTaskRescheduler(unsigned int max_iterations,
                              double min_inbalance) : 
-    sllm_{sllm}, 
     max_iterations_{max_iterations}, 
     min_inbalance_{min_inbalance} 
   {};
@@ -43,6 +40,9 @@ class RebalancingTaskRescheduler : public TaskRescheduler {
    * @param levelVectorToProcessGroupIndex The current task distribution.
    * @param levelVectorToTaskDuration The last measured durations of the tasks 
    *                                  run function.
+   * @param loadModel The load model to use for the prognosis of future task 
+   *                  loads. Needs to be a instance of SpecificUOTLearningLoadModel 
+   *                  otherwise the scheduling is aborted.
    * @returns Vector of pair with level vector and process group. To realize 
    *          the calculated optimized task distribution; the task (defined by 
    *          its level vector) has to be moved to the process group (defined 
@@ -50,10 +50,10 @@ class RebalancingTaskRescheduler : public TaskRescheduler {
    */
   std::vector<std::pair<LevelVector, int>> eval(
       const std::map<LevelVector, int>& levelVectorToProcessGroupIndex,
-      const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration) override;
+      const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration,
+      LoadModel *loadModel) override;
 
  private:
-  std::shared_ptr<SpecificUOTLearningLoadModel> sllm_;
   unsigned int max_iterations_;
   double min_inbalance_;
 };
