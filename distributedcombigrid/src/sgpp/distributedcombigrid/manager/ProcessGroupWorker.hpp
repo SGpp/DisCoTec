@@ -93,6 +93,9 @@ class ProcessGroupWorker {
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
 
   void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);
+
+  void updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids);
+
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }

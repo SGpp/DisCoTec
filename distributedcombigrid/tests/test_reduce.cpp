@@ -32,7 +32,7 @@ class TaskConst : public combigrid::Task {
   TaskConst(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel)
       : Task(2, l, boundary, coeff, loadModel){}
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
+  void init(CommunicatorType lcomm, long currentCombination, std::vector<IndexVector> decomposition) {
     // parallelization
     // assert(dfg_ == nullptr);
     long nprocs = getCommSize(lcomm);

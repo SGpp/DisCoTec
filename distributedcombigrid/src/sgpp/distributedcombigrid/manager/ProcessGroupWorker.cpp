@@ -216,6 +216,36 @@ SignalType ProcessGroupWorker::wait() {
       parallelEval();
       Stats::stopEvent("parallel eval");
     } break;
+    case RESCHEDULE_ADD_TASK: {
+      assert(currentTask_ == nullptr);
+
+      initializeTaskAndFaults(); // receive and initalize new task
+			// now the variable currentTask_ contains the newly received task
+      currentTask_->setZero();
+      updateTaskWithCurrentValues(*currentTask_, combiParameters_.getNumGrids());
+      currentTask_->setFinished(true);
+      currentTask_ = nullptr;
+		} break;
+    case RESCHEDULE_REMOVE_TASK: {
+      assert(currentTask_ == nullptr);
+
+      int taskID;
+      MASTER_EXCLUSIVE_SECTION {
+        MPI_Recv(&taskID, 1, MPI_INT, theMPISystem()->getManagerRank(), 0, 
+                 theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+      }
+			MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(), 
+                theMPISystem()->getLocalComm());
+
+      // search for task and remove
+			for(size_t i=0; i < tasks_.size(); ++i) {
+        if (tasks_[i]->getID() == taskID) {
+          delete(tasks_[i]);
+          tasks_.erase(tasks_.begin() + i);
+          break;  // only one task has the taskID
+        }
+      }
+    } break;
     default: { assert(false && "signal not implemented"); }
   }
   if (isGENE) {
@@ -493,27 +523,7 @@ void ProcessGroupWorker::combineUniform() {
   Stats::startEvent("combine dehierarchize");
 
   for (Task* t : tasks_) {
-    for (int g = 0; g < numGrids; g++) {
-      // get handle to dfg
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-
-      // extract dfg vom dsg
-      dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-
-      // dehierarchize dfg
-      DistributedHierarchization::dehierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims());
-
-      // std::vector<CombiDataType> datavector(dfg.getElementVector());
-      // afterCombi = datavector;
-      // if exceeds normalization limit, normalize dfg with global max norm
-      /*
-      if( globalMax > 1000 ){
-        dfg.mul( 1.0 / globalMax );
-        std::cout << "normalized dfg with " << globalMax << std::endl;
-      }
-      */
-    }
+    updateTaskWithCurrentValues(*t, numGrids);
   }
   Stats::stopEvent("combine dehierarchize");
 
@@ -701,7 +711,7 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
 
   // initalize task
   Stats::startEvent("task init in worker");
-  currentTask_->init(theMPISystem()->getLocalComm());
+  currentTask_->init(theMPISystem()->getLocalComm(), currentCombi_);
   t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
   Stats::stopEvent("task init in worker");
 }
@@ -752,6 +762,30 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
     DistributedHierarchization::dehierarchize<CombiDataType>(
         dfg, combiParameters_.getHierarchizationDims());
   }
+}
+
+void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids) {
+    for (int g = 0; g < numGrids; g++) {
+      // get handle to dfg
+      DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(g);
+
+      // extract dfg vom dsg
+      dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
+
+      // dehierarchize dfg
+      DistributedHierarchization::dehierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims());
+
+      // std::vector<CombiDataType> datavector(dfg.getElementVector());
+      // afterCombi = datavector;
+      // if exceeds normalization limit, normalize dfg with global max norm
+      /*
+      if( globalMax > 1000 ){
+        dfg.mul( 1.0 / globalMax );
+        std::cout << "normalized dfg with " << globalMax << std::endl;
+      }
+      */
+    }
 }
 
 } /* namespace combigrid */

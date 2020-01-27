@@ -50,7 +50,7 @@ class TaskAdvectionFDM : public combigrid::Task {
       : Task(2, l, boundary, coeff, 
       loadModel), dt_(dt), nsteps_(nsteps) {}
 
-  void init(CommunicatorType lcomm,
+  void init(CommunicatorType lcomm, long currentCombination,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     // only use one process per group
     IndexVector p(getDim(), 1);
