@@ -12,11 +12,7 @@ namespace combigrid {
 /**
  * Load model implementing a specific UOT learning load model.
  * The expected task load is the average load of the last n run calculations.
- *
- * @param LM The load model used for the eval function if no past duration 
- *           information is available.
  */
-template<typename LM = LinearLoadModel>
 class AverageOfLastNLoadModel : public SpecificUOTLearningLoadModel {
  public:
   /**
@@ -30,7 +26,7 @@ class AverageOfLastNLoadModel : public SpecificUOTLearningLoadModel {
    *                             information is available.
    */
   AverageOfLastNLoadModel(unsigned int n, std::vector<LevelVector> tasks, 
-                          LM loadModelIfNoHistory = {});
+                          std::unique_ptr<LoadModel> loadModelIfNoHistory);
 
   /**
    * Adds duration information about a task.
@@ -63,7 +59,7 @@ class AverageOfLastNLoadModel : public SpecificUOTLearningLoadModel {
   // TODO Optimization possibility: instead of a deque use a circular buffer.
   std::map<LevelVector, std::deque<unsigned long>> levelVectorToLastNDurations_;
   unsigned int lastN_;
-  LM loadModelIfNoHistory_;
+  std::unique_ptr<LoadModel> loadModelIfNoHistory_;
 };
 
 } /* namespace combigrid */

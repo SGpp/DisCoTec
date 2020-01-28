@@ -4,29 +4,27 @@
 
 namespace combigrid {
 
-template<typename LM>
-AverageOfLastNLoadModel<LM>::AverageOfLastNLoadModel(
-    unsigned int n, std::vector<LevelVector> tasks, LM loadModelIfNoHistory)
-    : lastN_{n}, loadModelIfNoHistory_{loadModelIfNoHistory} {
+AverageOfLastNLoadModel::AverageOfLastNLoadModel(
+    unsigned int n, std::vector<LevelVector> tasks, 
+    std::unique_ptr<LoadModel> loadModelIfNoHistory)
+    : lastN_{n}, loadModelIfNoHistory_{std::move(loadModelIfNoHistory)} {
 
   for (const auto& l : tasks) {
     this->levelVectorToLastNDurations_.insert({l, {}});
   }
 }
 
-template<typename LM>
-void AverageOfLastNLoadModel<LM>::addDurationInformation(
+void AverageOfLastNLoadModel::addDurationInformation(
     DurationInformation info, LevelVector lvlVec) {
 
   auto& durations = this->levelVectorToLastNDurations_[lvlVec];
-  if (durations.size() >= this->n_) {
+  if (durations.size() >= this->lastN_) {
     durations.pop_front();
   }
   durations.push_back(info.duration);
 }
 
-template<typename LM>
-std::chrono::microseconds AverageOfLastNLoadModel<LM>::evalSpecificUOT(
+std::chrono::microseconds AverageOfLastNLoadModel::evalSpecificUOT(
     const LevelVector& lvlVec) {
 
   const auto& durations = this->levelVectorToLastNDurations_[lvlVec];
@@ -36,12 +34,11 @@ std::chrono::microseconds AverageOfLastNLoadModel<LM>::evalSpecificUOT(
   return std::chrono::microseconds{static_cast<long>(average)};
 }
 
-template<typename LM>
-real AverageOfLastNLoadModel<LM>::eval(const LevelVector& lvlVec) {
+real AverageOfLastNLoadModel::eval(const LevelVector& lvlVec) {
   if (this->levelVectorToLastNDurations_.at(lvlVec).size() == 0) {
-    return this->loadModelIfNoHistory_.eval(lvlVec);
+    return this->loadModelIfNoHistory_->eval(lvlVec);
   } else {
-    return this->evalSpecificUOT(lvlVec);
+    return this->evalSpecificUOT(lvlVec).count();
   }
 }
 
