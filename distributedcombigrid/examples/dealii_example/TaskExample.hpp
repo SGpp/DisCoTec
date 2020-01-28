@@ -10,6 +10,7 @@
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include <sstream>
 
 #include <deal.II/base/timer.h>
 #include <deal.II/lac/la_parallel_vector.h>
@@ -121,13 +122,14 @@ class TaskExample : public Task {
     if(dim==3)
       Nz=std::pow(2,l[2])+1;
     index_mapping.resize(element_coords.size());
-    std::vector<int> index_sub(Nx*Ny*Nz,0);
+    //this may cause memory problems when working with high discretizations, 
+    std::vector<int> index_sub(Nx*Ny*Nz,-1);
     
     int z=0;
     int x=0,y=0,linearized_index=0;
     //index mapping is done via hashing:
     //each point is mapped to its linearized index in the grid -> O(n)
-    
+    std::stringstream ss;
     for(unsigned int el_index=0;el_index<(element_coords.size());el_index++){
       
       x=element_coords[el_index][0]*(Nx-1);
@@ -136,36 +138,31 @@ class TaskExample : public Task {
         linearized_index=y*(Nx)+x;
       }
       else if(dim==3){
-        z=element_coords[el_index][2]*Nz; 
-        linearized_index=(Nx+1)*y+x+z*(Nx+1)*(Ny+1);
+        z=element_coords[el_index][2]*(Nz-1); 
+        linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
       }
       
-      if(linearized_index>=index_sub.size()){
-        std::cout << linearized_index << " ";
-        std::cout << "[" << x<<y << "]"<< element_coords[el_index][0] <<" "<< element_coords[el_index][1];
-        
-      }
       index_sub[linearized_index]=el_index;
     }
     
     //same for the deal.II points ->O(2n)
     for(unsigned int x2=0; x2<(coords_dealii.size());x2++){
       x=coords_dealii[x2][0]*(Nx-1);
-      y=coords_dealii[x2][1]*(Ny-1);      
+      y=coords_dealii[x2][1]*(Ny-1);  
       if(dim==2){               
         linearized_index=y*(Nx)+x;
       }
       else if(dim==3){
-        z=coords_dealii[x2][2]*Nz; 
-        linearized_index=(Nx+1)*y+x+z*(Nx+1)*(Ny+1);
+        z=coords_dealii[x2][2]*(Nz-1); 
+        linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
       }
-      //            here i get the element that has the same linearized index
       
-      assert(linearized_index<index_sub.size());
-      index_mapping[index_sub[linearized_index]]=x2;
+      //            here i get the element that has the same linearized index
+        
+      if(index_sub[linearized_index]!=-1)
+        index_mapping[index_sub[linearized_index]]=x2;
     }
-    
-    
+  
     initialized_ = true;
   }
 
@@ -249,6 +246,7 @@ class TaskExample : public Task {
   
   size_t size_result;
   std::vector<int> index_mapping;
+  
   IndexVector p_;
   std::shared_ptr<Problem> problem;
 
