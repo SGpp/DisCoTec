@@ -140,12 +140,13 @@ public:
    * sets boundary parameters for global simulations
    * is directly set in GENE execution before writing checkpoint
    */
-  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q, double *kymin ){
+  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q, double *kymin, int *n0_global ){
     C_y_ = C_y;
     size_Cy_ = *size_Cy;
     q_prof_= q_prof;
     size_q_ = *size_q;
     kymin_ = *kymin;
+    n0_global_ = *n0_global;
   }
   /* This method copies dfg data to local checkpoint
    * This is used to get the data from our framework to GENE
@@ -317,6 +318,7 @@ private:
   int size_Cy_ ;
   double *q_prof_;
   int size_q_;
+  int n0_global_;
 
   GeneComplex* gyromatrix_buffer_; //buffer for gyromatrix
   size_t gyromatrix_buffer_size_; //buffersize of gyromatrix
