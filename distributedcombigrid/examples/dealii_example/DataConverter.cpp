@@ -215,7 +215,8 @@ using namespace combigrid;
             json_case.put("Periodic",true);
             jsubX.put("X",pow(2,lmax[std::min(std::max(dim-1, 0),0)]));
             jsubX.put("Y",pow(2,lmax[std::min(std::max(dim-1, 1),1)]));
-            jsubX.put("Z",pow(2,lmax[std::min(std::max(dim-1, 2),2)]));
+            //watch out here
+            jsubX.put("Z",pow(2,lmax[std::min(std::max(dim-1, 2),1)]));
             json_case.add_child("NSubdivisions",jsubX);
             json_root.add_child("Case", json_case);
 

@@ -1,2 +1,2 @@
 rm  solution/*
-mpirun -np 3 ./dealii_example 
+mpirun -np 2 ./dealii_example 

@@ -4,7 +4,7 @@
         "Degree": "1",
         "PartitionX": "1",
         "PartitionY": "1",
-        "PartitionZ": "32",
+        "PartitionZ": "0",
         "Case": "hyperrectangle"
     },
     "Case": {
