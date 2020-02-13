@@ -1,3 +1,4 @@
+#ifdef RUN_BOOST_TESTS
 #define BOOST_TEST_DYN_LINK
 #include <mpi.h>
 #include <boost/test/unit_test.hpp>
@@ -169,7 +170,7 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err, size_
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
+      int pgroupRootID(static_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
 
@@ -247,8 +248,8 @@ void checkManager(bool useCombine, bool useFG, double l0err, double l2err, size_
     printf("LP Norm: %f\n", fg_exact.getlpNorm(0));
     printf("LP Norm2: %f\n", fg_exact.getlpNorm(2));
     // results recorded previously
-    BOOST_CHECK(abs( fg_exact.getlpNorm(0) - l0err) < TestHelper::higherTolerance);
-    BOOST_CHECK(abs( fg_exact.getlpNorm(2) - l2err) < TestHelper::higherTolerance);
+    BOOST_CHECK(fabs( fg_exact.getlpNorm(0) - l0err) < TestHelper::higherTolerance);
+    BOOST_CHECK(fabs( fg_exact.getlpNorm(2) - l2err) < TestHelper::higherTolerance);
 
     manager.exit();
   }
@@ -298,3 +299,4 @@ BOOST_AUTO_TEST_CASE(test_6, * boost::unit_test::tolerance(TestHelper::tolerance
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+#endif
