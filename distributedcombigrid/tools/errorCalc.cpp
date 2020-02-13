@@ -79,12 +79,16 @@ int main(int argc, char** argv) {
   for (auto i = 0; i < data1.size(); ++i) {
     real tmp = std::abs(data1[i] - data2[i]);
 
-    if (std::abs(tmp) / std::abs(data1[i]) > 1e-12)
+    if (tmp / std::abs(data1[i]) > 1e-12)
       std::cout << " i: " << i << " values: " << std::abs(data2[i]) << " " << std::abs(data1[i]) << " ";
     err += tmp * tmp;
   }
   std::cout << "\n";
   err = std::sqrt(err);
+
+  // divide by the number of vector entries
+  err = err / data1.size();
+
   // open file in append mode
   std::ofstream ofs(filenameError.c_str(), std::ofstream::app);
 
