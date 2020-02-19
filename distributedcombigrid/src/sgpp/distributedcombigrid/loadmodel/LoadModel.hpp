@@ -22,7 +22,8 @@ class LoadModel {
    * "greater than"-relation for two tasks has to be correct.
    *
    * @param lvlVec The level vector corresponding to the task.
-   * @returns Relative value of expected load for the given task.
+   * @returns Relative value (in comparison of different tasks) of the expected
+   *          load for the given task.
    */
   virtual real eval(const LevelVector& lvlVec) = 0;
 };

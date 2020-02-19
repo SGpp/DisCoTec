@@ -22,10 +22,13 @@ unsigned long int getAverageOfFirstColumn(std::istream& fs);
 
 /**
  * AveragingLoadModel is a LearningLoadModel that is saving received duration 
- * information to files. For its expected load calculation it is using the 
- * average of previously received duration information (from files). The 
- * expected load calculation of the LinearLoadModel is used if no previous 
+ * information to the file system. For its expected load calculation it is 
+ * using the average of previously received duration information (from files).
+ * The expected load calculation of the LinearLoadModel is used if no previous 
  * duration information is available.
+ *
+ * TODO: Could implement additional functions to become a 
+ *       SpecificUOTLearningLoadModel
  */
 class AveragingLoadModel : public LearningLoadModel {
  public:
@@ -50,7 +53,9 @@ class AveragingLoadModel : public LearningLoadModel {
     }
   }
 
-  void addDurationInformation(DurationInformation dI, LevelVector l) {
+  void addDurationInformation(const DurationInformation& dI, 
+                              const LevelVector& l) override {
+
     durationsOfLevels_->at(l).push_back(dI);
     // write to file intermediately for long simulations
     // if (durationsOfLevels_->at(l).size() > writeEveryNCombis_*2) {

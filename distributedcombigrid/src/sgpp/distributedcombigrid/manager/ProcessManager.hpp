@@ -100,6 +100,16 @@ class ProcessManager {
    * to the original combination technique*/
   void restoreCombischeme();
 
+  /**
+   * Call to perform a rescheduling using the given rescheduler and load model.
+   *
+   * The rescheduling removes tasks from one process group and assigns them to
+   * a different process group. The result of the combination is used to 
+   * restore values of the newly assigned task.
+   * Implications: 
+   * - Should only be called after the combination step and before runnext.
+   * - Accuracy of calculated values is lost if leval is not equal to 0.
+   */
   void reschedule();
 
  private:

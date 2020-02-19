@@ -5,7 +5,7 @@
 namespace combigrid {
 
 AverageOfLastNLoadModel::AverageOfLastNLoadModel(
-    unsigned int n, std::vector<LevelVector> tasks, 
+    unsigned int n, const std::vector<LevelVector>& tasks, 
     std::unique_ptr<LoadModel> loadModelIfNoHistory)
     : lastN_{n}, loadModelIfNoHistory_{std::move(loadModelIfNoHistory)} {
 
@@ -15,7 +15,7 @@ AverageOfLastNLoadModel::AverageOfLastNLoadModel(
 }
 
 void AverageOfLastNLoadModel::addDurationInformation(
-    DurationInformation info, LevelVector lvlVec) {
+    const DurationInformation& info, const LevelVector& lvlVec) {
 
   auto& durations = this->levelVectorToLastNDurations_[lvlVec];
   if (durations.size() >= this->lastN_) {

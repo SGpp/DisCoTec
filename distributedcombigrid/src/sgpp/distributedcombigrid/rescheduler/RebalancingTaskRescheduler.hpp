@@ -43,10 +43,10 @@ class RebalancingTaskRescheduler : public TaskRescheduler {
    * @param loadModel The load model to use for the prognosis of future task 
    *                  loads. Needs to be a instance of SpecificUOTLearningLoadModel 
    *                  otherwise the scheduling is aborted.
-   * @returns Vector of pair with level vector and process group. To realize 
-   *          the calculated optimized task distribution; the task (defined by 
-   *          its level vector) has to be moved to the process group (defined 
-   *          by its process group id).
+   * @returns Vector of pairs of level vector and process group. 
+   *          The semantic meaning is: The task (defined by its level vector) 
+   *          should be moved to the process group (defined by its process 
+   *          group id).
    */
   std::vector<std::pair<LevelVector, int>> eval(
       const std::map<LevelVector, int>& levelVectorToProcessGroupIndex,

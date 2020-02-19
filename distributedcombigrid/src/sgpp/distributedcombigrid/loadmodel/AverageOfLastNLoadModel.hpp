@@ -18,14 +18,14 @@ class AverageOfLastNLoadModel : public SpecificUOTLearningLoadModel {
   /**
    * The constructor for this load model.
    *
-   * @param n Count of past runtimes to be used for the calculation of the load 
-   *          prognosis.
+   * @param n Count of past run times to be used for the calculation of the 
+   *          load prognosis.
    * @param tasks The level vectors of all tasks in this simulation.
    * @param loadModelIfNoHistory The load model used for the calculation of 
    *                             LoadModel::eval when no past duration 
    *                             information is available.
    */
-  AverageOfLastNLoadModel(unsigned int n, std::vector<LevelVector> tasks, 
+  AverageOfLastNLoadModel(unsigned int n, const std::vector<LevelVector>& tasks, 
                           std::unique_ptr<LoadModel> loadModelIfNoHistory);
 
   /**
@@ -34,7 +34,8 @@ class AverageOfLastNLoadModel : public SpecificUOTLearningLoadModel {
    * @param info The duration information to add.
    * @param lvlVec The level vector of the task to add the information to.
    */
-  void addDurationInformation(DurationInformation info, LevelVector lvlVec) override;
+  void addDurationInformation(const DurationInformation& info, 
+                              const LevelVector& lvlVec) override;
 
   /**
    * Calculates the expected load of a given task in microseconds by using the 
@@ -56,7 +57,7 @@ class AverageOfLastNLoadModel : public SpecificUOTLearningLoadModel {
   real eval(const LevelVector& lvlVec) override;
 
  private:
-  // TODO Optimization possibility: instead of a deque use a circular buffer.
+  // TODO Optimization possibility: Instead of a deque use a circular buffer.
   std::map<LevelVector, std::deque<unsigned long>> levelVectorToLastNDurations_;
   unsigned int lastN_;
   std::unique_ptr<LoadModel> loadModelIfNoHistory_;

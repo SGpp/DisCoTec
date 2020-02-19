@@ -43,11 +43,11 @@ ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 // Do useful things with the info about how long a task took.
 // this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly multiple times),
 // RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
-void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, 
-                                         unsigned int numProcs) { 
+void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e,
+                                         unsigned int numProcs) {
   MASTER_EXCLUSIVE_SECTION {
-    DurationInformation info = {t.getID(), Stats::getEventDurationInUsec(e), 
-                                t.getCurrentTime(), t.getCurrentTimestep(), 
+    DurationInformation info = {t.getID(), Stats::getEventDurationInUsec(e),
+                                t.getCurrentTime(), t.getCurrentTimestep(),
                                 theMPISystem()->getWorldRank(), numProcs};
     MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
@@ -234,11 +234,11 @@ SignalType ProcessGroupWorker::wait() {
         MPI_Recv(&taskID, 1, MPI_INT, theMPISystem()->getManagerRank(), 0, 
                  theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
       }
-			MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(), 
+      MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(), 
                 theMPISystem()->getLocalComm());
 
       // search for task and remove
-			for(size_t i=0; i < tasks_.size(); ++i) {
+      for(size_t i=0; i < tasks_.size(); ++i) {
         if (tasks_[i]->getID() == taskID) {
           delete(tasks_[i]);
           tasks_.erase(tasks_.begin() + i);

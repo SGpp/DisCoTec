@@ -200,7 +200,7 @@ Task *ProcessGroupManager::rescheduleRemoveTask(const LevelVector &lvlVec) {
   for (std::vector<Task *>::size_type i = 0; i < this->tasks_.size(); ++i) {
     Task *currentTask = this->tasks_[i];
     if (currentTask->getLevelVector() == lvlVec) { 
-      // if the task was found send remove signal and return the task
+      // if the task has been found send remove signal and return the task
 
       auto taskID = currentTask->getID();
       sendSignalToProcessGroup(RESCHEDULE_REMOVE_TASK);

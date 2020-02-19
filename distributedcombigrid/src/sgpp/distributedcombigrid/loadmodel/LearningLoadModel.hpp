@@ -9,7 +9,7 @@ namespace combigrid {
 
 /**
  * POD containing fields of relevant values for the calculation of expected load.
- * This POD only contains fields that change over the runtime of the simulation.
+ * This POD only contains fields that change over the runtime of a simulation.
  */
 struct DurationInformation {
   int task_id; /**< included for easy identification of the corresponding task */
@@ -47,8 +47,8 @@ class LearningLoadModel : public LoadModel {
    * @param info The duration information to add.
    * @param lvlVec The level vector of the task to add the information to.
    */
-  virtual void addDurationInformation(DurationInformation info, 
-                                      LevelVector lvlVec) = 0;
+  virtual void addDurationInformation(const DurationInformation& info, 
+                                      const LevelVector& lvlVec) = 0;
 };
 
 } /* namespace combigrid */
