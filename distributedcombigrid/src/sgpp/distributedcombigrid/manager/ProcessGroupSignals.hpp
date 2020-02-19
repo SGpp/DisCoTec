@@ -36,6 +36,7 @@ const SignalType RESCHEDULE_ADD_TASK = 20;
 
 /**
  * Signal for removing a task for rescheduling.
+ * Caller needs to receive task after sending this signal.
  *
  * Call only after combine and before run_next.
  */

@@ -201,14 +201,17 @@ Task *ProcessGroupManager::rescheduleRemoveTask(const LevelVector &lvlVec) {
     Task *currentTask = this->tasks_[i];
     if (currentTask->getLevelVector() == lvlVec) { 
       // if the task has been found send remove signal and return the task
-
+      Task *removedTask;
       auto taskID = currentTask->getID();
       sendSignalToProcessGroup(RESCHEDULE_REMOVE_TASK);
       MPI_Send(&taskID, 1, MPI_INT, this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
+      Task::receive(&removedTask, this->pgroupRootID_, theMPISystem()->getGlobalComm());
       setProcessGroupBusyAndReceive();
 
       tasks_.erase(tasks_.begin() + i);
-      return currentTask;
+      delete(currentTask); // TODO: check if correct! Do we have ownership?
+
+      return removedTask;
     }
   }
   return nullptr;

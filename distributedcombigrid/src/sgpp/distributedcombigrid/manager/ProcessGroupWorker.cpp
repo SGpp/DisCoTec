@@ -237,9 +237,14 @@ SignalType ProcessGroupWorker::wait() {
       MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(), 
                 theMPISystem()->getLocalComm());
 
-      // search for task and remove
+      // search for task send to group master and remove
       for(size_t i=0; i < tasks_.size(); ++i) {
         if (tasks_[i]->getID() == taskID) {
+          MASTER_EXCLUSIVE_SECTION {
+            // send to group master
+            Task::send(&tasks_[i], theMPISystem()->getManagerRank(), 
+                       theMPISystem()->getGlobalComm());
+          }
           delete(tasks_[i]);
           tasks_.erase(tasks_.begin() + i);
           break;  // only one task has the taskID
@@ -711,7 +716,7 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
 
   // initalize task
   Stats::startEvent("task init in worker");
-  currentTask_->init(theMPISystem()->getLocalComm(), currentCombi_);
+  currentTask_->init(theMPISystem()->getLocalComm());
   t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
   Stats::stopEvent("task init in worker");
 }

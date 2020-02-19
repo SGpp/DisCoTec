@@ -23,8 +23,8 @@ class TaskTest : public combigrid::Task {
           int t)
       : Task(dim, l, boundary, coeff, loadModel), test(t) {}
 
-  void init(CommunicatorType lcomm, long currentCombination,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+  void init(CommunicatorType lcomm,
+            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) override {
     // create dummy dfg
     IndexVector p(getDim(), 1);
     dfg_ =
