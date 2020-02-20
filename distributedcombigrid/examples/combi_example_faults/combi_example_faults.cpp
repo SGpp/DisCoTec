@@ -80,11 +80,8 @@ int main(int argc, char** argv) {
 
 
     /* create load model */
-    #ifdef TIMING
-    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LearningLoadModel>(new LearningLoadModel(levels));
-    #else // TIMING
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
-    #endif //def TIMING
+ 
 
     IndexType checkProcs = 1;
     for (auto k : p)
