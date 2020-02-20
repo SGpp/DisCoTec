@@ -270,8 +270,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
   // init subspaces
   subspaces_.reserve(subspaces.size());
   for (int i = 0; i < subspaces.size(); i++) {
-   subspaces_.push_back({
-                          /*.level_    =*/ subspaces[i],
+   subspaces_.push_back({ /*.level_    =*/ subspaces[i],
                           /*.sizes_    =*/ IndexVector(0),
                           /*.size_     =*/ 0,
                           /*.data_     =*/ nullptr,
@@ -296,6 +295,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::isSubspaceDataCreated() const {
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
   size_t numDataPoints = std::accumulate(subspaceDataSizes_.begin(), subspaceDataSizes_.end(), 0);
+  assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
 
   if (not isSubspaceDataCreated() && numDataPoints > 0) {
     subspacesData_ = std::vector<FG_ELEMENT>(numDataPoints);
@@ -617,7 +617,7 @@ inline const std::vector<size_t>& DistributedSparseGridUniform<FG_ELEMENT>::getS
 template <typename FG_ELEMENT>
 static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           RankType dest, CommunicatorType comm) {
-  assert(dsgu->isSubspaceDataCreated() && "Sending without data does not make sense!");
+  assert(dsgu->isSubspaceDataCreated() && "Initialize dsgu first");
   assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
                                             "transferred in a single MPI Call (not "
                                             "supported yet) try a more refined"
@@ -636,7 +636,7 @@ static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 template <typename FG_ELEMENT>
 static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           RankType source, CommunicatorType comm) {
-  assert(dsgu->isSubspaceDataCreated() && "Receiving into empty buffer does not make sense!");
+  assert(dsgu->isSubspaceDataCreated() && "Initialize dsgu first");
   assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
                                             "transferred in a single MPI Call (not "
                                             "supported yet) try a more refined"
@@ -655,7 +655,7 @@ static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 template <typename FG_ELEMENT>
 static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                               RankType root, CommunicatorType comm) {
-  assert(dsgu->isSubspaceDataCreated() && "Bcasting without data does not make sense!");
+  assert(dsgu->isSubspaceDataCreated() && "Initialize dsgu first");
   assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
                                             "transferred in a single MPI Call (not "
                                             "supported yet) try a more refined"
@@ -676,7 +676,7 @@ static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * 
 template <typename FG_ELEMENT>
 static MPI_Request bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                               RankType root, CommunicatorType comm) {
-  assert(dsgu->isSubspaceDataCreated() && "Bcasting without data does not make sense!");
+  assert(dsgu->isSubspaceDataCreated() && "Initialize dsgu first");
   assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
                                             "transferred in a single MPI Call (not "
                                             "supported yet) try a more refined"
@@ -695,7 +695,7 @@ static MPI_Request bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 template <typename FG_ELEMENT>
 static void reduceDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                                CommunicatorType comm) {
-  assert(dsgu->isSubspaceDataCreated() && "Reducing without data does not make sense!");
+  assert(dsgu->isSubspaceDataCreated() && "Initialize dsgu first");
   assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
                                             "transferred in a single MPI Call (not "
                                             "supported yet) try a more refined"
