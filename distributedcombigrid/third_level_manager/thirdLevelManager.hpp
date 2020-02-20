@@ -12,8 +12,8 @@ using  Systems = std::vector<System>;
 class ThirdLevelManager
 {
   private:
-    Params params_;
-    Systems systems_;
+    Params         params_;
+    Systems        systems_;
     unsigned short port_    = 9999;
     int            timeout_ = 1;
     ServerSocket   server_;
