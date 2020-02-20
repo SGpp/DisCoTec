@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
 
     // read in third level parameters if available
     std::string thirdLevelHost;
-    unsigned int systemNumber = 0, numSystems = 0;
+    unsigned int systemNumber = 0, numSystems = 1;
     unsigned short thirdLevelPort = 0;
     bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
     if (hasThirdLevel) {
