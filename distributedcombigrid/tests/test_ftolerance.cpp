@@ -425,7 +425,7 @@ else {
     while (signal != EXIT) 
       signal = pgroup.wait();
   }
-  #if ENABLEFT
+  
   if( ENABLE_FT ){
     WORLD_MANAGER_EXCLUSIVE_SECTION{
       std::cout << "Program finished successfully" << std::endl;
@@ -435,7 +435,7 @@ else {
     }
      //simft::Sim_FT_MPI_Finalize();
   }
-  #endif
+  
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
 }
