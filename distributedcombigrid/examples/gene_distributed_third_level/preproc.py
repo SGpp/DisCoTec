@@ -18,8 +18,7 @@ import combinationScheme as cS
 import numpy as np
 
 #SGPP Directory set by Scons
-#SGPP_LIB="$(SGPP)/lib/sgpp"
-SGPP_DIR="/home/marci/UNI/HIWI/combi/"
+SGPP_LIB="$(SGPP)/lib/sgpp"
 SGPP_LIB=SGPP_DIR + "/lib/sgpp"
 print ("SGPP_LIB =", SGPP_LIB)
 import os 
@@ -234,8 +233,7 @@ call(["ln","-s","../manager",'./' + config.basename + '/manager'])
 call(["cp", paramfile,'./' + config.basename + '/'])
 
 # create start script in base folder
-SIMPLE_AMQP_LIB = SGPP_DIR + "/distributedcombigrid/SimpleAmqpClient/build"
-scmd = "export LD_LIBRARY_PATH=" + SGPP_LIB + ":" + TASK_LIB + ":" + SIMPLE_AMQP_LIB + ":" "$LIB_:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
+scmd = "export LD_LIBRARY_PATH=" + SGPP_LIB + ":" + TASK_LIB + ":" + ":" "$LIB_:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
 #scmd = "source xprtld.bat\n"
 scmd += config.mpi
 scmd += " -n " + str(config.nprocs*config.ngroup) + ' ' + config.executable
