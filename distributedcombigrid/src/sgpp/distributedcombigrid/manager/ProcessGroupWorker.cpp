@@ -427,6 +427,13 @@ void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
 }
 
 
+/* Initializes the dsgu for each species by setting the subspace sizes of all
+ * dfgs in the global reduce comm. After calling, all workers which share the
+ * same spatial distribution of the dsgu (those who combine during global
+ * reduce) have the same sized subspaces and thus share the same sized dsg.
+ *
+ * Attention: No data is created here, only subspace sizes are shared.
+ */
 void ProcessGroupWorker::initCombinedUniDSGVector() {
   if (tasks_.size() == 0) {
     std::cout << "Possible error: task size is 0! \n";
@@ -501,6 +508,8 @@ void ProcessGroupWorker::hierarchizeFullGrids() {
 }
 
 void ProcessGroupWorker::addFullGridsToUniformSG() {
+  assert(combinedUniDSGVector_.size() > 0 && "Initialize dsgu first with "
+                                             "initCombinedUniDSGVector()");
   int numGrids = combiParameters_.getNumGrids();
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
