@@ -1,15 +1,14 @@
 Running the third-level gene example:
-
 -------------------------------------
-
-
 
 Under `distributedcombigrid/examples/gene_distributed_third_level`  you can find
 a third-level combination example with a Gene task. The following instructions
 explain how to run the example.
 
-Prerequisites are that compilation of distributedcombigrid and the third-level
-manager was successful.
+Prerequisites are that the compilation of distributedcombigrid, the third-level
+manager and the example (requires CombiDataType to be complex which can be set
+in `distributedcombigrid/src/sgpp/distributedcombigrid/utils/Config.hpp`) was 
+successful.
 
 1. The setup of the example depends on the `gene_python_interface`. If there is
    no corresponding folder under `combi/` ask someone who has access and copy it
@@ -18,8 +17,7 @@ manager was successful.
 2. Create a parameter file that suits your setup (Use ctparam_tl as a template)
    and set the variable `paramfile` accordingly in `preproc.py`.
 
-3. Run `rabbitmq-server` and start the third-level-manager. Both must be
-   accessible by the systems.
+3. Run the `third-level-manager` which must be accessible form both systems.
 
 4. Start `run.sh` on both systems.
 
