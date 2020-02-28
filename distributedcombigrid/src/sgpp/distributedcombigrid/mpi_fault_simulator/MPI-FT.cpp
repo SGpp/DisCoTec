@@ -79,7 +79,7 @@ int simft::Sim_FT_Check_dead_processes(simft::Sim_FT_MPI_Comm f_comm, simft::Nex
     int addReserveSize = 2;
     if (option == simft::NextOp::Comm_free) {
       addReserveSize +=
-          f_comm->NBC_Vector_Send.size();  // NBC_Vector_Send will be attached, reserve its size
+         static_cast<int>(f_comm->NBC_Vector_Send.size());  // NBC_Vector_Send will be attached, reserve its size
     }
 
     Send_Vector.reserve(f_comm->Dead_Processes_Root.size() + addReserveSize);
@@ -87,7 +87,7 @@ int simft::Sim_FT_Check_dead_processes(simft::Sim_FT_MPI_Comm f_comm, simft::Nex
     // collective)
     Send_Vector.push_back(option);
     //
-    Send_Vector.push_back(f_comm->Dead_Processes_Root.size());
+    Send_Vector.push_back(static_cast<int>(f_comm->Dead_Processes_Root.size()));
 
     if (f_comm->Dead_Processes_Root.size() > 0) {
       // std::cout << "option = " <<option << "\n";
@@ -251,7 +251,7 @@ void simft::Sim_FT_Perform_background_operations(simft::Sim_FT_MPI_Comm f_comm,
       NBCVec = simft::NBC_to_Vector(f_comm);
 
       // send serialized list to root
-      MPI_Isend(&NBCVec[0], NBCVec.size(), MPI_INT, f_comm->Root_Rank, SIM_FT_NBC_RESPONSE_TAG,
+      MPI_Isend(&NBCVec[0], static_cast<int>(NBCVec.size()), MPI_INT, f_comm->Root_Rank, SIM_FT_NBC_RESPONSE_TAG,
                 f_comm->c_comm_copy, &NBC_Request);
       MPI_Request_free(&NBC_Request);
     }
@@ -356,14 +356,14 @@ void simft::Sim_FT_Perform_background_operations_dead(simft::Sim_FT_MPI_Comm f_c
       // Next op is Finalize
       Send_Vector.push_back(2);
       //
-      Send_Vector.push_back(simft::Sim_FT_MPI_COMM_WORLD->Dead_Processes_Root.size());
+      Send_Vector.push_back(static_cast<int>(simft::Sim_FT_MPI_COMM_WORLD->Dead_Processes_Root.size()));
 
       Send_Vector.insert(Send_Vector.end(),
                          simft::Sim_FT_MPI_COMM_WORLD->Dead_Processes_Root.begin(),
                          simft::Sim_FT_MPI_COMM_WORLD->Dead_Processes_Root.end());
 
       simft::Sim_FT_Custom_Ibcast_Root(&Send_Vector, &(simft::Sim_FT_MPI_COMM_WORLD->Dead_Buf),
-                                       Send_Vector.size(), MPI_INT, SIM_FT_DEAD_TAG,
+                                       static_cast<int>(Send_Vector.size()), MPI_INT, SIM_FT_DEAD_TAG,
                                        simft::Sim_FT_MPI_COMM_WORLD->c_comm_copy_coll,
                                        simft::Sim_FT_MPI_COMM_WORLD);
 
@@ -395,7 +395,7 @@ void simft::Sim_FT_Perform_background_operations_dead(simft::Sim_FT_MPI_Comm f_c
     // serialize recent NBC operations
     NBCVec = simft::NBC_to_Vector(f_comm);
     // send serialized list to root
-    MPI_Isend(&NBCVec[0], NBCVec.size(), MPI_INT, f_comm->Root_Rank, SIM_FT_NBC_RESPONSE_TAG,
+    MPI_Isend(&NBCVec[0], static_cast<int>(NBCVec.size()), MPI_INT, f_comm->Root_Rank, SIM_FT_NBC_RESPONSE_TAG,
               f_comm->c_comm_copy, &NBC_Request);
     MPI_Request_free(&NBC_Request);
   }
@@ -462,7 +462,7 @@ void simft::Sim_FT_NBC_bcast_root(simft::Sim_FT_MPI_Comm f_comm) {
                          f_comm->root_recent_dead_set.end());
       f_comm->root_recent_dead_set.clear();
 
-      simft::Sim_FT_Custom_Ibcast_Root(&Send_Vector, &Buffer_Vector, Send_Vector.size(), MPI_INT,
+      simft::Sim_FT_Custom_Ibcast_Root(&Send_Vector, &Buffer_Vector, static_cast<int>(Send_Vector.size()), MPI_INT,
                                        SIM_FT_BCAST_NBC_TAG, f_comm->c_comm_copy, f_comm);
       f_comm->CurrentMinNBC_Modified = false;
       f_comm->LastNBC_bcast = MPI_Wtime();
@@ -500,7 +500,7 @@ void simft::Sim_FT_Perform_nb_operations(std::vector<simft::Sim_FT_Istats> *NB_o
     // std::vector<MPI_Request> Coll_Req;
     // Coll_Req.reserve(NB_ops_to_perform->size() - (f_comm->Recent_Icollectives.size() + 1));
 
-    for (int i = f_comm->Recent_Icollectives.size(); i < (int)NB_ops_to_perform->size(); i++) {
+    for (int i = static_cast<int>(f_comm->Recent_Icollectives.size()); i < (int)NB_ops_to_perform->size(); i++) {
       std::cout << "op type = " << (*NB_ops_to_perform)[i].Type << "\n";
       (*NB_ops_to_perform)[i].request = new simft::Sim_FT_MPI_Request_struct;
 
@@ -635,7 +635,7 @@ void simft::Sim_FT_Complete_nb_operations(
   /* do the same for all other non-blocking collectives, received from synchronization
    * and NOT known to the process prior to the synchronization protocol
    */
-  for (unsigned int i = f_comm->Recent_Icollectives.size(); i < (*Deserialized_NBC_Vector).size();
+  for (unsigned int i = static_cast<unsigned int>(f_comm->Recent_Icollectives.size()); i < (*Deserialized_NBC_Vector).size();
        i++) {
     if ((*Deserialized_NBC_Vector)[i].request != nullptr) {
       if ((*Deserialized_NBC_Vector)[i].request->c_request != MPI_REQUEST_NULL) {
@@ -650,9 +650,9 @@ void simft::Sim_FT_Complete_nb_operations(
    * because all processes in the communicator (including the dead ones) called the same
    * non-blocking collective operations up to this point and so all requests will be completed.
    */
-  MPI_Waitall(Requests_To_Finish.size(), &Requests_To_Finish.front(), MPI_STATUSES_IGNORE);
+  MPI_Waitall(static_cast<int>(Requests_To_Finish.size()), &Requests_To_Finish.front(), MPI_STATUSES_IGNORE);
 
-  for (unsigned int i = f_comm->Recent_Icollectives.size(); i < (*Deserialized_NBC_Vector).size();
+  for (unsigned int i = static_cast<unsigned int>(f_comm->Recent_Icollectives.size()); i < (*Deserialized_NBC_Vector).size();
        i++) {
     /* In case any of our buffers were allocated using new, delete them.
      * This is safe because we initialized them with nullptr. (maybe use smart pointers instead?)
@@ -857,7 +857,7 @@ void simft::Sim_FT_kill_me() {
   // for(unsigned int i = 0; i < simft::Sim_FT_Current_Active_Communicators.size(); i++){
   for (auto Actives : simft::Sim_FT_Current_Active_Communicators) {
     MPI_Request Send_Request;
-    int NBC = Actives->Recent_Icollectives.size();
+    int NBC = static_cast<int>(Actives->Recent_Icollectives.size());
     // Send dead-message to root
     MPI_Isend(&NBC, 1, MPI_INT, Actives->Root_Rank, SIM_FT_DEAD_NBC_TAG, Actives->c_comm_copy,
               &Send_Request);
@@ -866,7 +866,7 @@ void simft::Sim_FT_kill_me() {
     // Initialize values for next reduce
     Actives->Send_Vector.resize(4);
     Actives->Send_Vector[0] = 0;
-    Actives->Send_Vector[1] = Actives->Recent_Icollectives.size();
+    Actives->Send_Vector[1] = static_cast<int>(Actives->Recent_Icollectives.size());
     Actives->Send_Vector[2] = Actives->comm_rank;
     Actives->Send_Vector[3] = 0;
 
@@ -1003,7 +1003,7 @@ void simft::Sim_FT_kill_me() {
                      SIM_FT_NBC_RESPONSE_TAG, Actives->c_comm_copy, MPI_STATUS_IGNORE);
             // ####################
 
-            reserveAddSize += Actives->NBC_Vector_Send.size();
+            reserveAddSize += static_cast<int>(Actives->NBC_Vector_Send.size());
           }
 
           Send_Vector.reserve(Actives->Dead_Processes_Root.size() + reserveAddSize);
@@ -1011,7 +1011,7 @@ void simft::Sim_FT_kill_me() {
           // Comm_agree or normal blocking collective)
           Send_Vector.push_back(Actives->Last_Send_Vector[3]);
           // Attach amount of dead processes and append all dead processes
-          Send_Vector.push_back(Actives->Dead_Processes_Root.size());
+          Send_Vector.push_back(static_cast<int>(Actives->Dead_Processes_Root.size()));
           Send_Vector.insert(Send_Vector.end(), Actives->Dead_Processes_Root.begin(),
                              Actives->Dead_Processes_Root.end());
 
@@ -1021,7 +1021,7 @@ void simft::Sim_FT_kill_me() {
                                Actives->NBC_Vector_Send.end());
           }
 
-          simft::Sim_FT_Custom_Ibcast_Root(&Send_Vector, &(Actives->Dead_Buf), Send_Vector.size(),
+          simft::Sim_FT_Custom_Ibcast_Root(&Send_Vector, &(Actives->Dead_Buf), static_cast<int>(Send_Vector.size()),
                                            MPI_INT, Actives->DeadTag, Actives->c_comm_copy_coll,
                                            Actives);
 
@@ -1166,7 +1166,7 @@ void simft::Sim_FT_Custom_Dead_bcast(std::vector<int> *buf, simft::Sim_FT_MPI_Co
   if (f_comm->comm_rank == f_comm->Root_Rank) {
     f_comm->Dead_Buf = *buf;  // copy dead processes to buffer
 
-    simft::Sim_FT_Custom_Ibcast_Root(buf, &(f_comm->Dead_Buf), buf->size(), MPI_INT, BcastTag,
+    simft::Sim_FT_Custom_Ibcast_Root(buf, &(f_comm->Dead_Buf), static_cast<int>(buf->size()), MPI_INT, BcastTag,
                                      f_comm->c_comm_copy_coll, f_comm);
 
   } else {
@@ -1217,7 +1217,7 @@ int simft::Sim_FT_Custom_Reduce(int Send_Vector[], simft::Sim_FT_MPI_Comm f_comm
   MPI_Comm comm = f_comm->c_comm_copy_coll;
 
   Send_Vector[0] = 0;
-  Send_Vector[1] = f_comm->Recent_Icollectives.size();
+  Send_Vector[1] = static_cast<int>(f_comm->Recent_Icollectives.size());
   Send_Vector[2] = f_comm->comm_rank;
   Send_Vector[3] = (int)option;  // if the next operation shall be Shrink or Finalize etc., this
                                  // must be propagated through the comm to inform the dead processes
@@ -1356,7 +1356,7 @@ bool simft::Sim_FT_Custom_Ireduce(simft::Sim_FT_MPI_Comm f_comm,
       MPI_Request Send_Request;
 
       // use the Bcast-topology to get the processes' predecessor
-      MPI_Isend(&f_comm->Last_Send_Vector[0], f_comm->Last_Send_Vector.size(), MPI_INT,
+      MPI_Isend(&f_comm->Last_Send_Vector[0], static_cast<int>(f_comm->Last_Send_Vector.size()), MPI_INT,
                 f_comm->Bcast_Predecessor, ReduceTag, f_comm->c_comm_copy_coll, &Send_Request);
       MPI_Request_free(&Send_Request);
     }
@@ -1379,7 +1379,7 @@ bool simft::Sim_FT_Custom_Ireduce(simft::Sim_FT_MPI_Comm f_comm,
     // f_comm->Last_Send_Vector = f_comm->Send_Vector;
 
     f_comm->Send_Vector[0] = 0;
-    f_comm->Send_Vector[1] = f_comm->Recent_Icollectives.size();
+    f_comm->Send_Vector[1] = static_cast<int>(f_comm->Recent_Icollectives.size());
     f_comm->Send_Vector[2] = f_comm->comm_rank;
     f_comm->Send_Vector[3] = 0;
 

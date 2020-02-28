@@ -46,7 +46,7 @@ ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e, size_t numProcs) { 
   MASTER_EXCLUSIVE_SECTION {
     // durationInformation info(e, t, numProcs);
-    durationInformation info = {t.getID(), Stats::getEventDurationInUsec(e), t.getCurrentTime(), t.getCurrentTimestep(), theMPISystem()->getWorldRank(), numProcs};
+    durationInformation info = {t.getID(), Stats::getEventDurationInUsec(e), t.getCurrentTime(), t.getCurrentTimestep(), theMPISystem()->getWorldRank(), static_cast<unsigned int>(numProcs)};
     MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
 }
@@ -150,7 +150,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case EXIT: {
       if (isGENE) {
-        chdir("../ginstance");
+        if(chdir("../ginstance")){};
       }
 
     } break;
@@ -399,8 +399,7 @@ void ProcessGroupWorker::combineUniform() {
   }
   assert(combiParametersSet_);
   // we assume here that every task has the same number of grids, e.g. species in GENE
-  int numGrids = combiParameters_.getNumGrids();
-
+  int numGrids = static_cast<int>(combiParameters_.getNumGrids());
   DimType dim = combiParameters_.getDim();
   LevelVector lmin = combiParameters_.getLMin();
   LevelVector lmax = combiParameters_.getLMax();
@@ -442,7 +441,7 @@ void ProcessGroupWorker::combineUniform() {
   Stats::stopEvent("combine init");
   Stats::startEvent("combine hierarchize");
 
-  real localMax(0.0);
+  //real localMax(0.0);
   // std::vector<CombiDataType> beforeCombi;
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
@@ -565,8 +564,8 @@ void ProcessGroupWorker::parallelEvalUniform() {
   assert(uniformDecomposition);
 
   assert(combiParametersSet_);
-  int numGrids = combiParameters_
-                     .getNumGrids();  // we assume here that every task has the same number of grids
+  int numGrids = static_cast<int>(combiParameters_
+                     .getNumGrids());  // we assume here that every task has the same number of grids
 
   const int dim = static_cast<int>(combiParameters_.getDim());
 
@@ -734,8 +733,8 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
 
-  int numGrids = combiParameters_
-                     .getNumGrids();  // we assume here that every task has the same number of grids
+  int numGrids = static_cast<int>(combiParameters_
+                     .getNumGrids());  // we assume here that every task has the same number of grids
 
   for (int g = 0; g < numGrids; g++) {
     assert(combinedUniDSGVector_[g] != NULL);
