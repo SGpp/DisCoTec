@@ -34,6 +34,9 @@ class ProcessGroupWorker {
   // todo: maybe only needed for gene?
   inline Task* getCurrentTask();
 
+  // getter for tasks
+  inline const TaskContainer& getTasks() const;
+
   // Perform combination
   void combine();
 
@@ -104,6 +107,10 @@ inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
   assert(combiParametersSet_);
 
   return combiParameters_;
+}
+
+inline const TaskContainer& ProcessGroupWorker::getTasks() const {
+  return tasks_;
 }
 
 } /* namespace combigrid */

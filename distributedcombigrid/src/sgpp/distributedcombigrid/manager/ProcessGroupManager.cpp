@@ -209,7 +209,8 @@ Task *ProcessGroupManager::rescheduleRemoveTask(const LevelVector &lvlVec) {
       setProcessGroupBusyAndReceive();
 
       tasks_.erase(tasks_.begin() + i);
-      delete(currentTask); // TODO: check if correct! Do we have ownership?
+      delete currentTask;
+
 
       return removedTask;
     }

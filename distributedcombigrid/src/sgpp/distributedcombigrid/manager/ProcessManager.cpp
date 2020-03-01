@@ -377,16 +377,26 @@ void ProcessManager::reschedule() {
                                            levelVectorToLastTaskDuration_, 
                                            loadModel_.get());
   for (const auto& t : tasksToMigrate) {
-    auto& levelvectorToMigrate = t.first;
-    auto& processGroupIndexToAddTaskTo = t.second;
-    auto& processGroupIndexToRemoveTaskFrom = levelVectorToProcessGroupIndex.at(levelvectorToMigrate);
+    auto levelvectorToMigrate = t.first;
+    auto processGroupIndexToAddTaskTo = t.second;
+    auto processGroupIndexToRemoveTaskFrom = 
+      levelVectorToProcessGroupIndex.at(levelvectorToMigrate);
 
-    Task *removedTask = pgroups_[processGroupIndexToRemoveTaskFrom]->rescheduleRemoveTask(levelvectorToMigrate);
+    Task *removedTask = 
+      pgroups_[processGroupIndexToRemoveTaskFrom]->rescheduleRemoveTask(
+          levelvectorToMigrate);
     waitAllFinished();
-
     assert(removedTask != nullptr);
     pgroups_[processGroupIndexToAddTaskTo]->rescheduleAddTask(removedTask);
     waitAllFinished();
+  }
+
+  // update local tasks_ vector!
+  tasks_.clear();
+  for (auto& pg : pgroups_) {
+    for (auto t : pg->getTaskContainer()) {
+      tasks_.push_back(t);
+    }
   }
 }
 
