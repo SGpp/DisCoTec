@@ -11,7 +11,7 @@ std::vector<std::pair<LevelVector, int>> RebalancingTaskRescheduler::eval(
     const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration,
     LoadModel *loadModel) {
 
-  SpecificUOTLearningLoadModel *sllm = dynamic_cast<SpecificUOTLearningLoadModel *>(loadModel);
+  MicrocsecondsLearningLoadModel *sllm = dynamic_cast<MicrocsecondsLearningLoadModel *>(loadModel);
 
   assert(sllm);
   if (!sllm) {

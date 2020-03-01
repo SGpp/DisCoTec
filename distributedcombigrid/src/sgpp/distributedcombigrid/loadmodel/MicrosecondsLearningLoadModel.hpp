@@ -1,5 +1,5 @@
-#ifndef SPECIFICUOTLEARNINGLOADMODEL_HPP_
-#define SPECIFICUOTLEARNINGLOADMODEL_HPP_
+#ifndef MICROSECONDSLEARNINGLOADMODEL_HPP_
+#define MICROSECONDSLEARNINGLOADMODEL_HPP_
 
 #include <chrono>
 
@@ -14,7 +14,7 @@ namespace combigrid {
  * A SpecificUOTLearningLoadModel needs to be able to calculate the expected 
  * load in the specific time unit of microseconds.
  */
-class SpecificUOTLearningLoadModel : public LearningLoadModel {
+class MicrocsecondsLearningLoadModel : public LearningLoadModel {
  public:
 
   /**
@@ -29,5 +29,5 @@ class SpecificUOTLearningLoadModel : public LearningLoadModel {
 
 } /* namespace combigrid */
 
-#endif /* SPECIFICUOTLEARNINGLOADMODEL_HPP_ */
+#endif /* MICROSECONDSLEARNINGLOADMODEL_HPP_ */
 

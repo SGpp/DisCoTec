@@ -4,7 +4,7 @@
 #include <map>
 #include <deque>
 
-#include "sgpp/distributedcombigrid/loadmodel/SpecificUOTLearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/MicrosecondsLearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 
 namespace combigrid {
@@ -13,7 +13,7 @@ namespace combigrid {
  * Load model implementing a specific UOT learning load model.
  * The expected task load is the average load of the last n run calculations.
  */
-class AverageOfLastNLoadModel : public SpecificUOTLearningLoadModel {
+class AverageOfLastNLoadModel : public MicrocsecondsLearningLoadModel {
  public:
   /**
    * The constructor for this load model.

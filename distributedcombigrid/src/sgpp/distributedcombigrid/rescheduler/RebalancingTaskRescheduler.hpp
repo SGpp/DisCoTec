@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "sgpp/distributedcombigrid/rescheduler/TaskRescheduler.hpp"
-#include "sgpp/distributedcombigrid/loadmodel/SpecificUOTLearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/MicrosecondsLearningLoadModel.hpp"
 
 namespace combigrid {
 
