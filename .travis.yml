@@ -28,5 +28,4 @@ before_install:
   - "export BOOST_INCLUDE_PATH=$BOOST_INCLUDE_PATH:/usr/local/include/boost"
 script:
   - sh ./compile.sh
-deploy:
-  github-token: $GITHUB_TOKEN
+
