@@ -71,7 +71,7 @@ MPISystem::~MPISystem() {
 }
 
 void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType worldComm = MPI_COMM_WORLD, bool reusable = false) {
-  assert(reusable || !initialized_ && "MPISystem already initialized!");
+  assert((reusable || !initialized_) && "MPISystem already initialized!");
   
   ngroup_ = ngroup;
   nprocs_ = nprocs;
@@ -259,7 +259,7 @@ void MPISystem::initGlobalReduceCommm() {
     if (ENABLE_FT) {
       createCommFT(&globalReduceCommFT_, globalReduceComm_);
     }
-    int size = getCommSize(globalReduceComm_);
+    //int size = getCommSize(globalReduceComm_);
     //std::cout << "size if global reduce comm " << size << "\n";
     MPI_Barrier(globalReduceComm_);
   } else {
@@ -560,7 +560,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
     std::vector<RankType> failedRanks =
         getFailedRanks(numFailedRanks);  // has to be solved differently with ULFM
     std::cout << "nprocs - numFailed " << failedGroups.size() * nprocs_ - numFailedRanks << "\n";
-    newReusableRanks = getReusableRanks(failedGroups.size() * nprocs_ - numFailedRanks);
+    newReusableRanks = getReusableRanks(static_cast<int>(failedGroups.size() * nprocs_ - numFailedRanks));
     getReusableRanksSpare(reusableRanks_);  // update ranks of reusable ranks
     // toDO reusableRanks might be outdated due to new failures there
     bool enoughSpareProcs = sizeSpare - sizeNew >= numFailedRanks;
@@ -640,8 +640,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   int worldSize = getWorldSize();
   assert((worldSize - 1) % nprocs_ == 0);
   ngroup_ = (worldSize - 1) / nprocs_;
-
-  worldRank_ = getWorldRank();
+  MPI_Comm_rank(worldComm_, &worldRank_); 
   managerRankWorld_ = worldSize - 1;
 
   if (worldComm_ != MPI_COMM_NULL) {

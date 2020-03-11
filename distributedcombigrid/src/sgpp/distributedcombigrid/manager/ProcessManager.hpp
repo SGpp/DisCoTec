@@ -346,7 +346,7 @@ inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
       std::cout << newCoeffs[i] << " ";
     }
     std::cout << "\n";
-    int roundedSum = round(sum);
+    int roundedSum = static_cast<int>(round(sum));
     std::cout << "Coefficient sum: " << roundedSum << "\n";
 
     assert(roundedSum == 1);

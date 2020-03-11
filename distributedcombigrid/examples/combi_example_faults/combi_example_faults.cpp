@@ -80,7 +80,8 @@ int main(int argc, char** argv) {
 
 
     /* create load model */
-    LoadModel* loadmodel = new LinearLoadModel();
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
+ 
 
     IndexType checkProcs = 1;
     for (auto k : p)
@@ -115,8 +116,7 @@ int main(int argc, char** argv) {
         faultCrit = new StaticFaults(faultsInfo);
       }
       Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i],
-                                loadmodel, dt, nsteps, p, faultCrit);
-      tasks.push_back(t);
+                                loadmodel.get() , dt, nsteps, p, faultCrit);
       taskIDs.push_back( t->getID() );
     }
 
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
     params.setParallelization(p);
 
     /* create Manager with process groups */
-    ProcessManager manager( pgroups, tasks, params );
+    ProcessManager manager( pgroups, tasks, params, std::move(loadmodel) );
 
     /* send combi parameters to workers */
     manager.updateCombiParameters();
@@ -223,15 +223,14 @@ int main(int argc, char** argv) {
   }
 
   if( ENABLE_FT ){
-    WORLD_MANAGER_EXCLUSIVE_SECTION{
-      std::cout << "Program finished successfully" << std::endl;
+    std::cout << "The number of detected faults during the simulation is " << faultsInfo.numFaults_ << "\n";
+    if(faultsInfo.numFaults_ > 0){
       std::cout << "To avoid problems with hanging killed processes, we exit with "
-                << "MPI_Abort()" << std::endl;
+        << "MPI_Abort()" << std::endl;
       MPI_Abort( MPI_COMM_WORLD, 0 );
     }
+    simft::Sim_FT_MPI_Finalize();
   }
-
-  simft::Sim_FT_MPI_Finalize();
 
   return 0;
 }
