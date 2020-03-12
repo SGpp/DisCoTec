@@ -5,7 +5,7 @@
 #include <thread>
 #include <sys/stat.h>
 
-#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/AveragingLoadModel.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 
 namespace combigrid {
@@ -23,8 +23,8 @@ namespace combigrid {
     return sum/count;
   }
  
-  void LearningLoadModel::addLevelVectorToLoadModel(const LevelVector& lv) {
-    durationsOfLevels_->insert(make_pair(lv, std::deque<durationInformation>()));
+  void AveragingLoadModel::addLevelVectorToLoadModel(const LevelVector& lv) {
+    durationsOfLevels_->insert(make_pair(lv, std::deque<DurationInformation>()));
 
     struct stat buf;
     // if file exists, read contents
