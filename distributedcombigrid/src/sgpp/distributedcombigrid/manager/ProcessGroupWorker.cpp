@@ -46,9 +46,9 @@ ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
 void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e,
                                          unsigned int numProcs) {
   MASTER_EXCLUSIVE_SECTION {
-    durationInformation info = {t.getID(), Stats::getEventDurationInUsec(e), 
-	    			t.getCurrentTime(), t.getCurrentTimestep(), 
-				theMPISystem()->getWorldRank(), static_cast<unsigned int>(numProcs)};
+    DurationInformation info = {t.getID(), Stats::getEventDurationInUsec(e),
+	    			                    t.getCurrentTime(), t.getCurrentTimestep(),
+				                        theMPISystem()->getWorldRank(), static_cast<unsigned int>(numProcs)};
     MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
 }
