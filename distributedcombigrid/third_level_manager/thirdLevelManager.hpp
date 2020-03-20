@@ -7,7 +7,7 @@
 #include "Params.hpp"
 #include "System.hpp"
 
-using  Systems = std::vector<System>;
+using Systems = std::vector<System>;
 
 class ThirdLevelManager
 {

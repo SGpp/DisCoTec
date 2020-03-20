@@ -7,17 +7,23 @@ int main(int argc, char* argv[])
     return 0;
   }
   // Load config file
+#ifdef DEBUG_OUTPUT
   std::cout << "Loading parameters" << std::endl;
+#endif
   Params params;
   params.loadFromFile(argv[1]);
 
   // Setup third level manager
+#ifdef DEBUG_OUTPUT
   std::cout << "Setup third level manager" << std::endl;
+#endif
   ThirdLevelManager manager(params);
   manager.init();
 
   // Run third level manager
+#ifdef DEBUG_OUTPUT
   std::cout << "Running third level manager" << std::endl;
+#endif
   manager.runtimeLoop();
   return 0;
 }
@@ -29,7 +35,6 @@ ThirdLevelManager::ThirdLevelManager(const Params& params)
   : params_(params),
     port_(params.getPort()),
     server_(port_)
-
 {
 }
 
@@ -42,19 +47,30 @@ void ThirdLevelManager::init()
   }
   assert(server_.init());
   if (not server_.isInitialized())
+  {
+    std::cout << "ThirdLevelManager::init(): Could not initialize server!" << std::endl;
     exit(0);
+  }
+#ifdef DEBUG_OUTPUT
   std::cout << "Third level manager running on port: " << port_ << std::endl;
+#endif
 
   // Create abstraction for each system
+#ifdef DEBUG_OUTPUT
   std::cout << "Creating abstraction for systems" << std::endl;
+#endif
   for (u_int i = 0; i < params_.getNumSystems(); i++) {
+#ifdef DEBUG_OUTPUT
     std::cout << " Waiting for system (" << i+1 << "/" << params_.getNumSystems() << ")" << std::endl;
+#endif
     std::shared_ptr<ClientSocket> connection = std::shared_ptr<ClientSocket>(server_.acceptClient());
     assert(connection != nullptr && "Connecting to system failed");
     System sys(connection, i+1);
     systems_.push_back(std::move(sys));
   }
+#ifdef DEBUG_OUTPUT
   std::cout << "All systems connected successfully" << std::endl;
+#endif
 }
 
 
@@ -102,11 +118,13 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
   System& other = systems_[otherIndex];
 
   std::string message;
+#ifdef DEBUG_OUTPUT
   std::cout << std::endl << "Processing third level combination" << std::endl;
-  initiator.sendMessage("send_first" );
-  other.receiveMessage( message);
+#endif
+  initiator.sendMessage("send_first");
+  other.receiveMessage(message);
   assert(message == "ready_to_combine");
-  other.sendMessage("recv_first" );
+  other.sendMessage("recv_first");
 
   // transfer grids between the systems
   while (initiator.receiveMessage(message) && message != "ready")
@@ -122,7 +140,9 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
   // wait for other system to finish receiving
   other.receiveMessage(message);
   assert(message == "ready");
+#ifdef DEBUG_OUTPUT
   std::cout << "Finished combination" << std::endl;
+#endif
 }
 
 /* TODO optimization: forward both directions at the same time
@@ -136,7 +156,9 @@ void ThirdLevelManager::processUnifySubspaceSizes(size_t initiatorIndex)
   System& other = systems_[otherIndex];
 
   std::string message;
+#ifdef DEBUG_OUTPUT
   std::cout << std::endl << "Processing unification of subspace sizes" << std::endl;
+#endif
   initiator.sendMessage("send_first" );
   other.receiveMessage( message);
   assert(message == "ready_to_unify_subspace_sizes");
@@ -158,7 +180,9 @@ void ThirdLevelManager::processUnifySubspaceSizes(size_t initiatorIndex)
   assert(message == "ready");
   other.receiveMessage(message);
   assert(message == "ready");
+#ifdef DEBUG_OUTPUT
   std::cout << "Finished unification of subspace sizes" << std::endl;
+#endif
 }
 
 /** If a system has finished the simulation, it should log off the
@@ -166,18 +190,23 @@ void ThirdLevelManager::processUnifySubspaceSizes(size_t initiatorIndex)
  */
 void ThirdLevelManager::processFinished(size_t sysIndex)
 {
+#ifdef DEBUG_OUTPUT
   std::cout << "System " << systems_[sysIndex].getId() << " finished simulation" << std::endl;
+#endif
   systems_.erase(systems_.begin()+ (long)sysIndex);
 }
 
 /** Forwards data from sender to receiver.
  *  The size is communicated first from sender to receiver.
  */
-void ThirdLevelManager::forwardData(const System& sender, const System& receiver) const {
+void ThirdLevelManager::forwardData(const System& sender, const System& receiver) const
+{
   size_t dataSize;
   sender.receivePosNumber(dataSize);
+#ifdef DEBUG_OUTPUT
   std::cout << "Forwarding " << std::to_string(dataSize) << " Bytes from system "
             << sender.getId() << " to system " << receiver.getId() << std::endl;
+#endif
   receiver.sendMessage(std::to_string(dataSize));
 
   // forward data to other system
