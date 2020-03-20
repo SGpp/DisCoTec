@@ -1,5 +1,7 @@
 #include "sgpp/distributedcombigrid/third_level/ThirdLevelUtils.hpp"
 
+namespace combigrid {
+
 ThirdLevelUtils::ThirdLevelUtils(const std::string& host, int port)
                                                  : host_(host),
                                                    port_(port)
@@ -82,4 +84,5 @@ size_t ThirdLevelUtils::receiveSize() const
   size_t size;
   ss >> size;
   return size;
+}
 }
