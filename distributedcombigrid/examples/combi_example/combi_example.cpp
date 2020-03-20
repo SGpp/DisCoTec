@@ -66,7 +66,8 @@ int main(int argc, char** argv) {
     }
 
     // create load model
-    LoadModel* loadmodel = new LinearLoadModel();
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+
 
     /* read in parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
@@ -109,7 +110,7 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel, dt, nsteps, p);
+      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -118,7 +119,7 @@ int main(int argc, char** argv) {
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p);
     
     // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params);
+    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     std::cout << "set up component grids and run until first combination point" << std::endl;
 
@@ -140,7 +141,7 @@ int main(int argc, char** argv) {
 
       // evaluate solution and
       // write solution to file
-      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
+      std::string filename("out/solution_" + std::to_string(i) + ".out");
       Stats::startEvent("manager write solution");
       manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");

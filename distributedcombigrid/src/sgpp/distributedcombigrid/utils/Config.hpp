@@ -81,6 +81,8 @@ typedef real CombiDataType;
 #endif
 #ifdef ISGENE
 	constexpr bool isGENE = true;    //TODO move this switch to a more sensible place
+	// running gene requires complex numbers for combination
+	static_assert(std::is_same<CombiDataType, complex>::value);
 #else
 	constexpr bool isGENE = false;
 #endif	

@@ -16,7 +16,6 @@
 
 #include <boost/serialization/vector.hpp>
 
-using namespace combigrid;
 
 /*
  * Instead of having private static functions, I put these functions in an
@@ -29,9 +28,9 @@ namespace {
 
 template <typename FG_ELEMENT>
 struct SubspaceSGU {
-  LevelVector level_; // level of the subspace
+  combigrid::LevelVector level_; // level of the subspace
 
-  IndexVector sizes_; // contains the number of points per dim of the whole ss
+  combigrid::IndexVector sizes_; // contains the number of points per dim of the whole ss
 
   size_t size_; // contains the number of Points of the whole ss
 
