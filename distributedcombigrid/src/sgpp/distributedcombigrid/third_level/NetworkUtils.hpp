@@ -85,16 +85,16 @@ class ClientSocket : public Socket {
     bool recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
                  size_t buffSize,
                  ReduceFcn<FG_ELEMENT> reduceOp,
-                 size_t chunksize = 2048, int flags = 0) const;
+                 size_t chunksize = 131072, int flags = 0) const;
 
     template<typename FG_ELEMENT>
     bool recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff, size_t buffSize,
-                                        size_t chunksize = 2048,
+                                        size_t chunksize = 131072,
                                         int flags = 0) const;
 
     // TODO
     bool recvallBinaryToFile(const std::string& filename, size_t len,
-        size_t chunksize = 2048, int flags = 0) const;
+        size_t chunksize = 131072, int flags = 0) const;
 
     std::string getRemoteHost() const;
 
@@ -139,7 +139,7 @@ class NetworkUtils {
     static const int noTimeout = -1;
 
     static bool forward(const ClientSocket& sender, const ClientSocket& receiver,
-        size_t chunksize = 2048, size_t size = 0);
+        size_t chunksize = 131072, size_t size = 0);
 
     static bool isInteger(const std::string& s);
 
