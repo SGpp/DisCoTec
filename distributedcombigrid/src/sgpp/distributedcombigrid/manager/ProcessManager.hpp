@@ -266,13 +266,15 @@ void ProcessManager::combineLocalAndGlobal() {
 * Receivers role:
 * In the role of the receiver, the ProcessGroupManager receives the remote dsgus
 * and reduces it with the local solution.
-* Afterwards, he sends the solution  back to the remote system and to the local
+* Afterwards, he sends the solution back to the remote system and to the local
 * workers.
 */
 void ProcessManager::combineThirdLevel() {
   // first combine local and global
+  Stats::startEvent("manager combine local and global");
   combineLocalAndGlobal();
   waitAllFinished();
+  Stats::stopEvent("manager combine local and global");
 
   // tell other pgroups to idle and wait for the combination result
   for (auto& pg : pgroups_) {
@@ -284,11 +286,13 @@ void ProcessManager::combineThirdLevel() {
   std::string instruction = thirdLevel_.fetchInstruction();
 
   // combine
+  Stats::startEvent("manager exchange data with remote");
   if (instruction == "send_first") {
     thirdLevelPGroup_->combineThirdLevel(thirdLevel_, params_, true);
   } else if (instruction == "recv_first") {
     thirdLevelPGroup_->combineThirdLevel(thirdLevel_, params_, false);
   }
+  Stats::stopEvent("manager exchange data with remote");
   thirdLevel_.signalReady();
 
   waitAllFinished();
