@@ -414,11 +414,12 @@ bool NetworkUtils::forward(const ClientSocket& sender,
   std::unique_ptr<char[]> buff(new char[chunksize]);
   while (totalRecvd < size)
   {
+#ifdef DEBUG_OUTPUT
     std::cout << "." << std::flush;
-    // receive at max chunksize bytes
-    size_t rest = size - totalRecvd;
-    if (rest < chunksize)
-      recvd = recv(sendFd, buff.get(), rest, 0);
+#endif
+    size_t remaining = size - totalRecvd;
+    if (remaining < chunksize)
+      recvd = recv(sendFd, buff.get(), remaining, 0);
     else
       recvd = recv(sendFd, buff.get(), chunksize, 0);
     switch (recvd) {
@@ -438,7 +439,9 @@ bool NetworkUtils::forward(const ClientSocket& sender,
       return false;
     }
   }
+#ifdef DEBUG_OUTPUT
   std::cout << std::endl;
+#endif
   return true;
 }
 
