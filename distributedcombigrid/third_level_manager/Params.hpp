@@ -9,6 +9,7 @@ class Params
   private:
     u_short port_           = 0;
     u_int   numSystems_     = 0;
+    size_t  chunksize_      = 131072;
     bool    loadedFromFile_ = false;
 
   public:

@@ -10,6 +10,7 @@ void Params::loadFromFile(const std::string& filename)
   boost::property_tree::ini_parser::read_ini(filename, pt);
   port_           = pt.get<u_short>("Connection.port");
   numSystems_     = pt.get<u_int>("DistributedCombi.numSystems");
+  chunksize_      = pt.get<size_t>("Connection.chunksize", 131072);
   loadedFromFile_ = true;
 }
 
