@@ -170,7 +170,6 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE: {  // start combination
-
       Stats::startEvent("combine");
       combineUniform();
       currentCombi_++;
@@ -357,49 +356,7 @@ void ProcessGroupWorker::ready() {
     }
   }
 }
-/* not supported anymore
-void ProcessGroupWorker::combine() {
-  assert( false && "not properly implemented" );
 
-  // early exit if no tasks available
-  // todo: doesnt work, each pgrouproot must call reduce function
-  assert(tasks_.size() > 0);
-
-  assert( combiParametersSet_ );
-  DimType dim = combiParameters_.getDim();
-  const LevelVector& lmin = combiParameters_.getLMin();
-  const LevelVector& lmax = combiParameters_.getLMax();
-  const std::vector<bool>& boundary = combiParameters_.getBoundary();
-
-  // erzeug dsg
-  DistributedSparseGrid<CombiDataType> dsg(dim, lmax, lmin, boundary,
-theMPISystem()->getLocalComm());
-
-  for (Task* t : tasks_) {
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-    // hierarchize dfg
-    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
-
-    // lokales reduce auf sg ->
-    //CombiCom::distributedLocalReduce<CombiDataType>( dfg, dsg, combiParameters_.getCoeff(
-t->getID() ) );
-  }
-
-  // globales reduce
-  CombiCom::distributedGlobalReduce(dsg);
-
-  for (Task* t : tasks_) {
-    // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-    // lokales scatter von dsg auf dfg
-    //CombiCom::distributedLocalScatter<CombiDataType>( dfg, dsg );
-
-    // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
-  }
-} */
 
 /**
  * This method reduces the lmax and lmin vectors of the sparse grid according to the reduction
@@ -525,7 +482,7 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
   }
 }
 
-  // extract dfg and dehierarchize
+/* extract dfg from dsg */
 void ProcessGroupWorker::extractFullGridsFromUniformSG() {
   int numGrids = combiParameters_.getNumGrids();
   for (Task* t : tasks_) {
@@ -539,6 +496,7 @@ void ProcessGroupWorker::extractFullGridsFromUniformSG() {
   }
 }
 
+/* dehierarchize dfg */
 void ProcessGroupWorker::dehierarchizeFullGrids() {
   int numGrids = combiParameters_.getNumGrids();
   for (Task* t : tasks_) {
@@ -563,64 +521,9 @@ void ProcessGroupWorker::reduceUniformSG() {
 }
 
 void ProcessGroupWorker::combineUniform() {
-#ifdef DEBUG_OUTPUT
-
-  MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
-#endif
-  initDsgsData();
-
-  Stats::startEvent("combine hierarchize");
-  hierarchizeFullGrids();
-  addFullGridsToUniformSG();
-  Stats::stopEvent("combine hierarchize");
-
-  Stats::startEvent("combine global reduce");
-  reduceUniformSG();
-  Stats::stopEvent("combine global reduce");
-
-  Stats::startEvent("combine dehierarchize");
-  extractFullGridsFromUniformSG();
-  dehierarchizeFullGrids();
-  Stats::stopEvent("combine dehierarchize");
-
-  // test changes
-  /*for(int i=0; i<afterCombi.size(); i++){
-    if(std::abs(beforeCombi[i] - afterCombi[i])/std::abs(beforeCombi[i]) > 0.0001)
-      std::cout << std::abs(beforeCombi[i] - afterCombi[i])/std::abs(beforeCombi[i]) << " ";
-  }*/
-  /* std::cout << "before \n";
-   for(int i=0; i<4;i++){
-
-     int rank = theMPISystem()->getLocalRank();
-     if(rank == i){
-       std::cout << "\n" << i << "\n";
-
-       for(int i=0; i<beforeCombi.size(); i++){
-         std::cout << beforeCombi[i] << " \n ";
-
-       }
-     }
-     MPI_Barrier(theMPISystem()->getLocalComm());
-   }
-   std::cout << "\n";
-   std::cout << "after \n";
-   for(int i=0; i<4;i++){
-     int rank = theMPISystem()->getLocalRank();
-     if(rank == i){
-       std::cout << "\n" << i << "\n";
-
-       for(int i=0; i<afterCombi.size(); i++){
-         std::cout << afterCombi[i] << " \n ";
-
-       }
-     }
-     MPI_Barrier(theMPISystem()->getLocalComm());
-   }
-   std::cout << "\n";
-
-   std::cout << "\n";
-   */
-
+  combineLocalAndGlobal();
+  integrateCombinedSolution();
+  // free dsgu space for computation
   deleteDsgsData();
 }
 
@@ -628,12 +531,17 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
 #endif
+  Stats::startEvent("combine initDsgsData");
   initDsgsData();
+  Stats::stopEvent("combine initDsgsData");
 
   Stats::startEvent("combine hierarchize");
   hierarchizeFullGrids();
-  addFullGridsToUniformSG();
   Stats::stopEvent("combine hierarchize");
+
+  Stats::startEvent("combine local reduce");
+  addFullGridsToUniformSG();
+  Stats::stopEvent("combine local reduce");
 
   Stats::startEvent("combine global reduce");
   reduceUniformSG();
@@ -836,11 +744,10 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
 }
 
 void ProcessGroupWorker::integrateCombinedSolution() {
-
-  Stats::startEvent("integrating combined solution");
+  Stats::startEvent("integrateCombinedSolution");
   extractFullGridsFromUniformSG();
   dehierarchizeFullGrids();
-  Stats::stopEvent("integrating combined solution");
+  Stats::stopEvent("integrateCombinedSolution");
 }
 
 void ProcessGroupWorker::combineThirdLevel() {
@@ -860,10 +767,14 @@ void ProcessGroupWorker::combineThirdLevel() {
                                              "supported yet) try a more refined"
                                              "decomposition");
     // send dsg data to manager
+    Stats::startEvent("combine send dsg data to manager");
     sendDsgData(dsg.get(), manager, managerComm);
+    Stats::stopEvent("combine send dsg data to manager");
 
     // recv combined dsgu from manager
+    Stats::startEvent("combine recv combined data from manager");
     recvDsgData(dsg.get(), manager, managerComm);
+    Stats::stopEvent("combine recv combined data from manager");
 
     // distribute solution in globalReduceComm to other pgs
     MPI_Request request = asyncBcastDsgData(dsg.get(), globalReduceRank, globalReduceComm);
@@ -873,8 +784,10 @@ void ProcessGroupWorker::combineThirdLevel() {
   integrateCombinedSolution();
 
   // wait for bcasts to other pgs in globalReduceComm
+  Stats::startEvent("combine wait for async bcasts");
   for (MPI_Request& request : requests)
     MPI_Wait(&request, MPI_STATUS_IGNORE);
+  Stats::stopEvent("combine wait for async bcasts");
 
   // free dsgu space for computation
   deleteDsgsData();
@@ -975,15 +888,10 @@ void ProcessGroupWorker::initDsgsData() {
     dsg->createSubspaceData();
 }
 
+/** frees dsgus space for computation */
 void ProcessGroupWorker::deleteDsgsData() {
   for (auto& dsg : combinedUniDSGVector_)
     dsg->deleteSubspaceData();
 }
 
-bool ProcessGroupWorker::isDsgsDataInitialized() {
-  for (auto& dsg : combinedUniDSGVector_)
-    if (not dsg->isSubspaceDataCreated())
-      return false;
-  return true;
-}
 } /* namespace combigrid */

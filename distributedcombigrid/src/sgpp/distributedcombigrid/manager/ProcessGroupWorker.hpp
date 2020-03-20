@@ -29,67 +29,69 @@ class ProcessGroupWorker {
 
   ~ProcessGroupWorker();
 
-  // wait for command from manager
+  /** wait for command from manager */
   SignalType wait();
 
-  // send ready signal to manager
+  /** send ready signal to manager */
   void ready();
 
-  // decides if current Task needs to be killed
+  /** decides if current Task needs to be killed */
   void decideToKill();
 
-  // todo: maybe only needed for gene?
+  /** todo: maybe only needed for gene? */
   inline Task* getCurrentTask();
 
-  // Perform combination
+  /** Perform combination */
   void combine();
 
-  // combination helpers
+  /** combination helpers */
   void initCombinedUniDSGVector();
   void hierarchizeFullGrids();
   void addFullGridsToUniformSG();
   void extractFullGridsFromUniformSG();
   void dehierarchizeFullGrids();
 
-  // reduction
+  /** reduction */
   void reduceUniformSG();
 
-  // combine on sparse grid with uniform decomposition of domain
+  /** combine on sparse grid with uniform decomposition of domain */
   void combineUniform();
 
   void combineLocalAndGlobal();
 
-  // outdated!
+  /** outdated! */
   void combineFG();
 
   void gridEval();
 
-  // parallel file io of final output grid
+  /** parallel file io of final output grid */
   void parallelEval();
 
-  // parallel file io of final output grid for uniform decomposition
+  /** parallel file io of final output grid for uniform decomposition */
   void parallelEvalUniform();
 
-  // update combination parameters (for init or after change in FTCT)
+  /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 
-  // returns the combi parameters
+  /** returns the combi parameters */
   inline CombiParameters& getCombiParameters();
 
-  // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
+  /** initializes the component grid from the sparse grid; used to reinitialize
+   * tasks after fault */
   void setCombinedSolutionUniform(Task* t);
 
-  // performes a sparse grid reduce with the remote system, bcasts solution and
-  // updates fgs.
+  /** performes the sparse grid reduce with the remote system, bcasts solution
+   * and updates fgs. */
   void combineThirdLevel();
 
-  // waits until the third level pg bcasts the combined solution and updates fgs
+  /** waits until the third level pg bcasts the combined solution and updates
+   * fgs */
   void waitForThirdLevelCombiResult();
 
-  // computes a max reduce on the dsg's subspace sizes with the other systems
+  /** computes a max reduce on the dsg's subspace sizes with the other systems */
   void reduceSubspaceSizesThirdLevel();
 
-  // receives reduced sizes from tl pgroup and updates the dsgs
+  /** receives reduced sizes from tl pgroup and updates the dsgs */
   void waitForThirdLevelSizeUpdate();
 
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
@@ -101,57 +103,43 @@ class ProcessGroupWorker {
   }
 
  private:
-  TaskContainer tasks_;  // task storage
+  TaskContainer tasks_;  /// task storage
 
-  Task* currentTask_;  // task that is currently processed
+  Task* currentTask_;  /// task that is currently processed
 
-  StatusType status_;  // current status of process group (wait -> 0; busy -> 1; fail -> 2)
+  StatusType status_;  /// current status of process group (wait -> 0; busy -> 1; fail -> 2)
 
   FullGrid<complex>* combinedFG_;
 
-  /*
-   * Vector containing all distributed sparse grids
-   */
+  /** Vector containing all distributed sparse grids */
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;
 
   CombiParameters combiParameters_;
 
-  bool combiParametersSet_;  // indicates if combi parameters variable set
+  bool combiParametersSet_;  /// indicates if combi parameters variable set
 
   // fault parameters
-  real t_fault_;  // time to fault
+  real t_fault_;  /// time to fault
 
-  IndexType currentCombi_;  // current combination; increased after every combination
+  IndexType currentCombi_;  /// current combination; increased after every combination
 
   std::chrono::high_resolution_clock::time_point
-      startTimeIteration_;  // starting time of process computation
+      startTimeIteration_;  /// starting time of process computation
 
   // std::ofstream betasFile_;
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
 
   void processDuration(const Task& t, const Stats::Event e, size_t numProcs);
-
+  
+  /** extracts and dehierarchizes */
   void integrateCombinedSolution();
 
-  //
-  void getLocalSubspaceSizes(const std::vector<LevelVector>& subspaces,
-                             std::vector<size_t>& subspaceSizes);
-
-  void getGlobalSubspaceSizes(std::vector<size_t>& subspaceSizes);
-
-  void getThirdLevelSubspaceSizes(const std::vector<LevelVector>& subspaces,
-                                  std::vector<size_t>& subspaceSizes);
-  void broadcastCommonSS();
-
-  /* allocates data in dsgs */
+  /** allocates data in dsgs */
   void initDsgsData();
 
-  /* deallocates data the dsgs */
+  /** deallocates data the dsgs */
   void deleteDsgsData();
-
-  /*checks if data in dsgs is allocated*/
-  bool isDsgsDataInitialized();
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
