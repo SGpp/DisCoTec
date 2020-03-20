@@ -25,6 +25,9 @@ int main(int argc, char* argv[])
   std::cout << "Running third level manager" << std::endl;
 #endif
   manager.runtimeLoop();
+
+  // Print statistics
+  manager.writeStatistics("stats.json");
   return 0;
 }
 
@@ -79,6 +82,7 @@ void ThirdLevelManager::init()
  */
 void ThirdLevelManager::runtimeLoop()
 {
+  stats_.startWallclock();
   while (systems_.size() > 0)
   {
     for (size_t s = 0; s < systems_.size(); s++)
@@ -91,6 +95,7 @@ void ThirdLevelManager::runtimeLoop()
       }
     }
   }
+  stats_.stopWallclock();
 }
 
 /** Identifies main operation and initiates appropriate action. */
@@ -113,6 +118,7 @@ void ThirdLevelManager::processMessage(const std::string& message, size_t sysInd
 void ThirdLevelManager::processCombination(size_t initiatorIndex)
 {
   assert(systems_.size() == 2 && "Not implemented for different amount of systems");
+  stats_.increaseNumCombinations();
   System& initiator = systems_[initiatorIndex];
   size_t otherIndex = (initiatorIndex + 1) % systems_.size();
   System& other = systems_[otherIndex];
@@ -130,11 +136,13 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
   while (initiator.receiveMessage(message) && message != "ready")
   {
     assert(message == "sending_data");
-    forwardData(initiator, other);
+    size_t dataSize = forwardData(initiator, other);
+    stats_.addToBytesTransferredInCombination(dataSize);
 
     other.receiveMessage(message);
     assert(message == "sending_data");
-    forwardData(other, initiator);
+    dataSize = forwardData(other, initiator);
+    stats_.addToBytesTransferredInCombination(dataSize);
   }
 
   // wait for other system to finish receiving
@@ -168,13 +176,15 @@ void ThirdLevelManager::processUnifySubspaceSizes(size_t initiatorIndex)
   initiator.receiveMessage(message);
   if (message == "sending_data")
   {
-    forwardData(initiator, other);
+    size_t dataSize = forwardData(initiator, other);
+    stats_.addToBytesTransferredInSizeExchange(dataSize);
   }
   // transfer data from other to initiator
   other.receiveMessage(message);
   if (message == "sending_data")
   {
-    forwardData(other, initiator);
+    size_t dataSize = forwardData(other, initiator);
+    stats_.addToBytesTransferredInSizeExchange(dataSize);
   }
   initiator.receiveMessage(message);
   assert(message == "ready");
@@ -197,9 +207,9 @@ void ThirdLevelManager::processFinished(size_t sysIndex)
 }
 
 /** Forwards data from sender to receiver.
- *  The size is communicated first from sender to receiver.
+ *  The size is communicated first from sender to receiver and returned later.
  */
-void ThirdLevelManager::forwardData(const System& sender, const System& receiver) const
+size_t ThirdLevelManager::forwardData(const System& sender, const System& receiver) const
 {
   size_t dataSize;
   sender.receivePosNumber(dataSize);
@@ -212,4 +222,39 @@ void ThirdLevelManager::forwardData(const System& sender, const System& receiver
   // forward data to other system
   if (dataSize != 0)
     NetworkUtils::forward(*sender.getConnection(), *receiver.getConnection(), 2048, dataSize);
+
+  return dataSize;
+}
+
+void ThirdLevelManager::writeStatistics(std::string filename)
+{
+  size_t walltime = stats_.getWallTime();
+  size_t numCombinations = stats_.getNumCombinations();
+  size_t totalBytesTransferredInCombination = stats_.getTotalBytesTransferredInCombination();
+  size_t numBytesTransferredPerCombination = totalBytesTransferredInCombination / numCombinations;
+  size_t totalBytesTransferredInSizeExchange = stats_.getTotalBytesTransferredInSizeExchange();
+#ifdef DEBUG_OUTPUT
+  std::cout << "Simulation took:                     "
+    << (double) walltime / 1e6 << "sec" << std::endl;
+  std::cout << "Num combinations:                    "
+    << numCombinations << std::endl;
+  std::cout << "Total transfer during combination:   "
+    << totalBytesTransferredInCombination << "B" << std::endl;
+  std::cout << "Transfer per combination:            "
+    << numBytesTransferredPerCombination << "B" << std::endl;
+  std::cout << "Total transfer during size exchange: "
+    << totalBytesTransferredInSizeExchange << "B" << std::endl;
+#endif
+  if (filename != "")
+  {
+    std::ofstream ofs (filename, std::ofstream::out);
+    boost::property_tree::ptree pt;
+    pt.put("walltime (ms)", walltime/1e3);
+    pt.put("numCombinations", numCombinations);
+    pt.put("totalBytesTransferredInCombination", totalBytesTransferredInCombination);
+    pt.put("numBytesTransferredPerCombination", numBytesTransferredPerCombination);
+    pt.put("totalBytesTransferredInSizeExchange", totalBytesTransferredInSizeExchange);
+    boost::property_tree::write_json(ofs, pt);
+    ofs.close();
+  }
 }
