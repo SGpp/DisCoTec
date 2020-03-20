@@ -6,6 +6,8 @@
 #include <boost/serialization/export.hpp>
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
+using namespace combigrid;
+
 /* simple task class to set all values on the grid to $levelVector_1 / levelVector_2$
  */
 class TaskConst : public combigrid::Task {

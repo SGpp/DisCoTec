@@ -6,6 +6,8 @@
 #include <boost/serialization/export.hpp>
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
+using namespace combigrid;
+
 template <typename FG_ELEMENT>
 class ParaboloidFn {
   public:

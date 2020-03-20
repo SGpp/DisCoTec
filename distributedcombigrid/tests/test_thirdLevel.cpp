@@ -21,6 +21,8 @@
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
+using namespace combigrid;
+
 BOOST_CLASS_EXPORT(TaskConstParaboloid)
 
 class TestParams{
