@@ -94,6 +94,9 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
+      // free space for computation
+      deleteDsgsData();
+
       // reset finished status of all tasks
       if (tasks_.size() != 0) {
         for (size_t i = 0; i < tasks_.size(); ++i) tasks_[i]->setFinished(false);
@@ -526,8 +529,6 @@ void ProcessGroupWorker::reduceUniformSG() {
 void ProcessGroupWorker::combineUniform() {
   combineLocalAndGlobal();
   integrateCombinedSolution();
-  // free dsgu space for computation
-  deleteDsgsData();
 }
 
 void ProcessGroupWorker::combineLocalAndGlobal() {
@@ -800,9 +801,6 @@ void ProcessGroupWorker::combineThirdLevel() {
   for (MPI_Request& request : requests)
     MPI_Wait(&request, MPI_STATUS_IGNORE);
   Stats::stopEvent("combine wait for async bcasts");
-
-  // free dsgu space for computation
-  deleteDsgsData();
 }
 
 /** Reduces subspace sizes with remote.
@@ -890,9 +888,6 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   }
 
   integrateCombinedSolution();
-
-  // free dsgu space for computation
-  deleteDsgsData();
 }
 
 void ProcessGroupWorker::initDsgsData() {
