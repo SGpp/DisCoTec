@@ -106,7 +106,6 @@ class TaskConst : public combigrid::Task {
   }
 };
 
->>>>>>> origin/master
 BOOST_CLASS_EXPORT(TaskConst)
 
 void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
