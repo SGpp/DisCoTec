@@ -89,11 +89,13 @@ class DistributedSparseGridUniform {
   void print(std::ostream& os) const;
 
   // allocates memory for subspace data and sets pointers to subspaces
-  // this must be called before accessing any data
   void createSubspaceData();
 
   // deletes memory for subspace data and invalids pointers to subspaces
   void deleteSubspaceData();
+
+  // creates data if necessary and sets all data elements to zero
+  void setZero();
 
   // return level vector of subspace i
   inline const LevelVector& getLevelVector(size_t i) const;
@@ -326,6 +328,14 @@ void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
       ss.dataSize_ = 0;
     }
   }
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::setZero() {
+  if (isSubspaceDataCreated())
+    std::fill(subspacesData_.begin(), subspacesData_.end(), 0.);
+  else
+    createSubspaceData();
 }
 
 template <typename FG_ELEMENT>
