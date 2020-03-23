@@ -132,10 +132,10 @@ class ProcessGroupWorker {
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
 
-  /** allocates data in dsgs */
-  void initDsgsData();
+  /** sets all subspaces in all dsgs to zero and allocates them if necessary */
+  void zeroDsgsData();
 
-  /** deallocates data the dsgs */
+  /** deallocates all data elements stored in the dsgs */
   void deleteDsgsData();
 
   void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);

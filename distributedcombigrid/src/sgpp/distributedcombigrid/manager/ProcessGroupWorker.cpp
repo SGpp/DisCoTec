@@ -538,9 +538,9 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
 #endif
-  Stats::startEvent("combine initDsgsData");
-  initDsgsData();
-  Stats::stopEvent("combine initDsgsData");
+  Stats::startEvent("combine zeroDsgsData");
+  zeroDsgsData();
+  Stats::stopEvent("combine zeroDsgsData");
 
   Stats::startEvent("combine hierarchize");
   hierarchizeFullGrids();
@@ -894,12 +894,12 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   integrateCombinedSolution();
 }
 
-void ProcessGroupWorker::initDsgsData() {
+void ProcessGroupWorker::zeroDsgsData() {
   for (auto& dsg : combinedUniDSGVector_)
-    dsg->createSubspaceData();
+    dsg->setZero();
 }
 
-/** frees dsgus space for computation */
+/** free dsgus space */
 void ProcessGroupWorker::deleteDsgsData() {
   for (auto& dsg : combinedUniDSGVector_)
     dsg->deleteSubspaceData();
