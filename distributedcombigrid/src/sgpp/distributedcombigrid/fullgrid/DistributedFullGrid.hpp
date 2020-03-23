@@ -796,8 +796,6 @@ class DistributedFullGrid {
   void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
     // test if dsg has already been registered
     if (&dsg != dsg_) registerUniformSG(dsg);
-    // test if data in dsg is created
-    assert(dsg.isSubspaceDataCreated());
 
     // create pointer for each subspace in dsg
     std::vector<FG_ELEMENT*> it_sub(subspaceAssigmentList_.size());
@@ -833,8 +831,6 @@ class DistributedFullGrid {
   void extractFromUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     // test if dsg has already been registered
     if (&dsg != dsg_) registerUniformSG(dsg);
-    // test if data in dsg is created
-    if (dsg.isSubspaceDataCreated()) dsg.createSubspaceData();
 
     // create pointer for each subspace in dsg
     std::vector<FG_ELEMENT*> it_sub(subspaceAssigmentList_.size());
