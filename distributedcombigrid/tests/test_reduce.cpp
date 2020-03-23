@@ -173,6 +173,10 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
+    // the combiparameters are sent to all process groups before the
+    // computations start
+    manager.updateCombiParameters(); //TODO move to manager constructor or runfirst?
+
     /* distribute task according to load model and start computation for
      * the first time */
     std::cout << "run first " << std::endl;
