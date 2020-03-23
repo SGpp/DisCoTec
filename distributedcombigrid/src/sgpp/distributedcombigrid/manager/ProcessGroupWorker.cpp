@@ -421,7 +421,7 @@ void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
 }
 
 
-/* Initializes the dsgu for each species by setting the subspace sizes of all
+/** Initializes the dsgu for each species by setting the subspace sizes of all
  * dfgs in the global reduce comm. After calling, all workers which share the
  * same spatial distribution of the dsgu (those who combine during global
  * reduce) have the same sized subspaces and thus share the same sized dsg.

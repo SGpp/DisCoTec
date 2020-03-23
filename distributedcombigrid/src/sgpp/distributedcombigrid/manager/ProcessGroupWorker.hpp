@@ -40,10 +40,16 @@ class ProcessGroupWorker {
   // Perform combination
   void combine();
 
-  /** combination helpers */
+  /** initializes all subspace sizes in the dsgu according to the dfgs in the
+   * global reduce comm*/
   void initCombinedUniDSGVector();
+
+  /** hierarchizes all fgs */
   void hierarchizeFullGrids();
+
+  /** local reduce */
   void addFullGridsToUniformSG();
+
   /** extracts and dehierarchizes */
   void integrateCombinedSolution();
 
