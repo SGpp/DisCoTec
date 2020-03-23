@@ -26,21 +26,20 @@ const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
 // const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
-const SignalType COMBINE_LOCAL_AND_GLOBAL = 20;
-const SignalType BROADCAST_COMMON_SS = 21;
-const SignalType INIT_DSGUS = 22;
-// Third level specific signals
-const SignalType COMBINE_THIRD_LEVEL = 23;
-const SignalType WAIT_FOR_TL_COMBI_RESULT = 24;
-const SignalType REDUCE_SUBSPACE_SIZES_TL = 25;
-const SignalType WAIT_FOR_TL_SIZE_UPDATE = 26;
+
+/** Signal for initializing the subspaces of the dsgs.
+ *
+ * Is called directly after run_first.
+ * Must be called if subspaces do change due to added/deleted tasks.
+ */
+const SignalType INIT_DSGUS = 20;
 
 /**
  * Signal for adding a task for rescheduling.
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_ADD_TASK = 20;
+const SignalType RESCHEDULE_ADD_TASK = 21;
 
 /**
  * Signal for removing a task for rescheduling.
@@ -48,7 +47,15 @@ const SignalType RESCHEDULE_ADD_TASK = 20;
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_REMOVE_TASK = 21;
+const SignalType RESCHEDULE_REMOVE_TASK = 22;
+
+
+/** Third level specific signals */
+const SignalType COMBINE_LOCAL_AND_GLOBAL = 23;
+const SignalType COMBINE_THIRD_LEVEL = 24;
+const SignalType WAIT_FOR_TL_COMBI_RESULT = 25;
+const SignalType REDUCE_SUBSPACE_SIZES_TL = 26;
+const SignalType WAIT_FOR_TL_SIZE_UPDATE = 27;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
