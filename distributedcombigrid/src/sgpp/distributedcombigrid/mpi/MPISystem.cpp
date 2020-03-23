@@ -30,11 +30,11 @@ MPISystem::MPISystem()
       worldRank_(MPI_UNDEFINED),
       globalRank_(MPI_UNDEFINED),
       localRank_(MPI_UNDEFINED),
-      thirdLevelRank_(MPI_UNDEFINED),
       globalReduceRank_(MPI_UNDEFINED),
       managerRank_(MPI_UNDEFINED),
       managerRankWorld_(MPI_UNDEFINED),
       masterRank_(MPI_UNDEFINED),
+      thirdLevelRank_(MPI_UNDEFINED),
       thirdLevelManagerRank_(MPI_UNDEFINED),
       reusableRanks_(std::vector<RankType>(0)) {
   // check if MPI was initialized (e.g. by MPI_Init or similar)

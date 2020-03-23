@@ -38,7 +38,7 @@ class CombiParameters {
   {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     setLevelsCoeffs(taskIDs, levels, coeffs);
-    numTasks_ = taskIDs.size();
+    numTasks_ = static_cast<long>(taskIDs.size());
     if (parallelization != IndexVector({0})){
       this->setParallelization(parallelization);
     }
@@ -230,12 +230,6 @@ class CombiParameters {
 
   bool applicationCommSet_;
 
-  std::string thirdLevelHost_;
-
-  unsigned short thirdLevelPort_;
-
-  size_t thirdLevelPG_;
-
   friend class boost::serialization::access;
   IndexType numberOfCombinations_;  // total number of combinations
   IndexType numGridsPerTask_;       // number of grids per task
@@ -261,6 +255,14 @@ class CombiParameters {
     * It is ensured that lmax >= lmin
     */
   LevelVector reduceCombinationDimsLmax_;
+
+
+  std::string thirdLevelHost_;
+
+  unsigned short thirdLevelPort_;
+
+  size_t thirdLevelPG_;
+
   // serialize
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version);

@@ -29,7 +29,7 @@ bool ClientSocket::init() {
   servAddr.sin_family = AF_INET;
   bcopy((char*) server->h_addr, (char*)& servAddr.sin_addr.s_addr,
       static_cast<size_t>(server->h_length));
-  servAddr.sin_port = htons(remotePort_);
+  servAddr.sin_port = static_cast<uint16_t>(htons(remotePort_));
   int connStat = connect(sockfd_, (struct sockaddr*) &servAddr,
       sizeof(servAddr));
   if (connStat < 0) {
@@ -330,7 +330,7 @@ bool ServerSocket::init() {
 
   bzero((char*) &servAddr, sizeof(servAddr));
   servAddr.sin_family = AF_INET;
-  servAddr.sin_port = htons(port_);
+  servAddr.sin_port = static_cast<uint16_t>(htons(port_));
   servAddr.sin_addr.s_addr = INADDR_ANY;
   int bindstat = bind(sockfd_, (struct sockaddr*) &servAddr, sizeof(servAddr));
   if (bindstat < 0) {
@@ -429,14 +429,14 @@ bool NetworkUtils::forward(const ClientSocket& sender,
       case -1:
         perror("NetworkUtils::forward() unexpected fail of sender");
         return false;
-    }
-    totalRecvd += static_cast<size_t>(recvd);
-
-    // send received bytes to receiver
-    sendSuccess = receiver.sendall(buff.get(), static_cast<size_t>(recvd));
-    if (!sendSuccess) {
-      std::cerr << "NetworkUtils::forward() unexpected fail of receiver";
-      return false;
+      default:
+        totalRecvd += static_cast<size_t>(recvd);
+        // send received bytes to receiver
+        sendSuccess = receiver.sendall(buff.get(), static_cast<size_t>(recvd));
+        if (!sendSuccess) {
+          std::cerr << "NetworkUtils::forward() unexpected fail of receiver";
+          return false;
+        }
     }
   }
 #ifdef DEBUG_OUTPUT

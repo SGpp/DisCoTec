@@ -397,9 +397,6 @@ class MPISystem {
    */
   CommunicatorType globalReduceComm_;
 
-  // TODO
-  std::vector<CommunicatorType> thirdLevelComms_;
-
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
   simft::Sim_FT_MPI_Comm globalCommFT_;  // FT version of global comm
@@ -411,6 +408,8 @@ class MPISystem {
 
   simft::Sim_FT_MPI_Comm globalReduceCommFT_;  // FT version of global reduce comm
 
+  std::vector<CommunicatorType> thirdLevelComms_; // comm between manager and tl pgroup
+
   RankType worldRank_;  // rank number in world comm
 
   RankType globalRank_;  // rank number in global comm
@@ -421,13 +420,13 @@ class MPISystem {
 
   RankType managerRank_;  // rank number of manager in global comm
 
-  RankType thirdLevelRank_;  // rank number in all third level comms
-
   RankType managerRankWorld_;  // rank number of manager in world comm
 
   RankType managerRankFT_;  // rank number of manager in spare comm
 
   RankType masterRank_;  // rank number of master in local comm
+
+  RankType thirdLevelRank_;  // rank number in all third level comms
 
   RankType thirdLevelManagerRank_;  // rank of manager in all third level comms
 
