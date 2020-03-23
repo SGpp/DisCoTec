@@ -1,9 +1,3 @@
-/*
- *  Sim_FT_get_count.cpp
- *
- *  Created on: 27.10.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 

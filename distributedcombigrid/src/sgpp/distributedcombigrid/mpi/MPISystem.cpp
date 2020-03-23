@@ -1,12 +1,3 @@
-/*
- * MPISetup.cpp
- *
- *  Created on: Jan 23, 2013
- *      Author: mh
- *
- *  Partially copied from the pe Physics Engine class MPISystem
- */
-
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
@@ -300,6 +291,8 @@ void MPISystem::initGlobalReduceCommm() {
       createCommFT(&globalReduceCommFT_, globalReduceComm_);
     }
     MPI_Comm_rank(globalReduceComm_, &globalReduceRank_);
+    //int size = getCommSize(globalReduceComm_);
+    //std::cout << "size if global reduce comm " << size << "\n";
     MPI_Barrier(globalReduceComm_);
   } else {
     MPI_Comm_split(worldComm_, MPI_UNDEFINED, -1, &globalReduceComm_);
@@ -599,7 +592,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
     std::vector<RankType> failedRanks =
         getFailedRanks(numFailedRanks);  // has to be solved differently with ULFM
     std::cout << "nprocs - numFailed " << failedGroups.size() * nprocs_ - numFailedRanks << "\n";
-    newReusableRanks = getReusableRanks(failedGroups.size() * nprocs_ - numFailedRanks);
+    newReusableRanks = getReusableRanks(static_cast<int>(failedGroups.size() * nprocs_ - numFailedRanks));
     getReusableRanksSpare(reusableRanks_);  // update ranks of reusable ranks
     // toDO reusableRanks might be outdated due to new failures there
     bool enoughSpareProcs = sizeSpare - sizeNew >= numFailedRanks;
@@ -679,8 +672,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   int worldSize = getWorldSize();
   assert((worldSize - 1) % nprocs_ == 0);
   ngroup_ = (worldSize - 1) / nprocs_;
-
-  worldRank_ = getWorldRank();
+  MPI_Comm_rank(worldComm_, &worldRank_); 
   managerRankWorld_ = worldSize - 1;
 
   if (worldComm_ != MPI_COMM_NULL) {

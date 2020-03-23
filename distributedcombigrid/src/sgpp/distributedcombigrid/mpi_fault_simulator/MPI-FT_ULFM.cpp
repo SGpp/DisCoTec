@@ -1,9 +1,3 @@
-/*
- *  MPI-FT_ULFM.cpp
- *
- *  Created on: 18.10.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 
@@ -41,7 +35,7 @@ int MPI_Comm_failure_ack(simft::Sim_FT_MPI_Comm f_comm) {
 
     // create a group containing the current dead processes
     std::vector<int> deadP(f_comm->dead_set.begin(), f_comm->dead_set.end());
-    MPI_Group_incl(tempgroup, deadP.size(), &deadP[0], &f_comm->failedgrp);
+    MPI_Group_incl(tempgroup, static_cast<int>(deadP.size()), &deadP[0], &f_comm->failedgrp);
   }
 
   f_comm->Ack_failed_processes = true;

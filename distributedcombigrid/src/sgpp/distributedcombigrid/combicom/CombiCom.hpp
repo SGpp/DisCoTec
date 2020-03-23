@@ -1,10 +1,3 @@
-/*
- * CombiCom.hpp
- *
- *  Created on: Aug 16, 2014
- *      Author: heenemo
- */
-
 #ifndef COMBICOM_HPP_
 #define COMBICOM_HPP_
 

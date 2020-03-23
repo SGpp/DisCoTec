@@ -1,10 +1,3 @@
-/*
- * Config.hpp
- *
- *  Created on: Feb 26, 2016
- *      Author: heenemo
- */
-
 #ifndef DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_UTILS_CONFIG_HPP_
 #define DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_UTILS_CONFIG_HPP_
 
@@ -33,14 +26,6 @@ typedef double real;
 
 // the datatype for complex numbers will change accordingly. do not modify this.
 typedef std::complex<real> complex;
-
-/* set the datatype for the values stored in any type of grid. essentially you
- * have two options: real values or complex numbers. other datatypes like int
- * have not been tested and operations on the grids like evaluation or
- * hierarchization might produce unexpected results.
- */
-typedef real CombiDataType;
-//typedef complex CombiDataType;
 
 /* nonblocking mpi collective calls (MPI_Iallreduce and the likes) usually yield
  * better performance in some of the operations in CombiCom. if you observe
@@ -85,7 +70,19 @@ typedef real CombiDataType;
 	static_assert(std::is_same<CombiDataType, complex>::value);
 #else
 	constexpr bool isGENE = false;
-#endif	
+#endif
+
+/* set the datatype for the values stored in any type of grid. essentially you
+ * have two options: real values or complex numbers. other datatypes like int
+ * have not been tested and operations on the grids like evaluation or
+ * hierarchization might produce unexpected results.
+ */
+#ifdef ISGENE
+	typedef complex CombiDataType;
+#else
+	typedef real CombiDataType;
+#endif
+
 // const bool GENE_Global = true;
 // const bool GENE_Linear = true;
 }

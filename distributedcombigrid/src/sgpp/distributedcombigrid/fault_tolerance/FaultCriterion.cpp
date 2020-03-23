@@ -1,10 +1,3 @@
-/*
- * FaultCriterion.cpp
- *
- *  Created on: Feb 24, 2017
- *      Author: oberstei
- */
-
 #include "FaultCriterion.hpp"
 
 namespace combigrid {

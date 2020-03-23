@@ -1,10 +1,3 @@
-/*
- *  Sim_FT_comm_free.cpp
- *
- *  Created on: 17.10.2015
- *      Author: Johannes Walter
- */
-
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>
@@ -46,7 +39,7 @@ int simft::Sim_FT_MPI_Comm_free(simft::Sim_FT_MPI_Comm *f_comm) {
       (*f_comm)->NBC_Vector_Send = simft::NBC_to_Vector((*f_comm));
     }
   }
-  for (int i = 0; i < (*f_comm)->NBC_Vector_Send.size(); i++) {
+  for (int i = 0; i < static_cast<int>((*f_comm)->NBC_Vector_Send.size()); i++) {
     std::cout << "NBCOUT:::" << (*f_comm)->NBC_Vector_Send[i] << "\n";
   }
 
@@ -114,7 +107,7 @@ int simft::Sim_FT_MPI_Comm_free2(simft::Sim_FT_MPI_Comm *f_comm) {  // does not 
       (*f_comm)->NBC_Vector_Send = simft::NBC_to_Vector((*f_comm));
     }
   }
-  for (int i = 0; i < (*f_comm)->NBC_Vector_Send.size(); i++) {
+  for (int i = 0; i < static_cast<int>((*f_comm)->NBC_Vector_Send.size()); i++) {
     std::cout << "NBCOUT:::" << (*f_comm)->NBC_Vector_Send[i] << "\n";
   }
 

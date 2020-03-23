@@ -1,10 +1,3 @@
-/*
- * MPIUtils.hpp
- *
- *  Created on: Dec 8, 2015
- *      Author: heenemo
- */
-
 #ifndef SRC_SGPP_COMBIGRID_MPI_MPIUTILS_HPP_
 #define SRC_SGPP_COMBIGRID_MPI_MPIUTILS_HPP_
 

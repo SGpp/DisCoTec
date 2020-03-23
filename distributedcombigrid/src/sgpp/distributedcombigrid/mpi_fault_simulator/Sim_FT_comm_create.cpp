@@ -1,9 +1,3 @@
-/*
- *  Sim_FT_comm_create.cpp
- *
- *  Created on: 20.10.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>

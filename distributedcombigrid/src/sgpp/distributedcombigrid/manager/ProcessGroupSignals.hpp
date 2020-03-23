@@ -1,10 +1,3 @@
-/*
- * ProcessGroupCommands.hpp
- *
- *  Created on: Jun 24, 2014
- *      Author: heenemo
- */
-
 #ifndef PROCESSGROUPSIGNALS_HPP_
 #define PROCESSGROUPSIGNALS_HPP_
 
@@ -41,6 +34,21 @@ const SignalType COMBINE_THIRD_LEVEL = 23;
 const SignalType WAIT_FOR_TL_COMBI_RESULT = 24;
 const SignalType REDUCE_SUBSPACE_SIZES_TL = 25;
 const SignalType WAIT_FOR_TL_SIZE_UPDATE = 26;
+
+/**
+ * Signal for adding a task for rescheduling.
+ *
+ * Call only after combine and before run_next.
+ */
+const SignalType RESCHEDULE_ADD_TASK = 20;
+
+/**
+ * Signal for removing a task for rescheduling.
+ * Caller needs to receive task after sending this signal.
+ *
+ * Call only after combine and before run_next.
+ */
+const SignalType RESCHEDULE_REMOVE_TASK = 21;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;

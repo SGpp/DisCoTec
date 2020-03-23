@@ -22,20 +22,34 @@ Guidelines
 * In the future the automated testing and code style checking on commits that is
   done in SG++ will also be done for this project.
 
-Installation instructions:
+Requirements
+--------------
+scons (Python2, >= 2.4.1-1)
+libboost-all-dev (>= 1.60)
+libmpich-dev (>= 3.2-6)
+
+
+Installation instructions: 
 --------------------------
 Use the provided compile.sh for compilation. The script also contains
 compilation commands for the most common scenarios. Or run
 ```
-scons -j4 SG_JAVA=0 COMPILE_BOOST_TESTS=1 SG_ALL=0 SG_DISTRIBUTEDCOMBIGRID=1 VERBOSE=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 COMPILER=mpich OPT=1
+./compile.sh
 ``` 
 and for debugging, add
 ```
 CPPFLAGS=-g
 ``` 
+to the scons command. To clean the compiled files use
 
-There are gene versions as submodules: a linear one in the gene_mgr folder, and
-a nonlinear one in gene-non-linear. To get them, you need access to their
+```
+scons -c
+```
+
+Gene submodules:
+----------------
+There are gene versions as submodules: a linear one in the gene_mgr folder, and 
+a nonlinear one in gene-non-linear. To get them, you need access to their 
 respective repos. Then go into the folder and
 
 ```

@@ -1,10 +1,3 @@
-/*
- *  Sim_FT_barrier.cpp
- *
- *  Created on: 27.07.2015
- *      Author: Johannes Walter
- */
-
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 

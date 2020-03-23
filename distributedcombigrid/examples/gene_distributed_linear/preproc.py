@@ -1,9 +1,13 @@
+from __future__ import print_function
 #path to python interface
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import range
 from sys import path
-path.append('/home/keerthi/combi/distributedcombigrid/examples/gene_distributed_linear/gene_python_interface_clean/src')
-path.append('/home/keerthi/combi/distributedcombigrid/examples/gene_distributed_linear/gene_python_interface_clean/src/tools')
+path.append('./gene_python_interface')
 
-from ConfigParser import SafeConfigParser
+from configparser import SafeConfigParser
 import collections
 from subprocess import call
 
@@ -13,12 +17,13 @@ import combinationScheme as cS
 import numpy as np
 
 #SGPP Directory set by Scons
-SGPP_LIB="/home/marci/UNI/HIWI/combi/lib/sgpp"
-print "SGPP_LIB =", SGPP_LIB
+SGPP_LIB="../../../lib/sgpp"
+print ("SGPP_LIB =", SGPP_LIB)
+GLPK_LIB="../../../glpk/lib"
 import os 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 TASK_LIB= str(dir_path) + "/lib"
-print "TASK_LIB =", TASK_LIB
+print ("TASK_LIB =", TASK_LIB)
  
 # some static definitions
 spcfile = 'spaces.dat'
@@ -77,7 +82,7 @@ if( len( sys.argv ) > 1 ):
 lmin = config.lmin
 lmax = config.lmax
 leval = config.leval
-print lmax
+print(lmax)
 if( not (len(lmin) == len(lmax) == len(leval) ) ):
     raise ValueError('config: lmin,lmax,leval not of same size')
 
@@ -146,10 +151,12 @@ else:
 # loop over scheme
 id = 0
 spaces = ''
-print len(scheme.getCombinationDictionary())
+print(len(scheme.getCombinationDictionary()))
+print(scheme.getCombinationDictionary())
+
 for l in scheme.getCombinationDictionary():
     # note that the level vector in the python vector is stored in reverse order
-    print l
+    print(l)
     l0 = l[5]
     l1 = l[4]
     l2 = l[3]
@@ -198,7 +205,7 @@ for l in scheme.getCombinationDictionary():
     pout = pout.replace('$dt_max', str(config.dt_max))
     if config.local == "T" :
         pout = pout.replace('$shat', str(config.shat))
-    print 2**(lmax[1]-l1)*config.kymin
+    print (2**(lmax[1]-l1)*config.kymin)
     pout = pout.replace('$kymin', str(2**(lmax[1]-l1)*config.kymin))
     pout = pout.replace('$lx', str(config.lx))
 
@@ -224,7 +231,7 @@ call(["ln","-s","../manager",'./' + config.basename + '/manager'])
 call(["cp","./ctparam",'./' + config.basename + '/'])
 
 # create start script in base folder
-scmd = "export LD_LIBRARY_PATH=" + SGPP_LIB + ":" + TASK_LIB + ":/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
+scmd = "export LD_LIBRARY_PATH=" + os.path.abspath(SGPP_LIB) + ":" + os.path.abspath(GLPK_LIB) + ":" + TASK_LIB + ":/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH\n"
 #scmd = "source xprtld.bat\n"
 scmd += config.mpi
 scmd += " -n " + str(config.nprocs*config.ngroup) + ' ' + config.executable
@@ -234,5 +241,3 @@ scmd += " -n 1" + " ./manager"
 sfile = open( config.basename + "/" + config.startscript,'w')
 sfile.write(scmd)
 sfile.close()
-
-
