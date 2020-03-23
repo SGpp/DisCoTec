@@ -150,7 +150,7 @@ vars.Add(BoolVariable("USENONBLOCKINGMPICOLLECTIVE","Nonblocking mpi collective 
 vars.Add(BoolVariable("OMITREADYSIGNAL","Set to true to avoid that the ready signal is sent automatically",True))
 vars.Add(BoolVariable("UNIFORMDECOMPOSITION","To enable the uniform operations set this to true",True))
 vars.Add(BoolVariable("ENABLEFT","Switch on fault tolerance functionality",True))
-vars.Add(BoolVariable("ISGENE","",True))
+vars.Add(BoolVariable("ISGENE","",False))
 
 
 # create temporary environment to check which system and compiler we should use
