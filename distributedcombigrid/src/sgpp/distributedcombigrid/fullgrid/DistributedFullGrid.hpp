@@ -6,6 +6,7 @@
 #include <iostream>
 #include <numeric>
 #include <cassert>
+#include <string>
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
@@ -752,7 +753,10 @@ class DistributedFullGrid {
   }
 
   /*
-   * Resizes all subspaces of the dsg that the dfg and dsg have in common. The
+   * Computes a subspace assignment list which maps an index of a subspace
+   * in the dfg to the corresponding index in the dsg.
+   * If the subspaces in the dsg have zero size, all subspaces
+   * of the dsg that the dfg and dsg have in common are resized. The
    * size of a subspace in the dsg is chosen according to the corresponding
    * subspace size in the dfg.
    *
