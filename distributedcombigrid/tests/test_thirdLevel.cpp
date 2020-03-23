@@ -193,10 +193,6 @@ void testCombineThirdLevel(TestParams& testParams) {
         manager.runfirst();
         Stats::stopEvent("manager run");
 
-        Stats::startEvent("manager init dsgus");
-        manager.initDsgus();
-        Stats::stopEvent("manager init dsgus");
-
         // exchange subspace sizes to unify the dsgs with the remote system
         Stats::startEvent("manager unify subspace sizes with remote");
         manager.unifySubspaceSizesThirdLevel(),

@@ -42,6 +42,9 @@ bool ProcessManager::runfirst() {
   size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   receiveDurationsOfTasksFromGroupMasters(0);
 
+  // initialize dsgus
+  initDsgus();
+
   // return true if no group failed
   return !group_failed;
 }

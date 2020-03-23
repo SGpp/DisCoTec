@@ -162,10 +162,6 @@ int main(int argc, char** argv) {
     manager.runfirst();
     Stats::stopEvent("manager run first");
 
-    Stats::startEvent("manager init dsgus");
-    manager.initDsgus();
-    Stats::stopEvent("manager init dsgus");
-
     // exchange subspace sizes to unify the dsgs in the third level case
     if (hasThirdLevel) {
       Stats::startEvent("manager unify subspace sizes with remote");
