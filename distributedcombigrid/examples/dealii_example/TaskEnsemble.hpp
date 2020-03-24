@@ -11,7 +11,7 @@
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGridEnsemble.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include <sstream>
-
+#include <cassert>
 #include <deal.II/base/timer.h>
 #include <deal.II/lac/la_parallel_vector.h>
 #include <hyper.deal.combi/include/functionalities/dynamic_convergence_table.h>
@@ -134,9 +134,13 @@ class TaskEnsemble : public Task {
     int Nx=std::pow(2,l[0])+1;
     int Ny=std::pow(2,l[1])+1;
     int Nz=1;
-    if(dim==3)
+    int partitions=p[0]*p[1];
+    if(dim==3){
       Nz=std::pow(2,l[2])+1;
-
+      partitions*=p[2];
+    }
+      
+    assert(partitions==1);//partitioning isnt correct when in parallel
     index_mapping.resize(dfgEnsemble_->getNumFullGrids());
     for (unsigned int i = 0; i< dfgEnsemble_->getNumFullGrids(); ++i)
       index_mapping[i].resize(element_coords[0].size());
@@ -147,7 +151,7 @@ class TaskEnsemble : public Task {
     int x=0,y=0,linearized_index=0;
     //index mapping is done via hashing:
     //each point is mapped to its linearized index in the grid -> O(n)
-    ss<< "elements";
+    
     for(unsigned int el_index=0;el_index<(element_coords[0].size());el_index++){
       
       x=element_coords[0][el_index][0]*(Nx-1);
@@ -163,76 +167,25 @@ class TaskEnsemble : public Task {
       index_sub[linearized_index]=el_index;
     }
     
-    ss<<"now deal";
     //same for the deal.II points ->O(2n)
     for(unsigned int x2=coords_dealii.size()-1; x2<numbers::invalid_unsigned_int;x2--){
-      double x_=coords_dealii[x2][0]*(Nx-1);
+      x=std::round(coords_dealii[x2][0]*(Nx-1));
       //y=coords_dealii[x2][1]*(Ny-1);  
       if(dim==3)
         z=coords_dealii[x2][2]*(Nz-1);  
-      int y_= std::round(coords_dealii[x2][1]*(Ny-1));    
+      y= std::round(coords_dealii[x2][1]*(Ny-1));    
       
-      const int linearized_index=(Nx)*y_+x_+z*(Nx)*(Ny);
-      
-      
+      linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
       
       if(index_sub[linearized_index]!=-1)        
         index_mapping[coords_dealii[x2][dim+1]][index_sub[linearized_index]]=x2;
       
     }
-    ss << "Start print\n";
-    for(int i=0; i<index_mapping.size();i++){
-      std::copy(index_mapping[i].begin(), index_mapping[i].end(), std::ostream_iterator<int>(ss, " "));
-      ss << " Nect level ";
+  
+  
+    
     }
     
-
-    ss << "\n now the old mapping: \n";
-    
-    //old mapping
-    int vec=0;
-    double eps=5*10e-8;
-    
-    index_mapping2.resize(dfgEnsemble_->getNumFullGrids());
-    
-    for (unsigned int i = 0; i< dfgEnsemble_->getNumFullGrids(); ++i){
-      auto& dfg = dfgEnsemble_->getDFG(i);
-      std::vector<CombiDataType>& elements = dfg.getElementVector();
-
-      index_mapping2[i].resize(elements.size());
-
-      for(unsigned int el_index=0;el_index<elements.size();el_index++){
-      //Create the point for the point of combi
-        vec=0;
-        Point<Problem::dim_> combi;
-        for(auto y:element_coords[i][el_index])
-          combi[vec++]=y;
-      //loop over dealii points
-        for(unsigned int x2=(coords_dealii.size())-1;x2<numbers::invalid_unsigned_int;x2--){
-        
-          Point<Problem::dim_> dealii;
-          vec=0;
-          for(unsigned int vec=0;vec<dim;vec++)
-            dealii[vec]=coords_dealii[x2][vec];
-
-          //check if the points are equal
-          if(combi.distance(dealii)<=eps && coords_dealii[x2][dim+1]==i )
-          {
-            index_mapping2[i][el_index]=x2;
-            break;//break is bad
-          }
-        }
-      }
-    }
-    for(int i=0; i<index_mapping2.size();i++){
-      std::copy(index_mapping2[i].begin(), index_mapping2[i].end(), std::ostream_iterator<int>(ss, " "));
-      ss << " next level ";
-    }
-    ss << "finisch Print \n";
-
-    std::cout << ss.str();
-    }
-    index_mapping=index_mapping2;
     initialized_ = true;
   }
 

@@ -25,7 +25,7 @@ INC_HYPERDEAL=-I$(HYPER_DIR)
 LDIR=$(LD_SGPP) $(LD_GLPK) $(LD_DEALII)
 INC=$(INC_SGPP) $(INC_GLPK) $(INC_DEALII) $(INC_BOOST) $(INC_HYPERDEAL) $(INC_P4EST)
 
-LIBS=-lsgppdistributedcombigrid -lboost_serialization -ldeal_II.g 
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -ldeal_II
 
 all: dealii_example 
 

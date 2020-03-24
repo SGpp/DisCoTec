@@ -25,7 +25,7 @@
 
 //TODO: global variables needed in hyperdeal
 typedef double Number;
-const unsigned int dim    = 2;
+const unsigned int dim    = 3;
 const unsigned int degree = 1; /*dummy value*/
 typedef dealii::VectorizedArray<Number, 1> VectorizedArrayType;
 typedef dealii::LinearAlgebra::distributed::Vector<Number> VectorType;
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
    * initialized at the beginning of the program. (and finalized in the end)
    */
   Stats::initialize();
-
+  Stats::startEvent("overall computation");
   // read in parameter file
   boost::property_tree::ptree cfg;
   boost::property_tree::ini_parser::read_ini("ctparam", cfg);
@@ -183,7 +183,8 @@ int main(int argc, char** argv) {
     std::chrono::nanoseconds duration_combination=std::chrono::nanoseconds::zero();
     for (size_t i = 0; i < ncombi; ++i) {
       Stats::startEvent("combine");
-      manager.combine();
+      if(do_combine)
+        manager.combine();
       Stats::stopEvent("combine");
 
       
@@ -195,7 +196,10 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager run");
       table.print(false);
     }
-    // evaluate solution and
+    if(true){
+      manager.combine();
+    }
+      // evaluate solution and
       // write solution to file
       std::string filename("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/cs"  +"mi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ev_"+toString(leval)+".dat");
       Stats::startEvent("manager write solution");
@@ -235,7 +239,7 @@ int main(int argc, char** argv) {
 
     while (signal != EXIT) signal = pgroup.wait();
   }
-
+  Stats::stopEvent("overall computation");
   Stats::finalize();
 
   /* write stats to json file for postprocessing */

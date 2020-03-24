@@ -1,9 +1,9 @@
 [ct] 
 dim=3 
-lmin=6 6 6 
-lmax=6 6 6 
-leval=6 6 6 
-p= 1 1 1
+lmin=4 4 4 
+lmax=9 9 9 
+leval=7 7 7 
+        p= 1 1 1
 ncombi=10 
 FE=FE_Q 
  

@@ -147,16 +147,11 @@ class TaskExample : public Task {
     
     //same for the deal.II points ->O(2n)
     for(unsigned int x2=0; x2<(coords_dealii.size());x2++){
-      x=coords_dealii[x2][0]*(Nx-1);
-      y=coords_dealii[x2][1]*(Ny-1);  
-      if(dim==2){               
-        linearized_index=y*(Nx)+x;
-      }
-      else if(dim==3){
-        z=coords_dealii[x2][2]*(Nz-1); 
-        linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
-      }
-      
+      x=std::round(coords_dealii[x2][0]*(Nx-1));
+      y=std::round(coords_dealii[x2][1]*(Ny-1));  
+      if(dim==3)
+        z=std::round(coords_dealii[x2][2]*(Nz-1));
+      linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
       //            here i get the element that has the same linearized index
         
       if(index_sub[linearized_index]!=-1)
@@ -197,7 +192,7 @@ class TaskExample : public Task {
     Stats::stopEvent("Task "+std::to_string(this->getID()));
     std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
     
-    if(do_combine){
+    if(true){
       for(unsigned int i = 0; i < index_mapping.size(); i++)
           elements[i]=result[index_mapping[i]][Problem::dim_];
     }
