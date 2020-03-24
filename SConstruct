@@ -148,7 +148,7 @@ vars.Add(BoolVariable("BUILD_STATICLIB", "Set if static libraries should be buil
 vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing SG++", True))
 vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', rootDirectory + "/glpk/include/")
 vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', rootDirectory + "/glpk/lib/")
-vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
+vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "10")
 
 
 vars.Add(BoolVariable("USENONBLOCKINGMPICOLLECTIVE","Nonblocking mpi collective calls (MPI_Iallreduce and the likes)",True))
