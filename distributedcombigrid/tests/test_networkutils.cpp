@@ -9,9 +9,9 @@ static unsigned short port          = 9999;
 static std::vector<double> testData = std::vector<double>({0., 1., 2., 3., 4.});
 
 
-void testBinarySendClient() {
+void testBinarySendClient(MPI_Comm comm) {
   // wait until server is set up
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(comm);
 
   // connect to server
   ClientSocket client(host, port);
@@ -21,13 +21,13 @@ void testBinarySendClient() {
   client.sendallBinary(testData.data(), testData.size());
 }
 
-void testBinarySendRecvServer() {
+void testBinarySendRecvServer(MPI_Comm comm) {
   // setup server
   ServerSocket server(port);
   server.init();
 
   // server is now ready to accept client
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(comm);
   std::shared_ptr<ClientSocket> client(server.acceptClient());
   BOOST_CHECK(client != nullptr);
 
@@ -43,13 +43,13 @@ void testBinarySendRecvServer() {
   }
 }
 
-void testBinarySendReduceServer() {
+void testBinarySendReduceServer(MPI_Comm comm) {
   // init server
   ServerSocket server(port);
   server.init();
 
   // server is now ready to accept client
-  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Barrier(comm);
   std::shared_ptr<ClientSocket> client(server.acceptClient());
 
   // reduce data
@@ -67,17 +67,23 @@ void testBinarySendReduceServer() {
 }
 
 
-BOOST_AUTO_TEST_SUITE(networkUtils)
+BOOST_AUTO_TEST_SUITE(networkutils)
 
 BOOST_AUTO_TEST_CASE(testBinarySendRecv) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(2));
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+  // create communicator with first two procs only
+  MPI_Comm newComm = TestHelper::getComm(2);
+  if (newComm == MPI_COMM_NULL)
+    return;
+
+  MPI_Comm_rank(newComm, &rank);
   if (rank == 0)
-    testBinarySendRecvServer();
+    testBinarySendRecvServer(newComm);
   if (rank == 1)
-    testBinarySendClient();
+    testBinarySendClient(newComm);
 }
 
 BOOST_AUTO_TEST_CASE(testBinarySendReduce) {
@@ -85,10 +91,16 @@ BOOST_AUTO_TEST_CASE(testBinarySendReduce) {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+  // create communicator with first two procs only
+  MPI_Comm newComm = TestHelper::getComm(2);
+  if (newComm == MPI_COMM_NULL)
+    return;
+
+  MPI_Comm_rank(newComm, &rank);
   if (rank == 0)
-    testBinarySendReduceServer();
+    testBinarySendReduceServer(newComm);
   if (rank == 1)
-    testBinarySendClient();
+    testBinarySendClient(newComm);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
