@@ -72,7 +72,7 @@ vars.Add("CPPFLAGS", "Set additional compiler flags, they are compiler-dependent
                      "(multiple flags combined with comma, e.g. -Wall,-Wextra)", "",
                      converter=Helper.multiParamConverter)
 vars.Add("LINKFLAGS", "Set additional linker flags, they are linker-dependent " +
-                      "(multiple flags combined with comma, e.g. -lpython,-lm)", "",
+                      "(multiple flags combined with comma, e.g. -lpython,-lm)", "-lvtkCommonCore,-lvtkIOXML,-lvtkIOParallelXML",
                      converter=Helper.multiParamConverter)
 vars.Add("CPPPATH", "Set path where to look for additional headers", "")
 vars.Add("LIBPATH", "Set path where to look for additional libraries", "")
@@ -149,7 +149,8 @@ vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing S
 vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', rootDirectory + "/glpk/include/")
 vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', rootDirectory + "/glpk/lib/")
 vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "10")
-
+vars.Add(BoolVariable("USE_VTK", "Set if you want to write vtk files ", False))
+vars.Add('VTK_INCLUDE_PATH', 'Specifies the location of the vtk header files.', "/usr/include/")
 
 vars.Add(BoolVariable("USENONBLOCKINGMPICOLLECTIVE","Nonblocking mpi collective calls (MPI_Iallreduce and the likes)",True))
 vars.Add(BoolVariable("OMITREADYSIGNAL","Set to true to avoid that the ready signal is sent automatically",True))
