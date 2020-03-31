@@ -9,6 +9,7 @@
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/vtk/PlotFileWriter.hpp"
 
 namespace combigrid {
 
@@ -94,6 +95,18 @@ class ProcessGroupWorker {
   // std::ofstream betasFile_;
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
+
+  /** sets all subspaces in all dsgs to zero and allocates them if necessary */
+  void zeroDsgsData();
+
+  /** deallocates all data elements stored in the dsgs */
+  void deleteDsgsData();
+
+  /** the pg writes the dfg of the given task into a vtk file */
+  void writeVTKPlotFileOfTask(Task& task);
+
+  /** the pg writes the dfg of all tasks into individual vtk files */
+  void writeVTKPlotFilesOfAllTasks();
 
   void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);
 

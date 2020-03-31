@@ -171,6 +171,11 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("combine");
 
     } break;
+    case WRITE_DFGS_TO_VTK: {
+      Stats::startEvent("writeVTKPlotFilesOfAllTasks");
+      writeVTKPlotFilesOfAllTasks();
+      Stats::stopEvent("writeVTKPlotFilesOfAllTasks");
+    } break;
     case GRID_EVAL: {  // not supported anymore
 
       Stats::startEvent("eval");
@@ -766,6 +771,34 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
     DistributedHierarchization::dehierarchize<CombiDataType>(
         dfg, combiParameters_.getHierarchizationDims());
   }
+}
+
+void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
+//#ifdef USE_VTK
+  IndexType numGrids = combiParameters_.getNumGrids();
+  for (IndexType g = 0; g < numGrids; g++) {
+    DistributedFullGrid<CombiDataType>& dfg = task.getDistributedFullGrid(g);
+    DFGPlotFileWriter::writePlotFile(dfg, g);
+  }
+//#endif
+}
+
+void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
+//#ifdef USE_VTK
+  for (Task* task : tasks_)
+    writeVTKPlotFileOfTask(*task);
+//#endif
+}
+
+void ProcessGroupWorker::zeroDsgsData() {
+  for (auto& dsg : combinedUniDSGVector_)
+    dsg->setZero();
+}
+
+/** free dsgus space */
+void ProcessGroupWorker::deleteDsgsData() {
+  for (auto& dsg : combinedUniDSGVector_)
+    dsg->deleteSubspaceData();
 }
 
 void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids) {
