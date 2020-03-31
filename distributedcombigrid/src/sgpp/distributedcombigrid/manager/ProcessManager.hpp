@@ -44,7 +44,7 @@ class ProcessManager {
       loadModel_{std::move(loadModel)},
       rescheduler_{std::move(rescheduler)},
       thirdLevel_{params.getThirdLevelHost(), params.getThirdLevelPort()},
-      thirdLevelPGroup_(pgroups_[params.getThirdLevelPG()])
+      thirdLevelPGroup_{pgroups_[params.getThirdLevelPG()]}
   {
      // only setup third level if explicitly desired
      if (params.getThirdLevelHost() != "")
@@ -121,6 +121,7 @@ class ProcessManager {
   void restoreCombischeme();
 
   void setupThirdLevel();
+
   /**
    * Call to perform a rescheduling using the given rescheduler and load model.
    *
@@ -132,6 +133,8 @@ class ProcessManager {
    * - Accuracy of calculated values is lost if leval is not equal to 0.
    */
   void reschedule();
+
+  void writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg);
 
  private:
   ProcessGroupManagerContainer& pgroups_;

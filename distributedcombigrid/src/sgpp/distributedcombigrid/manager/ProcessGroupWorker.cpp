@@ -210,6 +210,11 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("waitForThirdLevelSizeUpdate");
 
     } break;
+    case WRITE_DFGS_TO_VTK: {
+      Stats::startEvent("writeVTKPlotFilesOfAllTasks");
+      writeVTKPlotFilesOfAllTasks();
+      Stats::stopEvent("writeVTKPlotFilesOfAllTasks");
+    } break;
     case GRID_EVAL: {  // not supported anymore
 
       Stats::startEvent("eval");
@@ -892,6 +897,23 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   }
 
   integrateCombinedSolution();
+}
+
+void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
+//#ifdef USE_VTK
+  IndexType numGrids = combiParameters_.getNumGrids();
+  for (IndexType g = 0; g < numGrids; g++) {
+    DistributedFullGrid<CombiDataType>& dfg = task.getDistributedFullGrid(g);
+    DFGPlotFileWriter::writePlotFile(dfg, g);
+  }
+//#endif
+}
+
+void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
+//#ifdef USE_VTK
+  for (Task* task : tasks_)
+    writeVTKPlotFileOfTask(*task);
+//#endif
 }
 
 void ProcessGroupWorker::zeroDsgsData() {

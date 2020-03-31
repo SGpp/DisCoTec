@@ -439,4 +439,9 @@ void ProcessManager::reschedule() {
   }
 }
 
+void ProcessManager::writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg) {
+  pg->writeCombigridsToVTKPlotFile();
+  waitForPG(pg);
+}
+
 } /* namespace combigrid */

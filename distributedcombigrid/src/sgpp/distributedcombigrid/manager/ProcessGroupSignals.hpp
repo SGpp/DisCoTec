@@ -57,6 +57,8 @@ const SignalType WAIT_FOR_TL_COMBI_RESULT = 25;
 const SignalType REDUCE_SUBSPACE_SIZES_TL = 26;
 const SignalType WAIT_FOR_TL_SIZE_UPDATE = 27;
 
+const SignalType WRITE_DFGS_TO_VTK = 28;
+
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
 const NormalizationType L1_NORMALIZATION = 1;

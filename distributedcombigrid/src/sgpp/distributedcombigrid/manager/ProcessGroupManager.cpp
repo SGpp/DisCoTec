@@ -105,6 +105,9 @@ bool ProcessGroupManager::initDsgus() {
 bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
                                             CombiParameters& params,
                                             bool isSendingFirst) {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
   sendSignalAndReceive(COMBINE_THIRD_LEVEL);
 
   if (isSendingFirst)
@@ -190,7 +193,7 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel,
       // we assume here that all dsgus have the same size otherwise size collection must change
       size_t dsguSize = (size_t) (dsguDataSizePerWorker_[(size_t)p]/numGrids);
       assert(dsguSize < INT_MAX && "dsgu is larger than what we can send in a "
-                                  "single mpi call");
+                                   "single mpi call");
       // recv dsgu from worker
       dsguData.reset(new CombiDataType[dsguSize]);
       MPI_Recv(dsguData.get(), (int) dsguSize, dataType, p, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
@@ -300,16 +303,25 @@ bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLe
 }
 
 bool ProcessGroupManager::combineLocalAndGlobal() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
   sendSignalAndReceive(COMBINE_LOCAL_AND_GLOBAL);
   return true;
 }
 
 bool ProcessGroupManager::waitForThirdLevelCombiResult() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
   sendSignalAndReceive(WAIT_FOR_TL_COMBI_RESULT);
   return true;
 }
 
 bool ProcessGroupManager::waitForThirdLevelSizeUpdate() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
   sendSignalAndReceive(WAIT_FOR_TL_SIZE_UPDATE);
   return true;
 }
@@ -440,6 +452,14 @@ Task *ProcessGroupManager::rescheduleRemoveTask(const LevelVector &lvlVec) {
     }
   }
   return nullptr;
+}
+
+bool ProcessGroupManager::writeCombigridsToVTKPlotFile() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  sendSignalAndReceive(WRITE_DFGS_TO_VTK);
+  return true;
 }
 
 } /* namespace combigrid */

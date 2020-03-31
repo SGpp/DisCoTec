@@ -102,6 +102,8 @@ class ProcessGroupManager {
    */
   Task *rescheduleRemoveTask(const LevelVector& lvlVec);
 
+  bool writeCombigridsToVTKPlotFile();
+
  private:
   RankType pgroupRootID_;  // rank in GlobalComm of the master process of this group
 
@@ -156,7 +158,6 @@ class ProcessGroupManager {
   bool waitForThirdLevelSizeUpdate();
 
   bool waitForThirdLevelCombiResult();
-
 
   /* sets the rank of the process group's master in global comm. should only
    * be called by ProcessManager.
