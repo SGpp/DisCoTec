@@ -790,17 +790,6 @@ void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
 //#endif
 }
 
-void ProcessGroupWorker::zeroDsgsData() {
-  for (auto& dsg : combinedUniDSGVector_)
-    dsg->setZero();
-}
-
-/** free dsgus space */
-void ProcessGroupWorker::deleteDsgsData() {
-  for (auto& dsg : combinedUniDSGVector_)
-    dsg->deleteSubspaceData();
-}
-
 void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids) {
     for (int g = 0; g < numGrids; g++) {
       // get handle to dfg
