@@ -774,20 +774,20 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
 }
 
 void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
-//#ifdef USE_VTK
+#ifdef USE_VTK
   IndexType numGrids = combiParameters_.getNumGrids();
   for (IndexType g = 0; g < numGrids; g++) {
     DistributedFullGrid<CombiDataType>& dfg = task.getDistributedFullGrid(g);
     DFGPlotFileWriter::writePlotFile(dfg, g);
   }
-//#endif
+#else
+  std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
+#endif /* USE_VTK */
 }
 
 void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
-//#ifdef USE_VTK
   for (Task* task : tasks_)
     writeVTKPlotFileOfTask(*task);
-//#endif
 }
 
 void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids) {

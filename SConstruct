@@ -72,7 +72,7 @@ vars.Add("CPPFLAGS", "Set additional compiler flags, they are compiler-dependent
                      "(multiple flags combined with comma, e.g. -Wall,-Wextra)", "",
                      converter=Helper.multiParamConverter)
 vars.Add("LINKFLAGS", "Set additional linker flags, they are linker-dependent " +
-                      "(multiple flags combined with comma, e.g. -lpython,-lm)", "-lvtkCommonCore,-lvtkIOXML,-lvtkIOParallelXML",
+                      "(multiple flags combined with comma, e.g. -lpython,-lm)",
                      converter=Helper.multiParamConverter)
 vars.Add("CPPPATH", "Set path where to look for additional headers", "")
 vars.Add("LIBPATH", "Set path where to look for additional libraries", "")
