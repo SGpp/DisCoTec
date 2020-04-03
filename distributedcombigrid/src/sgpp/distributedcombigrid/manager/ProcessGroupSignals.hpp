@@ -34,7 +34,7 @@ const SignalType COMBINE_ASYNC_ODD_EVEN = 21;
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_ADD_TASK = 20;
+const SignalType RESCHEDULE_ADD_TASK = 22;
 
 /**
  * Signal for removing a task for rescheduling.
@@ -42,7 +42,7 @@ const SignalType RESCHEDULE_ADD_TASK = 20;
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_REMOVE_TASK = 21;
+const SignalType RESCHEDULE_REMOVE_TASK = 23;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
