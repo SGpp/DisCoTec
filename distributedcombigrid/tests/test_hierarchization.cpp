@@ -88,6 +88,47 @@ class TestFn_2 {
   }
 };
 
+/**
+ * functor for test function $f(x) = \prod_{i=0}^d x_i * (x_i - 1)$
+ * without boundary
+ */
+class TestFn_3 {
+  LevelVector levels_;
+
+ public:
+  TestFn_3(LevelVector& levels) : levels_(levels) {}
+
+  // overload for function value
+  std::complex<double> operator()(std::vector<double>& coords) {
+    std::complex<double> result(1, 1);
+    for (size_t d = 0; d < coords.size(); ++d) {
+      result.real(result.real() * coords[d] * (coords[d] - 1.0));
+      result.imag(result.imag() * coords[d] * coords[d]);
+    }
+    return result;
+  }
+
+  // overload for hierarchical surpluses
+  std::complex<double> operator()(IndexVector& index) {
+    std::complex<double> result(1, 1);
+    for (size_t d = 0; d < index.size(); ++d) {
+      std::vector<double> coeff = {0, 0};
+      std::vector<double> coeff2 = {0.0, 1.0};
+      for (int l = 1; l < levels_[d] + 1; ++l) {
+        for (int i = 0; i < 1 << l; ++i) {
+          if (i % 2) {
+            coeff.insert(coeff.begin() + i, -std::pow(2.0, -2 * l));
+            coeff2.insert(coeff2.begin() + i, -std::pow(2.0, -2 * l));
+          }
+        }
+      }
+      result.real(result.real() * coeff[index[d]]);
+      result.imag(result.imag() * coeff2[index[d]]);
+    }
+    return result;
+  }
+};
+
 template <typename Functor>
 void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
                           std::vector<bool>& boundary, int size, bool forward = false) {
@@ -373,6 +414,133 @@ BOOST_AUTO_TEST_CASE(test_26) {
   IndexVector procs = {3, 3, 1};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+}
+
+// with boundary
+// isotropic
+
+BOOST_AUTO_TEST_CASE(test_27) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  IndexVector procs = {2, 2, 2};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8);
+}
+BOOST_AUTO_TEST_CASE(test_28) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  IndexVector procs = {2, 2, 2};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+}
+BOOST_AUTO_TEST_CASE(test_29) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {6, 6, 6};
+  IndexVector procs = {2, 2, 2};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8);
+}
+BOOST_AUTO_TEST_CASE(test_30) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  IndexVector procs = {1, 4, 2};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8);
+}
+BOOST_AUTO_TEST_CASE(test_31) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  IndexVector procs = {1, 1, 8};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8);
+}
+BOOST_AUTO_TEST_CASE(test_32) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {3, 3, 3, 3};
+  IndexVector procs = {1, 2, 2, 2};
+  std::vector<bool> boundary(4, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8);
+}
+BOOST_AUTO_TEST_CASE(test_33) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {3, 3, 3};
+  IndexVector procs = {3, 3, 1};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 9);
+}
+BOOST_AUTO_TEST_CASE(test_34) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {3, 3, 3};
+  IndexVector procs = {3, 3, 1};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+}
+
+// anisotropic
+
+BOOST_AUTO_TEST_CASE(test_35) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 4, 6};
+  IndexVector procs = {2, 2, 2};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8);
+}
+BOOST_AUTO_TEST_CASE(test_36) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 4, 6};
+  IndexVector procs = {2, 2, 2};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+}
+BOOST_AUTO_TEST_CASE(test_37) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 4, 6};
+  IndexVector procs = {2, 1, 4};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8);
+}
+BOOST_AUTO_TEST_CASE(test_38) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {1, 4, 4};
+  IndexVector procs = {1, 2, 4};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8);
+}
+BOOST_AUTO_TEST_CASE(test_39) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 1, 3, 3, 2};
+  IndexVector procs = {2, 1, 2, 2, 1};
+  std::vector<bool> boundary(5, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 8);
+}
+BOOST_AUTO_TEST_CASE(test_40) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {2, 3, 4};
+  IndexVector procs = {3, 3, 1};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 9);
+}
+BOOST_AUTO_TEST_CASE(test_41) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {2, 3, 4};
+  IndexVector procs = {3, 3, 1};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
 }
 

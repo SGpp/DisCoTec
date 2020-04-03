@@ -1,9 +1,3 @@
-/*
- *  Sim_FT_test.cpp
- *
- *  Created on: 03.10.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>

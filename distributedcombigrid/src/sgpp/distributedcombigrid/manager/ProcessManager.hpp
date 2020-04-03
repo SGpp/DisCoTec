@@ -1,10 +1,3 @@
-/*
- * ProcessManager.hpp
- *
- *  Created on: Oct 8, 2013
- *      Author: heenemo
- */
-
 #ifndef PROCESSMANAGER_HPP_
 #define PROCESSMANAGER_HPP_
 
@@ -16,6 +9,8 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LoadModel.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/rescheduler/TaskRescheduler.hpp"
+#include "sgpp/distributedcombigrid/rescheduler/StaticTaskRescheduler.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
@@ -23,12 +18,28 @@ namespace combigrid {
 
 class ProcessManager {
  public:
+   /**
+    * Constructor for a process manager.
+    *
+    * @param pgroups The process groups.
+    * @param instances The tasks.
+    * @param params The parameters for the combination technique.
+    * @param loadModel The load model to use for scheduling. If it is a 
+    *                  learning load model duration information is added for 
+    *                  every task after every run.
+    * @param rescheduler The rescheduler to use for dynamic task rescheduling.
+    *                    By default the static task rescheduler is used and 
+    *                    therefore no rescheduling perfomed.
+    */
   ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& instances,
-                 CombiParameters& params, std::unique_ptr<LoadModel> loadModel)
-    : pgroups_(pgroups), tasks_(instances), params_(params)
-    {
-      loadModel_ = std::move(loadModel);
-  }
+                 CombiParameters& params, std::unique_ptr<LoadModel> loadModel, 
+                 std::unique_ptr<TaskRescheduler> rescheduler = std::unique_ptr<TaskRescheduler>(new StaticTaskRescheduler{}))
+    : pgroups_{pgroups}, 
+      tasks_{instances}, 
+      params_{params}, 
+      loadModel_{std::move(loadModel)},
+      rescheduler_{std::move(rescheduler)}
+  { }
 
   inline void removeGroups(std::vector<int> removeIndices);
 
@@ -93,6 +104,18 @@ class ProcessManager {
    * to the original combination technique*/
   void restoreCombischeme();
 
+  /**
+   * Call to perform a rescheduling using the given rescheduler and load model.
+   *
+   * The rescheduling removes tasks from one process group and assigns them to
+   * a different process group. The result of the combination is used to 
+   * restore values of the newly assigned task.
+   * Implications: 
+   * - Should only be called after the combination step and before runnext.
+   * - Accuracy of calculated values is lost if leval is not equal to 0.
+   */
+  void reschedule();
+
  private:
   ProcessGroupManagerContainer& pgroups_;
 
@@ -101,6 +124,10 @@ class ProcessManager {
   CombiParameters params_;
 
   std::unique_ptr<LoadModel> loadModel_;
+
+  std::unique_ptr<TaskRescheduler> rescheduler_;
+
+  std::map<LevelVector, unsigned long> levelVectorToLastTaskDuration_ = {};
 
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
@@ -380,7 +407,7 @@ inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
       std::cout << newCoeffs[i] << " ";
     }
     std::cout << "\n";
-    int roundedSum = round(sum);
+    int roundedSum = static_cast<int>(round(sum));
     std::cout << "Coefficient sum: " << roundedSum << "\n";
 
     assert(roundedSum == 1);

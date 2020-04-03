@@ -1,10 +1,3 @@
-/*
- * ProcessGroupManager.cpp
- *
- *  Created on: Jul 17, 2014
- *      Author: heenemo
- */
-
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
@@ -229,6 +222,32 @@ bool ProcessGroupManager::recoverCommunicators() {
   sendSignalToProcessGroup(RECOVER_COMM);
 
   return true;
+}
+
+bool ProcessGroupManager::rescheduleAddTask(Task *task) {
+  return storeTaskReferenceAndSendTaskToProcessGroup(task, RESCHEDULE_ADD_TASK);
+}
+
+Task *ProcessGroupManager::rescheduleRemoveTask(const LevelVector &lvlVec) {
+  for (std::vector<Task *>::size_type i = 0; i < this->tasks_.size(); ++i) {
+    Task *currentTask = this->tasks_[i];
+    if (currentTask->getLevelVector() == lvlVec) { 
+      // if the task has been found send remove signal and return the task
+      Task *removedTask;
+      auto taskID = currentTask->getID();
+      sendSignalToProcessGroup(RESCHEDULE_REMOVE_TASK);
+      MPI_Send(&taskID, 1, MPI_INT, this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
+      Task::receive(&removedTask, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+      setProcessGroupBusyAndReceive();
+
+      tasks_.erase(tasks_.begin() + i);
+      delete currentTask;
+
+
+      return removedTask;
+    }
+  }
+  return nullptr;
 }
 
 } /* namespace combigrid */

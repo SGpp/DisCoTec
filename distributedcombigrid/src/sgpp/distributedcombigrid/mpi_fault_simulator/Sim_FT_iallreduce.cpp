@@ -1,10 +1,3 @@
-/*
- *  Sim_FT_iallreduce.cpp
- *
- *  Created on: 27.09.2015
- *      Author: Johannes Walter
- */
-
 #include "MPI-FT.h"
 #ifndef DISABLE_NBC
 #include REAL_MPI_INCLUDE

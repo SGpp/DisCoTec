@@ -1,10 +1,3 @@
-/*
- * LinearLoadModel.hpp
- *
- *  Created on: Oct 9, 2013
- *      Author: heenemo
- */
-
 #ifndef LINEARLOADMODEL_HPP_
 #define LINEARLOADMODEL_HPP_
 

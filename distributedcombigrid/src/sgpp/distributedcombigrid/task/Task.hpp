@@ -1,10 +1,3 @@
-/*
- * Task.hpp
- *
- *  Created on: Jul 10, 2014
- *      Author: heenemo
- */
-
 #ifndef TASK_HPP_
 #define TASK_HPP_
 

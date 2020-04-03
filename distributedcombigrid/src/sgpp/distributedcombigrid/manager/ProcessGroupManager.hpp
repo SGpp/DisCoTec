@@ -1,10 +1,3 @@
-/*
- * ProcessGroupManager.hpp
- *
- *  Created on: Jul 17, 2014
- *      Author: heenemo
- */
-
 #ifndef PROCESSGROUPMANAGER_HPP_
 #define PROCESSGROUPMANAGER_HPP_
 
@@ -81,6 +74,23 @@ class ProcessGroupManager {
   bool recoverCommunicators();
 
   bool parallelEval(const LevelVector& leval, std::string& filename);
+
+  /**
+   * Adds a task to the process group. To be used for rescheduling.
+   *
+   * @param task The task to add.
+   * @returns If task was successfully added.
+   */
+  bool rescheduleAddTask(Task* task);
+
+  /**
+   * Removes a task from the process group. To be used for rescheduling.
+   *
+   * @param lvlVec The level vector of the task to remove.
+   * @returns If successful the removed task or a nullptr if no task with the 
+   *          given level vector is found.
+   */
+  Task *rescheduleRemoveTask(const LevelVector& lvlVec);
 
  private:
   RankType pgroupRootID_;  // rank in GlobalComm of the master process of this group
