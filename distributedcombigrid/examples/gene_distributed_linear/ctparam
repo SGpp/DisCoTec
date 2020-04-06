@@ -27,7 +27,7 @@ GENE_nonlinear = F
 [preproc]
 basename = ginstance
 executable = ./gene_new_machine
-mpi = mpirun
+mpi = mpirun.mpich
 sgpplib = /import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/lib/sgpp
 tasklib = /import/home_local/oberstei/Documents/ExaHD/combi-ft-main/combi-ft/distributedcombigrid/examples/gene_distributed/lib
 startscript = start.bat
