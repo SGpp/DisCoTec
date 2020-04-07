@@ -11,11 +11,7 @@
 #include <vtk/vtkXMLImageDataWriter.h>
 #include <boost/property_tree/xml_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
-#include <string>
-#include <sstream>
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
-#include "sgpp/distributedcombigrid/vtk/ImageSource.hpp"
 
 namespace combigrid {
 
