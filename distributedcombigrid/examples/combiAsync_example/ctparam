@@ -3,6 +3,8 @@ dim = 2
 lmin = 3 3 
 lmax = 10 10  
 leval = 10 10 
+
+# has to be 1 1 in this example!
 p = 1 1
 ncombi = 10
 
@@ -12,4 +14,6 @@ nsteps = 1
 
 [manager]
 ngroup = 2
+
+# only one processor per group allowed in this example!
 nprocs = 1 
