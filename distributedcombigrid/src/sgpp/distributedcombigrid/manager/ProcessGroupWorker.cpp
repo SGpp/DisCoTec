@@ -777,8 +777,9 @@ void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
 #ifdef USE_VTK
   IndexType numGrids = combiParameters_.getNumGrids();
   for (IndexType g = 0; g < numGrids; g++) {
-    DistributedFullGrid<CombiDataType>& dfg = task.getDistributedFullGrid(g);
-    DFGPlotFileWriter::writePlotFile(dfg, g);
+    DistributedFullGrid<CombiDataType>& dfg = task.getDistributedFullGrid(static_cast<int>(g));
+    DFGPlotFileWriter<CombiDataType> writer {dfg, g};
+    writer.writePlotFile();
   }
 #else
   std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
