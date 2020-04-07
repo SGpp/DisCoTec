@@ -10,7 +10,6 @@
 #include <vtk/vtkXMLPImageDataWriter.h>
 #include <vtk/vtkXMLImageDataWriter.h>
 #include <boost/property_tree/xml_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 
 namespace combigrid {
