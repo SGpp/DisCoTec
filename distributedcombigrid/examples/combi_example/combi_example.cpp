@@ -153,6 +153,11 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager run");
     }
 
+    Stats::startEvent("manager write vtk");
+    for (auto group : pgroups)
+      manager.writeCombigridsToVTKPlotFile(group);
+    Stats::stopEvent("manager write vtk");
+
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
   }
