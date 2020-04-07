@@ -2,14 +2,14 @@
 dim = 2
 lmin = 3 3 
 lmax = 10 10  
-leval = 5 5 
-p = 1 2
+leval = 10 10 
+p = 1 1
 ncombi = 10
 
 [application]
 dt = 1e-3
-nsteps = 100
+nsteps = 1
 
 [manager]
 ngroup = 2
-nprocs = 2 
+nprocs = 1 
