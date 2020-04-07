@@ -88,6 +88,8 @@ class TaskExample: public Task {
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
 
     phi_.resize(dfg_->getNrElements());
+    // we are only allowed to have 1 process per group in this example!
+    assert(elements.size() == dfg_->getNrElements());
 
     for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
       std::vector<double> coords(this->getDim());
@@ -125,7 +127,7 @@ class TaskExample: public Task {
      std::vector<IndexType> l(this->getDim());
      std::vector<double> h(this->getDim());
 
-     for (int i = 0; i < this->getDim(); i++){
+     for (unsigned int i = 0; i < this->getDim(); i++){
        l[i] = dfg_->length(i);
        h[i] = 1.0 / (double)l[i];
      }
@@ -143,12 +145,12 @@ class TaskExample: public Task {
 
          CombiDataType u_dot_dphi = 0;
 
-         for(int j = 0; j < this->getDim(); j++){
+         for(unsigned int j = 0; j < this->getDim(); j++){
            ni[j][j] = (l[j] + ni[j][j] - 1) % l[j];
            lni[j] = dfg_->getGlobalLinearIndex(ni[j]);
          }
 
-         for(int j = 0; j < this->getDim(); j++){
+         for(unsigned int j = 0; j < this->getDim(); j++){
            //calculate gradient of phi with backward differential quotient
            dphi[j] = (phi_[li] - phi_[lni[j]]) / h[j];
 
@@ -188,6 +190,10 @@ class TaskExample: public Task {
   void setZero(){
 
   }
+  ~TaskExample() {
+    if (dfg_ != NULL)
+      delete dfg_;
+  }
 
  protected:
   /* if there are local variables that have to be initialized at construction
@@ -197,11 +203,6 @@ class TaskExample: public Task {
    * set to false. */
   TaskExample() :
     initialized_(false), stepsTotal_(1), dfg_(NULL) {
-  }
-
-  ~TaskExample() {
-    if (dfg_ != NULL)
-      delete dfg_;
   }
 
  private:
