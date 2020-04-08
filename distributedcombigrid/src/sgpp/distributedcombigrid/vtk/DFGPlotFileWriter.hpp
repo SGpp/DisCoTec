@@ -129,6 +129,7 @@ namespace combigrid {
   }
 
 
+  /* TODO remove copy of grid values */
   template <>
   inline vtkSmartPointer<vtkImageData> DFGPlotFileWriter<real>::writePieceFile(
                                                   const std::string& filename) {
@@ -190,9 +191,8 @@ namespace combigrid {
    * So far the master file will open with an error in paraview because of
    * missing ghost points in the piece files.
    * -> this requires the exchange of boundary points, such that the extents
-   *  overlap once: e.g.
-   *
-   *  Attention: Dirty hack
+   *  overlap once: e.g. in 1D with 2 procs and m points the extents/indices
+   *  must be [0, n] in piece 1 and [n, m-1] in piece 2.
    */
   template <typename FG_ELEMENT>
   void DFGPlotFileWriter<FG_ELEMENT>::writeMasterFile(
