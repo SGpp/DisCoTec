@@ -112,6 +112,8 @@ class ProcessManager {
    */
   void reschedule();
 
+  void writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg);
+
  private:
   ProcessGroupManagerContainer& pgroups_;
 
@@ -130,6 +132,7 @@ class ProcessManager {
   inline ProcessGroupManagerID wait();
   inline ProcessGroupManagerID waitAvoid(std::vector<ProcessGroupManagerID>& avoidGroups);
   bool waitAllFinished();
+  bool waitForPG(ProcessGroupManagerID pg);
 
   void receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive);
 

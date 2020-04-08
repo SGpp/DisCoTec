@@ -88,6 +88,8 @@ class ProcessGroupManager {
    */
   Task *rescheduleRemoveTask(const LevelVector& lvlVec);
 
+  bool writeCombigridsToVTKPlotFile();
+
  private:
   RankType pgroupRootID_;  // rank in GlobalComm of the master process of this group
 

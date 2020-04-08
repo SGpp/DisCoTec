@@ -218,4 +218,12 @@ Task *ProcessGroupManager::rescheduleRemoveTask(const LevelVector &lvlVec) {
   return nullptr;
 }
 
+bool ProcessGroupManager::writeCombigridsToVTKPlotFile() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  sendSignalAndReceive(WRITE_DFGS_TO_VTK);
+  return true;
+}
+
 } /* namespace combigrid */

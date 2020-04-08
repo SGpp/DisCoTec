@@ -171,6 +171,11 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("combine");
 
     } break;
+    case WRITE_DFGS_TO_VTK: {
+      Stats::startEvent("writeVTKPlotFilesOfAllTasks");
+      writeVTKPlotFilesOfAllTasks();
+      Stats::stopEvent("writeVTKPlotFilesOfAllTasks");
+    } break;
     case GRID_EVAL: {  // not supported anymore
 
       Stats::startEvent("eval");
@@ -766,6 +771,24 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
     DistributedHierarchization::dehierarchize<CombiDataType>(
         dfg, combiParameters_.getHierarchizationDims());
   }
+}
+
+void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
+#ifdef USE_VTK
+  IndexType numGrids = combiParameters_.getNumGrids();
+  for (IndexType g = 0; g < numGrids; g++) {
+    DistributedFullGrid<CombiDataType>& dfg = task.getDistributedFullGrid(static_cast<int>(g));
+    DFGPlotFileWriter<CombiDataType> writer {dfg, g};
+    writer.writePlotFile();
+  }
+#else
+  std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
+#endif /* USE_VTK */
+}
+
+void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
+  for (Task* task : tasks_)
+    writeVTKPlotFileOfTask(*task);
 }
 
 void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids) {

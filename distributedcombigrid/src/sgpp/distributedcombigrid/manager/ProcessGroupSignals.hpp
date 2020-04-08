@@ -42,6 +42,8 @@ const SignalType RESCHEDULE_ADD_TASK = 20;
  */
 const SignalType RESCHEDULE_REMOVE_TASK = 21;
 
+const SignalType WRITE_DFGS_TO_VTK = 28;
+
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
 const NormalizationType L1_NORMALIZATION = 1;
