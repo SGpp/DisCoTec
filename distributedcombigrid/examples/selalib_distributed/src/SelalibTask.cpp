@@ -55,13 +55,9 @@ assert( boundary[5] == true );//z
 SelalibTask::SelalibTask() :
     checkpoint_(),
     dfgVector_(0),
-    nrg_(0.0),
     initialized_(false),
     checkpointInitialized_(false),
-    _GENE_Global(false),
-    _GENE_Linear(true),
     currentTime_(0.0),
-    gyromatrix_buffered_(false)
 {
   ;
 }
