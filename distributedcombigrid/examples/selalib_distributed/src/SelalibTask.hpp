@@ -112,7 +112,7 @@ public:
   /*
    * save a fullgrid in GENE's checkpoint format
    */
-  static void saveCheckpoint( FullGrid<complex>& fg,
+  static void saveCheckpoint( FullGrid<CombiDataType>& fg,
 			      const char* filename  );
 
   /**
@@ -323,4 +323,4 @@ inline void SelalibTask::setCombiStep(int ncombi){
 
 
 
-#endif /* GENETASK_HPP_ */
+#endif /* SELALIBTASK_HPP_ */

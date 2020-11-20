@@ -14,11 +14,7 @@
 
 namespace combigrid {
 
-struct GeneComplex{
-  real r;
-  real i;
-};
-
+typedef double GeneComplex;
 typedef boost::multi_array<GeneComplex, 6> GeneGrid;
 typedef boost::multi_array_ref<GeneComplex, 6> GeneGridRef;
 

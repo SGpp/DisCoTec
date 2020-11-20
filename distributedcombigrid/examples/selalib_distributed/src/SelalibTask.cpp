@@ -57,7 +57,7 @@ SelalibTask::SelalibTask() :
     dfgVector_(0),
     initialized_(false),
     checkpointInitialized_(false),
-    currentTime_(0.0),
+    currentTime_(0.0)
 {
   ;
 }
@@ -68,9 +68,6 @@ SelalibTask::~SelalibTask()
     delete dfgVector_[g];
   }
   dfgVector_.clear();
-  if(gyromatrix_buffered_){
-    delete[] gyromatrix_buffer_;
-  }
 }
 
 /**
@@ -168,19 +165,8 @@ SelalibTask::writeLocalCheckpoint( GeneComplex* data, size_t size,
   // todo: doing it like this will require two times copying
   for(unsigned int i= 0; i < sizes.size(); i++){
     int index_l = sizes.size()- 1 - i ; // sizes is reversed order of l; i.e. l is x y z v w spec and sizes spec, w, v, z, y, x
-    if(i==0){
-      assert(sizes[0] == nspecies_);
-    }else{
-      if(i == 4 && _GENE_Linear){//we have only 1 coordinate in y direction in linear scenarios
-        assert(sizes[i] == 1);
-      }
-      else{
-          assert(sizes[i] == pow(2,l_[index_l]));
-      }
-    }
-  }
-  if(sizes[4] % 1 == 1){
-    geneXBoundariesIncluded_ = true;
+    assert(sizes[i] == pow(2,l_[index_l]));
+      
   }
   checkpoint_.writeCheckpoint( data, size, sizes, bounds );
   checkpointInitialized_= true;
@@ -199,17 +185,7 @@ void SelalibTask::InitLocalCheckpoint(size_t size,
     std::vector<size_t>& bounds ){
   for(unsigned int i= 0; i < sizes.size(); i++){
     int index_l = sizes.size()- 1 - i ; // sizes is reversed order of l; i.e. l is x y z v w spec and sizes spec, w, v, z, y, x
-    if(i==0){
-      assert(sizes[0] == nspecies_); // we have nspecies elements in this dimension
-    }
-    else{
-      if(i == 4 && _GENE_Linear){ //we have only 1 coordinate in y direction
-        assert(sizes[i] == 1);
-      }
-      else{
-        assert(sizes[i] == pow(2,l_[index_l])); //check if parameters match
-      }
-    }
+    assert(sizes[i] == pow(2,l_[index_l])); //check if parameters match
   }
   checkpoint_.initCheckpoint(size,sizes,bounds);
   checkpointInitialized_= true;
@@ -228,7 +204,7 @@ void SelalibTask::getFullGrid( FullGrid<CombiDataType>& fg, RankType lroot,
 /**
  * This routine returns the local part of the fullgrid
  */
-DistributedFullGrid<complex>& SelalibTask::getDistributedFullGrid(int specie){
+DistributedFullGrid<CombiDataType>& SelalibTask::getDistributedFullGrid(int specie){
   return *dfgVector_[specie];
 }
 
@@ -257,22 +233,21 @@ size_t nx = static_cast<size_t>( std::pow( 2.0, fg.getLevels()[0] ) );
 
 // create MultiArray to store Gene grid temporarily
 // note reverse notation of shape vector
-IndexVector geneShape = { (IndexType) nspec, (IndexType) nw, (IndexType) nv, (IndexType) nz, (IndexType) ny, (IndexType) nx };
-MultiArray<GeneComplex,6> geneGrid = createMultiArray<GeneComplex,6>( geneShape );
+IndexVector selalibShape = { (IndexType) nspec, (IndexType) nw, (IndexType) nv, (IndexType) nz, (IndexType) ny, (IndexType) nx };
+MultiArray<CombiDataType,6> selalibGrid = createMultiArray<CombiDataType,6>( selalibShape );
 
 // create MultiArrayRef to fg
 MultiArrayRef6 fgData = createMultiArrayRef<CombiDataType,6>( fg );
 
 // copy data to gene grid
 // note that the last grid points in x,z,v,w dimension are ignored
-for( size_t n=0; n < geneShape[0]; ++n ){ //n_spec
-  for( size_t m=0; m < geneShape[1]; ++m ){ //w
-    for( size_t l=0; l < geneShape[2]; ++l ){ //v
-      for( size_t k=0; k < geneShape[3]; ++k ){ //z
-        for( size_t j=0; j < geneShape[4]; ++j ){ //y
-          for( size_t i=0; i < geneShape[5]; ++i ){ //x
-            geneGrid[n][m][l][k][j][i].r = fgData[n][m][l][k][j][i].real();
-            geneGrid[n][m][l][k][j][i].i = fgData[n][m][l][k][j][i].imag();
+for( size_t n=0; n < selalibShape[0]; ++n ){ //n_spec
+  for( size_t m=0; m < selalibShape[1]; ++m ){ //w
+    for( size_t l=0; l < selalibShape[2]; ++l ){ //v
+      for( size_t k=0; k < selalibShape[3]; ++k ){ //z
+        for( size_t j=0; j < selalibShape[4]; ++j ){ //y
+          for( size_t i=0; i < selalibShape[5]; ++i ){ //x
+            selalibGrid[n][m][l][k][j][i] = fgData[n][m][l][k][j][i];
           }
         }
       }
@@ -314,8 +289,8 @@ std::cout << "resolution:" << "\n" << "\t nx(" << sizeof(int) << ") " << nx
     << "\t n_spec(" << sizeof(int) << ") " << nspec << std::endl;
 
 // write data
-size_t dsize( geneGrid.num_elements() );
-cpFile.write( (char*) geneGrid.origin(), sizeof(GeneComplex) * dsize );
+size_t dsize( selalibGrid.num_elements() );
+cpFile.write( (char*) selalibGrid.origin(), sizeof(GeneComplex) * dsize );
 
 cpFile.close();
 }
@@ -394,7 +369,7 @@ void SelalibTask::setDFG(){
   IndexVector lcpSizes = upperBounds - lowerBounds;
 
   MultiArrayRef<GeneComplex,6> lcpData =
-    createMultiArrayRef<GeneComplex,6>( checkpoint_.getData(), lcpSizes );
+    createMultiArrayRef<CombiDataType,6>( checkpoint_.getData(), lcpSizes );
   for(int d=0; d < dim_; d++){
     for(int species=0; species<nspecies_; species++){
 
@@ -418,27 +393,24 @@ void SelalibTask::setDFG(){
         // for the last rank in the dimension w(d=1), v(2), z(3), y(4) (only in non-linear), x(5) the number of elements in
         // dfg and lcp differ
         //last process in line has boundary points not included in gene
-        if( coords[d] == p[d] - 1 && ( d==1 || d == 2 || d == 3 || (d == 4 && !_GENE_Linear) ||d==5 ) ){ //y (only non-linear cases),x,z,v,w at upper border of domain (one additional point)
+        if( coords[d] == p[d] - 1){
           assert( dfgShape[d] == lcpShape[d] + 1 );
         } else{
-          if(d==0){ //species
-            assert(lcpShape[0] == nspecies_ && dfgShape[0] == 1); //dfg has always 1 coordinate in species direction
-          }
-          else{ //lower border or in the middle of domain (no additional boundary point)
+
               assert( dfgShape[d] == lcpShape[d] );
-          }
         }
       }
       // copy data from local checkpoint to dfg
       // note that on the last process in some dimensions dfg is larger than the
       // local checkpoint
-      for( size_t m=0; m < lcpShape[1]; ++m ){ //w
-        for( size_t l=0; l < lcpShape[2]; ++l ){ //v
-          for( size_t k=0; k < lcpShape[3]; ++k ){ //z
-            for( size_t j=0; j < lcpShape[4]; ++j ){ //y
-              for( size_t i=0; i < lcpShape[5]; ++i ){ //x
-                dfgData[0][m][l][k][j][i].real( lcpData[species][m][l][k][j][i].r );
-                dfgData[0][m][l][k][j][i].imag( lcpData[species][m][l][k][j][i].i );
+      for( size_t n=0; n < lcpShape[0]; ++n){ //w
+        for( size_t m=0; m < lcpShape[1]; ++m ){ //v
+          for( size_t l=0; l < lcpShape[2]; ++l ){ //u
+            for( size_t k=0; k < lcpShape[3]; ++k ){ //z
+              for( size_t j=0; j < lcpShape[4]; ++j ){ //y
+                for( size_t i=0; i < lcpShape[5]; ++i ){ //x
+                  dfgData[0][m][l][k][j][i]= lcpData[species][m][l][k][j][i];
+                }
               }
             }
           }
@@ -539,21 +511,22 @@ void SelalibTask::adaptBoundariesKernel(MultiArrayRef6& sourceData, MultiArrayRe
     std::vector<int> sizes(dim_);
     std::vector<int> offset(dim_);
 
-    for(int i; dim < dim_; i++){
-      sizes[i] = i == d ? 1 : targetShape[i]
+    for(int i; i < dim_; i++){
+      sizes[i] = i == d ? 1 : targetShape[i];
       offset[i] = i == d ? targetShape[i] - 1 : 0;
     }
     
 
     for( size_t n=0; n < sizes[0]; ++n ){ //w
       for( size_t m=0; m < sizes[1]; ++m ){ //v
-        for( size_t l=0; l < sites[2]; ++l ){ //u
-          for( size_t k=0; j < sizes[3]; ++j ){ //z
-            for( size_t j=0; i < sizes[4]; ++i ){ //y
+        for( size_t l=0; l < sizes[2]; ++l ){ //u
+          for( size_t k=0; k < sizes[3]; ++k ){ //z
+            for( size_t j=0; j < sizes[4]; ++j ){ //y
               for( size_t i=0; i < sizes[5]; ++i ){ //x
                 
                 targetData[n + offset[0]][m + offset[1]][l + offset[2]][k + offset[3]][j + offset[4]][i + offset[5]] =
                     sourceData[n][m][l][k][j][i];
+              } 
             }
           }
         }
@@ -694,18 +667,19 @@ void SelalibTask::getDFG(){
 
   // copy data back to lcp
   // note that the last grid points in x,z,v,w dimension are ignored
+      // get multiarrayref to dfg
+  int species = 0;
+  MultiArrayRef6 dfgDataN =
+  createMultiArrayRef<CombiDataType,6>( *dfgVector_[species] );
   const size_t* lcpShape = lcpData.shape();
-  for( size_t n=0; n < lcpShape[0]; ++n ){ //n_spec
-    // get multiarrayref to dfg
-    MultiArrayRef6 dfgDataN =
-    createMultiArrayRef<CombiDataType,6>( *dfgVector_[n] );
-    for( size_t m=0; m < lcpShape[1]; ++m ){ //w
-      for( size_t l=0; l < lcpShape[2]; ++l ){ //v
+  for( size_t n=0; n < lcpShape[0]; ++n ){ //w
+
+    for( size_t m=0; m < lcpShape[1]; ++m ){ //v
+      for( size_t l=0; l < lcpShape[2]; ++l ){ //u
         for( size_t k=0; k < lcpShape[3]; ++k ){ //z
           for( size_t j=0; j < lcpShape[4]; ++j ){ //y
             for( size_t i=0; i < lcpShape[5]; ++i ){ //x
-              lcpData[n][m][l][k][j][i].r = dfgDataN[0][m][l][k][j][i].real();
-              lcpData[n][m][l][k][j][i].i = dfgDataN[0][m][l][k][j][i].imag();
+              lcpData[n][m][l][k][j][i] = dfgDataN[n][m][l][k][j][i];
             }
           }
         }
