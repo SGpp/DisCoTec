@@ -1,4 +1,4 @@
-//#ifdef USE_VTK
+#ifdef USE_VTK
 #include "sgpp/distributedcombigrid/vtk/PlotFileWriter.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
 
@@ -131,4 +131,4 @@ std::string DFGPlotFileWriter::createFilenamePrefix(DimType dim,
 }
 
 }
-//#endif /* USE_VTK */
+#endif /* USE_VTK */

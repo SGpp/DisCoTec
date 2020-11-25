@@ -72,7 +72,7 @@ vars.Add("CPPFLAGS", "Set additional compiler flags, they are compiler-dependent
                      "(multiple flags combined with comma, e.g. -Wall,-Wextra)", "",
                      converter=Helper.multiParamConverter)
 vars.Add("LINKFLAGS", "Set additional linker flags, they are linker-dependent " +
-                      "(multiple flags combined with comma, e.g. -lpython,-lm)", "-lvtkCommonCore,-lvtkIOXML,-lvtkIOParallelXML",
+                      "(multiple flags combined with comma, e.g. -lpython,-lm)",
                      converter=Helper.multiParamConverter)
 vars.Add("CPPPATH", "Set path where to look for additional headers", "")
 vars.Add("LIBPATH", "Set path where to look for additional libraries", "")
@@ -148,7 +148,7 @@ vars.Add(BoolVariable("BUILD_STATICLIB", "Set if static libraries should be buil
 vars.Add(BoolVariable("PRINT_INSTRUCTIONS", "Print instructions for installing SG++", True))
 vars.Add('GLPK_INCLUDE_PATH', 'Specifies the location of the glpk header files.', rootDirectory + "/glpk/include/")
 vars.Add('GLPK_LIBRARY_PATH', 'Specifies the location of the glpk library.', rootDirectory + "/glpk/lib/")
-vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "10")
+vars.Add("TEST_PROCESS_COUNT", "How many processes are used for parallel test cases", "9")
 vars.Add(BoolVariable("USE_VTK", "Set if you want to write vtk files ", False))
 vars.Add('VTK_INCLUDE_PATH', 'Specifies the location of the vtk header files.', "/usr/include/")
 

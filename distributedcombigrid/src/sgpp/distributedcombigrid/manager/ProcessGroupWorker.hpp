@@ -9,7 +9,8 @@
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
-#include "sgpp/distributedcombigrid/vtk/PlotFileWriter.hpp"
+// #include "sgpp/distributedcombigrid/vtk/PlotFileWriter.hpp"
+#include "sgpp/distributedcombigrid/vtk/DFGPlotFileWriter.hpp"
 
 namespace combigrid {
 

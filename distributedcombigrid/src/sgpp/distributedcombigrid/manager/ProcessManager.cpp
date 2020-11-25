@@ -440,8 +440,12 @@ void ProcessManager::reschedule() {
 }
 
 void ProcessManager::writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg) {
+#if defined(USE_VTK)
   pg->writeCombigridsToVTKPlotFile();
   waitForPG(pg);
+#else
+  std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
+#endif /* defined(USE_VTK) */
 }
 
 } /* namespace combigrid */

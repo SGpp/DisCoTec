@@ -1,4 +1,4 @@
-//#ifdef USE_VTK
+#ifdef USE_VTK
 #ifndef VTK_HPP_
 #define VTK_HPP_
 
@@ -37,4 +37,4 @@ namespace combigrid {
 
 }
 #endif /* VTK_HPP_ */
-//#endif /* USE_VTK */
+#endif /* USE_VTK */

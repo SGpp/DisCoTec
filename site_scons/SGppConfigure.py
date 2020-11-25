@@ -356,6 +356,14 @@ def configureGNUCompiler(config):
     config.env.Append(CPPFLAGS=["-DENABLEFT"])  
   if config.env["ISGENE"]:
     config.env.Append(CPPFLAGS=["-DISGENE"])
+  if config.env["USE_VTK"]:
+    config.env.Append(CPPFLAGS=["-DUSE_VTK"])
+    config.env.Append(LINKFLAGS=[
+      "-lvtkCommonCore",
+      "-lvtkIOXML",
+      "-lvtkIOParallelXML"
+    ])
+    config.env.AppendUnique(CPPPATH=[config.env['VTK_INCLUDE_PATH']])
 
   if config.env["ARCH"] == "sse3":
     config.env.AppendUnique(CPPFLAGS=["-msse3"])
