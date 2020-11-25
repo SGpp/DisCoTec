@@ -862,7 +862,9 @@ void CombiCom::distributedGlobalReduce(
   // global reduce
   MPI_Datatype dtype = abstraction::getMPIDatatype(
                          abstraction::getabstractionDataType<FG_ELEMENT>());
-  MPI_Allreduce( MPI_IN_PLACE, subspacesData, subspacesDataSize, dtype, MPI_SUM, mycomm);
+
+  assert(subspacesDataSize < static_cast<size_t>(std::numeric_limits<int>::max()));
+  MPI_Allreduce( MPI_IN_PLACE, subspacesData, static_cast<int>(subspacesDataSize), dtype, MPI_SUM, mycomm);
 }
 
 } /* namespace combigrid */

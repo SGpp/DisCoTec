@@ -1334,15 +1334,15 @@ class DistributedFullGrid {
     if (dim == 3) {
       vtk_header << "DIMENSIONS " << sizes[0]  << " " << sizes[1]  << " " << sizes[2] << "\n"
                  << "ORIGIN 0 0 0\n"
-                 << "SPACING " << 1. / (sizes[0]-1)  << " " << 1. / (sizes[1]-1)  << " " << 1. / (sizes[2]-1) << "\n";
+                 << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " " << 1. / static_cast<double>(sizes[1]-1)  << " " << 1. / static_cast<double>(sizes[2]-1) << "\n";
     } else if (dim == 2) {
       vtk_header << "DIMENSIONS " << sizes[0]  << " " << sizes[1]  << " 1\n"
                  << "ORIGIN 0 0 0\n"
-                 << "SPACING " << 1. / (sizes[0]-1)  << " " << 1. / (sizes[1]-1)  << " 1\n";
+                 << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " " << 1. / static_cast<double>(sizes[1]-1)  << " 1\n";
     } else if (dim == 1) {
       vtk_header << "DIMENSIONS " << sizes[0]  << " 1 1\n"
                  << "ORIGIN 0 0 0\n"
-                 << "SPACING " << 1. / (sizes[0]-1)  << " 1 1\n";
+                 << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " 1 1\n";
     } else {
       assert(false);
     }
@@ -1359,7 +1359,7 @@ class DistributedFullGrid {
 
     // rank 0 write header
     if (rank_ == 0) {
-      MPI_File_write(fh, header_string.c_str(), header_size, MPI_CHAR, MPI_STATUS_IGNORE);
+      MPI_File_write(fh, header_string.c_str(), static_cast<int>(header_size), MPI_CHAR, MPI_STATUS_IGNORE);
     }
 
     // set file view to right offset (in bytes)
@@ -1367,7 +1367,7 @@ class DistributedFullGrid {
     MPI_File_set_view(fh, offset, getMPIDatatype(), mysubarray, "native", MPI_INFO_NULL);
 
     // write subarray
-    MPI_File_write_all(fh, getData(), getNrLocalElements(), getMPIDatatype(), MPI_STATUS_IGNORE);
+    MPI_File_write_all(fh, getData(), static_cast<int>(getNrLocalElements()), getMPIDatatype(), MPI_STATUS_IGNORE);
 
     // close file
     MPI_File_close(&fh);

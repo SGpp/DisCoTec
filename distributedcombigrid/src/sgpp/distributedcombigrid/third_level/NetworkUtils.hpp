@@ -338,10 +338,14 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
     if (remaining.size() == sizeof(FG_ELEMENT)) {
       FG_ELEMENT remainingVal = FG_ELEMENT();
       memmove(&remainingVal, remaining.data(), sizeof(FG_ELEMENT));
-      if (hasSameEndianness)
-        buff[numReduced++] = reduceOp(buff[numReduced], remainingVal);
-      else
-        buff[numReduced++] = reduceOp(buff[numReduced], NetworkUtils::reverseEndianness(remainingVal));
+      if (hasSameEndianness){
+        buff[numReduced] = reduceOp(buff[numReduced], remainingVal);
+        ++numReduced;
+      }
+      else{
+        buff[numReduced] = reduceOp(buff[numReduced], NetworkUtils::reverseEndianness(remainingVal));
+        ++numReduced;
+      }
       remaining.clear();
     }
 
@@ -350,10 +354,14 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
     for (ssize_t i = tail_k; i < numCorrect; i+=sizeof(FG_ELEMENT)) {
       FG_ELEMENT val = FG_ELEMENT();
       memmove(&val, &recvBuff[i], sizeof(FG_ELEMENT));
-      if (hasSameEndianness)
-        buff[numReduced++] = reduceOp(buff[numReduced], val);
-      else
-        buff[numReduced++] = reduceOp(buff[numReduced], NetworkUtils::reverseEndianness(val));
+      if (hasSameEndianness){
+        buff[numReduced] = reduceOp(buff[numReduced], val);
+        ++numReduced;
+      }
+      else{
+        buff[numReduced] = reduceOp(buff[numReduced], NetworkUtils::reverseEndianness(val));
+        ++numReduced;
+      }
     }
 
     // push head into remaining

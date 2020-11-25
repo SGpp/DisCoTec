@@ -268,13 +268,13 @@ BOOST_AUTO_TEST_SUITE(rescheduling)
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "rescheduling/test_serialization_1"<< std::endl;
+  std::cout << "rescheduling/test_1"<< std::endl;
   checkRescheduling(3,1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "rescheduling/test_serialization_2"<< std::endl;
+  std::cout << "rescheduling/test_2"<< std::endl;
   checkRescheduling(3,2);
 }
 

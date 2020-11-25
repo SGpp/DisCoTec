@@ -266,7 +266,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
 {
   // init subspaces
   subspaces_.reserve(subspaces.size());
-  for (int i = 0; i < subspaces.size(); i++) {
+  for (size_t i = 0; i < subspaces.size(); i++) {
    subspaces_.push_back({ /*.level_    =*/ subspaces[i],
                           /*.sizes_    =*/ IndexVector(0),
                           /*.size_     =*/ 0,
@@ -303,7 +303,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
 
       // update pointers and sizes in subspaces
       size_t offset = 0;
-      for (int i = 0; i < subspaces_.size(); i++) {
+      for (size_t i = 0; i < subspaces_.size(); i++) {
         subspaces_[i].dataSize_ = subspacesDataSizes_[i];
         subspaces_[i].data_ = subspacesData_.data() + offset;
         offset += subspacesDataSizes_[i];
@@ -641,7 +641,7 @@ static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                                             "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
-  size_t dataSize  = dsgu->getRawDataSize();
+  int dataSize  = static_cast<int>(dsgu->getRawDataSize());
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
   MPI_Send(data, dataSize, dataType, dest, 0, comm);
@@ -659,7 +659,7 @@ static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                                             "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
-  size_t dataSize  = dsgu->getRawDataSize();
+  int dataSize  = static_cast<int>(dsgu->getRawDataSize());
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
   MPI_Recv(data, dataSize, dataType, source, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
@@ -677,7 +677,7 @@ static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * 
                                             "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
-  size_t dataSize  = dsgu->getRawDataSize();
+  int dataSize  = static_cast<int>(dsgu->getRawDataSize());
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
   MPI_Request request;
 
@@ -689,7 +689,7 @@ static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * 
  * Bcast of the raw dsg data in the communicator comm.
  */
 template <typename FG_ELEMENT>
-static MPI_Request bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
+static void bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                               RankType root, CommunicatorType comm) {
   assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
                                             "transferred in a single MPI Call (not "
@@ -697,7 +697,7 @@ static MPI_Request bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                                             "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
-  size_t dataSize  = dsgu->getRawDataSize();
+  int dataSize  = static_cast<int>(dsgu->getRawDataSize());
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
   MPI_Bcast(data, dataSize, dataType, root, comm);
@@ -720,7 +720,8 @@ static void reduceDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
   const std::vector<size_t>& dsguData = dsgu->getRawData();
 
   // perform allreduce
-  MPI_Allreduce(MPI_IN_PLACE, dsguData.data(), dsguData.size(), dtype, MPI_MAX, comm);
+  assert(dsguData.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
+  MPI_Allreduce(MPI_IN_PLACE, dsguData.data(), static_cast<int>(dsguData.size()), dtype, MPI_MAX, comm);
 }
 
 /**
@@ -759,7 +760,7 @@ static MPI_Request recvAndBcastSubspaceDataSizes(DistributedSparseGridUniform<FG
   MPI_Ibcast(buf.data(), buf.size(), MPI_INT, bcastRoot, bcastComm, &request);
 
   // update subspace data sizes of dsgu
-  for (int i = 0; i < subspacesDataSizes.size(); i++) {
+  for (size_t i = 0; i < subspacesDataSizes.size(); i++) {
     dsgu->setDataSize(i, buf[i]);
   }
   return request;
@@ -784,10 +785,11 @@ static void reduceSubspaceSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
   std::vector<size_t> buf(subspacesDataSizes.size());
 
   // perform allreduce
-  MPI_Allreduce(subspacesDataSizes.data(), buf.data(), buf.size(), dtype, MPI_MAX, comm);
+  assert(buf.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
+  MPI_Allreduce(subspacesDataSizes.data(), buf.data(), static_cast<int>(buf.size()), dtype, MPI_MAX, comm);
 
   // set updated sizes in dsg
-  for (int i = 0; i < subspacesDataSizes.size(); i++) {
+  for (size_t i = 0; i < subspacesDataSizes.size(); i++) {
     dsgu->setDataSize(i, buf[i]);
   }
 }

@@ -439,7 +439,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   }
   assert(combiParametersSet_);
   // we assume here that every task has the same number of grids, e.g. species in GENE
-  int numGrids = static_cast<int>(combiParameters_.getNumGrids());
+  auto numGrids = combiParameters_.getNumGrids();
   DimType dim = combiParameters_.getDim();
   LevelVector lmin = combiParameters_.getLMin();
   LevelVector lmax = combiParameters_.getLMax();
@@ -493,12 +493,12 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
 }
 
 void ProcessGroupWorker::hierarchizeFullGrids() {
-  int numGrids = combiParameters_.getNumGrids();
+  auto numGrids = combiParameters_.getNumGrids();
   //real localMax(0.0);
   // std::vector<CombiDataType> beforeCombi;
   for (Task* t : tasks_) {
-    for (int g = 0; g < numGrids; g++) {
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+    for (IndexType g = 0; g < numGrids; g++) {
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
       // hierarchize dfg
       DistributedHierarchization::hierarchize<CombiDataType>(
@@ -510,10 +510,10 @@ void ProcessGroupWorker::hierarchizeFullGrids() {
 void ProcessGroupWorker::addFullGridsToUniformSG() {
   assert(combinedUniDSGVector_.size() > 0 && "Initialize dsgu first with "
                                              "initCombinedUniDSGVector()");
-  int numGrids = combiParameters_.getNumGrids();
+  auto numGrids = combiParameters_.getNumGrids();
   for (Task* t : tasks_) {
-    for (int g = 0; g < numGrids; g++) {
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+    for (IndexType g = 0; g < numGrids; g++) {
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
       // lokales reduce auf sg ->
       dfg.addToUniformSG(*combinedUniDSGVector_[g], combiParameters_.getCoeff(t->getID()));
@@ -527,9 +527,9 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
 
 void ProcessGroupWorker::reduceUniformSG() {
   // we assume here that every task has the same number of grids, e.g. species in GENE
-  int numGrids = combiParameters_.getNumGrids();
+  auto numGrids = combiParameters_.getNumGrids();
 
-  for (int g = 0; g < numGrids; g++) {
+  for (IndexType g = 0; g < numGrids; g++) {
     CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g]);
   }
 }
@@ -576,8 +576,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
   assert(uniformDecomposition);
 
   assert(combiParametersSet_);
-  int numGrids = static_cast<int>(combiParameters_
-                     .getNumGrids());  // we assume here that every task has the same number of grids
+  auto numGrids = combiParameters_.getNumGrids();  // we assume here that every task has the same number of grids
 
   const int dim = static_cast<int>(combiParameters_.getDim());
 
@@ -601,7 +600,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
   MPIUtils::broadcastClass(&filename, theMPISystem()->getMasterRank(),
                            theMPISystem()->getLocalComm());
 
-  for (int g = 0; g < numGrids; g++) {  // loop over all grids and plot them
+  for (IndexType g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
     bool forwardDecomposition = !isGENE;
     DistributedFullGrid<CombiDataType> dfg(
@@ -746,14 +745,13 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
 
-  int numGrids = static_cast<int>(combiParameters_
-                     .getNumGrids());  // we assume here that every task has the same number of grids
+  auto numGrids = combiParameters_.getNumGrids();  // we assume here that every task has the same number of grids
 
-  for (int g = 0; g < numGrids; g++) {
+  for (IndexType g = 0; g < numGrids; g++) {
     assert(combinedUniDSGVector_[g] != NULL);
 
     // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
     // extract dfg vom dsg
     dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
@@ -784,9 +782,9 @@ void ProcessGroupWorker::combineThirdLevel() {
 
   std::vector<MPI_Request> requests;
   for (auto& dsg : combinedUniDSGVector_) {
-    assert(dsg->getRawDataSize() < 2e31-1 && "Dsg is too large and can not be "
+    assert(dsg->getRawDataSize() < 2147483647 && "Dsg is larger than 2^31-1 and can not be "
                                              "sent in a single MPI Call (not "
-                                             "supported yet) try a more refined"
+                                             "supported yet) try a more coarse"
                                              "decomposition");
     // send dsg data to manager
     Stats::startEvent("combine send dsg data to manager");
@@ -820,7 +818,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel() {
   // prepare a buffer with enough space for all subspace sizes from all dsgs
   int bufSize = 0;
   for (auto& dsg : combinedUniDSGVector_)
-    bufSize += dsg->getSubspaceDataSizes().size();
+    bufSize += static_cast<int>(dsg->getSubspaceDataSizes().size());
   std::vector<size_t> buff;
   buff.reserve((size_t)bufSize);
 
@@ -867,7 +865,7 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   // prepare a buffer with enough space for all subspace sizes from all dsgs
   int buffSize = 0;
   for (auto& dsg : combinedUniDSGVector_)
-    buffSize += dsg->getSubspaceDataSizes().size();
+    buffSize += static_cast<int>(dsg->getSubspaceDataSizes().size());
   std::vector<size_t> buff((size_t) buffSize);
 
   // receive updated sizes from third level pgroup (global reduce comm)
@@ -929,10 +927,10 @@ void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
 
 }
 
-void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids) {
-  for (int g = 0; g < numGrids; g++) {
+void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, size_t numGrids) {
+  for (size_t g = 0; g < numGrids; g++) {
     // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(g);
+    DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(static_cast<int>(g));
 
     // extract dfg vom dsg
     dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
