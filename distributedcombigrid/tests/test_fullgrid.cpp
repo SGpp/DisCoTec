@@ -1,4 +1,6 @@
 #define BOOST_TEST_DYN_LINK
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <boost/test/unit_test.hpp>
 #include <boost/test/floating_point_comparison.hpp>

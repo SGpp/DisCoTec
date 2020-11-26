@@ -1,6 +1,8 @@
 #ifndef TYPES_HPP_
 #define TYPES_HPP_
 
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <cassert>
 #include <vector>

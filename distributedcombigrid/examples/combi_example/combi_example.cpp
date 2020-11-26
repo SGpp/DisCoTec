@@ -4,6 +4,8 @@
  *  Created on: Sep 23, 2015
  *      Author: heenemo
  */
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
