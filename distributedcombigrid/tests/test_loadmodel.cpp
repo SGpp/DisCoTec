@@ -28,6 +28,7 @@ void testDataSave(int size) {
   size_t ngroup = size - 1;
   size_t nprocs = 1;
   theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
+  size_t numRounds = 600;
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     std::vector<LevelVector> lvv;
@@ -35,11 +36,11 @@ void testDataSave(int size) {
       lvv.push_back({i});
     }
     auto loadModel = std::unique_ptr<LoadModel>(new AveragingLoadModel(lvv));
-    for (size_t j = 0; j < 600; ++j) {
+    for (size_t j = 0; j < numRounds; ++j) {
       for (size_t i = 0; i < ngroup; ++i) {
         DurationInformation recvbuf;
-        MPI_Status stat;
-        MPIUtils::receiveClass(&recvbuf, MPI_ANY_SOURCE, theMPISystem()->getGlobalComm());
+        // this assumes that the manager rank is the highest in globalComm
+        MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
         if (LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel.get())) {
           llm->addDurationInformation(recvbuf, lvv.at(recvbuf.task_id)); 
         }
@@ -62,7 +63,7 @@ void testDataSave(int size) {
     DurationInformation info = {TestHelper::getRank(comm), Stats::getEventDurationInUsec(e), 12.34, 0.00001, 1234, nprocs};
     // MPI_Request request;
     // send durationInfo to manager
-    for (size_t i = 0; i < 600; ++i) { 
+    for (size_t i = 0; i < numRounds; ++i) {
       MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
       // TODO see if we can send asynchronously
     }
@@ -90,7 +91,8 @@ void testDataSave(int size) {
 BOOST_AUTO_TEST_SUITE(loadmodel)
 
 BOOST_AUTO_TEST_CASE(test_2) {
-    testDataSave(2);
+  testDataSave(2);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 BOOST_AUTO_TEST_CASE(test_9, *boost::unit_test::timeout(120)) {
