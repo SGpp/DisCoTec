@@ -25,7 +25,6 @@ class MPIUtils {
     // create mpi buffer of archive
     std::string s = ss.str();
     int bsize = static_cast<int>(s.size());
-    std::cout << "s bsize " << bsize << std::endl;
     char* buf = const_cast<char*>(s.c_str());
     MPI_Send(buf, bsize, MPI_CHAR, dst, EXCHANGE_CLASS, comm);
   }
@@ -36,9 +35,8 @@ class MPIUtils {
     // todo: not really necessary since size known at compile time
     MPI_Status status;
     int bsize;
-    MPI_Probe(src, 0, comm, &status);
+    MPI_Probe(src, EXCHANGE_CLASS, comm, &status);
     MPI_Get_count(&status, MPI_CHAR, &bsize);
-    std::cout << "r bsize " << bsize << std::endl;
 
     // create buffer of appropriate size and receive
     std::vector<char> buf(bsize);
