@@ -7,6 +7,8 @@
 #include <sstream>
 #include <string>
 
+#include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
+
 namespace combigrid {
 
 class MPIUtils {
@@ -23,8 +25,9 @@ class MPIUtils {
     // create mpi buffer of archive
     std::string s = ss.str();
     int bsize = static_cast<int>(s.size());
+    std::cout << "s bsize " << bsize << std::endl;
     char* buf = const_cast<char*>(s.c_str());
-    MPI_Send(buf, bsize, MPI_CHAR, dst, 0, comm);
+    MPI_Send(buf, bsize, MPI_CHAR, dst, EXCHANGE_CLASS, comm);
   }
 
   template <typename T>
@@ -35,10 +38,11 @@ class MPIUtils {
     int bsize;
     MPI_Probe(src, 0, comm, &status);
     MPI_Get_count(&status, MPI_CHAR, &bsize);
+    std::cout << "r bsize " << bsize << std::endl;
 
     // create buffer of appropriate size and receive
     std::vector<char> buf(bsize);
-    MPI_Recv(&buf[0], bsize, MPI_CHAR, src, 0, comm, MPI_STATUS_IGNORE);
+    MPI_Recv(&buf[0], bsize, MPI_CHAR, src, EXCHANGE_CLASS, comm, MPI_STATUS_IGNORE);
 
     // create and open an archive for input
     std::string s(&buf[0], bsize);
