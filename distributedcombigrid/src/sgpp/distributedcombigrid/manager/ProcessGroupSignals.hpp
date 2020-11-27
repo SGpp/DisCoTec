@@ -59,6 +59,8 @@ const SignalType WAIT_FOR_TL_SIZE_UPDATE = 27;
 
 const SignalType WRITE_DFGS_TO_VTK = 28;
 
+const SignalType EXCHANGE_CLASS = 29;
+
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
 const NormalizationType L1_NORMALIZATION = 1;
