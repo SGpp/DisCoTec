@@ -754,13 +754,13 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
     for(int g=0; g<numGrids; g++){
 
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+      if(currentCombi_ == 0){ //otherwise already hierarchized from combineUniformAsyncHierarchizeUpdate
+        // hierarchize dfg
+        DistributedHierarchization::hierarchize<CombiDataType>(
+            dfg, combiParameters_.getHierarchizationDims() );
+      }
       std::vector<CombiDataType> datavector(dfg.getElementVector());
       t->fullgridVectorBeforeCombi[g] = datavector;
-
-      // hierarchize dfg
-      DistributedHierarchization::hierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims() );
-
       // lokales reduce auf sg ->
       dfg.addToUniformSG( *combinedUniDSGVector_[g], combiParameters_.getCoeff( t->getID() ) );
 #ifdef DEBUG_OUTPUT
@@ -822,19 +822,25 @@ void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
       // get handle to dfg
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       //t->prevTimeStepDfg = t->getDistributedFullGrid(g);
-      std::vector<CombiDataType> gridNextTimestep(dfg.getElementVector());
+            // hierarchize dfg
+      DistributedHierarchization::hierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims() );
+      std::vector<CombiDataType> gridNextTimestepHierarchized(dfg.getElementVector());
+
       // extract dfg vom dsg
       dfg.extractFromUniformSG( *combinedUniDSGVector_[g] );
 
-      // dehierarchize dfg
-      DistributedHierarchization::dehierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims() );
 
       std::vector<CombiDataType>& gridAfterCombi = dfg.getElementVector();
 
       for(int i=0; i< gridAfterCombi.size();i++){
-        gridAfterCombi[i] += (gridNextTimestep[i] - t->fullgridVectorBeforeCombi[g][i]);
+        gridAfterCombi[i] += (gridNextTimestepHierarchized[i] - t->fullgridVectorBeforeCombi[g][i]);
 
+      }
+
+      if(currentCombi_ + 1 == combiParameters_.getNumberOfCombinations()){ //we want to end with a dehierarchized grid in last iteration
+        DistributedHierarchization::dehierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims() );
       }
 
     }
