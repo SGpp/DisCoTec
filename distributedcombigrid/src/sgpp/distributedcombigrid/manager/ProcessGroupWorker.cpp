@@ -69,7 +69,7 @@ SignalType ProcessGroupWorker::wait() {
 
   MASTER_EXCLUSIVE_SECTION {
     // receive signal from manager
-    MPI_Recv(&signal, 1, MPI_INT, theMPISystem()->getManagerRank(), signalTag,
+    MPI_Recv(&signal, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_SIGNAL_TAG,
              theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
   }
   // distribute signal to other processes of pgroup
@@ -336,10 +336,10 @@ void ProcessGroupWorker::ready() {
     StatusType status = status_;
 
     if (ENABLE_FT) {
-      simft::Sim_FT_MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), statusTag,
+      simft::Sim_FT_MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
                              theMPISystem()->getGlobalCommFT());
     } else {
-      MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), statusTag,
+      MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
                theMPISystem()->getGlobalComm());
     }
   }
@@ -592,7 +592,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
   // receive leval and broadcast to group members
   std::vector<int> tmp(dim);
   MASTER_EXCLUSIVE_SECTION {
-    MPI_Recv(&tmp[0], dim, MPI_INT, theMPISystem()->getManagerRank(), 0,
+    MPI_Recv(&tmp[0], dim, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG,
              theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
   }
 
@@ -651,13 +651,13 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
     // receive size of levelvector = dimensionality
     MPI_Status status;
     int bsize;
-    MPI_Probe(theMPISystem()->getManagerRank(), 0, theMPISystem()->getGlobalComm(), &status);
+    MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG, theMPISystem()->getGlobalComm(), &status);
     MPI_Get_count(&status, MPI_INT, &bsize);
 
     assert(bsize == static_cast<int>(dim));
 
     std::vector<int> tmp(dim);
-    MPI_Recv(&tmp[0], bsize, MPI_INT, theMPISystem()->getManagerRank(), 0,
+    MPI_Recv(&tmp[0], bsize, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG,
              theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
     leval = LevelVector(tmp.begin(), tmp.end());
   }

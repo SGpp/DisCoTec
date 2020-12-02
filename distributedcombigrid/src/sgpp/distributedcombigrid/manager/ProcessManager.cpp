@@ -42,12 +42,13 @@ bool ProcessManager::runfirst() {
 
 void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive = 0){
   if (numDurationsToReceive == 0){
-    numDurationsToReceive = tasks_.size();
+    numDurationsToReceive = pgroups_.size();
   }
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
     DurationInformation recvbuf;
 
-    MPIUtils::receiveClass(&recvbuf, MPI_ANY_SOURCE, theMPISystem()->getGlobalComm());
+    // this assumes that the manager rank is the highest in globalComm
+    MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
 
     const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
     if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
