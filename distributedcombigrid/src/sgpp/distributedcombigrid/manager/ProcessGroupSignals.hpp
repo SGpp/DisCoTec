@@ -6,7 +6,6 @@ namespace combigrid {
 // attention: changing SignalType might require changing the MPI Type as well
 typedef int SignalType;
 
-const SignalType RUN_FIRST = 0;
 const SignalType RUN_NEXT = 1;
 const SignalType EVAL = 2;
 const SignalType GRID_EVAL = 3;
@@ -58,8 +57,7 @@ const SignalType REDUCE_SUBSPACE_SIZES_TL = 26;
 const SignalType WAIT_FOR_TL_SIZE_UPDATE = 27;
 
 const SignalType WRITE_DFGS_TO_VTK = 28;
-
-const SignalType EXCHANGE_CLASS = 29;
+const SignalType RUN_FIRST = 29;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
@@ -70,8 +68,6 @@ const NormalizationType EV_NORMALIZATION = 3;
 typedef int FaultSimulationType;
 const FaultSimulationType RANDOM_FAIL = 0;
 const FaultSimulationType GROUPS_FAIL = 1;
-
-enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3};
 
 // attention: changing StatusType might require changing the MPI Type
 typedef int StatusType;

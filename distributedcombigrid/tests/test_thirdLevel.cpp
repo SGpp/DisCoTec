@@ -276,7 +276,7 @@ BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)
 BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)) {
   unsigned int numSystems = 2;
   unsigned int ngroup     = 2;
-  unsigned int nprocs     = 2;
+  unsigned int nprocs     = 1;
   unsigned int ncombi     = 10;
   DimType dim             = 2;
   LevelVector lmin(dim, 4);

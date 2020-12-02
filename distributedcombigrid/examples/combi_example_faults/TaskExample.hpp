@@ -249,7 +249,7 @@ class TaskExample: public Task {
           std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
           StatusType status=PROCESS_GROUP_FAIL;
           MASTER_EXCLUSIVE_SECTION{
-            simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), statusTag,
+            simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
                               theMPISystem()->getGlobalCommFT() );
           }
           theMPISystem()->sendFailedSignal();

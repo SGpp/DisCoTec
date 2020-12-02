@@ -48,11 +48,11 @@ void ProcessGroupManager::sendSignalAndReceive(SignalType signal) {
 }
 
 void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 }
 
 void ProcessGroupManager::sendSignalToProcess(SignalType signal, RankType rank) { //TODO send only to process in this pgroup
-  MPI_Send(&signal, 1, MPI_INT, rank, signalTag, theMPISystem()->getGlobalComm());
+  MPI_Send(&signal, 1, MPI_INT, rank, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 }
 
 inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
@@ -196,7 +196,7 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel,
                                    "single mpi call");
       // recv dsgu from worker
       dsguData.reset(new CombiDataType[dsguSize]);
-      MPI_Recv(dsguData.get(), (int) dsguSize, dataType, p, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
+      MPI_Recv(dsguData.get(), (int) dsguSize, dataType, p, TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
 
       if (isSendingFirst) {
         // send dsgu to remote
@@ -204,14 +204,14 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel,
         // recv combined dsgu from remote
         thirdLevel.recvData(dsguData.get(), dsguSize);
         // send to worker
-        MPI_Send(dsguData.get(), (int) dsguSize, dataType, p, 0, comm);
+        MPI_Send(dsguData.get(), (int) dsguSize, dataType, p, TRANSFER_DSGU_DATA_TAG, comm);
       } else {
         // recv and combine dsgu from remote
         thirdLevel.recvAndAddToData(dsguData.get(), dsguSize);
         // send combined solution to remote
         thirdLevel.sendData(dsguData.get(), dsguSize);
         // send to worker
-        MPI_Send(dsguData.get(), (int) dsguSize, dataType, p, 0, comm);
+        MPI_Send(dsguData.get(), (int) dsguSize, dataType, p, TRANSFER_DSGU_DATA_TAG, comm);
       }
     }
   }
@@ -398,7 +398,7 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
 
   // send levelvector
   std::vector<int> tmp(leval.begin(), leval.end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
+  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
            theMPISystem()->getGlobalComm());
 
   // send filename
@@ -412,10 +412,10 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
 void ProcessGroupManager::recvStatus() {
   // start non-blocking call to receive status
   if (ENABLE_FT) {
-    simft::Sim_FT_MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag,
+    simft::Sim_FT_MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, TRANSFER_STATUS_TAG,
                             theMPISystem()->getGlobalCommFT(), &statusRequestFT_);
   } else {
-    MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag, theMPISystem()->getGlobalComm(),
+    MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, TRANSFER_STATUS_TAG, theMPISystem()->getGlobalComm(),
               &statusRequest_);
   }
 }

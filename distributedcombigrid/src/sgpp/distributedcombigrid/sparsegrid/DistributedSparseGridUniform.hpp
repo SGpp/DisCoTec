@@ -5,6 +5,7 @@
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPITags.hpp"
 #include <numeric>
 
 #include <boost/serialization/vector.hpp>
@@ -644,7 +645,7 @@ static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
   int dataSize  = static_cast<int>(dsgu->getRawDataSize());
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
-  MPI_Send(data, dataSize, dataType, dest, 0, comm);
+  MPI_Send(data, dataSize, dataType, dest, TRANSFER_DSGU_DATA_TAG, comm);
 }
 
 /**
@@ -662,7 +663,7 @@ static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
   int dataSize  = static_cast<int>(dsgu->getRawDataSize());
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
-  MPI_Recv(data, dataSize, dataType, source, MPI_ANY_TAG, comm, MPI_STATUS_IGNORE);
+  MPI_Recv(data, dataSize, dataType, source, TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
 }
 
 /**
@@ -734,7 +735,7 @@ static void sendSubspaceDataSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsg
   assert(dsgu->getNumSubspaces() > 0);
 
   const std::vector<int>& subspacesDataSizes = dsgu->getSubspaceDataSizes();
-  MPI_Send(subspacesDataSizes.data(), subspacesDataSizes.size(), MPI_INT, dest, 0, comm);
+  MPI_Send(subspacesDataSizes.data(), subspacesDataSizes.size(), MPI_INT, dest, TRANSFER_SUBSPACE_DATA_SIZES_TAG, comm);
 }
 
 /**
@@ -753,7 +754,7 @@ static MPI_Request recvAndBcastSubspaceDataSizes(DistributedSparseGridUniform<FG
 
   // receive subspace data sizes from manager
   MPI_Status status;
-  MPI_Recv(buf.data(), buf.size(), MPI_INT, recvSrc, MPI_ANY_TAG, recvComm, &status);
+  MPI_Recv(buf.data(), buf.size(), MPI_INT, recvSrc, TRANSFER_SUBSPACE_DATA_SIZES_TAG, recvComm, &status);
 
   // distribute subspace sizes asynchronously
   MPI_Request request;
