@@ -46,6 +46,8 @@ class ProcessGroupWorker {
   // outdated!
   void combineFG();
 
+  void deleteTasks();
+
   void gridEval();
 
   // parallel file io of final output grid

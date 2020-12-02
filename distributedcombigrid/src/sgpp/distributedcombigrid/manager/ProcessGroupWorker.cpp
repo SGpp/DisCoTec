@@ -137,10 +137,7 @@ SignalType ProcessGroupWorker::wait() {
     case RESET_TASKS: {  // deleta all tasks (used in process recovery)
       std::cout << "resetting tasks" << std::endl;
 
-      // freeing tasks
-      for (auto tmp : tasks_) delete (tmp);
-
-      tasks_.clear();
+      deleteTasks();
       status_ = PROCESS_GROUP_BUSY;
 
     } break;
@@ -154,7 +151,7 @@ SignalType ProcessGroupWorker::wait() {
       if (isGENE) {
         if(chdir("../ginstance")){};
       }
-
+      deleteTasks();
     } break;
     case SYNC_TASKS: {
       MASTER_EXCLUSIVE_SECTION {
@@ -727,6 +724,12 @@ void ProcessGroupWorker::combineFG() {
   // gridEval();
 
   // TODO: Sync back to fullgrids
+}
+
+void ProcessGroupWorker::deleteTasks() {
+      // freeing tasks
+      for (auto tmp : tasks_) delete (tmp);
+      tasks_.clear();
 }
 
 void ProcessGroupWorker::updateCombiParameters() {
