@@ -114,6 +114,8 @@ class ProcessGroupManager {
 
   void sendSignalToProcessGroup(SignalType signal);
 
+  void sendSignalToProcess(SignalType signal, RankType rank);
+
   inline void setProcessGroupBusyAndReceive();
 
   /* sets the rank of the process group's master in global comm. should only
