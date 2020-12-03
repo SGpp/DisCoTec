@@ -264,6 +264,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
+  TestHelper::testStrayMessages(comm);
 }
 
 BOOST_AUTO_TEST_SUITE(rescheduling)

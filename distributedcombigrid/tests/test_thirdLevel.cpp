@@ -226,6 +226,7 @@ void testCombineThirdLevel(TestParams& testParams) {
 
   combigrid::Stats::finalize();
   MPI_Barrier(testParams.comm);
+  TestHelper::testStrayMessages(testParams.comm);
 }
 
 BOOST_AUTO_TEST_SUITE(thirdLevel)

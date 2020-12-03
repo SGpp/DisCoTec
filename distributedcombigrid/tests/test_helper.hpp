@@ -35,6 +35,14 @@ namespace TestHelper{
     MPI_Comm_rank(comm, &rank);
     return rank;
   }
+
+  static void testStrayMessages(MPI_Comm comm = MPI_COMM_WORLD){
+    // general test for stray messages
+    int flag;
+    MPI_Status status;
+    MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &flag, &status);
+    BOOST_TEST(flag == false);
+  }
 }
 
 #endif  // TEST_HELPER_HPP
