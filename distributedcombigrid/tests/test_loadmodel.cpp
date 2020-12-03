@@ -86,18 +86,19 @@ void testDataSave(int size) {
   //   }
   // }
   combigrid::Stats::finalize();
+  MPI_Barrier(theMPISystem()->getGlobalComm());
+  TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
+  TestHelper::testStrayMessages();
 }
 
 BOOST_AUTO_TEST_SUITE(loadmodel)
 
 BOOST_AUTO_TEST_CASE(test_2) {
   testDataSave(2);
-  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 BOOST_AUTO_TEST_CASE(test_9, *boost::unit_test::timeout(120)) {
   testDataSave(9);
-  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
