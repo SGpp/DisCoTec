@@ -52,7 +52,10 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   for (size_t i = 0; i < levels_.size(); ++i) {
     LevelVector& l = levels_[i];
     for (LevelType p = 0; p < LevelType(effDim_); ++p) {
-      if (l >= lmin_ && sum(l) == n_ - p) combiSpaces_.push_back(l);
+      if (l >= lmin_ && sum(l) == n_ - p) {
+        combiSpaces_.push_back(l);
+        std::cout << l[0]<<std::endl;
+      }
     }
   }
   computeCombiCoeffsClassical();
@@ -65,10 +68,12 @@ void CombiMinMaxScheme::createAdaptiveCombischeme() {
   LevelVector l(dim_);
   // TODO: Why levelSum-1 ?
   createLevelsRec(dim_, n_ - 1, dim_, l, lmax_);
-
   for (auto level : levels_) {
     int l1norm = std::accumulate(level.begin(), level.end(), 0);
-    if (level >= lmin_ && l1norm <= n_) combiSpaces_.push_back(level);
+    if (level >= lmin_ && l1norm <= n_) {
+      combiSpaces_.push_back(level);
+      
+    }
   }
 
   computeCombiCoeffsAdaptive();

@@ -27,15 +27,16 @@ class TaskEnsemble : public Task {
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
   TaskEnsemble(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-              LoadModel* loadModel, std::string filename,  real dt,  IndexVector p = IndexVector(0),
+              LoadModel* loadModel, std::string filename,  real dt, bool makeExactSolution, IndexVector p = IndexVector(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : Task(dim, l, boundary, coeff, loadModel, faultCrit),
-        dt_(dt),
-        p_(p),
-        initialized_(false),
-        stepsTotal_(0),
-        dfgEnsemble_(nullptr),
-        _filename(filename) {}
+      : Task(dim, l, boundary, coeff, loadModel, faultCrit){
+        dt_=(dt),
+        p_=(p),
+        make_exact_=(makeExactSolution),
+        initialized_=(false),
+        stepsTotal_=(0),
+        dfgEnsemble_=(nullptr),
+        _filename=(filename); }
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -86,10 +87,6 @@ class TaskEnsemble : public Task {
       p = p_;
     }
 
-    if (lrank == 0) {
-      std::cout << "init task " << this->getID() << " with l = " << this->getLevelVector()
-                << " and p = " << p << std::endl;
-    }
 
     // create local subgrid on each process
     dfgEnsemble_ = new DFGEnsemble(dim, l, lcomm, this->getBoundary(), p);
@@ -101,8 +98,9 @@ class TaskEnsemble : public Task {
       offset[i]=l[i]*1.1;
 
     
-    this->problem = std::make_shared<Problem>(lcomm, table,offset);
-    this->problem->reinit(_filename);
+    if(!make_exact_){
+      this->problem = std::make_shared<Problem>(lcomm, table,offset);
+      this->problem->reinit(_filename);
 
 
       
@@ -124,9 +122,10 @@ class TaskEnsemble : public Task {
         IndexType globalLinearIndex = dfg.getGlobalLinearIndex(j);
         std::vector<real> globalCoords(dim);
         dfg.getCoordsGlobal(globalLinearIndex, globalCoords);
-        for(size_t l=0; l<dim;++l)
+        for(size_t l=0; l<dim;++l){
           element_coords[i][j][l]=globalCoords[l];
-      
+        }
+        
         elements[j] =0;// TaskEnsemble::myfunction(globalCoords, 0.0);
       }
     }
@@ -161,19 +160,19 @@ class TaskEnsemble : public Task {
       }
       else if(dim==3){
         z=element_coords[0][el_index][2]*(Nz-1); 
-        linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
+        linearized_index=x+(Nx)*y+z*(Nx)*(Ny);
       }
       //ss << "["<<linearized_index<<"]";
       index_sub[linearized_index]=el_index;
     }
     
     //same for the deal.II points ->O(2n)
-    for(unsigned int x2=coords_dealii.size()-1; x2<numbers::invalid_unsigned_int;x2--){
+    for(unsigned int x2=0; x2<(coords_dealii.size());x2++){
       x=std::round(coords_dealii[x2][0]*(Nx-1));
-      //y=coords_dealii[x2][1]*(Ny-1);  
+      y= std::round(coords_dealii[x2][1]*(Ny-1));    
       if(dim==3)
         z=coords_dealii[x2][2]*(Nz-1);  
-      y= std::round(coords_dealii[x2][1]*(Ny-1));    
+      
       
       linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
       
@@ -182,7 +181,7 @@ class TaskEnsemble : public Task {
       
     }
   
-  
+    }
     
     }
     
@@ -197,20 +196,13 @@ class TaskEnsemble : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
 
-    int lrank;
-    MPI_Comm_rank(lcomm, &lrank);
-    // TODO if your Example uses another data structure, you need to copy
-    // the data from elements to that data structure
-
-    /* pseudo timestepping to demonstrate the behaviour of your typical
-     * time-dependent simulation problem. */
-    // TODO replace by your time time stepping algorithm
-
+  table.start("time->fullgrid");
+   if(!make_exact_){
+     std::vector<std::array<Number, Problem::dim_ + 2>> old_result(size_result);
     
-   // 
     if(stepsTotal_>0 && do_combine)
     {
-      std::vector<std::array<Number, Problem::dim_ + 2>> old_result(size_result);
+      
 
       //iterates over all dfgs of the ensemble
       for(unsigned int i = 0; i < dfgEnsemble_->getNumFullGrids(); i++){
@@ -218,7 +210,7 @@ class TaskEnsemble : public Task {
         std::vector<CombiDataType>& elements = dfg.getElementVector();
 
         //iterate here over all points of this grid
-        for(unsigned int l = 0; l < elements.size(); l++) {       
+        for(unsigned int l = 0; l < index_mapping[i].size(); l++) {       
 
           old_result[index_mapping[i][l]][Problem::dim_]=elements[l];
           //old_result[index_mapping[i][l]][Problem::dim_+1]=i;
@@ -226,13 +218,14 @@ class TaskEnsemble : public Task {
       }
       problem->set_result(old_result);
     }
+    Stats::startEvent("Task "+std::to_string(this->getID()));
     problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + 1)*dt_);
 
     //process problem
     problem->solve();
+    Stats::stopEvent("Task "+std::to_string(this->getID()));
     
-    if(do_combine){
-      std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
+    std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
 
       //iterate over all dfgs
       for(unsigned int i = 0; i < dfgEnsemble_->getNumFullGrids(); i++){         
@@ -240,16 +233,46 @@ class TaskEnsemble : public Task {
         std::vector<CombiDataType>& elements = dfg.getElementVector();
   
         //iterate over the elements of this dfg
-        for(unsigned int l=0; l<elements.size(); l++){
+        for(unsigned int l=0; l<index_mapping[i].size(); l++){
           //TODO: missing values at boundary
           elements[l]=result[index_mapping[i][l]][Problem::dim_];
 
         }
       }          
-    }
+    
+  }
+  else{
+    for(unsigned int i = 0; i < dfgEnsemble_->getNumFullGrids(); i++){
+      auto& dfg_ = dfgEnsemble_->getDFG(i);
+      std::vector<CombiDataType>& elements = dfg_.getElementVector();
+      std::vector<std::array<Number, Problem::dim_ >> element_coords(elements.size());
+      for (size_t j = 0; j < elements.size(); ++j) {
+        IndexType globalLinearIndex = dfg_.getGlobalLinearIndex(j);
+        std::vector<real> globalCoords(dim);
+        dfg_.getCoordsGlobal(globalLinearIndex, globalCoords);
+        for(size_t l=0; l<dim;++l)
+          element_coords[j][l]=globalCoords[l];
+        //the coordinates are now stored in elemen_coords[i]
+        //compute the exact solution on this point and store it in the grid;
+        elements[j] = exactSolution(element_coords[j],(stepsTotal_+1)*dt_);
+      }
+      }
+  }
     stepsTotal_ ++;
-
+  table.stop("time->fullgrid");
     this->setFinished(true);
+  }
+
+   double exactSolution(std::array<Number, Problem::dim_ > coordinates, double time){
+    double result=1.0;
+    Tensor<1, 3> advection;
+    advection[0]=1;
+    advection[1]=0.15;
+    advection[2]=-0.05;
+    for(unsigned int d = 0; d < Problem::dim_; ++d)
+      result *= std::pow(std::sin((std::abs(coordinates[d]-0.5)-time*advection[d])*2*dealii::numbers::PI),2);
+    
+    return result;    
   }
 
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return dfgEnsemble_->getDFG(n); }
@@ -270,23 +293,7 @@ class TaskEnsemble : public Task {
   // return the number of grids; here it is the number of grids in ensemble
   size_t getNumGrids() override { return powerOfTwo[dim_]; }
 
-  static real myfunction(std::vector<real>& coords, real t) {
-    real u = std::cos(M_PI * t);
-
-    for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(2.0 * M_PI * coords[d]);
-
-    return u;
-
-    /*
-    double res = 1.0;
-    for (size_t i = 0; i < coords.size(); ++i) {
-      res *= -4.0 * coords[i] * (coords[i] - 1);
-    }
-
-
-    return res;
-    */
-  }
+ 
 
   void setZero() {}
 
@@ -300,7 +307,7 @@ class TaskEnsemble : public Task {
    * this constructor before overwriting the variables that are set by the
    * manager. here we need to set the initialized variable to make sure it is
    * set to false. */
-  TaskEnsemble() : initialized_(false), stepsTotal_(0), dfgEnsemble_(nullptr) {}
+  TaskEnsemble() : make_exact_(false),initialized_(false), stepsTotal_(0), dfgEnsemble_(nullptr) {}
 
  private:
   friend class boost::serialization::access;
@@ -310,6 +317,7 @@ class TaskEnsemble : public Task {
   size_t size_result;
   std::vector<std::vector<Number>> index_mapping;
   std::vector<std::vector<Number>> index_mapping2;
+  bool make_exact_=false;
   IndexVector p_;
 std::shared_ptr<Problem> problem;
   // pure local variables that exist only on the worker processes
@@ -336,6 +344,7 @@ std::string _filename;
     
     ar& p_;
     ar& _filename;
+    ar& make_exact_;
   }
 };
 

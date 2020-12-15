@@ -152,7 +152,7 @@ using namespace combigrid;
             json_root.add_child("SpatialDiscretization",json_SpatialDiscretization);
 
             json_TemporalDiscretization.put("FinalTime",2);
-            json_TemporalDiscretization.put("CFLNumber",0.15);
+            json_TemporalDiscretization.put("CFLNumber",0.1);
             json_root.add_child("TemporalDiscretization",json_TemporalDiscretization);
             
             jsout.put("Tick",0.1);
@@ -191,7 +191,8 @@ using namespace combigrid;
             int deg=root.get<int>("ct.degree",1);
 
 
-            double dt=root.get<int>("ct.dt",1);
+            double dt=root.get<double>("application.dt",1);
+            std::cout << "ct.dt="<<dt<<std::endl;
             int nsteps=root.get<int>("ct.nsteps",1);
             std::string isDG=root.get<std::string>("ct.FE","FE_Q");
 
@@ -207,7 +208,7 @@ using namespace combigrid;
             json_general.put("Degree", deg);
             json_general.put("PartitionX", p[std::min(std::max(dim-1, 0),0)]);
             json_general.put("PartitionY", p[std::min(std::max(dim-1, 1),1)]);
-            json_general.put("PartitionZ", p[std::min(std::max(dim-1, 2),2)]);
+            json_general.put("PartitionZ", p[std::min(dim-1, 2)]);
             json_general.put("Case","hyperrectangle");
             json_root.add_child("General", json_general);
 
@@ -216,7 +217,8 @@ using namespace combigrid;
             jsubX.put("X",pow(2,lmax[std::min(std::max(dim-1, 0),0)]));
             jsubX.put("Y",pow(2,lmax[std::min(std::max(dim-1, 1),1)]));
             //watch out here
-            jsubX.put("Z",pow(2,lmax[std::min(std::max(dim-1, 2),1)]));
+            
+            jsubX.put("Z",pow(2,lmax[std::min(dim-1, 2)]));
             json_case.add_child("NSubdivisions",jsubX);
             json_root.add_child("Case", json_case);
 
@@ -225,11 +227,11 @@ using namespace combigrid;
             json_SpatialDiscretization.put("FE",isDG);
             json_root.add_child("SpatialDiscretization",json_SpatialDiscretization);
 
-            json_TemporalDiscretization.put("FinalTime",dt*nsteps);
+            json_TemporalDiscretization.put("FinalTime",1);
             json_TemporalDiscretization.put("CFLNumber",0.15);
             json_root.add_child("TemporalDiscretization",json_TemporalDiscretization);
             
-            jsout.put("Tick",0.1);
+            jsout.put("Tick",dt);
             json_postprocessing.add_child("StandardOutput",jsout);
             jVTK.put("Enabled",true);
             jVTK.put("Prefix","solution/solution_"+std::to_string(output_prefix));

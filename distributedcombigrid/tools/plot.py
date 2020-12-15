@@ -318,7 +318,8 @@ try:
     else:
         raise ValueError("invalid type number")
 
-    plt.tight_layout()
-    plt.show()
+    #plt.tight_layout()
+    #plt.show()
+    plt.savefig("tset.png")
 except Exception as err:
     print("Error: " + str(err))

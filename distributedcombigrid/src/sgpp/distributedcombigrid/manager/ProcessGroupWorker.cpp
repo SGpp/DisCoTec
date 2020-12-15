@@ -65,8 +65,7 @@ SignalType ProcessGroupWorker::wait() {
   if (status_ != PROCESS_GROUP_WAIT) {
 #ifdef DEBUG_OUTPUT
     int myRank = theMPISystem()->getWorldRank();
-    std::cout << "status is " << status_ << "of rank " << myRank << "\n";
-    std::cout << "executing next task\n";
+    
 #endif
     return RUN_NEXT;
   }

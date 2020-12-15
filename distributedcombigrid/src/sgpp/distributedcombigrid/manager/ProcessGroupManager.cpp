@@ -18,7 +18,7 @@ ProcessGroupManager::ProcessGroupManager(RankType pgroupRootID)
       statusRequestFT_(nullptr) {}
 
 bool ProcessGroupManager::runfirst(Task* t) {
-  std::cout << "here" << t->getID();
+  
   return storeTaskReferenceAndSendTaskToProcessGroup(t, RUN_FIRST);
 }
 

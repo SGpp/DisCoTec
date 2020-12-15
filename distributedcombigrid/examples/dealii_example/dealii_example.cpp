@@ -41,7 +41,7 @@ hyperdeal::DynamicConvergenceTable table;
 
 // include user specific task. this is the interface to your application
 
-const bool do_combine=true;
+bool do_combine=true;
 
 
 #include "TaskExample.hpp"
@@ -75,11 +75,26 @@ int main(int argc, char** argv) {
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
   size_t nprocs = cfg.get<size_t>("manager.nprocs");
   
+  //transportvector stores transport information in case that the problem is advection. only used to compute the exact solution
+  // from hyper.deal.combi>applications>advection_reference_dealII>cases>hyperreactangle.h which is sin^2
   LevelVector lmin(dim), lmax(dim), leval(dim);
   cfg.get<std::string>("ct.lmin") >> lmin;
   cfg.get<std::string>("ct.lmax") >> lmax;
   cfg.get<std::string>("ct.leval") >> leval;
-
+  combigrid::real dt;
+  size_t ncombi;
+  ncombi = cfg.get<size_t>("ct.ncombi");
+  dt = cfg.get<combigrid::real>("application.dt");
+  bool makeExactSol=cfg.get<bool>("exact.makeExact",false);
+  IndexVector p(dim);
+    cfg.get<std::string>("ct.p") >> p;
+  if(makeExactSol){
+    
+    dt=dt*ncombi;
+    ncombi=1;      
+    lmax=leval;
+    lmin=leval;
+  }
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
   theMPISystem()->init(ngroup, nprocs);
@@ -101,14 +116,13 @@ int main(int argc, char** argv) {
 
     /* read in parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
-    IndexVector p(dim);
-    combigrid::real dt;
-    size_t ncombi;
+    
     bool isdg=("FE_DGQ"==cfg.get<std::string>("ct.FE","FE_Q"));
-    std::cout << "Is dg:"<<isdg;
-    cfg.get<std::string>("ct.p") >> p;
-    ncombi = cfg.get<size_t>("ct.ncombi");
-    dt = cfg.get<combigrid::real>("application.dt");
+    
+    do_combine=cfg.get<bool>("ct.DO_COMBINE",do_combine);
+    std::cout << do_combine;
+    
+    
     
 
     Converter converter;
@@ -130,7 +144,16 @@ int main(int argc, char** argv) {
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
-
+    int number_points=0;
+    for(int i=0; i<levels.size();i++){  
+        if(dim==2)  {
+          number_points+=coeffs[i]*(pow(2,int(levels[i][0]))+1)*(pow(2,int(levels[i][1]))+1);
+        }
+        else if(dim==3){
+          number_points+=coeffs[i]*(pow(2,int(levels[i][0]))+1)*(pow(2,int(levels[i][1]))+1)*(pow(2,int(levels[i][2]))+1);
+        }
+    }
+    std::cout << "Number of points:"<<number_points<<std::endl;
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
@@ -149,9 +172,9 @@ int main(int argc, char** argv) {
       Task* t;
 
       if(!isdg)
-        t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt, p);
+        t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt, makeExactSol, p);
       else
-        t = new TaskEnsemble(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt,  p);
+        t = new TaskEnsemble(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt, makeExactSol, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -179,12 +202,14 @@ int main(int argc, char** argv) {
     Stats::startEvent("manager run first");
     manager.runfirst();
     Stats::stopEvent("manager run first");
+     Stats::startEvent("correct computation");
     
     std::chrono::nanoseconds duration_combination=std::chrono::nanoseconds::zero();
-    for (size_t i = 0; i < ncombi; ++i) {
+    for (size_t i = 1; i < ncombi; ++i) {
       Stats::startEvent("combine");
-      if(do_combine)
+      if(do_combine){
         manager.combine();
+      }
       Stats::stopEvent("combine");
 
       
@@ -196,21 +221,29 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager run");
       table.print(false);
     }
-    if(true){
-      manager.combine();
-    }
+    manager.combine();
+    Stats::stopEvent("correct computation");
       // evaluate solution and
       // write solution to file
-      std::string filename("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/cs"  +"mi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ev_"+toString(leval)+".dat");
+
+      std::string com=do_combine?"_combi_true":"_combi_false";
+      std::string filename="";
+      std::cout << "\nFE=" <<cfg.get<std::string>("ct.FE");
+      if(makeExactSol){
+        filename=("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/exact_solution_level"+ toString(lmin)+".dat");
+      }
+      else
+        filename=("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/cs"  +"mi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ev_"+toString(leval)+com+".dat");
       Stats::startEvent("manager write solution");
       manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");
+      
     //table.stop_and_set("time->fullgrid");
     //table.print(false);
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
     {
-
+      
       DataOut<1> gridout;
       std::vector<std::pair<double, std::string>> pvd_labels;
       for(unsigned int t = 0; t< ncombi; t++ )
@@ -223,6 +256,7 @@ int main(int argc, char** argv) {
         std::ofstream outfile ("solution/solution_" + std::to_string(t) + ".pvtu");
         gridout.write_pvtu_record(outfile, pvtu_labels);
       }
+      
       std::ofstream outfile ("solution/solution.pvd");
       DataOutBase::write_pvd_record(outfile, pvd_labels);
       
@@ -241,11 +275,11 @@ int main(int argc, char** argv) {
   }
   Stats::stopEvent("overall computation");
   Stats::finalize();
-
   /* write stats to json file for postprocessing */
-  Stats::write("timers/"+cfg.get<std::string>("ct.FE","FE_Q")+"mi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ev_"+toString(leval)+".json");
+  Stats::write("timers/"+cfg.get<std::string>("ct.FE","FE_Q")+(do_combine ? "true": "false")+"/p_"+toString(p)+"_mi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ngroup_"+std::to_string(ngroup)+"_ncombi_"+std::to_string(ncombi)+".json");
+
 
   MPI_Finalize();
-
+  
   return 0;
 }
