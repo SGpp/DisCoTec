@@ -1,10 +1,3 @@
-/*
- * DistributedHierarchization.hpp
- *
- *  Created on: 02.09.2014
- *      Author: P. Butz
- */
-
 #ifndef DISTRIBUTEDHIERARCHIZATION_HPP_
 #define DISTRIBUTEDHIERARCHIZATION_HPP_
 

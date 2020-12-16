@@ -154,10 +154,10 @@ void CombiMinMaxScheme::computeCombiCoeffsAdaptive() {
 void CombiMinMaxScheme::computeCombiCoeffsClassical() {
   for (DimType i = 0; i < combiSpaces_.size(); ++i) {
     LevelType l1 = sum(combiSpaces_[i]);
-    LevelType p = n_ - l1;
+    LevelType p = static_cast<unsigned int>(n_ - l1);
     // Classical combination coefficients
     coefficients_.push_back(std::pow(-1, p) *
-                            boost::math::binomial_coefficient<real>(effDim_ - 1, p));
+                            boost::math::binomial_coefficient<real>(static_cast<unsigned int>(effDim_ - 1), static_cast<unsigned int>(p)));
   }
 }
 

@@ -1,10 +1,3 @@
-/*
- *  Sim_FT_allreduce.cpp
- *
- *  Created on: 11.10.2015
- *      Author: Johannes Walter
- */
-
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 #include <iostream>

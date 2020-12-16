@@ -1,9 +1,3 @@
-/*
- *  Sim_FT_abort.cpp
- *
- *  Created on: 31.07.2015
- *      Author: Johannes Walter
- */
 #include "MPI-FT.h"
 #include REAL_MPI_INCLUDE
 

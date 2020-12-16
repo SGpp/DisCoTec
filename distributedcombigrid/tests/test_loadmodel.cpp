@@ -6,7 +6,7 @@
 #include <random>
 #include <thread>
 
-#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/AveragingLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
@@ -28,25 +28,26 @@ void testDataSave(int size) {
   size_t ngroup = size - 1;
   size_t nprocs = 1;
   theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
+  size_t numRounds = 600;
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     std::vector<LevelVector> lvv;
-    for (long int i = 0; i < ngroup; ++i) {
+    for (long int i = 0; i < static_cast<long int>(ngroup); ++i) {
       lvv.push_back({i});
     }
-    auto loadModel = std::unique_ptr<LoadModel>(new LearningLoadModel(lvv));
-    for (size_t j = 0; j < 600; ++j) {
+    auto loadModel = std::unique_ptr<LoadModel>(new AveragingLoadModel(lvv));
+    for (size_t j = 0; j < numRounds; ++j) {
       for (size_t i = 0; i < ngroup; ++i) {
-        durationInformation recvbuf;
-        MPI_Status stat;
-        MPIUtils::receiveClass(&recvbuf, MPI_ANY_SOURCE, theMPISystem()->getGlobalComm());
+        DurationInformation recvbuf;
+        // this assumes that the manager rank is the highest in globalComm
+        MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
         if (LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel.get())) {
-          llm->addDataPoint(recvbuf, lvv.at(recvbuf.task_id)); 
+          llm->addDurationInformation(recvbuf, lvv.at(recvbuf.task_id)); 
         }
       }
     }
     // test loadmodel
-    for (long int i = 0; i < ngroup; ++i) {
+    for (long int i = 0; i < static_cast<long int>(ngroup); ++i) {
       // std::cout << "llm eval " << loadModel->eval({i}) << std::endl;
       BOOST_TEST(loadModel->eval({i}) == 1000000 * i);
     }
@@ -59,10 +60,10 @@ void testDataSave(int size) {
 
     Stats::Event e = Stats::Event();
     e.end = e.start + std::chrono::microseconds(d);
-    durationInformation info = {TestHelper::getRank(comm), Stats::getEventDurationInUsec(e), 12.34, 0.00001, 1234, nprocs};
+    DurationInformation info = {TestHelper::getRank(comm), Stats::getEventDurationInUsec(e), 12.34, 0.00001, 1234, nprocs};
     // MPI_Request request;
     // send durationInfo to manager
-    for (size_t i = 0; i < 600; ++i) { 
+    for (size_t i = 0; i < numRounds; ++i) {
       MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
       // TODO see if we can send asynchronously
     }
@@ -85,17 +86,19 @@ void testDataSave(int size) {
   //   }
   // }
   combigrid::Stats::finalize();
+  MPI_Barrier(theMPISystem()->getGlobalComm());
+  TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
+  TestHelper::testStrayMessages();
 }
 
 BOOST_AUTO_TEST_SUITE(loadmodel)
 
 BOOST_AUTO_TEST_CASE(test_2) {
-    testDataSave(2);
+  testDataSave(2);
 }
 
 BOOST_AUTO_TEST_CASE(test_9, *boost::unit_test::timeout(120)) {
   testDataSave(9);
-  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

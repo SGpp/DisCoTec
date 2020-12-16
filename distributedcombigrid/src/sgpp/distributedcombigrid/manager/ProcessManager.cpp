@@ -1,16 +1,9 @@
-/*
- * ProcessManager.cpp
- *
- *  Created on: Oct 8, 2013
- *      Author: heenemo
- */
-
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
 #include <algorithm>
 #include <iostream>
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-#include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 
 namespace combigrid {
 
@@ -43,7 +36,7 @@ bool ProcessManager::runfirst() {
   std::cout <<"this is the end"<< std::endl;
 
   bool group_failed = waitAllFinished();
-  size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
+  //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   receiveDurationsOfTasksFromGroupMasters(0);
 
   // return true if no group failed
@@ -52,16 +45,19 @@ bool ProcessManager::runfirst() {
 
 void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive = 0){
   if (numDurationsToReceive == 0){
-    numDurationsToReceive = tasks_.size();
+    numDurationsToReceive = pgroups_.size();
   }
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
-    durationInformation recvbuf;
+    DurationInformation recvbuf;
 
-    MPIUtils::receiveClass(&recvbuf, MPI_ANY_SOURCE, theMPISystem()->getGlobalComm());
-    
+    // this assumes that the manager rank is the highest in globalComm
+    MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
+
+    const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
     if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
-      llm->addDataPoint(recvbuf, getLevelVectorFromTaskID(tasks_, recvbuf.task_id));
+      llm->addDurationInformation(recvbuf, levelVector);
     }
+    levelVectorToLastTaskDuration_[levelVector] = recvbuf.duration;
   }
 }
 
@@ -76,8 +72,9 @@ bool ProcessManager::runnext() {
 
   group_failed = waitAllFinished();
   
-  size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
-  receiveDurationsOfTasksFromGroupMasters(0);
+  //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
+  if(!group_failed)
+    receiveDurationsOfTasksFromGroupMasters(0);
   // return true if no group failed
   return !group_failed;
 }
@@ -371,6 +368,40 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
     bool fail = waitAllFinished();
 
     assert(!fail && "should not fail here");
+  }
+}
+
+void ProcessManager::reschedule() {
+  std::map<LevelVector, int> levelVectorToProcessGroupIndex;
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    for (const auto& t : pgroups_[i]->getTaskContainer()) {
+      levelVectorToProcessGroupIndex.insert({t->getLevelVector(), i});
+    }
+  }
+  auto tasksToMigrate = rescheduler_->eval(levelVectorToProcessGroupIndex, 
+                                           levelVectorToLastTaskDuration_, 
+                                           loadModel_.get());
+  for (const auto& t : tasksToMigrate) {
+    auto levelvectorToMigrate = t.first;
+    auto processGroupIndexToAddTaskTo = t.second;
+    auto processGroupIndexToRemoveTaskFrom = 
+      levelVectorToProcessGroupIndex.at(levelvectorToMigrate);
+
+    Task *removedTask = 
+      pgroups_[processGroupIndexToRemoveTaskFrom]->rescheduleRemoveTask(
+          levelvectorToMigrate);
+    waitAllFinished();
+    assert(removedTask != nullptr);
+    pgroups_[processGroupIndexToAddTaskTo]->rescheduleAddTask(removedTask);
+    waitAllFinished();
+  }
+
+  // update local tasks_ vector!
+  tasks_.clear();
+  for (auto& pg : pgroups_) {
+    for (auto t : pg->getTaskContainer()) {
+      tasks_.push_back(t);
+    }
   }
 }
 

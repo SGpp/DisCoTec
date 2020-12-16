@@ -92,7 +92,6 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   checkDoxygen(config)
   checkDot(config)
   checkOpenCL(config)
-  checkBoostTests(config)
   checkSWIG(config)
   checkPython(config)
   checkJava(config)
@@ -111,6 +110,8 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
     # glpk library
   config.env.AppendUnique(CPPPATH=[config.env['GLPK_INCLUDE_PATH']])   
   config.env.AppendUnique(LIBPATH=[config.env['GLPK_LIBRARY_PATH']])
+
+  checkBoostTests(config)
   env = config.Finish()
 
   print("Configuration done.")
@@ -118,6 +119,10 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
 
 def checkCpp11(config):
   # check C++11 support
+  if not config.CheckFlag(""):
+    Helper.printErrorAndExit("The compiler doesn't seem to receive sensible CPPFLAGS.\
+      Maybe you forgot to set OPT? Abort!")
+    Exit(1)
   if not config.CheckFlag("-std=c++11"):
     Helper.printErrorAndExit("The compiler doesn't seem to support the C++11 standard. Abort!")
     Exit(1)
@@ -325,7 +330,7 @@ def configureGNUCompiler(config):
       "-funroll-loops", "-mfpmath=sse",
       # "-fsanitize=address",
       # "-DDEBUG_OUTPUT=1",
-      "-DDEFAULT_RES_THRESHOLD=-1.0", "-DTASKS_PARALLEL_UPDOWN=4"])
+      ])
   config.env.Append(CPPFLAGS=["-fopenmp"])
   config.env.Append(LINKFLAGS=[
     "-fopenmp",

@@ -1,10 +1,3 @@
-/*
- * hierarchization.hpp
- *
- *  Created on: 02.07.2014
- *      Author: P. Butz
- */
-
 #ifndef HIERARCHIZATION_HPP_
 #define HIERARCHIZATION_HPP_
 

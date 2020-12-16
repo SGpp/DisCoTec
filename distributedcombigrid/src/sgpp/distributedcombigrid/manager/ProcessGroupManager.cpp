@@ -1,10 +1,3 @@
-/*
- * ProcessGroupManager.cpp
- *
- *  Created on: Jul 17, 2014
- *      Author: heenemo
- */
-
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
@@ -56,11 +49,15 @@ void ProcessGroupManager::sendSignalAndReceive(SignalType signal){
   setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal){
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 }
 
-inline void ProcessGroupManager::setProcessGroupBusyAndReceive(){
+void ProcessGroupManager::sendSignalToProcess(SignalType signal, RankType rank) { //TODO send only to process in this pgroup
+  MPI_Send(&signal, 1, MPI_INT, rank, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
+}
+
+inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
   // set status
   status_ = PROCESS_GROUP_BUSY;
 
@@ -170,7 +167,7 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
 
   // send levelvector
   std::vector<int> tmp(leval.begin(), leval.end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
+  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
            theMPISystem()->getGlobalComm());
 
   // send filename
@@ -184,10 +181,10 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
 void ProcessGroupManager::recvStatus() {
   // start non-blocking call to receive status
   if (ENABLE_FT) {
-    simft::Sim_FT_MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag,
+    simft::Sim_FT_MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, TRANSFER_STATUS_TAG,
                             theMPISystem()->getGlobalCommFT(), &statusRequestFT_);
   } else {
-    MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag, theMPISystem()->getGlobalComm(),
+    MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, TRANSFER_STATUS_TAG, theMPISystem()->getGlobalComm(),
               &statusRequest_);
   }
 }
@@ -198,6 +195,32 @@ bool ProcessGroupManager::recoverCommunicators() {
   sendSignalToProcessGroup(RECOVER_COMM);
 
   return true;
+}
+
+bool ProcessGroupManager::rescheduleAddTask(Task *task) {
+  return storeTaskReferenceAndSendTaskToProcessGroup(task, RESCHEDULE_ADD_TASK);
+}
+
+Task *ProcessGroupManager::rescheduleRemoveTask(const LevelVector &lvlVec) {
+  for (std::vector<Task *>::size_type i = 0; i < this->tasks_.size(); ++i) {
+    Task *currentTask = this->tasks_[i];
+    if (currentTask->getLevelVector() == lvlVec) { 
+      // if the task has been found send remove signal and return the task
+      Task *removedTask;
+      auto taskID = currentTask->getID();
+      sendSignalToProcessGroup(RESCHEDULE_REMOVE_TASK);
+      MPI_Send(&taskID, 1, MPI_INT, this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
+      Task::receive(&removedTask, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+      setProcessGroupBusyAndReceive();
+
+      tasks_.erase(tasks_.begin() + i);
+      delete currentTask;
+
+
+      return removedTask;
+    }
+  }
+  return nullptr;
 }
 
 } /* namespace combigrid */

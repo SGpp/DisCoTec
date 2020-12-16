@@ -1,10 +1,3 @@
-/*
- * ProcessGroupWorker.hpp
- *
- *  Created on: Jun 24, 2014
- *      Author: heenemo
- */
-
 #ifndef PROCESSGROUPWORKER_HPP_
 #define PROCESSGROUPWORKER_HPP_
 
@@ -41,6 +34,9 @@ class ProcessGroupWorker {
   // todo: maybe only needed for gene?
   inline Task* getCurrentTask();
 
+  // getter for tasks
+  inline const TaskContainer& getTasks() const;
+
   // Perform combination
   void combine();
 
@@ -49,6 +45,8 @@ class ProcessGroupWorker {
 
   // outdated!
   void combineFG();
+
+  void deleteTasks();
 
   void gridEval();
 
@@ -99,7 +97,10 @@ class ProcessGroupWorker {
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
 
-  void processDuration(const Task& t, const Stats::Event e, size_t numProcs);
+  void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);
+
+  void updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids);
+
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
@@ -108,6 +109,10 @@ inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
   assert(combiParametersSet_);
 
   return combiParameters_;
+}
+
+inline const TaskContainer& ProcessGroupWorker::getTasks() const {
+  return tasks_;
 }
 
 } /* namespace combigrid */

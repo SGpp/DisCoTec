@@ -1,16 +1,13 @@
-/*
- * DistributedSparseGrid.h
- *
- *  Created on: Oct 19, 2015
- *      Author: heenemo
- */
-
 #ifndef SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRIDUNIFORM_HPP_
 #define SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRIDUNIFORM_HPP_
 
 #include <assert.h>
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPITags.hpp"
+#include <numeric>
+
+#include <boost/serialization/vector.hpp>
 
 using namespace combigrid;
 

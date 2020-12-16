@@ -1,10 +1,3 @@
-/*
- * LevelVector.hpp
- *
- *  Created on: May 14, 2013
- *      Author: heenemo
- */
-
 #ifndef INDEXVECTOR_HPP_
 #define INDEXVECTOR_HPP_
 

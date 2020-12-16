@@ -1,10 +1,3 @@
-/*
- * Task.cpp
- *
- *  Created on: Jul 10, 2014
- *      Author: heenemo
- */
-
 #include "../../distributedcombigrid/task/Task.hpp"
 
 #include <boost/archive/text_iarchive.hpp>
@@ -46,7 +39,7 @@ void Task::send(Task** t, RankType dst, CommunicatorType comm) {
   std::string s = ss.str();
   int bsize = static_cast<int>(s.size());
   char* buf = const_cast<char*>(s.c_str());
-  MPI_Send(buf, bsize, MPI_CHAR, dst, 0, comm);
+  MPI_Send(buf, bsize, MPI_CHAR, dst, TRANSFER_TASK_TAG, comm);
 }
 
 void Task::receive(Task** t, RankType src, CommunicatorType comm) {
@@ -54,12 +47,12 @@ void Task::receive(Task** t, RankType src, CommunicatorType comm) {
   // todo: not really necessary since size known at compile time
   MPI_Status status;
   int bsize;
-  MPI_Probe(src, 0, comm, &status);
+  MPI_Probe(src, TRANSFER_TASK_TAG, comm, &status);
   MPI_Get_count(&status, MPI_CHAR, &bsize);
 
   // create buffer of appropriate size and receive
   std::vector<char> buf(bsize);
-  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, 0, comm, MPI_STATUS_IGNORE);
+  MPI_Recv(&buf[0], bsize, MPI_CHAR, src, TRANSFER_TASK_TAG, comm, MPI_STATUS_IGNORE);
 
   // create and open an archive for input
   std::string s(&buf[0], bsize);

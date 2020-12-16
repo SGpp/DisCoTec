@@ -23,7 +23,7 @@ real l2Norm(std::vector<CombiDataType>& data);
 
 int main(int argc, char** argv) {
   std::cout << argc << "\n";
-  assert(argc == 6);  
+  assert(argc == 6);
 
   // mode normalize abs : either normalize w.r.t. l2 Norm of grids, or don't
   char* mode = argv[1];
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
   // get data and res of second file
   readPlotFile(filenameRight.c_str(), data2, res2);
 
-// check sizes
+  // check sizes
   assert(data1.size() == data2.size());
   assert(res1 == res2);
 
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
   std::cout << "l2 norm grid 1: " << l2norm1 << " l2 norm grid 2: " << l2norm2 << "\n";
 
   real tmp1 = 1.0 / l2norm1;
-  real tmp2 = 1.0 / l2norm2;
+    real tmp2 = 1.0 / l2norm2;
   if (mode[0] == 'n') {
     for (auto i = 0; i < data1.size(); ++i) data1[i] *= tmp1;
     for (auto i = 0; i < data2.size(); ++i) data2[i] *= tmp2;
@@ -77,15 +77,14 @@ int main(int argc, char** argv) {
   // calc l2 norm of values
   real err = 0.0;
   for (auto i = 0; i < data1.size(); ++i) {
-    real tmp = std::abs(data1[i]-data2[i]);   
+    real tmp = std::abs(data1[i] - data2[i]);
+
+    if (std::abs(tmp) / std::abs(data1[i]) > 1e-12)
+      std::cout << " i: " << i << " values: " << std::abs(data2[i]) << " " << std::abs(data1[i]) << " ";
     err += tmp * tmp;
   }
   std::cout << "\n";
   err = std::sqrt(err);
-
-  // divide by the number of vector entries
-  err = err / data1.size();
-
   // open file in append mode
   std::ofstream ofs(filenameError.c_str(), std::ofstream::app);
 

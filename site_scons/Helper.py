@@ -249,7 +249,7 @@ def setSpawn(env):
       """Spawn which echos stdout/stderr from the child."""
       # convert spawnEnv from unicode strings
       for var in spawnEnv:
-        spawnEnv[var] = spawnEnv[var].encode("ascii", "replace")
+        spawnEnv[var] = str(spawnEnv[var].encode("ascii", "replace").decode("utf8"))
 
       newArgs = " ".join(args[1:])
       cmdLine = cmd + " " + newArgs
