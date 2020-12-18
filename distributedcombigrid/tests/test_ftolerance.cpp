@@ -18,7 +18,7 @@
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
-#include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
+#include "sgpp/distributedcombigrid/loadmodel/AveragingLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
@@ -257,7 +257,7 @@ void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
   BOOST_REQUIRE(true); //if things go wrong weirdly, see where things go wrong
 
   #ifdef TIMING
-    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LearningLoadModel>(new LearningLoadModel(levels));
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<AveragingLoadModel>(new AveragingLoadModel(levels));
 #else // TIMING
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 #endif //def TIMING
