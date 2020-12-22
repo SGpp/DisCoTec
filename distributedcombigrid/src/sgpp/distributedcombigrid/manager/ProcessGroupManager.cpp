@@ -94,14 +94,7 @@ bool ProcessGroupManager::combineAsync() {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  SignalType signal = COMBINE_ASYNC;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
+  sendSignalAndReceive(COMBINE_ASYNC);
 
   return true;
 }
@@ -110,14 +103,7 @@ bool ProcessGroupManager::combineAsyncOddEven() {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  SignalType signal = COMBINE_ASYNC_ODD_EVEN;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
-
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
-
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
+  sendSignalAndReceive(COMBINE_ASYNC_ODD_EVEN);
 
   return true;
 }
