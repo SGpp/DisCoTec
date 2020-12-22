@@ -603,6 +603,9 @@ void ProcessGroupWorker::combineUniformAsync() {
       if(currentCombi_ + 1!= combiParameters_.getNumberOfCombinations()){
         combineUniformAsyncInitHierarchizeReduce();
       }
+      else{
+        combineUniform();
+      }
 
     }
   }
@@ -827,6 +830,9 @@ void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
           dfg, combiParameters_.getHierarchizationDims() );
       std::vector<CombiDataType> gridNextTimestepHierarchized(dfg.getElementVector());
 
+      // reinitializing dfg to state when combi started (important if not all subspaces where communicated)
+      dfg.setElementVector(t->fullgridVectorBeforeCombi[g]);
+
       // extract dfg vom dsg
       dfg.extractFromUniformSG( *combinedUniDSGVector_[g] );
 
@@ -954,7 +960,7 @@ void ProcessGroupWorker::combineUniformAsyncOddEvenInitHierarchizeReduce(bool is
     if(currentCombi_ == 0){
       Task::subspaceSizes = new std::vector<int>[numGrids];
       for(int g=0; g<numGrids; g++){
-        CombiCom::distributedGlobalReduceAsyncFirst( *combinedUniDSGVector_[g], Task::subspaceSizes[g]);
+        CombiCom::distributedGlobalReduceAsyncFirst( *(*combinedUniDSGVectorOddEven)[g], Task::subspaceSizes[g]);
       }
     }
     for(int g=0; g<numGrids; g++){
