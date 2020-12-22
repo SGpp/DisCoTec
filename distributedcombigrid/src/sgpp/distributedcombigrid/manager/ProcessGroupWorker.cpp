@@ -757,13 +757,14 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
     for(int g=0; g<numGrids; g++){
 
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-      if(currentCombi_ == 0){ //otherwise already hierarchized from combineUniformAsyncHierarchizeUpdate
-        // hierarchize dfg
-        DistributedHierarchization::hierarchize<CombiDataType>(
-            dfg, combiParameters_.getHierarchizationDims() );
-      }
       std::vector<CombiDataType> datavector(dfg.getElementVector());
       t->fullgridVectorBeforeCombi[g] = datavector;
+      
+      // hierarchize dfg
+      DistributedHierarchization::hierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims() );
+      
+
       // lokales reduce auf sg ->
       dfg.addToUniformSG( *combinedUniDSGVector_[g], combiParameters_.getCoeff( t->getID() ) );
 #ifdef DEBUG_OUTPUT
@@ -790,7 +791,7 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
   }
   Stats::stopEvent("combine global reduce init");
 
-  Stats::startEvent("combine dehierarchize");
+  Stats::startEvent("combine copy back");
 
   for (Task* t : tasks_) {
     for(int g=0; g<numGrids; g++){
@@ -798,14 +799,12 @@ void ProcessGroupWorker::combineUniformAsyncInitHierarchizeReduce(){
       // get handle to dfg
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
-
-      // dehierarchize dfg
-      DistributedHierarchization::dehierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims() );
+      // copy old nodal values before combination into dfg
+      dfg.setElementVector(t->fullgridVectorBeforeCombi[g]);
 
     }
   }
-  Stats::stopEvent("combine dehierarchize");
+  Stats::stopEvent("combine copy back");
 }
 
 void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
@@ -826,8 +825,8 @@ void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       //t->prevTimeStepDfg = t->getDistributedFullGrid(g);
             // hierarchize dfg
-      DistributedHierarchization::hierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims() );
+
+      // get value after computation for next combination step
       std::vector<CombiDataType> gridNextTimestepHierarchized(dfg.getElementVector());
 
       // reinitializing dfg to state when combi started (important if not all subspaces where communicated)
@@ -836,6 +835,9 @@ void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
       // extract dfg vom dsg
       dfg.extractFromUniformSG( *combinedUniDSGVector_[g] );
 
+      // dehierarchize combined value from last combination step
+      DistributedHierarchization::dehierarchize<CombiDataType>(
+          dfg, combiParameters_.getHierarchizationDims() );
 
       std::vector<CombiDataType>& gridAfterCombi = dfg.getElementVector();
 
@@ -843,12 +845,6 @@ void ProcessGroupWorker::combineUniformAsyncHierarchizeUpdate(){
         gridAfterCombi[i] += (gridNextTimestepHierarchized[i] - t->fullgridVectorBeforeCombi[g][i]);
 
       }
-
-      if(currentCombi_ + 1 == combiParameters_.getNumberOfCombinations()){ //we want to end with a dehierarchized grid in last iteration
-        DistributedHierarchization::dehierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims() );
-      }
-
     }
   }
 
