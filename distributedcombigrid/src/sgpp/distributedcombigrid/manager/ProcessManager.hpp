@@ -60,6 +60,10 @@ class ProcessManager {
 
   inline void combine();
 
+  inline void combineAsync();
+
+  inline void combineAsyncOddEven();
+
   template <typename FG_ELEMENT>
   inline void combineFG(FullGrid<FG_ELEMENT>& fg);
 
@@ -220,6 +224,63 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
+/* This function performs the so-called recombination. First, the combination
+ * solution will be evaluated in the given sparse grid space.
+ * Also, the local component grids will be updated with the combination
+ * solution. The combination solution will also be available on the manager
+ * process.
+ */
+void ProcessManager::combineAsync() {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  // send signal to each group
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    bool success = pgroups_[i]->combineAsync();
+    assert(success);
+  }
+
+  waitAllFinished();
+}
+
+/* This function performs the so-called recombination. First, the combination
+ * solution will be evaluated in the given sparse grid space.
+ * Also, the local component grids will be updated with the combination
+ * solution. The combination solution will also be available on the manager
+ * process.
+ */
+void ProcessManager::combineAsyncOddEven() {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  // send signal to each group
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    bool success = pgroups_[i]->combineAsyncOddEven();
+    assert(success);
+  }
+
+  waitAllFinished();
+}
 /* This function performs the so-called recombination. First, the combination
  * solution will be evaluated with the resolution of the given full grid.
  * Afterwards, the local component grids will be updated with the combination

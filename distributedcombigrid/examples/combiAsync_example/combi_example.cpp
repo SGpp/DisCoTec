@@ -5,25 +5,25 @@
  *      Author: heenemo
  */
 #include <mpi.h>
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/serialization/export.hpp>
-#include <string>
 #include <vector>
+#include <string>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+#include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
+#include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
-#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
-#include "sgpp/distributedcombigrid/task/Task.hpp"
-#include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
+#include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
 // include user specific task. this is the interface to your application
 #include "TaskExample.hpp"
 
@@ -34,6 +34,20 @@ BOOST_CLASS_EXPORT(TaskExample)
 BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
+
+class TestFn {
+public:
+  // function value
+  double operator()(std::vector<double>& coords, double t) {
+    double exponent = 0;
+    for (DimType d = 0; d < coords.size(); ++d) {
+      coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
+      exponent -= std::pow(coords[d] - 0.5, 2);
+    }
+    return std::exp(exponent*100.0) * 2;
+  }
+};
+
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
@@ -52,7 +66,7 @@ int main(int argc, char** argv) {
 
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
-  theMPISystem()->init(ngroup, nprocs);
+  theMPISystem()->init( ngroup, nprocs );
 
   // this code is only executed by the manager process
   WORLD_MANAGER_EXCLUSIVE_SECTION {
@@ -62,12 +76,13 @@ int main(int argc, char** argv) {
     ProcessGroupManagerContainer pgroups;
     for (size_t i = 0; i < ngroup; ++i) {
       int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+      pgroups.emplace_back(
+          std::make_shared< ProcessGroupManager > ( pgroupRootID )
+                          );
     }
 
     // create load model
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-
 
     /* read in parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
@@ -88,7 +103,8 @@ int main(int argc, char** argv) {
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
-    for (auto k : p) checkProcs *= k;
+    for (auto k : p)
+      checkProcs *= k;
     assert(checkProcs == IndexType(nprocs));
 
     /* generate a list of levelvectors and coefficients
@@ -105,27 +121,30 @@ int main(int argc, char** argv) {
     std::cout << "lmax = " << lmax << std::endl;
     std::cout << "CombiScheme: " << std::endl;
     std::cout << combischeme << std::endl;
-
+    std::cout << "This works";
     // create Tasks
     TaskContainer tasks;
     std::vector<int> taskIDs;
-    for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
-      tasks.push_back(t);
-      taskIDs.push_back(t->getID());
-    }
 
+    for (size_t i = 0; i < levels.size(); i++) {
+      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i],
+                                loadmodel.get(), dt, nsteps, p);
+      tasks.push_back(t);
+      taskIDs.push_back( t->getID() );
+    }
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,ncombi, 1 );
     params.setParallelization(p);
     // create abstraction for Manager
+    // ProcessManager manager(pgroups, tasks, params);
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     // the combiparameters are sent to all process groups before the
     // computations start
     manager.updateCombiParameters();
 
-    std::cout << "set up component grids and run until first combination point" << std::endl;
+    std::cout << "set up component grids and run until first combination point"
+              << std::endl;
 
     /* distribute task according to load model and start computation for
      * the first time */
@@ -140,18 +159,43 @@ int main(int argc, char** argv) {
 
       // evaluate solution and
       // write solution to file
-      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
+      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat" );
       Stats::startEvent("manager write solution");
-      manager.parallelEval(leval, filename, 0);
+      manager.parallelEval( leval, filename, 0 );
       Stats::stopEvent("manager write solution");
 
-      std::cout << "run until combination point " << i + 1 << std::endl;
+      std::cout << "run until combination point " << i+1 << std::endl;
 
       // run tasks for next time interval
       Stats::startEvent("manager run");
       manager.runnext();
       Stats::stopEvent("manager run");
     }
+
+    FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
+    manager.gridEval(fg_eval);
+
+    // exact solution
+    TestFn f;
+    FullGrid<CombiDataType> fg_exact(dim, leval, boundary);
+    fg_exact.createFullGrid();
+    for (IndexType li = 0; li < fg_exact.getNrElements(); ++li) {
+      std::vector<double> coords(dim);
+      fg_exact.getCoords(li, coords);
+      fg_exact.getData()[li] = f(coords, (double)((1 + ncombi) * nsteps) * dt);
+    }
+
+    // calculate error
+    FullGrid<CombiDataType> fg_prev(fg_exact);
+
+    // calculate error
+    fg_exact.add(fg_eval, -1);
+
+    std::vector<CombiDataType> ev_prev(fg_prev.getElementVector());
+    std::vector<CombiDataType> ev_exact(fg_exact.getElementVector());
+
+    printf("Error: %f \n", fg_exact.getlpNorm(0)/fg_prev.getlpNorm(0));
+    printf("Error2: %f \n", fg_exact.getlpNorm(2)/fg_prev.getlpNorm(2));
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
@@ -165,13 +209,14 @@ int main(int argc, char** argv) {
     // wait for instructions from manager
     SignalType signal = -1;
 
-    while (signal != EXIT) signal = pgroup.wait();
+    while (signal != EXIT)
+      signal = pgroup.wait();
   }
 
   Stats::finalize();
 
   /* write stats to json file for postprocessing */
-  Stats::write("timers.json");
+  Stats::write( "timers.json" );
 
   MPI_Finalize();
 

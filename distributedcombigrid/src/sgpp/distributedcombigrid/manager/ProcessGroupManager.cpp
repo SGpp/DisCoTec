@@ -94,6 +94,24 @@ bool ProcessGroupManager::combine() {
   return true;
 }
 
+bool ProcessGroupManager::combineAsync() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  sendSignalAndReceive(COMBINE_ASYNC);
+
+  return true;
+}
+
+bool ProcessGroupManager::combineAsyncOddEven() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  sendSignalAndReceive(COMBINE_ASYNC_ODD_EVEN);
+
+  return true;
+}
+
 bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);

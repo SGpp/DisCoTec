@@ -25,13 +25,15 @@ const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
 const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
+const SignalType COMBINE_ASYNC = 20;
+const SignalType COMBINE_ASYNC_ODD_EVEN = 21;
 
 /**
  * Signal for adding a task for rescheduling.
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_ADD_TASK = 20;
+const SignalType RESCHEDULE_ADD_TASK = 22;
 
 /**
  * Signal for removing a task for rescheduling.
@@ -39,7 +41,7 @@ const SignalType RESCHEDULE_ADD_TASK = 20;
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_REMOVE_TASK = 21;
+const SignalType RESCHEDULE_REMOVE_TASK = 23;
 
 const SignalType RUN_FIRST = 29;
 
