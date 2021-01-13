@@ -1,26 +1,32 @@
-/*
- * TaskExample.hpp
- *
- *  Created on: Sep 25, 2015
- *      Author: heenemo
- */
-
-#ifndef TASKEXAMPLE_HPP_
-#define TASKEXAMPLE_HPP_
+#pragma once
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
 namespace combigrid {
 
-class TaskExample : public Task {
+// exact solution
+class TestFn {
+ public:
+  // function value
+  double operator()(std::vector<double>& coords, double t) {
+    double exponent = 0;
+    for (DimType d = 0; d < coords.size(); ++d) {
+      coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
+      exponent -= std::pow(coords[d] - 0.5, 2);
+    }
+    return std::exp(exponent * 100.0) * 2;
+  }
+};
+
+class TaskAdvection : public Task {
  public:
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-              LoadModel* loadModel, real dt, size_t nsteps, IndexVector p = IndexVector(0),
-              FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
+  TaskAdvection(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+                LoadModel* loadModel, real dt, size_t nsteps, IndexVector p = IndexVector(0),
+                FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
         nsteps_(nsteps),
@@ -34,15 +40,14 @@ class TaskExample : public Task {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
-    int lrank;
-    MPI_Comm_rank(lcomm, &lrank);
+    auto lrank = theMPISystem()->getLocalRank();
+    int np;
+    MPI_Comm_size(lcomm, &np);
 
     /* create distributed full grid. we try to find a balanced ratio between
      * the number of grid points and the number of processes per dimension
      * by this very simple algorithm. to keep things simple we require powers
      * of two for the number of processes here. */
-    int np;
-    MPI_Comm_size(lcomm, &np);
 
     // check if power of two
     if (!((np > 0) && ((np & (~np + 1)) == np)))
@@ -89,11 +94,19 @@ class TaskExample : public Task {
     /* loop over local subgrid and set initial values */
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
 
-    for (size_t i = 0; i < elements.size(); ++i) {
-      IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
-      std::vector<real> globalCoords(dim);
-      dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
-      elements[i] = TaskExample::myfunction(globalCoords, 0.0);
+    phi_.resize(dfg_->getNrElements());
+    // we are only allowed to have 1 process per group in this example!
+    assert(elements.size() == dfg_->getNrElements());
+
+    for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
+      std::vector<double> coords(this->getDim());
+      dfg_->getCoordsGlobal(li, coords);
+
+      double exponent = 0;
+      for (DimType d = 0; d < this->getDim(); ++d) {
+        exponent -= std::pow(coords[d] - 0.5, 2);
+      }
+      dfg_->getData()[li] = std::exp(exponent * 100.0) * 2;
     }
 
     initialized_ = true;
@@ -107,21 +120,45 @@ class TaskExample : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
 
-    int lrank;
-    MPI_Comm_rank(lcomm, &lrank);
+    std::vector<CombiDataType> u(this->getDim(), 1);
 
-    /* pseudo timestepping to demonstrate the behaviour of your typical
-     * time-dependent simulation problem. */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    // gradient of phi
+    std::vector<CombiDataType> dphi(this->getDim());
 
-    for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
-      real time = step * dt_;
+    std::vector<IndexType> l(this->getDim());
+    std::vector<double> h(this->getDim());
 
-      for (size_t i = 0; i < elements.size(); ++i) {
-        IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
-        std::vector<real> globalCoords(this->getDim());
-        dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
-        elements[i] = TaskExample::myfunction(globalCoords, time);
+    for (unsigned int i = 0; i < this->getDim(); i++) {
+      l[i] = dfg_->length(i);
+      h[i] = 1.0 / (double)l[i];
+    }
+
+    for (size_t i = 0; i < nsteps_; ++i) {
+      phi_.swap(dfg_->getElementVector());
+
+      for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
+        IndexVector ai(this->getDim());
+        dfg_->getGlobalVectorIndex(li, ai);
+
+        // neighbour
+        std::vector<IndexVector> ni(this->getDim(), ai);
+        std::vector<IndexType> lni(this->getDim());
+
+        CombiDataType u_dot_dphi = 0;
+
+        for (unsigned int j = 0; j < this->getDim(); j++) {
+          ni[j][j] = (l[j] + ni[j][j] - 1) % l[j];
+          lni[j] = dfg_->getGlobalLinearIndex(ni[j]);
+        }
+
+        for (unsigned int j = 0; j < this->getDim(); j++) {
+          // calculate gradient of phi with backward differential quotient
+          dphi[j] = (phi_[li] - phi_[lni[j]]) / h[j];
+
+          u_dot_dphi += u[j] * dphi[j];
+        }
+
+        dfg_->getData()[li] = phi_[li] - u_dot_dphi * dt_;
       }
 
       MPI_Barrier(lcomm);
@@ -147,27 +184,9 @@ class TaskExample : public Task {
 
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
-  static real myfunction(std::vector<real>& coords, real t) {
-    real u = std::cos(M_PI * t);
-
-    for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(2.0 * M_PI * coords[d]);
-
-    return u;
-
-    /*
-    double res = 1.0;
-    for (size_t i = 0; i < coords.size(); ++i) {
-      res *= -4.0 * coords[i] * (coords[i] - 1);
-    }
-
-
-    return res;
-    */
-  }
-
   void setZero() {}
 
-  ~TaskExample() {
+  ~TaskAdvection() {
     if (dfg_ != NULL) delete dfg_;
   }
 
@@ -177,7 +196,7 @@ class TaskExample : public Task {
    * this constructor before overwriting the variables that are set by the
    * manager. here we need to set the initialized variable to make sure it is
    * set to false. */
-  TaskExample() : initialized_(false), stepsTotal_(1), dfg_(NULL) {}
+  TaskAdvection() : initialized_(false), stepsTotal_(1), dfg_(NULL) {}
 
  private:
   friend class boost::serialization::access;
@@ -191,6 +210,7 @@ class TaskExample : public Task {
   bool initialized_;
   size_t stepsTotal_;
   DistributedFullGrid<CombiDataType>* dfg_;
+  std::vector<CombiDataType> phi_;
 
   /**
    * The serialize function has to be extended by the new member variables.
@@ -213,5 +233,3 @@ class TaskExample : public Task {
 };
 
 }  // namespace combigrid
-
-#endif /* TASKEXAMPLE_HPP_ */

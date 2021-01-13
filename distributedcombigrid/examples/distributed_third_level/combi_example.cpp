@@ -28,14 +28,13 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 // include user specific task. this is the interface to your application
-#include "TaskExample.hpp"
-#include "TaskConstParaboloid.hpp"
+// #include "TaskConstParaboloid.hpp"
+#include "TaskAdvection.hpp"
 
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
-BOOST_CLASS_EXPORT(TaskConstParaboloid)
-BOOST_CLASS_EXPORT(TaskExample)
+BOOST_CLASS_EXPORT(TaskAdvection)
 BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
@@ -126,9 +125,9 @@ int main(int argc, char** argv) {
                                                   numSystems, levels, coeffs);
 
     // create load model
-    // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
     // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new AnisotropyLoadModel());
-    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
+    // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
 
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
@@ -141,7 +140,7 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel);
+      Task* t = new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -188,10 +187,10 @@ int main(int argc, char** argv) {
 
       // evaluate solution and
       // write solution to file
-      //std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
-      //Stats::startEvent("manager write solution");
-      //manager.parallelEval(leval, filename, 0);
-      //Stats::stopEvent("manager write solution");
+      std::string filename("out/solution_" + std::to_string(ncombi) + ".vtk");
+      Stats::startEvent("manager write solution");
+      manager.parallelEval(leval, filename, 0);
+      Stats::stopEvent("manager write solution");
 
       std::cout << "run until combination point " << i + 1 << std::endl;
 
@@ -204,11 +203,32 @@ int main(int argc, char** argv) {
       std::cout << "calculation " << i << " took: " << finish-start << " seconds" << std::endl;
     }
 
+    //TODO pollinta: for a massively parallel setting, this needs to be done differently
+    FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
+    manager.gridEval(fg_eval);
+
+    // exact solution
+    TestFn f;
+    FullGrid<CombiDataType> fg_exact(dim, leval, boundary);
+    fg_exact.createFullGrid();
+    for (IndexType li = 0; li < fg_exact.getNrElements(); ++li) {
+      std::vector<double> coords(dim);
+      fg_exact.getCoords(li, coords);
+      fg_exact.getData()[li] = f(coords, (double)((1 + ncombi) * nsteps) * dt);
+    }
+
+    // calculate error
+    FullGrid<CombiDataType> fg_error(fg_exact);
+    fg_error.add(fg_eval, -1);
+
+    printf("Error: %f \n", fg_error.getlpNorm(0)/fg_exact.getlpNorm(0));
+    printf("Error2: %f \n", fg_error.getlpNorm(2)/fg_exact.getlpNorm(2));
+
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
   }
 
-  // this code is only execute by the worker processes
+  // this code is only executed by the worker processes
   else {
     // create abstraction of the process group from the worker's view
     ProcessGroupWorker pgroup;
