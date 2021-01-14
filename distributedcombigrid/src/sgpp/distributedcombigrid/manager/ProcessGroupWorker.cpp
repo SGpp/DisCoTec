@@ -618,7 +618,11 @@ void ProcessGroupWorker::parallelEvalUniform() {
       dfg.writePlotFileVTK(filename.c_str());
     }else{
       std::string fn = filename;
-      fn = fn + std::to_string(g);
+      auto pos = fn.find(".");
+      if (pos != std::string::npos){
+        // if filename contains ".", insert grid number before that
+        fn.insert(pos, "_" + std::to_string(g));
+      }
       dfg.writePlotFile(fn.c_str());
     }
   }

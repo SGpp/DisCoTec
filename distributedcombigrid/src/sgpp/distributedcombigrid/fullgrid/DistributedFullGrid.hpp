@@ -1275,17 +1275,43 @@ class DistributedFullGrid {
     MPI_File_open(getCommunicator(), filename, MPI_MODE_WRONLY + MPI_MODE_CREATE, MPI_INFO_NULL,
                   &fh);
 
-    // rank 0 write dim and resolution (and data format?)
-    if (rank_ == 0) {
-      MPI_File_write(fh, &dim, 1, MPI_INT, MPI_STATUS_IGNORE);
+    MPI_Offset offset = 0;
 
-      std::vector<int> res(sizes.begin(), sizes.end());
-      MPI_File_write(fh, &res[0], 6, MPI_INT, MPI_STATUS_IGNORE);
+    // .raw files can be read by paraview, in that case write the header separately
+    std::string fn = filename;
+    if (fn.find(".raw") != std::string::npos){
+      // rank 0 write human-readable header
+      if (rank_ == 0) {
+        auto headername = fn + "_header";
+        std::ofstream ofs(headername);
+
+        // first line: dimension
+        ofs << "dimensionality " << getDimension() << std::endl;
+
+        // grid points per dimension in the order
+        // x_0, x_1, ... , x_d
+        ofs << "Extents ";
+        for (auto s : sizes){ ofs << s << " ";}
+        ofs << std::endl;
+
+        // data type
+        ofs << "Data type size " << sizeof(FG_ELEMENT) << std::endl;
+        //TODO (pollinta) write endianness and data spacing
+      }
+    }else{
+      // rank 0 write dim and resolution (and data format?)
+      if (rank_ == 0) {
+        MPI_File_write(fh, &dim, 1, MPI_INT, MPI_STATUS_IGNORE);
+
+        std::vector<int> res(sizes.begin(), sizes.end());
+        MPI_File_write(fh, &res[0], 6, MPI_INT, MPI_STATUS_IGNORE);
+      }
+
+      // set file view to right offset (in bytes)
+      // 1*int + dim*int = (1+dim)*sizeof(int)
+      offset = (1 + dim) * sizeof(int);
     }
 
-    // set file view to right offset (in bytes)
-    // 1*int + dim*int = (1+dim)*sizeof(int)
-    MPI_Offset offset = (1 + dim) * sizeof(int);
     MPI_File_set_view(fh, offset, getMPIDatatype(), mysubarray, "native", MPI_INFO_NULL);
 
     // write subarray
