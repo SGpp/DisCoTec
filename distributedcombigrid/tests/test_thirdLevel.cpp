@@ -5,7 +5,7 @@
 #include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
 #include "TaskConstParaboloid.hpp"
-#include "TaskConst.hpp"
+#include "TaskCount.hpp"
 #include "test_helper.hpp"
 #include "stdlib.h"
 
@@ -26,6 +26,7 @@
 using namespace combigrid;
 
 BOOST_CLASS_EXPORT(TaskConstParaboloid)
+BOOST_CLASS_EXPORT(TaskCount)
 
 class TestParams{
   public:
@@ -57,19 +58,28 @@ class TestParams{
 * Since the tasks don't evolve over time the expected result should match the
 * initial function values.
 */
-bool checkReducedFullGrid(ProcessGroupWorker& worker) {
+bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
   TaskContainer& tasks = worker.getTasks();
   int numGrids = (int) worker.getCombiParameters().getNumGrids();
+
+  BOOST_CHECK(tasks.size() > 0);
+  BOOST_CHECK(numGrids > 0);
+
+  // to check if any data was actually compared
+  bool any = false;
 
   for (Task* t : tasks) {
     for (int g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-      ParaboloidFn<CombiDataType> initialFunction;
+      // ParaboloidFn<CombiDataType> initialFunction;
+      TestFnCount<CombiDataType> initialFunction;
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         std::vector<double> coords(dfg.getDimension());
         dfg.getCoordsLocal(li, coords);
-        CombiDataType expected = initialFunction(coords);
+        CombiDataType expected = initialFunction(coords, nrun);
+        // CombiDataType expected = initialFunction(coords);
         CombiDataType occuring = dfg.getData()[li];
+        // BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance); //TODO use this once debugging is finished
         double diff = abs(occuring - expected);
         if (diff > TestHelper::tolerance) {
           std::cout << "Found value that does not match expected at index "
@@ -77,10 +87,12 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker) {
                     << expected << ", diff = " << diff << std::endl;
           return false;
         }
+        any = true;
       }
     }
   }
-  return true;
+  BOOST_CHECK(any);
+  return any;
 }
 
 void assignProcsToSystems(unsigned int ngroup, unsigned int nprocs,
@@ -132,6 +144,8 @@ void testCombineThirdLevel(TestParams& testParams) {
   theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup,
                                     testParams.nprocs);
 
+  bool run = false;
+
   WORLD_MANAGER_EXCLUSIVE_SECTION {
 
     ProcessGroupManagerContainer pgroups;
@@ -168,7 +182,8 @@ void testCombineThirdLevel(TestParams& testParams) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
+      // Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
+      Task* t = new TaskCount(2, levels[i], boundary, coeffs[i], loadmodel.get());
 
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
@@ -203,11 +218,17 @@ void testCombineThirdLevel(TestParams& testParams) {
         Stats::startEvent("manager run");
         manager.runnext();
         Stats::stopEvent("manager run");
+        run = true;
       }
       //combine grids
       Stats::startEvent("manager combine third level");
       manager.combineThirdLevel();
       Stats::stopEvent("manager combine third level");
+
+      // std::string filename("thirdLevel_" + std::to_string(i) + ".raw" );
+      // Stats::startEvent("manager write solution");
+      // manager.parallelEval( testParams.lmax, filename, 0 );
+      // Stats::stopEvent("manager write solution");
     }
     manager.exit();
   }
@@ -215,15 +236,23 @@ void testCombineThirdLevel(TestParams& testParams) {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
     signal = pgroup.wait();
+    int nrun = 0;
     while (signal != EXIT) {
       signal = pgroup.wait();
+      if (signal == RUN_NEXT ||signal == RUN_FIRST){
+        BOOST_CHECK(pgroup.getTasks().size() > 0);
+        ++nrun;
+      }
       std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " processed signal " << signal << std::endl; 
+      if(signal == COMBINE || signal == COMBINE_LOCAL_AND_GLOBAL || signal == COMBINE_THIRD_LEVEL){
+        // after combination check workers' grids
+        BOOST_CHECK(checkReducedFullGrid(pgroup, nrun));
+      }
     }
-
-    // after combination check workers grids
-    BOOST_CHECK(checkReducedFullGrid(pgroup));
+    run = true;
   }
 
+  BOOST_CHECK(run);
   combigrid::Stats::finalize();
   MPI_Barrier(testParams.comm);
   TestHelper::testStrayMessages(testParams.comm);
