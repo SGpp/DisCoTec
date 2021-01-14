@@ -625,6 +625,11 @@ void ProcessGroupWorker::parallelEvalUniform() {
     std::string fn = filename;
     fn = fn + std::to_string(g);
     // save dfg to file with MPI-IO
+    auto pos = fn.find(".");
+    if (pos != std::string::npos){
+      // if filename contains ".", insert grid number before that
+      fn.insert(pos, "_" + std::to_string(g));
+    }
     dfg.writePlotFile(fn.c_str());
   }
 }
