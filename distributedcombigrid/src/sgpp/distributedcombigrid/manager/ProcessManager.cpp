@@ -24,6 +24,8 @@ bool ProcessManager::runfirst() {
   // sort instances in decreasing order
   sortTasks();
 
+  assert(tasks_.size() >= pgroups_.size());
+
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group
     ProcessGroupManagerID g = wait();
