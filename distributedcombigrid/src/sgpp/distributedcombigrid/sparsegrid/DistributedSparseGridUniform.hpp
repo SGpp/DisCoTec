@@ -101,10 +101,6 @@ class DistributedSparseGridUniform {
 
   inline size_t getDim() const;
 
-  inline const LevelVector& getNMax() const;
-
-  inline const LevelVector& getNMin() const;
-
   // return the number of subspaces
   inline size_t getNumSubspaces() const;
 
@@ -154,17 +150,13 @@ class DistributedSparseGridUniform {
   bool isSubspaceDataCreated() const;
 
  private:
-  void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
+  std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
-  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax);
+  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax, std::vector<LevelVector>& created) const;
 
   // void setSizes();
 
   DimType dim_;
-
-  LevelVector nmax_;
-
-  LevelVector lmin_;
 
   std::vector<LevelVector> levels_; // linear access to all subspaces
 
@@ -199,40 +191,8 @@ template <typename FG_ELEMENT>
 DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     DimType dim, const LevelVector& lmax, const LevelVector& lmin,
     const std::vector<bool>& boundary, CommunicatorType comm, size_t procsPerNode)
-    : dim_(dim) {
-  assert(dim > 0);
-
-  assert(lmax.size() == dim);
-
-  for (size_t i = 0; i < lmax.size(); ++i) assert(lmax[i] > 0);
-
-  assert(lmin.size() == dim);
-
-  for (size_t i = 0; i < lmin.size(); ++i) assert(lmin[i] > 0);
-
-  assert(boundary.size() == dim);
-
-  MPI_Comm_rank(comm, &rank_);
-  MPI_Comm_size(comm, &commSize_);
-  comm_ = comm;
-
-  nmax_ = lmax;
-  lmin_ = lmin;
-  boundary_ = boundary;
-
-  createLevels(dim, nmax_, lmin_);
-
-  subspaces_.resize(levels_.size());
-
-  subspacesDataSizes_.resize(levels_.size());
-
-  // set subspaces
-  // for (size_t i = 0; i < levels_.size(); ++i) {
-  //   subspaces_[i].level_ = levels_[i];
-  // }
-
-  // setSizes();
-}
+    : DistributedSparseGridUniform(dim,createLevels(dim, lmax, lmin),boundary, comm, procsPerNode)
+    {}
 
 // at construction create only levels, no data
 template <typename FG_ELEMENT>
@@ -248,6 +208,16 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
       levels_(subspaces),
       subspacesDataSizes_(subspaces.size())
 {
+  assert(dim > 0);
+  assert(boundary.size() == dim);
+
+  for (auto& l : subspaces){
+    assert(l.size() == dim);
+    for (size_t i = 0; i < l.size(); ++i) {
+      assert(l[i] > 0);
+    }
+  }
+
   // init subspaces
   subspaces_.reserve(subspaces.size());
   for (size_t i = 0; i < subspaces.size(); i++) {
@@ -261,11 +231,6 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
 
   MPI_Comm_rank(comm_, &rank_);
   MPI_Comm_size(comm_, &commSize_);
-
-  // one should think about removing them since they are part of the underlying
-  // combi scheme and not of a generalized sparse grid.
-  nmax_ = LevelVector(0);
-  lmin_ = LevelVector(0);
 }
 
 template <typename FG_ELEMENT>
@@ -342,7 +307,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::~DistributedSparseGridUniform() {}
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::createLevelsRec(size_t dim, size_t n, size_t d,
                                                                LevelVector& l,
-                                                               const LevelVector& nmax) {
+                                                               const LevelVector& nmax, std::vector<LevelVector>& created) const {
   // sum rightmost entries of level vector
   LevelType lsum(0);
 
@@ -353,17 +318,17 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createLevelsRec(size_t dim, size_
 
     if (dim == 1) {
       if (l <= nmax) {
-        levels_.push_back(l);
+        created.push_back(l);
         // std::cout << l << std::endl;
       }
     } else {
-      createLevelsRec(dim - 1, n, d, l, nmax);
+      createLevelsRec(dim - 1, n, d, l, nmax, created);
     }
   }
 }
 
 template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::createLevels(DimType dim, const LevelVector& nmax,
+std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(DimType dim, const LevelVector& nmax,
                                                             const LevelVector& lmin) {
   assert(nmax.size() == dim);
   assert(lmin.size() == dim);
@@ -392,7 +357,9 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createLevels(DimType dim, const L
   LevelType n = sum(rlmin) + c - dim + 1;
 
   LevelVector l(dim);
-  createLevelsRec(dim, n, dim, l, nmax);
+  std::vector<LevelVector> created {};
+  createLevelsRec(dim, n, dim, l, nmax, created);
+  return created;
 }
 
 // template <typename FG_ELEMENT>
@@ -480,16 +447,6 @@ inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getRawData() {
 template <typename FG_ELEMENT>
 inline DimType DistributedSparseGridUniform<FG_ELEMENT>::getDim() const {
   return dim_;
-}
-
-template <typename FG_ELEMENT>
-inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getNMax() const {
-  return nmax_;
-}
-
-template <typename FG_ELEMENT>
-inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getNMin() const {
-  return lmin_;
 }
 
 template <typename FG_ELEMENT>
