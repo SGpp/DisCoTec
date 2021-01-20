@@ -787,8 +787,10 @@ class DistributedFullGrid {
         dsg.setDataSize(subSgId, subspaces_[subFgId].localSize_);
       else
         ASSERT(subSgDataSize == subspaces_[subFgId].localSize_,
-               "subSgData.size(): " << subSgDataSize << ", subspaces_[subFgId].localSize_: "
-                                    << subspaces_[subFgId].localSize_ << std::endl);
+               "level: " << subspaces_[subFgId].level_ <<
+               ", subSgData.size(): " << subSgDataSize <<
+               ", subspaces_[subFgId].localSize_: " << subspaces_[subFgId].localSize_ <<
+               " -- check forwardDecomposition" << std::endl);
     }
   }
 

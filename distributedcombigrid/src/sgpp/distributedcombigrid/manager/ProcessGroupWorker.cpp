@@ -400,7 +400,7 @@ void ProcessGroupWorker::ready() {
 /**
  * This method reduces the lmax and lmin vectors of the sparse grid according to the reduction
  * specifications in ctparam. It is taken care of that lmin does not fall below 1 and lmax >= lmin.
- * We do not reduce the levels in the last combination as we do not want to loose any information
+ * We do not reduce the levels in the last combination as we do not want to lose any information
  * for the final checkpoint.
  */
 void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
@@ -567,6 +567,19 @@ void ProcessGroupWorker::parallelEval() {
 static bool endsWith(const std::string& str, const std::string& suffix)
 {
     return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+}
+
+
+// helper function to output bool vector
+inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
+  os << "[";
+
+  for (size_t i = 0; i < l.size(); ++i)
+    os << l[i] << " ";
+
+  os << "]";
+
+  return os;
 }
 
 void ProcessGroupWorker::parallelEvalUniform() {

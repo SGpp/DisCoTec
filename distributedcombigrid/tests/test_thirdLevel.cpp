@@ -2,15 +2,13 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+
 #include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
+#include <cstdio>
+
 #include "TaskConstParaboloid.hpp"
 #include "TaskCount.hpp"
-#include "test_helper.hpp"
-#include "stdlib.h"
-
-#include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
-
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
@@ -19,48 +17,57 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
+#include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
+#include "stdlib.h"
+#include "test_helper.hpp"
 
 using namespace combigrid;
 
 BOOST_CLASS_EXPORT(TaskConstParaboloid)
 BOOST_CLASS_EXPORT(TaskCount)
 
-class TestParams{
-  public:
-    DimType dim = 2;
-    LevelVector lmin;
-    LevelVector lmax;
-    unsigned int ngroup = 1;
-    unsigned int nprocs = 1;
-    unsigned int ncombi = 1;
-    unsigned int sysNum = 0;
-    const CommunicatorType& comm;
-    std::string host = "localhost";
-    unsigned short port = 9999;
+class TestParams {
+ public:
+  DimType dim = 2;
+  LevelVector lmin;
+  LevelVector lmax;
+  bool boundary;
+  unsigned int ngroup = 1;
+  unsigned int nprocs = 1;
+  unsigned int ncombi = 1;
+  unsigned int sysNum = 0;
+  const CommunicatorType& comm;
+  std::string host = "localhost";
+  unsigned short port = 9999;
 
-    TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax,
-               unsigned int ngroup, unsigned int nprocs, unsigned int ncombi,
-               unsigned int sysNum, const CommunicatorType& comm,
-               const std::string& host = "localhost",
-               unsigned short dataPort = 9999)
-               : dim(dim), lmin(lmin), lmax(lmax), ngroup(ngroup),
-                 nprocs(nprocs), ncombi(ncombi), sysNum(sysNum), comm(comm),
-                 host(host), port(dataPort)
-  {
-  }
+  TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax, bool boundary, unsigned int ngroup,
+             unsigned int nprocs, unsigned int ncombi, unsigned int sysNum,
+             const CommunicatorType& comm, const std::string& host = "localhost",
+             unsigned short dataPort = 9999)
+      : dim(dim),
+        lmin(lmin),
+        lmax(lmax),
+        boundary(boundary),
+        ngroup(ngroup),
+        nprocs(nprocs),
+        ncombi(ncombi),
+        sysNum(sysNum),
+        comm(comm),
+        host(host),
+        port(dataPort) {}
 };
 
 /**
-* Checks if combination was successful.
-* Since the tasks don't evolve over time the expected result should match the
-* initial function values.
-*/
+ * Checks if combination was successful.
+ * Since the tasks don't evolve over time the expected result should match the
+ * initial function values.
+ */
 bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
   TaskContainer& tasks = worker.getTasks();
-  int numGrids = (int) worker.getCombiParameters().getNumGrids();
+  int numGrids = (int)worker.getCombiParameters().getNumGrids();
 
   BOOST_CHECK(tasks.size() > 0);
   BOOST_CHECK(numGrids > 0);
@@ -71,6 +78,8 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
   for (Task* t : tasks) {
     for (int g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
+      // dfg.print(std::cout);
+      // std::cout << std::endl;
       // ParaboloidFn<CombiDataType> initialFunction;
       TestFnCount<CombiDataType> initialFunction;
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
@@ -79,14 +88,9 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
         CombiDataType expected = initialFunction(coords, nrun);
         // CombiDataType expected = initialFunction(coords);
         CombiDataType occuring = dfg.getData()[li];
-        // BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance); //TODO use this once debugging is finished
-        double diff = abs(occuring - expected);
-        if (diff > TestHelper::tolerance) {
-          std::cout << "Found value that does not match expected at index "
-                    << li  << ": "  << occuring << " != "
-                    << expected << ", diff = " << diff << std::endl;
-          return false;
-        }
+        BOOST_CHECK_CLOSE(expected, occuring, TestHelper::tolerance);
+        // BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance); //TODO use this once
+        // debugging is finished
         any = true;
       }
     }
@@ -95,21 +99,20 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
   return any;
 }
 
-void assignProcsToSystems(unsigned int ngroup, unsigned int nprocs,
-                          unsigned int numSystems, unsigned int& sysNum,
-                          CommunicatorType& newcomm) {
+void assignProcsToSystems(unsigned int ngroup, unsigned int nprocs, unsigned int numSystems,
+                          unsigned int& sysNum, CommunicatorType& newcomm) {
   int rank, size, color, key;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 
   unsigned int procsPerSys = ngroup * nprocs + 1;
 
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(int(numSystems * procsPerSys)));
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(int(numSystems * procsPerSys) + 1));
 
   // assign procs to systems
   sysNum = unsigned(rank) / procsPerSys;
   color = int(sysNum);
-  key = rank % (int) procsPerSys;
+  key = rank % (int)procsPerSys;
 
   MPI_Comm_split(MPI_COMM_WORLD, color, key, &newcomm);
 }
@@ -134,49 +137,41 @@ void startInfrastructure() {
 }
 
 void testCombineThirdLevel(TestParams& testParams) {
-
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
   size_t procsPerSys = testParams.ngroup * testParams.nprocs + 1;
 
   combigrid::Stats::initialize();
 
-  theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup,
-                                    testParams.nprocs);
-
-  bool run = false;
+  theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
-
     ProcessGroupManagerContainer pgroups;
     for (size_t i = 0; i < testParams.ngroup; ++i) {
-      int pgroupRootID((int) i);
+      int pgroupRootID((int)i);
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-    std::vector<bool> boundary(testParams.dim, false);
+    std::vector<bool> boundary(testParams.dim, testParams.boundary);
 
     // create third level specific scheme
     CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
     combischeme.createClassicalCombischeme();
-    //combischeme.createAdaptiveCombischeme();
+    // combischeme.createAdaptiveCombischeme();
     // get full scheme first
     std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
     // split scheme and assign each half to a system
     std::vector<LevelVector> levels;
     std::vector<combigrid::real> coeffs;
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs,
-                                                  boundary, testParams.sysNum,
-                                                  2, levels, coeffs);
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary,
+                                                  testParams.sysNum, 2, levels, coeffs);
 
-    //std::cout << "Combischeme " << systemName << ":" << std::endl;
-    //for (const auto& l : levels)
-    //  std::cout << toString(l) << std::endl;
-
-
-    BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable((int)procsPerSys));
+    BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
+    // std::cout << "Combischeme " << testParams.sysNum << ":" << std::endl;
+    // for (size_t i =0; i < levels.size(); ++i)
+    //  std::cout << toString(levels[i]) << " " << coeffs[i]<< std::endl;
 
     // create Tasks
     TaskContainer tasks;
@@ -191,11 +186,10 @@ void testCombineThirdLevel(TestParams& testParams) {
 
     // create combiparameters
     IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
-    CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax,
-                                boundary, levels, coeffs, taskIDs, testParams.ncombi,
-                                1, parallelization, std::vector<IndexType>(0),
-                                std::vector<IndexType>(0), testParams.host,
-                                testParams.port, 0);
+    CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
+                                coeffs, taskIDs, testParams.ncombi, 1, parallelization,
+                                std::vector<IndexType>(1), std::vector<IndexType>(1),
+                                testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
@@ -213,46 +207,65 @@ void testCombineThirdLevel(TestParams& testParams) {
         // exchange subspace sizes to unify the dsgs with the remote system
         Stats::startEvent("manager unify subspace sizes with remote");
         manager.unifySubspaceSizesThirdLevel(),
-        Stats::startEvent("manager unify subspace sizes with remote");
+        Stats::stopEvent("manager unify subspace sizes with remote");
       } else {
         Stats::startEvent("manager run");
         manager.runnext();
         Stats::stopEvent("manager run");
-        run = true;
       }
-      //combine grids
+      // combine grids
       Stats::startEvent("manager combine third level");
       manager.combineThirdLevel();
+      // manager.combine();
       Stats::stopEvent("manager combine third level");
-
-      // std::string filename("thirdLevel_" + std::to_string(i) + ".raw" );
-      // Stats::startEvent("manager write solution");
-      // manager.parallelEval( testParams.lmax, filename, 0 );
-      // Stats::stopEvent("manager write solution");
     }
+
+    std::string filename("thirdLevel_" + std::to_string(testParams.ncombi) + ".raw");
+    Stats::startEvent("manager write solution");
+    manager.parallelEval(testParams.lmax, filename, 0);
+    Stats::stopEvent("manager write solution");
+
     manager.exit();
+
+    // if output files are not needed, remove them right away
+    remove(("thirdLevel_" + std::to_string(testParams.ncombi) + "_0.raw").c_str());
+    remove(("thirdLevel_" + std::to_string(testParams.ncombi) + "_0.raw_header").c_str());
   }
   else {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
     signal = pgroup.wait();
-    int nrun = 0;
+    // omitting to count RUN_FIRST signal, as it is executed once for every task
+    int nrun = 1;
     while (signal != EXIT) {
       signal = pgroup.wait();
-      if (signal == RUN_NEXT ||signal == RUN_FIRST){
-        BOOST_CHECK(pgroup.getTasks().size() > 0);
+      if (signal == RUN_NEXT) {
         ++nrun;
       }
-      std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " processed signal " << signal << std::endl; 
-      if(signal == COMBINE || signal == COMBINE_LOCAL_AND_GLOBAL || signal == COMBINE_THIRD_LEVEL){
+      std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " processed signal "
+                << signal << std::endl;
+      if (signal == COMBINE_THIRD_LEVEL) {
         // after combination check workers' grids
-        BOOST_CHECK(checkReducedFullGrid(pgroup, nrun));
+        BOOST_CHECK(
+            !testParams.boundary ||
+            checkReducedFullGrid(pgroup, nrun));  // TODO for no boundary, check inner values
+      }
+      // if(signal == WAIT_FOR_TL_SIZE_UPDATE)
+      // if(signal == WAIT_FOR_TL_COMBI_RESULT)
+      if (signal == REDUCE_SUBSPACE_SIZES_TL) {
+        std::cout << "reduce ";
+        for (auto& dsg : pgroup.getCombinedUniDSGVector()) {
+          for (size_t size : dsg->getSubspaceDataSizes()) {
+            std::cout << size << " ";
+          }
+        }
+        std::cout << std::endl;
       }
     }
-    run = true;
+    for (const auto& b : pgroup.getCombiParameters().getBoundary())
+      BOOST_CHECK_EQUAL(b, testParams.boundary);
   }
 
-  BOOST_CHECK(run);
   combigrid::Stats::finalize();
   MPI_Barrier(testParams.comm);
   TestHelper::testStrayMessages(testParams.comm);
@@ -260,71 +273,129 @@ void testCombineThirdLevel(TestParams& testParams) {
 
 BOOST_AUTO_TEST_SUITE(thirdLevel)
 
-/*
-BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)) {
   unsigned int numSystems = 2;
-  unsigned int ngroup     = 1;
-  unsigned int nprocs     = 1;
-  unsigned int ncombi     = 10;
-  DimType dim   = 2;
-  LevelVector lmin(dim, 4);
-  LevelVector lmax(dim, 7);
+  unsigned int ngroup = 1;
+  unsigned int nprocs = 1;
+  unsigned int ncombi = 1;
+  DimType dim = 2;
+  LevelVector lmin(dim, 1);
+  LevelVector lmax(dim, 2);
 
   unsigned int sysNum;
   CommunicatorType newcomm;
-  assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
-  TestParams testParams(dim, lmin, lmax, ngroup, nprocs, ncombi, sysNum, newcomm);
 
-  startInfrastructure();
+  for (bool boundary : {false, true}) {
+    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-  testCombineThirdLevel(testParams, newcomm, sysNum);
+    if (sysNum < numSystems) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+      startInfrastructure();
+      testCombineThirdLevel(testParams);
+    }
 
-  MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)) {
   unsigned int numSystems = 2;
-  unsigned int ngroup     = 1;
-  unsigned int nprocs     = 4;
-  unsigned int ncombi     = 10;
-  LevelVector lmin(dim, 4);
-  LevelVector lmax(dim, 7);
-  DimType dim   = 2;
+  unsigned int ngroup = 1;
+  unsigned int nprocs = 1;
+  unsigned int ncombi = 10;
+  DimType dim = 2;
+  LevelVector lmin(dim, 2);
+  LevelVector lmax(dim, 3);
 
   unsigned int sysNum;
   CommunicatorType newcomm;
-  assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
-  TestParams testParams(dim, lmin, lmax, ngroup, nprocs, ncombi, sysNum, newcomm);
 
-  startInfrastructure();
+  for (bool boundary : {true}) {
+    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-  testCombineThirdLevel(testParams, newcomm, sysNum);
+    if (sysNum < numSystems) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+      startInfrastructure();
+      testCombineThirdLevel(testParams);
+    }
 
-  MPI_Barrier(MPI_COMM_WORLD);
-}*/
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
 
 BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)) {
   unsigned int numSystems = 2;
-  unsigned int ngroup     = 2;
-  unsigned int nprocs     = 1;
-  unsigned int ncombi     = 10;
-  DimType dim             = 2;
+  unsigned int ngroup = 1;
+  unsigned int nprocs = 1;
+  unsigned int ncombi = 10;
+  DimType dim = 2;
   LevelVector lmin(dim, 4);
   LevelVector lmax(dim, 7);
 
   unsigned int sysNum;
   CommunicatorType newcomm;
-  assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-  if (sysNum < numSystems) { // remove unnecessary procs
-    TestParams testParams(dim, lmin, lmax, ngroup, nprocs, ncombi, sysNum, newcomm);
+  for (bool boundary : {false, true}) {
+    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-    startInfrastructure();
+    if (sysNum < numSystems) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+      startInfrastructure();
+      testCombineThirdLevel(testParams);
+    }
 
-    testCombineThirdLevel(testParams);
+    MPI_Barrier(MPI_COMM_WORLD);
   }
-  MPI_Barrier(MPI_COMM_WORLD);
 }
 
+BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+  unsigned int numSystems = 2;
+  unsigned int ngroup = 2;
+  unsigned int nprocs = 1;
+  unsigned int ncombi = 10;
+  DimType dim = 2;
+  LevelVector lmin(dim, 4);
+  LevelVector lmax(dim, 7);
+
+  unsigned int sysNum;
+  CommunicatorType newcomm;
+
+  for (bool boundary : {false, true}) {
+    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+
+    if (sysNum < numSystems) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+      startInfrastructure();
+      testCombineThirdLevel(testParams);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+  unsigned int numSystems = 2;
+  unsigned int ngroup = 1;
+  unsigned int nprocs = 2;
+  unsigned int ncombi = 10;
+  DimType dim = 2;
+  LevelVector lmin(dim, 4);
+  LevelVector lmax(dim, 7);
+
+  unsigned int sysNum;
+  CommunicatorType newcomm;
+
+  for (bool boundary : {false, true}) {
+    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+
+    if (sysNum < numSystems) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+      startInfrastructure();
+      testCombineThirdLevel(testParams);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
 
 BOOST_AUTO_TEST_SUITE_END()
