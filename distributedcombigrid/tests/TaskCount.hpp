@@ -37,8 +37,7 @@ class TaskCount : public combigrid::Task {
 
     long nprocs = getCommSize(lcomm);
     IndexVector p = {nprocs,1};
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p, false, decomposition);
+    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p);
 
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     for (auto& element : elements) {
