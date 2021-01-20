@@ -259,7 +259,7 @@ void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
   BOOST_REQUIRE(true); //if things go wrong weirdly, see where things go wrong
 
   #ifdef TIMING
-    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LearningLoadModel>(new LearningLoadModel(levels));
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 #else // TIMING
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 #endif //def TIMING

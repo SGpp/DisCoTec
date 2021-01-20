@@ -57,6 +57,7 @@ const SignalType REDUCE_SUBSPACE_SIZES_TL = 26;
 const SignalType WAIT_FOR_TL_SIZE_UPDATE = 27;
 
 const SignalType WRITE_DFGS_TO_VTK = 28;
+
 const SignalType RUN_FIRST = 29;
 
 typedef int NormalizationType;

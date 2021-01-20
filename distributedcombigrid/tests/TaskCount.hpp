@@ -19,8 +19,9 @@ class TestFnCount {
   FG_ELEMENT operator()(std::vector<double>& coords, size_t nrun = 1) {
     FG_ELEMENT result = 0.;
     for (DimType d = 0; d < coords.size(); ++d) {
-      result += coords[d] * std::pow(10,d) * nrun;
+      result += coords[d] * std::pow(10,d);
     }
+    result *= static_cast<double>(nrun);
     return result;
   }
 };

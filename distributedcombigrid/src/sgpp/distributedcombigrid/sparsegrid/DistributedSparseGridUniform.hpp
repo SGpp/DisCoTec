@@ -4,7 +4,6 @@
 #include <assert.h>
 
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-#include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPITags.hpp"
 #include <numeric>
 
