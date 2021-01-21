@@ -1307,6 +1307,69 @@ class DistributedFullGrid {
 
   std::vector<IndexVector>& getDecomposition() { return decomposition_; }
 
+
+  /*
+   */
+  std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents) {
+    // if I have a higher neighbor, I need to send my highest layer in d to them,
+    // if I have a lower neighbor, I can receive it
+    auto lower = MPI_PROC_NULL;
+    auto higher = MPI_PROC_NULL;
+
+    // somehow the cartesian directions in the communicator are reversed
+    // cf InitMPI(...)
+    auto d_reverse = this->getDimension() - d - 1;
+    MPI_Cart_shift( this->getCommunicator(), d_reverse, 1, &lower, &higher );
+
+    // assert that boundaries have no neighbors (remove in case of periodicity)
+    if(this->getLowerBounds()[d] == 0){
+      assert(lower < 0);
+    }
+    if(this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
+      assert(higher < 0);
+    }
+
+    // set lower bounds of subarray
+    IndexVector subarrayLowerBounds = this->getLowerBounds();
+    IndexVector subarrayUpperBounds = this->getUpperBounds();
+
+    subarrayLowerBounds[d] += this->getLocalSizes()[d] - 1;
+
+    subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
+    assert(subarrayExtents[d] == 1);
+    auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
+
+    // create MPI datatype
+    // also, the data dimensions are reversed
+    std::vector<int> sizes(this->getLocalSizes().rbegin(), this->getLocalSizes().rend());
+    std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
+    // the starts are local indices
+    std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
+
+    // create subarray view on data //todo do this only once per dimension
+    MPI_Datatype mysubarray;
+    MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
+                             subsizes.data(), starts.data(), MPI_ORDER_C,
+                             this->getMPIDatatype(), &mysubarray);
+    MPI_Type_commit(&mysubarray);
+
+    //create recvbuffer
+    auto numElements = std::accumulate(subsizes.begin(), subsizes.end(), 1, std::multiplies<IndexType>());
+    if (lower < 0){
+      numElements = 0;
+      subarrayExtents = IndexVector(this->getDimension(), 0);
+    }
+    auto recvbuffer = std::vector<FG_ELEMENT>(numElements);
+
+    // TODO asynchronous over d??
+    auto success = MPI_Sendrecv(this->getData(), 1, mysubarray, higher, TRANSFER_GHOST_LAYER_TAG,
+                recvbuffer.data(), numElements, this->getMPIDatatype(), lower, TRANSFER_GHOST_LAYER_TAG,
+                this->getCommunicator(), MPI_STATUS_IGNORE);
+    assert(success == MPI_SUCCESS);
+
+    return recvbuffer;
+  }
+
  private:
   /** dimension of the full grid */
   DimType dim_;
