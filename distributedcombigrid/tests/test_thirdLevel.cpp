@@ -188,7 +188,7 @@ void testCombineThirdLevel(TestParams& testParams) {
     IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1, parallelization,
-                                std::vector<IndexType>(1), std::vector<IndexType>(1),
+                                std::vector<IndexType>(testParams.dim, 0), std::vector<IndexType>(testParams.dim, 1),
                                 testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
@@ -261,9 +261,20 @@ void testCombineThirdLevel(TestParams& testParams) {
         }
         std::cout << std::endl;
       }
+      if(signal == INIT_DSGUS){
+        std::cout << "INIT DSGUS ";
+        for (auto& dsg : pgroup.getCombinedUniDSGVector()) {
+          for (size_t size : dsg->getSubspaceDataSizes()) {
+            std::cout << size << " ";
+          }
+        }
+        std::cout << std::endl;
+      }
     }
     for (const auto& b : pgroup.getCombiParameters().getBoundary())
       BOOST_CHECK_EQUAL(b, testParams.boundary);
+    for (const auto& r : pgroup.getCombiParameters().getLMaxReductionVector())
+      BOOST_CHECK_EQUAL(r, 1);
   }
 
   combigrid::Stats::finalize();
@@ -277,7 +288,7 @@ BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int numSystems = 2;
   unsigned int ngroup = 1;
   unsigned int nprocs = 1;
-  unsigned int ncombi = 1;
+  unsigned int ncombi = 3;
   DimType dim = 2;
   LevelVector lmin(dim, 1);
   LevelVector lmax(dim, 2);
