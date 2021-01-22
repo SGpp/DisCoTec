@@ -15,7 +15,7 @@ class TestFn {
       coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
       exponent -= std::pow(coords[d] - 0.5, 2);
     }
-    return std::exp(exponent * 100.0) * 2;
+    return std::exp(exponent*100.0) * 2;
   }
 };
 
@@ -125,42 +125,45 @@ class TaskAdvection : public Task {
     // gradient of phi
     std::vector<CombiDataType> dphi(this->getDim());
 
-    std::vector<IndexType> l(this->getDim());
     std::vector<double> h(this->getDim());
 
+    auto l = dfg_->getLocalSizes();
     for (unsigned int i = 0; i < this->getDim(); i++) {
-      l[i] = dfg_->length(i);
       h[i] = 1.0 / (double)l[i];
     }
 
     for (size_t i = 0; i < nsteps_; ++i) {
       phi_.swap(dfg_->getElementVector());
 
-      for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
-        IndexVector ai(this->getDim());
-        dfg_->getGlobalVectorIndex(li, ai);
+      auto u_dot_dphi = std::vector<CombiDataType> (dfg_->getNrElements(), 0.);
 
-        // neighbour
-        std::vector<IndexVector> ni(this->getDim(), ai);
-        std::vector<IndexType> lni(this->getDim());
+      for (unsigned int d = 0; d < this->getDim(); ++d) {
+        // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
+        IndexVector subarrayExtents;
+        auto phi_ghost = dfg_->exchangeGhostLayerUpward(d, subarrayExtents);
 
-        CombiDataType u_dot_dphi = 0;
-
-        for (unsigned int j = 0; j < this->getDim(); j++) {
-          ni[j][j] = (l[j] + ni[j][j] - 1) % l[j];
-          lni[j] = dfg_->getGlobalLinearIndex(ni[j]);
-        }
-
-        for (unsigned int j = 0; j < this->getDim(); j++) {
+        for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
+          // calculate local linear index of backward neighbor
+          IndexVector locAxisIndex(this->getDim());
+          dfg_->getLocalVectorIndex(li, locAxisIndex);
+          --locAxisIndex[d];
+          //TODO can be unrolled into ghost and other part, avoiding if-statement
+          CombiDataType phi_neighbor;
+          if (locAxisIndex[d] < 0){
+            // phi_neighbor = phi_ghost[...];
+          } else{
+            IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
+            phi_neighbor = phi_[lni];
+          }
           // calculate gradient of phi with backward differential quotient
-          dphi[j] = (phi_[li] - phi_[lni[j]]) / h[j];
+          auto dphi = (phi_[li] - phi_neighbor) / h[d];
 
-          u_dot_dphi += u[j] * dphi[j];
+          u_dot_dphi[li] += u[d] * dphi;
         }
-
-        dfg_->getData()[li] = phi_[li] - u_dot_dphi * dt_;
       }
-
+      for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
+        dfg_->getData()[li] = phi_[li] - u_dot_dphi[li] * dt_;
+      }
       MPI_Barrier(lcomm);
     }
 
@@ -184,7 +187,11 @@ class TaskAdvection : public Task {
 
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
-  void setZero() {}
+  void setZero() {
+    for (auto& element : dfg_->getElementVector()){
+      element = 0.;
+    }
+  }
 
   ~TaskAdvection() {
     if (dfg_ != NULL) delete dfg_;
