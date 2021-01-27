@@ -90,17 +90,11 @@ class TaskAdvection : public Task {
 
     // create local subgrid on each process
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
+    phi_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
-    /* loop over local subgrid and set initial values */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-
-    phi_.resize(dfg_->getNrElements());
-    // we are only allowed to have 1 process per group in this example!
-    assert(elements.size() == dfg_->getNrElements());
-
-    for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
+    for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
       std::vector<double> coords(this->getDim());
-      dfg_->getCoordsGlobal(li, coords);
+      dfg_->getCoordsLocal(li, coords);
 
       double exponent = 0;
       for (DimType d = 0; d < this->getDim(); ++d) {
@@ -133,36 +127,59 @@ class TaskAdvection : public Task {
     }
 
     for (size_t i = 0; i < nsteps_; ++i) {
-      phi_.swap(dfg_->getElementVector());
+      phi_->getElementVector().swap(dfg_->getElementVector());
 
-      auto u_dot_dphi = std::vector<CombiDataType> (dfg_->getNrElements(), 0.);
+      auto u_dot_dphi = std::vector<CombiDataType> (dfg_->getNrLocalElements(), 0.);
 
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
         IndexVector subarrayExtents;
-        auto phi_ghost = dfg_->exchangeGhostLayerUpward(d, subarrayExtents);
+        auto phi_ghost = phi_->exchangeGhostLayerUpward(d, subarrayExtents);
+        // std::cout << "phi_ghost " << phi_ghost << std::endl;
+        int offset = 1;
+        IndexVector offsets (this->getDim());
+        for (DimType d_j = 0; d_j < dim_; ++d_j) {
+          offsets[d_j] = offset;
+          offset *= subarrayExtents[d_j];
+        }
 
-        for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
-          // calculate local linear index of backward neighbor
+        for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
+          // calculate local axis index of backward neighbor
           IndexVector locAxisIndex(this->getDim());
           dfg_->getLocalVectorIndex(li, locAxisIndex);
-          --locAxisIndex[d];
           //TODO can be unrolled into ghost and other part, avoiding if-statement
           CombiDataType phi_neighbor;
-          if (locAxisIndex[d] < 0){
-            // phi_neighbor = phi_ghost[...];
+          if (locAxisIndex[d] == 0){
+            // if we are in the lowest layer in d,
+            // make sure we are not on the lowest global layer
+            IndexVector globAxisIndex(this->getDim());
+            dfg_->getGlobalVectorIndex(locAxisIndex, globAxisIndex);
+            if (globAxisIndex[d] == 0){
+              assert(phi_ghost.size()==0);
+              continue;
+              // remove for periodic BC
+            }
+            // then use values from boundary exchange
+            IndexType gli = 0;
+            for (DimType d_j = 0; d_j < this->getDim(); ++d_j) {
+              gli = gli + offsets[d_j] * locAxisIndex[d_j];
+            }
+            assert(gli > -1);
+            assert(gli < phi_ghost.size());
+            phi_neighbor = phi_ghost[gli];
           } else{
+            --locAxisIndex[d];
             IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
-            phi_neighbor = phi_[lni];
+            phi_neighbor = phi_->getElementVector()[lni];
           }
           // calculate gradient of phi with backward differential quotient
-          auto dphi = (phi_[li] - phi_neighbor) / h[d];
+          auto dphi = (phi_->getElementVector()[li] - phi_neighbor) / h[d];
 
           u_dot_dphi[li] += u[d] * dphi;
         }
       }
-      for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
-        dfg_->getData()[li] = phi_[li] - u_dot_dphi[li] * dt_;
+      for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
+        dfg_->getData()[li] = phi_->getElementVector()[li] - u_dot_dphi[li] * dt_;
       }
       MPI_Barrier(lcomm);
     }
@@ -188,13 +205,13 @@ class TaskAdvection : public Task {
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
   void setZero() {
-    for (auto& element : dfg_->getElementVector()){
-      element = 0.;
-    }
+    dfg_->setZero();
+    phi_->setZero();
   }
 
   ~TaskAdvection() {
     if (dfg_ != NULL) delete dfg_;
+    if (phi_ != NULL) delete phi_;
   }
 
  protected:
@@ -203,7 +220,7 @@ class TaskAdvection : public Task {
    * this constructor before overwriting the variables that are set by the
    * manager. here we need to set the initialized variable to make sure it is
    * set to false. */
-  TaskAdvection() : initialized_(false), stepsTotal_(1), dfg_(NULL) {}
+  TaskAdvection() : initialized_(false), stepsTotal_(1), dfg_(nullptr), phi_(nullptr) {}
 
  private:
   friend class boost::serialization::access;
@@ -217,7 +234,7 @@ class TaskAdvection : public Task {
   bool initialized_;
   size_t stepsTotal_;
   DistributedFullGrid<CombiDataType>* dfg_;
-  std::vector<CombiDataType> phi_;
+  DistributedFullGrid<CombiDataType>* phi_;
 
   /**
    * The serialize function has to be extended by the new member variables.

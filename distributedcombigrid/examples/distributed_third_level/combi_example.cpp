@@ -7,6 +7,7 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
@@ -28,13 +29,20 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 // include user specific task. this is the interface to your application
-// #include "TaskConstParaboloid.hpp"
+
+// to allow using test tasks
+#define BOOST_CHECK
+
+#include "TaskCount.hpp"
+#include "TaskConstParaboloid.hpp"
 #include "TaskAdvection.hpp"
 
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskAdvection)
+BOOST_CLASS_EXPORT(TaskConstParaboloid)
+BOOST_CLASS_EXPORT(TaskCount)
 BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
@@ -49,8 +57,7 @@ int main(int argc, char** argv) {
 
   // read in parameter file
   std::string paramfile = "ctparam";
-  if (argc > 1)
-    paramfile = argv[1];
+  if (argc > 1) paramfile = argv[1];
   boost::property_tree::ptree cfg;
   boost::property_tree::ini_parser::read_ini(paramfile, cfg);
 
@@ -95,8 +102,8 @@ int main(int argc, char** argv) {
     if (hasThirdLevel) {
       std::cout << "Using third-level parallelism" << std::endl;
       thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
-      systemNumber   = cfg.get<unsigned int>("thirdLevel.systemNumber");
-      numSystems     = cfg.get<unsigned int>("thirdLevel.numSystems");
+      systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
+      numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
       thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
     }
 
@@ -120,35 +127,39 @@ int main(int argc, char** argv) {
     // split scheme and assign each half to a system
     std::vector<LevelVector> levels;
     std::vector<combigrid::real> coeffs;
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs,
-                                                  boundary, systemNumber,
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary, systemNumber,
                                                   numSystems, levels, coeffs);
 
     // create load model
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
     // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new AnisotropyLoadModel());
-    // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
+    // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new
+    // LearningLoadModel(levels));
 
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
     std::cout << "CombiScheme: " << std::endl;
-    for (const LevelVector& level : levels)
-    std::cout << level << std::endl;
+    for (const LevelVector& level : levels) std::cout << level << std::endl;
 
     // create Tasks
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
+      Task* t =
+          new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
+      // Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel);
+      // Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
+
+      static_assert(!isGENE);
+
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs,
-                           ncombi, 1, p, std::vector<IndexType>(0),
-                           std::vector<IndexType>(0), thirdLevelHost,
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p,
+                           std::vector<IndexType>(dim, 0), std::vector<IndexType>(dim, 1), thirdLevelHost,
                            thirdLevelPort, 0);
 
     // create abstraction for Manager
@@ -167,27 +178,27 @@ int main(int argc, char** argv) {
     if (hasThirdLevel) {
       Stats::startEvent("manager unify subspace sizes with remote");
       manager.unifySubspaceSizesThirdLevel(),
-      Stats::startEvent("manager unify subspace sizes with remote");
+          Stats::startEvent("manager unify subspace sizes with remote");
     }
 
     double start, finish;
 
-    for (size_t i = 0; i < ncombi; ++i) {
-
+    for (size_t i = 1; i < ncombi; ++i) {
       start = MPI_Wtime();
 
       Stats::startEvent("combine");
-      if (hasThirdLevel)
+      if (hasThirdLevel) {
         manager.combineThirdLevel();
-      else
+      } else {
         manager.combine();
+      }
       Stats::stopEvent("combine");
       finish = MPI_Wtime();
-      std::cout << "combination " << i << " took: " << finish-start << " seconds" << std::endl;
+      std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
 
       // evaluate solution and
       // write solution to file
-      std::string filename("out/solution_" + std::to_string(ncombi) + ".vtk");
+      std::string filename("out/solution_" + std::to_string(i) + ".raw");
       Stats::startEvent("manager write solution");
       manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");
@@ -200,29 +211,48 @@ int main(int argc, char** argv) {
       manager.runnext();
       Stats::stopEvent("manager run");
       finish = MPI_Wtime();
-      std::cout << "calculation " << i << " took: " << finish-start << " seconds" << std::endl;
+      std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
     }
 
-    //TODO pollinta: for a massively parallel setting, this needs to be done differently
+    Stats::startEvent("combine");
+    if (hasThirdLevel) {
+      assert(false);
+      manager.combineThirdLevel();
+    } else {
+      manager.combine();
+    }
+    Stats::stopEvent("combine");
+
+
+    // evaluate solution and
+    // write solution to file
+    std::string filename("out/solution_" + std::to_string(ncombi) + ".raw");
+    Stats::startEvent("manager write solution");
+    manager.parallelEval(leval, filename, 0);
+    Stats::stopEvent("manager write solution");
+
+    // TODO pollinta: for a massively parallel setting, this needs to be done differently
     FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
     manager.gridEval(fg_eval);
 
     // exact solution
     TestFn f;
+    // TestFnCount<CombiDataType> f;
     FullGrid<CombiDataType> fg_exact(dim, leval, boundary);
     fg_exact.createFullGrid();
     for (IndexType li = 0; li < fg_exact.getNrElements(); ++li) {
       std::vector<double> coords(dim);
       fg_exact.getCoords(li, coords);
-      fg_exact.getData()[li] = f(coords, (double)((1 + ncombi) * nsteps) * dt);
+      // fg_exact.getData()[li] = f(coords, ncombi);
+      fg_exact.getData()[li] = f(coords, static_cast<double>(ncombi * nsteps) * dt);
     }
 
     // calculate error
     FullGrid<CombiDataType> fg_error(fg_exact);
     fg_error.add(fg_eval, -1);
 
-    printf("Error: %f \n", fg_error.getlpNorm(0)/fg_exact.getlpNorm(0));
-    printf("Error2: %f \n", fg_error.getlpNorm(2)/fg_exact.getlpNorm(2));
+    printf("Error: %f \n", fg_error.getlpNorm(0) / fg_exact.getlpNorm(0));
+    printf("Error2: %f \n", fg_error.getlpNorm(2) / fg_exact.getlpNorm(2));
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
@@ -236,7 +266,9 @@ int main(int argc, char** argv) {
     // wait for instructions from manager
     SignalType signal = -1;
 
-    while (signal != EXIT) signal = pgroup.wait();
+    while (signal != EXIT){
+      signal = pgroup.wait();
+    } 
   }
 
   Stats::finalize();
