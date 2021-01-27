@@ -221,7 +221,7 @@ class DistributedFullGrid {
       globalLinearIndex = globalLinearIndex / nrPoints_[j];
       // set the coordinate based on if we have boundary points
       tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
-      coords[j] = static_cast<double>(ind + tmp_add) * oneOverPowOfTwo[levels_[j]];
+      coords[j] = static_cast<double>(ind + tmp_add) * getGridSpacing()[j];
     }
   }
 
@@ -424,6 +424,15 @@ class DistributedFullGrid {
   /** return the level vector */
   inline const LevelVector& getLevels() const { return levels_; }
 
+  /** returns the grid spacing (sometimes called h) */
+  std::vector<double> getGridSpacing() const {
+    std::vector<double> h(dim_);
+    for (IndexType d = 0 ; d < dim_ ; ++d){
+      h[d] = oneOverPowOfTwo[levels_[d]];
+    }
+    return h;
+  }
+
   /** returns the number of elements in the full grid */
   inline IndexType getNrElements() const { return nrElements_; }
 
@@ -441,6 +450,12 @@ class DistributedFullGrid {
   void setElementVector(const std::vector<FG_ELEMENT>& in) {
     assert(in.size() == static_cast<IndexType>(nrElements_));
     fullgridVector_ = in;
+  }
+
+  inline void setZero(){
+    for (auto& element : this->getElementVector()){
+      element = 0.;
+    }
   }
 
   inline FG_ELEMENT* getData() { return &fullgridVector_[0]; }
@@ -1360,7 +1375,7 @@ class DistributedFullGrid {
                << "This file contains the combination solution evaluated on a full grid\n"
                << "BINARY\n"
                << "DATASET STRUCTURED_POINTS\n";
-    if (dim == 3) {
+    if (dim == 3) { //TODO change for non-boundary grids using getGridSpacing
       vtk_header << "DIMENSIONS " << sizes[0]  << " " << sizes[1]  << " " << sizes[2] << "\n"
                  << "ORIGIN 0 0 0\n"
                  << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " " << 1. / static_cast<double>(sizes[1]-1)  << " " << 1. / static_cast<double>(sizes[2]-1) << "\n";
@@ -1733,7 +1748,7 @@ class DistributedFullGrid {
 
       for (DimType j = 0; j < dim_; ++j) {
         tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
-        coords[j] = static_cast<double>(ubvi[j] + tmp_add) * oneOverPowOfTwo[levels_[j]];
+        coords[j] = static_cast<double>(ubvi[j] + tmp_add) * getGridSpacing()[j];
       }
 
       upperBoundsCoords_[r] = coords;
