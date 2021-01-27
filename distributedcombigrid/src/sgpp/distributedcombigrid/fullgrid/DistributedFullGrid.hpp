@@ -221,7 +221,7 @@ class DistributedFullGrid {
       globalLinearIndex = globalLinearIndex / nrPoints_[j];
       // set the coordinate based on if we have boundary points
       tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
-      coords[j] = static_cast<double>(ind + tmp_add) * oneOverPowOfTwo[levels_[j]];
+      coords[j] = static_cast<double>(ind + tmp_add) * getGridSpacing()[j];
     }
   }
 
@@ -424,6 +424,15 @@ class DistributedFullGrid {
   /** return the level vector */
   inline const LevelVector& getLevels() const { return levels_; }
 
+  /** returns the grid spacing (sometimes called h) */
+  std::vector<double> getGridSpacing() const {
+    std::vector<double> h(dim_);
+    for (IndexType d = 0 ; d < dim_ ; ++d){
+      h[d] = oneOverPowOfTwo[levels_[d]];
+    }
+    return h;
+  }
+
   /** returns the number of elements in the full grid */
   inline IndexType getNrElements() const { return nrElements_; }
 
@@ -441,6 +450,12 @@ class DistributedFullGrid {
   void setElementVector(const std::vector<FG_ELEMENT>& in) {
     assert(in.size() == static_cast<IndexType>(nrElements_));
     fullgridVector_ = in;
+  }
+
+  inline void setZero(){
+    for (auto& element : this->getElementVector()){
+      element = 0.;
+    }
   }
 
   inline FG_ELEMENT* getData() { return &fullgridVector_[0]; }
@@ -1308,6 +1323,85 @@ class DistributedFullGrid {
     MPI_File_close(&fh);
   }
 
+  // write data to legacy-type VTK file using MPI-IO
+  void writePlotFileVTK(const char* filename) const {
+    auto dim = getDimension();
+    assert(dim < 4);  // vtk supports only up to 3D
+
+    // create subarray data type
+    IndexVector sizes = getGlobalSizes();
+    IndexVector subsizes = getUpperBounds() - getLowerBounds();
+    IndexVector starts = getLowerBounds();
+
+    // we store our data in c format, i.e. first dimension is the innermost
+    // dimension. however, we access our data in fortran notation, with the
+    // first index in indexvectors being the first dimension.
+    // to comply with an ordering that mpi understands, we have to reverse
+    // our index vectors
+    // also we have to use int as datatype
+    std::vector<int> csizes(sizes.rbegin(), sizes.rend());
+    std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
+    std::vector<int> cstarts(starts.rbegin(), starts.rend());
+
+    // create subarray view on data
+    MPI_Datatype mysubarray;
+    MPI_Type_create_subarray(static_cast<int>(getDimension()), &csizes[0], &csubsizes[0],
+                             &cstarts[0], MPI_ORDER_C, getMPIDatatype(), &mysubarray);
+    MPI_Type_commit(&mysubarray);
+
+    // open file
+    MPI_File fh;
+    MPI_File_open(getCommunicator(), filename, MPI_MODE_WRONLY + MPI_MODE_CREATE, MPI_INFO_NULL,
+                  &fh);
+
+    std::stringstream vtk_header;
+    // cf https://lorensen.github.io/VTKExamples/site/VTKFileFormats/ => structured points
+    vtk_header << "# vtk DataFile Version 2.0.\n"
+               << "This file contains the combination solution evaluated on a full grid\n"
+               << "BINARY\n"
+               << "DATASET STRUCTURED_POINTS\n";
+    if (dim == 3) { //TODO change for non-boundary grids using getGridSpacing
+      vtk_header << "DIMENSIONS " << sizes[0]  << " " << sizes[1]  << " " << sizes[2] << "\n"
+                 << "ORIGIN 0 0 0\n"
+                 << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " " << 1. / static_cast<double>(sizes[1]-1)  << " " << 1. / static_cast<double>(sizes[2]-1) << "\n";
+    } else if (dim == 2) {
+      vtk_header << "DIMENSIONS " << sizes[0]  << " " << sizes[1]  << " 1\n"
+                 << "ORIGIN 0 0 0\n"
+                 << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " " << 1. / static_cast<double>(sizes[1]-1)  << " 1\n";
+    } else if (dim == 1) {
+      vtk_header << "DIMENSIONS " << sizes[0]  << " 1 1\n"
+                 << "ORIGIN 0 0 0\n"
+                 << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " 1 1\n";
+    } else {
+      assert(false);
+    }
+    vtk_header << "POINT_DATA "
+               << std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<IndexType>())
+               << "\n"
+               << "SCALARS quantity double 1\n"
+               << "LOOKUP_TABLE default\n";
+    //TODO set the right data type from combidatatype, for now double by default
+    bool rightDataType = std::is_same<CombiDataType, double>::value;
+    assert(rightDataType);
+    auto header_string = vtk_header.str();
+    auto header_size = header_string.size();
+
+    // rank 0 write header
+    if (rank_ == 0) {
+      MPI_File_write(fh, header_string.c_str(), static_cast<int>(header_size), MPI_CHAR, MPI_STATUS_IGNORE);
+    }
+
+    // set file view to right offset (in bytes)
+    MPI_Offset offset = header_size * sizeof(char);
+    MPI_File_set_view(fh, offset, getMPIDatatype(), mysubarray, "native", MPI_INFO_NULL);
+
+    // write subarray
+    MPI_File_write_all(fh, getData(), static_cast<int>(getNrLocalElements()), getMPIDatatype(), MPI_STATUS_IGNORE);
+
+    // close file
+    MPI_File_close(&fh);
+  }
+
   std::vector<IndexVector>& getDecomposition() { return decomposition_; }
 
 
@@ -1639,7 +1733,7 @@ class DistributedFullGrid {
 
       for (DimType j = 0; j < dim_; ++j) {
         tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
-        coords[j] = static_cast<double>(ubvi[j] + tmp_add) * oneOverPowOfTwo[levels_[j]];
+        coords[j] = static_cast<double>(ubvi[j] + tmp_add) * getGridSpacing()[j];
       }
 
       upperBoundsCoords_[r] = coords;
