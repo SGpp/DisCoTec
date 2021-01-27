@@ -118,13 +118,7 @@ class TaskAdvection : public Task {
 
     // gradient of phi
     std::vector<CombiDataType> dphi(this->getDim());
-
-    std::vector<double> h(this->getDim());
-
-    auto l = dfg_->getLocalSizes();
-    for (unsigned int i = 0; i < this->getDim(); i++) {
-      h[i] = 1.0 / (double)l[i];
-    }
+    std::vector<double> h = dfg_->getGridSpacing();
 
     for (size_t i = 0; i < nsteps_; ++i) {
       phi_->getElementVector().swap(dfg_->getElementVector());
@@ -135,7 +129,6 @@ class TaskAdvection : public Task {
         // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
         IndexVector subarrayExtents;
         auto phi_ghost = phi_->exchangeGhostLayerUpward(d, subarrayExtents);
-        // std::cout << "phi_ghost " << phi_ghost << std::endl;
         int offset = 1;
         IndexVector offsets (this->getDim());
         for (DimType d_j = 0; d_j < dim_; ++d_j) {
@@ -181,7 +174,6 @@ class TaskAdvection : public Task {
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
         dfg_->getData()[li] = phi_->getElementVector()[li] - u_dot_dphi[li] * dt_;
       }
-      MPI_Barrier(lcomm);
     }
 
     stepsTotal_ += nsteps_;
