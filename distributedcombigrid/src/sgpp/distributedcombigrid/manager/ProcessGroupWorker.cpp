@@ -257,6 +257,21 @@ SignalType ProcessGroupWorker::wait() {
       parallelEval();
       Stats::stopEvent("parallel eval");
     } break;
+    case GET_L2_NORM: {  // evaluate norm on dfgs and send
+      Stats::startEvent("get L2 norm");
+      sendLpNorms(2);
+      Stats::stopEvent("get L2 norm");
+    } break;
+    case GET_L1_NORM: {  // evaluate norm on dfgs and send
+      Stats::startEvent("get L1 norm");
+      sendLpNorms(1);
+      Stats::stopEvent("get L1 norm");
+    } break;
+    case GET_MAX_NORM: {  // evaluate norm on dfgs and send
+      Stats::startEvent("get max norm");
+      sendLpNorms(0);
+      Stats::stopEvent("get max norm");
+    } break;
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
 
@@ -569,7 +584,6 @@ static bool endsWith(const std::string& str, const std::string& suffix)
     return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
 }
 
-
 // helper function to output bool vector
 inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
   os << "[";
@@ -638,6 +652,21 @@ void ProcessGroupWorker::parallelEvalUniform() {
       }
       dfg.writePlotFile(fn.c_str());
     }
+  }
+}
+
+void ProcessGroupWorker::sendLpNorms(int p) {
+  // get Lp norm on every worker; reduce through dfg function
+  std::vector<double> lpnorms;
+  for (const auto& t : tasks_) {
+    auto lpnorm = t->getDistributedFullGrid().getLpNorm(p);
+    lpnorms.push_back(lpnorm);
+    // std::cout << t->getID() << " ";
+  }
+  // send from master to manager
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
+             theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG, theMPISystem()->getGlobalComm());
   }
 }
 

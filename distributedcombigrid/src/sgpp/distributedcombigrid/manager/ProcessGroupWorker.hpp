@@ -76,6 +76,9 @@ class ProcessGroupWorker {
   /** parallel file io of final output grid for uniform decomposition */
   void parallelEvalUniform();
 
+  /** send back the Lp Norm to Manager */
+  void sendLpNorms(int p);
+
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 
