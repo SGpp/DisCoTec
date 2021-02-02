@@ -43,6 +43,10 @@ const SignalType RESCHEDULE_REMOVE_TASK = 21;
 
 const SignalType RUN_FIRST = 29;
 
+const SignalType GET_L2_NORM = 30;
+const SignalType GET_L1_NORM = 31;
+const SignalType GET_MAX_NORM = 32;
+
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
 const NormalizationType L1_NORMALIZATION = 1;
