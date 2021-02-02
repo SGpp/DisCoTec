@@ -14,7 +14,7 @@ namespace combigrid {
 class MPIUtils {
  public:
   template <typename T>
-  static void sendClass(T* t, RankType dst, CommunicatorType comm) {
+  static void sendClass(T* t, RankType dst, CommunicatorType comm, int tag = TRANSFER_CLASS_TAG) {
     // save data to archive
     std::stringstream ss;
     {
@@ -26,21 +26,21 @@ class MPIUtils {
     std::string s = ss.str();
     int bsize = static_cast<int>(s.size());
     char* buf = const_cast<char*>(s.c_str());
-    MPI_Send(buf, bsize, MPI_CHAR, dst, TRANSFER_CLASS_TAG, comm);
+    MPI_Send(buf, bsize, MPI_CHAR, dst, tag, comm);
   }
 
   template <typename T>
-  static void receiveClass(T* t, RankType src, CommunicatorType comm) {
+  static void receiveClass(T* t, RankType src, CommunicatorType comm, int tag = TRANSFER_CLASS_TAG) {
     // receive size of message
     // todo: not really necessary since size known at compile time
     MPI_Status status;
     int bsize;
-    MPI_Probe(src, TRANSFER_CLASS_TAG, comm, &status);
+    MPI_Probe(src, tag, comm, &status);
     MPI_Get_count(&status, MPI_CHAR, &bsize);
 
     // create buffer of appropriate size and receive
     std::vector<char> buf(bsize);
-    MPI_Recv(&buf[0], bsize, MPI_CHAR, src, TRANSFER_CLASS_TAG, comm, MPI_STATUS_IGNORE);
+    MPI_Recv(&buf[0], bsize, MPI_CHAR, src, tag, comm, MPI_STATUS_IGNORE);
 
     // create and open an archive for input
     std::string s(&buf[0], bsize);
