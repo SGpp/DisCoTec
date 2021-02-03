@@ -71,6 +71,8 @@ class ProcessGroupManager {
 
   bool parallelEval(const LevelVector& leval, std::string& filename);
 
+  std::vector<double> parallelEvalNorm(const LevelVector& leval);
+
   /**
    * Adds a task to the process group. To be used for rescheduling.
    *

@@ -177,6 +177,31 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
   return true;
 }
 
+
+std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& leval){
+
+  sendSignalToProcessGroup(PARALLEL_EVAL_NORM);
+
+  // send levelvector
+  std::vector<int> tmp(leval.begin(), leval.end());
+  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
+           theMPISystem()->getGlobalComm());
+
+  std::vector<double> norms;
+  for (int i = 0; i < 3; ++i) {
+    double recvbuf;
+
+    MPI_Recv(&recvbuf, 1, MPI_DOUBLE, pgroupRootID_, TRANSFER_NORM_TAG,
+             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+
+    norms.push_back(recvbuf);
+  }
+
+  setProcessGroupBusyAndReceive();
+
+  return norms;
+}
+
 void ProcessGroupManager::recvStatus() {
   // start non-blocking call to receive status
   if (ENABLE_FT) {

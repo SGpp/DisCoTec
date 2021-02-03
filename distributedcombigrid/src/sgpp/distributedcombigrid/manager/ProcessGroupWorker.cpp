@@ -228,6 +228,11 @@ SignalType ProcessGroupWorker::wait() {
       sendLpNorms(0);
       Stats::stopEvent("get max norm");
     } break;
+    case PARALLEL_EVAL_NORM: {  // evaluate norms on new dfg and send
+      Stats::startEvent("parallel eval norm");
+      parallelEvalNorm();
+      Stats::stopEvent("parallel eval norm");
+    } break;
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
 
@@ -595,25 +600,7 @@ static bool endsWith(const std::string& str, const std::string& suffix)
     return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
 }
 
-// // helper function to output bool vector
-// inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
-//   os << "[";
-
-//   for (size_t i = 0; i < l.size(); ++i)
-//     os << l[i] << " ";
-
-//   os << "]";
-
-//   return os;
-// }
-
-void ProcessGroupWorker::parallelEvalUniform() {
-  assert(uniformDecomposition);
-
-  assert(combiParametersSet_);
-  int numGrids = static_cast<int>(combiParameters_
-                     .getNumGrids());  // we assume here that every task has the same number of grids
-
+LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
   const int dim = static_cast<int>(combiParameters_.getDim());
 
   // combine must have been called before this function
@@ -628,6 +615,35 @@ void ProcessGroupWorker::parallelEvalUniform() {
 
   MPI_Bcast(&tmp[0], dim, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
   LevelVector leval(tmp.begin(), tmp.end());
+  return leval;
+}
+
+DistributedFullGrid<CombiDataType> ProcessGroupWorker::generateDFGandFillFromDSGU(const LevelVector& leval, IndexType g){
+  const int dim = static_cast<int>(leval.size());
+  bool forwardDecomposition = !isGENE;
+  DistributedFullGrid<CombiDataType> dfg(
+      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
+      combiParameters_.getParallelization(), forwardDecomposition);
+
+  // register dsg
+  dfg.registerUniformSG(*combinedUniDSGVector_[g]);
+
+  // fill dfg with hierarchical coefficients from distributed sparse grid
+  dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
+
+  // dehierarchize dfg
+  DistributedHierarchization::dehierarchize<CombiDataType>(
+      dfg, combiParameters_.getHierarchizationDims());
+  return dfg;
+}
+
+void ProcessGroupWorker::parallelEvalUniform() {
+  assert(uniformDecomposition);
+
+  assert(combiParametersSet_);
+  auto numGrids = combiParameters_.getNumGrids();  // we assume here that every task has the same number of grids
+
+  auto leval = receiveLevalAndBroadcast();
 
   // receive filename and broadcast to group members
   std::string filename;
@@ -679,6 +695,25 @@ void ProcessGroupWorker::sendLpNorms(int p) {
   MASTER_EXCLUSIVE_SECTION {
     MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
              theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG, theMPISystem()->getGlobalComm());
+  }
+}
+
+void ProcessGroupWorker::parallelEvalNorm() {
+
+  auto leval = receiveLevalAndBroadcast();
+
+  // create dfg
+  auto dfg = generateDFGandFillFromDSGU(leval, 0);
+
+  // get Lp norm on every worker; reduce through dfg function
+  for (int p = 0; p < 3; ++p) {
+    auto lpnorm = dfg.getLpNorm(p);
+
+    // send from master to manager
+    MASTER_EXCLUSIVE_SECTION {
+      MPI_Send(&lpnorm, 1, MPI_DOUBLE,
+              theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG, theMPISystem()->getGlobalComm());
+    }
   }
 }
 

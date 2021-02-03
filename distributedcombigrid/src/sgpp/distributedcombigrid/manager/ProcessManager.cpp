@@ -408,6 +408,12 @@ std::map<int, double> ProcessManager::getLpNorms(int p) {
   return norms;
 }
 
+
+std::vector<double> ProcessManager::parallelEvalNorm(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->parallelEvalNorm(leval);
+}
+
 void ProcessManager::reschedule() {
   std::map<LevelVector, int> levelVectorToProcessGroupIndex;
   for (size_t i = 0; i < pgroups_.size(); ++i) {
