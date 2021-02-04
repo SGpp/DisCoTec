@@ -51,15 +51,16 @@ void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurations
   }
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
     DurationInformation recvbuf;
+    for(const auto& t : pgroups_[i]->getTaskContainer()){
+      // this assumes that the manager rank is the highest in globalComm
+      MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
 
-    // this assumes that the manager rank is the highest in globalComm
-    MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
-
-    const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
-    if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
-      llm->addDurationInformation(recvbuf, levelVector);
+      const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
+      if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
+        llm->addDurationInformation(recvbuf, levelVector);
+      }
+      levelVectorToLastTaskDuration_[levelVector] = recvbuf.duration;
     }
-    levelVectorToLastTaskDuration_[levelVector] = recvbuf.duration;
   }
 }
 
@@ -402,6 +403,48 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
 
     assert(!fail && "should not fail here");
   }
+}
+
+std::map<int, double> ProcessManager::getLpNorms(int p) {
+  SignalType signal;
+  if (p == 2) {
+    signal = GET_L2_NORM;
+  } else if (p == 1) {
+    signal = GET_L1_NORM;
+  } else if (p == 0) {
+    signal = GET_MAX_NORM;
+  } else {
+    assert(false && "please implement signal for this norm");
+  }
+
+  for (const auto& pg : pgroups_) {
+    pg->sendSignalToProcessGroup(signal);
+  }
+
+  std::map<int, double> norms;
+  for (RankType i = 0; i < pgroups_.size(); ++i) {
+    std::vector<double> recvbuf;
+    auto numTasks = pgroups_[i]->getTaskContainer().size();
+    recvbuf.resize(numTasks);
+
+    // this assumes that the manager rank is the highest in globalComm
+    MPI_Recv(recvbuf.data(), static_cast<int>(numTasks), MPI_DOUBLE, i, TRANSFER_NORM_TAG,
+             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+
+    for (size_t j = 0; j < numTasks; ++j) {
+      norms[pgroups_[i]->getTaskContainer()[j]->getID()] = recvbuf[j];
+    }
+  }
+
+  for (const auto& pg : pgroups_) {
+    pg->setProcessGroupBusyAndReceive();
+  }
+  return norms;
+}
+
+std::vector<double> ProcessManager::parallelEvalNorm(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->parallelEvalNorm(leval);
 }
 
 void ProcessManager::setupThirdLevel() {

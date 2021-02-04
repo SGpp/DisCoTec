@@ -105,6 +105,10 @@ class ProcessManager {
 
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
 
+  std::map<int, double> getLpNorms(int p = 2);
+
+  std::vector<double> parallelEvalNorm(const LevelVector& leval, size_t groupID);
+
   void redistribute(std::vector<int>& taskID);
 
   void reInitializeGroup(std::vector<ProcessGroupManagerID>& taskID,
