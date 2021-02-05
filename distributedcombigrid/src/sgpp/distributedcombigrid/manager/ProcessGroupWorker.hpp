@@ -62,6 +62,12 @@ class ProcessGroupWorker {
   /** evaluate norms on (newly created) reference grid */
   void parallelEvalNorm();
 
+  /** evaluate norms of Task's analytical solution on reference grid */
+  void evalAnalyticalOnDFG();
+
+  /** evaluate norms of combi solution error on reference grid  */
+  void evalErrorOnDFG();
+
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 
@@ -107,9 +113,9 @@ class ProcessGroupWorker {
 
   void updateTaskWithCurrentValues(Task& taskToUpdate, size_t numGrids);
 
-  DistributedFullGrid<CombiDataType> generateDFGandFillFromDSGU(const LevelVector& leval, IndexType g = 0);
-
+  /** helper functions for parallelEval and norm calculations*/
   LevelVector receiveLevalAndBroadcast();
+  void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
