@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
 
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p,
-                           std::vector<IndexType>(dim, 0), std::vector<IndexType>(dim, 1), thirdLevelHost,
+                           std::vector<IndexType>(dim, 0), std::vector<IndexType>(dim, 0), thirdLevelHost,
                            thirdLevelPort, 0);
 
     // create abstraction for Manager
@@ -203,6 +203,8 @@ int main(int argc, char** argv) {
       manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");
 
+      std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
+
       std::cout << "run until combination point " << i + 1 << std::endl;
 
       // run tasks for next time interval
@@ -212,17 +214,18 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager run");
       finish = MPI_Wtime();
       std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
+
+      // run currently sets the dsgs back to zero
+      // std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
     }
 
     Stats::startEvent("combine");
     if (hasThirdLevel) {
-      assert(false);
       manager.combineThirdLevel();
     } else {
       manager.combine();
     }
     Stats::stopEvent("combine");
-
 
     // evaluate solution and
     // write solution to file
@@ -230,6 +233,22 @@ int main(int argc, char** argv) {
     Stats::startEvent("manager write solution");
     manager.parallelEval(leval, filename, 0);
     Stats::stopEvent("manager write solution");
+
+    std::cout << manager.getLpNorms(0) << std::endl;
+    std::cout << manager.getLpNorms(1) << std::endl;
+    std::cout << manager.getLpNorms(2) << std::endl;
+    std::cout << "eval norms " << manager.parallelEvalNorm(leval, 0) << std::endl;
+
+    auto analytical = manager.evalAnalyticalOnDFG(leval, 0);
+    std::cout << "analytical " << analytical << std::endl;
+    auto error = manager.evalErrorOnDFG(leval, 0);
+    std::cout << "errors " << error << std::endl;
+
+    std::cout << "relative errors ";
+    for (size_t i=0; i < 3 ; ++i){
+      std::cout << error[i]/analytical[i] << " ";
+    }
+    std::cout << std::endl;
 
     // TODO pollinta: for a massively parallel setting, this needs to be done differently
     FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
@@ -250,6 +269,8 @@ int main(int argc, char** argv) {
     // calculate error
     FullGrid<CombiDataType> fg_error(fg_exact);
     fg_error.add(fg_eval, -1);
+
+    printf("Norms: %f %f\n", fg_eval.getlpNorm(0), fg_eval.getlpNorm(2));
 
     printf("Error: %f \n", fg_error.getlpNorm(0) / fg_exact.getlpNorm(0));
     printf("Error2: %f \n", fg_error.getlpNorm(2) / fg_exact.getlpNorm(2));
