@@ -204,7 +204,8 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     //
     // Reduce combination dims lmin and lmax are 0!!
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({nprocs, 1}); //TODO why??
+    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+
 
     // create abstraction for Manager
     ProcessManager manager{pgroups, tasks, params, std::move(loadmodel), std::move(rescheduler)};
