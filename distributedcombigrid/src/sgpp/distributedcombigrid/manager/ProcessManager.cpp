@@ -447,6 +447,16 @@ std::vector<double> ProcessManager::parallelEvalNorm(const LevelVector& leval, s
   return g->parallelEvalNorm(leval);
 }
 
+std::vector<double> ProcessManager::evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->evalAnalyticalOnDFG(leval);
+}
+
+std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->evalErrorOnDFG(leval);
+}
+
 void ProcessManager::setupThirdLevel() {
   thirdLevel_.connectToThirdLevelManager();
 }

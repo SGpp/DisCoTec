@@ -390,16 +390,19 @@ bool ProcessGroupManager::recompute(Task* t) {
   return true;
 }
 
+void sendLevelVector(const LevelVector& leval, RankType pgroupRootID){
+  std::vector<int> tmp(leval.begin(), leval.end());
+  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID, TRANSFER_LEVAL_TAG,
+           theMPISystem()->getGlobalComm());
+}
+
 bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& filename) {
   // can only send sync signal when in wait state, so check first
   assert(status_ == PROCESS_GROUP_WAIT);
 
   sendSignalToProcessGroup(PARALLEL_EVAL);
 
-  // send levelvector
-  std::vector<int> tmp(leval.begin(), leval.end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
-           theMPISystem()->getGlobalComm());
+  sendLevelVector(leval, pgroupRootID_);
 
   // send filename
   MPIUtils::sendClass(&filename, pgroupRootID_, theMPISystem()->getGlobalComm());
@@ -410,27 +413,43 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
 }
 
 
-std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& leval){
-
-  sendSignalToProcessGroup(PARALLEL_EVAL_NORM);
-
-  // send levelvector
-  std::vector<int> tmp(leval.begin(), leval.end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
-           theMPISystem()->getGlobalComm());
-
+std::vector<double> receiveThreeNorms(RankType pgroupRootID){
   std::vector<double> norms;
   for (int i = 0; i < 3; ++i) {
     double recvbuf;
 
-    MPI_Recv(&recvbuf, 1, MPI_DOUBLE, pgroupRootID_, TRANSFER_NORM_TAG,
+    MPI_Recv(&recvbuf, 1, MPI_DOUBLE, pgroupRootID, TRANSFER_NORM_TAG,
              theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
 
     norms.push_back(recvbuf);
   }
+  return norms;
+}
 
+std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& leval){
+  sendSignalToProcessGroup(PARALLEL_EVAL_NORM);
+  sendLevelVector(leval, pgroupRootID_);
+
+  auto norms = receiveThreeNorms(pgroupRootID_);
   setProcessGroupBusyAndReceive();
+  return norms;
+}
 
+std::vector<double> ProcessGroupManager::evalAnalyticalOnDFG(const LevelVector& leval){
+  sendSignalToProcessGroup(EVAL_ANALYTICAL_NORM);
+  sendLevelVector(leval, pgroupRootID_);
+
+  auto norms = receiveThreeNorms(pgroupRootID_);
+  setProcessGroupBusyAndReceive();
+  return norms;
+}
+
+std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval){
+  sendSignalToProcessGroup(EVAL_ERROR_NORM);
+  sendLevelVector(leval, pgroupRootID_);
+
+  auto norms = receiveThreeNorms(pgroupRootID_);
+  setProcessGroupBusyAndReceive();
   return norms;
 }
 
