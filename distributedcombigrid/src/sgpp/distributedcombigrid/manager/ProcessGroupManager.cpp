@@ -48,11 +48,15 @@ void ProcessGroupManager::sendSignalAndReceive(SignalType signal){
   setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal){
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 }
 
-inline void ProcessGroupManager::setProcessGroupBusyAndReceive(){
+void ProcessGroupManager::sendSignalToProcess(SignalType signal, RankType rank) { //TODO send only to process in this pgroup
+  MPI_Send(&signal, 1, MPI_INT, rank, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
+}
+
+inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
   // set status
   status_ = PROCESS_GROUP_BUSY;
 
@@ -162,7 +166,7 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
 
   // send levelvector
   std::vector<int> tmp(leval.begin(), leval.end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
+  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
            theMPISystem()->getGlobalComm());
 
   // send filename
@@ -176,10 +180,10 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
 void ProcessGroupManager::recvStatus() {
   // start non-blocking call to receive status
   if (ENABLE_FT) {
-    simft::Sim_FT_MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag,
+    simft::Sim_FT_MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, TRANSFER_STATUS_TAG,
                             theMPISystem()->getGlobalCommFT(), &statusRequestFT_);
   } else {
-    MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag, theMPISystem()->getGlobalComm(),
+    MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, TRANSFER_STATUS_TAG, theMPISystem()->getGlobalComm(),
               &statusRequest_);
   }
 }

@@ -188,7 +188,7 @@ class TaskAdvFDM : public combigrid::Task {
           std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
           StatusType status=PROCESS_GROUP_FAIL;/*
           MASTER_EXCLUSIVE_SECTION{
-            simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), statusTag,
+            simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
                               theMPISystem()->getGlobalCommFT() );
           }*/
           theMPISystem()->sendFailedSignal();
@@ -257,7 +257,7 @@ void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
   BOOST_REQUIRE(true); //if things go wrong weirdly, see where things go wrong
 
   #ifdef TIMING
-    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LearningLoadModel>(new LearningLoadModel(levels));
+    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 #else // TIMING
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 #endif //def TIMING

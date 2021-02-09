@@ -114,6 +114,8 @@ class ProcessGroupManager {
 
   void sendSignalToProcessGroup(SignalType signal);
 
+  void sendSignalToProcess(SignalType signal, RankType rank);
+
   inline void setProcessGroupBusyAndReceive();
 
   /* sets the rank of the process group's master in global comm. should only
@@ -208,11 +210,11 @@ bool ProcessGroupManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
 
   // send signal
   SignalType signal = GRID_EVAL;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 
   // send levelvector
   std::vector<int> tmp(fg.getLevels().begin(), fg.getLevels().end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
+  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
            theMPISystem()->getGlobalComm());
 
   return true;
@@ -224,7 +226,7 @@ bool ProcessGroupManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
   assert(status_ == PROCESS_GROUP_WAIT);
 
   SignalType signal = COMBINE_FG;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 
   // send levelvector
   std::vector<int>& tmp = fg.getLevels();
@@ -240,7 +242,7 @@ inline bool ProcessGroupManager::gridGather(LevelVector& leval) {
 
   // send signal
   SignalType signal = GRID_GATHER;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 
   // send levelvector
   std::vector<int> tmp(leval.begin(), leval.end());
