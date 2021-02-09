@@ -252,8 +252,6 @@ int main(int argc, char** argv) {
   std::string fg_file_path = cfg.get<std::string>( "ct.fg_file_path" );
   std::string fg_file_path2 = cfg.get<std::string>( "ct.fg_file_path2" );
 
-  //read application specific variables
-  real lx = cfg.get<real>("application.lx");
   //read checkpoint frequency
   int checkpointFrequency = cfg.get<int>("application.checkpointFrequency");
   std::fstream offsetfile("offset.txt", std::ios_base::in);
@@ -308,8 +306,8 @@ int main(int argc, char** argv) {
   }
 
   // create load model
-  std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
-  // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+  //std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
+  std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
   // output of combination setup
   std::cout << "lmin = " << lmin << std::endl;
