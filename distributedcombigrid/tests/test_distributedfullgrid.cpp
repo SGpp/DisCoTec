@@ -76,6 +76,19 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   FullGrid<std::complex<double>> fg(dim, levels, boundary);
   dfg.gatherFullGrid(fg, 0);
 
+  IndexVector subarrayExtents;
+  for (DimType d = 0; d < dim; ++d) {
+    auto ghostLayer = dfg.exchangeGhostLayerUpward(d, subarrayExtents);
+    auto numElements = std::accumulate(subarrayExtents.begin(), subarrayExtents.end(), 1, std::multiplies<IndexType>());
+    BOOST_CHECK_EQUAL(ghostLayer.size(), numElements);
+    if(numElements > 0){
+      BOOST_CHECK_EQUAL(subarrayExtents[d], 1);
+    }
+    // TODO check values
+  }
+  // std::cout << "rank " << dfg.getRank() << std::endl;
+  // dfg.print(std::cout);
+
   // only check on rank 0
   if (TestHelper::getRank(comm) != 0) {
     return;

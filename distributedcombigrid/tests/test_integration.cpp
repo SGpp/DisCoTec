@@ -120,7 +120,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({nprocs, 1});
+    params.setParallelization({static_cast<IndexType>(nprocs), 1});
 
     // create abstraction for Manager
     ProcessManager manager{pgroups, tasks, params, std::move(loadmodel)};
@@ -153,6 +153,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // if output files are not needed, remove them right away
     remove(("integration_" + std::to_string(ncombi) + "_0.raw").c_str());
     remove(("integration_" + std::to_string(ncombi) + "_0.raw_header").c_str());
+
+    TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
   }
   else {
     BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), nprocs);
@@ -178,6 +180,10 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       }
     }
     BOOST_CHECK_EQUAL(nrun, ncombi);
+    TestHelper::testStrayMessages(theMPISystem()->getLocalComm());
+    MASTER_EXCLUSIVE_SECTION{
+      TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
+    }
   }
 
   combigrid::Stats::finalize();
