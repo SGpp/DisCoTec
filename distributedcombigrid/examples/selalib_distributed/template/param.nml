@@ -1,0 +1,59 @@
+&sim_params
+        ! final_time = $simtime
+        n_iterations = $nsteps
+        delta_t = $dt
+        test_case = "landau_prod"
+        ctest = .true.
+        ctest_ref_file = "reffile_bsl_vpB_3d3v_cart_dd.dat"
+/
+
+&restart_params
+        restart = .false.
+/
+
+&grid_dims
+        num_cells_x1 = $nx1
+        num_cells_x2 = $nx2
+        num_cells_x3 = $nx3
+        num_cells_x4 = $nx4
+        num_cells_x5 = $nx5
+        num_cells_x6 = $nx6
+/
+
+&domain_dims
+        v_max = 6.0
+        x1_max = 12.566370614359172
+        x2_max = 12.566370614359172
+        x3_max = 12.566370614359172
+/
+
+&pslab_params
+        B0 = 2.0
+/
+
+&advect_params
+        bc_type = "sll_p_periodic"
+        stencil = 5
+        interpolator_type = "fixed"
+        stencil_x = 5
+/
+
+&propagator
+        propagator_type = "boris"
+/
+
+&output
+       file_prefix = "vp_B2_3d3v"
+       time_in_phase = .true. ! get solution at final time exactly (perform half advection step)
+/
+
+&parallel_params
+       n_blocks = 4 4 4 4 4 4 ! TODO parameterize
+       process_grid = $p1 $p2 $p3 $p4 $p5 $p6  ! default: determine values automatically
+/
+
+&landau_params
+        v_thermal = 1.0 1.0 1.0
+        alpha = 0.01
+        kx = 0.5 0.0 0.5
+/

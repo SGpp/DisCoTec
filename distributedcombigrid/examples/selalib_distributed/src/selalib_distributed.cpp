@@ -7,6 +7,7 @@
 
 #include <mpi.h>
 
+#include <boost/filesystem.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
@@ -31,6 +32,8 @@
 #include "SelalibTask.hpp"
 
 using namespace combigrid;
+namespace fs = boost::filesystem;  // for file operations
+
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(SelalibTask)
 BOOST_CLASS_EXPORT(StaticFaults)
@@ -61,13 +64,72 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
   return os;
 }
 
-/**
- * This example performs the fault tolerant combination technique on Gene.
- * Multiple fault models can be plugged in to simulate faults during the simulation.
- * For simulation the faults the Sim_FT fault simulator is used. This is only the code of the
- * manager. All slaves execute the modified gene version that is able to communicate with the
- * master.
- */
+// cf https://stackoverflow.com/questions/37931691/replace-a-word-in-text-file-using-c
+std::string getFile(std::ifstream& is) {
+  std::string contents;
+  // Here is one way to read the whole file
+  for (char ch; is.get(ch); contents.push_back(ch)) {}
+  return contents;
+}
+
+// cf https://stackoverflow.com/questions/5878775/how-to-find-and-replace-string/5878802
+std::string replaceFirstOccurrence(
+    std::string& s,
+    const std::string& toReplace,
+    const std::string& replaceWith)
+{
+    std::size_t pos = s.find(toReplace);
+    if (pos == std::string::npos) return s;
+    return s.replace(pos, toReplace.length(), replaceWith);
+}
+
+
+bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, IndexVector p, size_t nsteps, double dt){
+  std::string baseFolder = "./" + basename;
+  std::string templateFolder = "./template";
+  assert(fs::exists(templateFolder));
+  for (size_t i = 0; i < levels.size(); i++) {
+    // path to task folder
+    std::string taskFolder = baseFolder + std::to_string(i);
+    // copy template directory
+    if (!fs::exists(taskFolder) && !fs::create_directory(taskFolder)) {
+      throw std::runtime_error("Cannot create destination directory " + taskFolder);
+    }
+    // adapt each parameter file
+    std::ifstream inputFileStream(templateFolder+"/param.nml", std::ifstream::in);
+    auto contents = getFile(inputFileStream);
+    contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
+    contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
+    for (DimType d = 0; d < levels.size(); ++d) {
+      contents = replaceFirstOccurrence(contents, "$nx" + std::to_string(d+1), std::to_string(static_cast<LevelType>(std::pow(levels[d][0],2))));
+      contents = replaceFirstOccurrence(contents, "$p" + std::to_string(d+1), std::to_string(p[d]));
+    }
+    std::ofstream outputFileStream(taskFolder+"/param.nml");
+    outputFileStream << contents;
+    // copy all other files
+    for (const auto& dirEnt : fs::recursive_directory_iterator{templateFolder}) {
+      const auto& path = dirEnt.path();
+      auto relativePathStr = path.string();
+      boost::replace_first(relativePathStr, templateFolder, "");
+      fs::copy(path, taskFolder + "/" + relativePathStr, fs::copy_options::skip_existing);
+    }
+    //// copy ctparam to each directory?
+  }
+  return true;
+}
+
+void initMpiSelalibStyle(int argc, char **argv)
+{
+  sll_s_allocate_collective();
+  int ignore;
+  #ifdef _OPENMP
+    int mpi_mode = MPI_THREAD_MULTIPLE;
+  #else
+    int mpi_mode = MPI_THREAD_SINGLE;
+  #endif
+  MPI_Init_thread(&argc, &argv, mpi_mode, &ignore);
+}
+
 int main(int argc, char** argv) {
   std::chrono::high_resolution_clock::time_point init_time =
       std::chrono::high_resolution_clock::now();
@@ -79,15 +141,8 @@ int main(int argc, char** argv) {
            "this example is not adapted to fault tolerance; look at gene_distributed if you want "
            "to implement that");
   } else {
-    MPI_Init(&argc,
-             &argv);  // FIXME have normal MPI_init in worker_routines, make this thing work w/o FT
+    initMpiSelalibStyle(argc, argv);
   }
-
-
-  /* when using timers (TIMING is defined in Stats), the Stats class must be
-   * initialized at the beginning of the program. (and finalized in the end)
-   */
-  Stats::initialize();
 
   // read in parameter file
   boost::property_tree::ptree cfg;
@@ -166,33 +221,13 @@ int main(int argc, char** argv) {
     // not work properly
     std::vector<LevelVector> levels;
     std::vector<combigrid::real> coeffs;
-    std::vector<int> fileTaskIDs;
+    // std::vector<int> fileTaskIDs;
 
-    const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
-    if (READ_FROM_FILE) {  // currently used file produced by preproc.py
-      std::ifstream spcfile("spaces.dat");
-      std::string line;
-      while (std::getline(spcfile, line)) {
-        std::stringstream ss(line);
-        int id;
-        LevelVector l(dim);
-        combigrid::real coeff;
-        ss >> id;
-        for (size_t i = 0; i < dim; ++i) ss >> l[i];
-        ss >> coeff;
-
-        levels.push_back(l);
-        coeffs.push_back(coeff);
-        fileTaskIDs.push_back(id);
-      }
-      spcfile.close();
-    } else {
-      CombiMinMaxScheme combischeme(dim, lmin, lmax);
-      combischeme.createAdaptiveCombischeme();
-      combischeme.makeFaultTolerant();
-      levels = combischeme.getCombiSpaces();
-      coeffs = combischeme.getCoeffs();
-    }
+    CombiMinMaxScheme combischeme(dim, lmin, lmax);
+    combischeme.createAdaptiveCombischeme();
+    combischeme.makeFaultTolerant();
+    levels = combischeme.getCombiSpaces();
+    coeffs = combischeme.getCoeffs();
 
     // create load model
     // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new
@@ -211,16 +246,18 @@ int main(int argc, char** argv) {
       std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
     }
 
+    // create necessary folders and files to run each task in a separate folder
+    createTaskFolders(basename, levels, p, nsteps, dt);
+
     // create Tasks
     TaskContainer tasks;
     std::vector<int> taskIDs;
 
     // initialize individual tasks (component grids)
     for (size_t i = 0; i < levels.size(); i++) {
-      // path to task folder (used for different instances of GENE)
-      std::stringstream ss2;
-      ss2 << "../" << basename << fileTaskIDs[i];
-      std::string path = ss2.str();
+      // path to task folder
+      std::string baseFolder = "./" + basename;
+      std::string path = baseFolder + std::to_string(i);
       Task* t = new SelalibTask(dim, levels[i], boundary, coeffs[i], loadmodel.get(), path, dt,
                                 combitime, nsteps, p);
       tasks.push_back(t);

@@ -42,13 +42,17 @@ void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_x(double* delta_t);
 
 namespace combigrid {
 
+class SelalibTask;
+inline std::ostream& operator<<(std::ostream& os, const SelalibTask& t);
+
 class SelalibTask : public combigrid::Task {
  public:
   SelalibTask(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
               LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
               IndexVector p = IndexVector(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : path_(path),
+      : Task( dim, l, boundary, coeff, loadModel, faultCrit),
+        path_(path),
         p_(p),
         localSize_(),
         localDistribution_(nullptr),
@@ -105,15 +109,22 @@ class SelalibTask : public combigrid::Task {
    */
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+    assert(lcomm != MPI_COMM_NULL);
     dfg_ =
         new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p_);
     auto f_lComm = MPI_Comm_c2f(lcomm);
     sll_s_set_communicator_collective(&f_lComm);
     changeDir(lcomm);
-    auto paramFilePath = "/param.nml";
+    std::cout << "initialized 2 "<< *this << std::endl;
+    auto paramFilePath = "./param.nml";
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_init(paramFilePath);
+    MPI_Barrier(lcomm);
+    std::cout << "initialized 3 "<< *this << std::endl;
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(localSize_.data());
+    // probably?
+    std::reverse(localSize_.begin(), localSize_.end());
     initialized_ = true;
+    std::cout << "initialized "<< *this << std::endl;
   }
 
   /**
