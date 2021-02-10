@@ -11,6 +11,7 @@
 #include <stddef.h>
 
 #include <cassert>
+#include <functional>
 #include <iostream>
 #include <numeric>
 #include <string>
@@ -32,8 +33,8 @@ void sll_s_halt_collective();
 void sim_bsl_vp_3d3v_cart_dd_slim_movingB_init(const char* filename);
 void sim_bsl_vp_3d3v_cart_dd_slim_movingB_run();
 void sim_bsl_vp_3d3v_cart_dd_slim_movingB_delete();
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_distribution(void* cPtr);
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_set_distribution(void* cPtr);
+void sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_distribution(double*& cPtr);
+void sim_bsl_vp_3d3v_cart_dd_slim_movingB_set_distribution(double*& cPtr);
 void sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(int32_t* cPtr);
 void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_v(double* delta_t);
 void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_x(double* delta_t);
@@ -57,9 +58,7 @@ class SelalibTask : public combigrid::Task {
         currentTimestep_(0),
         dt_(dt),
         combitime_(combitime),
-        nsteps_(nsteps) {
-    assert(false && "not yet implemented");
-  }
+        nsteps_(nsteps) {}
 
   SelalibTask()
       : path_(),
@@ -67,20 +66,37 @@ class SelalibTask : public combigrid::Task {
         localSize_(),
         localDistribution_(nullptr),
         dfg_(nullptr),
-        initialized_(false),
-        currentTime_(0.0) {}
+        initialized_(false) {}
 
-  virtual ~SelalibTask() { assert(false && "not yet implemented"); }
+  virtual ~SelalibTask() {
+    if (dfg_ != nullptr) {
+      delete dfg_;
+    }
+  }
+
   /**
    * lcomm is the local communicator of the process group.
    */
-  void run(CommunicatorType lcomm) { assert(false && "not yet implemented"); }
+  void run(CommunicatorType lcomm) {
+    // TODO set distribution from dfg
+    changeDir(lcomm);
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_run();
+    setDFGfromLocalDistribution();
+  }
 
   /**
    * This method changes the folder to the folder of the task
    * lcomm is the local communicator of the process group.
    */
-  void changeDir(CommunicatorType lcomm) { assert(false && "not yet implemented"); }
+  void changeDir(CommunicatorType lcomm) {
+    if (chdir(path_.c_str())) {
+      printf("could not change to directory %s \n", path_.c_str());
+      MPI_Abort(MPI_COMM_WORLD, 1);
+    }
+
+    // it is safer to wait here until all procs are in the right directory
+    MPI_Barrier(lcomm);
+  }
 
   /**
    * This method initializes the task
@@ -89,7 +105,15 @@ class SelalibTask : public combigrid::Task {
    */
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
-    assert(false && "not yet implemented");
+    dfg_ =
+        new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p_);
+    auto f_lComm = MPI_Comm_c2f(lcomm);
+    sll_s_set_communicator_collective(&f_lComm);
+    changeDir(lcomm);
+    auto paramFilePath = "/param.nml";
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_init(paramFilePath);
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(localSize_.data());
+    initialized_ = true;
   }
 
   /**
@@ -105,7 +129,7 @@ class SelalibTask : public combigrid::Task {
   /**
    * Returns the path of the task
    */
-  inline const std::string& getPath() const { assert(false && "not yet implemented"); }
+  inline const std::string& getPath() const { return path_; }
 
   /**
    * This method writes the Selalib grid to the local checkpoint
@@ -118,8 +142,10 @@ class SelalibTask : public combigrid::Task {
    * will only be created on the process with localRootID.
    */
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType lroot, CommunicatorType lcomm,
-                   int species) {
-    assert(false && "not yet implemented");
+                   int species = 0) {
+    assert(fg.getLevels() == dfg_->getLevels());
+
+    dfg_->gatherFullGrid(fg, lroot);
   }
 
   /**
@@ -135,7 +161,7 @@ class SelalibTask : public combigrid::Task {
   /**
    * sets the dfg content to zero
    */
-  void setZero() { assert(false && "not yet implemented"); }
+  void setZero() { dfg_->setZero(); }
 
   /**
    * Return boolean to indicate whether SelalibTask is initialized.
@@ -200,6 +226,44 @@ class SelalibTask : public combigrid::Task {
   size_t nsteps_;
 
   // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
+
+  void setDFGfromLocalDistribution() {
+    auto& localDFGSize = dfg_->getLocalSizes();
+    assert(dim_ == 6);
+    for (DimType d = 0; d < dim_; ++d) {
+      assert(localDFGSize[d] == (localSize_[d] + 1) || localDFGSize[d] == localSize_[d]);
+    }
+
+    auto& offsets = dfg_->getLocalOffsets();
+    assert(offsets[0] == 1);
+
+    auto localDistributionIterator = localDistribution_;
+    int32_t bufferSize =
+        std::accumulate(localSize_.begin(), localSize_.end(), 1, std::multiplies<int32_t>());
+    // assignment, leaving out the uppermost layer in each dimension, if it is not part of
+    // Selalib's local distribution
+    for (int i = 0; i < localSize_[5]; ++i) {
+      auto offset_i = i * offsets[5];
+      for (int j = 0; j < localSize_[4]; ++j) {
+        auto offset_j = offset_i + j * offsets[4];
+        for (int k = 0; k < localSize_[3]; ++k) {
+          auto offset_k = offset_j + k * offsets[3];
+          for (int l = 0; l < localSize_[2]; ++l) {
+            auto offset_l = offset_k + l * offsets[2];
+            for (int m = 0; m < localSize_[1]; ++m) {
+              auto offset_m = offset_l + m * offsets[1];
+              for (int n = 0; n < localSize_[0]; ++n) {
+                auto fgIndex = offset_m + n;
+                dfg_->getElementVector()[fgIndex] = *(localDistributionIterator);
+                ++localDistributionIterator;
+                assert((localDistributionIterator - localDistribution_) < bufferSize);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
   // serialize
   template <class Archive>
