@@ -133,6 +133,17 @@ inline IndexVector& operator>>(std::string str, IndexVector& ivec) {
   return ivec;
 }
 
+// helper function to output any vector
+template<typename T>
+inline std::ostream &operator <<(std::ostream &os, const std::vector<T> &v) {
+  using namespace std;
+  os << "[";
+  copy(v.begin(), v.end(), ostream_iterator<T>(os, ", "));
+  os << "]";
+  return os;
+}
+
+
 }  // namespace combigrid
 
 #endif /* LEVELVECTOR_HPP_ */
