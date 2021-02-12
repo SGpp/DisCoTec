@@ -72,22 +72,42 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     BOOST_TEST(2.1 * dfg.getData()[li] == dfg2.getData()[li]);
   }
 
-  // test gatherFullgrid
-  FullGrid<std::complex<double>> fg(dim, levels, boundary);
-  dfg.gatherFullGrid(fg, 0);
-
   IndexVector subarrayExtents;
   for (DimType d = 0; d < dim; ++d) {
     auto ghostLayer = dfg.exchangeGhostLayerUpward(d, subarrayExtents);
-    auto numElements = std::accumulate(subarrayExtents.begin(), subarrayExtents.end(), 1, std::multiplies<IndexType>());
+    IndexVector offsets(dim);
+    IndexType numElements = 1;
+    for (DimType j = 0; j < dim; ++j) {
+      offsets[j] = numElements;
+      numElements *= subarrayExtents[j];
+    }
     BOOST_CHECK_EQUAL(ghostLayer.size(), numElements);
     if(numElements > 0){
       BOOST_CHECK_EQUAL(subarrayExtents[d], 1);
+      for (size_t j=0; j < numElements; ++j){
+        // calculate local axis indices of ghost layer points
+        // == axis index of lowest layer in dim d for dfg
+        IndexVector locAxisIndex(dim), globAxisIndex(dim);
+        IndexType tmp = j;
+        for (int i = static_cast<int>(dim) - 1; i >= 0; i--) {
+          locAxisIndex[i] = tmp / offsets[i];
+          tmp = tmp % offsets[i];
+        }
+        // calculate global indices and coordinates of ghost layer points
+        dfg.getGlobalVectorIndex(locAxisIndex, globAxisIndex);
+        --globAxisIndex[d];
+        std::vector<double> coords(dim);
+        dfg.getCoordsGlobal(dfg.getGlobalLinearIndex(globAxisIndex), coords);
+        BOOST_CHECK_EQUAL(ghostLayer[j], f(coords));
+      }
     }
-    // TODO check values
   }
   // std::cout << "rank " << dfg.getRank() << std::endl;
   // dfg.print(std::cout);
+
+  // test gatherFullgrid
+  FullGrid<std::complex<double>> fg(dim, levels, boundary);
+  dfg.gatherFullGrid(fg, 0);
 
   // only check on rank 0
   if (TestHelper::getRank(comm) != 0) {
