@@ -1474,6 +1474,7 @@ class DistributedFullGrid {
   }
 
   void writeLowerBoundaryToUpperBoundary(DimType d) {
+    assert(hasBoundaryPoints_[d] == true);
     auto subarrayExtents = this->getLocalSizes();
     subarrayExtents[d] = 1;
 
@@ -1503,7 +1504,7 @@ class DistributedFullGrid {
     // TODO asynchronous over d??
     auto success =
         MPI_Sendrecv(this->getData(), 1, downSubarrays[d], higher, TRANSFER_GHOST_LAYER_TAG,
-                     this->getData(), 1, upSubarrays, lower,
+                     this->getData(), 1, upSubarrays[d], lower,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
   }

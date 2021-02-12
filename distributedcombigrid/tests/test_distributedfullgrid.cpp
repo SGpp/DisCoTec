@@ -72,6 +72,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     BOOST_TEST(2.1 * dfg.getData()[li] == dfg2.getData()[li]);
   }
 
+  // test ghost layer exchange
   IndexVector subarrayExtents;
   for (DimType d = 0; d < dim; ++d) {
     auto ghostLayer = dfg.exchangeGhostLayerUpward(d, subarrayExtents);
@@ -102,23 +103,50 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
       }
     }
   }
-  // std::cout << "rank " << dfg.getRank() << std::endl;
-  // dfg.print(std::cout);
 
   // test gatherFullgrid
   FullGrid<std::complex<double>> fg(dim, levels, boundary);
   dfg.gatherFullGrid(fg, 0);
 
   // only check on rank 0
-  if (TestHelper::getRank(comm) != 0) {
-    return;
+  if (TestHelper::getRank(comm) == 0) {
+    for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
+      std::vector<double> coords(dim);
+      fg.getCoords(i, coords);
+      BOOST_TEST(fg.getData()[i] == f(coords));
+    }
   }
 
-  for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
-    std::vector<double> coords(dim);
-    fg.getCoords(i, coords);
-    BOOST_TEST(fg.getData()[i] == f(coords));
+  // test lower to upper exchange
+  for (DimType d = 0; d < dim; ++d) {
+    if (boundary[d] == true){
+      dfg.writeLowerBoundaryToUpperBoundary(d);
+
+      for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i){
+        std::vector<double> coords(dim);
+        dfg.getCoordsLocal(i, coords);
+        if (abs((coords[d] - 1.)) < TestHelper::tolerance){
+          bool edge = false;
+          // if other dimensions are at maximum too, we are at an edge
+          // results may differ; skip
+          for (DimType d_i = 0; d_i < dim; ++d_i){
+            if (d_i != d && abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+              edge = true;
+            }
+          }
+          if (!edge){
+            // check if the value is the same as on the lower boundary
+            auto compareCoords = coords;
+            compareCoords[d] = 0;
+            BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(compareCoords));
+          }
+        }
+      }
+    }
   }
+
+  // std::cout << "rank " << dfg.getRank() << std::endl;
+  // dfg.print(std::cout);
 }
 
 BOOST_AUTO_TEST_SUITE(distributedfullgrid)
