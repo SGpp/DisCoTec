@@ -1447,6 +1447,75 @@ class DistributedFullGrid {
     return upwardSubarrays_;
   }
 
+  std::vector<MPI_Datatype> getDownwardSubarrays() {
+    // initialize downwardSubarrays_ only once
+    if (downwardSubarrays_.size() == 0){
+      downwardSubarrays_.resize(this->getDimension());
+      for (DimType d = 0; d < this->getDimension(); ++d) {
+        // do index calculations
+        // set upper bounds of subarray
+        IndexVector subarrayLowerBounds = this->getLowerBounds();
+        IndexVector subarrayUpperBounds = this->getUpperBounds();
+        subarrayUpperBounds[d] -= this->getLocalSizes()[d] - 1;
+
+        auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
+        assert(subarrayExtents[d] == 1);
+        auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
+
+        // create MPI datatype
+        // also, the data dimensions are reversed
+        std::vector<int> sizes(this->getLocalSizes().rbegin(), this->getLocalSizes().rend());
+        std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
+        // the starts are local indices
+        std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
+
+        // create subarray view on data
+        MPI_Datatype mysubarray;
+        MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
+                                subsizes.data(), starts.data(), MPI_ORDER_C, this->getMPIDatatype(),
+                                &mysubarray);
+        MPI_Type_commit(&mysubarray);
+        downwardSubarrays_[d] = mysubarray;
+      }
+    }
+    return downwardSubarrays_;
+  }
+
+  void writeLowerBoundaryToUpperBoundary(DimType d) {
+    assert(hasBoundaryPoints_[d] == true);
+    auto subarrayExtents = this->getLocalSizes();
+    subarrayExtents[d] = 1;
+
+    // create MPI datatypes
+    auto downSubarrays = getDownwardSubarrays();
+    auto upSubarrays = getUpwardSubarrays();
+
+    // if I have the highest neighbor, I need to send my lowest layer in d to them,
+    // if I have the lowest neighbor, I can receive it
+    auto lower = MPI_PROC_NULL;
+    auto higher = MPI_PROC_NULL;
+
+    // somehow the cartesian directions in the communicator are reversed
+    // cf InitMPI(...)
+    auto d_reverse = this->getDimension() - d - 1;
+    MPI_Cart_shift( this->getCommunicator(), d_reverse, getParallelization()[d] -1 , &lower, &higher );
+
+    // assert only boundaries have those neighbors (remove in case of periodicity)
+    // this assumes no periodicity!
+    if(! this->getLowerBounds()[d] == 0){
+      assert(higher < 0);
+    }
+    if(! this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
+      assert(lower < 0);
+    }
+
+    // TODO asynchronous over d??
+    auto success =
+        MPI_Sendrecv(this->getData(), 1, downSubarrays[d], higher, TRANSFER_GHOST_LAYER_TAG,
+                     this->getData(), 1, upSubarrays[d], lower,
+                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+    assert(success == MPI_SUCCESS);
+  }
 
   std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents) {
     subarrayExtents = this->getLocalSizes();
