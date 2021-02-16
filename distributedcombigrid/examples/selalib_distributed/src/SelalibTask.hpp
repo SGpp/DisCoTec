@@ -51,7 +51,7 @@ class SelalibTask : public combigrid::Task {
               LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
               IndexVector p = IndexVector(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : Task( dim, l, boundary, coeff, loadModel, faultCrit),
+      : Task(dim, l, boundary, coeff, loadModel, faultCrit),
         path_(path),
         p_(p),
         localSize_(),
@@ -84,20 +84,28 @@ class SelalibTask : public combigrid::Task {
   void run(CommunicatorType lcomm) {
     // TODO set distribution from dfg
     changeDir(lcomm);
+    MASTER_EXCLUSIVE_SECTION{
+      std::cout << "run " << *this << std::endl;
+    }
+    setLocalDistributionFromDFG();
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_run();
     setDFGfromLocalDistribution();
+    changeDir(lcomm, true);
+    setFinished(true);
   }
 
   /**
    * This method changes the folder to the folder of the task
    * lcomm is the local communicator of the process group.
    */
-  void changeDir(CommunicatorType lcomm) {
-    if (chdir(path_.c_str())) {
+  void changeDir(CommunicatorType lcomm, bool backToBaseFolder = false) {
+    if (!backToBaseFolder && chdir(path_.c_str())) {
       printf("could not change to directory %s \n", path_.c_str());
       MPI_Abort(MPI_COMM_WORLD, 1);
+    } else if (backToBaseFolder && chdir("..")) {
+      printf("could not change to base directory \n");
+      MPI_Abort(MPI_COMM_WORLD, 1);
     }
-
     // it is safer to wait here until all procs are in the right directory
     MPI_Barrier(lcomm);
   }
@@ -110,21 +118,25 @@ class SelalibTask : public combigrid::Task {
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     assert(lcomm != MPI_COMM_NULL);
-    dfg_ =
-        new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p_);
+    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
+                                                  p_);
     auto f_lComm = MPI_Comm_c2f(lcomm);
     sll_s_set_communicator_collective(&f_lComm);
     changeDir(lcomm);
-    std::cout << "initialized 2 "<< *this << std::endl;
     auto paramFilePath = "./param.nml";
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_init(paramFilePath);
     MPI_Barrier(lcomm);
-    std::cout << "initialized 3 "<< *this << std::endl;
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(localSize_.data());
     // probably?
-    std::reverse(localSize_.begin(), localSize_.end());
+    // std::reverse(localSize_.begin(), localSize_.end());
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_distribution(localDistribution_);
+    assert(localDistribution_ != nullptr);
+    changeDir(lcomm, true);
+    setDFGfromLocalDistribution();
     initialized_ = true;
-    std::cout << "initialized "<< *this << std::endl;
+    MASTER_EXCLUSIVE_SECTION{
+      std::cout << "initialized " << *this << std::endl;
+    }
   }
 
   /**
@@ -241,6 +253,8 @@ class SelalibTask : public combigrid::Task {
   void setDFGfromLocalDistribution() {
     auto& localDFGSize = dfg_->getLocalSizes();
     assert(dim_ == 6);
+    // std::cout << localDFGSize << " " << std::vector<int>(localSize_.begin(), localSize_.end()) <<
+    // std::endl;
     for (DimType d = 0; d < dim_; ++d) {
       assert(localDFGSize[d] == (localSize_[d] + 1) || localDFGSize[d] == localSize_[d]);
     }
@@ -253,6 +267,7 @@ class SelalibTask : public combigrid::Task {
         std::accumulate(localSize_.begin(), localSize_.end(), 1, std::multiplies<int32_t>());
     // assignment, leaving out the uppermost layer in each dimension, if it is not part of
     // Selalib's local distribution
+    // contiguous access by Fortran ordering
     for (int i = 0; i < localSize_[5]; ++i) {
       auto offset_i = i * offsets[5];
       for (int j = 0; j < localSize_[4]; ++j) {
@@ -267,7 +282,40 @@ class SelalibTask : public combigrid::Task {
                 auto fgIndex = offset_m + n;
                 dfg_->getElementVector()[fgIndex] = *(localDistributionIterator);
                 ++localDistributionIterator;
-                assert((localDistributionIterator - localDistribution_) < bufferSize);
+                assert((localDistributionIterator - localDistribution_) <= bufferSize);
+              }
+            }
+          }
+        }
+      }
+    }
+    for (DimType d = 0; d < dim_; ++d) {
+      dfg_->writeLowerBoundaryToUpperBoundary(d);
+    }
+  }
+
+  void setLocalDistributionFromDFG() {
+    // cf setDFGfromLocalDistribution
+    auto& offsets = dfg_->getLocalOffsets();
+    auto localDistributionIterator = localDistribution_;
+    int32_t bufferSize =
+        std::accumulate(localSize_.begin(), localSize_.end(), 1, std::multiplies<int32_t>());
+
+    for (int i = 0; i < localSize_[5]; ++i) {
+      auto offset_i = i * offsets[5];
+      for (int j = 0; j < localSize_[4]; ++j) {
+        auto offset_j = offset_i + j * offsets[4];
+        for (int k = 0; k < localSize_[3]; ++k) {
+          auto offset_k = offset_j + k * offsets[3];
+          for (int l = 0; l < localSize_[2]; ++l) {
+            auto offset_l = offset_k + l * offsets[2];
+            for (int m = 0; m < localSize_[1]; ++m) {
+              auto offset_m = offset_l + m * offsets[1];
+              for (int n = 0; n < localSize_[0]; ++n) {
+                auto fgIndex = offset_m + n;
+                *(localDistributionIterator) = dfg_->getElementVector()[fgIndex];
+                ++localDistributionIterator;
+                assert((localDistributionIterator - localDistribution_) <= bufferSize);
               }
             }
           }

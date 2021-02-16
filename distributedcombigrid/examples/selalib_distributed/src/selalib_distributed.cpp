@@ -68,23 +68,21 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
 std::string getFile(std::ifstream& is) {
   std::string contents;
   // Here is one way to read the whole file
-  for (char ch; is.get(ch); contents.push_back(ch)) {}
+  for (char ch; is.get(ch); contents.push_back(ch)) {
+  }
   return contents;
 }
 
 // cf https://stackoverflow.com/questions/5878775/how-to-find-and-replace-string/5878802
-std::string replaceFirstOccurrence(
-    std::string& s,
-    const std::string& toReplace,
-    const std::string& replaceWith)
-{
-    std::size_t pos = s.find(toReplace);
-    if (pos == std::string::npos) return s;
-    return s.replace(pos, toReplace.length(), replaceWith);
+std::string replaceFirstOccurrence(std::string& s, const std::string& toReplace,
+                                   const std::string& replaceWith) {
+  std::size_t pos = s.find(toReplace);
+  if (pos == std::string::npos) return s;
+  return s.replace(pos, toReplace.length(), replaceWith);
 }
 
-
-bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, IndexVector p, size_t nsteps, double dt){
+bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, IndexVector p,
+                       size_t nsteps, double dt) {
   std::string baseFolder = "./" + basename;
   std::string templateFolder = "./template";
   assert(fs::exists(templateFolder));
@@ -96,15 +94,18 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, In
       throw std::runtime_error("Cannot create destination directory " + taskFolder);
     }
     // adapt each parameter file
-    std::ifstream inputFileStream(templateFolder+"/param.nml", std::ifstream::in);
+    std::ifstream inputFileStream(templateFolder + "/param.nml", std::ifstream::in);
     auto contents = getFile(inputFileStream);
     contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
     contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
-    for (DimType d = 0; d < levels.size(); ++d) {
-      contents = replaceFirstOccurrence(contents, "$nx" + std::to_string(d+1), std::to_string(static_cast<LevelType>(std::pow(levels[d][0],2))));
-      contents = replaceFirstOccurrence(contents, "$p" + std::to_string(d+1), std::to_string(p[d]));
+    for (DimType d = 0; d < levels[0].size(); ++d) {
+      contents =
+          replaceFirstOccurrence(contents, "$nx" + std::to_string(d + 1),
+                                 std::to_string(static_cast<LevelType>(std::pow(2, levels[i][d]))));
+      contents =
+          replaceFirstOccurrence(contents, "$p" + std::to_string(d + 1), std::to_string(p[d]));
     }
-    std::ofstream outputFileStream(taskFolder+"/param.nml");
+    std::ofstream outputFileStream(taskFolder + "/param.nml");
     outputFileStream << contents;
     // copy all other files
     for (const auto& dirEnt : fs::recursive_directory_iterator{templateFolder}) {
@@ -118,15 +119,14 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, In
   return true;
 }
 
-void initMpiSelalibStyle(int argc, char **argv)
-{
+void initMpiSelalibStyle(int argc, char** argv) {
   sll_s_allocate_collective();
   int ignore;
-  #ifdef _OPENMP
-    int mpi_mode = MPI_THREAD_MULTIPLE;
-  #else
-    int mpi_mode = MPI_THREAD_SINGLE;
-  #endif
+#ifdef _OPENMP
+  int mpi_mode = MPI_THREAD_MULTIPLE;
+#else
+  int mpi_mode = MPI_THREAD_SINGLE;
+#endif
   MPI_Init_thread(&argc, &argv, mpi_mode, &ignore);
 }
 
@@ -333,7 +333,10 @@ int main(int argc, char** argv) {
     // wait for instructions from manager
     SignalType signal = -1;
 
-    while (signal != EXIT) signal = pgroup.wait();
+    while (signal != EXIT) {
+      signal = pgroup.wait();
+      // std::cout << "Worker worked on signal " << signal << "! \n";
+    }
   }
 
   // finalize timing evaluations
