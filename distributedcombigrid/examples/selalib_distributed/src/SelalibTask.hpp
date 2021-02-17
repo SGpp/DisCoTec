@@ -255,8 +255,11 @@ class SelalibTask : public combigrid::Task {
     assert(dim_ == 6);
     // std::cout << localDFGSize << " " << std::vector<int>(localSize_.begin(), localSize_.end()) <<
     // std::endl;
+    auto localSizeCopy = localSize_;
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(localSizeCopy.data());
     for (DimType d = 0; d < dim_; ++d) {
       assert(localDFGSize[d] == (localSize_[d] + 1) || localDFGSize[d] == localSize_[d]);
+      assert(localSizeCopy[d] == localSize_[d]);
     }
 
     auto& offsets = dfg_->getLocalOffsets();
@@ -300,6 +303,7 @@ class SelalibTask : public combigrid::Task {
     auto localDistributionIterator = localDistribution_;
     int32_t bufferSize =
         std::accumulate(localSize_.begin(), localSize_.end(), 1, std::multiplies<int32_t>());
+
 
     for (int i = 0; i < localSize_[5]; ++i) {
       auto offset_i = i * offsets[5];
