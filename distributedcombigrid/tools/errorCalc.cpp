@@ -79,12 +79,18 @@ int main(int argc, char** argv) {
   for (auto i = 0; i < data1.size(); ++i) {
     real tmp = std::abs(data1[i] - data2[i]);
 
-    if (std::abs(tmp) / std::abs(data1[i]) > 1e-12)
-      std::cout << " i: " << i << " values: " << std::abs(data2[i]) << " " << std::abs(data1[i]) << " ";
+    // if (std::abs(tmp) / std::abs(data1[i]) > 1e-12)
+    //   std::cout << " i: " << i << " values: " << std::abs(data2[i]) << " " << std::abs(data1[i]) << " ";
     err += tmp * tmp;
   }
+  int points=1;
+  for (auto i=0;i<res1.size();++i)
+    points*=res1[i];
+  std::cout<<"Points:"<<points << std::endl;
+
   std::cout << "\n";
   err = std::sqrt(err);
+  err/=points;
   // open file in append mode
   std::ofstream ofs(filenameError.c_str(), std::ofstream::app);
 

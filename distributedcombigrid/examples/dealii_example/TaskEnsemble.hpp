@@ -200,7 +200,7 @@ class TaskEnsemble : public Task {
    if(!make_exact_){
      std::vector<std::array<Number, Problem::dim_ + 2>> old_result(size_result);
     
-    if(stepsTotal_>0 && do_combine)
+    if(stepsTotal_>0)
     {
       
 
@@ -270,7 +270,7 @@ class TaskEnsemble : public Task {
     advection[1]=0.15;
     advection[2]=-0.05;
     for(unsigned int d = 0; d < Problem::dim_; ++d)
-      result *= std::pow(std::sin((std::abs(coordinates[d]-0.5)-time*advection[d])*2*dealii::numbers::PI),2);
+      result *= std::pow(std::sin((coordinates[d]-time*advection[d])*dealii::numbers::PI),2);
     
     return result;    
   }

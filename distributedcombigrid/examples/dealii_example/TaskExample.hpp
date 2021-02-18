@@ -51,7 +51,7 @@ class TaskExample : public Task {
      * of two for the number of processes here. */
     int np;
     MPI_Comm_size(lcomm, &np);
-
+    std::cout<< "Ich bin hier in init, das darf nur einmal auftauchen"<< std::endl;
     // check if power of two
     if (!((np > 0) && ((np & (~np + 1)) == np)))
       assert(false && "number of processes not power of two");
@@ -179,7 +179,7 @@ class TaskExample : public Task {
       
       std::vector<std::array<Number, Problem::dim_ + 2>> old_result(size_result);
       // 
-      
+      Stats::startEvent("PointsToDealii");
       if(stepsTotal_>0 && do_combine)
       {        
           for(unsigned int i = 0; i < index_mapping.size(); i++)
@@ -187,12 +187,15 @@ class TaskExample : public Task {
         
           problem->set_result(old_result);
       }
+      Stats::stopEvent("PointsToDealii");
       Stats::startEvent("Task "+std::to_string(this->getID()));
-      
+      Stats::startEvent("Task "+std::to_string(this->getID())+" Dealii_reinit");
       problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + 1)*dt_);
-
+      Stats::stopEvent("Task "+std::to_string(this->getID())+" Dealii_reinit");
       //process problem
+      Stats::startEvent("Task "+std::to_string(this->getID())+" Dealii_solve");
       problem->solve();
+      Stats::stopEvent("Task "+std::to_string(this->getID())+" Dealii_solve");
       Stats::stopEvent("Task "+std::to_string(this->getID()));
       std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
   
@@ -230,7 +233,7 @@ class TaskExample : public Task {
     advection[1]=0.15;
     advection[2]=-0.05;
     for(unsigned int d = 0; d < Problem::dim_; ++d)
-      result *= std::pow(std::sin((std::abs(coordinates[d]-0.5)-time*advection[d])*2*dealii::numbers::PI),2);
+      result *= std::pow(std::sin((coordinates[d]-time*advection[d])*dealii::numbers::PI),2);
     
     return result;    
   }

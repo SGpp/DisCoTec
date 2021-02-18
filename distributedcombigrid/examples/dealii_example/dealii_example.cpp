@@ -95,6 +95,9 @@ int main(int argc, char** argv) {
     lmax=leval;
     lmin=leval;
   }
+  
+    do_combine=cfg.get<bool>("ct.DO_COMBINE",do_combine);
+    std::cout<<"Kombinieren:" <<do_combine << std::endl;
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
   theMPISystem()->init(ngroup, nprocs);
@@ -119,8 +122,6 @@ int main(int argc, char** argv) {
     
     bool isdg=("FE_DGQ"==cfg.get<std::string>("ct.FE","FE_Q"));
     
-    do_combine=cfg.get<bool>("ct.DO_COMBINE",do_combine);
-    std::cout << do_combine;
     
     
     
@@ -228,12 +229,12 @@ int main(int argc, char** argv) {
 
       std::string com=do_combine?"_combi_true":"_combi_false";
       std::string filename="";
-      std::cout << "\nFE=" <<cfg.get<std::string>("ct.FE");
       if(makeExactSol){
         filename=("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/exact_solution_level"+ toString(lmin)+".dat");
       }
       else
-        filename=("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/cs"  +"mi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ev_"+toString(leval)+com+".dat");
+        filename=("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/csmi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ev_"+toString(leval)+com+".dat");
+     
       Stats::startEvent("manager write solution");
       manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");
@@ -275,8 +276,12 @@ int main(int argc, char** argv) {
   }
   Stats::stopEvent("overall computation");
   Stats::finalize();
+  
   /* write stats to json file for postprocessing */
-  Stats::write("timers/"+cfg.get<std::string>("ct.FE","FE_Q")+(do_combine ? "true": "false")+"/p_"+toString(p)+"_mi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ngroup_"+std::to_string(ngroup)+"_ncombi_"+std::to_string(ncombi)+".json");
+  std::string filepath="timers/helium/"+cfg.get<std::string>("ct.FE","FE_Q")+(do_combine ? "true": "false")+"/p_"+toString(p)+"_mi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ngroup_"+std::to_string(ngroup)+"_ncombi_"+std::to_string(ncombi)+".json";
+    std::cout<<"Kombinieren:" <<do_combine <<"Filepath"<< filepath << std::endl;
+
+  Stats::write(filepath);
 
 
   MPI_Finalize();

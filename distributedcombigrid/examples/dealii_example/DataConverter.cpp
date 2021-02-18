@@ -233,8 +233,8 @@ using namespace combigrid;
             
             jsout.put("Tick",dt);
             json_postprocessing.add_child("StandardOutput",jsout);
-            jVTK.put("Enabled",true);
-            jVTK.put("Prefix","solution/solution_"+std::to_string(output_prefix));
+            jVTK.put("Enabled",false);
+            //jVTK.put("Prefix","solution/solution_"+std::to_string(output_prefix));
             json_postprocessing.add_child("VTK",jVTK);
             
             json_root.add_child("Postprocessing", json_postprocessing);
