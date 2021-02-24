@@ -30,14 +30,14 @@ void sll_s_allocate_collective();
 void sll_s_set_communicator_collective(MPI_Fint* mpi_comm);
 void sll_s_halt_collective();
 
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_init(const char* filename);
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_run();
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_delete();
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_distribution(double*& cPtr);
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_set_distribution(double*& cPtr);
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(int32_t* cPtr);
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_v(double* delta_t);
-void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_x(double* delta_t);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_init(void** sim, const char *filename);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_run(void** sim);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_delete(void** sim);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_distribution(void** sim, double *& cPtr);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_set_distribution(void** sim, double *& cPtr);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(void** sim, int32_t *cPtr);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_v(void** sim, double *delta_t);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_x(void** sim, double *delta_t);
 }
 
 namespace combigrid {
@@ -57,6 +57,7 @@ class SelalibTask : public combigrid::Task {
         localSize_(),
         localDistribution_(nullptr),
         dfg_(nullptr),
+        selalibSimPointer_(nullptr),
         initialized_(false),
         currentTime_(0.0),
         currentTimestep_(0),
@@ -76,6 +77,7 @@ class SelalibTask : public combigrid::Task {
     if (dfg_ != nullptr) {
       delete dfg_;
     }
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_delete(simPtrPtr_);
   }
 
   /**
@@ -88,7 +90,7 @@ class SelalibTask : public combigrid::Task {
       std::cout << "run " << *this << std::endl;
     }
     setLocalDistributionFromDFG();
-    sim_bsl_vp_3d3v_cart_dd_slim_movingB_run();
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_run(simPtrPtr_);
     setDFGfromLocalDistribution();
     changeDir(lcomm, true);
     setFinished(true);
@@ -124,12 +126,12 @@ class SelalibTask : public combigrid::Task {
     sll_s_set_communicator_collective(&f_lComm);
     changeDir(lcomm);
     auto paramFilePath = "./param.nml";
-    sim_bsl_vp_3d3v_cart_dd_slim_movingB_init(paramFilePath);
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_init(simPtrPtr_, paramFilePath);
     MPI_Barrier(lcomm);
-    sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(localSize_.data());
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(simPtrPtr_, localSize_.data());
     // probably?
     // std::reverse(localSize_.begin(), localSize_.end());
-    sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_distribution(localDistribution_);
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_distribution(simPtrPtr_, localDistribution_);
     assert(localDistribution_ != nullptr);
     changeDir(lcomm, true);
     setDFGfromLocalDistribution();
@@ -232,6 +234,8 @@ class SelalibTask : public combigrid::Task {
   std::array<int32_t, 6> localSize_;
   double* localDistribution_;
   DistributedFullGrid<CombiDataType>* dfg_;
+  void* selalibSimPointer_;
+  void** simPtrPtr_ = &selalibSimPointer_;
 
   bool initialized_;  // indicates if SelalibTask is initialized
 
@@ -256,7 +260,7 @@ class SelalibTask : public combigrid::Task {
     // std::cout << localDFGSize << " " << std::vector<int>(localSize_.begin(), localSize_.end()) <<
     // std::endl;
     auto localSizeCopy = localSize_;
-    sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(localSizeCopy.data());
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(simPtrPtr_, localSizeCopy.data());
     for (DimType d = 0; d < dim_; ++d) {
       assert(localDFGSize[d] == (localSize_[d] + 1) || localDFGSize[d] == localSize_[d]);
       assert(localSizeCopy[d] == localSize_[d]);
