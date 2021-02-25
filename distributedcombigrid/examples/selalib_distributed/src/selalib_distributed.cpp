@@ -82,13 +82,13 @@ std::string replaceFirstOccurrence(std::string& s, const std::string& toReplace,
 }
 
 bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, IndexVector p,
-                       size_t nsteps, double dt) {
+                       size_t nsteps, double dt, std::string suffix = "") {
   std::string baseFolder = "./" + basename;
   std::string templateFolder = "./template";
   assert(fs::exists(templateFolder));
   for (size_t i = 0; i < levels.size(); i++) {
     // path to task folder
-    std::string taskFolder = baseFolder + std::to_string(i);
+    std::string taskFolder = baseFolder + suffix + std::to_string(i);
     // copy template directory
     if (!fs::exists(taskFolder) && !fs::create_directory(taskFolder)) {
       throw std::runtime_error("Cannot create destination directory " + taskFolder);
@@ -253,10 +253,10 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
 
+    std::string baseFolder = "./" + basename;
     // initialize individual tasks (component grids)
     for (size_t i = 0; i < levels.size(); i++) {
       // path to task folder
-      std::string baseFolder = "./" + basename;
       std::string path = baseFolder + std::to_string(i);
       Task* t = new SelalibTask(dim, levels[i], boundary, coeffs[i], loadmodel.get(), path, dt,
                                 combitime, nsteps, p);
@@ -314,6 +314,24 @@ int main(int argc, char** argv) {
     Stats::stopEvent("manager parallel eval");
 
     std::cout << "Computation finished leval 1! \n";
+
+    // create necessary folder and files to have evaluation task in a different folder
+    createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, "_leval_");
+    std::string path = baseFolder + "_leval_0";
+    auto levalCoefficient = 0.;
+    Task* levalTask = new SelalibTask(dim, leval, boundary, levalCoefficient, loadmodel.get(), path, dt,
+                                combitime, nsteps, p);
+
+    Stats::startEvent("manager eval selalib");
+    manager.addTask(levalTask);
+    std::cout << "added task \n";
+    // for reference: run the same on the grid with leval resolution
+    // for (size_t i = 0; i < ncombi; ++i) {  // TODO implement run for one task only
+    // }
+
+    manager.doDiagnostics(levalTask->getID());
+    std::cout << "diagnostics \n";
+    Stats::stopEvent("manager eval selalib");
 
     // evaluate solution on the grid defined by leval2
     Stats::startEvent("manager parallel eval 2");

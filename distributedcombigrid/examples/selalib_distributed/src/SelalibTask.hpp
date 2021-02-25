@@ -77,7 +77,10 @@ class SelalibTask : public combigrid::Task {
     if (dfg_ != nullptr) {
       delete dfg_;
     }
+    changeDir(MPI_COMM_SELF, false);
+    // ungraceful exit; not sure why
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_delete(simPtrPtr_);
+    changeDir(MPI_COMM_SELF, true);
   }
 
   /**
@@ -220,6 +223,22 @@ class SelalibTask : public combigrid::Task {
    * restart.
    */
   void setCurrentTimestep(real currentTimestep) { currentTimestep_ = currentTimestep; }
+
+  // do task-specific postprocessing (by default: nothing)
+  void doDiagnostics(const std::vector<const DistributedSparseGridUniform<CombiDataType>*>) override {
+    assert(initialized_);
+    //TODO set dfg from DSG
+    assert(false);
+    setLocalDistributionFromDFG();
+
+    //for testing:
+    changeDir(MPI_COMM_SELF, false);
+    // ungraceful exit; not sure why
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_delete(simPtrPtr_);
+    changeDir(MPI_COMM_SELF, true);
+  }
+
+  void receiveDiagnostics() override {}
 
  private:
   friend class boost::serialization::access;
