@@ -177,6 +177,20 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
   return true;
 }
 
+void ProcessGroupManager::doDiagnostics(int taskID) {
+  auto status = waitStatus();
+  assert(status == PROCESS_GROUP_WAIT);
+  for (auto task : tasks_){
+    if (task->getID() == taskID){
+      sendSignalToProcessGroup(DO_DIAGNOSTICS);
+      // send task ID to do postprocessing on
+      MPI_Send(&taskID, 1, MPI_INT, this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
+      return;
+    }
+  }
+  assert(false && "Task was not present in this process group");
+}
+
 void ProcessGroupManager::recvStatus() {
   // start non-blocking call to receive status
   if (ENABLE_FT) {

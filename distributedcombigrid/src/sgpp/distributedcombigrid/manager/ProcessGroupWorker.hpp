@@ -56,6 +56,9 @@ class ProcessGroupWorker {
   // parallel file io of final output grid for uniform decomposition
   void parallelEvalUniform();
 
+  // do task-specific postprocessing
+  void doDiagnostics();
+
   // update combination parameters (for init or after change in FTCT)
   void updateCombiParameters();
 

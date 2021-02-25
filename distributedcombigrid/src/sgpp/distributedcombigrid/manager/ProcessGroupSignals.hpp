@@ -42,6 +42,7 @@ const SignalType RESCHEDULE_ADD_TASK = 20;
 const SignalType RESCHEDULE_REMOVE_TASK = 21;
 
 const SignalType RUN_FIRST = 29;
+const SignalType DO_DIAGNOSTICS = 30;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;

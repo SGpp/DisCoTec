@@ -213,6 +213,11 @@ SignalType ProcessGroupWorker::wait() {
       parallelEval();
       Stats::stopEvent("parallel eval");
     } break;
+    case DO_DIAGNOSTICS: {  // task-specific diagnostics/post-processing
+      Stats::startEvent("parallel eval");
+      doDiagnostics();
+      Stats::stopEvent("parallel eval");
+    } break;
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
 
@@ -406,7 +411,12 @@ void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
                                   IndexType totalNumberOfCombis, IndexType currentCombi,
                                   LevelVector reduceLmin, LevelVector reduceLmax) {
   //checking for valid combi step
-  assert(currentCombi < totalNumberOfCombis && currentCombi >= 0);
+  assert(currentCombi >= 0);
+  if(!(currentCombi < totalNumberOfCombis)) {
+    MASTER_EXCLUSIVE_SECTION {
+      std::cout << "combining more often than totalNumberOfCombis -- do this for postprocessing only" << std::endl;
+    }
+  }
 
   if(currentCombi < totalNumberOfCombis - 1){ // do not reduce in last iteration
     for (size_t i = 0; i < reduceLmin.size(); ++i) {
@@ -632,6 +642,29 @@ void ProcessGroupWorker::parallelEvalUniform() {
     }
     dfg.writePlotFile(fn.c_str());
   }
+}
+
+void ProcessGroupWorker::doDiagnostics() {
+  // receive taskID and broadcast
+  int taskID;
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Recv(&taskID, 1, MPI_INT, theMPISystem()->getManagerRank(), 0,
+             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+  }
+  MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+
+  // call diagnostics on that Task
+  for (auto task : tasks_) {
+    if (task->getID() == taskID) {
+      std::vector<const DistributedSparseGridUniform<CombiDataType>*> dsgsToPassToTask;
+      for (auto& dsgPtr : combinedUniDSGVector_){
+        dsgsToPassToTask.push_back(dsgPtr.get());
+      }
+      task->doDiagnostics(dsgsToPassToTask);
+      return;
+    }
+  }
+  assert(false && "this taskID is not here");
 }
 
 void ProcessGroupWorker::gridEval() {  // not supported anymore

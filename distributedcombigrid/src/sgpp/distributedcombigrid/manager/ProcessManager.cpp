@@ -371,6 +371,18 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
   }
 }
 
+void ProcessManager::doDiagnostics(int taskID) {
+  auto g = getProcessGroupWithTaskID(taskID);
+  g->doDiagnostics(taskID);
+  // call manager-side diagnostics on that Task
+  for (auto task : tasks_) {
+    if (task->getID() == taskID) {
+      task->receiveDiagnostics();
+      return;
+    }
+  }
+}
+
 void ProcessManager::reschedule() {
   std::map<LevelVector, int> levelVectorToProcessGroupIndex;
   for (size_t i = 0; i < pgroups_.size(); ++i) {
