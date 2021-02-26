@@ -208,15 +208,44 @@ SignalType ProcessGroupWorker::wait() {
       return signal;
     } break;
     case PARALLEL_EVAL: {  // output final grid
-
       Stats::startEvent("parallel eval");
       parallelEval();
       Stats::stopEvent("parallel eval");
     } break;
     case DO_DIAGNOSTICS: {  // task-specific diagnostics/post-processing
-      Stats::startEvent("parallel eval");
+      Stats::startEvent("diagnostics");
       doDiagnostics();
-      Stats::stopEvent("parallel eval");
+      Stats::stopEvent("diagnostics");
+    } break;
+    case GET_L2_NORM: {  // evaluate norm on dfgs and send
+      Stats::startEvent("get L2 norm");
+      sendLpNorms(2);
+      Stats::stopEvent("get L2 norm");
+    } break;
+    case GET_L1_NORM: {  // evaluate norm on dfgs and send
+      Stats::startEvent("get L1 norm");
+      sendLpNorms(1);
+      Stats::stopEvent("get L1 norm");
+    } break;
+    case GET_MAX_NORM: {  // evaluate norm on dfgs and send
+      Stats::startEvent("get max norm");
+      sendLpNorms(0);
+      Stats::stopEvent("get max norm");
+    } break;
+    case PARALLEL_EVAL_NORM: {  // evaluate norms on new dfg and send
+      Stats::startEvent("parallel eval norm");
+      parallelEvalNorm();
+      Stats::stopEvent("parallel eval norm");
+    } break;
+    case EVAL_ANALYTICAL_NORM: {  // evaluate analytical norms on new dfg and send
+      Stats::startEvent("parallel eval norm");
+      evalAnalyticalOnDFG();
+      Stats::stopEvent("parallel eval norm");
+    } break;
+    case EVAL_ERROR_NORM: {  // evaluate analytical norms on new dfg and send
+      Stats::startEvent("parallel eval norm");
+      evalErrorOnDFG();
+      Stats::stopEvent("parallel eval norm");
     } break;
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
@@ -584,13 +613,13 @@ void ProcessGroupWorker::parallelEval() {
     assert(false && "not yet implemented");
 }
 
-void ProcessGroupWorker::parallelEvalUniform() {
-  assert(uniformDecomposition);
+// cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
+static bool endsWith(const std::string& str, const std::string& suffix)
+{
+    return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+}
 
-  assert(combiParametersSet_);
-  int numGrids = static_cast<int>(combiParameters_
-                     .getNumGrids());  // we assume here that every task has the same number of grids
-
+LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
   const int dim = static_cast<int>(combiParameters_.getDim());
 
   // combine must have been called before this function
@@ -605,6 +634,29 @@ void ProcessGroupWorker::parallelEvalUniform() {
 
   MPI_Bcast(&tmp[0], dim, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
   LevelVector leval(tmp.begin(), tmp.end());
+  return leval;
+}
+
+void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g){
+  // register dsg
+  dfg.registerUniformSG(*combinedUniDSGVector_[g]);
+
+  // fill dfg with hierarchical coefficients from distributed sparse grid
+  dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
+
+  // dehierarchize dfg
+  DistributedHierarchization::dehierarchize<CombiDataType>(
+      dfg, combiParameters_.getHierarchizationDims());
+}
+
+void ProcessGroupWorker::parallelEvalUniform() {
+  assert(uniformDecomposition);
+
+  assert(combiParametersSet_);
+  auto numGrids = combiParameters_.getNumGrids();  // we assume here that every task has the same number of grids
+
+  auto leval = receiveLevalAndBroadcast();
+  const int dim = static_cast<int>(leval.size());
 
   // receive filename and broadcast to group members
   std::string filename;
@@ -620,28 +672,100 @@ void ProcessGroupWorker::parallelEvalUniform() {
     // create dfg
     bool forwardDecomposition = !isGENE;
     DistributedFullGrid<CombiDataType> dfg(
-        dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-        combiParameters_.getParallelization(), forwardDecomposition);
-
-    // register dsg
-    dfg.registerUniformSG(*combinedUniDSGVector_[g]);
-
-    // fill dfg with hierarchical coefficients from distributed sparse grid
-    dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-
-    // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<CombiDataType>(
-        dfg, combiParameters_.getHierarchizationDims());
-    std::string fn = filename;
-    fn = fn + std::to_string(g);
+      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
+      combiParameters_.getParallelization(), forwardDecomposition);
+    fillDFGFromDSGU(dfg, g);
     // save dfg to file with MPI-IO
-    auto pos = fn.find(".");
+    auto pos = filename.find(".");
     if (pos != std::string::npos){
       // if filename contains ".", insert grid number before that
-      fn.insert(pos, "_" + std::to_string(g));
+      filename.insert(pos, "_" + std::to_string(g));
     }
-    dfg.writePlotFile(fn.c_str());
+    dfg.writePlotFile(filename.c_str());
   }
+}
+
+void ProcessGroupWorker::sendLpNorms(int p) {
+  // get Lp norm on every worker; reduce through dfg function
+  std::vector<double> lpnorms;
+  for (const auto& t : tasks_) {
+    auto lpnorm = t->getDistributedFullGrid().getLpNorm(p);
+    lpnorms.push_back(lpnorm);
+    // std::cout << t->getID() << " ";
+  }
+  // send from master to manager
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
+             theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG, theMPISystem()->getGlobalComm());
+  }
+}
+
+void sendEvalNorms(const DistributedFullGrid<CombiDataType>& dfg){
+  // get Lp norm on every worker; reduce through dfg function
+  for (int p = 0; p < 3; ++p) {
+    auto lpnorm = dfg.getLpNorm(p);
+
+    // send from master to manager
+    MASTER_EXCLUSIVE_SECTION {
+      MPI_Send(&lpnorm, 1, MPI_DOUBLE,
+              theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG, theMPISystem()->getGlobalComm());
+    }
+  }
+}
+
+void ProcessGroupWorker::parallelEvalNorm() {
+  auto leval = receiveLevalAndBroadcast();
+  const int dim = static_cast<int>(leval.size());
+  bool forwardDecomposition = !isGENE;
+
+  DistributedFullGrid<CombiDataType> dfg(
+      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
+      combiParameters_.getParallelization(), forwardDecomposition);
+
+  fillDFGFromDSGU(dfg, 0);
+
+  sendEvalNorms(dfg);
+}
+
+void ProcessGroupWorker::evalAnalyticalOnDFG() {
+  auto leval = receiveLevalAndBroadcast();
+  const int dim = static_cast<int>(leval.size());
+  bool forwardDecomposition = !isGENE;
+
+  DistributedFullGrid<CombiDataType> dfg(
+      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
+      combiParameters_.getParallelization(), forwardDecomposition);
+
+  // interpolate Task's analyticalSolution
+  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+    std::vector<double> coords(leval.size());
+    dfg.getCoordsLocal(li, coords);
+
+    dfg.getData()[li] = tasks_[0]->analyticalSolution(coords, 0);
+  }
+
+  sendEvalNorms(dfg);
+}
+
+void ProcessGroupWorker::evalErrorOnDFG() {
+  auto leval = receiveLevalAndBroadcast();
+  const int dim = static_cast<int>(leval.size());
+  bool forwardDecomposition = !isGENE;
+
+  DistributedFullGrid<CombiDataType> dfg(
+      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
+      combiParameters_.getParallelization(), forwardDecomposition);
+
+  fillDFGFromDSGU(dfg, 0);
+  // interpolate Task's analyticalSolution
+  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+    std::vector<double> coords(leval.size());
+    dfg.getCoordsLocal(li, coords);
+
+    dfg.getData()[li] -= tasks_[0]->analyticalSolution(coords, 0);
+  }
+
+  sendEvalNorms(dfg);
 }
 
 void ProcessGroupWorker::doDiagnostics() {
@@ -809,7 +933,7 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
   }
 }
 
-void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids) {
+void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, size_t numGrids) {
     for (int g = 0; g < numGrids; g++) {
       // get handle to dfg
       DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(g);

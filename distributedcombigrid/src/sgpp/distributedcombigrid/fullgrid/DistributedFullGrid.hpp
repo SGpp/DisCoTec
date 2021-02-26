@@ -192,6 +192,10 @@ class DistributedFullGrid {
 #endif
   }
 
+  // copy construction would need to duplicate communicator_
+  DistributedFullGrid(const DistributedFullGrid& other) = delete;
+  DistributedFullGrid& operator=( const DistributedFullGrid & ) = delete;
+
   virtual ~DistributedFullGrid() {
     // todo: remove communicators? Yes -> Done
     MPI_Comm_free(&communicator_);
@@ -427,7 +431,7 @@ class DistributedFullGrid {
   /** returns the grid spacing (sometimes called h) */
   std::vector<double> getGridSpacing() const {
     std::vector<double> h(dim_);
-    for (IndexType d = 0 ; d < dim_ ; ++d){
+    for (DimType d = 0 ; d < dim_ ; ++d){
       h[d] = oneOverPowOfTwo[levels_[d]];
     }
     return h;
@@ -1197,12 +1201,18 @@ class DistributedFullGrid {
     return subspaces_[i].data_;
   }
 
-  real getLpNorm(int p) {
+  /** get the pointwise average of the ("small") lp Norm:
+   * (1/numPoints * sum_i(abs(x_i)^p))^1/p
+   * (almost Lp-Norm, except for the weight of boundary values)
+   *
+   * TODO: change this to add boundary values with reduced value,
+   *        divide by more in case of no boundary -> big Lp norm on [0; 1]
+   */
+  real getLpNorm(int p) const {
     assert(p >= 0);
-
     // special case maximum norm
     if (p == 0) {
-      std::vector<FG_ELEMENT>& data = getElementVector();
+      auto& data = getElementVector();
       real max = 0.0;
 
       for (size_t i = 0; i < data.size(); ++i) {
@@ -1215,20 +1225,18 @@ class DistributedFullGrid {
       return globalMax;
     } else {
       real p_f = static_cast<real>(p);
-      std::vector<FG_ELEMENT>& data = getElementVector();
+      auto& data = getElementVector();
       real res = 0.0;
 
       for (size_t i = 0; i < data.size(); ++i) {
         real abs = std::abs(data[i]);
         res += std::pow(abs, p_f);
       }
+      // res /= data.size();
 
       real globalRes(-1);
       MPI_Allreduce(&res, &globalRes, 1, getMPIDatatype(), MPI_SUM, getCommunicator());
-
       return std::pow(globalRes, 1.0 / p_f);
-      // todo: test
-      assert(false && "this has never been tested");
     }
   }
 
@@ -1685,7 +1693,6 @@ class DistributedFullGrid {
       std::vector<int> periods(dim_, 0);
       int reorder = 0;
       MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0], reorder, &communicator_);
-
 #ifdef DEBUG_OUTPUT
       std::cout << "DistributedFullGrid: create new cartcomm" << std::endl;
 #endif

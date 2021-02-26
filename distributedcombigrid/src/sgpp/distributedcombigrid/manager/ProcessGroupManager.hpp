@@ -73,6 +73,12 @@ class ProcessGroupManager {
 
   void doDiagnostics(int taskID);
 
+  std::vector<double> parallelEvalNorm(const LevelVector& leval);
+
+  std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval);
+
+  std::vector<double> evalErrorOnDFG(const LevelVector& leval);
+
   /**
    * Adds a task to the process group. To be used for rescheduling.
    *

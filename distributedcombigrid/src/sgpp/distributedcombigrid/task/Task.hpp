@@ -81,6 +81,11 @@ class Task {
 
   virtual void decideToKill() { std::cout << "Kill function not implemented for this task! \n"; }
 
+  virtual CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const {
+    std::cout << "No analytical solution for this task! \n";
+    return -0.;
+  }
+
   virtual std::vector<IndexVector> getDecomposition() { return std::vector<IndexVector>(); }
 
   inline virtual bool isInitialized();

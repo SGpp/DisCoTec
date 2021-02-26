@@ -87,6 +87,14 @@ class ProcessManager {
 
   void doDiagnostics(int taskID);
 
+  std::map<int, double> getLpNorms(int p = 2);
+
+  std::vector<double> parallelEvalNorm(const LevelVector& leval, size_t groupID = 0);
+
+  std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID = 0);
+
+  std::vector<double> evalErrorOnDFG(const LevelVector& leval, size_t groupID = 0);
+
   void redistribute(std::vector<int>& taskID);
 
   void reInitializeGroup(std::vector<ProcessGroupManagerID>& taskID,
