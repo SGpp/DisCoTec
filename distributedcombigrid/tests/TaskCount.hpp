@@ -16,7 +16,7 @@ template <typename FG_ELEMENT>
 class TestFnCount {
  public:
   // function value
-  FG_ELEMENT operator()(std::vector<double>& coords, size_t nrun = 1) {
+  FG_ELEMENT operator()(const std::vector<double>& coords, size_t nrun = 1) {
     FG_ELEMENT result = 0.;
     for (DimType d = 0; d < coords.size(); ++d) {
       result += coords[d] * std::pow(10,d);
@@ -31,7 +31,7 @@ class TestFnCount {
 class TaskCount : public combigrid::Task {
  public:
   TaskCount(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel)
-      : Task(dim, l, boundary, coeff, loadModel){}
+      : Task(dim, l, boundary, coeff, loadModel), nrun_(0) {}
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
 
@@ -43,12 +43,13 @@ class TaskCount : public combigrid::Task {
     for (auto& element : elements) {
       element = -0.;
     }
+    nrun_ = 0;
     BOOST_CHECK(true);
   }
 
   void run(CommunicatorType lcomm) {
 
-    // std::cout << "run " << getCommRank(lcomm) << std::endl;    
+    // std::cout << "run " << getCommRank(lcomm) << std::endl;
 
     // increase each value by sum( (d_i+1) * x_i)
     TestFnCount<CombiDataType> f;
@@ -58,6 +59,7 @@ class TaskCount : public combigrid::Task {
       dfg_->getData()[li] += f(coords);
     }
 
+    ++nrun_;
     BOOST_CHECK(dfg_);
 
     setFinished(true);
@@ -79,6 +81,11 @@ class TaskCount : public combigrid::Task {
     if (dfg_ != NULL) delete dfg_;
   }
 
+  CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const override {
+    TestFnCount<CombiDataType> f;
+    return f(coords, nrun_);
+  }
+
  protected:
   TaskCount() : dfg_(NULL) {}
 
@@ -86,6 +93,8 @@ class TaskCount : public combigrid::Task {
   friend class boost::serialization::access;
 
   DistributedFullGrid<CombiDataType>* dfg_;
+
+  size_t nrun_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {

@@ -54,13 +54,12 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
           BOOST_CHECK(c >= 0.);
           BOOST_CHECK(c <= 1.);
         }
-        BOOST_CHECK_CLOSE(expected, occuring, TestHelper::tolerance);
-        // BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance);
+        BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance);
         any = true;
       }
     }
   }
-  BOOST_CHECK(any);
+  BOOST_REQUIRE(any);
   return any;
 }
 
@@ -143,6 +142,22 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       manager.runnext();
     }
     manager.combine();
+
+    Stats::startEvent("manager get norms");
+    // get all kinds of norms
+    manager.getLpNorms(0);
+    manager.getLpNorms(1);
+    manager.getLpNorms(2);
+    auto normsLmax = manager.parallelEvalNorm(lmax, 0);
+    auto analyticalNorms = manager.evalAnalyticalOnDFG(lmax, 0);
+    BOOST_CHECK_CLOSE(analyticalNorms[0], normsLmax[0], TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(analyticalNorms[1], normsLmax[1], TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(analyticalNorms[2], normsLmax[2], TestHelper::tolerance);
+    auto error = manager.evalErrorOnDFG(lmax, 0);
+    BOOST_CHECK_CLOSE(error[0], 0., TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(error[1], 0., TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(error[2], 0., TestHelper::tolerance);
+    Stats::stopEvent("manager get norms");
 
     std::string filename("integration_" + std::to_string(ncombi) + ".raw");
     Stats::startEvent("manager write solution");
