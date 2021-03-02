@@ -140,6 +140,9 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
             compareCoords[d] = 0;
             BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(compareCoords));
           }
+        } else {
+          // make sure all other values remained the same
+            BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(coords));
         }
       }
     }
