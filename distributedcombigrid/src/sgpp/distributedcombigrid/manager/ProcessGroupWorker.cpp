@@ -906,9 +906,31 @@ void ProcessGroupWorker::updateCombiParameters() {
   // broadcast task to other process of pgroup
   MPIUtils::broadcastClass(&tmp, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
   //std::cout << "worker received combiparameters \n";
-  combiParameters_ = tmp;
 
+  combiParameters_ = tmp;
   combiParametersSet_ = true;
+
+  // overwrite local comm with cartesian communicator
+  if (!isGENE  && tmp.isParallelizationSet()){
+    // cf. https://www.rookiehpc.com/mpi/docs/mpi_cart_create.php
+    // get decompositon from combi params
+    auto par = combiParameters_.getParallelization();
+
+    // important: note reverse ordering of dims! -- cf DistributedFullGrid //TODO(pollinta) remove reverse ordering
+    std::vector<int> dims (par.rbegin(), par.rend());
+
+    // Make all dimensions not periodic //TODO(pollinta) allow periodicity
+    std::vector<int> periods (combiParameters_.getDim(), 0);
+
+    // don't let MPI assign arbitrary ranks
+    int reorder = false;
+
+    // Create a communicator given the topology.
+    MPI_Comm new_communicator;
+    MPI_Cart_create(theMPISystem()->getLocalComm(), combiParameters_.getDim(), dims.data(), periods.data(), reorder, &new_communicator);
+
+    theMPISystem()->storeLocalComm(new_communicator);
+  }
 }
 
 void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {

@@ -145,6 +145,10 @@ class CombiParameters {
     procsSet_ = true;
   }
 
+  inline bool isParallelizationSet() const {
+    return procsSet_;
+  }
+
  private:
   DimType dim_;
 

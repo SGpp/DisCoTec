@@ -231,6 +231,11 @@ class MPISystem {
    */
   void sendFailedSignal();
 
+  /**
+   * stores local comm + FT version if FT_ENABLED
+   */
+  void storeLocalComm(CommunicatorType lcomm_optional = MPI_COMM_NULL);
+  
  private:
   explicit MPISystem();
 
@@ -267,11 +272,6 @@ class MPISystem {
    * sets up the local comm by splitting from worldComm and stores it
    */
   void initLocalComm();
-
-  /**
-   * stores local comm + FT version if FT_ENABLED
-   */
-  void storeLocalComm(CommunicatorType lcomm_optional = MPI_COMM_NULL);
 
   /**
    * Sets the local rank, disables local communicator if manager
