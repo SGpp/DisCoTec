@@ -47,6 +47,18 @@ BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
 
+
+namespace shellCommand {
+  // cf. https://stackoverflow.com/questions/478898/how-do-i-execute-a-command-and-get-the-output-of-the-command-within-c-using-po
+  void exec(const char* cmd) {
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) {
+        throw std::runtime_error("popen() failed!");
+    }
+    sleep(2);         // wait for 2 seconds before closing
+  }
+}
+
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
@@ -95,7 +107,7 @@ int main(int argc, char** argv) {
     nsteps = cfg.get<size_t>("application.nsteps");
 
     // read in third level parameters if available
-    std::string thirdLevelHost;
+    std::string thirdLevelHost, thirdLevelSSHCommand = "";
     unsigned int systemNumber = 0, numSystems = 1;
     unsigned short thirdLevelPort = 0;
     bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
@@ -105,6 +117,7 @@ int main(int argc, char** argv) {
       systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
       numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
       thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
+      thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand");
     }
 
     // todo: read in boundary vector from ctparam
@@ -114,6 +127,13 @@ int main(int argc, char** argv) {
     IndexType checkProcs = 1;
     for (auto k : p) checkProcs *= k;
     assert(checkProcs == IndexType(nprocs));
+
+    // set up the ssh tunnel for third level communication, if necessary
+    // todo: if this works, move to ProcessManager::setUpThirdLevel
+    if (thirdLevelSSHCommand != "") {
+      shellCommand::exec(thirdLevelSSHCommand.c_str());
+      std::cout << thirdLevelSSHCommand << " returned " << std::endl;
+    }
 
     /* generate a list of levelvectors and coefficients
      * CombiMinMaxScheme will create a classical combination scheme.

@@ -16,7 +16,9 @@ nprocs = 1
 
 [thirdLevel]
 host = localhost
+#host = 129.69.213.171
 port = 9999
 # counting has to start at 0, needed only for distribution of combischeme
 systemNumber = 0
 numSystems = 2
+sshCommand = ssh -L 9999:129.69.213.171:9999 ipvslogin.informatik.uni-stuttgart.de -nNT &
