@@ -1,5 +1,7 @@
 #include "NetworkUtils.hpp"
 
+namespace combigrid{
+
 ClientSocket::ClientSocket(const std::string& host, const int port)
   : Socket(), remotePort_(port), remoteHost_(host){
 }
@@ -479,3 +481,5 @@ void NetworkUtils::split(const std::string& s, const char c,
   if (prev < s.size())
     tokens.push_back(s.substr(prev));
 }
+
+} // namespace combigrid

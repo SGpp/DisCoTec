@@ -10,6 +10,7 @@ static std::string host             = "localhost";
 static unsigned short port          = 9999;
 static std::vector<double> testData = std::vector<double>({0., 1., 2., 3., 4.});
 
+using namespace combigrid;
 
 void testBinarySendClient(MPI_Comm comm) {
   // wait until server is set up

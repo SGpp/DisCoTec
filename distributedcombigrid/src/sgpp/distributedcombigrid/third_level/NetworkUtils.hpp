@@ -21,6 +21,8 @@
 #include <memory>
 #include <string.h>
 
+namespace combigrid {
+
 template <typename FG_ELEMENT>
 using ReduceFcn = FG_ELEMENT(*)(const FG_ELEMENT&, const FG_ELEMENT&);
 
@@ -400,5 +402,7 @@ bool ClientSocket::sendallBinary(const FG_ELEMENT* buff, size_t buffSize, int fl
     return false;
   return sendall(rawBuf, rawSize);
 }
+
+} // namespace combigrid
 
 #endif
