@@ -33,16 +33,12 @@
 // to allow using test tasks
 #define BOOST_CHECK
 
-#include "TaskCount.hpp"
-#include "TaskConstParaboloid.hpp"
 #include "TaskAdvection.hpp"
 
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskAdvection)
-BOOST_CLASS_EXPORT(TaskConstParaboloid)
-BOOST_CLASS_EXPORT(TaskCount)
 BOOST_CLASS_EXPORT(StaticFaults)
 BOOST_CLASS_EXPORT(WeibullFaults)
 BOOST_CLASS_EXPORT(FaultCriterion)
