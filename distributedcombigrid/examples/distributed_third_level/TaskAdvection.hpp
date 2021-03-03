@@ -9,7 +9,7 @@ namespace combigrid {
 class TestFn {
  public:
   // function value
-  double operator()(std::vector<double>& coords, double t) {
+  double operator()(std::vector<double>& coords, double t) const {
     double exponent = 0;
     for (DimType d = 0; d < coords.size(); ++d) {
       coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
@@ -113,6 +113,7 @@ class TaskAdvection : public Task {
    */
   void run(CommunicatorType lcomm) {
     assert(initialized_);
+    // dfg_->print(std::cout);
 
     std::vector<CombiDataType> u(this->getDim(), 1);
 
@@ -141,7 +142,8 @@ class TaskAdvection : public Task {
           IndexVector locAxisIndex(this->getDim());
           dfg_->getLocalVectorIndex(li, locAxisIndex);
           //TODO can be unrolled into ghost and other part, avoiding if-statement
-          CombiDataType phi_neighbor;
+          //TODO implement periodic boundary; currently neumann=0 BC
+          CombiDataType phi_neighbor = 0.;
           if (locAxisIndex[d] == 0){
             // if we are in the lowest layer in d,
             // make sure we are not on the lowest global layer
@@ -204,6 +206,13 @@ class TaskAdvection : public Task {
   ~TaskAdvection() {
     if (dfg_ != NULL) delete dfg_;
     if (phi_ != NULL) delete phi_;
+  }
+
+  CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const override {
+    assert(n == 0);
+    auto coordsCopy = coords;
+    TestFn f;
+    return f(coordsCopy, stepsTotal_*dt_);
   }
 
  protected:
