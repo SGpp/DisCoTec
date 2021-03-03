@@ -141,8 +141,16 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
             BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(compareCoords));
           }
         } else {
-          // make sure all other values remained the same
+          bool otherBoundary = false;
+          for (DimType d_i = 0; d_i < dim; ++d_i){
+            if (d_i != d && abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+              otherBoundary = true;
+            }
+          }
+          if (!otherBoundary){
+            // make sure all other values remained the same
             BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(coords));
+          }
         }
       }
     }
