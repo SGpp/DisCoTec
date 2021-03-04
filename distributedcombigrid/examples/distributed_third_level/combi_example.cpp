@@ -167,7 +167,7 @@ int main(int argc, char** argv) {
       // Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel);
       // Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
 
-      static_assert(!isGENE);
+      static_assert(!isGENE, "isGENE");
 
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
