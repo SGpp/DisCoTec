@@ -117,8 +117,13 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     }
   }
 
+  // std::stringstream ss;
+  // ss << "test_dfg_" << levels << procs << boundary << forward << ".vtk";
+  // dfg.writePlotFileVTK(ss.str().c_str());
+
   // test lower to upper exchange
   for (DimType d = 0; d < dim; ++d) {
+    // std::cout << dfg << std::endl;
     if (boundary[d] == true){
       dfg.writeLowerBoundaryToUpperBoundary(d);
 
@@ -156,8 +161,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     }
   }
 
-  // std::cout << "rank " << dfg.getRank() << std::endl;
-  // dfg.print(std::cout);
+  // std::cout << dfg << std::endl;
 }
 
 BOOST_AUTO_TEST_SUITE(distributedfullgrid)
@@ -165,6 +169,20 @@ BOOST_AUTO_TEST_SUITE(distributedfullgrid)
 // with boundary
 // isotropic
 
+BOOST_AUTO_TEST_CASE(test_minus1) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {1, 2};
+  IndexVector procs = {1, 1};
+  std::vector<bool> boundary(2, true);
+  checkDistributedFullgrid(levels, procs, boundary, 1);
+}
+BOOST_AUTO_TEST_CASE(test_0) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {2, 3};
+  IndexVector procs = {1, 1};
+  std::vector<bool> boundary(2, true);
+  checkDistributedFullgrid(levels, procs, boundary, 1);
+}
 BOOST_AUTO_TEST_CASE(test_1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(6));
   LevelVector levels = {2, 2};

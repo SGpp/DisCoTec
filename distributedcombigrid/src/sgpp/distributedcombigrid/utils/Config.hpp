@@ -85,11 +85,11 @@ typedef std::complex<real> complex;
 // const bool GENE_Global = true;
 // const bool GENE_Linear = true;
 
-	// constexpr bool reverseOrderingDFGPartitions = true;
+// constexpr bool reverseOrderingDFGPartitions = true;
 
 constexpr bool reverseOrderingDFGPartitions = false;
 
-static_assert(!(isGene) || reverseOrderingDFGPartitions, "GENE example needs the reverse ordering of DFG partitions");
+static_assert(!(isGENE) || reverseOrderingDFGPartitions, "GENE example needs the reverse ordering of DFG partitions");
 }
 
 #endif /* DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_UTILS_CONFIG_HPP_ */

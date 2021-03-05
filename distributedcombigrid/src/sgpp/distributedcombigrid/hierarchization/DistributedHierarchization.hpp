@@ -592,7 +592,9 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
         std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
         std::vector<int> cstarts(starts.rbegin(), starts.rend());
         if (!reverseOrderingDFGPartitions) {
-          assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+          csizes.assign(sizes.begin(), sizes.end());
+          csubsizes.assign(subsizes.begin(), subsizes.end());
+          cstarts.assign(starts.begin(), starts.end());
         }
 
         // create subarray view on data
@@ -934,7 +936,9 @@ static void exchangeData1dDehierarchization(
         std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
         std::vector<int> cstarts(starts.rbegin(), starts.rend());
         if (!reverseOrderingDFGPartitions) {
-          assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+          csizes.assign(sizes.begin(), sizes.end());
+          csubsizes.assign(subsizes.begin(), subsizes.end());
+          cstarts.assign(starts.begin(), starts.end());
         }
 
         // create subarray view on data
