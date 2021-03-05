@@ -526,6 +526,10 @@ class DistributedFullGrid {
 
     // important: reverse ordering of partition coords!
     coords.assign(tmp.rbegin(), tmp.rend());
+
+    if (!reverseOrderingDFGPartitions) {
+      assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+    }
   }
 
   /** position of the local process in the grid of processes */
@@ -642,6 +646,10 @@ class DistributedFullGrid {
     // important: note reverse ordering
     std::vector<int> partitionCoordsInt(partitionCoords.rbegin(), partitionCoords.rend());
 
+    if (!reverseOrderingDFGPartitions) {
+      assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+    }
+
     RankType rank;
     MPI_Cart_rank(communicator_, &partitionCoordsInt[0], &rank);
 
@@ -703,6 +711,9 @@ class DistributedFullGrid {
         std::vector<int> csizes(sizes.rbegin(), sizes.rend());
         std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
         std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        if (!reverseOrderingDFGPartitions) {
+          assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+        }
 
         // create subarray view on data
         MPI_Datatype mysubarray;
@@ -1115,6 +1126,10 @@ class DistributedFullGrid {
         std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
         std::vector<int> cstarts(starts.rbegin(), starts.rend());
 
+        if (!reverseOrderingDFGPartitions) {
+          assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+        }
+
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(int(this->getDimension()), &csizes[0], &csubsizes[0], &cstarts[0],
@@ -1274,6 +1289,9 @@ class DistributedFullGrid {
     std::vector<int> csizes(sizes.rbegin(), sizes.rend());
     std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
     std::vector<int> cstarts(starts.rbegin(), starts.rend());
+    if (!reverseOrderingDFGPartitions) {
+      assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+    }
 
     // create subarray view on data
     MPI_Datatype mysubarray;
@@ -1350,6 +1368,9 @@ class DistributedFullGrid {
     std::vector<int> csizes(sizes.rbegin(), sizes.rend());
     std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
     std::vector<int> cstarts(starts.rbegin(), starts.rend());
+    if (!reverseOrderingDFGPartitions) {
+      assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+    }
 
     // create subarray view on data
     MPI_Datatype mysubarray;
@@ -1434,6 +1455,9 @@ class DistributedFullGrid {
         std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
         // the starts are local indices
         std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
+        if (!reverseOrderingDFGPartitions) {
+          assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+        }
 
         // create subarray view on data //todo do this only once per dimension
         MPI_Datatype mysubarray;
@@ -1468,6 +1492,9 @@ class DistributedFullGrid {
         std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
         // the starts are local indices
         std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
+        if (!reverseOrderingDFGPartitions) {
+          assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+        }
 
         // create subarray view on data
         MPI_Datatype mysubarray;
@@ -1669,6 +1696,9 @@ class DistributedFullGrid {
 
     // important: note reverse ordering of dims!
     std::vector<int> dims(procs_.rbegin(), procs_.rend());
+    if (!reverseOrderingDFGPartitions) {
+      assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+    }
 
     // check if communicator is already cartesian
     int status;
