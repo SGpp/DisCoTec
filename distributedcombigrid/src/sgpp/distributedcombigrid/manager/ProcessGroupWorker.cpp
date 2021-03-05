@@ -918,6 +918,9 @@ void ProcessGroupWorker::updateCombiParameters() {
 
     // important: note reverse ordering of dims! -- cf DistributedFullGrid //TODO(pollinta) remove reverse ordering
     std::vector<int> dims (par.rbegin(), par.rend());
+    if (!reverseOrderingDFGPartitions) {
+      assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+    }
 
     // Make all dimensions not periodic //TODO(pollinta) allow periodicity
     std::vector<int> periods (combiParameters_.getDim(), 0);
