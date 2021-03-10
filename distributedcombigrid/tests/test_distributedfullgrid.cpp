@@ -72,6 +72,21 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     BOOST_TEST(2.1 * dfg.getData()[li] == dfg2.getData()[li]);
   }
 
+  // test norm calculation
+  auto maxnorm = dfg.getLpNorm(0);
+  auto onenorm = dfg.getLpNorm(1);
+  auto twonorm = dfg.getLpNorm(2);
+  if (std::all_of(boundary.begin(), boundary.end(), [](bool i){return i;})){
+    std::vector<double> maxcoords(dim, 1.);
+    BOOST_CHECK_EQUAL(f(maxcoords), maxnorm);
+  }
+  // solution is a hyperplane, so the sum is equal to the value in the middle times the number of points
+  std::vector<double> middlecoords(dim, 0.5);
+  BOOST_CHECK_EQUAL(f(middlecoords)*static_cast<double>(dfg.getNrElements()), onenorm);
+  // lazy for the two-norm, just check boundedness relations:
+  BOOST_CHECK(twonorm <= onenorm);
+  BOOST_CHECK(onenorm <= std::sqrt(dfg.getNrElements())*twonorm);
+
   // test ghost layer exchange
   IndexVector subarrayExtents;
   for (DimType d = 0; d < dim; ++d) {
