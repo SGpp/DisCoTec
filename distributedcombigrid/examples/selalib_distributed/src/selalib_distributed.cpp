@@ -98,7 +98,6 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, In
     auto contents = getFile(inputFileStream);
     contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
     contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
-    // LevelVector level_reverse(levels[i].rbegin(), levels[i].rend());
     for (DimType d = 0; d < levels[0].size(); ++d) {
       contents =
           replaceFirstOccurrence(contents, "$nx" + std::to_string(d + 1),
@@ -293,6 +292,10 @@ int main(int argc, char** argv) {
         Stats::startEvent("manager run first");
         manager.runfirst();
         Stats::stopEvent("manager run first");
+
+        std::cout << manager.getLpNorms(0) << std::endl;
+        std::cout << manager.getLpNorms(1) << std::endl;
+        std::cout << manager.getLpNorms(2) << std::endl;
 
       } else {
         // run tasks for next time interval
