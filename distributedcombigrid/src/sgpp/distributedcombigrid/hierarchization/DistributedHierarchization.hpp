@@ -591,11 +591,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
         std::vector<int> csizes(sizes.rbegin(), sizes.rend());
         std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
         std::vector<int> cstarts(starts.rbegin(), starts.rend());
-        if (!reverseOrderingDFGPartitions) {
-          csizes.assign(sizes.begin(), sizes.end());
-          csubsizes.assign(subsizes.begin(), subsizes.end());
-          cstarts.assign(starts.begin(), starts.end());
-        }
 
         // create subarray view on data
         MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &csizes[0], &csubsizes[0],
@@ -935,11 +930,6 @@ static void exchangeData1dDehierarchization(
         std::vector<int> csizes(sizes.rbegin(), sizes.rend());
         std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
         std::vector<int> cstarts(starts.rbegin(), starts.rend());
-        if (!reverseOrderingDFGPartitions) {
-          csizes.assign(sizes.begin(), sizes.end());
-          csubsizes.assign(subsizes.begin(), subsizes.end());
-          cstarts.assign(starts.begin(), starts.end());
-        }
 
         // create subarray view on data
         MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &csizes[0], &csubsizes[0],
