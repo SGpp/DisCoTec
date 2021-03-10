@@ -661,7 +661,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
 
   for (int g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
-    bool forwardDecomposition = !isGENE;
+    bool forwardDecomposition = combiParameters_.getForwardDecomposition();
     DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition);
@@ -707,7 +707,7 @@ void sendEvalNorms(const DistributedFullGrid<CombiDataType>& dfg){
 void ProcessGroupWorker::parallelEvalNorm() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
-  bool forwardDecomposition = !isGENE;
+  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
@@ -721,7 +721,7 @@ void ProcessGroupWorker::parallelEvalNorm() {
 void ProcessGroupWorker::evalAnalyticalOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
-  bool forwardDecomposition = !isGENE;
+  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
@@ -741,7 +741,7 @@ void ProcessGroupWorker::evalAnalyticalOnDFG() {
 void ProcessGroupWorker::evalErrorOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
-  bool forwardDecomposition = !isGENE;
+  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),

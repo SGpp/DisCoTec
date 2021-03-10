@@ -1725,6 +1725,8 @@ class DistributedFullGrid {
       auto maxdims = static_cast<int>(procs_.size());
       std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
       MPI_Cart_get(comm, static_cast<int>(maxdims), &cartdims[0], &periods[0], &coords[0]);
+      ASSERT(cartdims == dims,
+            " cartdims: " << cartdims << " dims: " << dims);
       assert(cartdims == dims);
 
       MPI_Comm_dup(comm, &communicator_);
