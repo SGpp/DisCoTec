@@ -38,6 +38,7 @@ void sll_s_halt_collective();
   void sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(void** sim, int32_t *cPtr);
   void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_v(void** sim, double *delta_t);
   void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_x(void** sim, double *delta_t);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_print_etas(void** sim);
 }
 
 namespace combigrid {
@@ -74,11 +75,10 @@ class SelalibTask : public combigrid::Task {
         initialized_(false) {}
 
   virtual ~SelalibTask() {
+    changeDir(MPI_COMM_SELF, false);
     if (dfg_ != nullptr) {
       delete dfg_;
     }
-    changeDir(MPI_COMM_SELF, false);
-    // ungraceful exit; not sure why
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_delete(simPtrPtr_);
     changeDir(MPI_COMM_SELF, true);
   }
@@ -124,7 +124,8 @@ class SelalibTask : public combigrid::Task {
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     assert(lcomm != MPI_COMM_NULL);
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p_);
+                                                  p_, false);
+
     auto f_lComm = MPI_Comm_c2f(lcomm);
     sll_s_set_communicator_collective(&f_lComm);
     changeDir(lcomm);
@@ -139,9 +140,17 @@ class SelalibTask : public combigrid::Task {
     changeDir(lcomm, true);
     setDFGfromLocalDistribution();
     initialized_ = true;
-    MASTER_EXCLUSIVE_SECTION{
-      std::cout << "initialized " << *this << std::endl;
-    }
+    // MASTER_EXCLUSIVE_SECTION{
+    //   // first print task, then synchronize and print other info
+    //   std::cout << "initialized " << *this << std::endl;
+    // }
+    // for (int i=0; i < dfg_->getMpiSize(); ++i) {
+    //   MPI_Barrier(lcomm);
+    //   if (dfg_->getMpiRank() == i){
+    //     sim_bsl_vp_3d3v_cart_dd_slim_movingB_print_etas(simPtrPtr_);
+    //     std::cout << dfg_->getLowerBounds() << " to " << dfg_->getUpperBounds() << std::endl;
+    //   }
+    // }
   }
 
   /**
@@ -281,7 +290,9 @@ class SelalibTask : public combigrid::Task {
     auto localSizeCopy = localSize_;
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(simPtrPtr_, localSizeCopy.data());
     for (DimType d = 0; d < dim_; ++d) {
-      assert(localDFGSize[d] == (localSize_[d] + 1) || localDFGSize[d] == localSize_[d]);
+      bool isUpper =(dfg_-> getUpperBoundsCoords()[d] > (1.+1e-12));
+      //std::cout << dfg_->getRank() << " " << isUpper << " " << localDFGSizeReverted << std::endl;
+      assert( (isUpper && (localDFGSize[d] == (localSize_[d] + 1))) || (!isUpper && (localDFGSize[d] == localSize_[d])));
       assert(localSizeCopy[d] == localSize_[d]);
     }
 
@@ -306,15 +317,20 @@ class SelalibTask : public combigrid::Task {
               auto offset_m = offset_l + m * offsets[1];
               for (int n = 0; n < localSize_[0]; ++n) {
                 auto fgIndex = offset_m + n;
+                // std::vector<real> coords(dim_);
+                // dfg_->getCoordsLocal(fgIndex, coords);
+                // std::cout << coords << " ";
                 dfg_->getElementVector()[fgIndex] = *(localDistributionIterator);
                 ++localDistributionIterator;
                 assert((localDistributionIterator - localDistribution_) <= bufferSize);
               }
+              // std::cout << std::endl;
             }
           }
         }
       }
     }
+    assert ((localDistributionIterator - localDistribution_) == bufferSize);
     for (DimType d = 0; d < dim_; ++d) {
       dfg_->writeLowerBoundaryToUpperBoundary(d);
     }

@@ -98,6 +98,7 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, In
     auto contents = getFile(inputFileStream);
     contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
     contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
+    // LevelVector level_reverse(levels[i].rbegin(), levels[i].rend());
     for (DimType d = 0; d < levels[0].size(); ++d) {
       contents =
           replaceFirstOccurrence(contents, "$nx" + std::to_string(d + 1),
@@ -114,7 +115,6 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, In
       boost::replace_first(relativePathStr, templateFolder, "");
       fs::copy(path, taskFolder + "/" + relativePathStr, fs::copy_options::skip_existing);
     }
-    //// copy ctparam to each directory?
   }
   return true;
 }
@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
     }
     // create combiparamters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, hierarchizationDims, taskIDs,
-                           ncombi, 1, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
+                           ncombi, 1, reduceCombinationDimsLmin, reduceCombinationDimsLmax, false);
     params.setParallelization(p);
 
     // create Manager with process groups
@@ -307,38 +307,45 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager combine");
     }
 
+    std::cout << manager.getLpNorms(0) << std::endl;
+    std::cout << manager.getLpNorms(1) << std::endl;
+    std::cout << manager.getLpNorms(2) << std::endl;
+
     // evaluate solution on the grid defined by leval
     //(basically an interpolation of the sparse grid to fullgrid with resolution leval)
     Stats::startEvent("manager parallel eval");
     manager.parallelEval(leval, fg_file_path, 0);
     Stats::stopEvent("manager parallel eval");
+    Stats::startEvent("manager parallel eval norm");
+    auto combinedNormLeval = manager.parallelEvalNorm(leval, 0);
+    Stats::stopEvent("manager parallel eval norm");
 
-    std::cout << "Computation finished leval 1! \n";
+    std::cout << "Norm is " << combinedNormLeval << " \n";
 
-    // create necessary folder and files to have evaluation task in a different folder
-    createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, "_leval_");
-    std::string path = baseFolder + "_leval_0";
-    auto levalCoefficient = 0.;
-    Task* levalTask = new SelalibTask(dim, leval, boundary, levalCoefficient, loadmodel.get(), path, dt,
-                                combitime, nsteps, p);
+    // // create necessary folder and files to have evaluation task in a different folder
+    // createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, "_leval_");
+    // std::string path = baseFolder + "_leval_0";
+    // auto levalCoefficient = 0.;
+    // Task* levalTask = new SelalibTask(dim, leval, boundary, levalCoefficient, loadmodel.get(), path, dt,
+    //                             combitime, nsteps, p);
 
-    Stats::startEvent("manager eval selalib");
-    manager.addTask(levalTask);
-    std::cout << "added task \n";
-    // for reference: run the same on the grid with leval resolution
-    // for (size_t i = 0; i < ncombi; ++i) {  // TODO implement run for one task only
-    // }
+    // Stats::startEvent("manager eval selalib");
+    // manager.addTask(levalTask);
+    // std::cout << "added task \n";
+    // // for reference: run the same on the grid with leval resolution
+    // // for (size_t i = 0; i < ncombi; ++i) {  // TODO implement run for one task only
+    // // }
 
-    manager.doDiagnostics(levalTask->getID());
-    std::cout << "diagnostics \n";
-    Stats::stopEvent("manager eval selalib");
+    // manager.doDiagnostics(levalTask->getID());
+    // std::cout << "diagnostics \n";
+    // Stats::stopEvent("manager eval selalib");
 
-    // evaluate solution on the grid defined by leval2
-    Stats::startEvent("manager parallel eval 2");
-    manager.parallelEval(leval2, fg_file_path2, 0);
-    Stats::stopEvent("manager parallel eval 2");
+    // // evaluate solution on the grid defined by leval2
+    // Stats::startEvent("manager parallel eval 2");
+    // manager.parallelEval(leval2, fg_file_path2, 0);
+    // Stats::stopEvent("manager parallel eval 2");
 
-    std::cout << "Computation finished evaluating on target grid! \n";
+    // std::cout << "Computation finished evaluating on target grid! \n";
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
