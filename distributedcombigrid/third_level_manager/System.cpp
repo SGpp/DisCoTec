@@ -1,5 +1,7 @@
 #include "System.hpp"
 
+namespace combigrid {
+
 System::System(std::shared_ptr<ClientSocket>& connection, size_t id)
   : connection_(connection), id_(id)
 {
@@ -39,4 +41,6 @@ std::shared_ptr<ClientSocket> System::getConnection() const
 size_t System::getId() const
 {
   return id_;
+}
+
 }

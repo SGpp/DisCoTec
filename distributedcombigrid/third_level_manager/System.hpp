@@ -2,6 +2,8 @@
 #include <string>
 #include <thread>
 
+namespace combigrid {
+
 class System
 {
   private:
@@ -19,3 +21,5 @@ class System
 
     std::shared_ptr<ClientSocket> getConnection() const;
 };
+
+}
