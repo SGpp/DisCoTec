@@ -435,6 +435,36 @@ std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& lev
   return norms;
 }
 
+
+void ProcessGroupManager::getLpNorms(int p, std::map<int, double>& norms) {
+  SignalType signal;
+  if (p == 2) {
+    signal = GET_L2_NORM;
+  } else if (p == 1) {
+    signal = GET_L1_NORM;
+  } else if (p == 0) {
+    signal = GET_MAX_NORM;
+  } else {
+    assert(false && "please implement signal for this norm");
+  }
+
+  this->sendSignalToProcessGroup(signal);
+
+  std::vector<double> recvbuf;
+  auto numTasks = this->getTaskContainer().size();
+  recvbuf.resize(numTasks);
+
+  MPI_Recv(recvbuf.data(), static_cast<int>(numTasks), MPI_DOUBLE, pgroupRootID_, TRANSFER_NORM_TAG,
+            theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+
+  for (size_t j = 0; j < numTasks; ++j) {
+    norms[this->getTaskContainer()[j]->getID()] = recvbuf[j];
+  }
+
+  this->setProcessGroupBusyAndReceive();
+}
+
+
 std::vector<double> ProcessGroupManager::evalAnalyticalOnDFG(const LevelVector& leval){
   sendSignalToProcessGroup(EVAL_ANALYTICAL_NORM);
   sendLevelVector(leval, pgroupRootID_);
