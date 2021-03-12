@@ -19,7 +19,7 @@ LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
 all: combi_example
 
 combi_example: combi_example.cpp TaskConstParaboloid.hpp
-	$(CC) $(CFLAGS) $(LDIR) $(INC) -o combi_example combi_example.cpp $(LIBS) -DUNIFORMDECOMPOSITION -DTIME
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o combi_example combi_example.cpp $(LIBS) -DUNIFORMDECOMPOSITION -DTIMING
 
 clean:
 	rm -f *.o out/* combi_example
