@@ -8,6 +8,8 @@
 #include "System.hpp"
 #include "Stats.hpp"
 
+namespace combigrid {
+
 using Systems = std::vector<System>;
 
 class ThirdLevelManager
@@ -40,3 +42,5 @@ class ThirdLevelManager
 
     void writeStatistics(std::string filename = "");
 };
+
+}

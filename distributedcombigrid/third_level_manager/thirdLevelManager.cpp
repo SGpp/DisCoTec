@@ -1,5 +1,7 @@
 #include "thirdLevelManager.hpp"
 
+using namespace combigrid;
+
 int main(int argc, char* argv[])
 {
   if (argc < 2) {
@@ -30,6 +32,8 @@ int main(int argc, char* argv[])
   manager.writeStatistics("stats.json");
   return 0;
 }
+
+namespace combigrid {
 
 /** Initiates the third level manager by reading in parameters and creating
  *  abstractions for each managed system.
@@ -257,4 +261,6 @@ void ThirdLevelManager::writeStatistics(std::string filename)
     boost::property_tree::write_json(ofs, pt);
     ofs.close();
   }
+}
+
 }
