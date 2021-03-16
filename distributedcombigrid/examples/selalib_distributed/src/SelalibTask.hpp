@@ -53,6 +53,7 @@ class SelalibTask : public combigrid::Task {
               IndexVector p = IndexVector(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
+        coeff_(coeff),
         path_(path),
         p_(p),
         localSize_(),

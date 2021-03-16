@@ -95,7 +95,7 @@ class Task {
   }
 
   // do task-specific postprocessing (by default: nothing)
-  virtual void doDiagnostics(const std::vector<const DistributedSparseGridUniform<CombiDataType>*>) {
+  virtual void doDiagnostics(const std::vector<DistributedSparseGridUniform<CombiDataType>*>, const std::vector<bool>& hierarchizationDims) {
     std::cout << "doDiagnostics called but not implemented";
   }
 
