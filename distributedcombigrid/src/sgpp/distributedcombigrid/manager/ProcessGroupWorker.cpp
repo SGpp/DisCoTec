@@ -629,15 +629,7 @@ LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
 }
 
 void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g){
-  // register dsg
-  dfg.registerUniformSG(*combinedUniDSGVector_[g]);
-
-  // fill dfg with hierarchical coefficients from distributed sparse grid
-  dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-
-  // dehierarchize dfg
-  DistributedHierarchization::dehierarchize<CombiDataType>(
-      dfg, combiParameters_.getHierarchizationDims());
+  DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
 }
 
 void ProcessGroupWorker::parallelEvalUniform() {
@@ -665,7 +657,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
     DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition);
-    fillDFGFromDSGU(dfg, g);
+    this->fillDFGFromDSGU(dfg, g);
     // save dfg to file with MPI-IO
     auto pos = filename.find(".");
     if (pos != std::string::npos){
@@ -713,7 +705,7 @@ void ProcessGroupWorker::parallelEvalNorm() {
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition);
 
-  fillDFGFromDSGU(dfg, 0);
+  this->fillDFGFromDSGU(dfg, 0);
 
   sendEvalNorms(dfg);
 }
@@ -747,7 +739,7 @@ void ProcessGroupWorker::evalErrorOnDFG() {
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition);
 
-  fillDFGFromDSGU(dfg, 0);
+  this->fillDFGFromDSGU(dfg, 0);
   // interpolate Task's analyticalSolution
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
     std::vector<double> coords(leval.size());
@@ -917,12 +909,7 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
     // get handle to dfg
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
-    // extract dfg vom dsg
-    dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-
-    // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<CombiDataType>(
-        dfg, combiParameters_.getHierarchizationDims());
+    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
   }
 }
 
@@ -931,12 +918,7 @@ void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, size_t 
       // get handle to dfg
       DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(g);
 
-      // extract dfg vom dsg
-      dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-
-      // dehierarchize dfg
-      DistributedHierarchization::dehierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims());
+      DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
 
       // std::vector<CombiDataType> datavector(dfg.getElementVector());
       // afterCombi = datavector;
