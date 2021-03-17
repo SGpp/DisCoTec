@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
     // time inteveral of 1 combination
     // only necessary if number of timesteps varies for each grid
     // otherwise set very high and use ntimesteps to adjust combiinterval
-    combigrid::real combitime;
+    // combigrid::real combitime;
     // read combination parameters
     size_t nsteps, ncombi;
     cfg.get<std::string>("ct.lmin") >> lmin;  // minimal level vector for each grid
@@ -196,13 +196,9 @@ int main(int argc, char** argv) {
     ncombi = cfg.get<size_t>("ct.ncombi");  // number of combinations
     std::string basename = cfg.get<std::string>("preproc.basename");
     dt = cfg.get<combigrid::real>(
-        "application.dt");  // timestep (only used if adaptivity switched off and linear simulation)
-    combitime =
-        cfg.get<combigrid::real>("application.combitime");  // combitime between combinations (can
-                                                            // be used instead of fixed stepnumber)
-    nsteps =
-        cfg.get<size_t>("application.nsteps");  // number of timesteps between combinations (can be
-                                                // set very large if combitime should be applied)
+        "application.dt");  // timestep
+    nsteps = cfg.get<size_t>("application.nsteps");  // number of timesteps between combinations
+    bool haveDiagnosticsTask = cfg.get<bool>("application.haveDiagnosticsTask");
 
     std::string fg_file_path = cfg.get<std::string>("ct.fg_file_path");
     std::string fg_file_path2 = cfg.get<std::string>("ct.fg_file_path2");
@@ -258,10 +254,25 @@ int main(int argc, char** argv) {
       // path to task folder
       std::string path = baseFolder + std::to_string(i);
       Task* t = new SelalibTask(dim, levels[i], boundary, coeffs[i], loadmodel.get(), path, dt,
-                                combitime, nsteps, p);
+                                nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
+    Task* levalTask;
+    if (haveDiagnosticsTask) {
+      // initialize diagnostics task
+      // create necessary folder and files to have diagnostics task in a different folder
+      createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, "_leval_");
+      std::string path = baseFolder + "_leval_0";
+      auto levalCoefficient = 0.;
+      levalTask = new SelalibTask(dim, leval, boundary, levalCoefficient, loadmodel.get(), path, dt,
+                                  nsteps, p);
+      tasks.push_back(levalTask);
+      taskIDs.push_back(levalTask->getID());
+      levels.push_back(leval);
+      coeffs.push_back(levalCoefficient);
+    }
+
     // create combiparamters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, hierarchizationDims, taskIDs,
                            ncombi, 1, reduceCombinationDimsLmin, reduceCombinationDimsLmax, false);
@@ -282,6 +293,7 @@ int main(int argc, char** argv) {
                      .count()
               << "us " << std::endl;
     Stats::stopEvent("manager initialization");
+
     // start computation
     // we perform ncombi many combinations with
     // fixed stepsize or simulation time between each combination
@@ -292,22 +304,24 @@ int main(int argc, char** argv) {
         Stats::startEvent("manager run first");
         manager.runfirst();
         Stats::stopEvent("manager run first");
-
-        std::cout << manager.getLpNorms(0) << std::endl;
-        std::cout << manager.getLpNorms(1) << std::endl;
-        std::cout << manager.getLpNorms(2) << std::endl;
-
       } else {
         // run tasks for next time interval
         Stats::startEvent("manager run");
         manager.runnext();
         Stats::stopEvent("manager run");
       }
+
       assert(!ENABLE_FT);
       // combine grids
       Stats::startEvent("manager combine");
       manager.combine();
       Stats::stopEvent("manager combine");
+
+      if (haveDiagnosticsTask){
+        Stats::startEvent("manager diag selalib");
+        manager.doDiagnostics(levalTask->getID());
+        Stats::stopEvent("manager diag selalib");
+      }
     }
 
     std::cout << manager.getLpNorms(0) << std::endl;
@@ -324,24 +338,6 @@ int main(int argc, char** argv) {
     Stats::stopEvent("manager parallel eval norm");
 
     std::cout << "Norm is " << combinedNormLeval << " \n";
-
-    // // create necessary folder and files to have evaluation task in a different folder
-    // createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, "_leval_");
-    // std::string path = baseFolder + "_leval_0";
-    // auto levalCoefficient = 0.;
-    // Task* levalTask = new SelalibTask(dim, leval, boundary, levalCoefficient, loadmodel.get(), path, dt,
-    //                             combitime, nsteps, p);
-
-    // Stats::startEvent("manager eval selalib");
-    // manager.addTask(levalTask);
-    // std::cout << "added task \n";
-    // // for reference: run the same on the grid with leval resolution
-    // // for (size_t i = 0; i < ncombi; ++i) {  // TODO implement run for one task only
-    // // }
-
-    // manager.doDiagnostics(levalTask->getID());
-    // std::cout << "diagnostics \n";
-    // Stats::stopEvent("manager eval selalib");
 
     // // evaluate solution on the grid defined by leval2
     // Stats::startEvent("manager parallel eval 2");

@@ -19,6 +19,7 @@
 
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
+#include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
@@ -39,6 +40,8 @@ void sll_s_halt_collective();
   void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_v(void** sim, double *delta_t);
   void sim_bsl_vp_3d3v_cart_dd_slim_movingB_advect_x(void** sim, double *delta_t);
   void sim_bsl_vp_3d3v_cart_dd_slim_movingB_print_etas(void** sim);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics_init(void** sim);
+  void sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics(void** sim, int32_t* timeStepNumber);
 }
 
 namespace combigrid {
@@ -49,7 +52,7 @@ inline std::ostream& operator<<(std::ostream& os, const SelalibTask& t);
 class SelalibTask : public combigrid::Task {
  public:
   SelalibTask(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-              LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
+              LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
               IndexVector p = IndexVector(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
@@ -61,10 +64,9 @@ class SelalibTask : public combigrid::Task {
         dfg_(nullptr),
         selalibSimPointer_(nullptr),
         initialized_(false),
-        currentTime_(0.0),
-        currentTimestep_(0),
+        diagnosticsInitialized_(false),
+        currentNumTimeStepsRun_(0),
         dt_(dt),
-        combitime_(combitime),
         nsteps_(nsteps) {}
 
   SelalibTask()
@@ -88,15 +90,20 @@ class SelalibTask : public combigrid::Task {
    * lcomm is the local communicator of the process group.
    */
   void run(CommunicatorType lcomm) {
-    // TODO set distribution from dfg
-    changeDir(lcomm);
-    MASTER_EXCLUSIVE_SECTION{
-      std::cout << "run " << *this << std::endl;
+    // only run anything if the coefficient is not 0., i.e. it is not the diagnostics task
+    if (coeff_ != 0.){
+      changeDir(lcomm);
+      MASTER_EXCLUSIVE_SECTION{
+        std::cout << "run " << *this << std::endl;
+      }
+      setLocalDistributionFromDFG();
+      Stats::startEvent("BSL run");
+      sim_bsl_vp_3d3v_cart_dd_slim_movingB_run(simPtrPtr_);
+      Stats::stopEvent("BSL run");
+      setDFGfromLocalDistribution();
+      changeDir(lcomm, true);
     }
-    setLocalDistributionFromDFG();
-    sim_bsl_vp_3d3v_cart_dd_slim_movingB_run(simPtrPtr_);
-    setDFGfromLocalDistribution();
-    changeDir(lcomm, true);
+    currentNumTimeStepsRun_ += nsteps_;
     setFinished(true);
   }
 
@@ -105,6 +112,7 @@ class SelalibTask : public combigrid::Task {
    * lcomm is the local communicator of the process group.
    */
   void changeDir(CommunicatorType lcomm, bool backToBaseFolder = false) {
+    Stats::startEvent("BSL change directory");
     if (!backToBaseFolder && chdir(path_.c_str())) {
       printf("could not change to directory %s \n", path_.c_str());
       MPI_Abort(MPI_COMM_WORLD, 1);
@@ -114,6 +122,7 @@ class SelalibTask : public combigrid::Task {
     }
     // it is safer to wait here until all procs are in the right directory
     MPI_Barrier(lcomm);
+    Stats::stopEvent("BSL change directory");
   }
 
   /**
@@ -143,6 +152,11 @@ class SelalibTask : public combigrid::Task {
     changeDir(lcomm, true);
     setDFGfromLocalDistribution();
     initialized_ = true;
+    // only run diagnostics if the coefficient is 0., i.e. it is the diagnostics task
+    if (coeff_ == 0.){
+      sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics_init(simPtrPtr_);
+      diagnosticsInitialized_ = true;
+    }
     MASTER_EXCLUSIVE_SECTION{
       // first print task, then synchronize and print other info
       std::cout << "initialized " << *this << std::endl;
@@ -209,45 +223,28 @@ class SelalibTask : public combigrid::Task {
   inline bool isInitialized() { return initialized_; }
 
   /**
-   * Returns the time that is simulated between combinations.
-   * This is only used in case we do not want to use a fixed number of timesteps
-   * but a fixed period of time between combinations for each component grids.
+   * Returns the current time in the simulation.
    */
-  real getCombiTime() { return combitime_; }
+  real getCurrentTime() const override { return currentNumTimeStepsRun_ * dt_; }
 
-  /**
-   * Returns the current time in the simulation. This is uses to update the time in BSL after
-   * restart.
-   */
-  real getCurrentTime() const override { return currentTime_; }
+  void setCurrentNumTimeStepsRun(IndexType currentNumTimeStepsRun) { currentNumTimeStepsRun_ = currentNumTimeStepsRun; }
 
-  /**
-   * Sets the current time in the simulation. This is uses to update the time in BSL after restart.
-   */
-  void setCurrentTime(real currentTime) { currentTime_ = currentTime; }
-  /**
-   * Returns the current timestep in the simulation. This is uses to update the timestep in BSL
-   * after restart.
-   */
-  real getCurrentTimestep() { return currentTimestep_; }
-  /**
-   * Sets the current timestep in the simulation. This is uses to update the timestep in BSL after
-   * restart.
-   */
-  void setCurrentTimestep(real currentTimestep) { currentTimestep_ = currentTimestep; }
+  real getCurrentNumTimeStepsRun() { return currentNumTimeStepsRun_; }
 
   // do task-specific postprocessing (by default: nothing)
-  void doDiagnostics(const std::vector<const DistributedSparseGridUniform<CombiDataType>*>) override {
+  void doDiagnostics(const std::vector<DistributedSparseGridUniform<CombiDataType>*> dsgus, const std::vector<bool>& hierarchizationDims) override {
     assert(initialized_);
-    //TODO set dfg from DSG
-    assert(false);
+    assert(dsgus.size() == 1);
+    changeDir(dfg_->getCommunicator(), false);
+    // these here should be done in combine step already
+    // // set dfg from DSG
+    // DistributedHierarchization::fillDFGFromDSGU(*dfg_, *dsgus[0], hierarchizationDims);
+    // set selalib distribution from dfg
     setLocalDistributionFromDFG();
-
-    //for testing:
-    changeDir(MPI_COMM_SELF, false);
-    // ungraceful exit; not sure why
-    sim_bsl_vp_3d3v_cart_dd_slim_movingB_delete(simPtrPtr_);
-    changeDir(MPI_COMM_SELF, true);
+    assert(diagnosticsInitialized_);
+    int32_t* iPtr = &currentNumTimeStepsRun_;
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics(simPtrPtr_, iPtr);
+    changeDir(dfg_->getCommunicator(), true);
   }
 
   void receiveDiagnostics() override {}
@@ -257,6 +254,7 @@ class SelalibTask : public combigrid::Task {
 
   // following variables are set in manager and thus need to be included in
   // serialize function
+  real coeff_; // combination technique coefficient
   std::string path_;  // directory in which task should be executed
   IndexVector p_;
 
@@ -269,17 +267,15 @@ class SelalibTask : public combigrid::Task {
   void** simPtrPtr_ = &selalibSimPointer_;
 
   bool initialized_;  // indicates if SelalibTask is initialized
+  bool diagnosticsInitialized_;  // indicates if SelalibTask is initialized
 
   /*
    * simulation time specific parameters
    */
-  real currentTime_;      // current time in the simulation
-  real currentTimestep_;  // curent time step length in the simulation
+  int32_t currentNumTimeStepsRun_;  // current number of time steps already run in the simulation
   real dt_;
-  real combitime_;  // simulation time interval between combinations
 
-  /**number of time-steps in between two combinations (is set very large in case combitime should be
-   * used); this requires equal time-steps for every component grid
+  /**number of time-steps in between two combinations
    */
   size_t nsteps_;
 
@@ -378,13 +374,14 @@ class SelalibTask : public combigrid::Task {
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     ar& boost::serialization::base_object<Task>(*this);
+    ar& coeff_;
     ar& path_;
+    ar& p_;
+    ar& diagnosticsInitialized_;
+    ar& currentNumTimeStepsRun_;
     ar& dt_;
-    ar& combitime_;
     ar& nsteps_;
     // ar& localDistribution_;
-    ar& p_;
-    ar& currentTime_;
   }
 };
 

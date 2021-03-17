@@ -3,17 +3,19 @@
 #dimension of problem
 dim = 6
 #minimum and maximum level of combination technique
-lmin = 2 2 2 2 2 2
-lmax = 3 3 3 3 3 3
+# same order as in selalib: x1 x2 x3 v1 v2 v3
+lmin = 4 4 4 4 4 4
+lmax = 4 4 4 4 4 4
 
 #levelvector at which 2 final outputs are evaluated (with potential interpolation)
-leval = 2 2 2 2 2 2
-leval2 = 3 3 3 3 3 3
+leval2 = 2 2 2 2 2 2
+leval = 4 4 4 4 4 4
 #indicates number of processors per dimension in domain decomposition
 #this is the same for each process group
-p = 1 1 1 1 2 2
+# same order as in selalib: x1 x2 x3 v1 v2 v3
+p = 1 1 1 2 2 2
 #number of combination steps
-ncombi = 2
+ncombi = 3
 #indicates the file name of the 2 plot files
 fg_file_path = plot.dat
 fg_file_path2 = plot2.dat
@@ -29,12 +31,11 @@ reduceCombinationDimsLmax = 1 1 1 1 1 1
 [application]
 #timestep size
 dt = 0.01
-#timesteps 100000
 #number of timesteps between combinations
-nsteps = 10
-#allowed maximal simulation time (physical time) between combination steps
-#if it would be exceeded finish also with less steps as defined above
-combitime = 10
+nsteps = 1
+#whether we want to have a "diagnostics task" that interpolates the ct solution
+# to get the physical outputs through selalib diagnostics
+haveDiagnosticsTask = 1
 #physical parameters
 # TODO add selalib parameters
 
@@ -44,6 +45,6 @@ basename = seladisco
 
 [manager]
 #number of mpi ranks in each group
-nprocs = 4
+nprocs = 8
 #number of process groups
-ngroup = 2
+ngroup = 1
