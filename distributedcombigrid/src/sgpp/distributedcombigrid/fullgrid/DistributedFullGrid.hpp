@@ -254,6 +254,12 @@ class DistributedFullGrid {
   /** evaluates the full grid on the specified coordinates
    * @param coords ND coordinates on the unit square [0,1]^D*/
   FG_ELEMENT eval(const std::vector<real>& coords) const {
+    FG_ELEMENT value;
+    eval(coords, value);
+    return value;
+  }
+
+  void eval(const std::vector<real>& coords, FG_ELEMENT& value, MPI_Request* request = nullptr) const {
     assert(coords.size() == this->getDimension());
 
     // get the lowest-index point of the points
@@ -269,23 +275,28 @@ class DistributedFullGrid {
 
     // evaluate at those points and sum up according to the basis function
     // needs to be recursive in order to be dimensionally adaptive
-    FG_ELEMENT value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
+    value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
 
-    //TODO (pollinta) we could also MPI_Reduce only to the master rank
-    MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
-
-    return value;
+    if (request == nullptr) {
+      MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
+    } else {
+      //TODO (pollinta) we could also MPI_Reduce only to the master rank
+      MPI_Iallreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator(), request);
+    }
   }
 
   /** evaluates the full grid on the specified coordinates
    * @param interpolationCoords vector of ND coordinates on the unit square [0,1]^D*/
   std::vector<FG_ELEMENT> getInterpolatedValues(std::vector<std::vector<real>>interpolationCoords) const {
+    auto numValues = interpolationCoords.size();
     std::vector<FG_ELEMENT> values;
-    values.resize(interpolationCoords.size());
-    // todo make the reduction communication overlapping
-    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-      values[i] = this->eval(interpolationCoords[i]);
+    values.resize(numValues);
+    std::vector<MPI_Request> requests;
+    requests.resize(numValues);
+    for (size_t i = 0; i < numValues; ++i) {
+      this->eval(interpolationCoords[i], values[i], &requests[i]);
     }
+    MPI_Waitall(numValues, requests.data(), MPI_STATUSES_IGNORE);
     return values;
   }
 
