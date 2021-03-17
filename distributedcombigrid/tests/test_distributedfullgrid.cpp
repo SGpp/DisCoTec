@@ -72,6 +72,23 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     BOOST_TEST(2.1 * dfg.getData()[li] == dfg2.getData()[li]);
   }
 
+  // test full grid interpolation
+  std::vector<std::vector<double>> interpolationCoords;
+  interpolationCoords.emplace_back(dim, 1./std::sqrt(2.));
+  interpolationCoords.emplace_back(dim, 1./std::sqrt(3.));
+  interpolationCoords.emplace_back(dim, 1./std::sqrt(5.));
+  interpolationCoords.emplace_back(dim, 0.5);
+  interpolationCoords.emplace_back(dim, 0.5 + 1e-4);
+  interpolationCoords.emplace_back(dim, 0.5 - 1e-4);
+  interpolationCoords.emplace_back(dim, 0.5 + 1e-5);
+  interpolationCoords.emplace_back(dim, 0.5 - 1e-5);
+
+  auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
+
+  for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+    BOOST_CHECK_CLOSE(interpolatedValues[i].real(), f(interpolationCoords[i]).real(), TestHelper::tolerance);
+  }
+
   // test norm calculation
   auto maxnorm = dfg.getLpNorm(0);
   auto onenorm = dfg.getLpNorm(1);

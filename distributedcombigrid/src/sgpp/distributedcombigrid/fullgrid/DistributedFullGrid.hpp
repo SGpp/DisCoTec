@@ -201,12 +201,90 @@ class DistributedFullGrid {
     MPI_Comm_free(&communicator_);
   }
 
+  FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex, const std::vector<real>& coords) const {
+    auto firstIndex = this->getFirstGlobalIndex();
+    auto lastIndex = this->getLastGlobalIndex();
+    // if this local index is out of bounds, return 0. (will be contributed by other partial dfg)
+    if (! (localIndex >= firstIndex && localIndex <= lastIndex) ) {
+      std::cout << "out of bounds" << localIndex << firstIndex << lastIndex << std::endl;
+      return 0.;
+    }
+    // std::cout << localIndex << firstIndex << lastIndex << std::endl;
+
+    // get coords corresponding to localIndex
+    auto localLinearIndex = getLocalLinearIndex(localIndex);
+    std::vector<real> pointCoords (this->getDimension());
+    getCoordsLocal(localLinearIndex, pointCoords);
+
+    // get product of 1D hat functions on coords
+    auto h = getGridSpacing();
+    real phi_c = 1.;
+    for (DimType d = 0 ; d < dim_ ; ++d){
+      // get distance between coords and point
+      pointCoords[d] -= coords[d];
+      if (std::abs(pointCoords[d]) > h[d]){
+        std::cout << "assert bounds " << pointCoords << coords << h << d << std::endl;
+        assert(false &&
+          "should only be called for coordinates within the support of this point's basis function");
+      }
+      phi_c *= 1. - std::abs(pointCoords[d]/h[d]);
+    }
+    // std::cout << localIndex << coords << localLinearIndex << h << std::endl;
+    assert(phi_c >= 0.);
+    return phi_c * this->getElementVector()[localLinearIndex];
+  }
+
+  FG_ELEMENT evalMultiindexRecursively (const IndexVector& localIndex, DimType dim, const std::vector<real>& coords) const {
+    if (dim > this->getDimension()){
+      std::cout << "eval " << localIndex << std::endl;
+      return evalLocalIndexOn(localIndex, coords);
+    } else {
+      FG_ELEMENT sum = 0.;
+      IndexVector localIndexDimPlusOne = localIndex;
+      localIndexDimPlusOne[dim] += 1;
+      std::cout << localIndex << localIndexDimPlusOne << std::endl;
+      sum += evalMultiindexRecursively(localIndex, dim+1, coords);
+      std::cout << "sum 1 " << sum << std::endl;
+      sum += evalMultiindexRecursively(localIndexDimPlusOne, dim+1, coords);
+      std::cout << "sum 2 " << sum << std::endl;
+      return sum;
+    }
+  }
+
   /** evaluates the full grid on the specified coordinates
    * @param coords ND coordinates on the unit square [0,1]^D*/
-  FG_ELEMENT eval(std::vector<double>& coords) const {
-    assert(!"not implemented");
+  FG_ELEMENT eval(const std::vector<real>& coords) const {
+    assert(coords.size() == this->getDimension());
 
-    return FG_ELEMENT(0);
+    // get the lowest-index point of the points
+    // whose basis functions contribute to the interpolated value
+    auto lowerCoords = getLowerBoundsCoords();
+    auto h = getGridSpacing();
+    IndexVector localIndexLowerNonzeroNeighborPoint (dim_);
+    for (DimType d = 0 ; d < dim_ ; ++d){
+      assert(coords[d] > 0. && coords[d] < 1.);
+      localIndexLowerNonzeroNeighborPoint[d] = (coords[d] - lowerCoords[d]) / h[d];
+    }
+    std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
+
+    // evaluate at those points and sum up according to the basis function
+    // needs to be recursive in order to be dimensionally adaptive
+    FG_ELEMENT value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
+
+    std::cout << value << std::endl;
+    return value;
+  }
+
+  /** evaluates the full grid on the specified coordinates
+   * @param interpolationCoords vector of ND coordinates on the unit square [0,1]^D*/
+  std::vector<FG_ELEMENT> getInterpolatedValues(std::vector<std::vector<real>>interpolationCoords) const {
+    std::vector<FG_ELEMENT> values;
+    values.resize(interpolationCoords.size());
+    // todo make the reduction communication overlapping
+    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+      values[i] = this->eval(interpolationCoords[i]);
+    }
+    return values;
   }
 
   /** return the coordinates on the unit square corresponding to global idx
@@ -537,7 +615,7 @@ class DistributedFullGrid {
   /** returns the 1d global index of the first point in the local domain
    *
    */
-  inline IndexType getFirstGlobal1dIndex(DimType d) {
+  inline IndexType getFirstGlobal1dIndex(DimType d) const {
     return lowerBounds_[rank_][d];
 
     /* start with first inner point
@@ -556,10 +634,18 @@ class DistributedFullGrid {
      } */
   }
 
+  IndexVector getFirstGlobalIndex() const {
+    IndexVector firstGlobalIndex(dim_);
+    for (DimType d = 0; d < dim_; ++d) {
+      firstGlobalIndex[d] = getFirstGlobal1dIndex(d);
+    }
+    return firstGlobalIndex;
+  }
+
   /** returns the 1d global index of the last point in the local domain
    *
    */
-  inline IndexType getLastGlobal1dIndex(DimType d) {
+  inline IndexType getLastGlobal1dIndex(DimType d) const {
     return upperBounds_[rank_][d] - 1;
 
     /* last inner point
@@ -574,6 +660,14 @@ class DistributedFullGrid {
      else{
      return upperBounds_[rank_][d] - 1;
      } */
+  }
+
+  IndexVector getLastGlobalIndex() const {
+    IndexVector lastGlobalIndex(dim_);
+    for (DimType d = 0; d < dim_; ++d) {
+      lastGlobalIndex[d] = getLastGlobal1dIndex(d);
+    }
+    return lastGlobalIndex;
   }
 
   // returns level of a global 1d index
