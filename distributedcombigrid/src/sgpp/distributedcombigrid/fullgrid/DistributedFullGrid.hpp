@@ -1659,6 +1659,8 @@ class DistributedFullGrid {
   /** mpi size */
   int size_;
 
+  // the MPI Datatypes representing the boundary layers of the MPI processes' subgrid
+  std::vector<MPI_Datatype> downwardSubarrays_;
   std::vector<MPI_Datatype> upwardSubarrays_;
 
   /** number of local (in this grid cell) points per axis*/
