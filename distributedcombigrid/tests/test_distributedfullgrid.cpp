@@ -82,6 +82,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   interpolationCoords.emplace_back(dim, 0.5 - 1e-4);
   interpolationCoords.emplace_back(dim, 0.5 + 1e-5);
   interpolationCoords.emplace_back(dim, 0.5 - 1e-5);
+  BOOST_CHECK_CLOSE(dfg.eval(interpolationCoords[0]).real(), f(interpolationCoords[0]).real(), TestHelper::tolerance);
 
   auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
 
@@ -201,11 +202,18 @@ BOOST_AUTO_TEST_SUITE(distributedfullgrid)
 // with boundary
 // isotropic
 
-BOOST_AUTO_TEST_CASE(test_minus1) {
+BOOST_AUTO_TEST_CASE(test_minus2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {1, 2};
   IndexVector procs = {1, 1};
   std::vector<bool> boundary(2, true);
+  checkDistributedFullgrid(levels, procs, boundary, 1);
+}
+BOOST_AUTO_TEST_CASE(test_minus1) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {1, 1, 2};
+  IndexVector procs = {1, 1, 1};
+  std::vector<bool> boundary(3, true);
   checkDistributedFullgrid(levels, procs, boundary, 1);
 }
 BOOST_AUTO_TEST_CASE(test_0) {

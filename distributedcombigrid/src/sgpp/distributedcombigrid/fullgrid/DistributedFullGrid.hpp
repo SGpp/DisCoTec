@@ -202,14 +202,13 @@ class DistributedFullGrid {
   }
 
   FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex, const std::vector<real>& coords) const {
-    auto firstIndex = this->getFirstGlobalIndex();
-    auto lastIndex = this->getLastGlobalIndex();
+    auto firstIndex = IndexVector(dim_, 0);
+    auto lastIndex = this->getLastGlobalIndex() - this->getFirstGlobalIndex();
     // if this local index is out of bounds, return 0. (will be contributed by other partial dfg)
     if (! (localIndex >= firstIndex && localIndex <= lastIndex) ) {
-      std::cout << "out of bounds" << localIndex << firstIndex << lastIndex << std::endl;
+      // std::cout << "out of bounds" << localIndex << firstIndex << lastIndex << std::endl;
       return 0.;
     }
-    // std::cout << localIndex << firstIndex << lastIndex << std::endl;
 
     // get coords corresponding to localIndex
     auto localLinearIndex = getLocalLinearIndex(localIndex);
@@ -223,30 +222,31 @@ class DistributedFullGrid {
       // get distance between coords and point
       pointCoords[d] -= coords[d];
       if (std::abs(pointCoords[d]) > h[d]){
-        std::cout << "assert bounds " << pointCoords << coords << h << d << std::endl;
+        std::cout << "assert bounds " << pointCoords << coords <<
+         h << d << localIndex << lastIndex << std::endl;
         assert(false &&
           "should only be called for coordinates within the support of this point's basis function");
       }
       phi_c *= 1. - std::abs(pointCoords[d]/h[d]);
     }
-    // std::cout << localIndex << coords << localLinearIndex << h << std::endl;
+    // std::cout << "coords " <<  localIndex << coords << localLinearIndex << h << std::endl;
+    // std::cout << "phi_c " << phi_c << this->getElementVector()[localLinearIndex] << std::endl;
     assert(phi_c >= 0.);
     return phi_c * this->getElementVector()[localLinearIndex];
   }
 
   FG_ELEMENT evalMultiindexRecursively (const IndexVector& localIndex, DimType dim, const std::vector<real>& coords) const {
-    if (dim > this->getDimension()){
-      std::cout << "eval " << localIndex << std::endl;
+    assert(!(dim > this->getDimension()));
+    if (dim == this->getDimension()){
+      // std::cout << "eval " << localIndex << std::endl;
       return evalLocalIndexOn(localIndex, coords);
     } else {
       FG_ELEMENT sum = 0.;
       IndexVector localIndexDimPlusOne = localIndex;
       localIndexDimPlusOne[dim] += 1;
-      std::cout << localIndex << localIndexDimPlusOne << std::endl;
+      // std::cout << localIndex << localIndexDimPlusOne << std::endl;
       sum += evalMultiindexRecursively(localIndex, dim+1, coords);
-      std::cout << "sum 1 " << sum << std::endl;
       sum += evalMultiindexRecursively(localIndexDimPlusOne, dim+1, coords);
-      std::cout << "sum 2 " << sum << std::endl;
       return sum;
     }
   }
@@ -263,15 +263,17 @@ class DistributedFullGrid {
     IndexVector localIndexLowerNonzeroNeighborPoint (dim_);
     for (DimType d = 0 ; d < dim_ ; ++d){
       assert(coords[d] > 0. && coords[d] < 1.);
-      localIndexLowerNonzeroNeighborPoint[d] = (coords[d] - lowerCoords[d]) / h[d];
+      localIndexLowerNonzeroNeighborPoint[d] = std::floor((coords[d] - lowerCoords[d]) / h[d]);
     }
-    std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
+    // std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
 
     // evaluate at those points and sum up according to the basis function
     // needs to be recursive in order to be dimensionally adaptive
     FG_ELEMENT value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
 
-    std::cout << value << std::endl;
+    //TODO (pollinta) we could also MPI_Reduce only to the master rank
+    MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
+
     return value;
   }
 
