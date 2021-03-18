@@ -18,6 +18,7 @@
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
+#include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "stdlib.h"
 #include "test_helper.hpp"
@@ -147,6 +148,17 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     Stats::startEvent("manager write solution");
     manager.parallelEval( lmax, filename, 0 );
     Stats::stopEvent("manager write solution");
+
+    // test Monte-Carlo interpolation
+    auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
+    Stats::startEvent("manager interpolate");
+    auto values = manager.interpolateValues(interpolationCoords);
+    Stats::stopEvent("manager interpolate");
+
+    TestFnCount<CombiDataType> initialFunction;
+    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+      BOOST_CHECK_CLOSE(initialFunction(interpolationCoords[i], ncombi), values[i], TestHelper::tolerance);
+    }
 
     manager.exit();
 
