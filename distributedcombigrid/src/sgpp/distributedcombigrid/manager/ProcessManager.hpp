@@ -93,6 +93,8 @@ class ProcessManager {
 
   std::vector<double> evalErrorOnDFG(const LevelVector& leval, size_t groupID = 0);
 
+  std::vector<CombiDataType> interpolateValues(std::vector<std::vector<real>>& interpolationCoords);
+
   void redistribute(std::vector<int>& taskID);
 
   void reInitializeGroup(std::vector<ProcessGroupManagerID>& taskID,

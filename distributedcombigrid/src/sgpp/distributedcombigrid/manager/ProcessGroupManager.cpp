@@ -248,6 +248,29 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
   return norms;
 }
 
+void ProcessGroupManager::interpolateValues(std::vector<std::vector<real>>& interpolationCoords,
+                                              std::vector<CombiDataType>& values,
+                                              MPI_Request* request) {
+  sendSignalToProcessGroup(INTERPOLATE_VALUES);
+  auto coordsSize = interpolationCoords.size()* interpolationCoords[0].size();
+  std::vector<real> interpolationCoordsSerial;
+  interpolationCoordsSerial.reserve(coordsSize);
+  for (auto& coord: interpolationCoords) {
+    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
+  }
+  MPI_Request dummyRequest;
+  MPI_Isend(interpolationCoordsSerial.data(), coordsSize, abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<real>()), pgroupRootID_,
+    TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
+  MPI_Request_free(&dummyRequest);
+  MPI_Irecv(values.data(), values.size(), abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<CombiDataType>()), pgroupRootID_,
+    TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), request);
+
+  MPI_Wait(request, MPI_STATUS_IGNORE);
+  setProcessGroupBusyAndReceive();
+}
+
 void ProcessGroupManager::recvStatus() {
   // start non-blocking call to receive status
   if (ENABLE_FT) {

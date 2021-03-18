@@ -396,6 +396,29 @@ std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, siz
   return g->evalErrorOnDFG(leval);
 }
 
+std::vector<CombiDataType> ProcessManager::interpolateValues(std::vector<std::vector<real>>& interpolationCoords) {
+  auto numValues = interpolationCoords.size();
+  std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues));
+  std::vector<MPI_Request> requests(pgroups_.size());
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->interpolateValues(interpolationCoords, values[i], &requests[i]);
+  }
+  // // these here don't really wait, for some reason I don't understand right now...
+  // MPI_Wait(&requests[0], MPI_STATUS_IGNORE);
+  // MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+  // // so we just wait on the status
+  // for (auto & pg : pgroups_){
+  //   pg->waitStatus();
+  // }
+  std::vector<CombiDataType> reducedValues(numValues);
+  for (const auto& v : values){
+    for (size_t i = 0; i < numValues; ++i) {
+      reducedValues[i] += v[i];
+    }
+  }
+  return reducedValues;
+}
+
 void ProcessManager::reschedule() {
   std::map<LevelVector, int> levelVectorToProcessGroupIndex;
   for (size_t i = 0; i < pgroups_.size(); ++i) {

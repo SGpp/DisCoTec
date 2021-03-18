@@ -268,7 +268,7 @@ class DistributedFullGrid {
     auto h = getGridSpacing();
     IndexVector localIndexLowerNonzeroNeighborPoint (dim_);
     for (DimType d = 0 ; d < dim_ ; ++d){
-      assert(coords[d] > 0. && coords[d] < 1.);
+      assert(coords[d] >= 0. && coords[d] <= 1.);
       localIndexLowerNonzeroNeighborPoint[d] = std::floor((coords[d] - lowerCoords[d]) / h[d]);
     }
     // std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
@@ -287,7 +287,7 @@ class DistributedFullGrid {
 
   /** evaluates the full grid on the specified coordinates
    * @param interpolationCoords vector of ND coordinates on the unit square [0,1]^D*/
-  std::vector<FG_ELEMENT> getInterpolatedValues(std::vector<std::vector<real>>interpolationCoords) const {
+  std::vector<FG_ELEMENT> getInterpolatedValues(std::vector<std::vector<real>>& interpolationCoords) const {
     auto numValues = interpolationCoords.size();
     std::vector<FG_ELEMENT> values;
     values.resize(numValues);
