@@ -142,7 +142,6 @@ class TaskAdvection : public Task {
           IndexVector locAxisIndex(this->getDim());
           dfg_->getLocalVectorIndex(li, locAxisIndex);
           //TODO can be unrolled into ghost and other part, avoiding if-statement
-          //TODO implement periodic boundary; currently neumann=0 BC
           CombiDataType phi_neighbor = 0.;
           if (locAxisIndex[d] == 0){
             // if we are in the lowest layer in d,
@@ -152,7 +151,6 @@ class TaskAdvection : public Task {
             if (globAxisIndex[d] == 0){
               assert(phi_ghost.size()==0);
               continue;
-              // remove for periodic BC
             }
             // then use values from boundary exchange
             IndexType gli = 0;
@@ -176,6 +174,8 @@ class TaskAdvection : public Task {
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
         dfg_->getData()[li] = phi_->getElementVector()[li] - u_dot_dphi[li] * dt_;
       }
+      // implement periodic BC
+      dfg->writeUpperBoundaryToLowerBoundary(d);
     }
 
     stepsTotal_ += nsteps_;
