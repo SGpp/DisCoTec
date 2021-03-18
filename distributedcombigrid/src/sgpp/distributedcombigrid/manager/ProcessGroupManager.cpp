@@ -100,12 +100,10 @@ bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
 
   sendSignalToProcessGroup(UPDATE_COMBI_PARAMETERS);
 
-  std::cout << "sending class \n";
   // send combiparameters
   MPIUtils::sendClass(&params, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
-  std::cout << "manager received status \n";
   return true;
 }
 
