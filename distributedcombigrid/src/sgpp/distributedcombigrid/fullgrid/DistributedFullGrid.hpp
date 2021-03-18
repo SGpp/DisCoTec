@@ -1532,37 +1532,61 @@ class DistributedFullGrid {
     }
     return downwardSubarrays_;
   }
+  /**
+   * @brief get the ranks of the highest and lowest "neighbor" rank in dimension d
+   *    only sets highest and lowest if they actually are my neighbors
+   */
+  void getHighestAndLowestNeighbor(DimType d, int& highest, int& lowest) {
+    //TODO this is not going to work with periodic cartesian communicator
+    lowest = MPI_PROC_NULL;
+    highest = MPI_PROC_NULL;
 
-  void writeLowerBoundaryToUpperBoundary(DimType d) {
+    auto d_reverse = this->getDimension() - d - 1;
+    if (!reverseOrderingDFGPartitions) {
+      d_reverse = d;
+    }
+    MPI_Cart_shift( this->getCommunicator(), d_reverse, getParallelization()[d] -1 , &lowest, &highest );
+
+    // assert only boundaries have those neighbors (remove in case of periodicity)
+    // this assumes no periodicity!
+    if(! this->getLowerBounds()[d] == 0){
+      assert(highest < 0);
+    }
+    if(! this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
+      assert(lowest < 0);
+    }
+  }
+
+  void writeUpperBoundaryToLowerBoundary(DimType d) {
     assert(hasBoundaryPoints_[d] == true);
-    auto subarrayExtents = this->getLocalSizes();
-    subarrayExtents[d] = 1;
 
     // create MPI datatypes
     auto downSubarrays = getDownwardSubarrays();
     auto upSubarrays = getUpwardSubarrays();
 
-    // if I have the highest neighbor, I need to send my lowest layer in d to them,
-    // if I have the lowest neighbor, I can receive it
-    auto lower = MPI_PROC_NULL;
-    auto higher = MPI_PROC_NULL;
+    // if I have the lowest neighbor (i. e. I am the highest rank), I need to send my lowest layer in d to them,
+    // if I have the highest neighbor (i. e. I am the lowest rank), I can receive it
+    int lower, higher;
+    getHighestAndLowestNeighbor(d, higher, lower);
 
-    // somehow the cartesian directions in the communicator are reversed
-    // cf InitMPI(...)
-    auto d_reverse = this->getDimension() - d - 1;
-    if (!reverseOrderingDFGPartitions) {
-      d_reverse = d;
-    }
-    MPI_Cart_shift( this->getCommunicator(), d_reverse, getParallelization()[d] -1 , &lower, &higher );
+    auto success =
+        MPI_Sendrecv(this->getData(), 1, upSubarrays[d], lower, TRANSFER_GHOST_LAYER_TAG,
+                     this->getData(), 1, downSubarrays[d], higher, 
+                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+    assert(success == MPI_SUCCESS);
+  }
 
-    // assert only boundaries have those neighbors (remove in case of periodicity)
-    // this assumes no periodicity!
-    if(! this->getLowerBounds()[d] == 0){
-      assert(higher < 0);
-    }
-    if(! this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
-      assert(lower < 0);
-    }
+  void writeLowerBoundaryToUpperBoundary(DimType d) {
+    assert(hasBoundaryPoints_[d] == true);
+
+    // create MPI datatypes
+    auto downSubarrays = getDownwardSubarrays();
+    auto upSubarrays = getUpwardSubarrays();
+
+    // if I have the highest neighbor (i. e. I am the lowest rank), I need to send my lowest layer in d to them,
+    // if I have the lowest neighbor (i. e. I am the highest rank), I can receive it
+    int lower, higher;
+    getHighestAndLowestNeighbor(d, higher, lower);
 
     // TODO asynchronous over d??
     auto success =
