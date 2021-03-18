@@ -74,6 +74,22 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     BOOST_TEST(2.1 * dfg.getData()[li] == dfg2.getData()[li]);
   }
 
+  // test norm calculation
+  auto maxnorm = dfg.getLpNorm(0);
+  auto onenorm = dfg.getLpNorm(1);
+  auto twonorm = dfg.getLpNorm(2);
+  if (std::all_of(boundary.begin(), boundary.end(), [](bool i){return i;})){
+    std::vector<double> maxcoords(dim, 1.);
+    BOOST_CHECK_EQUAL(f(maxcoords), maxnorm);
+  }
+  // solution is a hyperplane, so the sum is equal to the value in the middle times the number of points
+  std::vector<double> middlecoords(dim, 0.5);
+  BOOST_CHECK_EQUAL(f(middlecoords)*static_cast<double>(dfg.getNrElements()), onenorm);
+  // lazy for the two-norm, just check boundedness relations:
+  BOOST_CHECK(twonorm <= onenorm);
+  BOOST_CHECK(onenorm <= std::sqrt(dfg.getNrElements())*twonorm);
+
+  // test ghost layer exchange
   IndexVector subarrayExtents;
   for (DimType d = 0; d < dim; ++d) {
     auto ghostLayer = dfg.exchangeGhostLayerUpward(d, subarrayExtents);
@@ -104,23 +120,65 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
       }
     }
   }
-  // std::cout << "rank " << dfg.getRank() << std::endl;
-  // dfg.print(std::cout);
 
   // test gatherFullgrid
   FullGrid<std::complex<double>> fg(dim, levels, boundary);
   dfg.gatherFullGrid(fg, 0);
 
   // only check on rank 0
-  if (TestHelper::getRank(comm) != 0) {
-    return;
+  if (TestHelper::getRank(comm) == 0) {
+    for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
+      std::vector<double> coords(dim);
+      fg.getCoords(i, coords);
+      BOOST_TEST(fg.getData()[i] == f(coords));
+    }
   }
 
-  for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
-    std::vector<double> coords(dim);
-    fg.getCoords(i, coords);
-    BOOST_TEST(fg.getData()[i] == f(coords));
+  // std::stringstream ss;
+  // ss << "test_dfg_" << levels << procs << boundary << forward << ".vtk";
+  // dfg.writePlotFileVTK(ss.str().c_str());
+
+  // test lower to upper exchange
+  for (DimType d = 0; d < dim; ++d) {
+    // std::cout << dfg << std::endl;
+    if (boundary[d] == true){
+      dfg.writeLowerBoundaryToUpperBoundary(d);
+
+      for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i){
+        std::vector<double> coords(dim);
+        dfg.getCoordsLocal(i, coords);
+        if (abs((coords[d] - 1.)) < TestHelper::tolerance){
+          bool edge = false;
+          // if other dimensions are at maximum too, we are at an edge
+          // results may differ; skip
+          for (DimType d_i = 0; d_i < dim; ++d_i){
+            if (d_i != d && abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+              edge = true;
+            }
+          }
+          if (!edge){
+            // check if the value is the same as on the lower boundary
+            auto compareCoords = coords;
+            compareCoords[d] = 0;
+            BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(compareCoords));
+          }
+        } else {
+          bool otherBoundary = false;
+          for (DimType d_i = 0; d_i < dim; ++d_i){
+            if (d_i != d && abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+              otherBoundary = true;
+            }
+          }
+          if (!otherBoundary){
+            // make sure all other values remained the same
+            BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(coords));
+          }
+        }
+      }
+    }
   }
+
+  // std::cout << dfg << std::endl;
 }
 
 BOOST_AUTO_TEST_SUITE(distributedfullgrid)
@@ -128,6 +186,20 @@ BOOST_AUTO_TEST_SUITE(distributedfullgrid)
 // with boundary
 // isotropic
 
+BOOST_AUTO_TEST_CASE(test_minus1) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {1, 2};
+  IndexVector procs = {1, 1};
+  std::vector<bool> boundary(2, true);
+  checkDistributedFullgrid(levels, procs, boundary, 1);
+}
+BOOST_AUTO_TEST_CASE(test_0) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {2, 3};
+  IndexVector procs = {1, 1};
+  std::vector<bool> boundary(2, true);
+  checkDistributedFullgrid(levels, procs, boundary, 1);
+}
 BOOST_AUTO_TEST_CASE(test_1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(6));
   LevelVector levels = {2, 2};

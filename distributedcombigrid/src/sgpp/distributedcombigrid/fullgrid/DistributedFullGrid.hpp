@@ -526,6 +526,9 @@ class DistributedFullGrid {
 
     // important: reverse ordering of partition coords!
     coords.assign(tmp.rbegin(), tmp.rend());
+    if (!reverseOrderingDFGPartitions) {
+      coords.assign(tmp.begin(), tmp.end());
+    }
   }
 
   /** position of the local process in the grid of processes */
@@ -642,6 +645,10 @@ class DistributedFullGrid {
     // important: note reverse ordering
     std::vector<int> partitionCoordsInt(partitionCoords.rbegin(), partitionCoords.rend());
 
+    if (!reverseOrderingDFGPartitions) {
+      partitionCoordsInt.assign(partitionCoords.begin(), partitionCoords.end());
+    }
+
     RankType rank;
     MPI_Cart_rank(communicator_, &partitionCoordsInt[0], &rank);
 
@@ -703,6 +710,11 @@ class DistributedFullGrid {
         std::vector<int> csizes(sizes.rbegin(), sizes.rend());
         std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
         std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
+        //   csizes.assign(sizes.begin(), sizes.end());
+        //   csubsizes.assign(subsizes.begin(), subsizes.end());
+        //   cstarts.assign(starts.begin(), starts.end());
+        // }
 
         // create subarray view on data
         MPI_Datatype mysubarray;
@@ -1129,6 +1141,11 @@ class DistributedFullGrid {
         std::vector<int> csizes(sizes.rbegin(), sizes.rend());
         std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
         std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        if (!reverseOrderingDFGPartitions) {
+          csizes.assign(sizes.begin(), sizes.end());
+          csubsizes.assign(subsizes.begin(), subsizes.end());
+          cstarts.assign(starts.begin(), starts.end());
+        }
 
         // create subarray view on data
         MPI_Datatype mysubarray;
@@ -1289,6 +1306,11 @@ class DistributedFullGrid {
     std::vector<int> csizes(sizes.rbegin(), sizes.rend());
     std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
     std::vector<int> cstarts(starts.rbegin(), starts.rend());
+    if (!reverseOrderingDFGPartitions) {
+      csizes.assign(sizes.begin(), sizes.end());
+      csubsizes.assign(subsizes.begin(), subsizes.end());
+      cstarts.assign(starts.begin(), starts.end());
+    }
 
     // create subarray view on data
     MPI_Datatype mysubarray;
@@ -1365,6 +1387,11 @@ class DistributedFullGrid {
     std::vector<int> csizes(sizes.rbegin(), sizes.rend());
     std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
     std::vector<int> cstarts(starts.rbegin(), starts.rend());
+    // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
+    //   csizes.assign(sizes.begin(), sizes.end());
+    //   csubsizes.assign(subsizes.begin(), subsizes.end());
+    //   cstarts.assign(starts.begin(), starts.end());
+    // }
 
     // create subarray view on data
     MPI_Datatype mysubarray;
@@ -1425,7 +1452,7 @@ class DistributedFullGrid {
     MPI_File_close(&fh);
   }
 
-  std::vector<IndexVector>& getDecomposition() { return decomposition_; }
+  const std::vector<IndexVector>& getDecomposition() const { return decomposition_; }
 
 
   std::vector<MPI_Datatype> getUpwardSubarrays() {
@@ -1449,6 +1476,11 @@ class DistributedFullGrid {
         std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
         // the starts are local indices
         std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
+        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
+        //   sizes.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
+        //   subsizes.assign(subarrayExtents.begin(), subarrayExtents.end());
+        //   starts.assign(subarrayStarts.begin(), subarrayStarts.end());
+        // }
 
         // create subarray view on data //todo do this only once per dimension
         MPI_Datatype mysubarray;
@@ -1462,6 +1494,83 @@ class DistributedFullGrid {
     return upwardSubarrays_;
   }
 
+  std::vector<MPI_Datatype> getDownwardSubarrays() {
+    // initialize downwardSubarrays_ only once
+    if (downwardSubarrays_.size() == 0){
+      downwardSubarrays_.resize(this->getDimension());
+      for (DimType d = 0; d < this->getDimension(); ++d) {
+        // do index calculations
+        // set upper bounds of subarray
+        IndexVector subarrayLowerBounds = this->getLowerBounds();
+        IndexVector subarrayUpperBounds = this->getUpperBounds();
+        subarrayUpperBounds[d] -= this->getLocalSizes()[d] - 1;
+
+        auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
+        assert(subarrayExtents[d] == 1);
+        auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
+
+        // create MPI datatype
+        // also, the data dimensions are reversed
+        std::vector<int> sizes(this->getLocalSizes().rbegin(), this->getLocalSizes().rend());
+        std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
+        // the starts are local indices
+        std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
+        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
+        //   sizes.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
+        //   subsizes.assign(subarrayExtents.begin(), subarrayExtents.end());
+        //   starts.assign(subarrayStarts.begin(), subarrayStarts.end());
+        // }
+
+        // create subarray view on data
+        MPI_Datatype mysubarray;
+        MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
+                                subsizes.data(), starts.data(), MPI_ORDER_C, this->getMPIDatatype(),
+                                &mysubarray);
+        MPI_Type_commit(&mysubarray);
+        downwardSubarrays_[d] = mysubarray;
+      }
+    }
+    return downwardSubarrays_;
+  }
+
+  void writeLowerBoundaryToUpperBoundary(DimType d) {
+    assert(hasBoundaryPoints_[d] == true);
+    auto subarrayExtents = this->getLocalSizes();
+    subarrayExtents[d] = 1;
+
+    // create MPI datatypes
+    auto downSubarrays = getDownwardSubarrays();
+    auto upSubarrays = getUpwardSubarrays();
+
+    // if I have the highest neighbor, I need to send my lowest layer in d to them,
+    // if I have the lowest neighbor, I can receive it
+    auto lower = MPI_PROC_NULL;
+    auto higher = MPI_PROC_NULL;
+
+    // somehow the cartesian directions in the communicator are reversed
+    // cf InitMPI(...)
+    auto d_reverse = this->getDimension() - d - 1;
+    if (!reverseOrderingDFGPartitions) {
+      d_reverse = d;
+    }
+    MPI_Cart_shift( this->getCommunicator(), d_reverse, getParallelization()[d] -1 , &lower, &higher );
+
+    // assert only boundaries have those neighbors (remove in case of periodicity)
+    // this assumes no periodicity!
+    if(! this->getLowerBounds()[d] == 0){
+      assert(higher < 0);
+    }
+    if(! this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
+      assert(lower < 0);
+    }
+
+    // TODO asynchronous over d??
+    auto success =
+        MPI_Sendrecv(this->getData(), 1, downSubarrays[d], higher, TRANSFER_GHOST_LAYER_TAG,
+                     this->getData(), 1, upSubarrays[d], lower,
+                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+    assert(success == MPI_SUCCESS);
+  }
 
   std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents) {
     subarrayExtents = this->getLocalSizes();
@@ -1478,6 +1587,9 @@ class DistributedFullGrid {
     // somehow the cartesian directions in the communicator are reversed
     // cf InitMPI(...)
     auto d_reverse = this->getDimension() - d - 1;
+    if (!reverseOrderingDFGPartitions) {
+      d_reverse = d;
+    }
     MPI_Cart_shift( this->getCommunicator(), d_reverse, 1, &lower, &higher );
 
     // assert that boundaries have no neighbors (remove in case of periodicity)
@@ -1562,6 +1674,8 @@ class DistributedFullGrid {
   /** mpi size */
   int size_;
 
+  // the MPI Datatypes representing the boundary layers of the MPI processes' subgrid
+  std::vector<MPI_Datatype> downwardSubarrays_;
   std::vector<MPI_Datatype> upwardSubarrays_;
 
   /** number of local (in this grid cell) points per axis*/
@@ -1615,6 +1729,9 @@ class DistributedFullGrid {
 
     // important: note reverse ordering of dims!
     std::vector<int> dims(procs_.rbegin(), procs_.rend());
+    if (!reverseOrderingDFGPartitions) {
+      dims.assign(procs_.begin(), procs_.end());
+    }
 
     // check if communicator is already cartesian
     int status;
@@ -1625,6 +1742,8 @@ class DistributedFullGrid {
       auto maxdims = static_cast<int>(procs_.size());
       std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
       MPI_Cart_get(comm, static_cast<int>(maxdims), &cartdims[0], &periods[0], &coords[0]);
+      ASSERT(cartdims == dims,
+            " cartdims: " << cartdims << " dims: " << dims);
       assert(cartdims == dims);
 
       MPI_Comm_dup(comm, &communicator_);
@@ -1951,6 +2070,22 @@ class DistributedFullGrid {
 // output operator
 template <typename FG_ELEMENT>
 inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_ELEMENT>& dfg) {
+  // os << dfg.getRank() << " " << dfg.getDimension() << " " << dfg.getLevels() << std::endl;
+  // os << "bounds " << dfg.getLowerBounds() << " to " << dfg.getUpperBounds()  << " to " << dfg.getUpperBoundsCoords() << std::endl;
+  // os << "offsets " << dfg.getOffsets() << " " << dfg.getLocalOffsets() << std::endl;
+  // os << "sizes " << dfg.getLocalSizes() << "; " << dfg.getElementVector().size() << " " << dfg.getNrLocalElements() << "; " << dfg.getNrElements() << std::endl;
+  // std::vector<std::vector<IndexType>> decomposition = dfg.getDecomposition();
+  // for (auto& dec : decomposition) {
+  //   os << dec;
+  // }
+  // std::vector<std::vector<double>> decompositionCoords = dfg.getDecompositionCoords();
+  // for (auto& dec : decompositionCoords) {
+  //   os << dec;
+  // }
+  // os << "decomposition " << dfg.getParallelization() << std::endl;
+  // if(dfg.getNrLocalElements() < 30)
+  //   os << "elements " << dfg.getElementVector() << std::endl;
+
   dfg.print(os);
 
   return os;

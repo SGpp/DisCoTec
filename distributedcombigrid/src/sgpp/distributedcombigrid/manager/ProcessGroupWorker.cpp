@@ -627,15 +627,7 @@ LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
 }
 
 void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g){
-  // register dsg
-  dfg.registerUniformSG(*combinedUniDSGVector_[g]);
-
-  // fill dfg with hierarchical coefficients from distributed sparse grid
-  dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-
-  // dehierarchize dfg
-  DistributedHierarchization::dehierarchize<CombiDataType>(
-      dfg, combiParameters_.getHierarchizationDims());
+  DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
 }
 
 void ProcessGroupWorker::parallelEvalUniform() {
@@ -659,11 +651,11 @@ void ProcessGroupWorker::parallelEvalUniform() {
 
   for (IndexType g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
-    bool forwardDecomposition = !isGENE;
+    bool forwardDecomposition = combiParameters_.getForwardDecomposition();
     DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition);
-    fillDFGFromDSGU(dfg, g);
+    this->fillDFGFromDSGU(dfg, g);
     // save dfg to file with MPI-IO
     if(endsWith(filename, ".vtk")){
       dfg.writePlotFileVTK(filename.c_str());
@@ -710,13 +702,13 @@ void sendEvalNorms(const DistributedFullGrid<CombiDataType>& dfg){
 void ProcessGroupWorker::parallelEvalNorm() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
-  bool forwardDecomposition = !isGENE;
+  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition);
 
-  fillDFGFromDSGU(dfg, 0);
+  this->fillDFGFromDSGU(dfg, 0);
 
   sendEvalNorms(dfg);
 }
@@ -724,7 +716,7 @@ void ProcessGroupWorker::parallelEvalNorm() {
 void ProcessGroupWorker::evalAnalyticalOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
-  bool forwardDecomposition = !isGENE;
+  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
@@ -744,13 +736,13 @@ void ProcessGroupWorker::evalAnalyticalOnDFG() {
 void ProcessGroupWorker::evalErrorOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
-  bool forwardDecomposition = !isGENE;
+  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition);
 
-  fillDFGFromDSGU(dfg, 0);
+  this->fillDFGFromDSGU(dfg, 0);
   // interpolate Task's analyticalSolution
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
     std::vector<double> coords(leval.size());
@@ -877,9 +869,34 @@ void ProcessGroupWorker::updateCombiParameters() {
   // broadcast task to other process of pgroup
   MPIUtils::broadcastClass(&tmp, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
   //std::cout << "worker received combiparameters \n";
-  combiParameters_ = tmp;
 
+  combiParameters_ = tmp;
   combiParametersSet_ = true;
+
+  // overwrite local comm with cartesian communicator
+  if (!isGENE  && tmp.isParallelizationSet()){
+    // cf. https://www.rookiehpc.com/mpi/docs/mpi_cart_create.php
+    // get decompositon from combi params
+    auto par = combiParameters_.getParallelization();
+
+    // important: note reverse ordering of dims! -- cf DistributedFullGrid //TODO(pollinta) remove reverse ordering
+    std::vector<int> dims (par.rbegin(), par.rend());
+    if (!reverseOrderingDFGPartitions) {
+      dims.assign(par.begin(), par.end());
+    }
+
+    // Make all dimensions not periodic //TODO(pollinta) allow periodicity
+    std::vector<int> periods (combiParameters_.getDim(), 0);
+
+    // don't let MPI assign arbitrary ranks
+    int reorder = false;
+
+    // Create a communicator given the topology.
+    MPI_Comm new_communicator;
+    MPI_Cart_create(theMPISystem()->getLocalComm(), combiParameters_.getDim(), dims.data(), periods.data(), reorder, &new_communicator);
+
+    theMPISystem()->storeLocalComm(new_communicator);
+  }
 }
 
 void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
@@ -894,12 +911,7 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
     // get handle to dfg
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
-    // extract dfg vom dsg
-    dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-
-    // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<CombiDataType>(
-        dfg, combiParameters_.getHierarchizationDims());
+    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
   }
 }
 
@@ -1073,12 +1085,7 @@ void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, size_t 
     // get handle to dfg
     DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(static_cast<int>(g));
 
-    // extract dfg vom dsg
-    dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-
-    // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<CombiDataType>(
-        dfg, combiParameters_.getHierarchizationDims());
+    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
 
     // std::vector<CombiDataType> datavector(dfg.getElementVector());
     // afterCombi = datavector;

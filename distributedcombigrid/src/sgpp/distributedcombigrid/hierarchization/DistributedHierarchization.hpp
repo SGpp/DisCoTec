@@ -6,6 +6,7 @@
 #include "boost/lexical_cast.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
+#include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 using namespace combigrid;
@@ -2439,6 +2440,17 @@ class DistributedHierarchization {
   static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg) {
     std::vector<bool> dims(dfg.getDimension(), true);
     dehierarchize<FG_ELEMENT>(dfg, dims);
+  }
+
+  template <typename FG_ELEMENT>
+  static void fillDFGFromDSGU(DistributedFullGrid<FG_ELEMENT>& dfg,
+      DistributedSparseGridUniform<FG_ELEMENT>& dsg, const std::vector<bool>& hierarchizationDims){
+    // fill dfg with hierarchical coefficients from distributed sparse grid
+    dfg.extractFromUniformSG(dsg);
+
+    // dehierarchize dfg
+    DistributedHierarchization::dehierarchize<FG_ELEMENT>(
+        dfg, hierarchizationDims);
   }
 };
 // class DistributedHierarchization

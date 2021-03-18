@@ -19,6 +19,7 @@ class CombiParameters {
                   const IndexVector parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
+                  bool forwardDecomposition = !isGENE,
                   const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0,
                   size_t thirdLevelPG = 0
@@ -28,6 +29,7 @@ class CombiParameters {
         lmax_(lmax),
         boundary_(boundary),
         procsSet_(false),
+        forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
@@ -51,6 +53,7 @@ class CombiParameters {
                   IndexType numGrids = 1,
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
+                  bool forwardDecomposition = !isGENE,
                   const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0,
                   size_t thirdLevelPG = 0
@@ -61,6 +64,7 @@ class CombiParameters {
         boundary_(boundary),
         hierarchizationDims_(hierachizationDims),
         procsSet_(false),
+        forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
@@ -202,6 +206,16 @@ class CombiParameters {
     procsSet_ = true;
   }
 
+  inline bool isParallelizationSet() const {
+    return procsSet_;
+  }
+
+  inline bool getForwardDecomposition() const {
+    if (isGENE){
+      assert(!forwardDecomposition_);
+    }
+    return forwardDecomposition_;
+  }
 
  private:
   DimType dim_;
@@ -229,6 +243,8 @@ class CombiParameters {
   CommunicatorType applicationComm_;
 
   bool applicationCommSet_;
+
+  bool forwardDecomposition_;
 
   friend class boost::serialization::access;
   IndexType numberOfCombinations_;  // total number of combinations
@@ -279,6 +295,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;
+  ar& forwardDecomposition_;
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;
   ar& numTasks_;
