@@ -296,7 +296,7 @@ class DistributedFullGrid {
     for (size_t i = 0; i < numValues; ++i) {
       this->eval(interpolationCoords[i], values[i], &requests[i]);
     }
-    MPI_Waitall(numValues, requests.data(), MPI_STATUSES_IGNORE);
+    MPI_Waitall(static_cast<int>(numValues), requests.data(), MPI_STATUSES_IGNORE);
     return values;
   }
 

@@ -143,17 +143,20 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       manager.runnext();
     }
     manager.combine();
+    std::cout << "combined " << ngroup << " " << nprocs << std::endl;
 
     std::string filename("integration_" + std::to_string(ncombi) + ".raw");
     Stats::startEvent("manager write solution");
     manager.parallelEval( lmax, filename, 0 );
     Stats::stopEvent("manager write solution");
+    std::cout << "wrote solution  " << ngroup << " " << nprocs << std::endl;
 
     // test Monte-Carlo interpolation
     auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
     Stats::startEvent("manager interpolate");
     auto values = manager.interpolateValues(interpolationCoords);
     Stats::stopEvent("manager interpolate");
+    std::cout << "did interpolation " << ngroup << " " << nprocs << std::endl;
 
     TestFnCount<CombiDataType> initialFunction;
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
