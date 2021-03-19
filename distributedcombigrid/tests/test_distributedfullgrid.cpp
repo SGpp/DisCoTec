@@ -157,12 +157,12 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
       for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i){
         std::vector<double> coords(dim);
         dfg.getCoordsLocal(i, coords);
-        if (abs((coords[d] - 1.)) < TestHelper::tolerance){
+        if (std::abs((coords[d] - 1.)) < TestHelper::tolerance){
           bool edge = false;
           // if other dimensions are at maximum too, we are at an edge
           // results may differ; skip
           for (DimType d_i = 0; d_i < dim; ++d_i){
-            if (d_i != d && abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+            if (d_i != d && std::abs((coords[d_i] - 1.)) < TestHelper::tolerance){
               edge = true;
             }
           }
@@ -175,7 +175,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
         } else {
           bool otherBoundary = false;
           for (DimType d_i = 0; d_i < dim; ++d_i){
-            if (d_i != d && abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+            if (d_i != d && std::abs((coords[d_i] - 1.)) < TestHelper::tolerance){
               otherBoundary = true;
             }
           }
