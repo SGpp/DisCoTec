@@ -36,6 +36,10 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) return;
 
+  if (TestHelper::getRank(comm) == 0) {
+    std::cout << "test distributedfullgrid " << levels << procs << std::endl;
+  }
+
   TestFn f;
   const DimType dim = levels.size();
 
