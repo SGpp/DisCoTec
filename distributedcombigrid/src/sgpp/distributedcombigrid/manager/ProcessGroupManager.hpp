@@ -79,9 +79,9 @@ class ProcessGroupManager {
 
   std::vector<double> evalErrorOnDFG(const LevelVector& leval);
 
-  void interpolateValues(std::vector<std::vector<real>>& interpolationCoords,
+  void interpolateValues(const std::vector<std::vector<real>>& interpolationCoords,
                                               std::vector<CombiDataType>& values,
-                                              MPI_Request* request);
+                                              MPI_Request& request);
 
   /**
    * Adds a task to the process group. To be used for rescheduling.

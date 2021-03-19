@@ -396,16 +396,19 @@ std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, siz
   return g->evalErrorOnDFG(leval);
 }
 
-std::vector<CombiDataType> ProcessManager::interpolateValues(std::vector<std::vector<real>>& interpolationCoords) {
+std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
   auto numValues = interpolationCoords.size();
   std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues));
   std::vector<MPI_Request> requests(pgroups_.size());
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->interpolateValues(interpolationCoords, values[i], &requests[i]);
+    pgroups_[i]->interpolateValues(interpolationCoords, values[i], requests[i]);
+    // MPI_Wait(&requests[i], MPI_STATUS_IGNORE); // even this won't make it work
   }
   // // these here don't really wait, for some reason I don't understand right now...
-  // MPI_Wait(&requests[0], MPI_STATUS_IGNORE);
-  // MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+  // for (auto & r : requests) {
+  //   MPI_Wait(&r, MPI_STATUS_IGNORE);
+  // }
   // // so we just wait on the status
   // for (auto & pg : pgroups_){
   //   pg->waitStatus();

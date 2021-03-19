@@ -160,6 +160,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 
     TestFnCount<CombiDataType> initialFunction;
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+      if (std::abs(initialFunction(interpolationCoords[i], ncombi) - values[i]) > TestHelper::tolerance) {
+        std::cout << "err " << interpolationCoords.size() <<interpolationCoords[i] << " " << i << std::endl;
+      }
       BOOST_CHECK_CLOSE(initialFunction(interpolationCoords[i], ncombi), values[i], TestHelper::tolerance);
     }
 
