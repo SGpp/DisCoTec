@@ -398,21 +398,22 @@ std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, siz
 
 std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
   auto numValues = interpolationCoords.size();
-  std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues));
+  std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN()));
   std::vector<MPI_Request> requests(pgroups_.size());
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->interpolateValues(interpolationCoords, values[i], requests[i]);
-    // MPI_Wait(&requests[i], MPI_STATUS_IGNORE); // even this won't make it work
+
+  // send interpolation coords as a single array
+  auto coordsSize = numValues* interpolationCoords[0].size();
+  std::vector<real> interpolationCoordsSerial;
+  interpolationCoordsSerial.reserve(coordsSize);
+  for (auto& coord: interpolationCoords) {
+    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
   }
-  // // these here don't really wait, for some reason I don't understand right now...
+
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, values[i], requests[i]);
+  }
   MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
-  // for (auto & r : requests) {
-  //   MPI_Wait(&r, MPI_STATUS_IGNORE);
-  // }
-  // // so we just wait on the status
-  // for (auto & pg : pgroups_){
-  //   pg->waitStatus();
-  // }
+
   std::vector<CombiDataType> reducedValues(numValues);
   for (const auto& v : values){
     for (size_t i = 0; i < numValues; ++i) {

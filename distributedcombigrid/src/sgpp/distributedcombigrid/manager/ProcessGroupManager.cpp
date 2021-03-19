@@ -248,18 +248,12 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
   return norms;
 }
 
-void ProcessGroupManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords,
+void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                                               std::vector<CombiDataType>& values,
                                               MPI_Request& request) {
   sendSignalToProcessGroup(INTERPOLATE_VALUES);
-  auto coordsSize = interpolationCoords.size()* interpolationCoords[0].size();
-  std::vector<real> interpolationCoordsSerial;
-  interpolationCoordsSerial.reserve(coordsSize);
-  for (auto& coord: interpolationCoords) {
-    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
-  }
   MPI_Request dummyRequest;
-  MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(coordsSize), abstraction::getMPIDatatype(
+  MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()), abstraction::getMPIDatatype(
     abstraction::getabstractionDataType<real>()), pgroupRootID_,
     TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
   MPI_Request_free(&dummyRequest);
@@ -268,9 +262,6 @@ void ProcessGroupManager::interpolateValues(const std::vector<std::vector<real>>
     TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &request);
 
   setProcessGroupBusyAndReceive();
-
-  // MPI_Wait(&request, MPI_STATUS_IGNORE);
-  // waitStatus(); // either of these make it work, but not if we call them later in ProcessManager::interpolateValues...?!?
 }
 
 void ProcessGroupManager::recvStatus() {
