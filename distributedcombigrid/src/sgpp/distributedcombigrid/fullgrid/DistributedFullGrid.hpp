@@ -1228,6 +1228,8 @@ class DistributedFullGrid {
   real getLpNorm(int p) const {
     assert(p >= 0);
     // special case maximum norm
+    MPI_Datatype dtype =
+      abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
     if (p == 0) {
       auto& data = getElementVector();
       real max = 0.0;
@@ -1237,7 +1239,7 @@ class DistributedFullGrid {
       }
 
       real globalMax(-1);
-      MPI_Allreduce(&max, &globalMax, 1, MPI_DOUBLE, MPI_MAX, getCommunicator());
+      MPI_Allreduce(&max, &globalMax, 1, dtype, MPI_MAX, getCommunicator());
 
       return globalMax;
     } else {
@@ -1250,9 +1252,8 @@ class DistributedFullGrid {
         res += std::pow(abs, p_f);
       }
       // res /= data.size();
-
-      real globalRes(-1);
-      MPI_Allreduce(&res, &globalRes, 1, getMPIDatatype(), MPI_SUM, getCommunicator());
+      real globalRes(0.);
+      MPI_Allreduce(&res, &globalRes, 1, dtype, MPI_SUM, getCommunicator());
       return std::pow(globalRes, 1.0 / p_f);
     }
   }
