@@ -76,9 +76,6 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     BOOST_TEST(2.1 * dfg.getData()[li] == dfg2.getData()[li]);
   }
 
-  if (TestHelper::getRank(comm) == 0) {
-    std::cout << "test distributedfullgrid norm " << levels << procs << std::endl;
-  }
   // test norm calculation
   auto maxnorm = dfg.getLpNorm(0);
   auto onenorm = dfg.getLpNorm(1);
@@ -93,11 +90,6 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   // lazy for the two-norm, just check boundedness relations:
   BOOST_CHECK(twonorm <= onenorm);
   BOOST_CHECK(onenorm <= std::sqrt(dfg.getNrElements())*twonorm);
-
-
-  if (TestHelper::getRank(comm) == 0) {
-    std::cout << "test distributedfullgrid ghost " << levels << procs << std::endl;
-  }
 
   // test ghost layer exchange
   IndexVector subarrayExtents;
@@ -188,9 +180,6 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     }
   }
 
-  if (TestHelper::getRank(comm) == 0) {
-    std::cout << "tested distributedfullgrid " << levels << procs << std::endl;
-  }
   // std::cout << dfg << std::endl;
 }
 
