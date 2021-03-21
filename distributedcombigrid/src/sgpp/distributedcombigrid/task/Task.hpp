@@ -49,6 +49,7 @@ class Task {
   inline const std::vector<bool>& getBoundary() const;
 
   inline int getID() const;
+  virtual size_t getDOFs(){return 1;};
 
   virtual void run(CommunicatorType lcomm) = 0;
 

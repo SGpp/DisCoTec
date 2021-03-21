@@ -145,6 +145,8 @@ int main(int argc, char** argv) {
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+
+    //Calculate the number of degrees of freedom.
     int number_points=0;
     for(int i=0; i<levels.size();i++){  
         if(dim==2)  {
@@ -153,6 +155,34 @@ int main(int argc, char** argv) {
         else if(dim==3){
           number_points+=coeffs[i]*(pow(2,int(levels[i][0]))+1)*(pow(2,int(levels[i][1]))+1)*(pow(2,int(levels[i][2]))+1);
         }
+    }
+    if(isdg){
+      number_points=0;
+      for(int i=0; i<levels.size();i++){  
+          if(dim==2)  {
+            int dof=4;
+            dof+=4*(pow(2,int(levels[i][0]))-1)*(pow(2,int(levels[i][1]))-1);
+            
+            //kanten 2 dofs aber gibt es 2 mal:
+            dof+=4*(pow(2,int(levels[i][0]))-2+pow(2,int(levels[i][1])));
+
+            number_points+=coeffs[i]*dof;
+          }
+          else if(dim==3){
+            int dof=8;
+            //inner points with 8 dofs: check
+            dof+=8*(pow(2,int(levels[i][0]))-1)*(pow(2,int(levels[i][1]))-1)*(pow(2,int(levels[i][2]))-1);
+            std::cout<<"DOF:"<<dof<<std::endl;
+            //outer flache, jede Fläche 2 mal mit 4 dof:
+            dof+=8*((pow(2,int(levels[i][0]))-1)*(pow(2,int(levels[i][1]))-1) + (pow(2,int(levels[i][2]))-1)*(pow(2,int(levels[i][1]))-1) +(pow(2,int(levels[i][0]))-1)*(pow(2,int(levels[i][2]))-1));
+            std::cout<<"DOF:"<<dof<<std::endl;
+            //kanten 2 dofs aber gibt es 4 mal check:
+            dof+=8*(pow(2,int(levels[i][0]))-3+pow(2,int(levels[i][1]))+pow(2,int(levels[i][2])));
+            std::cout<<"DOF:"<<dof<<std::endl;
+
+            number_points+=coeffs[i]*dof;
+          }
+      }
     }
     std::cout << "Number of points:"<<number_points<<std::endl;
     // output combination scheme
@@ -172,12 +202,17 @@ int main(int argc, char** argv) {
       usleep(10);
       Task* t;
 
-      if(!isdg)
+      if(!isdg){
         t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt, makeExactSol, p);
-      else
+        tasks.push_back(t);
+        taskIDs.push_back(t->getID());
+      }
+      else{
         t = new TaskEnsemble(dim, levels[i], boundary, coeffs[i], loadmodel.get(),file_name, dt, makeExactSol, p);
-      tasks.push_back(t);
-      taskIDs.push_back(t->getID());
+        tasks.push_back(t);
+        taskIDs.push_back(t->getID());
+      }
+      
     }
     
     //gridout.write_pvtu
@@ -203,7 +238,7 @@ int main(int argc, char** argv) {
     Stats::startEvent("manager run first");
     manager.runfirst();
     Stats::stopEvent("manager run first");
-     Stats::startEvent("correct computation");
+    Stats::startEvent("correct computation");
     
     std::chrono::nanoseconds duration_combination=std::chrono::nanoseconds::zero();
     for (size_t i = 1; i < ncombi; ++i) {
@@ -223,6 +258,7 @@ int main(int argc, char** argv) {
       table.print(false);
     }
     manager.combine();
+    //std::cout<< (TaskEnsemble)tasks[0]->dfgEnsemble_<<std::endl;
     Stats::stopEvent("correct computation");
       // evaluate solution and
       // write solution to file

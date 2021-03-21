@@ -23,81 +23,91 @@ real l2Norm(std::vector<CombiDataType>& data);
 
 int main(int argc, char** argv) {
   std::cout << argc << "\n";
-  assert(argc == 6);
+  assert(argc == 7);
 
   // mode normalize abs : either normalize w.r.t. l2 Norm of grids, or don't
   char* mode = argv[1];
-
-  // files
-  std::string filenameLeft(argv[2]);
-  std::string filenameRight(argv[3]);
-  std::string filenameError(argv[4]);
-  std::string prefix(argv[5]);
-
-  std::vector<CombiDataType> data1;
-  std::vector<CombiDataType> data2;
-
-  IndexVector res1;
-  IndexVector res2;
-
-  // get data and res of first file
-  readPlotFile(filenameLeft.c_str(), data1, res1);
-
-  // get data and res of second file
-  readPlotFile(filenameRight.c_str(), data2, res2);
-
-  // check sizes
-  assert(data1.size() == data2.size());
-  assert(res1 == res2);
-
-  // normalize with l2 norm
-  real l2norm1 = l2Norm(data1);
-  real l2norm2 = l2Norm(data2);
-  std::cout << "l2 norm grid 1: " << l2norm1 << " l2 norm grid 2: " << l2norm2 << "\n";
-
-  real tmp1 = 1.0 / l2norm1;
-    real tmp2 = 1.0 / l2norm2;
-  if (mode[0] == 'n') {
-    for (auto i = 0; i < data1.size(); ++i) data1[i] *= tmp1;
-    for (auto i = 0; i < data2.size(); ++i) data2[i] *= tmp2;
-  } else if (mode[0] == 'a') {
-    ;
-  } else {
-    assert(!"wrong parameter");
+  std::cout<<argv[6];
+  int max=0;
+  std::string mode_(argv[6]);
+  if(mode_=="DG"){
+    std::cout<< "Ich bin DG Fehler";
+    max=7;
   }
-//   for( auto i=0; i<data1.size(); ++i ){
-//     std::cout << data1[i] << " ";
-//   }
-//   std::cout << "\n data2";
-//   for( auto i=0; i<data2.size(); ++i ){
-//     std::cout << data2[i] << " ";
-//   }
-//   std::cout << "\n";
+  real meanerr=0.0;
+    std::string prefix(argv[5]);
+    std::string filenameError(argv[4]);
+  for(int suffix=0;suffix<=max;suffix++){
+    // files
+    std::string filenameLeft(argv[2]);
+    std::string filenameRight(argv[3]);
 
-  // calc l2 norm of values
-  real err = 0.0;
-  for (auto i = 0; i < data1.size(); ++i) {
-    real tmp = std::abs(data1[i] - data2[i]);
+    std::vector<CombiDataType> data1;
+    std::vector<CombiDataType> data2;
 
-    // if (std::abs(tmp) / std::abs(data1[i]) > 1e-12)
-    //   std::cout << " i: " << i << " values: " << std::abs(data2[i]) << " " << std::abs(data1[i]) << " ";
-    err += tmp * tmp;
+    IndexVector res1;
+    IndexVector res2;
+
+    // get data and res of first file
+    readPlotFile((filenameLeft+std::to_string(suffix)).c_str(), data1, res1);
+
+    // get data and res of second file
+    readPlotFile((filenameRight+std::to_string(suffix)).c_str(), data2, res2);
+
+    // check sizes
+    assert(data1.size() == data2.size());
+    assert(res1 == res2);
+
+    // normalize with l2 norm
+    real l2norm1 = l2Norm(data1);
+    real l2norm2 = l2Norm(data2);
+    std::cout << "l2 norm grid 1: " << l2norm1 << " l2 norm grid 2: " << l2norm2 << "\n";
+
+    real tmp1 = 1.0 / l2norm1;
+      real tmp2 = 1.0 / l2norm2;
+    if (mode[0] == 'n') {
+      for (auto i = 0; i < data1.size(); ++i) data1[i] *= tmp1;
+      for (auto i = 0; i < data2.size(); ++i) data2[i] *= tmp2;
+    } else if (mode[0] == 'a') {
+      ;
+    } else {
+      assert(!"wrong parameter");
+    }
+  //   for( auto i=0; i<data1.size(); ++i ){
+  //     std::cout << data1[i] << " ";
+  //   }
+  //   std::cout << "\n data2";
+  //   for( auto i=0; i<data2.size(); ++i ){
+  //     std::cout << data2[i] << " ";
+  //   }
+  //   std::cout << "\n";
+
+    // calc l2 norm of values
+    real err = 0.0;
+    for (auto i = 0; i < data1.size(); ++i) {
+      real tmp = std::abs(data1[i] - data2[i]);
+
+      // if (std::abs(tmp) / std::abs(data1[i]) > 1e-12)
+      //   std::cout << " i: " << i << " values: " << std::abs(data2[i]) << " " << std::abs(data1[i]) << " ";
+      err += tmp * tmp;
+    }
+    int points=1;
+    for (auto i=0;i<res1.size();++i)
+      points*=res1[i];
+    std::cout<<"Points:"<<points << std::endl;
+
+    std::cout << "\n";
+    err = std::sqrt(err);
+    err/=points;
+    meanerr+=err;
   }
-  int points=1;
-  for (auto i=0;i<res1.size();++i)
-    points*=res1[i];
-  std::cout<<"Points:"<<points << std::endl;
-
-  std::cout << "\n";
-  err = std::sqrt(err);
-  err/=points;
   // open file in append mode
   std::ofstream ofs(filenameError.c_str(), std::ofstream::app);
 
   // write prefix and err
-  ofs << prefix << " " << err << std::endl;
+  ofs << prefix << " " << meanerr/(max+1) << std::endl;
 
-  std::cout << "error " << err << std::endl;
+  std::cout << "error " << meanerr/(max+1) << std::endl;
 
   return 0;
 }

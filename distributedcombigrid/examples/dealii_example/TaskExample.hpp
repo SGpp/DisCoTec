@@ -51,7 +51,6 @@ class TaskExample : public Task {
      * of two for the number of processes here. */
     int np;
     MPI_Comm_size(lcomm, &np);
-    std::cout<< "Ich bin hier in init, das darf nur einmal auftauchen"<< std::endl;
     // check if power of two
     if (!((np > 0) && ((np & (~np + 1)) == np)))
       assert(false && "number of processes not power of two");
@@ -205,7 +204,7 @@ class TaskExample : public Task {
     }  
     else{
       //get the coordinates
-      std::cout<<"\ncomputing the exact solution with sin^2\n";
+     
       std::vector<CombiDataType>& elements = dfg_->getElementVector();
       std::vector<std::array<Number, Problem::dim_ >> element_coords(elements.size());
       for (size_t i = 0; i < elements.size(); ++i) {

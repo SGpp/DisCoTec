@@ -16,6 +16,7 @@
 #include <deal.II/lac/la_parallel_vector.h>
 #include <hyper.deal.combi/include/functionalities/dynamic_convergence_table.h>
 #include <hyper.deal.combi/include/functionalities/vector_dummy.h>
+#include <math.h>
 //#include <hyper.deal.combi/applications/advection_reference_dealii/include/application.h>
 
 
@@ -98,24 +99,25 @@ class TaskEnsemble : public Task {
       offset[i]=l[i]*1.1;
 
     
-    if(!make_exact_){
+    //if(!make_exact_){
       this->problem = std::make_shared<Problem>(lcomm, table,offset);
       this->problem->reinit(_filename);
 
 
       
     
-    if(do_combine){
+    //if(do_combine){
     std::vector<std::array<Number, Problem::dim_ + 2>> coords_dealii = problem->get_result();
     size_result=coords_dealii.size();
 
+    std::cout<<"Size:"<<size_result<<std::endl;
     std::vector<std::vector<std::array<Number, Problem::dim_ >>> element_coords(dfgEnsemble_->getNumFullGrids()); 
     
     /* loop over local subgrids and set initial values */
     for (unsigned int i = 0; i< dfgEnsemble_->getNumFullGrids(); ++i){
       auto& dfg = dfgEnsemble_->getDFG(i);
       std::vector<CombiDataType>& elements = dfg.getElementVector();
-
+  
       element_coords[i].resize(elements.size());
 
       for (size_t j = 0; j < elements.size(); ++j) {
@@ -126,10 +128,11 @@ class TaskEnsemble : public Task {
           element_coords[i][j][l]=globalCoords[l];
         }
         
-        elements[j] =0;// TaskEnsemble::myfunction(globalCoords, 0.0);
+        elements[j] =NAN;// TaskEnsemble::myfunction(globalCoords, 0.0);
       }
     }
     std::stringstream ss;
+    corners.resize(dfgEnsemble_->getNumFullGrids());
     int Nx=std::pow(2,l[0])+1;
     int Ny=std::pow(2,l[1])+1;
     int Nz=1;
@@ -138,14 +141,20 @@ class TaskEnsemble : public Task {
       Nz=std::pow(2,l[2])+1;
       partitions*=p[2];
     }
-      
+    
+
     assert(partitions==1);//partitioning isnt correct when in parallel
     index_mapping.resize(dfgEnsemble_->getNumFullGrids());
-    for (unsigned int i = 0; i< dfgEnsemble_->getNumFullGrids(); ++i)
-      index_mapping[i].resize(element_coords[0].size());
+    index_DOF.resize(dfgEnsemble_->getNumFullGrids());
+    for (unsigned int i = 0; i< dfgEnsemble_->getNumFullGrids(); ++i){
+      index_mapping[i].resize(element_coords[i].size());
+      for(unsigned int j=0;j<element_coords[i].size();++j) {
+        index_mapping[i][j]=-1;
+      }
+    }
     //this may cause memory problems when working with high discretizations, 
-    std::vector<int> index_sub(Nx*Ny*Nz,-1);
-    
+    //std::vector<int> index_sub(Nx*Ny*Nz,-1);
+    index_sub.resize(Nx*Ny*Nz);
     int z=0;
     int x=0,y=0,linearized_index=0;
     //index mapping is done via hashing:
@@ -165,25 +174,76 @@ class TaskEnsemble : public Task {
       //ss << "["<<linearized_index<<"]";
       index_sub[linearized_index]=el_index;
     }
-    
     //same for the deal.II points ->O(2n)
     for(unsigned int x2=0; x2<(coords_dealii.size());x2++){
       x=std::round(coords_dealii[x2][0]*(Nx-1));
-      y= std::round(coords_dealii[x2][1]*(Ny-1));    
-      if(dim==3)
+      y= std::round(coords_dealii[x2][1]*(Ny-1));  
+      bool z_corner=true;
+      if(dim==3){
         z=coords_dealii[x2][2]*(Nz-1);  
+        if(!(z==(Nz-1)||z==0))
+          z_corner=false;
+      }
       
+      //check here ob eckpunkt 
       
+      if((x==(Nx-1) || x==0) &&(y==(Ny-1)||y==0) &&z_corner) {
+        corners[coords_dealii[x2][dim+1]].resize(dim);
+        for(unsigned int d=0;d<dim;++d)
+          corners[coords_dealii[x2][dim+1]][d]=coords_dealii[x2][d];
+      }
+      //std::cout<<"Vector: "<<corners<<std::endl;
       linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
+
       
       if(index_sub[linearized_index]!=-1)        
         index_mapping[coords_dealii[x2][dim+1]][index_sub[linearized_index]]=x2;
       
     }
-  
+    for(unsigned int j=0;j<element_coords[0].size();++j) {
+      for (unsigned int i = 0; i< dfgEnsemble_->getNumFullGrids(); ++i){      
+        if(index_mapping[i][j]==-1){
+          //check here ob eckpunkt
+          x=std::round(element_coords[i][j][0]*(Nx-1));
+          y= std::round(element_coords[i][j][1]*(Ny-1));  
+          bool z_corner=true;
+          if(dim==3){
+            z=element_coords[i][j][2]*(Nz-1);  
+            if(!(z==(Nz-1)||z==0))
+              z_corner=false;
+          }
+          if((x==(Nx-1) || x==0) &&(y==(Ny-1)||y==0) &&z_corner) {
+            //is a corner
+            //on one dof, all corners have the same value
+            //new point=corners[i];
+            x=std::round(corners[i][0]*(Nx-1));
+            y= std::round(corners[i][1]*(Ny-1));  
+            if(dim==3)
+              z=corners[i][2]*(Nz-1);  
+            linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
+            //then 
+            index_mapping[i][j]=index_mapping[i][index_sub[linearized_index]];
+            
+          }
+          else{
+            //get direction of DOF=>corners[i]
+
+            //new point=(oldpoint+dir)%1
+            //compute linearized index
+            x=std::round(fmod(element_coords[i][j][0]+corners[i][0], 1)*(Nx-1));
+            y=std::round(fmod(element_coords[i][j][1]+corners[i][1], 1)*(Ny-1));
+            if(dim==3)
+              z=std::round(fmod(element_coords[i][j][2]+corners[i][2], 1)*(Nz-1));
+            linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
+            //then 
+            index_mapping[i][j]=index_mapping[i][index_sub[linearized_index]];
+          }
+          
+        }
+        
+      }
     }
     
-    }
     
     initialized_ = true;
   }
@@ -194,13 +254,12 @@ class TaskEnsemble : public Task {
    * important: don't forget to set the isFinished flag at the end of the computation.
    */
   void run(CommunicatorType lcomm) {
-    assert(initialized_);
-
+  assert(initialized_);
   table.start("time->fullgrid");
-   if(!make_exact_){
+  if(!make_exact_){
      std::vector<std::array<Number, Problem::dim_ + 2>> old_result(size_result);
     
-    if(stepsTotal_>0)
+    if(stepsTotal_>0 && do_combine)
     {
       
 
@@ -234,29 +293,37 @@ class TaskEnsemble : public Task {
   
         //iterate over the elements of this dfg
         for(unsigned int l=0; l<index_mapping[i].size(); l++){
-          //TODO: missing values at boundary
           elements[l]=result[index_mapping[i][l]][Problem::dim_];
 
         }
+
       }          
+      
     
   }
   else{
-    for(unsigned int i = 0; i < dfgEnsemble_->getNumFullGrids(); i++){
-      auto& dfg_ = dfgEnsemble_->getDFG(i);
-      std::vector<CombiDataType>& elements = dfg_.getElementVector();
-      std::vector<std::array<Number, Problem::dim_ >> element_coords(elements.size());
-      for (size_t j = 0; j < elements.size(); ++j) {
-        IndexType globalLinearIndex = dfg_.getGlobalLinearIndex(j);
-        std::vector<real> globalCoords(dim);
-        dfg_.getCoordsGlobal(globalLinearIndex, globalCoords);
-        for(size_t l=0; l<dim;++l)
-          element_coords[j][l]=globalCoords[l];
-        //the coordinates are now stored in elemen_coords[i]
-        //compute the exact solution on this point and store it in the grid;
-        elements[j] = exactSolution(element_coords[j],(stepsTotal_+1)*dt_);
+      std::vector<std::array<Number, Problem::dim_ + 2>> coords_dealii = problem->get_result();
+      //iterate over all points here and compute the value here.
+      for(unsigned int i=0;i<coords_dealii.size();++i){
+        std::array<Number, Problem::dim_ > coord;
+        for(int dim=0;dim<Problem::dim_;++dim){
+          coord[dim]=coords_dealii[i][dim];
+        }
+        coords_dealii[i][Problem::dim_]=exactSolution(coord,(stepsTotal_+1)*dt_);
       }
-      }
+    
+      for(unsigned int i = 0; i < dfgEnsemble_->getNumFullGrids(); i++){         
+        auto& dfg = dfgEnsemble_->getDFG(i);
+        std::vector<CombiDataType>& elements = dfg.getElementVector();
+  
+        //iterate over the elements of this dfg
+        for(unsigned int l=0; l<index_mapping[i].size(); l++){
+          elements[l]=coords_dealii[index_mapping[i][l]][Problem::dim_];
+
+        }
+
+      }          
+      
   }
     stepsTotal_ ++;
   table.stop("time->fullgrid");
@@ -293,7 +360,11 @@ class TaskEnsemble : public Task {
   // return the number of grids; here it is the number of grids in ensemble
   size_t getNumGrids() override { return powerOfTwo[dim_]; }
 
- 
+  size_t getDOFs() override {
+    // std::vector<std::array<Number, Problem::dim_ + 2>> coordalii = problem->get_result();
+    // size_result=coordalii.size();
+    return size_result;
+  }
 
   void setZero() {}
 
@@ -314,8 +385,11 @@ class TaskEnsemble : public Task {
 
   // new variables that are set by manager. need to be added to serialize
   real dt_;
-  size_t size_result;
+  size_t size_result=0;
   std::vector<std::vector<Number>> index_mapping;
+  std::vector<int> index_sub;
+  std::vector<int> index_DOF;
+  std::vector<std::vector<Number>> corners;
   std::vector<std::vector<Number>> index_mapping2;
   bool make_exact_=false;
   IndexVector p_;
