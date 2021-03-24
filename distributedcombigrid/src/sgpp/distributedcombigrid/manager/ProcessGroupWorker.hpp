@@ -56,7 +56,19 @@ class ProcessGroupWorker {
   // parallel file io of final output grid for uniform decomposition
   void parallelEvalUniform();
 
-  // update combination parameters (for init or after change in FTCT)
+  /** send back the Lp Norm to Manager */
+  void sendLpNorms(int p);
+
+  /** evaluate norms on (newly created) reference grid */
+  void parallelEvalNorm();
+
+  /** evaluate norms of Task's analytical solution on reference grid */
+  void evalAnalyticalOnDFG();
+
+  /** evaluate norms of combi solution error on reference grid  */
+  void evalErrorOnDFG();
+
+  /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 
   // returns the combi parameters
@@ -99,8 +111,11 @@ class ProcessGroupWorker {
 
   void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);
 
-  void updateTaskWithCurrentValues(Task& taskToUpdate, int numGrids);
+  void updateTaskWithCurrentValues(Task& taskToUpdate, size_t numGrids);
 
+  /** helper functions for parallelEval and norm calculations*/
+  LevelVector receiveLevalAndBroadcast();
+  void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }

@@ -7,6 +7,7 @@
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGridEnsemble.hpp"
 #include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
+#include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 using namespace combigrid;
@@ -2006,7 +2007,7 @@ static void hierarchizeX_opt_boundary(DFGEnsemble& dfgEnsemble,
       assert(localIndexVector[dim] == 0);
 
       for (size_t j = 0; j < dfgEnsemble.getNumFullGrids(); ++j) {
-        auto dfg = dfgEnsemble.getDFG(j);
+        auto& dfg = dfgEnsemble.getDFG(j);
         dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
 
         // copy local data to tmp
@@ -2033,7 +2034,7 @@ static void hierarchizeX_opt_boundary(DFGEnsemble& dfgEnsemble,
       }
 
       for (size_t j = 0; j < dfgEnsemble.getNumFullGrids(); ++j) {
-        auto dfg = dfgEnsemble.getDFG(j);
+        auto& dfg = dfgEnsemble.getDFG(j);
         // copy local data back
         for (IndexType i = 0; i < xSize; ++i) dfg.getElementVector()[linIdxBlockStart + i] = tmp[j][gstart + i];
       }
@@ -2237,7 +2238,7 @@ void hierarchizeN_opt(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEME
       dfgEnsemble.getDFG(0).getLocalVectorIndex(start, localIndexVector);
       assert(localIndexVector[dim] == 0);
       for (size_t j = 0; j < dfgEnsemble.getNumFullGrids(); ++j) {
-        auto dfg = dfgEnsemble.getDFG(j);
+        auto& dfg = dfgEnsemble.getDFG(j);
         dfgEnsemble.getDFG(0).getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
 
         // copy local data to tmp
@@ -2271,7 +2272,7 @@ void hierarchizeN_opt(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEME
 
       // copy pole back      
       for (size_t j = 0; j < dfgEnsemble.getNumFullGrids(); ++j) {
-        auto dfg = dfgEnsemble.getDFG(j);
+        auto& dfg = dfgEnsemble.getDFG(j);
         for (IndexType i = 0; i < ndim; ++i) dfg.getElementVector()[start + stride * i] = tmp[j][gstart + i];
       }
     }
@@ -2476,6 +2477,18 @@ class DistributedHierarchization {
     dehierarchize<FG_ELEMENT>(dfg, dims);
   }
 
+  template <typename FG_ELEMENT>
+  static void fillDFGFromDSGU(DistributedFullGrid<FG_ELEMENT>& dfg,
+      DistributedSparseGridUniform<FG_ELEMENT>& dsg, const std::vector<bool>& hierarchizationDims){
+    // fill dfg with hierarchical coefficients from distributed sparse grid
+    dfg.extractFromUniformSG(dsg);
+
+    // dehierarchize dfg
+    DistributedHierarchization::dehierarchize<FG_ELEMENT>(
+        dfg, hierarchizationDims);
+  }
+
+
   // Ensemble variants
 
   // inplace hierarchization
@@ -2526,14 +2539,14 @@ class DistributedHierarchization {
   }
 
   static void hierarchize(DFGEnsemble& dfgEnsemble) {
-    auto dfg = dfgEnsemble.getDFG(0);
+    auto& dfg = dfgEnsemble.getDFG(0);
     std::vector<bool> dims(dfg.getDimension(), true);
     hierarchize(dfgEnsemble, dims);
   }
 
     // inplace dehierarchization
   static void dehierarchize(DFGEnsemble& dfgEnsemble, const std::vector<bool>& dims) {
-    auto dfg = dfgEnsemble.getDFG(0);
+    auto& dfg = dfgEnsemble.getDFG(0);
     assert(dfg.getDimension() > 0);
     assert(dfg.getDimension() == dims.size());
     assert(false && "not yet implemented");
@@ -2585,6 +2598,7 @@ class DistributedHierarchization {
     std::vector<bool> dims(dfgEnsemble.getDFG(0).getDimension(), true);
     dehierarchize(dfgEnsemble, dims);
   }
+
 };
 // class DistributedHierarchization
 

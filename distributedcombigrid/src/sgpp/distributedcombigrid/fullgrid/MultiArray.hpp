@@ -17,6 +17,9 @@ template <typename T, size_t D>
 static MultiArrayRef<T, D> createMultiArrayRef(DistributedFullGrid<T>& dfg) {
   /* note that the sizes of dfg are in reverse order compared to shape */
   std::vector<size_t> shape(dfg.getLocalSizes().rbegin(), dfg.getLocalSizes().rend());
+  if (!reverseOrderingDFGPartitions) {
+    assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+  }
 
   return MultiArrayRef<T, D>(dfg.getData(), shape);
 }
@@ -28,6 +31,9 @@ static MultiArrayRef<T, D> createMultiArrayRef(FullGrid<T>& fg) {
 
   /* note that the sizes of dfg are in reverse order compared to shape */
   std::vector<size_t> shape(fg.getSizes().rbegin(), fg.getSizes().rend());
+  if (!reverseOrderingDFGPartitions) {
+    assert(false && "this is not adapted to normal ordering of DFG partitions yet");
+  }
 
   return MultiArrayRef<T, D>(fg.getData(), shape);
 }

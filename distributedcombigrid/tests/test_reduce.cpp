@@ -165,9 +165,10 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
       taskIDs.push_back(t->getID());
     }
 
+    IndexVector parallelization = {static_cast<IndexType>(nprocs), 1};
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({static_cast<long int>(nprocs), 1}); //TODO why??
+    params.setParallelization(parallelization); //TODO why??
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));

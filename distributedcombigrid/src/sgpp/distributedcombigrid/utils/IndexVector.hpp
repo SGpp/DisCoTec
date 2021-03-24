@@ -5,6 +5,7 @@
 #include <iostream>
 #include <ostream>
 #include <vector>
+#include <map>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
@@ -132,6 +133,27 @@ inline IndexVector& operator>>(std::string str, IndexVector& ivec) {
 
   return ivec;
 }
+
+// helper function to output any vector
+template<typename T>
+inline std::ostream &operator <<(std::ostream &os, const std::vector<T> &v) {
+  using namespace std;
+  os << "[";
+  copy(v.begin(), v.end(), ostream_iterator<T>(os, ", "));
+  os << "]";
+  return os;
+}
+
+// helper function to output any map
+template<typename T, typename U>
+inline std::ostream &operator <<(std::ostream &os, const std::map<T, U> &m) {
+  using namespace std;
+  for (const auto& any : m) {
+    os << "(" << any.first << ") : " << any.second << "; ";
+  }
+  return os;
+}
+
 
 }  // namespace combigrid
 

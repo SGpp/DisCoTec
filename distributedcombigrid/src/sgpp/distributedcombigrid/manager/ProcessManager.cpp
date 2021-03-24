@@ -23,8 +23,8 @@ void ProcessManager::sortTasks(){
 bool ProcessManager::runfirst() {
   // sort instances in decreasing order
   sortTasks();
-  std::cout <<"Tasks this is the beginn" ;
-  
+  assert(tasks_.size() >= pgroups_.size());
+
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group
     ProcessGroupManagerID g = wait();
@@ -49,15 +49,16 @@ void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurations
   }
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
     DurationInformation recvbuf;
+    for(const auto& t : pgroups_[i]->getTaskContainer()){
+      // this assumes that the manager rank is the highest in globalComm
+      MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
 
-    // this assumes that the manager rank is the highest in globalComm
-    MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
-
-    const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
-    if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
-      llm->addDurationInformation(recvbuf, levelVector);
+      const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
+      if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
+        llm->addDurationInformation(recvbuf, levelVector);
+      }
+      levelVectorToLastTaskDuration_[levelVector] = recvbuf.duration;
     }
-    levelVectorToLastTaskDuration_[levelVector] = recvbuf.duration;
   }
 }
 
@@ -369,6 +370,31 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
 
     assert(!fail && "should not fail here");
   }
+}
+
+std::map<int, double> ProcessManager::getLpNorms(int p) {
+  std::map<int, double> norms;
+
+  for (const auto& pg : pgroups_) {
+    pg->getLpNorms(p, norms);
+  }
+  return norms;
+}
+
+
+std::vector<double> ProcessManager::parallelEvalNorm(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->parallelEvalNorm(leval);
+}
+
+std::vector<double> ProcessManager::evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->evalAnalyticalOnDFG(leval);
+}
+
+std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->evalErrorOnDFG(leval);
 }
 
 void ProcessManager::reschedule() {

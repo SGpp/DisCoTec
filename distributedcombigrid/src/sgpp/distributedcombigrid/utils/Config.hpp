@@ -93,6 +93,12 @@ typedef real CombiDataType;
 
 // const bool GENE_Global = true;
 // const bool GENE_Linear = true;
+
+// this switch seems to make not much of a difference after all ;)
+// constexpr bool reverseOrderingDFGPartitions = true;
+constexpr bool reverseOrderingDFGPartitions = false;
+
+static_assert(!(isGENE) || reverseOrderingDFGPartitions, "GENE example needs the reverse ordering of DFG partitions");
 }
 
 #endif /* DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_UTILS_CONFIG_HPP_ */
