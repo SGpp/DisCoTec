@@ -94,6 +94,9 @@ class Task {
     return faultCriterion_->init(startTimeIteration, t_fault);
   }
 
+  // override if there is a DFG ensemble in the task
+  virtual DFGEnsemble* getDFGEnsemble() const { return nullptr; }
+
  private:
   friend class boost::serialization::access;
 
