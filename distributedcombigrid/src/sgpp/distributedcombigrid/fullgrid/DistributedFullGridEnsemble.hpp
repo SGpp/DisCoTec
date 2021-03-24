@@ -14,6 +14,7 @@ namespace combigrid {
 enum class MultipleGrids {onlyOne, isHigherNeighbor, isLowerNeighbor};
 
 class GridEnumeration{
+public:
   // encode the grid number as bits: if bit is set at position d, it means it is the
   // "second" point at this position in dimension d.
 
@@ -44,7 +45,7 @@ public:
   using DFGPointer = std::unique_ptr<DFG>;
 
   template<class... U>
-  DFGEnsemble(int dimensions, U&&... restDFGArgs){
+  DFGEnsemble(DimType dimensions, U&&... restDFGArgs){
     size_t numGridsInEnsemble = powerOfTwo[dimensions];
 
     ensemble_ = std::vector<DFGPointer>();
@@ -59,6 +60,17 @@ public:
   inline const DFG& getDFG(size_t number) const { return *(ensemble_[number]); }
 
   size_t getNumFullGrids() const { return ensemble_.size(); }
+
+  std::vector<size_t> getIndicesOfLowerGridsInDimension(DimType dimension){
+    std::vector<size_t> lowerGrids;
+    for (size_t i = 0; i < this->getNumFullGrids(); ++i) {
+      if (!GridEnumeration::isHigherInDimension(static_cast<char>(dimension), i)) {
+        lowerGrids.push_back(i);
+      }
+    }
+    assert(lowerGrids.size() == this->getNumFullGrids()/2);
+    return lowerGrids;
+  }
 
 private:
   std::vector<DFGPointer> ensemble_;
