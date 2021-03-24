@@ -2041,6 +2041,68 @@ static void hierarchizeX_opt_boundary(DFGEnsemble& dfgEnsemble,
   }
 }
 
+// /**
+//  * Used
+//  */
+// template <typename FG_ELEMENT>
+// static void dehierarchizeX_opt_boundary(DFGEnsemble<FG_ELEMENT>& dfgEnsemble,
+//                                         LookupTable<FG_ELEMENT>& lookupTable) {
+//   const DimType dim = 0;
+//   assert(dfg.returnBoundaryFlags()[dim] == true);
+
+//   const LevelType lmax = dfg.getLevels()[dim];
+//   const IndexType ndim = dfg.getLocalSizes()[dim];
+
+//   // size of xBlcok
+//   const IndexType xSize = ndim;
+
+//   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
+
+//   const IndexType gstart = dfg.getLowerBounds()[dim];
+
+//   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
+//   const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
+//   #pragma omp parallel
+//   {
+//     IndexVector localIndexVector(dfg.getDimension());
+//     IndexVector tmpGlobalIndexVector(dfg.getDimension());
+
+//     // create tmp array to store xblock
+//     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+//     #pragma omp for
+//     for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
+//       // get globalIndexVector of block start
+//       // this is the base IndexVector of this block
+//       // only dim component is varied
+//       IndexType linIdxBlockStart = xBlock * ndim;
+
+//       dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
+//       dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
+//       assert(localIndexVector[dim] == 0);
+
+//       // copy local data to tmp
+//       for (IndexType i = 0; i < xSize; ++i) tmp[gstart + i] = localData[linIdxBlockStart + i];
+
+//       // copy remote data to tmp
+//       std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
+
+//       // go through remote containers
+//       for (size_t i = 0; i < rdcs.size(); ++i) {
+//         IndexType global1didx = rdcs[i].getKeyIndex();
+//         tmpGlobalIndexVector[dim] = global1didx;
+//         tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+//       }
+      
+//       // hierarchizeX_inner_boundary_kernel( &tmp[0], lmax,
+//       //            idxstart, idxend,level_idxend );
+//       dehierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
+
+//       // copy local data back
+//       for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
+//     }//#end omp for
+//   }//#end omp parallel
+// }
+
 template <typename FG_ELEMENT>
 inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* dataLeft, FG_ELEMENT* dataRight, LevelType lmax, int start,
                                              int stride) {
@@ -2091,6 +2153,57 @@ inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* dataLeft, FG_ELEMENT* d
   }
   return;
 }
+
+// template <typename FG_ELEMENT>
+// inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
+//                                                int stride) {
+//   int steps;
+//   int ctr;
+//   int offset, parentOffset;
+//   int stepsize;
+//   int parOffsetStrided;
+
+//   FG_ELEMENT* val = data;
+
+//   // ssa variables
+//   FG_ELEMENT val1 = -100, val2 = -100, val3 = -100, parL = -100, parR = -100;
+
+//   //        int maxL = l[dim];
+//   //      start = start +stride; // nun mit offset = 1;start war vorher der erste gitterpunkt
+//   //      (welcher randpunkt ist) und ist nun der erste zu hierarchisierende Gitterpunkt.
+//   int maxL = int(lmax);
+
+//   steps = 1;
+//   offset = (1 << (maxL - 1));  // offset =1 da boundary.
+//   stepsize = (1 << maxL);
+//   parentOffset = (1 << (maxL - 1));
+
+//   for (LevelType ll = 1; ll <= maxL;
+//        ll++) {  // couting with offset of one as level 2 was hierarchized manually before
+//     // just convers setting of strides and co.
+//     parOffsetStrided = parentOffset * stride;
+//     parL = 0.5 * val[start + offset * stride - parOffsetStrided];
+//     ;
+
+//     for (ctr = 0; ctr < steps; ctr++) {
+//       val1 = val[start + offset * stride];
+//       parR = 0.5 * val[start + offset * stride + parOffsetStrided];
+//       val2 = val1 + parL;
+//       val3 = val2 + parR;
+//       val[start + offset * stride] = val3;
+//       parL = parR;
+//       offset += stepsize;
+//     }
+
+//     //        val[start+offset*stride] -= parR;
+//     steps = steps << 1;
+//     offset = (1 << (maxL - (ll + 1)));  // boundary case
+//     parentOffset = parentOffset >> 1;
+//     stepsize = stepsize >> 1;
+//   }
+
+//   return;
+// }
 
 template <typename FG_ELEMENT, bool boundary>
 void hierarchizeN_opt(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEMENT>>& lookupTables,
@@ -2165,6 +2278,99 @@ void hierarchizeN_opt(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEME
   }
 }
 
+// /**
+//  * Used
+//  */
+// template <typename FG_ELEMENT, bool boundary>
+// void dehierarchizeN_opt(DFGEnsemble<FG_ELEMENT>& dfgEnsemble, LookupTable<FG_ELEMENT>& lookupTable,
+//                         const DimType dim) {
+//   assert(dfg.returnBoundaryFlags()[dim] == boundary);
+
+//   const LevelType lmax = dfg.getLevels()[dim];
+//   const IndexType size = dfg.getNrLocalElements();
+//   const IndexType stride = dfg.getLocalOffsets()[dim];
+//   const IndexType ndim = dfg.getLocalSizes()[dim];
+//   const IndexType jump = stride * ndim;
+//   const IndexType nbrOfPoles = size / ndim;
+
+//   // loop over poles
+//   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
+//   const IndexType gstart = dfg.getLowerBounds()[dim];
+
+//   #pragma omp parallel
+//   {
+//     IndexVector localIndexVector(dfg.getDimension());
+//     IndexVector tmpGlobalIndexVector(dfg.getDimension());
+
+//     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+
+// #pragma omp for  // default(none)// firstprivate(lo)
+//     for (IndexType nn = 0; nn < nbrOfPoles;
+//         ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
+//       lldiv_t divresult = std::lldiv(nn, stride);
+//       IndexType start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
+
+//       // compute global vector index of start
+//       dfg.getLocalVectorIndex(start, localIndexVector);                  //*
+//       dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);  //*
+//       assert(localIndexVector[dim] == 0);
+
+//       // copy remote data to tmp
+//       std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs =
+//           lookupTable.getRDCVector();  //! rdcs why here
+
+//       if (rdcs.size() > 0) {
+//         // go through remote containers
+//         for (size_t i = 0; i < rdcs.size(); ++i) {
+//           IndexType global1didx = rdcs[i].getKeyIndex();
+//           tmpGlobalIndexVector[dim] = global1didx;
+//           tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);  //! rdcs
+//         }
+//       }
+
+//       // copy local data
+//       for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];  //§ ldata
+
+//       // dehierarchization kernel
+//       if (boundary) {
+//         // hierarchize tmp array with hupp function
+//       dehierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
+//       } else {
+//         for (LevelType l = 2; l <= lmax; ++l) {
+//           // get first local point of level and corresponding stride
+//           IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
+//           IndexType first = parentOffset - 1;
+//           IndexType levelStride = parentOffset * 2;
+
+//           // loop over points of this level with level specific stride
+//           // as long as inside domain
+//           for (IndexType idx = first; idx < dfg.getGlobalSizes()[dim]; idx += levelStride) { 
+//             // when no boundary in this dimension we have to check if
+//             // 1d indices outside domain
+//             FG_ELEMENT left(0.0);
+//             FG_ELEMENT right(0.0);
+
+//             if (idx - parentOffset > 0) {
+//               left = tmp[idx - parentOffset];
+//             }
+
+//             if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
+//               right = tmp[idx + parentOffset];
+//             }
+
+//             // do calculation
+//             FG_ELEMENT buf = 0.5 * left;
+//             tmp[idx] += 0.5 * right;
+//             tmp[idx] += buf;
+//           }
+//         }
+//       }
+
+//       // copy pole back
+//       for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
+//     }//# End pragma omp  for
+//   }//# end pragma parallel
+// }
 }  // unnamed namespace
 
 namespace combigrid {
