@@ -165,6 +165,8 @@ int main(int argc, char** argv) {
                 lvl[i] = l.second.get_value<int>();
                 ++i;
             }
+            assert(lvl <= lmax);
+            assert(lmin <= lvl);
             levels.push_back(lvl);
           } else {
             assert(false);
