@@ -344,6 +344,8 @@ class TaskEnsemble : public Task {
 
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return dfgEnsemble_->getDFG(n); }
 
+  DFGEnsemble* getDFGEnsemble() const override { return dfgEnsemble_; }
+
   /* this function evaluates the combination solution on a given full grid.
    * here, a full grid representation of your task's solution has to be created
    * on the process of lcomm with the rank r.
