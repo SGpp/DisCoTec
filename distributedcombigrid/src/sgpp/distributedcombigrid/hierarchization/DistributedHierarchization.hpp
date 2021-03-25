@@ -295,23 +295,23 @@ inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
 
 // Ensemble variants
 template <typename FG_ELEMENT>
-static void hierarchizeX_opt_boundary(DFGEnsemble& dfg,
+static void hierarchizeX_opt_boundary_dg(DFGEnsemble& dfg,
                                       std::vector<LookupTable<FG_ELEMENT>>& lookupTables);
 
 template <typename FG_ELEMENT>
-static void dehierarchizeX_opt_boundary(DFGEnsemble& dfg,
+static void dehierarchizeX_opt_boundary_dg(DFGEnsemble& dfg,
                                         std::vector<LookupTable<FG_ELEMENT>>& lookupTables);
 
 template <typename FG_ELEMENT>
-static void hierarchizeX_opt_noboundary(DFGEnsemble& dfg,
+static void hierarchizeX_opt_noboundary_dg(DFGEnsemble& dfg,
                                         std::vector<LookupTable<FG_ELEMENT>>& lookupTables);
 
 template <typename FG_ELEMENT>
-inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* dataLeft, FG_ELEMENT* dataRight, LevelType lmax, int start,
+inline void hierarchizeX_opt_boundary_kernel_dg(FG_ELEMENT* dataLeft, FG_ELEMENT* dataRight, LevelType lmax, int start,
                                              int stride);
 
 template <typename FG_ELEMENT>
-inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* dataLeft, FG_ELEMENT* dataRight, LevelType lmax, int start,
+inline void dehierarchizeX_opt_boundary_kernel_dg(FG_ELEMENT* dataLeft, FG_ELEMENT* dataRight, LevelType lmax, int start,
                                                int stride);
 
 // template <typename FG_ELEMENT>
@@ -1956,19 +1956,19 @@ void dehierarchizeN_opt(DistributedFullGrid<FG_ELEMENT>& dfg, LookupTable<FG_ELE
 
 
 template <typename FG_ELEMENT>
-static void hierarchizeX_opt_noboundary(DFGEnsemble& dfgEnsemble,
+static void hierarchizeX_opt_noboundary_dg(DFGEnsemble& dfgEnsemble,
                                         std::vector<LookupTable<FG_ELEMENT>>& lookupTables) {
   assert(false && "Not implemented for no boundary");
 }
 
 template <typename FG_ELEMENT>
-static void dehierarchizeX_opt_noboundary(DFGEnsemble& dfgEnsemble,
+static void dehierarchizeX_opt_noboundary_dg(DFGEnsemble& dfgEnsemble,
                                           std::vector<LookupTable<FG_ELEMENT>>& lookupTables) {
   assert(false && "Not implemented for no boundary");
 }
 
 template <typename FG_ELEMENT>
-static void hierarchizeX_opt_boundary(DFGEnsemble& dfgEnsemble,
+static void hierarchizeX_opt_boundary_dg(DFGEnsemble& dfgEnsemble,
                                       std::vector<LookupTable<FG_ELEMENT>>& lookupTables) {
   const DimType dim = 0;
   assert(dfgEnsemble.getDFG(0).returnBoundaryFlags()[dim] == true);
@@ -2028,7 +2028,7 @@ static void hierarchizeX_opt_boundary(DFGEnsemble& dfgEnsemble,
       // need to hierarchize for every pair of ensemble grids that are neighbors in x
       auto lowerIndices = dfgEnsemble.getIndicesOfLowerGridsInDimension(dim);
       for (auto& index : lowerIndices) {
-        hierarchizeX_opt_boundary_kernel(&tmp[index][0],
+        hierarchizeX_opt_boundary_kernel_dg(&tmp[index][0],
                       &tmp[GridEnumeration::getUpperNeighborInDimension(static_cast<char>(dim), index)][0],
                       lmax, 0, 1);
       }
@@ -2042,70 +2042,77 @@ static void hierarchizeX_opt_boundary(DFGEnsemble& dfgEnsemble,
   }
 }
 
-// /**
-//  * Used
-//  */
-// template <typename FG_ELEMENT>
-// static void dehierarchizeX_opt_boundary(DFGEnsemble<FG_ELEMENT>& dfgEnsemble,
-//                                         LookupTable<FG_ELEMENT>& lookupTable) {
-//   const DimType dim = 0;
-//   assert(dfg.returnBoundaryFlags()[dim] == true);
+template <typename FG_ELEMENT>
+static void dehierarchizeX_opt_boundary_dg(DFGEnsemble& dfgEnsemble,
+                                        std::vector<LookupTable<FG_ELEMENT>>& lookupTables) {
+  const DimType dim = 0;
+  assert(dfgEnsemble.getDFG(0).returnBoundaryFlags()[dim] == true);
 
-//   const LevelType lmax = dfg.getLevels()[dim];
-//   const IndexType ndim = dfg.getLocalSizes()[dim];
+  const LevelType lmax = dfgEnsemble.getDFG(0).getLevels()[dim];
+  const IndexType ndim = dfgEnsemble.getDFG(0).getLocalSizes()[dim];
 
-//   // size of xBlcok
-//   const IndexType xSize = ndim;
+  // size of xBlcok
+  const IndexType xSize = ndim;
 
-//   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
+  const IndexType gstart = dfgEnsemble.getDFG(0).getLowerBounds()[dim];
 
-//   const IndexType gstart = dfg.getLowerBounds()[dim];
+  // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
+  const IndexType nbrxBlocks = dfgEnsemble.getDFG(0).getNrLocalElements() / ndim;
+  #pragma omp parallel
+  {
+    IndexVector localIndexVector(dfgEnsemble.getDFG(0).getDimension());
+    IndexVector tmpGlobalIndexVector(dfgEnsemble.getDFG(0).getDimension());
 
-//   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
-//   const IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
-//   #pragma omp parallel
-//   {
-//     IndexVector localIndexVector(dfg.getDimension());
-//     IndexVector tmpGlobalIndexVector(dfg.getDimension());
+    // create tmp array to store xblock
+    std::vector<std::vector<FG_ELEMENT>> tmp(dfgEnsemble.getNumFullGrids(),
+                std::vector<FG_ELEMENT>(dfgEnsemble.getDFG(0).getGlobalSizes()[dim]));
+    #pragma omp for
+    for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
+      // get globalIndexVector of block start
+      // this is the base IndexVector of this block
+      // only dim component is varied
+      IndexType linIdxBlockStart = xBlock * ndim;
 
-//     // create tmp array to store xblock
-//     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
-//     #pragma omp for
-//     for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
-//       // get globalIndexVector of block start
-//       // this is the base IndexVector of this block
-//       // only dim component is varied
-//       IndexType linIdxBlockStart = xBlock * ndim;
+      dfgEnsemble.getDFG(0).getLocalVectorIndex(linIdxBlockStart, localIndexVector);
+      for (size_t j = 0; j < dfgEnsemble.getNumFullGrids(); ++j) {
+        auto& dfg = dfgEnsemble.getDFG(j);
+        dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
+        assert(localIndexVector[dim] == 0);
 
-//       dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-//       dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
-//       assert(localIndexVector[dim] == 0);
+        // copy local data to tmp
+        for (IndexType i = 0; i < xSize; ++i) tmp[j][gstart + i] = dfg.getElementVector()[linIdxBlockStart + i];
 
-//       // copy local data to tmp
-//       for (IndexType i = 0; i < xSize; ++i) tmp[gstart + i] = localData[linIdxBlockStart + i];
+        // copy remote data to tmp
+        std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTables[j].getRDCVector();
+        if (rdcs.size() > 0) {
+          // go through remote containers
+          for (size_t i = 0; i < rdcs.size(); ++i) {
+            IndexType global1didx = rdcs[i].getKeyIndex();
+            tmpGlobalIndexVector[dim] = global1didx;
+            tmp[j][global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+          }
+        }
+      }
 
-//       // copy remote data to tmp
-//       std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
+      // need to dehierarchize for every pair of ensemble grids that are neighbors in x
+      auto lowerIndices = dfgEnsemble.getIndicesOfLowerGridsInDimension(dim);
+      for (auto& index : lowerIndices) {
+        dehierarchizeX_opt_boundary_kernel_dg(&tmp[index][0],
+                      &tmp[GridEnumeration::getUpperNeighborInDimension(static_cast<char>(dim), index)][0],
+                      lmax, 0, 1);
+      }
 
-//       // go through remote containers
-//       for (size_t i = 0; i < rdcs.size(); ++i) {
-//         IndexType global1didx = rdcs[i].getKeyIndex();
-//         tmpGlobalIndexVector[dim] = global1didx;
-//         tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
-//       }
-      
-//       // hierarchizeX_inner_boundary_kernel( &tmp[0], lmax,
-//       //            idxstart, idxend,level_idxend );
-//       dehierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
-
-//       // copy local data back
-//       for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
-//     }//#end omp for
-//   }//#end omp parallel
-// }
+      for (size_t j = 0; j < dfgEnsemble.getNumFullGrids(); ++j) {
+        auto& dfg = dfgEnsemble.getDFG(j);
+        // copy local data back
+        for (IndexType i = 0; i < xSize; ++i) dfg.getElementVector()[linIdxBlockStart + i] = tmp[j][gstart + i];
+      }
+    }//#end omp for
+  }//#end omp parallel
+}
 
 template <typename FG_ELEMENT>
-inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* dataLeft, FG_ELEMENT* dataRight, LevelType lmax, int start,
+inline void hierarchizeX_opt_boundary_kernel_dg(FG_ELEMENT* dataLeft, FG_ELEMENT* dataRight, LevelType lmax, int start,
                                              int stride) {
   int steps;
   int ctr;
@@ -2155,59 +2162,61 @@ inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* dataLeft, FG_ELEMENT* d
   return;
 }
 
-// template <typename FG_ELEMENT>
-// inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-//                                                int stride) {
-//   int steps;
-//   int ctr;
-//   int offset, parentOffset;
-//   int stepsize;
-//   int parOffsetStrided;
+template <typename FG_ELEMENT>
+inline void dehierarchizeX_opt_boundary_kernel_dg(FG_ELEMENT* dataLeft, FG_ELEMENT* dataRight, LevelType lmax, int start,
+                                               int stride) {
+  int steps;
+  int ctr;
+  int offset, parentOffset;
+  int stepsize;
+  int parOffsetStrided;
+  
+  FG_ELEMENT* valLeft = dataLeft;
+  FG_ELEMENT* valRight = dataRight;
 
-//   FG_ELEMENT* val = data;
+  // ssa variables
+  FG_ELEMENT val1 = -100, val2 = -100, val3 = -100, parL = -100, parR = -100;
 
-//   // ssa variables
-//   FG_ELEMENT val1 = -100, val2 = -100, val3 = -100, parL = -100, parR = -100;
+  //        int maxL = l[dim];
+  //      start = start +stride; // nun mit offset = 1;start war vorher der erste gitterpunkt
+  //      (welcher randpunkt ist) und ist nun der erste zu hierarchisierende Gitterpunkt.
+  int maxL = int(lmax);
 
-//   //        int maxL = l[dim];
-//   //      start = start +stride; // nun mit offset = 1;start war vorher der erste gitterpunkt
-//   //      (welcher randpunkt ist) und ist nun der erste zu hierarchisierende Gitterpunkt.
-//   int maxL = int(lmax);
+  steps = 1;
+  offset = (1 << (maxL - 1));  // offset =1 da boundary.
+  stepsize = (1 << maxL);
+  parentOffset = (1 << (maxL - 1));
 
-//   steps = 1;
-//   offset = (1 << (maxL - 1));  // offset =1 da boundary.
-//   stepsize = (1 << maxL);
-//   parentOffset = (1 << (maxL - 1));
+  for (LevelType ll = 1; ll <= maxL;
+       ll++) {  // couting with offset of one as level 2 was hierarchized manually before
+    // just convers setting of strides and co.
+    parOffsetStrided = parentOffset * stride;
 
-//   for (LevelType ll = 1; ll <= maxL;
-//        ll++) {  // couting with offset of one as level 2 was hierarchized manually before
-//     // just convers setting of strides and co.
-//     parOffsetStrided = parentOffset * stride;
-//     parL = 0.5 * val[start + offset * stride - parOffsetStrided];
-//     ;
+    for (ctr = 0; ctr < steps; ctr++) {
+      parL = 0.5 * valRight[start + offset * stride - parOffsetStrided];
+      parR = 0.5 * valLeft[start + offset * stride + parOffsetStrided];
+      val1 = valLeft[start + offset * stride];
+      val2 = val1 + parL;
+      val3 = val2 + parR;
+      valLeft[start + offset * stride] = val3;
+      val1 = valRight[start + offset * stride];
+      val2 = val1 + parL;
+      val3 = val2 + parR;
+      valRight[start + offset * stride] = val3;
+      offset += stepsize;
+    }
 
-//     for (ctr = 0; ctr < steps; ctr++) {
-//       val1 = val[start + offset * stride];
-//       parR = 0.5 * val[start + offset * stride + parOffsetStrided];
-//       val2 = val1 + parL;
-//       val3 = val2 + parR;
-//       val[start + offset * stride] = val3;
-//       parL = parR;
-//       offset += stepsize;
-//     }
+    steps = steps << 1;
+    offset = (1 << (maxL - (ll + 1)));  // boundary case
+    parentOffset = parentOffset >> 1;
+    stepsize = stepsize >> 1;
+  }
 
-//     //        val[start+offset*stride] -= parR;
-//     steps = steps << 1;
-//     offset = (1 << (maxL - (ll + 1)));  // boundary case
-//     parentOffset = parentOffset >> 1;
-//     stepsize = stepsize >> 1;
-//   }
-
-//   return;
-// }
+  return;
+}
 
 template <typename FG_ELEMENT, bool boundary>
-void hierarchizeN_opt(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEMENT>>& lookupTables,
+void hierarchizeN_opt_dg(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEMENT>>& lookupTables,
                       const DimType dim) {
   assert(dfgEnsemble.getDFG(0).returnBoundaryFlags()[dim] == boundary);
 
@@ -2262,7 +2271,7 @@ void hierarchizeN_opt(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEME
         // need to hierarchize for every pair of ensemble grids that are neighbors in x
         auto lowerIndices = dfgEnsemble.getIndicesOfLowerGridsInDimension(dim);
         for (auto& index : lowerIndices) {
-          hierarchizeX_opt_boundary_kernel(&tmp[index][0],
+          hierarchizeX_opt_boundary_kernel_dg(&tmp[index][0],
                         &tmp[GridEnumeration::getUpperNeighborInDimension(static_cast<char>(dim), index)][0],
                         lmax, 0, 1);
         }
@@ -2270,7 +2279,7 @@ void hierarchizeN_opt(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEME
         assert(false && "Not implemented for no boundary");
       }
 
-      // copy pole back      
+      // copy pole back
       for (size_t j = 0; j < dfgEnsemble.getNumFullGrids(); ++j) {
         auto& dfg = dfgEnsemble.getDFG(j);
         for (IndexType i = 0; i < ndim; ++i) dfg.getElementVector()[start + stride * i] = tmp[j][gstart + i];
@@ -2279,99 +2288,80 @@ void hierarchizeN_opt(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEME
   }
 }
 
-// /**
-//  * Used
-//  */
-// template <typename FG_ELEMENT, bool boundary>
-// void dehierarchizeN_opt(DFGEnsemble<FG_ELEMENT>& dfgEnsemble, LookupTable<FG_ELEMENT>& lookupTable,
-//                         const DimType dim) {
-//   assert(dfg.returnBoundaryFlags()[dim] == boundary);
+template <typename FG_ELEMENT, bool boundary>
+void dehierarchizeN_opt_dg(DFGEnsemble& dfgEnsemble, std::vector<LookupTable<FG_ELEMENT>>& lookupTables,
+                        const DimType dim) {
+  assert(dfgEnsemble.getDFG(0).returnBoundaryFlags()[dim] == boundary);
 
-//   const LevelType lmax = dfg.getLevels()[dim];
-//   const IndexType size = dfg.getNrLocalElements();
-//   const IndexType stride = dfg.getLocalOffsets()[dim];
-//   const IndexType ndim = dfg.getLocalSizes()[dim];
-//   const IndexType jump = stride * ndim;
-//   const IndexType nbrOfPoles = size / ndim;
+  const LevelType lmax = dfgEnsemble.getDFG(0).getLevels()[dim];
+  const IndexType size = dfgEnsemble.getDFG(0).getNrLocalElements();
+  const IndexType stride = dfgEnsemble.getDFG(0).getLocalOffsets()[dim];
+  const IndexType ndim = dfgEnsemble.getDFG(0).getLocalSizes()[dim];
+  const IndexType jump = stride * ndim;
+  const IndexType nbrOfPoles = size / ndim;
 
-//   // loop over poles
-//   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
-//   const IndexType gstart = dfg.getLowerBounds()[dim];
+  // loop over poles
+  const IndexType gstart = dfgEnsemble.getDFG(0).getLowerBounds()[dim];
 
-//   #pragma omp parallel
-//   {
-//     IndexVector localIndexVector(dfg.getDimension());
-//     IndexVector tmpGlobalIndexVector(dfg.getDimension());
+  #pragma omp parallel
+  {
+    IndexVector localIndexVector(dfgEnsemble.getDFG(0).getDimension());
+    IndexVector tmpGlobalIndexVector(dfgEnsemble.getDFG(0).getDimension());
 
-//     std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+    std::vector<std::vector<FG_ELEMENT>> tmp(dfgEnsemble.getNumFullGrids(),
+                std::vector<FG_ELEMENT>(dfgEnsemble.getDFG(0).getGlobalSizes()[dim]));
 
-// #pragma omp for  // default(none)// firstprivate(lo)
-//     for (IndexType nn = 0; nn < nbrOfPoles;
-//         ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
-//       lldiv_t divresult = std::lldiv(nn, stride);
-//       IndexType start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
+#pragma omp for  // default(none)// firstprivate(lo)
+    for (IndexType nn = 0; nn < nbrOfPoles;
+        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
+      lldiv_t divresult = std::lldiv(nn, stride);
+      IndexType start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
-//       // compute global vector index of start
-//       dfg.getLocalVectorIndex(start, localIndexVector);                  //*
-//       dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);  //*
-//       assert(localIndexVector[dim] == 0);
+      // compute global vector index of start
+      dfgEnsemble.getDFG(0).getLocalVectorIndex(start, localIndexVector);
+      assert(localIndexVector[dim] == 0);
+      for (size_t j = 0; j < dfgEnsemble.getNumFullGrids(); ++j) {
+        auto& dfg = dfgEnsemble.getDFG(j);
+        dfgEnsemble.getDFG(0).getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
 
-//       // copy remote data to tmp
-//       std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs =
-//           lookupTable.getRDCVector();  //! rdcs why here
+        // copy local data to tmp
+        for (IndexType i = 0; i < ndim; ++i) tmp[j][gstart + i] = dfg.getElementVector()[start + stride * i];
 
-//       if (rdcs.size() > 0) {
-//         // go through remote containers
-//         for (size_t i = 0; i < rdcs.size(); ++i) {
-//           IndexType global1didx = rdcs[i].getKeyIndex();
-//           tmpGlobalIndexVector[dim] = global1didx;
-//           tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);  //! rdcs
-//         }
-//       }
+        // copy remote data to tmp
+        std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTables[j].getRDCVector();
 
-//       // copy local data
-//       for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];  //§ ldata
+        if (rdcs.size() > 0) {
+          // go through remote containers
+          for (size_t i = 0; i < rdcs.size(); ++i) {
+            IndexType global1didx = rdcs[i].getKeyIndex();
+            tmpGlobalIndexVector[dim] = global1didx;
+            tmp[j][global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+          }
+        }
+      }
 
-//       // dehierarchization kernel
-//       if (boundary) {
-//         // hierarchize tmp array with hupp function
-//       dehierarchizeX_opt_boundary_kernel(&tmp[0], lmax, 0, 1);
-//       } else {
-//         for (LevelType l = 2; l <= lmax; ++l) {
-//           // get first local point of level and corresponding stride
-//           IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
-//           IndexType first = parentOffset - 1;
-//           IndexType levelStride = parentOffset * 2;
+      // dehierarchization kernel
+      if (boundary) {
+        // dehierarchize tmp array with hupp function
+        // need to dehierarchize for every pair of ensemble grids that are neighbors in x
+        auto lowerIndices = dfgEnsemble.getIndicesOfLowerGridsInDimension(dim);
+        for (auto& index : lowerIndices) {
+          dehierarchizeX_opt_boundary_kernel_dg(&tmp[index][0],
+                        &tmp[GridEnumeration::getUpperNeighborInDimension(static_cast<char>(dim), index)][0],
+                        lmax, 0, 1);
+        }
+      } else {
+        assert(false && "Not implemented for no boundary");
+      }
 
-//           // loop over points of this level with level specific stride
-//           // as long as inside domain
-//           for (IndexType idx = first; idx < dfg.getGlobalSizes()[dim]; idx += levelStride) { 
-//             // when no boundary in this dimension we have to check if
-//             // 1d indices outside domain
-//             FG_ELEMENT left(0.0);
-//             FG_ELEMENT right(0.0);
-
-//             if (idx - parentOffset > 0) {
-//               left = tmp[idx - parentOffset];
-//             }
-
-//             if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
-//               right = tmp[idx + parentOffset];
-//             }
-
-//             // do calculation
-//             FG_ELEMENT buf = 0.5 * left;
-//             tmp[idx] += 0.5 * right;
-//             tmp[idx] += buf;
-//           }
-//         }
-//       }
-
-//       // copy pole back
-//       for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
-//     }//# End pragma omp  for
-//   }//# end pragma parallel
-// }
+      // copy pole back
+      for (size_t j = 0; j < dfgEnsemble.getNumFullGrids(); ++j) {
+        auto& dfg = dfgEnsemble.getDFG(j);
+        for (IndexType i = 0; i < ndim; ++i) dfg.getElementVector()[start + stride * i] = tmp[j][gstart + i];
+      }
+    }//# End pragma omp  for
+  }//# end pragma parallel
+}
 }  // unnamed namespace
 
 namespace combigrid {
@@ -2493,7 +2483,6 @@ class DistributedHierarchization {
 
   // inplace hierarchization
   static void hierarchize(DFGEnsemble& dfgEnsemble, const std::vector<bool>& dims) {
-    // auto dfg = dfgEnsemble.getDFG(0);
     assert(dfgEnsemble.getDFG(0).getDimension() > 0);
     assert(dfgEnsemble.getDFG(0).getDimension() == dims.size());
 
@@ -2509,9 +2498,9 @@ class DistributedHierarchization {
         lookupTables.emplace_back(remoteData[i], dfgEnsemble.getDFG(i), dim);
       }
       if (dfgEnsemble.getDFG(0).returnBoundaryFlags()[dim] == true) {
-        hierarchizeX_opt_boundary(dfgEnsemble, lookupTables);
+        hierarchizeX_opt_boundary_dg(dfgEnsemble, lookupTables);
       } else {
-        hierarchizeX_opt_noboundary(dfgEnsemble, lookupTables);
+        hierarchizeX_opt_noboundary_dg(dfgEnsemble, lookupTables);
       }
     }
 
@@ -2529,9 +2518,9 @@ class DistributedHierarchization {
 
       if (dfgEnsemble.getDFG(0).returnBoundaryFlags()[dim] == true) {
         // hierarchizeN_boundary( dfg, lookupTable, dim );
-        hierarchizeN_opt<CombiDataType, true>(dfgEnsemble, lookupTables, dim);
+        hierarchizeN_opt_dg<CombiDataType, true>(dfgEnsemble, lookupTables, dim);
       } else {
-        hierarchizeN_opt<CombiDataType, false>(dfgEnsemble, lookupTables, dim);
+        hierarchizeN_opt_dg<CombiDataType, false>(dfgEnsemble, lookupTables, dim);
       }
 
       ++hierCount;
@@ -2549,7 +2538,6 @@ class DistributedHierarchization {
     auto& dfg = dfgEnsemble.getDFG(0);
     assert(dfg.getDimension() > 0);
     assert(dfg.getDimension() == dims.size());
-    assert(false && "not yet implemented");
 
     // dehierarchize first dimension
     if (dims[0]) {
@@ -2559,19 +2547,19 @@ class DistributedHierarchization {
       std::vector<std::vector<RemoteDataContainer<CombiDataType> >> remoteData (dfgEnsemble.getNumFullGrids());
       std::vector<LookupTable<CombiDataType>> lookupTables;
       for (size_t i = 0; i < dfgEnsemble.getNumFullGrids(); ++i) {
-        exchangeData1d(dfgEnsemble.getDFG(i), dim, remoteData[i]);
+        exchangeData1dDehierarchization(dfgEnsemble.getDFG(i), dim, remoteData[i]);
         lookupTables.emplace_back(remoteData[i], dfgEnsemble.getDFG(i), dim);
       }
 
-      // // Stats::startEvent("only dehierarchize");
-      // if (dfg.returnBoundaryFlags()[dim] == true) {  // TODO
-      //   dehierarchizeX_opt_boundary(dfg, lookupTable);
-      // } else {
-      //   dehierarchizeX_opt_noboundary(dfg, lookupTable);
-      // }
-      // // Stats::stopEvent("only dehierarchize");
+      // Stats::startEvent("only dehierarchize");
+      if (dfg.returnBoundaryFlags()[dim] == true) {  // TODO
+        dehierarchizeX_opt_boundary_dg(dfgEnsemble, lookupTables);
+      } else {
+        dehierarchizeX_opt_noboundary_dg(dfgEnsemble, lookupTables);
+      }
+      // Stats::stopEvent("only dehierarchize");
     }
-    //
+
     // dehierarchize other dimensions
     for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
@@ -2580,17 +2568,17 @@ class DistributedHierarchization {
       std::vector<std::vector<RemoteDataContainer<CombiDataType> >> remoteData (dfgEnsemble.getNumFullGrids());
       std::vector<LookupTable<CombiDataType>> lookupTables;
       for (size_t i = 0; i < dfgEnsemble.getNumFullGrids(); ++i) {
-        exchangeData1d(dfgEnsemble.getDFG(i), dim, remoteData[i]);
+        exchangeData1dDehierarchization(dfgEnsemble.getDFG(i), dim, remoteData[i]);
         lookupTables.emplace_back(remoteData[i], dfgEnsemble.getDFG(i), dim);
       }
 
-      // // Stats::startEvent("only dehierarchize");
-      // if (dfg.returnBoundaryFlags()[dim] == true) {
-      //   dehierarchizeN_opt<CombiDataType, true>(dfg, lookupTable, dim);
-      // } else {
-      //   dehierarchizeN_opt<CombiDataType, false>(dfg, lookupTable, dim);
-      // }
-      // // Stats::stopEvent("only dehierarchize");
+      // Stats::startEvent("only dehierarchize");
+      if (dfg.returnBoundaryFlags()[dim] == true) {
+        dehierarchizeN_opt_dg<CombiDataType, true>(dfgEnsemble, lookupTables, dim);
+      } else {
+        dehierarchizeN_opt_dg<CombiDataType, false>(dfgEnsemble, lookupTables, dim);
+      }
+      // Stats::stopEvent("only dehierarchize");
     }
   }
 
@@ -2598,7 +2586,6 @@ class DistributedHierarchization {
     std::vector<bool> dims(dfgEnsemble.getDFG(0).getDimension(), true);
     dehierarchize(dfgEnsemble, dims);
   }
-
 };
 // class DistributedHierarchization
 
