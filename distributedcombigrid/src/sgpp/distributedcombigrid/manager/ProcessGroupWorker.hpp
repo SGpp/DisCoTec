@@ -115,7 +115,10 @@ class ProcessGroupWorker {
 
   /** helper functions for parallelEval and norm calculations*/
   LevelVector receiveLevalAndBroadcast();
+
   void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
+
+  void fillDFGEnsembleFromDSGUs(DFGEnsemble& dfgEnsemble);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
