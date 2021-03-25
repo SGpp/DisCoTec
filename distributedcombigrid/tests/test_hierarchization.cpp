@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
+#include "sgpp/distributedcombigrid/fullgrid/DistributedFullGridEnsemble.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
 #include "sgpp/distributedcombigrid/hierarchization/Hierarchization.hpp"
@@ -132,6 +133,11 @@ class TestFn_3 {
 template <typename Functor>
 void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
                           std::vector<bool>& boundary, int size, bool forward = false) {
+
+  if (std::all_of(boundary.begin(), boundary.end(), [](bool i){return i;})) {
+    checkHierarchizationEnsemble(f, levels, procs, boundary, size, forward);
+  }
+
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) return;
 
@@ -193,10 +199,79 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
   }
 }
 
+template <typename Functor>
+void checkHierarchizationEnsemble(Functor& f, LevelVector& levels, IndexVector& procs,
+                          std::vector<bool>& boundary, int size, bool forward = false) {
+  CommunicatorType comm = TestHelper::getComm(size);
+  if (comm == MPI_COMM_NULL) return;
+
+  const DimType dim = levels.size();
+
+  // create distributed fg and fill with test function
+  DFGEnsemble dfgEnsemble(dim, levels, comm, boundary, procs, forward);
+  for (size_t i = 0; i < dfgEnsemble.getNumFullGrids(); ++i) {
+    auto& dfg = dfgEnsemble.getDFG(i);
+    // real offset = std::pow(GridEnumeration::getNumberOfHigherDimensions(i), dim);
+    real offset = GridEnumeration::getNumberOfHigherDimensions(i);
+    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      std::vector<double> coords(dim);
+      dfg.getCoordsLocal(li, coords);
+      dfg.getData()[li] = f(coords).real() + offset;
+    }
+  }
+
+  for (DimType d = 0; d < dim; ++d) {
+    std::vector<bool> hierarchizationDims(dim, false);
+    hierarchizationDims[d] = true;
+    // hierarchize in dimension d
+    DistributedHierarchization::hierarchize(dfgEnsemble, hierarchizationDims);
+
+    // compare hierarchical surpluses
+    // compare distributed fgs pairwise in each dimension
+    // the "higher" grid should always have a coefficient 1. higher
+    // (cf how we set the offset above)
+    auto lowerIndices = dfgEnsemble.getIndicesOfLowerGridsInDimension(d);
+    for (auto& index : lowerIndices) {
+      auto& dfgLower = dfgEnsemble.getDFG(index);
+      auto& dfgHigher = dfgEnsemble.getDFG(GridEnumeration::getUpperNeighborInDimension(static_cast<char>(d), index));
+      real offset = GridEnumeration::getNumberOfHigherDimensions(index);
+      for (IndexType li = 0; li < dfgLower.getNrLocalElements(); ++li) {
+        BOOST_TEST(dfgLower.getData()[li] + 1. == dfgHigher.getData()[li] , boost::test_tools::tolerance(TestHelper::tolerance));
+      }
+    }
+
+    // dehierarchize
+    DistributedHierarchization::dehierarchize(dfgEnsemble, hierarchizationDims);
+  }
+
+  // compare function values
+  for (size_t i = 0; i < dfgEnsemble.getNumFullGrids(); ++i) {
+  // for (size_t i = 0; i < 1; ++i) {
+    auto& dfg = dfgEnsemble.getDFG(i);
+    real offset = GridEnumeration::getNumberOfHigherDimensions(i);
+    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      std::vector<double> coords_dfg(dim);
+      dfg.getCoordsLocal(li, coords_dfg);
+      // compare distributed fg to exact solution
+      BOOST_TEST(dfg.getData()[li] == f(coords_dfg).real() + offset, boost::test_tools::tolerance(TestHelper::tolerance));
+    }
+  }
+}
+
 BOOST_AUTO_TEST_SUITE(hierarchization)
 
 // with boundary
 // isotropic
+
+
+BOOST_AUTO_TEST_CASE(test_ensemble_minus1) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {4, 4, 4};
+  IndexVector procs = {1, 1, 1};
+  std::vector<bool> boundary(3, true);
+  TestFn_1 testFn(levels);
+  checkHierarchizationEnsemble(testFn, levels, procs, boundary, 1);
+}
 
 BOOST_AUTO_TEST_CASE(test_1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
