@@ -9,6 +9,7 @@
 #include <mpi.h>
 
 #include <boost/property_tree/ini_parser.hpp>
+#include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
 #include <string>
@@ -99,6 +100,7 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.leval") >> leval;
     cfg.get<std::string>("ct.p") >> p;
     ncombi = cfg.get<size_t>("ct.ncombi");
+    std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme", "");
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
 
@@ -113,11 +115,12 @@ int main(int argc, char** argv) {
       systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
       numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
       thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
-      thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand");
+      thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand", "");
     }
 
     // todo: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
+    auto forwardDecomposition = false;
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
@@ -131,21 +134,46 @@ int main(int argc, char** argv) {
       std::cout << thirdLevelSSHCommand << " returned " << std::endl;
     }
 
-    /* generate a list of levelvectors and coefficients
-     * CombiMinMaxScheme will create a classical combination scheme.
-     * however, you could also read in a list of levelvectors and coefficients
-     * from a file */
-    CombiMinMaxScheme combischeme(dim, lmin, lmax);
-    combischeme.createAdaptiveCombischeme();
-    std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
-    std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
-
-    // split scheme and assign each half to a system
     std::vector<LevelVector> levels;
     std::vector<combigrid::real> coeffs;
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary, systemNumber,
-                                                  numSystems, levels, coeffs);
+    if (ctschemeFile == "") {
+      /* generate a list of levelvectors and coefficients
+      * CombiMinMaxScheme will create a classical combination scheme.
+      * however, you could also read in a list of levelvectors and coefficients
+      * from a file */
+      CombiMinMaxScheme combischeme(dim, lmin, lmax);
+      combischeme.createAdaptiveCombischeme();
+      std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
+      std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
 
+      // split scheme and assign each half to a system
+      CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary, systemNumber,
+                                                    numSystems, levels, coeffs);
+    } else {
+      // read in CT scheme, if applicable
+      boost::property_tree::ptree pScheme;
+      boost::property_tree::json_parser::read_json(ctschemeFile, pScheme);
+      for (const auto& component : pScheme.get_child("")) {
+        assert(component.first.empty()); // list elements have no names
+        for (const auto& c : component.second) {
+          if (c.first == "coeff") {
+            coeffs.push_back(c.second.get_value<real>());
+          } else if (c.first == "level") {
+            LevelVector lvl(dim);
+            int i = 0;
+            for (const auto& l : c.second) {
+                lvl[i] = l.second.get_value<int>();
+                ++i;
+            }
+            levels.push_back(lvl);
+          } else {
+            assert(false);
+          }
+        }
+      }
+      assert(coeffs.size() > 0);
+      assert(coeffs.size() == levels.size());
+    }
     // create load model
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
     // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new AnisotropyLoadModel());
@@ -175,7 +203,7 @@ int main(int argc, char** argv) {
 
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p,
-                           std::vector<IndexType>(dim, 0), std::vector<IndexType>(dim, 0), thirdLevelHost,
+                           std::vector<IndexType>(dim, 0), std::vector<IndexType>(dim, 0), forwardDecomposition, thirdLevelHost,
                            thirdLevelPort, 0);
 
     // create abstraction for Manager
