@@ -13,6 +13,8 @@ class TestFn {
     double exponent = 0;
     for (DimType d = 0; d < coords.size(); ++d) {
       coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
+      assert(coords[d] >= 0.);
+      assert(coords[d] <= 1.);
       exponent -= std::pow(coords[d] - 0.5, 2);
     }
     return std::exp(exponent*100.0) * 2;
@@ -174,8 +176,10 @@ class TaskAdvection : public Task {
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
         dfg_->getData()[li] = phi_->getElementVector()[li] - u_dot_dphi[li] * dt_;
       }
-      // implement periodic BC
-      dfg->writeUpperBoundaryToLowerBoundary(d);
+      for (DimType d = 0; d < dim_; ++d) {
+        // implement periodic BC
+        dfg_->writeUpperBoundaryToLowerBoundary(d);
+      }
     }
 
     stepsTotal_ += nsteps_;

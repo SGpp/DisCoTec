@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
 
     // todo: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
-    auto forwardDecomposition = false;
+    auto forwardDecomposition = true;
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
