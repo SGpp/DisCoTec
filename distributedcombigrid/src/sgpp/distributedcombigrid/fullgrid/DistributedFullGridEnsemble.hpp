@@ -36,6 +36,11 @@ public:
       b.set(dimension, true);
       return b.to_ulong();
   }
+
+  static size_t getNumberOfHigherDimensions(unsigned long testnumber){
+      std::bitset<sizeof(unsigned long) * 8> b(testnumber);
+      return b.count();
+  }
 };
 
 
