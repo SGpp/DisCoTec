@@ -217,7 +217,7 @@ class DistributedFullGrid {
 
     // get product of 1D hat functions on coords
     auto h = getGridSpacing();
-    real phi_c = 1.;
+    real phi_c = 1.; // value of product of basis function on coords
     for (DimType d = 0 ; d < dim_ ; ++d){
       // get distance between coords and point
       pointCoords[d] -= coords[d];
@@ -235,6 +235,14 @@ class DistributedFullGrid {
     return phi_c * this->getElementVector()[localLinearIndex];
   }
 
+  /**
+   * @brief recursive call to evaluate all neighbor points' contributions to the coordinate (on this part of the grid)
+   *
+   * @param localIndex the (in-all-dimensions lower) neighbor of coords
+   * @param dim the current dimension to split on (start with 0)
+   * @param coords the coordinate to interpolate on
+   * @return FG_ELEMENT the interpolated value at coords
+   */
   FG_ELEMENT evalMultiindexRecursively (const IndexVector& localIndex, DimType dim, const std::vector<real>& coords) const {
     assert(!(dim > this->getDimension()));
     if (dim == this->getDimension()){
