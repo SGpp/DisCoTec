@@ -1292,11 +1292,6 @@ class DistributedFullGrid {
     std::vector<int> csizes(sizes.rbegin(), sizes.rend());
     std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
     std::vector<int> cstarts(starts.rbegin(), starts.rend());
-    if (!reverseOrderingDFGPartitions) {
-      csizes.assign(sizes.begin(), sizes.end());
-      csubsizes.assign(subsizes.begin(), subsizes.end());
-      cstarts.assign(starts.begin(), starts.end());
-    }
 
     // create subarray view on data
     MPI_Datatype mysubarray;
@@ -1373,11 +1368,6 @@ class DistributedFullGrid {
     std::vector<int> csizes(sizes.rbegin(), sizes.rend());
     std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
     std::vector<int> cstarts(starts.rbegin(), starts.rend());
-    // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
-    //   csizes.assign(sizes.begin(), sizes.end());
-    //   csubsizes.assign(subsizes.begin(), subsizes.end());
-    //   cstarts.assign(starts.begin(), starts.end());
-    // }
 
     // create subarray view on data
     MPI_Datatype mysubarray;
@@ -1462,11 +1452,6 @@ class DistributedFullGrid {
         std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
         // the starts are local indices
         std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
-        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
-        //   sizes.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
-        //   subsizes.assign(subarrayExtents.begin(), subarrayExtents.end());
-        //   starts.assign(subarrayStarts.begin(), subarrayStarts.end());
-        // }
 
         // create subarray view on data //todo do this only once per dimension
         MPI_Datatype mysubarray;
@@ -1501,11 +1486,6 @@ class DistributedFullGrid {
         std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
         // the starts are local indices
         std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
-        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
-        //   sizes.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
-        //   subsizes.assign(subarrayExtents.begin(), subarrayExtents.end());
-        //   starts.assign(subarrayStarts.begin(), subarrayStarts.end());
-        // }
 
         // create subarray view on data
         MPI_Datatype mysubarray;
