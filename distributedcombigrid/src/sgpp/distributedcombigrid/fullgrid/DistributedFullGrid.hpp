@@ -1419,7 +1419,9 @@ class DistributedFullGrid {
 
     // set file view to right offset (in bytes)
     MPI_Offset offset = header_size * sizeof(char);
-    MPI_File_set_view(fh, offset, getMPIDatatype(), mysubarray, "native", MPI_INFO_NULL);
+    // external32 not supported in OpenMPI < 5. -> writes "native" endianness
+    // might work with MPICH
+    MPI_File_set_view(fh, offset, getMPIDatatype(), mysubarray, "external32", MPI_INFO_NULL);
 
     // write subarray
     MPI_File_write_all(fh, getData(), static_cast<int>(getNrLocalElements()), getMPIDatatype(), MPI_STATUS_IGNORE);
