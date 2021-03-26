@@ -196,8 +196,13 @@ class TaskEnsemble : public Task {
       linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
 
       
-      if(index_sub[linearized_index]!=-1)        
+      if(index_sub[linearized_index]!=-1)   { 
+        
         index_mapping[coords_dealii[x2][dim+1]][index_sub[linearized_index]]=x2;
+      }
+      else{
+        std::cout<<"Das sollte nicht vorkommen!"<<std::endl;
+      }
       
     }
     for(unsigned int j=0;j<element_coords[0].size();++j) {
@@ -222,20 +227,112 @@ class TaskEnsemble : public Task {
               z=corners[i][2]*(Nz-1);  
             linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
             //then 
+            if(index_mapping[i][index_sub[linearized_index]]==-1){
+              std::cout << "hier ist ein Fehler. Das ist nicht die richtige Referenz. Das ist Gitter "<<i<<std::endl;
+            }
             index_mapping[i][j]=index_mapping[i][index_sub[linearized_index]];
             
           }
+          else if(((int)(x==(Nx-1) || x==0) +(int)(y==(Ny-1)||y==0) +(int)z_corner)==2){
+            // Kante
+            double x_=element_coords[i][j][0]+1/100*((int)!(bool)corners[i][0]-0.5);
+            double y_=element_coords[i][j][1]+1/100*((int)!(bool)corners[i][1]-0.5);
+            if(element_coords[i][j][0]==0||element_coords[i][j][0]==1){
+              if(x_<0 || x_>1){
+                x=(int)!(element_coords[i][j][0]);
+              }
+              else{
+                x=element_coords[i][j][0];
+              }
+            }
+            else{
+              x=element_coords[i][j][0];
+            }
+            if(element_coords[i][j][1]==0||element_coords[i][j][1]==1){
+              if(y_<0 || y_>1){
+                y=(int)!(element_coords[i][j][1]);
+              }
+              else{
+                y=element_coords[i][j][1];
+              }
+            }
+            else{
+              y=element_coords[i][j][1];
+            }
+            
+            
+            if(dim==3){
+              double z_=element_coords[i][j][2]+1/100*((int)!(bool)corners[i][2]-0.5);
+               if(element_coords[i][j][2]==0||element_coords[i][j][2]==1){
+                if(z_<0 || z_>1){
+                  z=(int)!(element_coords[i][j][2]);
+                }
+                else{
+                  z=element_coords[i][j][2];
+                }
+              }
+              else{
+                z=element_coords[i][j][2];
+              }
+            }
+            
+            linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
+            if(index_mapping[i][index_sub[linearized_index]]==-1){
+              std::cout<<element_coords[i][j][0]<<","<<element_coords[i][j][1]<<","<<element_coords[i][j][2]<<"Punkt j="<<j<<std::endl;            
+              std::cout<<x<<","<<y<<","<<z<<std::endl;
+              std::cout<<"Linear: "<<linearized_index<<std::endl;            
+              std::cout << "hier ist ein Fehler. Das ist nicht die richtige Referenz. Das ist Gitter "<<i<<std::endl;
+            }
+            index_mapping[i][j]=index_mapping[i][index_sub[linearized_index]];
+          }
           else{
-            //get direction of DOF=>corners[i]
-
-            //new point=(oldpoint+dir)%1
-            //compute linearized index
-            x=std::round(fmod(element_coords[i][j][0]+corners[i][0], 1)*(Nx-1));
-            y=std::round(fmod(element_coords[i][j][1]+corners[i][1], 1)*(Ny-1));
-            if(dim==3)
-              z=std::round(fmod(element_coords[i][j][2]+corners[i][2], 1)*(Nz-1));
+            // Fläche
+            double x_=element_coords[i][j][0]+1/100*((int)!(bool)corners[i][0]-0.5);
+            double y_=element_coords[i][j][1]+1/100*((int)!(bool)corners[i][1]-0.5);
+            if(element_coords[i][j][0]==0||element_coords[i][j][0]==1){
+              if(x_<0 || x_>1){
+                x=(int)!(element_coords[i][j][0]);
+              }
+              else{
+                x=element_coords[i][j][0];
+              }
+            }
+            else{
+              x=element_coords[i][j][0];
+            }
+            if(element_coords[i][j][1]==0||element_coords[i][j][1]==1){
+              if(y_<0 || y_>1){
+                y=(int)!(element_coords[i][j][1]);
+              }
+              else{
+                y=element_coords[i][j][1];
+              }
+            }
+            else{
+              y=element_coords[i][j][1];
+            }
+            
+            
+            if(dim==3){
+              double z_=element_coords[i][j][2]+1/100*((int)!(bool)corners[i][2]-0.5);
+               if(element_coords[i][j][2]==0||element_coords[i][j][2]==1){
+                if(z_<0 || z_>1){
+                  z=(int)!(element_coords[i][j][2]);
+                }
+                else{
+                  z=element_coords[i][j][2];
+                }
+              }
+              else{
+                z=element_coords[i][j][2];
+              }
+            }
             linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
             //then 
+            if(index_mapping[i][index_sub[linearized_index]]==-1){
+              std::cout<<element_coords[i][j][0]<<","<<element_coords[i][j][1]<<","<<element_coords[i][j][2]<<std::endl;            
+              std::cout << "hier ist dann auch ein Fehler. Das ist auch nicht die richtige Referenz"<<std::endl;
+            }
             index_mapping[i][j]=index_mapping[i][index_sub[linearized_index]];
           }
           
@@ -261,28 +358,26 @@ class TaskEnsemble : public Task {
     
     if(stepsTotal_>0 && do_combine)
     {
-      
-
       //iterates over all dfgs of the ensemble
       for(unsigned int i = 0; i < dfgEnsemble_->getNumFullGrids(); i++){
         auto& dfg = dfgEnsemble_->getDFG(i);
         std::vector<CombiDataType>& elements = dfg.getElementVector();
 
         //iterate here over all points of this grid
-        for(unsigned int l = 0; l < index_mapping[i].size(); l++) {       
+        for(unsigned int l = 0; l < index_mapping[i].size(); l++) {    
 
           old_result[index_mapping[i][l]][Problem::dim_]=elements[l];
-          //old_result[index_mapping[i][l]][Problem::dim_+1]=i;
+          
         }
       }
       problem->set_result(old_result);
     }
-    Stats::startEvent("Task "+std::to_string(this->getID()));
+    //Stats::startEvent("Task "+std::to_string(this->getID()));
     problem->reinit_time_integration(stepsTotal_*dt_, (stepsTotal_ + 1)*dt_);
 
     //process problem
     problem->solve();
-    Stats::stopEvent("Task "+std::to_string(this->getID()));
+    //Stats::stopEvent("Task "+std::to_string(this->getID()));
     
     std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
 
@@ -326,7 +421,7 @@ class TaskEnsemble : public Task {
       
   }
     stepsTotal_ ++;
-  table.stop("time->fullgrid");
+    table.stop("time->fullgrid");
     this->setFinished(true);
   }
 

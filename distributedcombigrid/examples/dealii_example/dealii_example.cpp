@@ -269,7 +269,7 @@ int main(int argc, char** argv) {
         filename=("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/exact_solution_level"+ toString(lmin)+".dat");
       }
       else
-        filename=("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/csmi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ev_"+toString(leval)+com+".dat");
+        filename=("out/"+cfg.get<std::string>("ct.FE","FE_Q")+"/csmi_"+toString(lmin)+"_ma_"+toString(lmax)+"_ev_"+toString(leval)+com+std::to_string(ncombi)+".dat");
      
       Stats::startEvent("manager write solution");
       manager.parallelEval(leval, filename, 0);

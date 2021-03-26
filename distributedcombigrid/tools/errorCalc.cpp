@@ -48,11 +48,11 @@ int main(int argc, char** argv) {
     IndexVector res1;
     IndexVector res2;
 
-    // get data and res of first file
-    readPlotFile((filenameLeft+std::to_string(suffix)).c_str(), data1, res1);
+    // get data and res of first file +std::to_string(suffix)).c_str()
+    readPlotFile(filenameLeft.c_str(), data1, res1);
 
-    // get data and res of second file
-    readPlotFile((filenameRight+std::to_string(suffix)).c_str(), data2, res2);
+    // get data and res of second file +std::to_string(suffix)).c_str()
+    readPlotFile(filenameRight.c_str(), data2, res2);
 
     // check sizes
     assert(data1.size() == data2.size());

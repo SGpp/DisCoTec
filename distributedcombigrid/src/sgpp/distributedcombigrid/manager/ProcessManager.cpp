@@ -67,12 +67,11 @@ bool ProcessManager::runnext() {
 
   assert(!group_failed && "runnext must not be called when there are failed groups");
 
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
+  for (size_t i = 0; i < pgroups_.size(); ++i) {    
     pgroups_[i]->runnext();
   }
 
   group_failed = waitAllFinished();
-  
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   if(!group_failed)
     receiveDurationsOfTasksFromGroupMasters(0);

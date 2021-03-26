@@ -101,19 +101,17 @@ SignalType ProcessGroupWorker::wait() {
 
         // run first task
         // if isGENE, this is done in GENE's worker_routines.cpp
-        if (!isGENE) {
-          Stats::startEvent("worker run");
-        }
+        // if (!isGENE) {
+        //   Stats::startEvent("worker run");
+        // }
 
         Stats::Event e = Stats::Event();
         currentTask_->run(theMPISystem()->getLocalComm());
         e.end = std::chrono::high_resolution_clock::now();
-        // std::cout << "from runnext ";
         processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
-
-        if (!isGENE) {
-          Stats::stopEvent("worker run");
-        }
+        // if (!isGENE) {
+        //   Stats::stopEvent("worker run");
+        // }
       } else {
         std::cout << "Possible error: No tasks! \n";
       }
@@ -317,6 +315,7 @@ void ProcessGroupWorker::ready() {
       std::cout << "rank " << globalRank << " fault detected" << std::endl;
     }
   }
+  
   if (status_ != PROCESS_GROUP_FAIL) {
     // check if there are unfinished tasks
     // all the tasks that are not the first in their process group will be run in this loop
@@ -356,7 +355,6 @@ void ProcessGroupWorker::ready() {
       status_ = PROCESS_GROUP_WAIT;
     }
   }
-
   // send ready status to manager
   MASTER_EXCLUSIVE_SECTION {
     StatusType status = status_;
@@ -372,7 +370,6 @@ void ProcessGroupWorker::ready() {
 
   // reset current task
   currentTask_ = NULL;
-
   // if failed proc in this group detected the alive procs go into recovery state
   if (ENABLE_FT) {
     if (status_ == PROCESS_GROUP_FAIL) {

@@ -5,7 +5,6 @@
 #include <cassert>
 #include <iostream>
 #include <numeric>
-#include <cassert>
 #include <string>
 
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
@@ -65,8 +64,8 @@ class DistributedFullGrid {
                       const std::vector<bool>& hasBdrPoints, const IndexVector& procs,
                       bool forwardDecomposition = true,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>(),
-                      const BasisFunctionBasis* basis = nullptr)
-                      : dim_(dim), levels_(levels), procs_(procs)  {
+                      const BasisFunctionBasis* basis = NULL)
+      : dim_(dim), levels_(levels), procs_(procs) {
     assert(levels.size() == dim);
     assert(hasBdrPoints.size() == dim);
     assert(procs.size() == dim);
@@ -74,77 +73,12 @@ class DistributedFullGrid {
 
     InitMPI(comm);  // will also check grids per dim
 
-    setBasisFcn(basis);
-
-    setNumElementsAndOffsets();
-
-    setLocalBounds(decomposition, forwardDecomposition);
-
-    calcBoundCoordinates();
-
-    calcDecompositionCoords();
-
-    calcSubspaces();
-
-    calcAssigmentList();
-
-    dsg_ = nullptr;
-
-    ++count;
-
-#ifdef DEBUG_OUTPUT
-
-    if (rank_ == 0) {
-      for (RankType r = 0; r < size_; ++r) {
-        std::cout << "rank " << r << ": \n"
-                  << "\t lower bounds " << lowerBounds_[r] << "\t upper bounds " << upperBounds_[r]
-                  << std::endl;
-      }
-    }
-
-    /*
-    if ( rank_ == 0 ) {
-      for ( auto subsp : subspaces_ ) {
-        std::cout << subsp.level_ << std::endl;
-
-        for ( RankType r = 0; r < size_; ++r ) {
-          // get coords of r in cart comm
-          IndexVector coords( dim_ );
-          this->getPartitionCoords( r, coords );
-
-          std::cout << "r = " << r << " ";
-          std::cout << "rcoords = " << IndexVector( coords.begin(), coords.end() )
-                    << " ";
-          std::cout << "lbounds = " << subsp.lowerBounds_[r]
-                    << " ";
-          std::cout << "rbounds = " << subsp.upperBounds_[r]
-                    << std::endl;
-        }
-      }
-    }
-    */
-
-#endif
-  }
-
-  // copy construction would need to duplicate communicator_
-  DistributedFullGrid(const DistributedFullGrid& other) = delete;
-  DistributedFullGrid& operator=( const DistributedFullGrid & ) = delete;
-
-  virtual ~DistributedFullGrid() {
-    // todo: remove communicators? Yes -> Done
-    MPI_Comm_free(&communicator_);
-  }
-
-  void setBasisFcn(const BasisFunctionBasis* basis){
     // set the basis function for the full grid
-    if (basis == nullptr)
+    if (basis == NULL)
       basis_ = LinearBasisFunction::getDefaultBasis();
     else
       basis_ = basis;
-  }
 
-  void setNumElementsAndOffsets(){
     // set global num of elements and offsets
     nrElements_ = 1;
     offsets_.resize(dim_);
@@ -156,9 +90,7 @@ class DistributedFullGrid {
       offsets_[j] = nrElements_;
       nrElements_ = nrElements_ * nrPoints_[j];
     }
-  }
 
-  void setLocalBounds(const std::vector<IndexVector>& decomposition, bool forwardDecomposition){
     // set lower bounds
     lowerBounds_.resize(size_, IndexVector(dim_));
 
@@ -183,7 +115,7 @@ class DistributedFullGrid {
     nrLocalPoints_ = getUpperBounds() - getLowerBounds();
 
     nrLocalElements_ = 1;
-    localOffsets_.resize(dim_);
+    localOffsets_.resize(dim);
 
     for (DimType j = 0; j < dim_; ++j) {
       localOffsets_[j] = nrLocalElements_;
@@ -192,6 +124,79 @@ class DistributedFullGrid {
 
     // in contrast to serial implementation we directly create the grid
     fullgridVector_.resize(nrLocalElements_);
+
+    lowerBoundsCoords_.resize(size_);
+    upperBoundsCoords_.resize(size_);
+    calcBoundCoordinates();
+
+    decompositionCoords_.resize(dim_);
+
+    for (size_t j = 0; j < dim_; ++j) decompositionCoords_[j].resize(procs[j]);
+
+    calcDecompositionCoords();
+
+    calcSubspaces();
+    subspacesFilled_ = false;
+
+    if (subspaces_.size() > 65535)
+      assert(false &&
+             "the number of subspaces is too high. assigment list uses only"
+             "short int. change data type");
+
+    assigmentList_.resize(fullgridVector_.size());
+    calcAssigmentList();
+
+    // set size of largest subspace
+    maxSubspaceSize_ = 0;
+
+    for (auto subsp : subspaces_) {
+      if (subsp.targetSize_ > maxSubspaceSize_) maxSubspaceSize_ = subsp.targetSize_;
+    }
+
+    dsg_ = NULL;
+
+    ++count;
+
+#ifdef DEBUG_OUTPUT
+
+    if (rank_ == 0) {
+      for (RankType r = 0; r < size_; ++r) {
+        std::cout << "rank " << r << ": \n"
+                  << "\t lower bounds " << lowerBounds_[r] << "\t upper bounds " << upperBounds_[r]
+                  << std::endl;
+      }
+    }
+
+    /*
+    if ( rank_ == 0 ) {
+      for ( auto subsp : subspaces_ ) {
+        std::cout << subsp.level_ << std::endl;
+        for ( RankType r = 0; r < size_; ++r ) {
+          // get coords of r in cart comm
+          IndexVector coords( dim_ );
+          this->getPartitionCoords( r, coords );
+          std::cout << "r = " << r << " ";
+          std::cout << "rcoords = " << IndexVector( coords.begin(), coords.end() )
+                    << " ";
+          std::cout << "lbounds = " << subsp.lowerBounds_[r]
+                    << " ";
+          std::cout << "rbounds = " << subsp.upperBounds_[r]
+                    << std::endl;
+        }
+      }
+    }
+    */
+
+#endif
+  }
+
+  // copy construction would need to duplicate communicator_
+  DistributedFullGrid(const DistributedFullGrid& other) = delete;
+  DistributedFullGrid& operator=( const DistributedFullGrid & ) = delete;
+
+  virtual ~DistributedFullGrid() {
+    // todo: remove communicators? Yes -> Done
+    MPI_Comm_free(&communicator_);
   }
 
   /** evaluates the full grid on the specified coordinates
@@ -538,8 +543,6 @@ class DistributedFullGrid {
      // it has a part of the left boundary
      IndexVector coords( dim_ );
      getPartitionCoords( coords );
-
-
      if( hasBoundaryPoints_[d] && coords[d] == 0 ){
      assert( lowerBounds_[rank_][d] + 1 == 1 );
      return 1;
@@ -560,7 +563,6 @@ class DistributedFullGrid {
      // it has a part of the left boundary
      IndexVector coords( dim_ );
      getPartitionCoords( coords );
-
      if( hasBoundaryPoints_[d] && coords[d] == procs_[d] - 1 ){
      return upperBounds_[rank_][d] - 2;
      }
@@ -738,43 +740,43 @@ class DistributedFullGrid {
     return decompositionCoords_;
   }
 
-  // /* extract subspaces from dfg
-  //  * note that this will double the memory demand!
-  //  */
-  // void fillSubspaces() {
-  //   // resize subspace if necessary
-  //   for (size_t j = 0; j < subspaces_.size(); ++j) {
-  //     SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[j];
+  /* extract subspaces from dfg
+   * note that this will double the memory demand!
+   */
+  void fillSubspaces() {
+    // resize subspace if necessary
+    for (size_t j = 0; j < subspaces_.size(); ++j) {
+      SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[j];
 
-  //     // compute expected data size
-  //     IndexVector lsize = subsp.upperBounds_[rank_] - subsp.lowerBounds_[rank_];
-  //     IndexType dsize = 1;
+      // compute expected data size
+      IndexVector lsize = subsp.upperBounds_[rank_] - subsp.lowerBounds_[rank_];
+      IndexType dsize = 1;
 
-  //     for (auto l : lsize) dsize *= l;
+      for (auto l : lsize) dsize *= l;
 
-  //     if (IndexType(subsp.data_.size()) != dsize) subsp.data_.resize(dsize);
-  //   }
+      if (IndexType(subsp.data_.size()) != dsize) subsp.data_.resize(dsize);
+    }
 
-  //   // create iterator for each subspace of sgrid and set to begin
-  //   typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
-  //   typename std::vector<SubspaceIterator> it_sub(subspaces_.size());
+    // create iterator for each subspace of sgrid and set to begin
+    typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
+    typename std::vector<SubspaceIterator> it_sub(subspaces_.size());
 
-  //   for (size_t i = 0; i < it_sub.size(); ++i) it_sub[i] = subspaces_[i].data_.begin();
+    for (size_t i = 0; i < it_sub.size(); ++i) it_sub[i] = subspaces_[i].data_.begin();
 
-  //   for (size_t i = 0; i < fullgridVector_.size(); ++i) {
-  //     // get subspace id
-  //     size_t subI(assigmentList_[i]);
+    for (size_t i = 0; i < fullgridVector_.size(); ++i) {
+      // get subspace id
+      size_t subI(assigmentList_[i]);
 
-  //     assert(it_sub[subI] != subspaces_[subI].data_.end());
+      assert(it_sub[subI] != subspaces_[subI].data_.end());
 
-  //     // copy subspace value back to dfg
-  //     *it_sub[subI] = fullgridVector_[i];
+      // copy subspace value back to dfg
+      *it_sub[subI] = fullgridVector_[i];
 
-  //     ++it_sub[subI];
-  //   }
+      ++it_sub[subI];
+    }
 
-  //   subspacesFilled_ = true;
-  // }
+    subspacesFilled_ = true;
+  }
 
   void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     // check if dsg already registered
@@ -880,270 +882,275 @@ class DistributedFullGrid {
     }
   }
 
-  // void writeBackSubspaces() {
-  //   assert(subspacesFilled_ && "subspaces have not been created");
+  void writeBackSubspaces() {
+    assert(subspacesFilled_ && "subspaces have not been created");
 
-  //   // create iterator for each subspace of sgrid and set to begin
-  //   typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
-  //   typename std::vector<SubspaceIterator> it_sub(subspaces_.size());
+    // create iterator for each subspace of sgrid and set to begin
+    typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
+    typename std::vector<SubspaceIterator> it_sub(subspaces_.size());
 
-  //   for (size_t i = 0; i < it_sub.size(); ++i) it_sub[i] = subspaces_[i].data_.begin();
+    for (size_t i = 0; i < it_sub.size(); ++i) it_sub[i] = subspaces_[i].data_.begin();
 
-  //   for (size_t i = 0; i < fullgridVector_.size(); ++i) {
-  //     // get subspace id corresponding to lvec
-  //     size_t subI(assigmentList_[i]);
+    for (size_t i = 0; i < fullgridVector_.size(); ++i) {
+      // get subspace id corresponding to lvec
+      size_t subI(assigmentList_[i]);
 
-  //     assert(it_sub[subI] != subspaces_[subI].data_.end());
+      assert(it_sub[subI] != subspaces_[subI].data_.end());
 
-  //     // copy subspace value back to dfg
-  //     fullgridVector_[i] = *it_sub[subI];
+      // copy subspace value back to dfg
+      fullgridVector_[i] = *it_sub[subI];
 
-  //     ++it_sub[subI];
-  //   }
-  // }
+      ++it_sub[subI];
+    }
+  }
 
-  // void clearSubspaces() {
-  //   for (auto subsp : subspaces_) subsp.data_.resize(0);
+  void clearSubspaces() {
+    for (auto subsp : subspaces_) subsp.data_.resize(0);
 
-  //   subspacesFilled_ = false;
-  // }
+    subspacesFilled_ = false;
+  }
 
-  // void gatherSubspace(const LevelVector& l, RankType dst, std::vector<FG_ELEMENT>& buf) {
-  //   assert(subspacesFilled_ && "subspaces have not been filled");
+  void gatherSubspace(const LevelVector& l, RankType dst, std::vector<FG_ELEMENT>& buf) {
+    assert(subspacesFilled_ && "subspaces have not been filled");
 
-  //   // get subspace corresponding to l
-  //   size_t subI = this->getSubspaceIndex(l);
-  //   SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
+    // get subspace corresponding to l
+    size_t subI = this->getSubspaceIndex(l);
+    SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
 
-  //   std::vector<MPI_Request> requests;
-  //   std::vector<MPI_Datatype> subarrayTypes;
+    std::vector<MPI_Request> requests;
+    std::vector<MPI_Datatype> subarrayTypes;
 
-  //   // rank r: for each rank create subarray view on fg
-  //   if (rank_ == dst) {
-  //     // resize buffer
-  //     IndexType bsize = 1;
+    // rank r: for each rank create subarray view on fg
+    if (rank_ == dst) {
+      // resize buffer
+      IndexType bsize = 1;
 
-  //     for (auto s : subsp.sizes_) bsize *= s;
+      for (auto s : subsp.sizes_) bsize *= s;
 
-  //     buf.resize(bsize);
+      buf.resize(bsize);
 
-  //     for (int r = 0; r < size_; ++r) {
-  //       MPI_Datatype mysubarray = subsp.subarrayTypes_[r];
+      for (int r = 0; r < size_; ++r) {
+        MPI_Datatype mysubarray = subsp.subarrayTypes_[r];
 
-  //       if (mysubarray == MPI_DATATYPE_NULL) continue;
+        if (mysubarray == MPI_DATATYPE_NULL) continue;
 
-  //       int src = r;
-  //       MPI_Request req;
-  //       MPI_Irecv(buf.data(), 1, mysubarray, src, 0, this->getCommunicator(), &req);
-  //       requests.push_back(req);
-  //     }
-  //   }
+        int src = r;
+        MPI_Request req;
+        MPI_Irecv(buf.data(), 1, mysubarray, src, 0, this->getCommunicator(), &req);
+        requests.push_back(req);
+      }
+    }
 
-  //   // each rank: send subspace to dst
-  //   // important: skip this if send size = 0
-  //   if (subsp.data_.size() > 0) {
-  //     MPI_Send(subsp.data_.data(), int(subsp.data_.size()), this->getMPIDatatype(), dst, 0,
-  //              this->getCommunicator());
-  //   }
+    // each rank: send subspace to dst
+    // important: skip this if send size = 0
+    if (subsp.data_.size() > 0) {
+      MPI_Send(subsp.data_.data(), int(subsp.data_.size()), this->getMPIDatatype(), dst, 0,
+               this->getCommunicator());
+    }
 
-  //   if (rank_ == dst) {
-  //     MPI_Waitall(static_cast<int>(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
-  //   }
+    if (rank_ == dst) {
+      MPI_Waitall(static_cast<int>(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
+    }
 
-  //   // free subarrays; only dst has a non-zero container here
-  //   for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
-  // }
+    // free subarrays; only dst has a non-zero container here
+    for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
+  }
 
-  // void gatherSubspaceBlock(const LevelVector& l, RankType dst,
-  //                          std::vector<std::vector<FG_ELEMENT> >& senddata,
-  //                          std::vector<std::vector<int> >& sendsizes,
-  //                          std::vector<std::vector<int> >& sendsubspaces,
-  //                          std::vector<std::vector<int> >& recvsizes,
-  //                          std::vector<std::vector<int> >& recvsubspaces) {
-  //   assert(subspacesFilled_ && "subspaces have not been filled");
+  void gatherSubspaceBlock(const LevelVector& l, RankType dst,
+                           std::vector<std::vector<FG_ELEMENT> >& senddata,
+                           std::vector<std::vector<int> >& sendsizes,
+                           std::vector<std::vector<int> >& sendsubspaces,
+                           std::vector<std::vector<int> >& recvsizes,
+                           std::vector<std::vector<int> >& recvsubspaces) {
+    assert(subspacesFilled_ && "subspaces have not been filled");
 
-  //   // get subspace corresponding to l
-  //   size_t subI = this->getSubspaceIndex(l);
-  //   SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
+    // get subspace corresponding to l
+    size_t subI = this->getSubspaceIndex(l);
+    SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
 
-  //   // rank r: for each rank create subarray view on fg
-  //   if (rank_ == dst) {
-  //     for (int r = 0; r < size_; ++r) {
-  //       IndexVector sizes(subsp.sizes_);
-  //       IndexVector subsizes = subsp.upperBounds_[r] - subsp.lowerBounds_[r];
-  //       IndexVector starts = subsp.lowerBounds_[r];
+    // rank r: for each rank create subarray view on fg
+    if (rank_ == dst) {
+      for (int r = 0; r < size_; ++r) {
+        IndexVector sizes(subsp.sizes_);
+        IndexVector subsizes = subsp.upperBounds_[r] - subsp.lowerBounds_[r];
+        IndexVector starts = subsp.lowerBounds_[r];
 
-  //       // important: skip r if subsize = 0
-  //       IndexType ssize = 1;
+        // important: skip r if subsize = 0
+        IndexType ssize = 1;
 
-  //       for (auto s : subsizes) ssize *= s;
+        for (auto s : subsizes) ssize *= s;
 
-  //       if (ssize == 0) continue;
+        if (ssize == 0) continue;
 
-  //       recvsizes[r].push_back(ssize);
-  //       recvsubspaces[r].push_back(subI);
-  //     }
-  //   }
+        recvsizes[r].push_back(ssize);
+        recvsubspaces[r].push_back(subI);
+      }
+    }
 
-  //   // send subspace copy subspace data into right buffer
-  //   // skip this if send size = 0
-  //   if (subsp.data_.size() > 0) {
-  //     senddata[dst].insert(senddata[dst].end(), subsp.data_.begin(), subsp.data_.end());
-  //     sendsizes[dst].push_back(subsp.data_.size());
-  //     sendsubspaces[dst].push_back(subI);
-  //   }
-  // }
+    // send subspace copy subspace data into right buffer
+    // skip this if send size = 0
+    if (subsp.data_.size() > 0) {
+      senddata[dst].insert(senddata[dst].end(), subsp.data_.begin(), subsp.data_.end());
+      sendsizes[dst].push_back(subsp.data_.size());
+      sendsubspaces[dst].push_back(subI);
+    }
+  }
 
-  // void gatherSubspaceRed(const LevelVector& l, RankType dst, std::vector<FG_ELEMENT>& buf) {
-  //   assert(subspacesFilled_ && "subspaces have not been filled");
+  void gatherSubspaceRed(const LevelVector& l, RankType dst, std::vector<FG_ELEMENT>& buf) {
+    assert(subspacesFilled_ && "subspaces have not been filled");
 
-  //   // get subspace corresponding to l
-  //   size_t subI = this->getSubspaceIndex(l);
-  //   SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
+    // get subspace corresponding to l
+    size_t subI = this->getSubspaceIndex(l);
+    SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
 
-  //   assert(buf.size() >= subsp.targetSize_);
+    assert(buf.size() >= subsp.targetSize_);
 
-  //   // set interesting part of buf to zero
-  //   for (size_t i = 0; i < subsp.targetSize_; ++i) buf[i] = FG_ELEMENT(0);
+    // set interesting part of buf to zero
+    for (size_t i = 0; i < subsp.targetSize_; ++i) buf[i] = FG_ELEMENT(0);
 
-  //   // todo: copy data into right position in buffer
+    // todo: copy data into right position in buffer
 
-  //   // perform reduce with target dst
-  //   if (rank_ == dst) {
-  //     MPI_Reduce(MPI_IN_PLACE, buf.data(), int(subsp.targetSize_), this->getMPIDatatype(), MPI_SUM,
-  //                dst, this->getCommunicator());
-  //   } else {
-  //     MPI_Reduce(buf.data(), buf.data(), int(subsp.targetSize_), this->getMPIDatatype(), MPI_SUM,
-  //                dst, this->getCommunicator());
-  //   }
-  // }
+    // perform reduce with target dst
+    if (rank_ == dst) {
+      MPI_Reduce(MPI_IN_PLACE, buf.data(), int(subsp.targetSize_), this->getMPIDatatype(), MPI_SUM,
+                 dst, this->getCommunicator());
+    } else {
+      MPI_Reduce(buf.data(), buf.data(), int(subsp.targetSize_), this->getMPIDatatype(), MPI_SUM,
+                 dst, this->getCommunicator());
+    }
+  }
 
-  // void gatherSubspaceNB(const LevelVector& l, RankType dst, std::vector<FG_ELEMENT>& buf,
-  //                       std::vector<MPI_Request>& requests) {
-  //   assert(subspacesFilled_ && "subspaces have not been filled");
+  void gatherSubspaceNB(const LevelVector& l, RankType dst, std::vector<FG_ELEMENT>& buf,
+                        std::vector<MPI_Request>& requests) {
+    assert(subspacesFilled_ && "subspaces have not been filled");
 
-  //   // get subspace corresponding to l
-  //   size_t subI = this->getSubspaceIndex(l);
-  //   SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
-  //   int tag = int(subI);
+    // get subspace corresponding to l
+    size_t subI = this->getSubspaceIndex(l);
+    SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
+    int tag = int(subI);
 
-  //   // each rank: send subspace to dst
-  //   // important: skip this if send size = 0
-  //   if (subsp.data_.size() > 0) {
-  //     MPI_Request sendRequest;
-  //     MPI_Isend(subsp.data_.data(), int(subsp.data_.size()), this->getMPIDatatype(), dst, tag,
-  //               this->getCommunicator(), &sendRequest);
-  //     requests.push_back(sendRequest);
-  //   }
+    // each rank: send subspace to dst
+    // important: skip this if send size = 0
+    if (subsp.data_.size() > 0) {
+      MPI_Request sendRequest;
+      MPI_Isend(subsp.data_.data(), int(subsp.data_.size()), this->getMPIDatatype(), dst, tag,
+                this->getCommunicator(), &sendRequest);
+      requests.push_back(sendRequest);
+    }
 
-  //   // rank r: for each rank create subarray view on fg
-  //   if (rank_ == dst) {
-  //     // resize buffer
-  //     IndexType bsize = 1;
+    // rank r: for each rank create subarray view on fg
+    if (rank_ == dst) {
+      // resize buffer
+      IndexType bsize = 1;
 
-  //     for (auto s : subsp.sizes_) bsize *= s;
+      for (auto s : subsp.sizes_) bsize *= s;
 
-  //     buf.resize(bsize);
+      buf.resize(bsize);
 
-  //     for (int r = 0; r < size_; ++r) {
-  //       MPI_Datatype mysubarray = subsp.subarrayTypes_[r];
+      for (int r = 0; r < size_; ++r) {
+        MPI_Datatype mysubarray = subsp.subarrayTypes_[r];
 
-  //       if (mysubarray == MPI_DATATYPE_NULL) continue;
+        if (mysubarray == MPI_DATATYPE_NULL) continue;
 
-  //       int src = r;
-  //       MPI_Request req;
-  //       MPI_Irecv(buf.data(), 1, mysubarray, src, tag, this->getCommunicator(), &req);
-  //       requests.push_back(req);
-  //     }
-  //   }
+        int src = r;
+        MPI_Request req;
+        MPI_Irecv(buf.data(), 1, mysubarray, src, tag, this->getCommunicator(), &req);
+        requests.push_back(req);
+      }
+    }
 
-  //   // std::vector< MPI_Datatype > subarrayTypes;
+    // std::vector< MPI_Datatype > subarrayTypes;
 
-  //   // free subarrays; only dst has a non-zero container here
-  //   // todo: free on destruct
-  //   // for( size_t i = 0; i < subarrayTypes.size(); ++i )
-  //   //  MPI_Type_free( &subarrayTypes[i] );
-  // }
+    // free subarrays; only dst has a non-zero container here
+    // todo: free on destruct
+    // for( size_t i = 0; i < subarrayTypes.size(); ++i )
+    //  MPI_Type_free( &subarrayTypes[i] );
+  }
 
-  // /* takes the data of subspace l contained in buf and distributes
-  //  * it over all processes of dfg
-  //  */
-  // void scatterSubspace(const LevelVector& l, RankType src, const std::vector<FG_ELEMENT>& buf) {
-  //   assert(subspacesFilled_ && "subspaces have not been created");
+  /* takes the data of subspace l contained in buf and distributes
+   * it over all processes of dfg
+   */
+  void scatterSubspace(const LevelVector& l, RankType src, const std::vector<FG_ELEMENT>& buf) {
+    assert(subspacesFilled_ && "subspaces have not been created");
 
-  //   // get subspace corresponding to l
-  //   size_t subI = this->getSubspaceIndex(l);
-  //   SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
+    // get subspace corresponding to l
+    size_t subI = this->getSubspaceIndex(l);
+    SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subI];
 
-  //   // each rank: recv his subspace data from src
-  //   // important: skip this if send size = 0
-  //   MPI_Request recvRequest;
-  //   bool recvd(false);
+    // each rank: recv his subspace data from src
+    // important: skip this if send size = 0
+    MPI_Request recvRequest;
+    bool recvd(false);
 
-  //   if (subsp.data_.size() > 0) {
-  //     MPI_Irecv(subsp.data_.data(), int(subsp.data_.size()), this->getMPIDatatype(), src, 0,
-  //               this->getCommunicator(), &recvRequest);
-  //     recvd = true;
-  //   }
+    if (subsp.data_.size() > 0) {
+      MPI_Irecv(subsp.data_.data(), int(subsp.data_.size()), this->getMPIDatatype(), src, 0,
+                this->getCommunicator(), &recvRequest);
+      recvd = true;
+    }
 
-  //   std::vector<MPI_Request> requests;
-  //   std::vector<MPI_Datatype> subarrayTypes;
+    std::vector<MPI_Request> requests;
+    std::vector<MPI_Datatype> subarrayTypes;
 
-  //   // rank r: for each rank create subarray view on fg
-  //   if (rank_ == src) {
-  //     // check buffer size
-  //     IndexType bsize = 1;
+    // rank r: for each rank create subarray view on fg
+    if (rank_ == src) {
+      // check buffer size
+      IndexType bsize = 1;
 
-  //     for (auto s : subsp.sizes_) bsize *= s;
+      for (auto s : subsp.sizes_) bsize *= s;
 
-  //     assert(IndexType(buf.size()) == bsize);
+      assert(IndexType(buf.size()) == bsize);
 
-  //     for (int r = 0; r < size_; ++r) {
-  //       IndexVector sizes(subsp.sizes_);
-  //       IndexVector subsizes = subsp.upperBounds_[r] - subsp.lowerBounds_[r];
-  //       IndexVector starts = subsp.lowerBounds_[r];
+      for (int r = 0; r < size_; ++r) {
+        IndexVector sizes(subsp.sizes_);
+        IndexVector subsizes = subsp.upperBounds_[r] - subsp.lowerBounds_[r];
+        IndexVector starts = subsp.lowerBounds_[r];
 
-  //       // important: skip r if subsize = 0
-  //       IndexType ssize = 1;
+        // important: skip r if subsize = 0
+        IndexType ssize = 1;
 
-  //       for (auto s : subsizes) ssize *= s;
+        for (auto s : subsizes) ssize *= s;
 
-  //       if (ssize == 0) continue;
+        if (ssize == 0) continue;
 
-  //       // we store our data in c format, i.e. first dimension is the innermost
-  //       // dimension. however, we access our data in fortran notation, with the
-  //       // first index in indexvectors being the first dimension.
-  //       // to comply with an ordering that mpi understands, we have to reverse
-  //       // our index vectors
-  //       // also we have to use int as datatype
-  //       std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-  //       std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-  //       std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        // we store our data in c format, i.e. first dimension is the innermost
+        // dimension. however, we access our data in fortran notation, with the
+        // first index in indexvectors being the first dimension.
+        // to comply with an ordering that mpi understands, we have to reverse
+        // our index vectors
+        // also we have to use int as datatype
+        std::vector<int> csizes(sizes.rbegin(), sizes.rend());
+        std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
+        std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        if (!reverseOrderingDFGPartitions) {
+          csizes.assign(sizes.begin(), sizes.end());
+          csubsizes.assign(subsizes.begin(), subsizes.end());
+          cstarts.assign(starts.begin(), starts.end());
+        }
 
-  //       // create subarray view on data
-  //       MPI_Datatype mysubarray;
-  //       MPI_Type_create_subarray(int(this->getDimension()), &csizes[0], &csubsizes[0], &cstarts[0],
-  //                                MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
-  //       MPI_Type_commit(&mysubarray);
-  //       subarrayTypes.push_back(mysubarray);
+        // create subarray view on data
+        MPI_Datatype mysubarray;
+        MPI_Type_create_subarray(int(this->getDimension()), &csizes[0], &csubsizes[0], &cstarts[0],
+                                 MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
+        MPI_Type_commit(&mysubarray);
+        subarrayTypes.push_back(mysubarray);
 
-  //       int src = r;
-  //       MPI_Request req;
-  //       MPI_Isend(buf.data(), 1, mysubarray, src, 0, this->getCommunicator(), &req);
-  //       requests.push_back(req);
-  //     }
-  //   }
+        int src = r;
+        MPI_Request req;
+        MPI_Isend(buf.data(), 1, mysubarray, src, 0, this->getCommunicator(), &req);
+        requests.push_back(req);
+      }
+    }
 
-  //   // all
-  //   if (recvd) MPI_Wait(&recvRequest, MPI_STATUS_IGNORE);
+    // all
+    if (recvd) MPI_Wait(&recvRequest, MPI_STATUS_IGNORE);
 
-  //   if (rank_ == src) {
-  //     MPI_Waitall(static_cast<int>(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
-  //   }
+    if (rank_ == src) {
+      MPI_Waitall(static_cast<int>(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
+    }
 
-  //   // free subarrays; only dst has a non-zero container here
-  //   for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
-  // }
+    // free subarrays; only dst has a non-zero container here
+    for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
+  }
 
   size_t getSubspaceIndex(const LevelVector& l) const {
     /* boundary points can have level 0. however, we do not store them
@@ -1280,11 +1287,6 @@ class DistributedFullGrid {
     std::vector<int> csizes(sizes.rbegin(), sizes.rend());
     std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
     std::vector<int> cstarts(starts.rbegin(), starts.rend());
-    if (!reverseOrderingDFGPartitions) {
-      csizes.assign(sizes.begin(), sizes.end());
-      csubsizes.assign(subsizes.begin(), subsizes.end());
-      cstarts.assign(starts.begin(), starts.end());
-    }
 
     // create subarray view on data
     MPI_Datatype mysubarray;
@@ -1379,7 +1381,6 @@ class DistributedFullGrid {
                << "This file contains the combination solution evaluated on a full grid\n"
                << "BINARY\n"
                << "DATASET STRUCTURED_POINTS\n";
-
     if (dim == 3) { //TODO change for non-boundary grids using getGridSpacing
       vtk_header << "DIMENSIONS " << sizes[0]  << " " << sizes[1]  << " " << sizes[2] << "\n"
                  << "ORIGIN 0 0 0\n"
@@ -1416,7 +1417,6 @@ class DistributedFullGrid {
     MPI_File_set_view(fh, offset, getMPIDatatype(), mysubarray, "native", MPI_INFO_NULL);
 
     // write subarray
-
     MPI_File_write_all(fh, getData(), static_cast<int>(getNrLocalElements()), getMPIDatatype(), MPI_STATUS_IGNORE);
 
     // close file
@@ -1424,6 +1424,7 @@ class DistributedFullGrid {
   }
 
   const std::vector<IndexVector>& getDecomposition() const { return decomposition_; }
+
 
   std::vector<MPI_Datatype> getUpwardSubarrays() {
     // initialize upwardSubarrays_ only once
@@ -1446,11 +1447,6 @@ class DistributedFullGrid {
         std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
         // the starts are local indices
         std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
-        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
-        //   sizes.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
-        //   subsizes.assign(subarrayExtents.begin(), subarrayExtents.end());
-        //   starts.assign(subarrayStarts.begin(), subarrayStarts.end());
-        // }
 
         // create subarray view on data //todo do this only once per dimension
         MPI_Datatype mysubarray;
@@ -1485,11 +1481,6 @@ class DistributedFullGrid {
         std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
         // the starts are local indices
         std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
-        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
-        //   sizes.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
-        //   subsizes.assign(subarrayExtents.begin(), subarrayExtents.end());
-        //   starts.assign(subarrayStarts.begin(), subarrayStarts.end());
-        // }
 
         // create subarray view on data
         MPI_Datatype mysubarray;
@@ -1620,6 +1611,10 @@ class DistributedFullGrid {
   /** pointer to the function basis*/
   const BasisFunctionBasis* basis_;
 
+  /** Variables for the distributed Full Grid*/
+  /** Cartesien MPI Communicator  */
+  CommunicatorType communicator_;
+
   /** lowerBounds for each process */
   std::vector<IndexVector> lowerBounds_;
 
@@ -1633,10 +1628,6 @@ class DistributedFullGrid {
 
   /** number of procs in every dimension */
   IndexVector procs_;
-
-  /** Variables for the distributed Full Grid*/
-  /** Cartesien MPI Communicator  */
-  CommunicatorType communicator_;
 
   /** mpi rank */
   RankType rank_;
@@ -1676,7 +1667,7 @@ class DistributedFullGrid {
   // contains for each (local) gridpoint assigment to subspace
   // we use short unsigned int (2 bytes) to save memory
   std::vector<unsigned short int> assigmentList_;
-  // std::vector<unsigned short int> assigmentList2_;
+  std::vector<unsigned short int> assigmentList2_;
 
   size_t maxSubspaceSize_;
 
@@ -1824,9 +1815,6 @@ class DistributedFullGrid {
   }
 
   void calcBoundCoordinates() {
-    lowerBoundsCoords_.resize(size_);
-    upperBoundsCoords_.resize(size_);
-
     // set lower bounds
     for (RankType r = 0; r < size_; ++r) {
       const IndexVector& lbvi = getLowerBounds(r);
@@ -1855,10 +1843,6 @@ class DistributedFullGrid {
   }
 
   void calcDecompositionCoords() {
-
-    decompositionCoords_.resize(dim_);
-    for (size_t j = 0; j < dim_; ++j) decompositionCoords_[j].resize(procs_[j]);
-
     for (RankType r = 0; r < size_; ++r) {
       // get coords of r in cart comm
       IndexVector coords(dim_);
@@ -1894,30 +1878,16 @@ class DistributedFullGrid {
 
       subsp.targetSize_ = size_t(bsize);
     }
-    subspacesFilled_ = false;
-
-    if (subspaces_.size() > 65535)
-      assert(false &&
-             "the number of subspaces is too high. assigment list uses only"
-             "short int. change data type");
   }
 
-
-  // for each hierarchical subspace, figure out the local size, and
-  // which subspace a given point belongs to (?)
   void calcAssigmentList() {
-
-    assigmentList_.resize(fullgridVector_.size());
-
     /*
      for( size_t i=0; i<fullgridVector_.size(); ++i ){
      IndexType globalI = this->getGlobalLinearIndex( i );
-
      // get level vector of element i
      LevelVector lvec(dim_);
      IndexVector ivec(dim_);
      this->getGlobalLI( globalI, lvec, ivec );
-
      assigmentList_[i] =
      static_cast<unsigned short int>( this->getSubspaceIndex( lvec ) );
      }*/
@@ -1930,13 +1900,6 @@ class DistributedFullGrid {
       IndexVector ivec(dim_);
 
       calcAssigmentRec(dim_ - 1, l, ivec, i);
-    }
-
-    // set size of largest subspace
-    maxSubspaceSize_ = 0;
-
-    for (const auto& subsp : subspaces_) {
-      if (subsp.targetSize_ > maxSubspaceSize_) maxSubspaceSize_ = subsp.targetSize_;
     }
   }
 
