@@ -288,7 +288,6 @@ class DistributedFullGrid {
     if (request == nullptr) {
       MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
     } else {
-      //TODO (pollinta) we could also MPI_Reduce only to the master rank
       MPI_Iallreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator(), request);
     }
   }
