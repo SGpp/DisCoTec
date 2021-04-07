@@ -234,14 +234,25 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("parallel eval norm");
     } break;
     case EVAL_ANALYTICAL_NORM: {  // evaluate analytical norms on new dfg and send
-      Stats::startEvent("parallel eval norm");
+      Stats::startEvent("eval analytical norm");
       evalAnalyticalOnDFG();
-      Stats::stopEvent("parallel eval norm");
+      Stats::stopEvent("eval analytical norm");
     } break;
-    case EVAL_ERROR_NORM: {  // evaluate analytical norms on new dfg and send
-      Stats::startEvent("parallel eval norm");
+    case EVAL_ERROR_NORM: {  // evaluate analytical norms on new dfg and send difference
+      Stats::startEvent("eval error norm");
       evalErrorOnDFG();
-      Stats::stopEvent("parallel eval norm");
+      Stats::stopEvent("eval error norm");
+    } break;
+    case INTERPOLATE_VALUES: {  // interpolate values on given coordinates
+      Stats::startEvent("interpolate values");
+      auto values = interpolateValues();
+      // send result
+      MASTER_EXCLUSIVE_SECTION {
+        MPI_Send(values.data(), values.size(), abstraction::getMPIDatatype(
+          abstraction::getabstractionDataType<CombiDataType>()), theMPISystem()->getManagerRank(),
+          TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm());
+      }
+      Stats::stopEvent("interpolate values");
     } break;
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
@@ -749,6 +760,53 @@ void ProcessGroupWorker::evalErrorOnDFG() {
   }
 
   sendEvalNorms(dfg);
+}
+
+std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
+  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  // receive coordinates and broadcast to group members
+  std::vector<real> interpolationCoordsSerial;
+  auto realType = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
+  int coordsSize;
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Status status;
+    MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &status);
+    MPI_Get_count(&status, realType, &coordsSize);
+
+    // resize buffer to appropriate size and receive
+    interpolationCoordsSerial.resize(coordsSize);
+    MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getManagerRank(),
+             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+  }
+  // broadcast size of vector, and vector
+  MPI_Bcast(&coordsSize, 1, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  interpolationCoordsSerial.resize(coordsSize);
+  MPI_Bcast(interpolationCoordsSerial.data(), coordsSize, realType,
+            theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+
+  // split vector into coordinates
+  const int dim = static_cast<int>(combiParameters_.getDim());
+  auto numCoordinates = coordsSize / dim;
+  assert( coordsSize % dim == 0);
+  std::vector<std::vector<real>> interpolationCoords(numCoordinates);
+  auto it = interpolationCoordsSerial.begin();
+  for (auto& coord: interpolationCoords) {
+    coord.insert(coord.end(), it, it+dim);
+    it += dim;
+  }
+  assert(it == interpolationCoordsSerial.end());
+
+  // call interpolation function on tasks and reduce with combination coefficient
+  std::vector<CombiDataType> values(numCoordinates, 0.);
+  for (Task* t : tasks_){
+    auto coeff = combiParameters_.getCoeff(t->getID());
+    auto taskVals = t->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
+
+    for (size_t i = 0; i < numCoordinates; ++i) {
+      values[i] += taskVals[i] * coeff;
+    }
+  }
+  return values;
 }
 
 void ProcessGroupWorker::gridEval() {  // not supported anymore

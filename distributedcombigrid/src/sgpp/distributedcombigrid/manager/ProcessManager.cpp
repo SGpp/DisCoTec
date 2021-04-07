@@ -396,6 +396,33 @@ std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, siz
   return g->evalErrorOnDFG(leval);
 }
 
+std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
+  auto numValues = interpolationCoords.size();
+  std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN()));
+  std::vector<MPI_Request> requests(pgroups_.size());
+
+  // send interpolation coords as a single array
+  auto coordsSize = numValues* interpolationCoords[0].size();
+  std::vector<real> interpolationCoordsSerial;
+  interpolationCoordsSerial.reserve(coordsSize);
+  for (auto& coord: interpolationCoords) {
+    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
+  }
+
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, values[i], requests[i]);
+  }
+  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+
+  std::vector<CombiDataType> reducedValues(numValues);
+  for (const auto& v : values){
+    for (size_t i = 0; i < numValues; ++i) {
+      reducedValues[i] += v[i];
+    }
+  }
+  return reducedValues;
+}
+
 void ProcessManager::reschedule() {
   std::map<LevelVector, int> levelVectorToProcessGroupIndex;
   for (size_t i = 0; i < pgroups_.size(); ++i) {

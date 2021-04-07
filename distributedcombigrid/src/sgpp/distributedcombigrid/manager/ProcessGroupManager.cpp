@@ -100,12 +100,10 @@ bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
 
   sendSignalToProcessGroup(UPDATE_COMBI_PARAMETERS);
 
-  std::cout << "sending class \n";
   // send combiparameters
   MPIUtils::sendClass(&params, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
-  std::cout << "manager received status \n";
   return true;
 }
 
@@ -248,6 +246,22 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
   auto norms = receiveThreeNorms(pgroupRootID_);
   setProcessGroupBusyAndReceive();
   return norms;
+}
+
+void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
+                                              std::vector<CombiDataType>& values,
+                                              MPI_Request& request) {
+  sendSignalToProcessGroup(INTERPOLATE_VALUES);
+  MPI_Request dummyRequest;
+  MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()), abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<real>()), pgroupRootID_,
+    TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
+  MPI_Request_free(&dummyRequest);
+  MPI_Irecv(values.data(), static_cast<int>(values.size()), abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<CombiDataType>()), pgroupRootID_,
+    TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &request);
+
+  setProcessGroupBusyAndReceive();
 }
 
 void ProcessGroupManager::recvStatus() {

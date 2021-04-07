@@ -16,6 +16,7 @@ constexpr int TRANSFER_STATUS_TAG = MAX_TAG - 7;
 constexpr int TRANSFER_TAG = MAX_TAG - 8;
 constexpr int TRANSFER_GHOST_LAYER_TAG = MAX_TAG - 9;
 constexpr int TRANSFER_NORM_TAG = MAX_TAG - 10;
-constexpr int TRANSFER__TAG = MAX_TAG - 11;
+constexpr int TRANSFER_INTERPOLATION_TAG = MAX_TAG - 11;
+constexpr int TRANSFER__TAG = MAX_TAG - 12;
 
 }  // namespace combigrid
