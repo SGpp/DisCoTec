@@ -88,6 +88,9 @@ class ProcessGroupWorker {
   /** evaluate norms of combi solution error on reference grid  */
   void evalErrorOnDFG();
 
+  /** interpolate values on all tasks' component grids  */
+  std::vector<CombiDataType> interpolateValues();
+
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 

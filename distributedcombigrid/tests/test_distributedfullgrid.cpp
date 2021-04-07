@@ -38,6 +38,10 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) return;
 
+  if (TestHelper::getRank(comm) == 0) {
+    std::cout << "test distributedfullgrid " << levels << procs << std::endl;
+  }
+
   TestFn f;
   const DimType dim = levels.size();
 
@@ -72,6 +76,24 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     std::vector<double> coords(dim);
     dfg.getCoordsLocal(li, coords);
     BOOST_TEST(2.1 * dfg.getData()[li] == dfg2.getData()[li]);
+  }
+
+  // test full grid interpolation
+  std::vector<std::vector<double>> interpolationCoords;
+  interpolationCoords.emplace_back(dim, 1./std::sqrt(2.));
+  interpolationCoords.emplace_back(dim, 1./std::sqrt(3.));
+  interpolationCoords.emplace_back(dim, 1./std::sqrt(5.));
+  interpolationCoords.emplace_back(dim, 0.5);
+  interpolationCoords.emplace_back(dim, 0.5 + 1e-4);
+  interpolationCoords.emplace_back(dim, 0.5 - 1e-4);
+  interpolationCoords.emplace_back(dim, 0.5 + 1e-5);
+  interpolationCoords.emplace_back(dim, 0.5 - 1e-5);
+  BOOST_CHECK_CLOSE(dfg.eval(interpolationCoords[0]).real(), f(interpolationCoords[0]).real(), TestHelper::tolerance);
+
+  auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
+
+  for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+    BOOST_CHECK_CLOSE(interpolatedValues[i].real(), f(interpolationCoords[i]).real(), TestHelper::tolerance);
   }
 
   // test norm calculation
@@ -147,12 +169,12 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
       for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i){
         std::vector<double> coords(dim);
         dfg.getCoordsLocal(i, coords);
-        if (abs((coords[d] - 1.)) < TestHelper::tolerance){
+        if (std::abs((coords[d] - 1.)) < TestHelper::tolerance){
           bool edge = false;
           // if other dimensions are at maximum too, we are at an edge
           // results may differ; skip
           for (DimType d_i = 0; d_i < dim; ++d_i){
-            if (d_i != d && abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+            if (d_i != d && std::abs((coords[d_i] - 1.)) < TestHelper::tolerance){
               edge = true;
             }
           }
@@ -165,7 +187,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
         } else {
           bool otherBoundary = false;
           for (DimType d_i = 0; d_i < dim; ++d_i){
-            if (d_i != d && abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+            if (d_i != d && std::abs((coords[d_i] - 1.)) < TestHelper::tolerance){
               otherBoundary = true;
             }
           }
@@ -186,13 +208,22 @@ BOOST_AUTO_TEST_SUITE(distributedfullgrid)
 // with boundary
 // isotropic
 
-BOOST_AUTO_TEST_CASE(test_minus1) {
+BOOST_AUTO_TEST_CASE(test_minus2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {1, 2};
   IndexVector procs = {1, 1};
   std::vector<bool> boundary(2, true);
   checkDistributedFullgrid(levels, procs, boundary, 1);
 }
+
+BOOST_AUTO_TEST_CASE(test_minus1) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {1, 1, 2};
+  IndexVector procs = {1, 1, 1};
+  std::vector<bool> boundary(3, true);
+  checkDistributedFullgrid(levels, procs, boundary, 1);
+}
+
 BOOST_AUTO_TEST_CASE(test_0) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {2, 3};

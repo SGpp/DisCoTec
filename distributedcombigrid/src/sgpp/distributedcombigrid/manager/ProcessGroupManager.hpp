@@ -93,6 +93,10 @@ class ProcessGroupManager {
 
   std::vector<double> evalErrorOnDFG(const LevelVector& leval);
 
+  void interpolateValues(const std::vector<real>& interpolationCoordsSerial,
+                                              std::vector<CombiDataType>& values,
+                                              MPI_Request& request);
+
   /**
    * Adds a task to the process group. To be used for rescheduling.
    *
@@ -105,7 +109,7 @@ class ProcessGroupManager {
    * Removes a task from the process group. To be used for rescheduling.
    *
    * @param lvlVec The level vector of the task to remove.
-   * @returns If successful the removed task or a nullptr if no task with the 
+   * @returns If successful the removed task or a nullptr if no task with the
    *          given level vector is found.
    */
   Task *rescheduleRemoveTask(const LevelVector& lvlVec);
