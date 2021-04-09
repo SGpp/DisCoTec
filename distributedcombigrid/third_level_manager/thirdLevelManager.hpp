@@ -28,6 +28,8 @@ class ThirdLevelManager
 
     void processUnifySubspaceSizes(size_t initiatorIndex);
 
+    void processAnyData(size_t initiatorIndex);
+
     void processFinished(size_t sysIndex);
 
     size_t forwardData(const System& sender, const System& receiver) const;

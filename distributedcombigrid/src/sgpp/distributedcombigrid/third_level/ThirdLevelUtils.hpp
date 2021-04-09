@@ -43,6 +43,8 @@ namespace combigrid {
 
       void signalReadyToUnifySubspaceSizes() const;
 
+      void signalReadyToExchangeData() const;
+
       void signalReady() const;
 
       size_t receiveSize() const;

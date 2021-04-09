@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iostream>
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
+#include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 
@@ -454,6 +455,35 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
     }
   }
   return reducedValues;
+}
+
+void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values) {
+  // TODO coordinates may need to be synchronized across systems
+  coordinates = montecarlo::getRandomCoordinates(1000, params_.getDim());
+
+  // interpolate locally
+  values = this->interpolateValues(coordinates);
+
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToExchangeData();
+  std::string instruction = thirdLevel_.fetchInstruction();
+
+  // exchange values with remote
+  auto buffSize = numPoints;
+  std::vector<CombiDataType> remoteValues(buffSize);
+  if (instruction == "send_first") {
+    thirdLevel_.sendData(values.data(), buffSize);
+    thirdLevel_.recvData(remoteValues.data(), buffSize);
+  } else if (instruction == "recv_first") {
+    thirdLevel_.recvData(remoteValues.data(), buffSize);
+    thirdLevel_.sendData(values.data(), buffSize);
+  }
+  thirdLevel_.signalReady();
+
+  // add them up
+  for (size_t i = 0; i < numPoints; ++i){
+    values[i] += remoteValues[i];
+  }
 }
 
 void ProcessManager::setupThirdLevel() {

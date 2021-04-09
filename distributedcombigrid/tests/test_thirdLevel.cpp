@@ -20,6 +20,7 @@
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
+#include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "stdlib.h"
 #include "test_helper.hpp"
@@ -220,6 +221,27 @@ void testCombineThirdLevel(TestParams& testParams) {
       Stats::stopEvent("manager combine third level");
     }
 
+    // test Monte-Carlo interpolation
+    auto interpolationCoords = montecarlo::getRandomCoordinates(1000, testParams.dim);
+    Stats::startEvent("manager interpolate");
+    auto values = manager.interpolateValues(interpolationCoords);
+    Stats::stopEvent("manager interpolate");
+
+    real l2ErrorSingle = 0.;
+    TestFnCount<CombiDataType> initialFunction;
+    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+      l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
+    }
+
+    // compare to third-level monte carlo interpolation
+    manager.monteCarloThirdLevel(1000, interpolationCoords, values);
+    real l2ErrorTwoSystems = 0.;
+    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+      l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
+    }
+    std::cout << "Monte carlo errors are " << l2ErrorSingle << " on this system and " <<
+      l2ErrorTwoSystems << " in total. boundary: " << boundary << std::endl;
+
     std::string filename("thirdLevel_" + std::to_string(testParams.ncombi) + ".raw");
     Stats::startEvent("manager write solution");
     manager.parallelEval(testParams.lmax, filename, 0);
@@ -242,8 +264,8 @@ void testCombineThirdLevel(TestParams& testParams) {
       if (signal == RUN_NEXT) {
         ++nrun;
       }
-      std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " processed signal "
-                << signal << std::endl;
+      // std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " processed signal "
+      //           << signal << std::endl;
       if (signal == COMBINE_THIRD_LEVEL) {
         // after combination check workers' grids
         BOOST_CHECK(

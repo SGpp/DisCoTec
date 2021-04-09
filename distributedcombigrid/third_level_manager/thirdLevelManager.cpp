@@ -107,9 +107,11 @@ void ThirdLevelManager::processMessage(const std::string& message, size_t sysInd
 {
   if (message == "ready_to_combine")
     processCombination(sysIndex);
-  if (message == "ready_to_unify_subspace_sizes")
+  else if (message == "ready_to_unify_subspace_sizes")
     processUnifySubspaceSizes(sysIndex);
-  if (message == "finished_computation")
+  else if (message == "ready_to_exchange_data")
+    processAnyData(sysIndex);
+  else if (message == "finished_computation")
     processFinished(sysIndex);
 }
 
@@ -189,6 +191,44 @@ void ThirdLevelManager::processUnifySubspaceSizes(size_t initiatorIndex)
   {
     size_t dataSize = forwardData(other, initiator);
     stats_.addToBytesTransferredInSizeExchange(dataSize);
+  }
+  initiator.receiveMessage(message);
+  assert(message == "ready");
+  other.receiveMessage(message);
+  assert(message == "ready");
+#ifdef DEBUG_OUTPUT
+  std::cout << "Finished unification of subspace sizes" << std::endl;
+#endif
+}
+
+
+void ThirdLevelManager::processAnyData(size_t initiatorIndex)
+{
+  assert(systems_.size() == 2 && "Not implemented for different number of systems");
+  System& initiator = systems_[initiatorIndex];
+  size_t otherIndex = (initiatorIndex + 1) % systems_.size();
+  System& other = systems_[otherIndex];
+
+  std::string message;
+#ifdef DEBUG_OUTPUT
+  std::cout << std::endl << "Processing unification of subspace sizes" << std::endl;
+#endif
+  initiator.sendMessage("send_first" );
+  other.receiveMessage( message);
+  assert(message == "ready_to_exchange_data");
+  other.sendMessage("recv_first" );
+
+  // transfer data from initiator (sends first) to other (receives first)
+  initiator.receiveMessage(message);
+  if (message == "sending_data")
+  {
+    size_t dataSize = forwardData(initiator, other);
+  }
+  // transfer data from other to initiator
+  other.receiveMessage(message);
+  if (message == "sending_data")
+  {
+    size_t dataSize = forwardData(other, initiator);
   }
   initiator.receiveMessage(message);
   assert(message == "ready");

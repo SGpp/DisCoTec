@@ -38,6 +38,11 @@ void ThirdLevelUtils::signalReadyToUnifySubspaceSizes() const
   sendMessage("ready_to_unify_subspace_sizes");
 }
 
+void ThirdLevelUtils::signalReadyToExchangeData() const
+{
+  sendMessage("ready_to_exchange_data");
+}
+
 void ThirdLevelUtils::signalReady() const
 {
   sendMessage("ready");

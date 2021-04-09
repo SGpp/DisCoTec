@@ -76,6 +76,8 @@ class ProcessManager {
 
   inline void unifySubspaceSizesThirdLevel();
 
+  void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values);
+
   inline void combineLocalAndGlobal();
 
   template <typename FG_ELEMENT>
