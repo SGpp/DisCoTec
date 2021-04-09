@@ -430,18 +430,23 @@ std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, siz
   return g->evalErrorOnDFG(leval);
 }
 
+std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<real>>& interpolationCoords) {
+  auto coordsSize = interpolationCoords.size() * interpolationCoords[0].size();
+  std::vector<real> interpolationCoordsSerial;
+  interpolationCoordsSerial.reserve(coordsSize);
+  for (auto& coord: interpolationCoords) {
+    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
+  }
+  return interpolationCoordsSerial;
+}
+
 std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
   auto numValues = interpolationCoords.size();
   std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN()));
   std::vector<MPI_Request> requests(pgroups_.size());
 
   // send interpolation coords as a single array
-  auto coordsSize = numValues* interpolationCoords[0].size();
-  std::vector<real> interpolationCoordsSerial;
-  interpolationCoordsSerial.reserve(coordsSize);
-  for (auto& coord: interpolationCoords) {
-    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
-  }
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
   for (size_t i = 0; i < pgroups_.size(); ++i) {
     pgroups_[i]->interpolateValues(interpolationCoordsSerial, values[i], requests[i]);
@@ -458,15 +463,34 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
 }
 
 void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values) {
-  // TODO coordinates may need to be synchronized across systems
   coordinates = montecarlo::getRandomCoordinates(1000, params_.getDim());
+  auto ourCoordinatesSerial = serializeInterpolationCoords(coordinates);
+
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToExchangeData();
+  std::string instruction = thirdLevel_.fetchInstruction();
+
+  // exchange coordinates with remote
+  if (instruction == "send_first") {
+    thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+    // this part is redundant but also doesn't hurt (?)
+    auto theirCoordinates = ourCoordinatesSerial; // to reserve the size
+    thirdLevel_.recvData(theirCoordinates.data(), theirCoordinates.size());
+    for (size_t i = 0; i < theirCoordinates.size(); ++i) {
+      assert(ourCoordinatesSerial[i] == theirCoordinates[i]);
+    }
+  } else if (instruction == "recv_first") {
+    thirdLevel_.recvData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+    thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+  }
+  thirdLevel_.signalReady();
 
   // interpolate locally
   values = this->interpolateValues(coordinates);
 
   // obtain instructions from third level manager
   thirdLevel_.signalReadyToExchangeData();
-  std::string instruction = thirdLevel_.fetchInstruction();
+  instruction = thirdLevel_.fetchInstruction();
 
   // exchange values with remote
   auto buffSize = numPoints;

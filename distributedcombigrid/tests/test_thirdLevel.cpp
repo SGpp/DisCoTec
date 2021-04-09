@@ -241,6 +241,7 @@ void testCombineThirdLevel(TestParams& testParams) {
     }
     std::cout << "Monte carlo errors are " << l2ErrorSingle << " on this system and " <<
       l2ErrorTwoSystems << " in total. boundary: " << boundary << std::endl;
+    BOOST_CHECK_LE(l2ErrorTwoSystems, l2ErrorSingle);
 
     std::string filename("thirdLevel_" + std::to_string(testParams.ncombi) + ".raw");
     Stats::startEvent("manager write solution");
