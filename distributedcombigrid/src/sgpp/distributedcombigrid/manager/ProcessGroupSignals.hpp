@@ -49,8 +49,9 @@ const SignalType GET_MAX_NORM = 32;
 const SignalType PARALLEL_EVAL_NORM = 33;
 const SignalType EVAL_ANALYTICAL_NORM = 34;
 const SignalType EVAL_ERROR_NORM = 35;
+const SignalType INTERPOLATE_VALUES = 36;
 
-const SignalType DO_DIAGNOSTICS = 36;
+const SignalType DO_DIAGNOSTICS = 37;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;

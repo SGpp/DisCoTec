@@ -100,12 +100,10 @@ bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
 
   sendSignalToProcessGroup(UPDATE_COMBI_PARAMETERS);
 
-  std::cout << "sending class \n";
   // send combiparameters
   MPIUtils::sendClass(&params, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
-  std::cout << "manager received status \n";
   return true;
 }
 
@@ -216,6 +214,35 @@ std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& lev
   return norms;
 }
 
+void ProcessGroupManager::getLpNorms(int p, std::map<int, double>& norms) {
+  SignalType signal;
+  if (p == 2) {
+    signal = GET_L2_NORM;
+  } else if (p == 1) {
+    signal = GET_L1_NORM;
+  } else if (p == 0) {
+    signal = GET_MAX_NORM;
+  } else {
+    assert(false && "please implement signal for this norm");
+  }
+
+  this->sendSignalToProcessGroup(signal);
+
+  std::vector<double> recvbuf;
+  auto numTasks = this->getTaskContainer().size();
+  recvbuf.resize(numTasks);
+
+  MPI_Recv(recvbuf.data(), static_cast<int>(numTasks), MPI_DOUBLE, pgroupRootID_, TRANSFER_NORM_TAG,
+            theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+
+  for (size_t j = 0; j < numTasks; ++j) {
+    norms[this->getTaskContainer()[j]->getID()] = recvbuf[j];
+  }
+
+  this->setProcessGroupBusyAndReceive();
+}
+
+
 std::vector<double> ProcessGroupManager::evalAnalyticalOnDFG(const LevelVector& leval){
   sendSignalToProcessGroup(EVAL_ANALYTICAL_NORM);
   sendLevelVector(leval, pgroupRootID_);
@@ -232,6 +259,22 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
   auto norms = receiveThreeNorms(pgroupRootID_);
   setProcessGroupBusyAndReceive();
   return norms;
+}
+
+void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
+                                              std::vector<CombiDataType>& values,
+                                              MPI_Request& request) {
+  sendSignalToProcessGroup(INTERPOLATE_VALUES);
+  MPI_Request dummyRequest;
+  MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()), abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<real>()), pgroupRootID_,
+    TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
+  MPI_Request_free(&dummyRequest);
+  MPI_Irecv(values.data(), static_cast<int>(values.size()), abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<CombiDataType>()), pgroupRootID_,
+    TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &request);
+
+  setProcessGroupBusyAndReceive();
 }
 
 void ProcessGroupManager::recvStatus() {

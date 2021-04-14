@@ -91,7 +91,7 @@ class TestingTask : public combigrid::Task {
     
     ++valueToPersist_;
 
-    std::cout << "run " << getCommRank(lcomm) << std::endl;    
+    // std::cout << "run " << getCommRank(lcomm) << std::endl;
     
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     for (auto& element : elements) {
@@ -137,7 +137,7 @@ class TestingTask : public combigrid::Task {
 BOOST_CLASS_EXPORT(TestingTask)
 
 bool tasksContainSameValue(const TaskContainer& tasks) {
-  std::cout << "task size" << tasks.size() << "\n";
+  // std::cout << "task size" << tasks.size() << "\n";
   if (tasks.size() <= 1) {
     return true;
   }

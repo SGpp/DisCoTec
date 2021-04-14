@@ -233,7 +233,7 @@ void MPISystem::initGlobalComm() {
     int globalSize = getCommSize( globalComm_);
 
     managerRank_ = globalSize - 1;
-    std::cout << "new manager rank: " << managerRank_ << " \n";
+    // std::cout << "new manager rank: " << managerRank_ << " \n";
     globalRank_ = getCommRank(globalComm_);
   }
 
