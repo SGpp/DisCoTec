@@ -173,7 +173,7 @@ def timeline_plot_group_managers(proc):
     ticks_x = ticker.FuncFormatter(lambda x, pos: "{0:g}".format(x/scale_x))
     ax.xaxis.set_major_formatter(ticks_x)
 
-def bar_plot_all(proc):
+def bar_plot_all(proc, maxAverage):
     """plots the average times of all processes
     """
     colors = color_pool(proc)
@@ -187,16 +187,27 @@ def bar_plot_all(proc):
     ax.set_xticks([])
 
     times = {}
+    timesSum = {}
+    currentSum = {}
     for data in proc:
         for i in proc[data]["events"]:
             if i not in times:
                 times[i] = []
+                timesSum[i] = []
+                currentSum[i] = 0
             for j in proc[data]["events"][i]:
                 times[i].append(j[1] - j[0])
-
+    
+            timesSum[i].append(np.sum(times[i]) - currentSum[i])
+            currentSum[i] = np.sum(times[i])
     offset = 1
     for i in times:
-        ax.bar(offset, np.mean(times[i]), 2, color=colors[i],
+        value = 0
+        if(maxAverage):
+            value = np.max(timesSum[i])
+        else:
+            value = np.mean(times[i])
+        ax.bar(offset, value , 2, color=colors[i],
                edgecolor="black", linewidth=1,
                yerr=np.std(times[i]), label=i,
                error_kw=dict(elinewidth=1,ecolor='black',
@@ -283,7 +294,8 @@ try:
     print("1 (timeline all processes),")
     print("2 (timeline group managers),")
     print("3 (average time all processes),")
-    print("4 (average time process groups)")
+    print("4 (max total-times of all processes),")
+    print("5 (average time process groups)")
     plot_type = int(input("\n"))
 
     if plot_type == 1:
@@ -291,8 +303,10 @@ try:
     elif plot_type == 2:
         timeline_plot_group_managers(proc)
     elif plot_type == 3:
-        bar_plot_all(proc)
+        bar_plot_all(proc,False)
     elif plot_type == 4:
+        bar_plot_all(proc,True)
+    elif plot_type == 5:
         bar_plot_group_managers(proc)
     else:
         raise ValueError("invalid type number")
