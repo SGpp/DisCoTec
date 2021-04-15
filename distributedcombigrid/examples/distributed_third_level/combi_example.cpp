@@ -28,6 +28,7 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 // include user specific task. this is the interface to your application
 
@@ -309,7 +310,12 @@ int main(int argc, char** argv) {
     // third-level monte carlo interpolation
     std::vector<std::vector<real>> interpolationCoords;
     std::vector<CombiDataType> values;
-    manager.monteCarloThirdLevel(10000, interpolationCoords, values);
+    if (hasThirdLevel) {
+      manager.monteCarloThirdLevel(10000, interpolationCoords, values);
+    } else {
+      interpolationCoords = montecarlo::getRandomCoordinates(10000, dim);
+      values = manager.interpolateValues(interpolationCoords);
+    }
     Stats::stopEvent("manager monte carlo");
 
     Stats::startEvent("manager calculate errors");
