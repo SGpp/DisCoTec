@@ -243,15 +243,22 @@ int main(int argc, char** argv) {
       std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
 
       // evaluate solution and
-      // write solution to file
-      std::string filename("out/solution_" + std::to_string(i) + ".raw");
-      Stats::startEvent("manager write solution");
-      manager.parallelEval(leval, filename, 0);
-      Stats::stopEvent("manager write solution");
+      // // write solution to file
+      // // every ten times
+      // if (i%(ncombi/10) == 0) {
+      //   std::string filename("out/solution_" + std::to_string(i) + ".raw");
+      //   Stats::startEvent("manager write solution");
+      //   manager.parallelEval(leval, filename, 0);
+      //   Stats::stopEvent("manager write solution");
+      //   std::string filename2("out/solution_" + std::to_string(i) + ".vtk");
+      //   Stats::startEvent("manager write solution");
+      //   manager.parallelEval(leval, filename2, 0);
+      //   Stats::stopEvent("manager write solution");
+      // }
 
-      std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
-
-      std::cout << "run until combination point " << i + 1 << std::endl;
+      // std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
+      // auto error = manager.evalErrorOnDFG(leval, 0);
+      // std::cout << "errors " << error << std::endl;
 
       // run tasks for next time interval
       start = MPI_Wtime();
