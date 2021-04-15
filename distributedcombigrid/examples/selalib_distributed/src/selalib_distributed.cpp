@@ -133,7 +133,6 @@ int main(int argc, char** argv) {
   std::chrono::high_resolution_clock::time_point init_time =
       std::chrono::high_resolution_clock::now();
   Stats::initialize();
-  Stats::startEvent("manager initialization");
 
   if (ENABLE_FT) {
     assert(false &&
@@ -156,6 +155,7 @@ int main(int argc, char** argv) {
   theMPISystem()->init(ngroup, nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
+    Stats::startEvent("manager initialization");
     // manager code
     /* create an abstraction of the process groups for the manager's view
      * a pgroup is identified by the ID in gcomm
