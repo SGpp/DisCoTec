@@ -203,16 +203,14 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel,
         thirdLevel.sendData(dsguData.get(), dsguSize);
         // recv combined dsgu from remote
         thirdLevel.recvData(dsguData.get(), dsguSize);
-        // send to worker
-        MPI_Send(dsguData.get(), (int) dsguSize, dataType, p, TRANSFER_DSGU_DATA_TAG, comm);
       } else {
         // recv and combine dsgu from remote
         thirdLevel.recvAndAddToData(dsguData.get(), dsguSize);
         // send combined solution to remote
         thirdLevel.sendData(dsguData.get(), dsguSize);
-        // send to worker
-        MPI_Send(dsguData.get(), (int) dsguSize, dataType, p, TRANSFER_DSGU_DATA_TAG, comm);
       }
+      // send to worker
+      MPI_Send(dsguData.get(), (int) dsguSize, dataType, p, TRANSFER_DSGU_DATA_TAG, comm);
     }
   }
 }
