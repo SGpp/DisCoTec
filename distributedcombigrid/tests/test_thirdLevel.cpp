@@ -301,6 +301,7 @@ void testCombineThirdLevel(TestParams& testParams) {
   }
 
   combigrid::Stats::finalize();
+  combigrid::Stats::write("stats_thirdLevel_" + std::to_string(testParams.sysNum) + ".json");
   MPI_Barrier(testParams.comm);
   TestHelper::testStrayMessages(testParams.comm);
 }
