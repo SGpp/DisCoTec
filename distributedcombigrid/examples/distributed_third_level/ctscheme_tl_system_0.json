@@ -1,0 +1,8 @@
+[
+    {"coeff": 1.0, "level": [10, 3]},
+    {"coeff": 1.0, "level": [9, 4]},
+    {"coeff": 1.0, "level": [8, 5]},
+    {"coeff": -1.0, "level": [9, 3]},
+    {"coeff": -1.0, "level": [8, 4]},
+    {"coeff": -1.0, "level": [7, 5]}
+]
