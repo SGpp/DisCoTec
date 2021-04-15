@@ -287,6 +287,7 @@ int main(int argc, char** argv) {
     manager.parallelEval(leval, filename, 0);
     Stats::stopEvent("manager write solution");
 
+    Stats::startEvent("manager get norms");
     std::cout << manager.getLpNorms(0) << std::endl;
     std::cout << manager.getLpNorms(1) << std::endl;
     std::cout << manager.getLpNorms(2) << std::endl;
@@ -302,31 +303,29 @@ int main(int argc, char** argv) {
       std::cout << error[i]/analytical[i] << " ";
     }
     std::cout << std::endl;
+    Stats::stopEvent("manager get norms");
 
-    // TODO pollinta: for a massively parallel setting, this needs to be done differently
-    FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-    manager.gridEval(fg_eval);
+    Stats::startEvent("manager monte carlo");
+    // third-level monte carlo interpolation
+    std::vector<std::vector<real>> interpolationCoords;
+    std::vector<CombiDataType> values;
+    manager.monteCarloThirdLevel(10000, interpolationCoords, values);
+    Stats::stopEvent("manager monte carlo");
 
-    // exact solution
-    TestFn f;
-    // TestFnCount<CombiDataType> f;
-    FullGrid<CombiDataType> fg_exact(dim, leval, boundary);
-    fg_exact.createFullGrid();
-    for (IndexType li = 0; li < fg_exact.getNrElements(); ++li) {
-      std::vector<double> coords(dim);
-      fg_exact.getCoords(li, coords);
-      // fg_exact.getData()[li] = f(coords, ncombi);
-      fg_exact.getData()[li] = f(coords, static_cast<double>(ncombi * nsteps) * dt);
+    Stats::startEvent("manager calculate errors");
+    // calculate monte carlo errors
+    TestFn initialFunction;
+    real l0ErrorTwoSystems = 0., l1ErrorTwoSystems = 0., l2ErrorTwoSystems = 0.;
+    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+      auto difference = std::abs(initialFunction(interpolationCoords[i], static_cast<double>(ncombi * nsteps) * dt) - values[i]);
+      l0ErrorTwoSystems = std::max(difference, l0ErrorTwoSystems);
+      l1ErrorTwoSystems += difference;
+      l2ErrorTwoSystems += std::pow(difference, 2);
     }
+    Stats::stopEvent("manager calculate errors");
 
-    // calculate error
-    FullGrid<CombiDataType> fg_error(fg_exact);
-    fg_error.add(fg_eval, -1);
-
-    printf("Norms: %f %f\n", fg_eval.getlpNorm(0), fg_eval.getlpNorm(2));
-
-    printf("Error: %f \n", fg_error.getlpNorm(0) / fg_exact.getlpNorm(0));
-    printf("Error2: %f \n", fg_error.getlpNorm(2) / fg_exact.getlpNorm(2));
+    std::cout << "Monte carlo errors are " << l0ErrorTwoSystems << ", " << l1ErrorTwoSystems << ", and "
+      << l2ErrorTwoSystems << " in total." << std::endl;
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
@@ -342,7 +341,7 @@ int main(int argc, char** argv) {
 
     while (signal != EXIT){
       signal = pgroup.wait();
-    } 
+    }
   }
 
   Stats::finalize();
