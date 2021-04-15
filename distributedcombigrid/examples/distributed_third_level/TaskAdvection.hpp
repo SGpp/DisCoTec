@@ -94,6 +94,13 @@ class TaskAdvection : public Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
     phi_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
+    std::vector<double> h = dfg_->getGridSpacing();
+    auto sumOneOverH = 0.;
+    for (const auto & h_x : h) {
+      sumOneOverH += 1./h_x;
+    }
+    assert(dt_ * sumOneOverH < 1. && "CFL condition not satisfied!");
+
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
       std::vector<double> coords(this->getDim());
       dfg_->getCoordsLocal(li, coords);
