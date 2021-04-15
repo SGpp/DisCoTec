@@ -321,17 +321,19 @@ int main(int argc, char** argv) {
     Stats::startEvent("manager calculate errors");
     // calculate monte carlo errors
     TestFn initialFunction;
-    real l0ErrorTwoSystems = 0., l1ErrorTwoSystems = 0., l2ErrorTwoSystems = 0.;
+    real l0Error = 0., l1Error = 0., l2Error = 0.;
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
       auto difference = std::abs(initialFunction(interpolationCoords[i], static_cast<double>(ncombi * nsteps) * dt) - values[i]);
-      l0ErrorTwoSystems = std::max(difference, l0ErrorTwoSystems);
-      l1ErrorTwoSystems += difference;
-      l2ErrorTwoSystems += std::pow(difference, 2);
+      l0Error = std::max(difference, l0Error);
+      l1Error += difference;
+      l2Error += std::pow(difference, 2);
     }
+    l1Error /= static_cast<real>(values.size());
+    l2Error /= static_cast<real>(values.size());
     Stats::stopEvent("manager calculate errors");
 
-    std::cout << "Monte carlo errors are " << l0ErrorTwoSystems << ", " << l1ErrorTwoSystems << ", and "
-      << l2ErrorTwoSystems << " in total." << std::endl;
+    std::cout << "Monte carlo errors are " << l0Error << ", " <<
+      l1Error << ", and " << l2Error << " in total." << std::endl;
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
