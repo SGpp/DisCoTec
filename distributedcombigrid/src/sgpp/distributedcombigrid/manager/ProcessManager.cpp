@@ -463,7 +463,7 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
 }
 
 void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values) {
-  coordinates = montecarlo::getRandomCoordinates(1000, params_.getDim());
+  coordinates = montecarlo::getRandomCoordinates(numPoints, params_.getDim());
   auto ourCoordinatesSerial = serializeInterpolationCoords(coordinates);
 
   // obtain instructions from third level manager
