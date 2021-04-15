@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
     if (hasThirdLevel) {
       Stats::startEvent("manager unify subspace sizes with remote");
       manager.unifySubspaceSizesThirdLevel(),
-          Stats::startEvent("manager unify subspace sizes with remote");
+      Stats::stopEvent("manager unify subspace sizes with remote");
     }
 
     double start, finish;
@@ -233,13 +233,13 @@ int main(int argc, char** argv) {
     for (size_t i = 1; i < ncombi; ++i) {
       start = MPI_Wtime();
 
-      Stats::startEvent("combine");
+      Stats::startEvent("manager combine");
       if (hasThirdLevel) {
         manager.combineThirdLevel();
       } else {
         manager.combine();
       }
-      Stats::stopEvent("combine");
+      Stats::stopEvent("manager combine");
       finish = MPI_Wtime();
       std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
 
