@@ -81,6 +81,30 @@ std::string replaceFirstOccurrence(std::string& s, const std::string& toReplace,
   return s.replace(pos, toReplace.length(), replaceWith);
 }
 
+
+void setCheckpointRestart(std::string basename, std::vector<LevelVector> levels, std::string suffix = "") {
+  std::string baseFolder = "./" + basename;
+  for (size_t i = 0; i < levels.size(); i++) {
+    // path to task folder
+    std::string taskFolder = baseFolder + suffix + std::to_string(i);
+    // assert that checkpoint is there
+    std::string checkpointString = taskFolder + "/distribution_end-0000.h5";
+    if (!fs::exists(checkpointString)) {
+      throw std::runtime_error("No checkpoint to re-start from " + checkpointString);
+    }
+    {
+      // adapt each parameter file
+      std::ifstream inputFileStream(taskFolder + "/param.nml", std::ifstream::in);
+      auto contents = getFile(inputFileStream);
+      std::string newRestartInfo = "restart = .true.\n        restart_filename = \"distribution_end-0000.h5\"";
+      contents = replaceFirstOccurrence(contents, "restart = .false.", newRestartInfo);
+      std::ofstream outputFileStream(taskFolder + "/param_new.nml");
+      outputFileStream << contents;
+    }
+    std::rename((taskFolder + "/param_new.nml").c_str(), (taskFolder + "/param.nml").c_str());
+  }
+}
+
 bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, IndexVector p,
                        size_t nsteps, double dt, std::string suffix = "") {
   std::string baseFolder = "./" + basename;
@@ -198,7 +222,8 @@ int main(int argc, char** argv) {
     dt = cfg.get<combigrid::real>(
         "application.dt");  // timestep
     nsteps = cfg.get<size_t>("application.nsteps");  // number of timesteps between combinations
-    bool haveDiagnosticsTask = cfg.get<bool>("application.haveDiagnosticsTask");
+    bool haveDiagnosticsTask = cfg.get<bool>("application.haveDiagnosticsTask", false);
+    bool checkpointRestart = cfg.get<bool>("application.checkpoint_restart", false);
 
     std::string fg_file_path = cfg.get<std::string>("ct.fg_file_path");
     std::string fg_file_path2 = cfg.get<std::string>("ct.fg_file_path2");
@@ -241,8 +266,13 @@ int main(int argc, char** argv) {
       std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
     }
 
-    // create necessary folders and files to run each task in a separate folder
-    createTaskFolders(basename, levels, p, nsteps, dt);
+    if (checkpointRestart){
+      // change the restart parameter in all existing parameter files in the folders to true
+      setCheckpointRestart(basename, levels);
+    } else {
+      // create necessary folders and files to run each task in a separate folder
+      createTaskFolders(basename, levels, p, nsteps, dt);
+    }
 
     // create Tasks
     TaskContainer tasks;
@@ -261,8 +291,13 @@ int main(int argc, char** argv) {
     Task* levalTask;
     if (haveDiagnosticsTask) {
       // initialize diagnostics task
-      // create necessary folder and files to have diagnostics task in a different folder
-      createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, "_leval_");
+      if (checkpointRestart){
+        // change the restart parameter
+        setCheckpointRestart(basename, std::vector<LevelVector>(1, leval), "_leval_");
+      } else {
+        // create necessary folder and files to have diagnostics task in a different folder
+        createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, "_leval_");
+      }
       std::string path = baseFolder + "_leval_0";
       auto levalCoefficient = 0.;
       levalTask = new SelalibTask(dim, leval, boundary, levalCoefficient, loadmodel.get(), path, dt,

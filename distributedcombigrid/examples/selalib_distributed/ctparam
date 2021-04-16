@@ -33,11 +33,13 @@ reduceCombinationDimsLmax = 1 1 1 1 1 1
 dt = 0.01
 #number of timesteps between combinations
 nsteps = 1
-#whether we want to have a "diagnostics task" that interpolates the ct solution
+#whether we want to have a "diagnostics task" that interpolates the ct solution on leval
 # to get the physical outputs through selalib diagnostics
 haveDiagnosticsTask = 1
 #physical parameters
 # TODO add selalib parameters
+# whether we want to restart the same scheme from checkpoints
+checkpoint_restart = 0
 
 [preproc]
 #name of instance folders
