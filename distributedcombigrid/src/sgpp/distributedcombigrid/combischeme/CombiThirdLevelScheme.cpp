@@ -1,4 +1,8 @@
+#include <numeric>
+#include <vector>
+
 #include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
+
 
 namespace combigrid {
 /**Computes the distribution of a classical scheme to the systems of the
@@ -10,8 +14,10 @@ void CombiThirdLevelScheme::createThirdLevelScheme(const std::vector<LevelVector
                                                    unsigned int systemNumber,
                                                    unsigned int numSystems,
                                                    std::vector<LevelVector>& newLevels,
-                                                   std::vector<real>& newCoeffs) {
+                                                   std::vector<real>& newCoeffs,
+                                                   std::vector<real> fractionsOfScheme) {
   assert(!levels.empty() && !coeffs.empty());
+  assert(levels.size() == coeffs.size());
 
   if (numSystems < 2) {
     newLevels = levels;
@@ -24,7 +30,7 @@ void CombiThirdLevelScheme::createThirdLevelScheme(const std::vector<LevelVector
   // decompose scheme
   std::vector<std::vector<LevelVector>> decomposedScheme;
   std::vector<std::vector<combigrid::real>> decomposedCoeffs;
-  decomposeScheme(levels, coeffs, decomposedScheme, decomposedCoeffs, numSystems);
+  decomposeScheme(levels, coeffs, decomposedScheme, decomposedCoeffs, numSystems, fractionsOfScheme);
 
   // assign part to system
   newLevels  = decomposedScheme[systemNumber];
@@ -46,9 +52,12 @@ void CombiThirdLevelScheme::decomposeScheme(const std::vector<LevelVector>& full
                                             const std::vector<real> fullSchemeCoeffs,
                                             std::vector<std::vector<LevelVector>>& decomposedScheme,
                                             std::vector<std::vector<real>>& decomposedCoeffs,
-                                            size_t numSystems) {
-  auto mid = fullScheme.begin() + fullScheme.size()/2;
-  auto midC = fullSchemeCoeffs.begin() + fullSchemeCoeffs.size()/2;
+                                            size_t numSystems, std::vector<real> fractionsOfScheme) {
+  auto fracSum = std::accumulate(fractionsOfScheme.begin(), fractionsOfScheme.end(), 0., std::plus<real>());
+  assert(std::abs(fracSum - 1.) < 1e-3);
+  auto numGridsFirstSystem = std::round(static_cast<real>(fullScheme.size()) * fractionsOfScheme[0]);
+  auto mid = fullScheme.begin() + numGridsFirstSystem;
+  auto midC = fullSchemeCoeffs.begin() + numGridsFirstSystem;
   std::vector<LevelVector> lowerHalf(fullScheme.begin(), mid);
   std::vector<real> lowerCoeffs(fullSchemeCoeffs.begin(), midC);
   std::vector<LevelVector> upperHalf(mid, fullScheme.end());

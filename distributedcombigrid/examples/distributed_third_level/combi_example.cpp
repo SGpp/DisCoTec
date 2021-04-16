@@ -110,6 +110,7 @@ int main(int argc, char** argv) {
     unsigned int systemNumber = 0, numSystems = 1;
     unsigned short thirdLevelPort = 0;
     bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
+    std::vector<real> fractionsOfScheme;
     if (hasThirdLevel) {
       std::cout << "Using third-level parallelism" << std::endl;
       thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
@@ -117,6 +118,25 @@ int main(int argc, char** argv) {
       numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
       thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
       thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand", "");
+      bool hasFractions = static_cast<bool>(cfg.get_child_optional("thirdLevel.fractionsOfScheme"));
+      if (hasFractions) {
+        std::string fractionsString = cfg.get<std::string>("thirdLevel.fractionsOfScheme");
+        std::vector<std::string> stringVector;
+        size_t pos = 0;
+        std::string delimiter = " ";
+        while ((pos = fractionsString.find(delimiter)) != std::string::npos) {
+          stringVector.push_back(fractionsString.substr(0, pos));
+          fractionsString.erase(0, pos + delimiter.length());
+        }
+        if (fractionsString.length() > 0) {
+          stringVector.push_back(fractionsString);
+        }
+        fractionsOfScheme.resize(stringVector.size());
+        std::transform(stringVector.begin(), stringVector.end(), fractionsOfScheme.begin(),
+                       [](const std::string& val) { return std::stod(val); });
+      } else {
+        fractionsOfScheme = std::vector<real>(numSystems, 1. / static_cast<real>(numSystems));
+      }
     }
 
     // todo: read in boundary vector from ctparam
@@ -146,10 +166,11 @@ int main(int argc, char** argv) {
       combischeme.createAdaptiveCombischeme();
       std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
       std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
+      std::cout << fullLevels.size() << " component grids in full combination scheme." << std::endl;
 
-      // split scheme and assign each half to a system
+      // split scheme and assign each fraction to a system
       CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary, systemNumber,
-                                                    numSystems, levels, coeffs);
+                                                    numSystems, levels, coeffs, fractionsOfScheme);
     } else {
       // read in CT scheme, if applicable
       boost::property_tree::ptree pScheme;

@@ -1,5 +1,4 @@
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
-#include <algorithm>
 
 namespace combigrid {
 
@@ -20,14 +19,16 @@ class CombiThirdLevelScheme {
                                        unsigned int systemNumber,
                                        unsigned int numSystems,
                                        std::vector<LevelVector>& newLevels,
-                                       std::vector<real>& newCoeffs);
+                                       std::vector<real>& newCoeffs,
+                                       std::vector<real> fractionsOfScheme = {0.5,0.5});
 
   private:
     static void decomposeScheme(const std::vector<LevelVector>& fullScheme,
                                 const std::vector<real> fullSchemeCoeffs,
                                 std::vector<std::vector<LevelVector>>& decomposedScheme,
                                 std::vector<std::vector<real>>& decomposedCoeffs,
-                                size_t numSystems = 2);
+                                size_t numSystems = 2,
+                                std::vector<real> fractionsOfScheme = {0.5,0.5});
 };
 
 }
