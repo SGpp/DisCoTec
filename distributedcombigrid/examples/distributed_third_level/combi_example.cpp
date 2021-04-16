@@ -331,10 +331,11 @@ int main(int argc, char** argv) {
     // third-level monte carlo interpolation
     std::vector<std::vector<real>> interpolationCoords;
     std::vector<CombiDataType> values;
+    auto numValues = 10000;
     if (hasThirdLevel) {
-      manager.monteCarloThirdLevel(10000, interpolationCoords, values);
+      manager.monteCarloThirdLevel(numValues, interpolationCoords, values);
     } else {
-      interpolationCoords = montecarlo::getRandomCoordinates(10000, dim);
+      interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
       values = manager.interpolateValues(interpolationCoords);
     }
     Stats::stopEvent("manager monte carlo");
@@ -344,13 +345,15 @@ int main(int argc, char** argv) {
     TestFn initialFunction;
     real l0Error = 0., l1Error = 0., l2Error = 0.;
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-      auto difference = std::abs(initialFunction(interpolationCoords[i], static_cast<double>(ncombi * nsteps) * dt) - values[i]);
+      auto analyticalSln = initialFunction(interpolationCoords[i], static_cast<double>(ncombi * nsteps) * dt);
+      auto difference = std::abs(analyticalSln - values[i]);
+      auto relativeDifference = difference / analyticalSln;
       l0Error = std::max(difference, l0Error);
-      l1Error += difference;
-      l2Error += std::pow(difference, 2);
+      l1Error += relativeDifference;
+      l2Error += std::pow(relativeDifference, 2);
     }
-    l1Error /= static_cast<real>(values.size());
-    l2Error /= static_cast<real>(values.size());
+    l1Error /= static_cast<real>(numValues);
+    l2Error = std::sqrt(l2Error) / static_cast<real>(numValues);
     Stats::stopEvent("manager calculate errors");
 
     std::cout << "Monte carlo errors are " << l0Error << ", " <<
