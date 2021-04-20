@@ -322,11 +322,11 @@ int main(int argc, char** argv) {
     // auto error = manager.evalErrorOnDFG(leval, 0);
     // std::cout << "errors " << error << std::endl;
 
-    std::cout << "relative errors ";
-    for (size_t i=0; i < 3 ; ++i){
-      std::cout << error[i]/analytical[i] << " ";
-    }
-    std::cout << std::endl;
+    // std::cout << "relative errors ";
+    // for (size_t i=0; i < 3 ; ++i){
+    //   std::cout << error[i]/analytical[i] << " ";
+    // }
+    // std::cout << std::endl;
     Stats::stopEvent("manager get norms");
 
     Stats::startEvent("manager monte carlo");
