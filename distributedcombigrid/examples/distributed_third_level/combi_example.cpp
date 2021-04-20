@@ -249,10 +249,10 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager unify subspace sizes with remote");
     }
 
-    double start, finish;
+    // double start, finish;
 
     for (size_t i = 1; i < ncombi; ++i) {
-      start = MPI_Wtime();
+      // start = MPI_Wtime();
 
       Stats::startEvent("manager combine");
       if (hasThirdLevel) {
@@ -260,9 +260,10 @@ int main(int argc, char** argv) {
       } else {
         manager.combine();
       }
+      // manager.waitAllFinished();
       Stats::stopEvent("manager combine");
-      finish = MPI_Wtime();
-      std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
+      // finish = MPI_Wtime();
+      // std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
 
       // evaluate solution and
       // // write solution to file
@@ -283,12 +284,13 @@ int main(int argc, char** argv) {
       // std::cout << "errors " << error << std::endl;
 
       // run tasks for next time interval
-      start = MPI_Wtime();
+      // start = MPI_Wtime();
       Stats::startEvent("manager run");
       manager.runnext();
+      // manager.waitAllFinished();
       Stats::stopEvent("manager run");
-      finish = MPI_Wtime();
-      std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
+      // finish = MPI_Wtime();
+      // std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
 
       // run currently sets the dsgs back to zero
       // std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
