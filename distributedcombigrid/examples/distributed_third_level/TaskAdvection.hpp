@@ -42,6 +42,9 @@ class TaskAdvection : public Task {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
+    double start, finish;
+    start = MPI_Wtime();
+
     auto lrank = theMPISystem()->getLocalRank();
     int np;
     MPI_Comm_size(lcomm, &np);
@@ -85,15 +88,23 @@ class TaskAdvection : public Task {
       p = p_;
     }
 
+    finish = MPI_Wtime();
+
     if (lrank == 0) {
       std::cout << "init task " << this->getID() << " with l = " << this->getLevelVector()
-                << " and p = " << p << std::endl;
+                << " and p = " << p << " took " << finish - start;
     }
 
+    start = MPI_Wtime();
     // create local subgrid on each process
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
     phi_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
+    finish = MPI_Wtime();
+    if (lrank == 0) {
+      std::cout << " created dfg_ and phi_ took " << finish - start;
+    }
 
+    start = MPI_Wtime();
     std::vector<double> h = dfg_->getGridSpacing();
     auto sumOneOverH = 0.;
     for (const auto & h_x : h) {
@@ -101,15 +112,15 @@ class TaskAdvection : public Task {
     }
     assert(dt_ * sumOneOverH < 1. && "CFL condition not satisfied!");
 
+    TestFn f;
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
       std::vector<double> coords(this->getDim());
       dfg_->getCoordsLocal(li, coords);
-
-      double exponent = 0;
-      for (DimType d = 0; d < this->getDim(); ++d) {
-        exponent -= std::pow(coords[d] - 0.5, 2);
-      }
-      dfg_->getData()[li] = std::exp(exponent * 100.0) * 2;
+      dfg_->getData()[li] = f(coords, 0.);
+    }
+    finish = MPI_Wtime();
+    if (lrank == 0) {
+      std::cout << " set values on dfg_ took " << finish - start << std::endl;
     }
 
     initialized_ = true;
