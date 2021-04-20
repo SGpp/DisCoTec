@@ -304,23 +304,23 @@ int main(int argc, char** argv) {
     }
     Stats::stopEvent("combine");
 
-    // evaluate solution and
-    // write solution to file
-    std::string filename("out/solution_" + std::to_string(ncombi) + ".raw");
-    Stats::startEvent("manager write solution");
-    manager.parallelEval(leval, filename, 0);
-    Stats::stopEvent("manager write solution");
+    // // evaluate solution and
+    // // write solution to file
+    // std::string filename("out/solution_" + std::to_string(ncombi) + ".raw");
+    // Stats::startEvent("manager write solution");
+    // manager.parallelEval(leval, filename, 0);
+    // Stats::stopEvent("manager write solution");
 
     Stats::startEvent("manager get norms");
     std::cout << manager.getLpNorms(0) << std::endl;
     std::cout << manager.getLpNorms(1) << std::endl;
     std::cout << manager.getLpNorms(2) << std::endl;
-    std::cout << "eval norms " << manager.parallelEvalNorm(leval, 0) << std::endl;
+    // std::cout << "eval norms " << manager.parallelEvalNorm(leval, 0) << std::endl;
 
-    auto analytical = manager.evalAnalyticalOnDFG(leval, 0);
-    std::cout << "analytical " << analytical << std::endl;
-    auto error = manager.evalErrorOnDFG(leval, 0);
-    std::cout << "errors " << error << std::endl;
+    // auto analytical = manager.evalAnalyticalOnDFG(leval, 0);
+    // std::cout << "analytical " << analytical << std::endl;
+    // auto error = manager.evalErrorOnDFG(leval, 0);
+    // std::cout << "errors " << error << std::endl;
 
     std::cout << "relative errors ";
     for (size_t i=0; i < 3 ; ++i){
