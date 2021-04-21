@@ -139,7 +139,9 @@ class TaskAdvection : public Task {
 
     // gradient of phi
     std::vector<CombiDataType> dphi(this->getDim());
+
     std::vector<double> h = dfg_->getGridSpacing();
+    auto fullOffsets = dfg_->getLocalOffsets();
 
     for (size_t i = 0; i < nsteps_; ++i) {
       phi_->getElementVector().swap(dfg_->getElementVector());
@@ -150,11 +152,11 @@ class TaskAdvection : public Task {
         // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
         IndexVector subarrayExtents;
         auto phi_ghost = phi_->exchangeGhostLayerUpward(d, subarrayExtents);
-        int offset = 1;
-        IndexVector offsets (this->getDim());
+        int subarrayOffset = 1;
+        IndexVector subarrayOffsets (this->getDim());
         for (DimType d_j = 0; d_j < dim_; ++d_j) {
-          offsets[d_j] = offset;
-          offset *= subarrayExtents[d_j];
+          subarrayOffsets[d_j] = subarrayOffset;
+          subarrayOffset *= subarrayExtents[d_j];
         }
 
         for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
@@ -175,15 +177,16 @@ class TaskAdvection : public Task {
             // then use values from boundary exchange
             IndexType gli = 0;
             for (DimType d_j = 0; d_j < this->getDim(); ++d_j) {
-              gli = gli + offsets[d_j] * locAxisIndex[d_j];
+              gli = gli + subarrayOffsets[d_j] * locAxisIndex[d_j];
             }
             assert(gli > -1);
             assert(gli < phi_ghost.size());
             phi_neighbor = phi_ghost[gli];
           } else{
-            --locAxisIndex[d];
-            IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
-            phi_neighbor = phi_->getElementVector()[lni];
+            // --locAxisIndex[d];
+            // IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
+            // assert(lni == (li - fullOffsets[d]));
+            phi_neighbor = phi_->getElementVector()[li - fullOffsets[d]];
           }
           // calculate gradient of phi with backward differential quotient
           auto dphi = (phi_->getElementVector()[li] - phi_neighbor) / h[d];
