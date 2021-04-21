@@ -154,8 +154,10 @@ class SelalibTask : public combigrid::Task {
     initialized_ = true;
     // only run diagnostics if the coefficient is 0., i.e. it is the diagnostics task
     if (coeff_ == 0.){
+      changeDir(lcomm);
       sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics_init(simPtrPtr_);
       diagnosticsInitialized_ = true;
+      changeDir(lcomm, true);
     }
     MASTER_EXCLUSIVE_SECTION{
       // first print task, then synchronize and print other info
