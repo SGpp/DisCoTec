@@ -792,7 +792,7 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
   auto numCoordinates = coordsSize / dim;
   assert( coordsSize % dim == 0);
   std::vector<std::vector<real>> interpolationCoords(numCoordinates);
-  auto it = interpolationCoordsSerial.begin();
+  auto it = interpolationCoordsSerial.cbegin();
   for (auto& coord: interpolationCoords) {
     coord.insert(coord.end(), it, it+dim);
     it += dim;

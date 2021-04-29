@@ -294,16 +294,14 @@ class DistributedFullGrid {
 
   /** evaluates the full grid on the specified coordinates
    * @param interpolationCoords vector of ND coordinates on the unit square [0,1]^D*/
-  std::vector<FG_ELEMENT> getInterpolatedValues(std::vector<std::vector<real>>& interpolationCoords) const {
+  std::vector<FG_ELEMENT> getInterpolatedValues(const std::vector<std::vector<real>>& interpolationCoords) const {
     auto numValues = interpolationCoords.size();
     std::vector<FG_ELEMENT> values;
     values.resize(numValues);
-    std::vector<MPI_Request> requests;
-    requests.resize(numValues);
+    // using the asynchronous communication makes the runtime quadratic in numValues -> synchronous MPI for now
     for (size_t i = 0; i < numValues; ++i) {
-      this->eval(interpolationCoords[i], values[i], &requests[i]);
+      this->eval(interpolationCoords[i], values[i]);//, &requests[i]);
     }
-    MPI_Waitall(static_cast<int>(numValues), requests.data(), MPI_STATUSES_IGNORE);
     return values;
   }
 

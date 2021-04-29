@@ -434,7 +434,7 @@ std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<re
   auto coordsSize = interpolationCoords.size() * interpolationCoords[0].size();
   std::vector<real> interpolationCoordsSerial;
   interpolationCoordsSerial.reserve(coordsSize);
-  for (auto& coord: interpolationCoords) {
+  for (const auto& coord: interpolationCoords) {
     interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
   }
   return interpolationCoordsSerial;
