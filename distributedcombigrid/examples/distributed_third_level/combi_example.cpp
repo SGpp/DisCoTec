@@ -329,42 +329,49 @@ int main(int argc, char** argv) {
     // std::cout << std::endl;
     Stats::stopEvent("manager get norms");
 
-    Stats::startEvent("manager monte carlo");
-    // third-level monte carlo interpolation
-    std::vector<std::vector<real>> interpolationCoords;
-    std::vector<CombiDataType> values;
-    auto numValues = 10000;
-    if (hasThirdLevel) {
-      manager.monteCarloThirdLevel(numValues, interpolationCoords, values);
-    } else {
-      interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
-      values = manager.interpolateValues(interpolationCoords);
+    std::vector<size_t> numValuesToTry{100, 1000, 10000, 20000, 40000, 80000};
+    // std::cout << std::numeric_limits<int>::max() << std::endl;
+    for (auto& numValues : numValuesToTry) {
+      for (int i = 0; i < 10; ++i) {
+        Stats::startEvent("manager monte carlo");
+        // third-level monte carlo interpolation
+        std::vector<std::vector<real>> interpolationCoords;
+        std::vector<CombiDataType> values;
+        if (hasThirdLevel) {
+          manager.monteCarloThirdLevel(numValues, interpolationCoords, values);
+        } else {
+          interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
+          values = manager.interpolateValues(interpolationCoords);
+        }
+        Stats::stopEvent("manager monte carlo");
+
+
+        Stats::startEvent("manager calculate errors");
+        // calculate monte carlo errors
+        TestFn initialFunction;
+        real l0Error = 0., l1Error = 0., l2Error = 0.,
+             l0Reference = 0., l1Reference = 0., l2Reference = 0.;
+        for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+          auto analyticalSln =
+              initialFunction(interpolationCoords[i], static_cast<double>(ncombi * nsteps) * dt);
+          l0Reference = std::max(analyticalSln, l0Reference);
+          l1Reference += analyticalSln;
+          l2Reference += std::pow(analyticalSln, 2);
+          auto difference = std::abs(analyticalSln - values[i]);
+          l0Error = std::max(difference, l0Error);
+          l1Error += difference;
+          l2Error += std::pow(difference, 2);
+        }
+        // make them relative errors
+        l0Error = l0Error / l0Reference;
+        l1Error = l1Error / l1Reference;
+        l2Error = std::sqrt(l2Error) / std::sqrt(l2Reference);
+        Stats::stopEvent("manager calculate errors");
+
+        std::cout << "Monte carlo errors on " << numValues << " points are " << l0Error << ", "
+                  << l1Error << ", and " << l2Error << " in total." << std::endl;
+      }
     }
-    Stats::stopEvent("manager monte carlo");
-
-    Stats::startEvent("manager calculate errors");
-    // calculate monte carlo errors
-    TestFn initialFunction;
-    real l0Error = 0., l1Error = 0., l2Error = 0., l0Reference = 0., l1Reference = 0., l2Reference = 0.;
-    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-      auto analyticalSln = initialFunction(interpolationCoords[i], static_cast<double>(ncombi * nsteps) * dt);
-      l0Reference = std::max(analyticalSln, l0Reference);
-      l1Reference += analyticalSln;
-      l2Reference += std::pow(analyticalSln, 2);
-      auto difference = std::abs(analyticalSln - values[i]);
-      l0Error = std::max(difference, l0Error);
-      l1Error += difference;
-      l2Error += std::pow(difference, 2);
-    }
-    // make them relative errors
-    l0Error = l0Error / l0Reference;
-    l1Error = l1Error / l1Reference;
-    l2Error = std::sqrt(l2Error) / std::sqrt(l2Reference);
-    Stats::stopEvent("manager calculate errors");
-
-    std::cout << "Monte carlo errors are " << l0Error << ", " <<
-      l1Error << ", and " << l2Error << " in total." << std::endl;
-
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
   }
