@@ -329,8 +329,7 @@ int main(int argc, char** argv) {
     // std::cout << std::endl;
     Stats::stopEvent("manager get norms");
 
-    std::vector<size_t> numValuesToTry{100, 1000, 10000, 20000, 40000, 80000};
-    // std::cout << std::numeric_limits<int>::max() << std::endl;
+    std::vector<size_t> numValuesToTry{100, 1000, 10000, 100000, 1000000};
     for (auto& numValues : numValuesToTry) {
       for (int i = 0; i < 10; ++i) {
         Stats::startEvent("manager monte carlo");
@@ -344,7 +343,6 @@ int main(int argc, char** argv) {
           values = manager.interpolateValues(interpolationCoords);
         }
         Stats::stopEvent("manager monte carlo");
-
 
         Stats::startEvent("manager calculate errors");
         // calculate monte carlo errors
