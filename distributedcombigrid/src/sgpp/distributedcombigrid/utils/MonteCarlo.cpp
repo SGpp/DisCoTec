@@ -13,7 +13,7 @@ std::vector<std::vector<real>> getRandomCoordinates(int numCoordinates, size_t d
   // std::random_device rnd_device;
   static std::mt19937 mersenne_engine {8285545262};  // have 1 seed, for reproducible tests
   static std::uniform_real_distribution<> dist {0., 1.};
-  static auto gen = [&dist, &mersenne_engine](){
+  static auto gen = [](){
                   return dist(mersenne_engine);
               };
   for (auto & coord : randomCoords) {
