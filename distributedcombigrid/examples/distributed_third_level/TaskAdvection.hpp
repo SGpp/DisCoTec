@@ -11,13 +11,18 @@ class TestFn {
   // function value
   double operator()(std::vector<double>& coords, double t) const {
     double exponent = 0;
+    const double sigma = 1./3.;
+    const double sigmaSquared = sigma * sigma;
+    const double sigmaSquaredInv = 1. / sigmaSquared;
     for (DimType d = 0; d < coords.size(); ++d) {
       coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
       assert(coords[d] >= 0.);
       assert(coords[d] <= 1.);
       exponent -= std::pow(coords[d] - 0.5, 2);
     }
-    return std::exp(exponent*100.0) * 2;
+    exponent *= sigmaSquaredInv;
+    // leave out normalization, such that maximum is always 1
+    return std::exp(exponent);  // / std::sqrt( std::pow(2*pi*sigmaSquared, coords.size()));
   }
 };
 
