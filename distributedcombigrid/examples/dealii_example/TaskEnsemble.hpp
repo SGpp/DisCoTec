@@ -205,6 +205,7 @@ class TaskEnsemble : public Task {
       }
       
     }
+    std::cout <<"Corner:" <<corners[1][0]<<"|"<<corners[1][1]<<std::endl;
     for(unsigned int j=0;j<element_coords[0].size();++j) {
       for (unsigned int i = 0; i< dfgEnsemble_->getNumFullGrids(); ++i){      
         if(index_mapping[i][j]==-1){
@@ -216,7 +217,7 @@ class TaskEnsemble : public Task {
             z=element_coords[i][j][2]*(Nz-1);  
             if(!(z==(Nz-1)||z==0))
               z_corner=false;
-          }
+          } 
           if((x==(Nx-1) || x==0) &&(y==(Ny-1)||y==0) &&z_corner) {
             //is a corner
             //on one dof, all corners have the same value
@@ -235,34 +236,37 @@ class TaskEnsemble : public Task {
           }
           else if(((int)(x==(Nx-1) || x==0) +(int)(y==(Ny-1)||y==0) +(int)z_corner)==2){
             // Kante
-            double x_=element_coords[i][j][0]+1/100*((int)!(bool)corners[i][0]-0.5);
-            double y_=element_coords[i][j][1]+1/100*((int)!(bool)corners[i][1]-0.5);
-            if(element_coords[i][j][0]==0||element_coords[i][j][0]==1){
-              if(x_<0 || x_>1){
-                x=(int)!(element_coords[i][j][0]);
+            double x_=element_coords[i][j][0]+1.0/100.0*((int)(!((bool)corners[i][0]))-0.5);
+            double y_=element_coords[i][j][1]+1.0/100.0*((int)(!((bool)corners[i][1]))-0.5);
+            
+            if(element_coords[i][j][0]==0.0||element_coords[i][j][0]==1.0){
+              if(x_<0.0 || x_>1.0){              
+                x_=((int)!(element_coords[i][j][0]));
+                
               }
               else{
-                x=element_coords[i][j][0];
+                x_=element_coords[i][j][0];
               }
             }
             else{
-              x=element_coords[i][j][0];
+              x_=element_coords[i][j][0];
             }
-            if(element_coords[i][j][1]==0||element_coords[i][j][1]==1){
-              if(y_<0 || y_>1){
-                y=(int)!(element_coords[i][j][1]);
+            if(element_coords[i][j][1]==0.0||element_coords[i][j][1]==1.0){
+              
+              if(y_<0.0 || y_>1.0){
+                y_=((int)!(element_coords[i][j][1]));
               }
               else{
-                y=element_coords[i][j][1];
+                y_=element_coords[i][j][1];
               }
             }
             else{
-              y=element_coords[i][j][1];
+              y_=element_coords[i][j][1];
             }
             
             
             if(dim==3){
-              double z_=element_coords[i][j][2]+1/100*((int)!(bool)corners[i][2]-0.5);
+              double z_=element_coords[i][j][2]+1.0/100.0*((int)(!((bool)corners[i][2]))-0.5);
                if(element_coords[i][j][2]==0||element_coords[i][j][2]==1){
                 if(z_<0 || z_>1){
                   z=(int)!(element_coords[i][j][2]);
@@ -275,13 +279,20 @@ class TaskEnsemble : public Task {
                 z=element_coords[i][j][2];
               }
             }
-            
-            linearized_index=(Nx)*y+x+z*(Nx)*(Ny);
+            z=0;
+            linearized_index=(Nx)*y_*(Ny-1)+x_*(Nx-1)+z*(Nz-1)*(Nx)*(Ny);
+            if(i==1){
+              std::cout<<element_coords[i][j][0]<<","<<element_coords[i][j][1]<<std::endl;            
+              std::cout<<"Index:"<<x_<<","<<y_<<std::endl; 
+            }
             if(index_mapping[i][index_sub[linearized_index]]==-1){
-              std::cout<<element_coords[i][j][0]<<","<<element_coords[i][j][1]<<","<<element_coords[i][j][2]<<"Punkt j="<<j<<std::endl;            
-              std::cout<<x<<","<<y<<","<<z<<std::endl;
-              std::cout<<"Linear: "<<linearized_index<<std::endl;            
-              std::cout << "hier ist ein Fehler. Das ist nicht die richtige Referenz. Das ist Gitter "<<i<<std::endl;
+              // std::cout<<element_coords[i][j][0]<<","<<element_coords[i][j][1]<<","<<element_coords[i][j][2]<<"Punkt j="<<j<<std::endl;            
+              // std::cout<<x<<","<<y<<","<<z<<std::endl;
+              // std::cout<<"Linear: "<<linearized_index<<std::endl;            
+              // std::cout << "hier ist ein Fehler. Das ist nicht die richtige Referenz. Das ist Gitter "<<i<<std::endl;
+            }
+            else {
+
             }
             index_mapping[i][j]=index_mapping[i][index_sub[linearized_index]];
           }
@@ -355,7 +366,23 @@ class TaskEnsemble : public Task {
   table.start("time->fullgrid");
   if(!make_exact_){
      std::vector<std::array<Number, Problem::dim_ + 2>> old_result(size_result);
-    
+    if(stepsTotal_==1){
+      
+        auto& dfg = dfgEnsemble_->getDFG(0);
+        std::vector<CombiDataType>& elements = dfg.getElementVector();
+        int counter=0;
+        for (size_t j = 0; j < elements.size(); ++j) {
+          IndexType globalLinearIndex = dfg.getGlobalLinearIndex(j);
+          std::vector<real> globalCoords(dim);
+          dfg.getCoordsGlobal(globalLinearIndex, globalCoords);
+          std::cout<<elements[j]<<" ";
+          counter++;
+          if(counter==5){
+            std::cout<<std::endl;
+            counter=0;
+          }
+        }
+    }
     if(stepsTotal_>0 && do_combine)
     {
       //iterates over all dfgs of the ensemble
@@ -483,7 +510,7 @@ class TaskEnsemble : public Task {
   // new variables that are set by manager. need to be added to serialize
   real dt_;
   size_t size_result=0;
-  std::vector<std::vector<Number>> index_mapping;
+  std::vector<std::vector<int>> index_mapping;
   std::vector<int> index_sub;
   std::vector<int> index_DOF;
   std::vector<std::vector<Number>> corners;
