@@ -358,7 +358,7 @@ def CG_error_dof_10_true():
     plt.savefig("tex_img/CG_error_dof_10_true.png")
     plt.close()
 
-CG_error_dof_10_true()
+#CG_error_dof_10_true()
 #plots error vs DOF decay    
 def CG_error_dof_100_true():
     plt.yscale("log")
@@ -374,7 +374,7 @@ def CG_error_dof_100_true():
     plt.savefig("tex_img/CG_error_dof_100_true.png")
     plt.close()
 
-CG_error_dof_100_true()
+#CG_error_dof_100_true()
 #plots error vs DOF decay    
 def CG_error_dof_10_false():
     plt.yscale("log")
@@ -390,7 +390,7 @@ def CG_error_dof_10_false():
     plt.savefig("tex_img/CG_error_dof_10_false.png")
     plt.close()
 
-CG_error_dof_10_false()
+#CG_error_dof_10_false()
 #plots error vs DOF decay
 def CG_error_dof_100_false():
     plt.yscale("log")
@@ -406,7 +406,7 @@ def CG_error_dof_100_false():
     plt.savefig("tex_img/CG_error_dof_100_false.png")
     plt.close()
 
-CG_error_dof_100_false()
+#CG_error_dof_100_false()
 #plots error vs Time decay
 def CG_error_times_10_true():
     plt.yscale("log")
@@ -422,7 +422,7 @@ def CG_error_times_10_true():
     plt.savefig("tex_img/CG_error_times_10_true.png")
     plt.close()
 
-CG_error_times_10_true()
+#CG_error_times_10_true()
 #plots error vs time decay    
 def CG_error_times_100_true():
     plt.yscale("log")
@@ -438,7 +438,7 @@ def CG_error_times_100_true():
     plt.savefig("tex_img/CG_error_times_100_true.png")
     plt.close()
 
-CG_error_times_100_true()
+#CG_error_times_100_true()
 #plots error vs time decay
 def CG_error_times_10_false():
     plt.yscale("log")
@@ -454,7 +454,7 @@ def CG_error_times_10_false():
     plt.savefig("tex_img/CG_error_times_10_false.png")
     plt.close()
 
-CG_error_times_10_false()
+#CG_error_times_10_false()
 #plots error vs time decay
 def CG_error_times_100_false():
     plt.yscale("log")
@@ -470,7 +470,7 @@ def CG_error_times_100_false():
     plt.savefig("tex_img/CG_error_times_100_false.png")
     plt.close()
 
-CG_error_times_100_false()
+#CG_error_times_100_false()
 #plots DG error vs time decay
 def DG_error_times_10_false():
     plt.yscale("log")
@@ -480,13 +480,13 @@ def DG_error_times_10_false():
     plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin1"][:6],errors["FE_DGQ"]["false"]["combi10"]["lmin1"][:6], label="$l_{min}=1$",linestyle='solid', marker='o')
     plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin2"][:6],errors["FE_DGQ"]["false"]["combi10"]["lmin2"][:6], label="$l_{min}=2$",linestyle='dashed', marker='*')
     plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin3"][:5],errors["FE_DGQ"]["false"]["combi10"]["lmin3"][:5], label="$l_{min}=3$",linestyle='dotted', marker='+')
-    plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["fullgrids"][:5],errors["FE_DGQ"]["false"]["combi10"]["fullgrids"][:5], label="Fullgrids",linestyle='dashdot', marker='v')
+    plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["fullgrids"][:6],errors["FE_DGQ"]["false"]["combi10"]["fullgrids"][:6], label="Fullgrids",linestyle='dashdot', marker='v')
     plt.title("Error DG, ncombi=10, without combination")
     plt.legend()
     plt.savefig("tex_img/DG_error_times_10_false.png")
     plt.close()
 
-DG_error_times_10_false()
+#DG_error_times_10_false()
 
 def DG_error_dof_10_false():
     plt.yscale("log")
@@ -496,13 +496,13 @@ def DG_error_dof_10_false():
     plt.plot(DG_dofs["lmin1"][:6],errors["FE_DGQ"]["false"]["combi10"]["lmin1"][:6], label="$l_{min}=1$",linestyle='solid', marker='o')
     plt.plot(DG_dofs["lmin2"][:6],errors["FE_DGQ"]["false"]["combi10"]["lmin2"][:6], label="$l_{min}=2$",linestyle='dashed', marker='*')
     plt.plot(DG_dofs["lmin3"][:5],errors["FE_DGQ"]["false"]["combi10"]["lmin3"][:5], label="$l_{min}=3$",linestyle='dotted', marker='+')
-    plt.plot(DG_dofs["fullgrids"][:5],errors["FE_DGQ"]["false"]["combi10"]["fullgrids"][:5], label="Fullgrids",linestyle='dashdot', marker='v')
+    plt.plot(DG_dofs["fullgrids"][:6],errors["FE_DGQ"]["false"]["combi10"]["fullgrids"][:6], label="Fullgrids",linestyle='dashdot', marker='v')
     plt.title("Error DG, ncombi=10, without combination")
     plt.legend()
     plt.savefig("tex_img/DG_error_dofs_10_false.png")
     plt.close()
 
-DG_error_dof_10_false()
+#DG_error_dof_10_false()
 #plots DG error vs time decay
 def DG_error_times_10_true():
     plt.yscale("log")
@@ -524,17 +524,17 @@ def DG_error_dofs_10_true():
     plt.yscale("log")
     plt.xscale("log")
     plt.ylabel("Error")
-    plt.xlabel("Computation time")
-    plt.plot(DG_dofs["lmin1"][:8],errors["FE_DGQ"]["true"]["combi10"]["lmin1"][:8], label="$l_{min}=1$",linestyle='solid', marker='o')
-    plt.plot(DG_dofs["lmin2"][:7],errors["FE_DGQ"]["true"]["combi10"]["lmin2"][:7], label="$l_{min}=2$",linestyle='dashed', marker='*')
-    plt.plot(DG_dofs["lmin3"][:8],errors["FE_DGQ"]["true"]["combi10"]["lmin3"][:8], label="$l_{min}=3$",linestyle='dotted', marker='+')
-    plt.plot(DG_dofs["fullgrids"][:5],errors["FE_DGQ"]["true"]["combi10"]["fullgrids"][:5], label="Fullgrids",linestyle='dashdot', marker='v')
+    plt.xlabel('#DOF')
+    plt.plot(DG_dofs["lmin1"][:6],errors["FE_DGQ"]["true"]["combi10"]["lmin1"], label="$l_{min}=1$",linestyle='solid', marker='o')
+    plt.plot(DG_dofs["lmin2"][:6],errors["FE_DGQ"]["true"]["combi10"]["lmin2"], label="$l_{min}=2$",linestyle='dashed', marker='*')
+    plt.plot(DG_dofs["lmin3"][:5],errors["FE_DGQ"]["true"]["combi10"]["lmin3"], label="$l_{min}=3$",linestyle='dotted', marker='+')
+    plt.plot(DG_dofs["fullgrids"][:6],errors["FE_DGQ"]["true"]["combi10"]["fullgrids"], label="Fullgrids",linestyle='dashdot', marker='v')
     plt.title("Error DG, ncombi=10, with combination")
     plt.legend()
     plt.savefig("tex_img/DG_error_dofs_10_true.png")
     plt.close()
 
-DG_error_dofs_10_true()
+#DG_error_dofs_10_true()
 #plots CG vs DG with combination and ncombi=10
 def CG_vs_DG_10_true_times():
     print("ich vergeleiche CG und DG mit combi und 10 ncombi, times")
@@ -611,22 +611,22 @@ def CG_vs_DG_10_false_times():
     plt.xscale("log")
     plt.ylabel("Error")
     plt.xlabel("Computation time")
-    plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"],errors["FE_Q"]["false"]["combi10"]["lmin1"], label="CG, $l_{min}=1$",linestyle='solid', marker='o')
-    plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"],errors["FE_Q"]["false"]["combi10"]["lmin2"], label="CG, $l_{min}=2$",linestyle='dashed', marker='o')
-    plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"],errors["FE_Q"]["false"]["combi10"]["lmin3"], label="CG, $l_{min}=3$",linestyle='dotted', marker='o')
-    plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["fullgrids"],errors["FE_Q"]["false"]["combi10"]["fullgrids"], label="CG, Fullgrids",linestyle='dashdot', marker='o')
+    plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"][:6],errors["FE_Q"]["false"]["combi10"]["lmin1"], label="CG, $l_{min}=1$",linestyle='solid', marker='o')
+    #plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"],errors["FE_Q"]["false"]["combi10"]["lmin2"], label="CG, $l_{min}=2$",linestyle='dashed', marker='o')
+    #plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"],errors["FE_Q"]["false"]["combi10"]["lmin3"], label="CG, $l_{min}=3$",linestyle='dotted', marker='o')
+    plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["fullgrids"][:6],errors["FE_Q"]["false"]["combi10"]["fullgrids"], label="CG, Fullgrids",linestyle='dashdot', marker='o')
     
     plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin1"][:6],errors["FE_DGQ"]["false"]["combi10"]["lmin1"][:6], label="DG, $l_{min}=1$",linestyle='solid', marker='*')
-    plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin2"][:6],errors["FE_DGQ"]["false"]["combi10"]["lmin2"][:6], label="DG, $l_{min}=2$",linestyle='dashed', marker='*')
-    plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin3"][:5],errors["FE_DGQ"]["false"]["combi10"]["lmin3"][:5], label="DG, $l_{min}=3$",linestyle='dotted', marker='*')
-    plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["fullgrids"][:5],errors["FE_DGQ"]["false"]["combi10"]["fullgrids"][:5], label="DG, Fullgrids",linestyle='dashdot', marker='*')
+    #plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin2"][:6],errors["FE_DGQ"]["false"]["combi10"]["lmin2"][:6], label="DG, $l_{min}=2$",linestyle='dashed', marker='*')
+    #plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin3"][:5],errors["FE_DGQ"]["false"]["combi10"]["lmin3"][:5], label="DG, $l_{min}=3$",linestyle='dotted', marker='*')
+    plt.plot(times["FE_DGQ"]["1proc"]["false"]["combi10"]["fullgrids"][:6],errors["FE_DGQ"]["false"]["combi10"]["fullgrids"][:6], label="DG, Fullgrids",linestyle='dashdot', marker='*')
     
     plt.title("CG vs DG, ncombi=10, without combination")
     plt.legend()
     plt.savefig("tex_img/CG_vs_DG_error_times_10_false.png")
     plt.close()
 #TODO:hier noch n besseren Vergleoich überlegen.
-CG_vs_DG_10_false_times()
+#CG_vs_DG_10_false_times()
 
 #plots CG vs DG with ncombi=10 and no combination
 def CG_vs_DG_10_false_dof():
@@ -649,8 +649,8 @@ def CG_vs_DG_10_false_dof():
     plt.legend()
     plt.savefig("tex_img/CG_vs_DG_error_dof_10_false.png")
     plt.close()
-#TODO: Diesen Vergleich dann auch hier einsetzen.
-CG_vs_DG_10_false_dof()
+
+#CG_vs_DG_10_false_dof()
 #plots CG vs DG ncombi100 and no combination
 def CG_vs_DG_100_false_times():
     print("ich vergeleiche CG und DG mit combi und 100 ncombi, times")
@@ -709,42 +709,70 @@ def CG_combi_compare_100():
     plt.savefig("tex_img/CG_combi_compare_100_times.png")
     plt.close()
 
-CG_combi_compare_100()
+#CG_combi_compare_100()
 #plots CG comparison of combination with ncombi=10
 def CG_combi_compare_10():
     print("ich vergleiche CG_100_false mit CG_10_true")
     #plt.yscale("log")
+    # plt.xscale("log")
+    # plt.ylabel("Error")
+    # plt.xlabel("#DOF") 
+    # plt.ylim([0,0.5])
+    # plt.plot(dofs["lmin1"],
+    # np.divide(np.subtract(errors["FE_Q"]["false"]["combi10"]["lmin1"],errors["FE_Q"]["true"]["combi10"]["lmin1"]),errors["FE_Q"]["false"]["combi10"]["lmin1"]), label="$l_{min}=1$",linestyle='dashed', marker='o')
+    # plt.plot(dofs["lmin2"],
+    # np.divide(np.subtract(errors["FE_Q"]["false"]["combi10"]["lmin2"],errors["FE_Q"]["true"]["combi10"]["lmin2"]),errors["FE_Q"]["false"]["combi10"]["lmin2"]), label="$l_{min}=2$",linestyle='dotted', marker='*')
+    # plt.plot(dofs["lmin3"],
+    # np.divide(np.subtract(errors["FE_Q"]["false"]["combi10"]["lmin3"],errors["FE_Q"]["true"]["combi10"]["lmin3"]),errors["FE_Q"]["false"]["combi10"]["lmin3"]), label="$l_{min}=3$",linestyle='solid', marker='+')
+    
+    # plt.title("CG combination vs without combination, ncombi=10")
+    # plt.legend()
+    # plt.savefig("tex_img/CG_combi_compare_10_errors.png")
+    # plt.close()
+
+    # #plt.yscale("log")
+    # plt.xscale("log")
+    # plt.ylabel("relative Time difference")
+    # plt.xlabel("#DOF") 
+    # plt.ylim([-0.01,0.3])
+    # plt.plot(dofs["lmin1"],
+    # np.divide(np.subtract(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin1"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"]), label="$l_{min}=1$",linestyle='dashed', marker='o')
+    # plt.plot(dofs["lmin2"],
+    # np.divide(np.subtract(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin2"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"]), label="$l_{min}=2$",linestyle='dotted', marker='*')
+    # plt.plot(dofs["lmin3"],
+    # np.divide(np.subtract(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin3"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"]), label="$l_{min}=3$",linestyle='solid', marker='+')
+    
+    # plt.title("CG combination vs without combination, ncombi=10")
+    # plt.legend()
+    # plt.savefig("tex_img/CG_combi_compare_10_times.png")
+    # plt.close()
+
     plt.xscale("log")
-    plt.ylabel("Error")
-    plt.xlabel("#DOF") 
-    plt.ylim([0,0.5])
-    plt.plot(dofs["lmin1"],
-    np.divide(np.subtract(errors["FE_Q"]["false"]["combi10"]["lmin1"],errors["FE_Q"]["true"]["combi10"]["lmin1"]),errors["FE_Q"]["false"]["combi10"]["lmin1"]), label="$l_{min}=1$",linestyle='dashed', marker='o')
-    plt.plot(dofs["lmin2"],
-    np.divide(np.subtract(errors["FE_Q"]["false"]["combi10"]["lmin2"],errors["FE_Q"]["true"]["combi10"]["lmin2"]),errors["FE_Q"]["false"]["combi10"]["lmin2"]), label="$l_{min}=2$",linestyle='dotted', marker='*')
-    plt.plot(dofs["lmin3"],
-    np.divide(np.subtract(errors["FE_Q"]["false"]["combi10"]["lmin3"],errors["FE_Q"]["true"]["combi10"]["lmin3"]),errors["FE_Q"]["false"]["combi10"]["lmin3"]), label="$l_{min}=3$",linestyle='solid', marker='+')
+    plt.yscale("log")
+    plt.ylabel("approximation error")
+    plt.xlabel("computation time") 
+    plt.plot(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin1"][:7],errors["FE_Q"]["true"]["combi10"]["lmin1"][:7], label="$l_{min}=1$ with combination",linestyle='dashed', marker='o')
+    plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"][:7],errors["FE_Q"]["false"]["combi10"]["lmin1"][:7], label="$l_{min}=1$ without combination",linestyle='dotted', marker='*')
+    plt.plot(times["FE_Q"]["1proc"]["true"]["combi10"]["fullgrids"][:6],errors["FE_Q"]["true"]["combi10"]["fullgrids"][:6], label="Fullgrids with combination",linestyle='dashed', marker='o')
+    plt.plot(times["FE_Q"]["1proc"]["false"]["combi10"]["fullgrids"][:6],errors["FE_Q"]["false"]["combi10"]["fullgrids"][:6], label="Fullgrids without combination",linestyle='dotted', marker='*')
     
     plt.title("CG combination vs without combination, ncombi=10")
     plt.legend()
-    plt.savefig("tex_img/CG_combi_compare_10_errors.png")
+    plt.savefig("tex_img/CG_combi_compare_10_all.png")
     plt.close()
 
-    #plt.yscale("log")
     plt.xscale("log")
-    plt.ylabel("relative Time difference")
-    plt.xlabel("#DOF") 
-    plt.ylim([-0.01,0.3])
-    plt.plot(dofs["lmin1"],
-    np.divide(np.subtract(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin1"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"]), label="$l_{min}=1$",linestyle='dashed', marker='o')
-    plt.plot(dofs["lmin2"],
-    np.divide(np.subtract(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin2"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"]), label="$l_{min}=2$",linestyle='dotted', marker='*')
-    plt.plot(dofs["lmin3"],
-    np.divide(np.subtract(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin3"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"]), label="$l_{min}=3$",linestyle='solid', marker='+')
+    plt.yscale("log")
+    plt.ylabel("approximation error")
+    plt.xlabel("#Dofs") 
+    plt.plot(dofs["lmin1"][:7],errors["FE_Q"]["true"]["combi10"]["lmin1"][:7], label="$l_{min}=1$ with combination",linestyle='dashed', marker='o')
+    plt.plot(dofs["lmin1"][:7],errors["FE_Q"]["false"]["combi10"]["lmin1"][:7], label="$l_{min}=1$ without combination",linestyle='dotted', marker='*')
+    plt.plot(dofs["fullgrids"][:6],errors["FE_Q"]["true"]["combi10"]["fullgrids"][:6], label="Fullgrids with combination",linestyle='dashed', marker='o')
+    plt.plot(dofs["fullgrids"][:6],errors["FE_Q"]["false"]["combi10"]["fullgrids"][:6], label="Fullgrids without combination",linestyle='dotted', marker='*')
     
     plt.title("CG combination vs without combination, ncombi=10")
     plt.legend()
-    plt.savefig("tex_img/CG_combi_compare_10_times.png")
+    plt.savefig("tex_img/CG_combi_compare_10_all_dofs.png")
     plt.close()
 
 CG_combi_compare_10()
@@ -793,13 +821,13 @@ def DG_combi_compare_10():
     plt.ylabel("Error")
     plt.xlabel("#DOF") 
     #plt.ylim([-100,1])
-    index=4
-    plt.plot(dofs["lmin1"][:index],
-    np.divide(np.subtract(errors["FE_DGQ"]["false"]["combi10"]["lmin1"][:index],errors["FE_DGQ"]["true"]["combi10"]["lmin1"][:index]),errors["FE_DGQ"]["true"]["combi10"]["lmin1"][:index]), label="DG without combi, $l_{min}=1$",linestyle='solid', marker='o')
-    plt.plot(dofs["lmin2"][:index],
-    np.divide(np.subtract(errors["FE_DGQ"]["false"]["combi10"]["lmin2"][:index],errors["FE_DGQ"]["true"]["combi10"]["lmin2"][:index]),errors["FE_DGQ"]["true"]["combi10"]["lmin2"][:index]), label="DG without combi, $l_{min}=2$",linestyle='solid', marker='o')
-    plt.plot(dofs["lmin3"][:index],
-    np.divide(np.subtract(errors["FE_DGQ"]["false"]["combi10"]["lmin3"][:index],errors["FE_DGQ"]["true"]["combi10"]["lmin3"][:index]),errors["FE_DGQ"]["true"]["combi10"]["lmin3"][:index]), label="DG without combi, $l_{min}=3$",linestyle='solid', marker='o')
+    print(errors["FE_DGQ"]["false"]["combi10"]["lmin1"])
+    plt.plot(dofs["lmin1"][:6],
+    np.divide(np.subtract(errors["FE_DGQ"]["false"]["combi10"]["lmin1"],errors["FE_DGQ"]["true"]["combi10"]["lmin1"]),errors["FE_DGQ"]["true"]["combi10"]["lmin1"]), label="DG without combi, $l_{min}=1$",linestyle='solid', marker='o')
+    plt.plot(dofs["lmin2"][:6],
+    np.divide(np.subtract(errors["FE_DGQ"]["false"]["combi10"]["lmin2"],errors["FE_DGQ"]["true"]["combi10"]["lmin2"]),errors["FE_DGQ"]["true"]["combi10"]["lmin2"]), label="DG without combi, $l_{min}=2$",linestyle='solid', marker='o')
+    plt.plot(dofs["lmin3"][:5],
+    np.divide(np.subtract(errors["FE_DGQ"]["false"]["combi10"]["lmin3"],errors["FE_DGQ"]["true"]["combi10"]["lmin3"]),errors["FE_DGQ"]["true"]["combi10"]["lmin3"]), label="DG without combi, $l_{min}=3$",linestyle='solid', marker='o')
     
     plt.title("DG combination vs without combination, ncombi=10")
     plt.legend()
@@ -809,16 +837,14 @@ def DG_combi_compare_10():
     #plt.yscale("log")
     plt.xscale("log")
     plt.ylabel("relative Time difference")
+    plt.ylim([0,25])
     plt.xlabel("#DOF") 
-    index=4
-    plt.plot(dofs["lmin1"][:index],
-    100*np.divide(np.subtract(times["FE_DGQ"]["1proc"]["true"]["combi10"]["lmin1"][:index],times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin1"][:index]),times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin1"][:index]), label="DG without combi, $l_{min}=1$",linestyle='solid', marker='o')
-    index=2
-    plt.plot(dofs["lmin2"][:index],
-    100*np.divide(np.subtract(times["FE_DGQ"]["1proc"]["true"]["combi10"]["lmin2"][:index],times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin2"][:index]),times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin2"][:index]), label="DG without combi, $l_{min}=2$",linestyle='solid', marker='o')
-    index=4
-    plt.plot(dofs["lmin3"][:index],
-    100*np.divide(np.subtract(times["FE_DGQ"]["1proc"]["true"]["combi10"]["lmin3"][:index],times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin3"][:index]),times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin3"][:index]), label="DG without combi, $l_{min}=3$",linestyle='solid', marker='o')
+    plt.plot(dofs["lmin1"][:6],
+    100*np.divide(np.subtract(times["FE_DGQ"]["1proc"]["true"]["combi10"]["lmin1"],times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin1"]),times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin1"]), label="DG without combi, $l_{min}=1$",linestyle='solid', marker='o')
+    plt.plot(dofs["lmin2"][:6],
+    100*np.divide(np.subtract(times["FE_DGQ"]["1proc"]["true"]["combi10"]["lmin2"],times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin2"]),times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin2"]), label="DG without combi, $l_{min}=2$",linestyle='solid', marker='o')
+    plt.plot(dofs["lmin3"][:5],
+    100*np.divide(np.subtract(times["FE_DGQ"]["1proc"]["true"]["combi10"]["lmin3"],times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin3"]),times["FE_DGQ"]["1proc"]["false"]["combi10"]["lmin3"]), label="DG without combi, $l_{min}=3$",linestyle='solid', marker='o')
     
     plt.title("DG combination vs without combination, ncombi=10")
     plt.legend()
@@ -826,101 +852,85 @@ def DG_combi_compare_10():
     plt.close()
     
 
-DG_combi_compare_10()
+#DG_combi_compare_10()
 def parallelization_speedup():
     print("Ich vergleiche ")
     plt.xscale("log")
     plt.ylabel("Computation time")
     plt.yscale("log")
     plt.xlabel("#processes")
-    plt.plot([1,2,8],[times["FE_Q"]["1proc"]["true"]["combi10"]["lmin1"][7],times["FE_Q"]["2proc"]["true"]["combi10"]["lmin1"][7],
-    times["FE_Q"]["8proc"]["true"]["combi10"]["lmin1"][7]],label="$l_{\mathrm{min}}=1, l_{\mathrm{max}}=9$",marker='o', linestyle='dashed')
+    plt.plot([1,2,8,16],[times["FE_Q"]["1proc"]["true"]["combi10"]["lmin1"][7],times["FE_Q"]["2proc"]["true"]["combi10"]["lmin1"][7],
+    times["FE_Q"]["8proc"]["true"]["combi10"]["lmin1"][7],times["FE_Q_ngroup_4"]["lmin1"][4]],
+    label="$l_{\mathrm{min}}=1, l_{\mathrm{max}}=9$",marker='o', linestyle='dashed')
     
     plt.plot([1,2,8,16],[times["FE_Q"]["1proc"]["true"]["combi10"]["lmin2"][6],times["FE_Q"]["2proc"]["true"]["combi10"]["lmin2"][6],
     times["FE_Q"]["8proc"]["true"]["combi10"]["lmin2"][6],times["FE_Q"]["16proc"]["true"]["combi10"]["lmin2"][6]],label="$l_{\mathrm{min}}=2, l_{\mathrm{max}}=8$",linestyle='solid',marker='+')
     
     plt.plot([1,2,8,16],[times["FE_Q"]["1proc"]["true"]["combi10"]["fullgrids"][5],times["FE_Q"]["2proc"]["true"]["combi10"]["fullgrids"][5],
     times["FE_Q"]["8proc"]["true"]["combi10"]["fullgrids"][5],times["FE_Q"]["16proc"]["true"]["combi10"]["fullgrids"][5]],label="Fullgrid l=7",linestyle='dotted',marker='*')
-    plt.plot([16], [times["FE_Q_ngroup_4"]["lmin1"][4]],label="4 Processing groups, $l_{\mathrm{min}}=1, l_{\mathrm{max}}=9$",linestyle='solid',marker='+')
-    plt.plot([16], [times["FE_Q_ngroup_4"]["lmin2"][2]],label="4 Processing groups, $l_{\mathrm{min}}=2, l_{\mathrm{max}}=8$",linestyle='solid',marker='+')
     plt.legend()
     plt.xticks([1,2,8,16],[1,2,8,16])
     plt.savefig("tex_img/parallel.png")
     plt.close()
 
-
-
-    # plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"],times["FE_Q"]["2proc"]["false"]["combi10"]["lmin1"]), label="2 proc",linestyle='solid', marker='o')
-    # plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"],times["FE_Q"]["8proc"]["false"]["combi10"]["lmin1"]), label="8 proc",linestyle='solid', marker='o')
-    # #plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"],times["FE_Q"]["16proc"]["false"]["combi10"]["lmin1"]), label="16 proc",linestyle='solid', marker='o')
-    # plt.title("Speedup by using multiple processes for lmin=1, dt=0.1, no combi")
-    # plt.legend()
-    # plt.savefig("tex_img/parallel.png")
-    # plt.close()
-
-    # plt.xscale("log")
-    # plt.ylabel("Speedup")
-    # plt.xlabel("#DOF")
-    # plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["false"]["combi100"]["lmin1"],times["FE_Q"]["2proc"]["false"]["combi100"]["lmin1"]), label="2 proc",linestyle='solid', marker='o')
-    # plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["false"]["combi100"]["lmin1"],times["FE_Q"]["8proc"]["false"]["combi100"]["lmin1"]), label="8 proc",linestyle='solid', marker='o')
-    # #plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["false"]["combi100"]["lmin1"],times["FE_Q"]["16proc"]["false"]["combi100"]["lmin1"]), label="16 proc",linestyle='solid', marker='o')
-    # plt.title("Speedup by using multiple processes for lmin=1, dt=0.01, no combi")
-    # plt.legend()
-    # plt.savefig("tex_img/parallel2.png")
-    # plt.close()
-
-    # plt.xscale("log")
-    # plt.ylabel("Speedup")
-    # plt.xlabel("#DOF")
-    # plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["true"]["combi100"]["lmin1"],times["FE_Q"]["2proc"]["true"]["combi100"]["lmin1"]), label="2 proc",linestyle='solid', marker='o')
-    # plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["true"]["combi100"]["lmin1"],times["FE_Q"]["8proc"]["true"]["combi100"]["lmin1"]), label="8 proc",linestyle='solid', marker='o')
-    # #plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["true"]["combi100"]["lmin1"],times["FE_Q"]["16proc"]["true"]["combi100"]["lmin1"]), label="16 proc",linestyle='solid', marker='o')
-    # plt.title("Speedup by using multiple processes for lmin=1, dt=0.01, with combi")
-    # plt.legend()
-    # plt.savefig("tex_img/parallel3.png")
-    # plt.close()
-
-    # plt.xscale("log")
-    # plt.ylabel("Speedup")
-    # plt.xlabel("#DOF")
-    # plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin1"],times["FE_Q"]["2proc"]["true"]["combi10"]["lmin1"]), label="2 proc",linestyle='solid', marker='o')
-    # plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin1"],times["FE_Q"]["8proc"]["true"]["combi10"]["lmin1"]), label="8 proc",linestyle='solid', marker='o')
-    # #plt.plot(dofs["lmin1"],np.divide(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin1"],times["FE_Q"]["16proc"]["true"]["combi10"]["lmin1"]), label="16 proc",linestyle='solid', marker='o')
-    # plt.title("Speedup by using multiple processes for lmin=1, dt=0.1, with combi")
-    # plt.legend()
-    # plt.savefig("tex_img/parallel4.png")
-    # plt.close()
-
-parallelization_speedup()
+#parallelization_speedup()
 #compares ncombi10 to ncombi100
-def CG_dt_compare_false():
+def CG_dt_compare_true():
     print("Ich bin ein Vergleich zwischen den Zeitschrittweiten. Bringt es mehr zeitschritte zu berechnen oder reichen 10 aus?")
     #plt.yscale("log")
+    # plt.xscale("log")
+    # plt.ylabel("relative error")
+    # plt.xlabel("#DOF")
+    # plt.ylim([0,0.042])
+    # plt.yticks([0,0.02,0.04],[0,0.02,0.04])
+    # plt.plot(dofs["lmin1"],np.divide(np.subtract(errors["FE_Q"]["true"]["combi10"]["lmin1"],errors["FE_Q"]["true"]["combi100"]["lmin1"]),errors["FE_Q"]["true"]["combi10"]["lmin1"]), label="$l_{min}=1$",linestyle='solid', marker='o')
+    # plt.plot(dofs["lmin2"],np.divide(np.subtract(errors["FE_Q"]["true"]["combi10"]["lmin2"],errors["FE_Q"]["true"]["combi100"]["lmin2"]),errors["FE_Q"]["true"]["combi10"]["lmin2"]), label="$l_{min}=2$",linestyle='dashed', marker='*')
+    # plt.plot(dofs["lmin3"][:6],np.divide(np.subtract(errors["FE_Q"]["true"]["combi10"]["lmin3"][:6],errors["FE_Q"]["true"]["combi100"]["lmin3"][:6]),errors["FE_Q"]["true"]["combi10"]["lmin3"][:6]), label="$l_{min}=3$",linestyle='dotted', marker='+')
+    # #plt.plot(dofs["fullgrids"],np.abs(np.subtract(errors["FE_Q"]["true"]["combi10"]["fullgrids"],errors["FE_Q"]["true"]["combi100"]["fullgrids"])), label="Fullgrids",linestyle='dashdot', marker='v')
+    # #plt.title("Absolute difference of CG ncombi=10 to CG with ncombi=100, with combination.")
+    # plt.legend()
+    # plt.savefig("tex_img/CG_error_dof_compare_true.png")
+    # plt.close()
+    # plt.yscale("log")
+    # plt.xscale("log")
+    # plt.ylabel("relative time difference")
+    # plt.xlabel("#DOF")
+    # plt.yticks([0.3,1,2,3,4],[0.3,1,2,3,4])
+    # plt.plot(dofs["lmin1"],np.divide(np.subtract(times["FE_Q"]["1proc"]["false"]["combi100"]["lmin1"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"]), label="$l_{min}=1$",linestyle='solid', marker='o')
+    # plt.plot(dofs["lmin2"],np.divide(np.subtract(times["FE_Q"]["1proc"]["false"]["combi100"]["lmin2"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"]), label="$l_{min}=2$",linestyle='dashed', marker='*')
+    # plt.plot(dofs["lmin3"],np.divide(np.subtract(times["FE_Q"]["1proc"]["false"]["combi100"]["lmin3"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"]), label="$l_{min}=3$",linestyle='dotted', marker='+')
+    # plt.plot(dofs["fullgrids"],np.divide(np.subtract(times["FE_Q"]["1proc"]["false"]["combi100"]["fullgrids"],times["FE_Q"]["1proc"]["false"]["combi10"]["fullgrids"]),times["FE_Q"]["1proc"]["false"]["combi10"]["fullgrids"]), label="Fullgrids",linestyle='dashdot', marker='v')
+    # #plt.title("Absolute difference of CG ncombi=10 to CG with ncombi=100, without combination.")
+    # plt.legend()
+    # plt.savefig("tex_img/CG_times_dof_compare_false.png")
+    # plt.close()
+
     plt.xscale("log")
-    plt.ylabel("relative error")
-    plt.xlabel("#DOF")
-    plt.ylim([0,0.042])
-    plt.yticks([0,0.02,0.04],[0,0.02,0.04])
-    plt.plot(dofs["lmin1"],np.divide(np.subtract(errors["FE_Q"]["true"]["combi10"]["lmin1"],errors["FE_Q"]["true"]["combi100"]["lmin1"]),errors["FE_Q"]["true"]["combi10"]["lmin1"]), label="$l_{min}=1$",linestyle='solid', marker='o')
-    plt.plot(dofs["lmin2"],np.divide(np.subtract(errors["FE_Q"]["true"]["combi10"]["lmin2"],errors["FE_Q"]["true"]["combi100"]["lmin2"]),errors["FE_Q"]["true"]["combi10"]["lmin2"]), label="$l_{min}=2$",linestyle='dashed', marker='*')
-    plt.plot(dofs["lmin3"][:6],np.divide(np.subtract(errors["FE_Q"]["true"]["combi10"]["lmin3"][:6],errors["FE_Q"]["true"]["combi100"]["lmin3"][:6]),errors["FE_Q"]["true"]["combi10"]["lmin3"][:6]), label="$l_{min}=3$",linestyle='dotted', marker='+')
-    #plt.plot(dofs["fullgrids"],np.abs(np.subtract(errors["FE_Q"]["true"]["combi10"]["fullgrids"],errors["FE_Q"]["true"]["combi100"]["fullgrids"])), label="Fullgrids",linestyle='dashdot', marker='v')
-    #plt.title("Absolute difference of CG ncombi=10 to CG with ncombi=100, with combination.")
-    plt.legend()
-    plt.savefig("tex_img/CG_error_dof_compare_false.png")
-    plt.close()
     plt.yscale("log")
-    plt.xscale("log")
-    plt.ylabel("relative time difference")
-    plt.xlabel("#DOF")
-    plt.yticks([0.3,1,2,3,4],[0.3,1,2,3,4])
-    plt.plot(dofs["lmin1"],np.divide(np.subtract(times["FE_Q"]["1proc"]["false"]["combi100"]["lmin1"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin1"]), label="$l_{min}=1$",linestyle='solid', marker='o')
-    plt.plot(dofs["lmin2"],np.divide(np.subtract(times["FE_Q"]["1proc"]["false"]["combi100"]["lmin2"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin2"]), label="$l_{min}=2$",linestyle='dashed', marker='*')
-    plt.plot(dofs["lmin3"],np.divide(np.subtract(times["FE_Q"]["1proc"]["false"]["combi100"]["lmin3"],times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"]),times["FE_Q"]["1proc"]["false"]["combi10"]["lmin3"]), label="$l_{min}=3$",linestyle='dotted', marker='+')
-    plt.plot(dofs["fullgrids"],np.divide(np.subtract(times["FE_Q"]["1proc"]["false"]["combi100"]["fullgrids"],times["FE_Q"]["1proc"]["false"]["combi10"]["fullgrids"]),times["FE_Q"]["1proc"]["false"]["combi10"]["fullgrids"]), label="Fullgrids",linestyle='dashdot', marker='v')
-    #plt.title("Absolute difference of CG ncombi=10 to CG with ncombi=100, without combination.")
+    plt.ylabel("approximation error")
+    plt.xlabel("computation time") 
+    plt.plot(times["FE_Q"]["1proc"]["true"]["combi10"]["lmin1"][:7],errors["FE_Q"]["true"]["combi10"]["lmin1"][:7], label="$l_{min}=1$ dt=0.1",linestyle='dashed', marker='o')
+    plt.plot(times["FE_Q"]["1proc"]["true"]["combi100"]["lmin1"][:6],errors["FE_Q"]["true"]["combi100"]["lmin1"][:7], label="$l_{min}=1$ dt=0.01",linestyle='dotted', marker='*')
+    plt.plot(times["FE_Q"]["1proc"]["true"]["combi10"]["fullgrids"][:6],errors["FE_Q"]["true"]["combi10"]["fullgrids"][:6], label="Fullgrids dt=0.1",linestyle='dashed', marker='o')
+    plt.plot(times["FE_Q"]["1proc"]["true"]["combi100"]["fullgrids"][:6],errors["FE_Q"]["true"]["combi100"]["fullgrids"][:6], label="Fullgrids dt=0.01",linestyle='dotted', marker='*')
+    
+    plt.title("CG combination 10 vs 100 timesteps")
     plt.legend()
-    plt.savefig("tex_img/CG_times_dof_compare_false.png")
+    plt.savefig("tex_img/CG_dt_combi_compare_all.png")
     plt.close()
 
-CG_dt_compare_false()
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylabel("approximation error")
+    plt.xlabel("#DOF") 
+    plt.plot(dofs["lmin1"][:7],errors["FE_Q"]["true"]["combi10"]["lmin1"][:7], label="$l_{min}=1$ dt=0.1",linestyle='dashed', marker='o')
+    plt.plot(dofs["lmin1"][:6],errors["FE_Q"]["true"]["combi100"]["lmin1"][:7], label="$l_{min}=1$ dt=0.01",linestyle='dotted', marker='*')
+    plt.plot(dofs["fullgrids"][:6],errors["FE_Q"]["true"]["combi10"]["fullgrids"][:6], label="Fullgrids dt=0.1",linestyle='dashed', marker='o')
+    plt.plot(dofs["fullgrids"][:6],errors["FE_Q"]["true"]["combi100"]["fullgrids"][:6], label="Fullgrids dt=0.01",linestyle='dotted', marker='*')
+    
+    plt.title("CG combination 10 vs 100 timesteps")
+    plt.legend()
+    plt.savefig("tex_img/CG_dt_combi_compare_all_dofs.png")
+    plt.close()
+
+#CG_dt_compare_true()

@@ -5,7 +5,7 @@ errors='errors.txt'
 log='log'
 #create ctparam
 
-for ((lmax=2;lmax<=9;lmax++)); do
+for ((lmax=2;lmax<=7;lmax++)); do
     echo "lmax=$lmax"
     echo -e "[ct] \ndim=3 \nlmin= $lmax $lmax $lmax\nlmax= $lmax $lmax $lmax \nleval= $lmax $lmax $lmax
     p= 1 1 1\nncombi=100 \nFE=FE_DGQ \n DO_COMBINE=False \n[application]\ndt=0.01\n \n[manager]\nngroup = 1\nnprocs = 1 \n [exact] \n makeExact=true" > ctparam
