@@ -1,8 +1,5 @@
 #!/bin/bash
-export PATH_TO_SGPP=`pwd`/../../../
-export LD_LIBRARY_PATH=$PATH_TO_SGPP/lib/sgpp:$LD_LIBRARY_PATH
-
-NGROUP=$(grep ngroup ctparam | awk -F"=" '{print $2}')
-NPROCS=$(grep nprocs ctparam | awk -F"=" '{print $2}')
-
-mpirun.mpich -n $(($NGROUP*$NPROCS+1)) -l ./combi_example
+. ./test_dg_combi_10.sh
+. ./test_dg_nocombi_10.sh
+. ./test_dg_combi_100.sh
+. ./test_dg_ncombi_100.sh

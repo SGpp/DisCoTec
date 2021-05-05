@@ -142,6 +142,7 @@ class TaskEnsemble : public Task {
 
     assert(partitions == 1);  // partitioning isnt correct when in parallel
 
+#pragma region Index_mapping_init
     // indexmapping[i], initialized with -1 contains at index j (=index_mapping[i][j]) the index of
     // the deal.ii point that corresponds to the DisCoTec point at index j
     index_mapping.resize(dfgEnsemble_->getNumFullGrids());
@@ -150,7 +151,7 @@ class TaskEnsemble : public Task {
     // control which index is not set yet.
     for (unsigned int dof = 0; dof < dfgEnsemble_->getNumFullGrids(); ++dof) {
       index_mapping[dof].resize(element_coords[dof].size());
-      for (unsigned int j = 0; j < element_coords[i].size(); ++j) {
+      for (unsigned int j = 0; j < element_coords[dof].size(); ++j) {
         index_mapping[dof][j] = -1;
       }
     }
@@ -164,172 +165,141 @@ class TaskEnsemble : public Task {
     for (unsigned int el_index = 0; el_index < (element_coords[0].size()); el_index++) {
       x = element_coords[0][el_index][0] * (Nx - 1);
       y = element_coords[0][el_index][1] * (Ny - 1);
-      if (dim == 2) {
-        linearized_index = y * (Nx) + x;
-      } else if (dim == 3) {
+
+      linearized_index = y * (Nx) + x;
+      if (dim == 3) {
         z = element_coords[0][el_index][2] * (Nz - 1);
         linearized_index = x + (Nx)*y + z * (Nx) * (Ny);
       }
-
+      // remember the index of the point and its linearized index
       index_sub[linearized_index] = el_index;
     }
     // same for the deal.II points ->O(2n)
     for (unsigned int x2 = 0; x2 < (coords_dealii.size()); x2++) {
+      // x,y and z are the indices of the point with respect to its corresponding axis, so it is not
+      // the deal.ii index
       x = std::round(coords_dealii[x2][0] * (Nx - 1));
       y = std::round(coords_dealii[x2][1] * (Ny - 1));
+
+      // this bool indicates wether this point is on the boundary in z-direction
       bool z_corner = true;
       if (dim == 3) {
         z = coords_dealii[x2][2] * (Nz - 1);
         if (!(z == (Nz - 1) || z == 0)) z_corner = false;
       }
 
-      // check here ob eckpunkt
-
+      // check here whether cornerpoint, if so, save this point in corners
       if ((x == (Nx - 1) || x == 0) && (y == (Ny - 1) || y == 0) && z_corner) {
         corners[coords_dealii[x2][dim + 1]].resize(dim);
         for (unsigned int d = 0; d < dim; ++d)
           corners[coords_dealii[x2][dim + 1]][d] = coords_dealii[x2][d];
       }
-      // std::cout<<"Vector: "<<corners<<std::endl;
+      // claculate the linearized index
       linearized_index = (Nx)*y + x + z * (Nx) * (Ny);
 
+      // If we already had an DisCoTec point with this linearized index we know these points need to
+      // be mapped
       if (index_sub[linearized_index] != -1) {
+        // coords_dealii[x2][dim + 1] decodes the degree of freedom.
+        // then in this DOF save at the index of the DisCoTec point the index of the deal.ii point.
+        // can be understood as elements[index_sub[linearized_index]]=coords_dealii[x2]
         index_mapping[coords_dealii[x2][dim + 1]][index_sub[linearized_index]] = x2;
-      } else {
-        std::cout << "Das sollte nicht vorkommen!" << std::endl;
       }
     }
-    std::cout << "Corner:" << corners[1][0] << "|" << corners[1][1] << std::endl;
-    for (unsigned int j = 0; j < element_coords[0].size(); ++j) {
-      for (unsigned int i = 0; i < dfgEnsemble_->getNumFullGrids(); ++i) {
-        if (index_mapping[i][j] == -1) {
-          // check here ob eckpunkt
-          x = std::round(element_coords[i][j][0] * (Nx - 1));
-          y = std::round(element_coords[i][j][1] * (Ny - 1));
+#pragma endregion Index_mapping_init
+
+#pragma region Index_mapping_boundary
+    // check the index_mapping for Completeness, beacuse the boundary values, namely corners, edges
+    // and (in 3d) boundary areas need special treatment
+    for (unsigned int point_index = 0; point_index < element_coords[0].size(); ++point_index) {
+      for (unsigned int dof = 0; dof < dfgEnsemble_->getNumFullGrids(); ++dof) {
+        if (index_mapping[dof][point_index] == -1) {
+          // x,y and z are the indices of the point with respect to its corresponding axis, so it is
+          // not the discotec index
+          //those values are used to detect the type of boundary point: corner, edge or boundary area
+          x = std::round(element_coords[dof][point_index][0] * (Nx - 1));
+          y = std::round(element_coords[dof][point_index][1] * (Ny - 1));
           bool z_corner = true;
           if (dim == 3) {
-            z = element_coords[i][j][2] * (Nz - 1);
+            z = element_coords[dof][point_index][2] * (Nz - 1);
             if (!(z == (Nz - 1) || z == 0)) z_corner = false;
           }
+
+#pragma region Corner
           if ((x == (Nx - 1) || x == 0) && (y == (Ny - 1) || y == 0) && z_corner) {
-            // is a corner
-            // on one dof, all corners have the same value
-            // new point=corners[i];
-            x = std::round(corners[i][0] * (Nx - 1));
-            y = std::round(corners[i][1] * (Ny - 1));
-            if (dim == 3) z = corners[i][2] * (Nz - 1);
+            // this point is a corner
+            // on one DisCoTec grid all corner points have the same value as it displays 1 Degree of
+            // freedom and we have periodic boundary values
+
+            //calculate the corner that is stored in this degree of freedom
+            x = std::round(corners[dof][0] * (Nx - 1));
+            y = std::round(corners[dof][1] * (Ny - 1));
+            if (dim == 3) z = corners[dof][2] * (Nz - 1);
+
+            //this is the linearized index of the corner point.
             linearized_index = (Nx)*y + x + z * (Nx) * (Ny);
-            // then
-            if (index_mapping[i][index_sub[linearized_index]] == -1) {
-              std::cout
-                  << "hier ist ein Fehler. Das ist nicht die richtige Referenz. Das ist Gitter "
-                  << i << std::endl;
-            }
-            index_mapping[i][j] = index_mapping[i][index_sub[linearized_index]];
-
-          } else if (((int)(x == (Nx - 1) || x == 0) + (int)(y == (Ny - 1) || y == 0) +
-                      (int)z_corner) == 2) {
-            // Kante
-            double x_ =
-                element_coords[i][j][0] + 1.0 / 100.0 * ((int)(!((bool)corners[i][0])) - 0.5);
-            double y_ =
-                element_coords[i][j][1] + 1.0 / 100.0 * ((int)(!((bool)corners[i][1])) - 0.5);
-
-            if (element_coords[i][j][0] == 0.0 || element_coords[i][j][0] == 1.0) {
-              if (x_ < 0.0 || x_ > 1.0) {
-                x_ = ((int)!(element_coords[i][j][0]));
-
-              } else {
-                x_ = element_coords[i][j][0];
-              }
-            } else {
-              x_ = element_coords[i][j][0];
-            }
-            if (element_coords[i][j][1] == 0.0 || element_coords[i][j][1] == 1.0) {
-              if (y_ < 0.0 || y_ > 1.0) {
-                y_ = ((int)!(element_coords[i][j][1]));
-              } else {
-                y_ = element_coords[i][j][1];
-              }
-            } else {
-              y_ = element_coords[i][j][1];
-            }
-
-            if (dim == 3) {
-              double z_ =
-                  element_coords[i][j][2] + 1.0 / 100.0 * ((int)(!((bool)corners[i][2])) - 0.5);
-              if (element_coords[i][j][2] == 0 || element_coords[i][j][2] == 1) {
-                if (z_ < 0 || z_ > 1) {
-                  z = (int)!(element_coords[i][j][2]);
-                } else {
-                  z = element_coords[i][j][2];
-                }
-              } else {
-                z = element_coords[i][j][2];
-              }
-            }
-            z = 0;
-            linearized_index = (Nx)*y_ * (Ny - 1) + x_ * (Nx - 1) + z * (Nz - 1) * (Nx) * (Ny);
-            if (i == 1) {
-              std::cout << element_coords[i][j][0] << "," << element_coords[i][j][1] << std::endl;
-              std::cout << "Index:" << x_ << "," << y_ << std::endl;
-            }
-            if (index_mapping[i][index_sub[linearized_index]] == -1) {
-              // std::cout<<element_coords[i][j][0]<<","<<element_coords[i][j][1]<<","<<element_coords[i][j][2]<<"Punkt
-              // j="<<j<<std::endl; std::cout<<x<<","<<y<<","<<z<<std::endl; std::cout<<"Linear:
-              // "<<linearized_index<<std::endl; std::cout << "hier ist ein Fehler. Das ist nicht
-              // die richtige Referenz. Das ist Gitter "<<i<<std::endl;
-            } else {
-            }
-            index_mapping[i][j] = index_mapping[i][index_sub[linearized_index]];
-          } else {
-            // Fläche
-            double x_ = element_coords[i][j][0] + 1 / 100 * ((int)!(bool)corners[i][0] - 0.5);
-            double y_ = element_coords[i][j][1] + 1 / 100 * ((int)!(bool)corners[i][1] - 0.5);
-            if (element_coords[i][j][0] == 0 || element_coords[i][j][0] == 1) {
-              if (x_ < 0 || x_ > 1) {
-                x = (int)!(element_coords[i][j][0]);
-              } else {
-                x = element_coords[i][j][0];
-              }
-            } else {
-              x = element_coords[i][j][0];
-            }
-            if (element_coords[i][j][1] == 0 || element_coords[i][j][1] == 1) {
-              if (y_ < 0 || y_ > 1) {
-                y = (int)!(element_coords[i][j][1]);
-              } else {
-                y = element_coords[i][j][1];
-              }
-            } else {
-              y = element_coords[i][j][1];
-            }
-
-            if (dim == 3) {
-              double z_ = element_coords[i][j][2] + 1 / 100 * ((int)!(bool)corners[i][2] - 0.5);
-              if (element_coords[i][j][2] == 0 || element_coords[i][j][2] == 1) {
-                if (z_ < 0 || z_ > 1) {
-                  z = (int)!(element_coords[i][j][2]);
-                } else {
-                  z = element_coords[i][j][2];
-                }
-              } else {
-                z = element_coords[i][j][2];
-              }
-            }
-            linearized_index = (Nx)*y + x + z * (Nx) * (Ny);
-            // then
-            if (index_mapping[i][index_sub[linearized_index]] == -1) {
-              std::cout << element_coords[i][j][0] << "," << element_coords[i][j][1] << ","
-                        << element_coords[i][j][2] << std::endl;
-              std::cout << "hier ist dann auch ein Fehler. Das ist auch nicht die richtige Referenz"
-                        << std::endl;
-            }
-            index_mapping[i][j] = index_mapping[i][index_sub[linearized_index]];
+            
+            //this point needs the same value as the corner point and the corner points DisCoTec index ist stored in index_sub[linearized_index]
+            index_mapping[dof][point_index] = index_mapping[dof][index_sub[linearized_index]];
           }
+#pragma endregion Corner
+#pragma region Edge
+          else {
+            //this is a edge
+            //adding a part of the negated corner gives the point coordinates like in Deal.ii such that we know which dof of a point it is.
+            double x_moved_point = element_coords[dof][point_index][0] + 1.0 / 100.0 * ((int)(!((bool)corners[dof][0])) - 0.5);
+            double y_moved_point = element_coords[dof][point_index][1] + 1.0 / 100.0 * ((int)(!((bool)corners[dof][1])) - 0.5);
+            double z_moved_point=0;
+            //check whether the x_ coordinate is on the x-axis boundary
+            if (element_coords[dof][point_index][0] == 0.0 || element_coords[dof][point_index][0] == 1.0) {
+              if (x_moved_point< 0.0 || x_moved_point > 1.0) {
+                //the moved point is outside the domain in x direction so copy the value from the negated x coordinate
+                x_moved_point = ((int)!(element_coords[dof][point_index][0]));
+              } else {
+                //x_ is inside the domain so keep this value
+                x_moved_point = element_coords[dof][point_index][0];
+              }
+            } else {
+              x_moved_point = element_coords[dof][point_index][0];
+            }
+
+            //same for the y coordinate: If y is at y-axis boundary 
+            if (element_coords[dof][point_index][1] == 0.0 || element_coords[dof][point_index][1] == 1.0) {
+              if (y_moved_point < 0.0 || y_moved_point > 1.0) {
+                //the moved point is outside the domain in y direction so copy the value from the negated y coordinate
+                y_moved_point = ((int)!(element_coords[dof][point_index][1]));
+              } else {
+                y_moved_point = element_coords[dof][point_index][1];
+              }
+            } else {
+              y_moved_point = element_coords[dof][point_index][1];
+            }
+
+            //the same for the z coordinate if we are three dimensional
+            if (dim == 3) {
+
+              //move the point in z-direction with a little offset according to the "direction" of the degree of freedom
+              z_moved_point = element_coords[dof][point_index][2] + 1.0 / 100.0 * ((int)(!((bool)corners[dof][2])) - 0.5);
+              if (element_coords[dof][point_index][2] == 0 || element_coords[dof][point_index][2] == 1) {
+                if (z_moved_point < 0 || z_moved_point > 1) {
+                  //the moved point is outside the domain in z direction so copy the value from the negated y coordinate
+                  z_moved_point = (int)!(element_coords[dof][point_index][2]);
+                } else {
+                  z_moved_point = element_coords[dof][point_index][2];
+                }
+              } else {
+                z_moved_point = element_coords[dof][point_index][2];
+              }
+            }
+            linearized_index = (Nx)*y_moved_point * (Ny - 1) + x_moved_point * (Nx - 1) + z_moved_point * (Nz - 1) * (Nx) * (Ny);
+            
+            index_mapping[dof][point_index] = index_mapping[dof][index_sub[linearized_index]];
+          }
+#pragma endregion Edge
         }
       }
     }
+#pragma endregion Index_mapping_boundary
 
     initialized_ = true;
   }
@@ -380,22 +350,22 @@ class TaskEnsemble : public Task {
       problem->solve();
       // Stats::stopEvent("Task "+std::to_string(this->getID()));
 
-    //process problem
-    problem->solve();
-    //Stats::stopEvent("Task "+std::to_string(this->getID()));
-    
-    std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
-    // std::cout << "result " << result.size() << " " << result[0].size() << std::endl;
-    // for (auto& r : result) {
-    //   for (auto& s : r) {
-    //       std::cout << s << " ";
-    //   }
-    //   std::cout << "," << std::endl;
-    // }
-    // std::cout << std::endl;
+      // process problem
+      problem->solve();
+      // Stats::stopEvent("Task "+std::to_string(this->getID()));
 
-      //iterate over all dfgs
-      for(unsigned int i_dash = 0; i_dash < dfgEnsemble_->getNumFullGrids(); i_dash++){
+      std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
+      // std::cout << "result " << result.size() << " " << result[0].size() << std::endl;
+      // for (auto& r : result) {
+      //   for (auto& s : r) {
+      //       std::cout << s << " ";
+      //   }
+      //   std::cout << "," << std::endl;
+      // }
+      // std::cout << std::endl;
+
+      // iterate over all dfgs
+      for (unsigned int i_dash = 0; i_dash < dfgEnsemble_->getNumFullGrids(); i_dash++) {
         auto& dfg = dfgEnsemble_->getDFG(i_dash);
         auto i = powerOfTwo[Problem::dim_] - i_dash - 1;
         std::vector<CombiDataType>& elements = dfg.getElementVector();
@@ -416,8 +386,8 @@ class TaskEnsemble : public Task {
         }
         coords_dealii[i][Problem::dim_] = exactSolution(coord, (stepsTotal_ + 1) * dt_);
       }
-    
-      for(unsigned int i_dash = 0; i_dash < dfgEnsemble_->getNumFullGrids(); i_dash++){
+
+      for (unsigned int i_dash = 0; i_dash < dfgEnsemble_->getNumFullGrids(); i_dash++) {
         auto& dfg = dfgEnsemble_->getDFG(i_dash);
         auto i = powerOfTwo[Problem::dim_] - i_dash - 1;
         std::vector<CombiDataType>& elements = dfg.getElementVector();
@@ -432,8 +402,9 @@ class TaskEnsemble : public Task {
     table.stop("time->fullgrid");
     this->setFinished(true);
     // for(unsigned int i = 0; i< dfgEnsemble_->getNumFullGrids(); ++i) {
-    //   std::cout << GridEnumeration::isHigherInDimension(static_cast<char>(0), i) << " " << GridEnumeration::isHigherInDimension(static_cast<char>(1), i) << std::endl;
-    //   std::cout << dfgEnsemble_->getDFG(i) << std::endl;
+    //   std::cout << GridEnumeration::isHigherInDimension(static_cast<char>(0), i) << " " <<
+    //   GridEnumeration::isHigherInDimension(static_cast<char>(1), i) << std::endl; std::cout <<
+    //   dfgEnsemble_->getDFG(i) << std::endl;
     // }
   }
 

@@ -25,7 +25,7 @@
 
 //TODO: global variables needed in hyperdeal
 typedef double Number;
-const unsigned int dim    = 2;
+const unsigned int dim    = 3;
 const unsigned int degree = 1; /*dummy value*/
 typedef dealii::VectorizedArray<Number, 1> VectorizedArrayType;
 typedef dealii::LinearAlgebra::distributed::Vector<Number> VectorType;
