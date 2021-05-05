@@ -407,10 +407,19 @@ class TaskEnsemble : public Task {
     //Stats::stopEvent("Task "+std::to_string(this->getID()));
     
     std::vector<std::array<Number, Problem::dim_ + 2>> result = problem->get_result();
+    // std::cout << "result " << result.size() << " " << result[0].size() << std::endl;
+    // for (auto& r : result) {
+    //   for (auto& s : r) {
+    //       std::cout << s << " ";
+    //   }
+    //   std::cout << "," << std::endl;
+    // }
+    // std::cout << std::endl;
 
       //iterate over all dfgs
-      for(unsigned int i = 0; i < dfgEnsemble_->getNumFullGrids(); i++){         
-        auto& dfg = dfgEnsemble_->getDFG(i);
+      for(unsigned int i_dash = 0; i_dash < dfgEnsemble_->getNumFullGrids(); i_dash++){
+        auto& dfg = dfgEnsemble_->getDFG(i_dash);
+        auto i = powerOfTwo[Problem::dim_] - i_dash - 1;
         std::vector<CombiDataType>& elements = dfg.getElementVector();
   
         //iterate over the elements of this dfg
@@ -434,8 +443,9 @@ class TaskEnsemble : public Task {
         coords_dealii[i][Problem::dim_]=exactSolution(coord,(stepsTotal_+1)*dt_);
       }
     
-      for(unsigned int i = 0; i < dfgEnsemble_->getNumFullGrids(); i++){         
-        auto& dfg = dfgEnsemble_->getDFG(i);
+      for(unsigned int i_dash = 0; i_dash < dfgEnsemble_->getNumFullGrids(); i_dash++){
+        auto& dfg = dfgEnsemble_->getDFG(i_dash);
+        auto i = powerOfTwo[Problem::dim_] - i_dash - 1;
         std::vector<CombiDataType>& elements = dfg.getElementVector();
   
         //iterate over the elements of this dfg
@@ -450,6 +460,10 @@ class TaskEnsemble : public Task {
     stepsTotal_ ++;
     table.stop("time->fullgrid");
     this->setFinished(true);
+    // for(unsigned int i = 0; i< dfgEnsemble_->getNumFullGrids(); ++i) {
+    //   std::cout << GridEnumeration::isHigherInDimension(static_cast<char>(0), i) << " " << GridEnumeration::isHigherInDimension(static_cast<char>(1), i) << std::endl;
+    //   std::cout << dfgEnsemble_->getDFG(i) << std::endl;
+    // }
   }
 
    double exactSolution(std::array<Number, Problem::dim_ > coordinates, double time){
