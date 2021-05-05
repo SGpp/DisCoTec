@@ -286,7 +286,7 @@ class DistributedFullGrid {
     value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
 
     if (request == nullptr) {
-      //MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
+      MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
     } else {
       MPI_Iallreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator(), request);
     }
