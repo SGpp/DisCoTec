@@ -226,8 +226,9 @@ int main(int argc, char** argv) {
     }
 
     // create combiparameters
+    auto reduceCombinationDimsLmax = std::vector<IndexType>(dim, 1);
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p,
-                           std::vector<IndexType>(dim, 0), std::vector<IndexType>(dim, 0), forwardDecomposition, thirdLevelHost,
+                           std::vector<IndexType>(dim, 0), reduceCombinationDimsLmax, forwardDecomposition, thirdLevelHost,
                            thirdLevelPort, 0);
 
     // create abstraction for Manager

@@ -450,6 +450,9 @@ void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
   // checking for valid combi step
   assert(currentCombi >= 0 && totalNumberOfCombis >= 0 && currentCombi <= totalNumberOfCombis);
 
+  // this if-clause is currently always true, as initCombinedUniDSGVector is called only once,
+  // at the beginning of the computation.
+  // Leaving it here, in case the SG subspaces need to be re-initialized at some point.
   if (currentCombi < totalNumberOfCombis - 1) {  // do not reduce in last iteration
     for (size_t i = 0; i < reduceLmin.size(); ++i) {
       assert(reduceLmax[i] >= 0 && reduceLmin[i] >= 0);  // check for valid reduce values
