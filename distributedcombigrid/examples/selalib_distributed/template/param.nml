@@ -9,6 +9,7 @@
 
 &restart_params
         restart = .false.
+        n_diagnostics = $n_diagnostics
 /
 
 &grid_dims

@@ -106,7 +106,7 @@ void setCheckpointRestart(std::string basename, std::vector<LevelVector> levels,
 }
 
 bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, IndexVector p,
-                       size_t nsteps, double dt, std::string suffix = "") {
+                       size_t nsteps, double dt, size_t n_diagnostics, std::string suffix = "") {
   std::string baseFolder = "./" + basename;
   std::string templateFolder = "./template";
   assert(fs::exists(templateFolder));
@@ -122,6 +122,7 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, In
     auto contents = getFile(inputFileStream);
     contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
     contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
+    contents = replaceFirstOccurrence(contents, "$n_diagnostics", std::to_string(n_diagnostics));
     for (DimType d = 0; d < levels[0].size(); ++d) {
       contents =
           replaceFirstOccurrence(contents, "$nx" + std::to_string(d + 1),
@@ -230,6 +231,8 @@ int main(int argc, char** argv) {
 
     cfg.get<std::string>("ct.lmin") >> lmin;
 
+    size_t veryHighNumber = 2147483647; // =2^31-1
+
     // check parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
 
@@ -271,7 +274,7 @@ int main(int argc, char** argv) {
       setCheckpointRestart(basename, levels);
     } else {
       // create necessary folders and files to run each task in a separate folder
-      createTaskFolders(basename, levels, p, nsteps, dt);
+      createTaskFolders(basename, levels, p, nsteps, dt, veryHighNumber);
     }
 
     // create Tasks
@@ -290,13 +293,14 @@ int main(int argc, char** argv) {
     }
     Task* levalTask;
     if (haveDiagnosticsTask) {
+      assert(reduceCombinationDimsLmax == LevelVector(dim, 0));
       // initialize diagnostics task
       if (checkpointRestart){
         // change the restart parameter
         setCheckpointRestart(basename, std::vector<LevelVector>(1, leval), "_leval_");
       } else {
         // create necessary folder and files to have diagnostics task in a different folder
-        createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, "_leval_");
+        createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, 1, "_leval_");
       }
       std::string path = baseFolder + "_leval_0";
       auto levalCoefficient = 0.;
