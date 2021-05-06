@@ -145,6 +145,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     manager.combine();
     std::cout << "combined " << ngroup << " " << nprocs << std::endl;
 
+    BOOST_TEST_CHECKPOINT("write solution");
     std::string filename("integration_" + std::to_string(ncombi) + ".raw");
     Stats::startEvent("manager write solution");
     manager.parallelEval( lmax, filename, 0 );
@@ -152,7 +153,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     std::cout << "wrote solution  " << ngroup << " " << nprocs << std::endl;
 
     // test Monte-Carlo interpolation
+    BOOST_TEST_CHECKPOINT("MC interpolation coordinates");
     auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
+    BOOST_TEST_CHECKPOINT("MC interpolation");
     Stats::startEvent("manager interpolate");
     auto values = manager.interpolateValues(interpolationCoords);
     Stats::stopEvent("manager interpolate");
