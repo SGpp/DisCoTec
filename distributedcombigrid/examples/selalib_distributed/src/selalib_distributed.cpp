@@ -168,8 +168,10 @@ int main(int argc, char** argv) {
   }
 
   // read in parameter file
+  std::string paramfile = "ctparam";
+  if (argc > 1) paramfile = argv[1];
   boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini("ctparam", cfg);
+  boost::property_tree::ini_parser::read_ini(paramfile, cfg);
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
