@@ -81,8 +81,8 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       // dfg.print(std::cout);
       // std::cout << std::endl;
-      // ParaboloidFn<CombiDataType> initialFunction;
       TestFnCount<CombiDataType> initialFunction;
+      // ParaboloidFn<CombiDataType> initialFunction;
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         std::vector<double> coords(dfg.getDimension());
         dfg.getCoordsLocal(li, coords);
@@ -222,26 +222,36 @@ void testCombineThirdLevel(TestParams& testParams) {
     }
 
     // test Monte-Carlo interpolation
-    auto interpolationCoords = montecarlo::getRandomCoordinates(1000, testParams.dim);
-    Stats::startEvent("manager interpolate");
-    auto values = manager.interpolateValues(interpolationCoords);
-    Stats::stopEvent("manager interpolate");
-
+    std::vector<std::vector<real>> interpolationCoords;
+    std::vector<real> values (1000);
     real l2ErrorSingle = 0.;
     TestFnCount<CombiDataType> initialFunction;
-    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-      l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
-    }
+    // ParaboloidFn<CombiDataType> initialFunction;
 
     // compare to third-level monte carlo interpolation
     manager.monteCarloThirdLevel(1000, interpolationCoords, values);
     real l2ErrorTwoSystems = 0.;
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
       l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
+      // l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i]) - values[i], 2);
     }
+
+    Stats::startEvent("manager interpolate");
+    values = manager.interpolateValues(interpolationCoords);
+    Stats::stopEvent("manager interpolate");
+
+    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+      l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
+      // l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i]) - values[i], 2);
+    }
+
     std::cout << "Monte carlo errors are " << l2ErrorSingle << " on this system and " <<
       l2ErrorTwoSystems << " in total. boundary: " << boundary << std::endl;
-    BOOST_CHECK_LE(l2ErrorTwoSystems, l2ErrorSingle);
+    // only do check if no boundary, otherwise all components interpolate exactly on the hyperplane anyways
+    auto hasBoundary = std::all_of(boundary.begin(), boundary.end(), [] (bool b) {return std::forward<bool>(b);});
+    if (!hasBoundary) {
+      BOOST_CHECK_LE(l2ErrorTwoSystems, l2ErrorSingle);
+    }
 
     std::string filename("thirdLevel_" + std::to_string(testParams.ncombi) + ".raw");
     Stats::startEvent("manager write solution");
