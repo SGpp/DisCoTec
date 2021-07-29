@@ -1,5 +1,5 @@
-CC=g++
-CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall
+CC=mpicxx
+CFLAGS=-std=c++11 -O3 -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall
 
 SGPP_SRC=../src/
 THIRD_LEVEL_INC=$(SGPP_SRC)/sgpp/distributedcombigrid/third_level/

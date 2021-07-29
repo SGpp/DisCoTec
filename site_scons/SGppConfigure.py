@@ -127,7 +127,7 @@ def checkCpp11(config):
     Helper.printErrorAndExit("The compiler doesn't seem to support the C++11 standard. Abort!")
     Exit(1)
 
-  config.env.AppendUnique(CPPFLAGS="-std=c++11")
+  config.env.PrependUnique(CPPFLAGS="-std=c++11")
 
 def checkDoxygen(config):
   if not config.env["DOC"]:

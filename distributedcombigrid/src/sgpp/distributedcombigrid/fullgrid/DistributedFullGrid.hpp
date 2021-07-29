@@ -1715,8 +1715,8 @@ class DistributedFullGrid {
 
     // if I have a higher neighbor, I need to send my highest layer in d to them,
     // if I have a lower neighbor, I can receive it
-    auto lower = MPI_PROC_NULL;
-    auto higher = MPI_PROC_NULL;
+    int lower = MPI_PROC_NULL;
+    int higher = MPI_PROC_NULL;
 
     // somehow the cartesian directions in the communicator are reversed
     // cf InitMPI(...)
