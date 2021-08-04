@@ -2,6 +2,8 @@
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
+
 
 namespace combigrid {
 
@@ -51,62 +53,23 @@ class TaskAdvection : public Task {
     start = MPI_Wtime();
 
     auto lrank = theMPISystem()->getLocalRank();
-    int np;
-    MPI_Comm_size(lcomm, &np);
-
-    /* create distributed full grid. we try to find a balanced ratio between
-     * the number of grid points and the number of processes per dimension
-     * by this very simple algorithm. to keep things simple we require powers
-     * of two for the number of processes here. */
-
-    // check if power of two
-    if (!((np > 0) && ((np & (~np + 1)) == np)))
-      assert(false && "number of processes not power of two");
-
     DimType dim = this->getDim();
-    IndexVector p(dim, 1);
     const LevelVector& l = this->getLevelVector();
-
-    if (p_.size() == 0) {
-      // compute domain decomposition
-      IndexType prod_p(1);
-
-      while (prod_p != static_cast<IndexType>(np)) {
-        DimType dimMaxRatio = 0;
-        real maxRatio = 0.0;
-
-        for (DimType k = 0; k < dim; ++k) {
-          real ratio = std::pow(2.0, l[k]) / p[k];
-
-          if (ratio > maxRatio) {
-            maxRatio = ratio;
-            dimMaxRatio = k;
-          }
-        }
-
-        p[dimMaxRatio] *= 2;
-        prod_p = 1;
-
-        for (DimType k = 0; k < dim; ++k) prod_p *= p[k];
-      }
-    } else {
-      p = p_;
-    }
 
     finish = MPI_Wtime();
 
     if (lrank == 0) {
       std::cout << "init task " << this->getID() << " with l = " << this->getLevelVector()
-                << " and p = " << p << " took " << finish - start;
+                << " and p = " << p_ << " took " << finish - start << std::flush;
     }
 
     start = MPI_Wtime();
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
-    phi_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
+    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_);
+    phi_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_);
     finish = MPI_Wtime();
     if (lrank == 0) {
-      std::cout << " created dfg_ and phi_ took " << finish - start;
+      std::cout << " created dfg_ and phi_ took " << finish - start << std::flush;
     }
 
     start = MPI_Wtime();
@@ -139,6 +102,12 @@ class TaskAdvection : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
     // dfg_->print(std::cout);
+    bool sizeOutput = (stepsTotal_ == 0);
+    auto lrank = theMPISystem()->getLocalRank();
+    auto lsize = theMPISystem()->getNumProcs();
+    if (sizeOutput && lrank == 0) {
+      std::cout << " run first " << dfg_->getNrLocalElements() << " " << std::flush;// << "decomp " << dfg_->getDecomposition() << " ";
+    }
 
     std::vector<CombiDataType> u(this->getDim(), 1);
 
@@ -153,17 +122,28 @@ class TaskAdvection : public Task {
 
       auto u_dot_dphi = std::vector<CombiDataType> (dfg_->getNrLocalElements(), 0.);
 
+    if (sizeOutput && lrank == 0) {
+      std::cout << " dphi " << std::flush;
+    }
+
+
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
         IndexVector subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         phi_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
         int subarrayOffset = 1;
+	int subarraySize = 1;
         IndexVector subarrayOffsets (this->getDim());
         for (DimType d_j = 0; d_j < dim_; ++d_j) {
           subarrayOffsets[d_j] = subarrayOffset;
           subarrayOffset *= subarrayExtents[d_j];
+	  subarraySize *= subarrayExtents[d_j];
         }
+
+    if (sizeOutput && lrank == lsize - 1) {
+      std::cout << subarraySize << " " << std::flush;
+    }
 
         for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
           // calculate local axis index of backward neighbor
@@ -208,7 +188,9 @@ class TaskAdvection : public Task {
         dfg_->writeUpperBoundaryToLowerBoundary(d);
       }
     }
-
+    if (sizeOutput && lrank == 0) {
+      std::cout << " finished step " << std::endl;
+    }
     stepsTotal_ += nsteps_;
 
     this->setFinished(true);
@@ -252,7 +234,7 @@ class TaskAdvection : public Task {
    * this constructor before overwriting the variables that are set by the
    * manager. here we need to set the initialized variable to make sure it is
    * set to false. */
-  TaskAdvection() : initialized_(false), stepsTotal_(1), dfg_(nullptr), phi_(nullptr) {}
+  TaskAdvection() : initialized_(false), stepsTotal_(0), dfg_(nullptr), phi_(nullptr) {}
 
  private:
   friend class boost::serialization::access;
