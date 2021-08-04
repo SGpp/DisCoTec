@@ -515,6 +515,11 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
         new DistributedSparseGridUniform<CombiDataType>(dim, subspaces, boundary,
                                                         theMPISystem()->getLocalComm()));
+#ifdef DEBUG_OUTPUT
+    MASTER_EXCLUSIVE_SECTION {
+      std::cout << "dsg size: " << uniDSG->getRawDataSize() << " * " << sizeof(CombiDataType) << std::endl;
+    }
+#endif // def DEBUG_OUTPUT
   }
 
   // set subspace sizes local and global

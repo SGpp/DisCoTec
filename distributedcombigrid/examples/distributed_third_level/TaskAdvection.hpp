@@ -156,7 +156,8 @@ class TaskAdvection : public Task {
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
         IndexVector subarrayExtents;
-        auto phi_ghost = phi_->exchangeGhostLayerUpward(d, subarrayExtents);
+        std::vector<CombiDataType> phi_ghost{};
+        phi_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
         int subarrayOffset = 1;
         IndexVector subarrayOffsets (this->getDim());
         for (DimType d_j = 0; d_j < dim_; ++d_j) {

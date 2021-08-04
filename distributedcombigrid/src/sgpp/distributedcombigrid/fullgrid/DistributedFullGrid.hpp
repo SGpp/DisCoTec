@@ -1706,7 +1706,8 @@ class DistributedFullGrid {
     assert(success == MPI_SUCCESS);
   }
 
-  std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents) {
+  // non-RVO dependent version of ghost layer exchange
+  void exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents, std::vector<FG_ELEMENT>& recvbuffer) {
     subarrayExtents = this->getLocalSizes();
     subarrayExtents[d] = 1;
 
@@ -1741,7 +1742,7 @@ class DistributedFullGrid {
       numElements = 0;
       subarrayExtents = IndexVector(this->getDimension(), 0);
     }
-    auto recvbuffer = std::vector<FG_ELEMENT>(numElements);
+    recvbuffer = std::vector<FG_ELEMENT>(numElements);
 
     // TODO asynchronous over d??
     auto success =
@@ -1749,7 +1750,11 @@ class DistributedFullGrid {
                      recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
+  }
 
+  std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents) {
+    std::vector<FG_ELEMENT> recvbuffer{};
+    exchangeGhostLayerUpward(d, subarrayExtents, recvbuffer);
     return recvbuffer;
   }
 
