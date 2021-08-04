@@ -204,7 +204,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     //
     // Reduce combination dims lmin and lmax are 0!!
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+    params.setParallelization({static_cast<long>(nprocs), 1});
 
 
     // create abstraction for Manager
