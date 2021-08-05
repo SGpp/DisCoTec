@@ -5,27 +5,18 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
+#include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPIMemory.hpp"
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
+
 #include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
-#include <boost/serialization/export.hpp>
 #include <string>
 #include <vector>
 
-// compulsory includes for basic functionality
-#include "sgpp/distributedcombigrid/utils/Types.hpp"
-// include user specific task. this is the interface to your application
-
-// to allow using test tasks
-#define BOOST_CHECK
+#include <iostream>
 
 using namespace combigrid;
-
-// this is necessary for correct function of task serialization
-BOOST_CLASS_EXPORT(TaskAdvection)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-BOOST_CLASS_EXPORT(FaultCriterion)
 
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
@@ -58,7 +49,7 @@ int main(int argc, char** argv) {
   Stats::finalize();
 
   /* write stats to json file for postprocessing */
-  Stats::write("timers.json");
+  Stats::write("timers_memory.json");
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     std::cout << "after everything" << std::flush;
@@ -69,3 +60,4 @@ int main(int argc, char** argv) {
 
   return 0;
 }
+
