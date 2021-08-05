@@ -49,41 +49,19 @@ int get_memory_usage_kb(unsigned long* vmrss_kb, unsigned long* vmsize_kb) {
   return (found_vmrss == 1 && found_vmsize == 1) ? 0 : 1;
 }
 
-int get_cluster_memory_usage_kb(unsigned long* vmrss_per_process, unsigned long* vmsize_per_process,
-                                int np, CommunicatorType comm) {
-  unsigned long vmrss_kb;
-  unsigned long vmsize_kb;
-  int ret_code = get_memory_usage_kb(&vmrss_kb, &vmsize_kb);
+int get_all_memory_usage_kb(unsigned long* vmrss, unsigned long* vmsize, int np,
+                            CommunicatorType comm) {
 
+  unsigned long vmrss_kb, vmsize_kb;
+  int ret_code = get_memory_usage_kb(&vmrss_kb, &vmsize_kb);
   if (ret_code != 0) {
     printf("Could not gather memory usage!\n");
     return ret_code;
   }
 
-  MPI_Allgather(&vmrss_kb, 1, MPI_UNSIGNED_LONG, vmrss_per_process, 1, MPI_UNSIGNED_LONG, comm);
+  MPI_Allreduce(&vmrss_kb, vmrss, 1, MPI_UNSIGNED_LONG, MPI_SUM, comm);
 
-  MPI_Allgather(&vmsize_kb, 1, MPI_UNSIGNED_LONG, vmsize_per_process, 1, MPI_UNSIGNED_LONG, comm);
-
-  return 0;
-}
-
-int get_all_memory_usage_kb(unsigned long* vmrss, unsigned long* vmsize, int np,
-                            CommunicatorType comm) {
-  unsigned long vmrss_per_process[np];
-  unsigned long vmsize_per_process[np];
-  int ret_code = get_cluster_memory_usage_kb(vmrss_per_process, vmsize_per_process, np, comm);
-
-  if (ret_code != 0) {
-    return ret_code;
-  }
-
-  *vmrss = 0;
-  *vmsize = 0;
-  for (int i = 0; i < np; i++) {
-    *vmrss += vmrss_per_process[i];
-    *vmsize += vmsize_per_process[i];
-  }
-
+  MPI_Allreduce(&vmsize_kb, vmsize, 1, MPI_UNSIGNED_LONG, MPI_SUM, comm);
   return 0;
 }
 
@@ -96,18 +74,19 @@ void print_memory_usage_local() {
   unsigned long local_vmrss, local_vmsize;
   get_memory_usage_local_kb(&local_vmrss, &local_vmsize);
   if (theMPISystem()->getLocalRank() == 0) {
-    printf("\n local memory usage: VmRSS = %6ld KB, VmSize = %6ld KB\n", local_vmrss, local_vmsize);
+    printf("\n ,local memory usage (KB): %3ld, %6ld, %6ld\n", theMPISystem()->getNumProcs(), local_vmrss, local_vmsize);
   }
 }
 
 void print_memory_usage_world() {
   unsigned long global_vmrss, global_vmsize;
+  auto commSize = getCommSize(MPI_COMM_WORLD);
   // get_all_memory_usage_kb(&global_vmrss, &global_vmsize,
   // getCommSize(theMPISystem()->getWorldComm()), theMPISystem()->getWorldComm());
-  get_all_memory_usage_kb(&global_vmrss, &global_vmsize, getCommSize(MPI_COMM_WORLD),
+  get_all_memory_usage_kb(&global_vmrss, &global_vmsize, commSize,
                           MPI_COMM_WORLD);
-  WORLD_MANAGER_EXCLUSIVE_SECTION {
-    printf("\n world memory usage: VmRSS = %6ld KB, VmSize = %6ld KB\n", global_vmrss,
+  if (getCommRank(MPI_COMM_WORLD) == 0) {
+    printf("\n ,world memory usage (KB): %3ld, %6ld, %6ld\n", commSize, global_vmrss,
            global_vmsize);
   }
 }
