@@ -30,9 +30,6 @@ namespace mpimemory {
  */
 int get_memory_usage_kb(unsigned long* vmrss_kb, unsigned long* vmsize_kb);
 
-int get_cluster_memory_usage_kb(unsigned long* vmrss_per_process, unsigned long* vmsize_per_process,
-                                int root, int np, CommunicatorType comm);
-
 int get_all_memory_usage_kb(unsigned long* vmrss, unsigned long* vmsize, int np,
                             CommunicatorType comm);
 
