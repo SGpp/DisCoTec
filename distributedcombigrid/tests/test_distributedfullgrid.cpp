@@ -33,6 +33,63 @@ class TestFn {
   }
 };
 
+void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
+  auto commSize = getCommSize(MPI_COMM_WORLD);
+  std::vector<size_t> groupSizes;
+  // TODO allow non-pow2 group sizes
+  size_t groupSize = 1;
+  while (groupSize <= commSize) {
+    groupSizes.push_back(groupSize);
+    groupSize *= 2;
+  }
+  std::vector<long unsigned int> vmSizes(groupSizes.size());
+  std::vector<long unsigned int> vmSizesReference(groupSizes.size());
+  const DimType dim = levels.size();
+  IndexVector procs(dim, 1);
+  std::vector<bool> boundary(dim, true);
+
+  for (size_t i = 0; i < groupSizes.size(); ++i) {
+    // get memory footprints for after allocating different dfgs
+    CommunicatorType comm = TestHelper::getComm(groupSizes[i]);
+
+    long unsigned int vmRSS, vmSize = 0;
+    if (comm != MPI_COMM_NULL) {
+      if (TestHelper::getRank(comm) == 0) {
+        std::cout << "test distributedfullgrid memory" << levels << groupSizes[i] << procs
+                  << std::endl;
+      }
+      if (getCommRank(comm) == 0) {
+        std::cout << "before grid " << std::flush;
+      }
+      mpimemory::print_memory_usage_comm(comm);
+
+      // get current global memory footprint
+      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], MPI_COMM_WORLD);
+      // create dfg
+      DistributedFullGrid<double> dfg(dim, levels, comm, boundary, procs, forward);
+
+      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, MPI_COMM_WORLD);
+    } else {
+      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], MPI_COMM_WORLD);
+      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, MPI_COMM_WORLD);
+    }
+    vmSizes[i] = vmSize - vmSizesReference[i];
+    // compare allocated memory sizes
+    // check for linear scaling (grace 10%)
+    if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
+      std::cout << "reference: " << vmSizesReference[i] << ", vmSize: " << vmSizes[i] << std::endl;
+      if (i > 0) {
+        BOOST_TEST(static_cast<double>(vmSizes[i]) <= (vmSizes[0] * 1.1));
+      }
+    }
+    // update parallelization so it matches the next groupSize
+    procs[i % dim] *= 2;
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  TestHelper::testStrayMessages();
+}
+
 void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vector<bool>& boundary,
                               int size, bool forward = false) {
   CommunicatorType comm = TestHelper::getComm(size);
@@ -379,6 +436,27 @@ BOOST_AUTO_TEST_CASE(test_18) {
   std::vector<bool> boundary(3, false);
   boundary[2] = true;
   checkDistributedFullgrid(levels, procs, boundary, 8, true);
+}
+
+// memory
+BOOST_AUTO_TEST_CASE(test_19) {
+  // level sum = 17 -> if sizeof(double) == 8,
+  // the grid's payload should be ~1 MB
+  // (2^17 * 8 / 2^20 = 1)
+  LevelVector levels = {9, 8};
+  checkDistributedFullgridMemory(levels, false);
+}
+BOOST_AUTO_TEST_CASE(test_20) {
+  LevelVector levels = {6, 6, 5};
+  checkDistributedFullgridMemory(levels, false);
+}
+BOOST_AUTO_TEST_CASE(test_21) {
+  LevelVector levels = {5, 4, 4, 4};
+  checkDistributedFullgridMemory(levels, false);
+}
+BOOST_AUTO_TEST_CASE(test_22) {
+  LevelVector levels = {3, 3, 3, 3, 3, 2};
+  checkDistributedFullgridMemory(levels, false);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
