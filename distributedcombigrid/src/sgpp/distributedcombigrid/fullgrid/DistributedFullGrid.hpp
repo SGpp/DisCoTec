@@ -195,10 +195,18 @@ class DistributedFullGrid {
   // copy construction would need to duplicate communicator_
   DistributedFullGrid(const DistributedFullGrid& other) = delete;
   DistributedFullGrid& operator=( const DistributedFullGrid & ) = delete;
+  DistributedFullGrid(DistributedFullGrid&& other) = delete;
+  DistributedFullGrid& operator=(DistributedFullGrid&& other) = delete;
 
   virtual ~DistributedFullGrid() {
     // todo: remove communicators? Yes -> Done
     MPI_Comm_free(&communicator_);
+    for (size_t i = 0; i < upwardSubarrays_.size(); ++i)  {
+      MPI_Type_free(&upwardSubarrays_[i]);
+    }
+    for (size_t i = 0; i < downwardSubarrays_.size(); ++i)  {
+      MPI_Type_free(&downwardSubarrays_[i]);
+    }
   }
 
   FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex, const std::vector<real>& coords) const {
@@ -502,9 +510,6 @@ class DistributedFullGrid {
       return -1;
     }
   }
-
-  /** returns pointer to the basis function */
-  inline const BasisFunctionBasis* getBasisFct() const { return basis_; }
 
   /** returns the dimension of the full grid */
   inline DimType getDimension() const { return dim_; }
@@ -1540,6 +1545,7 @@ class DistributedFullGrid {
 
     // close file
     MPI_File_close(&fh);
+    MPI_Type_free(&mysubarray);
   }
 
   const std::vector<IndexVector>& getDecomposition() const { return decomposition_; }
@@ -1727,9 +1733,6 @@ class DistributedFullGrid {
   /** the full grid vector, this contains the elements of the full grid */
   std::vector<FG_ELEMENT> fullgridVector_;
 
-  /** pointer to the function basis*/
-  const BasisFunctionBasis* basis_;
-
   /** Variables for the distributed Full Grid*/
   /** Cartesien MPI Communicator  */
   CommunicatorType communicator_;
@@ -1786,7 +1789,6 @@ class DistributedFullGrid {
   // contains for each (local) gridpoint assigment to subspace
   // we use short unsigned int (2 bytes) to save memory
   std::vector<unsigned short int> assigmentList_;
-  std::vector<unsigned short int> assigmentList2_;
 
   size_t maxSubspaceSize_;
 
