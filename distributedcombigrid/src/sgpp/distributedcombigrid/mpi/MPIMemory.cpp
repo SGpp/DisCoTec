@@ -49,8 +49,7 @@ int get_memory_usage_kb(unsigned long* vmrss_kb, unsigned long* vmsize_kb) {
   return (found_vmrss == 1 && found_vmsize == 1) ? 0 : 1;
 }
 
-int get_all_memory_usage_kb(unsigned long* vmrss, unsigned long* vmsize, int np,
-                            CommunicatorType comm) {
+int get_all_memory_usage_kb(unsigned long* vmrss, unsigned long* vmsize, CommunicatorType comm) {
 
   unsigned long vmrss_kb, vmsize_kb;
   int ret_code = get_memory_usage_kb(&vmrss_kb, &vmsize_kb);
@@ -66,8 +65,7 @@ int get_all_memory_usage_kb(unsigned long* vmrss, unsigned long* vmsize, int np,
 }
 
 int get_memory_usage_local_kb(unsigned long* local_vmrss, unsigned long* local_vmsize) {
-  return get_all_memory_usage_kb(local_vmrss, local_vmsize, theMPISystem()->getNumProcs(),
-                                 theMPISystem()->getLocalComm());
+  return get_all_memory_usage_kb(local_vmrss, local_vmsize, theMPISystem()->getLocalComm());
 }
 
 void print_memory_usage_local() {
@@ -81,13 +79,21 @@ void print_memory_usage_local() {
 void print_memory_usage_world() {
   unsigned long global_vmrss, global_vmsize;
   auto commSize = getCommSize(MPI_COMM_WORLD);
-  // get_all_memory_usage_kb(&global_vmrss, &global_vmsize,
-  // getCommSize(theMPISystem()->getWorldComm()), theMPISystem()->getWorldComm());
-  get_all_memory_usage_kb(&global_vmrss, &global_vmsize, commSize,
-                          MPI_COMM_WORLD);
+  // get_all_memory_usage_kb(&global_vmrss, &global_vmsize, theMPISystem()->getWorldComm());
+  get_all_memory_usage_kb(&global_vmrss, &global_vmsize, MPI_COMM_WORLD);
   if (getCommRank(MPI_COMM_WORLD) == 0) {
     printf("\n ,world memory usage (KB): %3ld, %6ld, %6ld\n", commSize, global_vmrss,
            global_vmsize);
+  }
+}
+
+void print_memory_usage_comm(CommunicatorType comm) {
+  unsigned long comm_vmrss, comm_vmsize;
+  auto commSize = getCommSize(comm);
+  get_all_memory_usage_kb(&comm_vmrss, &comm_vmsize, comm);
+  if (getCommRank(comm) == 0) {
+    printf(", comm memory usage (KB): %3ld, %6ld, %6ld\n", commSize, comm_vmrss,
+           comm_vmsize);
   }
 }
 
