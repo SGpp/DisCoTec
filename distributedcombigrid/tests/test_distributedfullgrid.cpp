@@ -44,13 +44,10 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
     groupSize *= 2;
   }
   std::vector<long unsigned int> vmSizes(groupSizes.size());
+  std::vector<long unsigned int> vmSizesReference(groupSizes.size());
   const DimType dim = levels.size();
   IndexVector procs(dim, 1);
   std::vector<bool> boundary(dim, true);
-
-  // get current global memory footprint
-  long unsigned int vmRSSReference, vmSizeReference = 0;
-  mpimemory::get_all_memory_usage_kb(&vmRSSReference, &vmSizeReference, MPI_COMM_WORLD);
 
   for (size_t i = 0; i < groupSizes.size(); ++i) {
     // get memory footprints for after allocating different dfgs
@@ -62,23 +59,27 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
         std::cout << "test distributedfullgrid memory" << levels << groupSizes[i] << procs
                   << std::endl;
       }
-      // if (getCommRank(comm) == 0) {
-      //   std::cout << "before grid " << std::flush;
-      // }
-      // mpimemory::print_memory_usage_comm(comm);
+      if (getCommRank(comm) == 0) {
+        std::cout << "before grid " << std::flush;
+      }
+      mpimemory::print_memory_usage_comm(comm);
+
+      // get current global memory footprint
+      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], MPI_COMM_WORLD);
       // create dfg
       DistributedFullGrid<double> dfg(dim, levels, comm, boundary, procs, forward);
 
       mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, MPI_COMM_WORLD);
     } else {
+      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], MPI_COMM_WORLD);
       mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, MPI_COMM_WORLD);
     }
-    vmSizes[i] = vmSize - vmSizeReference;
-    if (i > 0) {
-      // compare allocated memory sizes
-      // check for linear scaling (grace 10%)
-      if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
-        std::cout << "vmSize: " << vmSizes[i] << std::endl;
+    vmSizes[i] = vmSize - vmSizesReference[i];
+    // compare allocated memory sizes
+    // check for linear scaling (grace 10%)
+    if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
+      std::cout << "reference: " << vmSizesReference[i] << ", vmSize: " << vmSizes[i] << std::endl;
+      if (i > 0) {
         BOOST_TEST(static_cast<double>(vmSizes[i]) <= (vmSizes[0] * 1.1));
       }
     }
