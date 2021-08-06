@@ -21,17 +21,22 @@
 
 namespace combigrid {
 
+// a struct to hold information on the hierarchical subspaces contained in this grid
 template <typename FG_ELEMENT>
 struct SubspaceDFG {
+  // the hierarchical level
   LevelVector level_;
 
+  // size of the subspace, in each dimension
   IndexVector sizes_;
 
   // // the data in this subspace
   // std::vector<FG_ELEMENT> data_;
 
-  size_t targetSize_;
+  // // the total number of grid points in this subspace
+  // size_t targetSize_;
 
+  // the number of grid points resident in this partition of the grid
   size_t localSize_;
 };
 
@@ -73,12 +78,6 @@ class DistributedFullGrid {
     hasBoundaryPoints_ = hasBdrPoints;
 
     InitMPI(comm);  // will also check grids per dim
-
-    // set the basis function for the full grid
-    if (basis == NULL)
-      basis_ = LinearBasisFunction::getDefaultBasis();
-    else
-      basis_ = basis;
 
     // set global num of elements and offsets
     nrElements_ = 1;
@@ -137,7 +136,6 @@ class DistributedFullGrid {
     calcDecompositionCoords();
 
     calcSubspaces();
-    subspacesFilled_ = false;
 
     if (subspaces_.size() > 65535)
       assert(false &&
@@ -892,6 +890,58 @@ class DistributedFullGrid {
   //   subspacesFilled_ = true;
   // }
 
+  // size_t getLocalSizeOfSubspaceOnThisPartition(LevelVector level) {
+  //   assert(false);
+  //   return 0;
+  // }
+
+  // /**
+  //  * @brief "registers" the DistributedSparseGridUniform with this DistributedFullGrid:
+  //  *        sets the dsg_ member,
+  //  *        and sets the dsg's subspaceSizes where they are not yet set
+  //  *
+  //  * @param dsg the DSG to register
+  //  */
+  // void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
+  //   dsg_ = &dsg;
+
+  //   // calcAssigmentList();
+  //   // a sparse grid that holds all the hierarchical subspaces
+  //   //    contained in this full grid
+  //   SGrid<bool> sg(dim_, levels_, levels_, hasBoundaryPoints_);
+  //   // resize all common subspaces in dsg, if necessary
+  //   for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
+  //     auto level = sg.getLevelVector(subspaceID);
+  //     auto index = dsg.getIndex(level);
+  //     if (index < 0) continue;
+
+  //     IndexType subSgId = index;
+
+  //     std::vector<FG_ELEMENT>& subSgData = dsg.getDataVector(index);
+
+  //     auto lsize = getLocalSizeOfSubspaceOnThisPartition(level);
+
+  //     // resize DSG subspace if it has zero size
+  //     if (subSgData.size() == 0) {
+  //       subSgData.resize(lsize);
+  //     } else {
+  //       ASSERT(subSgData.size() == lsize,
+  //              "subSgData.size(): " << subSgData.size() << ", lsize: "
+  //                                   << lsize << std::endl);
+  //     }
+  //   }
+  //   // if localFGIndexToLocalSGIndexList_ was already initialized,
+  //   // it is invalidated now
+  //   localFGIndexToLocalSGIndexList_.clear();
+  // }
+
+  /**
+   * @brief "registers" the DistributedSparseGridUniform with this DistributedFullGrid:
+   *        sets the dsg_ and subspaceAssigmentList_ members,
+   *        and sets the dsg's subspaceSizes where they are not yet set
+   *
+   * @param dsg the DSG to register
+   */
   void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     // check if dsg already registered
     // if (dsg_ == &dsg)
@@ -914,15 +964,78 @@ class DistributedFullGrid {
 
       std::vector<FG_ELEMENT>& subSgData = dsg.getDataVector(subSgId);
 
-      if (subSgData.size() == 0)
+      if (subSgData.size() == 0) {
         subSgData.resize(subspaces_[subFgId].localSize_);
-      else
+      } else {
         ASSERT(subSgData.size() == subspaces_[subFgId].localSize_,
                "subSgData.size(): " << subSgData.size() << ", subspaces_[subFgId].localSize_: "
                                     << subspaces_[subFgId].localSize_ << std::endl);
+      }
     }
   }
 
+  // /**
+  //  * @brief set localFGIndexToLocalSGIndexList_ based on the current sizes of
+  //  *        dsg_ (may have changed as other grids were registered)
+  //  */
+  // std::vector<size_t>& getLocalFGIndexToLocalSGIndexList() {
+  //   if (localFGIndexToLocalSGIndexList_.size() == 0) {
+  //     assert(false);
+
+
+  //     // create iterator for each subspace in dfg
+  //     typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
+  //     typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList_.size());
+
+  //     for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
+  //       if (subspaceAssigmentList_[subFgId] < 0) continue;
+
+  //       IndexType subSgId = subspaceAssigmentList_[subFgId];
+
+  //       it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
+  //     }
+
+
+  //     size_t subFgId(assigmentList_[i]);
+
+  //     if (subspaceAssigmentList_[subFgId] < 0) continue;
+
+  //     IndexType subSgId = subspaceAssigmentList_[subFgId];
+
+  //     assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
+  //   }
+  //   return localFGIndexToLocalSGIndexList_;
+  // }
+
+  // /**
+  //  * @brief adds the (hopefully) hierarchical coefficients from fullgridVector_
+  //  *        to the dsg's data structure, multiplied by coeff
+  //  *        registers dsg if it has not happened yet
+  //  * 
+  //  * @param dsg the DSG to add to
+  //  * @param coeff the coefficient that gets multiplied to all entries
+  //  */
+  // void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
+  //   // test if dsg has already been registered
+  //   assert (&dsg == dsg_);
+
+  //   auto indexAssignment = getLocalFGIndexToLocalSGIndexList();
+
+  //   // loop over all grid points
+  //   for (size_t i = 0; i < fullgridVector_.size(); ++i) {
+  //     // add grid point to subspace, mul with coeff
+  //     dsg_->getDataVector()[indexAssignment[i]] += coeff * fullgridVector_[i];
+  //   }
+  // }
+
+  /**
+   * @brief adds the (hopefully) hierarchical coefficients from fullgridVector_
+   *        to the dsg's data structure, multiplied by coeff
+   *        registers dsg if it has not happened yet
+   * 
+   * @param dsg the DSG to add to
+   * @param coeff the coefficient that gets multiplied to all entries
+   */
   void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
     // test if dsg has already been registered
     if (&dsg != dsg_) registerUniformSG(dsg);
@@ -1781,9 +1894,13 @@ class DistributedFullGrid {
   // we use short unsigned int (2 bytes) to save memory
   std::vector<unsigned short int> assigmentList_;
 
-  DistributedSparseGridUniform<FG_ELEMENT>* dsg_;
+  // contains for each (local) gridpoint assigment to subspace on the registered dsg
+  std::vector<size_t> subspaceAssigmentList_;
 
-  std::vector<IndexType> subspaceAssigmentList_;
+  // // contains for each (local) gridpoint assigment to index on the registered dsg
+  // std::vector<size_t> localFGIndexToLocalSGIndexList_;
+
+  DistributedSparseGridUniform<FG_ELEMENT>* dsg_;
 
   void InitMPI(MPI_Comm comm) {
     MPI_Comm_rank(comm, &rank_);
@@ -1964,7 +2081,7 @@ class DistributedFullGrid {
   void calcSubspaces() {
     // create sparse grid which contains subspaces of dfg
     // todo: check if this is really the correct set of subspaces
-    SGrid<real> sg(dim_, levels_, levels_, hasBoundaryPoints_);
+    SGrid<bool> sg(dim_, levels_, levels_, hasBoundaryPoints_);
 
     // create subspaces
     subspaces_.resize(sg.getSize());
@@ -1973,17 +2090,14 @@ class DistributedFullGrid {
       // ref on current subspace
       SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subspaceID];
 
-      const IndexVector& sizes = sg.getSubspaceSizes(subspaceID);
-      const LevelVector& subL = sg.getLevelVector(subspaceID);
+      subsp.level_ = sg.getLevelVector(subspaceID);
+      subsp.sizes_ = sg.getSubspaceSizes(subspaceID);
 
-      subsp.level_ = subL;
-      subsp.sizes_ = sizes;
+      // IndexType bsize = 1;
 
-      IndexType bsize = 1;
+      // for (auto s : subsp.sizes_) bsize *= s;
 
-      for (auto s : subsp.sizes_) bsize *= s;
-
-      subsp.targetSize_ = size_t(bsize);
+      // subsp.targetSize_ = size_t(bsize);
     }
     // subspacesFilled_ = false;
   }
@@ -2065,7 +2179,9 @@ class DistributedFullGrid {
       stride = IndexType(std::pow(2, levels_[d] - l + 1));
     }
 
-    for (IndexType idx = start; idx < nrLocalPoints_[d]; idx += stride) oneDIndices.push_back(idx);
+    for (IndexType idx = start; idx < nrLocalPoints_[d]; idx += stride) {
+      oneDIndices.push_back(idx);
+    }
   }
 
   // 2d output
