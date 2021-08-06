@@ -32,6 +32,8 @@ void print_memory_usage_world();
 
 void print_memory_usage_comm(CommunicatorType comm);
 
+void print_memory_usage_comm_minus_ref(unsigned long ref_vmrss, unsigned long ref_vmsize, CommunicatorType comm);
+
 }  // namespace mpimemory
 }  // namespace combigrid
 #endif /* SRC_SGPP_COMBIGRID_MPI_MEMORY_HPP_ */
