@@ -82,18 +82,27 @@ void print_memory_usage_world() {
   // get_all_memory_usage_kb(&global_vmrss, &global_vmsize, theMPISystem()->getWorldComm());
   get_all_memory_usage_kb(&global_vmrss, &global_vmsize, MPI_COMM_WORLD);
   if (getCommRank(MPI_COMM_WORLD) == 0) {
-    printf("\n ,world memory usage (KB): %3ld, %6ld, %6ld\n", commSize, global_vmrss,
+    printf("\n ,world memory usage (KB): %3d, %6ld, %6ld\n", commSize, global_vmrss,
            global_vmsize);
   }
 }
 
 void print_memory_usage_comm(CommunicatorType comm) {
   unsigned long comm_vmrss, comm_vmsize;
-  auto commSize = getCommSize(comm);
   get_all_memory_usage_kb(&comm_vmrss, &comm_vmsize, comm);
+  auto commSize = getCommSize(comm);
   if (getCommRank(comm) == 0) {
-    printf(", comm memory usage (KB): %3ld, %6ld, %6ld\n", commSize, comm_vmrss,
+    printf(", comm memory usage (KB): %3d, %6ld, %6ld\n", commSize, comm_vmrss,
            comm_vmsize);
+  }
+}
+
+void print_memory_usage_comm_minus_ref(unsigned long ref_vmrss, unsigned long ref_vmsize, CommunicatorType comm) {
+  unsigned long comm_vmrss, comm_vmsize;
+  get_all_memory_usage_kb(&comm_vmrss, &comm_vmsize, comm);
+  auto commSize = getCommSize(comm);
+  if (getCommRank(comm) == 0) {
+    printf(", comm memory usage (KB): %3d, %6ld, %6ld\n", commSize, comm_vmrss-ref_vmrss, comm_vmsize-ref_vmsize);
   }
 }
 
