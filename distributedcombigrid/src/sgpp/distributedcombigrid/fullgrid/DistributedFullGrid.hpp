@@ -21,24 +21,24 @@
 
 namespace combigrid {
 
-// a struct to hold information on the hierarchical subspaces contained in this grid
-template <typename FG_ELEMENT>
-struct SubspaceDFG {
-  // the hierarchical level
-  LevelVector level_;
+// // a struct to hold information on the hierarchical subspaces contained in this grid
+// template <typename FG_ELEMENT>
+// struct SubspaceDFG {
+//   // the hierarchical level
+//   LevelVector level_;
 
-  // size of the subspace, in each dimension
-  IndexVector sizes_;
+//   // size of the subspace, in each dimension
+//   IndexVector sizes_;
 
-  // // the data in this subspace
-  // std::vector<FG_ELEMENT> data_;
+//   // // the data in this subspace
+//   // std::vector<FG_ELEMENT> data_;
 
-  // // the total number of grid points in this subspace
-  // size_t targetSize_;
+//   // // the total number of grid points in this subspace
+//   // size_t targetSize_;
 
-  // the number of grid points resident in this partition of the grid
-  size_t localSize_;
-};
+//   // // the number of grid points resident in this partition of the grid
+//   // size_t localSize_;
+// };
 
 /** The full grid class which is the main building block of the combi grid <br>
  *  The index of a gridpoint in the full grid is given by the formula : <br>
@@ -134,16 +134,6 @@ class DistributedFullGrid {
     for (size_t j = 0; j < dim_; ++j) decompositionCoords_[j].resize(procs[j]);
 
     calcDecompositionCoords();
-
-    calcSubspaces();
-
-    if (subspaces_.size() > 65535)
-      assert(false &&
-             "the number of subspaces is too high. assigment list uses only"
-             "short int. change data type");
-
-    assigmentList_.resize(fullgridVector_.size());
-    calcAssigmentList();
 
     dsg_ = nullptr;
 
@@ -934,8 +924,6 @@ class DistributedFullGrid {
   void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     dsg_ = &dsg;
     assert(dsg_->getDim() == dim_);
-      //TODO remove next line
-    subspaceAssigmentList_.resize(subspaces_.size(), -1);
 
     // a sparse grid that knows all the hierarchical subspaces
     //    contained in this full grid
@@ -946,8 +934,6 @@ class DistributedFullGrid {
 
       if (dsg_->isContained(level)) {
         auto index = dsg_->getIndex(level);
-        //TODO remove next line
-        subspaceAssigmentList_[subspaceID] = index;
 
         size_t subSgDataSize = dsg_->getDataSize(index);
         auto lsize = getLocalSizeOfSubspaceOnThisPartition(level);
@@ -1382,7 +1368,11 @@ class DistributedFullGrid {
   //   for (auto subsp : subspaces_) lvecs.push_back(subsp.level_);
   // }
 
-  inline size_t getNumSubspaces() const { return subspaces_.size(); }
+  inline size_t getNumSubspaces() const {
+    SGrid<bool> sg(dim_, levels_, levels_, hasBoundaryPoints_);
+    return sg.getSize();
+  //   return subspaces_.size();
+  }
 
   // inline std::vector<FG_ELEMENT>& getSubspaceData(size_t i) {
   //   assert(i < subspaces_.size());
@@ -1872,17 +1862,6 @@ class DistributedFullGrid {
    */
   std::vector<std::vector<real> > decompositionCoords_;
 
-  std::vector<SubspaceDFG<FG_ELEMENT> > subspaces_;
-
-  // bool subspacesFilled_;
-
-  // contains for each (local) gridpoint assigment to subspace
-  // we use short unsigned int (2 bytes) to save memory
-  std::vector<unsigned short int> assigmentList_;
-
-  // contains for each (local) gridpoint assigment to subspace on the registered dsg
-  std::vector<IndexType> subspaceAssigmentList_;
-
   // contains for each (local) gridpoint assigment to memory location on the registered dsg
   std::vector<FG_ELEMENT*> localFGIndexToLocalSGPointerList_;
 
@@ -2061,73 +2040,6 @@ class DistributedFullGrid {
 
       for (DimType i = 0; i < dim_; ++i)
         decompositionCoords_[i][coords[i]] = lowerBoundsCoords_[r][i];
-    }
-  }
-
-  void calcSubspaces() {
-    // create sparse grid which contains subspaces of dfg
-    // todo: check if this is really the correct set of subspaces
-    SGrid<bool> sg(dim_, levels_, levels_, hasBoundaryPoints_);
-
-    // create subspaces
-    subspaces_.resize(sg.getSize());
-
-    for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
-      // ref on current subspace
-      SubspaceDFG<FG_ELEMENT>& subsp = subspaces_[subspaceID];
-
-      subsp.level_ = sg.getLevelVector(subspaceID);
-      subsp.sizes_ = sg.getSubspaceSizes(subspaceID);
-
-      // IndexType bsize = 1;
-
-      // for (auto s : subsp.sizes_) bsize *= s;
-
-      // subsp.targetSize_ = size_t(bsize);
-    }
-    // subspacesFilled_ = false;
-  }
-
-  void calcAssigmentList() {
-    /*
-     for( size_t i=0; i<fullgridVector_.size(); ++i ){
-     IndexType globalI = this->getGlobalLinearIndex( i );
-
-     // get level vector of element i
-     LevelVector lvec(dim_);
-     IndexVector ivec(dim_);
-     this->getGlobalLI( globalI, lvec, ivec );
-
-     assigmentList_[i] =
-     static_cast<unsigned short int>( this->getSubspaceIndex( lvec ) );
-     }*/
-
-    for (size_t i = 0; i < subspaces_.size(); ++i) {
-      // if( subspaces_[i].localSize_ < 1 )
-      // continue;
-
-      const LevelVector& l = subspaces_[i].level_;
-      IndexVector ivec(dim_);
-
-      calcAssigmentRec(dim_ - 1, l, ivec, i);
-    }
-  }
-
-  void calcAssigmentRec(DimType d, const LevelVector& lvec, IndexVector& ivec, size_t subI) {
-    IndexVector oneDIndices;
-
-    get1dIndicesLocal(d, lvec, oneDIndices);
-
-    for (IndexType idx : oneDIndices) {
-      ivec[d] = idx;
-
-      if (d > 0)
-        calcAssigmentRec(d - 1, lvec, ivec, subI);
-      else {
-        IndexType j = getLocalLinearIndex(ivec);
-        assigmentList_[j] = static_cast<unsigned short int>(subI);
-        ++subspaces_[subI].localSize_;
-      }
     }
   }
 
