@@ -74,12 +74,6 @@ class DistributedFullGrid {
 
     InitMPI(comm);  // will also check grids per dim
 
-    // set the basis function for the full grid
-    if (basis == NULL)
-      basis_ = LinearBasisFunction::getDefaultBasis();
-    else
-      basis_ = basis;
-
     // set global num of elements and offsets
     nrElements_ = 1;
     offsets_.resize(dim_);
@@ -137,7 +131,6 @@ class DistributedFullGrid {
     calcDecompositionCoords();
 
     calcSubspaces();
-    subspacesFilled_ = false;
 
     if (subspaces_.size() > 65535)
       assert(false &&
