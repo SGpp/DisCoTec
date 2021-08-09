@@ -1895,7 +1895,7 @@ class DistributedFullGrid {
   std::vector<unsigned short int> assigmentList_;
 
   // contains for each (local) gridpoint assigment to subspace on the registered dsg
-  std::vector<size_t> subspaceAssigmentList_;
+  std::vector<IndexType> subspaceAssigmentList_;
 
   // // contains for each (local) gridpoint assigment to index on the registered dsg
   // std::vector<size_t> localFGIndexToLocalSGIndexList_;
