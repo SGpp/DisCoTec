@@ -935,17 +935,20 @@ class DistributedFullGrid {
   //   localFGIndexToLocalSGIndexList_.clear();
   // }
 
-  /**
-   * @brief "registers" the DistributedSparseGridUniform with this DistributedFullGrid:
-   *        sets the dsg_ and subspaceAssigmentList_ members,
-   *        and sets the dsg's subspaceSizes where they are not yet set
+  /*
+   * Computes a subspace assignment list which maps an index of a subspace
+   * in the dfg to the corresponding index in the dsg.
+   * If the subspaces in the dsg have zero size, all subspaces
+   * of the dsg that the dfg and dsg have in common are resized. The
+   * size of a subspace in the dsg is chosen according to the corresponding
+   * subspace size in the dfg.
    *
-   * @param dsg the DSG to register
+   * Attention: no data is allocated only sizes are set.
    */
   void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     // check if dsg already registered
     // if (dsg_ == &dsg)
-    //  return;
+    //   return;
 
     dsg_ = &dsg;
 
@@ -958,22 +961,22 @@ class DistributedFullGrid {
 
     // resize all common subspaces in dsg
     for (size_t subFgId = 0; subFgId < subspaceAssigmentList_.size(); ++subFgId) {
-      if (subspaceAssigmentList_[subFgId] < 0) continue;
+      if (subspaceAssigmentList_[subFgId] < 0) continue; // skip if subspace not in dsg
 
       IndexType subSgId = subspaceAssigmentList_[subFgId];
 
-      std::vector<FG_ELEMENT>& subSgData = dsg.getDataVector(subSgId);
+      size_t subSgDataSize = dsg.getDataSize(subSgId);
 
-      if (subSgData.size() == 0) {
-        subSgData.resize(subspaces_[subFgId].localSize_);
-      } else {
-        ASSERT(subSgData.size() == subspaces_[subFgId].localSize_,
-               "subSgData.size(): " << subSgData.size() << ", subspaces_[subFgId].localSize_: "
-                                    << subspaces_[subFgId].localSize_ << std::endl);
+      if (subSgDataSize == 0)
+        dsg.setDataSize(subSgId, subspaces_[subFgId].localSize_);
+      else
+        ASSERT(subSgDataSize == subspaces_[subFgId].localSize_,
+               "level: " << subspaces_[subFgId].level_ <<
+               ", subSgData.size(): " << subSgDataSize <<
+               ", subspaces_[subFgId].localSize_: " << subspaces_[subFgId].localSize_ <<
+               " -- check forwardDecomposition" << std::endl);
       }
     }
-  }
-
   // /**
   //  * @brief set localFGIndexToLocalSGIndexList_ based on the current sizes of
   //  *        dsg_ (may have changed as other grids were registered)
@@ -1027,29 +1030,24 @@ class DistributedFullGrid {
   //     dsg_->getDataVector()[indexAssignment[i]] += coeff * fullgridVector_[i];
   //   }
   // }
-
-  /**
-   * @brief adds the (hopefully) hierarchical coefficients from fullgridVector_
-   *        to the dsg's data structure, multiplied by coeff
-   *        registers dsg if it has not happened yet
-   * 
-   * @param dsg the DSG to add to
-   * @param coeff the coefficient that gets multiplied to all entries
-   */
   void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
     // test if dsg has already been registered
     if (&dsg != dsg_) registerUniformSG(dsg);
 
-    // create iterator for each subspace in dfg
-    typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
-    typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList_.size());
+    // create pointer for each subspace in dsg
+    std::vector<FG_ELEMENT*> it_sub(subspaceAssigmentList_.size());
 
-    for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
-      if (subspaceAssigmentList_[subFgId] < 0) continue;
+    for (size_t subFgId = 0; subFgId < subspaceAssigmentList_.size(); ++subFgId) {
+      if (subspaceAssigmentList_[subFgId] < 0) continue; // skip if subspace not in dsg
 
       IndexType subSgId = subspaceAssigmentList_[subFgId];
+      size_t subSgDataSize = dsg.getDataSize(subSgId);
+      ASSERT(subSgDataSize == subspaces_[subFgId].localSize_,
+             "Subspace sizes do not match! Partitioning may vary within global reduce comm."
+             " subSgData.size(): " << subSgDataSize << ", subspaces_[subFgId].localSize_: "
+                                  << subspaces_[subFgId].localSize_ << std::endl);
 
-      it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
+      it_sub[subFgId] = dsg.getData(subSgId);
     }
 
     // loop over all grid points
@@ -1057,11 +1055,8 @@ class DistributedFullGrid {
       // get subspace_fg id
       size_t subFgId(assigmentList_[i]);
 
+      // skip if the subspace of the i-th grid point is not in dsg
       if (subspaceAssigmentList_[subFgId] < 0) continue;
-
-      IndexType subSgId = subspaceAssigmentList_[subFgId];
-
-      assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
       // add grid point to subspace, mul with coeff
       *it_sub[subFgId] += coeff * fullgridVector_[i];
@@ -1074,16 +1069,20 @@ class DistributedFullGrid {
     // test if dsg has already been registered
     if (&dsg != dsg_) registerUniformSG(dsg);
 
-    // create iterator for each subspace in dfg
-    typedef typename std::vector<FG_ELEMENT>::iterator SubspaceIterator;
-    typename std::vector<SubspaceIterator> it_sub(subspaceAssigmentList_.size());
+    // create pointer for each subspace in dsg
+    std::vector<FG_ELEMENT*> it_sub(subspaceAssigmentList_.size());
 
-    for (size_t subFgId = 0; subFgId < it_sub.size(); ++subFgId) {
-      if (subspaceAssigmentList_[subFgId] < 0) continue;
+    for (size_t subFgId = 0; subFgId < subspaceAssigmentList_.size(); ++subFgId) {
+      if (subspaceAssigmentList_[subFgId] < 0) continue; // skip if subspace not in dsg
 
       IndexType subSgId = subspaceAssigmentList_[subFgId];
+      size_t subSgDataSize = dsg.getDataSize(subSgId);
+      ASSERT(subSgDataSize == subspaces_[subFgId].localSize_,
+             "Subspace sizes do not match! Partitioning may vary within global reduce comm."
+             " subSgData.size(): " << subSgDataSize << ", subspaces_[subFgId].localSize_: "
+                                  << subspaces_[subFgId].localSize_ << std::endl);
 
-      it_sub[subFgId] = dsg.getDataVector(subSgId).begin();
+      it_sub[subFgId] = dsg.getData(subSgId);
     }
 
     // loop over all grid points
@@ -1099,8 +1098,6 @@ class DistributedFullGrid {
         //fullgridVector_[i] = FG_ELEMENT(0);
         continue;
       }
-
-      assert(it_sub[subFgId] != dsg.getDataVector(subSgId).end());
 
       // copy add grid point to subspace, mul with coeff
       fullgridVector_[i] = *it_sub[subFgId];
@@ -1722,37 +1719,61 @@ class DistributedFullGrid {
     }
     return downwardSubarrays_;
   }
+  /**
+   * @brief get the ranks of the highest and lowest "neighbor" rank in dimension d
+   *    only sets highest and lowest if they actually are my neighbors
+   */
+  void getHighestAndLowestNeighbor(DimType d, int& highest, int& lowest) {
+    //TODO this is not going to work with periodic cartesian communicator
+    lowest = MPI_PROC_NULL;
+    highest = MPI_PROC_NULL;
 
-  void writeLowerBoundaryToUpperBoundary(DimType d) {
+    auto d_reverse = this->getDimension() - d - 1;
+    if (!reverseOrderingDFGPartitions) {
+      d_reverse = d;
+    }
+
+    MPI_Cart_shift( this->getCommunicator(), d_reverse, getParallelization()[d] -1 , &lowest, &highest );
+
+    // assert only boundaries have those neighbors (remove in case of periodicity)
+    // this assumes no periodicity!
+    if(! this->getLowerBounds()[d] == 0){
+      assert(highest < 0);
+    }
+    if(! this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
+      assert(lowest < 0);
+    }
+  }
+
+  void writeUpperBoundaryToLowerBoundary(DimType d) {
     assert(hasBoundaryPoints_[d] == true);
-    auto subarrayExtents = this->getLocalSizes();
-    subarrayExtents[d] = 1;
 
     // create MPI datatypes
     auto downSubarrays = getDownwardSubarrays();
     auto upSubarrays = getUpwardSubarrays();
 
-    // if I have the highest neighbor, I need to send my lowest layer in d to them,
-    // if I have the lowest neighbor, I can receive it
-    auto lower = MPI_PROC_NULL;
-    auto higher = MPI_PROC_NULL;
+    // if I have the lowest neighbor (i. e. I am the highest rank), I need to send my highest layer in d to them,
+    // if I have the highest neighbor (i. e. I am the lowest rank), I can receive it
+    int lower, higher;
+    getHighestAndLowestNeighbor(d, higher, lower);
 
-    // somehow the cartesian directions in the communicator are reversed
-    // cf InitMPI(...)
-    auto d_reverse = this->getDimension() - d - 1;
-    if (!reverseOrderingDFGPartitions) {
-      d_reverse = d;
+    auto success =
+        MPI_Sendrecv(this->getData(), 1, upSubarrays[d], lower, TRANSFER_GHOST_LAYER_TAG,
+                     this->getData(), 1, downSubarrays[d], higher, 
+                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
     }
-    MPI_Cart_shift( this->getCommunicator(), d_reverse, getParallelization()[d] -1 , &lower, &higher );
 
-    // assert only boundaries have those neighbors (remove in case of periodicity)
-    // this assumes no periodicity!
-    if(! this->getLowerBounds()[d] == 0){
-      assert(higher < 0);
-    }
-    if(! this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
-      assert(lower < 0);
-    }
+  void writeLowerBoundaryToUpperBoundary(DimType d) {
+    assert(hasBoundaryPoints_[d] == true);
+
+    // create MPI datatypes
+    auto downSubarrays = getDownwardSubarrays();
+    auto upSubarrays = getUpwardSubarrays();
+
+    // if I have the highest neighbor (i. e. I am the lowest rank), I need to send my lowest layer in d to them,
+    // if I have the lowest neighbor (i. e. I am the highest rank), I can receive it
+    int lower, higher;
+    getHighestAndLowestNeighbor(d, higher, lower);
 
     // TODO asynchronous over d??
     auto success =
@@ -1762,7 +1783,8 @@ class DistributedFullGrid {
     assert(success == MPI_SUCCESS);
   }
 
-  std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents) {
+  // non-RVO dependent version of ghost layer exchange
+  void exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents, std::vector<FG_ELEMENT>& recvbuffer) {
     subarrayExtents = this->getLocalSizes();
     subarrayExtents[d] = 1;
 
@@ -1771,8 +1793,8 @@ class DistributedFullGrid {
 
     // if I have a higher neighbor, I need to send my highest layer in d to them,
     // if I have a lower neighbor, I can receive it
-    auto lower = MPI_PROC_NULL;
-    auto higher = MPI_PROC_NULL;
+    int lower = MPI_PROC_NULL;
+    int higher = MPI_PROC_NULL;
 
     // somehow the cartesian directions in the communicator are reversed
     // cf InitMPI(...)
@@ -1797,7 +1819,7 @@ class DistributedFullGrid {
       numElements = 0;
       subarrayExtents = IndexVector(this->getDimension(), 0);
     }
-    auto recvbuffer = std::vector<FG_ELEMENT>(numElements);
+    recvbuffer = std::vector<FG_ELEMENT>(numElements);
 
     // TODO asynchronous over d??
     auto success =
@@ -1805,7 +1827,11 @@ class DistributedFullGrid {
                      recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
+  }
 
+  std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents) {
+    std::vector<FG_ELEMENT> recvbuffer{};
+    exchangeGhostLayerUpward(d, subarrayExtents, recvbuffer);
     return recvbuffer;
   }
 
