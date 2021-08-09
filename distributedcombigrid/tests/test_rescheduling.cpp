@@ -237,6 +237,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
     while (signal != EXIT){ 
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
       signal = pgroup.wait();
 
       // test conditions:
