@@ -890,93 +890,84 @@ class DistributedFullGrid {
   //   subspacesFilled_ = true;
   // }
 
-  // size_t getLocalSizeOfSubspaceOnThisPartition(LevelVector level) {
-  //   assert(false);
-  //   return 0;
-  // }
+  void calcLocalSizeRecursive(DimType d, const LevelVector& lvec, IndexVector& ivec, size_t& localSize) {
+    IndexVector oneDIndices;
+    get1dIndicesLocal(d, lvec, oneDIndices);
 
-  // /**
-  //  * @brief "registers" the DistributedSparseGridUniform with this DistributedFullGrid:
-  //  *        sets the dsg_ member,
-  //  *        and sets the dsg's subspaceSizes where they are not yet set
-  //  *
-  //  * @param dsg the DSG to register
-  //  */
-  // void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
-  //   dsg_ = &dsg;
+    // stupid additive recursion, could be multiplicative (since hyper-rectangular)
+    for (IndexType idx : oneDIndices) {
+      ivec[d] = idx;
 
-  //   // calcAssigmentList();
-  //   // a sparse grid that holds all the hierarchical subspaces
-  //   //    contained in this full grid
-  //   SGrid<bool> sg(dim_, levels_, levels_, hasBoundaryPoints_);
-  //   // resize all common subspaces in dsg, if necessary
-  //   for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
-  //     auto level = sg.getLevelVector(subspaceID);
-  //     auto index = dsg.getIndex(level);
-  //     if (index < 0) continue;
-
-  //     IndexType subSgId = index;
-
-  //     std::vector<FG_ELEMENT>& subSgData = dsg.getDataVector(index);
-
-  //     auto lsize = getLocalSizeOfSubspaceOnThisPartition(level);
-
-  //     // resize DSG subspace if it has zero size
-  //     if (subSgData.size() == 0) {
-  //       subSgData.resize(lsize);
-  //     } else {
-  //       ASSERT(subSgData.size() == lsize,
-  //              "subSgData.size(): " << subSgData.size() << ", lsize: "
-  //                                   << lsize << std::endl);
-  //     }
-  //   }
-  //   // if localFGIndexToLocalSGIndexList_ was already initialized,
-  //   // it is invalidated now
-  //   localFGIndexToLocalSGIndexList_.clear();
-  // }
-
-  /*
-   * Computes a subspace assignment list which maps an index of a subspace
-   * in the dfg to the corresponding index in the dsg.
-   * If the subspaces in the dsg have zero size, all subspaces
-   * of the dsg that the dfg and dsg have in common are resized. The
-   * size of a subspace in the dsg is chosen according to the corresponding
-   * subspace size in the dfg.
-   *
-   * Attention: no data is allocated only sizes are set.
-   */
-  void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
-    // check if dsg already registered
-    // if (dsg_ == &dsg)
-    //   return;
-
-    dsg_ = &dsg;
-
-    // calculate assigment subspaceID_fg <-> subspaceID_sg
-    subspaceAssigmentList_.resize(subspaces_.size());
-
-    for (size_t subFgId = 0; subFgId < subspaces_.size(); ++subFgId) {
-      subspaceAssigmentList_[subFgId] = dsg.getIndex(subspaces_[subFgId].level_);
-    }
-
-    // resize all common subspaces in dsg
-    for (size_t subFgId = 0; subFgId < subspaceAssigmentList_.size(); ++subFgId) {
-      if (subspaceAssigmentList_[subFgId] < 0) continue; // skip if subspace not in dsg
-
-      IndexType subSgId = subspaceAssigmentList_[subFgId];
-
-      size_t subSgDataSize = dsg.getDataSize(subSgId);
-
-      if (subSgDataSize == 0)
-        dsg.setDataSize(subSgId, subspaces_[subFgId].localSize_);
-      else
-        ASSERT(subSgDataSize == subspaces_[subFgId].localSize_,
-               "level: " << subspaces_[subFgId].level_ <<
-               ", subSgData.size(): " << subSgDataSize <<
-               ", subspaces_[subFgId].localSize_: " << subspaces_[subFgId].localSize_ <<
-               " -- check forwardDecomposition" << std::endl);
+      if (d > 0)
+        calcLocalSizeRecursive(d - 1, lvec, ivec, localSize);
+      else {
+        ++localSize;
       }
     }
+  }
+
+  /**
+   * @brief Get the number of points of the subspace on this partition
+   *
+   * @param l level of hierarchical subspace
+   * @return size_t the number of points on this partition
+   */
+  size_t getLocalSizeOfSubspaceOnThisPartition(LevelVector l) {
+    IndexVector ivec(dim_);
+    size_t localSize = 0;
+
+    calcLocalSizeRecursive(dim_ - 1, l, ivec, localSize);
+    return localSize;
+  }
+
+  /**
+   * @brief "registers" the DistributedSparseGridUniform with this DistributedFullGrid:
+   *        sets the dsg_ member,
+   *        and sets the dsg's subspaceSizes where they are not yet set:
+   *        If the subspaces in the dsg have zero size, all subspaces
+   *        of the dsg that the dfg and dsg have in common are resized. The
+   *        size of a subspace in the dsg is chosen according to the corresponding
+   *        subspace size in the dfg.
+   *
+   * @param dsg the DSG to register
+   */
+  void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
+    dsg_ = &dsg;
+    assert(dsg_->getDim() == dim_);
+      //TODO remove next line
+    subspaceAssigmentList_.resize(subspaces_.size(), -1);
+
+    // a sparse grid that knows all the hierarchical subspaces
+    //    contained in this full grid
+    SGrid<bool> sg(dim_, levels_, levels_, hasBoundaryPoints_);
+    // resize all common subspaces in dsg, if necessary
+    for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
+      auto level = sg.getLevelVector(subspaceID);
+
+      if (dsg_->isContained(level)) {
+        auto index = dsg_->getIndex(level);
+        //TODO remove next line
+        subspaceAssigmentList_[subspaceID] = index;
+
+        size_t subSgDataSize = dsg_->getDataSize(index);
+        auto lsize = getLocalSizeOfSubspaceOnThisPartition(level);
+
+        // resize DSG subspace if it has zero size
+        if (subSgDataSize == 0) {
+          dsg_->setDataSize(index, lsize);
+          // subSgData.resize(lsize);
+        } else {
+          ASSERT(subSgDataSize == lsize,
+                "subSgDataSize: " << subSgDataSize << ", lsize: "
+                                      << lsize << std::endl);
+      }
+    }
+    }
+    // if localFGIndexToLocalSGPointerList_ was already initialized,
+    // it is invalidated now
+    localFGIndexToLocalSGPointerList_.clear();
+  }
+
   // /**
   //  * @brief set localFGIndexToLocalSGIndexList_ based on the current sizes of
   //  *        dsg_ (may have changed as other grids were registered)
@@ -1923,8 +1914,8 @@ class DistributedFullGrid {
   // contains for each (local) gridpoint assigment to subspace on the registered dsg
   std::vector<IndexType> subspaceAssigmentList_;
 
-  // // contains for each (local) gridpoint assigment to index on the registered dsg
-  // std::vector<size_t> localFGIndexToLocalSGIndexList_;
+  // contains for each (local) gridpoint assigment to index on the registered dsg
+  std::vector<FG_ELEMENT*> localFGIndexToLocalSGPointerList_;
 
   DistributedSparseGridUniform<FG_ELEMENT>* dsg_;
 
