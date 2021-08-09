@@ -30,26 +30,8 @@ struct SubspaceSGU {
 
   FG_ELEMENT * data_; // contains the values at the data points (Attention: Due to the decomposition, only part of the full ss may be stored)
 
-  size_t dataSize_; // contains the number of values stored in data_ == size of the ss part.
-
-  SubspaceSGU& operator+=(const SubspaceSGU& rhs)
-  {
-    assert(this->level_ == rhs.level_);
-    assert(dataSize_ == rhs.dataSize_);
-
-    for(size_t i = 0; i < dataSize_; ++i){
-      this->data_[i] += rhs.data_[i];
-    }
-
-    return *this;
-  }
+  // size_t dataSize_; // contains the number of values stored in data_ == size of the ss part.
 };
-
-/*
- template<typename FG_ELEMENT>
- bool mycomp( const SubspaceSGU<FG_ELEMENT>& ss1, const SubspaceSGU<FG_ELEMENT>& ss2 ){
- return ( ss1.dataSize_ > ss2.dataSize_ );
- }*/
 
 }  // end anonymous namespace
 
@@ -245,7 +227,6 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
   // set subspaces
   for (size_t i = 0; i < levels_.size(); ++i) {
     subspaces_[i].level_ = levels_[i];
-    subspaces_[i].dataSize_ = subspacesDataSizes_[i];
   }
 
   setSizes();
@@ -271,8 +252,8 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
    subspaces_.push_back({ /*.level_    =*/ subspaces[i],
                           /*.sizes_    =*/ IndexVector(0),
                           /*.size_     =*/ 0,
-                          /*.data_     =*/ nullptr,
-                          /*.dataSize_ =*/ subspacesDataSizes_[i]});
+                          /*.data_     =*/ nullptr
+                          });
   }
   setSizes();
 
@@ -305,7 +286,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
       // update pointers and sizes in subspaces
       size_t offset = 0;
       for (size_t i = 0; i < subspaces_.size(); i++) {
-        subspaces_[i].dataSize_ = subspacesDataSizes_[i];
         subspaces_[i].data_ = subspacesData_.data() + offset;
         offset += subspacesDataSizes_[i];
       }
@@ -326,7 +306,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
     // update pointers in subspaces
     for (auto& ss : subspaces_) {
       ss.data_ = nullptr;
-      ss.dataSize_ = 0;
     }
   }
 }
@@ -570,7 +549,7 @@ size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(size_t i) const {
     assert(false);
   }
 
-  return subspaces_[i].dataSize_;
+  return subspacesDataSizes_[i];
 }
 
 template <typename FG_ELEMENT>
@@ -582,7 +561,7 @@ size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(const LevelVector& 
     assert(false);
   }
 
-  return subspaces_[i].dataSize_;
+  return subspacesDataSizes_[i];
 }
 
 template <typename FG_ELEMENT>
@@ -593,7 +572,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(size_t i, size_t newS
   }
 
   subspacesDataSizes_[i] = newSize;
-  subspaces_[i].dataSize_ = newSize;
 }
 
 template <typename FG_ELEMENT>
@@ -606,7 +584,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(const LevelVector& l,
   }
 
   subspacesDataSizes_[i] = newSize;
-  subspaces_[i].dataSize_ = newSize;
 }
 
 
