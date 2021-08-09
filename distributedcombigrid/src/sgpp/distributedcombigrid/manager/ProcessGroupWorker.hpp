@@ -40,8 +40,26 @@ class ProcessGroupWorker {
   // Perform combination
   void combine();
 
+  /** initializes all subspace sizes in the dsgu according to the dfgs in the
+   * global reduce comm*/
+  void initCombinedUniDSGVector();
+
+  /** hierarchizes all fgs */
+  void hierarchizeFullGrids();
+
+  /** local reduce */
+  void addFullGridsToUniformSG();
+
+  /** extracts and dehierarchizes */
+  void integrateCombinedSolution();
+
+  /** reduction */
+  void reduceUniformSG();
+
   // combine on sparse grid with uniform decomposition of domain
   void combineUniform();
+
+  void combineLocalAndGlobal();
 
   // outdated!
   void combineFG();
@@ -111,6 +129,12 @@ class ProcessGroupWorker {
   // std::ofstream betasFile_;
 
   void initializeTaskAndFaults(bool mayAlreadyExist = true);
+
+  /** sets all subspaces in all dsgs to zero and allocates them if necessary */
+  void zeroDsgsData();
+
+  /** deallocates all data elements stored in the dsgs */
+  void deleteDsgsData();
 
   void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);
 

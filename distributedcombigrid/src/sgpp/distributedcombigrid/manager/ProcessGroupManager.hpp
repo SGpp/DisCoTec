@@ -28,6 +28,8 @@ class ProcessGroupManager {
 
   bool runnext();
 
+  bool initDsgus();
+
   bool exit();
 
   /* non-blocking call to retrieve status of process group */
