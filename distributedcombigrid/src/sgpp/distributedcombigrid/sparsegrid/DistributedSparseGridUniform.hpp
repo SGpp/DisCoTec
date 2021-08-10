@@ -688,6 +688,7 @@ static void bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 
 /** Performs an in place allreduce on the dsgu data with all procs in
  * communicator comm.
+ * This corresponds to a sparse grid reduce, cf. Heene
  */
 template <typename FG_ELEMENT>
 static void reduceDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
