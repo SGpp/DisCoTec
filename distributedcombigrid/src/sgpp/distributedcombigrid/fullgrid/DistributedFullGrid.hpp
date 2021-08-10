@@ -91,25 +91,11 @@ class DistributedFullGrid {
       nrElements_ = nrElements_ * nrPoints_[j];
     }
 
-    // set lower bounds
-    lowerBounds_.resize(size_, IndexVector(dim_));
-
     if (decomposition.size() == 0) {
-      calculateDefaultBounds(forwardDecomposition);
-
-      calcDecomposition();
+      decomposition_ = getDefaultDecomposition(forwardDecomposition);
     } else {
-      assert(decomposition.size() == dim_);
-
-      for (DimType i = 0; i < dim_; ++i)
-        assert(decomposition[i].size() == static_cast<size_t>(procs_[i]));
-
-      // todo: check decomposition and set lower bounds
-      calcLowerBounds(decomposition);
+      setDecomposition(decomposition);
     }
-
-    upperBounds_.resize(size_, IndexVector(dim_));
-    calcUpperBounds();
 
     // set local elements and local offsets
     nrLocalPoints_ = getUpperBounds() - getLowerBounds();
@@ -124,12 +110,6 @@ class DistributedFullGrid {
 
     // in contrast to serial implementation we directly create the grid
     fullgridVector_.resize(nrLocalElements_);
-
-    decompositionCoords_.resize(dim_);
-
-    for (size_t j = 0; j < dim_; ++j) decompositionCoords_[j].resize(procs[j]);
-
-    calcDecompositionCoords();
 
     dsg_ = nullptr;
 
@@ -551,12 +531,20 @@ class DistributedFullGrid {
   inline int getCommunicatorSize() const { return size_; }
 
   /** lower Bounds of this process */
-  inline const IndexVector& getLowerBounds() const { return lowerBounds_[rank_]; }
+  inline IndexVector getLowerBounds() const { return getLowerBounds(rank_); }
 
   /** lower bounds of rank r */
-  inline const IndexVector& getLowerBounds(RankType r) const {
+  inline IndexVector getLowerBounds(RankType r) const {
     assert(r >= 0 && r < size_);
-    return lowerBounds_[r];
+    // get coords of r in cart comm
+    IndexVector coords(dim_);
+    IndexVector lowerBounds(dim_);
+    getPartitionCoords(r, coords);
+
+    for (DimType i = 0; i < dim_; ++i) {
+      lowerBounds[i] = decomposition_[i][coords[i]];
+    }
+    return lowerBounds;
   }
 
   /** coordinates of this process' lower bounds */
@@ -573,12 +561,52 @@ class DistributedFullGrid {
   }
 
   /** upper Bounds of this process */
-  inline const IndexVector& getUpperBounds() const { return upperBounds_[rank_]; }
+  inline IndexVector getUpperBounds() const { return getUpperBounds(rank_); }
 
   /** upper bounds of rank r */
-  inline const IndexVector& getUpperBounds(RankType r) const {
+  inline IndexVector getUpperBounds(RankType r) const {
     assert(r >= 0 && r < size_);
-    return upperBounds_[r];
+    IndexVector coords(dim_);
+    IndexVector upperBounds(dim_);
+    getPartitionCoords(r, coords);
+
+    for (DimType i = 0; i < dim_; ++i) {
+      RankType n;
+      IndexVector nc(coords);
+
+      if (nc[i] < procs_[i] - 1) {
+        // get rank of next neighbor in dim i
+        nc[i] += 1;
+        n = this->getRank(nc);
+        upperBounds[i] = getLowerBounds(n)[i];
+      } else {
+        // no neighbor in dim i -> end of domain
+        upperBounds[i] = nrPoints_[i];
+      }
+    }
+    return upperBounds;
+  }
+
+  /** decomposition coords
+   * contains same information as lowerBoundsCoords but in different
+   * representation. here for each dim we have coordinate of the 1d lower
+   * bound
+   */
+  inline std::vector<std::vector<real>> getDecompositionCoords() const {
+    std::vector<std::vector<real>> decompositionCoords(dim_);
+    for (size_t j = 0; j < dim_; ++j) decompositionCoords[j].resize(procs_[j]);
+    assert(false && "this is pretty much untested, please add test before using this");
+
+    for (RankType r = 0; r < size_; ++r) {
+      // get coords of r in cart comm
+      IndexVector coords(dim_);
+      getPartitionCoords(r, coords);
+
+      for (DimType i = 0; i < dim_; ++i) {
+        decompositionCoords[i][coords[i]] = getLowerBoundsCoords(r)[i];
+      }
+    }
+    return decompositionCoords;
   }
 
   /** coordinates of this process' upper bounds */
@@ -631,22 +659,7 @@ class DistributedFullGrid {
    *
    */
   inline IndexType getFirstGlobal1dIndex(DimType d) const {
-    return lowerBounds_[rank_][d];
-
-    /* start with first inner point
-     // get coordinates of rank in the process grid to determine wheter
-     // it has a part of the left boundary
-     IndexVector coords( dim_ );
-     getPartitionCoords( coords );
-
-
-     if( hasBoundaryPoints_[d] && coords[d] == 0 ){
-     assert( lowerBounds_[rank_][d] + 1 == 1 );
-     return 1;
-     }
-     else{
-     return lowerBounds_[rank_][d];
-     } */
+    return getLowerBounds()[d];
   }
 
   IndexVector getFirstGlobalIndex() const {
@@ -661,20 +674,7 @@ class DistributedFullGrid {
    *
    */
   inline IndexType getLastGlobal1dIndex(DimType d) const {
-    return upperBounds_[rank_][d] - 1;
-
-    /* last inner point
-     // get coordinates of rank in the process grid to determine wheter
-     // it has a part of the left boundary
-     IndexVector coords( dim_ );
-     getPartitionCoords( coords );
-
-     if( hasBoundaryPoints_[d] && coords[d] == procs_[d] - 1 ){
-     return upperBounds_[rank_][d] - 2;
-     }
-     else{
-     return upperBounds_[rank_][d] - 1;
-     } */
+    return getUpperBounds()[d] - 1;
   }
 
   IndexVector getLastGlobalIndex() const {
@@ -736,8 +736,8 @@ class DistributedFullGrid {
 
     for (DimType d = 0; d < dim_; ++d) {
       partitionCoords[d] = -1;
-      for (size_t i = 0; i < decomposition_[d].size(); ++i) {
-        if (globalAxisIndex[d] >= decomposition_[d][i]) partitionCoords[d] = i;
+      for (size_t i = 0; i < getDecomposition()[d].size(); ++i) {
+        if (globalAxisIndex[d] >= getDecomposition()[d][i]) partitionCoords[d] = i;
       }
 
       // check whether the partition coordinates are valid
@@ -745,7 +745,7 @@ class DistributedFullGrid {
     }
   }
 
-  inline RankType getRank(IndexVector& partitionCoords) {
+  inline RankType getRank(IndexVector& partitionCoords) const {
     // check wheter the partition coords are valid
     assert(partitionCoords.size() == dim_);
 
@@ -848,10 +848,6 @@ class DistributedFullGrid {
 
     // free subarrays
     for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
-  }
-
-  inline const std::vector<std::vector<real> >& getDecompositionCoords() const {
-    return decompositionCoords_;
   }
 
   // /* extract subspaces from dfg
@@ -1829,15 +1825,11 @@ class DistributedFullGrid {
   /** Cartesien MPI Communicator  */
   CommunicatorType communicator_;
 
-  /** lowerBounds for each process */
-  std::vector<IndexVector> lowerBounds_;
-
-  /** upperBounds for each process
-   *  the upperbounds is defined as the largest global indexvector in the
-   *  local partition + unit vector. thus this indexvector is either outside
-   *  the global array bounds or the lower bounds of a neighboring process */
-  std::vector<IndexVector> upperBounds_;
-
+ /**
+  * the decomposition of the full grid over processors
+  * contains (for every dimension) the grid point indices at
+  * which a process boundary is assumed
+  */
   std::vector<IndexVector> decomposition_;
 
   /** number of procs in every dimension */
@@ -1855,13 +1847,6 @@ class DistributedFullGrid {
 
   /** number of local (in this grid cell) points per axis*/
   IndexVector nrLocalPoints_;
-
-  /** decomposition coords
-   * contains same information as lowerBoundCoords_ but in different
-   * representation. here for each dim we have coordinate of the 1d lower
-   * bound
-   */
-  std::vector<std::vector<real> > decompositionCoords_;
 
   // contains for each (local) gridpoint assigment to memory location on the registered dsg
   std::vector<FG_ELEMENT*> localFGIndexToLocalSGPointerList_;
@@ -1914,17 +1899,20 @@ class DistributedFullGrid {
     }
   }
 
+
+
   /* a regular (equidistant) domain decompositioning for an even number of processes
    * leads to grid points on the (geometrical) process boundaries.
    * with the forwardDecomposition flag it can be decided if the grid points on
    * the process boundaries belong to the process on the right-hand side (true)
    * of the process boundary, or to the one on the left-hand side (false).
    */
-  void calculateDefaultBounds(bool forwardDecomposition) {
-    std::vector<IndexVector> llbounds(dim_);
+  std::vector<IndexVector> getDefaultDecomposition(bool forwardDecomposition) const {
+    // create decomposition vectors
+    std::vector<IndexVector> decomposition(dim_);
 
     for (DimType i = 0; i < dim_; ++i) {
-      IndexVector& llbnd = llbounds[i];
+      IndexVector& llbnd = decomposition[i];
       llbnd.resize(procs_[i]);
 
       for (IndexType j = 0; j < procs_[i]; ++j) {
@@ -1937,19 +1925,14 @@ class DistributedFullGrid {
           llbnd[j] = static_cast<IndexType>(std::floor(tmp));
       }
     }
-
-    for (RankType r = 0; r < size_; ++r) {
-      // get coords of r in cart comm
-      IndexVector coords(dim_);
-      getPartitionCoords(r, coords);
-
-      for (DimType i = 0; i < dim_; ++i) {
-        lowerBounds_[r][i] = llbounds[i][coords[i]];
-      }
-    }
+    return decomposition;
   }
 
-  void calcLowerBounds(const std::vector<IndexVector>& decomposition) {
+  void setDecomposition(const std::vector<IndexVector>& decomposition) {
+    assert(decomposition.size() == dim_);
+    for (DimType i = 0; i < dim_; ++i)
+      assert(decomposition[i].size() == static_cast<size_t>(procs_[i]));
+
     // check if 1d bounds given in ascending order
     // if not, this might indicate there's something wrong
     for (DimType i = 0; i < dim_; ++i) {
@@ -1972,49 +1955,8 @@ class DistributedFullGrid {
     }
 
     decomposition_ = decomposition;
-
-    for (RankType r = 0; r < size_; ++r) {
-      // get coords of r in cart comm
-      IndexVector coords(dim_);
-      getPartitionCoords(r, coords);
-
-      for (DimType i = 0; i < dim_; ++i) lowerBounds_[r][i] = decomposition_[i][coords[i]];
-    }
   }
 
-  void calcUpperBounds() {
-    for (RankType r = 0; r < size_; ++r) {
-      // get coords of r in cart comm
-      IndexVector coords(dim_);
-      getPartitionCoords(r, coords);
-
-      for (DimType i = 0; i < dim_; ++i) {
-        RankType n;
-        IndexVector nc(coords);
-
-        if (nc[i] < procs_[i] - 1) {
-          // get rank of next neighbor in dim i
-          nc[i] += 1;
-          n = getRank(nc);
-          upperBounds_[r][i] = lowerBounds_[n][i];
-        } else {
-          // no neighbor in dim i -> end of domain
-          upperBounds_[r][i] = nrPoints_[i];
-        }
-      }
-    }
-  }
-
-  void calcDecompositionCoords() {
-    for (RankType r = 0; r < size_; ++r) {
-      // get coords of r in cart comm
-      IndexVector coords(dim_);
-      getPartitionCoords(r, coords);
-
-      for (DimType i = 0; i < dim_; ++i)
-        decompositionCoords_[i][coords[i]] = getLowerBoundsCoords(r)[i];
-    }
-  }
 
   void get1dIndicesLocal(DimType d, const LevelVector& lvec, IndexVector& oneDIndices) {
     LevelType l = lvec[d];
@@ -2107,19 +2049,7 @@ class DistributedFullGrid {
     }
   }
 
-  void calcDecomposition() {
-    // create decomposition vectors
-    decomposition_.resize(dim_);
-    for (size_t i = 0; i < dim_; ++i) decomposition_[i].resize(procs_[i]);
 
-    for (RankType r = 0; r < size_; ++r) {
-      // get coords of r in cart comm
-      IndexVector coords(dim_);
-      getPartitionCoords(r, coords);
-
-      for (DimType i = 0; i < dim_; ++i) decomposition_[i][coords[i]] = lowerBounds_[r][i];
-    }
-  }
 };
 // end class
 
