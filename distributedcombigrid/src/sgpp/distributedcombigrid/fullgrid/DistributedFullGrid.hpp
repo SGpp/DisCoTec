@@ -114,37 +114,14 @@ class DistributedFullGrid {
     dsg_ = nullptr;
 
 #ifdef DEBUG_OUTPUT
-
     if (rank_ == 0) {
       for (RankType r = 0; r < size_; ++r) {
         std::cout << "rank " << r << ": \n"
-                  << "\t lower bounds " << lowerBounds_[r] << "\t upper bounds " << upperBounds_[r]
+                  << "\t lower bounds " << getLowerBounds(r)
+                  << "\t upper bounds " << getUpperBounds(r)
                   << std::endl;
       }
     }
-
-    /*
-    if ( rank_ == 0 ) {
-      for ( auto subsp : subspaces_ ) {
-        std::cout << subsp.level_ << std::endl;
-
-        for ( RankType r = 0; r < size_; ++r ) {
-          // get coords of r in cart comm
-          IndexVector coords( dim_ );
-          this->getPartitionCoords( r, coords );
-
-          std::cout << "r = " << r << " ";
-          std::cout << "rcoords = " << IndexVector( coords.begin(), coords.end() )
-                    << " ";
-          std::cout << "lbounds = " << subsp.lowerBounds_[r]
-                    << " ";
-          std::cout << "rbounds = " << subsp.upperBounds_[r]
-                    << std::endl;
-        }
-      }
-    }
-    */
-
 #endif
   }
 
@@ -542,7 +519,7 @@ class DistributedFullGrid {
     getPartitionCoords(r, coords);
 
     for (DimType i = 0; i < dim_; ++i) {
-      lowerBounds[i] = decomposition_[i][coords[i]];
+      lowerBounds[i] = getDecomposition()[i][coords[i]];
     }
     return lowerBounds;
   }
@@ -1609,7 +1586,6 @@ class DistributedFullGrid {
 
   const std::vector<IndexVector>& getDecomposition() const { return decomposition_; }
 
-
   std::vector<MPI_Datatype> getUpwardSubarrays() {
     // initialize upwardSubarrays_ only once
     if (upwardSubarrays_.size() == 0){
@@ -1899,8 +1875,6 @@ class DistributedFullGrid {
     }
   }
 
-
-
   /* a regular (equidistant) domain decompositioning for an even number of processes
    * leads to grid points on the (geometrical) process boundaries.
    * with the forwardDecomposition flag it can be decided if the grid points on
@@ -1956,7 +1930,6 @@ class DistributedFullGrid {
 
     decomposition_ = decomposition;
   }
-
 
   void get1dIndicesLocal(DimType d, const LevelVector& lvec, IndexVector& oneDIndices) {
     LevelType l = lvec[d];
@@ -2064,11 +2037,7 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
   // for (auto& dec : decomposition) {
   //   os << dec;
   // }
-  // std::vector<std::vector<double>> decompositionCoords = dfg.getDecompositionCoords();
-  // for (auto& dec : decompositionCoords) {
-  //   os << dec;
-  // }
-  // os << "decomposition " << dfg.getParallelization() << std::endl;
+  // os << " decomposition; parallelization " << dfg.getParallelization() << std::endl;
   // if(dfg.getNrLocalElements() < 30)
   //   os << "elements " << dfg.getElementVector() << std::endl;
 
