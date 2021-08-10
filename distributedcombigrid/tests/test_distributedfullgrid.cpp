@@ -64,19 +64,56 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
       }
       mpimemory::print_memory_usage_comm(comm);
 
-      // get current global memory footprint
-      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], comm);
-      // create dfg
-      DistributedFullGrid<double> dfg(dim, levels, comm, boundary, procs, forward);
+      // // get current global memory footprint
+      // mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], comm);
+      {
+        // create "empty" dfg (resp. the cartesian communicator, and dummies for data members)
+        // and get current global memory footprint
+        CommunicatorType cartesian_communicator;
+        std::vector<int> intProcs(procs.rbegin(), procs.rend());
+        std::vector<int> periods(dim, 0);
+        int reorder = 0;
+        MPI_Cart_create(comm, static_cast<int>(dim), &intProcs[0], &periods[0], reorder, &cartesian_communicator);
 
-      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, comm);
+        // members created in dfg:
+        // // of size communicator size * dim (! quadratic scaling !)
+        // //TODO try to get rid of these! could we just store local bounds?
+        // // could the rest be calculated on the fly?
+        // std::vector<IndexVector> upperBounds_
+        // std::vector<IndexVector> lowerBounds_
+        // std::vector<std::vector<real> > upperBoundsCoords_
+        // std::vector<std::vector<real> > lowerBoundsCoords_
+        // // of size dim
+        // decompositionCoords_
+        // localOffsets_
+        // nrLocalPoints_
+        // offsets_
+
+        // this should scale linearly w.r.t. size of comm
+        mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], comm);
+        MPI_Comm_free(&cartesian_communicator);
+      }
+      {
+        // create dfg and get same footprint
+        DistributedFullGrid<double> dfg(dim, levels, comm, boundary, procs, forward);
+        mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, comm);
+
+        // check that the local number of points is what we expect
+        unsigned long numElementsRef = static_cast<unsigned long>(dfg.getNrElements());
+        unsigned long numElements = 0;
+        unsigned long numLocalElements = static_cast<unsigned long>(dfg.getNrLocalElements());
+        MPI_Allreduce(&numLocalElements, &numElements, 1,
+                      MPI_UNSIGNED_LONG,
+                      MPI_SUM, comm);
+        BOOST_TEST(numElements == numElementsRef);
+      }
       vmSizes[i] = vmSize - vmSizesReference[i];
       // compare allocated memory sizes
-      // check for linear scaling (grace 10%)
+      // check for linear scaling (grace for memory size jitter 100%)
       if (TestHelper::getRank(comm) == 0) {
         std::cout << "reference: " << vmSizesReference[i] << ", vmSize: " << vmSizes[i] << std::endl;
         if (i > 0) {
-          BOOST_TEST(static_cast<double>(vmSizes[i]) <= (vmSizes[0] * 1.1));
+          BOOST_TEST(static_cast<double>(vmSizes[i]) <= (vmSizes[0] * 2.));
         }
       }
     }
