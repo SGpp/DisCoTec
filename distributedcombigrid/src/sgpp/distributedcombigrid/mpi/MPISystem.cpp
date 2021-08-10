@@ -3,31 +3,6 @@
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 #include <iostream>
-
-namespace {
-using namespace combigrid;
-
-std::string getMinMaxAvg(RankType r, int size, std::string timerName, bool isTimer, MPI_Comm comm) {
-  double value;
-  /*    if( isTimer )
-        value = theStatsContainer()->getDuration( timerName );
-      else
-        value = theStatsContainer()->getValue( timerName );
-  */
-  double min, max, sum;
-  MPI_Reduce(&value, &min, 1, MPI_DOUBLE, MPI_MIN, r, comm);
-  MPI_Reduce(&value, &max, 1, MPI_DOUBLE, MPI_MAX, r, comm);
-  MPI_Reduce(&value, &sum, 1, MPI_DOUBLE, MPI_SUM, r, comm);
-
-  double avg = sum / static_cast<double>(size);
-
-  std::stringstream ss;
-  ss << timerName << "\t\t" << min << "\t" << max << "\t" << avg;
-
-  return ss.str();
-}
-}  // anonymous namespace
-
 namespace combigrid {
 
 /*!\brief Constructor for the MPISystem class.
@@ -259,6 +234,7 @@ void MPISystem::initGlobalReduceCommm() {
     if (ENABLE_FT) {
       createCommFT(&globalReduceCommFT_, globalReduceComm_);
     }
+    MPI_Comm_rank(globalReduceComm_, &globalReduceRank_);
     //int size = getCommSize(globalReduceComm_);
     //std::cout << "size if global reduce comm " << size << "\n";
     MPI_Barrier(globalReduceComm_);

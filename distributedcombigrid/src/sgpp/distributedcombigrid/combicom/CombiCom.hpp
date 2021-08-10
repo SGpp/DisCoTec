@@ -18,15 +18,27 @@
 
 namespace combigrid {
 
-/*
- template <typename FG_ELEMENT>
- class SGrid;
-
- template <typename FG_ELEMENT>
- class FullGrid;
- */
 
 class CombiCom {
+ private:
+   template<typename FG_ELEMENT>
+   static void updateSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                   std::vector<int>& subspaceSizes,
+                                   const MPI_Comm& globalReduceComm);
+   template<typename FG_ELEMENT>
+   static int sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                       const std::vector<int>& subspaceSizes);
+
+   template<typename FG_ELEMENT>
+   static void createUniformSparseGridBuffer(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                             const std::vector<int>& subspaceSizes,
+                                             std::vector<FG_ELEMENT>& buf);
+
+   template<typename FG_ELEMENT>
+   static void extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
+                                             const std::vector<int> subspaceSizes,
+                                             DistributedSparseGridUniform<FG_ELEMENT>& dsg);
+
  public:
   // // after SGReduce sg will have full size
   // // sg will be available on ALL members of comm
@@ -720,45 +732,36 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
   }
 }
 
-/***
- * In this method the global reduction of the distributed sparse grid is performed. The global sparse grid is
- * decomposed geometrically according to the domain decomposition (see Variant 2 in chapter 3.3.3 in marios diss).
- * We first collect all subspace parts of our domain part and fill all missing subspaces with 0. We then perform
- * an MPI_Allreduce with all processes from other process groups that own the same geometrical area. Here we follow
- * the Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
- */
 template <typename FG_ELEMENT>
-void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
-  // get global communicator for this operation
-  MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
-
-  assert(mycomm != MPI_COMM_NULL);
-
-  /* get sizes of all partial subspaces in communicator
-   * we have to do this, because size information of uninitialized subspaces
-   * is not available in dsg. at the moment this information is only available
-   * in dfg.
-   */
-  std::vector<int> subspaceSizes(dsg.getNumSubspaces());
-
+void CombiCom::updateSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                   std::vector<int>& subspaceSizes,
+                                   const MPI_Comm& globalReduceComm)
+{
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     // MPI does not have a real size_t equivalent. int should work in most cases
     // if not we can at least detect this with an assert
     assert(dsg.getDataSize(i) <= std::numeric_limits<int>::max());
 
     subspaceSizes[i] = int(dsg.getDataSize(i));
+
+    // std::cerr << combigrid::toString(dsg.getDataVector(i)) << std::endl;
   }
 
-  MPI_Allreduce(MPI_IN_PLACE, subspaceSizes.data(), int(subspaceSizes.size()), MPI_INT, MPI_MAX,
-                mycomm);
+  MPI_Allreduce( MPI_IN_PLACE, subspaceSizes.data(), int(subspaceSizes.size()),
+                 MPI_INT, MPI_MAX, globalReduceComm);
+}
 
-  // check for implementation errors, the reduced subspace size should not be
-  // different from the size of already initialized subspaces
+template <typename FG_ELEMENT>
+int CombiCom::sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                       const std::vector<int>& subspaceSizes)
+{
   int bsize = 0;
 
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
-    bool check = (subspaceSizes[i] == 0 || dsg.getDataSize(i) == 0 ||
-                  subspaceSizes[i] == int(dsg.getDataSize(i)));
+    // check for implementation errors, the reduced subspace size should not be
+    // different from the size of already initialized subspaces
+    bool check = (subspaceSizes[i] == 0 || dsg.getDataSize(i) == 0
+                  || subspaceSizes[i] == int(dsg.getDataSize(i)));
 
     if (!check) {
       int rank;
@@ -772,58 +775,89 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
 
     bsize += subspaceSizes[i];
   }
+  return bsize;
+}
 
-  // put subspace data into buffer for allreduce
-  std::vector<FG_ELEMENT> buf(bsize, FG_ELEMENT(0));
-  {
-    typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
+template <typename FG_ELEMENT>
+void CombiCom::createUniformSparseGridBuffer(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                             const std::vector<int>& subspaceSizes,
+                                             std::vector<FG_ELEMENT>& buf)
+{
+  typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
 
-    for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
-      std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
+  for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
+    std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
 
-      // if subspace does not exist on this process this part of the buffer is
-      // left empty
-      if (subspaceData.size() == 0) {
-        buf_it += subspaceSizes[i];
-        continue;
-      }
+    // if subspace does not exist on this process this part of the buffer is
+    // left empty
+    if (subspaceData.size() == 0) {
+      buf_it += subspaceSizes[i];
+      continue;
+    }
 
-      for (size_t j = 0; j < subspaceData.size(); ++j) {
-        *buf_it = subspaceData[j];
-        ++buf_it;
-      }
+    for (size_t j = 0; j < subspaceData.size(); ++j) {
+      *buf_it = subspaceData[j];
+      ++buf_it;
     }
   }
-  // define datatype for full grid elements
-  MPI_Datatype dtype =
-      abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-  // reduce the local part of sparse grid (distributed according to domain decomposition)
-  MPI_Allreduce(MPI_IN_PLACE, buf.data(), bsize, dtype, MPI_SUM, mycomm);
+}
 
-  // extract subspace data from buffer and write in corresponding subspaces
-  {
-    typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
+template <typename FG_ELEMENT>
+void CombiCom::extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
+                                             const std::vector<int> subspaceSizes,
+                                             DistributedSparseGridUniform<FG_ELEMENT>& dsg)
+{
+  auto buf_it = buf.begin();
 
-    for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
-      std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
+  for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
+    std::vector<FG_ELEMENT>& subspaceData = dsg.getDataVector(i);
 
-      // this can happen if dsg is different than
-      // lmax and lmin of combination scheme
-      if (subspaceData.size() == 0 && subspaceSizes[i] == 0) continue;
+    // this is very unlikely but can happen if dsg is different than
+    // lmax and lmin of combination scheme
+    if(subspaceData.size() == 0 && subspaceSizes[i] == 0)
+      continue;
 
-      // this happens for subspaces that are only available in component grids
-      // on other process groups
-      if (subspaceData.size() == 0 && subspaceSizes[i] > 0) {
-        subspaceData.resize(subspaceSizes[i]);
-      }
+    // this happens for subspaces that are only available in component grids
+    // on other process groups
+    if( subspaceData.size() == 0 && subspaceSizes[i] > 0 ){
+      subspaceData.resize( subspaceSizes[i] );
+    }
 
-      // in case subspaceData.size() > 0 und subspaceSizes > 0
-      for (size_t j = 0; j < subspaceData.size(); ++j) {
-        subspaceData[j] = *buf_it;
-        ++buf_it;
-      }
+    // wenn subspaceData.size() > 0 und subspaceSizes > 0
+    for (size_t j = 0; j < subspaceData.size(); ++j) {
+      subspaceData[j] = *buf_it;
+      ++buf_it;
     }
   }
+}
+
+/*** In this method the global reduction of the distributed sparse grid is
+ * performed. The global sparse grid is decomposed geometrically according to
+ * the domain decomposition (see Variant 2 in chapter 3.3.3 in marios diss). We
+ * first collect all subspace parts of our domain part and fill all missing
+ * subspaces with 0. We then perform an MPI_Allreduce with all processes from
+ * other process groups that own the same geometrical area. Here we follow the
+ * Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
+ */
+template<typename FG_ELEMENT>
+void CombiCom::distributedGlobalReduce(
+  DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
+  // get global communicator for this operation
+  MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
+
+  assert(mycomm != MPI_COMM_NULL);
+
+  assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
+
+  FG_ELEMENT* subspacesData = dsg.getRawData();
+  size_t subspacesDataSize = dsg.getRawDataSize();
+
+  // global reduce
+  MPI_Datatype dtype = abstraction::getMPIDatatype(
+                         abstraction::getabstractionDataType<FG_ELEMENT>());
+
+  assert(subspacesDataSize < static_cast<size_t>(std::numeric_limits<int>::max()));
+  MPI_Allreduce( MPI_IN_PLACE, subspacesData, static_cast<int>(subspacesDataSize), dtype, MPI_SUM, mycomm);
 }
 
 } /* namespace combigrid */

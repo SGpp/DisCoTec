@@ -315,9 +315,8 @@ template <typename FG_ELEMENT>
 static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                            std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData) {
   CommunicatorType comm = dfg.getCommunicator();
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  auto rank = dfg.getRank();
+  auto size = dfg.getCommunicatorSize();
 
   IndexVector coords(dfg.getDimension());
   dfg.getPartitionCoords(coords);
@@ -709,9 +708,8 @@ static void exchangeData1dDehierarchization(
     DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData) {
   CommunicatorType comm = dfg.getCommunicator();
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  auto rank = dfg.getRank();
+  auto size = dfg.getCommunicatorSize();
 
   IndexVector coords(dfg.getDimension());
   dfg.getPartitionCoords(coords);

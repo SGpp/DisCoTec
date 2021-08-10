@@ -188,7 +188,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // omitting to count RUN_FIRST signal, as it is executed once for every task
     int nrun = 1;
     while (signal != EXIT) {
-      BOOST_TEST_CHECKPOINT(signal);
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
       signal = pgroup.wait();
 
       if (signal == RUN_NEXT) {
