@@ -19,7 +19,7 @@ int get_memory_usage_kb(unsigned long* vmrss_kb, unsigned long* vmsize_kb) {
 
   long to_read = 8192;
   char buffer[to_read];
-  int read = fread(buffer, sizeof(char), to_read, procfile);
+  fread(buffer, sizeof(char), to_read, procfile);
   fclose(procfile);
 
   short found_vmrss = 0;
