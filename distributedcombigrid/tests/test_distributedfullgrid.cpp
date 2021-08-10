@@ -55,19 +55,12 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
 
     long unsigned int vmRSS, vmSize = 0;
     if (comm != MPI_COMM_NULL) {
-      if (TestHelper::getRank(comm) == 0) {
-        std::cout << "test distributedfullgrid memory" << levels << groupSizes[i] << procs
-                  << std::endl;
-      }
-      if (getCommRank(comm) == 0) {
-        std::cout << "before grid " << std::flush;
-      }
-      mpimemory::print_memory_usage_comm(comm);
+      BOOST_TEST_CHECKPOINT("test distributedfullgrid memory " + std::to_string(groupSizes[i]));
 
       // // get current global memory footprint
       // mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], comm);
       {
-        // create "empty" dfg (resp. the cartesian communicator, and dummies for data members)
+        // create "empty" dfg (resp. the cartesian communicator)
         // and get current global memory footprint
         CommunicatorType cartesian_communicator;
         std::vector<int> intProcs(procs.rbegin(), procs.rend());
@@ -95,11 +88,13 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
       }
       vmSizes[i] = vmSize - vmSizesReference[i];
       // compare allocated memory sizes
-      // check for linear scaling (grace for memory size jitter & decomposition_ member 100%)
+      // check for linear scaling (grace 100% for memory size jitter & decomposition_ member)
       if (TestHelper::getRank(comm) == 0) {
-        std::cout << "reference: " << vmSizesReference[i] << ", vmSize: " << vmSizes[i] << std::endl;
+        BOOST_TEST_CHECKPOINT( "reference " + std::to_string(groupSizes[i]) +
+                                ": " + std::to_string(vmSizesReference[i]) +
+                                ", vmSize: " + std::to_string(vmSizes[i]) );
         if (i > 0) {
-          BOOST_TEST(static_cast<double>(vmSizes[i]) <= (vmSizes[0] * 2.));
+          BOOST_TEST(static_cast<double>(vmSizes[i]) <= ((vmSizes[0] + 500) * 2.));
         }
       }
     }
