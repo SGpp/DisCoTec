@@ -75,20 +75,6 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
         int reorder = 0;
         MPI_Cart_create(comm, static_cast<int>(dim), &intProcs[0], &periods[0], reorder, &cartesian_communicator);
 
-        // members created in dfg:
-        // // of size communicator size * dim (! quadratic scaling !)
-        // //TODO try to get rid of these! could we just store local bounds?
-        // // could the rest be calculated on the fly?
-        // std::vector<IndexVector> upperBounds_
-        // std::vector<IndexVector> lowerBounds_
-        // std::vector<std::vector<real> > upperBoundsCoords_
-        // std::vector<std::vector<real> > lowerBoundsCoords_
-        // // of size dim
-        // decompositionCoords_
-        // localOffsets_
-        // nrLocalPoints_
-        // offsets_
-
         // this should scale linearly w.r.t. size of comm
         mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], comm);
         MPI_Comm_free(&cartesian_communicator);
@@ -109,7 +95,7 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
       }
       vmSizes[i] = vmSize - vmSizesReference[i];
       // compare allocated memory sizes
-      // check for linear scaling (grace for memory size jitter 100%)
+      // check for linear scaling (grace for memory size jitter & decomposition_ member 100%)
       if (TestHelper::getRank(comm) == 0) {
         std::cout << "reference: " << vmSizesReference[i] << ", vmSize: " << vmSizes[i] << std::endl;
         if (i > 0) {
