@@ -19,14 +19,16 @@
  * class. So we avoid recompilation of all files that use the class.
  */
 namespace {
-
 template <typename FG_ELEMENT>
 struct SubspaceSGU {
-  combigrid::LevelVector level_; // level of the subspace
+  // commented most members, since they were virtually unused
+  // if needed in the future, they may be used again
 
-  combigrid::IndexVector sizes_; // contains the number of points per dim of the whole ss
+  // combigrid::LevelVector level_; // level of the subspace
 
-  size_t size_; // contains the number of Points of the whole ss
+  // combigrid::IndexVector sizes_; // contains the number of points per dim of the whole ss
+
+  // size_t size_; // contains the number of Points of the whole ss
 
   FG_ELEMENT * data_; // contains the values at the data points (Attention: Due to the decomposition, only part of the full ss may be stored)
 
@@ -112,15 +114,15 @@ class DistributedSparseGridUniform {
   // return the sizes for each dimension for subspace with l
   inline const IndexVector& getSubspaceSizes(const LevelVector& l) const;
 
-  // return the number of elements of subspace i.
-  // this number is independent of whether the subspace is initialized on this
-  // process or not.
-  inline size_t getSubspaceSize(size_t i) const;
+  // // return the number of elements of subspace i.
+  // // this number is independent of whether the subspace is initialized on this
+  // // process or not.
+  // inline size_t getSubspaceSize(size_t i) const;
 
-  // return the number of elements of subspace i.
-  // this number is independent of whether the subspace is initialized on this
-  // process or not.
-  inline size_t getSubspaceSize(const LevelVector& l) const;
+  // // return the number of elements of subspace i.
+  // // this number is independent of whether the subspace is initialized on this
+  // // process or not.
+  // inline size_t getSubspaceSize(const LevelVector& l) const;
 
   // check if a subspace with l is contained in the sparse grid
   // unlike getIndex this will not throw an assert in case l is not contained
@@ -156,7 +158,7 @@ class DistributedSparseGridUniform {
 
   void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax);
 
-  void setSizes();
+  // void setSizes();
 
   DimType dim_;
 
@@ -225,11 +227,11 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
   subspacesDataSizes_.resize(levels_.size());
 
   // set subspaces
-  for (size_t i = 0; i < levels_.size(); ++i) {
-    subspaces_[i].level_ = levels_[i];
-  }
+  // for (size_t i = 0; i < levels_.size(); ++i) {
+  //   subspaces_[i].level_ = levels_[i];
+  // }
 
-  setSizes();
+  // setSizes();
 }
 
 // at construction create only levels, no data
@@ -249,13 +251,13 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
   // init subspaces
   subspaces_.reserve(subspaces.size());
   for (size_t i = 0; i < subspaces.size(); i++) {
-   subspaces_.push_back({ /*.level_    =*/ subspaces[i],
-                          /*.sizes_    =*/ IndexVector(0),
-                          /*.size_     =*/ 0,
+   subspaces_.push_back({ ///*.level_    =*/ subspaces[i],
+                          // /*.sizes_    =*/ IndexVector(0),
+                          // /*.size_     =*/ 0,
                           /*.data_     =*/ nullptr
                           });
   }
-  setSizes();
+  // setSizes();
 
   MPI_Comm_rank(comm_, &rank_);
   MPI_Comm_size(comm_, &commSize_);
@@ -321,8 +323,9 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setZero() {
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::print(std::ostream& os) const {
   for (size_t i = 0; i < subspaces_.size(); ++i) {
-    os << i << " " << subspaces_[i].level_ << " " << subspaces_[i].sizes_ << " "
-       << subspaces_[i].size_ << std::endl;
+    os << i << " " << levels_[i] << " " //<< subspaces_[i].sizes_ << " "
+      //  << subspaces_[i].size_
+       << std::endl;
   }
 }
 
@@ -392,29 +395,31 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createLevels(DimType dim, const L
   createLevelsRec(dim, n, dim, l, nmax);
 }
 
-template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::setSizes() {
-  for (size_t i = 0; i < subspaces_.size(); ++i) {
-    IndexVector& sizes = subspaces_[i].sizes_;
-    sizes.resize(dim_);
-    const LevelVector& l = subspaces_[i].level_;
+// template <typename FG_ELEMENT>
+// void DistributedSparseGridUniform<FG_ELEMENT>::setSizes() {
+//   for (size_t i = 0; i < subspaces_.size(); ++i) {
+//     // IndexVector& sizes = subspaces_[i].sizes_;
+//     // sizes.resize(dim_);
+//     IndexVector sizes(dim_);
+//     // const LevelVector& l = subspaces_[i].level_;
+//     const LevelVector& l = levels_[i];
 
-    // loop over all dimensions
-    for (size_t j = 0; j < dim_; ++j) {
-      if (l[j] == 1 && boundary_[j]) {
-        sizes[j] = (size_t(std::pow(2.0, real(l[j] - 1))) + size_t(2));
-      } else {
-        sizes[j] = size_t(std::pow(2.0, real(l[j] - 1)));
-      }
-    }
+//     // loop over all dimensions
+//     for (size_t j = 0; j < dim_; ++j) {
+//       if (l[j] == 1 && boundary_[j]) {
+//         sizes[j] = (size_t(std::pow(2.0, real(l[j] - 1))) + size_t(2));
+//       } else {
+//         sizes[j] = size_t(std::pow(2.0, real(l[j] - 1)));
+//       }
+//     }
 
-    IndexType tmp(1);
+//     IndexType tmp(1);
 
-    for (auto s : sizes) tmp *= s;
+//     for (auto s : sizes) tmp *= s;
 
-    subspaces_[i].size_ = size_t(tmp);
-  }
-}
+//     subspaces_[i].size_ = size_t(tmp);
+//   }
+// }
 
 template <typename FG_ELEMENT>
 inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVector(size_t i) const {
@@ -507,40 +512,40 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::isContained(const LevelVector& l)
   return found;
 }
 
-template <typename FG_ELEMENT>
-const IndexVector& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSizes(size_t i) const {
-  return subspaces_[i].sizes_;
-}
+// template <typename FG_ELEMENT>
+// const IndexVector& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSizes(size_t i) const {
+//   return subspaces_[i].sizes_;
+// }
 
-template <typename FG_ELEMENT>
-const IndexVector& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSizes(
-    const LevelVector& l) const {
-  IndexType i = getIndex(l);
+// template <typename FG_ELEMENT>
+// const IndexVector& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSizes(
+//     const LevelVector& l) const {
+//   IndexType i = getIndex(l);
 
-  if (i < 0) {
-    std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
-    assert(false);
-  }
+//   if (i < 0) {
+//     std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
+//     assert(false);
+//   }
 
-  return subspaces_[i].sizes_;
-}
+//   return subspaces_[i].sizes_;
+// }
 
-template <typename FG_ELEMENT>
-size_t DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSize(size_t i) const {
-  return subspaces_[i].size_;
-}
+// template <typename FG_ELEMENT>
+// size_t DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSize(size_t i) const {
+//   return subspaces_[i].size_;
+// }
 
-template <typename FG_ELEMENT>
-size_t DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSize(const LevelVector& l) const {
-  IndexType i = getIndex(l);
+// template <typename FG_ELEMENT>
+// size_t DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSize(const LevelVector& l) const {
+//   IndexType i = getIndex(l);
 
-  if (i < 0) {
-    std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
-    assert(false);
-  }
+//   if (i < 0) {
+//     std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
+//     assert(false);
+//   }
 
-  return subspaces_[i].size_;
-}
+//   return subspaces_[i].size_;
+// }
 
 template <typename FG_ELEMENT>
 size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(size_t i) const {
