@@ -125,8 +125,8 @@ unsigned long checkMPIMemory(size_t ngroup, size_t nprocs) {
   unsigned long local_vmrss, local_vmsize = 0;
   WORLD_MANAGER_EXCLUSIVE_SECTION {}
   else {
-    MASTER_EXCLUSIVE_SECTION { std::cout << "after MPI init " << std::flush; }
-    mpimemory::print_memory_usage_local();
+    BOOST_TEST_CHECKPOINT("after MPI init ")
+    // mpimemory::print_memory_usage_local();
     mpimemory::get_memory_usage_local_kb(&local_vmrss, &local_vmsize);
   }
 
