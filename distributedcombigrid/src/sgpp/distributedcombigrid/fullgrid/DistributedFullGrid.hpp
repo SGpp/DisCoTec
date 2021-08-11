@@ -1000,12 +1000,23 @@ class DistributedFullGrid {
     assert (&dsg == dsg_);
 
     auto indexAssignment = getLocalFGIndexToLocalSGPointerList();
+    #ifdef DEBUG_OUTPUT
+      MASTER_EXCLUSIVE_SECTION { std::cout << "is this where " << indexAssignment[0] << "?\n"; }
+    #endif
+
+    bool anythingWasAdded = false;
 
     // loop over all grid points
     for (size_t i = 0; i < nrLocalElements_; ++i) {
       // add grid point to subspace, mul with coeff
-      *(indexAssignment[i]) += coeff * fullgridVector_[i];
+      if (indexAssignment[i] != nullptr) {
+        *(indexAssignment[i]) += coeff * fullgridVector_[i];
+        anythingWasAdded = true;
+      }
     }
+    // make sure that anything was added -- I can only think of weird setups
+    // where that would not be the case
+    assert(anythingWasAdded);
   }
 
   /**
