@@ -81,13 +81,13 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       // dfg.print(std::cout);
       // std::cout << std::endl;
-      TestFnCount<CombiDataType> initialFunction;
-      // ParaboloidFn<CombiDataType> initialFunction;
+      // TestFnCount<CombiDataType> initialFunction;
+      ParaboloidFn<CombiDataType> initialFunction;
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         std::vector<double> coords(dfg.getDimension());
         dfg.getCoordsLocal(li, coords);
-        CombiDataType expected = initialFunction(coords, nrun);
-        // CombiDataType expected = initialFunction(coords);
+        // CombiDataType expected = initialFunction(coords, nrun);
+        CombiDataType expected = initialFunction(coords);
         CombiDataType occuring = dfg.getData()[li];
         BOOST_CHECK_CLOSE(expected, occuring, TestHelper::tolerance);
         // BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance); //TODO use this once
@@ -178,8 +178,8 @@ void testCombineThirdLevel(TestParams& testParams) {
     TaskContainer tasks;
     std::vector<int> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      // Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
-      Task* t = new TaskCount(2, levels[i], boundary, coeffs[i], loadmodel.get());
+      Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
+      // Task* t = new TaskCount(2, levels[i], boundary, coeffs[i], loadmodel.get());
 
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
@@ -225,15 +225,15 @@ void testCombineThirdLevel(TestParams& testParams) {
     std::vector<std::vector<real>> interpolationCoords;
     std::vector<real> values (1000);
     real l2ErrorSingle = 0.;
-    TestFnCount<CombiDataType> initialFunction;
-    // ParaboloidFn<CombiDataType> initialFunction;
+    // TestFnCount<CombiDataType> initialFunction;
+    ParaboloidFn<CombiDataType> initialFunction;
 
     // compare to third-level monte carlo interpolation
     manager.monteCarloThirdLevel(1000, interpolationCoords, values);
     real l2ErrorTwoSystems = 0.;
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-      l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
-      // l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i]) - values[i], 2);
+      // l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
+      l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i]) - values[i], 2);
     }
 
     Stats::startEvent("manager interpolate");
@@ -241,17 +241,17 @@ void testCombineThirdLevel(TestParams& testParams) {
     Stats::stopEvent("manager interpolate");
 
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-      l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
-      // l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i]) - values[i], 2);
+      // l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
+      l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i]) - values[i], 2);
     }
 
     std::cout << "Monte carlo errors are " << l2ErrorSingle << " on this system and " <<
       l2ErrorTwoSystems << " in total. boundary: " << boundary << std::endl;
     // only do check if no boundary, otherwise all components interpolate exactly on the hyperplane anyways
-    auto hasBoundary = std::all_of(boundary.begin(), boundary.end(), [] (bool b) {return std::forward<bool>(b);});
-    if (!hasBoundary) {
-      BOOST_CHECK_LE(l2ErrorTwoSystems, l2ErrorSingle);
-    }
+    // auto hasBoundary = std::all_of(boundary.begin(), boundary.end(), [] (bool b) {return std::forward<bool>(b);});
+    // if (!hasBoundary) {
+    BOOST_CHECK_LE(l2ErrorTwoSystems, l2ErrorSingle);
+    // }
 
     std::string filename("thirdLevel_" + std::to_string(testParams.ncombi) + ".raw");
     Stats::startEvent("manager write solution");
