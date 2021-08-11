@@ -161,6 +161,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     BOOST_CHECK_CLOSE(error[2], 0., TestHelper::tolerance);
     Stats::stopEvent("manager get norms");
 
+    BOOST_TEST_CHECKPOINT("write solution");
     std::string filename("integration_" + std::to_string(ncombi) + ".raw");
     Stats::startEvent("manager write solution");
     manager.parallelEval( lmax, filename, 0 );
@@ -168,7 +169,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     std::cout << "wrote solution  " << ngroup << " " << nprocs << std::endl;
 
     // test Monte-Carlo interpolation
+    BOOST_TEST_CHECKPOINT("MC interpolation coordinates");
     auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
+    BOOST_TEST_CHECKPOINT("MC interpolation");
     Stats::startEvent("manager interpolate");
     auto values = manager.interpolateValues(interpolationCoords);
     Stats::stopEvent("manager interpolate");
@@ -201,7 +204,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // omitting to count RUN_FIRST signal, as it is executed once for every task
     int nrun = 1;
     while (signal != EXIT) {
-      BOOST_TEST_CHECKPOINT(signal);
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
       signal = pgroup.wait();
 
       if (signal == RUN_NEXT) {

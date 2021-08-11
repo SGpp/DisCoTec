@@ -90,8 +90,8 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
-      // free space for computation
-      deleteDsgsData();
+      // // free space for computation
+      // deleteDsgsData();
 
       // reset finished status of all tasks
       if (tasks_.size() != 0) {
@@ -437,7 +437,6 @@ void ProcessGroupWorker::ready() {
   }
 }
 
-
 /**
  * This method reduces the lmax and lmin vectors of the sparse grid according to the reduction
  * specifications in ctparam. It is taken care of that lmin does not fall below 1 and lmax >= lmin.
@@ -508,6 +507,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     const LevelVector& ss = sg.getLevelVector(ssID);
     subspaces.push_back(ss);
   }
+  assert(subspaces.size() > 0);
 
   // create dsgs
   combinedUniDSGVector_.resize((size_t) numGrids);
@@ -527,6 +527,11 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   // register dsgs in all dfgs
   for (Task* t : tasks_) {
     for (int g = 0; g < numGrids; g++) {
+#ifdef DEBUG_OUTPUT
+      MASTER_EXCLUSIVE_SECTION {
+        std::cout << "register task " << t->getID() << std::endl;
+      }
+#endif // def DEBUG_OUTPUT
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       dfg.registerUniformSG(*(combinedUniDSGVector_[(size_t) g]));
     }
@@ -534,8 +539,15 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
 
   // global reduce of subspace sizes
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  for (int g = 0; g < numGrids; g++)
+  for (int g = 0; g < numGrids; g++) {
     reduceSubspaceSizes(combinedUniDSGVector_[(size_t)g].get(), globalReduceComm);
+#ifdef DEBUG_OUTPUT
+    MASTER_EXCLUSIVE_SECTION {
+      std::cout << "dsg size: " << combinedUniDSGVector_[(size_t)g]->getRawDataSize() << " * "
+                << sizeof(CombiDataType) << std::endl;
+    }
+#endif  // def DEBUG_OUTPUT
+  }
 }
 
 void ProcessGroupWorker::hierarchizeFullGrids() {
@@ -575,17 +587,20 @@ void ProcessGroupWorker::reduceUniformSG() {
   // we assume here that every task has the same number of grids, e.g. species in GENE
   auto numGrids = combiParameters_.getNumGrids();
 
+#ifdef DEBUG_OUTPUT
+  MASTER_EXCLUSIVE_SECTION { std::cout << "reduce uniform sg \n"; }
+#endif
+
   for (IndexType g = 0; g < numGrids; g++) {
     CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g]);
   }
 }
 
-void ProcessGroupWorker::combineUniform() {
-  combineLocalAndGlobal();
-  integrateCombinedSolution();
-}
-
 void ProcessGroupWorker::combineLocalAndGlobal() {
+  assert(combinedUniDSGVector_.size() > 0 && "Initialize dsgu first with "
+                                             "initCombinedUniDSGVector()");
+  // assert(combinedUniDSGVector_[0]->isSubspaceDataCreated());
+
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
 #endif
@@ -597,13 +612,30 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
   hierarchizeFullGrids();
   Stats::stopEvent("combine hierarchize");
 
+#ifdef DEBUG_OUTPUT
+  MASTER_EXCLUSIVE_SECTION { std::cout << "mid combining \n"; }
+#endif
+
   Stats::startEvent("combine local reduce");
   addFullGridsToUniformSG();
   Stats::stopEvent("combine local reduce");
 
+#ifdef DEBUG_OUTPUT
+  MASTER_EXCLUSIVE_SECTION { std::cout << "almost done combining \n"; }
+#endif
+
   Stats::startEvent("combine global reduce");
   reduceUniformSG();
   Stats::stopEvent("combine global reduce");
+
+#ifdef DEBUG_OUTPUT
+  MASTER_EXCLUSIVE_SECTION { std::cout << "end combining \n"; }
+#endif
+}
+
+void ProcessGroupWorker::combineUniform() {
+  combineLocalAndGlobal();
+  integrateCombinedSolution();
 }
 
 void ProcessGroupWorker::parallelEval() {
@@ -1077,6 +1109,12 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel() {
     for(size_t i = 0; i < dsg->getNumSubspaces(); ++i) {
       dsg->setDataSize(i, *(buffIt++));
     }
+#ifdef DEBUG_OUTPUT
+    MASTER_EXCLUSIVE_SECTION {
+      std::cout << "third level reduce dsg size: " << dsg->getRawDataSize() << " * "
+                << sizeof(CombiDataType) << std::endl;
+    }
+#endif  // def DEBUG_OUTPUT
   }
 }
 
@@ -1149,9 +1187,11 @@ void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
 void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, size_t numGrids) {
   for (size_t g = 0; g < numGrids; g++) {
     // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(static_cast<int>(g));
+    DistributedFullGrid<CombiDataType>& dfg =
+        taskToUpdate.getDistributedFullGrid(static_cast<int>(g));
 
-    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
+    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
+                                                combiParameters_.getHierarchizationDims());
 
     // std::vector<CombiDataType> datavector(dfg.getElementVector());
     // afterCombi = datavector;

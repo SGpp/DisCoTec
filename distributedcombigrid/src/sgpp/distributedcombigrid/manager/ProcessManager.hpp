@@ -59,6 +59,8 @@ class ProcessManager {
 
   bool runfirst();
 
+  void initDsgus();
+
   void exit();
 
   virtual ~ProcessManager();
@@ -67,8 +69,6 @@ class ProcessManager {
   inline FG_ELEMENT eval(const std::vector<real>& coords);
 
   bool runnext();
-
-  void initDsgus();
 
   inline void combine();
 

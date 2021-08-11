@@ -11,6 +11,7 @@
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPIMemory.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 #include "test_helper.hpp"
@@ -54,32 +55,47 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
 
     long unsigned int vmRSS, vmSize = 0;
     if (comm != MPI_COMM_NULL) {
+      BOOST_TEST_CHECKPOINT("test distributedfullgrid memory " + std::to_string(groupSizes[i]));
+
+      // // get current global memory footprint
+      // mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], comm);
+      {
+        // create "empty" dfg (resp. the cartesian communicator)
+        // and get current global memory footprint
+        CommunicatorType cartesian_communicator;
+        std::vector<int> intProcs(procs.rbegin(), procs.rend());
+        std::vector<int> periods(dim, 0);
+        int reorder = 0;
+        MPI_Cart_create(comm, static_cast<int>(dim), &intProcs[0], &periods[0], reorder, &cartesian_communicator);
+
+        // this should scale linearly w.r.t. size of comm
+        mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], comm);
+        MPI_Comm_free(&cartesian_communicator);
+      }
+      {
+        // create dfg and get same footprint
+        DistributedFullGrid<double> dfg(dim, levels, comm, boundary, procs, forward);
+        mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, comm);
+
+        // check that the local number of points is what we expect
+        unsigned long numElementsRef = static_cast<unsigned long>(dfg.getNrElements());
+        unsigned long numElements = 0;
+        unsigned long numLocalElements = static_cast<unsigned long>(dfg.getNrLocalElements());
+        MPI_Allreduce(&numLocalElements, &numElements, 1,
+                      MPI_UNSIGNED_LONG,
+                      MPI_SUM, comm);
+        BOOST_TEST(numElements == numElementsRef);
+      }
+      vmSizes[i] = vmSize - vmSizesReference[i];
+      // compare allocated memory sizes
+      // check for linear scaling (grace 100% for memory size jitter & decomposition_ member)
       if (TestHelper::getRank(comm) == 0) {
-        std::cout << "test distributedfullgrid memory" << levels << groupSizes[i] << procs
-                  << std::endl;
-      }
-      if (getCommRank(comm) == 0) {
-        std::cout << "before grid " << std::flush;
-      }
-      mpimemory::print_memory_usage_comm(comm);
-
-      // get current global memory footprint
-      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], MPI_COMM_WORLD);
-      // create dfg
-      DistributedFullGrid<double> dfg(dim, levels, comm, boundary, procs, forward);
-
-      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, MPI_COMM_WORLD);
-    } else {
-      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], MPI_COMM_WORLD);
-      mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, MPI_COMM_WORLD);
-    }
-    vmSizes[i] = vmSize - vmSizesReference[i];
-    // compare allocated memory sizes
-    // check for linear scaling (grace 10%)
-    if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
-      std::cout << "reference: " << vmSizesReference[i] << ", vmSize: " << vmSizes[i] << std::endl;
-      if (i > 0) {
-        BOOST_TEST(static_cast<double>(vmSizes[i]) <= (vmSizes[0] * 1.1));
+        BOOST_TEST_CHECKPOINT( "reference " + std::to_string(groupSizes[i]) +
+                                ": " + std::to_string(vmSizesReference[i]) +
+                                ", vmSize: " + std::to_string(vmSizes[i]) );
+        if (i > 0) {
+          BOOST_TEST(static_cast<double>(vmSizes[i]) <= ((vmSizes[0] + 500) * 2.));
+        }
       }
     }
     // update parallelization so it matches the next groupSize
@@ -117,6 +133,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     dfg.getCoordsLocal(li, coords);
     dfg.getData()[li] = f(coords);
   }
+  BOOST_TEST_CHECKPOINT("set function values");
 
   // test addToUniformSG, extractFromUniformSG
   LevelVector lmin = levels;
@@ -125,9 +142,13 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     lmax[d] *= 2;
   }
   DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, boundary, comm);
+  dfg.registerUniformSG(dsg);
   dfg.addToUniformSG(dsg, 2.1);
+  BOOST_TEST_CHECKPOINT("add to uniform sg");
   DistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
+  dfg2.registerUniformSG(dsg);
   dfg2.extractFromUniformSG(dsg);
+  BOOST_TEST_CHECKPOINT("extract from uniform sg");
 
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
     std::vector<double> coords(dim);

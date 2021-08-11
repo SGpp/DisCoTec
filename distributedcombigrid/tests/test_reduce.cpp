@@ -124,7 +124,10 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
   else {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
-    while (signal != EXIT) signal = pgroup.wait();
+    while (signal != EXIT) {
+      signal = pgroup.wait();
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
+    }
   }
 
   combigrid::Stats::finalize();
