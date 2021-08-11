@@ -2,8 +2,6 @@
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
-#include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
-
 
 namespace combigrid {
 
@@ -102,12 +100,6 @@ class TaskAdvection : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
     // dfg_->print(std::cout);
-    bool sizeOutput = (stepsTotal_ == 0);
-    auto lrank = theMPISystem()->getLocalRank();
-    auto lsize = theMPISystem()->getNumProcs();
-    if (sizeOutput && lrank == 0) {
-      std::cout << " run first " << dfg_->getNrLocalElements() << " " << std::flush;// << "decomp " << dfg_->getDecomposition() << " ";
-    }
 
     std::vector<CombiDataType> u(this->getDim(), 1);
 
@@ -122,28 +114,19 @@ class TaskAdvection : public Task {
 
       auto u_dot_dphi = std::vector<CombiDataType> (dfg_->getNrLocalElements(), 0.);
 
-    if (sizeOutput && lrank == 0) {
-      std::cout << " dphi " << std::flush;
-    }
-
-
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
         IndexVector subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         phi_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
         int subarrayOffset = 1;
-	int subarraySize = 1;
+	// int subarraySize = 1;
         IndexVector subarrayOffsets (this->getDim());
         for (DimType d_j = 0; d_j < dim_; ++d_j) {
           subarrayOffsets[d_j] = subarrayOffset;
           subarrayOffset *= subarrayExtents[d_j];
-	  subarraySize *= subarrayExtents[d_j];
+	  // subarraySize *= subarrayExtents[d_j];
         }
-
-    if (sizeOutput && lrank == lsize - 1) {
-      std::cout << subarraySize << " " << std::flush;
-    }
 
         for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
           // calculate local axis index of backward neighbor
@@ -187,9 +170,6 @@ class TaskAdvection : public Task {
         // implement periodic BC
         dfg_->writeUpperBoundaryToLowerBoundary(d);
       }
-    }
-    if (sizeOutput && lrank == 0) {
-      std::cout << " finished step " << std::endl;
     }
     stepsTotal_ += nsteps_;
 
