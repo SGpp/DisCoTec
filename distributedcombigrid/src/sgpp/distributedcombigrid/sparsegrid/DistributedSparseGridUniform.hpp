@@ -268,6 +268,10 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
  */
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
+  assert(false &&
+         "due to the way that DFGs register the DSG only once (currently), you should think of a "
+         "way to reset the localFGIndexToLocalSGPointerList_ member, since it will become "
+         "invalidated by the next line, or to have it use the subspaces_[*].data_ structures");
   if (isSubspaceDataCreated()) {
     subspacesData_ = std::vector<FG_ELEMENT>();
 
