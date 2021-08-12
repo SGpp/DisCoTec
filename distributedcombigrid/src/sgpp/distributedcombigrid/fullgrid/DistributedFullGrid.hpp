@@ -96,6 +96,8 @@ class DistributedFullGrid {
     } else {
       setDecomposition(decomposition);
     }
+    myPartitionsLowerBounds_ = getLowerBounds(rank_);
+    myPartitionsUpperBounds_ = getUpperBounds(rank_);
 
     // set local elements and local offsets
     nrLocalPoints_ = getUpperBounds() - getLowerBounds();
@@ -508,7 +510,10 @@ class DistributedFullGrid {
   inline int getCommunicatorSize() const { return size_; }
 
   /** lower Bounds of this process */
-  inline IndexVector getLowerBounds() const { return getLowerBounds(rank_); }
+  inline IndexVector getLowerBounds() const {
+    // return getLowerBounds(rank_);
+    return myPartitionsLowerBounds_;
+  }
 
   /** lower bounds of rank r */
   inline IndexVector getLowerBounds(RankType r) const {
@@ -538,7 +543,10 @@ class DistributedFullGrid {
   }
 
   /** upper Bounds of this process */
-  inline IndexVector getUpperBounds() const { return getUpperBounds(rank_); }
+  inline IndexVector getUpperBounds() const {
+    // return getUpperBounds(rank_);
+    return myPartitionsUpperBounds_;
+  }
 
   /** upper bounds of rank r */
   inline IndexVector getUpperBounds(RankType r) const {
@@ -1815,12 +1823,17 @@ class DistributedFullGrid {
 
   /** flag to show if the dimension has boundary points*/
   std::vector<bool> hasBoundaryPoints_;
-
   /** the offsets in each direction*/
   IndexVector offsets_;
 
   /** the local offsets in each direction */
   IndexVector localOffsets_;
+
+  /** my partition's lower 1D bounds */
+  IndexVector myPartitionsLowerBounds_;
+
+  /** my partition's upper 1D bounds */
+  IndexVector myPartitionsUpperBounds_;
 
   /** the full grid vector, this contains the elements of the full grid */
   std::vector<FG_ELEMENT> fullgridVector_;
