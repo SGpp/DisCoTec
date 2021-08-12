@@ -25,7 +25,7 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   # TODO(pfandedd): discuss with julian
 #   if env["PLATFORM"] not in ["cygwin", "win32"]:
   if env["OPT"] == True:
-    env.Append(CPPFLAGS=["-O3", "-g"])
+    env.Append(CPPFLAGS=["-O3"])
   else:
     env.Append(CPPFLAGS=["-g", "-O0"])
 
