@@ -35,6 +35,19 @@ inline bool operator==(const IndexVector& l1, const IndexVector& l2) {
   return true;
 }
 
+// helper function to compare any vector
+template<typename T>
+inline bool operator==(const std::vector<T> &u, const std::vector<T> &v) {
+  using namespace std;
+  if(u.size() != v.size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < u.size(); ++i) {
+    if (u[i] != v[i]) return false;
+  }
+  return true;
+}
+
 // a l1 < l2 if each entry l1,i < l2,i
 inline bool operator<=(const IndexVector& l1, const IndexVector& l2) {
   assert(l1.size() == l2.size());

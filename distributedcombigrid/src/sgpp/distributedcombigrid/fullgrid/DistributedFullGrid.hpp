@@ -514,7 +514,7 @@ class DistributedFullGrid {
   inline IndexVector getLowerBounds(RankType r) const {
     assert(r >= 0 && r < size_);
     // get coords of r in cart comm
-    IndexVector coords(dim_);
+    std::vector<int> coords(dim_);
     IndexVector lowerBounds(dim_);
     getPartitionCoords(r, coords);
 
@@ -543,13 +543,13 @@ class DistributedFullGrid {
   /** upper bounds of rank r */
   inline IndexVector getUpperBounds(RankType r) const {
     assert(r >= 0 && r < size_);
-    IndexVector coords(dim_);
+    std::vector<int> coords(dim_);
     IndexVector upperBounds(dim_);
     getPartitionCoords(r, coords);
 
     for (DimType i = 0; i < dim_; ++i) {
       RankType n;
-      IndexVector nc(coords);
+      std::vector<int> nc(coords);
 
       if (nc[i] < procs_[i] - 1) {
         // get rank of next neighbor in dim i
@@ -576,7 +576,7 @@ class DistributedFullGrid {
 
     for (RankType r = 0; r < size_; ++r) {
       // get coords of r in cart comm
-      IndexVector coords(dim_);
+      std::vector<int> coords(dim_);
       getPartitionCoords(r, coords);
 
       for (DimType i = 0; i < dim_; ++i) {
@@ -619,18 +619,18 @@ class DistributedFullGrid {
   /** position of a process in the grid of processes */
   inline void getPartitionCoords(RankType r, IndexVector& coords) const {
     assert(r >= 0 && r < size_);
-    std::vector<int> tmp(dim_);
-    MPI_Cart_coords(communicator_, r, static_cast<int>(dim_), &tmp[0]);
-
-    // important: reverse ordering of partition coords!
-    coords.assign(tmp.rbegin(), tmp.rend());
-    if (!reverseOrderingDFGPartitions) {
-      coords.assign(tmp.begin(), tmp.end());
+    assert (!partitionCoords_.empty());
+    coords = partitionCoords_[r];
     }
+  inline void getPartitionCoords(RankType r, std::vector<int>& coords) const {
+    assert(r >= 0 && r < size_);
+    assert (!partitionCoords_.empty());
+    coords.assign(partitionCoords_[r].begin(), partitionCoords_[r].end());
   }
 
   /** position of the local process in the grid of processes */
   inline void getPartitionCoords(IndexVector& coords) const { getPartitionCoords(rank_, coords); }
+  inline void getPartitionCoords(std::vector<int>& coords) const { getPartitionCoords(rank_, coords); }
 
   /** returns the 1d global index of the first point in the local domain
    *
@@ -722,23 +722,40 @@ class DistributedFullGrid {
     }
   }
 
-  inline RankType getRank(IndexVector& partitionCoords) const {
+  inline RankType getRank(std::vector<int>& partitionCoordsInt) const {
     // check wheter the partition coords are valid
-    assert(partitionCoords.size() == dim_);
+    assert(partitionCoordsInt.size() == dim_);
 
-    for (DimType d = 0; d < dim_; ++d) assert(partitionCoords[d] < procs_[d]);
+    for (DimType d = 0; d < dim_; ++d) assert(partitionCoordsInt[d] < procs_[d]);
 
     // important: note reverse ordering
-    std::vector<int> partitionCoordsInt(partitionCoords.rbegin(), partitionCoords.rend());
-
-    if (!reverseOrderingDFGPartitions) {
-      partitionCoordsInt.assign(partitionCoords.begin(), partitionCoords.end());
+    if (reverseOrderingDFGPartitions) {
+      std::reverse(partitionCoordsInt.begin(), partitionCoordsInt.end());
     }
 
-    RankType rank;
-    MPI_Cart_rank(communicator_, &partitionCoordsInt[0], &rank);
+    assert(!partitionCoords_.empty());
+    auto dim = dim_;
+    auto it = std::find_if(partitionCoords_.begin(), partitionCoords_.end(),
+                           [&partitionCoordsInt, &dim](std::vector<int> pcoord) {
+                             return (pcoord == partitionCoordsInt);
+                           });
+    bool found = (it != partitionCoords_.end());
+    assert(found);
+
+    RankType rank = static_cast<RankType>(it - partitionCoords_.begin());
+
+    // RankType rank_old;
+    // MPI_Cart_rank(communicator_, &partitionCoordsInt[0], &rank_old);
+
+    // assert (rank_old == rank);
 
     return rank;
+  }
+
+  inline RankType getRank(IndexVector& partitionCoords) const {
+    std::vector<int> partitionCoordsInt(partitionCoords.begin(), partitionCoords.end());
+
+    return getRank(partitionCoordsInt);
   }
 
   inline void print(std::ostream& os) const {
@@ -1836,6 +1853,9 @@ class DistributedFullGrid {
   /** number of procs in every dimension */
   IndexVector procs_;
 
+  /** the coordinates of each rank on the cartesian communicator*/
+  std::vector<std::vector<int>> partitionCoords_;
+
   /** mpi rank */
   RankType rank_;
 
@@ -1898,6 +1918,24 @@ class DistributedFullGrid {
       std::cout << "DistributedFullGrid: create new cartcomm" << std::endl;
 #endif
     }
+    // fill the partitionCoords_
+    {
+      partitionCoords_.resize(this->getCommunicatorSize());
+      // fill partition coords vector, only once
+      for (size_t i = 0; i < this->getCommunicatorSize(); ++i) {
+        std::vector<int> tmp(dim_);
+        MPI_Cart_coords(communicator_, i, static_cast<int>(dim_), &tmp[0]);
+
+        // important: reverse ordering of partition coords!
+        partitionCoords_[i].assign(tmp.rbegin(), tmp.rend());
+        if (!reverseOrderingDFGPartitions) {
+          partitionCoords_[i].assign(tmp.begin(), tmp.end());
+        }
+      }
+    }
+#ifdef DEBUG_OUTPUT
+    std::cout << "dfg partition coords "<< partitionCoords_[size_ - 1] << std::endl;
+#endif
   }
 
   /* a regular (equidistant) domain decompositioning for an even number of processes
