@@ -148,6 +148,17 @@ SignalType ProcessGroupWorker::wait() {
       // t.eval(x)
     } break;
     case EXIT: {
+      // write out tasks that were in use when the computation ended
+      // (i.e. after fault tolerance or rescheduling changes)
+      MASTER_EXCLUSIVE_SECTION {
+        // serialize tasks as string
+        std::stringstream tasksStream;
+        for (const auto& t : tasks_) {
+          tasksStream <<t->getID() << ": " << combiParameters_.getCoeff(t->getID()) << t->getLevelVector()  << "; ";
+        }
+        std::string tasksString = tasksStream.str();
+        Stats::setAttribute("tasks: levels", tasksString);
+      }
       if (isGENE) {
         if(chdir("../ginstance")){};
       }
