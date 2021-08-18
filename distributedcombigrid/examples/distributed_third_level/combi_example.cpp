@@ -57,6 +57,71 @@ namespace shellCommand {
   }
 }
 
+
+void managerMonteCarlo(ProcessManager& manager, DimType dim, double time, bool hasThirdLevel) {
+      // Stats::startEvent("manager get norms");
+      // std::cout << manager.getLpNorms(0) << std::endl;
+      // std::cout << manager.getLpNorms(1) << std::endl;
+      // std::cout << manager.getLpNorms(2) << std::endl;
+      // std::cout << "eval norms " << manager.parallelEvalNorm(leval, 0) << std::endl;
+
+      // auto analytical = manager.evalAnalyticalOnDFG(leval, 0);
+      // std::cout << "analytical " << analytical << std::endl;
+      // auto error = manager.evalErrorOnDFG(leval, 0);
+      // std::cout << "errors " << error << std::endl;
+
+      // std::cout << "relative errors ";
+      // for (size_t i=0; i < 3 ; ++i){
+      //   std::cout << error[i]/analytical[i] << " ";
+      // }
+      // std::cout << std::endl;
+      // Stats::stopEvent("manager get norms");
+      
+      // 100000 was tested to be sufficient for the 6D blob,
+      // but output three times just to make sure
+      std::vector<size_t> numValuesToTry{100000};
+      for (auto& numValues : numValuesToTry) {
+        for (int i = 0; i < 3; ++i) {
+          Stats::startEvent("manager monte carlo");
+          // third-level monte carlo interpolation
+          std::vector<std::vector<real>> interpolationCoords;
+          std::vector<CombiDataType> values;
+          if (hasThirdLevel) {
+            manager.monteCarloThirdLevel(numValues, interpolationCoords, values);
+          } else {
+            interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
+            values = manager.interpolateValues(interpolationCoords);
+          }
+          Stats::stopEvent("manager monte carlo");
+  
+          Stats::startEvent("manager calculate errors");
+          // calculate monte carlo errors
+          TestFn initialFunction;
+          real l0Error = 0., l1Error = 0., l2Error = 0.,
+               l0Reference = 0., l1Reference = 0., l2Reference = 0.;
+          for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+            auto analyticalSln =
+                initialFunction(interpolationCoords[i], time);
+            l0Reference = std::max(analyticalSln, l0Reference);
+            l1Reference += analyticalSln;
+            l2Reference += std::pow(analyticalSln, 2);
+            auto difference = std::abs(analyticalSln - values[i]);
+            l0Error = std::max(difference, l0Error);
+            l1Error += difference;
+            l2Error += std::pow(difference, 2);
+          }
+          // make them relative errors
+          l0Error = l0Error / l0Reference;
+          l1Error = l1Error / l1Reference;
+          l2Error = std::sqrt(l2Error) / std::sqrt(l2Reference);
+          Stats::stopEvent("manager calculate errors");
+  
+          std::cout << "Monte carlo errors on " << numValues << " points are \n" << time
+		    << ", " << l0Error << ", " << l1Error << ", " << l2Error << " " << std::endl;
+        }
+      }
+}
+
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
@@ -264,6 +329,9 @@ int main(int argc, char** argv) {
       }
       // manager.waitAllFinished();
       Stats::stopEvent("manager combine");
+      if (evalMCError && i%10 == 0) {
+	managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt, hasThirdLevel);
+      }
       // finish = MPI_Wtime();
       // std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
 
@@ -314,67 +382,7 @@ int main(int argc, char** argv) {
     // Stats::stopEvent("manager write solution");
 
     if (evalMCError) {
-      // Stats::startEvent("manager get norms");
-      // std::cout << manager.getLpNorms(0) << std::endl;
-      // std::cout << manager.getLpNorms(1) << std::endl;
-      // std::cout << manager.getLpNorms(2) << std::endl;
-      // std::cout << "eval norms " << manager.parallelEvalNorm(leval, 0) << std::endl;
-
-      // auto analytical = manager.evalAnalyticalOnDFG(leval, 0);
-      // std::cout << "analytical " << analytical << std::endl;
-      // auto error = manager.evalErrorOnDFG(leval, 0);
-      // std::cout << "errors " << error << std::endl;
-
-      // std::cout << "relative errors ";
-      // for (size_t i=0; i < 3 ; ++i){
-      //   std::cout << error[i]/analytical[i] << " ";
-      // }
-      // std::cout << std::endl;
-      // Stats::stopEvent("manager get norms");
-      
-      // 100000 was tested to be sufficient for the 6D blob,
-      // but output three times just to make sure
-      std::vector<size_t> numValuesToTry{100000};
-      for (auto& numValues : numValuesToTry) {
-        for (int i = 0; i < 3; ++i) {
-          Stats::startEvent("manager monte carlo");
-          // third-level monte carlo interpolation
-          std::vector<std::vector<real>> interpolationCoords;
-          std::vector<CombiDataType> values;
-          if (hasThirdLevel) {
-            manager.monteCarloThirdLevel(numValues, interpolationCoords, values);
-          } else {
-            interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
-            values = manager.interpolateValues(interpolationCoords);
-          }
-          Stats::stopEvent("manager monte carlo");
-  
-          Stats::startEvent("manager calculate errors");
-          // calculate monte carlo errors
-          TestFn initialFunction;
-          real l0Error = 0., l1Error = 0., l2Error = 0.,
-               l0Reference = 0., l1Reference = 0., l2Reference = 0.;
-          for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-            auto analyticalSln =
-                initialFunction(interpolationCoords[i], static_cast<double>(ncombi * nsteps) * dt);
-            l0Reference = std::max(analyticalSln, l0Reference);
-            l1Reference += analyticalSln;
-            l2Reference += std::pow(analyticalSln, 2);
-            auto difference = std::abs(analyticalSln - values[i]);
-            l0Error = std::max(difference, l0Error);
-            l1Error += difference;
-            l2Error += std::pow(difference, 2);
-          }
-          // make them relative errors
-          l0Error = l0Error / l0Reference;
-          l1Error = l1Error / l1Reference;
-          l2Error = std::sqrt(l2Error) / std::sqrt(l2Reference);
-          Stats::stopEvent("manager calculate errors");
-  
-          std::cout << "Monte carlo errors on " << numValues << " points are " << l0Error << ", "
-                    << l1Error << ", and " << l2Error << " in total." << std::endl;
-        }
-      }
+      managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt, hasThirdLevel);
     }
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
