@@ -81,7 +81,7 @@ void managerMonteCarlo(ProcessManager& manager, DimType dim, double time, bool h
       // but output three times just to make sure
       std::vector<size_t> numValuesToTry{100000};
       for (auto& numValues : numValuesToTry) {
-        for (int i = 0; i < 3; ++i) {
+        for (int i = 0; i < 1; ++i) {
           Stats::startEvent("manager monte carlo");
           // third-level monte carlo interpolation
           std::vector<std::vector<real>> interpolationCoords;
