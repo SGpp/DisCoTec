@@ -48,11 +48,15 @@ void ProcessGroupManager::sendSignalAndReceive(SignalType signal){
   setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal){
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 }
 
-inline void ProcessGroupManager::setProcessGroupBusyAndReceive(){
+void ProcessGroupManager::sendSignalToProcess(SignalType signal, RankType rank) { //TODO send only to process in this pgroup
+  MPI_Send(&signal, 1, MPI_INT, rank, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
+}
+
+inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
   // set status
   status_ = PROCESS_GROUP_BUSY;
 
@@ -90,18 +94,25 @@ bool ProcessGroupManager::combine() {
   return true;
 }
 
+bool ProcessGroupManager::initDsgus() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  sendSignalAndReceive(INIT_DSGUS);
+
+  return true;
+}
+
 bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 
   sendSignalToProcessGroup(UPDATE_COMBI_PARAMETERS);
 
-  std::cout << "sending class \n";
   // send combiparameters
   MPIUtils::sendClass(&params, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
-  std::cout << "manager received status \n";
   return true;
 }
 
@@ -154,16 +165,19 @@ bool ProcessGroupManager::recompute(Task* t) {
   return true;
 }
 
+void sendLevelVector(const LevelVector& leval, RankType pgroupRootID){
+  std::vector<int> tmp(leval.begin(), leval.end());
+  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID, TRANSFER_LEVAL_TAG,
+           theMPISystem()->getGlobalComm());
+}
+
 bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& filename) {
   // can only send sync signal when in wait state, so check first
   assert(status_ == PROCESS_GROUP_WAIT);
 
   sendSignalToProcessGroup(PARALLEL_EVAL);
 
-  // send levelvector
-  std::vector<int> tmp(leval.begin(), leval.end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
-           theMPISystem()->getGlobalComm());
+  sendLevelVector(leval, pgroupRootID_);
 
   // send filename
   MPIUtils::sendClass(&filename, pgroupRootID_, theMPISystem()->getGlobalComm());
@@ -173,13 +187,100 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
   return true;
 }
 
+
+std::vector<double> receiveThreeNorms(RankType pgroupRootID){
+  std::vector<double> norms;
+  for (int i = 0; i < 3; ++i) {
+    double recvbuf;
+
+    MPI_Recv(&recvbuf, 1, MPI_DOUBLE, pgroupRootID, TRANSFER_NORM_TAG,
+             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+
+    norms.push_back(recvbuf);
+  }
+  return norms;
+}
+
+std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& leval){
+  sendSignalToProcessGroup(PARALLEL_EVAL_NORM);
+  sendLevelVector(leval, pgroupRootID_);
+
+  auto norms = receiveThreeNorms(pgroupRootID_);
+  setProcessGroupBusyAndReceive();
+  return norms;
+}
+
+void ProcessGroupManager::getLpNorms(int p, std::map<int, double>& norms) {
+  SignalType signal;
+  if (p == 2) {
+    signal = GET_L2_NORM;
+  } else if (p == 1) {
+    signal = GET_L1_NORM;
+  } else if (p == 0) {
+    signal = GET_MAX_NORM;
+  } else {
+    assert(false && "please implement signal for this norm");
+  }
+
+  this->sendSignalToProcessGroup(signal);
+
+  std::vector<double> recvbuf;
+  auto numTasks = this->getTaskContainer().size();
+  recvbuf.resize(numTasks);
+
+  MPI_Recv(recvbuf.data(), static_cast<int>(numTasks), MPI_DOUBLE, pgroupRootID_, TRANSFER_NORM_TAG,
+            theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+
+  for (size_t j = 0; j < numTasks; ++j) {
+    norms[this->getTaskContainer()[j]->getID()] = recvbuf[j];
+  }
+
+  this->setProcessGroupBusyAndReceive();
+}
+
+
+std::vector<double> ProcessGroupManager::evalAnalyticalOnDFG(const LevelVector& leval){
+  sendSignalToProcessGroup(EVAL_ANALYTICAL_NORM);
+  sendLevelVector(leval, pgroupRootID_);
+
+  auto norms = receiveThreeNorms(pgroupRootID_);
+  setProcessGroupBusyAndReceive();
+  return norms;
+}
+
+std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval){
+  sendSignalToProcessGroup(EVAL_ERROR_NORM);
+  sendLevelVector(leval, pgroupRootID_);
+
+  auto norms = receiveThreeNorms(pgroupRootID_);
+  setProcessGroupBusyAndReceive();
+  return norms;
+}
+
+void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
+                                              std::vector<CombiDataType>& values,
+                                              MPI_Request& request) {
+  sendSignalToProcessGroup(INTERPOLATE_VALUES);
+  MPI_Request dummyRequest;
+  assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) && "needs chunking!");
+  MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()), abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<real>()), pgroupRootID_,
+    TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
+  MPI_Request_free(&dummyRequest);
+  MPI_Irecv(values.data(), static_cast<int>(values.size()), abstraction::getMPIDatatype(
+    abstraction::getabstractionDataType<CombiDataType>()), pgroupRootID_,
+    TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &request);
+
+  setProcessGroupBusyAndReceive();
+}
+
 void ProcessGroupManager::recvStatus() {
   // start non-blocking call to receive status
   if (ENABLE_FT) {
-    simft::Sim_FT_MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag,
+    simft::Sim_FT_MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, TRANSFER_STATUS_TAG,
                             theMPISystem()->getGlobalCommFT(), &statusRequestFT_);
   } else {
-    MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, statusTag, theMPISystem()->getGlobalComm(),
+    MPI_Irecv(&status_, 1, MPI_INT, pgroupRootID_, TRANSFER_STATUS_TAG, theMPISystem()->getGlobalComm(),
               &statusRequest_);
   }
 }

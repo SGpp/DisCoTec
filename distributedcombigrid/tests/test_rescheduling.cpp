@@ -91,7 +91,7 @@ class TestingTask : public combigrid::Task {
     
     ++valueToPersist_;
 
-    std::cout << "run " << getCommRank(lcomm) << std::endl;    
+    // std::cout << "run " << getCommRank(lcomm) << std::endl;
     
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     for (auto& element : elements) {
@@ -137,7 +137,7 @@ class TestingTask : public combigrid::Task {
 BOOST_CLASS_EXPORT(TestingTask)
 
 bool tasksContainSameValue(const TaskContainer& tasks) {
-  std::cout << "task size" << tasks.size() << "\n";
+  // std::cout << "task size" << tasks.size() << "\n";
   if (tasks.size() <= 1) {
     return true;
   }
@@ -202,7 +202,8 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     //
     // Reduce combination dims lmin and lmax are 0!!
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({nprocs, 1}); //TODO why??
+    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+
 
     // create abstraction for Manager
     ProcessManager manager{pgroups, tasks, params, std::move(loadmodel), std::move(rescheduler)};
@@ -236,6 +237,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
     while (signal != EXIT){ 
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
       signal = pgroup.wait();
 
       // test conditions:
@@ -262,6 +264,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
+  TestHelper::testStrayMessages(comm);
 }
 
 BOOST_AUTO_TEST_SUITE(rescheduling)

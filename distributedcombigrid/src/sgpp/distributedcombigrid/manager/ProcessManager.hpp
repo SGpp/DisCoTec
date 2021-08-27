@@ -49,6 +49,8 @@ class ProcessManager {
 
   bool runfirst();
 
+  void initDsgus();
+
   void exit();
 
   virtual ~ProcessManager();
@@ -84,6 +86,16 @@ class ProcessManager {
   inline CombiParameters& getCombiParameters();
 
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
+
+  std::map<int, double> getLpNorms(int p = 2);
+
+  std::vector<double> parallelEvalNorm(const LevelVector& leval, size_t groupID = 0);
+
+  std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID = 0);
+
+  std::vector<double> evalErrorOnDFG(const LevelVector& leval, size_t groupID = 0);
+
+  std::vector<CombiDataType> interpolateValues(const std::vector<std::vector<real>>& interpolationCoords);
 
   void redistribute(std::vector<int>& taskID);
 

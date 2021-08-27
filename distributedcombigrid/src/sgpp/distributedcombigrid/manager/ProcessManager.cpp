@@ -24,6 +24,8 @@ bool ProcessManager::runfirst() {
   // sort instances in decreasing order
   sortTasks();
 
+  assert(tasks_.size() >= pgroups_.size());
+
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group
     ProcessGroupManagerID g = wait();
@@ -36,24 +38,29 @@ bool ProcessManager::runfirst() {
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   receiveDurationsOfTasksFromGroupMasters(0);
 
+  // initialize dsgus
+  initDsgus();
+
   // return true if no group failed
   return !group_failed;
 }
 
 void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive = 0){
   if (numDurationsToReceive == 0){
-    numDurationsToReceive = tasks_.size();
+    numDurationsToReceive = pgroups_.size();
   }
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
     DurationInformation recvbuf;
+    for(const auto& t : pgroups_[i]->getTaskContainer()){
+      // this assumes that the manager rank is the highest in globalComm
+      MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
 
-    MPIUtils::receiveClass(&recvbuf, MPI_ANY_SOURCE, theMPISystem()->getGlobalComm());
-
-    const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
-    if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
-      llm->addDurationInformation(recvbuf, levelVector);
+      const auto& levelVector = getLevelVectorFromTaskID(tasks_, recvbuf.task_id);
+      if(LearningLoadModel* llm = dynamic_cast<LearningLoadModel*>(loadModel_.get())){
+        llm->addDurationInformation(recvbuf, levelVector);
+      }
+      levelVectorToLastTaskDuration_[levelVector] = recvbuf.duration;
     }
-    levelVectorToLastTaskDuration_[levelVector] = recvbuf.duration;
   }
 }
 
@@ -93,6 +100,29 @@ void ProcessManager::exit() {
     bool success = pgroups_[i]->exit();
     assert(success);
   }
+}
+
+void ProcessManager::initDsgus() {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  // tell groups to init Dsgus
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    bool success = pgroups_[i]->initDsgus();
+    assert(success);
+  }
+
+  waitAllFinished();
 }
 
 void ProcessManager::updateCombiParameters() {
@@ -365,6 +395,63 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
 
     assert(!fail && "should not fail here");
   }
+}
+
+std::map<int, double> ProcessManager::getLpNorms(int p) {
+  std::map<int, double> norms;
+
+  for (const auto& pg : pgroups_) {
+    pg->getLpNorms(p, norms);
+  }
+  return norms;
+}
+
+
+std::vector<double> ProcessManager::parallelEvalNorm(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->parallelEvalNorm(leval);
+}
+
+std::vector<double> ProcessManager::evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->evalAnalyticalOnDFG(leval);
+}
+
+std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, size_t groupID) {
+  auto g = pgroups_[groupID];
+  return g->evalErrorOnDFG(leval);
+}
+
+std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<real>>& interpolationCoords) {
+  auto coordsSize = interpolationCoords.size() * interpolationCoords[0].size();
+  std::vector<real> interpolationCoordsSerial;
+  interpolationCoordsSerial.reserve(coordsSize);
+  for (const auto& coord: interpolationCoords) {
+    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
+  }
+  return interpolationCoordsSerial;
+}
+
+std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
+  auto numValues = interpolationCoords.size();
+  std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN()));
+  std::vector<MPI_Request> requests(pgroups_.size());
+
+  // send interpolation coords as a single array
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
+
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, values[i], requests[i]);
+  }
+  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+
+  std::vector<CombiDataType> reducedValues(numValues);
+  for (const auto& v : values){
+    for (size_t i = 0; i < numValues; ++i) {
+      reducedValues[i] += v[i];
+    }
+  }
+  return reducedValues;
 }
 
 void ProcessManager::reschedule() {

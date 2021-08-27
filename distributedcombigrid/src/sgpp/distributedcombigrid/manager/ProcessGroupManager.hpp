@@ -28,6 +28,8 @@ class ProcessGroupManager {
 
   bool runnext();
 
+  bool initDsgus();
+
   bool exit();
 
   /* non-blocking call to retrieve status of process group */
@@ -71,6 +73,18 @@ class ProcessGroupManager {
 
   bool parallelEval(const LevelVector& leval, std::string& filename);
 
+  void getLpNorms(int p, std::map<int, double>& norms);
+
+  std::vector<double> parallelEvalNorm(const LevelVector& leval);
+
+  std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval);
+
+  std::vector<double> evalErrorOnDFG(const LevelVector& leval);
+
+  void interpolateValues(const std::vector<real>& interpolationCoordsSerial,
+                                              std::vector<CombiDataType>& values,
+                                              MPI_Request& request);
+
   /**
    * Adds a task to the process group. To be used for rescheduling.
    *
@@ -83,7 +97,7 @@ class ProcessGroupManager {
    * Removes a task from the process group. To be used for rescheduling.
    *
    * @param lvlVec The level vector of the task to remove.
-   * @returns If successful the removed task or a nullptr if no task with the 
+   * @returns If successful the removed task or a nullptr if no task with the
    *          given level vector is found.
    */
   Task *rescheduleRemoveTask(const LevelVector& lvlVec);
@@ -113,6 +127,8 @@ class ProcessGroupManager {
   void sendSignalAndReceive(SignalType signal);
 
   void sendSignalToProcessGroup(SignalType signal);
+
+  void sendSignalToProcess(SignalType signal, RankType rank);
 
   inline void setProcessGroupBusyAndReceive();
 
@@ -208,11 +224,11 @@ bool ProcessGroupManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
 
   // send signal
   SignalType signal = GRID_EVAL;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 
   // send levelvector
   std::vector<int> tmp(fg.getLevels().begin(), fg.getLevels().end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
+  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
            theMPISystem()->getGlobalComm());
 
   return true;
@@ -224,7 +240,7 @@ bool ProcessGroupManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
   assert(status_ == PROCESS_GROUP_WAIT);
 
   SignalType signal = COMBINE_FG;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 
   // send levelvector
   std::vector<int>& tmp = fg.getLevels();
@@ -240,7 +256,7 @@ inline bool ProcessGroupManager::gridGather(LevelVector& leval) {
 
   // send signal
   SignalType signal = GRID_GATHER;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, signalTag, theMPISystem()->getGlobalComm());
+  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 
   // send levelvector
   std::vector<int> tmp(leval.begin(), leval.end());

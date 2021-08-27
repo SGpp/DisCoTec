@@ -5,6 +5,7 @@
 #include <iostream>
 #include <ostream>
 #include <vector>
+#include <map>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
@@ -31,6 +32,19 @@ inline bool operator==(const IndexVector& l1, const IndexVector& l2) {
     if (l1[i] != l2[i]) return false;
   }
 
+  return true;
+}
+
+// helper function to compare any vector
+template<typename T>
+inline bool operator==(const std::vector<T> &u, const std::vector<T> &v) {
+  using namespace std;
+  if(u.size() != v.size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < u.size(); ++i) {
+    if (u[i] != v[i]) return false;
+  }
   return true;
 }
 
@@ -132,6 +146,27 @@ inline IndexVector& operator>>(std::string str, IndexVector& ivec) {
 
   return ivec;
 }
+
+// helper function to output any vector
+template<typename T>
+inline std::ostream &operator <<(std::ostream &os, const std::vector<T> &v) {
+  using namespace std;
+  os << "[";
+  copy(v.begin(), v.end(), ostream_iterator<T>(os, ", "));
+  os << "]";
+  return os;
+}
+
+// helper function to output any map
+template<typename T, typename U>
+inline std::ostream &operator <<(std::ostream &os, const std::map<T, U> &m) {
+  using namespace std;
+  for (const auto& any : m) {
+    os << "(" << any.first << ") : " << any.second << "; ";
+  }
+  return os;
+}
+
 
 }  // namespace combigrid
 

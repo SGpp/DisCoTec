@@ -25,7 +25,7 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   # TODO(pfandedd): discuss with julian
 #   if env["PLATFORM"] not in ["cygwin", "win32"]:
   if env["OPT"] == True:
-    env.Append(CPPFLAGS=["-O3", "-g"])
+    env.Append(CPPFLAGS=["-O3"])
   else:
     env.Append(CPPFLAGS=["-g", "-O0"])
 
@@ -119,6 +119,10 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
 
 def checkCpp11(config):
   # check C++11 support
+  if not config.CheckFlag(""):
+    Helper.printErrorAndExit("The compiler doesn't seem to receive sensible CPPFLAGS.\
+      Maybe you forgot to set OPT? Abort!")
+    Exit(1)
   if not config.CheckFlag("-std=c++11"):
     Helper.printErrorAndExit("The compiler doesn't seem to support the C++11 standard. Abort!")
     Exit(1)

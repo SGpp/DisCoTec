@@ -6,7 +6,6 @@ namespace combigrid {
 // attention: changing SignalType might require changing the MPI Type as well
 typedef int SignalType;
 
-const SignalType RUN_FIRST = 0;
 const SignalType RUN_NEXT = 1;
 const SignalType EVAL = 2;
 const SignalType GRID_EVAL = 3;
@@ -27,12 +26,19 @@ const SignalType PARALLEL_EVAL = 17;
 const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
 
+/** Signal for initializing the subspaces of the dsgs.
+ *
+ * Is called directly after run_first.
+ * Must be called if subspaces do change due to added/deleted tasks.
+ */
+const SignalType INIT_DSGUS = 20;
+
 /**
  * Signal for adding a task for rescheduling.
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_ADD_TASK = 20;
+const SignalType RESCHEDULE_ADD_TASK = 21;
 
 /**
  * Signal for removing a task for rescheduling.
@@ -40,7 +46,17 @@ const SignalType RESCHEDULE_ADD_TASK = 20;
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_REMOVE_TASK = 21;
+const SignalType RESCHEDULE_REMOVE_TASK = 22;
+
+const SignalType RUN_FIRST = 29;
+
+const SignalType GET_L2_NORM = 30;
+const SignalType GET_L1_NORM = 31;
+const SignalType GET_MAX_NORM = 32;
+const SignalType PARALLEL_EVAL_NORM = 33;
+const SignalType EVAL_ANALYTICAL_NORM = 34;
+const SignalType EVAL_ERROR_NORM = 35;
+const SignalType INTERPOLATE_VALUES = 36;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
@@ -51,8 +67,6 @@ const NormalizationType EV_NORMALIZATION = 3;
 typedef int FaultSimulationType;
 const FaultSimulationType RANDOM_FAIL = 0;
 const FaultSimulationType GROUPS_FAIL = 1;
-
-enum TagType { signalTag = 0, statusTag = 1, infoTag = 2, durationTag = 3 };
 
 // attention: changing StatusType might require changing the MPI Type
 typedef int StatusType;

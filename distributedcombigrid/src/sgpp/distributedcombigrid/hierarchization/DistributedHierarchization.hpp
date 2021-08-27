@@ -6,6 +6,7 @@
 #include "boost/lexical_cast.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
+#include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 using namespace combigrid;
@@ -314,11 +315,10 @@ template <typename FG_ELEMENT>
 static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                            std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData) {
   CommunicatorType comm = dfg.getCommunicator();
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  auto rank = dfg.getRank();
+  auto commSize = dfg.getCommunicatorSize();
 
-  IndexVector coords(dfg.getDimension());
+  std::vector<int> coords(dfg.getDimension());
   dfg.getPartitionCoords(coords);
 
 #ifdef DEBUG_OUTPUT
@@ -334,7 +334,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
 
     if (rank == 0) std::cout << "first point for dim: " << dim << std::endl;
 
-    for (int r = 0; r < size; ++r) {
+    for (int r = 0; r < commSize; ++r) {
       if (r == rank) {
         std::cout << "rank " << rank << " "
                   << "coords " << coords << " "
@@ -362,7 +362,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     RankType leftPreRank = getNeighbor1d(dfg, dim, lleftpre);
     RankType rightPreRank = getNeighbor1d(dfg, dim, lrightpre);
 
-    for (int r = 0; r < size; ++r) {
+    for (int r = 0; r < commSize; ++r) {
       if (r == rank) {
         std::cout << "rank " << rank << " "
                   << "coords " << coords << " "
@@ -380,8 +380,8 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
 #endif
 
   // create buffers for every rank
-  std::vector<IndexVector> recv1dIndices(dfg.getCommunicatorSize());
-  std::vector<IndexVector> send1dIndices(dfg.getCommunicatorSize());
+  std::vector<IndexVector> recv1dIndices(commSize);
+  std::vector<IndexVector> send1dIndices(commSize);
 
   // main loop
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
@@ -406,7 +406,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
           // get rank which has lsIdx and add to send list
           int r = getNeighbor1d(dfg, dim, lsIdx);
 
-          assert(r < dfg.getCommunicatorSize());
+          assert(r < commSize);
 
           if (r >= 0) send1dIndices[r].push_back(idx);
         }
@@ -417,7 +417,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
         if (rsIdx > idxMax) {
           // get rank which has rsIdx and add to send list
           int r = getNeighbor1d(dfg, dim, rsIdx);
-          assert(r < dfg.getCommunicatorSize());
+          assert(r < commSize);
 
           if (r >= 0) send1dIndices[r].push_back(idx);
         }
@@ -473,7 +473,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
 #ifdef DEBUG_OUTPUT
   // print recvindices
   {
-    for (int r = 0; r < size; ++r) {
+    for (int r = 0; r < commSize; ++r) {
       if (r == rank) {
         std::cout << "rank " << rank << " recv: " << std::endl;
 
@@ -491,7 +491,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
 
   // print sendindices
   {
-    for (int r = 0; r < size; ++r) {
+    for (int r = 0; r < commSize; ++r) {
       if (r == rank) {
         std::cout << "rank " << rank << " send: " << std::endl;
 
@@ -708,11 +708,10 @@ static void exchangeData1dDehierarchization(
     DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData) {
   CommunicatorType comm = dfg.getCommunicator();
-  int rank, size;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Comm_size(comm, &size);
+  auto rank = dfg.getRank();
+  auto size = dfg.getCommunicatorSize();
 
-  IndexVector coords(dfg.getDimension());
+  std::vector<int> coords(dfg.getDimension());
   dfg.getPartitionCoords(coords);
 
 #ifdef DEBUG_OUTPUT
@@ -2439,6 +2438,17 @@ class DistributedHierarchization {
   static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg) {
     std::vector<bool> dims(dfg.getDimension(), true);
     dehierarchize<FG_ELEMENT>(dfg, dims);
+  }
+
+  template <typename FG_ELEMENT>
+  static void fillDFGFromDSGU(DistributedFullGrid<FG_ELEMENT>& dfg,
+      DistributedSparseGridUniform<FG_ELEMENT>& dsg, const std::vector<bool>& hierarchizationDims){
+    // fill dfg with hierarchical coefficients from distributed sparse grid
+    dfg.extractFromUniformSG(dsg);
+
+    // dehierarchize dfg
+    DistributedHierarchization::dehierarchize<FG_ELEMENT>(
+        dfg, hierarchizationDims);
   }
 };
 // class DistributedHierarchization

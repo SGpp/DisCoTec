@@ -60,5 +60,14 @@ coverage
 # ignoring orig files
 *.orig
 
-# ignoring uq tests
-datadriven/tests/uq/
+# ignoring load model outputs
+*.durations
+
+# ignoring timer and field outputs
+*.json
+*.dat
+*.raw
+*.raw_header
+
+# ignoring images
+*.png

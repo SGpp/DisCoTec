@@ -3,31 +3,6 @@
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 #include <iostream>
-
-namespace {
-using namespace combigrid;
-
-std::string getMinMaxAvg(RankType r, int size, std::string timerName, bool isTimer, MPI_Comm comm) {
-  double value;
-  /*    if( isTimer )
-        value = theStatsContainer()->getDuration( timerName );
-      else
-        value = theStatsContainer()->getValue( timerName );
-  */
-  double min, max, sum;
-  MPI_Reduce(&value, &min, 1, MPI_DOUBLE, MPI_MIN, r, comm);
-  MPI_Reduce(&value, &max, 1, MPI_DOUBLE, MPI_MAX, r, comm);
-  MPI_Reduce(&value, &sum, 1, MPI_DOUBLE, MPI_SUM, r, comm);
-
-  double avg = sum / static_cast<double>(size);
-
-  std::stringstream ss;
-  ss << timerName << "\t\t" << min << "\t" << max << "\t" << avg;
-
-  return ss.str();
-}
-}  // anonymous namespace
-
 namespace combigrid {
 
 /*!\brief Constructor for the MPISystem class.
@@ -233,7 +208,7 @@ void MPISystem::initGlobalComm() {
     int globalSize = getCommSize( globalComm_);
 
     managerRank_ = globalSize - 1;
-    std::cout << "new manager rank: " << managerRank_ << " \n";
+    // std::cout << "new manager rank: " << managerRank_ << " \n";
     globalRank_ = getCommRank(globalComm_);
   }
 
@@ -259,6 +234,7 @@ void MPISystem::initGlobalReduceCommm() {
     if (ENABLE_FT) {
       createCommFT(&globalReduceCommFT_, globalReduceComm_);
     }
+    MPI_Comm_rank(globalReduceComm_, &globalReduceRank_);
     //int size = getCommSize(globalReduceComm_);
     //std::cout << "size if global reduce comm " << size << "\n";
     MPI_Barrier(globalReduceComm_);
@@ -330,7 +306,7 @@ bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks,
     recoveryFailed = false;
     std::vector<MPI_Request> requests2(failedRanks.size());
     for (size_t i = 0; i < failedRanks.size(); i++) {
-      MPI_Isend(&recoveryFailed, 1, MPI::BOOL, reusableRanks[i], FT_RECOVERY_STATUS_TAG,
+      MPI_Isend(&recoveryFailed, 1, MPI_C_BOOL, reusableRanks[i], FT_RECOVERY_STATUS_TAG,
                 theMPISystem()->getSpareCommFT()->c_comm, &requests2[i]);
     }
     for (size_t i = 0; i < failedRanks.size(); i++) {
@@ -345,7 +321,7 @@ void MPISystem::sendRecoveryStatus(bool failedRecovery,
                                    std::vector<RankType>& newReusableRanks) {  // toDo matching send
   std::vector<MPI_Request> requests(newReusableRanks.size());
   for (size_t i = 0; i < newReusableRanks.size(); i++) {
-    MPI_Isend(&failedRecovery, 1, MPI::BOOL, newReusableRanks[i], FT_RECOVERY_STATUS_TAG,
+    MPI_Isend(&failedRecovery, 1, MPI_C_BOOL, newReusableRanks[i], FT_RECOVERY_STATUS_TAG,
               theMPISystem()->getWorldComm(), &requests[i]);
   }
   for (size_t i = 0; i < newReusableRanks.size(); i++) {
@@ -403,7 +379,7 @@ bool MPISystem::receiveRecoverStatus() {
   bool recoveryState;
 
   // receive recovery state
-  MPI_Recv(&recoveryState, 1, MPI::BOOL, managerRankWorld_, FT_RECOVERY_STATUS_TAG,
+  MPI_Recv(&recoveryState, 1, MPI_C_BOOL, managerRankWorld_, FT_RECOVERY_STATUS_TAG,
            theMPISystem()->getWorldComm(), MPI_STATUS_IGNORE);
   return recoveryState;
 }
@@ -432,7 +408,7 @@ void MPISystem::waitForReuse() {
       newRankFlag = 0;
       // receive recovery state to check if recovery really succeeded
       bool recoveryFailed;
-      MPI_Recv(&recoveryFailed, 1, MPI::BOOL, managerRankFT_, FT_RECOVERY_STATUS_TAG,
+      MPI_Recv(&recoveryFailed, 1, MPI_C_BOOL, managerRankFT_, FT_RECOVERY_STATUS_TAG,
                theMPISystem()->getSpareCommFT()->c_comm, MPI_STATUS_IGNORE);
       if (!recoveryFailed) {
         worldRank_ = rankID;
