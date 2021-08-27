@@ -600,7 +600,7 @@ void GeneTask::setDFG(){
 
   
   // check if last grid point of x is zero
-  if( coords[5] == p[1] - 1 ){
+  if( coords[5] == p[5] - 1 ){
     for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
       for( size_t m=0; m < dfgShape[1]; ++m ) //w
         for( size_t l=0; l < dfgShape[2]; ++l ) //v
