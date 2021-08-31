@@ -299,6 +299,15 @@ template <typename FG_ELEMENT>
 void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim);
 
+void storeAllUniqueAscending(std::vector<IndexVector>& indicesOnOtherRanks) {
+  // store only unique indices and sort ascending
+  for (auto& indicesOnRank : indicesOnOtherRanks) {
+    std::sort(indicesOnRank.begin(), indicesOnRank.end());
+    IndexVector::iterator it = std::unique(indicesOnRank.begin(), indicesOnRank.end());
+    indicesOnRank.resize(std::distance(indicesOnRank.begin(), it));
+  }
+}
+
 // exchange data in dimension dim
 template <typename FG_ELEMENT>
 static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
@@ -443,21 +452,8 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   }
 
   // store only unique indices and sort ascending
-  for (RankType k = 0; k < dfg.getCommunicatorSize(); ++k) {
-    if (recv1dIndices[k].size() > 0) {
-      IndexVector& tmp = recv1dIndices[k];
-      std::sort(tmp.begin(), tmp.end());
-      IndexVector::iterator it = std::unique(tmp.begin(), tmp.end());
-      tmp.resize(std::distance(tmp.begin(), it));
-    }
-
-    if (send1dIndices[k].size() > 0) {
-      IndexVector& tmp = send1dIndices[k];
-      std::sort(tmp.begin(), tmp.end());
-      IndexVector::iterator it = std::unique(tmp.begin(), tmp.end());
-      tmp.resize(std::distance(tmp.begin(), it));
-    }
-  }
+  storeAllUniqueAscending(recv1dIndices);
+  storeAllUniqueAscending(send1dIndices);
 
 #ifdef DEBUG_OUTPUT
   // print recvindices
@@ -779,21 +775,8 @@ static void exchangeData1dDehierarchization(
   }
 
   // store only unique indices and sort ascending
-  for (RankType k = 0; k < dfg.getCommunicatorSize(); ++k) {
-    if (recv1dIndices[k].size() > 0) {
-      IndexVector& tmp = recv1dIndices[k];
-      std::sort(tmp.begin(), tmp.end());
-      IndexVector::iterator it = std::unique(tmp.begin(), tmp.end());
-      tmp.resize(std::distance(tmp.begin(), it));
-    }
-
-    if (send1dIndices[k].size() > 0) {
-      IndexVector& tmp = send1dIndices[k];
-      std::sort(tmp.begin(), tmp.end());
-      IndexVector::iterator it = std::unique(tmp.begin(), tmp.end());
-      tmp.resize(std::distance(tmp.begin(), it));
-    }
-  }
+  storeAllUniqueAscending(recv1dIndices);
+  storeAllUniqueAscending(send1dIndices);
 
 #ifdef DEBUG_OUTPUT
   MPI_Barrier(comm);
