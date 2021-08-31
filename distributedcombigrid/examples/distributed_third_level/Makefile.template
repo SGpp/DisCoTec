@@ -1,5 +1,5 @@
 CC=$(CC)
-CFLAGS=-std=c++11 -O3 -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall
+CFLAGS=-std=c++11 -DNDEBUG -O3 -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall
 
 SGPP_DIR=../../../
 GLPK_DIR=$(SGPP_DIR)/glpk/
@@ -18,7 +18,7 @@ LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
 
 all: combi_example
 
-combi_example: combi_example.cpp TaskConstParaboloid.hpp
+combi_example: combi_example.cpp TaskAdvection.hpp
 	$(CC) $(CFLAGS) $(LDIR) $(INC) -o combi_example combi_example.cpp $(LIBS) -DUNIFORMDECOMPOSITION -DTIMING
 
 clean:
