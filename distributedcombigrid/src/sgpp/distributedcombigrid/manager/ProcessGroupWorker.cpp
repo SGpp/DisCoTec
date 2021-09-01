@@ -44,6 +44,7 @@ ProcessGroupWorker::~ProcessGroupWorker() {}
 // RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
 void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e,
                                          unsigned int numProcs) {
+  return;
   MASTER_EXCLUSIVE_SECTION {
     DurationInformation info = {t.getID(), Stats::getEventDurationInUsec(e),
 	    			                    t.getCurrentTime(), t.getCurrentTimestep(),
