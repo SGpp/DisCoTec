@@ -23,7 +23,8 @@ void ThirdLevelUtils::connectToThirdLevelManager()
   // create connection to third level manager
   std::cout << "Connecting to third level manager at host " << host_ << " on port " << port_  << std::endl;
   connection_ = std::make_shared<ClientSocket>(host_, port_);
-  assert(connection_->init() && "Establishing data connection failed");
+  auto connectionSuccess = connection_->init();
+  assert(connectionSuccess && "Establishing data connection failed");
 
   isConnected_ = true;
 }
