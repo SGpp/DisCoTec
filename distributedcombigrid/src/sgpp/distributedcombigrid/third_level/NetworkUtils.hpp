@@ -185,7 +185,8 @@ bool ClientSocket::recvallBinaryAndCorrectInPlace(FG_ELEMENT* buff,
   assert(isInitialized() && "Client Socket not initialized");
   // receive endianness
   char temp = ' ';
-  assert(recvall(&temp, 1) && "Receiving Endianess failed");
+  auto recvAllSuccess = recvall(&temp, 1);
+  assert(recvAllSuccess && "Receiving Endianess failed");
   bool hasSameEndianness = bool(temp) == NetworkUtils::isLittleEndian();
 
   // for recv()
@@ -295,7 +296,8 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
   assert(isInitialized() && "Client Socket not initialized");
   // receive endianness
   char temp = ' ';
-  assert(recvall(&temp, 1)&& "Receiving Endianess failed");
+  auto recvSuccess = recvall(&temp, 1);
+  assert(recSuccess && "Receiving Endianess failed");
   bool hasSameEndianness = bool(temp) == NetworkUtils::isLittleEndian();
 
   // for recv()

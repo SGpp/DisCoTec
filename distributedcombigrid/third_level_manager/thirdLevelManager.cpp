@@ -52,7 +52,8 @@ void ThirdLevelManager::init()
     std::cout << "ThirdLevelManager::init(): Params are not loaded!" << std::endl;
     exit(0);
   }
-  assert(server_.init());
+  auto serverInitSuccess = server_.init();
+  assert(serverInitSuccess);
   if (not server_.isInitialized())
   {
     std::cout << "ThirdLevelManager::init(): Could not initialize server!" << std::endl;
