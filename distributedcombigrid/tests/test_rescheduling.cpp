@@ -256,7 +256,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
           // * Task was added: element values are restored
           // * Task was removed: all remaining elements were already checked in 
           //                     a previous iteration
-          BOOST_REQUIRE(e == 10);
+          BOOST_REQUIRE(e == 10.);
         }
       }
     }
@@ -267,7 +267,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
   TestHelper::testStrayMessages(comm);
 }
 
-BOOST_AUTO_TEST_SUITE(rescheduling)
+BOOST_AUTO_TEST_SUITE(rescheduling, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {

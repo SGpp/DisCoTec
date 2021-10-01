@@ -193,7 +193,7 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
   }
 }
 
-BOOST_AUTO_TEST_SUITE(hierarchization)
+BOOST_AUTO_TEST_SUITE(hierarchization, *boost::unit_test::timeout(60))
 
 // with boundary
 // isotropic

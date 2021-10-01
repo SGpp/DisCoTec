@@ -281,7 +281,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   // std::cout << dfg << std::endl;
 }
 
-BOOST_AUTO_TEST_SUITE(distributedfullgrid)
+BOOST_AUTO_TEST_SUITE(distributedfullgrid, *boost::unit_test::timeout(60))
 
 // with boundary
 // isotropic
