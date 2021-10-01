@@ -736,11 +736,6 @@ class DistributedFullGrid {
 
     for (DimType d = 0; d < dim_; ++d) assert(partitionCoordsInt[d] < procs_[d]);
 
-    // important: note reverse ordering
-    if (reverseOrderingDFGPartitions) {
-      std::reverse(partitionCoordsInt.begin(), partitionCoordsInt.end());
-    }
-
     assert(!partitionCoords_.empty());
     auto dim = dim_;
     auto it = std::find_if(partitionCoords_.begin(), partitionCoords_.end(),

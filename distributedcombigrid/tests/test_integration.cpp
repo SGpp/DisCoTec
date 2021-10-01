@@ -218,6 +218,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
   TestHelper::testStrayMessages(comm);
 }
 
+#ifndef ISGENE // integration tests won't work with ISGENE because of worker magic
 BOOST_AUTO_TEST_SUITE(integration, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) ) {
@@ -243,3 +244,4 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+#endif

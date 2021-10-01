@@ -143,6 +143,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   }
   DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, boundary, comm);
   dfg.registerUniformSG(dsg);
+  BOOST_TEST_CHECKPOINT("register uniform sg");
   dfg.addToUniformSG(dsg, 2.1);
   BOOST_TEST_CHECKPOINT("add to uniform sg");
   DistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
