@@ -1559,37 +1559,25 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 template <typename FG_ELEMENT>
 inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
                                              int stride) {
-  int steps;
-  int ctr;
-  int offset, parentOffset;
-  int stepsize;
-  int parOffsetStrided;
-
-  FG_ELEMENT* val = data;
-
-  // ssa variables
-  FG_ELEMENT val1 = -100, val2 = -100, val3 = -100, parL = -100, parR = -100;
-
-  int lmaxi = static_cast<int>(lmax);
+  const int lmaxi = static_cast<int>(lmax);
   int ll = lmaxi;
-  steps = (1 << (ll - 1));
-  offset = 1;  // 1 da boundary
-  stepsize = 2;
-  parentOffset = 1;
+  int steps = (1 << (lmaxi - 1));
+  int offset = 1;  // 1 and not 0 because boundary
+  int stepsize = 2;
+  int parentOffset = 1;
 
-  for (ll--; ll > -1;
-       ll--) {  // hier is index um 1 geschiftet da vorher level 2 manuell behandelt wurde
-    parOffsetStrided = parentOffset * stride;
-    parL = 0.5 * val[start + offset * stride - parOffsetStrided];
-    ;
+  for (ll--; ll > -1; ll--) {
+    int parOffsetStrided = parentOffset * stride;
+    FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
 
-    for (ctr = 0; ctr < steps; ctr++) {
-      val1 = val[start + offset * stride];
-      parR = 0.5 * val[start + offset * stride + parOffsetStrided];
-      val2 = val1 - parL;
-      val3 = val2 - parR;
-      val[start + offset * stride] = val3;
-      parL = parR;
+    for (int ctr = 0; ctr < steps; ++ctr) {
+      int centralIndex = start + offset * stride;
+      FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
+      FG_ELEMENT val1 = data[centralIndex];
+      FG_ELEMENT val2 = val1 - parentL;
+      FG_ELEMENT val3 = val2 - parentR;
+      data[centralIndex] = val3;
+      parentL = parentR;
       offset += stepsize;
     }
 
@@ -1605,51 +1593,31 @@ inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, i
 template <typename FG_ELEMENT>
 inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
                                                int stride) {
-  int steps;
-  int ctr;
-  int offset, parentOffset;
-  int stepsize;
-  int parOffsetStrided;
+  const int lmaxi = static_cast<int>(lmax);
+  int steps = 1;
+  int offset = (1 << (lmaxi - 1));  // offset =1 da boundary.
+  int stepsize = (1 << lmaxi);
+  int parentOffset = (1 << (lmaxi - 1));
 
-  FG_ELEMENT* val = data;
+  for (LevelType ll = 1; ll <= lmax; ++ll) {
+    int parOffsetStrided = parentOffset * stride;
+    FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
 
-  // ssa variables
-  FG_ELEMENT val1 = -100, val2 = -100, val3 = -100, parL = -100, parR = -100;
-
-  //        int maxL = l[dim];
-  //      start = start +stride; // nun mit offset = 1;start war vorher der erste gitterpunkt
-  //      (welcher randpunkt ist) und ist nun der erste zu hierarchisierende Gitterpunkt.
-  int maxL = int(lmax);
-
-  steps = 1;
-  offset = (1 << (maxL - 1));  // offset =1 da boundary.
-  stepsize = (1 << maxL);
-  parentOffset = (1 << (maxL - 1));
-
-  for (LevelType ll = 1; ll <= maxL;
-       ll++) {  // couting with offset of one as level 2 was hierarchized manually before
-    // just convers setting of strides and co.
-    parOffsetStrided = parentOffset * stride;
-    parL = 0.5 * val[start + offset * stride - parOffsetStrided];
-    ;
-
-    for (ctr = 0; ctr < steps; ctr++) {
-      val1 = val[start + offset * stride];
-      parR = 0.5 * val[start + offset * stride + parOffsetStrided];
-      val2 = val1 + parL;
-      val3 = val2 + parR;
-      val[start + offset * stride] = val3;
-      parL = parR;
+    for (int ctr = 0; ctr < steps; ++ctr) {
+      int centralIndex = start + offset * stride;
+      FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
+      FG_ELEMENT val1 = data[centralIndex];
+      FG_ELEMENT val2 = val1 + parentL;
+      FG_ELEMENT val3 = val2 + parentR;
+      data[centralIndex] = val3;
+      parentL = parentR;
       offset += stepsize;
     }
-
-    //        val[start+offset*stride] -= parR;
     steps = steps << 1;
-    offset = (1 << (maxL - (ll + 1)));  // boundary case
+    offset = (1 << (lmaxi - (ll + 1)));  // boundary case
     parentOffset = parentOffset >> 1;
     stepsize = stepsize >> 1;
   }
-
   return;
 }
 
