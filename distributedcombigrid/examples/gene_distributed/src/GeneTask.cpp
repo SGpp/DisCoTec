@@ -35,20 +35,22 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       nsteps_( nsteps ),
       stepsTotal_(0),
       combiStep_(0),
-      shat_( shat ),
-      lx_( lx ),
-      ky0_ind_( ky0_ind ),
-      x0_(lx/2.0),
+      checkpointFrequency_(checkpointFrequency),
+      offsetForDiagnostics_(offsetForDiagnostics),
       p_(p),
-      checkpoint_(), initialized_(false),
-      checkpointInitialized_(false),
+      shat_( shat ),
+      kymin_( -1000.),
+      lx_( lx ),
+      x0_(lx/2.0),
+      ky0_ind_( ky0_ind ),
       nspecies_(numSpecies),
       _GENE_Global(GENE_Global),
       _GENE_Linear(GENE_Linear),
       currentTime_(0.0),
-      gyromatrix_buffered_(false),
-      checkpointFrequency_(checkpointFrequency),
-      offsetForDiagnostics_(offsetForDiagnostics)
+      // variables that are not serialized
+      checkpoint_(), initialized_(false),
+      checkpointInitialized_(false),
+      gyromatrix_buffered_(false)
 {
 
 // theres only one boundary configuration allowed at the moment
@@ -66,14 +68,14 @@ assert( boundary[5] == false );//nspec
 }
 
 GeneTask::GeneTask() :
+    _GENE_Global(false),
+    _GENE_Linear(true),
+    currentTime_(0.0),
     checkpoint_(),
     dfgVector_(0),
     nrg_(0.0),
     initialized_(false),
     checkpointInitialized_(false),
-    _GENE_Global(false),
-    _GENE_Linear(true),
-    currentTime_(0.0),
     gyromatrix_buffered_(false)
 {
   ;
