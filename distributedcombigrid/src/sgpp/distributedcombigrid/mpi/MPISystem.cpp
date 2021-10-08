@@ -164,7 +164,9 @@ void MPISystem::storeLocalComm(CommunicatorType lcomm_optional /*= MPI_COMM_NULL
     localComm_ = MPI_COMM_NULL;
   else {
     // duplicate to localComm_ only if lcomm_optional was given, otherwise assume already initialized
-    if(lcomm_optional != MPI_COMM_NULL)  MPI_Comm_dup(lcomm_optional, &localComm_);
+    if(lcomm_optional != MPI_COMM_NULL) {
+      MPI_Comm_dup(lcomm_optional, &localComm_);
+    }
     // todo: think through which side effects changing the master rank would have
     // in principle this does not have to be 0
     masterRank_ = 0;

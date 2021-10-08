@@ -37,6 +37,12 @@ public:
 
   GeneTask();
 
+  // cheapest rule of 5 ever
+  GeneTask(const GeneTask& other) = delete;
+  GeneTask(GeneTask&& other) = delete;
+  GeneTask& operator=(const GeneTask& other) = delete;
+  GeneTask& operator=(GeneTask&& other) = delete;
+
   virtual ~GeneTask();
   /**
    * This method does not acutally run GENE but just moves to folder of the GENE task.
