@@ -86,7 +86,7 @@ SignalType ProcessGroupWorker::wait() {
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("worker run first");
       // std::cout << "from runfirst ";
-      processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
+      processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
@@ -109,7 +109,7 @@ SignalType ProcessGroupWorker::wait() {
         currentTask_->run(theMPISystem()->getLocalComm());
         e.end = std::chrono::high_resolution_clock::now();
         // std::cout << "from runnext ";
-        processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
+        processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
 
         if (!isGENE) {
           Stats::stopEvent("worker run");
@@ -216,7 +216,7 @@ SignalType ProcessGroupWorker::wait() {
       currentTask_->run(theMPISystem()->getLocalComm());
       e.end = std::chrono::high_resolution_clock::now();
       // std::cout << "from recompute ";
-      processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));  
+      processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
 
     } break;
     case RECOVER_COMM: {  // start recovery in case of faults
@@ -359,7 +359,7 @@ void ProcessGroupWorker::ready() {
         Stats::Event e = Stats::stopEvent("worker run");
 
         // std::cout << "from ready ";
-        processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));   
+        processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
         if (ENABLE_FT) {
           // with this barrier the local root but also each other process can detect
           // whether a process in the group has failed
