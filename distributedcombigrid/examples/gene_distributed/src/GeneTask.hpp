@@ -231,8 +231,10 @@ public:
    * If Petsc is used size of gyromatrix changes during initialization.
    */
   void delete_gyromatrix(){
+    if (this->is_gyromatrix_buffered()) {
+      delete[] gyromatrix_buffer_;
+    }
     gyromatrix_buffered_ = false;
-    delete[] gyromatrix_buffer_;
   }
   /**
    * Returns the time that is simulated between combinations.
