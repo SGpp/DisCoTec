@@ -22,9 +22,8 @@
 namespace combigrid {
 
 ProcessGroupWorker::ProcessGroupWorker()
-    : currentTask_(NULL),
+    : currentTask_(nullptr),
       status_(PROCESS_GROUP_WAIT),
-      combinedFG_(NULL),
       combinedUniDSGVector_(0),
       combinedFGexists_(false),
       combiParameters_(),
@@ -38,7 +37,7 @@ ProcessGroupWorker::ProcessGroupWorker()
   }
 }
 
-ProcessGroupWorker::~ProcessGroupWorker() { delete combinedFG_; }
+ProcessGroupWorker::~ProcessGroupWorker() {}
 
 // Do useful things with the info about how long a task took.
 // this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly multiple times),
