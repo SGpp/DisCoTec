@@ -598,9 +598,6 @@ void GeneTask::setDFG(){
       }
     }
 
-
-
-  
   // check if last grid point of x is zero
   if( coords[5] == p[5] - 1 ){
     for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
@@ -611,7 +608,7 @@ void GeneTask::setDFG(){
                 assert( dfgData[n][ m ][l][k][j][ dfgShape[5]-1 ]
                         == complex(0.0) );
               }
-    std::cout << "passed check upper x \n";
+    // std::cout << "passed check upper x \n";
   }
 
   if( coords[5] == 0 ){
@@ -623,7 +620,7 @@ void GeneTask::setDFG(){
                 assert( dfgData[n][ m ][l][k][j][ 0 ]
                         == complex(0.0) );
               }
-    std::cout << "passed check lower x \n";
+    // std::cout << "passed check lower x \n";
   }
 
 
@@ -796,7 +793,6 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, In
   // calculate x offset and factor
   if(!_GENE_Global){
     int N = int( round( shat_ * kymin_ * lx_ ) );
-    int ky0_ind = 1;
     assert( N == 1);
 
     xoffset = l*N;
@@ -926,8 +922,6 @@ void GeneTask::adaptBoundaryZglobal(int species){
                &requestArray_[species]);
   }
 
-
-
   if(species == nspecies_ - 1){
     MPI_Waitall(nspecies_, requestArray_, MPI_STATUSES_IGNORE );
     //toDo check if correct
@@ -962,8 +956,6 @@ void GeneTask::getDFG(){
   IndexVector lcpSizes = upperBounds - lowerBounds;
   MultiArrayRef<GeneComplex,6> lcpData =
     createMultiArrayRef<GeneComplex,6>( checkpoint_.getData(), lcpSizes );
-
-
 
   // copy data back to lcp
   // note that the last grid points in x,z,v,w dimension are ignored
