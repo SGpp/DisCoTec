@@ -1064,9 +1064,9 @@ class DistributedFullGrid {
     }
 
     // auto indexAssignment = getLocalFGIndexToLocalSGPointerList();
-    #ifdef DEBUG_OUTPUT
-      MASTER_EXCLUSIVE_SECTION { std::cout << "is this where " << indexAssignment[0] << "?\n"; }
-    #endif
+    // #ifdef DEBUG_OUTPUT
+    //   MASTER_EXCLUSIVE_SECTION { std::cout << "is this where " << indexAssignment[0] << "?\n"; }
+    // #endif
 
     bool anythingWasAdded = false;
 

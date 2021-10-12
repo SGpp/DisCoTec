@@ -6,6 +6,7 @@
 #include <ostream>
 #include <vector>
 #include <map>
+#include <set>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
@@ -164,6 +165,18 @@ inline std::ostream &operator <<(std::ostream &os, const std::map<T, U> &m) {
   for (const auto& any : m) {
     os << "(" << any.first << ") : " << any.second << "; ";
   }
+  return os;
+}
+
+// helper function to output any set
+template<typename T>
+inline std::ostream &operator <<(std::ostream &os, const std::set<T> &s) {
+  using namespace std;
+  os << "[";
+  for (const auto& any : s) {
+    os << any << ", ";
+  }
+  os << "]";
   return os;
 }
 

@@ -385,6 +385,7 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
                   &sendRequests[sendcount + k++]);
 
 #ifdef DEBUG_OUTPUT
+        auto rank = dfg.getRank();
         // print info: dest, size, index
         std::cout << "rank " << rank << ": send gindex " << index << " dest " << dest
                   << std::endl;
@@ -425,8 +426,9 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
           { totalRecvSize += bsize; }
 
 #ifdef DEBUG_OUTPUT
+          auto rank = dfg.getRank();
           // print info: dest, size, index
-          std::cout << "rank " << rank << ": recv gindex " << indices[k] << " src " << src
+          std::cout << "rank " << rank << ": recv gindex " << index << " src " << src
                     << " size: " << bsize << std::endl;
 #endif
         }
@@ -487,12 +489,13 @@ template <typename FG_ELEMENT>
 static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                            std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData) {
 
+  auto commSize = dfg.getCommunicatorSize();
 #ifdef DEBUG_OUTPUT
+  CommunicatorType comm = dfg.getCommunicator();
+  auto rank = dfg.getRank();
+  std::vector<int> coords(dfg.getDimension());
+  dfg.getPartitionCoords(coords);
   {
-    CommunicatorType comm = dfg.getCommunicator();
-    auto rank = dfg.getRank();
-    std::vector<int> coords(dfg.getDimension());
-    dfg.getPartitionCoords(coords);
     std::cout << "in debug output" << std::endl;
 
     IndexType fidx = dfg.getFirstGlobal1dIndex(dim);
@@ -549,8 +552,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   }
 #endif
 
-  auto commSize = dfg.getCommunicatorSize();
-
   // create buffers for every rank
   std::vector<std::set<IndexType>> recv1dIndices(commSize);
   std::vector<std::set<IndexType>> send1dIndices(commSize);
@@ -558,61 +559,56 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   // main loop
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+  auto globalIdxMax = dfg.length(dim);
   LevelType lmax = dfg.getLevels()[dim];
 
   IndexType idx = idxMin;
 
+
+  // for hierarchization, we only need to exchange the direct predecessors
   while (idx <= idxMax) {
+    LevelType lidx = dfg.getLevel(dim, idx);
     // check if successors of idx outside local domain
     {
-      LevelType lidx = dfg.getLevel(dim, idx);
-
       for (LevelType l = lidx + 1; l <= lmax; ++l) {
         LevelType ldiff = lmax - l;
         IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff));
 
-        // left successor
-        IndexType lsIdx = idx - idiff;
-
-        if (lsIdx >= 0 && lsIdx < idxMin) {
-          // get rank which has lsIdx and add to send list
-          int r = getNeighbor1d(dfg, dim, lsIdx);
-
-          if (r >= 0) send1dIndices[r].insert(idx);
+        // left successor, right successor
+        IndexVector indexStencil = {-1, 1};
+        for (const auto& indexShift : indexStencil) {
+          IndexType sIdx = idx + indexShift * idiff;
+          // if sIdx is outside of my domain, but still in the global domain
+          if ((indexShift < 0 && sIdx >= 0 && sIdx < idxMin) ||
+              (indexShift > 0 && sIdx > idxMax && sIdx < globalIdxMax)) {
+            // get rank which has sIdx and add to send list
+            int r = getNeighbor1d(dfg, dim, sIdx);
+            if (r >= 0) send1dIndices[r].insert(idx);
+          }
         }
 
-        // right successor
-        IndexType rsIdx = idx + idiff;
-
-        if (rsIdx > idxMax) {
-          // get rank which has rsIdx and add to send list
-          int r = getNeighbor1d(dfg, dim, rsIdx);
-
-          if (r >= 0) send1dIndices[r].insert(idx);
-        }
       }
     }
+    // check if predecessors of idx outside local domain
 
-    // check if left predecessor outside local domain
-    // if returns negative value there's no left predecessor
-    IndexType lpIdx = dfg.getLeftPredecessor(dim, idx);
-
-    if (lpIdx >= 0 && lpIdx < idxMin) {
-      // get rank which has left predecessor and add to list of indices to recv
-      int r = getNeighbor1d(dfg, dim, lpIdx);
-      recv1dIndices[r].insert(lpIdx);
+    // left, right predecessor
+    IndexVector indexStencil = {-1, 1};
+    LevelType ldiff = lmax - lidx;
+    IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff));
+    for (const auto& indexShift : indexStencil) {
+      IndexType pIdx = idx + indexShift * idiff;
+      // if we are not on the boundary level, and
+      // pIdx is outside of my domain, but still in the global domain
+      if (lidx > 0 && ((indexShift < 0 && pIdx >= 0 && pIdx < idxMin) ||
+                        (indexShift > 0 && pIdx > idxMax && pIdx < globalIdxMax))) {
+        // get rank which has predecessor and add to list of indices to recv
+        int r = getNeighbor1d(dfg, dim, pIdx);
+        recv1dIndices[r].insert(pIdx);
+      }
     }
-
-    // check if right predecessor outside local domain
-    // if returns negative value there's no right predecessor
-    IndexType rpIdx = dfg.getRightPredecessor(dim, idx);
-
-    if (rpIdx < 0) {
-      idx = getNextIndex1d(dfg, dim, idx);
-    } else if (rpIdx > idxMax) {
-      // get rank which has right predecessor and add to list of indices to recv
-      int r = getNeighbor1d(dfg, dim, rpIdx);
-      recv1dIndices[r].insert(rpIdx);
+    // index of right predecessor
+    IndexType rpIdx = idx + idiff;
+    if (lidx == 0 || rpIdx > idxMax) {
       idx = getNextIndex1d(dfg, dim, idx);
     } else {
       idx = rpIdx;
@@ -624,14 +620,12 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   {
     for (int r = 0; r < commSize; ++r) {
       if (r == rank) {
-        std::cout << "rank " << rank << " recv: " << std::endl;
-
-        for (RankType k = 0; k < dfg.getCommunicatorSize(); ++k) {
-          if (recv1dIndices[k].size() > 0)
-            std::cout << "\t" << k << ": " << recv1dIndices[k] << std::endl;
+        std::cout << "rank " << r << " recv1dIndices ";
+        for (const auto& r : recv1dIndices) {
+          std::cout << r;
         }
+        std::cout << std::endl;
       }
-
       MPI_Barrier(comm);
     }
   }
@@ -642,14 +636,12 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   {
     for (int r = 0; r < commSize; ++r) {
       if (r == rank) {
-        std::cout << "rank " << rank << " send: " << std::endl;
-
-        for (RankType k = 0; k < dfg.getCommunicatorSize(); ++k) {
-          if (send1dIndices[k].size() > 0)
-            std::cout << "\t" << k << ": " << send1dIndices[k] << std::endl;
+        std::cout << "rank " << r << " send1dIndices ";
+        for (const auto& s : send1dIndices) {
+          std::cout << s;
         }
+        std::cout << std::endl;
       }
-
       MPI_Barrier(comm);
     }
   }
@@ -689,12 +681,11 @@ static void exchangeData1dDehierarchization(
 
   auto commSize = dfg.getCommunicatorSize();
 #ifdef DEBUG_OUTPUT
+  CommunicatorType comm = dfg.getCommunicator();
+  auto rank = dfg.getRank();
+  std::vector<int> coords(dfg.getDimension());
+  dfg.getPartitionCoords(coords);
   {
-    CommunicatorType comm = dfg.getCommunicator();
-    auto rank = dfg.getRank();
-
-    std::vector<int> coords(dfg.getDimension());
-    dfg.getPartitionCoords(coords);
     IndexType fidx = dfg.getFirstGlobal1dIndex(dim);
     LevelType flvl = dfg.getLevel(dim, fidx);
     IndexType fleftpre = dfg.getLeftPredecessor(dim, fidx);
@@ -760,6 +751,7 @@ static void exchangeData1dDehierarchization(
 
   IndexType idx = idxMin;
 
+  // for dehierarchization, we need to exchange the full tree of predecessors
   while (idx <= idxMax) {
     checkLeftSuccesors(idx, idx, dim, dfg, send1dIndices);
 
@@ -1237,7 +1229,7 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 }
 
 /**
- * @brief hierarchize a DFG in dimension X (with contiguos access)
+ * @brief hierarchize a DFG in dimension X (with contiguous access)
  * 
  * @param dfg : the DFG to hierarchize
  * @param lookupTable: the lookup table for local and remote data
