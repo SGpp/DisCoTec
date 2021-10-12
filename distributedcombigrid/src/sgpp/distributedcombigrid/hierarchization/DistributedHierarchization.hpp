@@ -564,7 +564,8 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
 
   IndexType idx = idxMin;
 
-
+  // mass-conserving stencil operations may also need neighbors
+  bool exchangeParentsNeighbors = false; //TODO make work //TODO put this somewhere else
   // for hierarchization, we only need to exchange the direct predecessors
   while (idx <= idxMax) {
     LevelType lidx = dfg.getLevel(dim, idx);
@@ -575,8 +576,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
         IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff));
 
         // left successor, right successor
-        IndexVector indexStencil = {-1, 1};
-        for (const auto& indexShift : indexStencil) {
+        for (const auto& indexShift : {-1, 1}) {
           IndexType sIdx = idx + indexShift * idiff;
           // if sIdx is outside of my domain, but still in the global domain
           if ((indexShift < 0 && sIdx >= 0 && sIdx < idxMin) ||
@@ -586,17 +586,35 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
             if (r >= 0) send1dIndices[r].insert(idx);
           }
         }
-
       }
     }
-    // check if predecessors of idx outside local domain
-
-    // left, right predecessor
-    IndexVector indexStencil = {-1, 1};
+    {
+      // if larger stencil: exchange with same-level neighbors
+      if (exchangeParentsNeighbors) {
+        LevelType ldiff = lmax - lidx;
+        IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff + 1));
+        for (const auto& indexShift : {-1, 1}) {
+          IndexType nIdx = idx + indexShift * idiff;
+          // if we are not on the boundary level, and
+          // nIdx is outside of my domain, but still in the global domain
+          if (lidx > 0 && ((indexShift < 0 && nIdx >= 0 && nIdx < idxMin) ||
+                            (indexShift > 0 && nIdx > idxMax && nIdx < globalIdxMax))) {
+            // get rank which has same-level neighbor and add to list of indices to recv
+            int r = getNeighbor1d(dfg, dim, nIdx);
+            recv1dIndices[r].insert(nIdx);
+            // it is mutual
+            send1dIndices[r].insert(idx);
+          }
+        }
+      }
+    }
     LevelType ldiff = lmax - lidx;
     IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff));
-    for (const auto& indexShift : indexStencil) {
-      IndexType pIdx = idx + indexShift * idiff;
+    // check if predecessors of idx outside local domain
+    IndexType pIdx;
+    // left, right predecessor
+    for (const auto& indexShift : {-1, 1}) {
+      pIdx = idx + indexShift * idiff;
       // if we are not on the boundary level, and
       // pIdx is outside of my domain, but still in the global domain
       if (lidx > 0 && ((indexShift < 0 && pIdx >= 0 && pIdx < idxMin) ||
@@ -606,12 +624,15 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
         recv1dIndices[r].insert(pIdx);
       }
     }
-    // index of right predecessor
-    IndexType rpIdx = idx + idiff;
-    if (lidx == 0 || rpIdx > idxMax) {
+    // todo probably we can also skip some in the case of exchangeParents neighbors
+    // (currently, ALL indices are iterated)
+    if (exchangeParentsNeighbors) {
+      ++idx;
+    } else if (lidx == 0 || pIdx > idxMax) {
       idx = getNextIndex1d(dfg, dim, idx);
     } else {
-      idx = rpIdx;
+      // index of right predecessor
+      idx = pIdx;
     }
   }
 
@@ -843,9 +864,6 @@ void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
     if (lsIdx >= 0 && lsIdx < idxMin) {
       // get rank which has lsIdx and add to send list
       int r = getNeighbor1d(dfg, dim, lsIdx);
-
-      assert(r < dfg.getCommunicatorSize());
-
       if (r >= 0) OneDIndices[r].insert(rootIdx);
     }
 
@@ -872,12 +890,10 @@ void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
     if (rsIdx < dfg.getGlobalSizes()[dim] && rsIdx > idxMax) {
       // get rank which has rsIdx and add to send list
       int r = getNeighbor1d(dfg, dim, rsIdx);
-      assert(r < dfg.getCommunicatorSize());
-
       if (r >= 0) OneDIndices[r].insert(rootIdx);
     }
 
-    if (rsIdx < dfg.getGlobalSizes()[dim])
+    if (rsIdx < dfg.length(dim))
       checkRightSuccesors(rsIdx, rootIdx, dim, dfg, OneDIndices);
   }
 }
