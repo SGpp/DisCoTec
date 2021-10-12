@@ -609,10 +609,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
 
     if (rpIdx < 0) {
       idx = getNextIndex1d(dfg, dim, idx);
-      continue;
-    }
-
-    if (rpIdx > idxMax) {
+    } else if (rpIdx > idxMax) {
       // get rank which has right predecessor and add to list of indices to recv
       int r = getNeighbor1d(dfg, dim, rpIdx);
       recv1dIndices[r].insert(rpIdx);
