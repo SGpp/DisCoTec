@@ -274,10 +274,6 @@ static IndexType getLastIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, Dim
                                         LevelType l);
 
 template <typename FG_ELEMENT>
-static void hierarchizeX(DistributedFullGrid<FG_ELEMENT>& dfg,
-                         LookupTable<FG_ELEMENT>& lookupTable);
-
-template <typename FG_ELEMENT>
 static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                       LookupTable<FG_ELEMENT>& lookupTable);
 
@@ -955,81 +951,6 @@ static IndexType getLastIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, Dim
   return -1;
 }
 
-template <typename FG_ELEMENT>
-static void hierarchizeX(DistributedFullGrid<FG_ELEMENT>& dfg,
-                         LookupTable<FG_ELEMENT>& lookupTable) {
-  const DimType dim = 0;
-
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-  IndexType ndim = dfg.getLocalSizes()[dim];
-
-  FG_ELEMENT zeroVal(0);
-
-  // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
-  IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
-
-  for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
-    // get globalIndexVector of block start
-    // this is the base IndexVector of this block
-    // only dim component is varied
-    IndexType linIdxBlockStart = xBlock * ndim;
-
-    IndexVector localIndexVector(dfg.getDimension());
-    IndexVector baseGlobalIndexVector(dfg.getDimension());
-    dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, baseGlobalIndexVector);
-    assert(localIndexVector[dim] == 0);
-
-    IndexVector globalIndexVectorCenter = baseGlobalIndexVector;
-    IndexVector globalIndexVectorLeft = baseGlobalIndexVector;
-    IndexVector globalIndexVectorRight = baseGlobalIndexVector;
-
-    for (LevelType l = lmax; l > 0; --l) {
-      // get first local point of level and corresponding stride
-      IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
-      IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
-      IndexType levelStride = parentOffset * 2;
-
-      // loop over points of this level with level specific stride
-      // as long as inside domain
-      for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
-        // compute global index vector of center, left and right predecessor
-        globalIndexVectorCenter[dim] = idx;
-        globalIndexVectorLeft[dim] = idx - parentOffset;
-        globalIndexVectorRight[dim] = idx + parentOffset;
-
-        // translate global indices vector to pointers
-        if (dfg.returnBoundaryFlags()[dim] == true) {
-          FG_ELEMENT* center = lookupTable.getData(globalIndexVectorCenter);
-          FG_ELEMENT* left = lookupTable.getData(globalIndexVectorLeft);
-          FG_ELEMENT* right = lookupTable.getData(globalIndexVectorRight);
-
-          // do calculation
-          *center -= 0.5 * (*left + *right);
-        } else {
-          FG_ELEMENT* center = lookupTable.getData(globalIndexVectorCenter);
-
-          // when no boundary in this dimension we have to check if
-          // 1d indices outside domain
-          FG_ELEMENT* left = &zeroVal;
-          FG_ELEMENT* right = &zeroVal;
-
-          if (globalIndexVectorLeft[dim] > 0) {
-            left = lookupTable.getData(globalIndexVectorLeft);
-          }
-
-          if (globalIndexVectorRight[dim] < dfg.getGlobalSizes()[dim]) {
-            right = lookupTable.getData(globalIndexVectorRight);
-          }
-
-          // do calculation
-          *center -= 0.5 * (*left + *right);
-        }
-      }
-    }
-  }
-}
 
 template <typename FG_ELEMENT>
 static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
