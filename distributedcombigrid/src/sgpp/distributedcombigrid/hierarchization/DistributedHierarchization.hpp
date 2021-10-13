@@ -310,6 +310,46 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
                            std::vector<std::set<IndexType>>& recv1dIndices,
                            DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                            std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
+#ifdef DEBUG_OUTPUT
+  auto commSize = dfg.getCommunicatorSize();
+  CommunicatorType comm = dfg.getCommunicator();
+  auto rank = dfg.getRank();
+  MPI_Barrier(comm);
+
+  // print recvindices
+  {
+    for (int r = 0; r < commSize; ++r) {
+      if (r == rank) {
+        std::cout << "rank " << r << " recv1dIndices ";
+        for (const auto& r : recv1dIndices) {
+          std::cout << r;
+        }
+        std::cout << std::endl;
+      }
+      MPI_Barrier(comm);
+    }
+  }
+
+  if (rank == 0) std::cout << std::endl;
+
+  // print sendindices
+  {
+    for (int r = 0; r < commSize; ++r) {
+      if (r == rank) {
+        std::cout << "rank " << r << " send1dIndices ";
+        for (const auto& s : send1dIndices) {
+          std::cout << s;
+        }
+        std::cout << std::endl;
+      }
+      MPI_Barrier(comm);
+    }
+  }
+
+  MPI_Barrier(comm);
+
+#endif
+
   std::vector<MPI_Request> sendRequests;
   std::vector<MPI_Request> recvRequests;
   size_t sendcount = 0;
@@ -648,61 +688,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
       }
     }
   }
-
-#ifdef DEBUG_OUTPUT
-  // print recvindices
-  {
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << r << " recv1dIndices ";
-        for (const auto& r : recv1dIndices) {
-          std::cout << r;
-        }
-        std::cout << std::endl;
-      }
-      MPI_Barrier(comm);
-    }
-  }
-
-  if (rank == 0) std::cout << std::endl;
-
-  // print sendindices
-  {
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << r << " send1dIndices ";
-        for (const auto& s : send1dIndices) {
-          std::cout << s;
-        }
-        std::cout << std::endl;
-      }
-      MPI_Barrier(comm);
-    }
-  }
-
-  MPI_Barrier(comm);
-
-  /*
-   if( dim == 4 ){
-   std::string filename = "debug" + boost::lexical_cast<std::string>(rank);
-   std::ofstream ofs( filename.c_str() );
-
-   ofs << "rank " << rank << " recv: " << std::endl;
-   for( RankType k = 0; k < dfg.getCommunicatorSize(); ++k ){
-   if( recv1dIndices[k].size() > 0 )
-   ofs << "\t" << k << ": " << recv1dIndices[k] << std::endl;
-   }
-
-   // print sendindices
-   ofs << "rank " << rank << " send: " << std::endl;
-   for( RankType k = 0; k < dfg.getCommunicatorSize(); ++k ){
-   if( send1dIndices[k].size() > 0 )
-   ofs << "\t" << k << ": " << send1dIndices[k] << std::endl;
-   }
-
-   ofs.close();
-   }*/
-#endif
   sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
@@ -785,7 +770,8 @@ static void exchangeData1dDehierarchization(
 
   IndexType idx = idxMin;
 
-  // for dehierarchization, we need to exchange the full tree of predecessors
+  // for dehierarchization, we need to exchange the full tree of
+  // successors and predecessors
   while (idx <= idxMax) {
     checkLeftSuccesors(idx, idx, dim, dfg, send1dIndices);
 
@@ -793,67 +779,6 @@ static void exchangeData1dDehierarchization(
 
     idx = checkPredecessors(idx, dim, dfg, recv1dIndices);
   }
-
-#ifdef DEBUG_OUTPUT
-  MPI_Barrier(comm);
-
-  // print recvindices
-  {
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << rank << " recv: " << std::endl;
-
-        for (RankType k = 0; k < dfg.getCommunicatorSize(); ++k) {
-          if (recv1dIndices[k].size() > 0)
-            std::cout << "\t" << k << ": " << recv1dIndices[k] << std::endl;
-        }
-      }
-
-      MPI_Barrier(comm);
-    }
-  }
-
-  if (rank == 0) std::cout << std::endl;
-
-  // print sendindices
-  {
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << rank << " send: " << std::endl;
-
-        for (RankType k = 0; k < dfg.getCommunicatorSize(); ++k) {
-          if (send1dIndices[k].size() > 0)
-            std::cout << "\t" << k << ": " << send1dIndices[k] << std::endl;
-        }
-      }
-
-      MPI_Barrier(comm);
-    }
-  }
-
-  MPI_Barrier(comm);
-
-  /*
-   if( dim == 4 ){
-   std::string filename = "debug" + boost::lexical_cast<std::string>(rank);
-   std::ofstream ofs( filename.c_str() );
-
-   ofs << "rank " << rank << " recv: " << std::endl;
-   for( RankType k = 0; k < dfg.getCommunicatorSize(); ++k ){
-   if( recv1dIndices[k].size() > 0 )
-   ofs << "\t" << k << ": " << recv1dIndices[k] << std::endl;
-   }
-
-   // print sendindices
-   ofs << "rank " << rank << " send: " << std::endl;
-   for( RankType k = 0; k < dfg.getCommunicatorSize(); ++k ){
-   if( send1dIndices[k].size() > 0 )
-   ofs << "\t" << k << ": " << send1dIndices[k] << std::endl;
-   }
-
-   ofs.close();
-   }*/
-#endif
 
   sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
