@@ -269,6 +269,9 @@ static IndexType getNextIndex1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
 template <typename FG_ELEMENT>
 static IndexType getFirstIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
                                         LevelType l);
+template <typename FG_ELEMENT>
+static IndexType getLastIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
+                                        LevelType l);
 
 template <typename FG_ELEMENT>
 static void hierarchizeX(DistributedFullGrid<FG_ELEMENT>& dfg,
@@ -588,26 +591,6 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
         }
       }
     }
-    {
-      // if larger stencil: exchange with same-level neighbors
-      if (exchangeParentsNeighbors) {
-        LevelType ldiff = lmax - lidx;
-        IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff + 1));
-        for (const auto& indexShift : {-1, 1}) {
-          IndexType nIdx = idx + indexShift * idiff;
-          // if we are not on the boundary level, and
-          // nIdx is outside of my domain, but still in the global domain
-          if (lidx > 0 && ((indexShift < 0 && nIdx >= 0 && nIdx < idxMin) ||
-                            (indexShift > 0 && nIdx > idxMax && nIdx < globalIdxMax))) {
-            // get rank which has same-level neighbor and add to list of indices to recv
-            int r = getNeighbor1d(dfg, dim, nIdx);
-            recv1dIndices[r].insert(nIdx);
-            // it is mutual
-            send1dIndices[r].insert(idx);
-          }
-        }
-      }
-    }
     LevelType ldiff = lmax - lidx;
     IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff));
     // check if predecessors of idx outside local domain
@@ -624,15 +607,45 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
         recv1dIndices[r].insert(pIdx);
       }
     }
-    // todo probably we can also skip some in the case of exchangeParents neighbors
-    // (currently, ALL indices are iterated)
-    if (exchangeParentsNeighbors) {
-      ++idx;
-    } else if (lidx == 0 || pIdx > idxMax) {
+    if (lidx == 0 || pIdx > idxMax) {
       idx = getNextIndex1d(dfg, dim, idx);
     } else {
       // index of right predecessor
       idx = pIdx;
+    }
+  }
+
+  // if larger stencil: exchange with same-level neighbors
+  if (exchangeParentsNeighbors) {
+    for (LevelType lidx = 1; lidx <= lmax; ++lidx) {
+      LevelType ldiff = lmax - lidx;
+      IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff + 1));
+      // leftmost point of this level
+      IndexType idx = getFirstIndexOfLevel1d(dfg, dim, lidx);
+      // left neighbor
+      IndexType nIdx = idx - idiff;
+      assert(nIdx < idxMin);
+      // if nIdx is in the global domain
+      if (idx <= idxMax && nIdx >= 0) {
+        // get rank which has same-level neighbor and add to list of indices to recv
+        int r = getNeighbor1d(dfg, dim, nIdx);
+        recv1dIndices[r].insert(nIdx);
+        // it is mutual
+        send1dIndices[r].insert(idx);
+      }
+      // rightmost point of this level
+      idx = getLastIndexOfLevel1d(dfg, dim, lidx);
+      // right neighbor
+      nIdx = idx + idiff;
+      assert(nIdx > idxMax);
+      // if nIdx is in the global domain
+      if (idx > 0 && nIdx < globalIdxMax) {
+        // get rank which has same-level neighbor and add to list of indices to recv
+        int r = getNeighbor1d(dfg, dim, nIdx);
+        recv1dIndices[r].insert(nIdx);
+        // it is mutual
+        send1dIndices[r].insert(idx);
+      }
     }
   }
 
@@ -1001,6 +1014,20 @@ static IndexType getFirstIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, Di
 
   // no index on level l found, return value which is out of local index range
   return idxMax + 1;
+}
+
+template <typename FG_ELEMENT>
+static IndexType getLastIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+                                        LevelType l) {
+  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+  IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
+
+  for (IndexType i = idxMax; i >= idxMin; --i) {
+    if (dfg.getLevel(dim, i) == l) return i;
+  }
+
+  // no index on level l found
+  return -1;
 }
 
 template <typename FG_ELEMENT>
