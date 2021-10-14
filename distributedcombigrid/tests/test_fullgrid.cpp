@@ -104,7 +104,7 @@ void checkFullgrid(LevelVector& levels, std::vector<bool>& boundary) {
   }
 }
 
-BOOST_AUTO_TEST_SUITE(fullgrid)
+BOOST_AUTO_TEST_SUITE(fullgrid, *boost::unit_test::timeout(60))
 
 // with boundary
 // isotropic

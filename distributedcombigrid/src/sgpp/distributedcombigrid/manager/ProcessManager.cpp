@@ -36,7 +36,7 @@ bool ProcessManager::runfirst() {
 
   bool group_failed = waitAllFinished();
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
-  receiveDurationsOfTasksFromGroupMasters(0);
+  //receiveDurationsOfTasksFromGroupMasters(0);
 
   // initialize dsgus
   initDsgus();
@@ -77,7 +77,7 @@ bool ProcessManager::runnext() {
   
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   if(!group_failed)
-    receiveDurationsOfTasksFromGroupMasters(0);
+    // receiveDurationsOfTasksFromGroupMasters(0);
   // return true if no group failed
   return !group_failed;
 }

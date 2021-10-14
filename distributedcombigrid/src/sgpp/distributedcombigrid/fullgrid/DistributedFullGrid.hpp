@@ -628,8 +628,8 @@ class DistributedFullGrid {
   inline void getPartitionCoords(RankType r, IndexVector& coords) const {
     assert(r >= 0 && r < size_);
     assert (!partitionCoords_.empty());
-    coords = partitionCoords_[r];
-    }
+    coords.assign(partitionCoords_[r].begin(), partitionCoords_[r].end());
+  }
   inline void getPartitionCoords(RankType r, std::vector<int>& coords) const {
     assert(r >= 0 && r < size_);
     assert (!partitionCoords_.empty());
@@ -735,11 +735,6 @@ class DistributedFullGrid {
     assert(partitionCoordsInt.size() == dim_);
 
     for (DimType d = 0; d < dim_; ++d) assert(partitionCoordsInt[d] < procs_[d]);
-
-    // important: note reverse ordering
-    if (reverseOrderingDFGPartitions) {
-      std::reverse(partitionCoordsInt.begin(), partitionCoordsInt.end());
-    }
 
     assert(!partitionCoords_.empty());
     auto dim = dim_;

@@ -35,20 +35,22 @@ GeneTask::GeneTask( DimType dim, LevelVector& l,
       nsteps_( nsteps ),
       stepsTotal_(0),
       combiStep_(0),
-      shat_( shat ),
-      lx_( lx ),
-      ky0_ind_( ky0_ind ),
-      x0_(lx/2.0),
+      checkpointFrequency_(checkpointFrequency),
+      offsetForDiagnostics_(offsetForDiagnostics),
       p_(p),
-      checkpoint_(), initialized_(false),
-      checkpointInitialized_(false),
+      shat_( shat ),
+      kymin_( -1000.),
+      lx_( lx ),
+      x0_(lx/2.0),
+      ky0_ind_( ky0_ind ),
       nspecies_(numSpecies),
       _GENE_Global(GENE_Global),
       _GENE_Linear(GENE_Linear),
       currentTime_(0.0),
-      gyromatrix_buffered_(false),
-      checkpointFrequency_(checkpointFrequency),
-      offsetForDiagnostics_(offsetForDiagnostics)
+      // variables that are not serialized
+      checkpoint_(), initialized_(false),
+      checkpointInitialized_(false),
+      gyromatrix_buffered_(false)
 {
 
 // theres only one boundary configuration allowed at the moment
@@ -66,14 +68,14 @@ assert( boundary[5] == false );//nspec
 }
 
 GeneTask::GeneTask() :
+    _GENE_Global(false),
+    _GENE_Linear(true),
+    currentTime_(0.0),
     checkpoint_(),
     dfgVector_(0),
     nrg_(0.0),
     initialized_(false),
     checkpointInitialized_(false),
-    _GENE_Global(false),
-    _GENE_Linear(true),
-    currentTime_(0.0),
     gyromatrix_buffered_(false)
 {
   ;
@@ -596,9 +598,6 @@ void GeneTask::setDFG(){
       }
     }
 
-
-
-  
   // check if last grid point of x is zero
   if( coords[5] == p[5] - 1 ){
     for( size_t n=0; n < dfgShape[0]; ++n ) //n_spec
@@ -609,7 +608,7 @@ void GeneTask::setDFG(){
                 assert( dfgData[n][ m ][l][k][j][ dfgShape[5]-1 ]
                         == complex(0.0) );
               }
-    std::cout << "passed check upper x \n";
+    // std::cout << "passed check upper x \n";
   }
 
   if( coords[5] == 0 ){
@@ -621,7 +620,7 @@ void GeneTask::setDFG(){
                 assert( dfgData[n][ m ][l][k][j][ 0 ]
                         == complex(0.0) );
               }
-    std::cout << "passed check lower x \n";
+    // std::cout << "passed check lower x \n";
   }
 
 
@@ -794,7 +793,6 @@ void GeneTask::getOffsetAndFactor( IndexType& xoffset, CombiDataType& factor, In
   // calculate x offset and factor
   if(!_GENE_Global){
     int N = int( round( shat_ * kymin_ * lx_ ) );
-    int ky0_ind = 1;
     assert( N == 1);
 
     xoffset = l*N;
@@ -924,8 +922,6 @@ void GeneTask::adaptBoundaryZglobal(int species){
                &requestArray_[species]);
   }
 
-
-
   if(species == nspecies_ - 1){
     MPI_Waitall(nspecies_, requestArray_, MPI_STATUSES_IGNORE );
     //toDo check if correct
@@ -960,8 +956,6 @@ void GeneTask::getDFG(){
   IndexVector lcpSizes = upperBounds - lowerBounds;
   MultiArrayRef<GeneComplex,6> lcpData =
     createMultiArrayRef<GeneComplex,6>( checkpoint_.getData(), lcpSizes );
-
-
 
   // copy data back to lcp
   // note that the last grid points in x,z,v,w dimension are ignored
