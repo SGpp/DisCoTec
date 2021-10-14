@@ -360,9 +360,6 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
   sendRequests.resize(sendcount);
   recvRequests.resize(recvcount);
 
-  IndexType totalSendSize(0);
-  IndexType totalRecvSize(0);
-
   // for each rank r in send that has a nonempty index list
   sendcount = 0;
   for (size_t r = 0; r < send1dIndices.size(); ++r) {
@@ -395,8 +392,6 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
           IndexType subarraySize = 1;
 
           for (DimType i = 0; i < subsizes.size(); ++i) subarraySize *= subsizes[i];
-
-          totalSendSize += subarraySize;
         }
 
         // start
@@ -421,7 +416,7 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
         int dest = static_cast<int>(r);
         int tag = static_cast<int>(index);
         MPI_Isend(dfg.getData(), 1, mysubarray, dest, tag, dfg.getCommunicator(),
-                  &sendRequests[sendcount + k++]);
+                [sendcount + k++]);
 
 #ifdef DEBUG_OUTPUT
         auto rank = dfg.getRank();
@@ -436,7 +431,6 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
     sendcount += send1dIndices[r].size();
   }
   recvcount = 0;
-  // IndexVector recv1dIndicesUnique;
   {
     // for each index in recv index list
     for (size_t r = 0; r < recv1dIndices.size(); ++r) {
@@ -449,7 +443,6 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
         IndexVector sizes = dfg.getLocalSizes();
         sizes[dim] = 1;
         remoteData.emplace_back(sizes, dim, index, lowerBoundsNeighbor);
-        // recv1dIndicesUnique.push_back(index);
 
         // start recv operation, use global index as tag
         {
@@ -461,8 +454,6 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
 
           MPI_Irecv(buf, bsize, dfg.getMPIDatatype(), src, tag, dfg.getCommunicator(),
                     &recvRequests[recvcount + k++]);
-
-          { totalRecvSize += bsize; }
 
 #ifdef DEBUG_OUTPUT
           auto rank = dfg.getRank();
