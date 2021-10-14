@@ -193,7 +193,7 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
   }
 }
 
-BOOST_AUTO_TEST_SUITE(hierarchization, *boost::unit_test::timeout(60))
+BOOST_AUTO_TEST_SUITE(hierarchization, *boost::unit_test::timeout(120))
 
 // with boundary
 // isotropic
@@ -542,6 +542,21 @@ BOOST_AUTO_TEST_CASE(test_41) {
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
+}
+BOOST_AUTO_TEST_CASE(test_42) {
+  // large test case with timing
+  MPI_Barrier(MPI_COMM_WORLD);
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {9, 9, 4};
+  IndexVector procs = {3, 3, 1};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  auto start = std::chrono::high_resolution_clock::now();
+  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE( "hierarchization time: " << duration.count() << " milliseconds" );
+  // on ipvs-epyc@6cddd9a0b8a4: 31634 milliseconds
 }
 
 BOOST_AUTO_TEST_SUITE_END()
