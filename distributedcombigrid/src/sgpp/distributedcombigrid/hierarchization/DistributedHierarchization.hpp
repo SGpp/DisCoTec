@@ -287,15 +287,6 @@ static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                         LookupTable<FG_ELEMENT>& lookupTable);
 
 template <typename FG_ELEMENT>
-inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                             int stride);
-
-template <typename FG_ELEMENT>
-inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                               int stride);
-
-
-template <typename FG_ELEMENT>
 void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim);
 
@@ -1206,6 +1197,70 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
+template <typename FG_ELEMENT>
+inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
+                                             int stride) {
+  const int lmaxi = static_cast<int>(lmax);
+  int ll = lmaxi;
+  int steps = (1 << (lmaxi - 1));
+  int offset = 1;  // 1 and not 0 because boundary
+  int stepsize = 2;
+  int parentOffset = 1;
+
+  for (ll--; ll > -1; ll--) {
+    int parOffsetStrided = parentOffset * stride;
+    FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
+
+    for (int ctr = 0; ctr < steps; ++ctr) {
+      int centralIndex = start + offset * stride;
+      FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
+      FG_ELEMENT val1 = data[centralIndex];
+      FG_ELEMENT val2 = val1 - parentL;
+      FG_ELEMENT val3 = val2 - parentR;
+      data[centralIndex] = val3;
+      parentL = parentR;
+      offset += stepsize;
+    }
+
+    steps = steps >> 1;
+    offset = (1 << (lmaxi - ll));  // boundary case
+    parentOffset = stepsize;
+    stepsize = stepsize << 1;
+  }
+
+  return;
+}
+
+template <typename FG_ELEMENT>
+inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
+                                               int stride) {
+  const int lmaxi = static_cast<int>(lmax);
+  int steps = 1;
+  int offset = (1 << (lmaxi - 1));  // offset =1 da boundary.
+  int stepsize = (1 << lmaxi);
+  int parentOffset = (1 << (lmaxi - 1));
+
+  for (LevelType ll = 1; ll <= lmax; ++ll) {
+    int parOffsetStrided = parentOffset * stride;
+    FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
+
+    for (int ctr = 0; ctr < steps; ++ctr) {
+      int centralIndex = start + offset * stride;
+      FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
+      FG_ELEMENT val1 = data[centralIndex];
+      FG_ELEMENT val2 = val1 + parentL;
+      FG_ELEMENT val3 = val2 + parentR;
+      data[centralIndex] = val3;
+      parentL = parentR;
+      offset += stepsize;
+    }
+    steps = steps << 1;
+    offset = (1 << (lmaxi - (ll + 1)));  // boundary case
+    parentOffset = parentOffset >> 1;
+    stepsize = stepsize >> 1;
+  }
+  return;
+}
 /**
  * @brief hierarchize a DFG in dimension X (with contiguous access)
  * 
@@ -1323,72 +1378,6 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
   }
 }
-
-template <typename FG_ELEMENT>
-inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                             int stride) {
-  const int lmaxi = static_cast<int>(lmax);
-  int ll = lmaxi;
-  int steps = (1 << (lmaxi - 1));
-  int offset = 1;  // 1 and not 0 because boundary
-  int stepsize = 2;
-  int parentOffset = 1;
-
-  for (ll--; ll > -1; ll--) {
-    int parOffsetStrided = parentOffset * stride;
-    FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
-
-    for (int ctr = 0; ctr < steps; ++ctr) {
-      int centralIndex = start + offset * stride;
-      FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
-      FG_ELEMENT val1 = data[centralIndex];
-      FG_ELEMENT val2 = val1 - parentL;
-      FG_ELEMENT val3 = val2 - parentR;
-      data[centralIndex] = val3;
-      parentL = parentR;
-      offset += stepsize;
-    }
-
-    steps = steps >> 1;
-    offset = (1 << (lmaxi - ll));  // boundary case
-    parentOffset = stepsize;
-    stepsize = stepsize << 1;
-  }
-
-  return;
-}
-
-template <typename FG_ELEMENT>
-inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                               int stride) {
-  const int lmaxi = static_cast<int>(lmax);
-  int steps = 1;
-  int offset = (1 << (lmaxi - 1));  // offset =1 da boundary.
-  int stepsize = (1 << lmaxi);
-  int parentOffset = (1 << (lmaxi - 1));
-
-  for (LevelType ll = 1; ll <= lmax; ++ll) {
-    int parOffsetStrided = parentOffset * stride;
-    FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
-
-    for (int ctr = 0; ctr < steps; ++ctr) {
-      int centralIndex = start + offset * stride;
-      FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
-      FG_ELEMENT val1 = data[centralIndex];
-      FG_ELEMENT val2 = val1 + parentL;
-      FG_ELEMENT val3 = val2 + parentR;
-      data[centralIndex] = val3;
-      parentL = parentR;
-      offset += stepsize;
-    }
-    steps = steps << 1;
-    offset = (1 << (lmaxi - (ll + 1)));  // boundary case
-    parentOffset = parentOffset >> 1;
-    stepsize = stepsize >> 1;
-  }
-  return;
-}
-
 
 template <typename FG_ELEMENT>
 void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
