@@ -7,6 +7,7 @@
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
+#include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 using namespace combigrid;
@@ -258,7 +259,7 @@ static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType d
 
 template <typename FG_ELEMENT>
 static IndexType checkPredecessors(IndexType idx, DimType dim, DistributedFullGrid<FG_ELEMENT>& dfg,
-                                   std::vector<std::set<IndexType>>& OneDIndices);
+                                   std::vector<std::set<IndexType>>& OneDIndices, bool andNeighbors = false);
 
 template <typename FG_ELEMENT>
 static RankType getNeighbor1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType d, IndexType idx1d);
@@ -297,6 +298,21 @@ inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
 template <typename FG_ELEMENT>
 void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim);
+
+template <typename FG_ELEMENT>
+static IndexVector getFirstIndexOfEachLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d) {
+  LevelType lmax = dfg.getLevels()[d];
+  IndexVector firstIndices(lmax, -1);
+  for (LevelType lidx = 0; lidx <= lmax; ++lidx) {
+    // leftmost point of this level
+    // currently leaving out level 0
+    firstIndices[lidx] = getFirstIndexOfLevel1d(dfg, d, lidx + 1);
+  }
+  return firstIndices;
+}
+
+template <typename FG_ELEMENT>
+static IndexVector getLastIndicesOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType d);
 
 /**
  * @brief helper function for data exchange
@@ -595,7 +611,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   IndexType idx = idxMin;
 
   // mass-conserving stencil operations may also need neighbors
-  bool exchangeParentsNeighbors = false; //TODO make work //TODO put this somewhere else
+  bool exchangeParentsNeighbors = false; //TODO put this somewhere else
   // for hierarchization, we only need to exchange the direct predecessors
   while (idx <= idxMax) {
     LevelType lidx = dfg.getLevel(dim, idx);
@@ -673,6 +689,9 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
         // it is mutual
         send1dIndices[r].insert(idx);
       }
+      assert(false);
+      //TODO this is not enough!! also needs all successors of neighbors,
+      // and successors of direct successors
     }
   }
   sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
@@ -757,6 +776,8 @@ static void exchangeData1dDehierarchization(
 
   IndexType idx = idxMin;
 
+  bool exchangeParentsNeighbors = false; //TODO put this somewhere else
+
   // for dehierarchization, we need to exchange the full tree of
   // successors and predecessors
   while (idx <= idxMax) {
@@ -764,16 +785,45 @@ static void exchangeData1dDehierarchization(
 
     checkRightSuccesors(idx, idx, dim, dfg, send1dIndices);
 
-    idx = checkPredecessors(idx, dim, dfg, recv1dIndices);
+    // if we have an odd 5-point stencil, each point also
+    // needs to check for its same level neighbors
+    if (exchangeParentsNeighbors) {
+      // add same-level neighbors
+      auto lmax = dfg.getLevels()[dim];
+      auto lidx = dfg.getLevel(dim, idx);
+      LevelType ldiff = lmax - lidx;
+      IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff + 1));
+      // left neighbor
+      IndexType nIdx = idx - idiff;
+      checkLeftSuccesors(nIdx, idx, dim, dfg, send1dIndices);
+      checkRightSuccesors(nIdx, idx, dim, dfg, send1dIndices);
+      // if nIdx is in the global domain
+      if (nIdx > -1 && nIdx < idxMin) {
+        int r = getNeighbor1d(dfg, dim, nIdx);
+        send1dIndices[r].insert(idx);
+      }
+      // right neighbor
+      nIdx = idx + idiff;
+      checkLeftSuccesors(nIdx, idx, dim, dfg, send1dIndices);
+      checkRightSuccesors(nIdx, idx, dim, dfg, send1dIndices);
+      if (nIdx > idxMax && nIdx < dfg.getGlobalSizes()[dim]) {
+        int r = getNeighbor1d(dfg, dim, nIdx);
+        send1dIndices[r].insert(idx);
+      }
+      // todo also needs recursion for all those neighbors!
+      assert(false);
+    }
+
+    idx = checkPredecessors(idx, dim, dfg, recv1dIndices, exchangeParentsNeighbors);
   }
 
   sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
 template <typename FG_ELEMENT>
-void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
-                        DistributedFullGrid<FG_ELEMENT>& dfg,
-                        std::vector<std::set<IndexType>>& OneDIndices) {
+static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
+                               DistributedFullGrid<FG_ELEMENT>& dfg,
+                               std::vector<std::set<IndexType>>& OneDIndices) {
   LevelType lidx = dfg.getLevel(dim, checkIdx);
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   // IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
@@ -797,9 +847,9 @@ void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
 }
 
 template <typename FG_ELEMENT>
-void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
-                         DistributedFullGrid<FG_ELEMENT>& dfg,
-                         std::vector<std::set<IndexType>>& OneDIndices) {
+static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
+                                DistributedFullGrid<FG_ELEMENT>& dfg,
+                                std::vector<std::set<IndexType>>& OneDIndices) {
   LevelType lidx = dfg.getLevel(dim, checkIdx);
 
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
@@ -818,16 +868,40 @@ void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
       if (r >= 0) OneDIndices[r].insert(rootIdx);
     }
 
-    if (rsIdx < dfg.length(dim))
+    if (rsIdx < dfg.length(dim)) {
       checkRightSuccesors(rsIdx, rootIdx, dim, dfg, OneDIndices);
+    }
   }
 }
 
 template <typename FG_ELEMENT>
-IndexType checkPredecessors(IndexType idx, DimType dim, DistributedFullGrid<FG_ELEMENT>& dfg,
-                            std::vector<std::set<IndexType>>& OneDIndices) {
+static IndexType checkPredecessors(IndexType idx, DimType dim, DistributedFullGrid<FG_ELEMENT>& dfg,
+                                   std::vector<std::set<IndexType>>& OneDIndices,
+                                   bool andNeighbors) {
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+
+  auto lmax = dfg.getLevels()[dim];
+  auto lidx = dfg.getLevel(dim, idx);
+  if (andNeighbors) {
+    // add same-level neighbors
+    LevelType ldiff = lmax - lidx;
+    IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff + 1));
+    // left neighbor
+    IndexType nIdx = idx - idiff;
+    // if nIdx is in the global domain
+    if (nIdx > -1 && nIdx < idxMin) {
+      // get rank which has same-level neighbor and add to list of indices to recv
+      int r = getNeighbor1d(dfg, dim, nIdx);
+      OneDIndices[r].insert(nIdx);
+    }
+    // right neighbor
+    nIdx = idx + idiff;
+    if (nIdx > idxMax && nIdx < dfg.getGlobalSizes()[dim]) {
+      int r = getNeighbor1d(dfg, dim, nIdx);
+      OneDIndices[r].insert(nIdx);
+    }
+  }
 
   // check if left predecessor outside local domain
   // if returns negative value there's no left predecessor
@@ -838,8 +912,7 @@ IndexType checkPredecessors(IndexType idx, DimType dim, DistributedFullGrid<FG_E
     int r = getNeighbor1d(dfg, dim, lpIdx);
     OneDIndices[r].insert(lpIdx);
   }
-
-  if (lpIdx >= 0) checkPredecessors(lpIdx, dim, dfg, OneDIndices);
+  if (lpIdx >= 0) checkPredecessors(lpIdx, dim, dfg, OneDIndices, andNeighbors);
 
   // check if right predecessor outside local domain
   // if returns negative value there's no right predecessor
@@ -851,15 +924,38 @@ IndexType checkPredecessors(IndexType idx, DimType dim, DistributedFullGrid<FG_E
   }
 
   if (rpIdx > idxMax) {
-    // get rank which has left predecessor and add to list of indices to recv
+    // get rank which has right predecessor and add to list of indices to recv
     int r = getNeighbor1d(dfg, dim, rpIdx);
     OneDIndices[r].insert(rpIdx);
     idx = getNextIndex1d(dfg, dim, idx);
+  } else if (andNeighbors) {
+    // if not all leftmost indices have been iterated
+    auto firstIndices = getFirstIndexOfEachLevel1d(dfg, dim);
+#ifdef DEBUG_OUTPUT
+        auto rank = dfg.getRank();
+        std::cout << "rank " << rank << ": first indices " << firstIndices
+                  << std::endl;
+#endif
+    std::sort(firstIndices.begin(), firstIndices.end()); //todo also last indices
+    assert(false);
+    auto it = std::find_if(firstIndices.begin(), firstIndices.end(),
+                           [idx](IndexType i) { return i > idx; });
+    if (it != firstIndices.end() && rpIdx > *it) {
+      idx = *it;
+    } else {
+      idx = rpIdx;
+    }
+
+#ifdef DEBUG_OUTPUT
+        // auto rank = dfg.getRank();
+        std::cout << "rank " << rank << ": first indices " << firstIndices << " it " << *it
+                  << std::endl;
+#endif
   } else {
     idx = rpIdx;
   }
 
-  checkPredecessors(rpIdx, dim, dfg, OneDIndices);
+  checkPredecessors(rpIdx, dim, dfg, OneDIndices, andNeighbors);
 
   return idx;
 }
