@@ -1232,6 +1232,33 @@ inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, i
 }
 
 template <typename FG_ELEMENT>
+inline void hierarchizeX_full_weighting_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
+                                             int stride, LevelType lmin = 0) {
+  const int lmaxi = static_cast<int>(lmax);
+  int idxmax = std::pow(2, lmaxi);
+  auto length = idxmax + 1;
+
+  for (int ldiff = 0; ldiff < lmax-lmin; ++ldiff) {
+    int step_width = std::pow(2, ldiff);
+    // update f at even indices
+    data[0] = 0.5 * (data[0] + data[step_width]);
+    data[idxmax] = 0.5 * (data[idxmax] + data[idxmax - step_width]);
+    //todo iterate only "our" part
+    for (int i = 2*step_width; i < idxmax; i += 2*step_width) {
+      // todo reformulate more cache-efficient
+      data[i] = 0.25 * (data[i-step_width] + data[i+step_width]) + 0.5*data[i];
+    }
+    // update alpha / hierarchical surplus at odd indices
+    for (int i = step_width; i < idxmax; i += 2*step_width) {
+      // todo reformulate more cache-efficient
+      data[i] = -0.5 * (data[i-step_width] + data[i+step_width]) + data[i];
+    }
+  }
+
+  return;
+}
+
+template <typename FG_ELEMENT>
 inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
                                                int stride) {
   const int lmaxi = static_cast<int>(lmax);
@@ -1261,6 +1288,33 @@ inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
   }
   return;
 }
+
+template <typename FG_ELEMENT>
+inline void dehierarchizeX_full_weighting_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
+                                             int stride, LevelType lmin = 0) {
+  const int lmaxi = static_cast<int>(lmax);
+  int idxmax = std::pow(2, lmaxi);
+  auto length = idxmax + 1;
+
+  for (int ldiff = lmax-lmin-1; ldiff >= 0; --ldiff) {
+    int step_width = std::pow(2, ldiff);
+    // update alpha / hierarchical surplus at odd indices
+    for (int i = step_width; i < idxmax; i += 2*step_width) {
+      // todo reformulate more cache-efficient
+      data[i] = 0.5 * (data[i-step_width] + data[i+step_width]) + data[i];
+    }
+    // update f at even indices
+    for (int i = 2*step_width; i < idxmax; i += 2*step_width) {
+      // todo reformulate more cache-efficient
+      data[i] = -0.5 * (data[i-step_width] + data[i+step_width]) + 2.*data[i];
+    }
+    data[0] = 2.*data[0] - data[step_width];
+    data[idxmax] = 2.*data[idxmax] - data[idxmax - step_width];
+  }
+
+  return;
+}
+
 /**
  * @brief hierarchize a DFG in dimension X (with contiguous access)
  * 
