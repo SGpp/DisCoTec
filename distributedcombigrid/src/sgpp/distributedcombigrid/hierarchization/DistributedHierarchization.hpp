@@ -1137,18 +1137,6 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
   IndexType gstart = dfg.getLowerBounds()[dim];
-
-  // first global index for hierarchization kernel
-  // first nonboundary point
-  IndexType idxstart = gstart;
-
-  if (gstart == 0) idxstart += 1;
-
-  // last global index inside subdomain.
-  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
-
-  // level of gend
-  // LevelType level_idxend = dfg.getLevel(dim, idxend);
   IndexType linIdxBlockStart;
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
@@ -1205,18 +1193,6 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
   IndexType gstart = dfg.getLowerBounds()[dim];
-
-  // first global index for hierarchization kernel
-  // first nonboundary point
-  IndexType idxstart = gstart;
-
-  if (gstart == 0) idxstart += 1;
-
-  // last global index inside subdomain.
-  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
-
-  // level of gend
-  // LevelType level_idxend = dfg.getLevel(dim, idxend);
   IndexType linIdxBlockStart;
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
@@ -1341,15 +1317,6 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];
 
-  // first global index for hierarchization kernel. may not be a boundary point
-  IndexType idxstart = gstart;
-
-  if (gstart == 0) idxstart += 1;
-
-  // last global index inside subdomain and corresponding level
-  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
-  // LevelType level_idxend = dfg.getLevel(dim, idxend);
-
   for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
     divresult = std::lldiv(nn, stride);
@@ -1403,15 +1370,6 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   lldiv_t divresult;
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];
-
-  // first global index for hierarchization kernel. may not be a boundary point
-  IndexType idxstart = gstart;
-
-  if (gstart == 0) idxstart += 1;
-
-  // last global index inside subdomain and corresponding level
-  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
-  // LevelType level_idxend = dfg.getLevel(dim, idxend);
 
   for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
@@ -1498,15 +1456,6 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];
 
-  // first global index for hierarchization kernel. may not be a boundary point
-  IndexType idxstart = gstart;
-
-  if (gstart == 0) idxstart += 1;
-
-  // last global index inside subdomain and corresponding level
-  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
-  // LevelType level_idxend = dfg.getLevel(dim, idxend);
-
   for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
     divresult = std::lldiv(nn, stride);
@@ -1560,15 +1509,6 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   lldiv_t divresult;
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];
-
-  // first global index for hierarchization kernel. may not be a boundary point
-  IndexType idxstart = gstart;
-
-  if (gstart == 0) idxstart += 1;
-
-  // last global index inside subdomain and corresponding level
-  // IndexType idxend = dfg.getUpperBounds()[dim] - 1;
-  // LevelType level_idxend = dfg.getLevel(dim, idxend);
 
   for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
@@ -1627,7 +1567,6 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
   }
 }
-
 
 }  // unnamed namespace
 
