@@ -416,7 +416,7 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
         int dest = static_cast<int>(r);
         int tag = static_cast<int>(index);
         MPI_Isend(dfg.getData(), 1, mysubarray, dest, tag, dfg.getCommunicator(),
-                [sendcount + k++]);
+                &sendRequests[sendcount + k++]);
 
 #ifdef DEBUG_OUTPUT
         auto rank = dfg.getRank();
