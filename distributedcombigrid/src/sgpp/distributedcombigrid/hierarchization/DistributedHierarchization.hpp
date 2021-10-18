@@ -267,10 +267,10 @@ template <typename FG_ELEMENT>
 static IndexType getNextIndex1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType d, IndexType idx1d);
 
 template <typename FG_ELEMENT>
-static IndexType getFirstIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
+static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
                                         LevelType l);
 template <typename FG_ELEMENT>
-static IndexType getLastIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
+static IndexType getLastIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
                                         LevelType l);
 
 template <typename FG_ELEMENT>
@@ -653,7 +653,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
       IndexType nIdx = idx - idiff;
       assert(nIdx < idxMin);
       // if nIdx is in the global domain
-      if (idx <= idxMax && nIdx >= 0) {
+      if (idx > 0 && nIdx >= 0) {
         // get rank which has same-level neighbor and add to list of indices to recv
         int r = getNeighbor1d(dfg, dim, nIdx);
         recv1dIndices[r].insert(nIdx);
@@ -915,7 +915,7 @@ IndexType getNextIndex1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim, Inde
 }
 
 template <typename FG_ELEMENT>
-static IndexType getFirstIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                                         LevelType l) {
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
@@ -924,12 +924,12 @@ static IndexType getFirstIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, Di
     if (dfg.getLevel(dim, i) == l) return i;
   }
 
-  // no index on level l found, return value which is out of local index range
-  return idxMax + 1;
+  // no index on level l found, return -1
+  return -1;
 }
 
 template <typename FG_ELEMENT>
-static IndexType getLastIndexOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+static IndexType getLastIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                                         LevelType l) {
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
@@ -1000,24 +1000,26 @@ static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
       // loop over points of this level with level specific stride
       // as long as inside domain
-      for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
-        // when no boundary in this dimension we have to check if
-        // 1d indices outside domain
-        FG_ELEMENT left(0.0);
-        FG_ELEMENT right(0.0);
+      if (firstOfLevel > -1) {
+        for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
+          // when no boundary in this dimension we have to check if
+          // 1d indices outside domain
+          FG_ELEMENT left(0.0);
+          FG_ELEMENT right(0.0);
 
-        if (idx - parentOffset > 0) {
-          left = tmp[idx - parentOffset];
+          if (idx - parentOffset > 0) {
+            left = tmp[idx - parentOffset];
+          }
+
+          if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
+            right = tmp[idx + parentOffset];
+          }
+
+          // do calculation
+          FG_ELEMENT buf = -0.5 * left;
+          tmp[idx] -= 0.5 * right;
+          tmp[idx] += buf;
         }
-
-        if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
-          right = tmp[idx + parentOffset];
-        }
-
-        // do calculation
-        FG_ELEMENT buf = -0.5 * left;
-        tmp[idx] -= 0.5 * right;
-        tmp[idx] += buf;
       }
     }
 
@@ -1445,24 +1447,26 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
       // loop over points of this level with level specific stride
       // as long as inside domain
-      for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
-        // when no boundary in this dimension we have to check if
-        // 1d indices outside domain
-        FG_ELEMENT left(0.0);
-        FG_ELEMENT right(0.0);
+      if (firstOfLevel > -1) {
+        for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
+          // when no boundary in this dimension we have to check if
+          // 1d indices outside domain
+          FG_ELEMENT left(0.0);
+          FG_ELEMENT right(0.0);
 
-        if (idx - parentOffset > 0) {
-          left = tmp[idx - parentOffset];
+          if (idx - parentOffset > 0) {
+            left = tmp[idx - parentOffset];
+          }
+
+          if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
+            right = tmp[idx + parentOffset];
+          }
+
+          // do calculation
+          FG_ELEMENT buf = -0.5 * left;
+          tmp[idx] -= 0.5 * right;
+          tmp[idx] += buf;
         }
-
-        if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
-          right = tmp[idx + parentOffset];
-        }
-
-        // do calculation
-        FG_ELEMENT buf = -0.5 * left;
-        tmp[idx] -= 0.5 * right;
-        tmp[idx] += buf;
       }
     }
 
