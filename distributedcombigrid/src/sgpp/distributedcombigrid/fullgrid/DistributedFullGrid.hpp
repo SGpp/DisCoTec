@@ -480,7 +480,7 @@ class DistributedFullGrid {
   inline IndexType getNrLocalElements() const { return nrLocalElements_; }
 
   /** number of points per dimension i */
-  inline IndexType length(int i) const { return nrPoints_[i]; }
+  inline IndexType length(DimType i) const { return nrPoints_[i]; }
 
   /** vector of flags to show if the dimension has boundary points*/
   inline const std::vector<bool>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
@@ -671,7 +671,7 @@ class DistributedFullGrid {
   }
 
   // returns level of a global 1d index
-  inline LevelType getLevel(DimType d, IndexType idx1d) {
+  inline LevelType getLevel(DimType d, IndexType idx1d) const {
     IndexVector givec(dim_, 0);
     givec[d] = idx1d;
     IndexType idx = getGlobalLinearIndex(givec);
