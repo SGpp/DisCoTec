@@ -1231,9 +1231,23 @@ inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, i
   return;
 }
 
+/**
+ * @brief mass-conserving hierarchization with full weighting scaling function; the hierarchical
+ * basis function W corresponds to the "hat wavelet", that is the stencil [-1/2 1 -1/2]
+ *
+ * @tparam FG_ELEMENT data type on grid
+ * @param data pointer to data begin
+ * @param lmax maximum level
+ * @param start (unused)
+ * @param stride (unused)
+ * @param lmin minimum level (if > 0, hierarchization is not performed all the way down)
+ */
 template <typename FG_ELEMENT>
-inline void hierarchizeX_full_weighting_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                             int stride, LevelType lmin = 0) {
+inline void hierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
+                                                            int start, int stride,
+                                                            LevelType lmin = 0) {
+  assert(start == 0); // could be used but currently is not
+  assert(stride == 1);
   const int lmaxi = static_cast<int>(lmax);
   int idxmax = std::pow(2, lmaxi);
   auto length = idxmax + 1;
@@ -1256,6 +1270,54 @@ inline void hierarchizeX_full_weighting_opt_boundary_kernel(FG_ELEMENT* data, Le
   }
 
   return;
+}
+
+/**
+ * @brief mass-conserving hierarchization with biorthogonal wavelet and scaling function; the
+ * hierarchical basis function W corresponds to the wavelet [-1/8 -1/4 3/4 -1/4 -1/8], cf.
+ * Cohen-Daubechies-Feauveau
+ *
+ * @tparam FG_ELEMENT data type on grid
+ * @param data pointer to data begin
+ * @param lmax maximum level
+ * @param start (unused)
+ * @param stride (unused)
+ * @param lmin minimum level (if > 0, hierarchization is not performed all the way down)
+ */
+template <typename FG_ELEMENT>
+inline void hierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
+                                             int stride, LevelType lmin = 0) {
+
+  assert(start == 0);
+  assert(stride == 1);
+  const int lmaxi = static_cast<int>(lmax);
+  int idxmax = std::pow(2, lmaxi);
+  auto length = idxmax + 1;
+//     for l_hierarchization in range(l_max, l_min, -1):
+//         step_width=2**(l_max-l_hierarchization)
+//         for i in range(step_width,2**(l_max),2*step_width):
+//             y[i]= -0.5*y[i-step_width] + y[i] -0.5*y[i+step_width]
+//         y[0] = y[0] + 0.5*y[1*step_width]
+//         y[-1] = y[-1] + 0.5*y[-1-1*step_width]
+//         for i in range(2*step_width,2**(l_max),2*step_width):
+//             y[i] = 0.25*y[i-step_width] + y[i] + 0.25*y[i+step_width]
+
+  for (int ldiff = 0; ldiff < lmax-lmin; ++ldiff) {
+    int step_width = std::pow(2, ldiff);
+    // update alpha / hierarchical surplus at odd indices
+    for (int i = step_width; i < idxmax; i += 2*step_width) {
+      // todo reformulate more cache-efficient
+      data[i] = -0.5 * (data[i-step_width] + data[i+step_width]) + data[i];
+    }
+    // update f at even indices
+    data[0] = data[0] + 0.5 * data[step_width];
+    data[idxmax] = data[idxmax] + 0.5 * data[idxmax - step_width];
+    //todo iterate only "our" part
+    for (int i = 2*step_width; i < idxmax; i += 2*step_width) {
+      // todo reformulate more cache-efficient
+      data[i] = 0.25 * (data[i-step_width] + data[i+step_width]) + data[i];
+    }
+  }
 }
 
 template <typename FG_ELEMENT>
@@ -1290,7 +1352,7 @@ inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
 }
 
 template <typename FG_ELEMENT>
-inline void dehierarchizeX_full_weighting_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
+inline void dehierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
                                              int stride, LevelType lmin = 0) {
   const int lmaxi = static_cast<int>(lmax);
   int idxmax = std::pow(2, lmaxi);
@@ -1315,9 +1377,45 @@ inline void dehierarchizeX_full_weighting_opt_boundary_kernel(FG_ELEMENT* data, 
   return;
 }
 
+template <typename FG_ELEMENT>
+inline void dehierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
+                                                           int start, int stride,
+                                                           LevelType lmin = 0) {
+  assert(start == 0);
+  assert(stride == 1);
+  const int lmaxi = static_cast<int>(lmax);
+  int idxmax = std::pow(2, lmaxi);
+  auto length = idxmax + 1;
+
+  // for l_hierarchization in range(l_min, l_max, 1):
+  //     step_width=2**(l_max-l_hierarchization-1)
+  //     y[0] = y[0] - 0.5*y[0+step_width]
+  //     y[-1] = y[-1] - 0.5*y[-1-1*step_width]
+  //     for i in range(2*step_width,2**(l_max),2*step_width):
+  //         y[i] = -0.25*y[i-step_width] + 1*y[i] - 0.25*y[i+step_width]
+  //     for i in range(step_width,2**(l_max),2*step_width):
+  //         y[i]= 0.5*y[i-step_width] + y[i] + 0.5*y[i+step_width]
+
+  for (int ldiff = lmax - lmin - 1; ldiff >= 0; --ldiff) {
+    int step_width = std::pow(2, ldiff);
+    // update f at even indices
+    data[0] = data[0] - 0.5*data[step_width];
+    data[idxmax] = data[idxmax] - 0.5*data[idxmax - step_width];
+    for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
+      // todo reformulate more cache-efficient
+      data[i] = -0.25 * (data[i - step_width] + data[i + step_width]) + data[i];
+    }
+    // update alpha / hierarchical surplus at odd indices
+    for (int i = step_width; i < idxmax; i += 2 * step_width) {
+      // todo reformulate more cache-efficient
+      data[i] = 0.5 * (data[i - step_width] + data[i + step_width]) + data[i];
+    }
+  }
+}
+
 /**
  * @brief hierarchize a DFG in dimension X (with contiguous access)
- * 
+ *
  * @param dfg : the DFG to hierarchize
  * @param lookupTable: the lookup table for local and remote data
  */
