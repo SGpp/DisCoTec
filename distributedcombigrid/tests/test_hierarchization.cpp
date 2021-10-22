@@ -178,7 +178,7 @@ std::vector<real> getMonteCarloMomenta(DistributedFullGrid<FG_ELEMENT>& dfg, siz
 
 template <typename FG_ELEMENT>
 using FunctionPointer = void (*)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                 const std::vector<bool>& dims);
+                                  const std::vector<bool>& dims, LevelVector lmin);
 
 template <typename FG_ELEMENT>
 real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
@@ -197,7 +197,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   BOOST_TEST_CHECKPOINT("begin hierarchization");
   auto dim = dfg.getDimension();
   std::vector<bool> hierarchizationDimensions(dim, true);
-  hierarchizationOperator(dfg, hierarchizationDimensions);
+  hierarchizationOperator(dfg, hierarchizationDimensions, LevelVector(dim, 0));
   BOOST_TEST_CHECKPOINT("end hierarchization");
 
   // now, all of the momentum should be on the coarsest level -> the corners
@@ -255,7 +255,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   BOOST_TEST(mcMassAfter == mcMassBefore, boost::test_tools::tolerance(5e-2));
 
   for (DimType d = 0; d < dim + 1; ++d) {
-    std::cout << d << std::endl;
+    // std::cout << d << std::endl;
     BOOST_TEST(mcMomentaAfter[d] == mcMomentaBefore[d], boost::test_tools::tolerance(5e-2));
   }
 
@@ -267,7 +267,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
 
 template <typename Functor>
 void checkBiorthogonalHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>& dfg,
-                                      bool checkValues = true) {
+                                      bool checkValues = true, LevelVector lmin = LevelVector(0)) {
   real formerL1 = 0.;
   if (checkValues) {
     // calculate l1 integral of actual data
@@ -277,7 +277,7 @@ void checkBiorthogonalHierarchization(Functor& f, DistributedFullGrid<std::compl
   auto dim = dfg.getDimension();
   std::vector<bool> hierarchizationDimensions(dim, true);
   DistributedHierarchization::hierarchizeBiorthogonal<std::complex<double>>(
-      dfg, hierarchizationDimensions);
+      dfg, hierarchizationDimensions, lmin);
 
   // now, all of the mass should be on the coarsest level -> the corners
   if (checkValues) {
@@ -296,20 +296,22 @@ void checkBiorthogonalHierarchization(Functor& f, DistributedFullGrid<std::compl
     BOOST_TEST(formerL1 == analyticalL1, boost::test_tools::tolerance(TestHelper::tolerance));
     auto cornersValues = dfg.getCornersValues();
     BOOST_CHECK(cornersValues.size() == static_cast<size_t>(powerOfTwo[dim]));
-    auto sumOfCornerValues =
-        std::accumulate(cornersValues.begin(), cornersValues.end(), std::complex<double>(0.),
-                        std::plus<std::complex<double>>());
-    auto currentL1 = std::abs(sumOfCornerValues * oneOverPowOfTwo[dim]);
-    BOOST_TEST(currentL1 == formerL1, boost::test_tools::tolerance(TestHelper::tolerance));
+    if (lmin == LevelVector(dim, 0)) {
+      auto sumOfCornerValues =
+          std::accumulate(cornersValues.begin(), cornersValues.end(), std::complex<double>(0.),
+                          std::plus<std::complex<double>>());
+      auto currentL1 = std::abs(sumOfCornerValues * oneOverPowOfTwo[dim]);
+      BOOST_TEST(currentL1 == formerL1, boost::test_tools::tolerance(TestHelper::tolerance));
+    }
   }
 
   DistributedHierarchization::dehierarchizeBiorthogonal<std::complex<double>>(
-      dfg, hierarchizationDimensions);
+      dfg, hierarchizationDimensions, lmin);
 }
 
 template <typename Functor>
 void checkFullWeightingHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>& dfg,
-                                       bool checkValues = true) {
+                                       bool checkValues = true, LevelVector lmin = LevelVector(0)) {
   real formerL1 = 0.;
   if (checkValues) {
     // calculate l1 integral of actual data
@@ -319,10 +321,11 @@ void checkFullWeightingHierarchization(Functor& f, DistributedFullGrid<std::comp
   auto dim = dfg.getDimension();
   std::vector<bool> hierarchizationDimensions(dim, true);
   DistributedHierarchization::hierarchizeFullWeighting<std::complex<double>>(
-      dfg, hierarchizationDimensions);
+      dfg, hierarchizationDimensions, lmin);
 
   // now, all of the mass should be on the coarsest level -> the corners
-  if (checkValues) {
+  // but only if we hierarchize all the way down
+  if (checkValues && lmin == LevelVector(dim, 0)) {
     auto cornersValues = dfg.getCornersValues();
     BOOST_CHECK(cornersValues.size() == powerOfTwo[dim]);
 
@@ -334,19 +337,19 @@ void checkFullWeightingHierarchization(Functor& f, DistributedFullGrid<std::comp
   }
 
   DistributedHierarchization::dehierarchizeFullWeighting<std::complex<double>>(
-      dfg, hierarchizationDimensions);
+      dfg, hierarchizationDimensions, lmin);
 }
 
 template <typename Functor>
 void checkHierarchization(Functor& f, LevelVector& levels, std::vector<int>& procs,
                           std::vector<BoundaryType>& boundary, bool forward = false,
-                          bool checkValues = true) {
+                          bool checkValues = true, LevelVector lmin = LevelVector(0)) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     const auto dim = static_cast<DimType>(levels.size());
     DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
     // run test with value check
-    checkHierarchization(f, dfg, checkValues);
+    checkHierarchization(f, dfg, checkValues, lmin);
   }
 }
 
@@ -370,10 +373,12 @@ void fillDFGbyFunction(Functor& f, DistributedFullGrid<FG_ELEMENT>& dfg) {
 
 template <typename Functor>
 void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>& dfg,
-                          bool checkValues = true) {
+                          bool checkValues = true, LevelVector lmin = LevelVector(0)) {
   CommunicatorType comm = dfg.getCommunicator();
   const DimType dim = dfg.getDimension();
   auto boundary = dfg.returnBoundaryFlags();
+  const auto& dfgLevel = dfg.getLevels();
+  std::vector<bool> hierarchizationDimensions(dim, true);
 
   auto nonDistributedBoundary = boundary;
   // non-distributed (de)hierarchization not adapted to one-sided boundary (yet?)
@@ -382,8 +387,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
   if (anyOneSidedBoundary) {
     nonDistributedBoundary = std::vector<BoundaryType>(dim, 2);
   }
-  FullGrid<std::complex<double>> fg(dim, dfg.getLevels(), nonDistributedBoundary);
-
+  FullGrid<std::complex<double>> fg(dim, dfgLevel, nonDistributedBoundary);
   if (checkValues) {
     // fill distributed fg with test function
     fillDFGbyFunction(f, dfg);
@@ -395,7 +399,10 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
       fg.getCoords(i, coords);
       fg.getData()[i] = f(coords);
     }
-
+  }
+  // have copy of non-hierarchized FG
+  auto fgNodal = fg;
+  if (checkValues) {
     // hierarchize fg
     BOOST_TEST_CHECKPOINT("Non-Distributed Hierarchization begins");
     Hierarchization::hierarchize(fg);
@@ -403,41 +410,79 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
 
   BOOST_TEST_CHECKPOINT("Distributed Hierarchization begins");
   // hierarchize distributed fg
-  DistributedHierarchization::hierarchize(dfg);
+
+  DistributedHierarchization::hierarchizeHierachicalBasis<std::complex<double>>(
+      dfg, hierarchizationDimensions, lmin);
 
   if (checkValues) {
-    // compare hierarchical surpluses
-    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-      IndexType gi = dfg.getGlobalLinearIndex(li);
-      IndexVector axisIndex(dim), localAxisIndex(dim);
-      dfg.getLocalVectorIndex(li, localAxisIndex);
-      dfg.getGlobalVectorIndex(localAxisIndex, axisIndex);
-      BOOST_REQUIRE_EQUAL(dfg.getGlobalLinearIndex(axisIndex), gi);
-      if (!anyOneSidedBoundary) {
-        auto fgAxisIndex = axisIndex;
-        fg.getVectorIndex(gi, fgAxisIndex);
-        BOOST_REQUIRE(axisIndex == fgAxisIndex);
-        // compare fg and distributed fg
-        BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+    if (lmin.size() > 0) {
+      for (size_t i = 0; i < dfgLevel.size(); ++i) {
+        BOOST_ASSERT(lmin[i] <= dfgLevel[i]);
+      }
+      LevelVector levels_of_point(dim);
+      IndexVector tmp(dim);
+      IndexVector axisIndex(dim);
+      for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+        IndexType gi = dfg.getGlobalLinearIndex(li);
+        dfg.getGlobalLI(gi, levels_of_point, tmp);
+
+        if (levels_of_point > lmin) {
+          if (!anyOneSidedBoundary) {
+            fg.getVectorIndex(gi, axisIndex);
+            // the finest levels up to lmin should always be hierarchized
+            // compare hierarchical surpluses
+            // compare fg and distributed fg
+            BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                       boost::test_tools::tolerance(TestHelper::tolerance));
+            // compare distributed fg to exact solution
+          }
+          BOOST_TEST(dfg.getData()[li] == f(axisIndex),
+                     boost::test_tools::tolerance(TestHelper::tolerance));
+        } else if (levels_of_point <= lmin) {
+          // the coarsest levels should not be hierarchized at all
+          fg.getVectorIndex(gi, axisIndex);
+          // compare non-hierarchized fg and distributed fg
+          BOOST_TEST(dfg.getData()[li] == fgNodal.getData()[gi],
+                     boost::test_tools::tolerance(TestHelper::tolerance));
+        }
+      }
+    } else {
+      // compare hierarchical surpluses
+      for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+        IndexType gi = dfg.getGlobalLinearIndex(li);
+        IndexVector axisIndex(dim), localAxisIndex(dim);
+        dfg.getLocalVectorIndex(li, localAxisIndex);
+        dfg.getGlobalVectorIndex(localAxisIndex, axisIndex);
+        BOOST_REQUIRE_EQUAL(dfg.getGlobalLinearIndex(axisIndex), gi);
+        if (!anyOneSidedBoundary) {
+          auto fgAxisIndex = axisIndex;
+          fg.getVectorIndex(gi, fgAxisIndex);
+          BOOST_REQUIRE(axisIndex == fgAxisIndex);
+          // compare fg and distributed fg
+          BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                     boost::test_tools::tolerance(TestHelper::tolerance));
+        }
+        // compare distributed fg to exact solution
+        BOOST_TEST(dfg.getData()[li] == f(axisIndex),
                    boost::test_tools::tolerance(TestHelper::tolerance));
       }
-      // compare distributed fg to exact solution
-      BOOST_TEST(dfg.getData()[li] == f(axisIndex),
-                 boost::test_tools::tolerance(TestHelper::tolerance));
     }
 
-    // dehiarchize fg
+    // dehierarchize fg
     BOOST_TEST_CHECKPOINT("Non-distributed Dehierarchization begins");
     Hierarchization::dehierarchize(fg);
   }
 
   // dehierarchize distributed fg
   BOOST_TEST_CHECKPOINT("Distributed Dehierarchization begins");
-  DistributedHierarchization::dehierarchize(dfg);
+  DistributedHierarchization::dehierarchizeHierachicalBasis<std::complex<double>>(
+      dfg, hierarchizationDimensions, lmin);
 
   if (checkValues) {
     // compare function values
     for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      BOOST_TEST_CHECKPOINT("Check values");
+      BOOST_TEST_CONTEXT(std::to_string(li));
       IndexType gi = dfg.getGlobalLinearIndex(li);
 
       std::vector<double> coords_dfg(dim);
@@ -466,17 +511,17 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
       // currently std::abs does not seem to do the right thing
       // create distributed fg and copy values
       DistributedFullGrid<std::complex<double>> dfgCopyOne(
-          dim, dfg.getLevels(), dfg.getCommunicator(), dfg.returnBoundaryFlags(),
+          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(),
           dfg.getParallelization(), true, dfg.getDecomposition());
       DistributedFullGrid<std::complex<double>> dfgCopyTwo(
-          dim, dfg.getLevels(), dfg.getCommunicator(), dfg.returnBoundaryFlags(),
+          dim, dfgLevel, dfg.getCommunicator(), dfg.returnBoundaryFlags(),
           dfg.getParallelization(), true, dfg.getDecomposition());
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         dfgCopyOne.getData()[li] = dfg.getData()[li];
         dfgCopyTwo.getData()[li] = dfg.getData()[li];
       }
-      checkFullWeightingHierarchization(f, dfgCopyOne, true);
-      checkBiorthogonalHierarchization(f, dfgCopyTwo, true);
+      checkFullWeightingHierarchization(f, dfgCopyOne, true, lmin);
+      checkBiorthogonalHierarchization(f, dfgCopyTwo, true, lmin);
       // afterwards, the values should be the same again
       // compare dfgCopy to former values
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
@@ -493,14 +538,14 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
 
 void checkHierarchizationParaboloid(LevelVector& levels, std::vector<int>& procs,
                                     std::vector<BoundaryType>& boundary, bool forward = false,
-                                    bool checkValues = true) {
+                                    bool checkValues = true, LevelVector lmin = LevelVector(0)) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     const auto dim = static_cast<DimType>(levels.size());
     DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
     auto f = ParaboloidFn<std::complex<double>>(&dfg);
     // run test with value check
-    checkHierarchization<decltype(f)>(f, dfg, checkValues);
+    checkHierarchization<decltype(f)>(f, dfg, checkValues, lmin);
   }
 }
 
@@ -510,15 +555,15 @@ BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit
 // isotropic
 
 // the most basic case with a single worker
-BOOST_AUTO_TEST_CASE(test_minus1) {
+BOOST_AUTO_TEST_CASE(test_minus1, *boost::unit_test::timeout(10)) {
   for (auto d : std::vector<DimType>({1, 2, 3, 4, 5})) {
     BOOST_TEST_CHECKPOINT("Testing dimension " + std::to_string(d));
     // LevelVector levels(d, 1);
-    LevelVector levels(d, 3);
+    LevelVector levels(d, 2);
     std::vector<int> procs(d, 1);
     std::vector<BoundaryType> boundary(d, 2);
 
-    checkHierarchizationParaboloid(levels, procs, boundary);
+    checkHierarchizationParaboloid(levels, procs, boundary, false, true);
   }
 }
 BOOST_AUTO_TEST_CASE(test_0) {
@@ -657,6 +702,22 @@ BOOST_AUTO_TEST_CASE(test_14) {
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_14_no_hierarchization) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {2, 3, 4};
+  std::vector<int> procs = {3, 3, 1};
+  std::vector<BoundaryType> boundary(3, 2);
+  TestFn_1 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, false, true, levels);
+}
+BOOST_AUTO_TEST_CASE(test_14_half_hierarchization) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {2, 3, 4};
+  std::vector<int> procs = {3, 3, 1};
+  std::vector<BoundaryType> boundary(3, 2);
+  TestFn_1 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, false, true, {1, 2, 2});
 }
 BOOST_AUTO_TEST_CASE(test_15) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -1164,34 +1225,34 @@ BOOST_AUTO_TEST_CASE(momentum) {
     auto forward = true;  // todo toggle
     TestFn_1 testFn(levels);
     auto constFctn = [](const std::vector<double>& coords) { return 11.; };
-    //TODO make non-periodic operators momentum conserving by methodology from Frank Koster's diss
-    // std::cout << "test fcn" << std::endl;
-    // DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
-    // {
-    //   // initialize dfg with function
-    //   fillDFGbyFunction(testFn, dfg);
-    //   checkConservationOfMomentum<std::complex<double>>(
-    //       dfg, DistributedHierarchization::hierarchizeBiorthogonal<std::complex<double>>);
-    // }
-    // {
-    //   fillDFGbyFunction(testFn, dfg);
-    //   checkConservationOfMomentum<std::complex<double>>(
-    //       dfg, DistributedHierarchization::hierarchizeFullWeighting<std::complex<double>>);
-    // }
-    // std::cout << "random" << std::endl;
-    // DistributedFullGrid<real> dfg2(3, levels, comm, boundary, procs, forward);
-    // {
-    //   // initialize dfg with random numbers
-    //   fillDFGrandom(dfg2, -100., 100.);
-    //   checkConservationOfMomentum<real>(
-    //       dfg2, DistributedHierarchization::hierarchizeBiorthogonal<real>);
-    // }
-    // {
-    //   fillDFGrandom(dfg2, -100., 100.);
-    //   checkConservationOfMomentum<real>(
-    //       dfg2, DistributedHierarchization::hierarchizeFullWeighting<real>);
-    // }
-    // std::cout << "const" << std::endl;
+    // TODO make non-periodic operators momentum conserving by methodology from Frank Koster's diss
+    //  std::cout << "test fcn" << std::endl;
+    //  DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    //  {
+    //    // initialize dfg with function
+    //    fillDFGbyFunction(testFn, dfg);
+    //    checkConservationOfMomentum<std::complex<double>>(
+    //        dfg, DistributedHierarchization::hierarchizeBiorthogonal<std::complex<double>>);
+    //  }
+    //  {
+    //    fillDFGbyFunction(testFn, dfg);
+    //    checkConservationOfMomentum<std::complex<double>>(
+    //        dfg, DistributedHierarchization::hierarchizeFullWeighting<std::complex<double>>);
+    //  }
+    //  std::cout << "random" << std::endl;
+    //  DistributedFullGrid<real> dfg2(3, levels, comm, boundary, procs, forward);
+    //  {
+    //    // initialize dfg with random numbers
+    //    fillDFGrandom(dfg2, -100., 100.);
+    //    checkConservationOfMomentum<real>(
+    //        dfg2, DistributedHierarchization::hierarchizeBiorthogonal<real>);
+    //  }
+    //  {
+    //    fillDFGrandom(dfg2, -100., 100.);
+    //    checkConservationOfMomentum<real>(
+    //        dfg2, DistributedHierarchization::hierarchizeFullWeighting<real>);
+    //  }
+    //  std::cout << "const" << std::endl;
     DistributedFullGrid<real> dfg3(3, levels, comm, boundary, procs, forward);
     {
       // initialize dfg with constant function
@@ -1217,21 +1278,20 @@ BOOST_AUTO_TEST_CASE(test_timing_parallel) {
     std::vector<int> procs = {1, 8, 1, 1, 1, 1};
     auto dim = static_cast<DimType>(procs.size());
     std::vector<BoundaryType> boundary(dim, b);
-    CommunicatorType comm =
-        TestHelper::getComm(procs, std::vector<int>(dim, b == 1 ? 1 : 0));
+    CommunicatorType comm = TestHelper::getComm(procs, std::vector<int>(dim, b == 1 ? 1 : 0));
     if (comm != MPI_COMM_NULL) {
-      LevelVector lmin = {1, 3, 1, 2, 1, 1};
+      LevelVector lmin = {1, 5, 1, 2, 1, 1};
       LevelVector levels = {1, 19, 1, 2, 1, 1};
       auto forward = false;
       TestFn_1 testFn(levels);
       DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
       MPI_Barrier(comm);
       auto start = std::chrono::high_resolution_clock::now();
-      checkHierarchization(testFn, dfg, false);
+      checkHierarchization(testFn, dfg, false, lmin);
       auto end = std::chrono::high_resolution_clock::now();
       auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-      BOOST_TEST_MESSAGE("hat hierarchization time: " + std::to_string(duration.count()) + " milliseconds with "
-                                                      + std::to_string(b) + "-sided boundary");
+      BOOST_TEST_MESSAGE("hat hierarchization time: " + std::to_string(duration.count()) +
+                         " milliseconds with " + std::to_string(b) + "-sided boundary");
     }
   }
 }
