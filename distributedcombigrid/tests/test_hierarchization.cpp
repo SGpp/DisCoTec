@@ -132,7 +132,7 @@ class TestFn_3 {
 template <typename Functor>
 void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
                           std::vector<bool>& boundary, int size, bool forward = false,
-                          bool checkValues = true, LevelVector lmin = LevelVector(0)) {
+                          bool checkValues = true) {
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) return;
 
@@ -154,62 +154,30 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
     fg.getCoords(i, coords);
     fg.getData()[i] = f(coords);
   }
-  auto fgCopy = fg;
 
   // hierarchize fg and distributed fg
   Hierarchization::hierarchize(fg);
-  DistributedHierarchization::hierarchize(dfg, std::vector<bool>(dim, true), lmin);
+  DistributedHierarchization::hierarchize(dfg);
 
   if (checkValues) {
-    if (lmin.size() > 0) {
-      for (size_t i = 0; i < levels.size(); ++i) {
-        assert(lmin[i] <= levels[i]);
-      }
-      LevelVector levels_of_point(dim);
-      IndexVector tmp(dim);
+    // compare hierarchical surpluses
+    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      IndexType gi = dfg.getGlobalLinearIndex(li);
       IndexVector axisIndex(dim);
-      for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-        IndexType gi = dfg.getGlobalLinearIndex(li);
-        dfg.getGlobalLI(gi, levels_of_point, tmp);
+      fg.getVectorIndex(gi, axisIndex);
 
-        if(levels_of_point > lmin) {
-          fg.getVectorIndex(gi, axisIndex);
-          // the finest levels up to lmin should always be hierarchized
-          // compare hierarchical surpluses
-          // compare fg and distributed fg
-          BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
-                    boost::test_tools::tolerance(TestHelper::tolerance));
-          // compare distributed fg to exact solution
-          BOOST_TEST(dfg.getData()[li] == f(axisIndex),
-                    boost::test_tools::tolerance(TestHelper::tolerance));
-        } else if (levels_of_point <= lmin){
-          // the coarsest levels should not be hierarchized at all
-          fg.getVectorIndex(gi, axisIndex);
-          // compare non-hierarchized fg and distributed fg
-          BOOST_TEST(dfg.getData()[li] == fgCopy.getData()[gi],
-                    boost::test_tools::tolerance(TestHelper::tolerance));
-        }
-      }
-    } else {
-      // compare hierarchical surpluses
-      for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-        IndexType gi = dfg.getGlobalLinearIndex(li);
-        IndexVector axisIndex(dim);
-        fg.getVectorIndex(gi, axisIndex);
-
-        // compare fg and distributed fg
-        BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
-                  boost::test_tools::tolerance(TestHelper::tolerance));
-        // compare distributed fg to exact solution
-        BOOST_TEST(dfg.getData()[li] == f(axisIndex),
-                  boost::test_tools::tolerance(TestHelper::tolerance));
-      }
+      // compare fg and distributed fg
+      BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                 boost::test_tools::tolerance(TestHelper::tolerance));
+      // compare distributed fg to exact solution
+      BOOST_TEST(dfg.getData()[li] == f(axisIndex),
+                 boost::test_tools::tolerance(TestHelper::tolerance));
     }
   }
 
   // dehiarchize fg and distributed fg
   Hierarchization::dehierarchize(fg);
-  DistributedHierarchization::dehierarchize(dfg, std::vector<bool>(dim, true), lmin);
+  DistributedHierarchization::dehierarchize(dfg);
 
   if (checkValues) {
     // compare function values
@@ -593,7 +561,6 @@ BOOST_AUTO_TEST_CASE(test_41) {
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
 }
-
 BOOST_AUTO_TEST_CASE(test_42) {
   // large test case with timing
   MPI_Barrier(MPI_COMM_WORLD);
@@ -608,58 +575,6 @@ BOOST_AUTO_TEST_CASE(test_42) {
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   BOOST_TEST_MESSAGE("hierarchization time: " << duration.count() << " milliseconds");
   // on ipvs-epyc@6cddd9a0b8a4: 5100 milliseconds
-  // on ipvs-epyc@: 5600 milliseconds
-}
-
-// test for lmin
-BOOST_AUTO_TEST_CASE(test_43) {
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  LevelVector levels = {4, 4, 4, 4, 4};
-  IndexVector procs = {1, 1, 1, 1, 1};
-  std::vector<bool> boundary(5, true);
-  TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 1, false, true, {4, 3, 2, 1, 0});
-}
-// BOOST_AUTO_TEST_CASE(test_44) {
-//   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-//   LevelVector levels = {2, 1, 3, 3, 2};
-//   IndexVector procs = {2, 1, 2, 2, 1};
-//   std::vector<bool> boundary(5, false); //TODO not yet implemented for no boundary
-//   TestFn_3 testFn(levels);
-//   checkHierarchization(testFn, levels, procs, boundary, 8, false, true, {2, 1, 2, 1, 1});
-// }
-BOOST_AUTO_TEST_CASE(test_45) {
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
-  LevelVector levels = {2, 3, 4};
-  IndexVector procs = {3, 3, 1};
-  std::vector<bool> boundary(3, true);
-  TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true, true, {2,2,2});
-}
-BOOST_AUTO_TEST_CASE(test_46) {
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  LevelVector levels = {8, 7, 6};
-  IndexVector procs = {4, 2, 1};
-  std::vector<bool> boundary(3, true);
-  TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true, true, {6, 5, 1});
-}
-
-
-BOOST_AUTO_TEST_CASE(test_47) {
-  // large test case with timing
-  MPI_Barrier(MPI_COMM_WORLD);
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  LevelVector levels = {11, 11, 4};
-  IndexVector procs = {2,2,2};
-  std::vector<bool> boundary(3, true);
-  TestFn_3 testFn(levels);
-  auto start = std::chrono::high_resolution_clock::now();
-  checkHierarchization(testFn, levels, procs, boundary, 8, true, false, {6, 5, 1});
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  BOOST_TEST_MESSAGE("hierarchization time: " << duration.count() << " milliseconds");
-  // on ipvs-epyc@: 5500 milliseconds
 }
 
 BOOST_AUTO_TEST_SUITE_END()
