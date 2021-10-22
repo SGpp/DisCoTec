@@ -239,15 +239,6 @@ class LookupTable {
 };
 
 template <typename FG_ELEMENT>
-static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                           std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData);
-
-template <typename FG_ELEMENT>
-static void exchangeData1dDehierarchization(
-    DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-    std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData);
-
-template <typename FG_ELEMENT>
 static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
                                DistributedFullGrid<FG_ELEMENT>& dfg,
                                std::vector<std::set<IndexType>>& OneDIndices);
@@ -273,22 +264,6 @@ static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& d
 template <typename FG_ELEMENT>
 static IndexType getLastIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
                                         LevelType l);
-
-template <typename FG_ELEMENT>
-static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                      LookupTable<FG_ELEMENT>& lookupTable);
-
-template <typename FG_ELEMENT>
-static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                        LookupTable<FG_ELEMENT>& lookupTable);
-
-template <typename FG_ELEMENT>
-static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                        LookupTable<FG_ELEMENT>& lookupTable);
-
-template <typename FG_ELEMENT>
-void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                 LookupTable<FG_ELEMENT>& lookupTable, DimType dim);
 
 template <typename FG_ELEMENT>
 static IndexVector getFirstIndexOfEachLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d) {
