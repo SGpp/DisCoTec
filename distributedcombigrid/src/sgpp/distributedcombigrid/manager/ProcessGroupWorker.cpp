@@ -355,9 +355,15 @@ void ProcessGroupWorker::ready() {
 
         // set currentTask
         currentTask_ = tasks_[i];
-        Stats::startEvent("worker run");
+        // if isGENE, this is done in GENE's worker_routines.cpp
+        if (!isGENE) {
+          Stats::startEvent("worker run");
+        }
         currentTask_->run(theMPISystem()->getLocalComm());
-        Stats::Event e = Stats::stopEvent("worker run");
+        Stats::Event e;
+        if (!isGENE) {
+          Stats::stopEvent("worker run");
+        }
 
         // std::cout << "from ready ";
         processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
