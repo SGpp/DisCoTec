@@ -170,19 +170,21 @@ int main(int argc, char** argv) {
   //generate the local communicators for the different process groups
   int color = globalID / nprocs;
   int key = globalID - color * nprocs;
+  assert(key == 0);
+  // if this here hangs, there is some mismatch with ENABLEFT
   MPI_Comm lcomm;
-
   MPI_Comm_split(MPI_COMM_WORLD, color, key, &lcomm);
 
   // Gene creates another comm which we do not need, but it is necessary
   // to execute comm_split again; otherwise dead-lock (Split is collective and blocking)
   MPI_Comm pcomm;
-  MPI_Comm_split( MPI_COMM_WORLD, key, color, &pcomm );
+  MPI_Comm_split( MPI_COMM_WORLD, MPI_UNDEFINED, key, &pcomm );
 
   Stats::setAttribute("group", std::to_string(color));
 
   // here the actual MPI initialization
   theMPISystem()->init( ngroup, nprocs, lcomm );
+  std::cout << "init " << std::endl;
   // theMPISystem()->initWorld(lcomm, ngroup, nprocs);
   int nfaults = 0;
 
