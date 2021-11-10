@@ -672,15 +672,27 @@ class DistributedFullGrid {
 
   // returns level of a global 1d index
   inline LevelType getLevel(DimType d, IndexType idx1d) const {
-    IndexVector givec(dim_, 0);
-    givec[d] = idx1d;
-    IndexType idx = getGlobalLinearIndex(givec);
+    // IndexVector givec(dim_, 0);
+    // givec[d] = idx1d;
+    // IndexType idx = getGlobalLinearIndex(givec);
+    // LevelVector levels(dim_);
+    // IndexVector tmp(dim_);
+    // getGlobalLI(idx, levels, tmp);
+    // return levels[d];
 
-    LevelVector levels(dim_);
-    IndexVector tmp(dim_);
-    getGlobalLI(idx, levels, tmp);
-
-    return levels[d];
+    // get level of idx1d by rightmost set bit
+    // (e.g., all points on the finest level already have a 1 at the rightmost bit)
+    if (idx1d == 0) {
+      return 0;
+    }
+    const LevelType lmax = this->getLevels()[d];
+    // auto set_bit = idx1d & ~(idx1d-1);
+    // LevelType l = lmax - log2(set_bit);
+    // builtin is fast and should work with gcc and clang
+    // if it is not available, use the one above (at a slight performance hit)
+    // or c++20's std::countr_zero
+    LevelType l = lmax - __builtin_ctz(idx1d);
+    return l;
   }
 
   // get 1d index of LeftPredecessor of a point
