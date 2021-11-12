@@ -54,7 +54,9 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
           BOOST_CHECK(c >= 0.);
           BOOST_CHECK(c <= 1.);
         }
-        BOOST_CHECK_CLOSE(expected, occuring, TestHelper::tolerance);
+	// checking absolute and real value since comparing std::complex may be tricky
+        BOOST_CHECK_CLOSE(std::abs(expected), std::abs(occuring), TestHelper::tolerance);
+	BOOST_CHECK_CLOSE(std::real(expected), std::real(occuring), TestHelper::tolerance);
         // BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance);
         any = true;
       }
@@ -145,6 +147,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     manager.combine();
     std::cout << "combined " << ngroup << " " << nprocs << std::endl;
 
+    BOOST_TEST_CHECKPOINT("write solution");
     std::string filename("integration_" + std::to_string(ncombi) + ".raw");
     Stats::startEvent("manager write solution");
     manager.parallelEval( lmax, filename, 0 );
@@ -152,7 +155,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     std::cout << "wrote solution  " << ngroup << " " << nprocs << std::endl;
 
     // test Monte-Carlo interpolation
+    BOOST_TEST_CHECKPOINT("MC interpolation coordinates");
     auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
+    BOOST_TEST_CHECKPOINT("MC interpolation");
     Stats::startEvent("manager interpolate");
     auto values = manager.interpolateValues(interpolationCoords);
     Stats::stopEvent("manager interpolate");
@@ -163,7 +168,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       if (std::abs(initialFunction(interpolationCoords[i], ncombi) - values[i]) > TestHelper::tolerance) {
         std::cout << "err " << interpolationCoords.size() <<interpolationCoords[i] << " " << i << std::endl;
       }
-      BOOST_CHECK_CLOSE(initialFunction(interpolationCoords[i], ncombi), values[i], TestHelper::tolerance);
+      auto ref = initialFunction(interpolationCoords[i], ncombi);
+      BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
+      BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
     }
 
     manager.exit();
@@ -185,7 +192,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // omitting to count RUN_FIRST signal, as it is executed once for every task
     int nrun = 1;
     while (signal != EXIT) {
-      BOOST_TEST_CHECKPOINT(signal);
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
       signal = pgroup.wait();
 
       if (signal == RUN_NEXT) {
@@ -211,10 +218,10 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
   TestHelper::testStrayMessages(comm);
 }
 
-BOOST_AUTO_TEST_SUITE(integration)
+#ifndef ISGENE // integration tests won't work with ISGENE because of worker magic
+BOOST_AUTO_TEST_SUITE(integration, *boost::unit_test::timeout(60))
 
-BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
-                                 boost::unit_test::timeout(60)) {
+BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) ) {
   for (bool boundary : {true}) {
     for (size_t ngroup : {1, 2, 3, 4}) {
       for (size_t nprocs : {1, 2}) {
@@ -237,3 +244,4 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+#endif

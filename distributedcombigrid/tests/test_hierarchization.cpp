@@ -131,7 +131,8 @@ class TestFn_3 {
 
 template <typename Functor>
 void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
-                          std::vector<bool>& boundary, int size, bool forward = false) {
+                          std::vector<bool>& boundary, int size, bool forward = false,
+                          bool checkValues = true) {
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) return;
 
@@ -158,45 +159,62 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
   Hierarchization::hierarchize(fg);
   DistributedHierarchization::hierarchize(dfg);
 
-  // compare hierarchical surpluses
-  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-    IndexType gi = dfg.getGlobalLinearIndex(li);
-    IndexVector axisIndex(dim);
-    fg.getVectorIndex(gi, axisIndex);
+  if (checkValues) {
+    // compare hierarchical surpluses
+    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      IndexType gi = dfg.getGlobalLinearIndex(li);
+      IndexVector axisIndex(dim);
+      fg.getVectorIndex(gi, axisIndex);
 
-    // compare fg and distributed fg
-    BOOST_TEST(dfg.getData()[li] == fg.getData()[gi], boost::test_tools::tolerance(TestHelper::tolerance));
-    // compare distributed fg to exact solution
-    BOOST_TEST(dfg.getData()[li] == f(axisIndex), boost::test_tools::tolerance(TestHelper::tolerance));
+      // compare fg and distributed fg
+      BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                 boost::test_tools::tolerance(TestHelper::tolerance));
+      // compare distributed fg to exact solution
+      BOOST_TEST(dfg.getData()[li] == f(axisIndex),
+                 boost::test_tools::tolerance(TestHelper::tolerance));
+    }
   }
 
   // dehiarchize fg and distributed fg
   Hierarchization::dehierarchize(fg);
   DistributedHierarchization::dehierarchize(dfg);
 
-  // compare function values
-  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-    IndexType gi = dfg.getGlobalLinearIndex(li);
+  if (checkValues) {
+    // compare function values
+    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      IndexType gi = dfg.getGlobalLinearIndex(li);
 
-    std::vector<double> coords_fg(dim);
-    fg.getCoords(gi, coords_fg);
+      std::vector<double> coords_fg(dim);
+      fg.getCoords(gi, coords_fg);
 
-    std::vector<double> coords_dfg(dim);
-    dfg.getCoordsLocal(li, coords_dfg);
+      std::vector<double> coords_dfg(dim);
+      dfg.getCoordsLocal(li, coords_dfg);
 
-    BOOST_CHECK(coords_dfg == coords_fg);
+      BOOST_CHECK(coords_dfg == coords_fg);
 
-    // compare fg and distributed fg
-    BOOST_TEST(dfg.getData()[li] == fg.getData()[gi], boost::test_tools::tolerance(TestHelper::tolerance));
-    // compare distributed fg and fg to exact solution
-    BOOST_TEST(dfg.getData()[li] == f(coords_fg), boost::test_tools::tolerance(TestHelper::tolerance));
+      // compare fg and distributed fg
+      BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                 boost::test_tools::tolerance(TestHelper::tolerance));
+      // compare distributed fg and fg to exact solution
+      BOOST_TEST(dfg.getData()[li] == f(coords_fg),
+                 boost::test_tools::tolerance(TestHelper::tolerance));
+    }
   }
 }
 
-BOOST_AUTO_TEST_SUITE(hierarchization)
+BOOST_AUTO_TEST_SUITE(hierarchization, *boost::unit_test::timeout(120))
 
 // with boundary
 // isotropic
+
+BOOST_AUTO_TEST_CASE(test_0) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {4, 4, 4};
+  IndexVector procs = {1, 1, 1};
+  std::vector<bool> boundary(3, true);
+  TestFn_1 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 1);
+}
 
 BOOST_AUTO_TEST_CASE(test_1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -542,6 +560,21 @@ BOOST_AUTO_TEST_CASE(test_41) {
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
+}
+BOOST_AUTO_TEST_CASE(test_42) {
+  // large test case with timing
+  MPI_Barrier(MPI_COMM_WORLD);
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {11, 11, 4};
+  IndexVector procs = {2,2,2};
+  std::vector<bool> boundary(3, true);
+  TestFn_3 testFn(levels);
+  auto start = std::chrono::high_resolution_clock::now();
+  checkHierarchization(testFn, levels, procs, boundary, 8, true, false);
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE("hierarchization time: " << duration.count() << " milliseconds");
+  // on ipvs-epyc@6cddd9a0b8a4: 5100 milliseconds
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -37,6 +37,12 @@ public:
 
   GeneTask();
 
+  // cheapest rule of 5 ever
+  GeneTask(const GeneTask& other) = delete;
+  GeneTask(GeneTask&& other) = delete;
+  GeneTask& operator=(const GeneTask& other) = delete;
+  GeneTask& operator=(GeneTask&& other) = delete;
+
   virtual ~GeneTask();
   /**
    * This method does not acutally run GENE but just moves to folder of the GENE task.
@@ -140,12 +146,13 @@ public:
    * sets boundary parameters for global simulations
    * is directly set in GENE execution before writing checkpoint
    */
-  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q, double *kymin ){
+  void setBoundaryParameters(double *C_y, int *size_Cy, double *q_prof, int *size_q, double *kymin, int *n0_global ){
     C_y_ = C_y;
     size_Cy_ = *size_Cy;
     q_prof_= q_prof;
     size_q_ = *size_q;
     kymin_ = *kymin;
+    n0_global_ = *n0_global;
   }
   /* This method copies dfg data to local checkpoint
    * This is used to get the data from our framework to GENE
@@ -224,8 +231,10 @@ public:
    * If Petsc is used size of gyromatrix changes during initialization.
    */
   void delete_gyromatrix(){
+    if (this->is_gyromatrix_buffered()) {
+      delete[] gyromatrix_buffer_;
+    }
     gyromatrix_buffered_ = false;
-    delete[] gyromatrix_buffer_;
   }
   /**
    * Returns the time that is simulated between combinations.
@@ -317,11 +326,13 @@ private:
   int size_Cy_ ;
   double *q_prof_;
   int size_q_;
+  int n0_global_;
+  int nspecies_; //number of species
+  bool _GENE_Global; //indicates whether we are doing global GENE simulations
+  bool _GENE_Linear; //indicates whether we are doing linear GENE simulations
+  real currentTime_; //current time in the simulation
+  real currentTimestep_; //curent time step length in the simulation
 
-  GeneComplex* gyromatrix_buffer_; //buffer for gyromatrix
-  size_t gyromatrix_buffer_size_; //buffersize of gyromatrix
-
-  bool gyromatrix_buffered_ = false; //indicates if gyromatrix is buffered
   // following variables are only accessed in worker and do not need to be
   // serialized
   GeneLocalCheckpoint checkpoint_;
@@ -330,17 +341,18 @@ private:
 
   bool initialized_; //indicates if GeneTask is initialized
   bool checkpointInitialized_; //indicates if checkpoint is initialized
+
+  GeneComplex* gyromatrix_buffer_; //buffer for gyromatrix
+  size_t gyromatrix_buffer_size_; //buffersize of gyromatrix
+
+  bool gyromatrix_buffered_ = false; //indicates if gyromatrix is buffered
   bool geneXBoundariesIncluded_; //indicates if gene boundaries are set on both sides -> this is important for boundary conditions
-  int nspecies_; //number of species
+  
   MPI_Request * requestArray_;
   std::vector<CombiDataType *> receiveBufferArray_;
-  bool _GENE_Global; //indicates whether we are doing global GENE simulations
-  bool _GENE_Linear; //indicates whether we are doing linear GENE simulations
   /*
    * simulation time specific parameters
    */
-  real currentTime_; //current time in the simulation
-  real currentTimestep_; //curent time step length in the simulation
 
  // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 

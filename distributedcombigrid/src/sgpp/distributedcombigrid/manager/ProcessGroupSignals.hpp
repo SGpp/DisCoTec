@@ -26,12 +26,19 @@ const SignalType PARALLEL_EVAL = 17;
 const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
 
+/** Signal for initializing the subspaces of the dsgs.
+ *
+ * Is called directly after run_first.
+ * Must be called if subspaces do change due to added/deleted tasks.
+ */
+const SignalType INIT_DSGUS = 20;
+
 /**
  * Signal for adding a task for rescheduling.
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_ADD_TASK = 20;
+const SignalType RESCHEDULE_ADD_TASK = 21;
 
 /**
  * Signal for removing a task for rescheduling.
@@ -39,7 +46,7 @@ const SignalType RESCHEDULE_ADD_TASK = 20;
  *
  * Call only after combine and before run_next.
  */
-const SignalType RESCHEDULE_REMOVE_TASK = 21;
+const SignalType RESCHEDULE_REMOVE_TASK = 22;
 
 const SignalType RUN_FIRST = 29;
 
@@ -50,7 +57,6 @@ const SignalType PARALLEL_EVAL_NORM = 33;
 const SignalType EVAL_ANALYTICAL_NORM = 34;
 const SignalType EVAL_ERROR_NORM = 35;
 const SignalType INTERPOLATE_VALUES = 36;
-
 const SignalType DO_DIAGNOSTICS = 37;
 
 typedef int NormalizationType;

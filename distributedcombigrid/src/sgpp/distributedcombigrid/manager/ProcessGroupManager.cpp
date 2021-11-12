@@ -94,6 +94,15 @@ bool ProcessGroupManager::combine() {
   return true;
 }
 
+bool ProcessGroupManager::initDsgus() {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  sendSignalAndReceive(INIT_DSGUS);
+
+  return true;
+}
+
 bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
@@ -266,6 +275,7 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
                                               MPI_Request& request) {
   sendSignalToProcessGroup(INTERPOLATE_VALUES);
   MPI_Request dummyRequest;
+  assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) && "needs chunking!");
   MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()), abstraction::getMPIDatatype(
     abstraction::getabstractionDataType<real>()), pgroupRootID_,
     TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);

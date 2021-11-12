@@ -49,6 +49,8 @@ class ProcessManager {
 
   bool runfirst();
 
+  void initDsgus();
+
   void exit();
 
   virtual ~ProcessManager();

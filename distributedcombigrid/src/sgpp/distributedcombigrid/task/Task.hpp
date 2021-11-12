@@ -28,6 +28,12 @@ class Task {
   Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
        LoadModel* loadModel, FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
+  // cheapest rule of 5 ever
+  Task(const Task& other) = delete;
+  Task(Task&& other) = delete;
+  Task& operator=(const Task& other) = delete;
+  Task& operator=(Task&& other) = delete;
+
   // fault tolerance info
   FaultCriterion* faultCriterion_;
 

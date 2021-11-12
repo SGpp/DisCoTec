@@ -36,7 +36,10 @@ bool ProcessManager::runfirst() {
 
   bool group_failed = waitAllFinished();
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
-  receiveDurationsOfTasksFromGroupMasters(0);
+  //receiveDurationsOfTasksFromGroupMasters(0);
+
+  // initialize dsgus
+  initDsgus();
 
   // return true if no group failed
   return !group_failed;
@@ -74,7 +77,7 @@ bool ProcessManager::runnext() {
   
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   if(!group_failed)
-    receiveDurationsOfTasksFromGroupMasters(0);
+    // receiveDurationsOfTasksFromGroupMasters(0);
   // return true if no group failed
   return !group_failed;
 }
@@ -97,6 +100,29 @@ void ProcessManager::exit() {
     bool success = pgroups_[i]->exit();
     assert(success);
   }
+}
+
+void ProcessManager::initDsgus() {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  // tell groups to init Dsgus
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    bool success = pgroups_[i]->initDsgus();
+    assert(success);
+  }
+
+  waitAllFinished();
 }
 
 void ProcessManager::updateCombiParameters() {
@@ -408,18 +434,23 @@ std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, siz
   return g->evalErrorOnDFG(leval);
 }
 
+std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<real>>& interpolationCoords) {
+  auto coordsSize = interpolationCoords.size() * interpolationCoords[0].size();
+  std::vector<real> interpolationCoordsSerial;
+  interpolationCoordsSerial.reserve(coordsSize);
+  for (const auto& coord: interpolationCoords) {
+    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
+  }
+  return interpolationCoordsSerial;
+}
+
 std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
   auto numValues = interpolationCoords.size();
   std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN()));
   std::vector<MPI_Request> requests(pgroups_.size());
 
   // send interpolation coords as a single array
-  auto coordsSize = numValues* interpolationCoords[0].size();
-  std::vector<real> interpolationCoordsSerial;
-  interpolationCoordsSerial.reserve(coordsSize);
-  for (auto& coord: interpolationCoords) {
-    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
-  }
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
   for (size_t i = 0; i < pgroups_.size(); ++i) {
     pgroups_[i]->interpolateValues(interpolationCoordsSerial, values[i], requests[i]);

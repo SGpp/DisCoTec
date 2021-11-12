@@ -11,9 +11,9 @@ std::vector<std::vector<real>> getRandomCoordinates(int numCoordinates, size_t d
   std::vector<std::vector<real>> randomCoords (numCoordinates, std::vector<real>(dim));
   // cf. https://stackoverflow.com/a/23143753
   // std::random_device rnd_device;
-  std::mt19937 mersenne_engine {8285545262};  // have 1 seed, for reproducible tests
-  std::uniform_real_distribution<> dist {0., 1.};
-  auto gen = [&dist, &mersenne_engine](){
+  static std::mt19937 mersenne_engine {8285545262};  // have 1 seed, for reproducible tests
+  static std::uniform_real_distribution<> dist {0., 1.};
+  static auto gen = [](){
                   return dist(mersenne_engine);
               };
   for (auto & coord : randomCoords) {
