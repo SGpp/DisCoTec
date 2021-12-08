@@ -680,6 +680,9 @@ class DistributedFullGrid {
     // getGlobalLI(idx, levels, tmp);
     // return levels[d];
 
+    if (!this->hasBoundaryPoints_[d]) {
+      ++idx1d;
+    }
     // get level of idx1d by rightmost set bit
     // (e.g., all points on the finest level already have a 1 at the rightmost bit)
     if (idx1d == 0) {
@@ -691,7 +694,7 @@ class DistributedFullGrid {
     // builtin is fast and should work with gcc and clang
     // if it is not available, use the one above (at a slight performance hit)
     // or c++20's std::countr_zero
-    LevelType l = lmax - __builtin_ctz(idx1d);
+    LevelType l = lmax - static_cast<LevelType>(__builtin_ctzl(static_cast<unsigned long>(idx1d)));
     return l;
   }
 
