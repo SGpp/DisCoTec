@@ -496,6 +496,47 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
   #endif */
 }
 
+
+// exchange data in dimension dim
+template <typename FG_ELEMENT>
+static void exchangeAllData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+                              std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
+  auto commSize = dfg.getCommunicatorSize();
+
+  // send every index to all neighboring ranks in dimension dim
+  auto globalIdxMax = dfg.length(dim);
+  IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
+  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+
+  auto poleNeighbors = dfg.getAllMyPoleNeighborRanks(dim);
+
+  std::set<IndexType> allMyIndices;
+  for (IndexType i = idxMin; i <= idxMax; ++i) {
+    allMyIndices.insert(i);
+  }
+  std::vector<std::set<IndexType>> send1dIndices(commSize);
+  for (const auto& r : poleNeighbors) {
+    send1dIndices[r] = allMyIndices;
+  }
+
+  // all other points that are not ours can be received from their owners
+  std::vector<std::set<IndexType>> recv1dIndices(commSize);
+
+  for (IndexType i = 0; i < idxMin; ++i) {
+    // get rank which has i and add to recv list
+    // TODO would be easier to iterate the whole range of each neighbor
+    int r = getNeighbor1d(dfg, dim, i);
+    if (r >= 0) recv1dIndices[r].insert(i);
+  }
+  for (IndexType i = idxMax + 1; i < globalIdxMax; ++i) {
+    // get rank which has i and add to recv list
+    int r = getNeighbor1d(dfg, dim, i);
+    if (r >= 0) recv1dIndices[r].insert(i);
+  }
+
+  sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+}
+
 // exchange data in dimension dim
 template <typename FG_ELEMENT>
 static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
@@ -1800,6 +1841,7 @@ class DistributedHierarchization {
       // exchange data first dimension
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1d(dfg, dim, remoteData);
+      // exchangeAllData1d(dfg, dim, remoteData);
 
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
@@ -1817,6 +1859,7 @@ class DistributedHierarchization {
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1d(dfg, dim, remoteData);
+      // exchangeAllData1d(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
@@ -1846,6 +1889,7 @@ class DistributedHierarchization {
       // exchange data first dimension
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1dDehierarchization(dfg, dim, remoteData);
+      // exchangeAllData1d(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
@@ -1862,6 +1906,7 @@ class DistributedHierarchization {
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1dDehierarchization(dfg, dim, remoteData);
+      // exchangeAllData1d(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
