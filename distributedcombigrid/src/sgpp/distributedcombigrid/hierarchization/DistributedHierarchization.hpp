@@ -369,13 +369,6 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
         IndexVector subsizes = sizes;
         subsizes[dim] = 1;
 
-        // compute size of subarray for stats
-        {
-          IndexType subarraySize = 1;
-
-          for (DimType i = 0; i < subsizes.size(); ++i) subarraySize *= subsizes[i];
-        }
-
         // start
         IndexVector starts(dfg.getDimension(), 0);
         starts[dim] = lidxvec[dim];
