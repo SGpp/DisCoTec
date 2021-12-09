@@ -600,7 +600,6 @@ void sendAndReceiveIndicesBlock(std::vector<std::set<IndexType>>& send1dIndices,
         auto d = MPI_Aint_diff(addr, dfgStartAddr);
         displacements.push_back(d);
       }
-      assert(displacements[0] == 0);
       // cannot use MPI_Type_create_indexed_block as subarrays may overlap
       MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), 1, displacements.data(),
                                                    mysubarray, &myHBlock);
