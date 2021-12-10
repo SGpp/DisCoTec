@@ -207,6 +207,7 @@ BOOST_AUTO_TEST_SUITE(hierarchization, *boost::unit_test::timeout(120))
 // with boundary
 // isotropic
 
+// the most basic case with a single worker
 BOOST_AUTO_TEST_CASE(test_0) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {4, 4, 4};
@@ -214,6 +215,16 @@ BOOST_AUTO_TEST_CASE(test_0) {
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 1);
+}
+
+// 2D case with 4 workers
+BOOST_AUTO_TEST_CASE(test_05) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
+  LevelVector levels = {2,2,};
+  IndexVector procs = {2,2};
+  std::vector<bool> boundary(2, true);
+  TestFn_1 testFn(levels);
+  checkHierarchization(testFn, levels, procs, boundary, 4);
 }
 
 BOOST_AUTO_TEST_CASE(test_1) {
