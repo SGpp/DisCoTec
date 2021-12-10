@@ -369,13 +369,6 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
         IndexVector subsizes = sizes;
         subsizes[dim] = 1;
 
-        // compute size of subarray for stats
-        {
-          IndexType subarraySize = 1;
-
-          for (DimType i = 0; i < subsizes.size(); ++i) subarraySize *= subsizes[i];
-        }
-
         // start
         IndexVector starts(dfg.getDimension(), 0);
         starts[dim] = lidxvec[dim];
@@ -494,6 +487,257 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
       }
     }
   #endif */
+}
+
+/**
+ * @brief helper function for data exchange, have only one MPI_Isend/Irecv per rank
+ */
+template <typename FG_ELEMENT>
+void sendAndReceiveIndicesBlock(std::vector<std::set<IndexType>>& send1dIndices,
+                                std::vector<std::set<IndexType>>& recv1dIndices,
+                                DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+                                std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
+#ifdef DEBUG_OUTPUT
+  auto commSize = dfg.getCommunicatorSize();
+  CommunicatorType comm = dfg.getCommunicator();
+  auto rank = dfg.getRank();
+  MPI_Barrier(comm);
+
+  // print recvindices
+  {
+    for (int r = 0; r < commSize; ++r) {
+      if (r == rank) {
+        std::cout << "rank " << r << " recv1dIndices ";
+        for (const auto& r : recv1dIndices) {
+          std::cout << r;
+        }
+        std::cout << std::endl;
+      }
+      MPI_Barrier(comm);
+    }
+  }
+
+  if (rank == 0) std::cout << std::endl;
+
+  // print sendindices
+  {
+    for (int r = 0; r < commSize; ++r) {
+      if (r == rank) {
+        std::cout << "rank " << r << " send1dIndices ";
+        for (const auto& s : send1dIndices) {
+          std::cout << s;
+        }
+        std::cout << std::endl;
+      }
+      MPI_Barrier(comm);
+    }
+  }
+
+  MPI_Barrier(comm);
+
+#endif
+  // count non-empty elements of input indices
+  auto numSend = std::count_if(send1dIndices.begin(), send1dIndices.end(),
+                               [](std::set<IndexType> s) { return !s.empty(); });
+  auto numRecv = std::count_if(recv1dIndices.begin(), recv1dIndices.end(),
+                               [](std::set<IndexType> s) { return !s.empty(); });
+
+  // buffer for requests
+  std::vector<MPI_Request> sendRequests(numSend);
+  std::vector<MPI_Request> recvRequests(numRecv);
+
+  // create general subarray pointing to the first d-1 dimensional slice
+  MPI_Datatype mysubarray;
+  {
+    // sizes of local grid
+    IndexVector sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
+
+    // sizes of subarray ( full size except dimension d )
+    IndexVector subsizes = sizes;
+    subsizes[dim] = 1;
+
+    // start
+    IndexVector starts(dfg.getDimension(), 0);
+
+    // note that if we want MPI to use c ordering, for less confusion as we
+    // actually store our data in c format, we have to reverse all size and index
+    // vectors
+    std::vector<int> csizes(sizes.rbegin(), sizes.rend());
+    std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
+    std::vector<int> cstarts(starts.rbegin(), starts.rend());
+
+    // create subarray view on data
+    MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &csizes[0], &csubsizes[0],
+                             &cstarts[0], MPI_ORDER_C, dfg.getMPIDatatype(), &mysubarray);
+    MPI_Type_commit(&mysubarray);
+  }
+
+  MPI_Aint dfgStartAddr;
+  MPI_Get_address(dfg.getData(), &dfgStartAddr);
+
+  // for each rank r in send1dIndices that has a nonempty index list
+  numSend = 0;
+  for (size_t r = 0; r < send1dIndices.size(); ++r) {
+    const auto& indices = send1dIndices[r];
+    if (!indices.empty()) {
+      // make datatype hblock for all indices
+      MPI_Datatype myHBlock;
+      std::vector<MPI_Aint> displacements;
+      displacements.reserve(indices.size());
+      for (const auto& index : indices) {
+        // convert global 1d index i to local 1d index
+        IndexType localLinearIndex = 0;
+        {
+          IndexVector lidxvec(dfg.getDimension(), 0);
+          IndexVector gidxvec = dfg.getLowerBounds();
+          gidxvec[dim] = index;
+          bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
+          assert(tmp && "index to be send not in local domain");
+          localLinearIndex = dfg.getLocalLinearIndex(lidxvec);
+        }
+        MPI_Aint addr;
+        MPI_Get_address(&(dfg.getElementVector()[localLinearIndex]), &addr);
+        auto d = MPI_Aint_diff(addr, dfgStartAddr);
+        displacements.push_back(d);
+      }
+      // cannot use MPI_Type_create_indexed_block as subarrays may overlap
+      MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), 1, displacements.data(),
+                                                   mysubarray, &myHBlock);
+      MPI_Type_commit(&myHBlock);
+
+      // send to rank r, use first global index as tag
+      {
+        int dest = static_cast<int>(r);
+        int tag = static_cast<int>(*(indices.begin()));
+        MPI_Isend(dfg.getData(), 1, myHBlock, dest, tag, dfg.getCommunicator(),
+                  &sendRequests[numSend++]);
+
+#ifdef DEBUG_OUTPUT
+        auto rank = dfg.getRank();
+        int mpiDSize = 0;
+        MPI_Type_size(myHBlock, &mpiDSize);
+        // MPI_Type_size(mysubarrayBlock, &mpiDSize);
+        // print info: dest, size, index
+        std::cout << "rank " << rank << ": send gindex " << *(indices.begin()) << " + " << displacements << " dest " << dest
+                  // << " data " << *(dfg.getData()) << " " << *(dfg.getData()+1) 
+                  // << " full data " << dfg.getElementVector()
+                  << " size " << mpiDSize
+                  << std::endl;
+
+#endif
+      }
+      // MPI_Type_free(&mysubarrayBlock);
+      MPI_Type_free(&myHBlock);
+    }
+  }
+  MPI_Type_free(&mysubarray);
+
+  // for each rank r in recv1dIndices that has a nonempty index list
+  numRecv = 0;
+  for (size_t r = 0; r < recv1dIndices.size(); ++r) {
+    const auto& indices = recv1dIndices[r];
+    if (!indices.empty()) {
+      const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
+
+      std::vector<FG_ELEMENT*> bufs;
+      IndexVector sizes = dfg.getLocalSizes();
+      sizes[dim] = 1;
+      int bsize = static_cast<int>(
+          std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<IndexType>()));
+
+      for (const auto& index : indices) {
+        // create RemoteDataContainer to store the subarray
+        remoteData.emplace_back(sizes, dim, index, lowerBoundsNeighbor);
+
+        FG_ELEMENT* buf = remoteData.back().getData();
+        bufs.push_back(buf);
+        assert(bsize == static_cast<int>(remoteData.back().getSize()));
+      }
+      {
+        // make datatype hblock for all indices
+        MPI_Datatype myHBlock;
+        MPI_Aint firstBufAddr;
+        MPI_Get_address(bufs[0], &firstBufAddr);
+        std::vector<MPI_Aint> displacements;
+        displacements.reserve(bufs.size());
+        for (const auto& b : bufs) {
+          MPI_Aint addr;
+          MPI_Get_address(b, &addr);
+          auto d = MPI_Aint_diff(addr, firstBufAddr);
+          displacements.push_back(d);
+        }
+        assert(displacements[0] == 0);
+        MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), bsize, displacements.data(),
+                                       dfg.getMPIDatatype(), &myHBlock);
+        MPI_Type_commit(&myHBlock);
+        // start recv operation, use first global index as tag
+        {
+          int src = static_cast<int>(r);
+          int tag = static_cast<int>(*(indices.begin()));
+
+          MPI_Irecv(static_cast<void*>(bufs[0]), 1, myHBlock, src, tag, dfg.getCommunicator(),
+                    &recvRequests[numRecv++]);
+
+#ifdef DEBUG_OUTPUT
+          auto rank = dfg.getRank();
+          int mpiDSize = 0;
+          MPI_Type_size(myHBlock, &mpiDSize);
+          // print info: dest, size, index
+          std::cout << "rank " << rank << ": recv gindex " << *(indices.begin()) << " src " << src
+                    << " size: " << bsize << "*" << indices.size() 
+                    << " size " << mpiDSize
+                    << std::endl;
+#endif
+        }
+        MPI_Type_free(&myHBlock);
+      }
+    }
+  }
+  assert(sendRequests.size() == numSend);
+  assert(recvRequests.size() == numRecv);
+  // wait for finish of communication
+  MPI_Waitall(static_cast<int>(sendRequests.size()), &sendRequests.front(), MPI_STATUSES_IGNORE);
+  MPI_Waitall(static_cast<int>(recvRequests.size()), &recvRequests.front(), MPI_STATUSES_IGNORE);
+}
+
+// exchange data in dimension dim
+template <typename FG_ELEMENT>
+static void exchangeAllData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+                              std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
+  auto commSize = dfg.getCommunicatorSize();
+
+  // send every index to all neighboring ranks in dimension dim
+  auto globalIdxMax = dfg.length(dim);
+  IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
+  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+
+  auto poleNeighbors = dfg.getAllMyPoleNeighborRanks(dim);
+
+  std::set<IndexType> allMyIndices;
+  for (IndexType i = idxMin; i <= idxMax; ++i) {
+    allMyIndices.insert(i);
+  }
+  std::vector<std::set<IndexType>> send1dIndices(commSize);
+  for (const auto& r : poleNeighbors) {
+    send1dIndices[r] = allMyIndices;
+  }
+
+  // all other points that are not ours can be received from their owners
+  std::vector<std::set<IndexType>> recv1dIndices(commSize);
+
+  for (IndexType i = 0; i < idxMin; ++i) {
+    // get rank which has i and add to recv list
+    // TODO would be easier to iterate the whole range of each neighbor
+    int r = getNeighbor1d(dfg, dim, i);
+    if (r >= 0) recv1dIndices[r].insert(i);
+  }
+  for (IndexType i = idxMax + 1; i < globalIdxMax; ++i) {
+    // get rank which has i and add to recv list
+    int r = getNeighbor1d(dfg, dim, i);
+    if (r >= 0) recv1dIndices[r].insert(i);
+  }
+
+  sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
 // exchange data in dimension dim
@@ -1800,6 +2044,7 @@ class DistributedHierarchization {
       // exchange data first dimension
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1d(dfg, dim, remoteData);
+      // exchangeAllData1d(dfg, dim, remoteData);
 
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
@@ -1817,6 +2062,7 @@ class DistributedHierarchization {
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1d(dfg, dim, remoteData);
+      // exchangeAllData1d(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
@@ -1846,6 +2092,7 @@ class DistributedHierarchization {
       // exchange data first dimension
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1dDehierarchization(dfg, dim, remoteData);
+      // exchangeAllData1d(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
@@ -1862,6 +2109,7 @@ class DistributedHierarchization {
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
       exchangeData1dDehierarchization(dfg, dim, remoteData);
+      // exchangeAllData1d(dfg, dim, remoteData);
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
