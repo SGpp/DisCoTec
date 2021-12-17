@@ -284,6 +284,7 @@ class SelalibTask : public combigrid::Task {
   // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
 
   void setDFGfromLocalDistribution() {
+#ifndef NDEBUG
     auto& localDFGSize = dfg_->getLocalSizes();
     assert(dim_ == 6);
     // std::cout << localDFGSize << " " << std::vector<int>(localSize_.begin(), localSize_.end()) <<
@@ -291,18 +292,26 @@ class SelalibTask : public combigrid::Task {
     auto localSizeCopy = localSize_;
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_local_size(simPtrPtr_, localSizeCopy.data());
     for (DimType d = 0; d < dim_; ++d) {
-      bool isUpper =(dfg_-> getUpperBoundsCoords()[d] > (1.+1e-12));
-      //std::cout << dfg_->getRank() << " " << isUpper << " " << localDFGSizeReverted << std::endl;
-      assert( (isUpper && (localDFGSize[d] == (localSize_[d] + 1))) || (!isUpper && (localDFGSize[d] == localSize_[d])));
+      bool isUpper = (dfg_->getUpperBoundsCoords()[d] > (1. + 1e-12));
+      // std::cout << dfg_->getRank() << " " << isUpper << " " << localDFGSizeReverted << std::endl;
+      assert((isUpper && (localDFGSize[d] == (localSize_[d] + 1))) ||
+             (!isUpper && (localDFGSize[d] == localSize_[d])));
       assert(localSizeCopy[d] == localSize_[d]);
     }
+#endif  // ndef NDEBUG
 
     auto& offsets = dfg_->getLocalOffsets();
     assert(offsets[0] == 1);
 
     auto localDistributionIterator = localDistribution_;
-    int32_t bufferSize =
-        std::accumulate(localSize_.begin(), localSize_.end(), 1, std::multiplies<int32_t>());
+    // oh no, overflow!
+    // int32_t bufferSize =
+    //     std::accumulate(localSize_.begin(), localSize_.end(), 1, std::multiplies<int32_t>());
+    std::array<size_t, 6> localSizeLong;
+    std::copy(localSize_.begin(), localSize_.end(), localSizeLong.begin());
+    size_t bufferSize =
+        std::accumulate(localSizeLong.begin(), localSizeLong.end(), 1, std::multiplies<size_t>());
+    assert(bufferSize > 0);
     // assignment, leaving out the uppermost layer in each dimension, if it is not part of
     // Selalib's local distribution
     // contiguous access by Fortran ordering
@@ -318,24 +327,36 @@ class SelalibTask : public combigrid::Task {
               auto offset_m = offset_l + m * offsets[1];
               for (int n = 0; n < localSize_[0]; ++n) {
                 auto fgIndex = offset_m + n;
+#ifndef NDEBUG
                 std::vector<real> coords(dim_);
                 dfg_->getCoordsLocal(fgIndex, coords);
                 // check that the upper boundary is not written into
-                auto isWrittenInto = std::any_of(coords.begin(), coords.end(), [](real r){return r == 1.;});
-                if(isWrittenInto){
-                  std::cout << "wrote into " << coords << " dfg index " << fgIndex << " BSL index " << (localDistributionIterator - localDistribution_) << std::endl;
+                auto isWrittenInto =
+                    std::any_of(coords.begin(), coords.end(), [](real r) { return r == 1.; });
+                if (isWrittenInto) {
+                  std::cout << "wrote into " << coords << " dfg index " << fgIndex << " BSL index "
+                            << (localDistributionIterator - localDistribution_) << std::endl;
                 }
-                assert(! isWrittenInto);
+                assert(!isWrittenInto);
+                // check that we are not reading beyond the selalib buffer
+                if ((localDistributionIterator - localDistribution_) >= bufferSize) {
+                  std::cout << "access violation at " << coords << " dfg index " << fgIndex
+                            << " BSL index " << (localDistributionIterator - localDistribution_)
+                            << " , " << localDistribution_ << " , buffer size " << bufferSize 
+                            << localDFGSize << " , offsets " << offsets
+                            << " coeff " << coeff_ << " " << (coeff_ == 0.) << std::endl;
+                }
+                assert((localDistributionIterator - localDistribution_) < bufferSize);
+#endif // ndef NDEBUG
                 dfg_->getElementVector()[fgIndex] = *(localDistributionIterator);
                 ++localDistributionIterator;
-                assert((localDistributionIterator - localDistribution_) <= bufferSize);
               }
             }
           }
         }
       }
     }
-    assert ((localDistributionIterator - localDistribution_) == bufferSize);
+    assert((localDistributionIterator - localDistribution_) == bufferSize);
     for (DimType d = 0; d < dim_; ++d) {
       dfg_->writeLowerBoundaryToUpperBoundary(d);
     }
@@ -345,8 +366,11 @@ class SelalibTask : public combigrid::Task {
     // cf setDFGfromLocalDistribution
     auto& offsets = dfg_->getLocalOffsets();
     auto localDistributionIterator = localDistribution_;
-    int32_t bufferSize =
-        std::accumulate(localSize_.begin(), localSize_.end(), 1, std::multiplies<int32_t>());
+    std::array<size_t, 6> localSizeLong;
+    std::copy(localSize_.begin(), localSize_.end(), localSizeLong.begin());
+    size_t bufferSize =
+        std::accumulate(localSizeLong.begin(), localSizeLong.end(), 1, std::multiplies<size_t>());
+    assert(bufferSize > 0);
 
 
     for (int i = 0; i < localSize_[5]; ++i) {
