@@ -180,6 +180,18 @@ inline std::ostream &operator <<(std::ostream &os, const std::set<T> &s) {
   return os;
 }
 
+// helper function to output any array
+template<typename T, size_t N>
+inline std::ostream &operator <<(std::ostream &os, const std::array<T, N> &a) {
+  using namespace std;
+  os << "[";
+  for (const auto& any : a) {
+    os << any << ", ";
+  }
+  os << "]";
+  return os;
+}
+
 
 }  // namespace combigrid
 
