@@ -829,7 +829,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     {
       for (LevelType l = lidx + 1; l <= lmax; ++l) {
         LevelType ldiff = lmax - l;
-        IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff));
+        IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
         // left successor, right successor
         for (const auto& indexShift : {-1, 1}) {
@@ -845,7 +845,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
       }
     }
     LevelType ldiff = lmax - lidx;
-    IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff));
+    IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
     // check if predecessors of idx outside local domain
     IndexType pIdx;
     // left, right predecessor
@@ -872,7 +872,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   if (exchangeParentsNeighbors) {
     for (LevelType lidx = 1; lidx <= lmax; ++lidx) {
       LevelType ldiff = lmax - lidx;
-      IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff + 1));
+      IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff + 1]);
       // leftmost point of this level
       IndexType idx = getFirstIndexOfLevel1d(dfg, dim, lidx);
       // left neighbor
@@ -1002,7 +1002,7 @@ static void exchangeData1dDehierarchization(
       auto lmax = dfg.getLevels()[dim];
       auto lidx = dfg.getLevel(dim, idx);
       LevelType ldiff = lmax - lidx;
-      IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff + 1));
+      IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff + 1]);
       // left neighbor
       IndexType nIdx = idx - idiff;
       checkLeftSuccesors(nIdx, idx, dim, dfg, send1dIndices);
@@ -1042,7 +1042,7 @@ static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType di
   // check left successors of checkIdx
   for (LevelType l = lidx + 1; l <= lmax; ++l) {
     LevelType ldiff = lmax - l;
-    IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff));
+    IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
     IndexType lsIdx = checkIdx - idiff;
 
@@ -1068,7 +1068,7 @@ static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType d
   // check right successors of checkIdx
   for (LevelType l = lidx + 1; l <= lmax; ++l) {
     LevelType ldiff = lmax - l;
-    IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff));
+    IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
     IndexType rsIdx = checkIdx + idiff;
 
@@ -1096,7 +1096,7 @@ static IndexType checkPredecessors(IndexType idx, DimType dim, DistributedFullGr
   if (andNeighbors) {
     // add same-level neighbors
     LevelType ldiff = lmax - lidx;
-    IndexType idiff = static_cast<IndexType>(std::pow(2, ldiff + 1));
+    IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff + 1]);
     // left neighbor
     IndexType nIdx = idx - idiff;
     // if nIdx is in the global domain
@@ -1301,7 +1301,7 @@ static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     for (LevelType l = lmax; l > 0; --l) {
       // get first local point of level and corresponding stride
       IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
-      IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
+      IndexType parentOffset = static_cast<IndexType>(powerOfTwo[lmax - l]);
       IndexType levelStride = parentOffset * 2;
 
       // loop over points of this level with level specific stride
@@ -1383,7 +1383,7 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     for (LevelType l = 2; l <= lmax; ++l) {
       // get first local point of level and corresponding stride
-      IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
+      IndexType parentOffset = static_cast<IndexType>(powerOfTwo[lmax - l]);
       IndexType first = parentOffset - 1;
       IndexType levelStride = parentOffset * 2;
 
@@ -1468,11 +1468,11 @@ inline void hierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelT
   assert(start == 0); // could be used but currently is not
   assert(stride == 1);
   const int lmaxi = static_cast<int>(lmax);
-  int idxmax = std::pow(2, lmaxi);
-  auto length = idxmax + 1;
+  int idxmax = powerOfTwo[lmaxi];
+  // auto length = idxmax + 1;
 
-  for (int ldiff = 0; ldiff < lmax-lmin; ++ldiff) {
-    int step_width = std::pow(2, ldiff);
+  for (LevelType ldiff = 0; ldiff < lmax-lmin; ++ldiff) {
+    int step_width = powerOfTwo[ldiff];
     // update f at even indices
     data[0] = 0.5 * (data[0] + data[step_width]);
     data[idxmax] = 0.5 * (data[idxmax] + data[idxmax - step_width]);
@@ -1510,8 +1510,8 @@ inline void hierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTyp
   assert(start == 0);
   assert(stride == 1);
   const int lmaxi = static_cast<int>(lmax);
-  int idxmax = std::pow(2, lmaxi);
-  auto length = idxmax + 1;
+  int idxmax = powerOfTwo[lmaxi];
+  // auto length = idxmax + 1;
 //     for l_hierarchization in range(l_max, l_min, -1):
 //         step_width=2**(l_max-l_hierarchization)
 //         for i in range(step_width,2**(l_max),2*step_width):
@@ -1521,8 +1521,8 @@ inline void hierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTyp
 //         for i in range(2*step_width,2**(l_max),2*step_width):
 //             y[i] = 0.25*y[i-step_width] + y[i] + 0.25*y[i+step_width]
 
-  for (int ldiff = 0; ldiff < lmax-lmin; ++ldiff) {
-    int step_width = std::pow(2, ldiff);
+  for (LevelType ldiff = 0; ldiff < lmax-lmin; ++ldiff) {
+    int step_width = powerOfTwo[ldiff];
     // update alpha / hierarchical surplus at odd indices
     for (int i = step_width; i < idxmax; i += 2*step_width) {
       // todo reformulate more cache-efficient
@@ -1574,11 +1574,11 @@ template <typename FG_ELEMENT>
 inline void dehierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
                                              int stride, LevelType lmin = 0) {
   const int lmaxi = static_cast<int>(lmax);
-  int idxmax = std::pow(2, lmaxi);
-  auto length = idxmax + 1;
+  int idxmax = powerOfTwo[lmaxi];
+  // auto length = idxmax + 1;
 
-  for (int ldiff = lmax-lmin-1; ldiff >= 0; --ldiff) {
-    int step_width = std::pow(2, ldiff);
+  for (LevelType ldiff = lmax-lmin-1; ldiff >= 0; --ldiff) {
+    int step_width = powerOfTwo[ldiff];
     // update alpha / hierarchical surplus at odd indices
     for (int i = step_width; i < idxmax; i += 2*step_width) {
       // todo reformulate more cache-efficient
@@ -1603,8 +1603,8 @@ inline void dehierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelT
   assert(start == 0);
   assert(stride == 1);
   const int lmaxi = static_cast<int>(lmax);
-  int idxmax = std::pow(2, lmaxi);
-  auto length = idxmax + 1;
+  int idxmax = powerOfTwo[lmaxi];
+  // auto length = idxmax + 1;
 
   // for l_hierarchization in range(l_min, l_max, 1):
   //     step_width=2**(l_max-l_hierarchization-1)
@@ -1615,8 +1615,8 @@ inline void dehierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelT
   //     for i in range(step_width,2**(l_max),2*step_width):
   //         y[i]= 0.5*y[i-step_width] + y[i] + 0.5*y[i+step_width]
 
-  for (int ldiff = lmax - lmin - 1; ldiff >= 0; --ldiff) {
-    int step_width = std::pow(2, ldiff);
+  for (LevelType ldiff = lmax - lmin - 1; ldiff >= 0; --ldiff) {
+    int step_width = powerOfTwo[ldiff];
     // update f at even indices
     data[0] = data[0] - 0.5*data[step_width];
     data[idxmax] = data[idxmax] - 0.5*data[idxmax - step_width];
@@ -1856,7 +1856,7 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     for (LevelType l = lmax; l > 0; --l) {
       // get first local point of level and corresponding stride
       IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
-      IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
+      IndexType parentOffset = static_cast<IndexType>(powerOfTwo[lmax - l]);
       IndexType levelStride = parentOffset * 2;
 
       // loop over points of this level with level specific stride
@@ -1992,7 +1992,7 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     // dehierarchization kernel
     for (LevelType l = 2; l <= lmax; ++l) {
       // get first local point of level and corresponding stride
-      IndexType parentOffset = static_cast<IndexType>(std::pow(2, lmax - l));
+      IndexType parentOffset = static_cast<IndexType>(powerOfTwo[lmax - l]);
       IndexType first = parentOffset - 1;
       IndexType levelStride = parentOffset * 2;
 
