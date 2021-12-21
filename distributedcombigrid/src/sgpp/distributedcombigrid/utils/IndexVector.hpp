@@ -153,7 +153,10 @@ template<typename T>
 inline std::ostream &operator <<(std::ostream &os, const std::vector<T> &v) {
   using namespace std;
   os << "[";
-  copy(v.begin(), v.end(), ostream_iterator<T>(os, ", "));
+  // copy(v.begin(), v.end(), ostream_iterator<T>(os, ", "));
+  for (const auto& any : v) {
+    os << any << " ";
+  }
   os << "]";
   return os;
 }
