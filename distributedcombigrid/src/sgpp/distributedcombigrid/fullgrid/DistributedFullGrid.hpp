@@ -446,6 +446,20 @@ class DistributedFullGrid {
     }
   }
 
+  inline bool isGlobalIndexHere(IndexType globLinIndex) const {
+    return getLocalLinearIndex(globLinIndex) > -1;
+  }
+
+  inline bool isGlobalIndexHere(IndexVector globLinIndex) const {
+    for (DimType d = 0; d < this->getDimension(); ++d) {
+      if (globLinIndex[d] < this->getLowerBounds()[d] ||
+          globLinIndex[d] >= this->getUpperBounds()[d]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /** returns the dimension of the full grid */
   inline DimType getDimension() const { return dim_; }
 
@@ -471,6 +485,11 @@ class DistributedFullGrid {
       h[d] = oneOverPowOfTwo[levels_[d]];
     }
     return h;
+  }
+
+  double getInnerNodalBasisFunctionIntegral() const {
+    auto h = this->getGridSpacing();
+    return std::accumulate(h.begin(), h.end(), 1., std::multiplies<double>());
   }
 
   /** returns the number of elements in the full grid */
@@ -1490,12 +1509,12 @@ class DistributedFullGrid {
   //   return subspaces_[i].data_;
   // }
 
-  /** get the pointwise average of the ("small") lp Norm:
-   * (1/numPoints * sum_i(abs(x_i)^p))^1/p
-   * (almost Lp-Norm, except for the weight of boundary values)
+  /**
+   * @brief Get the Lp Norm of the data on the dfg:
+   *      norm = (sum_i(abs(x_i)^p)*integral(basis_i))^1/p
    *
-   * TODO: change this to add boundary values with reduced value,
-   *        divide by more in case of no boundary -> big Lp norm on [0; 1]
+   * @param p : the (polynomial) parameter, 0 is interpreted as maximum norm
+   * @return real : the norm
    */
   real getLpNorm(int p) const {
     assert(p >= 0);
@@ -1519,14 +1538,23 @@ class DistributedFullGrid {
       auto& data = getElementVector();
       real res = 0.0;
 
+      // double sumIntegral = 0;
       for (size_t i = 0; i < data.size(); ++i) {
+        auto isOnBoundary = this->isLocalLinearIndexOnBoundary(i);
+        auto countBoundary = std::count(isOnBoundary.begin(), isOnBoundary.end(), true);
+        double hatFcnIntegral = oneOverPowOfTwo[countBoundary];
+        // std::cout << hatFcnIntegral << std::endl;
+        // sumIntegral += hatFcnIntegral;
         real abs = std::abs(data[i]);
-        res += std::pow(abs, p_f);
+        res += std::pow(abs, p_f) * hatFcnIntegral;
       }
-      // res /= data.size();
+      // std::cout << " sum " << sumIntegral << std::endl;
       real globalRes(0.);
       MPI_Allreduce(&res, &globalRes, 1, dtype, MPI_SUM, getCommunicator());
-      return std::pow(globalRes, 1.0 / p_f);
+      // TODO this is only correct for 1 norm
+      // other norms have mixed terms and need additional boundary communication
+      return std::pow(globalRes * std::pow(this->getInnerNodalBasisFunctionIntegral(), p_f),
+                      1.0 / p_f);
     }
   }
 
@@ -1887,6 +1915,103 @@ class DistributedFullGrid {
     std::vector<FG_ELEMENT> recvbuffer{};
     exchangeGhostLayerUpward(d, subarrayExtents, recvbuffer);
     return recvbuffer;
+  }
+
+
+  /**
+   * @brief check if given globalLinearIndex is on the boundary of this DistributedFullGrid
+   */
+  std::vector<bool> isGlobalLinearIndexOnBoundary(IndexType globalLinearIndex) const {
+    // this could likely be done way more efficiently, but it's
+    // currently not in any performance critical spot
+    std::vector<bool> isOnBoundary(this->getDimension(), false);
+
+    // convert to global vector index
+    IndexVector globalAxisIndex(dim_);
+    getGlobalVectorIndex(globalLinearIndex, globalAxisIndex);
+    for (DimType d = 0; d < this->getDimension(); ++d) {
+      if (this->returnBoundaryFlags()[d]) {
+        if (globalAxisIndex[d] == 0 || globalAxisIndex[d] == this->length(d) - 1) {
+          isOnBoundary[d] = true;
+        }
+      }
+    }
+    return isOnBoundary;
+  }
+
+  /**
+   * @brief check if given localLinearIndex is on the boundary of this DistributedFullGrid
+   */
+  std::vector<bool> isLocalLinearIndexOnBoundary(IndexType localLinearIndex) const {
+    return isGlobalLinearIndexOnBoundary(getGlobalLinearIndex(localLinearIndex));
+  }
+
+  /**
+   * @brief recursive helper function for getCornersGlobal*Indices
+   *        (otherwise, it can't be dimension-independent)
+   *
+   */
+  std::vector<IndexVector> getCornersGlobalVectorIndicesRecursive(
+      std::vector<IndexVector> indicesSoFar, DimType dim) const {
+    if (dim < this->getDimension()) {
+      std::vector<IndexVector> newIndicesSoFar{};
+      for (const auto& indexVec : indicesSoFar) {
+        newIndicesSoFar.push_back(indexVec);
+        newIndicesSoFar.back().push_back(0);
+        newIndicesSoFar.push_back(indexVec);
+        newIndicesSoFar.back().push_back(this->length(dim) - 1);
+      }
+      assert(newIndicesSoFar.size() == 2*indicesSoFar.size());
+      return getCornersGlobalVectorIndicesRecursive(newIndicesSoFar, dim + 1);
+    } else {
+      return indicesSoFar;
+    }
+  }
+
+  /**
+   * @brief get a vector containing the global vector indices of the 2^d corners of this dfg
+   *
+   */
+  std::vector<IndexVector> getCornersGlobalVectorIndices() const {
+    auto emptyVectorInVector = std::vector<IndexVector>(1);
+    assert(emptyVectorInVector.size() == 1);
+    assert(emptyVectorInVector[0].size() == 0);
+    std::vector<IndexVector> cornersVectors =
+        getCornersGlobalVectorIndicesRecursive(emptyVectorInVector, 0);
+    assert(cornersVectors.size() == powerOfTwo[this->getDimension()]);
+    return cornersVectors;
+  }
+
+  /**
+   * @brief get a vector containing the global linear indices of the 2^d corners of this dfg
+   *
+   */
+  std::vector<IndexType> getCornersGlobalLinearIndices() const {
+    std::vector<IndexVector> cornersVectors = getCornersGlobalVectorIndices();
+    std::vector<IndexType> corners;
+    for (const auto& corner : cornersVectors) {
+      corners.push_back(this->getGlobalLinearIndex(corner));
+    }
+    assert(corners.size() == powerOfTwo[this->getDimension()]);
+    return corners;
+  }
+
+  std::vector<FG_ELEMENT> getCornersValues() const {
+    std::vector<FG_ELEMENT> values(powerOfTwo[this->getDimension()]);
+    auto corners = getCornersGlobalVectorIndices();
+    for (size_t cornerNo = 0; cornerNo < corners.size(); ++cornerNo) {
+      if (this->isGlobalIndexHere(corners[cornerNo])) {
+        // convert to local vector index, then to linear index
+        IndexVector locAxisIndex(this->getDimension());
+        bool present = getLocalVectorIndex(corners[cornerNo], locAxisIndex);
+        assert(present);
+        auto index = getLocalLinearIndex(locAxisIndex);
+        values[cornerNo] = this->getElementVector()[index];
+      }
+    }
+    MPI_Allreduce(MPI_IN_PLACE, values.data(), values.size(), this->getMPIDatatype(), MPI_SUM,
+                  this->getCommunicator());
+    return values;
   }
 
  private:
