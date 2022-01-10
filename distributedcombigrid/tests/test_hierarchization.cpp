@@ -128,6 +128,102 @@ class TestFn_3 {
     return result;
   }
 };
+// TODO remove duplicate code
+template <typename Functor>
+void checkBiorthogonalHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>& dfg,
+                                      bool checkValues = true) {
+  auto dim = dfg.getDimension();
+  // create distributed fg and copy values
+  DistributedFullGrid<std::complex<double>> dfgCopy(
+      dim, dfg.getLevels(), dfg.getCommunicator(), dfg.returnBoundaryFlags(),
+      dfg.getParallelization(), true, dfg.getDecomposition());
+  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+    dfgCopy.getData()[li] = dfg.getData()[li];
+  }
+
+  std::vector<bool> hierarchizationDimensions(dim, true);
+  DistributedHierarchization::hierarchizeBiorthogonal<std::complex<double>>(
+      dfgCopy, hierarchizationDimensions);
+
+  // now, all of the mass should be on the coarsest level -> the corners
+  if (checkValues) {
+    const auto innerIntegral = dfg.getInnerNodalBasisFunctionIntegral();
+    // calculate discrete analytical l1
+    double analyticalL1 = 0.;
+    for (IndexType gli = 0; gli < dfg.getNrElements(); ++gli) {
+      auto isOnBoundary = dfg.isGlobalLinearIndexOnBoundary(gli);
+      auto countBoundary = std::count(isOnBoundary.begin(), isOnBoundary.end(), true);
+      double hatFcnIntegral = oneOverPowOfTwo[countBoundary];
+      std::vector<double> coords(dim);
+      dfg.getCoordsGlobal(gli, coords);
+      analyticalL1 += std::abs(f(coords)) * hatFcnIntegral;
+    }
+    analyticalL1 *= innerIntegral;
+    // calculate l1 integral of actual data
+    auto formerL1 = dfg.getLpNorm(1);
+    BOOST_TEST(formerL1 == analyticalL1, boost::test_tools::tolerance(TestHelper::tolerance));
+    auto cornersValues = dfgCopy.getCornersValues();
+    BOOST_CHECK(cornersValues.size() == powerOfTwo[dim]);
+    auto sumOfCornerValues =
+        std::accumulate(cornersValues.begin(), cornersValues.end(), std::complex<double>(0.),
+                        std::plus<std::complex<double>>());
+    auto currentL1 = std::abs(sumOfCornerValues * oneOverPowOfTwo[dim]);
+    BOOST_TEST(currentL1 == formerL1, boost::test_tools::tolerance(TestHelper::tolerance));
+  }
+
+  DistributedHierarchization::dehierarchizeBiorthogonal<std::complex<double>>(
+      dfgCopy, hierarchizationDimensions);
+
+  if (checkValues) {
+    // compare dfgCopy to former values
+    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      BOOST_TEST(dfgCopy.getData()[li] == dfg.getData()[li],
+                 boost::test_tools::tolerance(TestHelper::tolerance));
+    }
+  }
+}
+
+template <typename Functor>
+void checkFullWeightingHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>& dfg,
+                                       bool checkValues = true) {
+  auto dim = dfg.getDimension();
+  // create distributed fg and copy values
+  DistributedFullGrid<std::complex<double>> dfgCopy(
+      dim, dfg.getLevels(), dfg.getCommunicator(), dfg.returnBoundaryFlags(),
+      dfg.getParallelization(), true, dfg.getDecomposition());
+  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+    dfgCopy.getData()[li] = dfg.getData()[li];
+  }
+
+  std::vector<bool> hierarchizationDimensions(dim, true);
+  DistributedHierarchization::hierarchizeFullWeighting<std::complex<double>>(
+      dfgCopy, hierarchizationDimensions);
+
+  // now, all of the mass should be on the coarsest level -> the corners
+  if (checkValues) {
+    // calculate l1 integral of actual data
+    auto formerL1 = dfg.getLpNorm(1);
+    auto cornersValues = dfgCopy.getCornersValues();
+    BOOST_CHECK(cornersValues.size() == powerOfTwo[dim]);
+
+    auto sumOfCornerValues =
+        std::accumulate(cornersValues.begin(), cornersValues.end(), std::complex<double>(0.),
+                        std::plus<std::complex<double>>());
+    auto currentL1 = std::abs(sumOfCornerValues * oneOverPowOfTwo[dim]);
+    BOOST_TEST(currentL1 == formerL1, boost::test_tools::tolerance(TestHelper::tolerance));
+  }
+
+  DistributedHierarchization::dehierarchizeFullWeighting<std::complex<double>>(
+      dfgCopy, hierarchizationDimensions);
+
+  if (checkValues) {
+    // compare dfgCopy to former values
+    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      BOOST_TEST(dfgCopy.getData()[li] == dfg.getData()[li],
+                 boost::test_tools::tolerance(TestHelper::tolerance));
+    }
+  }
+}
 
 template <typename Functor>
 void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
@@ -198,6 +294,17 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
       // compare distributed fg and fg to exact solution
       BOOST_TEST(dfg.getData()[li] == f(coords_fg),
                  boost::test_tools::tolerance(TestHelper::tolerance));
+    }
+  }
+
+  // call this here so that tests are also run for mass-conserving bases
+  // but only for boundary grids and in case we are not measuring time
+  if (checkValues && std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; })) {
+    if (!(typeid(Functor) == typeid(TestFn_3))) {
+      // TODO figure out what is supposed to happen for true complex numbers,
+      // currently std::abs does not seem to do the right thing
+      checkFullWeightingHierarchization(f, dfg, true);
+      checkBiorthogonalHierarchization(f, dfg, true);
     }
   }
 }
