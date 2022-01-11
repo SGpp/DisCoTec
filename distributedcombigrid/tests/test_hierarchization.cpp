@@ -4,6 +4,7 @@
 #include <complex>
 #include <cstdarg>
 #include <iostream>
+#include <typeinfo>
 #include <vector>
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
@@ -686,7 +687,7 @@ BOOST_AUTO_TEST_CASE(test_42) {
   LevelVector levels = {11, 11, 4};
   IndexVector procs = {2,2,2};
   std::vector<bool> boundary(3, true);
-  TestFn_3 testFn(levels);
+  TestFn_1 testFn(levels);
   auto start = std::chrono::high_resolution_clock::now();
   checkHierarchization(testFn, levels, procs, boundary, 8, true, false);
   auto end = std::chrono::high_resolution_clock::now();
