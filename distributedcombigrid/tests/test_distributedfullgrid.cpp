@@ -246,6 +246,25 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   // ss << "test_dfg_" << levels << procs << boundary << forward << ".vtk";
   // dfg.writePlotFileVTK(ss.str().c_str());
 
+
+  // create distributed fg and copy values
+  DistributedFullGrid<std::complex<double>> dfgCopy(
+      dim, dfg.getLevels(), dfg.getCommunicator(), dfg.returnBoundaryFlags(),
+      dfg.getParallelization(), true, dfg.getDecomposition());
+  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+    dfgCopy.getData()[li] = dfg.getData()[li];
+  }
+  BOOST_TEST_CHECKPOINT("copied to dfgCopy");
+  // test averageBoundaryValues
+  dfgCopy.averageBoundaryValues();
+  if (std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; })) {
+    // assert that all the corners values are the same now
+    auto cornersValues = dfgCopy.getCornersValues();
+    for (const auto& cornerValue : cornersValues) {
+      BOOST_TEST(cornerValue == cornersValues[0]);
+    }
+  }
+
   // test lower to upper exchange
   for (DimType d = 0; d < dim; ++d) {
     // std::cout << dfg << std::endl;
