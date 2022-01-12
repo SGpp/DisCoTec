@@ -147,8 +147,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     manager.combine();
     std::cout << "combined " << ngroup << " " << nprocs << std::endl;
 
-    BOOST_TEST_CHECKPOINT("write solution");
     std::string filename("integration_" + std::to_string(ncombi) + ".raw");
+    BOOST_TEST_CHECKPOINT("write solution " + filename);
     Stats::startEvent("manager write solution");
     manager.parallelEval( lmax, filename, 0 );
     Stats::stopEvent("manager write solution");
@@ -219,7 +219,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 }
 
 #ifndef ISGENE // integration tests won't work with ISGENE because of worker magic
-BOOST_AUTO_TEST_SUITE(integration, *boost::unit_test::timeout(60))
+BOOST_AUTO_TEST_SUITE(integration, *boost::unit_test::timeout(120))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) ) {
   for (bool boundary : {true}) {

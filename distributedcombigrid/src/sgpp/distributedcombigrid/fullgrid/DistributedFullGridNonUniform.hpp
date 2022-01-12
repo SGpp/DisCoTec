@@ -708,9 +708,9 @@ class DistributedFullGridNonUniform {
         // to comply with an ordering that mpi understands, we have to reverse
         // our index vectors
         // also we have to use int as datatype
-        std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-        std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-        std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        std::vector<int> csizes(sizes.begin(), sizes.end());
+        std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+        std::vector<int> cstarts(starts.begin(), starts.end());
         if (!reverseOrderingDFGPartitions) {
           assert(false && "this is not adapted to normal ordering of DFG partitions yet");
         }
@@ -718,7 +718,7 @@ class DistributedFullGridNonUniform {
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), &csizes[0], &csubsizes[0],
-                                 &cstarts[0], MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
+                                 &cstarts[0], MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
         MPI_Type_commit(&mysubarray);
         subarrayTypes.push_back(mysubarray);
 
@@ -1217,9 +1217,9 @@ class DistributedFullGridNonUniform {
         // to comply with an ordering that mpi understands, we have to reverse
         // our index vectors
         // also we have to use int as datatype
-        std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-        std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-        std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        std::vector<int> csizes(sizes.begin(), sizes.end());
+        std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+        std::vector<int> cstarts(starts.begin(), starts.end());
         if (!reverseOrderingDFGPartitions) {
           assert(false && "this is not adapted to normal ordering of DFG partitions yet");
         }
@@ -1227,7 +1227,7 @@ class DistributedFullGridNonUniform {
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(int(this->getDimension()), &csizes[0], &csubsizes[0], &cstarts[0],
-                                 MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
+                                 MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
         MPI_Type_commit(&mysubarray);
         subarrayTypes.push_back(mysubarray);
 
@@ -1771,9 +1771,9 @@ class DistributedFullGridNonUniform {
         // to comply with an ordering that mpi understands, we have to reverse
         // our index vectors
         // also we have to use int as datatype
-        std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-        std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-        std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        std::vector<int> csizes(sizes.begin(), sizes.end());
+        std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+        std::vector<int> cstarts(starts.begin(), starts.end());
         if (!reverseOrderingDFGPartitions) {
           assert(false && "this is not adapted to normal ordering of DFG partitions yet");
         }
@@ -1781,7 +1781,7 @@ class DistributedFullGridNonUniform {
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(int(this->getDimension()), &csizes[0], &csubsizes[0], &cstarts[0],
-                                 MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
+                                 MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
 
         MPI_Type_commit(&mysubarray);
         subsp.subarrayTypes_.push_back(mysubarray);

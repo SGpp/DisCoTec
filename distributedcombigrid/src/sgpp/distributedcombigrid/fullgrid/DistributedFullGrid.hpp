@@ -127,6 +127,15 @@ class DistributedFullGrid {
 #endif
   }
 
+  // explicit DistributedFullGrid(const DistributedFullGrid& other) {
+  //   this = DistributedFullGrid(other.getDimension(), other.getLevels(), other.getCommunicator(),
+  //                              other.returnBoundaryFlags(), other.getParallelization(), true,
+  //                              other.getDecomposition());
+  //   for (IndexType li = 0; li < other.getNrLocalElements(); ++li) {
+  //     this->getData()[li] = other.getData()[li];
+  //   }
+  // }
+
   // copy construction would need to duplicate communicator_
   DistributedFullGrid(const DistributedFullGrid& other) = delete;
   DistributedFullGrid& operator=( const DistributedFullGrid & ) = delete;
@@ -143,6 +152,163 @@ class DistributedFullGrid {
       MPI_Type_free(&downwardSubarrays_[i]);
     }
   }
+
+  struct SubarrayIterator {
+    // cf. https://www.internalpointers.com/post/writing-custom-iterators-modern-cpp
+    using iterator_category = std::forward_iterator_tag;
+    using difference_type = std::ptrdiff_t;
+    using value_type = FG_ELEMENT;
+    using pointer = FG_ELEMENT*;
+    using reference = FG_ELEMENT&;
+
+    SubarrayIterator(const MPI_Datatype& subarrayType, DistributedFullGrid* dfgPointer) : dfgPointer_(dfgPointer){
+      // read out the subarray informaiton
+      MPI_Datatype tmp;
+      auto dim = dfgPointer_->getDimension();
+      std::vector<int> MPITypeIntegers(3 * dim + 2);
+      auto success = MPI_Type_get_contents(subarrayType, static_cast<int>(MPITypeIntegers.size()),
+                                           0, 1, MPITypeIntegers.data(), nullptr, &tmp);
+      assert(success == MPI_SUCCESS);
+      auto sizes = std::vector<int>(MPITypeIntegers.begin() + 1, MPITypeIntegers.begin() + dim + 1);
+      subsizes_ = std::vector<int>(MPITypeIntegers.begin() + dim + 1,
+                                   MPITypeIntegers.begin() + 2 * dim + 1);
+      starts_ = std::vector<int>(MPITypeIntegers.begin() + 2 * dim + 1,
+                                 MPITypeIntegers.begin() + 3 * dim + 1);
+      currentLocalIndex_ = starts_;
+
+      // check datatype
+      assert(tmp == dfgPointer_->getMPIDatatype());
+      // // check sizes
+      // std::cout << " sizes " << sizes << " subsizes " << subsizes_ << " starts " << starts_
+      //           << " end " << endIndex() << std::endl;
+      for (DimType d = 0; d < dfgPointer_->getDimension() - 1; ++d) {
+        assert(sizes[d] == static_cast<int>(dfgPointer_->getLocalSizes()[d]));
+        assert(subsizes_[d] + starts_[d] <= sizes[d]);
+      }
+      assert(std::accumulate(sizes.begin(), sizes.end(), 1,
+                                       std::multiplies<int>()) == dfgPointer_->getNrLocalElements());
+      // check order
+      assert(MPITypeIntegers.back() == MPI_ORDER_FORTRAN);
+      assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
+    }
+    // cheap rule of 5
+    SubarrayIterator(const SubarrayIterator& other) = delete;
+    SubarrayIterator& operator=( const SubarrayIterator & ) = delete;
+    SubarrayIterator(SubarrayIterator&& other) = delete;
+    SubarrayIterator& operator=(SubarrayIterator&& other) = delete;
+
+    reference operator*() const {
+      // make sure to only dereference when we actually have the data mapped
+#ifndef NDEBUG
+      if(linearize(currentLocalIndex_) > dfgPointer_->getNrLocalElements()) {
+        std::cout << " subsizes " << subsizes_ << " starts " << starts_
+                  << " end " << endIndex() << std::endl;
+        std::cout << " ref waah currentLocalIndex_" << currentLocalIndex_
+                  << " linearized " << linearize(currentLocalIndex_)
+                  << " numElements " << dfgPointer_->getNrLocalElements()
+                  << std::endl;
+      }
+      assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
+      assert(linearize(currentLocalIndex_) < endIndex());
+#endif // ndef NDEBUG
+      return dfgPointer_->getElementVector()[linearize(currentLocalIndex_)];
+    }
+    pointer operator->() const {
+      return &(dfgPointer_->getElementVector()[linearize(currentLocalIndex_)]);
+    }
+    pointer getPointer() const {
+      return &(dfgPointer_->getElementVector()[linearize(currentLocalIndex_)]);
+    }
+    const std::vector<int>& getVecIndex() const { return currentLocalIndex_; }
+    IndexType getIndex() const { return linearize(currentLocalIndex_); }
+    const SubarrayIterator& operator++() {
+      assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
+#ifndef NDEBUG
+      auto cpLocalIdx = currentLocalIndex_;
+      auto idxbefore = linearize(currentLocalIndex_);
+#endif // ndef NDEBUG
+      // increment
+      // Fortran ordering
+      currentLocalIndex_[0] += 1;
+      for (DimType d = 0; d < dfgPointer_->getDimension() - 1; ++d) {
+        // wrap around
+#ifndef NDEBUG
+        if(currentLocalIndex_[d] > starts_[d] + subsizes_[d]) {
+          std::cout << " subsizes " << subsizes_ << " starts " << starts_
+                    << " end " << endIndex() << " idxbefore " << idxbefore << std::endl;
+          std::cout << "waah currentLocalIndex_" << currentLocalIndex_ << " before " << cpLocalIdx << std::endl;
+        }
+        assert(currentLocalIndex_[d] >= starts_[d]);
+        assert(!(currentLocalIndex_[d] > starts_[d] + subsizes_[d]));
+#endif // ndef NDEBUG
+        if (currentLocalIndex_[d] == starts_[d] + subsizes_[d]) {
+          currentLocalIndex_[d] = starts_[d];
+          ++currentLocalIndex_[d + 1];
+        }
+      }
+      assert(idxbefore < linearize(currentLocalIndex_));
+      assert(linearize(currentLocalIndex_) <= endIndex());
+      return *this;
+    }
+    // let's just not use the postfix increment
+    // SubarrayIterator operator++(int) {
+    //   SubarrayIterator tmp = *this;
+    //   ++(*this);
+    //   return tmp;
+    // }
+    friend bool operator==(const SubarrayIterator& a, const SubarrayIterator& b) {
+      return a.currentLocalIndex_ == b.currentLocalIndex_;
+    };
+    friend bool operator!=(const SubarrayIterator& a, const SubarrayIterator& b) {
+      return a.currentLocalIndex_ != b.currentLocalIndex_;
+    };
+    pointer begin() { return &(dfgPointer_->getElementVector()[firstIndex()]); }
+    pointer end() { return &(dfgPointer_->getElementVector()[endIndex()]); }
+    bool isAtEnd() { return (linearize(currentLocalIndex_) == endIndex()); }
+    int size() {
+      return std::accumulate(subsizes_.begin(), subsizes_.end(), 1,
+                                       std::multiplies<int>()); }
+
+    IndexType firstIndex() const {
+      return linearize(starts_);
+    }
+    IndexType endIndex() const {
+      std::vector<int> endVectorIndex = starts_;
+      endVectorIndex[dfgPointer_->getDimension() - 1] += subsizes_[dfgPointer_->getDimension() - 1];
+      auto linEndIndex = linearize(endVectorIndex);
+      return linEndIndex;
+    }
+
+   private:
+    IndexType linearize(std::vector<int> indexVector) const {
+      auto offsets = dfgPointer_->getLocalOffsets();
+      assert(offsets[0] == 1);
+      auto dim = dfgPointer_->getDimension();
+      IndexType index = 0;
+      // Fortran ordering
+      for (DimType d = 0; d < dim; ++d) {
+        index += offsets[d] * indexVector[d];
+      }
+//       // compare to dfg
+// #ifndef NDEBUG
+//       IndexVector liv;
+//       liv.assign(indexVector.begin(), indexVector.end());
+//       auto li = dfgPointer_->getLocalLinearIndex(liv);
+//       IndexVector linv(dim);
+//       dfgPointer_->getLocalVectorIndex(index, linv);
+//       if (li != index) {
+//         std::cout << "li " << li << " " << indexVector << " vs " << index << " " << linv << std::endl;
+//       }
+//       assert(li == index);
+// #endif // ndef NDEBUG
+      return index;
+    }
+
+    std::vector<int> currentLocalIndex_;
+    std::vector<int> subsizes_;
+    std::vector<int> starts_;
+    DistributedFullGrid* dfgPointer_;
+  };
 
   FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex, const std::vector<real>& coords) const {
     auto firstIndex = IndexVector(dim_, 0);
@@ -220,7 +386,7 @@ class DistributedFullGrid {
     IndexVector localIndexLowerNonzeroNeighborPoint (dim_);
     for (DimType d = 0 ; d < dim_ ; ++d){
       assert(coords[d] >= 0. && coords[d] <= 1.);
-      localIndexLowerNonzeroNeighborPoint[d] = std::floor((coords[d] - lowerCoords[d]) / h[d]);
+      localIndexLowerNonzeroNeighborPoint[d] = static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
     }
     // std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
 
@@ -446,6 +612,20 @@ class DistributedFullGrid {
     }
   }
 
+  inline bool isGlobalIndexHere(IndexType globLinIndex) const {
+    return getLocalLinearIndex(globLinIndex) > -1;
+  }
+
+  inline bool isGlobalIndexHere(IndexVector globLinIndex) const {
+    for (DimType d = 0; d < this->getDimension(); ++d) {
+      if (globLinIndex[d] < this->getLowerBounds()[d] ||
+          globLinIndex[d] >= this->getUpperBounds()[d]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   /** returns the dimension of the full grid */
   inline DimType getDimension() const { return dim_; }
 
@@ -471,6 +651,11 @@ class DistributedFullGrid {
       h[d] = oneOverPowOfTwo[levels_[d]];
     }
     return h;
+  }
+
+  double getInnerNodalBasisFunctionIntegral() const {
+    auto h = this->getGridSpacing();
+    return std::accumulate(h.begin(), h.end(), 1., std::multiplies<double>());
   }
 
   /** returns the number of elements in the full grid */
@@ -630,7 +815,6 @@ class DistributedFullGrid {
     assert (!partitionCoords_.empty());
     coords.assign(partitionCoords_[r].begin(), partitionCoords_[r].end());
   }
-
   inline void getPartitionCoords(RankType r, std::vector<int>& coords) const {
     assert(r >= 0 && r < size_);
     assert (!partitionCoords_.empty());
@@ -846,9 +1030,9 @@ class DistributedFullGrid {
         // to comply with an ordering that mpi understands, we have to reverse
         // our index vectors
         // also we have to use int as datatype
-        std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-        std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-        std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        std::vector<int> csizes(sizes.begin(), sizes.end());
+        std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+        std::vector<int> cstarts(starts.begin(), starts.end());
         // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
         //   csizes.assign(sizes.begin(), sizes.end());
         //   csubsizes.assign(subsizes.begin(), subsizes.end());
@@ -858,7 +1042,7 @@ class DistributedFullGrid {
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), &csizes[0], &csubsizes[0],
-                                 &cstarts[0], MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
+                                 &cstarts[0], MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
         MPI_Type_commit(&mysubarray);
         subarrayTypes.push_back(mysubarray);
 
@@ -1182,6 +1366,7 @@ class DistributedFullGrid {
 
   // void clearSubspaces() {
   //   for (auto subsp : subspaces_) subsp.data_.resize(0);
+
   //   subspacesFilled_ = false;
   // }
 
@@ -1490,12 +1675,12 @@ class DistributedFullGrid {
   //   return subspaces_[i].data_;
   // }
 
-  /** get the pointwise average of the ("small") lp Norm:
-   * (1/numPoints * sum_i(abs(x_i)^p))^1/p
-   * (almost Lp-Norm, except for the weight of boundary values)
+  /**
+   * @brief Get the Lp Norm of the data on the dfg:
+   *      norm = (sum_i(abs(x_i)^p)*integral(basis_i))^1/p
    *
-   * TODO: change this to add boundary values with reduced value,
-   *        divide by more in case of no boundary -> big Lp norm on [0; 1]
+   * @param p : the (polynomial) parameter, 0 is interpreted as maximum norm
+   * @return real : the norm
    */
   real getLpNorm(int p) const {
     assert(p >= 0);
@@ -1519,14 +1704,23 @@ class DistributedFullGrid {
       auto& data = getElementVector();
       real res = 0.0;
 
+      // double sumIntegral = 0;
       for (size_t i = 0; i < data.size(); ++i) {
+        auto isOnBoundary = this->isLocalLinearIndexOnBoundary(i);
+        auto countBoundary = std::count(isOnBoundary.begin(), isOnBoundary.end(), true);
+        double hatFcnIntegral = oneOverPowOfTwo[countBoundary];
+        // std::cout << hatFcnIntegral << std::endl;
+        // sumIntegral += hatFcnIntegral;
         real abs = std::abs(data[i]);
-        res += std::pow(abs, p_f);
+        res += std::pow(abs, p_f) * hatFcnIntegral;
       }
-      // res /= data.size();
+      // std::cout << " sum " << sumIntegral << std::endl;
       real globalRes(0.);
       MPI_Allreduce(&res, &globalRes, 1, dtype, MPI_SUM, getCommunicator());
-      return std::pow(globalRes, 1.0 / p_f);
+      // TODO this is only correct for 1 norm
+      // other norms have mixed terms and need additional boundary communication
+      return std::pow(globalRes * std::pow(this->getInnerNodalBasisFunctionIntegral(), p_f),
+                      1.0 / p_f);
     }
   }
 
@@ -1555,25 +1749,16 @@ class DistributedFullGrid {
     IndexVector subsizes = getUpperBounds() - getLowerBounds();
     IndexVector starts = getLowerBounds();
 
-    // we store our data in c format, i.e. first dimension is the innermost
-    // dimension. however, we access our data in fortran notation, with the
+    // we store our data in fortran notation, with the
     // first index in indexvectors being the first dimension.
-    // to comply with an ordering that mpi understands, we have to reverse
-    // our index vectors
-    // also we have to use int as datatype
-    std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-    std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-    std::vector<int> cstarts(starts.rbegin(), starts.rend());
-    if (!reverseOrderingDFGPartitions) {
-      csizes.assign(sizes.begin(), sizes.end());
-      csubsizes.assign(subsizes.begin(), subsizes.end());
-      cstarts.assign(starts.begin(), starts.end());
-    }
+    std::vector<int> csizes(sizes.begin(), sizes.end());
+    std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+    std::vector<int> cstarts(starts.begin(), starts.end());
 
     // create subarray view on data
     MPI_Datatype mysubarray;
     MPI_Type_create_subarray(static_cast<int>(getDimension()), &csizes[0], &csubsizes[0],
-                             &cstarts[0], MPI_ORDER_C, getMPIDatatype(), &mysubarray);
+                             &cstarts[0], MPI_ORDER_FORTRAN, getMPIDatatype(), &mysubarray);
     MPI_Type_commit(&mysubarray);
 
     // open file
@@ -1637,25 +1822,16 @@ class DistributedFullGrid {
     IndexVector subsizes = getUpperBounds() - getLowerBounds();
     IndexVector starts = getLowerBounds();
 
-    // we store our data in c format, i.e. first dimension is the innermost
-    // dimension. however, we access our data in fortran notation, with the
+    // we store our data in fortran notation, with the
     // first index in indexvectors being the first dimension.
-    // to comply with an ordering that mpi understands, we have to reverse
-    // our index vectors
-    // also we have to use int as datatype
-    std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-    std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-    std::vector<int> cstarts(starts.rbegin(), starts.rend());
-    // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
-    //   csizes.assign(sizes.begin(), sizes.end());
-    //   csubsizes.assign(subsizes.begin(), subsizes.end());
-    //   cstarts.assign(starts.begin(), starts.end());
-    // }
+    std::vector<int> csizes(sizes.begin(), sizes.end());
+    std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+    std::vector<int> cstarts(starts.begin(), starts.end());
 
     // create subarray view on data
     MPI_Datatype mysubarray;
     MPI_Type_create_subarray(static_cast<int>(getDimension()), &csizes[0], &csubsizes[0],
-                             &cstarts[0], MPI_ORDER_C, getMPIDatatype(), &mysubarray);
+                             &cstarts[0], MPI_ORDER_FORTRAN, getMPIDatatype(), &mysubarray);
     MPI_Type_commit(&mysubarray);
 
     // open file
@@ -1732,21 +1908,15 @@ class DistributedFullGrid {
         auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
 
         // create MPI datatype
-        // also, the data dimensions are reversed
-        std::vector<int> sizes(this->getLocalSizes().rbegin(), this->getLocalSizes().rend());
-        std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
+        std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+        std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
         // the starts are local indices
-        std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
-        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
-        //   sizes.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
-        //   subsizes.assign(subarrayExtents.begin(), subarrayExtents.end());
-        //   starts.assign(subarrayStarts.begin(), subarrayStarts.end());
-        // }
+        std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
 
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
-                                subsizes.data(), starts.data(), MPI_ORDER_C, this->getMPIDatatype(),
+                                subsizes.data(), starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(),
                                 &mysubarray);
         MPI_Type_commit(&mysubarray);
         upwardSubarrays_[d] = mysubarray;
@@ -1765,21 +1935,22 @@ class DistributedFullGrid {
         IndexVector subarrayLowerBounds = this->getLowerBounds();
         IndexVector subarrayUpperBounds = this->getUpperBounds();
         subarrayUpperBounds[d] -= this->getLocalSizes()[d] - 1;
+
         auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
         assert(subarrayExtents[d] == 1);
         auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
 
         // create MPI datatype
         // also, the data dimensions are reversed
-        std::vector<int> sizes(this->getLocalSizes().rbegin(), this->getLocalSizes().rend());
-        std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
+        std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+        std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
         // the starts are local indices
-        std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
+        std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
 
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
-                                subsizes.data(), starts.data(), MPI_ORDER_C, this->getMPIDatatype(),
+                                subsizes.data(), starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(),
                                 &mysubarray);
         MPI_Type_commit(&mysubarray);
         downwardSubarrays_[d] = mysubarray;
@@ -1801,14 +1972,15 @@ class DistributedFullGrid {
       d_reverse = d;
     }
 
-    MPI_Cart_shift( this->getCommunicator(), d_reverse, getParallelization()[d] -1 , &lowest, &highest );
+    MPI_Cart_shift(this->getCommunicator(), static_cast<int>(d_reverse),
+                   static_cast<int>(getParallelization()[d] - 1), &lowest, &highest);
 
     // assert only boundaries have those neighbors (remove in case of periodicity)
     // this assumes no periodicity!
-    if(! this->getLowerBounds()[d] == 0){
+    if (!this->getLowerBounds()[d] == 0) {
       assert(highest < 0);
     }
-    if(! this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
+    if (!this->getUpperBounds()[d] == this->getGlobalSizes()[d]) {
       assert(lowest < 0);
     }
   }
@@ -1827,9 +1999,9 @@ class DistributedFullGrid {
 
     auto success =
         MPI_Sendrecv(this->getData(), 1, upSubarrays[d], lower, TRANSFER_GHOST_LAYER_TAG,
-                     this->getData(), 1, downSubarrays[d], higher, 
+                     this->getData(), 1, downSubarrays[d], higher,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
-    }
+  }
 
   void writeLowerBoundaryToUpperBoundary(DimType d) {
     assert(hasBoundaryPoints_[d] == true);
@@ -1851,8 +2023,68 @@ class DistributedFullGrid {
     assert(success == MPI_SUCCESS);
   }
 
+  void exchangeBoundaryLayers(DimType d, std::vector<FG_ELEMENT>& recvbufferFromUp,
+                              std::vector<FG_ELEMENT>& recvbufferFromDown) {
+    assert(hasBoundaryPoints_[d] == true);
+    auto subarrayExtents = this->getLocalSizes();
+    subarrayExtents[d] = 1;
+    auto numElements = std::accumulate(subarrayExtents.begin(), subarrayExtents.end(), 1,
+                                       std::multiplies<IndexType>());
+
+    // create MPI datatypes
+    auto downSubarrays = getDownwardSubarrays();
+    auto upSubarrays = getUpwardSubarrays();
+
+    // if I have the highest neighbor (i. e. I am the lowest rank), I need to send my lowest layer
+    // in d to them, if I have the lowest neighbor (i. e. I am the highest rank), I can receive it
+    int lower, higher;
+    getHighestAndLowestNeighbor(d, higher, lower);
+    if (lower != MPI_PROC_NULL) {
+      recvbufferFromDown.resize(numElements);
+    } else {
+      recvbufferFromDown.resize(0);
+    }
+    if (higher != MPI_PROC_NULL) {
+      recvbufferFromUp.resize(numElements);
+    } else {
+      recvbufferFromUp.resize(0);
+    }
+
+#ifdef DEBUG_OUTPUT
+    auto comm = this->getCommunicator();
+    auto commSize = this->getCommunicatorSize();
+    auto rank = this->getRank();
+    MPI_Barrier(comm);
+
+    for (int r = 0; r < commSize; ++r) {
+      if (r == rank) {
+        std::cout << "rank " << r << " recvup " << recvbufferFromUp << "  " << higher
+                  << " recvdown " << recvbufferFromDown << "  " << lower << std::endl;
+      }
+      MPI_Barrier(comm);
+    }
+#endif // def DEBUG_OUTPUT
+
+    // TODO asynchronous??
+    // send lower boundary values
+    auto success =
+        MPI_Sendrecv(this->getData(), 1, downSubarrays[d], higher, TRANSFER_GHOST_LAYER_TAG,
+                     recvbufferFromDown.data(), static_cast<int>(recvbufferFromDown.size()),
+                     this->getMPIDatatype(), lower, TRANSFER_GHOST_LAYER_TAG,
+                     this->getCommunicator(), MPI_STATUS_IGNORE);
+    assert(success == MPI_SUCCESS);
+    // send upper boundary values
+    success = MPI_Sendrecv(this->getData(), 1, upSubarrays[d], lower, TRANSFER_GHOST_LAYER_TAG,
+                           recvbufferFromUp.data(), static_cast<int>(recvbufferFromUp.size()),
+                           this->getMPIDatatype(), higher, TRANSFER_GHOST_LAYER_TAG,
+                           this->getCommunicator(), MPI_STATUS_IGNORE);
+
+    assert(success == MPI_SUCCESS);
+  }
+
   // non-RVO dependent version of ghost layer exchange
-  void exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents, std::vector<FG_ELEMENT>& recvbuffer) {
+  void exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents,
+                                std::vector<FG_ELEMENT>& recvbuffer) {
     subarrayExtents = this->getLocalSizes();
     subarrayExtents[d] = 1;
 
@@ -1866,11 +2098,11 @@ class DistributedFullGrid {
 
     // somehow the cartesian directions in the communicator are reversed
     // cf InitMPI(...)
-    auto d_reverse = this->getDimension() - d - 1;
+    DimType d_reverse = this->getDimension() - d - 1;
     if (!reverseOrderingDFGPartitions) {
       d_reverse = d;
     }
-    MPI_Cart_shift( this->getCommunicator(), d_reverse, 1, &lower, &higher );
+    MPI_Cart_shift( this->getCommunicator(), static_cast<int>(d_reverse), 1, &lower, &higher );
 
     // assert that boundaries have no neighbors (remove in case of periodicity)
     if(this->getLowerBounds()[d] == 0){
@@ -1901,6 +2133,166 @@ class DistributedFullGrid {
     std::vector<FG_ELEMENT> recvbuffer{};
     exchangeGhostLayerUpward(d, subarrayExtents, recvbuffer);
     return recvbuffer;
+  }
+
+  void averageBoundaryValues(DimType d) {
+    std::vector<FG_ELEMENT> recvbufferFromUp, recvbufferFromDown;
+    // exchanges just like in the ghost layer exchange, but across boundary
+    exchangeBoundaryLayers(d, recvbufferFromUp, recvbufferFromDown);
+    MPI_Barrier(this->getCommunicator());
+    // get MPI datatypes
+    auto downSubarrays = getDownwardSubarrays();
+    auto upSubarrays = getUpwardSubarrays();
+
+    // if both lower and higher are set, it's only me and I can just average
+    // not strictly necessary but good to test the iterators
+    if (recvbufferFromUp.size() > 0 && recvbufferFromDown.size() > 0) {
+      SubarrayIterator downIt(downSubarrays[d], this);
+      SubarrayIterator upIt(upSubarrays[d], this);
+      assert(downIt.size() == upIt.size());
+#ifndef NDEBUG
+      auto initialIndexDiff = upIt.getIndex() - downIt.getIndex();
+      auto initialUpIndex = upIt.getIndex();
+      int ctr = 0;
+#endif  // ndef NDEBUG
+      while (!downIt.isAtEnd()) {
+        assert(initialIndexDiff == upIt.getIndex() - downIt.getIndex());
+        assert(upIt.getIndex() >= initialUpIndex);
+        auto avg = 0.5 * ((*upIt) + (*downIt));
+        *upIt = avg;
+        *downIt = avg;
+        ++downIt;
+        ++upIt;
+        assert(++ctr);
+      }
+      assert(upIt.isAtEnd());
+      assert(ctr == upIt.size());
+    } else if (recvbufferFromUp.size() > 0) {
+      SubarrayIterator downIt(downSubarrays[d], this);
+      auto upIt = recvbufferFromUp.begin();
+      while (!downIt.isAtEnd()) {
+        auto avg = 0.5 * ((*upIt) + (*downIt));
+        *downIt = avg;
+        ++downIt;
+        ++upIt;
+      }
+      assert(upIt == recvbufferFromUp.end());
+    } else if (recvbufferFromDown.size() > 0) {
+      SubarrayIterator upIt(upSubarrays[d], this);
+      auto downIt = recvbufferFromDown.begin();
+      while (!upIt.isAtEnd()) {
+        auto avg = 0.5 * ((*upIt) + (*downIt));
+        *upIt = avg;
+        ++downIt;
+        ++upIt;
+      }
+      assert(downIt == recvbufferFromDown.end());
+    }
+  }
+
+  void averageBoundaryValues() {
+    for (DimType d = 0; d < this->getDimension(); ++d) {
+      if (this->hasBoundaryPoints_[d]) {
+        this->averageBoundaryValues(d);
+      }
+    }
+  }
+
+
+  /**
+   * @brief check if given globalLinearIndex is on the boundary of this DistributedFullGrid
+   */
+  std::vector<bool> isGlobalLinearIndexOnBoundary(IndexType globalLinearIndex) const {
+    // this could likely be done way more efficiently, but it's
+    // currently not in any performance critical spot
+    std::vector<bool> isOnBoundary(this->getDimension(), false);
+
+    // convert to global vector index
+    IndexVector globalAxisIndex(dim_);
+    getGlobalVectorIndex(globalLinearIndex, globalAxisIndex);
+    for (DimType d = 0; d < this->getDimension(); ++d) {
+      if (this->returnBoundaryFlags()[d]) {
+        if (globalAxisIndex[d] == 0 || globalAxisIndex[d] == this->length(d) - 1) {
+          isOnBoundary[d] = true;
+        }
+      }
+    }
+    return isOnBoundary;
+  }
+
+  /**
+   * @brief check if given localLinearIndex is on the boundary of this DistributedFullGrid
+   */
+  std::vector<bool> isLocalLinearIndexOnBoundary(IndexType localLinearIndex) const {
+    return isGlobalLinearIndexOnBoundary(getGlobalLinearIndex(localLinearIndex));
+  }
+
+  /**
+   * @brief recursive helper function for getCornersGlobal*Indices
+   *        (otherwise, it can't be dimension-independent)
+   *
+   */
+  std::vector<IndexVector> getCornersGlobalVectorIndicesRecursive(
+      std::vector<IndexVector> indicesSoFar, DimType dim) const {
+    if (dim < this->getDimension()) {
+      std::vector<IndexVector> newIndicesSoFar{};
+      for (const auto& indexVec : indicesSoFar) {
+        newIndicesSoFar.push_back(indexVec);
+        newIndicesSoFar.back().push_back(0);
+        newIndicesSoFar.push_back(indexVec);
+        newIndicesSoFar.back().push_back(this->length(dim) - 1);
+      }
+      assert(newIndicesSoFar.size() == 2*indicesSoFar.size());
+      return getCornersGlobalVectorIndicesRecursive(newIndicesSoFar, dim + 1);
+    } else {
+      return indicesSoFar;
+    }
+  }
+
+  /**
+   * @brief get a vector containing the global vector indices of the 2^d corners of this dfg
+   *
+   */
+  std::vector<IndexVector> getCornersGlobalVectorIndices() const {
+    auto emptyVectorInVector = std::vector<IndexVector>(1);
+    assert(emptyVectorInVector.size() == 1);
+    assert(emptyVectorInVector[0].size() == 0);
+    std::vector<IndexVector> cornersVectors =
+        getCornersGlobalVectorIndicesRecursive(emptyVectorInVector, 0);
+    assert(cornersVectors.size() == static_cast<size_t>(powerOfTwo[this->getDimension()]));
+    return cornersVectors;
+  }
+
+  /**
+   * @brief get a vector containing the global linear indices of the 2^d corners of this dfg
+   *
+   */
+  std::vector<IndexType> getCornersGlobalLinearIndices() const {
+    std::vector<IndexVector> cornersVectors = getCornersGlobalVectorIndices();
+    std::vector<IndexType> corners;
+    for (const auto& corner : cornersVectors) {
+      corners.push_back(this->getGlobalLinearIndex(corner));
+    }
+    assert(corners.size() == powerOfTwo[this->getDimension()]);
+    return corners;
+  }
+
+  std::vector<FG_ELEMENT> getCornersValues() const {
+    std::vector<FG_ELEMENT> values(powerOfTwo[this->getDimension()]);
+    auto corners = getCornersGlobalVectorIndices();
+    for (size_t cornerNo = 0; cornerNo < corners.size(); ++cornerNo) {
+      if (this->isGlobalIndexHere(corners[cornerNo])) {
+        // convert to local vector index, then to linear index
+        IndexVector locAxisIndex(this->getDimension());
+        bool present = getLocalVectorIndex(corners[cornerNo], locAxisIndex);
+        assert(present);
+        auto index = getLocalLinearIndex(locAxisIndex);
+        values[cornerNo] = this->getElementVector()[index];
+      }
+    }
+    MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(values.size()),
+                  this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
+    return values;
   }
 
  private:
@@ -2024,7 +2416,7 @@ class DistributedFullGrid {
     {
       partitionCoords_.resize(this->getCommunicatorSize());
       // fill partition coords vector, only once
-      for (size_t i = 0; i < this->getCommunicatorSize(); ++i) {
+      for (int i = 0; i < this->getCommunicatorSize(); ++i) {
         std::vector<int> tmp(dim_);
         MPI_Cart_coords(communicator_, i, static_cast<int>(dim_), &tmp[0]);
 

@@ -180,15 +180,22 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   auto onenorm = dfg.getLpNorm(1);
   auto twonorm = dfg.getLpNorm(2);
   if (std::all_of(boundary.begin(), boundary.end(), [](bool i){return i;})){
+    // check that InnerNodalBasisFunctionIntegral is correct
+    double numFullInnerBasisFcns = 1.;
+    for (DimType d = 0; d < dim; ++d) {
+      numFullInnerBasisFcns *= static_cast<double>(dfg.length(d) - 1);
+    }
+    BOOST_CHECK_CLOSE(dfg.getInnerNodalBasisFunctionIntegral(), 1./numFullInnerBasisFcns, TestHelper::tolerance);
+
     std::vector<double> maxcoords(dim, 1.);
     BOOST_CHECK_EQUAL(f(maxcoords), maxnorm);
+    // solution is a hyperplane, so the L1 norm is equal to the value in the middle
+    std::vector<double> middlecoords(dim, 0.5);
+    BOOST_CHECK_CLOSE(std::abs(f(middlecoords)), onenorm, TestHelper::tolerance);
   }
-  // solution is a hyperplane, so the sum is equal to the value in the middle times the number of points
-  std::vector<double> middlecoords(dim, 0.5);
-  BOOST_CHECK_EQUAL(f(middlecoords)*static_cast<double>(dfg.getNrElements()), onenorm);
   // lazy for the two-norm, just check boundedness relations:
   BOOST_CHECK(twonorm <= onenorm);
-  BOOST_CHECK(onenorm <= std::sqrt(dfg.getNrElements())*twonorm);
+  BOOST_CHECK(onenorm <= maxnorm);
 
   // test ghost layer exchange
   IndexVector subarrayExtents;
@@ -239,6 +246,31 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   // ss << "test_dfg_" << levels << procs << boundary << forward << ".vtk";
   // dfg.writePlotFileVTK(ss.str().c_str());
 
+
+  // create distributed fg and copy values
+  DistributedFullGrid<std::complex<double>> dfgCopy(
+      dim, dfg.getLevels(), dfg.getCommunicator(), dfg.returnBoundaryFlags(),
+      dfg.getParallelization(), true, dfg.getDecomposition());
+  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+    dfgCopy.getData()[li] = dfg.getData()[li];
+  }
+  BOOST_TEST_CHECKPOINT("copied to dfgCopy");
+
+  auto formerCorners = dfg.getCornersValues();
+  auto formerBoundaryAvgValue =
+      std::accumulate(formerCorners.begin(), formerCorners.end(),
+                      static_cast<std::complex<double>>(0.), std::plus<std::complex<double>>()) /
+      static_cast<double>(formerCorners.size());
+  // test averageBoundaryValues
+  dfgCopy.averageBoundaryValues();
+  if (std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; })) {
+    // assert that all the corners values are the same now
+    auto cornersValues = dfgCopy.getCornersValues();
+    for (const auto& cornerValue : cornersValues) {
+      BOOST_TEST(cornerValue == formerBoundaryAvgValue);
+    }
+  }
+
   // test lower to upper exchange
   for (DimType d = 0; d < dim; ++d) {
     // std::cout << dfg << std::endl;
@@ -260,7 +292,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
           if (!edge){
             // check if the value is the same as on the lower boundary
             auto compareCoords = coords;
-            compareCoords[d] = 0;
+            compareCoords[d] = 0.;
             BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(compareCoords));
           }
         } else {
@@ -287,9 +319,16 @@ BOOST_AUTO_TEST_SUITE(distributedfullgrid, *boost::unit_test::timeout(60))
 // with boundary
 // isotropic
 
-BOOST_AUTO_TEST_CASE(test_minus2) {
+BOOST_AUTO_TEST_CASE(test_minus3) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {1, 2};
+  IndexVector procs = {1, 1};
+  std::vector<bool> boundary(2, true);
+  checkDistributedFullgrid(levels, procs, boundary, 1);
+}
+BOOST_AUTO_TEST_CASE(test_minus2) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {2, 3};
   IndexVector procs = {1, 1};
   std::vector<bool> boundary(2, true);
   checkDistributedFullgrid(levels, procs, boundary, 1);
