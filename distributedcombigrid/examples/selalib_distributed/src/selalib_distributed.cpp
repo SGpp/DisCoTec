@@ -213,7 +213,7 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.lmin") >> lmin;  // minimal level vector for each grid
     cfg.get<std::string>("ct.lmax") >> lmax;  // maximum level vector -> level vector of target grid
     cfg.get<std::string>("ct.leval") >> leval;    // level vector of final output
-    cfg.get<std::string>("ct.leval2") >> leval2;  // level vector of second final output
+    // cfg.get<std::string>("ct.leval2") >> leval2;  // level vector of second final output
     cfg.get<std::string>("ct.reduceCombinationDimsLmin") >> reduceCombinationDimsLmin;
     cfg.get<std::string>("ct.reduceCombinationDimsLmax") >> reduceCombinationDimsLmax;
     cfg.get<std::string>("ct.p") >> p;  // parallelization of domain (how many procs per dimension)
@@ -232,8 +232,6 @@ int main(int argc, char** argv) {
     std::string fg_file_path2 = cfg.get<std::string>("ct.fg_file_path2");
 
     cfg.get<std::string>("ct.lmin") >> lmin;
-
-    size_t veryHighNumber = 2147483647; // =2^31-1
 
     // check parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
@@ -275,8 +273,12 @@ int main(int argc, char** argv) {
       // change the restart parameter in all existing parameter files in the folders to true
       setCheckpointRestart(basename, levels);
     } else {
+      // using a very high diagnostics interval -> write no diagnostics in the component grids
+      size_t veryHighNumber = 2147483647; // =2^31-1
+      size_t sometimes = 100;
+      size_t always = 1;
       // create necessary folders and files to run each task in a separate folder
-      createTaskFolders(basename, levels, p, nsteps, dt, veryHighNumber);
+      createTaskFolders(basename, levels, p, nsteps, dt, always);
     }
 
     // create Tasks
@@ -302,7 +304,7 @@ int main(int argc, char** argv) {
         setCheckpointRestart(basename, std::vector<LevelVector>(1, leval), "_leval_");
       } else {
         // create necessary folder and files to have diagnostics task in a different folder
-        createTaskFolders(basename, std::vector<LevelVector>(1, leval), p, nsteps, dt, 1, "_leval_");
+        createTaskFolders(basename + "_leval_", std::vector<LevelVector>(1, leval), p, nsteps, dt, 1);
       }
       std::string path = baseFolder + "_leval_0";
       auto levalCoefficient = 0.;

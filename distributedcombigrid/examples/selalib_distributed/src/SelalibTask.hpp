@@ -90,6 +90,7 @@ class SelalibTask : public combigrid::Task {
    * lcomm is the local communicator of the process group.
    */
   void run(CommunicatorType lcomm) {
+    currentNumTimeStepsRun_ += nsteps_;
     // only run anything if the coefficient is not 0., i.e. it is not the diagnostics task
     if (coeff_ != 0.){
       changeDir(lcomm);
@@ -101,9 +102,10 @@ class SelalibTask : public combigrid::Task {
       sim_bsl_vp_3d3v_cart_dd_slim_movingB_run(simPtrPtr_);
       Stats::stopEvent("BSL run");
       setDFGfromLocalDistribution();
+      int32_t* iPtr = &currentNumTimeStepsRun_;
+      sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics(simPtrPtr_, iPtr);
       changeDir(lcomm, true);
     }
-    currentNumTimeStepsRun_ += nsteps_;
     setFinished(true);
   }
 
@@ -152,13 +154,13 @@ class SelalibTask : public combigrid::Task {
     changeDir(lcomm, true);
     setDFGfromLocalDistribution();
     initialized_ = true;
-    // only run diagnostics if the coefficient is 0., i.e. it is the diagnostics task
-    if (coeff_ == 0.){
+    // // only run diagnostics if the coefficient is 0., i.e. it is the diagnostics task
+    // if (coeff_ == 0.){
       changeDir(lcomm);
       sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics_init(simPtrPtr_);
       diagnosticsInitialized_ = true;
       changeDir(lcomm, true);
-    }
+    // }
     MASTER_EXCLUSIVE_SECTION{
       // first print task, then synchronize and print other info
       std::cout << "initialized " << *this << std::endl;
@@ -363,6 +365,12 @@ class SelalibTask : public combigrid::Task {
   }
 
   void setLocalDistributionFromDFG() {
+    // for full weighting hierarchization, values may be different between lower and upper boundary,
+    // such that they need to be averaged here before the computation continues
+    for (DimType d = 0; d < dim_; ++d) {
+      dfg_->averageBoundaryValues(d);
+    }
+
     // cf setDFGfromLocalDistribution
     auto& offsets = dfg_->getLocalOffsets();
     auto localDistributionIterator = localDistribution_;
@@ -371,7 +379,6 @@ class SelalibTask : public combigrid::Task {
     size_t bufferSize =
         std::accumulate(localSizeLong.begin(), localSizeLong.end(), 1, std::multiplies<size_t>());
     assert(bufferSize > 0);
-
 
     for (int i = 0; i < localSize_[5]; ++i) {
       auto offset_i = i * offsets[5];
