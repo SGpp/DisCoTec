@@ -255,13 +255,19 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     dfgCopy.getData()[li] = dfg.getData()[li];
   }
   BOOST_TEST_CHECKPOINT("copied to dfgCopy");
+
+  auto formerCorners = dfg.getCornersValues();
+  auto formerBoundaryAvgValue =
+      std::accumulate(formerCorners.begin(), formerCorners.end(),
+                      static_cast<std::complex<double>>(0.), std::plus<std::complex<double>>()) /
+      static_cast<double>(formerCorners.size());
   // test averageBoundaryValues
   dfgCopy.averageBoundaryValues();
   if (std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; })) {
     // assert that all the corners values are the same now
     auto cornersValues = dfgCopy.getCornersValues();
     for (const auto& cornerValue : cornersValues) {
-      BOOST_TEST(cornerValue == cornersValues[0]);
+      BOOST_TEST(cornerValue == formerBoundaryAvgValue);
     }
   }
 
