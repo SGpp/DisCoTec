@@ -207,29 +207,44 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
                           std::vector<bool>& boundary, int size, bool forward = false,
                           bool checkValues = true) {
   CommunicatorType comm = TestHelper::getComm(size);
-  if (comm == MPI_COMM_NULL) return;
+  if (comm != MPI_COMM_NULL) {
+    const DimType dim = levels.size();
+    DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+    // run test with value check
+    checkHierarchization(f, dfg, true);
+  }
+}
 
-  const DimType dim = levels.size();
+template <typename Functor>
+void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>& dfg,
+                          bool checkValues = true) {
+  CommunicatorType comm = dfg.getCommunicator();
+  const DimType dim = dfg.getDimension();
+  auto boundary = dfg.returnBoundaryFlags();
 
-  // create distributed fg and fill with test function
-  DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
-  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-    std::vector<double> coords(dim);
-    dfg.getCoordsLocal(li, coords);
-    dfg.getData()[li] = f(coords);
+  FullGrid<std::complex<double>> fg(dim, dfg.getLevels(), boundary);
+
+  if (checkValues) {
+    // fill distributed fg with test function
+    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      std::vector<double> coords(dim);
+      dfg.getCoordsLocal(li, coords);
+      dfg.getData()[li] = f(coords);
+    }
+
+    // create fg and fill with test function
+    fg.createFullGrid();
+    for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
+      std::vector<double> coords(dim);
+      fg.getCoords(i, coords);
+      fg.getData()[i] = f(coords);
+    }
+
+    // hierarchize fg
+    Hierarchization::hierarchize(fg);
   }
 
-  // create fg and fill with test function
-  FullGrid<std::complex<double>> fg(dim, levels, boundary);
-  fg.createFullGrid();
-  for (size_t i = 0; i < static_cast<size_t>(fg.getNrElements()); ++i) {
-    std::vector<double> coords(dim);
-    fg.getCoords(i, coords);
-    fg.getData()[i] = f(coords);
-  }
-
-  // hierarchize fg and distributed fg
-  Hierarchization::hierarchize(fg);
+  // hierarchize distributed fg
   DistributedHierarchization::hierarchize(dfg);
 
   if (checkValues) {
@@ -246,10 +261,12 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
       BOOST_TEST(dfg.getData()[li] == f(axisIndex),
                  boost::test_tools::tolerance(TestHelper::tolerance));
     }
+
+    // dehiarchize fg
+    Hierarchization::dehierarchize(fg);
   }
 
-  // dehiarchize fg and distributed fg
-  Hierarchization::dehierarchize(fg);
+  // dehierarchize distributed fg
   DistributedHierarchization::dehierarchize(dfg);
 
   if (checkValues) {
@@ -679,16 +696,22 @@ BOOST_AUTO_TEST_CASE(test_42) {
   // large test case with timing
   MPI_Barrier(MPI_COMM_WORLD);
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  LevelVector levels = {11, 11, 4};
-  IndexVector procs = {2,2,2};
-  std::vector<bool> boundary(3, true);
-  TestFn_1 testFn(levels);
-  auto start = std::chrono::high_resolution_clock::now();
-  checkHierarchization(testFn, levels, procs, boundary, 8, true, false);
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  BOOST_TEST_MESSAGE("hierarchization time: " << duration.count() << " milliseconds");
-  // on ipvs-epyc@6cddd9a0b8a4: 5100 milliseconds
+  CommunicatorType comm = TestHelper::getComm(8);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector levels = {11, 11, 4};
+    IndexVector procs = {2, 2, 2};
+    std::vector<bool> boundary(3, true);
+    auto forward = true;
+    TestFn_1 testFn(levels);
+    DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    auto start = std::chrono::high_resolution_clock::now();
+    checkHierarchization(testFn, dfg, false);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("hat hierarchization time: " << duration.count() << " milliseconds");
+  }
+  // on ipvs-epyc2@  : 600 milliseconds w single msgs
+}
 
 BOOST_AUTO_TEST_CASE(test_43) {
   // large test case with timing for full weighting

@@ -491,6 +491,9 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
 
 /**
  * @brief helper function for data exchange, have only one MPI_Isend/Irecv per rank
+ *
+ * @note for small numbers of workers per grid, this seems to be less performant. may be different
+ * for higher numbers.
  */
 template <typename FG_ELEMENT>
 void sendAndReceiveIndicesBlock(std::vector<std::set<IndexType>>& send1dIndices,
