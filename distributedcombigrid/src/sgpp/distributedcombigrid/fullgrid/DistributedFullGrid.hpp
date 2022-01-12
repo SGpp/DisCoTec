@@ -166,17 +166,14 @@ class DistributedFullGrid {
       MPI_Datatype tmp;
       auto dim = dfgPointer_->getDimension();
       std::vector<int> MPITypeIntegers(3 * dim + 2);
-      auto success = MPI_Type_get_contents(subarrayType, MPITypeIntegers.size(), 0, 1,
-                                           MPITypeIntegers.data(), nullptr, &tmp);
+      auto success = MPI_Type_get_contents(subarrayType, static_cast<int>(MPITypeIntegers.size()),
+                                           0, 1, MPITypeIntegers.data(), nullptr, &tmp);
       assert(success == MPI_SUCCESS);
       auto sizes = std::vector<int>(MPITypeIntegers.begin() + 1, MPITypeIntegers.begin() + dim + 1);
-      std::reverse(sizes.begin(), sizes.end());
       subsizes_ = std::vector<int>(MPITypeIntegers.begin() + dim + 1,
                                    MPITypeIntegers.begin() + 2 * dim + 1);
-      std::reverse(subsizes_.begin(), subsizes_.end());
       starts_ = std::vector<int>(MPITypeIntegers.begin() + 2 * dim + 1,
                                  MPITypeIntegers.begin() + 3 * dim + 1);
-      std::reverse(starts_.begin(), starts_.end());
       currentLocalIndex_ = starts_;
 
       // check datatype
@@ -191,7 +188,7 @@ class DistributedFullGrid {
       assert(std::accumulate(sizes.begin(), sizes.end(), 1,
                                        std::multiplies<int>()) == dfgPointer_->getNrLocalElements());
       // check order
-      assert(MPITypeIntegers.back() == MPI_ORDER_C);
+      assert(MPITypeIntegers.back() == MPI_ORDER_FORTRAN);
       assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
     }
     // cheap rule of 5
@@ -389,7 +386,7 @@ class DistributedFullGrid {
     IndexVector localIndexLowerNonzeroNeighborPoint (dim_);
     for (DimType d = 0 ; d < dim_ ; ++d){
       assert(coords[d] >= 0. && coords[d] <= 1.);
-      localIndexLowerNonzeroNeighborPoint[d] = std::floor((coords[d] - lowerCoords[d]) / h[d]);
+      localIndexLowerNonzeroNeighborPoint[d] = static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
     }
     // std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
 
@@ -1033,9 +1030,9 @@ class DistributedFullGrid {
         // to comply with an ordering that mpi understands, we have to reverse
         // our index vectors
         // also we have to use int as datatype
-        std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-        std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-        std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        std::vector<int> csizes(sizes.begin(), sizes.end());
+        std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+        std::vector<int> cstarts(starts.begin(), starts.end());
         // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
         //   csizes.assign(sizes.begin(), sizes.end());
         //   csubsizes.assign(subsizes.begin(), subsizes.end());
@@ -1045,7 +1042,7 @@ class DistributedFullGrid {
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), &csizes[0], &csubsizes[0],
-                                 &cstarts[0], MPI_ORDER_C, this->getMPIDatatype(), &mysubarray);
+                                 &cstarts[0], MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
         MPI_Type_commit(&mysubarray);
         subarrayTypes.push_back(mysubarray);
 
@@ -1758,14 +1755,14 @@ class DistributedFullGrid {
     // to comply with an ordering that mpi understands, we have to reverse
     // our index vectors
     // also we have to use int as datatype
-    std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-    std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-    std::vector<int> cstarts(starts.rbegin(), starts.rend());
+    std::vector<int> csizes(sizes.begin(), sizes.end());
+    std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+    std::vector<int> cstarts(starts.begin(), starts.end());
 
     // create subarray view on data
     MPI_Datatype mysubarray;
     MPI_Type_create_subarray(static_cast<int>(getDimension()), &csizes[0], &csubsizes[0],
-                             &cstarts[0], MPI_ORDER_C, getMPIDatatype(), &mysubarray);
+                             &cstarts[0], MPI_ORDER_FORTRAN, getMPIDatatype(), &mysubarray);
     MPI_Type_commit(&mysubarray);
 
     // open file
@@ -1835,14 +1832,14 @@ class DistributedFullGrid {
     // to comply with an ordering that mpi understands, we have to reverse
     // our index vectors
     // also we have to use int as datatype
-    std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-    std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-    std::vector<int> cstarts(starts.rbegin(), starts.rend());
+    std::vector<int> csizes(sizes.begin(), sizes.end());
+    std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+    std::vector<int> cstarts(starts.begin(), starts.end());
 
     // create subarray view on data
     MPI_Datatype mysubarray;
     MPI_Type_create_subarray(static_cast<int>(getDimension()), &csizes[0], &csubsizes[0],
-                             &cstarts[0], MPI_ORDER_C, getMPIDatatype(), &mysubarray);
+                             &cstarts[0], MPI_ORDER_FORTRAN, getMPIDatatype(), &mysubarray);
     MPI_Type_commit(&mysubarray);
 
     // open file
@@ -1920,15 +1917,15 @@ class DistributedFullGrid {
 
         // create MPI datatype
         // also, the data dimensions are reversed
-        std::vector<int> sizes(this->getLocalSizes().rbegin(), this->getLocalSizes().rend());
-        std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
+        std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+        std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
         // the starts are local indices
-        std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
+        std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
 
         // create subarray view on data //todo do this only once per dimension
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
-                                subsizes.data(), starts.data(), MPI_ORDER_C, this->getMPIDatatype(),
+                                subsizes.data(), starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(),
                                 &mysubarray);
         MPI_Type_commit(&mysubarray);
         upwardSubarrays_[d] = mysubarray;
@@ -1954,15 +1951,15 @@ class DistributedFullGrid {
 
         // create MPI datatype
         // also, the data dimensions are reversed
-        std::vector<int> sizes(this->getLocalSizes().rbegin(), this->getLocalSizes().rend());
-        std::vector<int> subsizes(subarrayExtents.rbegin(), subarrayExtents.rend());
+        std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+        std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
         // the starts are local indices
-        std::vector<int> starts(subarrayStarts.rbegin(), subarrayStarts.rend());
+        std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
 
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
-                                subsizes.data(), starts.data(), MPI_ORDER_C, this->getMPIDatatype(),
+                                subsizes.data(), starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(),
                                 &mysubarray);
         MPI_Type_commit(&mysubarray);
         downwardSubarrays_[d] = mysubarray;
@@ -1984,7 +1981,8 @@ class DistributedFullGrid {
       d_reverse = d;
     }
 
-    MPI_Cart_shift( this->getCommunicator(), d_reverse, getParallelization()[d] -1 , &lowest, &highest );
+    MPI_Cart_shift(this->getCommunicator(), static_cast<int>(d_reverse),
+                   static_cast<int>(getParallelization()[d] - 1), &lowest, &highest);
 
     // assert only boundaries have those neighbors (remove in case of periodicity)
     // this assumes no periodicity!
@@ -2010,7 +2008,7 @@ class DistributedFullGrid {
 
     auto success =
         MPI_Sendrecv(this->getData(), 1, upSubarrays[d], lower, TRANSFER_GHOST_LAYER_TAG,
-                     this->getData(), 1, downSubarrays[d], higher, 
+                     this->getData(), 1, downSubarrays[d], higher,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
     }
 
@@ -2080,19 +2078,22 @@ class DistributedFullGrid {
     // send lower boundary values
     auto success =
         MPI_Sendrecv(this->getData(), 1, downSubarrays[d], higher, TRANSFER_GHOST_LAYER_TAG,
-                     recvbufferFromDown.data(), recvbufferFromDown.size(), this->getMPIDatatype(), lower,
-                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+                     recvbufferFromDown.data(), static_cast<int>(recvbufferFromDown.size()),
+                     this->getMPIDatatype(), lower, TRANSFER_GHOST_LAYER_TAG,
+                     this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
     // send upper boundary values
     success = MPI_Sendrecv(this->getData(), 1, upSubarrays[d], lower, TRANSFER_GHOST_LAYER_TAG,
-                           recvbufferFromUp.data(), recvbufferFromUp.size(), this->getMPIDatatype(), higher,
-                           TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+                           recvbufferFromUp.data(), static_cast<int>(recvbufferFromUp.size()),
+                           this->getMPIDatatype(), higher, TRANSFER_GHOST_LAYER_TAG,
+                           this->getCommunicator(), MPI_STATUS_IGNORE);
 
     assert(success == MPI_SUCCESS);
   }
 
   // non-RVO dependent version of ghost layer exchange
-  void exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents, std::vector<FG_ELEMENT>& recvbuffer) {
+  void exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents,
+                                std::vector<FG_ELEMENT>& recvbuffer) {
     subarrayExtents = this->getLocalSizes();
     subarrayExtents[d] = 1;
 
@@ -2106,11 +2107,11 @@ class DistributedFullGrid {
 
     // somehow the cartesian directions in the communicator are reversed
     // cf InitMPI(...)
-    auto d_reverse = this->getDimension() - d - 1;
+    DimType d_reverse = this->getDimension() - d - 1;
     if (!reverseOrderingDFGPartitions) {
       d_reverse = d;
     }
-    MPI_Cart_shift( this->getCommunicator(), d_reverse, 1, &lower, &higher );
+    MPI_Cart_shift( this->getCommunicator(), static_cast<int>(d_reverse), 1, &lower, &higher );
 
     // assert that boundaries have no neighbors (remove in case of periodicity)
     if(this->getLowerBounds()[d] == 0){
@@ -2267,7 +2268,7 @@ class DistributedFullGrid {
     assert(emptyVectorInVector[0].size() == 0);
     std::vector<IndexVector> cornersVectors =
         getCornersGlobalVectorIndicesRecursive(emptyVectorInVector, 0);
-    assert(cornersVectors.size() == powerOfTwo[this->getDimension()]);
+    assert(cornersVectors.size() == static_cast<size_t>(powerOfTwo[this->getDimension()]));
     return cornersVectors;
   }
 
@@ -2298,8 +2299,8 @@ class DistributedFullGrid {
         values[cornerNo] = this->getElementVector()[index];
       }
     }
-    MPI_Allreduce(MPI_IN_PLACE, values.data(), values.size(), this->getMPIDatatype(), MPI_SUM,
-                  this->getCommunicator());
+    MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(values.size()),
+                  this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
     return values;
   }
 
@@ -2424,7 +2425,7 @@ class DistributedFullGrid {
     {
       partitionCoords_.resize(this->getCommunicatorSize());
       // fill partition coords vector, only once
-      for (size_t i = 0; i < this->getCommunicatorSize(); ++i) {
+      for (int i = 0; i < this->getCommunicatorSize(); ++i) {
         std::vector<int> tmp(dim_);
         MPI_Cart_coords(communicator_, i, static_cast<int>(dim_), &tmp[0]);
 

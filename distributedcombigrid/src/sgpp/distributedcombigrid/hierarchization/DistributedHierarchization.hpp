@@ -376,13 +376,13 @@ void sendAndReceiveIndices(std::vector<std::set<IndexType>>& send1dIndices,
         // note that if we want MPI to use c ordering, for less confusion as we
         // actually store our data in c format, we have to reverse all size and index
         // vectors
-        std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-        std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-        std::vector<int> cstarts(starts.rbegin(), starts.rend());
+        std::vector<int> csizes(sizes.begin(), sizes.end());
+        std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+        std::vector<int> cstarts(starts.begin(), starts.end());
 
         // create subarray view on data
         MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &csizes[0], &csubsizes[0],
-                                 &cstarts[0], MPI_ORDER_C, dfg.getMPIDatatype(), &mysubarray);
+                                 &cstarts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
         MPI_Type_commit(&mysubarray);
       }
 
@@ -562,13 +562,13 @@ void sendAndReceiveIndicesBlock(std::vector<std::set<IndexType>>& send1dIndices,
     // note that if we want MPI to use c ordering, for less confusion as we
     // actually store our data in c format, we have to reverse all size and index
     // vectors
-    std::vector<int> csizes(sizes.rbegin(), sizes.rend());
-    std::vector<int> csubsizes(subsizes.rbegin(), subsizes.rend());
-    std::vector<int> cstarts(starts.rbegin(), starts.rend());
+    std::vector<int> csizes(sizes.begin(), sizes.end());
+    std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
+    std::vector<int> cstarts(starts.begin(), starts.end());
 
     // create subarray view on data
     MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &csizes[0], &csubsizes[0],
-                             &cstarts[0], MPI_ORDER_C, dfg.getMPIDatatype(), &mysubarray);
+                             &cstarts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
     MPI_Type_commit(&mysubarray);
   }
 
@@ -619,7 +619,7 @@ void sendAndReceiveIndicesBlock(std::vector<std::set<IndexType>>& send1dIndices,
         // MPI_Type_size(mysubarrayBlock, &mpiDSize);
         // print info: dest, size, index
         std::cout << "rank " << rank << ": send gindex " << *(indices.begin()) << " + " << displacements << " dest " << dest
-                  // << " data " << *(dfg.getData()) << " " << *(dfg.getData()+1) 
+                  // << " data " << *(dfg.getData()) << " " << *(dfg.getData()+1)
                   // << " full data " << dfg.getElementVector()
                   << " size " << mpiDSize
                   << std::endl;
@@ -684,7 +684,7 @@ void sendAndReceiveIndicesBlock(std::vector<std::set<IndexType>>& send1dIndices,
           MPI_Type_size(myHBlock, &mpiDSize);
           // print info: dest, size, index
           std::cout << "rank " << rank << ": recv gindex " << *(indices.begin()) << " src " << src
-                    << " size: " << bsize << "*" << indices.size() 
+                    << " size: " << bsize << "*" << indices.size()
                     << " size " << mpiDSize
                     << std::endl;
 #endif
@@ -738,6 +738,7 @@ static void exchangeAllData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
   }
 
   sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+  // sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
 // exchange data in dimension dim
@@ -905,6 +906,7 @@ static void exchangeData1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     }
   }
   sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+  // sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
 
@@ -1028,6 +1030,7 @@ static void exchangeData1dDehierarchization(
   }
 
   sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+  // sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
 template <typename FG_ELEMENT>
