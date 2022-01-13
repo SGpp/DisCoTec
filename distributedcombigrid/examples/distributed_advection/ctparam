@@ -1,0 +1,16 @@
+[ct]
+dim = 2
+lmin = 3 3
+lmax = 10 10
+leval = 10 10
+p = 1 1
+ncombi = 10
+
+[application]
+dt = 1e-3
+nsteps = 1
+mcerror = 0
+
+[manager]
+ngroup = 2
+nprocs = 1
