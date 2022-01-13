@@ -365,11 +365,6 @@ class SelalibTask : public combigrid::Task {
   }
 
   void setLocalDistributionFromDFG() {
-    // for full weighting hierarchization, values may be different between lower and upper boundary,
-    // such that they need to be averaged here before the computation continues
-    for (DimType d = 0; d < dim_; ++d) {
-      dfg_->averageBoundaryValues(d);
-    }
 
     // cf setDFGfromLocalDistribution
     auto& offsets = dfg_->getLocalOffsets();
