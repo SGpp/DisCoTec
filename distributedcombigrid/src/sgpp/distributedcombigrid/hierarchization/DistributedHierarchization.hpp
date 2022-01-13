@@ -1422,7 +1422,7 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, bool periodic = false>
 inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
                                              int stride, LevelType lmin) {
   assert(lmin == 0);
@@ -1432,6 +1432,12 @@ inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, i
   int offset = 1;  // 1 and not 0 because boundary
   int stepsize = 2;
   int parentOffset = 1;
+
+  if (periodic) {
+    int idxmax = powerOfTwo[lmaxi];
+    data[0] = 0.5 * (data[idxmax] + data[0]);
+    data[idxmax] = data[0];
+  }
 
   for (ll--; ll > -1; ll--) {
     int parOffsetStrided = parentOffset * stride;
@@ -1468,7 +1474,7 @@ inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, i
  * @param stride (unused)
  * @param lmin minimum level (if > 0, hierarchization is not performed all the way down)
  */
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, bool periodic = false>
 inline void hierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
                                                             int start, int stride,
                                                             LevelType lmin) {
@@ -1481,8 +1487,14 @@ inline void hierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelT
   for (LevelType ldiff = 0; ldiff < lmax-lmin; ++ldiff) {
     int step_width = powerOfTwo[ldiff];
     // update f at even indices
-    data[0] = 0.5 * (data[0] + data[step_width]);
-    data[idxmax] = 0.5 * (data[idxmax] + data[idxmax - step_width]);
+    if (periodic) {
+      // values at 0 and idxmax will be the same
+      data[0] = 0.25 * (data[0] + data[idxmax] + data[step_width] + data[idxmax - step_width]);
+      data[idxmax] = data[0];
+    } else {
+      data[0] = 0.5 * (data[0] + data[step_width]);
+      data[idxmax] = 0.5 * (data[idxmax] + data[idxmax - step_width]);
+    }
     //todo iterate only "our" part
     for (int i = 2*step_width; i < idxmax; i += 2*step_width) {
       // todo reformulate more cache-efficient
@@ -1510,7 +1522,7 @@ inline void hierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelT
  * @param stride (unused)
  * @param lmin minimum level (if > 0, hierarchization is not performed all the way down)
  */
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, bool periodic = false>
 inline void hierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
                                              int stride, LevelType lmin) {
 
@@ -1536,8 +1548,15 @@ inline void hierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTyp
       data[i] = -0.5 * (data[i-step_width] + data[i+step_width]) + data[i];
     }
     // update f at even indices
-    data[0] = data[0] + 0.5 * data[step_width];
-    data[idxmax] = data[idxmax] + 0.5 * data[idxmax - step_width];
+    if (periodic) {
+      // values at 0 and idxmax will be the same
+      data[0] = 0.5 * (data[0] + data[idxmax]) + 0.25 * (data[step_width] + data[idxmax - step_width]);
+      data[idxmax] = data[0];
+    } else {
+      // mass will build up at the boundary; corresponds to 0-neumann-condition
+      data[0] = data[0] + 0.5 * data[step_width];
+      data[idxmax] = data[idxmax] + 0.5 * data[idxmax - step_width];
+    }
     //todo iterate only "our" part
     for (int i = 2*step_width; i < idxmax; i += 2*step_width) {
       // todo reformulate more cache-efficient
@@ -1546,7 +1565,7 @@ inline void hierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTyp
   }
 }
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, bool periodic = false>
 inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
                                                int stride, LevelType lmin) {
   assert(lmin == 0);
@@ -1578,36 +1597,41 @@ inline void dehierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
   return;
 }
 
-template <typename FG_ELEMENT>
-inline void dehierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                             int stride, LevelType lmin) {
+template <typename FG_ELEMENT, bool periodic = false>
+inline void dehierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
+                                                          int start, int stride, LevelType lmin) {
   const int lmaxi = static_cast<int>(lmax);
   int idxmax = powerOfTwo[lmaxi];
   // auto length = idxmax + 1;
 
-  for (LevelType ldiff = lmax-lmin-1; ldiff >= 0; --ldiff) {
+  for (LevelType ldiff = lmax - lmin - 1; ldiff >= 0; --ldiff) {
     int step_width = powerOfTwo[ldiff];
     // update alpha / hierarchical surplus at odd indices
-    for (int i = step_width; i < idxmax; i += 2*step_width) {
+    for (int i = step_width; i < idxmax; i += 2 * step_width) {
       // todo reformulate more cache-efficient
-      data[i] = 0.5 * (data[i-step_width] + data[i+step_width]) + data[i];
+      data[i] = 0.5 * (data[i - step_width] + data[i + step_width]) + data[i];
     }
     // update f at even indices
-    for (int i = 2*step_width; i < idxmax; i += 2*step_width) {
+    for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
       // todo reformulate more cache-efficient
-      data[i] = -0.5 * (data[i-step_width] + data[i+step_width]) + 2.*data[i];
+      data[i] = -0.5 * (data[i - step_width] + data[i + step_width]) + 2. * data[i];
     }
-    data[0] = 2.*data[0] - data[step_width];
-    data[idxmax] = 2.*data[idxmax] - data[idxmax - step_width];
+    if (periodic) {
+      // values at 0 and idxmax will be the same
+      data[0] = (data[0] + data[idxmax]) - 0.5 * (data[step_width] + data[idxmax - step_width]);
+      data[idxmax] = data[0];
+    } else {
+      data[0] = 2. * data[0] - data[step_width];
+      data[idxmax] = 2. * data[idxmax] - data[idxmax - step_width];
+    }
   }
 
   return;
 }
 
-template <typename FG_ELEMENT>
-inline void dehierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
-                                                           int start, int stride,
-                                                           LevelType lmin) {
+template <typename FG_ELEMENT, bool periodic = false>
+inline void dehierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
+                                                        int stride, LevelType lmin) {
   assert(start == 0);
   assert(stride == 1);
   const int lmaxi = static_cast<int>(lmax);
@@ -1626,8 +1650,14 @@ inline void dehierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelT
   for (LevelType ldiff = lmax - lmin - 1; ldiff >= 0; --ldiff) {
     int step_width = powerOfTwo[ldiff];
     // update f at even indices
-    data[0] = data[0] - 0.5*data[step_width];
-    data[idxmax] = data[idxmax] - 0.5*data[idxmax - step_width];
+    if (periodic) {
+      data[0] =
+          -0.25 * (data[step_width] + data[idxmax - step_width]) + 0.5 * (data[0] + data[idxmax]);
+      data[idxmax] = data[0];
+    } else {
+      data[0] = data[0] - 0.5 * data[step_width];
+      data[idxmax] = data[idxmax] - 0.5 * data[idxmax - step_width];
+    }
     for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
       // todo reformulate more cache-efficient
       data[i] = -0.25 * (data[i - step_width] + data[i + step_width]) + data[i];
@@ -2186,9 +2216,19 @@ class DistributedHierarchization {
       &hierarchize<FG_ELEMENT, hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT>>;
 
   template <typename FG_ELEMENT>
+  constexpr static void (*hierarchizeFullWeightingPeriodic)(DistributedFullGrid<FG_ELEMENT>& dfg,
+                                                    const std::vector<bool>& dims) =
+      &hierarchize<FG_ELEMENT, hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, true>>;
+
+  template <typename FG_ELEMENT>
   constexpr static void (*hierarchizeBiorthogonal)(DistributedFullGrid<FG_ELEMENT>& dfg,
                                                    const std::vector<bool>& dims) =
       &hierarchize<FG_ELEMENT, hierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT>>;
+
+  template <typename FG_ELEMENT>
+  constexpr static void (*hierarchizeBiorthogonalPeriodic)(DistributedFullGrid<FG_ELEMENT>& dfg,
+                                                   const std::vector<bool>& dims) =
+      &hierarchize<FG_ELEMENT, hierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT, true>>;
 
   template <typename FG_ELEMENT>
   constexpr static void (*dehierarchizeHierarchicalHat)(DistributedFullGrid<FG_ELEMENT>& dfg,
@@ -2201,9 +2241,20 @@ class DistributedHierarchization {
       &dehierarchize<FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT>>;
 
   template <typename FG_ELEMENT>
+  constexpr static void (*dehierarchizeFullWeightingPeriodic)(DistributedFullGrid<FG_ELEMENT>& dfg,
+                                                      const std::vector<bool>& dims) =
+      &dehierarchize<FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, true>>;
+
+  template <typename FG_ELEMENT>
   constexpr static void (*dehierarchizeBiorthogonal)(DistributedFullGrid<FG_ELEMENT>& dfg,
                                                      const std::vector<bool>& dims) =
       &dehierarchize<FG_ELEMENT, dehierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT>>;
+
+  template <typename FG_ELEMENT>
+  constexpr static void (*dehierarchizeBiorthogonalPeriodic)(DistributedFullGrid<FG_ELEMENT>& dfg,
+                                                     const std::vector<bool>& dims) =
+      &dehierarchize<FG_ELEMENT, dehierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT, true>>;
+
 };
 // class DistributedHierarchization
 
