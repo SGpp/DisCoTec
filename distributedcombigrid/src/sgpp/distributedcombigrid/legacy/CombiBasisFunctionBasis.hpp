@@ -1,6 +1,7 @@
 #ifndef COMBIBASISFUNCTION_HPP_
 #define COMBIBASISFUNCTION_HPP_
 
+#include <boost/serialization/access.hpp>
 #include <sgpp/distributedcombigrid/legacy/combigrid_utils.hpp>
 
 namespace combigrid {
@@ -31,6 +32,12 @@ class BasisFunctionBasis {
    * @param coord  1D coordonate idealy should be [0,1] but for extrapolation
    * could be different [-1,2]*/
   virtual double functionEval2(double coord) const = 0;
+
+ private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {}
 };
 }  // namespace combigrid
 
