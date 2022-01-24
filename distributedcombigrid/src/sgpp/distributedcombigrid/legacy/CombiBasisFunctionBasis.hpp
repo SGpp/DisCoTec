@@ -16,7 +16,9 @@ namespace combigrid {
 class BasisFunctionBasis {
  public:
   /** empty Ctror */
-  BasisFunctionBasis() { ; }
+  BasisFunctionBasis() = default;
+  /** virtual Dtor */
+  virtual ~BasisFunctionBasis() = default;
 
   /** first method which returns the contribution of the first point in the 1D
    * cell
