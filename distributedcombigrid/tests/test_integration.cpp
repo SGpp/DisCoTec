@@ -218,6 +218,96 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
   TestHelper::testStrayMessages(comm);
 }
 
+/**
+ * @brief Test for integrated passing of the hierarchical basis type
+ *        (needs a lot of boilerplate code to set up manager etc, but its really only the
+ *        `setCombiParametersHierarchicalBasesUniform<T>(params);` and
+ *        `BOOST_TEST(dynamic_cast<T*>(b) != nullptr)` parts that are interesting)
+ * @tparam T the hierarchical basis class to test (needs to be derived from BasisFunctionBasis,
+ * serializable, exported (cf. BoostExports.hpp))
+ */
+template <typename T>
+void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
+  size_t size = ngroup * nprocs + 1;
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
+
+  CommunicatorType comm = TestHelper::getComm(size);
+  if (comm == MPI_COMM_NULL) {
+    BOOST_TEST_CHECKPOINT("drop out of test comm");
+    return;
+  }
+  combigrid::Stats::initialize();
+  theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
+
+  DimType dim = 2;
+  LevelVector lmin(dim, 2);
+  LevelVector lmax(dim, 5);
+
+  WORLD_MANAGER_EXCLUSIVE_SECTION {
+    ProcessGroupManagerContainer pgroups;
+    for (int i = 0; i < ngroup; ++i) {
+      int pgroupRootID(i);
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+    }
+
+    auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+    std::vector<bool> boundary(dim, true);
+    CombiMinMaxScheme combischeme(dim, lmin, lmax);
+    combischeme.createAdaptiveCombischeme();
+    std::vector<LevelVector> levels = combischeme.getCombiSpaces();
+    std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+
+    // create Tasks
+    TaskContainer tasks;
+    std::vector<int> taskIDs;
+    for (size_t i = 0; i < levels.size(); i++) {
+      Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
+      tasks.push_back(t);
+      taskIDs.push_back(t->getID());
+    }
+
+    // create combiparameters
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, 2);
+    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+    setCombiParametersHierarchicalBasesUniform<T>(params);
+
+    // create abstraction for Manager
+    ProcessManager manager{pgroups, tasks, params, std::move(loadmodel)};
+
+    // the combiparameters are sent to all process groups before the
+    // computations start
+    manager.updateCombiParameters();
+
+    manager.runfirst();
+    manager.combine();
+    manager.runnext();
+    manager.combine();
+
+    manager.exit();
+
+    TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
+  }
+  else {
+    BOOST_TEST_CHECKPOINT("Worker starts");
+    ProcessGroupWorker pgroup;
+    SignalType signal = -1;
+    // omitting to count RUN_FIRST signal, as it is executed once for every task
+    while (signal != EXIT) {
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
+      signal = pgroup.wait();
+    }
+    const auto& bases = pgroup.getCombiParameters().getHierarchicalBases();
+    for (const auto& b : bases) {
+      BOOST_TEST(dynamic_cast<T*>(b) != nullptr);
+    }
+    TestHelper::testStrayMessages(theMPISystem()->getLocalComm());
+    MASTER_EXCLUSIVE_SECTION { TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()); }
+  }
+  combigrid::Stats::finalize();
+  MPI_Barrier(comm);
+  TestHelper::testStrayMessages(comm);
+}
+
 #ifndef ISGENE // integration tests won't work with ISGENE because of worker magic
 BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(120))
 
@@ -242,3 +332,17 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
 
 BOOST_AUTO_TEST_SUITE_END()
 #endif
+
+BOOST_AUTO_TEST_CASE(test_2) { checkPassingHierarchicalBases<HierarchicalHatBasisFunction>(1, 1); }
+
+BOOST_AUTO_TEST_CASE(test_3) { checkPassingHierarchicalBases<FullWeightingBasisFunction>(1, 2); }
+
+BOOST_AUTO_TEST_CASE(test_4) {
+  checkPassingHierarchicalBases<FullWeightingPeriodicBasisFunction>(2, 2);
+}
+
+BOOST_AUTO_TEST_CASE(test_5) { checkPassingHierarchicalBases<BiorthogonalBasisFunction>(1, 4); }
+
+BOOST_AUTO_TEST_CASE(test_6) {
+  checkPassingHierarchicalBases<BiorthogonalPeriodicBasisFunction>(4, 2);
+}
