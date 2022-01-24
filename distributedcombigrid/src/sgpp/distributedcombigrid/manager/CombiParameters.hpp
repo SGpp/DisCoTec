@@ -285,7 +285,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
 
 
 template<typename T>
-void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters) {
+static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters) {
   std::vector<BasisFunctionBasis*> bases;
   for (DimType d = 0; d < combiParameters.getDim(); ++d) {
     bases.push_back(new T());
@@ -294,6 +294,23 @@ void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters
   combiParameters.setHierarchicalBases(bases);
 }
 
+inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters,
+                                                std::string basisName) {
+  if (basisName == "hat") {
+    setCombiParametersHierarchicalBasesUniform<HierarchicalHatBasisFunction>(combiParameters);
+  } else if (basisName == "fullweighting") {
+    setCombiParametersHierarchicalBasesUniform<FullWeightingBasisFunction>(combiParameters);
+  } else if (basisName == "fullweighting_periodic") {
+    setCombiParametersHierarchicalBasesUniform<FullWeightingPeriodicBasisFunction>(combiParameters);
+  } else if (basisName == "biorthogonal") {
+    setCombiParametersHierarchicalBasesUniform<BiorthogonalBasisFunction>(combiParameters);
+  } else if (basisName == "biorthogonal_periodic") {
+    setCombiParametersHierarchicalBasesUniform<BiorthogonalPeriodicBasisFunction>(combiParameters);
+  } else {
+    throw std::invalid_argument("Hierarchical basis string not known.");
+  }
 }
+
+}  // namespace combigrid
 
 #endif /* SRC_SGPP_COMBIGRID_MANAGER_COMBIPARAMETERS_HPP_ */
