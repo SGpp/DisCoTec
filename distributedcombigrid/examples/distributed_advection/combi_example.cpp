@@ -17,7 +17,7 @@
 
 // compulsory includes for basic functionality
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
-#include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
+// #include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
@@ -40,10 +40,8 @@
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
+#include "sgpp/distributedcombigrid/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskAdvection)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-BOOST_CLASS_EXPORT(FaultCriterion)
 
 
 namespace shellCommand {
@@ -81,13 +79,13 @@ void managerMonteCarlo(ProcessManager& manager, DimType dim, double time, bool h
       // but output three times just to make sure
       std::vector<size_t> numValuesToTry{100000};
       for (auto& numValues : numValuesToTry) {
-        for (int i = 0; i < 1; ++i) {
+        for (int i = 0; i < 3; ++i) {
           Stats::startEvent("manager monte carlo");
           // third-level monte carlo interpolation
           std::vector<std::vector<real>> interpolationCoords;
           std::vector<CombiDataType> values;
           if (hasThirdLevel) {
-            manager.monteCarloThirdLevel(numValues, interpolationCoords, values);
+            // manager.monteCarloThirdLevel(numValues, interpolationCoords, values);
           } else {
             interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
             values = manager.interpolateValues(interpolationCoords);
@@ -167,103 +165,29 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.p") >> p;
     ncombi = cfg.get<size_t>("ct.ncombi");
     std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme", "");
+    std::string basis = cfg.get<std::string>("ct.basis", "hat");
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
     bool evalMCError = cfg.get<bool>("application.mcerror", false);
-
-    // read in third level parameters if available
-    std::string thirdLevelHost, thirdLevelSSHCommand = "";
-    unsigned int systemNumber = 0, numSystems = 1;
-    unsigned short thirdLevelPort = 0;
-    bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
-    std::vector<real> fractionsOfScheme;
-    if (hasThirdLevel) {
-      std::cout << "Using third-level parallelism" << std::endl;
-      thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
-      systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
-      numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
-      thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
-      thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand", "");
-      bool hasFractions = static_cast<bool>(cfg.get_child_optional("thirdLevel.fractionsOfScheme"));
-      if (hasFractions) {
-        std::string fractionsString = cfg.get<std::string>("thirdLevel.fractionsOfScheme");
-        std::vector<std::string> stringVector;
-        size_t pos = 0;
-        std::string delimiter = " ";
-        while ((pos = fractionsString.find(delimiter)) != std::string::npos) {
-          stringVector.push_back(fractionsString.substr(0, pos));
-          fractionsString.erase(0, pos + delimiter.length());
-        }
-        if (fractionsString.length() > 0) {
-          stringVector.push_back(fractionsString);
-        }
-        fractionsOfScheme.resize(stringVector.size());
-        std::transform(stringVector.begin(), stringVector.end(), fractionsOfScheme.begin(),
-                       [](const std::string& val) { return std::stod(val); });
-      } else {
-        fractionsOfScheme = std::vector<real>(numSystems, 1. / static_cast<real>(numSystems));
-      }
-    }
+    std::string output_id = basis + "_" + std::to_string(dim) + "D_" + std::to_string(lmin[0]) +
+                            "-" + std::to_string(lmax[0]);
 
     // todo: read in boundary vector from ctparam
     std::vector<bool> boundary(dim, true);
-    auto forwardDecomposition = true;
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
     for (auto k : p) checkProcs *= k;
-    assert(checkProcs == IndexType(nprocs));
-
-    // set up the ssh tunnel for third level communication, if necessary
-    // todo: if this works, move to ProcessManager::setUpThirdLevel
-    if (thirdLevelSSHCommand != "") {
-      shellCommand::exec(thirdLevelSSHCommand.c_str());
-      std::cout << thirdLevelSSHCommand << " returned " << std::endl;
+    if (checkProcs != IndexType(nprocs)) {
+      throw std::invalid_argument("specified processes do not match! " +
+                                  std::to_string(checkProcs) + " vs " + std::to_string(nprocs));
     }
 
-    std::vector<LevelVector> levels;
-    std::vector<combigrid::real> coeffs;
-    if (ctschemeFile == "") {
-      /* generate a list of levelvectors and coefficients
-      * CombiMinMaxScheme will create a classical combination scheme.
-      * however, you could also read in a list of levelvectors and coefficients
-      * from a file */
-      CombiMinMaxScheme combischeme(dim, lmin, lmax);
-      combischeme.createAdaptiveCombischeme();
-      std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
-      std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
-      std::cout << fullLevels.size() << " component grids in full combination scheme." << std::endl;
+    CombiMinMaxScheme combischeme(dim, lmin, lmax);
+    combischeme.createAdaptiveCombischeme();
+    std::vector<LevelVector> levels = combischeme.getCombiSpaces();
+    std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
-      // split scheme and assign each fraction to a system
-      CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary, systemNumber,
-                                                    numSystems, levels, coeffs, fractionsOfScheme);
-    } else {
-      // read in CT scheme, if applicable
-      boost::property_tree::ptree pScheme;
-      boost::property_tree::json_parser::read_json(ctschemeFile, pScheme);
-      for (const auto& component : pScheme.get_child("")) {
-        assert(component.first.empty()); // list elements have no names
-        for (const auto& c : component.second) {
-          if (c.first == "coeff") {
-            coeffs.push_back(c.second.get_value<real>());
-          } else if (c.first == "level") {
-            LevelVector lvl(dim);
-            int i = 0;
-            for (const auto& l : c.second) {
-                lvl[i] = l.second.get_value<int>();
-                ++i;
-            }
-            assert(lvl <= lmax);
-            assert(lmin <= lvl);
-            levels.push_back(lvl);
-          } else {
-            assert(false);
-          }
-        }
-      }
-      assert(coeffs.size() > 0);
-      assert(coeffs.size() == levels.size());
-    }
     // create load model
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
     // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new AnisotropyLoadModel());
@@ -292,10 +216,10 @@ int main(int argc, char** argv) {
     }
 
     // create combiparameters
-    auto reduceCombinationDimsLmax = std::vector<IndexType>(dim, 1);
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p,
-                           std::vector<IndexType>(dim, 0), reduceCombinationDimsLmax, forwardDecomposition, thirdLevelHost,
-                           thirdLevelPort, 0);
+    auto reduceCombinationDimsLmax = std::vector<IndexType>(dim, 0);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
+    setCombiParametersHierarchicalBasesUniform(params, basis);
+    params.setParallelization(p);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
@@ -309,28 +233,27 @@ int main(int argc, char** argv) {
     manager.runfirst();
     Stats::stopEvent("manager run first");
 
-    // exchange subspace sizes to unify the dsgs in the third level case
-    if (hasThirdLevel) {
-      Stats::startEvent("manager unify subspace sizes with remote");
-      manager.unifySubspaceSizesThirdLevel(),
-      Stats::stopEvent("manager unify subspace sizes with remote");
-    }
-
     // double start, finish;
+
+    std::cout << "time maxnorm l1norm " << std::endl;
+    std::cout << std::setprecision(std::numeric_limits<real>::digits10 + 1);
 
     for (size_t i = 1; i < ncombi; ++i) {
       // start = MPI_Wtime();
 
       Stats::startEvent("manager combine");
-      if (hasThirdLevel) {
-        manager.combineThirdLevel();
-      } else {
-        manager.combine();
-      }
+      manager.combine();
       // manager.waitAllFinished();
       Stats::stopEvent("manager combine");
-      if (evalMCError && i%10 == 0) {
-	managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt, hasThirdLevel);
+      if (evalMCError && i%1000 == 0) {
+      	managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt, false);
+      }
+      // write out field at middle of simulation
+      if (i == ncombi/2) {
+        std::string filename("out/solution_" + output_id + "_" + std::to_string(i) + ".raw");
+        Stats::startEvent("manager write solution");
+        manager.parallelEval(leval, filename, 0);
+        Stats::stopEvent("manager write solution");
       }
       // finish = MPI_Wtime();
       // std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
@@ -353,11 +276,17 @@ int main(int argc, char** argv) {
       // auto error = manager.evalErrorOnDFG(leval, 0);
       // std::cout << "errors " << error << std::endl;
 
+      if (i % 100 == 0) {
+        Stats::startEvent("manager get norms");
+        // std::cout << "Max norms " << manager.getLpNorms(0) << std::endl;
+        // std::cout << "L1 norms " << manager.getLpNorms(1) << std::endl;
+        std::cout <<  " " << i * dt << " " << manager.getLpNorms(0)[0] << " " << manager.getLpNorms(1)[0] << std::endl;
+        Stats::stopEvent("manager get norms");
+      }
       // run tasks for next time interval
       // start = MPI_Wtime();
       Stats::startEvent("manager run");
       manager.runnext();
-      // manager.waitAllFinished();
       Stats::stopEvent("manager run");
       // finish = MPI_Wtime();
       // std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
@@ -367,23 +296,19 @@ int main(int argc, char** argv) {
     }
 
     Stats::startEvent("combine");
-    if (hasThirdLevel) {
-      manager.combineThirdLevel();
-    } else {
-      manager.combine();
-    }
+    manager.combine();
     Stats::stopEvent("combine");
 
-    // // evaluate solution and
-    // // write solution to file
-    // std::string filename("out/solution_" + std::to_string(ncombi) + ".raw");
-    // Stats::startEvent("manager write solution");
-    // manager.parallelEval(leval, filename, 0);
-    // Stats::stopEvent("manager write solution");
-
     if (evalMCError) {
-      managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt, hasThirdLevel);
+      managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt, false);
     }
+
+    // evaluate solution and
+    // write solution to file
+    std::string filename("out/solution_" + output_id + "_" + std::to_string(ncombi) + ".raw");
+    Stats::startEvent("manager write solution");
+    manager.parallelEval(leval, filename, 0);
+    Stats::stopEvent("manager write solution");
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
   }
