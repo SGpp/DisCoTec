@@ -2091,33 +2091,13 @@ class DistributedHierarchization {
       }
     }
 
-    // hierarchize first dimension
-    if (dims[0]) {
-      DimType dim = 0;
-
-      // exchange data first dimension
-      std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
-      if(HIERARCHIZATION_FCTN == &hierarchizeX_opt_boundary_kernel<FG_ELEMENT>) {
-        exchangeData1d<FG_ELEMENT>(dfg, dim, remoteData);
-      } else {
-        exchangeAllData1d(dfg, dim, remoteData);
-      }
-      LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
-
-      if (dfg.returnBoundaryFlags()[dim] == true) {
-        hierarchizeX_opt_boundary<FG_ELEMENT, HIERARCHIZATION_FCTN>(dfg, lookupTable);
-      } else {
-        hierarchizeX_opt_noboundary(dfg, lookupTable);
-      }
-    }
-
-    // hierarchize other dimensions
-    for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
+    // hierarchize all dimensions, with special treatment for 0
+    for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
 
       // exchange data
-      std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
-      if(HIERARCHIZATION_FCTN == &hierarchizeX_opt_boundary_kernel<FG_ELEMENT>) {
+      std::vector<RemoteDataContainer<FG_ELEMENT>> remoteData;
+      if (HIERARCHIZATION_FCTN == &hierarchizeX_opt_boundary_kernel<FG_ELEMENT>) {
         exchangeData1d(dfg, dim, remoteData);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
@@ -2125,9 +2105,17 @@ class DistributedHierarchization {
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
-        hierarchizeN_opt_boundary<FG_ELEMENT, HIERARCHIZATION_FCTN>(dfg, lookupTable, dim);
+        if (dim == 0) {
+          hierarchizeX_opt_boundary<FG_ELEMENT, HIERARCHIZATION_FCTN>(dfg, lookupTable);
+        } else {
+          hierarchizeN_opt_boundary<FG_ELEMENT, HIERARCHIZATION_FCTN>(dfg, lookupTable, dim);
+        }
       } else {
-        hierarchizeN_opt_noboundary(dfg, lookupTable, dim);
+        if (dim == 0) {
+          hierarchizeX_opt_noboundary(dfg, lookupTable);
+        } else {
+          hierarchizeN_opt_noboundary(dfg, lookupTable, dim);
+        }
       }
     }
   }
@@ -2140,39 +2128,18 @@ class DistributedHierarchization {
 
   // inplace dehierarchization
   template <typename FG_ELEMENT,
-            void (*DEHIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int,
-                                         LevelType) = dehierarchizeX_opt_boundary_kernel<FG_ELEMENT>>
+            void (*DEHIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int, LevelType) =
+                dehierarchizeX_opt_boundary_kernel<FG_ELEMENT>>
   static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg, const std::vector<bool>& dims) {
     assert(dfg.getDimension() > 0);
     assert(dfg.getDimension() == dims.size());
-
-    // dehierarchize first dimension
-    if (dims[0]) {
-      DimType dim = 0;
-
-      // exchange data first dimension
-      std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
-      if(DEHIERARCHIZATION_FCTN == &dehierarchizeX_opt_boundary_kernel<FG_ELEMENT>) {
-        exchangeData1dDehierarchization(dfg, dim, remoteData);
-      } else {
-        exchangeAllData1d(dfg, dim, remoteData);
-      }
-      LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
-
-      if (dfg.returnBoundaryFlags()[dim] == true) {
-        dehierarchizeX_opt_boundary<FG_ELEMENT, DEHIERARCHIZATION_FCTN>(dfg, lookupTable);
-      } else {
-        dehierarchizeX_opt_noboundary(dfg, lookupTable);
-      }
-    }
-
-    // dehierarchize other dimensions
-    for (DimType dim = 1; dim < dfg.getDimension(); ++dim) {
+    // dehierarchize all dimensions, with special treatment for 0
+    for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
 
       // exchange data
-      std::vector<RemoteDataContainer<FG_ELEMENT> > remoteData;
-      if(DEHIERARCHIZATION_FCTN == &dehierarchizeX_opt_boundary_kernel<FG_ELEMENT>) {
+      std::vector<RemoteDataContainer<FG_ELEMENT>> remoteData;
+      if (DEHIERARCHIZATION_FCTN == &dehierarchizeX_opt_boundary_kernel<FG_ELEMENT>) {
         exchangeData1dDehierarchization(dfg, dim, remoteData);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
@@ -2180,9 +2147,17 @@ class DistributedHierarchization {
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
       if (dfg.returnBoundaryFlags()[dim] == true) {
-        dehierarchizeN_opt_boundary<FG_ELEMENT, DEHIERARCHIZATION_FCTN>(dfg, lookupTable, dim);
+        if (dim == 0) {
+          dehierarchizeX_opt_boundary<FG_ELEMENT, DEHIERARCHIZATION_FCTN>(dfg, lookupTable);
+        } else {
+          dehierarchizeN_opt_boundary<FG_ELEMENT, DEHIERARCHIZATION_FCTN>(dfg, lookupTable, dim);
+        }
       } else {
-        dehierarchizeN_opt_noboundary(dfg, lookupTable, dim);
+        if (dim == 0) {
+          dehierarchizeX_opt_noboundary(dfg, lookupTable);
+        } else {
+          dehierarchizeN_opt_noboundary(dfg, lookupTable, dim);
+        }
       }
     }
   }
