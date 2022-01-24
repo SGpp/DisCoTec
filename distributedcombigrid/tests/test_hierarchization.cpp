@@ -322,7 +322,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
   }
 }
 
-BOOST_AUTO_TEST_SUITE(hierarchization, *boost::unit_test::timeout(120))
+BOOST_AUTO_TEST_SUITE(hierarchization, *boost::unit_test::timeout(240))
 
 // with boundary
 // isotropic

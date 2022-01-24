@@ -266,7 +266,8 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, LevelType level, bool hasBdrPoints,
                                const BasisFunctionBasis* basis) {
   // set the basis function for the full grid
   if (basis == NULL)
-    basis_ = LinearBasisFunction::getDefaultBasis();
+    //TODO deal with memory leak
+    basis_ = new LinearBasisFunction(); // LinearBasisFunction::getDefaultBasis();
   else
     basis_ = basis;
 
@@ -302,7 +303,8 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, bool hasB
                                const BasisFunctionBasis* basis) {
   // set the basis function for the full grid
   if (basis == NULL)
-    basis_ = LinearBasisFunction::getDefaultBasis();
+    //TODO deal with memory leak
+    basis_ = new LinearBasisFunction(); // LinearBasisFunction::getDefaultBasis();
   else
     basis_ = basis;
 
@@ -341,7 +343,8 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
 
   // set the basis function for the full grid
   if (basis == NULL)
-    basis_ = LinearBasisFunction::getDefaultBasis();
+    //TODO deal with memory leak
+    basis_ = new LinearBasisFunction(); // LinearBasisFunction::getDefaultBasis();
   else
     basis_ = basis;
 
@@ -406,7 +409,8 @@ FullGrid<FG_ELEMENT>::FullGrid(const LevelVector& levels, const SGrid<FG_ELEMENT
 
   // set the basis function for the full grid
   // at the moment we don't have any other basis for sg
-  basis_ = LinearBasisFunction::getDefaultBasis();
+  //TODO deal with memory leak
+  basis_ = new LinearBasisFunction(); // LinearBasisFunction::getDefaultBasis();
 
   gridDomain_ = NULL;
   dim_ = sg2.getDim();

@@ -95,7 +95,7 @@ class DistributedFullGridNonUniform {
 
     // set the basis function for the full grid
     if (basis == NULL)
-      basis_ = LinearBasisFunction::getDefaultBasis();
+      basis_ = nullptr; //LinearBasisFunction::getDefaultBasis();
     else
       basis_ = basis;
 
