@@ -34,11 +34,11 @@ def read_ndarray_from_file(filename):
 
 if __name__ == "__main__":
     if (len(sys.argv) > 1):
-        filename=sys.argv[1]
+        filename = sys.argv[1]
     else:
         raise ArgumentError
     if (len(sys.argv) > 2):
-        t=sys.argv[2]
+        t = sys.argv[2]
     else:
         # assume time 1.
         t = 1.
@@ -48,24 +48,21 @@ if __name__ == "__main__":
 
     shape_ref = np.shape(fg_data)
     dim = len(shape_ref)
-    assert(dim == 2) # for plotting, assume 2D data
+    assert(dim == 2)  # for plotting, assume 2D data
     extent = [0., 1., 0., 1.]
 
     sigma_squared_inv = 1./(1./3.*1./3.)
 
-
     def coordinate_shift_velocity1(coord):
         return math.fmod(1.+math.fmod(coord-t, 1.), 1.)-0.5
-
 
     def analytic_sln(coords):
         return math.exp(sigma_squared_inv*(
             -math.pow(coordinate_shift_velocity1(coords[0]), 2)
             - math.pow(coordinate_shift_velocity1(coords[1]), 2)))
 
-
     analytic_data = np.array([[analytic_sln([i/shape_ref[0], j/shape_ref[1]])
-                            for j in range(shape_ref[1])] for i in range(shape_ref[0])])
+                               for j in range(shape_ref[1])] for i in range(shape_ref[0])])
 
     relative = False
     diff_a_fg = (analytic_data-fg_data)/(analytic_data if relative else 1.)
