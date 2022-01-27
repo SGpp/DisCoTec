@@ -1,4 +1,6 @@
 #define BOOST_TEST_DYN_LINK
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <vector>
 #include <set>
@@ -79,8 +81,8 @@ class TaskAdvFDM : public combigrid::Task {
 
     
   }
-   
-  
+
+
   void run(CommunicatorType lcomm) {
     // velocity vector
     std::vector<CombiDataType> u(getDim());
@@ -154,7 +156,7 @@ class TaskAdvFDM : public combigrid::Task {
   real dt_;
   size_t nsteps_;
   std::vector<CombiDataType> phi_;
-  size_t stepsTotal_; 
+  size_t stepsTotal_;
   size_t combiStep_;
 
   template <class Archive>
@@ -195,7 +197,7 @@ class TaskAdvFDM : public combigrid::Task {
           //simft::Sim_FT_kill_me();
     }
   }
-  
+
 };
 
 // this is necessary for correct function of task serialization
@@ -207,7 +209,7 @@ BOOST_CLASS_EXPORT(FaultCriterion)
 
 
 void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, size_t ncombi, int nfaults,int iteration_faults, int global_rank_faults) {
-  
+
   int size = useFG ? 2 : 7;
 
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
@@ -280,7 +282,7 @@ void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
           //if numFaults = 0 there are no faults
           faultCrit = new StaticFaults(faultsInfo);
         }
-      Task* t = new TaskAdvFDM( levels[i], boundary, coeffs[i], 
+      Task* t = new TaskAdvFDM( levels[i], boundary, coeffs[i],
                                 loadmodel.get(), dt, nsteps, faultCrit);
         tasks.push_back(t);
         taskIDs.push_back(t->getID());
@@ -288,8 +290,8 @@ void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
 
       /* create combi parameters */
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
-    
-        
+
+
     /* create Manager with process groups */
     //ProcessManager manager( pgroups, tasks, params );
      ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
@@ -349,11 +351,11 @@ for (size_t i = 1; i < ncombi; ++i){
         //needs to be after reInitialization!
         /* communicate new combination scheme*/
         manager.updateCombiParameters();
-        
+
       }
       /* combine solution */
       manager.combine();
-           
+
       if ( !success ){
         /* restore combischeme to its original state
          * and send new combiParameters to all surviving groups */
@@ -427,7 +429,7 @@ else {
       BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
     }
   }
-  
+
   if( ENABLE_FT ){
     WORLD_MANAGER_EXCLUSIVE_SECTION{
       std::cout << "Program finished successfully" << std::endl;
@@ -437,7 +439,7 @@ else {
     }
      //simft::Sim_FT_MPI_Finalize();
   }
-  
+
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
 }

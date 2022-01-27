@@ -5,6 +5,9 @@
 #ifndef MPI_FT_H
 #define MPI_FT_H
 
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
+
 #ifdef SIMFTMPI
 
 #ifndef REAL_MPI_INCLUDE

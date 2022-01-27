@@ -1,4 +1,6 @@
 #define BOOST_TEST_DYN_LINK
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <boost/test/unit_test.hpp>
 #include <cmath>
@@ -64,7 +66,7 @@ class TaskConst : public combigrid::Task {
 
   void run(CommunicatorType lcomm) {
 
-    std::cout << "run " << getCommRank(lcomm) << std::endl;    
+    std::cout << "run " << getCommRank(lcomm) << std::endl;
     
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     for (auto& element : elements) {
