@@ -76,7 +76,9 @@ class TaskAdvection : public Task {
     for (const auto & h_x : h) {
       sumOneOverH += 1./h_x;
     }
-    assert(dt_ * sumOneOverH < 1. && "CFL condition not satisfied!");
+    if (!(dt_ * sumOneOverH < 1.)) {
+      throw std::invalid_argument("CFL condition not satisfied!");
+    }
 
     TestFn f;
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
