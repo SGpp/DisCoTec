@@ -114,7 +114,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 
     // create Tasks
     TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);

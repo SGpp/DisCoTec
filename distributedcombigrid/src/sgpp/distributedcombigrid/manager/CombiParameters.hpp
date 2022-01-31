@@ -14,7 +14,7 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
-                  std::vector<int>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
+                  std::vector<size_t>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
                   bool forwardDecomposition = !isGENE)
@@ -35,7 +35,7 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
-                  std::vector<bool>& hierachizationDims, std::vector<int>& taskIDs,
+                  std::vector<bool>& hierachizationDims, std::vector<size_t>& taskIDs,
                   IndexType numberOfCombinations, IndexType numGrids = 1,
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
@@ -67,25 +67,25 @@ class CombiParameters {
 
   inline const std::vector<bool>& getBoundary() { return boundary_; }
 
-  inline real getCoeff(int taskID) { return coeffs_[taskID]; }
+  inline real getCoeff(size_t taskID) { return coeffs_[taskID]; }
 
-  inline void getCoeffs(std::vector<int>& taskIDs, std::vector<real>& coeffs) {
+  inline void getCoeffs(std::vector<size_t>& taskIDs, std::vector<real>& coeffs) {
     for (auto it : coeffs_) {
       taskIDs.push_back(it.first);
       coeffs.push_back(it.second);
     }
   }
 
-  inline std::map<int, real>& getCoeffsDict() { return coeffs_; }
+  inline std::map<size_t, real>& getCoeffsDict() { return coeffs_; }
 
-  inline std::map<LevelVector, int>& getLevelsToIDs() { return levelsToIDs_; }
+  inline std::map<LevelVector, size_t>& getLevelsToIDs() { return levelsToIDs_; }
 
-  inline void setCoeff(int taskID, real coeff) {
+  inline void setCoeff(size_t taskID, real coeff) {
     coeffs_[taskID] = coeff;
     combiDictionary_[levels_[taskID]] = coeff;
   }
 
-  inline void setLevelsCoeffs(std::vector<int>& taskIDs, std::vector<LevelVector>& levels,
+  inline void setLevelsCoeffs(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels,
                               std::vector<real>& coeffs) {
     assert(taskIDs.size() == coeffs.size());
     assert(taskIDs.size() == levels.size());
@@ -98,18 +98,18 @@ class CombiParameters {
     }
   }
 
-  inline const LevelVector& getLevel(int taskID) { return levels_[taskID]; }
+  inline const LevelVector& getLevel(size_t taskID) { return levels_[taskID]; }
 
-  inline int getID(LevelVector level) { return getLevelsToIDs()[level]; }
+  inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
 
-  inline void getLevels(std::vector<int>& taskIDs, std::vector<LevelVector>& levels) {
+  inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) {
     for (auto it : levels_) {
       taskIDs.push_back(it.first);
       levels.push_back(it.second);
     }
   }
 
-  inline std::map<int, LevelVector>& getLevelsDict() { return levels_; }
+  inline std::map<size_t, LevelVector>& getLevelsDict() { return levels_; }
 
   inline std::map<LevelVector, real>& getCombiDict() { return combiDictionary_; }
 
@@ -169,11 +169,11 @@ class CombiParameters {
 
   std::vector<bool> boundary_;
 
-  std::map<int, LevelVector> levels_;
+  std::map<size_t, LevelVector> levels_;
 
-  std::map<int, real> coeffs_;
+  std::map<size_t, real> coeffs_;
 
-  std::map<LevelVector, int> levelsToIDs_;
+  std::map<LevelVector, size_t> levelsToIDs_;
 
   std::map<LevelVector, real> combiDictionary_;
 

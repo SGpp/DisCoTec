@@ -1978,7 +1978,7 @@ class DistributedFullGrid {
     {
       partitionCoords_.resize(this->getCommunicatorSize());
       // fill partition coords vector, only once
-      for (size_t i = 0; i < this->getCommunicatorSize(); ++i) {
+      for (int i = 0; i < this->getCommunicatorSize(); ++i) {
         std::vector<int> tmp(dim_);
         MPI_Cart_coords(communicator_, i, static_cast<int>(dim_), &tmp[0]);
 

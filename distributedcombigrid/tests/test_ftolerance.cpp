@@ -264,7 +264,7 @@ void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
 
     /* create Tasks */
    TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
 
     #ifdef ENABLEFT
       for (size_t i = 0; i < levels.size(); i++) {

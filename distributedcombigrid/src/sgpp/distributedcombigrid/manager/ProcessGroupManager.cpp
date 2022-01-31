@@ -210,7 +210,7 @@ std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& lev
   return norms;
 }
 
-void ProcessGroupManager::getLpNorms(int p, std::map<int, double>& norms) {
+void ProcessGroupManager::getLpNorms(int p, std::map<size_t, double>& norms) {
   SignalType signal;
   if (p == 2) {
     signal = GET_L2_NORM;

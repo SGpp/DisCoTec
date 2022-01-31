@@ -293,7 +293,7 @@ int main(int argc, char** argv) {
   // not work properly
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
-  std::vector<int> fileTaskIDs;
+  std::vector<size_t> fileTaskIDs;
 
   const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
   if (READ_FROM_FILE) { //currently used file produced by preproc.py
@@ -340,7 +340,7 @@ int main(int argc, char** argv) {
 
   // create Tasks
   TaskContainer tasks;
-  std::vector<int> taskIDs;
+  std::vector<size_t> taskIDs;
 
   //initialize individual tasks (component grids)
   for (size_t i = 0; i < levels.size(); i++) {
