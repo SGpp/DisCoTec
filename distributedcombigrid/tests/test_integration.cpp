@@ -124,6 +124,14 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
     params.setParallelization({static_cast<IndexType>(nprocs), 1});
+    if (nprocs == 5 && std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+      params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
+    } else if (nprocs == 4 && std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+      // should be the same as default decomposition with forwardDecomposition
+      params.setDecomposition({{0, 9, 17, 25}, {0}});
+    } else if (nprocs == 3) {
+      params.setDecomposition({{0, 15, 20}, {0}});
+    }
 
     // create abstraction for Manager
     ProcessManager manager{pgroups, tasks, params, std::move(loadmodel)};
@@ -155,22 +163,25 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     std::cout << "wrote solution  " << ngroup << " " << nprocs << std::endl;
 
     // test Monte-Carlo interpolation
-    BOOST_TEST_CHECKPOINT("MC interpolation coordinates");
-    auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
-    BOOST_TEST_CHECKPOINT("MC interpolation");
-    Stats::startEvent("manager interpolate");
-    auto values = manager.interpolateValues(interpolationCoords);
-    Stats::stopEvent("manager interpolate");
-    std::cout << "did interpolation " << ngroup << " " << nprocs << std::endl;
+    // only if boundary values are used
+    if(boundaryV) {
+      BOOST_TEST_CHECKPOINT("MC interpolation coordinates");
+      auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
+      BOOST_TEST_CHECKPOINT("MC interpolation");
+      Stats::startEvent("manager interpolate");
+      auto values = manager.interpolateValues(interpolationCoords);
+      Stats::stopEvent("manager interpolate");
+      std::cout << "did interpolation " << ngroup << " " << nprocs << std::endl;
 
-    TestFnCount<CombiDataType> initialFunction;
-    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-      if (std::abs(initialFunction(interpolationCoords[i], ncombi) - values[i]) > TestHelper::tolerance) {
-        std::cout << "err " << interpolationCoords.size() <<interpolationCoords[i] << " " << i << std::endl;
+      TestFnCount<CombiDataType> initialFunction;
+      for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+        if (std::abs(initialFunction(interpolationCoords[i], ncombi) - values[i]) > TestHelper::tolerance) {
+          std::cout << "err " << interpolationCoords.size() <<interpolationCoords[i] << " " << i << std::endl;
+        }
+        auto ref = initialFunction(interpolationCoords[i], ncombi);
+        BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
+        BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
       }
-      auto ref = initialFunction(interpolationCoords[i], ncombi);
-      BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
-      BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
     }
 
     manager.exit();
@@ -201,7 +212,10 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       }
       if (signal == COMBINE) {
         // after combination check workers' grids
-        BOOST_CHECK(checkReducedFullGridIntegration(pgroup, nrun));
+        // only if boundary values are used
+        if(boundaryV) {
+          BOOST_CHECK(checkReducedFullGridIntegration(pgroup, nrun));
+        }
       }
     }
     BOOST_CHECK_EQUAL(nrun, ncombi);
@@ -222,7 +236,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 BOOST_AUTO_TEST_SUITE(integration, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) ) {
-  for (bool boundary : {true}) {
+  for (bool boundary : {true,false}) {
     for (size_t ngroup : {1, 2, 3, 4}) {
       for (size_t nprocs : {1, 2}) {
         std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
@@ -231,16 +245,46 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
       }
     }
     for (size_t ngroup : {1, 2}) {
-      for (size_t nprocs : {4}) { //TODO currently fails for non-power-of-2-decompositions
+      for (size_t nprocs : {3}) {  // TODO currently fails for non-power-of-2-decompositions
         std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
         checkIntegration(ngroup, nprocs, boundary);
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
-  }
+    for (size_t ngroup : {1, 2}) {
+      if (boundary) {
+        for (size_t nprocs : {4}) {  // TODO currently fails for non-power-of-2-decompositions
+          std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+          checkIntegration(ngroup, nprocs, boundary);
+          MPI_Barrier(MPI_COMM_WORLD);
+        }
+      }
+    }
+    for (size_t ngroup : {1}) {
+      for (size_t nprocs : {5}) {
+        if (boundary) {
+          std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+          checkIntegration(ngroup, nprocs, boundary);
+          MPI_Barrier(MPI_COMM_WORLD);
+        }
+      }
+    }
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  TestHelper::testStrayMessages();
+    MPI_Barrier(MPI_COMM_WORLD);
+    TestHelper::testStrayMessages();
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_2) {
+  // unit test for downsampleDecomposition
+  LevelVector lmin{1, 2, 4};
+  LevelVector lmax{6, 5, 4};
+  std::vector<IndexVector> decomposition {{0, 3, 14}, {0}, {0, 1}, };
+
+  auto newDecomposition = downsampleDecomposition(decomposition, lmax, lmin, {true, false, false});
+  BOOST_CHECK(newDecomposition[0] == IndexVector({0,1,1}));
+  BOOST_CHECK(newDecomposition[1] == IndexVector({0}));
+  BOOST_CHECK(newDecomposition[2] == IndexVector({0,1}));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

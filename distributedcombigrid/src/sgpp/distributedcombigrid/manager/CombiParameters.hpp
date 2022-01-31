@@ -153,6 +153,28 @@ class CombiParameters {
     return procsSet_;
   }
 
+  /**
+   * @brief Set the Decomposition
+   *
+   * @param decomposition a vector of index vectors, specifying for each dimension
+   *        the lowest 1d index (on a full grid of level lmax)
+   *        that will belong to each cartesian communicator slice
+   */
+  inline void setDecomposition(const std::vector<IndexVector>& decomposition) {
+    assert(uniformDecomposition);
+    decomposition_ = decomposition;
+    for (DimType d = 0; d < dim_; ++d) {
+      assert(decomposition[d][0] == 0);
+      auto numPoints = powerOfTwo[lmax_[d]] + (boundary_[d] ? 1 : -1);
+      assert(decomposition[d].back() < numPoints);
+      assert(procs_[d] == decomposition[d].size());
+    }
+  }
+
+  inline const std::vector<IndexVector>& getDecomposition() const {
+    return decomposition_;
+  }
+
   inline bool getForwardDecomposition() const {
     if (isGENE){
       assert(!forwardDecomposition_);
@@ -182,6 +204,8 @@ class CombiParameters {
   IndexVector procs_;
 
   bool procsSet_;
+
+  std::vector<IndexVector> decomposition_;
 
   bool forwardDecomposition_;
 
@@ -226,6 +250,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& procs_;
   ar& procsSet_;
+  ar& decomposition_;
   ar& forwardDecomposition_;
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;

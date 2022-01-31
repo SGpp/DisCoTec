@@ -703,9 +703,14 @@ void ProcessGroupWorker::parallelEvalUniform() {
   for (int g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
     bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+    auto levalDecomposition = combigrid::downsampleDecomposition(
+            combiParameters_.getDecomposition(),
+            combiParameters_.getLMax(), leval,
+            combiParameters_.getBoundary());
+
     DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
     this->fillDFGFromDSGU(dfg, g);
     // save dfg to file with MPI-IO
     auto pos = filename.find(".");
@@ -749,10 +754,14 @@ void ProcessGroupWorker::parallelEvalNorm() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), leval,
+          combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
   this->fillDFGFromDSGU(dfg, 0);
 
@@ -763,10 +772,14 @@ void ProcessGroupWorker::evalAnalyticalOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), leval,
+          combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
   // interpolate Task's analyticalSolution
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
@@ -783,10 +796,14 @@ void ProcessGroupWorker::evalErrorOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), leval,
+          combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
   this->fillDFGFromDSGU(dfg, 0);
   // interpolate Task's analyticalSolution
@@ -930,7 +947,11 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
 
   // initalize task
   Stats::startEvent("task init in worker");
-  currentTask_->init(theMPISystem()->getLocalComm());
+  auto taskDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), currentTask_->getLevelVector(),
+          combiParameters_.getBoundary());
+  currentTask_->init(theMPISystem()->getLocalComm(), taskDecomposition);
   t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
   Stats::stopEvent("task init in worker");
 }

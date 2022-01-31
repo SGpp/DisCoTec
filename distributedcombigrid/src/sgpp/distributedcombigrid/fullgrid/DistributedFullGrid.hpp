@@ -971,11 +971,11 @@ class DistributedFullGrid {
       auto level = sg.getLevelVector(subspaceID);
 
       if (dsg_->isContained(level)) {
-        auto index = dsg_->getIndex(level);
         // auto lsize = getLocalSizeOfSubspaceOnThisPartition(level);
         auto FGIndices = getFGPointsOfSubspace(level);
         auto lsize = FGIndices.size();
 
+        auto index = dsg_->getIndex(level);
         size_t subSgDataSize = dsg_->getDataSize(index);
         // resize DSG subspace if it has zero size
         if (subSgDataSize == 0) {
@@ -984,7 +984,9 @@ class DistributedFullGrid {
         } else {
           ASSERT(subSgDataSize == lsize,
                 "subSgDataSize: " << subSgDataSize << ", lsize: "
-                                      << lsize << std::endl);
+                                      << lsize << " from " << FGIndices
+                                      << " , level " << level << " , rank "
+                                      << this->getMpiRank() << std::endl);
         }
         subspaceIndexToFGIndices_.push_back(std::make_pair(index, FGIndices));
       }
@@ -2163,6 +2165,35 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
   dfg.print(os);
 
   return os;
+}
+
+static inline std::vector<IndexVector> downsampleDecomposition(
+                                        const std::vector<IndexVector> decomposition,
+                                        const LevelVector& referenceLevel, const LevelVector& newLevel,
+                                        const std::vector<bool>& boundary) {
+  auto newDecomposition = decomposition;
+  if (decomposition.size() > 0) {
+    for (DimType d = 0 ; d < referenceLevel.size(); ++ d) {
+      // for now, assume that we never want to interpolate on a level finer than referenceLevel
+      assert(referenceLevel[d] >= newLevel[d]);
+      auto levelDiff = referenceLevel[d] - newLevel[d];
+      auto stepFactor = oneOverPowOfTwo[levelDiff];
+      if(boundary[d]) {
+        // all levels contain the boundary points -> point 0 is the same
+        for (auto& dec: newDecomposition[d]) {
+          dec = static_cast<IndexType>(std::ceil(static_cast<double>(dec)*stepFactor));
+        }
+      } else {
+        // all levels do not contain the boundary points -> mid point is the same
+        auto leftProtrusion = powerOfTwo[levelDiff] - 1;
+        for (auto& dec: newDecomposition[d]) {
+          // same as before, but subtract the "left" protrusion on the finer level
+          dec = static_cast<IndexType>(std::max(0., std::ceil(static_cast<double>(dec - leftProtrusion)*stepFactor)));
+        }
+      }
+    }
+  }
+  return newDecomposition;
 }
 
 }  // namespace combigrid
