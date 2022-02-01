@@ -37,7 +37,12 @@ ProcessGroupWorker::ProcessGroupWorker()
   }
 }
 
-ProcessGroupWorker::~ProcessGroupWorker() {}
+ProcessGroupWorker::~ProcessGroupWorker() {
+  for (auto& task : tasks_) {
+    delete task;
+    task = nullptr;
+  }
+}
 
 // Do useful things with the info about how long a task took.
 // this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly multiple times),
@@ -80,7 +85,7 @@ SignalType ProcessGroupWorker::wait() {
   // process signal
   switch (signal) {
     case RUN_FIRST: {
-      initializeTaskAndFaults();
+      receiveAndInitializeTaskAndFaults();
 
       // execute task
       Stats::startEvent("worker run first");
@@ -124,7 +129,7 @@ SignalType ProcessGroupWorker::wait() {
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
       // TODO test if this signal works in case of not-GENE
-      initializeTaskAndFaults();
+      receiveAndInitializeTaskAndFaults();
 
       currentTask_->setZero();
 
@@ -205,7 +210,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case RECOMPUTE: {  // recompute the received task (immediately computes tasks ->
                        // difference to ADD_TASK)
-      initializeTaskAndFaults();
+      receiveAndInitializeTaskAndFaults();
       currentTask_->setZero();
 
       // fill task with combisolution
@@ -274,7 +279,7 @@ SignalType ProcessGroupWorker::wait() {
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
 
-      initializeTaskAndFaults(); // receive and initalize new task
+      receiveAndInitializeTaskAndFaults(); // receive and initalize new task
 			// now the variable currentTask_ contains the newly received task
       currentTask_->setZero();
       updateTaskWithCurrentValues(*currentTask_, combiParameters_.getNumGrids());
@@ -919,7 +924,7 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
   }
 }
 
-void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
+void ProcessGroupWorker::receiveAndInitializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
   Task* t;
 
   // local root receives task
@@ -936,7 +941,11 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
   }
 
   MPI_Barrier(theMPISystem()->getLocalComm());
+  initializeTaskAndFaults(t);
+}
 
+void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
+  assert(combiParametersSet_);
   // add task to task storage
   tasks_.push_back(t);
 

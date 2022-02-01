@@ -56,6 +56,15 @@ class Task {
 
   inline size_t getID() const;
 
+  /**
+   * @brief explicitly set a new ID for the task;
+   * may be useful if process groups read their task assignment from file instead of receiving it
+   * from the manager
+   *
+   * make sure ID is continuous and unique!
+   */
+  inline void setID(size_t ID);
+
   virtual void run(CommunicatorType lcomm) = 0;
 
   virtual void changeDir(CommunicatorType lcomm) {
@@ -150,6 +159,8 @@ inline const LevelVector& Task::getLevelVector() const { return l_; }
 inline const std::vector<bool>& Task::getBoundary() const { return boundary_; }
 
 inline size_t Task::getID() const { return id_; }
+
+inline void Task::setID(size_t id) { id_ = id; }
 
 inline bool Task::isFinished() const { return isFinished_; }
 

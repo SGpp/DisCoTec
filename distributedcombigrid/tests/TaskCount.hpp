@@ -31,7 +31,9 @@ class TestFnCount {
 class TaskCount : public combigrid::Task {
  public:
   TaskCount(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel)
-      : Task(dim, l, boundary, coeff, loadModel){}
+      : Task(dim, l, boundary, coeff, loadModel), dfg_(nullptr){
+        BOOST_TEST_CHECKPOINT("TaskCount constructor");
+      }
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
 
@@ -50,7 +52,7 @@ class TaskCount : public combigrid::Task {
     for (auto& element : elements) {
       element = -0.;
     }
-    BOOST_CHECK(true);
+    BOOST_TEST_CHECKPOINT("TaskCount init");
   }
 
   void run(CommunicatorType lcomm) {
@@ -70,20 +72,24 @@ class TaskCount : public combigrid::Task {
     setFinished(true);
 
     MPI_Barrier(lcomm);
-    BOOST_CHECK(true);
+    BOOST_TEST_CHECKPOINT("TaskCount run");
   }
 
   void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
-    BOOST_CHECK(true);
+    BOOST_TEST_CHECKPOINT("TaskCount getFullGrid");
     dfg_->gatherFullGrid(fg, r);
   }
 
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
 
-  void setZero() { BOOST_CHECK(true); }
+  void setZero() {
+    BOOST_TEST_CHECKPOINT("TaskCount setZero");
+  }
 
   ~TaskCount() {
+    BOOST_TEST_CHECKPOINT("TaskCount destructor begin");
     if (dfg_ != NULL) delete dfg_;
+    BOOST_TEST_CHECKPOINT("TaskCount destructor");
   }
 
  protected:

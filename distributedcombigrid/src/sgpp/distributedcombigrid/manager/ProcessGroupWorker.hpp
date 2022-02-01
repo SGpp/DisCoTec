@@ -126,7 +126,9 @@ class ProcessGroupWorker {
 
   // std::ofstream betasFile_;
 
-  void initializeTaskAndFaults(bool mayAlreadyExist = true);
+  void initializeTaskAndFaults(Task* t);
+
+  void receiveAndInitializeTaskAndFaults(bool mayAlreadyExist = true);
 
   /** sets all subspaces in all dsgs to zero and allocates them if necessary */
   void zeroDsgsData();

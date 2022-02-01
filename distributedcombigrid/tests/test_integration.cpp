@@ -233,7 +233,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 }
 
 #ifndef ISGENE // integration tests won't work with ISGENE because of worker magic
-BOOST_AUTO_TEST_SUITE(integration, *boost::unit_test::timeout(60))
+BOOST_AUTO_TEST_SUITE(integration, *boost::unit_test::timeout(180))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) ) {
   for (bool boundary : {true,false}) {
@@ -285,6 +285,39 @@ BOOST_AUTO_TEST_CASE(test_2) {
   BOOST_CHECK(newDecomposition[0] == IndexVector({0,1,1}));
   BOOST_CHECK(newDecomposition[1] == IndexVector({0}));
   BOOST_CHECK(newDecomposition[2] == IndexVector({0,1}));
+}
+
+BOOST_AUTO_TEST_CASE(test_3) {
+  // unit test for CombiMinMaxSchemeFromFile
+  LevelVector lmin = {3,6};
+  LevelVector lmax = {7,10};
+  auto dim = lmin.size();
+  std::unique_ptr<CombiMinMaxScheme> scheme(new CombiMinMaxSchemeFromFile(dim, lmin, lmax, "test_scheme.json"));
+  auto coeffs = scheme->getCoeffs();
+  auto levels = scheme->getCombiSpaces();
+  BOOST_CHECK(std::accumulate(coeffs.begin(), coeffs.end(), 0.) == 1.);
+
+  BOOST_CHECK(dynamic_cast<CombiMinMaxSchemeFromFile*>(scheme.get()));
+  if (auto schemeFromFile = dynamic_cast<CombiMinMaxSchemeFromFile*>(scheme.get())) {
+    auto pgNumbers = schemeFromFile->getProcessGroupNumbers();
+    const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+
+    BOOST_CHECK(*itMax == 7);
+    BOOST_CHECK(*itMin == 0);
+    auto boundary = std::vector<bool>(dim, true);
+    auto rank = TestHelper::getRank(MPI_COMM_WORLD);
+    for (size_t taskNo = 0; taskNo < coeffs.size(); ++taskNo) {
+      BOOST_TEST_CHECKPOINT(std::to_string(rank) + " Last taskNo " + std::to_string(taskNo));
+      if (pgNumbers[taskNo] == rank) {
+        auto loadmodel = LinearLoadModel();
+        TaskCount tc(dim, levels[taskNo], boundary, coeffs[taskNo], &loadmodel);
+        tc.setID(taskNo);
+      }
+    }
+  }
+  // clears scheme, may be useful if there are many tasks and
+  // we only need some allocated on each process group
+  scheme.reset();
 }
 
 BOOST_AUTO_TEST_SUITE_END()
