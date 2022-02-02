@@ -241,16 +241,16 @@ class LookupTable {
 template <typename FG_ELEMENT>
 static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
                                const DistributedFullGrid<FG_ELEMENT>& dfg,
-                               std::vector<std::set<IndexType>>& OneDIndices);
+                               std::map<RankType, std::set<IndexType>>& OneDIndices);
 
 template <typename FG_ELEMENT>
 static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
                                 const DistributedFullGrid<FG_ELEMENT>& dfg,
-                                std::vector<std::set<IndexType>>& OneDIndices);
+                                std::map<RankType, std::set<IndexType>>& OneDIndices);
 
 template <typename FG_ELEMENT>
 static IndexType checkPredecessors(IndexType idx, DimType dim, const DistributedFullGrid<FG_ELEMENT>& dfg,
-                                   std::vector<std::set<IndexType>>& OneDIndices);
+                                   std::map<RankType, std::set<IndexType>>& OneDIndices);
 
 template <typename FG_ELEMENT>
 static RankType getNeighbor1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d, IndexType idx1d);
@@ -290,8 +290,8 @@ static IndexVector getLastIndicesOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg,
  * @param remoteData : the data structure into which the received data will be stored
  */
 template <typename FG_ELEMENT>
-void sendAndReceiveIndices(const std::vector<std::set<IndexType>>& send1dIndices,
-                           const std::vector<std::set<IndexType>>& recv1dIndices,
+void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1dIndices,
+                           const std::map<RankType, std::set<IndexType>>& recv1dIndices,
                            const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                            std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
 #ifdef DEBUG_OUTPUT
@@ -338,11 +338,11 @@ void sendAndReceiveIndices(const std::vector<std::set<IndexType>>& send1dIndices
   std::vector<MPI_Request> recvRequests;
   size_t sendcount = 0;
   size_t recvcount = 0;
-  for (size_t r = 0; r < send1dIndices.size(); ++r) {
-    sendcount += send1dIndices[r].size();
+  for (const auto& x : send1dIndices) {
+    sendcount += x.second.size();
   }
-  for (size_t r = 0; r < recv1dIndices.size(); ++r) {
-    recvcount += recv1dIndices[r].size();
+  for (const auto& x : recv1dIndices) {
+    recvcount += x.second.size();
   }
 
   sendRequests.resize(sendcount);
@@ -350,11 +350,12 @@ void sendAndReceiveIndices(const std::vector<std::set<IndexType>>& send1dIndices
 
   // for each rank r in send that has a nonempty index list
   sendcount = 0;
-  for (size_t r = 0; r < send1dIndices.size(); ++r) {
-    // for each index i in index list
-    const auto& indices = send1dIndices[r];
+  for (const auto& x : send1dIndices) {
+    const auto& r = x.first;
+    const auto& indices = x.second;
 
     size_t k = 0;
+    // for each index in index list
     for (const auto& index : indices) {
       // convert global 1d index i to local 1d index
       IndexVector lidxvec(dfg.getDimension(), 0);
@@ -379,9 +380,6 @@ void sendAndReceiveIndices(const std::vector<std::set<IndexType>>& send1dIndices
         IndexVector starts(dfg.getDimension(), 0);
         starts[dim] = lidxvec[dim];
 
-        // note that if we want MPI to use c ordering, for less confusion as we
-        // actually store our data in c format, we have to reverse all size and index
-        // vectors
         std::vector<int> csizes(sizes.begin(), sizes.end());
         std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
         std::vector<int> cstarts(starts.begin(), starts.end());
@@ -409,13 +407,15 @@ void sendAndReceiveIndices(const std::vector<std::set<IndexType>>& send1dIndices
 
       MPI_Type_free(&mysubarray);
     }
-    sendcount += send1dIndices[r].size();
+    sendcount += indices.size();
   }
   recvcount = 0;
   {
     // for each index in recv index list
-    for (size_t r = 0; r < recv1dIndices.size(); ++r) {
-      const auto& indices = recv1dIndices[r];
+    for (auto const& x : recv1dIndices) {
+      auto const& r = x.first;
+      // for each index i in index list
+      const auto& indices = x.second;
       const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
 
       size_t k = 0;
@@ -444,7 +444,7 @@ void sendAndReceiveIndices(const std::vector<std::set<IndexType>>& send1dIndices
 #endif
         }
       }
-      recvcount += recv1dIndices[r].size();
+      recvcount += indices.size();
     }
   }
   // wait for finish of communication
@@ -459,8 +459,8 @@ void sendAndReceiveIndices(const std::vector<std::set<IndexType>>& send1dIndices
  * for higher numbers.
  */
 template <typename FG_ELEMENT>
-void sendAndReceiveIndicesBlock(const std::vector<std::set<IndexType>>& send1dIndices,
-                                const std::vector<std::set<IndexType>>& recv1dIndices,
+void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& send1dIndices,
+                                const std::map<RankType, std::set<IndexType>>& recv1dIndices,
                                 const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                                 std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
 #ifdef DEBUG_OUTPUT
@@ -503,11 +503,8 @@ void sendAndReceiveIndicesBlock(const std::vector<std::set<IndexType>>& send1dIn
 
 #endif
   // count non-empty elements of input indices
-  auto numSend = std::count_if(send1dIndices.begin(), send1dIndices.end(),
-                               [](std::set<IndexType> s) { return !s.empty(); });
-  auto numRecv = std::count_if(recv1dIndices.begin(), recv1dIndices.end(),
-                               [](std::set<IndexType> s) { return !s.empty(); });
-
+  auto numSend = send1dIndices.size();
+  auto numRecv = recv1dIndices.size();
   // buffer for requests
   std::vector<MPI_Request> sendRequests(numSend);
   std::vector<MPI_Request> recvRequests(numRecv);
@@ -525,9 +522,6 @@ void sendAndReceiveIndicesBlock(const std::vector<std::set<IndexType>>& send1dIn
     // start
     IndexVector starts(dfg.getDimension(), 0);
 
-    // note that if we want MPI to use c ordering, for less confusion as we
-    // actually store our data in c format, we have to reverse all size and index
-    // vectors
     std::vector<int> csizes(sizes.begin(), sizes.end());
     std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
     std::vector<int> cstarts(starts.begin(), starts.end());
@@ -543,8 +537,9 @@ void sendAndReceiveIndicesBlock(const std::vector<std::set<IndexType>>& send1dIn
 
   // for each rank r in send1dIndices that has a nonempty index list
   numSend = 0;
-  for (size_t r = 0; r < send1dIndices.size(); ++r) {
-    const auto& indices = send1dIndices[r];
+  for (const auto& x : send1dIndices) {
+    const auto& r = x.first;
+    const auto& indices = x.second;
     if (!indices.empty()) {
       // make datatype hblock for all indices
       MPI_Datatype myHBlock;
@@ -600,8 +595,9 @@ void sendAndReceiveIndicesBlock(const std::vector<std::set<IndexType>>& send1dIn
 
   // for each rank r in recv1dIndices that has a nonempty index list
   numRecv = 0;
-  for (size_t r = 0; r < recv1dIndices.size(); ++r) {
-    const auto& indices = recv1dIndices[r];
+  for (const auto& x : recv1dIndices) {
+    const auto& r = x.first;
+    const auto& indices = x.second;
     if (!indices.empty()) {
       const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
 
@@ -678,9 +674,7 @@ void sendAndReceiveIndicesBlock(const std::vector<std::set<IndexType>>& send1dIn
 template <typename FG_ELEMENT>
 static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                               std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
-  auto commSize = dfg.getCommunicatorSize();
-
-  // send every index to all neighboring ranks in dimension dim
+    // send every index to all neighboring ranks in dimension dim
   auto globalIdxMax = dfg.length(dim);
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
@@ -691,24 +685,25 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
   for (IndexType i = idxMin; i <= idxMax; ++i) {
     allMyIndices.insert(i);
   }
-  std::vector<std::set<IndexType>> send1dIndices(commSize);
-  for (const auto& r : poleNeighbors) {
+  std::map<RankType, std::set<IndexType>> send1dIndices;
+  std::map<RankType, std::set<IndexType>> recv1dIndices;
+
+  for (auto& r : poleNeighbors) {
     send1dIndices[r] = allMyIndices;
+    recv1dIndices[r] = {};
   }
 
   // all other points that are not ours can be received from their owners
-  std::vector<std::set<IndexType>> recv1dIndices(commSize);
-
   for (IndexType i = 0; i < idxMin; ++i) {
     // get rank which has i and add to recv list
     // TODO would be easier to iterate the whole range of each neighbor
     int r = getNeighbor1d(dfg, dim, i);
-    if (r >= 0) recv1dIndices[r].insert(i);
+    if (r >= 0) recv1dIndices.at(r).insert(i);
   }
   for (IndexType i = idxMax + 1; i < globalIdxMax; ++i) {
     // get rank which has i and add to recv list
     int r = getNeighbor1d(dfg, dim, i);
-    if (r >= 0) recv1dIndices[r].insert(i);
+    if (r >= 0) recv1dIndices.at(r).insert(i);
   }
 
   sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
@@ -727,8 +722,8 @@ template <typename FG_ELEMENT>
 static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                            std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData) {
 
-  auto commSize = dfg.getCommunicatorSize();
 #ifdef DEBUG_OUTPUT
+  auto commSize = dfg.getCommunicatorSize();
   CommunicatorType comm = dfg.getCommunicator();
   auto rank = dfg.getRank();
   std::vector<int> coords(dfg.getDimension());
@@ -791,8 +786,8 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
 #endif
 
   // create buffers for every rank
-  std::vector<std::set<IndexType>> recv1dIndices(commSize);
-  std::vector<std::set<IndexType>> send1dIndices(commSize);
+  std::map<RankType, std::set<IndexType>> recv1dIndices;
+  std::map<RankType, std::set<IndexType>> send1dIndices;
 
   // main loop
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
@@ -865,8 +860,8 @@ static void exchangeData1dDehierarchization(
     const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData) {
 
-  auto commSize = dfg.getCommunicatorSize();
 #ifdef DEBUG_OUTPUT
+  auto commSize = dfg.getCommunicatorSize();
   CommunicatorType comm = dfg.getCommunicator();
   auto rank = dfg.getRank();
   std::vector<int> coords(dfg.getDimension());
@@ -927,8 +922,8 @@ static void exchangeData1dDehierarchization(
 #endif
 
   // create buffers for every rank
-  std::vector<std::set<IndexType>> recv1dIndices(commSize);
-  std::vector<std::set<IndexType>> send1dIndices(commSize);
+  std::map<RankType, std::set<IndexType>> recv1dIndices;
+  std::map<RankType, std::set<IndexType>> send1dIndices;
 
   // main loop
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
@@ -954,7 +949,7 @@ static void exchangeData1dDehierarchization(
 template <typename FG_ELEMENT>
 static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
                                const DistributedFullGrid<FG_ELEMENT>& dfg,
-                               std::vector<std::set<IndexType>>& OneDIndices) {
+                               std::map<RankType, std::set<IndexType>>& OneDIndices) {
   LevelType lidx = dfg.getLevel(dim, checkIdx);
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   // IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
@@ -980,7 +975,7 @@ static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType di
 template <typename FG_ELEMENT>
 static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
                                 const DistributedFullGrid<FG_ELEMENT>& dfg,
-                                std::vector<std::set<IndexType>>& OneDIndices) {
+                                std::map<RankType, std::set<IndexType>>& OneDIndices) {
   LevelType lidx = dfg.getLevel(dim, checkIdx);
 
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
@@ -1008,12 +1003,9 @@ static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType d
 template <typename FG_ELEMENT>
 static IndexType checkPredecessors(IndexType idx, DimType dim,
                                    const DistributedFullGrid<FG_ELEMENT>& dfg,
-                                   std::vector<std::set<IndexType>>& OneDIndices) {
+                                   std::map<RankType, std::set<IndexType>>& OneDIndices) {
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-
-  auto lmax = dfg.getLevels()[dim];
-  auto lidx = dfg.getLevel(dim, idx);
 
   // check if left predecessor outside local domain
   // if returns negative value there's no left predecessor
