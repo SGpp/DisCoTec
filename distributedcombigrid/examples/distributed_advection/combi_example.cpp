@@ -240,16 +240,17 @@ int main(int argc, char** argv) {
 
     for (size_t i = 1; i < ncombi; ++i) {
       // start = MPI_Wtime();
-
-      Stats::startEvent("manager combine");
-      manager.combine();
-      // manager.waitAllFinished();
-      Stats::stopEvent("manager combine");
+      if (tasks.size() > 1) {
+        Stats::startEvent("manager combine");
+        manager.combine();
+        // manager.waitAllFinished();
+        Stats::stopEvent("manager combine");
+      }
       if (evalMCError && i%1000 == 0) {
       	managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt, false);
       }
       // write out field at middle of simulation
-      if (i == ncombi/2) {
+      if (i == ncombi/2 && dim < 4) {
         std::string filename("out/solution_" + output_id + "_" + std::to_string(i) + ".raw");
         Stats::startEvent("manager write solution");
         manager.parallelEval(leval, filename, 0);
@@ -295,9 +296,11 @@ int main(int argc, char** argv) {
       // std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
     }
 
-    Stats::startEvent("combine");
-    manager.combine();
-    Stats::stopEvent("combine");
+    if (tasks.size() > 1) {
+      Stats::startEvent("combine");
+      manager.combine();
+      Stats::stopEvent("combine");
+    }
 
     if (evalMCError) {
       managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt, false);
@@ -305,10 +308,12 @@ int main(int argc, char** argv) {
 
     // evaluate solution and
     // write solution to file
-    std::string filename("out/solution_" + output_id + "_" + std::to_string(ncombi) + ".raw");
-    Stats::startEvent("manager write solution");
-    manager.parallelEval(leval, filename, 0);
-    Stats::stopEvent("manager write solution");
+    if (dim < 4) {
+      std::string filename("out/solution_" + output_id + "_" + std::to_string(ncombi) + ".raw");
+      Stats::startEvent("manager write solution");
+      manager.parallelEval(leval, filename, 0);
+      Stats::stopEvent("manager write solution");
+    }
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
   }
