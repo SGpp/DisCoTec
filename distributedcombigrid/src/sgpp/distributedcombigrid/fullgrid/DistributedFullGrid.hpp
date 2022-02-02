@@ -885,7 +885,7 @@ class DistributedFullGrid {
 
   // get 1d index of LeftPredecessor of a point
   // returns negative number if point has no left predecessor
-  inline IndexType getLeftPredecessor(DimType d, IndexType idx1d) {
+  inline IndexType getLeftPredecessor(DimType d, IndexType idx1d) const {
     LevelType l = getLevel(d, idx1d);
 
     // boundary points
@@ -897,7 +897,7 @@ class DistributedFullGrid {
     return lpidx;
   }
 
-  inline IndexType getRightPredecessor(DimType d, IndexType idx1d) {
+  inline IndexType getRightPredecessor(DimType d, IndexType idx1d) const {
     LevelType l = getLevel(d, idx1d);
 
     // boundary points
@@ -916,7 +916,7 @@ class DistributedFullGrid {
 
   // get coordinates of the partition which contains the point specified
   // by the global index vector
-  inline void getPartitionCoords(IndexVector& globalAxisIndex, IndexVector& partitionCoords) {
+  inline void getPartitionCoords(IndexVector& globalAxisIndex, IndexVector& partitionCoords) const {
     partitionCoords.resize(dim_);
 
     for (DimType d = 0; d < dim_; ++d) {
@@ -955,6 +955,10 @@ class DistributedFullGrid {
     return rank;
   }
 
+  /**
+   * @brief get a vector containing the ranks of all my cartesian neighboring
+   *        ranks in dimension dim (not only the direct neighbors, all of them)
+   */
   inline std::vector<RankType> getAllMyPoleNeighborRanks(DimType dim) const {
     auto ranks = std::vector<RankType>();
     auto myPartitionCoords = std::vector<int>();
@@ -1024,20 +1028,10 @@ class DistributedFullGrid {
         IndexVector subsizes = this->getUpperBounds(r) - this->getLowerBounds(r);
         IndexVector starts = this->getLowerBounds(r);
 
-        // we store our data in c format, i.e. first dimension is the innermost
-        // dimension. however, we access our data in fortran notation, with the
-        // first index in indexvectors being the first dimension.
-        // to comply with an ordering that mpi understands, we have to reverse
-        // our index vectors
-        // also we have to use int as datatype
         std::vector<int> csizes(sizes.begin(), sizes.end());
         std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
         std::vector<int> cstarts(starts.begin(), starts.end());
-        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
-        //   csizes.assign(sizes.begin(), sizes.end());
-        //   csubsizes.assign(subsizes.begin(), subsizes.end());
-        //   cstarts.assign(starts.begin(), starts.end());
-        // }
+
 
         // create subarray view on data
         MPI_Datatype mysubarray;
@@ -1748,13 +1742,6 @@ class DistributedFullGrid {
     IndexVector sizes = getGlobalSizes();
     IndexVector subsizes = getUpperBounds() - getLowerBounds();
     IndexVector starts = getLowerBounds();
-
-    // we store our data in c format, i.e. first dimension is the innermost
-    // dimension. however, we access our data in fortran notation, with the
-    // first index in indexvectors being the first dimension.
-    // to comply with an ordering that mpi understands, we have to reverse
-    // our index vectors
-    // also we have to use int as datatype
     std::vector<int> csizes(sizes.begin(), sizes.end());
     std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
     std::vector<int> cstarts(starts.begin(), starts.end());
@@ -1826,12 +1813,6 @@ class DistributedFullGrid {
     IndexVector subsizes = getUpperBounds() - getLowerBounds();
     IndexVector starts = getLowerBounds();
 
-    // we store our data in c format, i.e. first dimension is the innermost
-    // dimension. however, we access our data in fortran notation, with the
-    // first index in indexvectors being the first dimension.
-    // to comply with an ordering that mpi understands, we have to reverse
-    // our index vectors
-    // also we have to use int as datatype
     std::vector<int> csizes(sizes.begin(), sizes.end());
     std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
     std::vector<int> cstarts(starts.begin(), starts.end());
