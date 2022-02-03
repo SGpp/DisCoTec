@@ -35,12 +35,8 @@
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
+#include "sgpp/distributedcombigrid/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskExample)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-
-BOOST_CLASS_EXPORT(FaultCriterion)
-
 
 int main(int argc, char** argv) {
   simft::Sim_FT_MPI_Init(&argc, &argv);
