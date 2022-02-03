@@ -188,6 +188,8 @@ def checkOpenCL(config):
     Helper.printInfo("OpenCL is not enabled")
 
 def checkBoostTests(config):
+  config.env.AppendUnique(CPPPATH=[config.env["BOOST_INCLUDE_PATH"]])
+  config.env.AppendUnique(LIBPATH=[config.env["BOOST_LIBRARY_PATH"]])
   # Check the availability of the boost unit test dependencies
   if config.env["COMPILE_BOOST_TESTS"]:
     config.env.AppendUnique(CPPPATH=[config.env["BOOST_INCLUDE_PATH"]])

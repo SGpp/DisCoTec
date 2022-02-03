@@ -14,8 +14,7 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
-                  std::vector<int>& taskIDs, IndexType numberOfCombinations, 
-                  IndexType numGrids = 1,
+                  std::vector<size_t>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
                   const IndexVector parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
@@ -39,6 +38,9 @@ class CombiParameters {
         thirdLevelPG_(thirdLevelPG)
   {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
+    for (DimType d = 0; d < dim_; ++d) {
+      hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
+    }
     setLevelsCoeffs(taskIDs, levels, coeffs);
     numTasks_ = static_cast<long>(taskIDs.size());
     if (parallelization != IndexVector({0})){
@@ -48,21 +50,17 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
-                  std::vector<bool>& hierachizationDims, std::vector<int>& taskIDs,
-                  IndexType numberOfCombinations,
-                  IndexType numGrids = 1,
+                  std::vector<bool>& hierarchizationDims, std::vector<size_t>& taskIDs,
+                  IndexType numberOfCombinations, IndexType numGrids = 1,
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
-                  bool forwardDecomposition = !isGENE,
-                  const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelPort = 0,
-                  size_t thirdLevelPG = 0
-                  )
+                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
         boundary_(boundary),
-        hierarchizationDims_(hierachizationDims),
+        hierarchizationDims_(hierarchizationDims),
         procsSet_(false),
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
@@ -71,13 +69,20 @@ class CombiParameters {
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
         thirdLevelPort_(thirdLevelPort),
-        thirdLevelPG_(thirdLevelPG)
-  {
+        thirdLevelPG_(thirdLevelPG) {
+    for (DimType d = 0; d < dim_; ++d) {
+      hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
+    }
     setLevelsCoeffs(taskIDs, levels, coeffs);
     numTasks_ = taskIDs.size();
   }
 
-  ~CombiParameters() {}
+  ~CombiParameters() {
+    // for (auto& b : hierarchicalBases_) {
+    //   if (b!= nullptr) { delete b; }
+    //   b = nullptr;
+    // }
+  }
 
   inline const LevelVector& getLMin() { return lmin_; }
 
@@ -89,25 +94,25 @@ class CombiParameters {
 
   inline const std::vector<bool>& getBoundary() { return boundary_; }
 
-  inline real getCoeff(int taskID) { return coeffs_[taskID]; }
+  inline real getCoeff(size_t taskID) { return coeffs_[taskID]; }
 
-  inline void getCoeffs(std::vector<int>& taskIDs, std::vector<real>& coeffs) {
+  inline void getCoeffs(std::vector<size_t>& taskIDs, std::vector<real>& coeffs) {
     for (auto it : coeffs_) {
       taskIDs.push_back(it.first);
       coeffs.push_back(it.second);
     }
   }
 
-  inline std::map<int, real>& getCoeffsDict() { return coeffs_; }
+  inline std::map<size_t, real>& getCoeffsDict() { return coeffs_; }
 
-  inline std::map<LevelVector, int>& getLevelsToIDs() { return levelsToIDs_; }
+  inline std::map<LevelVector, size_t>& getLevelsToIDs() { return levelsToIDs_; }
 
-  inline void setCoeff(int taskID, real coeff) {
+  inline void setCoeff(size_t taskID, real coeff) {
     coeffs_[taskID] = coeff;
     combiDictionary_[levels_[taskID]] = coeff;
   }
 
-  inline void setLevelsCoeffs(std::vector<int>& taskIDs, std::vector<LevelVector>& levels,
+  inline void setLevelsCoeffs(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels,
                               std::vector<real>& coeffs) {
     assert(taskIDs.size() == coeffs.size());
     assert(taskIDs.size() == levels.size());
@@ -120,18 +125,18 @@ class CombiParameters {
     }
   }
 
-  inline const LevelVector& getLevel(int taskID) { return levels_[taskID]; }
+  inline const LevelVector& getLevel(size_t taskID) { return levels_[taskID]; }
 
-  inline int getID(LevelVector level) { return getLevelsToIDs()[level]; }
+  inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
 
-  inline void getLevels(std::vector<int>& taskIDs, std::vector<LevelVector>& levels) {
+  inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) {
     for (auto it : levels_) {
       taskIDs.push_back(it.first);
       levels.push_back(it.second);
     }
   }
 
-  inline std::map<int, LevelVector>& getLevelsDict() { return levels_; }
+  inline std::map<size_t, LevelVector>& getLevelsDict() { return levels_; }
 
   inline std::map<LevelVector, real>& getCombiDict() { return combiDictionary_; }
 
@@ -150,6 +155,41 @@ class CombiParameters {
   inline IndexType getNumTasks() { return numTasks_; }
 
   inline const std::vector<bool>& getHierarchizationDims() { return hierarchizationDims_; }
+
+  /**
+   * @brief Set the Hierarchical Bases object
+   *        set a vector of hierarchicas bases, one for each dimension
+   *        (not necessary if using hierarchical hats in all dimensions)
+   *        Takes over ownership of the contents of the bases object,
+   *        which are assumed to be on the heap
+   */
+  inline void setHierarchicalBases(std::vector<BasisFunctionBasis*>& bases) {
+    assert(bases.size() == dim_);
+    // delete old hierarchicalBases_
+    for (auto& b : hierarchicalBases_) {
+      if (b!= nullptr) { delete b; }
+      b = nullptr;
+    }
+    for (size_t i = 0; i < bases.size(); ++i) {
+      if (bases[i] == nullptr) {
+        assert(hierarchizationDims_[i] == false);
+      }
+      hierarchicalBases_[i] =bases[i];
+      bases[i] = nullptr;
+    }
+  }
+
+  /**
+   * @brief Get the hierarchical bases, one for each dimension
+   *        (assuming all the dfgs are using the same number of dimensions and the same bases)
+   *
+   * @return std::vector<BasisFunctionBasis*> pointers of the type of basis function
+   *          may be nullptr or anything for a non-hierarchization dimension
+   */
+  inline const std::vector<BasisFunctionBasis*>& getHierarchicalBases() {
+    assert(hierarchicalBases_.size() == dim_);
+    return hierarchicalBases_;
+  }
 
   /* get the common parallelization
    * this function can only be used in the uniform mode
@@ -210,6 +250,28 @@ class CombiParameters {
     return procsSet_;
   }
 
+  /**
+   * @brief Set the Decomposition
+   *
+   * @param decomposition a vector of index vectors, specifying for each dimension
+   *        the lowest 1d index (on a full grid of level lmax)
+   *        that will belong to each cartesian communicator slice
+   */
+  inline void setDecomposition(const std::vector<IndexVector>& decomposition) {
+    assert(uniformDecomposition);
+    decomposition_ = decomposition;
+    for (DimType d = 0; d < dim_; ++d) {
+      assert(decomposition[d][0] == 0);
+      auto numPoints = powerOfTwo[lmax_[d]] + (boundary_[d] ? 1 : -1);
+      assert(decomposition[d].back() < numPoints);
+      assert(procs_[d] == decomposition[d].size());
+    }
+  }
+
+  inline const std::vector<IndexVector>& getDecomposition() const {
+    return decomposition_;
+  }
+
   inline bool getForwardDecomposition() const {
     if (isGENE){
       assert(!forwardDecomposition_);
@@ -226,15 +288,17 @@ class CombiParameters {
 
   std::vector<bool> boundary_;
 
-  std::map<int, LevelVector> levels_;
+  std::map<size_t, LevelVector> levels_;
 
-  std::map<int, real> coeffs_;
+  std::map<size_t, real> coeffs_;
 
-  std::map<LevelVector, int> levelsToIDs_;
+  std::map<LevelVector, size_t> levelsToIDs_;
 
   std::map<LevelVector, real> combiDictionary_;
 
   std::vector<bool> hierarchizationDims_;
+
+  std::vector<BasisFunctionBasis*> hierarchicalBases_;
 
   IndexVector procs_;
 
@@ -243,6 +307,8 @@ class CombiParameters {
   CommunicatorType applicationComm_;
 
   bool applicationCommSet_;
+
+  std::vector<IndexVector> decomposition_;
 
   bool forwardDecomposition_;
 
@@ -293,8 +359,10 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& levels_;
   ar& coeffs_;
   ar& hierarchizationDims_;
+  ar& hierarchicalBases_;
   ar& procs_;
   ar& procsSet_;
+  ar& decomposition_;
   ar& forwardDecomposition_;
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;
@@ -305,6 +373,35 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& thirdLevelPort_;
   ar& thirdLevelPG_;
 }
+
+
+template<typename T>
+static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters) {
+  std::vector<BasisFunctionBasis*> bases;
+  for (DimType d = 0; d < combiParameters.getDim(); ++d) {
+    bases.push_back(new T());
+  }
+  assert(bases.size() == combiParameters.getDim());
+  combiParameters.setHierarchicalBases(bases);
 }
+
+inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters,
+                                                std::string basisName) {
+  if (basisName == "hat") {
+    setCombiParametersHierarchicalBasesUniform<HierarchicalHatBasisFunction>(combiParameters);
+  } else if (basisName == "fullweighting") {
+    setCombiParametersHierarchicalBasesUniform<FullWeightingBasisFunction>(combiParameters);
+  } else if (basisName == "fullweighting_periodic") {
+    setCombiParametersHierarchicalBasesUniform<FullWeightingPeriodicBasisFunction>(combiParameters);
+  } else if (basisName == "biorthogonal") {
+    setCombiParametersHierarchicalBasesUniform<BiorthogonalBasisFunction>(combiParameters);
+  } else if (basisName == "biorthogonal_periodic") {
+    setCombiParametersHierarchicalBasesUniform<BiorthogonalPeriodicBasisFunction>(combiParameters);
+  } else {
+    throw std::invalid_argument("Hierarchical basis string not known.");
+  }
+}
+
+}  // namespace combigrid
 
 #endif /* SRC_SGPP_COMBIGRID_MANAGER_COMBIPARAMETERS_HPP_ */

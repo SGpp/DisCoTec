@@ -64,7 +64,7 @@ class TaskTest : public combigrid::Task {
 
 BOOST_CLASS_EXPORT(TaskTest)
 
-BOOST_AUTO_TEST_SUITE(task)
+BOOST_AUTO_TEST_SUITE(task, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test) {
   int size = 8;

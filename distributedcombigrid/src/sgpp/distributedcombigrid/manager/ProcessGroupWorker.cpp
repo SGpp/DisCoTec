@@ -21,9 +21,8 @@
 namespace combigrid {
 
 ProcessGroupWorker::ProcessGroupWorker()
-    : currentTask_(NULL),
+    : currentTask_(nullptr),
       status_(PROCESS_GROUP_WAIT),
-      // combinedFG_(NULL),
       combinedUniDSGVector_(0),
       combiParameters_(),
       combiParametersSet_(false),
@@ -37,7 +36,10 @@ ProcessGroupWorker::ProcessGroupWorker()
 }
 
 ProcessGroupWorker::~ProcessGroupWorker() {
-  // delete combinedFG_;
+  for (auto& task : tasks_) {
+    delete task;
+    task = nullptr;
+  }
 }
 
 // Do useful things with the info about how long a task took.
@@ -81,13 +83,14 @@ SignalType ProcessGroupWorker::wait() {
   // process signal
   switch (signal) {
     case RUN_FIRST: {
-      initializeTaskAndFaults();
+      receiveAndInitializeTaskAndFaults();
 
       // execute task
       Stats::startEvent("worker run first");
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("worker run first");
-      processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));
+      // std::cout << "from runfirst ";
+      processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
@@ -113,7 +116,7 @@ SignalType ProcessGroupWorker::wait() {
         currentTask_->run(theMPISystem()->getLocalComm());
         e.end = std::chrono::high_resolution_clock::now();
         // std::cout << "from runnext ";
-        processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));
+        processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
 
         if (!isGENE) {
           Stats::stopEvent("worker run");
@@ -127,7 +130,7 @@ SignalType ProcessGroupWorker::wait() {
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
       // TODO test if this signal works in case of not-GENE
-      initializeTaskAndFaults();
+      receiveAndInitializeTaskAndFaults();
 
       currentTask_->setZero();
 
@@ -244,7 +247,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case RECOMPUTE: {  // recompute the received task (immediately computes tasks ->
                        // difference to ADD_TASK)
-      initializeTaskAndFaults();
+      receiveAndInitializeTaskAndFaults();
       currentTask_->setZero();
 
       // fill task with combisolution
@@ -256,7 +259,7 @@ SignalType ProcessGroupWorker::wait() {
       currentTask_->run(theMPISystem()->getLocalComm());
       e.end = std::chrono::high_resolution_clock::now();
       // std::cout << "from recompute ";
-      processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));
+      processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
 
     } break;
     case RECOVER_COMM: {  // start recovery in case of faults
@@ -313,7 +316,7 @@ SignalType ProcessGroupWorker::wait() {
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
 
-      initializeTaskAndFaults(); // receive and initalize new task
+      receiveAndInitializeTaskAndFaults(); // receive and initalize new task
 			// now the variable currentTask_ contains the newly received task
       currentTask_->setZero();
       updateTaskWithCurrentValues(*currentTask_, combiParameters_.getNumGrids());
@@ -394,12 +397,17 @@ void ProcessGroupWorker::ready() {
 
         // set currentTask
         currentTask_ = tasks_[i];
-        Stats::startEvent("worker run");
+        // if isGENE, this is done in GENE's worker_routines.cpp
+        if (!isGENE) {
+          Stats::startEvent("worker run");
+        }
         currentTask_->run(theMPISystem()->getLocalComm());
-        Stats::Event e = Stats::stopEvent("worker run");
+        Stats::Event e;
+        if (!isGENE) {
+          Stats::stopEvent("worker run");
+        }
 
-        // std::cout << "from ready ";
-        processDuration(*currentTask_, e, getCommSize(theMPISystem()->getLocalComm()));
+        processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
         if (ENABLE_FT) {
           // with this barrier the local root but also each other process can detect
           // whether a process in the group has failed
@@ -572,7 +580,7 @@ void ProcessGroupWorker::hierarchizeFullGrids() {
 
       // hierarchize dfg
       DistributedHierarchization::hierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims());
+          dfg, combiParameters_.getHierarchizationDims(), combiParameters_.getHierarchicalBases());
     }
   }
 }
@@ -689,8 +697,10 @@ LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
   return leval;
 }
 
-void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g){
-  DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
+void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g) {
+  DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
+                                              combiParameters_.getHierarchizationDims(),
+                                              combiParameters_.getHierarchicalBases());
 }
 
 void ProcessGroupWorker::parallelEvalUniform() {
@@ -715,9 +725,14 @@ void ProcessGroupWorker::parallelEvalUniform() {
   for (IndexType g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
     bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+    auto levalDecomposition = combigrid::downsampleDecomposition(
+            combiParameters_.getDecomposition(),
+            combiParameters_.getLMax(), leval,
+            combiParameters_.getBoundary());
+
     DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
     this->fillDFGFromDSGU(dfg, g);
     // save dfg to file with MPI-IO
     if(endsWith(filename, ".vtk")){
@@ -766,10 +781,14 @@ void ProcessGroupWorker::parallelEvalNorm() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), leval,
+          combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
   this->fillDFGFromDSGU(dfg, 0);
 
@@ -780,10 +799,14 @@ void ProcessGroupWorker::evalAnalyticalOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), leval,
+          combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
   // interpolate Task's analyticalSolution
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
@@ -800,10 +823,14 @@ void ProcessGroupWorker::evalErrorOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), leval,
+          combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
   this->fillDFGFromDSGU(dfg, 0);
   // interpolate Task's analyticalSolution
@@ -919,7 +946,7 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
   }
 }
 
-void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
+void ProcessGroupWorker::receiveAndInitializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
   Task* t;
 
   // local root receives task
@@ -936,7 +963,11 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
   }
 
   MPI_Barrier(theMPISystem()->getLocalComm());
+  initializeTaskAndFaults(t);
+}
 
+void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
+  assert(combiParametersSet_);
   // add task to task storage
   tasks_.push_back(t);
 
@@ -947,7 +978,11 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
 
   // initalize task
   Stats::startEvent("task init in worker");
-  currentTask_->init(theMPISystem()->getLocalComm());
+  auto taskDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), currentTask_->getLevelVector(),
+          combiParameters_.getBoundary());
+  currentTask_->init(theMPISystem()->getLocalComm(), taskDecomposition);
   t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
   Stats::stopEvent("task init in worker");
 }
@@ -1021,7 +1056,9 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
     // get handle to dfg
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
-    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
+    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
+                                                combiParameters_.getHierarchizationDims(),
+                                                combiParameters_.getHierarchicalBases());
   }
 }
 
@@ -1191,19 +1228,17 @@ void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
 }
 
 void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
-  for (Task* task : tasks_)
-    writeVTKPlotFileOfTask(*task);
-
+  for (Task* task : tasks_) writeVTKPlotFileOfTask(*task);
 }
 
 void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, size_t numGrids) {
-  for (size_t g = 0; g < numGrids; g++) {
+  for (int g = 0; g < numGrids; g++) {
     // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg =
-        taskToUpdate.getDistributedFullGrid(static_cast<int>(g));
+    DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(g);
 
     DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
-                                                combiParameters_.getHierarchizationDims());
+                                                combiParameters_.getHierarchizationDims(),
+                                                combiParameters_.getHierarchicalBases());
 
     // std::vector<CombiDataType> datavector(dfg.getElementVector());
     // afterCombi = datavector;

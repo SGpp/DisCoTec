@@ -44,10 +44,19 @@ namespace TestHelper{
     if (flag){
       int number_amount;
       MPI_Get_count(&status, MPI_CHAR, &number_amount);
-      std::cout << getRank(MPI_COMM_WORLD) << " received " << number_amount << " from " << status.MPI_SOURCE << " with tag " << status.MPI_TAG << std::endl;
+      std::cout << getRank(MPI_COMM_WORLD) << " received " << number_amount << " from "
+                << status.MPI_SOURCE << " with tag " << status.MPI_TAG << std::endl;
     }
     BOOST_CHECK(flag == false);
   }
-}
+
+  struct BarrierAtEnd {
+    BarrierAtEnd() = default;
+    ~BarrierAtEnd() {
+      MPI_Barrier(MPI_COMM_WORLD);
+      TestHelper::testStrayMessages();
+    }
+  };
+}  // namespace TestHelper
 
 #endif  // TEST_HELPER_HPP

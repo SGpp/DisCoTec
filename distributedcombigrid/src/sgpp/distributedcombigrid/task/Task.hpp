@@ -28,6 +28,12 @@ class Task {
   Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
        LoadModel* loadModel, FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
+  // cheapest rule of 5 ever
+  Task(const Task& other) = delete;
+  Task(Task&& other) = delete;
+  Task& operator=(const Task& other) = delete;
+  Task& operator=(Task&& other) = delete;
+
   // fault tolerance info
   FaultCriterion* faultCriterion_;
 
@@ -48,7 +54,16 @@ class Task {
 
   inline const std::vector<bool>& getBoundary() const;
 
-  inline int getID() const;
+  inline size_t getID() const;
+
+  /**
+   * @brief explicitly set a new ID for the task;
+   * may be useful if process groups read their task assignment from file instead of receiving it
+   * from the manager
+   *
+   * make sure ID is continuous and unique!
+   */
+  inline void setID(size_t ID);
 
   virtual void run(CommunicatorType lcomm) = 0;
 
@@ -108,9 +123,9 @@ class Task {
 
   std::vector<bool> boundary_;
 
-  int id_;  // unique id of task, same on manager and worker
+  size_t id_;  // unique id of task, same on manager and worker
 
-  static int count;
+  static size_t count;
 
   LoadModel* loadModel_;
 
@@ -119,7 +134,7 @@ class Task {
 
 typedef std::vector<Task*> TaskContainer;
 
-inline const LevelVector& getLevelVectorFromTaskID(TaskContainer tasks, int task_id){
+inline const LevelVector& getLevelVectorFromTaskID(TaskContainer tasks, size_t task_id){
   auto task = std::find_if(tasks.begin(), tasks.end(), 
     [task_id] (Task* t) {return t->getID() == task_id;}
   );
@@ -143,7 +158,9 @@ inline const LevelVector& Task::getLevelVector() const { return l_; }
 
 inline const std::vector<bool>& Task::getBoundary() const { return boundary_; }
 
-inline int Task::getID() const { return id_; }
+inline size_t Task::getID() const { return id_; }
+
+inline void Task::setID(size_t id) { id_ = id; }
 
 inline bool Task::isFinished() const { return isFinished_; }
 

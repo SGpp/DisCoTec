@@ -176,7 +176,7 @@ void testCombineThirdLevel(TestParams& testParams) {
 
     // create Tasks
     TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
       // Task* t = new TaskCount(2, levels[i], boundary, coeffs[i], loadmodel.get());

@@ -63,7 +63,7 @@ void checkMPIRanksAndCommunication(size_t ngroup, size_t nprocs) {
 
   //   // create Tasks
   //   TaskContainer tasks;
-  //   std::vector<int> taskIDs;
+  //   std::vector<size_t> taskIDs;
   //   for (size_t i = 0; i < levels.size(); i++) {
   //     Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
   //     tasks.push_back(t);
@@ -145,9 +145,9 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::timeout(60)) {
     vmSizes[i] = checkMPIMemory(1, groupSizes[i]);
     if (i > 0) {
       // compare allocated memory sizes
-      // check for linear scaling (grace 10%)
+      // check for linear scaling (grace 20%)
       if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
-        BOOST_TEST(static_cast<double>(vmSizes[i]) <= (vmSizes[0] * groupSizes[i] / groupSizes[0] * 1.1));
+        BOOST_TEST(static_cast<double>(vmSizes[i]) <= (vmSizes[0] * groupSizes[i] / groupSizes[0] * 1.2));
       }
     }
   }

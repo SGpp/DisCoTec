@@ -85,7 +85,7 @@ class ProcessGroupManager {
 
   bool parallelEval(const LevelVector& leval, std::string& filename);
 
-  void getLpNorms(int p, std::map<int, double>& norms);
+  void getLpNorms(int p, std::map<size_t, double>& norms);
 
   std::vector<double> parallelEvalNorm(const LevelVector& leval);
 

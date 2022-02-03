@@ -130,9 +130,9 @@ class ProcessGroupWorker {
 
   StatusType status_;  /// current status of process group (wait -> 0; busy -> 1; fail -> 2)
 
-  FullGrid<complex>* combinedFG_;
-
-  /** Vector containing all distributed sparse grids */
+  /**
+   * Vector containing all distributed sparse grids
+   */
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;
 
   CombiParameters combiParameters_;
@@ -149,7 +149,9 @@ class ProcessGroupWorker {
 
   // std::ofstream betasFile_;
 
-  void initializeTaskAndFaults(bool mayAlreadyExist = true);
+  void initializeTaskAndFaults(Task* t);
+
+  void receiveAndInitializeTaskAndFaults(bool mayAlreadyExist = true);
 
   /** sets all subspaces in all dsgs to zero and allocates them if necessary */
   void zeroDsgsData();
@@ -172,7 +174,10 @@ class ProcessGroupWorker {
   void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
 };
 
-inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
+inline Task* ProcessGroupWorker::getCurrentTask() {
+  assert(currentTask_ != nullptr);
+  return currentTask_;
+}
 
 inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
   assert(combiParametersSet_);

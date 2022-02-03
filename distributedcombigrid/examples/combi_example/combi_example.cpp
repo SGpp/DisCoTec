@@ -32,10 +32,9 @@
 using namespace combigrid;
 
 // this is necessary for correct function of task serialization
+#include "sgpp/distributedcombigrid/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskExample)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-BOOST_CLASS_EXPORT(FaultCriterion)
+
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
@@ -110,7 +109,7 @@ int main(int argc, char** argv) {
 
     // create Tasks
     TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
       tasks.push_back(t);
