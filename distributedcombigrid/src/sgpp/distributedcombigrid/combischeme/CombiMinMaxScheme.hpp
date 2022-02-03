@@ -142,7 +142,7 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
       }
       // process group numbers should either be always given or never
       assert(coefficients_.size() == combiSpaces_.size());
-      assert(coefficients_.size() == combiSpaces_.size());
+      assert(processGroupNumbers_.size() == combiSpaces_.size() || processGroupNumbers_.size() == 0);
     }
     assert(coefficients_.size() > 0);
     assert(coefficients_.size() == combiSpaces_.size());
