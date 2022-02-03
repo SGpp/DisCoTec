@@ -306,7 +306,7 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
       if (r == rank) {
         std::cout << "rank " << r << " recv1dIndices ";
         for (const auto& r : recv1dIndices) {
-          std::cout << r;
+          std::cout << r.second;
         }
         std::cout << std::endl;
       }
@@ -322,7 +322,7 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
       if (r == rank) {
         std::cout << "rank " << r << " send1dIndices ";
         for (const auto& s : send1dIndices) {
-          std::cout << s;
+          std::cout << s.second;
         }
         std::cout << std::endl;
       }
@@ -475,7 +475,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
       if (r == rank) {
         std::cout << "rank " << r << " recv1dIndices ";
         for (const auto& r : recv1dIndices) {
-          std::cout << r;
+          std::cout << r.second;
         }
         std::cout << std::endl;
       }
@@ -491,7 +491,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
       if (r == rank) {
         std::cout << "rank " << r << " send1dIndices ";
         for (const auto& s : send1dIndices) {
-          std::cout << s;
+          std::cout << s.second;
         }
         std::cout << std::endl;
       }
