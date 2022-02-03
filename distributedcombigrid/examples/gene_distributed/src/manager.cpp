@@ -30,12 +30,8 @@
 
 using namespace combigrid;
 // this is necessary for correct function of task serialization
+#include "sgpp/distributedcombigrid/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(GeneTask)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-
-BOOST_CLASS_EXPORT(FaultCriterion)
-
 
 // helper funtion to read a bool vector from string
 inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
