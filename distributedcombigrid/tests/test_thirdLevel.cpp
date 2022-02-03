@@ -316,7 +316,159 @@ void testCombineThirdLevel(TestParams& testParams) {
   TestHelper::testStrayMessages(testParams.comm);
 }
 
-BOOST_AUTO_TEST_SUITE(thirdLevel)
+
+/**
+ * @brief test for the static task assignment mechanism, both systems read their assignment from file `test_scheme.json`
+ */
+void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams) {
+  BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
+
+  combigrid::Stats::initialize();
+  theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs);
+
+  auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+  std::vector<bool> boundary(testParams.dim, testParams.boundary);
+
+  std::vector<LevelVector> levels;
+  std::vector<combigrid::real> coeffs;
+  std::vector<size_t> taskNumbers; // only used in case of static task assignment
+  bool useStaticTaskAssignment = false;
+  {
+  // read in CT scheme
+    std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
+        new CombiMinMaxSchemeFromFile(testParams.dim, testParams.lmin, testParams.lmax, "test_scheme.json"));
+    const auto& pgNumbers = scheme->getProcessGroupNumbers();
+    if (pgNumbers.size() > 0) {
+      useStaticTaskAssignment = true;
+      const auto& allCoeffs = scheme->getCoeffs();
+      const auto& allLevels = scheme->getCombiSpaces();
+      const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+      assert(*itMin == 0);  // make sure it starts with 0
+      // filter out only those tasks that belong to "our" process group
+      const auto& pgroupNumber = theMPISystem()->getProcessGroupNumber();
+      for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
+        if (pgNumbers[taskNo] == pgroupNumber) {
+          taskNumbers.push_back(taskNo);
+          coeffs.push_back(allCoeffs[taskNo]);
+          levels.push_back(allLevels[taskNo]);
+        }
+      }
+      MASTER_EXCLUSIVE_SECTION {
+        std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
+                  << pgNumbers.size() << " tasks." << std::endl;
+      }
+    } else {
+      // levels and coeffs are only used in manager
+      WORLD_MANAGER_EXCLUSIVE_SECTION {
+        coeffs = scheme->getCoeffs();
+        levels = scheme->getCombiSpaces();
+        std::cout << levels.size() << " tasks to distribute." << std::endl;
+      }
+    }
+  }
+
+  BOOST_REQUIRE(useStaticTaskAssignment);
+  BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
+
+  WORLD_MANAGER_EXCLUSIVE_SECTION {
+    ProcessGroupManagerContainer pgroups;
+    for (size_t i = 0; i < testParams.ngroup; ++i) {
+      int pgroupRootID((int)i);
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
+    }
+
+    TaskContainer tasks;
+    std::vector<size_t> taskIDs;
+    for (size_t i = 0; i < levels.size(); i++) {
+      Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel.get());
+
+      tasks.push_back(t);
+      taskIDs.push_back(t->getID());
+    }
+
+    if (useStaticTaskAssignment) {
+      // read in CT scheme -- again!
+      std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(new CombiMinMaxSchemeFromFile(
+          testParams.dim, testParams.lmin, testParams.lmax, "test_scheme.json"));
+      const auto& pgNumbers = scheme->getProcessGroupNumbers();
+      for (size_t taskNo = 0; taskNo < tasks.size(); ++taskNo) {
+        pgroups[pgNumbers[taskNo]]->storeTaskReference(tasks[taskNo]);
+      }
+    }
+
+    // create combiparameters
+    IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
+    CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
+                                coeffs, taskIDs, testParams.ncombi, 1, parallelization,
+                                std::vector<IndexType>(testParams.dim, 0), std::vector<IndexType>(testParams.dim, 1),
+                                true, testParams.host, testParams.port, 0);
+
+    // create abstraction for Manager
+    ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
+
+    // the combiparameters are sent to all process groups before the
+    // computations start
+    manager.updateCombiParameters();
+
+    for (unsigned int i = 0; i < testParams.ncombi; i++) {
+      if (i == 0) {
+        Stats::startEvent("manager no run first");
+        BOOST_TEST_CHECKPOINT("manager first runnext");
+        manager.runnext();
+        BOOST_TEST_CHECKPOINT("manager init dsgus");
+        manager.initDsgus();
+        Stats::stopEvent("manager no run first");
+
+        // exchange subspace sizes to unify the dsgs with the remote system
+        Stats::startEvent("manager unify subspace sizes with remote");
+        BOOST_TEST_CHECKPOINT("manager unifySubspaceSizesThirdLevel");
+        manager.unifySubspaceSizesThirdLevel(),
+        Stats::stopEvent("manager unify subspace sizes with remote");
+      } else {
+        Stats::startEvent("manager run");
+        BOOST_TEST_CHECKPOINT("manager runnext " + std::to_string(i));
+        manager.runnext();
+        Stats::stopEvent("manager run");
+      }
+      // combine grids
+      Stats::startEvent("manager combine third level");
+      BOOST_TEST_CHECKPOINT("manager combineThirdLevel " + std::to_string(i));
+      manager.combineThirdLevel();
+      Stats::stopEvent("manager combine third level");
+    }
+
+    BOOST_TEST_CHECKPOINT("manager exit");
+    manager.exit();
+  }
+  else {
+    ProcessGroupWorker pgroup;
+    SignalType signal = -1;
+    while (signal != EXIT) {
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
+      signal = pgroup.wait();
+      // if using static task assignment, we initialize all tasks after the combi parameters are
+      // updated
+      if (useStaticTaskAssignment) {
+        if (signal == UPDATE_COMBI_PARAMETERS) {
+          // initialize all "our" tasks
+          for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
+            auto task = new TaskConstParaboloid(levels[taskIndex], boundary, coeffs[taskIndex], loadmodel.get());
+            task->setID(taskNumbers[taskIndex]);
+            pgroup.initializeTaskAndFaults(task);
+          }
+        }
+        if (signal == RUN_FIRST) {
+          BOOST_CHECK(false);
+        }
+      }
+    }
+  }
+  combigrid::Stats::finalize();
+  MPI_Barrier(testParams.comm);
+  TestHelper::testStrayMessages(testParams.comm);
+}
+
+BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)) {
   unsigned int numSystems = 2;
@@ -437,6 +589,32 @@ BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance)
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
       testCombineThirdLevel(testParams);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+// like test_5, but with static group assignment
+BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+  unsigned int numSystems = 2;
+  unsigned int ngroup = 3;
+  unsigned int nprocs = 1;
+  unsigned int ncombi = 10;
+  DimType dim = 2;
+  LevelVector lmin = {3,6};
+  LevelVector lmax = {7,10};
+
+  unsigned int sysNum;
+  CommunicatorType newcomm;
+
+  for (bool boundary : {false, true}) {
+    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+
+    if (sysNum < numSystems) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+      startInfrastructure();
+      testCombineThirdLevelStaticTaskAssignment(testParams);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
