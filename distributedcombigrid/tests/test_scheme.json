@@ -1,0 +1,11 @@
+[
+    {"coeff": 1.0, "level": [7, 6], "group_no": 1},
+    {"coeff": 1.0, "level": [6, 7], "group_no": 1},
+    {"coeff": 1.0, "level": [5, 8], "group_no": 0},
+    {"coeff": 1.0, "level": [4, 9], "group_no": 3},
+    {"coeff": 1.0, "level": [3, 10], "group_no": 2},
+    {"coeff": -1.0, "level": [6, 6], "group_no": 4},
+    {"coeff": -1.0, "level": [5, 7], "group_no": 4},
+    {"coeff": -1.0, "level": [4, 8], "group_no": 6},
+    {"coeff": -1.0, "level": [3, 9], "group_no": 7}
+]

@@ -37,7 +37,12 @@ ProcessGroupWorker::ProcessGroupWorker()
   }
 }
 
-ProcessGroupWorker::~ProcessGroupWorker() {}
+ProcessGroupWorker::~ProcessGroupWorker() {
+  for (auto& task : tasks_) {
+    delete task;
+    task = nullptr;
+  }
+}
 
 // Do useful things with the info about how long a task took.
 // this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly multiple times),
@@ -80,7 +85,7 @@ SignalType ProcessGroupWorker::wait() {
   // process signal
   switch (signal) {
     case RUN_FIRST: {
-      initializeTaskAndFaults();
+      receiveAndInitializeTaskAndFaults();
 
       // execute task
       Stats::startEvent("worker run first");
@@ -124,7 +129,7 @@ SignalType ProcessGroupWorker::wait() {
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
       // TODO test if this signal works in case of not-GENE
-      initializeTaskAndFaults();
+      receiveAndInitializeTaskAndFaults();
 
       currentTask_->setZero();
 
@@ -205,7 +210,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case RECOMPUTE: {  // recompute the received task (immediately computes tasks ->
                        // difference to ADD_TASK)
-      initializeTaskAndFaults();
+      receiveAndInitializeTaskAndFaults();
       currentTask_->setZero();
 
       // fill task with combisolution
@@ -274,7 +279,7 @@ SignalType ProcessGroupWorker::wait() {
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
 
-      initializeTaskAndFaults(); // receive and initalize new task
+      receiveAndInitializeTaskAndFaults(); // receive and initalize new task
 			// now the variable currentTask_ contains the newly received task
       currentTask_->setZero();
       updateTaskWithCurrentValues(*currentTask_, combiParameters_.getNumGrids());
@@ -705,9 +710,14 @@ void ProcessGroupWorker::parallelEvalUniform() {
   for (int g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
     bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+    auto levalDecomposition = combigrid::downsampleDecomposition(
+            combiParameters_.getDecomposition(),
+            combiParameters_.getLMax(), leval,
+            combiParameters_.getBoundary());
+
     DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
     this->fillDFGFromDSGU(dfg, g);
     // save dfg to file with MPI-IO
     auto pos = filename.find(".");
@@ -751,10 +761,14 @@ void ProcessGroupWorker::parallelEvalNorm() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), leval,
+          combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
   this->fillDFGFromDSGU(dfg, 0);
 
@@ -765,10 +779,14 @@ void ProcessGroupWorker::evalAnalyticalOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), leval,
+          combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
   // interpolate Task's analyticalSolution
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
@@ -785,10 +803,14 @@ void ProcessGroupWorker::evalErrorOnDFG() {
   auto leval = receiveLevalAndBroadcast();
   const int dim = static_cast<int>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), leval,
+          combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition);
+      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
   this->fillDFGFromDSGU(dfg, 0);
   // interpolate Task's analyticalSolution
@@ -904,7 +926,7 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
   }
 }
 
-void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
+void ProcessGroupWorker::receiveAndInitializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
   Task* t;
 
   // local root receives task
@@ -921,7 +943,11 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
   }
 
   MPI_Barrier(theMPISystem()->getLocalComm());
+  initializeTaskAndFaults(t);
+}
 
+void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
+  assert(combiParametersSet_);
   // add task to task storage
   tasks_.push_back(t);
 
@@ -932,7 +958,11 @@ void ProcessGroupWorker::initializeTaskAndFaults(bool mayAlreadyExist /*=true*/)
 
   // initalize task
   Stats::startEvent("task init in worker");
-  currentTask_->init(theMPISystem()->getLocalComm());
+  auto taskDecomposition = combigrid::downsampleDecomposition(
+          combiParameters_.getDecomposition(),
+          combiParameters_.getLMax(), currentTask_->getLevelVector(),
+          combiParameters_.getBoundary());
+  currentTask_->init(theMPISystem()->getLocalComm(), taskDecomposition);
   t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
   Stats::stopEvent("task init in worker");
 }

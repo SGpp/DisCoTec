@@ -25,7 +25,7 @@ Task::~Task() {
   delete faultCriterion_;
 }
 
-int Task::count = 0;
+size_t Task::count = 0;
 
 void Task::send(Task** t, RankType dst, CommunicatorType comm) {
   // save data to archive

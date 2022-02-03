@@ -12,7 +12,7 @@ namespace combigrid {
  * This POD only contains fields that change over the runtime of a simulation.
  */
 struct DurationInformation {
-  int task_id; /**< included for easy identification of the corresponding task */
+  size_t task_id; /**< included for easy identification of the corresponding task */
   unsigned long duration;
   real simtime_now;
   real real_dt;
