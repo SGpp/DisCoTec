@@ -98,6 +98,21 @@ class ProcessGroupWorker {
   // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
   void setCombinedSolutionUniform(Task* t);
 
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
+    return combinedUniDSGVector_;
+  }
+
+  TaskContainer& getTasks(){
+    return tasks_;
+  }
+
+  /**
+   * @brief store task and run its init function with current combiParameters
+   *
+   * @param t pointer to a heap-allocated task, the function takes over ownership here
+   */
+  void initializeTaskAndFaults(Task* t);
+
  private:
   TaskContainer tasks_;  // task storage
 
@@ -125,8 +140,6 @@ class ProcessGroupWorker {
       startTimeIteration_;  // starting time of process computation
 
   // std::ofstream betasFile_;
-
-  void initializeTaskAndFaults(Task* t);
 
   void receiveAndInitializeTaskAndFaults(bool mayAlreadyExist = true);
 

@@ -86,6 +86,7 @@ SignalType ProcessGroupWorker::wait() {
   switch (signal) {
     case RUN_FIRST: {
       receiveAndInitializeTaskAndFaults();
+      status_ = PROCESS_GROUP_BUSY;
 
       // execute task
       Stats::startEvent("worker run first");
@@ -950,8 +951,6 @@ void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
   assert(combiParametersSet_);
   // add task to task storage
   tasks_.push_back(t);
-
-  status_ = PROCESS_GROUP_BUSY;
 
   // set currentTask
   currentTask_ = tasks_.back();
