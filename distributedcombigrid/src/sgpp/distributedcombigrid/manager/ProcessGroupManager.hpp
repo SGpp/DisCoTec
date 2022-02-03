@@ -102,6 +102,10 @@ class ProcessGroupManager {
    */
   Task *rescheduleRemoveTask(const LevelVector& lvlVec);
 
+  bool writeCombigridsToVTKPlotFile();
+
+  void storeTaskReference(Task* t);
+
  private:
   RankType pgroupRootID_;  // rank in GlobalComm of the master process of this group
 
@@ -119,8 +123,6 @@ class ProcessGroupManager {
 
   // Helper functions for Communication with ProcessGroups
   bool storeTaskReferenceAndSendTaskToProcessGroup(Task* t, SignalType signal);
-
-  void storeTaskReference(Task* t);
 
   bool sendTaskToProcessGroup(Task* t, SignalType signal);
 
