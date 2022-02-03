@@ -297,7 +297,7 @@ bool ClientSocket::recvallBinaryAndReduceInPlace(FG_ELEMENT* buff,
   // receive endianness
   char temp = ' ';
   auto recvSuccess = recvall(&temp, 1);
-  assert(recSuccess && "Receiving Endianess failed");
+  assert(recvSuccess && "Receiving Endianess failed");
   bool hasSameEndianness = bool(temp) == NetworkUtils::isLittleEndian();
 
   // for recv()
