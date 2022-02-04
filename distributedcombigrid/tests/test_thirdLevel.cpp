@@ -386,16 +386,6 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams) {
       taskIDs.push_back(t->getID());
     }
 
-    if (useStaticTaskAssignment) {
-      // read in CT scheme -- again!
-      std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(new CombiMinMaxSchemeFromFile(
-          testParams.dim, testParams.lmin, testParams.lmax, "test_scheme.json"));
-      const auto& pgNumbers = scheme->getProcessGroupNumbers();
-      for (size_t taskNo = 0; taskNo < tasks.size(); ++taskNo) {
-        pgroups[pgNumbers[taskNo]]->storeTaskReference(tasks[taskNo]);
-      }
-    }
-
     // create combiparameters
     IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
@@ -405,6 +395,16 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams) {
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
+
+    if (useStaticTaskAssignment) {
+      // read in CT scheme -- again!
+      std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(new CombiMinMaxSchemeFromFile(
+          testParams.dim, testParams.lmin, testParams.lmax, "test_scheme.json"));
+      const auto& pgNumbers = scheme->getProcessGroupNumbers();
+      for (size_t taskNo = 0; taskNo < tasks.size(); ++taskNo) {
+        pgroups[pgNumbers[taskNo]]->storeTaskReference(tasks[taskNo]);
+      }
+    }
 
     // the combiparameters are sent to all process groups before the
     // computations start
