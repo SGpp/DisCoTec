@@ -40,7 +40,7 @@ class TaskAdvection : public Task {
         p_(p),
         initialized_(false),
         stepsTotal_(0),
-        dfg_(NULL) {}
+        dfg_(nullptr), phi_(nullptr) {}
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -63,8 +63,8 @@ class TaskAdvection : public Task {
 
     start = MPI_Wtime();
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_);
-    phi_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_);
+    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true, decomposition);
+    phi_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true, decomposition);
     finish = MPI_Wtime();
     if (lrank == 0) {
       std::cout << " created dfg_ and phi_ took " << finish - start << std::flush;
