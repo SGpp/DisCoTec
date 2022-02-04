@@ -134,7 +134,7 @@ void startInfrastructure() {
     runThirdLevelManager();
   }
   // give infrastructure some time to set up
-  sleep(2);
+  sleep(5);
 }
 
 void testCombineThirdLevel(TestParams& testParams) {
