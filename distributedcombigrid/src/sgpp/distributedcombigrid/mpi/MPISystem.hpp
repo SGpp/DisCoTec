@@ -106,7 +106,7 @@ class MPISystem {
    * @brief get own process group number
    *
    */
-  inline const RankType getProcessGroupNumber() const {
+  inline RankType getProcessGroupNumber() const {
     if (worldRank_ == managerRankWorld_)
       return -1;
     else
