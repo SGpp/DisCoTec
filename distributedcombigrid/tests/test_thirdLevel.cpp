@@ -134,7 +134,7 @@ void startInfrastructure() {
     runThirdLevelManager();
   }
   // give infrastructure some time to set up
-  sleep(5);
+  sleep(10);
 }
 
 void testCombineThirdLevel(TestParams& testParams) {
@@ -468,7 +468,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams) {
   TestHelper::testStrayMessages(testParams.comm);
 }
 
-BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
+BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(600))
 
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)) {
   unsigned int numSystems = 2;
