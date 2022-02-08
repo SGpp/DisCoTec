@@ -119,19 +119,20 @@ void assignProcsToSystems(unsigned int ngroup, unsigned int nprocs, unsigned int
 }
 
 /** Runs the third level manager in the background as a forked child process */
-void runThirdLevelManager() {
+void runThirdLevelManager(unsigned short port) {
   std::cout << "starting thirdLevelManager..." << std::endl;
-  std::string command = "../../distributedcombigrid/third_level_manager/run.sh &";
+  std::string command = "../../distributedcombigrid/third_level_manager/thirdLevelManager --port=" +
+                        std::to_string(port) + " &";
   system(command.c_str());
 }
 
 /** Runs the tl manager*/
-void startInfrastructure() {
+void startInfrastructure(unsigned short port = 9999) {
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   if (rank == 0) {
-    runThirdLevelManager();
+    runThirdLevelManager(port);
   }
   // give infrastructure some time to set up
   sleep(10);
