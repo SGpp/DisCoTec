@@ -144,7 +144,7 @@ class DistributedFullGrid {
 
   virtual ~DistributedFullGrid() {
     // todo: remove communicators? Yes -> Done
-    MPI_Comm_free(&communicator_);
+    // MPI_Comm_free(&communicator_);
     for (size_t i = 0; i < upwardSubarrays_.size(); ++i)  {
       MPI_Type_free(&upwardSubarrays_[i]);
     }
@@ -2394,7 +2394,10 @@ class DistributedFullGrid {
             " cartdims: " << cartdims << " dims: " << dims);
       assert(cartdims == dims);
 
-      MPI_Comm_dup(comm, &communicator_);
+      // MPI_Comm_dup(comm, &communicator_);
+      // cf. https://www.researchgate.net/publication/220439585_MPI_on_millions_of_cores
+      // "Figure 3 shows the memory consumption in all these cases after 32 calls to MPI Comm dup"
+      communicator_ = comm;
 
 #ifdef DEBUG_OUTPUT
       std::cout << "DistributedFullGrid: using given cartcomm: " << communicator_ << std::endl;
@@ -2404,6 +2407,9 @@ class DistributedFullGrid {
       std::vector<int> periods(dim_, 0);
       int reorder = 0;
       MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0], reorder, &communicator_);
+      std::runtime_error("Currently testing to not duplicate communicator (to save memory), \
+                          if you do want to use this code please take care that \
+                          MPI_Comm_free(&communicator_) will be called at some point");
 #ifdef DEBUG_OUTPUT
       std::cout << "DistributedFullGrid: create new cartcomm" << std::endl;
 #endif
