@@ -18,6 +18,7 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
+#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
@@ -34,6 +35,8 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 
+// this is necessary for correct function of task serialization
+#include "sgpp/distributedcombigrid/utils/BoostExports.hpp"
 
 using namespace combigrid;
 
@@ -202,11 +205,6 @@ class TaskAdvFDM : public combigrid::Task {
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskAdvFDM)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-
-BOOST_CLASS_EXPORT(FaultCriterion)
-
 
 void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, size_t ncombi, int nfaults,int iteration_faults, int global_rank_faults) {
 

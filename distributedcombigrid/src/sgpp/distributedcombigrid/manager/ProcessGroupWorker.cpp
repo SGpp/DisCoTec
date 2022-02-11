@@ -589,7 +589,7 @@ void ProcessGroupWorker::hierarchizeFullGrids() {
 
       // hierarchize dfg
       DistributedHierarchization::hierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims());
+          dfg, combiParameters_.getHierarchizationDims(), combiParameters_.getHierarchicalBases());
     }
   }
 }
@@ -680,8 +680,10 @@ LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
   return leval;
 }
 
-void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g){
-  DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
+void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g) {
+  DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
+                                              combiParameters_.getHierarchizationDims(),
+                                              combiParameters_.getHierarchicalBases());
 }
 
 void ProcessGroupWorker::parallelEvalUniform() {
@@ -1031,7 +1033,9 @@ void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
     // get handle to dfg
     DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
 
-    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
+    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
+                                                combiParameters_.getHierarchizationDims(),
+                                                combiParameters_.getHierarchicalBases());
   }
 }
 
@@ -1059,7 +1063,9 @@ void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, size_t 
       // get handle to dfg
       DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(g);
 
-      DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g], combiParameters_.getHierarchizationDims());
+      DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
+                                                  combiParameters_.getHierarchizationDims(),
+                                                  combiParameters_.getHierarchicalBases());
 
       // std::vector<CombiDataType> datavector(dfg.getElementVector());
       // afterCombi = datavector;
