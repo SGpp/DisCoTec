@@ -313,5 +313,6 @@ try:
 
     plt.tight_layout()
     plt.show()
+    plt.savefig("timers_"+str(plot_type)+"_"+os.path.split(os.getcwd())[-1]+".svg", format="svg")
 except Exception as err:
     print("Error: " + str(err))
