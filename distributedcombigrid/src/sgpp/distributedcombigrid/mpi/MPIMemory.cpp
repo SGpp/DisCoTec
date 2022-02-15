@@ -50,7 +50,7 @@ int get_memory_usage_kb(unsigned long* vmrss_kb, unsigned long* vmsize_kb) {
 }
 
 int get_all_memory_usage_kb(unsigned long* vmrss, unsigned long* vmsize, CommunicatorType comm) {
-
+  MPI_Barrier(comm);
   unsigned long vmrss_kb, vmsize_kb;
   int ret_code = get_memory_usage_kb(&vmrss_kb, &vmsize_kb);
   if (ret_code != 0) {
