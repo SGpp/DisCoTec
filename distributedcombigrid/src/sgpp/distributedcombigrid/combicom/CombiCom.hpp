@@ -18,26 +18,25 @@
 
 namespace combigrid {
 
-
 class CombiCom {
  private:
-   template<typename FG_ELEMENT>
-   static void updateSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                                   std::vector<int>& subspaceSizes,
-                                   const MPI_Comm& globalReduceComm);
-   template<typename FG_ELEMENT>
-   static int sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                                       const std::vector<int>& subspaceSizes);
+  template <typename FG_ELEMENT>
+  static void updateSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                  std::vector<int>& subspaceSizes,
+                                  const MPI_Comm& globalReduceComm);
+  template <typename FG_ELEMENT>
+  static int sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                      const std::vector<long unsigned int>& subspaceSizes);
 
-   template<typename FG_ELEMENT>
-   static void createUniformSparseGridBuffer(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                                             const std::vector<int>& subspaceSizes,
-                                             std::vector<FG_ELEMENT>& buf);
+  template <typename FG_ELEMENT>
+  static void createUniformSparseGridBuffer(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                            const std::vector<int>& subspaceSizes,
+                                            std::vector<FG_ELEMENT>& buf);
 
-   template<typename FG_ELEMENT>
-   static void extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
-                                             const std::vector<int> subspaceSizes,
-                                             DistributedSparseGridUniform<FG_ELEMENT>& dsg);
+  template <typename FG_ELEMENT>
+  static void extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
+                                            const std::vector<int> subspaceSizes,
+                                            DistributedSparseGridUniform<FG_ELEMENT>& dsg);
 
  public:
   // // after SGReduce sg will have full size
@@ -84,6 +83,9 @@ class CombiCom {
 
   template <typename FG_ELEMENT>
   static void distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg);
+
+  template <typename FG_ELEMENT>
+  static bool sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg);
 };
 
 // template <>
@@ -498,7 +500,8 @@ void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
 
 //   for (int r = 0; r < dfg.getCommunicatorSize(); ++r) {
 //     if (r == rank) {
-//       std::cout << "rank " << rank << " tot send " << totalsendsize << " tot recv " << totalrecvsize
+//       std::cout << "rank " << rank << " tot send " << totalsendsize << " tot recv " <<
+//       totalrecvsize
 //                 << std::endl;
 //     }
 
@@ -668,7 +671,8 @@ void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
 //   dfg.getSubspacesLevelVectors(dfgSubspacesLevels);
 
 //   // loop over all subspaces include in dfg
-//   // and scatter all sparse grid subspaces contained in dfg those which are contained in the sparse
+//   // and scatter all sparse grid subspaces contained in dfg those which are contained in the
+//   sparse
 //   // grid
 //   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
 //     const LevelVector& scatterL = dfgSubspacesLevels[i];
@@ -692,7 +696,6 @@ void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
 //   // clear subspace containers and release memory
 //   dfg.clearSubspaces();
 // }
-
 
 // sparse grid reduce
 template <typename FG_ELEMENT>
@@ -735,8 +738,7 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
 template <typename FG_ELEMENT>
 void CombiCom::updateSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
                                    std::vector<int>& subspaceSizes,
-                                   const MPI_Comm& globalReduceComm)
-{
+                                   const MPI_Comm& globalReduceComm) {
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     // MPI does not have a real size_t equivalent. int should work in most cases
     // if not we can at least detect this with an assert
@@ -747,21 +749,20 @@ void CombiCom::updateSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT
     // std::cerr << combigrid::toString(dsg.getDataVector(i)) << std::endl;
   }
 
-  MPI_Allreduce( MPI_IN_PLACE, subspaceSizes.data(), int(subspaceSizes.size()),
-                 MPI_INT, MPI_MAX, globalReduceComm);
+  MPI_Allreduce(MPI_IN_PLACE, subspaceSizes.data(), int(subspaceSizes.size()), MPI_INT, MPI_MAX,
+                globalReduceComm);
 }
 
 template <typename FG_ELEMENT>
 int CombiCom::sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                                       const std::vector<int>& subspaceSizes)
-{
+                                       const std::vector<long unsigned int>& subspaceSizes) {
   int bsize = 0;
 
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     // check for implementation errors, the reduced subspace size should not be
     // different from the size of already initialized subspaces
-    bool check = (subspaceSizes[i] == 0 || dsg.getDataSize(i) == 0
-                  || subspaceSizes[i] == int(dsg.getDataSize(i)));
+    bool check = (subspaceSizes[i] == 0 || dsg.getDataSize(i) == 0 ||
+                  subspaceSizes[i] == int(dsg.getDataSize(i)));
 
     if (!check) {
       int rank;
@@ -779,10 +780,15 @@ int CombiCom::sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELE
 }
 
 template <typename FG_ELEMENT>
+bool CombiCom::sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
+  auto bsize = CombiCom::sumAndCheckSubspaceSizes(dsg, dsg.getSubspaceDataSizes());
+  return bsize == dsg.getRawDataSize();
+}
+
+template <typename FG_ELEMENT>
 void CombiCom::createUniformSparseGridBuffer(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
                                              const std::vector<int>& subspaceSizes,
-                                             std::vector<FG_ELEMENT>& buf)
-{
+                                             std::vector<FG_ELEMENT>& buf) {
   typename std::vector<FG_ELEMENT>::iterator buf_it = buf.begin();
 
   for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
@@ -805,8 +811,7 @@ void CombiCom::createUniformSparseGridBuffer(DistributedSparseGridUniform<FG_ELE
 template <typename FG_ELEMENT>
 void CombiCom::extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
                                              const std::vector<int> subspaceSizes,
-                                             DistributedSparseGridUniform<FG_ELEMENT>& dsg)
-{
+                                             DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
   auto buf_it = buf.begin();
 
   for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
@@ -814,13 +819,12 @@ void CombiCom::extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
 
     // this is very unlikely but can happen if dsg is different than
     // lmax and lmin of combination scheme
-    if(subspaceData.size() == 0 && subspaceSizes[i] == 0)
-      continue;
+    if (subspaceData.size() == 0 && subspaceSizes[i] == 0) continue;
 
     // this happens for subspaces that are only available in component grids
     // on other process groups
-    if( subspaceData.size() == 0 && subspaceSizes[i] > 0 ){
-      subspaceData.resize( subspaceSizes[i] );
+    if (subspaceData.size() == 0 && subspaceSizes[i] > 0) {
+      subspaceData.resize(subspaceSizes[i]);
     }
 
     // wenn subspaceData.size() > 0 und subspaceSizes > 0
@@ -839,9 +843,8 @@ void CombiCom::extractSubspaceDataFromBuffer(const std::vector<FG_ELEMENT> buf,
  * other process groups that own the same geometrical area. Here we follow the
  * Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
  */
-template<typename FG_ELEMENT>
-void CombiCom::distributedGlobalReduce(
-  DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
+template <typename FG_ELEMENT>
+void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
   // get global communicator for this operation
   MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
 
@@ -853,11 +856,12 @@ void CombiCom::distributedGlobalReduce(
   size_t subspacesDataSize = dsg.getRawDataSize();
 
   // global reduce
-  MPI_Datatype dtype = abstraction::getMPIDatatype(
-                         abstraction::getabstractionDataType<FG_ELEMENT>());
+  MPI_Datatype dtype =
+      abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
   assert(subspacesDataSize < static_cast<size_t>(std::numeric_limits<int>::max()));
-  MPI_Allreduce( MPI_IN_PLACE, subspacesData, static_cast<int>(subspacesDataSize), dtype, MPI_SUM, mycomm);
+  MPI_Allreduce(MPI_IN_PLACE, subspacesData, static_cast<int>(subspacesDataSize), dtype, MPI_SUM,
+                mycomm);
 }
 
 } /* namespace combigrid */

@@ -187,6 +187,15 @@ bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& fi
   return true;
 }
 
+void ProcessGroupManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
+  this->sendSignalToProcessGroup(WRITE_DSG_MINMAX_COEFFICIENTS);
+
+  // send filename
+  MPIUtils::sendClass(&filename, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+
+  this->setProcessGroupBusyAndReceive();
+}
+
 void ProcessGroupManager::doDiagnostics(int taskID) {
   auto status = waitStatus();
   assert(status == PROCESS_GROUP_WAIT);
