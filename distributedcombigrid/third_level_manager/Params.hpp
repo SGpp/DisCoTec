@@ -16,6 +16,7 @@ class Params
     Params();
 
     void loadFromFile(const std::string& filename);
+    void loadFromCmd(int argc, char* argv[]);
 
     bool    areLoaded()     const;
     u_short getPort()       const;

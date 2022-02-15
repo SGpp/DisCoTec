@@ -12,10 +12,10 @@ all: thirdLevelManager
 thirdLevelManager: thirdLevelManager.cpp thirdLevelManager.hpp Params.cpp\
                    Params.hpp System.cpp System.hpp Stats.hpp\
                    $(THIRD_LEVEL_INC)/NetworkUtils.hpp\
-                   $(THIRD_LEVEL_INC)/NetworkUtils.cpp
+                   $(THIRD_LEVEL_INC)/NetworkUtils.cpp -lboost_program_options
 	$(CC) $(CFLAGS) $(INC) -o thirdLevelManager thirdLevelManager.cpp\
                             Params.cpp System.cpp Stats.cpp\
-                            $(THIRD_LEVEL_INC)/NetworkUtils.cpp # -DDEBUG_ON > build.log 2>&1
+                            $(THIRD_LEVEL_INC)/NetworkUtils.cpp -lboost_program_options # -DDEBUG_ON > build.log 2>&1
 
 clean:
 	rm -f *.o out/* thirdLevelManager

@@ -124,6 +124,9 @@ class DistributedSparseGridUniform {
   // unlike getIndex this will not throw an assert in case l is not contained
   bool isContained(const LevelVector& l) const;
 
+  // clear the levels_ vector, it is only necessary for registration of full grids
+  void resetLevels();
+
   // data size of the subspace at index i
   inline size_t getDataSize(size_t i) const;
 
@@ -163,8 +166,6 @@ class DistributedSparseGridUniform {
   std::vector<bool> boundary_;
 
   CommunicatorType comm_;
-
-  std::vector<RankType> subspaceToProc_;
 
   RankType rank_;
 
@@ -472,6 +473,11 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::isContained(const LevelVector& l)
   }
 
   return found;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::resetLevels() {
+  levels_.clear();
 }
 
 // template <typename FG_ELEMENT>

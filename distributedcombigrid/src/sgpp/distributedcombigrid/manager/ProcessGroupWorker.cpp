@@ -137,7 +137,7 @@ SignalType ProcessGroupWorker::wait() {
 
       currentTask_->setFinished(true);
 
-      if (isGENE) { 
+      if (isGENE) {
         currentTask_->changeDir(theMPISystem()->getLocalComm());
       }
     } break;
@@ -329,10 +329,10 @@ SignalType ProcessGroupWorker::wait() {
 
       int taskID;
       MASTER_EXCLUSIVE_SECTION {
-        MPI_Recv(&taskID, 1, MPI_INT, theMPISystem()->getManagerRank(), 0, 
+        MPI_Recv(&taskID, 1, MPI_INT, theMPISystem()->getManagerRank(), 0,
                  theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
       }
-      MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(), 
+      MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(),
                 theMPISystem()->getLocalComm());
 
       // search for task send to group master and remove
@@ -340,7 +340,7 @@ SignalType ProcessGroupWorker::wait() {
         if (tasks_[i]->getID() == taskID) {
           MASTER_EXCLUSIVE_SECTION {
             // send to group master
-            Task::send(&tasks_[i], theMPISystem()->getManagerRank(), 
+            Task::send(&tasks_[i], theMPISystem()->getManagerRank(),
                        theMPISystem()->getGlobalComm());
           }
           delete(tasks_[i]);
@@ -546,8 +546,8 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   // set subspace sizes local and global
 
   // register dsgs in all dfgs
-  for (Task* t : tasks_) {
-    for (int g = 0; g < numGrids; g++) {
+  for (int g = 0; g < numGrids; g++) {
+    for (Task* t : tasks_) {
 #ifdef DEBUG_OUTPUT
       MASTER_EXCLUSIVE_SECTION {
         std::cout << "register task " << t->getID() << std::endl;
@@ -556,6 +556,10 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       dfg.registerUniformSG(*(combinedUniDSGVector_[(size_t) g]));
     }
+    // // we may clear the levels_ member of the sparse grids here to save memory
+    // // but only if we need no new full grids initialized from the sparse grids!
+    // // ...such as for rescheduling or interpolation (parallelEval/ evalNorm / ...)
+    // combinedUniDSGVector_[(size_t) g]->resetLevels();
   }
 
   // global reduce of subspace sizes

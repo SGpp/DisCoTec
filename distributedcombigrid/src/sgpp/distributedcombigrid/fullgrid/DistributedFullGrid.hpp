@@ -1206,6 +1206,7 @@ class DistributedFullGrid {
         subspaceIndexToFGIndices_.push_back(std::make_pair(index, FGIndices));
       }
     }
+    assert(subspaceIndexToFGIndices_.size() > 0);
     // if localFGIndexToLocalSGPointerList_ was already initialized,
     // it is invalidated now
     localFGIndexToLocalSGPointerList_.clear();

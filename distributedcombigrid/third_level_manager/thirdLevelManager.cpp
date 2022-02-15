@@ -5,7 +5,8 @@ using namespace combigrid;
 int main(int argc, char* argv[])
 {
   if (argc < 2) {
-    std::cout << "Usage:\n ./thirdLevelManager paramfile" << std::endl;
+    std::cout << "Usage:\n ./thirdLevelManager paramfile \
+                  or ./thirdLevelManager --port=9999 --numSystems=2 --chunksize=131072" << std::endl;
     return 0;
   }
   // Load config file
@@ -13,7 +14,11 @@ int main(int argc, char* argv[])
   std::cout << "Loading parameters" << std::endl;
 #endif
   Params params;
-  params.loadFromFile(argv[1]);
+  if (argv[1][0] == '-') {
+    params.loadFromCmd(argc, argv);
+  } else {
+    params.loadFromFile(argv[1]);
+  }
 
   // Setup third level manager
 #ifdef DEBUG_OUTPUT
@@ -223,13 +228,15 @@ void ThirdLevelManager::processAnyData(size_t initiatorIndex)
   initiator.receiveMessage(message);
   if (message == "sending_data")
   {
-    size_t dataSize = forwardData(initiator, other);
+    // size_t dataSize = forwardData(initiator, other);
+    forwardData(initiator, other);
   }
   // transfer data from other to initiator
   other.receiveMessage(message);
   if (message == "sending_data")
   {
-    size_t dataSize = forwardData(other, initiator);
+    // size_t dataSize = forwardData(other, initiator);
+    forwardData(other, initiator);
   }
   initiator.receiveMessage(message);
   assert(message == "ready");
