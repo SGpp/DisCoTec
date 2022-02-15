@@ -73,6 +73,10 @@ class ProcessGroupManager {
 
   bool parallelEval(const LevelVector& leval, std::string& filename);
 
+  void writeSparseGridMinMaxCoefficients(const std::string& filename);
+
+  void doDiagnostics(int taskID);
+
   void getLpNorms(int p, std::map<size_t, double>& norms);
 
   std::vector<double> parallelEvalNorm(const LevelVector& leval);

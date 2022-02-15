@@ -97,6 +97,8 @@ class ProcessManager {
 
   std::vector<CombiDataType> interpolateValues(const std::vector<std::vector<real>>& interpolationCoords);
 
+  void writeSparseGridMinMaxCoefficients(const std::string& filename);
+
   void redistribute(std::vector<size_t>& taskID);
 
   void reInitializeGroup(std::vector<ProcessGroupManagerID>& taskID,

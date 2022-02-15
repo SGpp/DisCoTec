@@ -4,189 +4,211 @@
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
-ProcessGroupManager::ProcessGroupManager(RankType pgroupRootID)
-    : pgroupRootID_(pgroupRootID),
-      status_(PROCESS_GROUP_WAIT),
-      statusRequest_(MPI_Request()),
-      statusRequestFT_(nullptr) {}
+	ProcessGroupManager::ProcessGroupManager(RankType pgroupRootID)
+		: pgroupRootID_(pgroupRootID),
+		status_(PROCESS_GROUP_WAIT),
+		statusRequest_(MPI_Request()),
+		statusRequestFT_(nullptr) {}
 
-bool ProcessGroupManager::runfirst(Task* t) {
-  return storeTaskReferenceAndSendTaskToProcessGroup(t, RUN_FIRST);
-}
+	bool ProcessGroupManager::runfirst(Task* t) {
+		return storeTaskReferenceAndSendTaskToProcessGroup(t, RUN_FIRST);
+	}
 
-bool ProcessGroupManager::storeTaskReferenceAndSendTaskToProcessGroup(Task* t, SignalType signal){
-  // first check status
-  // tying to add a task to a busy group is an invalid operation
-  // and should be avoided
-  if (status_ != PROCESS_GROUP_WAIT)
-    return false;
+	bool ProcessGroupManager::storeTaskReferenceAndSendTaskToProcessGroup(Task* t, SignalType signal){
+		// first check status
+		// tying to add a task to a busy group is an invalid operation
+		// and should be avoided
+		if (status_ != PROCESS_GROUP_WAIT)
+			return false;
 
-  storeTaskReference(t);
-  return sendTaskToProcessGroup(t, signal);
-}
+		storeTaskReference(t);
+		return sendTaskToProcessGroup(t, signal);
+	}
 
-void ProcessGroupManager::storeTaskReference(Task* t){
-  // add task to list of tasks managed by this pgroup
-  tasks_.push_back(t);
-}
+	void ProcessGroupManager::storeTaskReference(Task* t){
+		// add task to list of tasks managed by this pgroup
+		tasks_.push_back(t);
+	}
 
-bool ProcessGroupManager::sendTaskToProcessGroup(Task* t, SignalType signal){
-  // send signal to pgroup
-  sendSignalToProcessGroup(signal);
+	bool ProcessGroupManager::sendTaskToProcessGroup(Task* t, SignalType signal){
+		// send signal to pgroup
+		sendSignalToProcessGroup(signal);
 
-  // send task
-  Task::send( &t, pgroupRootID_, theMPISystem()->getGlobalComm() );
+		// send task
+		Task::send( &t, pgroupRootID_, theMPISystem()->getGlobalComm() );
 
-  setProcessGroupBusyAndReceive();
+		setProcessGroupBusyAndReceive();
 
-  // only return true if task successfully sent to pgroup
-  return true;
-}
+		// only return true if task successfully sent to pgroup
+		return true;
+	}
 
-void ProcessGroupManager::sendSignalAndReceive(SignalType signal){
-  sendSignalToProcessGroup(signal);
-  setProcessGroupBusyAndReceive();
-}
+	void ProcessGroupManager::sendSignalAndReceive(SignalType signal){
+		sendSignalToProcessGroup(signal);
+		setProcessGroupBusyAndReceive();
+	}
 
-void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
-}
+	void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
+		MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
+	}
 
-void ProcessGroupManager::sendSignalToProcess(SignalType signal, RankType rank) { //TODO send only to process in this pgroup
-  MPI_Send(&signal, 1, MPI_INT, rank, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
-}
+	void ProcessGroupManager::sendSignalToProcess(SignalType signal, RankType rank) { //TODO send only to process in this pgroup
+		MPI_Send(&signal, 1, MPI_INT, rank, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
+	}
 
-inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
-  // set status
-  status_ = PROCESS_GROUP_BUSY;
+	inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
+		// set status
+		status_ = PROCESS_GROUP_BUSY;
 
-  // start non-blocking MPI_IRecv to receive status
-  recvStatus();
-}
+		// start non-blocking MPI_IRecv to receive status
+		recvStatus();
+	}
 
-bool ProcessGroupManager::runnext() {
-  // first check status
-  // trying to send a command to a busy group is an invalid operation
-  // and should be avoided
-  assert(status_ == PROCESS_GROUP_WAIT);
+	bool ProcessGroupManager::runnext() {
+		// first check status
+		// trying to send a command to a busy group is an invalid operation
+		// and should be avoided
+		assert(status_ == PROCESS_GROUP_WAIT);
 
-  if (tasks_.size() == 0) return false;
+		if (tasks_.size() == 0) return false;
 
-  sendSignalAndReceive(RUN_NEXT);
+		sendSignalAndReceive(RUN_NEXT);
 
-  return true;
-}
+		return true;
+	}
 
-bool ProcessGroupManager::exit() {
-  // can only send exit signal when in wait state
-  if (status_ != PROCESS_GROUP_WAIT) return false;
+	bool ProcessGroupManager::exit() {
+		// can only send exit signal when in wait state
+		if (status_ != PROCESS_GROUP_WAIT) return false;
 
-  sendSignalAndReceive(EXIT);
-  return true;
-}
+		sendSignalAndReceive(EXIT);
+		return true;
+	}
 
-bool ProcessGroupManager::combine() {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
+	bool ProcessGroupManager::combine() {
+		// can only send sync signal when in wait state
+		assert(status_ == PROCESS_GROUP_WAIT);
 
-  sendSignalAndReceive(COMBINE);
+		sendSignalAndReceive(COMBINE);
 
-  return true;
-}
+		return true;
+	}
 
-bool ProcessGroupManager::initDsgus() {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
+	bool ProcessGroupManager::initDsgus() {
+		// can only send sync signal when in wait state
+		assert(status_ == PROCESS_GROUP_WAIT);
 
-  sendSignalAndReceive(INIT_DSGUS);
+		sendSignalAndReceive(INIT_DSGUS);
 
-  return true;
-}
+		return true;
+	}
 
-bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
+	bool ProcessGroupManager::updateCombiParameters(CombiParameters& params) {
+		// can only send sync signal when in wait state
+		assert(status_ == PROCESS_GROUP_WAIT);
 
-  sendSignalToProcessGroup(UPDATE_COMBI_PARAMETERS);
+		sendSignalToProcessGroup(UPDATE_COMBI_PARAMETERS);
 
-  // send combiparameters
-  MPIUtils::sendClass(&params, pgroupRootID_, theMPISystem()->getGlobalComm());
+		// send combiparameters
+		MPIUtils::sendClass(&params, pgroupRootID_, theMPISystem()->getGlobalComm());
 
-  setProcessGroupBusyAndReceive();
-  return true;
-}
+		setProcessGroupBusyAndReceive();
+		return true;
+	}
 
-bool ProcessGroupManager::addTask(Task* t) {
-  return storeTaskReferenceAndSendTaskToProcessGroup(t, ADD_TASK);
-}
+	bool ProcessGroupManager::addTask(Task* t) {
+		return storeTaskReferenceAndSendTaskToProcessGroup(t, ADD_TASK);
+	}
 
-bool ProcessGroupManager::refreshTask(Task* t) {
-  // first check status
-  // tying to add a task to a busy group is an invalid operation
-  // and should be avoided
-  if (status_ != PROCESS_GROUP_WAIT) {
-    std::cout << "refreshing failed! \n";
-    return false;
-  }
+	bool ProcessGroupManager::refreshTask(Task* t) {
+		// first check status
+		// tying to add a task to a busy group is an invalid operation
+		// and should be avoided
+		if (status_ != PROCESS_GROUP_WAIT) {
+			std::cout << "refreshing failed! \n";
+			return false;
+		}
 
-  sendSignalToProcessGroup(ADD_TASK);
+		sendSignalToProcessGroup(ADD_TASK);
 
-  // send task
-  Task::send(&t, pgroupRootID_, theMPISystem()->getGlobalComm());
+		// send task
+		Task::send(&t, pgroupRootID_, theMPISystem()->getGlobalComm());
 
-  setProcessGroupBusyAndReceive();
+		setProcessGroupBusyAndReceive();
 
-  // only return true if task successfully send to pgroup
-  return true;
-}
+		// only return true if task successfully send to pgroup
+		return true;
+	}
 
-bool ProcessGroupManager::resetTasksWorker() {
-  // first check status
-  // tying to reset tasks of a busy group is an invalid operation
-  // and should be avoided
-  if (status_ != PROCESS_GROUP_WAIT) {
-    assert(false);
-    // return false;
-  }
+	bool ProcessGroupManager::resetTasksWorker() {
+		// first check status
+		// tying to reset tasks of a busy group is an invalid operation
+		// and should be avoided
+		if (status_ != PROCESS_GROUP_WAIT) {
+			assert(false);
+			// return false;
+		}
 
-  // add task to list of tasks managed by this pgroup
-  // tasks_.clear(); we do not clear group manager tasks
+		// add task to list of tasks managed by this pgroup
+		// tasks_.clear(); we do not clear group manager tasks
 
-  sendSignalAndReceive(RESET_TASKS);
-  
-  return true;
-}
+		sendSignalAndReceive(RESET_TASKS);
 
-bool ProcessGroupManager::recompute(Task* t) {
+		return true;
+	}
 
-  storeTaskReferenceAndSendTaskToProcessGroup(t, RECOMPUTE);
+	bool ProcessGroupManager::recompute(Task* t) {
 
-  // only return true if task successfully send to pgroup
-  return true;
-}
+		storeTaskReferenceAndSendTaskToProcessGroup(t, RECOMPUTE);
 
-void sendLevelVector(const LevelVector& leval, RankType pgroupRootID){
-  std::vector<int> tmp(leval.begin(), leval.end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID, TRANSFER_LEVAL_TAG,
-           theMPISystem()->getGlobalComm());
-}
+		// only return true if task successfully send to pgroup
+		return true;
+	}
 
-bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& filename) {
-  // can only send sync signal when in wait state, so check first
-  assert(status_ == PROCESS_GROUP_WAIT);
+	void sendLevelVector(const LevelVector& leval, RankType pgroupRootID){
+		std::vector<int> tmp(leval.begin(), leval.end());
+		MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID, TRANSFER_LEVAL_TAG,
+				theMPISystem()->getGlobalComm());
+	}
 
-  sendSignalToProcessGroup(PARALLEL_EVAL);
+	bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& filename) {
+		// can only send sync signal when in wait state, so check first
+		assert(status_ == PROCESS_GROUP_WAIT);
 
-  sendLevelVector(leval, pgroupRootID_);
+		sendSignalToProcessGroup(PARALLEL_EVAL);
+
+		sendLevelVector(leval, pgroupRootID_);
+
+		// send filename
+		MPIUtils::sendClass(&filename, pgroupRootID_, theMPISystem()->getGlobalComm());
+
+		setProcessGroupBusyAndReceive();
+
+		return true;
+	}
+
+void ProcessGroupManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
+  this->sendSignalToProcessGroup(WRITE_DSG_MINMAX_COEFFICIENTS);
 
   // send filename
-  MPIUtils::sendClass(&filename, pgroupRootID_, theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&filename, this->pgroupRootID_, theMPISystem()->getGlobalComm());
 
-  setProcessGroupBusyAndReceive();
-
-  return true;
+  this->setProcessGroupBusyAndReceive();
 }
 
+void ProcessGroupManager::doDiagnostics(int taskID) {
+  auto status = waitStatus();
+  assert(status == PROCESS_GROUP_WAIT);
+  for (auto task : tasks_){
+    if (task->getID() == taskID){
+      sendSignalToProcessGroup(DO_DIAGNOSTICS);
+      // send task ID to do postprocessing on
+      MPI_Send(&taskID, 1, MPI_INT, this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
+      return;
+    }
+  }
+  assert(false && "Task was not present in this process group");
+}
 
 std::vector<double> receiveThreeNorms(RankType pgroupRootID){
   std::vector<double> norms;
