@@ -161,7 +161,7 @@ static long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& 
     for (const auto& level_i : space) {
       assert(level_i > -1);
       if (level_i > 0) {
-        numDOFSpace *= powerOfTwo[level_i];
+        numDOFSpace *= powerOfTwo[level_i] + 1;
       } else {
         numDOFSpace *= 2;
       }
