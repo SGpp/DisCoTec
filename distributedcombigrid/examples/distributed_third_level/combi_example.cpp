@@ -223,6 +223,7 @@ int main(int argc, char** argv) {
       std::cout << fullLevels.size()
                 << " component grids in full combination scheme; this system will run "
                 << levels.size() << " of them." << std::endl;
+      printCombiDegreesOfFreedom(levels);
     }
   } else {
     // read in CT scheme, if applicable
@@ -248,6 +249,7 @@ int main(int argc, char** argv) {
       MASTER_EXCLUSIVE_SECTION {
         std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
                   << pgNumbers.size() << " tasks." << std::endl;
+        printCombiDegreesOfFreedom(levels);
       }
       WORLD_MANAGER_EXCLUSIVE_SECTION{
         coeffs = scheme->getCoeffs();
