@@ -64,7 +64,7 @@ class TaskAdvection : public Task {
     start = MPI_Wtime();
     // create local subgrid on each process
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true, decomposition);
-    phi_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true, decomposition);
+    phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
     finish = MPI_Wtime();
     if (lrank == 0) {
       std::cout << " created dfg_ and phi_ took " << finish - start << std::flush;
@@ -110,15 +110,15 @@ class TaskAdvection : public Task {
     auto fullOffsets = dfg_->getLocalOffsets();
 
     for (size_t i = 0; i < nsteps_; ++i) {
-      phi_->getElementVector().swap(dfg_->getElementVector());
-
+      // compute the gradient in the original dfg_, then update into phi_ and
+      // swap at the end of each time step
       auto u_dot_dphi = std::vector<CombiDataType> (dfg_->getNrLocalElements(), 0.);
 
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
         IndexVector subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
-        phi_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
+        dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
         int subarrayOffset = 1;
 	// int subarraySize = 1;
         IndexVector subarrayOffsets (this->getDim());
@@ -155,17 +155,18 @@ class TaskAdvection : public Task {
             // --locAxisIndex[d];
             // IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
             // assert(lni == (li - fullOffsets[d]));
-            phi_neighbor = phi_->getElementVector()[li - fullOffsets[d]];
+            phi_neighbor = dfg_->getElementVector()[li - fullOffsets[d]];
           }
           // calculate gradient of phi with backward differential quotient
-          auto dphi = (phi_->getElementVector()[li] - phi_neighbor) / h[d];
+          auto dphi = (dfg_->getElementVector()[li] - phi_neighbor) / h[d];
 
           u_dot_dphi[li] += u[d] * dphi;
         }
       }
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-        dfg_->getData()[li] = phi_->getElementVector()[li] - u_dot_dphi[li] * dt_;
+        (*phi_)[li] = dfg_->getElementVector()[li] - u_dot_dphi[li] * dt_;
       }
+      phi_->swap(dfg_->getElementVector());
       for (DimType d = 0; d < dim_; ++d) {
         // implement periodic BC
         dfg_->writeUpperBoundaryToLowerBoundary(d);
@@ -193,7 +194,7 @@ class TaskAdvection : public Task {
 
   void setZero() {
     dfg_->setZero();
-    phi_->setZero();
+    std::fill(phi_->begin(), phi_->end(), 0.);
   }
 
   ~TaskAdvection() {
@@ -228,7 +229,7 @@ class TaskAdvection : public Task {
   bool initialized_;
   size_t stepsTotal_;
   DistributedFullGrid<CombiDataType>* dfg_;
-  DistributedFullGrid<CombiDataType>* phi_;
+  std::vector<CombiDataType>* phi_;
 
   /**
    * The serialize function has to be extended by the new member variables.
