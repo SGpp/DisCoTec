@@ -141,7 +141,7 @@ void ProcessManager::updateCombiParameters() {
 /*
  * Compute the group faults that occured at this combination step using the fault simulator
  */
-void ProcessManager::getGroupFaultIDs(std::vector<int>& faultsID,
+void ProcessManager::getGroupFaultIDs(std::vector<size_t>& faultsID,
                                       std::vector<ProcessGroupManagerID>& groupFaults) {
   for (auto p : pgroups_) {
     StatusType status = p->waitStatus();
@@ -154,7 +154,7 @@ void ProcessManager::getGroupFaultIDs(std::vector<int>& faultsID,
   }
 }
 
-void ProcessManager::redistribute(std::vector<int>& taskID) {
+void ProcessManager::redistribute(std::vector<size_t>& taskID) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
     Task* t = NULL;
@@ -189,7 +189,7 @@ void ProcessManager::redistribute(std::vector<int>& taskID) {
 }
 
 void ProcessManager::reInitializeGroup(std::vector<ProcessGroupManagerID>& recoveredGroups,
-                                       std::vector<int>& tasksToIgnore) {
+                                       std::vector<size_t>& tasksToIgnore) {
   std::vector<Task*> removeTasks;
   for (auto g : recoveredGroups) {
     // erase existing tasks in group members to avoid doubled tasks
@@ -228,7 +228,7 @@ void ProcessManager::reInitializeGroup(std::vector<ProcessGroupManagerID>& recov
   std::cout << "Reinitialization finished" << std::endl;
 }
 
-void ProcessManager::recompute(std::vector<int>& taskID, bool failedRecovery,
+void ProcessManager::recompute(std::vector<size_t>& taskID, bool failedRecovery,
                                std::vector<ProcessGroupManagerID>& recoveredGroups) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
@@ -309,13 +309,14 @@ bool ProcessManager::recoverCommunicators(std::vector<ProcessGroupManagerID> fai
 
 void ProcessManager::recover(int i, int nsteps) {  // outdated
 
-  std::vector<int> faultsID;
+  assert(false && "deprecated function recover");
+  std::vector<size_t> faultsID;
   std::vector<ProcessGroupManagerID> groupFaults;
   getGroupFaultIDs(faultsID, groupFaults);
 
   /* call optimization code to find new coefficients */
   const std::string prob_name = "interpolation based optimization";
-  std::vector<int> redistributeFaultsID, recomputeFaultsID;
+  std::vector<size_t> redistributeFaultsID, recomputeFaultsID;
   recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
   // time does not need to be updated in gene but maybe in other applications
   /*  for ( auto id : redistributeFaultsID ) {
@@ -409,8 +410,8 @@ void ProcessManager::doDiagnostics(int taskID) {
   }
 }
 
-std::map<int, double> ProcessManager::getLpNorms(int p) {
-  std::map<int, double> norms;
+std::map<size_t, double> ProcessManager::getLpNorms(int p) {
+  std::map<size_t, double> norms;
 
   for (const auto& pg : pgroups_) {
     pg->getLpNorms(p, norms);

@@ -77,7 +77,7 @@ class ProcessGroupManager {
 
   void doDiagnostics(int taskID);
 
-  void getLpNorms(int p, std::map<int, double>& norms);
+  void getLpNorms(int p, std::map<size_t, double>& norms);
 
   std::vector<double> parallelEvalNorm(const LevelVector& leval);
 
@@ -106,6 +106,7 @@ class ProcessGroupManager {
    */
   Task *rescheduleRemoveTask(const LevelVector& lvlVec);
 
+
   bool hasTask(int taskID){
     auto foundIt = std::find_if(tasks_.begin(), tasks_.end(),
                         [taskID](Task* t){
@@ -113,6 +114,10 @@ class ProcessGroupManager {
                         });
     return foundIt != tasks_.end();
   }
+
+  bool writeCombigridsToVTKPlotFile();
+
+  void storeTaskReference(Task* t);
 
  private:
   RankType pgroupRootID_;  // rank in GlobalComm of the master process of this group
@@ -131,8 +136,6 @@ class ProcessGroupManager {
 
   // Helper functions for Communication with ProcessGroups
   bool storeTaskReferenceAndSendTaskToProcessGroup(Task* t, SignalType signal);
-
-  void storeTaskReference(Task* t);
 
   bool sendTaskToProcessGroup(Task* t, SignalType signal);
 

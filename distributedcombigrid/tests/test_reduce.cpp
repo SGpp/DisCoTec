@@ -160,7 +160,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
 
     // create Tasks
     TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       Task* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);

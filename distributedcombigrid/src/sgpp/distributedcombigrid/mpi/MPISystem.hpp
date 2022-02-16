@@ -105,6 +105,17 @@ class MPISystem {
   inline const CommunicatorType& getLocalComm() const;
 
   /**
+   * @brief get own process group number
+   *
+   */
+  inline RankType getProcessGroupNumber() const {
+    if (worldRank_ == managerRankWorld_)
+      return -1;
+    else
+      return  worldRank_ / int(nprocs_);
+  }
+
+  /**
    * returns the global reduce communicator which contains all ranks with wich the rank needs to
    * communicate in global allreduce step
    * All of these ranks are responsible for the same area in the domain

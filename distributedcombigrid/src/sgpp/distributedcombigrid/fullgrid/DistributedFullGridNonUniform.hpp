@@ -702,18 +702,9 @@ class DistributedFullGridNonUniform {
         IndexVector subsizes = this->getUpperBounds(r) - this->getLowerBounds(r);
         IndexVector starts = this->getLowerBounds(r);
 
-        // we store our data in c format, i.e. first dimension is the innermost
-        // dimension. however, we access our data in fortran notation, with the
-        // first index in indexvectors being the first dimension.
-        // to comply with an ordering that mpi understands, we have to reverse
-        // our index vectors
-        // also we have to use int as datatype
         std::vector<int> csizes(sizes.begin(), sizes.end());
         std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
         std::vector<int> cstarts(starts.begin(), starts.end());
-        if (!reverseOrderingDFGPartitions) {
-          assert(false && "this is not adapted to normal ordering of DFG partitions yet");
-        }
 
         // create subarray view on data
         MPI_Datatype mysubarray;
@@ -1211,18 +1202,9 @@ class DistributedFullGridNonUniform {
 
         if (ssize == 0) continue;
 
-        // we store our data in c format, i.e. first dimension is the innermost
-        // dimension. however, we access our data in fortran notation, with the
-        // first index in indexvectors being the first dimension.
-        // to comply with an ordering that mpi understands, we have to reverse
-        // our index vectors
-        // also we have to use int as datatype
         std::vector<int> csizes(sizes.begin(), sizes.end());
         std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
         std::vector<int> cstarts(starts.begin(), starts.end());
-        if (!reverseOrderingDFGPartitions) {
-          assert(false && "this is not adapted to normal ordering of DFG partitions yet");
-        }
 
         // create subarray view on data
         MPI_Datatype mysubarray;

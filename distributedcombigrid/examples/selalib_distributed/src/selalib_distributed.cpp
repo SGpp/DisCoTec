@@ -35,11 +35,8 @@ using namespace combigrid;
 namespace fs = boost::filesystem;  // for file operations
 
 // this is necessary for correct function of task serialization
+#include "sgpp/distributedcombigrid/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(SelalibTask)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-
-BOOST_CLASS_EXPORT(FaultCriterion)
 
 // helper funtion to read a bool vector from string
 inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
@@ -220,6 +217,7 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.boundary") >> boundary;  // which dimension have boundary points
     cfg.get<std::string>("ct.hierarchization_dims") >>
         hierarchizationDims;                // which dimension should be hierarchized
+    std::string basis = cfg.get<std::string>("ct.basis", "hat");
     ncombi = cfg.get<size_t>("ct.ncombi");  // number of combinations
     std::string basename = cfg.get<std::string>("preproc.basename");
     dt = cfg.get<combigrid::real>(
@@ -283,7 +281,7 @@ int main(int argc, char** argv) {
 
     // create Tasks
     TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
 
     std::string baseFolder = "./" + basename;
     // initialize individual tasks (component grids)
@@ -319,6 +317,7 @@ int main(int argc, char** argv) {
     // create combiparamters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, hierarchizationDims, taskIDs,
                            ncombi, 1, reduceCombinationDimsLmin, reduceCombinationDimsLmax, false);
+    setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
 
     // create Manager with process groups

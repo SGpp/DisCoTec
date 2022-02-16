@@ -63,7 +63,7 @@ void checkMPIRanksAndCommunication(size_t ngroup, size_t nprocs) {
 
   //   // create Tasks
   //   TaskContainer tasks;
-  //   std::vector<int> taskIDs;
+  //   std::vector<size_t> taskIDs;
   //   for (size_t i = 0; i < levels.size(); i++) {
   //     Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
   //     tasks.push_back(t);
