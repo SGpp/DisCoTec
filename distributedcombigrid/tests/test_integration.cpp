@@ -180,6 +180,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     BOOST_TEST_CHECKPOINT("write solution " + filename);
     Stats::startEvent("manager write solution");
     manager.parallelEval(lmax, filename, 0);
+    manager.writeSparseGridMinMaxCoefficients("integration_" + std::to_string(boundaryV) + "_sparse_minmax");
     Stats::stopEvent("manager write solution");
     std::cout << "wrote solution  " << ngroup << " " << nprocs << std::endl;
 
@@ -291,6 +292,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+    auto numDOF = printCombiDegreesOfFreedom(levels);
 
     // create Tasks
     TaskContainer tasks;

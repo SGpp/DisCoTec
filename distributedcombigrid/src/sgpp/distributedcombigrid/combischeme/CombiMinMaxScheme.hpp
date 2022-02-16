@@ -4,6 +4,7 @@
 #include <boost/math/special_functions/binomial.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <numeric>
+#include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
@@ -80,7 +81,7 @@ class CombiMinMaxScheme {
   /* Downset */
   std::vector<LevelVector> levels_;
 
-  /* Subspaces of the combination technique*/
+  /* Component grid levels of the combination technique*/
   std::vector<LevelVector> combiSpaces_;
 
   /* Combination coefficients */
@@ -152,5 +153,25 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
  private:
   std::vector<size_t> processGroupNumbers_;
 };
+
+static long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces) {
+  long long int numDOF = 0;
+  for (const auto& space : combiSpaces) {
+    long int numDOFSpace = 1;
+    for (const auto& level_i : space) {
+      assert(level_i > -1);
+      if (level_i > 0) {
+        numDOFSpace *= powerOfTwo[level_i];
+      } else {
+        numDOFSpace *= 2;
+      }
+    }
+    numDOF += numDOFSpace;
+  }
+  std::cout << "Combination scheme DOF : " << numDOF << " i.e. "
+            << (static_cast<double>(sizeof(CombiDataType)) * 8. / 2.e30) << " GiB " << std::endl;
+
+  return numDOF;
+}
 }  // namespace combigrid
 #endif /* SRC_SGPP_COMBIGRID_COMBISCHEME_COMBIMINMAXSCHEME_HPP_ */

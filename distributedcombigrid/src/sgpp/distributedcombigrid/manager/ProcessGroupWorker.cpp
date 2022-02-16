@@ -349,6 +349,16 @@ SignalType ProcessGroupWorker::wait() {
         }
       }
     } break;
+    case WRITE_DSG_MINMAX_COEFFICIENTS: {
+      std::string filename;
+      MASTER_EXCLUSIVE_SECTION {
+        MPIUtils::receiveClass(&filename, theMPISystem()->getManagerRank(),
+                              theMPISystem()->getGlobalComm());
+      }
+      for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
+        combinedUniDSGVector_[i]->writeMinMaxCoefficents(filename, i);
+      }
+		} break;
     default: { assert(false && "signal not implemented"); }
   }
   if (isGENE) {
@@ -618,6 +628,7 @@ void ProcessGroupWorker::reduceUniformSG() {
 
   for (IndexType g = 0; g < numGrids; g++) {
     CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g]);
+    assert(CombiCom::sumAndCheckSubspaceSizes(*combinedUniDSGVector_[g]));
   }
 }
 

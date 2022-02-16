@@ -515,6 +515,10 @@ void ProcessManager::setupThirdLevel() {
   thirdLevel_.connectToThirdLevelManager();
 }
 
+void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
+  pgroups_.back()->writeSparseGridMinMaxCoefficients(filename);
+}
+
 void ProcessManager::reschedule() {
   std::map<LevelVector, int> levelVectorToProcessGroupIndex;
   for (size_t i = 0; i < pgroups_.size(); ++i) {

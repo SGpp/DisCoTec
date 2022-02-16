@@ -152,6 +152,8 @@ class DistributedSparseGridUniform {
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
 
+  void writeMinMaxCoefficents(const std::string& filename, size_t i) const;
+
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
@@ -294,7 +296,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setZero() {
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::print(std::ostream& os) const {
   for (size_t i = 0; i < subspaces_.size(); ++i) {
-    os << i << " " << levels_[i] << " " //<< subspaces_[i].sizes_ << " "
+    os << i << " " << levels_[i] << " " << subspacesDataSizes_[i] << " "
       //  << subspaces_[i].size_
        << std::endl;
   }
@@ -577,6 +579,40 @@ inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const
 template <typename FG_ELEMENT>
 inline const std::vector<size_t>& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes() const {
   return subspacesDataSizes_;
+}
+
+template <typename FG_ELEMENT>
+inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
+    const std::string& filename, size_t i) const {
+  bool writerProcess = false;
+  std::ofstream ofs;
+  MASTER_EXCLUSIVE_SECTION {
+    writerProcess = true;
+    ofs = std::ofstream(filename + "_" + std::to_string(i) + ".txt");
+    // std::cout << *this << std::endl;
+  }
+  // iterate subspaces
+  assert(levels_.size() > 0);
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+  for (size_t i = 0; i < levels_.size(); ++i) {
+    // auto first = subspacesData_.begin();
+    auto first = subspaces_[i].data_;
+    auto last = first + subspacesDataSizes_[i];
+    // allreduce the minimum and maxiumum values
+    auto it = std::min_element(first, last);
+    auto minimumValue = *it;
+    MPI_Allreduce(MPI_IN_PLACE, &minimumValue, 1, dataType, MPI_MIN, getCommunicator());
+    first = subspaces_[i].data_;
+    it = std::max_element(first, last);
+    auto maximumValue = *it;
+    MPI_Allreduce(MPI_IN_PLACE, &maximumValue, 1, dataType, MPI_MAX, getCommunicator());
+
+    // if on zero process, write them out to file
+    if (writerProcess) {
+      const auto& level = getLevelVector(i);
+      ofs << level << " : " << minimumValue << ", " << maximumValue << std::endl;
+    }
+  }
 }
 
 /**
