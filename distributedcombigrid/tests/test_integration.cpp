@@ -272,6 +272,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+    auto numDOF = printCombiDegreesOfFreedom(levels);
 
     // create Tasks
     TaskContainer tasks;
