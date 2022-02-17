@@ -202,14 +202,13 @@ bool ClientSocket::recvall(char* buff, size_t len, int flags) const {
   }
 }
 
-bool ClientSocket::recvallPrefixed(std::unique_ptr<char[]>& buff, size_t& len, int flags) const {
-  assert(isInitialized() && "Client Socket not initialized");
-  // receive length
+bool recvLength(size_t & length, int sockfd, int flags) {
+  // receive length string, suffixed with '#'
   ssize_t n = -1;
   std::string lenstr = "";
   char temp = ' ';
   do {
-    n = recv(sockfd_, &temp, 1, flags);
+    n = recv(sockfd, &temp, 1, flags);
     if (n <= 0)
       break;
     lenstr += temp;
@@ -217,51 +216,38 @@ bool ClientSocket::recvallPrefixed(std::unique_ptr<char[]>& buff, size_t& len, i
 
   switch (n) {
     case 0:
-      std::cerr << "ClientSocket::recvallPrefixed() recieve of length failed, sender terminated too early" << std::endl;
+      std::cerr << "ClientSocket::recvLength() failed, sender terminated too early" << std::endl;
       return false;
     case -1:
-      perror("ClientSocket::recvallPrefixed() receive of length failed");
+      perror("ClientSocket::recvLength() failed");
       return false;
     default:
       lenstr.pop_back();
       assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
       size_t len = (size_t) std::stoi(lenstr);
       assert(len > 0);
+      return true;
+  }
+}
+
+bool ClientSocket::recvallPrefixed(std::unique_ptr<char[]>& buff, size_t& len, int flags) const {
+  assert(isInitialized() && "Client Socket not initialized");
+  if(recvLength(len, sockfd_, flags)) {
       // receive data
       buff.reset(new char[len]);
       return recvall(buff.get(), len);
   }
+  return false;
 }
 
 bool ClientSocket::recvallPrefixed(std::string& mesg, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
-  // receive length
   mesg.clear();
-  ssize_t recvd = -1;
-  std::string lenstr = "";
-  char temp = ' ';
-  do {
-    recvd = recv(sockfd_, &temp, 1, flags);
-    if (recvd <= 0)
-      break;
-    lenstr += temp;
-  } while (temp != '#');
-
-  switch (recvd) {
-    case 0:
-      std::cerr << "ClientSocket::recvallPrefixed() recieve of length failed, sender terminated too early" << std::endl;
-      return false;
-    case -1:
-      perror("ClientSocket::recvallPrefixed() receive of length failed");
-      return false;
-    default:
-      lenstr.pop_back();
-      assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
-      size_t len = (size_t) std::stoi(lenstr);
-      assert(len > 0);
-      // receive data
+  size_t len;
+  if(recvLength(len, sockfd_, flags)) {
       return recvall(mesg, len);
   }
+  return false;
 }
 
 bool ClientSocket::isReadable(int timeoutSec) const {
