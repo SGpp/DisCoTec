@@ -113,24 +113,9 @@ bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
   //std::cout << "Trying to receive " << len << "Bytes" << std::endl;
   ssize_t recvd = -1;
   std::unique_ptr<char[]> buff(new char[len]);
-  size_t total = 0;
-  while (total < len) {
-    recvd = recv(sockfd_, &buff[total], len-total, flags);
-    if (recvd <= 0)
-      break;
-    total += static_cast<size_t>(recvd);
-  }
-  switch (recvd) {
-    case 0:
-      std::cerr << "ClientSocket::recvall() failed sender terminated too early" << std::endl;
-      return false;
-    case -1:
-      perror("ClientSocket::recvall() failed");
-      return false;
-    default:
-      mesg = std::string(buff.get(), len);
-      return true;
-  }
+  auto ret = this->recvall(buff.get(), len, flags);
+  mesg = std::string(buff.get(), len);
+  return ret;
 }
 
 bool ClientSocket::recvallBinaryToFile(const std::string& filename, size_t len,
