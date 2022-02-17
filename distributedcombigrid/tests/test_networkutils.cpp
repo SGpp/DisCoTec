@@ -7,36 +7,46 @@
 #include "test_helper.hpp"
 
 static std::string host             = "localhost";
-static unsigned short port          = 9999;
 static std::vector<double> testData = std::vector<double>({0., 1., 2., 3., 4.});
 
 using namespace combigrid;
 
-void testBinarySendClient(MPI_Comm comm) {
+void testBinarySendClient(MPI_Comm comm, unsigned short port) {
   // wait until server is set up
   MPI_Barrier(comm);
 
   // connect to server
   ClientSocket client(host, port);
+  BOOST_TEST_CHECKPOINT("before client.init()");
   client.init();
+  BOOST_TEST_CHECKPOINT("after client.init()");
 
   // send data
   client.sendallBinary(testData.data(), testData.size());
+  BOOST_TEST_CHECKPOINT("client sent all data");
 }
 
-void testBinarySendRecvServer(MPI_Comm comm) {
+void testBinarySendRecvServer(MPI_Comm comm, unsigned short port) {
   // setup server
   ServerSocket server(port);
+  BOOST_TEST_CHECKPOINT("before server.init()");
   server.init();
+  BOOST_TEST_CHECKPOINT("after server.init()");
 
   // server is now ready to accept client
   MPI_Barrier(comm);
-  std::shared_ptr<ClientSocket> client(server.acceptClient());
+  std::shared_ptr<ClientSocket> client;
+  if (port % 2 == 1) {
+    client = std::shared_ptr<ClientSocket>(server.acceptClient());
+  } else {
+    client = server.pollClients(1).back();
+  }
   BOOST_CHECK(client != nullptr);
 
   // receive data
   std::vector<double> recvData(testData.size());
   client->recvallBinaryAndCorrectInPlace(recvData.data(), recvData.size());
+  BOOST_TEST_CHECKPOINT("server received all data");
 
   // check if received data has been successfully received
   std::cout << std::endl << "-- Receive Test:" << std::endl;
@@ -46,14 +56,20 @@ void testBinarySendRecvServer(MPI_Comm comm) {
   }
 }
 
-void testBinarySendReduceServer(MPI_Comm comm) {
+void testBinarySendReduceServer(MPI_Comm comm, unsigned short port) {
   // init server
   ServerSocket server(port);
   server.init();
 
   // server is now ready to accept client
   MPI_Barrier(comm);
-  std::shared_ptr<ClientSocket> client(server.acceptClient());
+  std::shared_ptr<ClientSocket> client;
+  if (port % 2 == 1) {
+    client = std::shared_ptr<ClientSocket>(server.acceptClient());
+  } else {
+    client = server.pollClients(1).back();
+  }
+  BOOST_CHECK(client != nullptr);
 
   // reduce data
   std::vector<double> recvData(testData);
@@ -70,7 +86,7 @@ void testBinarySendReduceServer(MPI_Comm comm) {
 }
 
 
-BOOST_AUTO_TEST_SUITE(networkutils)
+BOOST_FIXTURE_TEST_SUITE(networkutils, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(30))
 
 BOOST_AUTO_TEST_CASE(testBinarySendRecv) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(2));
@@ -82,11 +98,14 @@ BOOST_AUTO_TEST_CASE(testBinarySendRecv) {
   if (newComm == MPI_COMM_NULL)
     return;
 
-  MPI_Comm_rank(newComm, &rank);
-  if (rank == 0)
-    testBinarySendRecvServer(newComm);
-  if (rank == 1)
-    testBinarySendClient(newComm);
+  for (unsigned short port : {11111}) {
+    BOOST_TEST_CHECKPOINT(std::to_string(port));
+    MPI_Comm_rank(newComm, &rank);
+    if (rank == 0)
+      testBinarySendRecvServer(newComm, port);
+    if (rank == 1)
+      testBinarySendClient(newComm, port);
+  }
 }
 
 BOOST_AUTO_TEST_CASE(testBinarySendReduce) {
@@ -99,11 +118,13 @@ BOOST_AUTO_TEST_CASE(testBinarySendReduce) {
   if (newComm == MPI_COMM_NULL)
     return;
 
-  MPI_Comm_rank(newComm, &rank);
-  if (rank == 0)
-    testBinarySendReduceServer(newComm);
-  if (rank == 1)
-    testBinarySendClient(newComm);
+  for (unsigned short port : {11111}) {
+    MPI_Comm_rank(newComm, &rank);
+    if (rank == 0)
+      testBinarySendReduceServer(newComm, port);
+    if (rank == 1)
+      testBinarySendClient(newComm, port);
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
