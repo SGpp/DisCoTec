@@ -168,10 +168,9 @@ static long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& 
     numDOF += numDOFSpace;
   }
   std::cout << "Combination scheme DOF : " << numDOF << " i.e. "
-            << (static_cast<double>(sizeof(CombiDataType)) * 8. / 2.e30) << " GiB " << std::endl;
+            << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
 
   return numDOF;
 }
-
 }  // namespace combigrid
 #endif /* SRC_SGPP_COMBIGRID_COMBISCHEME_COMBIMINMAXSCHEME_HPP_ */
