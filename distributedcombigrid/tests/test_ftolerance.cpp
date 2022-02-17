@@ -442,7 +442,7 @@ else {
   MPI_Barrier(comm);
 }
 
-BOOST_AUTO_TEST_SUITE(ftolerance)
+BOOST_FIXTURE_TEST_SUITE(ftolerance, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 #ifdef ENABLEFT
 BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(20)) {

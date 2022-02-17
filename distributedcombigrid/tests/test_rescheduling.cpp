@@ -269,7 +269,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
   TestHelper::testStrayMessages(comm);
 }
 
-BOOST_AUTO_TEST_SUITE(rescheduling, *boost::unit_test::timeout(60))
+BOOST_FIXTURE_TEST_SUITE(rescheduling, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
