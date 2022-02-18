@@ -42,6 +42,13 @@ bool ClientSocket::init() {
   return true;
 }
 
+static int getSockType(int sockfd) {
+  int socktype;
+  socklen_t optlen = sizeof(socktype);
+  getsockopt(sockfd, SOL_SOCKET, SO_TYPE, &socktype, &optlen);
+  return socktype;
+}
+
 bool ClientSocket::sendall(const std::string& mesg) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(mesg.size() > 0);
