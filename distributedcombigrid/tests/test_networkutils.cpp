@@ -70,7 +70,7 @@ void testBinarySendReduceServer(MPI_Comm comm) {
 }
 
 
-BOOST_AUTO_TEST_SUITE(networkutils)
+BOOST_FIXTURE_TEST_SUITE(networkutils, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(testBinarySendRecv) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(2));

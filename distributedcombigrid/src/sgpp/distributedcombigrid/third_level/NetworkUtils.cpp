@@ -309,6 +309,7 @@ ServerSocket::ServerSocket(const unsigned short port) : Socket(), port_(port) {
 
 ServerSocket::~ServerSocket() {
   close(sockfd_);
+  sleep(5);
 }
 
 bool ServerSocket::init() {
