@@ -409,6 +409,13 @@ bool ClientSocket::sendallBinary(const FG_ELEMENT* buff, size_t buffSize, int fl
   return sendall(rawBuf, rawSize);
 }
 
+static inline int getSockType(int sockfd) {
+  int socktype;
+  socklen_t optlen = sizeof(socktype);
+  getsockopt(sockfd, SOL_SOCKET, SO_TYPE, &socktype, &optlen);
+  return socktype;
+}
+
 } // namespace combigrid
 
 #endif
