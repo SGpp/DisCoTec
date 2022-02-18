@@ -104,6 +104,8 @@ class ClientSocket : public Socket {
 
     int getRemotePort() const;
 
+    sockaddr_in getSockaddrIn() const;
+
     bool isReadable(int timeoutSec = -1) const;
 
     bool isWriteable(int timeoutSec = -1) const;

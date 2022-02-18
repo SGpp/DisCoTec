@@ -289,6 +289,18 @@ int ClientSocket::getRemotePort() const {
   return remotePort_;
 }
 
+sockaddr_in ClientSocket::getSockaddrIn() const {
+  struct sockaddr_in addr;
+  socklen_t socklen = sizeof(addr);
+  bzero(&addr, socklen);
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(remotePort_);
+  if (inet_aton(remoteHost_.c_str(), &addr.sin_addr) <= 0) {
+    throw std::runtime_error("not a valid IPaddress " + remoteHost_);
+  }
+  return addr;
+}
+
 ServerSocket::ServerSocket() : Socket(), port_(0) {
 }
 
