@@ -78,6 +78,8 @@ class ClientSocket : public Socket {
 
     bool recvall(char* buff, size_t len, int flags = 0)  const;
 
+    bool recvLength(size_t & length, int flags = 0) const;
+
     bool recvallPrefixed(std::string& buff, int flags = 0) const;
 
     bool recvallPrefixed(std::unique_ptr<char[]>& buff, size_t& len,

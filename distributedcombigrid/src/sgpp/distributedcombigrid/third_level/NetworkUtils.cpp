@@ -187,13 +187,13 @@ bool ClientSocket::recvall(char* buff, size_t len, int flags) const {
   }
 }
 
-bool recvLength(size_t & length, int sockfd, int flags) {
+bool ClientSocket::recvLength(size_t & length, int flags) const {
   // receive length string, suffixed with '#'
   ssize_t n = -1;
   std::string lenstr = "";
   char temp = ' ';
   do {
-    n = recv(sockfd, &temp, 1, flags);
+    n = recv(sockfd_, &temp, 1, flags);
     if (n <= 0)
       break;
     lenstr += temp;
@@ -209,15 +209,15 @@ bool recvLength(size_t & length, int sockfd, int flags) {
     default:
       lenstr.pop_back();
       assert(NetworkUtils::isInteger(lenstr) && "Received length is not a number");
-      size_t len = (size_t) std::stoi(lenstr);
-      assert(len > 0);
+      length = (size_t) std::stoi(lenstr);
+      assert(length > 0);
       return true;
   }
 }
 
 bool ClientSocket::recvallPrefixed(std::unique_ptr<char[]>& buff, size_t& len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
-  if(recvLength(len, sockfd_, flags)) {
+  if(recvLength(len, flags)) {
       // receive data
       buff.reset(new char[len]);
       return recvall(buff.get(), len);
@@ -229,7 +229,7 @@ bool ClientSocket::recvallPrefixed(std::string& mesg, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   mesg.clear();
   size_t len;
-  if(recvLength(len, sockfd_, flags)) {
+  if(recvLength(len, flags)) {
       return recvall(mesg, len);
   }
   return false;
