@@ -52,25 +52,8 @@ static int getSockType(int sockfd) {
 bool ClientSocket::sendall(const std::string& mesg) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(mesg.size() > 0);
-  ssize_t sent = -1;
-  size_t total = 0;
   const size_t& len = mesg.size();
-  while (total < len) {
-    sent = send(sockfd_, mesg.data() + total, len - total, 0);
-    if (sent <= 0)
-      break;
-    total += static_cast<size_t>(sent);
-  }
-  switch (sent) {
-    case 0:
-      std::cerr << "ClientSocket::sendall() failed receiver terminated too early" << std::endl;
-      return false;
-    case -1:
-      perror("ClientSocket::sendall() failed");
-      return false;
-    default:
-      return true;
-  }
+  return this->sendall(mesg.c_str(), len);
 }
 
 bool ClientSocket::sendall(const char* buff, size_t len) const {
