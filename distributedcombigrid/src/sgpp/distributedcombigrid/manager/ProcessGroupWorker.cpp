@@ -119,9 +119,6 @@ SignalType ProcessGroupWorker::wait() {
         // std::cout << "from runnext ";
         processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
 
-        if (!isGENE) {
-          //Stats::stopEvent("worker run");
-        }
       } else {
         std::cout << "Possible error: No tasks! \n";
       }
@@ -376,6 +373,9 @@ SignalType ProcessGroupWorker::wait() {
       currentTask_ = tasks_.back();
     }
   }
+  if (!isGENE && signal == RUN_NEXT) {
+    Stats::stopEvent("worker run");
+  }
   return signal;
 }
 
@@ -409,14 +409,14 @@ void ProcessGroupWorker::ready() {
         // set currentTask
         currentTask_ = tasks_[i];
         // if isGENE, this is done in GENE's worker_routines.cpp
-        if (!isGENE) {
-          //Stats::startEvent("worker run");
-        }
+        // if (!isGENE) {
+        //   Stats::startEvent("worker run");
+        // }
         currentTask_->run(theMPISystem()->getLocalComm());
         Stats::Event e;
-        if (!isGENE) {
-          Stats::stopEvent("worker run");
-        }
+        // if (!isGENE) {
+        //   Stats::stopEvent("worker run");
+        // }
 
         processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
         if (ENABLE_FT) {
