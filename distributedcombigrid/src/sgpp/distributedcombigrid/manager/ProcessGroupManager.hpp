@@ -134,7 +134,7 @@ class ProcessGroupManager {
   simft::Sim_FT_MPI_Request statusRequestFT_;
 
   // stores the accumulated dsgu sizes per worker
-  std::vector<int> dsguDataSizePerWorker_;
+  std::vector<size_t> dsguDataSizePerWorker_;
 
   void recvStatus();
 
@@ -170,6 +170,10 @@ class ProcessGroupManager {
   bool reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel,
                                          CombiParameters& params,
                                          bool isSendingFirst);
+
+  const std::vector<size_t>& getDsguDataSizePerWorker() {
+    return dsguDataSizePerWorker_;
+  }
 
   bool waitForThirdLevelSizeUpdate();
 
