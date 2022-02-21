@@ -414,13 +414,13 @@ int main(int argc, char** argv) {
       // std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
     }
 
-    Stats::startEvent("combine");
+    Stats::startEvent("manager combine");
     if (hasThirdLevel) {
       manager.combineThirdLevel();
     } else {
       manager.combine();
     }
-    Stats::stopEvent("combine");
+    Stats::stopEvent("manager combine");
 
     // // evaluate solution and
     // // write solution to file
