@@ -311,7 +311,9 @@ int main(int argc, char** argv) {
 
     // create combiparameters
     auto reduceCombinationDimsLmax = std::vector<IndexType>(dim, 1);
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p,
+    // lie about ncombi, because default is to not use reduced dims for last combi step,
+    // which we don't want here because it makes the sparse grid too large
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi*2, 1, p,
                            std::vector<IndexType>(dim, 0), reduceCombinationDimsLmax,
                            forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
     std::vector<LevelVector> decomposition;
