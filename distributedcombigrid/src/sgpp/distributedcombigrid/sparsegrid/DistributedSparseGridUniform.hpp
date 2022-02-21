@@ -621,16 +621,17 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
 template <typename FG_ELEMENT>
 static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           RankType dest, CommunicatorType comm) {
-  assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
-                                            "transferred in a single MPI Call (not "
-                                            "supported yet) try a more refined"
-                                            "decomposition");
-
   FG_ELEMENT* data = dsgu->getRawData();
-  int dataSize  = static_cast<int>(dsgu->getRawDataSize());
+  auto dataSize = dsgu->getRawDataSize();
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
-  MPI_Send(data, dataSize, dataType, dest, TRANSFER_DSGU_DATA_TAG, comm);
+  size_t sentRecvd = 0;
+  while ((dataSize - sentRecvd) / INT_MAX > 0) {
+    MPI_Send(data + sentRecvd, (int)INT_MAX, dataType, dest, TRANSFER_DSGU_DATA_TAG, comm);
+    sentRecvd += INT_MAX;
+  }
+  MPI_Send(data + sentRecvd, (int)(dataSize - sentRecvd), dataType, dest, TRANSFER_DSGU_DATA_TAG,
+           comm);
 }
 
 /**
@@ -639,16 +640,18 @@ static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 template <typename FG_ELEMENT>
 static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           RankType source, CommunicatorType comm) {
-  assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
-                                            "transferred in a single MPI Call (not "
-                                            "supported yet) try a more refined"
-                                            "decomposition");
-
   FG_ELEMENT* data = dsgu->getRawData();
-  int dataSize  = static_cast<int>(dsgu->getRawDataSize());
+  int dataSize = dsgu->getRawDataSize();
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
-  MPI_Recv(data, dataSize, dataType, source, TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
+  size_t sentRecvd = 0;
+  while ((dataSize - sentRecvd) / INT_MAX > 0) {
+    MPI_Recv(data + sentRecvd, (int)INT_MAX, dataType, source, TRANSFER_DSGU_DATA_TAG, comm,
+             MPI_STATUS_IGNORE);
+    sentRecvd += INT_MAX;
+  }
+  MPI_Recv(data + sentRecvd, (int)(dataSize - sentRecvd), dataType, source, TRANSFER_DSGU_DATA_TAG,
+           comm, MPI_STATUS_IGNORE);
 }
 
 /**

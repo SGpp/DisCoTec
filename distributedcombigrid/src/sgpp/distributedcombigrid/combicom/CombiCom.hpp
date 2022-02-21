@@ -859,9 +859,15 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   MPI_Datatype dtype =
       abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
-  assert(subspacesDataSize < static_cast<size_t>(std::numeric_limits<int>::max()));
-  MPI_Allreduce(MPI_IN_PLACE, subspacesData, static_cast<int>(subspacesDataSize), dtype, MPI_SUM,
-                mycomm);
+  auto maxint = std::numeric_limits<int>::max();
+  size_t sentRecvd = 0;
+  while ((subspacesDataSize - sentRecvd) / maxint > 0) {
+    MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd, static_cast<int>(maxint), dtype, MPI_SUM,
+                  mycomm);
+    sentRecvd += maxint;
+  }
+  MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd,
+                static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM, mycomm);
 }
 
 } /* namespace combigrid */

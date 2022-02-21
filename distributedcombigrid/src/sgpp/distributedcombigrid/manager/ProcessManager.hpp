@@ -377,6 +377,11 @@ void ProcessManager::unifySubspaceSizesThirdLevel() {
   thirdLevel_.signalReady();
 
   waitAllFinished();
+
+  const auto& dsguDataSizePerWorker = thirdLevelPGroup_->getDsguDataSizePerWorker();
+
+  auto dsguDataSize = std::accumulate(dsguDataSizePerWorker.begin(), dsguDataSizePerWorker.end(), 0);
+  Stats::setAttribute("dsguDataSize", std::to_string(dsguDataSize));
 }
 
 /** This function performs the so-called recombination. First, the combination
