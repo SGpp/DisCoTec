@@ -24,14 +24,19 @@ void checkStats(int size){
     MPI_Comm_rank(MPI_COMM_WORLD, &globalID);
     
     combigrid::Stats::initialize();
+    BOOST_TEST_CHECKPOINT("stats setAttribute");
     combigrid::Stats::setAttribute("group", std::to_string(globalID));
 
+    BOOST_TEST_CHECKPOINT("stats wait start");
     combigrid::Stats::startEvent("wait 5 seconds");
     std::this_thread::sleep_for(std::chrono::microseconds{5000});
+    BOOST_TEST_CHECKPOINT("stats wait stop");
     combigrid::Stats::stopEvent("wait 5 seconds");
 
+    BOOST_TEST_CHECKPOINT("stats finalize");
     combigrid::Stats::finalize();
     // MPI_Barrier(comm);
+    BOOST_TEST_CHECKPOINT("stats write");
     combigrid::Stats::write("./distributedcombigrid/tests/Stats_output", comm);
     // MPI_Barrier(comm);
 }
