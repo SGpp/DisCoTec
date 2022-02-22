@@ -2,9 +2,8 @@
         ! final_time = $simtime
         n_iterations = $nsteps
         delta_t = $dt
-        test_case = "landau_prod"
-        ctest = .true.
-        ctest_ref_file = "reffile_bsl_vpB_3d3v_cart_dd.dat"
+        test_case = "landau_sum"
+        ctest = .false.
 /
 
 &restart_params
@@ -29,14 +28,14 @@
 /
 
 &pslab_params
-        B0 = 2.0
+        B0 = 0.0
 /
 
 &advect_params
         bc_type = "sll_p_periodic"
-        stencil = 5
+        stencil = 7
         interpolator_type = "fixed"
-        stencil_x = 5
+        stencil_x = 7
 /
 
 &propagator
@@ -55,6 +54,6 @@
 
 &landau_params
         v_thermal = 1.0 1.0 1.0
-        alpha = 0.01
-        kx = 0.5 0.0 0.5
+        alpha = 0.01 0.01 0.01
+        kx = 0.5 0.5 0.5
 /
