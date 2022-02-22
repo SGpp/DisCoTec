@@ -37,7 +37,7 @@ void checkStats(int size){
     combigrid::Stats::finalize();
     // MPI_Barrier(comm);
     BOOST_TEST_CHECKPOINT("stats write");
-    combigrid::Stats::write("./distributedcombigrid/tests/Stats_output", comm);
+    combigrid::Stats::write("./test_stats_output.json", comm);
     // MPI_Barrier(comm);
 }
 
