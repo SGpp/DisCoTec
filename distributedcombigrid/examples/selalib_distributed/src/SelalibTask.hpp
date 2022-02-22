@@ -99,11 +99,14 @@ class SelalibTask : public combigrid::Task {
       }
       setLocalDistributionFromDFG();
       Stats::startEvent("BSL run");
+      if (selalibSimPointer_ == nullptr) {
+        throw std::runtime_error("selalibSimPointer_ is null");
+      }
       sim_bsl_vp_3d3v_cart_dd_slim_movingB_run(simPtrPtr_);
       Stats::stopEvent("BSL run");
       setDFGfromLocalDistribution();
-      int32_t* iPtr = &currentNumTimeStepsRun_;
-      sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics(simPtrPtr_, iPtr);
+      // int32_t* iPtr = &currentNumTimeStepsRun_;
+      // sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics(simPtrPtr_, iPtr);
       changeDir(lcomm, true);
     }
     setFinished(true);
@@ -138,7 +141,7 @@ class SelalibTask : public combigrid::Task {
                   "change only if the partitioning does not match between dfg and distribution");
     assert(lcomm != MPI_COMM_NULL);
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p_, false);
+                                                  p_, false, decomposition);
 
     auto f_lComm = MPI_Comm_c2f(lcomm);
     sll_s_set_communicator_collective(&f_lComm);
@@ -156,10 +159,10 @@ class SelalibTask : public combigrid::Task {
     initialized_ = true;
     // // only run diagnostics if the coefficient is 0., i.e. it is the diagnostics task
     // if (coeff_ == 0.){
-      changeDir(lcomm);
-      sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics_init(simPtrPtr_);
-      diagnosticsInitialized_ = true;
-      changeDir(lcomm, true);
+    changeDir(lcomm);
+    sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics_init(simPtrPtr_);
+    diagnosticsInitialized_ = true;
+    changeDir(lcomm, true);
     // }
     MASTER_EXCLUSIVE_SECTION{
       // first print task, then synchronize and print other info
