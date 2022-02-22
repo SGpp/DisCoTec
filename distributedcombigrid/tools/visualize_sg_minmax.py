@@ -32,6 +32,8 @@ if __name__ == "__main__":
     sgMinMax["max"] = sgMinMax["max"].abs()
     sgMinMax["delta"] = sgMinMax[["min", "max"]].max(axis=1)
     ic(sgMinMax)
+    ic(sgMinMax.corr())
+
     combinations = list(chain.from_iterable(combinations(s, r)
                         for r in range(len(s)+1)))
     combinations = [list(c) for c in list(combinations) if len(c) == 3]
