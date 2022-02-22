@@ -262,6 +262,7 @@ int main(int argc, char** argv) {
     std::cout << "reduceCombinationDimsLmax = " << reduceCombinationDimsLmax << std::endl;
     std::cout << "boundary = " << boundary << std::endl;
     std::cout << "hierarchization_dims = " << hierarchizationDims << std::endl;
+    auto numDOF = printCombiDegreesOfFreedom(combischeme.getCombiSpaces());
     std::cout << "CombiScheme: " << std::endl;
     for (size_t i = 0; i < levels.size(); ++i) {
       std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
@@ -364,6 +365,9 @@ int main(int argc, char** argv) {
         manager.doDiagnostics(levalTask->getID());
         Stats::stopEvent("manager diag selalib");
       }
+      if (i%100 == 0) {
+        manager.writeSparseGridMinMaxCoefficients(fg_file_path + "_selalib_sg_" + std::to_string(i));
+      }
     }
 
     std::cout << manager.getLpNorms(0) << std::endl;
@@ -372,14 +376,14 @@ int main(int argc, char** argv) {
 
     // evaluate solution on the grid defined by leval
     //(basically an interpolation of the sparse grid to fullgrid with resolution leval)
-    Stats::startEvent("manager parallel eval");
-    manager.parallelEval(leval, fg_file_path, 0);
-    Stats::stopEvent("manager parallel eval");
-    Stats::startEvent("manager parallel eval norm");
-    auto combinedNormLeval = manager.parallelEvalNorm(leval, 0);
-    Stats::stopEvent("manager parallel eval norm");
+    // Stats::startEvent("manager parallel eval");
+    // manager.parallelEval(leval, fg_file_path, 0);
+    // Stats::stopEvent("manager parallel eval");
+    // Stats::startEvent("manager parallel eval norm");
+    // auto combinedNormLeval = manager.parallelEvalNorm(leval, 0);
+    // Stats::stopEvent("manager parallel eval norm");
 
-    std::cout << "Norm is " << combinedNormLeval << " \n";
+    // std::cout << "Norm is " << combinedNormLeval << " \n";
 
     // // evaluate solution on the grid defined by leval2
     // Stats::startEvent("manager parallel eval 2");
@@ -387,6 +391,8 @@ int main(int argc, char** argv) {
     // Stats::stopEvent("manager parallel eval 2");
 
     // std::cout << "Computation finished evaluating on target grid! \n";
+
+    manager.writeSparseGridMinMaxCoefficients(fg_file_path + "_selalib_sg");
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
