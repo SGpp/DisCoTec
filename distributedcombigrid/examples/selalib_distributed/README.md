@@ -25,7 +25,7 @@ where `test_cpp` can be used to test the gerenal C/Fortran interface, `sll_m_sim
 
 
 ### Run Selalib+DisCoTec example
-* update combination technique parameters in `ctparam`, selalib parameters in `template/param.nml` (be careful with `doDiagnostics` -- it interpolates onto `lmax` to do the diagnostics, which can be extremely costly)
+* update combination technique parameters in `ctparam`, selalib parameters in `template/param.nml` (be careful with `haveDiagnosticsTask` -- it interpolates onto `lmax` to do the diagnostics, which can be extremely costly)
 * load dependencies and run with mpi, like shown in `sbatch.sh` -- the number of MPI tasks has to match the process group number and size in `ctparam`
 
 ### Postprocessing for Selalib+DisCoTec example
