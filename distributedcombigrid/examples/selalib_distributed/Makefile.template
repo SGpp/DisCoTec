@@ -1,6 +1,6 @@
 CC=$(CC)
 FC=$(FC)
-CFLAGS=-std=c++11 -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb -DUNIFORMDECOMPOSITION -DTIMING
+CFLAGS=-std=c++11 -O3 -DNDEBUG -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -ggdb -DUNIFORMDECOMPOSITION -DTIMING
 FFLAGS=-std=f2008 -ffree-line-length-none   -fstack-arrays -O0 -g -fbacktrace -Werror=intrinsics-std -Wall -pedantic -Wconversion-extra -Wuninitialized   -fcheck=array-temps,bounds,do,pointer,recursion   -ffpe-trap=invalid,zero,overflow -Wno-unused-function -Wno-unused-dummy-argument  -fopenmp -DUNIFORMDECOMPOSITION -DTIMING
 
 SGPP_DIR=$(SGPP)
@@ -12,7 +12,7 @@ INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
 LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
 #TODO find these on machine... boost and hdf5 are assumed to be there via module files or spack load...
 SELALIB_BUILD_DIR=../../../../selalib/build
-LD_SELALIB=-Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib: $(SELALIB_BUILD_DIR)/simulations/parallel/bsl_vp_3d3v_cart_dd/libsll_m_sim_bsl_vp_3d3v_cart_dd_slim_movingB_interface.a $(SELALIB_BUILD_DIR)/package/libselalib.a   /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_cxx.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so -lstdc++ -lhdf5_fortran #/usr/lib/x86_64-linux-gnu/libfftw3.so /usr/lib/x86_64-linux-gnu/libhdf5_openmpi_fortran.so
+LD_SELALIB=-Wl,-rpath,/usr/lib/x86_64-linux-gnu/openmpi/lib: $(SELALIB_BUILD_DIR)/simulations/parallel/bsl_vp_3d3v_cart_dd/libsll_m_sim_bsl_vp_3d3v_cart_dd_slim_movingB_interface.a $(SELALIB_BUILD_DIR)/package/libselalib.a   /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi_cxx.so /usr/lib/x86_64-linux-gnu/openmpi/lib/libmpi.so -lstdc++ -lhdf5_fortran -lfftw3 -lfftw3f #/usr/lib/x86_64-linux-gnu/libfftw3.so /usr/lib/x86_64-linux-gnu/libhdf5_openmpi_fortran.so
 
 LDIR=$(LD_SGPP) $(LD_GLPK) $(LD_SELALIB)
 INC=$(INC_SGPP) $(INC_GLPK)
@@ -23,9 +23,13 @@ CPP_FILES := $(wildcard src/*.cpp)
 OBJ_FILES := $(addprefix obj/,$(notdir $(CPP_FILES:.cpp=.o)))
 
 #compile with CC, link with FC
-all: selalib_distributed
 
-selalib_distributed: $(OBJ_FILES) #selalib_distributed.cpp SelalibTask.hpp
+all: selalib_distributed combine_selalib_diagnostics
+
+selalib_distributed: obj/selalib_distributed.o src/SelalibTask.hpp
+	$(FC) $(FFLAGS) -o $@ $^ $(INC) $(LDIR) $(LIBS)
+
+combine_selalib_diagnostics: obj/combine_selalib_diagnostics.o
 	$(FC) $(FFLAGS) -o $@ $^ $(LDIR) $(LIBS)
 
 obj/%.o: src/%.cpp
