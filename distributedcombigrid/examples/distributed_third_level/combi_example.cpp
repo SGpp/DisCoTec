@@ -318,6 +318,10 @@ int main(int argc, char** argv) {
                            forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
     std::vector<LevelVector> decomposition;
     for (DimType d = 0; d < dim; ++d) {
+      if (p[d] < powerOfTwo[lmin[d]] + boundary[d] ? +1 : -1) {
+        throw std::runtime_error(
+            "change p! not all processes can have points on minimum level with current p.");
+      }
       LevelVector di;
       if (p[d] == 1) {
         di = {0};
@@ -326,21 +330,18 @@ int main(int argc, char** argv) {
         assert(forwardDecomposition && boundary[d]);
         di = {0, powerOfTwo[lmax[d]]/p[d] + 1};
       } else if (p[d] == 3 && lmax[d] == 10) {
+        // naive
         di = {0, 342, 683};
-      } else if (p[d] == 3 && lmax[d] == 17) {
-        di = {0, 43691, 87382};
-      } else if (p[d] == 3 && lmax[d] == 18) {
-        di = {0, 87382, 174763};
-      } else if (p[d] == 3 && lmax[d] == 19) {
-        di = {0, 174763, 349526};
-      } else if (p[d] == 5 && lmax[d] == 17) {
-        // 26214, 26216, 26213, 26216, 26214
-        di = {0, 26214, 52430, 78643, 104859};
-      } else if (p[d] == 5 && lmax[d] == 18) {
-        // 52429 each
-        di = {0, 52429, 104858, 157287, 209716};
-      } else if (p[d] == 5 && lmax[d] == 19) {
-        di = {0, 104858, 209716, 314573, 419431};
+      } else if (p[d] == 3 && lmax[d] == 18 && lmin[d] == 1) {
+        // // naive
+        // di = {0, 87382, 174763};
+        // optimal
+        di = {0, 80450, 181695};
+      } else if (p[d] == 5 && lmax[d] == 19 && lmin[d] == 2) {
+        //naive
+        // di = {0, 104858, 209716, 314573, 419431};
+        //optimal
+        di = {0, 98304, 196609, 327680, 425985};
       } else {
         throw std::runtime_error("please implement a decomposition matching p and lmax");
       }
