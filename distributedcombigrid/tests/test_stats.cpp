@@ -58,8 +58,7 @@ void testMeasureTime(int size, long for_milliseconds) {
 
   combigrid::Stats::finalize();
 }
-
-BOOST_AUTO_TEST_SUITE(stats)
+BOOST_FIXTURE_TEST_SUITE(stats, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::timeout(20)) {
     checkStats(1);

@@ -86,10 +86,9 @@ int main(int argc, char** argv) {
   ncombi = cfg.get<size_t>("ct.ncombi");
   dt = cfg.get<combigrid::real>("application.dt");
   bool makeExactSol=cfg.get<bool>("exact.makeExact",false);
-  IndexVector p(dim);
-    cfg.get<std::string>("ct.p") >> p;
+  IndexVector p(dim, 1);
+  cfg.get<std::string>("ct.p") >> p;
   if(makeExactSol){
-    
     dt=dt*ncombi;
     ncombi=1;      
     lmax=leval;
@@ -195,7 +194,7 @@ int main(int argc, char** argv) {
 
     // create Tasks
     TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       std::string file_name = "deal_config/"+std::string("p")+std::to_string(i)+".json";
       converter.toJSONForDealII("ctparam",file_name, levels[i],i);
@@ -224,7 +223,6 @@ int main(int argc, char** argv) {
     //taskID for each level we create a new task and here are the IDs
     CombiParameters params( dim, lmin, lmax, boundary, levels,
                             coeffs, hierarchizationDims, taskIDs, ncombi, tasks[0]->getNumGrids());//, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
-
     params.setParallelization(p);
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));

@@ -14,7 +14,7 @@
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 
 /* comment this line to switch of timing */
-#define TIMING
+// #define TIMING
 
 namespace combigrid {
 

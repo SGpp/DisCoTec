@@ -2,7 +2,9 @@
 #define SRC_SGPP_COMBIGRID_COMBISCHEME_COMBIMINMAXSCHEME_HPP_
 
 #include <boost/math/special_functions/binomial.hpp>
+#include <boost/property_tree/json_parser.hpp>
 #include <numeric>
+#include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
@@ -35,7 +37,7 @@ class CombiMinMaxScheme {
       if (i == 0) effDim_--;
   }
 
-  ~CombiMinMaxScheme(){};
+  virtual ~CombiMinMaxScheme() = default;
 
   /* Generate the combischeme corresponding to the classical combination technique.
    * We need to ensure that lmax = lmin +c*ones(dim), and take special care
@@ -59,7 +61,7 @@ class CombiMinMaxScheme {
 
   inline void print(std::ostream& os) const;
 
- private:
+ protected:
   /* L1 norm of combispaces on the highest diagonal */
   LevelType n_;
 
@@ -78,7 +80,7 @@ class CombiMinMaxScheme {
   /* Downset */
   std::vector<LevelVector> levels_;
 
-  /* Subspaces of the combination technique*/
+  /* Component grid levels of the combination technique*/
   std::vector<LevelVector> combiSpaces_;
 
   /* Combination coefficients */
@@ -109,5 +111,66 @@ inline void CombiMinMaxScheme::print(std::ostream& os) const {
 
   os << std::endl;
 }
+
+class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
+ public:
+  CombiMinMaxSchemeFromFile(DimType dim, LevelVector& lmin, LevelVector& lmax, std::string ctschemeFile)
+      : CombiMinMaxScheme(dim, lmin, lmax) {
+    // read in CT scheme, if applicable
+    boost::property_tree::ptree pScheme;
+    boost::property_tree::json_parser::read_json(ctschemeFile, pScheme);
+    for (const auto& component : pScheme.get_child("")) {
+      assert(component.first.empty());  // list elements have no names
+      for (const auto& c : component.second) {
+        if (c.first == "coeff") {
+          coefficients_.push_back(c.second.get_value<real>());
+        } else if (c.first == "level") {
+          LevelVector lvl(dim);
+          int i = 0;
+          for (const auto& l : c.second) {
+            lvl[i] = l.second.get_value<int>();
+            ++i;
+          }
+          assert(lvl <= lmax);
+          assert(lmin <= lvl);
+          combiSpaces_.push_back(lvl);
+        } else if (c.first == "group_no") {
+          processGroupNumbers_.push_back(c.second.get_value<size_t>());
+        } else {
+          assert(false);
+        }
+      }
+      // process group numbers should either be always given or never
+      assert(coefficients_.size() == combiSpaces_.size());
+      assert(processGroupNumbers_.size() == combiSpaces_.size() || processGroupNumbers_.size() == 0);
+    }
+    assert(coefficients_.size() > 0);
+    assert(coefficients_.size() == combiSpaces_.size());
+  }
+
+  inline const std::vector<size_t>& getProcessGroupNumbers() const { return processGroupNumbers_; }
+ private:
+  std::vector<size_t> processGroupNumbers_;
+};
+
+static long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces) {
+  long long int numDOF = 0;
+  for (const auto& space : combiSpaces) {
+    long int numDOFSpace = 1;
+    for (const auto& level_i : space) {
+      assert(level_i > -1);
+      if (level_i > 0) {
+        numDOFSpace *= powerOfTwo[level_i];
+      } else {
+        numDOFSpace *= 2;
+      }
+    }
+    numDOF += numDOFSpace;
+  }
+  std::cout << "Combination scheme DOF : " << numDOF << " i.e. "
+            << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
+
+  return numDOF;
 }
+}  // namespace combigrid
 #endif /* SRC_SGPP_COMBIGRID_COMBISCHEME_COMBIMINMAXSCHEME_HPP_ */

@@ -16,6 +16,7 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
+#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/AveragingLoadModel.hpp"
@@ -32,6 +33,8 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 
+// this is necessary for correct function of task serialization
+#include "sgpp/distributedcombigrid/utils/BoostExports.hpp"
 
 using namespace combigrid;
 
@@ -200,11 +203,6 @@ class TaskAdvFDM : public combigrid::Task {
 
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskAdvFDM)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-
-BOOST_CLASS_EXPORT(FaultCriterion)
-
 
 void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, size_t ncombi, int nfaults,int iteration_faults, int global_rank_faults) {
   
@@ -229,15 +227,15 @@ void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
   std::vector<bool> boundary(dim,true);
   theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
 
+  BOOST_TEST_CHECKPOINT("Initialize checkFtolerance");
+
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer pgroups;
     for (size_t i = 0; i < ngroup ; ++i) {
       int pgroupRootID(boost::numeric_cast<int>(i));
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
-      
 
-  
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
 
@@ -264,7 +262,7 @@ void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
 
     /* create Tasks */
    TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
 
     #ifdef ENABLEFT
       for (size_t i = 0; i < levels.size(); i++) {
@@ -422,8 +420,10 @@ for (size_t i = 1; i < ncombi; ++i){
 else {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
-    while (signal != EXIT) 
+    while (signal != EXIT) {
       signal = pgroup.wait();
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
+    }
   }
   
   if( ENABLE_FT ){
@@ -440,21 +440,24 @@ else {
   MPI_Barrier(comm);
 }
 
-BOOST_AUTO_TEST_SUITE(ftolerance)
+BOOST_FIXTURE_TEST_SUITE(ftolerance, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 #ifdef ENABLEFT
 BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(20)) {
   checkFtolerance(false, false, 0.295448, 2.283454, 3, 1, 1, 3);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 #else
 BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
   // use recombination
   checkFtolerance(true, false, 0.973230, 7.820831,100, 0, 0, 0);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
   // don't use recombination
   checkFtolerance(false, false, 1.428688, 10.692053,100, 0, 0, 0);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(80)) {
@@ -466,16 +469,19 @@ BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance
 BOOST_AUTO_TEST_CASE(test_4, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
   // use recombination
   checkFtolerance(true, false, 0.043363, 0.300988, 0, 0, 0, 0);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 BOOST_AUTO_TEST_CASE(test_5, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
   // don't use recombination
   checkFtolerance(false, false, 0.043363, 0.300988,0, 0, 0, 0);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 BOOST_AUTO_TEST_CASE(test_6, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(80)) {
   // calculate solution on fullgrid
   checkFtolerance(false, true, 0.000623, 0.003553,0, 0, 0, 0);
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 #endif
 BOOST_AUTO_TEST_SUITE_END()

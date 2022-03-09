@@ -91,7 +91,7 @@ class TestingTask : public combigrid::Task {
     
     ++valueToPersist_;
 
-    std::cout << "run " << getCommRank(lcomm) << std::endl;    
+    // std::cout << "run " << getCommRank(lcomm) << std::endl;
     
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     for (auto& element : elements) {
@@ -137,7 +137,7 @@ class TestingTask : public combigrid::Task {
 BOOST_CLASS_EXPORT(TestingTask)
 
 bool tasksContainSameValue(const TaskContainer& tasks) {
-  std::cout << "task size" << tasks.size() << "\n";
+  // std::cout << "task size" << tasks.size() << "\n";
   if (tasks.size() <= 1) {
     return true;
   }
@@ -191,7 +191,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
 
     // create Tasks
     TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       Task* t = new TestingTask(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
@@ -237,6 +237,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
     while (signal != EXIT){ 
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
       signal = pgroup.wait();
 
       // test conditions:
@@ -255,7 +256,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
           // * Task was added: element values are restored
           // * Task was removed: all remaining elements were already checked in 
           //                     a previous iteration
-          BOOST_REQUIRE(e == 10);
+          BOOST_REQUIRE(e == 10.);
         }
       }
     }
@@ -266,7 +267,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
   TestHelper::testStrayMessages(comm);
 }
 
-BOOST_AUTO_TEST_SUITE(rescheduling)
+BOOST_FIXTURE_TEST_SUITE(rescheduling, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {

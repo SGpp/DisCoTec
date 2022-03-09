@@ -28,16 +28,16 @@ bool ProcessManager::runfirst() {
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group
     ProcessGroupManagerID g = wait();
-    std::cout <<"ID:"<< tasks_[i]->getID() << std::endl;
     // assign instance to group
     g->runfirst(tasks_[i]);
   }
 
-  std::cout <<"this is the end"<< std::endl;
-
   bool group_failed = waitAllFinished();
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
-  receiveDurationsOfTasksFromGroupMasters(0);
+  //receiveDurationsOfTasksFromGroupMasters(0);
+
+  // initialize dsgus
+  initDsgus();
 
   // return true if no group failed
   return !group_failed;
@@ -74,7 +74,7 @@ bool ProcessManager::runnext() {
   group_failed = waitAllFinished();
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   if(!group_failed)
-    receiveDurationsOfTasksFromGroupMasters(0);
+    // receiveDurationsOfTasksFromGroupMasters(0);
   // return true if no group failed
   return !group_failed;
 }
@@ -99,6 +99,29 @@ void ProcessManager::exit() {
   }
 }
 
+void ProcessManager::initDsgus() {
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
+    }
+  }
+
+  // tell groups to init Dsgus
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    bool success = pgroups_[i]->initDsgus();
+    assert(success);
+  }
+
+  waitAllFinished();
+}
+
 void ProcessManager::updateCombiParameters() {
   {
     bool fail = waitAllFinished();
@@ -115,7 +138,7 @@ void ProcessManager::updateCombiParameters() {
 /*
  * Compute the group faults that occured at this combination step using the fault simulator
  */
-void ProcessManager::getGroupFaultIDs(std::vector<int>& faultsID,
+void ProcessManager::getGroupFaultIDs(std::vector<size_t>& faultsID,
                                       std::vector<ProcessGroupManagerID>& groupFaults) {
   for (auto p : pgroups_) {
     StatusType status = p->waitStatus();
@@ -128,7 +151,7 @@ void ProcessManager::getGroupFaultIDs(std::vector<int>& faultsID,
   }
 }
 
-void ProcessManager::redistribute(std::vector<int>& taskID) {
+void ProcessManager::redistribute(std::vector<size_t>& taskID) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
     Task* t = NULL;
@@ -163,7 +186,7 @@ void ProcessManager::redistribute(std::vector<int>& taskID) {
 }
 
 void ProcessManager::reInitializeGroup(std::vector<ProcessGroupManagerID>& recoveredGroups,
-                                       std::vector<int>& tasksToIgnore) {
+                                       std::vector<size_t>& tasksToIgnore) {
   std::vector<Task*> removeTasks;
   for (auto g : recoveredGroups) {
     // erase existing tasks in group members to avoid doubled tasks
@@ -202,7 +225,7 @@ void ProcessManager::reInitializeGroup(std::vector<ProcessGroupManagerID>& recov
   std::cout << "Reinitialization finished" << std::endl;
 }
 
-void ProcessManager::recompute(std::vector<int>& taskID, bool failedRecovery,
+void ProcessManager::recompute(std::vector<size_t>& taskID, bool failedRecovery,
                                std::vector<ProcessGroupManagerID>& recoveredGroups) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
@@ -283,13 +306,14 @@ bool ProcessManager::recoverCommunicators(std::vector<ProcessGroupManagerID> fai
 
 void ProcessManager::recover(int i, int nsteps) {  // outdated
 
-  std::vector<int> faultsID;
+  assert(false && "deprecated function recover");
+  std::vector<size_t> faultsID;
   std::vector<ProcessGroupManagerID> groupFaults;
   getGroupFaultIDs(faultsID, groupFaults);
 
   /* call optimization code to find new coefficients */
   const std::string prob_name = "interpolation based optimization";
-  std::vector<int> redistributeFaultsID, recomputeFaultsID;
+  std::vector<size_t> redistributeFaultsID, recomputeFaultsID;
   recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
   // time does not need to be updated in gene but maybe in other applications
   /*  for ( auto id : redistributeFaultsID ) {
@@ -358,9 +382,7 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
 
     assert(!fail && "should not fail here");
   }
-  std::cout<<"parallel in mansger";
   assert(groupID < pgroups_.size());
-  std::cout<<"parallel in mansger";
   auto g = pgroups_[groupID];
   g->parallelEval(leval, filename);
 
@@ -371,8 +393,8 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
   }
 }
 
-std::map<int, double> ProcessManager::getLpNorms(int p) {
-  std::map<int, double> norms;
+std::map<size_t, double> ProcessManager::getLpNorms(int p) {
+  std::map<size_t, double> norms;
 
   for (const auto& pg : pgroups_) {
     pg->getLpNorms(p, norms);
@@ -394,6 +416,42 @@ std::vector<double> ProcessManager::evalAnalyticalOnDFG(const LevelVector& leval
 std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, size_t groupID) {
   auto g = pgroups_[groupID];
   return g->evalErrorOnDFG(leval);
+}
+
+std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<real>>& interpolationCoords) {
+  auto coordsSize = interpolationCoords.size() * interpolationCoords[0].size();
+  std::vector<real> interpolationCoordsSerial;
+  interpolationCoordsSerial.reserve(coordsSize);
+  for (const auto& coord: interpolationCoords) {
+    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
+  }
+  return interpolationCoordsSerial;
+}
+
+std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
+  auto numValues = interpolationCoords.size();
+  std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN()));
+  std::vector<MPI_Request> requests(pgroups_.size());
+
+  // send interpolation coords as a single array
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
+
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, values[i], requests[i]);
+  }
+  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+
+  std::vector<CombiDataType> reducedValues(numValues);
+  for (const auto& v : values){
+    for (size_t i = 0; i < numValues; ++i) {
+      reducedValues[i] += v[i];
+    }
+  }
+  return reducedValues;
+}
+
+void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
+  pgroups_.back()->writeSparseGridMinMaxCoefficients(filename);
 }
 
 void ProcessManager::reschedule() {

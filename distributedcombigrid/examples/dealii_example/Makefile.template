@@ -1,5 +1,5 @@
 CC=$(CC)
-CFLAGS=-std=c++17 -march=native -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DUNIFORMDECOMPOSITION
+CFLAGS=-std=c++17 -march=native -g -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DUNIFORMDECOMPOSITION -DTIMING
 
 SGPP_DIR=$(SGPP)
 GLPK_DIR=$(GLPK)

@@ -158,7 +158,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
 
     // create Tasks
     TaskContainer tasks;
-    std::vector<int> taskIDs;
+    std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
       Task* t = new TaskConst(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
@@ -207,7 +207,10 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
   else {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
-    while (signal != EXIT) signal = pgroup.wait();
+    while (signal != EXIT) {
+      signal = pgroup.wait();
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
+    }
   }
 
   combigrid::Stats::finalize();
@@ -215,7 +218,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
   TestHelper::testStrayMessages(comm);
 }
 
-BOOST_AUTO_TEST_SUITE(reduce)
+BOOST_FIXTURE_TEST_SUITE(reduce, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {

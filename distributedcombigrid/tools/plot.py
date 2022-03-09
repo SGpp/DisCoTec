@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 """Script for plotting the data gathered by the Stats class
 """
@@ -60,145 +60,123 @@ color_list = ["#FFFF00","#1CE6FF","#FF34FF","#FF4A46","#008941","#006FA6",
               "#5B656C","#00B57F","#545C46","#866097","#365D25","#252F99",
               "#00CCFF","#674E60","#FC009C","#92896B"]
 
-def color_pool(data):
+def color_pool(proc):
     """assigns a specific color to each event
     """
     color_cycler = cycle(color_list)
     color_map = {}
-    for i in range(len(data)):
-        rank = "rank" + str(i)
-        for event in data[rank]["events"]:
+    for i in range(len(proc)):
+        data = "rank" + str(i)
+        for event in proc[data]["events"]:
             if event not in color_map:
                 color_map[event] = next(color_cycler)
     return color_map
 
-def overlap(i, j):
-    return not(i[0] >= j[1] or i[1] <= j[0])
-
-class Process:
-    def __init__(self, rank, data):
-        self.rank = rank
-        data = data["rank" + str(rank)]
-        self.intervals = []
-        self.events = []
-        for e in data["events"]:
-            for i in data["events"][e]:
-                # start, end, bottom, height, name
-                self.intervals.append([i[0], i[1], 0, e])
-                self.events.append(e)
-
-        # build conflict graph
-        # quadratic time complexity, can be improved with interval tree
-        conflict = {}
-        for i in range(len(self.intervals)):
-            if not i in conflict:
-                conflict[i] = []
-            for j in range(i+1,len(self.intervals)):
-                if overlap(self.intervals[i], self.intervals[j]):
-                    if not j in conflict:
-                        conflict[j] = []
-                    conflict[i].append(j)
-                    conflict[j].append(i)
-
-        # graph coloring heuristic
-        colors = {}
-        maximum = 0
-        for i in range(len(self.intervals)):
-            c = 0
-            jc = [colors[j] for j in conflict[i] if j in colors]
-            while True:
-                if len(jc) != 0:
-                    minimum = min(jc)
-                    if c < minimum:
-                        break
-                    elif c == minimum:
-                        while len(jc) != 0 and min(jc) == minimum:
-                            jc.remove(minimum)
-                        c += 1
-                else:
-                    break
-            colors[i] = c
-            maximum = max(maximum, c)
-        self.lanes = maximum + 1
-
-        # assign lane to each interval
-        for i in range(len(self.intervals)):
-            self.intervals[i][2] =  colors[i]
-
-    def timeline_plot(self, ax, colors, labels, offset):
-        h = 1.0 / self.lanes
-        for e in self.events:
-            for l in range(self.lanes):
-                bars = [(i[0], i[1]-i[0]) for i in self.intervals
-                                          if i[2] == l and i[3] == e]
-                if len(bars) > 0:
-                    ax.broken_barh(bars, (offset + l*h, h), facecolor=colors[e],
-                                   edgecolor="black", linewidth=1)
-                    if e not in labels:
-                        labels.append(e)
-
-class ProcessGroup:
-    def __init__(self, group_id, data):
-        self.group_id = group_id
-        self.group_worker = []
-        for i in range(len(data)):
-            r = "rank" + str(i)
-            if int(data[r]["attributes"]["group"]) == group_id:
-                t = Process(i, data)
-                self.group_worker.append(t)
-                if int(data[r]["attributes"]["group_manager"]) == 1:
-                    self.group_manager = t
-
-    def timeline_plot_all(self, ax, colors, labels, yticks, yticklables, offset):
-        for i in range(len(self.group_worker)):
-            self.group_worker[i].timeline_plot(ax, colors, labels, offset+i*1.1)
-            yticks.append(offset+i*1.1)
-            yticklables.append(self.group_worker[i].rank)
-        offset += len(self.group_worker)*1.1 + 1.1
-        return offset
-
-    def timeline_plot_manager(self, ax, colors, labels, yticks, yticklables, offset):
-        if self.group_manager != None:
-            self.group_manager.timeline_plot(ax, colors, labels, offset)
-            yticks.append(offset)
-            yticklables.append(self.group_worker[i].rank)
-            offset += 1.1
-        return offset
-
-def timeline_plot(data, groups, only_manager):
-    """plots the timeline of the group or only the group manager
+def timeline_plot_all(proc):
+    """plots the timeline of all processes
     """
-    colors = color_pool(data)
+    colors = color_pool(proc)
+
+    labels = []
+
     fig, ax = plt.subplots()
+
     ax.set_xlabel("time (s)")
     ax.set_ylabel('process rank')
     ax.grid(True)
     ax.set_axisbelow(True)
-    yticklables = []
+    ax.set_yticklabels([str(i) for i in range(len(proc))])
+
     yticks = []
-    labels = []
-    offset = 0
-    for i in range(len(groups)):
-        if only_manager == True:
-            offset = groups[i].timeline_plot_manager(ax, colors, labels, yticks,
-                                                     yticklables, offset)
-        else:
-            offset = groups[i].timeline_plot_all(ax, colors, labels, yticks,
-                                                 yticklables, offset)
-    ax.set_yticklabels(yticklables)
+    ylim = 0
+    offset = 1
+    rank = 0
+    try:
+        for i in range(len(proc)):
+            data = "rank" + str(i)
+            group_offset = 3 * int(proc[data]["attributes"]["group"]) + offset
+            ylim = group_offset + 3
+            yticks.append(group_offset + 1)
+            for j in proc[data]["events"]:
+                bars = []
+                for k in proc[data]["events"][j]:
+                    bars.append((k[0], k[1]-k[0]))
+                ax.broken_barh(bars, (group_offset, 2), facecolor=colors[j],
+                               edgecolor="black", linewidth=1)
+                if j not in labels:
+                    labels.append(j)
+            offset += 3
+            rank = i
+    except Exception as err:
+        raise RuntimeError("rank " + str(rank) +
+                           " is missing attribute " + str(err))
     ax.set_yticks(yticks)
+    ax.set_ylim(0, ylim)
+
     # proxy artist workaround for broken_barh labels with older matplotlib versions
     ax.legend([mpatch.Rectangle((0,0),1,1,fc=colors[i]) for i in labels],
               labels, loc=1).get_frame().set_alpha(0.75)
+
     # use seconds as unit
     scale_x = 1e6
     ticks_x = ticker.FuncFormatter(lambda x, pos: "{0:g}".format(x/scale_x))
     ax.xaxis.set_major_formatter(ticks_x)
 
-def bar_plot_all(data, groups):
-    """plots the average times of all processes or only the group managers
+def timeline_plot_group_managers(proc):
+    """plots the timeline of the group managers
     """
-    colors = color_pool(data)
+    colors = color_pool(proc)
+    labels = []
+
+    fig, ax = plt.subplots()
+    ax.set_xlabel('time (s)')
+    ax.set_ylabel('process rank')
+    ax.grid(True)
+    ax.set_axisbelow(True)
+
+    ylables = []
+    yticks = []
+    ylim = 0
+    offset = 1
+    rank = 0
+    try:
+        for i in range(len(proc)):
+            data = "rank" + str(i)
+            group = int(proc[data]["attributes"]["group"])
+            if bool(int(proc[data]["attributes"]["group_manager"])):
+                ylim = offset + 3
+                yticks.append(offset + 1)
+                ylables.append(rank)
+                for i in proc[data]["events"]:
+                    bars = []
+                    for j in proc[data]["events"][i]:
+                        bars.append((j[0], j[1]-j[0]))
+                    ax.broken_barh(bars, (offset, 2), facecolor=colors[i],
+                                   edgecolor="black", linewidth=1)
+                    if i not in labels:
+                        labels.append(i)
+                offset += 3
+            rank = i
+    except Exception as err:
+        raise RuntimeError("rank " + str(rank) +
+                           " is missing attribute " + str(err))
+    ax.set_yticks(yticks)
+    ax.set_ylim(0, ylim)
+    ax.set_yticklabels(ylables)
+
+    # proxy artist workaround for broken_barh labels with older matplotlib versions
+    ax.legend([mpatch.Rectangle((0,0),1,1,fc=colors[i]) for i in labels],
+              labels).get_frame().set_alpha(0.75)
+
+    # use seconds as unit
+    scale_x = 1e6
+    ticks_x = ticker.FuncFormatter(lambda x, pos: "{0:g}".format(x/scale_x))
+    ax.xaxis.set_major_formatter(ticks_x)
+
+def bar_plot_all(proc, maxAverage):
+    """plots the average times of all processes
+    """
+    colors = color_pool(proc)
 
     fig, ax = plt.subplots()
     ax.set_xlabel('global')
@@ -209,16 +187,27 @@ def bar_plot_all(data, groups):
     ax.set_xticks([])
 
     times = {}
-    for g in groups:
-        for w in g.group_worker:
-            for i in w.intervals:
-                if i[3] not in times:
-                    times[i[3]] = []
-                else:
-                    times[i[3]].append(i[1] - i[0])
+    timesSum = {}
+    currentSum = {}
+    for data in proc:
+        for i in proc[data]["events"]:
+            if i not in times:
+                times[i] = []
+                timesSum[i] = []
+                currentSum[i] = 0
+            for j in proc[data]["events"][i]:
+                times[i].append(j[1] - j[0])
+    
+            timesSum[i].append(np.sum(times[i]) - currentSum[i])
+            currentSum[i] = np.sum(times[i])
     offset = 1
     for i in times:
-        ax.bar(offset, np.mean(times[i]), 2, color=colors[i],
+        value = 0
+        if(maxAverage):
+            value = np.max(timesSum[i])
+        else:
+            value = np.mean(times[i])
+        ax.bar(offset, value , 2, color=colors[i],
                edgecolor="black", linewidth=1,
                yerr=np.std(times[i]), label=i,
                error_kw=dict(elinewidth=1,ecolor='black',
@@ -233,10 +222,10 @@ def bar_plot_all(data, groups):
     ticks_y = ticker.FuncFormatter(lambda y, pos: "{0:g}".format(y/scale_y))
     ax.yaxis.set_major_formatter(ticks_y)
 
-def bar_plot_groups(data, groups):
+def bar_plot_group_managers(proc):
     """plots the average times of the process groups
     """
-    colors = color_pool(data)
+    colors = color_pool(proc)
     labels = set()
 
     fig, ax = plt.subplots()
@@ -246,21 +235,32 @@ def bar_plot_groups(data, groups):
     ax.set_axisbelow(True)
 
     times = {}
-    for g in groups:
-        times[g.group_id] = {}
-        for w in g.group_worker:
-            for i in w.intervals:
-                if i[3] not in times[g.group_id]:
-                    times[g.group_id][i[3]] = []
-                else:
-                    times[g.group_id][i[3]].append(i[1] - i[0])
+    rank = 0
+    try:
+        for i in range(len(proc)):
+            data = "rank" + str(i)
+            group = int(proc[data]["attributes"]["group"])
+            if bool(int(proc[data]["attributes"]["group_manager"])):
+                times[group] = {}
+            rank += 1
+        for data in proc:
+            group = int(proc[data]["attributes"]["group"])
+            for i in proc[data]["events"]:
+                if i not in times[group]:
+                    times[group][i] = []
+                for j in proc[data]["events"][i]:
+                    times[group][i].append(j[1] - j[0])
+    except Exception as err:
+        raise RuntimeError("rank " + str(rank) +
+                           " is missing attribute " + str(err))
 
     xticks = []
     xlables = []
     offset = 0
+    group = 0
     for t in times:
-        xticks.append(offset - 1)
-        xlables.append(t)
+        xticks.append(offset + len(times[t]) - 1)
+        xlables.append(group)
         for i in times[t]:
             ax.bar(offset, np.mean(times[t][i]), 2, color=colors[i],
                    edgecolor="black", linewidth=1,
@@ -271,6 +271,7 @@ def bar_plot_groups(data, groups):
             labels.add(i)
             offset += 2
         offset += 8
+        group += 1
     ax.set_xticks(xticks)
     ax.set_xticklabels(xlables)
     ax.legend(loc=2).get_frame().set_alpha(0.75)
@@ -287,39 +288,31 @@ try:
         raise RuntimeError("no input file specified")
     if len(sys.argv) > 2:
         raise RuntimeError("too many command line arguments")
-    data = json.load(open(sys.argv[1]))
-
-    # get the number of groups
-    group_count = 0
-    for i in range(len(data)):
-        r = "rank" + str(i)
-        group_count = max(group_count, int(data[r]["attributes"]["group"]))
-    group_count += 1
-
-    groups = []
-    for i in range(group_count):
-        groups.append(ProcessGroup(i, data))
+    proc = json.load(open(sys.argv[1]))
 
     print("Choose type of plot:")
     print("1 (timeline all processes),")
     print("2 (timeline group managers),")
     print("3 (average time all processes),")
-    print("4 (average time process groups)")
+    print("4 (max total-times of all processes),")
+    print("5 (average time process groups)")
     plot_type = int(input("\n"))
 
     if plot_type == 1:
-        timeline_plot(data, groups, False)
+        timeline_plot_all(proc)
     elif plot_type == 2:
-        timeline_plot(data, groups, True)
+        timeline_plot_group_managers(proc)
     elif plot_type == 3:
-        bar_plot_all(data, groups)
+        bar_plot_all(proc,False)
     elif plot_type == 4:
-        bar_plot_groups(data, groups)
+        bar_plot_all(proc,True)
+    elif plot_type == 5:
+        bar_plot_group_managers(proc)
     else:
         raise ValueError("invalid type number")
 
-    #plt.tight_layout()
-    #plt.show()
-    plt.savefig("tset.png")
+    plt.tight_layout()
+    plt.show()
+    plt.savefig("timers_"+str(plot_type)+"_"+os.path.split(os.getcwd())[-1]+".svg", format="svg")
 except Exception as err:
     print("Error: " + str(err))

@@ -62,7 +62,6 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
 }
 
 void CombiMinMaxScheme::createAdaptiveCombischeme() {
-  std::cout << "hier"<< dim_<<std::endl;
   LevelVector lm = getLevelMinima();
   n_ = std::accumulate(lm.begin(), lm.end(), 0);
   LevelVector l(dim_);

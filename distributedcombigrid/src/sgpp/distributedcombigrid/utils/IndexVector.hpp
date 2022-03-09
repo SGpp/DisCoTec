@@ -6,6 +6,7 @@
 #include <ostream>
 #include <vector>
 #include <map>
+#include <set>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/lexical_cast.hpp>
@@ -32,6 +33,19 @@ inline bool operator==(const IndexVector& l1, const IndexVector& l2) {
     if (l1[i] != l2[i]) return false;
   }
 
+  return true;
+}
+
+// helper function to compare any vector
+template<typename T>
+inline bool operator==(const std::vector<T> &u, const std::vector<T> &v) {
+  using namespace std;
+  if(u.size() != v.size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < u.size(); ++i) {
+    if (u[i] != v[i]) return false;
+  }
   return true;
 }
 
@@ -139,7 +153,10 @@ template<typename T>
 inline std::ostream &operator <<(std::ostream &os, const std::vector<T> &v) {
   using namespace std;
   os << "[";
-  copy(v.begin(), v.end(), ostream_iterator<T>(os, ", "));
+  // copy(v.begin(), v.end(), ostream_iterator<T>(os, ", "));
+  for (const auto& any : v) {
+    os << any << " ";
+  }
   os << "]";
   return os;
 }
@@ -151,6 +168,18 @@ inline std::ostream &operator <<(std::ostream &os, const std::map<T, U> &m) {
   for (const auto& any : m) {
     os << "(" << any.first << ") : " << any.second << "; ";
   }
+  return os;
+}
+
+// helper function to output any set
+template<typename T>
+inline std::ostream &operator <<(std::ostream &os, const std::set<T> &s) {
+  using namespace std;
+  os << "[";
+  for (const auto& any : s) {
+    os << any << ", ";
+  }
+  os << "]";
   return os;
 }
 

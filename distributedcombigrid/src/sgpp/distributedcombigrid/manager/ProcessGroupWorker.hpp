@@ -40,8 +40,26 @@ class ProcessGroupWorker {
   // Perform combination
   void combine();
 
+  /** initializes all subspace sizes in the dsgu according to the dfgs in the
+   * global reduce comm*/
+  void initCombinedUniDSGVector();
+
+  /** hierarchizes all fgs */
+  void hierarchizeFullGrids();
+
+  /** local reduce */
+  void addFullGridsToUniformSG();
+
+  /** extracts and dehierarchizes */
+  void integrateCombinedSolution();
+
+  /** reduction */
+  void reduceUniformSG();
+
   // combine on sparse grid with uniform decomposition of domain
   void combineUniform();
+
+  void combineLocalAndGlobal();
 
   // outdated!
   void combineFG();
@@ -68,6 +86,9 @@ class ProcessGroupWorker {
   /** evaluate norms of combi solution error on reference grid  */
   void evalErrorOnDFG();
 
+  /** interpolate values on all tasks' component grids  */
+  std::vector<CombiDataType> interpolateValues();
+
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 
@@ -77,14 +98,27 @@ class ProcessGroupWorker {
   // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
   void setCombinedSolutionUniform(Task* t);
 
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
+    return combinedUniDSGVector_;
+  }
+
+  TaskContainer& getTasks(){
+    return tasks_;
+  }
+
+  /**
+   * @brief store task and run its init function with current combiParameters
+   *
+   * @param t pointer to a heap-allocated task, the function takes over ownership here
+   */
+  void initializeTaskAndFaults(Task* t);
+
  private:
   TaskContainer tasks_;  // task storage
 
   Task* currentTask_;  // task that is currently processed
 
   StatusType status_;  // current status of process group (wait -> 0; busy -> 1; fail -> 2)
-
-  FullGrid<complex>* combinedFG_;
 
   /**
    * Vector containing all distributed sparse grids
@@ -107,7 +141,13 @@ class ProcessGroupWorker {
 
   // std::ofstream betasFile_;
 
-  void initializeTaskAndFaults(bool mayAlreadyExist = true);
+  void receiveAndInitializeTaskAndFaults(bool mayAlreadyExist = true);
+
+  /** sets all subspaces in all dsgs to zero and allocates them if necessary */
+  void zeroDsgsData();
+
+  /** deallocates all data elements stored in the dsgs */
+  void deleteDsgsData();
 
   void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);
 
@@ -121,7 +161,10 @@ class ProcessGroupWorker {
   void fillDFGEnsembleFromDSGUs(DFGEnsemble& dfgEnsemble);
 };
 
-inline Task* ProcessGroupWorker::getCurrentTask() { return currentTask_; }
+inline Task* ProcessGroupWorker::getCurrentTask() {
+  assert(currentTask_ != nullptr);
+  return currentTask_;
+}
 
 inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
   assert(combiParametersSet_);

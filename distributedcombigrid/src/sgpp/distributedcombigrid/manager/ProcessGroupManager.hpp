@@ -28,6 +28,8 @@ class ProcessGroupManager {
 
   bool runnext();
 
+  bool initDsgus();
+
   bool exit();
 
   /* non-blocking call to retrieve status of process group */
@@ -71,13 +73,21 @@ class ProcessGroupManager {
 
   bool parallelEval(const LevelVector& leval, std::string& filename);
 
-  void getLpNorms(int p, std::map<int, double>& norms);
+  void writeSparseGridMinMaxCoefficients(const std::string& filename);
+
+  void doDiagnostics(int taskID);
+
+  void getLpNorms(int p, std::map<size_t, double>& norms);
 
   std::vector<double> parallelEvalNorm(const LevelVector& leval);
 
   std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval);
 
   std::vector<double> evalErrorOnDFG(const LevelVector& leval);
+
+  void interpolateValues(const std::vector<real>& interpolationCoordsSerial,
+                                              std::vector<CombiDataType>& values,
+                                              MPI_Request& request);
 
   /**
    * Adds a task to the process group. To be used for rescheduling.
@@ -91,10 +101,14 @@ class ProcessGroupManager {
    * Removes a task from the process group. To be used for rescheduling.
    *
    * @param lvlVec The level vector of the task to remove.
-   * @returns If successful the removed task or a nullptr if no task with the 
+   * @returns If successful the removed task or a nullptr if no task with the
    *          given level vector is found.
    */
   Task *rescheduleRemoveTask(const LevelVector& lvlVec);
+
+  bool writeCombigridsToVTKPlotFile();
+
+  void storeTaskReference(Task* t);
 
  private:
   RankType pgroupRootID_;  // rank in GlobalComm of the master process of this group
@@ -113,8 +127,6 @@ class ProcessGroupManager {
 
   // Helper functions for Communication with ProcessGroups
   bool storeTaskReferenceAndSendTaskToProcessGroup(Task* t, SignalType signal);
-
-  void storeTaskReference(Task* t);
 
   bool sendTaskToProcessGroup(Task* t, SignalType signal);
 

@@ -91,7 +91,7 @@ void testDataSave(int size) {
   TestHelper::testStrayMessages();
 }
 
-BOOST_AUTO_TEST_SUITE(loadmodel)
+BOOST_FIXTURE_TEST_SUITE(loadmodel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_2) {
   testDataSave(2);

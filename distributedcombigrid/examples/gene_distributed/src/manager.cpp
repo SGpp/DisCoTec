@@ -30,12 +30,8 @@
 
 using namespace combigrid;
 // this is necessary for correct function of task serialization
+#include "sgpp/distributedcombigrid/utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(GeneTask)
-BOOST_CLASS_EXPORT(StaticFaults)
-BOOST_CLASS_EXPORT(WeibullFaults)
-
-BOOST_CLASS_EXPORT(FaultCriterion)
-
 
 // helper funtion to read a bool vector from string
 inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
@@ -170,19 +166,21 @@ int main(int argc, char** argv) {
   //generate the local communicators for the different process groups
   int color = globalID / nprocs;
   int key = globalID - color * nprocs;
+  assert(key == 0);
+  // if this here hangs, there is some mismatch with ENABLEFT
   MPI_Comm lcomm;
-
   MPI_Comm_split(MPI_COMM_WORLD, color, key, &lcomm);
 
   // Gene creates another comm which we do not need, but it is necessary
   // to execute comm_split again; otherwise dead-lock (Split is collective and blocking)
   MPI_Comm pcomm;
-  MPI_Comm_split( MPI_COMM_WORLD, key, color, &pcomm );
+  MPI_Comm_split( MPI_COMM_WORLD, MPI_UNDEFINED, key, &pcomm );
 
   Stats::setAttribute("group", std::to_string(color));
 
   // here the actual MPI initialization
   theMPISystem()->init( ngroup, nprocs, lcomm );
+  std::cout << "init " << std::endl;
   // theMPISystem()->initWorld(lcomm, ngroup, nprocs);
   int nfaults = 0;
 
@@ -291,7 +289,7 @@ int main(int argc, char** argv) {
   // not work properly
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
-  std::vector<int> fileTaskIDs;
+  std::vector<size_t> fileTaskIDs;
 
   const bool READ_FROM_FILE = cfg.get<bool>("ct.readspaces");
   if (READ_FROM_FILE) { //currently used file produced by preproc.py
@@ -321,8 +319,8 @@ int main(int argc, char** argv) {
   }
 
   // create load model
-  std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
-  // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+  //std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
+   std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
   // output of combination setup
   std::cout << "lmin = " << lmin << std::endl;
@@ -338,7 +336,7 @@ int main(int argc, char** argv) {
 
   // create Tasks
   TaskContainer tasks;
-  std::vector<int> taskIDs;
+  std::vector<size_t> taskIDs;
 
   //initialize individual tasks (component grids)
   for (size_t i = 0; i < levels.size(); i++) {

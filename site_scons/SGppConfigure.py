@@ -25,7 +25,7 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   # TODO(pfandedd): discuss with julian
 #   if env["PLATFORM"] not in ["cygwin", "win32"]:
   if env["OPT"] == True:
-    env.Append(CPPFLAGS=["-O3", "-g"])
+    env.Append(CPPFLAGS=["-DNDEBUG", "-O3"])
   else:
     env.Append(CPPFLAGS=["-g", "-O0"])
 
@@ -188,6 +188,8 @@ def checkOpenCL(config):
     Helper.printInfo("OpenCL is not enabled")
 
 def checkBoostTests(config):
+  config.env.AppendUnique(CPPPATH=[config.env["BOOST_INCLUDE_PATH"]])
+  config.env.AppendUnique(LIBPATH=[config.env["BOOST_LIBRARY_PATH"]])
   # Check the availability of the boost unit test dependencies
   if config.env["COMPILE_BOOST_TESTS"]:
     config.env.AppendUnique(CPPPATH=[config.env["BOOST_INCLUDE_PATH"]])
