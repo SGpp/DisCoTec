@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
+#include "sgpp/distributedcombigrid/fullgrid/DistributedFullGridEnsemble.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIMemory.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
@@ -136,59 +137,89 @@ void testGatherFullGrid(LevelVector& levels, std::vector<bool>& boundary, TestFn
   }
 }
 
-void checkDistributedFullgridLinDG(LevelVector& levels, IndexVector& procs, std::vector<bool>& boundary,
-                              int size, bool forward = false) {
-  using dfgTestCombiType = std::complex<double>;
+void checkDistributedFullgridLinDG(LevelVector& levels, IndexVector& procs,
+                                   std::vector<bool>& boundary, int size, bool forward = false) {
+  using dfgTestCombiType = CombiDataType;
   CommunicatorType comm = TestHelper::getComm(size);
-  if (comm == MPI_COMM_NULL) return;
+  if (comm != MPI_COMM_NULL) {
+    BOOST_TEST_CHECKPOINT("test distributedfullgrid Ensemble ");
+    // + std::to_string(levels) + std::to_string(procs));
 
-  if (TestHelper::getRank(comm) == 0) {
-    std::cout << "test distributedfullgrid " << levels << procs << std::endl;
+    TestFn f;
+    const DimType dim = levels.size();
+
+    BOOST_TEST_CHECKPOINT("creating ensemble");
+    // create dfg ensemble
+    DFGEnsemble dfgEnsemble(dim, levels, comm, boundary, procs, forward);
+
+    IndexType nrElements = 1;
+    for (DimType d = 0; d < dim; ++d) {
+      nrElements *= (1 << levels[d]) + (boundary[d] ? 1 : -1);
+    }
+
+    for (auto& dfg : dfgEnsemble) {
+      BOOST_CHECK(nrElements == dfg->getNrElements());
+
+      // set function values
+      for (IndexType li = 0; li < dfg->getNrLocalElements(); ++li) {
+        std::vector<double> coords(dim);
+        dfg->getCoordsLocal(li, coords);
+        dfg->getData()[li] = std::abs(f(coords));
+      }
+      BOOST_TEST_CHECKPOINT("set function values");
+    }
+
+    // test addToUniformSG, extractFromUniformSG
+    LevelVector lmin = levels;
+    LevelVector lmax = levels;
+    for (DimType d = 0; d < dim; ++d) {
+      lmax[d] *= 2;
+    }
+
+    for (auto& dfg : dfgEnsemble) {
+      DistributedSparseGridUniform<dfgTestCombiType> dsg(dim, lmax, lmin, boundary, comm);
+      dfg->registerUniformSG(dsg);
+      BOOST_TEST_CHECKPOINT("register uniform sg");
+      dfg->addToUniformSG(dsg, 2.1);
+      BOOST_TEST_CHECKPOINT("add to uniform sg");
+      DistributedFullGrid<dfgTestCombiType> dfg2(dim, levels, comm, boundary, procs, forward);
+      dfg2.registerUniformSG(dsg);
+      dfg2.extractFromUniformSG(dsg);
+      BOOST_TEST_CHECKPOINT("extract from uniform sg");
+
+      compareResults(dim, *dfg, dfg2);
+    }
+
+    // test ensemble interpolation
+    BOOST_TEST_CHECKPOINT("test ensemble interpolation");
+    std::vector<std::vector<double>> interpolationCoords;
+    interpolationCoords.emplace_back(dim, 1. / std::sqrt(2.));
+    interpolationCoords.emplace_back(dim, 1. / std::sqrt(3.));
+    interpolationCoords.emplace_back(dim, 1. / std::sqrt(5.));
+    interpolationCoords.emplace_back(dim, 0.5);  // this one is at discontinuity -> bad!
+    interpolationCoords.emplace_back(dim, 0.5 + 1e-4);
+    interpolationCoords.emplace_back(dim, 0.5 - 1e-4);
+    interpolationCoords.emplace_back(dim, 0.5 + 1e-5);
+    interpolationCoords.emplace_back(dim, 0.5 - 1e-5);
+    BOOST_CHECK_CLOSE(std::abs(dfgEnsemble.eval(interpolationCoords[0])),
+                      std::abs(f(interpolationCoords[0])), TestHelper::tolerance);
+
+    auto interpolatedValues = dfgEnsemble.getInterpolatedValues(interpolationCoords);
+
+    for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+      BOOST_CHECK_CLOSE(std::abs(interpolatedValues[i]), std::abs(f(interpolationCoords[i])),
+                        TestHelper::tolerance);
+    }
   }
-
-  TestFn f;
-  const DimType dim = levels.size();
-
-  // create dfg
-  DistributedFullGrid<dfgTestCombiType> dfg(dim, levels, comm, boundary, procs, forward);
-
-  IndexType nrElements = 1;
-  for (DimType d = 0; d < dim; ++d) {
-    nrElements *= (1 << levels[d]) + (boundary[d] ? 1 : -1);
-  }
-  BOOST_CHECK(nrElements == dfg.getNrElements());
-
-  // set function values
-  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-    std::vector<double> coords(dim);
-    dfg.getCoordsLocal(li, coords);
-    dfg.getData()[li] = f(coords);
-  }
-  BOOST_TEST_CHECKPOINT("set function values");
-
-  // test addToUniformSG, extractFromUniformSG
-  LevelVector lmin = levels;
-  LevelVector lmax = levels;
-  for (DimType d = 0; d < dim; ++d) {
-    lmax[d] *= 2;
-  }
-
-  DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, boundary, comm);
-  dfg.registerUniformSG(dsg);
-  BOOST_TEST_CHECKPOINT("register uniform sg");
-  dfg.addToUniformSG(dsg, 2.1);
-  BOOST_TEST_CHECKPOINT("add to uniform sg");
-  DistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
-  dfg2.registerUniformSG(dsg);
-  dfg2.extractFromUniformSG(dsg);
-  BOOST_TEST_CHECKPOINT("extract from uniform sg");
-
-  compareResults(dim, dfg, dfg2);
-  testGatherFullGrid(levels, boundary, f, dfg, comm);
 }
 
 void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vector<bool>& boundary,
                               int size, bool forward = false) {
+  if (std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; })) {
+    BOOST_TEST_CHECKPOINT("calling checkDistributedFullgridLinDG");
+    checkDistributedFullgridLinDG(levels, procs, boundary, size, forward);
+  }
+
   using dfgTestCombiType = std::complex<double>;
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm == MPI_COMM_NULL) return;
@@ -211,6 +242,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
     dfg.getCoordsLocal(li, coords);
     dfg.getData()[li] = f(coords);
   }
+  BOOST_TEST_CHECKPOINT("set function values");
 
   // test addToUniformSG, extractFromUniformSG
   LevelVector lmin = levels;
@@ -371,7 +403,6 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
       }
     }
   }
-
   // std::cout << dfg << std::endl;
 }
 
