@@ -25,6 +25,9 @@ bool ProcessManager::runfirst() {
   sortTasks();
   assert(tasks_.size() >= pgroups_.size());
 
+  //make sure that all process groups are finished before we load-balance-assign tasks
+  waitAllFinished();
+
   for (size_t i = 0; i < tasks_.size(); ++i) {
     // wait for available process group
     ProcessGroupManagerID g = wait();

@@ -153,15 +153,15 @@ class ProcessManager {
 inline void ProcessManager::addTask(Task* t) { tasks_.push_back(t); }
 
 inline ProcessGroupManagerID ProcessManager::wait() {
+  static size_t roundRobinProcessGroupIndex = 0;
   while (true) {
-    for (size_t i = 0; i < pgroups_.size(); ++i) {
-      StatusType status = pgroups_[i]->getStatus();
-      //      std::cout << status << " is the status of : "<< i << "\n";
-      assert(status >= 0);  // check for invalid values
-      assert(status <= 2);
-      if (status == PROCESS_GROUP_WAIT) {
-        return pgroups_[i];
-      }
+    roundRobinProcessGroupIndex = (roundRobinProcessGroupIndex + 1) % pgroups_.size();
+    StatusType status = pgroups_[roundRobinProcessGroupIndex]->getStatus();
+    //      std::cout << status << " is the status of : "<< i << "\n";
+    assert(status >= 0);  // check for invalid values
+    assert(status <= 2);
+    if (status == PROCESS_GROUP_WAIT) {
+      return pgroups_[roundRobinProcessGroupIndex];
     }
   }
 }
