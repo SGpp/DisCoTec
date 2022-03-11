@@ -94,9 +94,9 @@ class SelalibTask : public combigrid::Task {
     // only run anything if the coefficient is not 0., i.e. it is not the diagnostics task
     if (coeff_ != 0.){
       changeDir(lcomm);
-      MASTER_EXCLUSIVE_SECTION{
-        std::cout << "run " << *this << std::endl;
-      }
+      // MASTER_EXCLUSIVE_SECTION{
+      //   std::cout << "run " << *this << std::endl;
+      // }
       setLocalDistributionFromDFG();
       Stats::startEvent("BSL run");
       if (selalibSimPointer_ == nullptr) {
