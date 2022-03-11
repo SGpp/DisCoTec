@@ -246,7 +246,7 @@ int main(int argc, char** argv) {
 
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
-    combischeme.makeFaultTolerant();
+    // combischeme.makeFaultTolerant();
     levels = combischeme.getCombiSpaces();
     coeffs = combischeme.getCoeffs();
 
