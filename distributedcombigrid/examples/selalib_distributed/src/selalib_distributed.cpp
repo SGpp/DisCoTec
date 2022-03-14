@@ -102,11 +102,43 @@ void setCheckpointRestart(std::string basename, std::vector<LevelVector> levels,
   }
 }
 
+bool adaptParameterFile(std::string infilename, std::string outfilename, IndexVector resolution,
+                        IndexVector p, size_t nsteps, double dt, size_t n_diagnostics) {
+  assert(resolution.size() == p.size());
+  std::ifstream inputFileStream(infilename, std::ifstream::in);
+  auto contents = getFile(inputFileStream);
+  contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
+  contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
+  contents = replaceFirstOccurrence(contents, "$n_diagnostics", std::to_string(n_diagnostics));
+  for (DimType d = 0; d < resolution.size(); ++d) {
+    contents = replaceFirstOccurrence(contents, "$nx" + std::to_string(d + 1),
+                                      std::to_string(resolution[d]));
+    contents = replaceFirstOccurrence(contents, "$p" + std::to_string(d + 1), std::to_string(p[d]));
+  }
+  std::ofstream outputFileStream(outfilename);
+  outputFileStream << contents;
+  return true;
+}
+
+bool adaptParameterFileFirstFolder(std::string basename, IndexVector resolution,
+                                   IndexVector p, size_t nsteps, double dt, size_t n_diagnostics,
+                                   std::string suffix = "") {
+  std::string baseFolder = "./" + basename;
+  std::string taskFolder = baseFolder + suffix + std::to_string(0);
+  std::string templateFolder = "./template";
+
+  bool yes = adaptParameterFile(templateFolder + "/param.nml", taskFolder + "/param.nml",
+                                resolution, p, nsteps, dt, n_diagnostics);
+  assert(yes);
+  return yes;
+}
+
 bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, IndexVector p,
                        size_t nsteps, double dt, size_t n_diagnostics, std::string suffix = "") {
   std::string baseFolder = "./" + basename;
   std::string templateFolder = "./template";
-  assert(fs::exists(templateFolder));
+  bool yes = fs::exists(templateFolder);
+  assert(yes);
   for (size_t i = 0; i < levels.size(); i++) {
     // path to task folder
     std::string taskFolder = baseFolder + suffix + std::to_string(i);
@@ -115,20 +147,13 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, In
       throw std::runtime_error("Cannot create destination directory " + taskFolder);
     }
     // adapt each parameter file
-    std::ifstream inputFileStream(templateFolder + "/param.nml", std::ifstream::in);
-    auto contents = getFile(inputFileStream);
-    contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
-    contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
-    contents = replaceFirstOccurrence(contents, "$n_diagnostics", std::to_string(n_diagnostics));
+    IndexVector resolutions;
     for (DimType d = 0; d < levels[0].size(); ++d) {
-      contents =
-          replaceFirstOccurrence(contents, "$nx" + std::to_string(d + 1),
-                                 std::to_string(static_cast<LevelType>(std::pow(2, levels[i][d]))));
-      contents =
-          replaceFirstOccurrence(contents, "$p" + std::to_string(d + 1), std::to_string(p[d]));
+      resolutions.push_back(static_cast<IndexType>(std::pow(2, levels[i][d])));
     }
-    std::ofstream outputFileStream(taskFolder + "/param.nml");
-    outputFileStream << contents;
+    yes = adaptParameterFile(templateFolder + "/param.nml", taskFolder + "/param.nml", resolutions,
+                             p, nsteps, dt, n_diagnostics);
+    assert(yes);
     // copy all other files
     for (const auto& dirEnt : fs::recursive_directory_iterator{templateFolder}) {
       const auto& path = dirEnt.path();
@@ -137,7 +162,7 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, In
       fs::copy(path, taskFolder + "/" + relativePathStr, fs::copy_options::skip_existing);
     }
   }
-  return true;
+  return yes;
 }
 
 void initMpiSelalibStyle(int argc, char** argv) {
@@ -198,7 +223,7 @@ int main(int argc, char** argv) {
     DimType dim = cfg.get<DimType>("ct.dim");
     LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim), reduceCombinationDimsLmin(dim),
         reduceCombinationDimsLmax(dim);
-    IndexVector p(dim);
+    IndexVector p(dim), resolution(dim);
     std::vector<bool> boundary(dim), hierarchizationDims(dim);
     combigrid::real dt;
     // time inteveral of 1 combination
@@ -225,9 +250,13 @@ int main(int argc, char** argv) {
     nsteps = cfg.get<size_t>("application.nsteps");  // number of timesteps between combinations
     bool haveDiagnosticsTask = cfg.get<bool>("application.haveDiagnosticsTask", false);
     bool checkpointRestart = cfg.get<bool>("application.checkpoint_restart", false);
+    bool haveResolution = static_cast<bool>(cfg.get_child_optional("ct.resolution"));
+    if (haveResolution) {
+      cfg.get<std::string>("ct.resolution") >> resolution; // resolution of single grid in the full grid case
+      assert(lmax == lmin);
+    }
 
     std::string fg_file_path = cfg.get<std::string>("ct.fg_file_path");
-    std::string fg_file_path2 = cfg.get<std::string>("ct.fg_file_path2");
 
     cfg.get<std::string>("ct.lmin") >> lmin;
 
@@ -256,16 +285,20 @@ int main(int argc, char** argv) {
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
     // output of combination setup
-    std::cout << "lmin = " << lmin << std::endl;
-    std::cout << "lmax = " << lmax << std::endl;
-    std::cout << "reduceCombinationDimsLmin = " << reduceCombinationDimsLmin << std::endl;
-    std::cout << "reduceCombinationDimsLmax = " << reduceCombinationDimsLmax << std::endl;
-    std::cout << "boundary = " << boundary << std::endl;
-    std::cout << "hierarchization_dims = " << hierarchizationDims << std::endl;
-    auto numDOF = printCombiDegreesOfFreedom(combischeme.getCombiSpaces());
-    std::cout << "CombiScheme: " << std::endl;
-    for (size_t i = 0; i < levels.size(); ++i) {
-      std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
+    if (haveResolution) {
+      std::cout << "resolution = " << resolution << std::endl;
+    } else {
+      std::cout << "lmin = " << lmin << std::endl;
+      std::cout << "lmax = " << lmax << std::endl;
+      std::cout << "reduceCombinationDimsLmin = " << reduceCombinationDimsLmin << std::endl;
+      std::cout << "reduceCombinationDimsLmax = " << reduceCombinationDimsLmax << std::endl;
+      std::cout << "boundary = " << boundary << std::endl;
+      std::cout << "hierarchization_dims = " << hierarchizationDims << std::endl;
+      auto numDOF = printCombiDegreesOfFreedom(combischeme.getCombiSpaces());
+      std::cout << "CombiScheme: " << std::endl;
+      for (size_t i = 0; i < levels.size(); ++i) {
+        std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
+      }
     }
 
     if (checkpointRestart){
@@ -278,6 +311,11 @@ int main(int argc, char** argv) {
       size_t always = 1;
       // create necessary folders and files to run each task in a separate folder
       createTaskFolders(basename, levels, p, nsteps, dt, always);
+      if (haveResolution) {
+        assert(levels.size() == 1);
+        assert(!haveDiagnosticsTask);
+        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, always);
+      }
     }
 
     // create Tasks
@@ -355,24 +393,22 @@ int main(int argc, char** argv) {
       }
 
       assert(!ENABLE_FT);
-      // combine grids
-      Stats::startEvent("manager combine");
-      manager.combine();
-      Stats::stopEvent("manager combine");
+      if(!haveResolution) {
+        // combine grids
+        Stats::startEvent("manager combine");
+        manager.combine();
+        Stats::stopEvent("manager combine");
 
-      if (haveDiagnosticsTask){
-        Stats::startEvent("manager diag selalib");
-        manager.doDiagnostics(levalTask->getID());
-        Stats::stopEvent("manager diag selalib");
-      }
-      if (i%100 == 0) {
-        manager.writeSparseGridMinMaxCoefficients(fg_file_path + "_selalib_sg_" + std::to_string(i));
+        if (haveDiagnosticsTask){
+          Stats::startEvent("manager diag selalib");
+          manager.doDiagnostics(levalTask->getID());
+          Stats::stopEvent("manager diag selalib");
+        }
+        if (i%100 == 0) {
+          manager.writeSparseGridMinMaxCoefficients(fg_file_path + "_selalib_sg_" + std::to_string(i));
+        }
       }
     }
-
-    std::cout << manager.getLpNorms(0) << std::endl;
-    std::cout << manager.getLpNorms(1) << std::endl;
-    std::cout << manager.getLpNorms(2) << std::endl;
 
     // evaluate solution on the grid defined by leval
     //(basically an interpolation of the sparse grid to fullgrid with resolution leval)
@@ -392,7 +428,12 @@ int main(int argc, char** argv) {
 
     // std::cout << "Computation finished evaluating on target grid! \n";
 
-    manager.writeSparseGridMinMaxCoefficients(fg_file_path + "_selalib_sg");
+    if(!haveResolution) {
+      manager.writeSparseGridMinMaxCoefficients(fg_file_path + "_selalib_sg");
+      std::cout << manager.getLpNorms(0) << std::endl;
+      std::cout << manager.getLpNorms(1) << std::endl;
+      std::cout << manager.getLpNorms(2) << std::endl;
+    }
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();

@@ -1,0 +1,52 @@
+[ct]
+#last element has to be 1 -> specify species with special field
+#dimension of problem
+dim = 6
+#resolution of the full grid
+resolution = 8 8 8 14 14 14
+# minimum and maximum level, value does not matter when resolution is given
+# but they should be the same and large enough to fit resolution
+lmin = 3 3 3 7 7 7
+lmax = 3 3 3 7 7 7
+
+#levelvector at which final outputs are evaluated (with potential interpolation)
+leval = 4 4 4 4 4 4
+#indicates number of processors per dimension in domain decomposition
+#this is the same for each process group
+# same order as in selalib: x1 x2 x3 v1 v2 v3
+p = 1 1 1 2 2 2
+#number of combination steps
+ncombi = 2
+#indicates the file name of the 2 plot files
+fg_file_path = plot.dat
+#indicates which dimensions have boundary points
+boundary = 1 1 1 1 1 1
+#indicates which dimensions will be hierarchized
+hierarchization_dims = 1 1 1 1 1 1
+
+#possibility to reduce the level of the sparse grid for the combination step
+reduceCombinationDimsLmin = 0 0 0 0 0 0
+reduceCombinationDimsLmax = 0 0 0 0 0 0
+
+[application]
+#timestep size
+dt = 0.01
+#number of timesteps between combinations
+nsteps = 10
+#whether we want to have a "diagnostics task" that interpolates the ct solution on leval
+# to get the physical outputs through selalib diagnostics
+haveDiagnosticsTask = 0
+#physical parameters
+# TODO add selalib parameters
+# whether we want to restart the same scheme from checkpoints
+checkpoint_restart = 0
+
+[preproc]
+#name of instance folders
+basename = seladisco
+
+[manager]
+#number of mpi ranks in each group
+nprocs = 8
+#number of process groups
+ngroup = 1
