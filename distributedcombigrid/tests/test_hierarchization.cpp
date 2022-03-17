@@ -252,7 +252,8 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   BOOST_TEST(mcMassAfter == mcMassBefore, boost::test_tools::tolerance(5e-2));
 
-  for (DimType d = 0; d < dim; ++d) {
+  for (DimType d = 0; d < dim + 1; ++d) {
+    std::cout << d << std::endl;
     BOOST_TEST(mcMomentaAfter[d] == mcMomentaBefore[d], boost::test_tools::tolerance(5e-2));
   }
 
@@ -905,7 +906,7 @@ BOOST_AUTO_TEST_CASE(test_44) {
   // on ipvs-epyc2@  : 3100 milliseconds w single msgs
 }
 
-BOOST_AUTO_TEST_CASE(momentum_4) {
+BOOST_AUTO_TEST_CASE(momentum) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   CommunicatorType comm = TestHelper::getComm(1);
   if (comm != MPI_COMM_NULL) {
@@ -916,37 +917,39 @@ BOOST_AUTO_TEST_CASE(momentum_4) {
     auto forward = true;  // todo toggle
     TestFn_1 testFn(levels);
     auto constFctn = [](const std::vector<double>& coords) { return 11.; };
+    //TODO make non-periodic operators momentum conserving by methodology from Frank Koster's diss
     // std::cout << "test fcn" << std::endl;
-    DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
-    {
-      // initialize dfg with function
-      fillDFGbyFunction(testFn, dfg);
-      checkConservationOfMomentum<std::complex<double>>(
-          dfg, DistributedHierarchization::hierarchizeBiorthogonalPeriodic<std::complex<double>>);
-    }
-    {
-      fillDFGbyFunction(testFn, dfg);
-      checkConservationOfMomentum<std::complex<double>>(
-          dfg, DistributedHierarchization::hierarchizeFullWeightingPeriodic<std::complex<double>>);
-    }
+    // DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    // {
+    //   // initialize dfg with function
+    //   fillDFGbyFunction(testFn, dfg);
+    //   checkConservationOfMomentum<std::complex<double>>(
+    //       dfg, DistributedHierarchization::hierarchizeBiorthogonal<std::complex<double>>);
+    // }
+    // {
+    //   fillDFGbyFunction(testFn, dfg);
+    //   checkConservationOfMomentum<std::complex<double>>(
+    //       dfg, DistributedHierarchization::hierarchizeFullWeighting<std::complex<double>>);
+    // }
     // std::cout << "random" << std::endl;
-    DistributedFullGrid<real> dfg2(3, levels, comm, boundary, procs, forward);
-    {
-      // initialize dfg with random numbers
-      fillDFGrandom(dfg2, -100., 100.);
-      checkConservationOfMomentum<real>(
-          dfg2, DistributedHierarchization::hierarchizeBiorthogonalPeriodic<real>);
-    }
-    {
-      fillDFGrandom(dfg2, -100., 100.);
-      checkConservationOfMomentum<real>(
-          dfg2, DistributedHierarchization::hierarchizeFullWeightingPeriodic<real>);
-    }
+    // DistributedFullGrid<real> dfg2(3, levels, comm, boundary, procs, forward);
+    // {
+    //   // initialize dfg with random numbers
+    //   fillDFGrandom(dfg2, -100., 100.);
+    //   checkConservationOfMomentum<real>(
+    //       dfg2, DistributedHierarchization::hierarchizeBiorthogonal<real>);
+    // }
+    // {
+    //   fillDFGrandom(dfg2, -100., 100.);
+    //   checkConservationOfMomentum<real>(
+    //       dfg2, DistributedHierarchization::hierarchizeFullWeighting<real>);
+    // }
     // std::cout << "const" << std::endl;
     DistributedFullGrid<real> dfg3(3, levels, comm, boundary, procs, forward);
     {
       // initialize dfg with constant function
       fillDFGbyFunction(constFctn, dfg3);
+      // usually, momentum will not be conserved for periodic BC, but for constant functions it should work
       auto momentum = checkConservationOfMomentum<real>(
           dfg3, DistributedHierarchization::hierarchizeBiorthogonalPeriodic<real>);
     }
