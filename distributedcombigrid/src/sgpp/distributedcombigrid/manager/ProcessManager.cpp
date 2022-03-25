@@ -20,7 +20,7 @@ void ProcessManager::sortTasks(){
   );
 }
 
-bool ProcessManager::runfirst() {
+bool ProcessManager::runfirst(bool doInitDSGUs) {
   // sort instances in decreasing order
   sortTasks();
 
@@ -38,8 +38,10 @@ bool ProcessManager::runfirst() {
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   //receiveDurationsOfTasksFromGroupMasters(0);
 
-  // initialize dsgus
-  initDsgus();
+  if (doInitDSGUs) {
+    // initialize dsgus
+    initDsgus();
+  }
 
   // return true if no group failed
   return !group_failed;

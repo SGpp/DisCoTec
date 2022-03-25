@@ -97,14 +97,19 @@ class SelalibTask : public combigrid::Task {
       // MASTER_EXCLUSIVE_SECTION{
       //   std::cout << "run " << *this << std::endl;
       // }
-      setLocalDistributionFromDFG();
+      bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
+      if (!haveResolution) {
+      	setLocalDistributionFromDFG();
+      }
       Stats::startEvent("BSL run");
       if (selalibSimPointer_ == nullptr) {
         throw std::runtime_error("selalibSimPointer_ is null");
       }
       sim_bsl_vp_3d3v_cart_dd_slim_movingB_run(simPtrPtr_);
       Stats::stopEvent("BSL run");
-      setDFGfromLocalDistribution();
+      if (!haveResolution) {
+        setDFGfromLocalDistribution();
+      }
       // int32_t* iPtr = &currentNumTimeStepsRun_;
       // sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics(simPtrPtr_, iPtr);
       changeDir(lcomm, true);
@@ -140,11 +145,10 @@ class SelalibTask : public combigrid::Task {
     static_assert(!reverseOrderingDFGPartitions, "BSL needs this flag to be false, "
                   "change only if the partitioning does not match between dfg and distribution");
     assert(lcomm != MPI_COMM_NULL);
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p_, false, decomposition);
-
+    
     auto f_lComm = MPI_Comm_c2f(lcomm);
     sll_s_set_communicator_collective(&f_lComm);
+    
     changeDir(lcomm);
     auto paramFilePath = "./param.nml";
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_init(simPtrPtr_, paramFilePath);
@@ -155,10 +159,15 @@ class SelalibTask : public combigrid::Task {
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_get_distribution(simPtrPtr_, localDistribution_);
     assert(localDistribution_ != nullptr);
     changeDir(lcomm, true);
-    setDFGfromLocalDistribution();
+    
+    // if coefficient is infty, we are dealing with a single full grid, no need to copy to dfg
+    bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
+    if (!haveResolution) {
+      dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
+                                                  p_, false, decomposition); 
+      setDFGfromLocalDistribution();
+    }
     initialized_ = true;
-    // // only run diagnostics if the coefficient is 0., i.e. it is the diagnostics task
-    // if (coeff_ == 0.){
     changeDir(lcomm);
     sim_bsl_vp_3d3v_cart_dd_slim_movingB_write_diagnostics_init(simPtrPtr_);
     diagnosticsInitialized_ = true;

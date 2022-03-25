@@ -47,7 +47,7 @@ class ProcessManager {
   // todo: add remove function
   inline void addTask(Task* t);
 
-  bool runfirst();
+  bool runfirst(bool doInitDSGUs = true);
 
   void initDsgus();
 

@@ -11,6 +11,7 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
+#include <filesystem>
 #include <vector>
 
 // compulsory includes for basic functionality
@@ -155,11 +156,13 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, In
                              p, nsteps, dt, n_diagnostics);
     assert(yes);
     // copy all other files
-    for (const auto& dirEnt : fs::recursive_directory_iterator{templateFolder}) {
+    for (const auto& dirEnt : std::filesystem::recursive_directory_iterator{templateFolder}) {
       const auto& path = dirEnt.path();
-      auto relativePathStr = path.string();
-      boost::replace_first(relativePathStr, templateFolder, "");
-      fs::copy(path, taskFolder + "/" + relativePathStr, fs::copy_options::skip_existing);
+      const auto relativePathStr = std::filesystem::relative(path, templateFolder);
+
+      //auto relativePathStr = path.string();
+      //boost::replace_first(relativePathStr, templateFolder, "");
+      std::filesystem::copy(path, taskFolder / relativePathStr, std::filesystem::copy_options::skip_existing);
     }
   }
   return yes;
@@ -315,6 +318,8 @@ int main(int argc, char** argv) {
         assert(levels.size() == 1);
         assert(!haveDiagnosticsTask);
         adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, always);
+        // if haveResolution: set infty coefficient, does not need to be combined anyways
+        coeffs[0] = std::numeric_limits<combigrid::real>::max();
       }
     }
 
@@ -383,7 +388,7 @@ int main(int argc, char** argv) {
         /* distribute task according to load model and start computation for
          * the first time */
         Stats::startEvent("manager run first");
-        manager.runfirst();
+        manager.runfirst(!haveResolution);
         Stats::stopEvent("manager run first");
       } else {
         // run tasks for next time interval
