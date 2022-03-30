@@ -74,6 +74,8 @@ class ProcessManager {
 
   inline void combineThirdLevel();
 
+  inline void pretendCombineThirdLevel(std::vector<size_t> numDofsToCommunicate);
+
   inline void unifySubspaceSizesThirdLevel();
 
   void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values);
@@ -336,6 +338,36 @@ void ProcessManager::combineThirdLevel() {
   thirdLevel_.signalReady();
 
   waitAllFinished();
+}
+
+/**
+ * @brief like combineThirdLevel, but without involving any process groups
+ * -- sending dummy data instead
+ *
+ */
+void ProcessManager::pretendCombineThirdLevel(std::vector<size_t> numDofsToCommunicate) {
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToCombine();
+  std::string instruction = thirdLevel_.fetchInstruction();
+
+  Stats::startEvent("manager exchange data with remote");
+  for (const auto& dsguSize : numDofsToCommunicate) {
+    std::vector<CombiDataType> dsguData(dsguSize);
+    // combine
+    if (instruction == "send_first") {
+      // send dsgu to remote
+      thirdLevel_.sendData(dsguData.data(), dsguSize);
+      // recv combined dsgu from remote
+      thirdLevel_.recvData(dsguData.data(), dsguSize);
+    } else if (instruction == "recv_first") {
+      // recv and combine dsgu from remote
+      thirdLevel_.recvAndAddToData(dsguData.data(), dsguSize);
+      // send combined solution to remote
+      thirdLevel_.sendData(dsguData.data(), dsguSize);
+    }
+  }
+  Stats::stopEvent("manager exchange data with remote");
+  thirdLevel_.signalReady();
 }
 
 /** Unifys the subspace sizes of all dsgus which are collectively combined
