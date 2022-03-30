@@ -318,7 +318,7 @@ int main(int argc, char** argv) {
                            forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
     std::vector<LevelVector> decomposition;
     for (DimType d = 0; d < dim; ++d) {
-      if (p[d] < powerOfTwo[lmin[d]] + boundary[d] ? +1 : -1) {
+      if (p[d] < powerOfTwo[lmin[d]] + (boundary[d] ? +1 : -1)) {
         throw std::runtime_error(
             "change p! not all processes can have points on minimum level with current p.");
       }
