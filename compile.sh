@@ -1,9 +1,9 @@
 #!/bin/bash
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/glpk/lib
+export LD_LIBRARY_PATH=$(pwd)/lib/sgpp:$(pwd)/glpk/lib:$LD_LIBRARY_PATH
 
 #Debug
 #scons -j 8 ISGENE=0 VERBOSE=1 COMPILE_BOOST_TESTS=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CC=/opt/mpich/bin/mpicc FC=mpifort.mpich CXX=/opt/mpich/bin/mpic++ OPT=1 TIMING=0 UNIFORMDECOMPOSITION=1 ENABLEFT=0 #DEBUG_OUTPUT=1 CPPFLAGS=-g  USE_VTK=0
-scons -j 8 ISGENE=0 VERBOSE=1 COMPILE_BOOST_TESTS=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CC=/opt/mpich/bin/mpicc FC= CXX=/opt/mpich/bin/mpic++ TIMING=0 UNIFORMDECOMPOSITION=1 ENABLEFT=0 DEBUG_OUTPUT=0 CPPFLAGS=-g  USE_VTK=0
+scons -j 8 ISGENE=0 VERBOSE=1 COMPILE_BOOST_TESTS=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CC=/opt/mpich/bin/mpicc FC= CXX=/opt/mpich/bin/mpic++ TIMING=0 UNIFORMDECOMPOSITION=1 ENABLEFT=0 DEBUG_OUTPUT=0 OPT=1 CPPFLAGS=-g USE_VTK=0
 
 #Release
 #scons -j 8 ISGENE=0 VERBOSE=1 COMPILE_BOOST_TESTS=1 RUN_BOOST_TESTS=1 RUN_CPPLINT=0 BUILD_STATICLIB=0 CC=/opt/mpich/bin/mpicc FC=mpifort.mpich CXX=/opt/mpich/bin/mpic++ OPT=1 TIMING=0  USE_VTK=0
@@ -16,3 +16,15 @@ scons -j 8 ISGENE=0 VERBOSE=1 COMPILE_BOOST_TESTS=1 RUN_BOOST_TESTS=0 RUN_CPPLIN
 
 #LRZ
 #scons -j 8 ISGENE=0 VERBOSE=1 COMPILE_BOOST_TESTS=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CC=mpicc FC=mpifort.mpich CXX=mpiCC OPT=1 TIMING=0 UNIFORMDECOMPOSITION=1 ENABLEFT=0 USE_VTK=0 #DEBUG_OUTPUT=1
+
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=ftolerance
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=fullgrid
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=hierarchization
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=loadmodel
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=reduce
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=rescheduling
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=stats
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=task
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=distributedfullgrid
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=integration
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=distributedsparsegrid

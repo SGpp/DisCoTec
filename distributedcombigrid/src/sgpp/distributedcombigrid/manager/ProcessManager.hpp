@@ -57,7 +57,7 @@ class ProcessManager {
   // todo: add remove function
   inline void addTask(Task* t);
 
-  bool runfirst();
+  bool runfirst(bool doInitDSGUs = true);
 
   void initDsgus();
 
@@ -108,6 +108,8 @@ class ProcessManager {
   inline CombiParameters& getCombiParameters();
 
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
+
+  void doDiagnostics(int taskID);
 
   std::map<size_t, double> getLpNorms(int p = 2);
 
@@ -179,9 +181,22 @@ class ProcessManager {
   void receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive);
 
   void sortTasks();
+
+  ProcessGroupManagerID getProcessGroupWithTaskID(int taskID){
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->hasTask(taskID)){
+        return pgroups_[i];
+      }
+    }
+  }
 };
 
-inline void ProcessManager::addTask(Task* t) { tasks_.push_back(t); }
+inline void ProcessManager::addTask(Task* t) {
+  tasks_.push_back(t);
+  // wait for available process group
+  ProcessGroupManagerID g = wait();
+  g->addTask(t);
+}
 
 inline ProcessGroupManagerID ProcessManager::wait() {
   while (true) {

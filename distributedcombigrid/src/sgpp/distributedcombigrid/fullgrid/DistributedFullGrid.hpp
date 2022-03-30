@@ -1748,6 +1748,9 @@ class DistributedFullGrid {
     IndexVector sizes = getGlobalSizes();
     IndexVector subsizes = getUpperBounds() - getLowerBounds();
     IndexVector starts = getLowerBounds();
+
+    // we store our data in fortran notation, with the
+    // first index in indexvectors being the first dimension.
     std::vector<int> csizes(sizes.begin(), sizes.end());
     std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
     std::vector<int> cstarts(starts.begin(), starts.end());
@@ -1819,6 +1822,8 @@ class DistributedFullGrid {
     IndexVector subsizes = getUpperBounds() - getLowerBounds();
     IndexVector starts = getLowerBounds();
 
+    // we store our data in fortran notation, with the
+    // first index in indexvectors being the first dimension.
     std::vector<int> csizes(sizes.begin(), sizes.end());
     std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
     std::vector<int> cstarts(starts.begin(), starts.end());
@@ -1903,13 +1908,12 @@ class DistributedFullGrid {
         auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
 
         // create MPI datatype
-        // also, the data dimensions are reversed
         std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
         std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
         // the starts are local indices
         std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
 
-        // create subarray view on data //todo do this only once per dimension
+        // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
                                 subsizes.data(), starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(),
@@ -1973,10 +1977,10 @@ class DistributedFullGrid {
 
     // assert only boundaries have those neighbors (remove in case of periodicity)
     // this assumes no periodicity!
-    if(! this->getLowerBounds()[d] == 0){
+    if (!this->getLowerBounds()[d] == 0) {
       assert(highest < 0);
     }
-    if(! this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
+    if (!this->getUpperBounds()[d] == this->getGlobalSizes()[d]) {
       assert(lowest < 0);
     }
   }

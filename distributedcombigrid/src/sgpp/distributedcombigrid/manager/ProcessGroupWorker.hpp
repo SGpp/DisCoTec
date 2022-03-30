@@ -76,6 +76,9 @@ class ProcessGroupWorker {
   /** parallel file io of final output grid for uniform decomposition */
   void parallelEvalUniform();
 
+  // do task-specific postprocessing
+  void doDiagnostics();
+
   /** send back the Lp Norm to Manager */
   void sendLpNorms(int p);
 

@@ -20,6 +20,7 @@ bool ProcessGroupManager::storeTaskReferenceAndSendTaskToProcessGroup(Task* t, S
   // tying to add a task to a busy group is an invalid operation
   // and should be avoided
   if (status_ != PROCESS_GROUP_WAIT) return false;
+
   storeTaskReference(t);
   return sendTaskToProcessGroup(t, signal);
 }
@@ -37,6 +38,8 @@ bool ProcessGroupManager::sendTaskToProcessGroup(Task* t, SignalType signal) {
   Task::send(&t, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
+
+  // only return true if task successfully sent to pgroup
   return true;
 }
 
@@ -116,6 +119,7 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
 
   return true;
 }
+
 
 /*
  * Differs from third level reduce since we have enough memory space to collect
@@ -365,6 +369,10 @@ bool ProcessGroupManager::resetTasksWorker() {
     assert(false);
     // return false;
   }
+
+  // add task to list of tasks managed by this pgroup
+  // tasks_.clear(); we do not clear group manager tasks
+
   sendSignalAndReceive(RESET_TASKS);
 
   return true;
@@ -407,6 +415,7 @@ void ProcessGroupManager::writeSparseGridMinMaxCoefficients(const std::string& f
 
   this->setProcessGroupBusyAndReceive();
 }
+
 
 void ProcessGroupManager::doDiagnostics(int taskID) {
   auto status = waitStatus();

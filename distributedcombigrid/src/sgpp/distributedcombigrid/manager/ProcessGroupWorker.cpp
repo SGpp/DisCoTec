@@ -265,10 +265,14 @@ SignalType ProcessGroupWorker::wait() {
       return signal;
     } break;
     case PARALLEL_EVAL: {  // output final grid
-
       Stats::startEvent("parallel eval");
       parallelEval();
       Stats::stopEvent("parallel eval");
+    } break;
+    case DO_DIAGNOSTICS: {  // task-specific diagnostics/post-processing
+      Stats::startEvent("diagnostics");
+      doDiagnostics();
+      Stats::stopEvent("diagnostics");
     } break;
     case GET_L2_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("get L2 norm");
@@ -477,8 +481,13 @@ void ProcessGroupWorker::ready() {
 void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
                                   IndexType totalNumberOfCombis, IndexType currentCombi,
                                   LevelVector reduceLmin, LevelVector reduceLmax) {
-  // checking for valid combi step
-  assert(currentCombi >= 0 && totalNumberOfCombis >= 0 && currentCombi <= totalNumberOfCombis);
+  //checking for valid combi step
+  assert(currentCombi >= 0);
+  if(!(currentCombi < totalNumberOfCombis)) {
+    MASTER_EXCLUSIVE_SECTION {
+      std::cout << "combining more often than totalNumberOfCombis -- do this for postprocessing only" << std::endl;
+    }
+  }
 
   // this if-clause is currently always true, as initCombinedUniDSGVector is called only once,
   // at the beginning of the computation.
@@ -858,6 +867,29 @@ void ProcessGroupWorker::evalErrorOnDFG() {
   }
 
   sendEvalNorms(dfg);
+}
+
+void ProcessGroupWorker::doDiagnostics() {
+  // receive taskID and broadcast
+  int taskID;
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Recv(&taskID, 1, MPI_INT, theMPISystem()->getManagerRank(), 0,
+             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+  }
+  MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+
+  // call diagnostics on that Task
+  for (auto task : tasks_) {
+    if (task->getID() == taskID) {
+      std::vector<DistributedSparseGridUniform<CombiDataType>*> dsgsToPassToTask;
+      for (auto& dsgPtr : combinedUniDSGVector_){
+        dsgsToPassToTask.push_back(dsgPtr.get());
+      }
+      task->doDiagnostics(dsgsToPassToTask, combiParameters_.getHierarchizationDims());
+      return;
+    }
+  }
+  assert(false && "this taskID is not here");
 }
 
 std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
