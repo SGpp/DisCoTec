@@ -2,6 +2,8 @@
 #define STATS_HPP_
 
 #include <assert.h>
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <unistd.h>
 #include <chrono>

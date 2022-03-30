@@ -1,0 +1,5 @@
+*.err
+*.out
+*/seladisco*/*
+*.pdf
+Makefile

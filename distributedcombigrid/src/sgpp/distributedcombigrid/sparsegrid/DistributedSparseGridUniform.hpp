@@ -580,31 +580,42 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
     const std::string& filename, size_t i) const {
   bool writerProcess = false;
   std::ofstream ofs;
-  MASTER_EXCLUSIVE_SECTION {
+  if (getCommRank(getCommunicator()) == 0) {
     writerProcess = true;
     ofs = std::ofstream(filename + "_" + std::to_string(i) + ".txt");
     // std::cout << *this << std::endl;
   }
   // iterate subspaces
   assert(levels_.size() > 0);
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<combigrid::real>());
+  auto realmax = std::numeric_limits<combigrid::real>::max();
+  auto realmin = std::numeric_limits<combigrid::real>::min();
+  auto smaller_real = [](const FG_ELEMENT& one, const FG_ELEMENT& two) {
+    return std::real(one) < std::real(two);
+  };
+
   for (size_t i = 0; i < levels_.size(); ++i) {
-    // auto first = subspacesData_.begin();
-    auto first = subspaces_[i].data_;
-    auto last = first + subspacesDataSizes_[i];
+    auto minimumValue = realmax;
+    auto maximumValue = realmin;
+    if (subspacesDataSizes_[i] > 0) {
+      // auto first = subspacesData_.begin();
+      auto first = subspaces_[i].data_;
+      auto last = first + subspacesDataSizes_[i];
+      auto it = std::min_element(first, last, smaller_real);
+      minimumValue = std::real(*it);
+      first = subspaces_[i].data_;
+      it = std::max_element(first, last, smaller_real);
+      maximumValue = std::real(*it);
+    }
     // allreduce the minimum and maxiumum values
-    auto it = std::min_element(first, last);
-    auto minimumValue = *it;
     MPI_Allreduce(MPI_IN_PLACE, &minimumValue, 1, dataType, MPI_MIN, getCommunicator());
-    first = subspaces_[i].data_;
-    it = std::max_element(first, last);
-    auto maximumValue = *it;
     MPI_Allreduce(MPI_IN_PLACE, &maximumValue, 1, dataType, MPI_MAX, getCommunicator());
 
     // if on zero process, write them out to file
     if (writerProcess) {
       const auto& level = getLevelVector(i);
-      ofs << level << " : " << minimumValue << ", " << maximumValue << std::endl;
+      if (minimumValue < realmax)
+        ofs << level << " : " << minimumValue << ", " << maximumValue << std::endl;
     }
   }
 }

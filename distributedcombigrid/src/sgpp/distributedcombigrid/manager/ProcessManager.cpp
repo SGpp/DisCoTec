@@ -20,7 +20,7 @@ void ProcessManager::sortTasks(){
   );
 }
 
-bool ProcessManager::runfirst() {
+bool ProcessManager::runfirst(bool doInitDSGUs) {
   // sort instances in decreasing order
   sortTasks();
 
@@ -38,8 +38,10 @@ bool ProcessManager::runfirst() {
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   //receiveDurationsOfTasksFromGroupMasters(0);
 
-  // initialize dsgus
-  initDsgus();
+  if (doInitDSGUs) {
+    // initialize dsgus
+    initDsgus();
+  }
 
   // return true if no group failed
   return !group_failed;
@@ -395,6 +397,18 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
     bool fail = waitAllFinished();
 
     assert(!fail && "should not fail here");
+  }
+}
+
+void ProcessManager::doDiagnostics(int taskID) {
+  auto g = getProcessGroupWithTaskID(taskID);
+  g->doDiagnostics(taskID);
+  // call manager-side diagnostics on that Task
+  for (auto task : tasks_) {
+    if (task->getID() == taskID) {
+      task->receiveDiagnostics();
+      return;
+    }
   }
 }
 

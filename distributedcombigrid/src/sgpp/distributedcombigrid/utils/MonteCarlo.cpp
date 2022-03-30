@@ -4,6 +4,7 @@
 #include <random>
 
 #include "sgpp/distributedcombigrid/utils/Config.hpp"
+#include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 
 namespace combigrid {
 namespace montecarlo {
@@ -23,6 +24,12 @@ std::vector<std::vector<real>> getRandomCoordinates(int numCoordinates, size_t d
       }
   }
   return randomCoords;
+}
+
+real getRandomNumber(real&& a, real&& b) {
+  static std::mt19937 mersenne_engine {8285545262};  // have 1 seed, for reproducible tests
+  std::uniform_real_distribution<> dist {std::forward<real>(a), std::forward<real>(b)};
+  return dist(mersenne_engine);
 }
 }
 }

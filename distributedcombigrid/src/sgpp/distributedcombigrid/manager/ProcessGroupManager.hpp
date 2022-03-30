@@ -106,6 +106,15 @@ class ProcessGroupManager {
    */
   Task *rescheduleRemoveTask(const LevelVector& lvlVec);
 
+
+  bool hasTask(int taskID){
+    auto foundIt = std::find_if(tasks_.begin(), tasks_.end(),
+                        [taskID](Task* t){
+                          return ((t->getID()) == taskID);
+                        });
+    return foundIt != tasks_.end();
+  }
+
   bool writeCombigridsToVTKPlotFile();
 
   void storeTaskReference(Task* t);

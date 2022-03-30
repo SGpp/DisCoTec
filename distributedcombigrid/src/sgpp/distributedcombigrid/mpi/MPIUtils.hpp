@@ -1,6 +1,8 @@
 #ifndef SRC_SGPP_COMBIGRID_MPI_MPIUTILS_HPP_
 #define SRC_SGPP_COMBIGRID_MPI_MPIUTILS_HPP_
 
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>

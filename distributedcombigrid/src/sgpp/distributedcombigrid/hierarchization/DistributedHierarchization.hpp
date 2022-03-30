@@ -2163,55 +2163,48 @@ class DistributedHierarchization {
                                                           hierarchicalBases);
   }
 
+  template<typename FG_ELEMENT>
+  using FunctionPointer = void(*)(DistributedFullGrid<FG_ELEMENT>& dfg,
+                                                    const std::vector<bool>& dims);
   // make template specifications visible by alias, hat is the default
   template <typename FG_ELEMENT>
-  constexpr static void (*hierarchizeHierarchicalHat)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                      const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeHierarchicalHat =
       &hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>;
 
   template <typename FG_ELEMENT>
-  constexpr static void (*hierarchizeFullWeighting)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                    const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeFullWeighting =
       &hierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingBasisFunction>;
 
   template <typename FG_ELEMENT>
-  constexpr static void (*hierarchizeFullWeightingPeriodic)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                    const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeFullWeightingPeriodic =
       &hierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingPeriodicBasisFunction>;
 
   template <typename FG_ELEMENT>
-  constexpr static void (*hierarchizeBiorthogonal)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                   const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeBiorthogonal =
       &hierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalBasisFunction>;
 
   template <typename FG_ELEMENT>
-  constexpr static void (*hierarchizeBiorthogonalPeriodic)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                   const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeBiorthogonalPeriodic =
       &hierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalPeriodicBasisFunction>;
 
   template <typename FG_ELEMENT>
-  constexpr static void (*dehierarchizeHierarchicalHat)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                        const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeHierarchicalHat =
       &dehierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>;
 
   template <typename FG_ELEMENT>
-  constexpr static void (*dehierarchizeFullWeighting)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                      const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeFullWeighting =
       &dehierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingBasisFunction>;
 
   template <typename FG_ELEMENT>
-  constexpr static void (*dehierarchizeFullWeightingPeriodic)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                      const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeFullWeightingPeriodic =
       &dehierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingPeriodicBasisFunction>;
 
   template <typename FG_ELEMENT>
-  constexpr static void (*dehierarchizeBiorthogonal)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                     const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeBiorthogonal =
       &dehierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalBasisFunction>;
 
   template <typename FG_ELEMENT>
-  constexpr static void (*dehierarchizeBiorthogonalPeriodic)(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                                     const std::vector<bool>& dims) =
+  constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeBiorthogonalPeriodic =
       &dehierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalPeriodicBasisFunction>;
 
 };

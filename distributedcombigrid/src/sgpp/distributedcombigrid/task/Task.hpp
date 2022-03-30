@@ -109,6 +109,14 @@ class Task {
     return faultCriterion_->init(startTimeIteration, t_fault);
   }
 
+  // do task-specific postprocessing (by default: nothing)
+  virtual void doDiagnostics(const std::vector<DistributedSparseGridUniform<CombiDataType>*>, const std::vector<bool>& hierarchizationDims) {
+    std::cout << "doDiagnostics called but not implemented";
+  }
+
+  // do manager-side task-specific postprocessing, if applicable (by default: nothing)
+  virtual void receiveDiagnostics() {}
+
  private:
   friend class boost::serialization::access;
 
