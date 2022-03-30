@@ -12,7 +12,7 @@ namespace combigrid {
 
 class CombiMinMaxScheme {
  public:
-  CombiMinMaxScheme(DimType dim, LevelVector& lmin, LevelVector& lmax) {
+  CombiMinMaxScheme(DimType dim, const LevelVector& lmin, const LevelVector& lmax) {
     assert(dim > 0);
 
     assert(lmax.size() == dim);
@@ -58,6 +58,10 @@ class CombiMinMaxScheme {
   inline const std::vector<LevelVector>& getCombiSpaces() const { return combiSpaces_; }
 
   inline const std::vector<double>& getCoeffs() const { return coefficients_; }
+
+  inline const std::vector<LevelVector>& getDownSet() {
+    return levels_;
+  }
 
   inline void print(std::ostream& os) const;
 
@@ -172,5 +176,118 @@ static long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& 
 
   return numDOF;
 }
+
+static long long int printSGDegreesOfFreedomAdaptive(const LevelVector& lmin,
+                                                     const LevelVector& lmax) {
+  DimType dim = lmin.size();
+  long long int numDOF = 0;
+  CombiMinMaxScheme combischeme(dim, lmin, lmax);
+  combischeme.createAdaptiveCombischeme();
+  auto downSet = combischeme.getDownSet();
+  for (const auto& subspaceLevel : downSet) {
+    long int numDOFSpace = 1;
+    for (const auto& level_i : subspaceLevel) {
+      assert(level_i > -1);
+      if (level_i > 0) {
+        numDOFSpace *= powerOfTwo[level_i - 1];
+      } else {
+        numDOFSpace *= 2;
+      }
+    }
+    numDOF += numDOFSpace;
+  }
+
+  std::cout << "Sparse grid DOF : " << numDOF << " i.e. "
+            << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
+
+  return numDOF;
+}
+
+static IndexType getHighestIndexInHierarchicalSubspaceLowerThanNodalIndexOnLref(
+    LevelType hierarchicalSubspaceLevel, IndexType nodalIndex, LevelType referenceLevel) {
+  IndexType index = -1;
+  if (hierarchicalSubspaceLevel == 0) {
+    if (nodalIndex > 0) {
+      if (nodalIndex >= (powerOfTwo[referenceLevel] - 1)) {
+        index = 1;
+      } else {
+        index = 0;
+      }
+    }
+  } else {
+    auto levelDiff = referenceLevel - hierarchicalSubspaceLevel;
+    auto stepFactor = oneOverPowOfTwo[levelDiff];
+    // if the nodal index' coordinate is larger than any of the subspace' indices' coordinates
+    if (nodalIndex > powerOfTwo[levelDiff]) {
+      index = static_cast<IndexType>(
+          std::floor(0.5 * (static_cast<double>(nodalIndex) * stepFactor - 1.)));
+    }
+  }
+  return index;
+}
+
+// TODO add test for this -- to compare to actual sg assigned sizes
+static std::vector<long long int> getPartitionedNumDOFSGAdaptive(
+    LevelVector& lmin, LevelVector& lmax, const LevelVector& referenceLevel,
+    const std::vector<IndexVector> decomposition) {
+  // this is only valid for with-boundary schemes!
+  // cf downsampleDecomposition to extend to non-boundary
+  assert((lmin.size() == lmax.size()) == (referenceLevel.size() == decomposition.size()));
+  DimType dim = lmin.size();
+  IndexVector decompositionOffsets;
+  IndexType multiplier = 1;
+  for (const auto& d : decomposition) {
+    decompositionOffsets.push_back(multiplier);
+    multiplier *= d.size() - 1;
+  }
+  auto numProcsPerGroup = multiplier;
+  std::vector<long long int> numDOF(numProcsPerGroup, 0);
+
+  CombiMinMaxScheme combischeme(dim, lmin, lmax);
+  combischeme.createAdaptiveCombischeme();
+  auto downSet = combischeme.getDownSet();
+  // iterate subspaces
+  for (const auto& subspaceLevel : downSet) {
+    // assign decomposition just to set the right sizes
+    std::vector<IndexVector> subspaceExtentsPerProcessPerDimension = decomposition;
+    // iterate dimensions -> decomposition for subspace
+    for (DimType d = 0; d < dim; ++d) {
+      const auto& level_i = subspaceLevel[d];
+      size_t numIndicesProcessedOnPoleMinusOne = -1;
+      if (level_i == 0) {
+      } else {
+        for (size_t k = 0; k < subspaceExtentsPerProcessPerDimension[d].size(); ++k) {
+          auto& extent = subspaceExtentsPerProcessPerDimension[d][k];
+          size_t highestIndexOfSubspaceInThisDimensionInThisProcess =
+              getHighestIndexInHierarchicalSubspaceLowerThanNodalIndexOnLref(
+                  level_i, decomposition[d][k], referenceLevel[d]);
+          extent = highestIndexOfSubspaceInThisDimensionInThisProcess -
+                   numIndicesProcessedOnPoleMinusOne;
+          numIndicesProcessedOnPoleMinusOne = highestIndexOfSubspaceInThisDimensionInThisProcess;
+        }
+      }
+      assert(numIndicesProcessedOnPoleMinusOne > 0);
+      if (level_i == 0) {
+        assert(numIndicesProcessedOnPoleMinusOne == 2 - 1);
+      } else {
+        assert(numIndicesProcessedOnPoleMinusOne == powerOfTwo[level_i - 1] - 1);
+      }
+    }
+    // iterate all processes, add dof from subspace
+    for (size_t i = 0; i < numProcsPerGroup; ++i) {
+      size_t numDOFtoAdd = 1;
+      // iterate the vector index belonging to linear index i
+      auto tmp = i;
+      for (DimType d = dim - 1; d >= 0; --d) {
+        auto decompositionIndexInDimD = tmp / decompositionOffsets[d];
+        numDOFtoAdd *= subspaceExtentsPerProcessPerDimension[d][decompositionIndexInDimD];
+        tmp = tmp % decompositionOffsets[d];
+      }
+      numDOF[i] += numDOFtoAdd;
+    }
+  }
+  return numDOF;
+}
+
 }  // namespace combigrid
 #endif /* SRC_SGPP_COMBIGRID_COMBISCHEME_COMBIMINMAXSCHEME_HPP_ */
