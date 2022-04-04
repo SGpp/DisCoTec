@@ -5,7 +5,9 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <complex>
-#include <boost/test/floating_point_comparison.hpp>
+// #include <boost/test/floating_point_comparison.hpp>
+// new header for boost >= 1.59
+#include <boost/test/tools/floating_point_comparison.hpp>
 
 namespace TestHelper{
   static constexpr double tolerance = 1e-12;
