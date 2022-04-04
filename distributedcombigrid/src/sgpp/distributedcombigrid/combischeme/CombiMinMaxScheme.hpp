@@ -246,7 +246,7 @@ static IndexType getHighestIndexInHierarchicalSubspaceLowerThanNodalIndexOnLref(
 
 // TODO add test for this -- to compare to actual sg assigned sizes
 static std::vector<long long int> getPartitionedNumDOFSGAdaptive(
-    LevelVector& lmin, LevelVector& lmax, const LevelVector& referenceLevel,
+    LevelVector lmin, LevelVector lmax, const LevelVector& referenceLevel,
     const std::vector<IndexVector> decomposition) {
   // this is only valid for with-boundary schemes!
   // cf downsampleDecomposition to extend to non-boundary
@@ -299,6 +299,8 @@ static std::vector<long long int> getPartitionedNumDOFSGAdaptive(
                                subspaceExtentsPerProcessPerDimension[d].end(),
                                0) == powerOfTwo[level_d - 1]);
       }
+      // make sure last is not negative
+      assert(subspaceExtentsPerProcessPerDimension[d].back() >= 0);
       // std::cout << subspaceLevel << " level_d " << level_d << " decomp " << decomposition[d] <<
       // subspaceExtentsPerProcessPerDimension[d] << std::endl;
     }

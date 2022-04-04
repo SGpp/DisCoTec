@@ -13,6 +13,7 @@
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
+#include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
@@ -63,19 +64,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     std::vector<LevelVector> decomposition;
     auto lref = lmax + lmax;
     auto procsRef = procs;
-    for (DimType d = 0; d < dim; ++d) {
-      LevelVector di;
-      if (procsRef[d] == 1) {
-        di = {0};
-      } else if (procsRef[d] == 2) {
-        di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1};
-      } else if (procsRef[d] == 3) {
-        di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1, 2*powerOfTwo[lref[d]] / procsRef[d] + 1};
-      } else {
-        throw std::runtime_error("please implement a test decomposition matching procs and lref");
-      }
-      decomposition.push_back(di);
-    }
+    decomposition = combigrid::getStandardDecomposition(lref, procsRef);
 
     // make sure that registered DFGs set the sizes right
     auto dfgLevel = lmin;
