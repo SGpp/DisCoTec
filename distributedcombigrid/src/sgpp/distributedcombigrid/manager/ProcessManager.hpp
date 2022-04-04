@@ -17,6 +17,7 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/third_level/ThirdLevelUtils.hpp"
+#include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 
 namespace combigrid {
 
@@ -74,7 +75,7 @@ class ProcessManager {
 
   inline void combineThirdLevel();
 
-  inline void pretendCombineThirdLevel(std::vector<size_t> numDofsToCommunicate);
+  inline size_t pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate, bool checkValues);
 
   inline void unifySubspaceSizesThirdLevel();
 
@@ -360,20 +361,32 @@ void ProcessManager::combineThirdLevel() {
  * -- sending dummy data instead
  *
  */
-void ProcessManager::pretendCombineThirdLevel(std::vector<size_t> numDofsToCommunicate) {
+size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate, bool checkValues) {
+  size_t numWrongValues = 0;
   // obtain instructions from third level manager
   thirdLevel_.signalReadyToCombine();
   std::string instruction = thirdLevel_.fetchInstruction();
 
   Stats::startEvent("manager exchange data with remote");
   for (const auto& dsguSize : numDofsToCommunicate) {
-    std::vector<CombiDataType> dsguData(dsguSize);
+    std::vector<CombiDataType> dsguData(dsguSize, 0.);
     // combine
     if (instruction == "send_first") {
+      // if sending first, initialize with random
+      auto initialData = montecarlo::getRandomCoordinates(1, dsguSize)[0];
+      dsguData = initialData;
       // send dsgu to remote
       thirdLevel_.sendData(dsguData.data(), dsguSize);
       // recv combined dsgu from remote
       thirdLevel_.recvData(dsguData.data(), dsguSize);
+      if (checkValues) {
+        for (size_t j = 0; j < dsguSize; ++j) {
+          if (dsguData[j] != initialData[j]) {
+            ++numWrongValues;
+          }
+        }
+        assert(numWrongValues == 0);
+      }
     } else if (instruction == "recv_first") {
       // recv and combine dsgu from remote
       thirdLevel_.recvAndAddToData(dsguData.data(), dsguSize);

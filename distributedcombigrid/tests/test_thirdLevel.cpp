@@ -469,6 +469,72 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams) {
   TestHelper::testStrayMessages(testParams.comm);
 }
 
+
+
+void testPretendThirdLevel(TestParams& testParams) {
+  BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
+
+  size_t procsPerSys = testParams.ngroup * testParams.nprocs + 1;
+
+  theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs);
+
+  WORLD_MANAGER_EXCLUSIVE_SECTION {
+    ProcessGroupManagerContainer pgroups;
+
+    auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+    std::vector<bool> boundary(testParams.dim, testParams.boundary);
+
+    // create third level specific scheme
+    CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
+    combischeme.createClassicalCombischeme();
+    // combischeme.createAdaptiveCombischeme();
+    // get full scheme first
+    std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
+    std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
+    // split scheme and assign each half to a system
+    std::vector<LevelVector> levels;
+    std::vector<combigrid::real> coeffs;
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary,
+                                                  testParams.sysNum, 2, levels, coeffs);
+
+    BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
+    TaskContainer tasks;
+    std::vector<size_t> taskIDs;
+    auto reduceCombinationDimsLmax = std::vector<IndexType>(testParams.dim, 1);
+
+    // create combiparameters
+    IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
+    CombiParameters combiParams(
+        testParams.dim, testParams.lmin, testParams.lmax, boundary, levels, coeffs, taskIDs,
+        testParams.ncombi, 1, parallelization, std::vector<IndexType>(testParams.dim, 0),
+        reduceCombinationDimsLmax, true, testParams.host, testParams.port, 0);
+
+    auto decomposition = combigrid::getStandardDecomposition(testParams.lmax, parallelization);
+    combiParams.setDecomposition(decomposition);
+    // create abstraction for Manager
+    ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
+
+    // the combiparameters are sent to all process groups before the
+    // computations start
+    manager.updateCombiParameters();
+    auto dsguSizes =
+        getPartitionedNumDOFSGAdaptive(testParams.lmin, testParams.lmax - reduceCombinationDimsLmax,
+                                       testParams.lmax, decomposition);
+
+    BOOST_TEST_CHECKPOINT("partitioned num dof " + std::to_string(dsguSizes[0]));
+    for (unsigned int i = 0; i < testParams.ncombi; i++) {
+      auto numErrors = manager.pretendCombineThirdLevel(dsguSizes, true);
+      BOOST_CHECK_EQUAL(numErrors, 0);
+    }
+    manager.exit();
+  }
+  else {
+    // do nothing
+  }
+  MPI_Barrier(testParams.comm);
+  TestHelper::testStrayMessages(testParams.comm);
+}
+
 BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(600))
 
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)) {
@@ -619,6 +685,33 @@ BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+// like test_5, but send only dummy data between managers
+BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+  unsigned int numSystems = 2;
+  unsigned int ngroup = 1;
+  unsigned int ncombi = 10;
+  DimType dim = 2;
+  LevelVector lmin = {3, 6};
+  LevelVector lmax = {7, 10};
+
+  unsigned int sysNum;
+  CommunicatorType newcomm;
+
+  for (bool boundary : {true}) {  // todo false
+    for (unsigned int nprocs : {1, 2, 3}) {
+      assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+
+      if (sysNum < numSystems) {  // remove unnecessary procs
+        TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+        startInfrastructure();
+        testPretendThirdLevel(testParams);
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
   }
 }
 
