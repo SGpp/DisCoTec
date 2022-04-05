@@ -80,35 +80,41 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorTy
 void MPISystem::init(size_t ngroup, size_t nprocs) {
   initSystemConstants(ngroup, nprocs);
 
-  /* init localComm
-   * lcomm is the local communicator of its own process group for each worker process.
-   * for manager, lcomm is a group which contains only manager process and can be ignored
-   */
-  initLocalComm();
+  if (ngroup * nprocs > 0) {
+    /* init localComm
+     * lcomm is the local communicator of its own process group for each worker process.
+     * for manager, lcomm is a group which contains only manager process and can be ignored
+     */
+    initLocalComm();
 
-  /* create global communicator which contains only the manager and the master
-   * process of each process group
-   * the master processes of the process groups are the processes which have
-   * rank 0 in lcomm
-   * this communicator is used for communication between master processes of the
-   * process groups and the manager and the master processes to each other
-   */
-  initGlobalComm();
+    /* create global communicator which contains only the manager and the master
+     * process of each process group
+     * the master processes of the process groups are the processes which have
+     * rank 0 in lcomm
+     * this communicator is used for communication between master processes of the
+     * process groups and the manager and the master processes to each other
+     */
+    initGlobalComm();
 
-  initGlobalReduceCommm();
+    initGlobalReduceCommm();
 
-  /*
-   * Creates multiple communicators where each contains the process manager and
-   * all workers of a group. The caller receives a list
-   * of those communicators where he participates in. Thus, the process manager
-   * receives a comm for each process group whereas the list has only one entry
-   * for workers of a process group. For all the other procs the list is empty.
-   * In each communicator the manager has rank _nprocs.
-   * The communicators are used so far for communication between the process
-   * manager and the workers during third level combine.
-   */
-  initThirdLevelComms();
-
+    /*
+     * Creates multiple communicators where each contains the process manager and
+     * all workers of a group. The caller receives a list
+     * of those communicators where he participates in. Thus, the process manager
+     * receives a comm for each process group whereas the list has only one entry
+     * for workers of a process group. For all the other procs the list is empty.
+     * In each communicator the manager has rank _nprocs.
+     * The communicators are used so far for communication between the process
+     * manager and the workers during third level combine.
+     */
+    initThirdLevelComms();
+  } else {
+    // make sure we really only have manager process
+    if (getWorldSize() > 1) {
+      throw std::runtime_error(" too many MPI processes for manager-only setup");
+    }
+  }
   initialized_ = true;
 }
 
