@@ -24,3 +24,5 @@ port = 9999
 systemNumber = 0
 numSystems = 2
 sshCommand = ssh -L 9999:129.69.213.171:9999 pollinta@ipvslogin.informatik.uni-stuttgart.de -nNT &
+### this command can be used to daisy-chain-tunnel from compute node to login node to gateway to neon
+# sshCommand = ssh -L localhost:9999:hawk-login03:9999 -L  hawk-login03:9999:129.69.213.171:9999 pollinta@ipvslogin.informatik.uni-stuttgart.de -nNT &

@@ -318,7 +318,7 @@ int main(int argc, char** argv) {
                            forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
     std::vector<LevelVector> decomposition;
     for (DimType d = 0; d < dim; ++d) {
-      if (p[d] < powerOfTwo[lmin[d]] + (boundary[d] ? +1 : -1)) {
+      if (p[d] > (powerOfTwo[lmin[d]] + (boundary[d] ? +1 : -1))) {
         throw std::runtime_error(
             "change p! not all processes can have points on minimum level with current p.");
       }
@@ -385,10 +385,10 @@ int main(int argc, char** argv) {
           Stats::stopEvent("manager unify subspace sizes with remote");
     }
 
-    // double start, finish;
+    double start, finish;
 
     for (size_t i = 1; i < ncombi; ++i) {
-      // start = MPI_Wtime();
+      start = MPI_Wtime();
 
       Stats::startEvent("manager combine");
       if (hasThirdLevel) {
@@ -401,8 +401,8 @@ int main(int argc, char** argv) {
       if (evalMCError && i % 10 == 0) {
         managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt, hasThirdLevel);
       }
-      // finish = MPI_Wtime();
-      // std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
+      finish = MPI_Wtime();
+      std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
 
       // run tasks for next time interval
       // start = MPI_Wtime();
@@ -410,8 +410,8 @@ int main(int argc, char** argv) {
       manager.runnext();
       // manager.waitAllFinished();
       Stats::stopEvent("manager run");
-      // finish = MPI_Wtime();
-      // std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
+      finish = MPI_Wtime();
+      std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
 
       // run currently sets the dsgs back to zero
       // std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
@@ -435,6 +435,7 @@ int main(int argc, char** argv) {
     if (evalMCError) {
       managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt, hasThirdLevel);
     }
+    std::cout << "manager exit" << std::endl;
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
   }

@@ -1,11 +1,23 @@
 #!/bin/bash
-SGPP_DIR=../../../
-LIB_BOOST_DIR=/usr/lib/
+
+#PBS -N test_withstats
+#PBS -l select=1:node_type=rome:mpiprocs=128
+#PBS -l walltime=00:40:00
+
+
+SGPP_DIR=/lustre/hpe/ws10/ws10.1/ws/ipvpolli-widely/DisCoTec/
+LIB_BOOST_DIR=
 LIB_GLPK=$SGPP_DIR/glpk/lib/
 
 export LD_LIBRARY_PATH=$SGPP_DIR/lib/sgpp:$LIB_GLPK:$LIB_BOOST_DIR:$LD_LIBRARY_PATH
 
-paramfile="ctparam"
+module switch mpt/2.23 openmpi/4.0.5
+module load boost/1.70.0 # for boost
+
+# Change to the direcotry that the job was submitted from
+cd $PBS_O_WORKDIR
+
+paramfile="ctparam_smaller_tl_system0"
 # allows to read the parameter file from the arguments.
 # Useful for testing the third level combination on a single system
 if [ $# -ge 1 ] ; then
@@ -19,17 +31,10 @@ mpiprocs=$((ngroup*nprocs+1))
 
 
 # General
-MPI_PATH=/opt/mpich/bin/
-$MPI_PATH/mpirun -n "$mpiprocs" -l ./combi_example $paramfile
+#mpirun -n "$mpiprocs" omplace -v -ht spread -c 0-127:bs=128+st=128 ./xthi
+mpirun -n "$mpiprocs" ./combi_example $paramfile
+#mpirun -n "$mpiprocs" --bind-to core ./combi_example $paramfile
+#mpirun -n "$mpiprocs" omplace -v -ht spread -c 0-127:bs=128+st=128 ./combi_example $paramfile
 # Use for debugging
-#$MPI_PATH/mpirun -n "$mpiprocs" xterm -hold -e gdb -ex run --args ./combi_example $paramfile
-
-# On Helium
-#mpiexec.mpich -n "$mpiprocs" ./combi_example $paramfile
-# Use for debugging
-#mpiexec.mpich -n "$mpiprocs" xterm -hold -e gdb -ex run --args ./combi_example $paramfile
-
-# On HLRS
-#aprun -n "$mpiprocs" ./combi_example $paramfile
-
+#mpirun -n "$mpiprocs" xterm -hold -e gdb -ex run --args ./combi_example $paramfile
 
