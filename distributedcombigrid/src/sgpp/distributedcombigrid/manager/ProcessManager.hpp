@@ -367,6 +367,8 @@ size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsTo
   thirdLevel_.signalReadyToCombine();
   std::string instruction = thirdLevel_.fetchInstruction();
 
+  std::cout << " pretend "<< instruction << std::endl;
+
   Stats::startEvent("manager exchange data with remote");
   for (const auto& dsguSize : numDofsToCommunicate) {
     std::vector<CombiDataType> dsguData(dsguSize, 0.);
@@ -396,6 +398,7 @@ size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsTo
   }
   Stats::stopEvent("manager exchange data with remote");
   thirdLevel_.signalReady();
+  return numWrongValues;
 }
 
 /** Unifys the subspace sizes of all dsgus which are collectively combined
