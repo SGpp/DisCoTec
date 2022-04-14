@@ -89,6 +89,8 @@ class ProcessGroupManager {
                                               std::vector<CombiDataType>& values,
                                               MPI_Request& request);
 
+  void writeInterpolatedValues(const std::vector<real>& interpolationCoordsSerial);
+
   /**
    * Adds a task to the process group. To be used for rescheduling.
    *

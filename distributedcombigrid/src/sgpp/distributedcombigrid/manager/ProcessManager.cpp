@@ -469,6 +469,18 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
   return reducedValues;
 }
 
+void ProcessManager::writeInterpolatedValues(const std::vector<std::vector<real>>& interpolationCoords) {
+  // send interpolation coords as a single array
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
+
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->writeInterpolatedValues(interpolationCoordsSerial);
+  }
+}
+
+// void ProcessManager::writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords) {}
+
+
 void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
   pgroups_.back()->writeSparseGridMinMaxCoefficients(filename);
 }

@@ -17,6 +17,10 @@
 #include <algorithm>
 #include <iostream>
 #include <string>
+#ifdef HAVE_HIGHFIVE
+// highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi versions)
+#include <highfive/H5File.hpp>
+#endif
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
@@ -280,6 +284,11 @@ SignalType ProcessGroupWorker::wait() {
           TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm());
       }
       Stats::stopEvent("interpolate values");
+    } break;
+    case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write values to .h5
+      Stats::startEvent("write interpolated values");
+      writeInterpolatedValuesPerGrid();
+      Stats::stopEvent("write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
@@ -868,9 +877,7 @@ void ProcessGroupWorker::doDiagnostics() {
   assert(false && "this taskID is not here");
 }
 
-std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
-  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-  // receive coordinates and broadcast to group members
+void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& interpolationCoords, DimType dim) {
   std::vector<real> interpolationCoordsSerial;
   auto realType = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
   int coordsSize;
@@ -891,21 +898,29 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
             theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
   // split vector into coordinates
-  const int dim = static_cast<int>(combiParameters_.getDim());
-  auto numCoordinates = coordsSize / dim;
-  assert( coordsSize % dim == 0);
-  std::vector<std::vector<real>> interpolationCoords(numCoordinates);
+  const int dimInt = static_cast<int>(dim);
+  auto numCoordinates = coordsSize / dimInt;
+  assert( coordsSize % dimInt == 0);
+  interpolationCoords.resize(numCoordinates);
   auto it = interpolationCoordsSerial.cbegin();
   for (auto& coord: interpolationCoords) {
-    coord.insert(coord.end(), it, it+dim);
-    it += dim;
+    coord.insert(coord.end(), it, it+dimInt);
+    it += dimInt;
   }
   assert(it == interpolationCoordsSerial.end());
+}
+
+std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
+  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  // receive coordinates and broadcast to group members
+  std::vector<std::vector<real>> interpolationCoords;
+  receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
+  auto numCoordinates = interpolationCoords.size();
 
   // call interpolation function on tasks and reduce with combination coefficient
   std::vector<CombiDataType> values(numCoordinates, 0.);
   for (Task* t : tasks_){
-    auto coeff = combiParameters_.getCoeff(t->getID());
+    auto coeff = this->combiParameters_.getCoeff(t->getID());
     auto taskVals = t->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
 
     for (size_t i = 0; i < numCoordinates; ++i) {
@@ -913,6 +928,33 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
     }
   }
   return values;
+}
+
+
+void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
+#ifdef HAVE_HIGHFIVE
+  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  // receive coordinates and broadcast to group members
+  std::vector<std::vector<real>> interpolationCoords;
+  receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
+  auto numCoordinates = interpolationCoords.size();
+
+  // call interpolation function on tasks and write out task-wise
+  for (size_t i = 0; i < tasks_.size(); ++i){
+    auto taskVals = t->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
+    if (i%nprocs == rank) {
+      std::string saveFilePath = "interpolated_" + std::to_string(tasks_[i]->getID()) + ".h5";
+      // check if file already exists, if no, create
+      HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate);
+
+      HighFive::DataSet dataset = file.createDataSet<int>("/interpolated_" + std::to_string(currentCombi_),  HighFive::DataSpace::From(taskVals));
+
+      dataset.write(taskVals);
+    }
+  }
+#else // not compiled with hdf5
+  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
+#endif
 }
 
 void ProcessGroupWorker::gridEval() {  // not supported anymore
