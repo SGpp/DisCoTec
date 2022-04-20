@@ -941,18 +941,21 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
 
   // call interpolation function on tasks and write out task-wise
   for (size_t i = 0; i < tasks_.size(); ++i){
-    auto taskVals = t->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
-    if (i%nprocs == rank) {
+    auto taskVals = tasks_[i]->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
+    if (i % (theMPISystem()->getNumProcs()) == theMPISystem()->getLocalRank()) {
       std::string saveFilePath = "interpolated_" + std::to_string(tasks_[i]->getID()) + ".h5";
       // check if file already exists, if no, create
       HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate);
 
-      HighFive::DataSet dataset = file.createDataSet<int>("/interpolated_" + std::to_string(currentCombi_),  HighFive::DataSpace::From(taskVals));
+      HighFive::DataSet dataset = h5_file.createDataSet<CombiDataType>("/interpolated_" + std::to_string(currentCombi_),  HighFive::DataSpace::From(taskVals));
 
       dataset.write(taskVals);
+
+      HighFive::Attribute a2 = dataset.createAttribute<real>("simulation_time",  HighFive::DataSpace::From(tasks_[i]->getCurrentTime()));
+      a2.write(tasks_[i]->getCurrentTime());
     }
   }
-#else // not compiled with hdf5
+#else // if not compiled with hdf5
   throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
 #endif
 }

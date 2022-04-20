@@ -478,7 +478,9 @@ void ProcessManager::writeInterpolatedValues(const std::vector<std::vector<real>
   }
 }
 
-// void ProcessManager::writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords) {}
+void ProcessManager::writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords) {
+  throw std::runtime_error("not yet implemented");
+}
 
 
 void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {

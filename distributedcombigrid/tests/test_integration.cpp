@@ -186,6 +186,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
         BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
         BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
       }
+      manager.writeInterpolatedValues(interpolationCoords);
+      manager.writeInterpolationCoordinates(interpolationCoords);
     }
 
     manager.exit();
