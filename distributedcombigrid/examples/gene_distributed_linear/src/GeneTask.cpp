@@ -154,9 +154,9 @@ void GeneTask::changeDir(CommunicatorType lcomm){
 void GeneTask::decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
   using namespace std::chrono;
 
-  int globalRank;
+  int globalRank = theMPISystem()->getGlobalRank();
   // MPI_Comm_rank(lcomm, &lrank);
-  MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+  // MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
   //theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
   //duration<real> dur = high_resolution_clock::now() - startTimeIteration_;
   //real t_iter = dur.count();
