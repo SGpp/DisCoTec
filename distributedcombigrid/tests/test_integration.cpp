@@ -121,6 +121,10 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       taskIDs.push_back(t->getID());
     }
 
+    // why are there duplicate task IDs over different calls to this function??
+    // ah its because different ranks will be master, so there are different Task::count instances
+    // std::cout << "taskIDs " << taskIDs << std::endl;
+
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
     params.setParallelization({static_cast<IndexType>(nprocs), 1});
@@ -186,6 +190,19 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
         BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
         BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
       }
+#ifdef HAVE_HIGHFIVE
+      // output files are not needed, remove them right away
+      // (if this doesn't happen, there may be hdf5 errors due to duplicate task IDs)
+      sleep(1);
+      system("rm interpolated_*.h5");
+      // system("rm interpolation_coords.h5");
+      remove("interpolation_coords.h5");
+      sleep(1);
+      manager.writeInterpolatedValues(interpolationCoords);
+      BOOST_TEST_CHECKPOINT("wrote interpolated values");
+      manager.writeInterpolationCoordinates(interpolationCoords);
+      BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
+#endif  // def HAVE_HIGHFIVE
     }
 
     manager.exit();
