@@ -71,6 +71,8 @@ class TaskCount : public combigrid::Task {
     ++nrun_;
     BOOST_CHECK(dfg_);
 
+    time_ += 1.;
+
     setFinished(true);
 
     MPI_Barrier(lcomm);
@@ -99,6 +101,10 @@ class TaskCount : public combigrid::Task {
     return f(coords, nrun_);
   }
 
+  real getCurrentTime() const override {
+    return time_;
+  }
+
  protected:
   TaskCount() : dfg_(NULL) {}
 
@@ -108,6 +114,7 @@ class TaskCount : public combigrid::Task {
   DistributedFullGrid<CombiDataType>* dfg_;
 
   size_t nrun_;
+  combigrid::real time_ = 0.;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {

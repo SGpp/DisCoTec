@@ -107,6 +107,8 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
 
     // make sure that right min/max values are written
     uniDSG->writeMinMaxCoefficents("sparse_paraboloid_minmax_" + std::to_string(size), 0);
+    // and remove straight away
+    system( "rm sparse_paraboloid_minmax_*" );
 
     // std::cout << *uniDSG << std::endl;
 
@@ -152,6 +154,12 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
         BOOST_CHECK_EQUAL(sgDOF, sumDOFPartitioned);
       }
     }
+    // test for dumping sparse grid data to disk and reading back in
+    uniDSG->writeToDisk("test_sg_");
+    uniDSG->readFromDisk("test_sg_");
+
+    // and remove straight away
+    system( "rm test_sg_*" );
 
     // TODO test for reduced lmax
   }

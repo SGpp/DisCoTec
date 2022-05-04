@@ -6,6 +6,13 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 
+#ifdef HAVE_HIGHFIVE
+#include <chrono>
+#include <random>
+// highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi versions)
+#include <highfive/H5File.hpp>
+#endif
+
 namespace combigrid {
 
 ProcessManager::~ProcessManager() {}
@@ -477,6 +484,47 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
   return reducedValues;
 }
 
+void ProcessManager::setupThirdLevel() {
+  thirdLevel_.connectToThirdLevelManager();
+}
+
+void ProcessManager::writeInterpolatedValues(
+    const std::vector<std::vector<real>>& interpolationCoords) {
+  // send interpolation coords as a single array
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
+
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->writeInterpolatedValues(interpolationCoordsSerial);
+  }
+}
+
+void ProcessManager::writeInterpolationCoordinates(
+    const std::vector<std::vector<real>>& interpolationCoords) {
+#ifdef HAVE_HIGHFIVE
+  // generate a rank-local per-run random number
+  // std::random_device dev;
+  static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+  static std::uniform_int_distribution<std::mt19937::result_type> dist(
+      1, std::numeric_limits<size_t>::max());
+  static size_t rankLocalRandom = dist(rng);
+
+  std::string saveFilePath = "interpolation_coords.h5";
+  // check if file already exists, if no, create
+  HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
+
+  std::string groupName = "run_" + std::to_string(rankLocalRandom);
+  HighFive::Group group = h5_file.createGroup(groupName);
+
+  std::string datasetName = "coordinates";
+  HighFive::DataSet dataset =
+      group.createDataSet<real>(datasetName, HighFive::DataSpace::From(interpolationCoords));
+  dataset.write(interpolationCoords);
+
+#else  // if not compiled with hdf5
+  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
+#endif
+}
+
 void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values) {
   coordinates = montecarlo::getRandomCoordinates(numPoints, params_.getDim());
   auto ourCoordinatesSerial = serializeInterpolationCoords(coordinates);
@@ -523,10 +571,6 @@ void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vec
   for (size_t i = 0; i < numPoints; ++i){
     values[i] += remoteValues[i];
   }
-}
-
-void ProcessManager::setupThirdLevel() {
-  thirdLevel_.connectToThirdLevelManager();
 }
 
 void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {

@@ -108,7 +108,7 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
     # config.env.AppendUnique(LIBPATH=['/usr/local.nfs/sw/cuda/cuda-7.5/'])
 
     # glpk library
-  config.env.AppendUnique(CPPPATH=[config.env['GLPK_INCLUDE_PATH']])   
+  config.env.AppendUnique(CPPPATH=[config.env['GLPK_INCLUDE_PATH']])
   config.env.AppendUnique(LIBPATH=[config.env['GLPK_LIBRARY_PATH']])
 
   checkBoostTests(config)
@@ -144,7 +144,7 @@ def checkDoxygen(config):
 def checkDot(config):
   if not config.env["DOC"]:
     return
-  
+
   # check whether dot installed
   if not config.CheckExec("dot"):
     Helper.printWarning("dot (Graphviz) cannot be found.",
@@ -177,7 +177,7 @@ def checkOpenCL(config):
       Helper.printErrorAndExit("libOpenCL not found, but required for OpenCL")
 
     # TODO: continue - add boost include path!
-    config.env.AppendUnique(LIBPATH="C:\\boost_1_60_0\stage\lib")    
+    config.env.AppendUnique(LIBPATH="C:\\boost_1_60_0\stage\lib")
 
     if not config.CheckLib("boost_program_options", language="c++", autoadd=0):
       Helper.printErrorAndExit("libboost-program-options not found, but required for OpenCL",
@@ -210,6 +210,25 @@ def checkBoostTests(config):
                           "Please install the corresponding package, e.g., on Ubuntu",
                           "> sudo apt-get install libboost-test-dev",
                           "****************************************************")
+
+# def checkHDF5(config):
+#   # Check the availability of hdf libs
+#   hdf5Found = True
+#   if not config.CheckHeader(os.path.join("boost", "test", "unit_test.hpp"), language="c++"):
+#     config.env["COMPILE_BOOST_TESTS"] = False
+#     Helper.printWarning("****************************************************",
+#                         "No Boost Unit Test Headers found. Omitting Boost unit tests.",
+#                         "Please install the corresponding package, e.g., on Ubuntu",
+#                         "> sudo apt-get install libboost-test-dev",
+#                         "****************************************************")
+
+#   if not config.CheckLib("boost_unit_test_framework", autoadd=0, language="c++"):
+#     config.env["COMPILE_BOOST_TESTS"] = False
+#     Helper.printWarning("****************************************************",
+#                         "No Boost Unit Test library found. Omitting Boost unit tests.",
+#                         "Please install the corresponding package, e.g., on Ubuntu",
+#                         "> sudo apt-get install libboost-test-dev",
+#                         "****************************************************")
 
 def checkSWIG(config):
   if config.env["SG_PYTHON"] or config.env["SG_JAVA"]:
@@ -342,11 +361,11 @@ def configureGNUCompiler(config):
 
   # required for profiling
   config.env.Append(CPPFLAGS=["-fno-omit-frame-pointer"])
-  
+
   print("config: "+ str(config.env))
 
   if config.env["DEBUG_OUTPUT"]:
-    config.env.Append(CPPFLAGS=["-DDEBUG_OUTPUT"])  
+    config.env.Append(CPPFLAGS=["-DDEBUG_OUTPUT"])
   if config.env["TIMING"]:
     config.env.Append(CPPFLAGS=["-DTIMING"])
   if config.env["BUILD_STATICLIB"]:
@@ -358,8 +377,10 @@ def configureGNUCompiler(config):
     config.env.Append(CPPFLAGS=["-DOMITREADYSIGNAL"])
   if config.env["UNIFORMDECOMPOSITION"]:
     config.env.Append(CPPFLAGS=["-DUNIFORMDECOMPOSITION"])
+  if config.env["USE_HDF5"]:
+    config.env.Append(CPPFLAGS=["-DHAVE_HIGHFIVE"])
   if config.env["ENABLEFT"]:
-    config.env.Append(CPPFLAGS=["-DENABLEFT"])  
+    config.env.Append(CPPFLAGS=["-DENABLEFT"])
   if config.env["ISGENE"]:
     config.env.Append(CPPFLAGS=["-DISGENE"])
   if config.env["USE_VTK"]:
@@ -420,7 +441,7 @@ def configureClangCompiler(config):
   #     http://www.swig.org/Release/CHANGES, 03/02/2006
   #    "If you are going to use optimisations turned on with gcc > 4.0 (for example -O2),
   #     ensure you also compile with -fno-strict-aliasing"
-  
+
   config.env.Append(CPPFLAGS=allWarnings + [
       "-DDEFAULT_RES_THRESHOLD=-1.0", "-DTASKS_PARALLEL_UPDOWN=4"])
   config.env.Append(CPPFLAGS=["-fopenmp=libiomp5"])
@@ -428,7 +449,7 @@ def configureClangCompiler(config):
 
   if config.env["DEBUG_OUTPUT"]:
     config.env.Append(CPPFLAGS=["-DDEBUG_OUTPUT"])
-  
+
 
   if config.env["BUILD_STATICLIB"]:
     config.env.Append(CPPFLAGS=["-D_BUILD_STATICLIB"])

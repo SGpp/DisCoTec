@@ -842,6 +842,10 @@ BOOST_AUTO_TEST_CASE(test_41) {
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
 }
+
+// these large tests only make sense when assertions are not checked (takes too long otherwise)
+#ifdef NDEBUG
+
 BOOST_AUTO_TEST_CASE(test_42) {
   // large test case with timing
   MPI_Barrier(MPI_COMM_WORLD);
@@ -905,6 +909,8 @@ BOOST_AUTO_TEST_CASE(test_44) {
   }
   // on ipvs-epyc2@  : 3100 milliseconds w single msgs
 }
+
+#endif // def NDEBUG
 
 BOOST_AUTO_TEST_CASE(momentum) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));

@@ -154,10 +154,16 @@ class DistributedSparseGridUniform {
 
   void writeMinMaxCoefficents(const std::string& filename, size_t i) const;
 
+  // naive read/write operations -- each rank writes their own data partition to a separate binary file
+  void writeToDisk(std::string filePrefix);
+
+  void readFromDisk(std::string filePrefix);
+
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
-  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax, std::vector<LevelVector>& created) const;
+  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax,
+                       std::vector<LevelVector>& created) const;
 
   // void setSizes();
 
@@ -624,6 +630,22 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
         ofs << level << " : " << minimumValue << ", " << maximumValue << std::endl;
     }
   }
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::writeToDisk(std::string filePrefix) {
+  std::string myFilename = filePrefix + std::to_string(this->rank_);
+  std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
+  ofp.write(reinterpret_cast<const char*>(this->getRawData()), this->getRawDataSize() * sizeof(FG_ELEMENT));
+  ofp.close();
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::readFromDisk(std::string filePrefix){
+  std::string myFilename = filePrefix + std::to_string(this->rank_);
+  std::ifstream ifp(myFilename, std::ios::in | std::ios::binary);
+  ifp.read(reinterpret_cast<char*>(this->getRawData()), this->getRawDataSize() * sizeof(FG_ELEMENT));
+  ifp.close();
 }
 
 /**

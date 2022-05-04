@@ -142,9 +142,9 @@ void GeneTask::changeDir(CommunicatorType lcomm){
 void GeneTask::decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
   using namespace std::chrono;
 
-  int globalRank;
+  int globalRank = theMPISystem()->getGlobalRank();
   // MPI_Comm_rank(lcomm, &lrank);
-  MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+  // MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
 
   //check if killing necessary
   if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, -1.0, globalRank)){
