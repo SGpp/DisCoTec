@@ -71,6 +71,8 @@ const SignalType DO_DIAGNOSTICS = 37;
 const SignalType WRITE_DSG_MINMAX_COEFFICIENTS = 38;
 const SignalType WRITE_INTERPOLATED_VALUES_PER_GRID = 39;
 
+const SignalType REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG = 40;
+
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
 const NormalizationType L1_NORMALIZATION = 1;

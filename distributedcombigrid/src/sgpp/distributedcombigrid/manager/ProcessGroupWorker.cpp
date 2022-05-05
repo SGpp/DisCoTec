@@ -214,9 +214,15 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("waitForThirdLevelCombiResult");
 
     } break;
+    case REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG: {
+      Stats::startEvent("unifySubspaceSizesThirdLevelExtra");
+      reduceSubspaceSizesThirdLevel(true);
+      Stats::stopEvent("unifySubspaceSizesThirdLevelExtra");
+
+    } break;
     case REDUCE_SUBSPACE_SIZES_TL: {
       Stats::startEvent("unifySubspaceSizesThirdLevel");
-      reduceSubspaceSizesThirdLevel();
+      reduceSubspaceSizesThirdLevel(false);
       Stats::stopEvent("unifySubspaceSizesThirdLevel");
 
     } break;
@@ -1196,23 +1202,45 @@ void ProcessGroupWorker::combineThirdLevel() {
   const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
 
   std::vector<MPI_Request> requests;
-  for (auto& dsg : combinedUniDSGVector_) {
-    assert(dsg->getRawDataSize() < 2147483647 && "Dsg is larger than 2^31-1 and can not be "
+  for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
+    auto uniDsg = combinedUniDSGVector_[i].get();
+    auto dsgToUse = uniDsg;
+    if (extraUniDSGVector_.size() > 0) {
+      dsgToUse = extraUniDSGVector_[i].get();
+    }
+    assert(dsgToUse->getRawDataSize() < 2147483647 && "Dsg is larger than 2^31-1 and can not be "
                                              "sent in a single MPI Call (not "
                                              "supported yet) try a more coarse"
                                              "decomposition");
+    // if we have an extra dsg for third level exchange, we use it
+    if (extraUniDSGVector_.size() > 0) {
+      // copy partial data from uniDSG to extraDSG
+      for (size_t i = 0; i < uniDsg->getNumSubspaces(); ++i) {
+        assert(dsgToUse->getDataSize(i) == 0 ||
+               dsgToUse->getDataSize(i) == uniDsg->getDataSize()[i]);
+        std::copy_n(uniDsg->getData(i), dsgToUse->getDataSize(i), dsgToUse->getData(i));
+      }
+    }
+
     // send dsg data to manager
     Stats::startEvent("combine send dsg data to manager");
-    sendDsgData(dsg.get(), manager, managerComm);
+    sendDsgData(dsgToUse, manager, managerComm);
     Stats::stopEvent("combine send dsg data to manager");
 
     // recv combined dsgu from manager
     Stats::startEvent("combine recv combined data from manager");
-    recvDsgData(dsg.get(), manager, managerComm);
+    recvDsgData(dsgToUse, manager, managerComm);
     Stats::stopEvent("combine recv combined data from manager");
 
+    if (extraUniDSGVector_.size() > 0) {
+      // copy partial data from extraDSG back to uniDSG
+      for (size_t i = 0; i < uniDsg->getNumSubspaces(); ++i) {
+        std::copy_n(dsgToUse->getData(i), dsgToUse->getDataSize(i), uniDsg->getData(i));
+      }
+    }
+
     // distribute solution in globalReduceComm to other pgs
-    MPI_Request request = asyncBcastDsgData(dsg.get(), globalReduceRank, globalReduceComm);
+    MPI_Request request = asyncBcastDsgData(uniDsg, globalReduceRank, globalReduceComm);
     requests.push_back(request);
   }
   // update fgs
@@ -1227,7 +1255,7 @@ void ProcessGroupWorker::combineThirdLevel() {
 
 /** Reduces subspace sizes with remote.
  */
-void ProcessGroupWorker::reduceSubspaceSizesThirdLevel() {
+void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
   assert(combiParametersSet_);
 
   // prepare a buffer with enough space for all subspace sizes from all dsgs
@@ -1258,21 +1286,41 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel() {
   MPI_Gatherv(buff.data(), bufSize, dtype, nullptr, nullptr,
               nullptr, dtype, thirdLevelManagerRank, thirdLevelComm);
 
+  if (thirdLevelExtraSparseGrid && extraUniDSGVector_.empty()) {
+    // create new vector for extra sparse grids (that will be only on this process group)
+    extraUniDSGVector_.resize(combinedUniDSGVector_.size());
+    for (auto& extraUniDSG : extraUniDSGVector_) {
+      extraUniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+          new DistributedSparseGridUniform<CombiDataType>(
+              combinedUniDSGVector_[0]->getDim(), combinedUniDSGVector_[0]->getAllLevelVectors(),
+              combinedUniDSGVector_[0]->getBoundaryVector(), theMPISystem()->getLocalComm()));
+    }
+  }
+
   // receive updated sizes from manager
   MPI_Scatterv(nullptr, 0, nullptr, dtype,
                buff.data(), bufSize, dtype, thirdLevelManagerRank, thirdLevelComm);
 
-  // distribute updated sizes to workers with same decomposition (global reduce comm)
-  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  RankType globalReduceRank = theMPISystem()->getGlobalReduceRank();
-  MPI_Bcast(buff.data(), bufSize, dtype, globalReduceRank, globalReduceComm);
+  if (!thirdLevelExtraSparseGrid) {
+    // distribute updated sizes to workers with same decomposition (global reduce comm)
+    // cf. waitForThirdLevelSizeUpdate(), which is called in other process groups
+    CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+    RankType globalReduceRank = theMPISystem()->getGlobalReduceRank();
+    MPI_Bcast(buff.data(), bufSize, dtype, globalReduceRank, globalReduceComm);
+  }
 
+  // update either old or new sparse grids
+  auto* uniDSGVectorToSet = &combinedUniDSGVector_;
+  if (thirdLevelExtraSparseGrid) {
+    uniDSGVectorToSet = &extraUniDSGVector_;
+  }
   // set updated sizes in dsgs
   std::vector<size_t>::iterator buffIt = buff.begin();
-  for (auto& dsg : combinedUniDSGVector_) {
+  for (auto& dsg : *uniDSGVectorToSet) {
     for(size_t i = 0; i < dsg->getNumSubspaces(); ++i) {
       dsg->setDataSize(i, *(buffIt++));
     }
+    dsg->createSubspaceData();
 #ifdef DEBUG_OUTPUT
     MASTER_EXCLUSIVE_SECTION {
       std::cout << "third level reduce dsg size: " << dsg->getRawDataSize() << " * "

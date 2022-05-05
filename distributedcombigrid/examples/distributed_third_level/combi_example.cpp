@@ -162,6 +162,7 @@ int main(int argc, char** argv) {
   unsigned int systemNumber = 0, numSystems = 1;
   unsigned short thirdLevelPort = 0;
   bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
+  bool extraSparseGrid = true;
   std::vector<real> fractionsOfScheme;
   if (hasThirdLevel) {
     std::cout << "Using third-level parallelism" << std::endl;
@@ -170,6 +171,7 @@ int main(int argc, char** argv) {
     numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
     thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
     thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand", "");
+    extraSparseGrid = cfg.get<bool>("thirdLevel.extraSparseGrid");
     bool hasFractions = static_cast<bool>(cfg.get_child_optional("thirdLevel.fractionsOfScheme"));
     if (hasFractions) {
       std::string fractionsString = cfg.get<std::string>("thirdLevel.fractionsOfScheme");
@@ -381,8 +383,8 @@ int main(int argc, char** argv) {
     // exchange subspace sizes to unify the dsgs in the third level case
     if (hasThirdLevel) {
       Stats::startEvent("manager unify subspace sizes with remote");
-      manager.unifySubspaceSizesThirdLevel(),
-          Stats::stopEvent("manager unify subspace sizes with remote");
+      manager.unifySubspaceSizesThirdLevel(extraSparseGrid);
+      Stats::stopEvent("manager unify subspace sizes with remote");
     }
 
     double start, finish;

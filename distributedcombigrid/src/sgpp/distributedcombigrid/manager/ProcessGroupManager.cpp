@@ -128,9 +128,14 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
  */
 bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel,
                                                             CombiParameters& params,
-                                                            bool isSendingFirst) {
+                                                            bool isSendingFirst,
+                                                            bool thirdLevelExtraSparseGrid) {
   // tell workers to perform reduce
-  sendSignalAndReceive(REDUCE_SUBSPACE_SIZES_TL);
+  if (thirdLevelExtraSparseGrid) {
+    sendSignalAndReceive(REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG);
+  } else {
+    sendSignalAndReceive(REDUCE_SUBSPACE_SIZES_TL);
+  }
 
   // prepare buffers
   std::unique_ptr<uint64_t[]> sendBuff;
@@ -155,13 +160,32 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
     // send subspace sizes to remote
     thirdLevel.sendData(sendBuff.get(), buffSize);
   }
+  
+  // set accumulated dsgu sizes per worker
+  formerDsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
+  uint64_t* sizePtr = sendBuff.get();
+  for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
+    int sum = 0;
+    for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
+      sum += (int)*(sizePtr++);
+    }
+    formerDsguDataSizePerWorker_[w] = sum;
+  }
 
-  // perform max reduce
-  for (size_t i = 0; i < buffSize; ++i) sendBuff[i] = std::max(sendBuff[i], recvBuff[i]);
+  if (thirdLevelExtraSparseGrid) {
+    // perform min reduce
+    for (size_t i = 0; i < buffSize; ++i) sendBuff[i] = std::min(sendBuff[i], recvBuff[i]);
+  } else {
+    // perform max reduce
+    for (size_t i = 0; i < buffSize; ++i) sendBuff[i] = std::max(sendBuff[i], recvBuff[i]);
+  }
+
+  // scatter data back to workers
+  distributeSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
 
   // set accumulated dsgu sizes per worker
   dsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  uint64_t* sizePtr = sendBuff.get();
+  sizePtr = sendBuff.get();
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
     int sum = 0;
     for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
@@ -169,9 +193,6 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
     }
     dsguDataSizePerWorker_[w] = sum;
   }
-
-  // scatter data back to workers
-  distributeSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
   return true;
 }
 

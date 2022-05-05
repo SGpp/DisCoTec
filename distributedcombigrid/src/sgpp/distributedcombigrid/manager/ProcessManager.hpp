@@ -77,7 +77,7 @@ class ProcessManager {
 
   inline size_t pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate, bool checkValues);
 
-  inline void unifySubspaceSizesThirdLevel();
+  inline void unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
   void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values);
 
@@ -424,11 +424,13 @@ size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsTo
  * sizes back to the workers of the third level pg who will then distribute it
  * to the other pgs.
  */
-void ProcessManager::unifySubspaceSizesThirdLevel() {
-  // tell other pgroups to idle and wait for update
-  for (auto& pg : pgroups_) {
-    if (pg != thirdLevelPGroup_)
-      pg->waitForThirdLevelSizeUpdate();
+void ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
+  if (!thirdLevelExtraSparseGrid) {
+    // tell other pgroups to idle and wait for update
+    for (auto& pg : pgroups_) {
+      if (pg != thirdLevelPGroup_)
+        pg->waitForThirdLevelSizeUpdate();
+    }
   }
 
   // obtain instructions from third level manager
@@ -437,18 +439,27 @@ void ProcessManager::unifySubspaceSizesThirdLevel() {
 
   // exchange sizes with remote
   if (instruction == "send_first") {
-    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_, true);
+    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_, true, thirdLevelExtraSparseGrid);
   } else if (instruction == "recv_first") {
-    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_, false);
+    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_, false, thirdLevelExtraSparseGrid);
   }
   thirdLevel_.signalReady();
 
   waitAllFinished();
 
+  const auto& formerDsguDataSizePerWorker = thirdLevelPGroup_->getFormerDsguDataSizePerWorker();
   const auto& dsguDataSizePerWorker = thirdLevelPGroup_->getDsguDataSizePerWorker();
 
+  auto formerDsguDataSize = std::accumulate(formerDsguDataSizePerWorker.begin(), formerDsguDataSizePerWorker.end(), 0);
   auto dsguDataSize = std::accumulate(dsguDataSizePerWorker.begin(), dsguDataSizePerWorker.end(), 0);
+  Stats::setAttribute("formerDsguDataSize", std::to_string(formerDsguDataSize));
   Stats::setAttribute("dsguDataSize", std::to_string(dsguDataSize));
+
+  if (thirdLevelExtraSparseGrid && dsguDataSize > formerDsguDataSize) {
+    throw std::runtime_error("why is it larger???");
+  } else if (!thirdLevelExtraSparseGrid && dsguDataSize < formerDsguDataSize) {
+    throw std::runtime_error("why is it smaller???");
+  }
 }
 
 /** This function performs the so-called recombination. First, the combination

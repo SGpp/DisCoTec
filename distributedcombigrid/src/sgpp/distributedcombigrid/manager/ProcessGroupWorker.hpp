@@ -116,13 +116,17 @@ class ProcessGroupWorker {
   void waitForThirdLevelCombiResult();
 
   /** computes a max reduce on the dsg's subspace sizes with the other systems */
-  void reduceSubspaceSizesThirdLevel();
+  void reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
   /** receives reduced sizes from tl pgroup and updates the dsgs */
   void waitForThirdLevelSizeUpdate();
 
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
     return combinedUniDSGVector_;
+  }
+
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getExtraUniDSGVector(){
+    return extraUniDSGVector_;
   }
 
   TaskContainer& getTasks(){
@@ -147,6 +151,11 @@ class ProcessGroupWorker {
    * Vector containing all distributed sparse grids
    */
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;
+
+  /**
+   * Vector containing the third level extra distributed sparse grids
+   */
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> extraUniDSGVector_;
 
   CombiParameters combiParameters_;
 

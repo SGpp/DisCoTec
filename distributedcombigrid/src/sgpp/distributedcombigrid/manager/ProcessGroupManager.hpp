@@ -145,6 +145,7 @@ class ProcessGroupManager {
   simft::Sim_FT_MPI_Request statusRequestFT_;
 
   // stores the accumulated dsgu sizes per worker
+  std::vector<size_t> formerDsguDataSizePerWorker_;
   std::vector<size_t> dsguDataSizePerWorker_;
 
   void recvStatus();
@@ -162,25 +163,23 @@ class ProcessGroupManager {
 
   inline void setProcessGroupBusyAndReceive();
 
-  void exchangeDsgus(const ThirdLevelUtils& thirdLevel,
-                           CombiParameters& params,
-                           bool isSendingFirst);
+  void exchangeDsgus(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
+                     bool isSendingFirst);
 
-  bool collectSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                            CombiParameters& params,
-                            std::unique_ptr<uint64_t[]>& buff,
-                            size_t& buffSize,
+  bool collectSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
+                            std::unique_ptr<uint64_t[]>& buff, size_t& buffSize,
                             std::vector<int>& numSubspacesPerWorker);
 
-  bool distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                               CombiParameters& params,
-                               const std::unique_ptr<uint64_t[]>& buff,
-                               size_t buffSize,
+  bool distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
+                               const std::unique_ptr<uint64_t[]>& buff, size_t buffSize,
                                const std::vector<int>& numSubspacesPerWorker);
 
-  bool reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                                         CombiParameters& params,
-                                         bool isSendingFirst);
+  bool reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
+                                         bool isSendingFirst, bool thirdLevelExtraSparseGrid);
+
+  const std::vector<size_t>& getFormerDsguDataSizePerWorker() {
+    return formerDsguDataSizePerWorker_;
+  }
 
   const std::vector<size_t>& getDsguDataSizePerWorker() {
     return dsguDataSizePerWorker_;

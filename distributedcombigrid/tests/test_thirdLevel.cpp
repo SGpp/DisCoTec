@@ -138,7 +138,7 @@ void startInfrastructure(unsigned short port = 9999) {
   sleep(10);
 }
 
-void testCombineThirdLevel(TestParams& testParams) {
+void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGrid = false) {
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
   size_t procsPerSys = testParams.ngroup * testParams.nprocs + 1;
@@ -208,7 +208,7 @@ void testCombineThirdLevel(TestParams& testParams) {
 
         // exchange subspace sizes to unify the dsgs with the remote system
         Stats::startEvent("manager unify subspace sizes with remote");
-        manager.unifySubspaceSizesThirdLevel(),
+        manager.unifySubspaceSizesThirdLevel(thirdLevelExtraSparseGrid),
         Stats::stopEvent("manager unify subspace sizes with remote");
       } else {
         Stats::startEvent("manager run");
@@ -295,6 +295,15 @@ void testCombineThirdLevel(TestParams& testParams) {
         }
         std::cout << std::endl;
       }
+      if (signal == REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG) {
+        std::cout << "reduce extra ";
+        for (auto& dsg : pgroup.getExtraUniDSGVector()) {
+          for (size_t size : dsg->getSubspaceDataSizes()) {
+            std::cout << size << " ";
+          }
+        }
+        std::cout << std::endl;
+      }
       if(signal == INIT_DSGUS){
         std::cout << "INIT DSGUS ";
         for (auto& dsg : pgroup.getCombinedUniDSGVector()) {
@@ -321,7 +330,7 @@ void testCombineThirdLevel(TestParams& testParams) {
 /**
  * @brief test for the static task assignment mechanism, both systems read their assignment from file `test_scheme.json`
  */
-void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams) {
+void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thirdLevelExtraSparseGrid = false) {
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
   combigrid::Stats::initialize();
@@ -423,7 +432,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams) {
         // exchange subspace sizes to unify the dsgs with the remote system
         Stats::startEvent("manager unify subspace sizes with remote");
         BOOST_TEST_CHECKPOINT("manager unifySubspaceSizesThirdLevel");
-        manager.unifySubspaceSizesThirdLevel(),
+        manager.unifySubspaceSizesThirdLevel(thirdLevelExtraSparseGrid),
         Stats::stopEvent("manager unify subspace sizes with remote");
       } else {
         Stats::startEvent("manager run");
@@ -465,6 +474,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams) {
     }
   }
   combigrid::Stats::finalize();
+  combigrid::Stats::write("stats_thirdLevel_static_" + std::to_string(testParams.sysNum) + ".json");
   MPI_Barrier(testParams.comm);
   TestHelper::testStrayMessages(testParams.comm);
 }
@@ -556,7 +566,7 @@ BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)
     if (sysNum < numSystems) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
-      testCombineThirdLevel(testParams);
+      testCombineThirdLevel(testParams, false);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -581,7 +591,7 @@ BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)
     if (sysNum < numSystems) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
-      testCombineThirdLevel(testParams);
+      testCombineThirdLevel(testParams, false);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -601,15 +611,17 @@ BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)
   CommunicatorType newcomm;
 
   for (bool boundary : {false, true}) {
-    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+    for (bool extraSparseGrid : {false, true}) {
+      assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-    if (sysNum < numSystems) {  // remove unnecessary procs
-      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
-      startInfrastructure();
-      testCombineThirdLevel(testParams);
+      if (sysNum < numSystems) {  // remove unnecessary procs
+        TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+        startInfrastructure();
+        testCombineThirdLevel(testParams, extraSparseGrid);
+      }
+
+      MPI_Barrier(MPI_COMM_WORLD);
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
   }
 }
 
@@ -631,7 +643,7 @@ BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)
     if (sysNum < numSystems) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
-      testCombineThirdLevel(testParams);
+      testCombineThirdLevel(testParams, false);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -656,7 +668,7 @@ BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance)
     if (sysNum < numSystems) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
-      testCombineThirdLevel(testParams);
+      testCombineThirdLevel(testParams, false);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -680,9 +692,11 @@ BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (sysNum < numSystems) {  // remove unnecessary procs
-      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
-      startInfrastructure();
-      testCombineThirdLevelStaticTaskAssignment(testParams);
+      for (bool extraSparseGrid : {false, true}) {
+        TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+        startInfrastructure();
+        testCombineThirdLevelStaticTaskAssignment(testParams, extraSparseGrid);
+      }
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
