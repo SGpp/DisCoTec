@@ -65,12 +65,13 @@ void checkAdaptivity(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = true
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
 
     // create Tasks
-    double timeStepSize = 1. / ncombi;  // try ncombi time steps -> end should be the same as initial state
+    double timeStepSize =
+        1. / ncombi;  // try ncombi time steps -> end should be the same as initial state
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t =
-          new TaskInterpolateWave(dim, levels[i], boundary, coeffs[i], loadmodel.get(), timeStepSize);
+      Task* t = new TaskInterpolateWave(dim, levels[i], boundary, coeffs[i], loadmodel.get(),
+                                        timeStepSize);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -83,6 +84,7 @@ void checkAdaptivity(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = true
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
     params.setParallelization({static_cast<IndexType>(nprocs), 1});
 
+    BOOST_TEST_CHECKPOINT("Manager starts");
     // create abstraction for Manager
     ProcessManager manager{pgroups, tasks, params, std::move(loadmodel)};
 
@@ -107,10 +109,12 @@ void checkAdaptivity(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = true
       std::string filename("adaptive_" + std::to_string(it) + ".raw");
       BOOST_TEST_CHECKPOINT("write solution " + filename);
       Stats::startEvent("manager write solution");
-      // this writes .raw files, which can be plotted e.g. with matplotlib
+      // this writes .raw files, which can be plotted in 2-D e.g. with ../tools/raw_to_image.py
       manager.parallelEval(lmax, filename, 0);
-      // manager.writeSparseGridMinMaxCoefficients("adaptive_" + std::to_string(it) +
-      //                                           "_sparse_minmax");
+      // this writes human-readable files, which can be plotted in 3-D with
+      // ../tools/visualize_sg_minmax.py
+      manager.writeSparseGridMinMaxCoefficients("adaptive_" + std::to_string(it) +
+                                                "_sparse_minmax");
       Stats::stopEvent("manager write solution");
 
       BOOST_TEST_CHECKPOINT("run next");
@@ -121,8 +125,8 @@ void checkAdaptivity(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = true
     BOOST_TEST_CHECKPOINT("write solution " + filename);
     Stats::startEvent("manager write solution");
     manager.parallelEval(lmax, filename, 0);
-    // manager.writeSparseGridMinMaxCoefficients("adaptive_" + std::to_string(ncombi) +
-    //                                           "_sparse_minmax");
+    manager.writeSparseGridMinMaxCoefficients("adaptive_" + std::to_string(ncombi) +
+                                              "_sparse_minmax");
     Stats::stopEvent("manager write solution");
     manager.exit();
 
@@ -147,7 +151,7 @@ void checkAdaptivity(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = true
   TestHelper::testStrayMessages(comm);
 }
 
-BOOST_FIXTURE_TEST_SUITE(adaptive, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
+BOOST_FIXTURE_TEST_SUITE(adaptive, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(90))
 
 BOOST_AUTO_TEST_CASE(test_1) {
   for (bool boundary : {true}) {

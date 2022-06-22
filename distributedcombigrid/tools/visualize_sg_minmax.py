@@ -24,7 +24,8 @@ if __name__ == "__main__":
         filename, sep='[\s\[\]:,]+', engine='python', header=None, index_col=False)
     sgMinMax = sgMinMax.dropna(axis=1)
     numColumns = sgMinMax.shape[1]
-    column_names = ["l_" + str(i) for i in range(numColumns - 2)]
+    ndim = numColumns - 2
+    column_names = ["l_" + str(i) for i in range(ndim)]
     s = column_names.copy()
     column_names += ["min", "max"]
     sgMinMax.columns = column_names
@@ -36,7 +37,12 @@ if __name__ == "__main__":
 
     combinations = list(chain.from_iterable(combinations(s, r)
                         for r in range(len(s)+1)))
-    combinations = [list(c) for c in list(combinations) if len(c) == 3]
+    if ndim > 2:
+        combinations = [list(c) for c in list(combinations) if (len(c) == 3)]
+    elif ndim == 2:
+        ic(combinations)
+        combinations = [list(c) for c in list(combinations) if (len(c) == 2)]
+    ic(combinations)
     for c in combinations:
         ic(c)
         plotDeltas3D(sgMinMax, c, os.path.basename(filename)+"_"+str(c)+".pdf")
