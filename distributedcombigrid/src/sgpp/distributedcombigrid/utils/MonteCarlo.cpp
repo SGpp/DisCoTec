@@ -26,6 +26,17 @@ std::vector<std::vector<real>> getRandomCoordinates(int numCoordinates, size_t d
   return randomCoords;
 }
 
+void getNumberSequenceFromSeed(std::vector<real>& randomNumsToBeSet, size_t seed) {
+  static_assert(std::is_same<CombiDataType,real>::value, "when using this, implement for other CombiDataType");
+
+  std::mt19937 mersenne_engine {seed};
+  std::uniform_real_distribution<> dist {0., 1.};
+  auto gen = [&](){
+                  return dist(mersenne_engine);
+              };
+  std::generate(std::begin(randomNumsToBeSet), std::end(randomNumsToBeSet), gen);
+}
+
 real getRandomNumber(real&& a, real&& b) {
   static std::mt19937 mersenne_engine {8285545262};  // have 1 seed, for reproducible tests
   std::uniform_real_distribution<> dist {std::forward<real>(a), std::forward<real>(b)};
