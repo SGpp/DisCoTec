@@ -7,8 +7,12 @@
 
 namespace combigrid {
 
-    typedef IndexVector LevelVector;
-    std::string toString(combigrid::LevelVector const& l);
+typedef IndexVector LevelVector;
+std::string toString(combigrid::LevelVector const& l);
+
+// get downward closed set of a single LevelVector
+std::vector<LevelVector> getDownSet(combigrid::LevelVector const& l);
+
 }  // namespace combigrid
 
 #endif /* LEVELVECTOR_HPP_ */
