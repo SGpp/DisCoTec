@@ -202,7 +202,7 @@ static long long int printSGDegreesOfFreedomAdaptive(const LevelVector& lmin,
   long long int numDOF = 0;
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
-  combischeme.createDownSet();
+  // combischeme.createDownSet();
   auto downSet = combischeme.getDownSet();
   for (const auto& subspaceLevel : downSet) {
     long long int numDOFSpace = 1;
@@ -348,7 +348,7 @@ static inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
   // auto downSet = combischeme.getDownSet();
-  combischeme.createDownSet();
+  // combischeme.createDownSet();
   auto downSet2 = combischeme.getDownSet();
   // for (const auto& s : downSet) {
   //   if (std::find(downSet2.begin(), downSet2.end(), s) == downSet2.end()) {
