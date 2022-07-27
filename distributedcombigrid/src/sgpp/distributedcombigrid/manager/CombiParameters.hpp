@@ -2,6 +2,7 @@
 #define SRC_SGPP_COMBIGRID_MANAGER_COMBIPARAMETERS_HPP_
 
 #include <boost/serialization/map.hpp>
+#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
@@ -14,7 +15,7 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
-                  std::vector<int>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
+                  std::vector<size_t>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
                   bool forwardDecomposition = !isGENE)
@@ -38,7 +39,7 @@ class CombiParameters {
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
-                  std::vector<bool>& hierarchizationDims, std::vector<int>& taskIDs,
+                  std::vector<bool>& hierarchizationDims, std::vector<size_t>& taskIDs,
                   IndexType numberOfCombinations, IndexType numGrids = 1,
                   LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
                   LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
@@ -78,25 +79,25 @@ class CombiParameters {
 
   inline const std::vector<bool>& getBoundary() { return boundary_; }
 
-  inline real getCoeff(int taskID) { return coeffs_[taskID]; }
+  inline real getCoeff(size_t taskID) { return coeffs_[taskID]; }
 
-  inline void getCoeffs(std::vector<int>& taskIDs, std::vector<real>& coeffs) {
+  inline void getCoeffs(std::vector<size_t>& taskIDs, std::vector<real>& coeffs) {
     for (auto it : coeffs_) {
       taskIDs.push_back(it.first);
       coeffs.push_back(it.second);
     }
   }
 
-  inline std::map<int, real>& getCoeffsDict() { return coeffs_; }
+  inline std::map<size_t, real>& getCoeffsDict() { return coeffs_; }
 
-  inline std::map<LevelVector, int>& getLevelsToIDs() { return levelsToIDs_; }
+  inline std::map<LevelVector, size_t>& getLevelsToIDs() { return levelsToIDs_; }
 
-  inline void setCoeff(int taskID, real coeff) {
+  inline void setCoeff(size_t taskID, real coeff) {
     coeffs_[taskID] = coeff;
     combiDictionary_[levels_[taskID]] = coeff;
   }
 
-  inline void setLevelsCoeffs(std::vector<int>& taskIDs, std::vector<LevelVector>& levels,
+  inline void setLevelsCoeffs(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels,
                               std::vector<real>& coeffs) {
     assert(taskIDs.size() == coeffs.size());
     assert(taskIDs.size() == levels.size());
@@ -109,18 +110,18 @@ class CombiParameters {
     }
   }
 
-  inline const LevelVector& getLevel(int taskID) { return levels_[taskID]; }
+  inline const LevelVector& getLevel(size_t taskID) { return levels_[taskID]; }
 
-  inline int getID(LevelVector level) { return getLevelsToIDs()[level]; }
+  inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
 
-  inline void getLevels(std::vector<int>& taskIDs, std::vector<LevelVector>& levels) {
+  inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) {
     for (auto it : levels_) {
       taskIDs.push_back(it.first);
       levels.push_back(it.second);
     }
   }
 
-  inline std::map<int, LevelVector>& getLevelsDict() { return levels_; }
+  inline std::map<size_t, LevelVector>& getLevelsDict() { return levels_; }
 
   inline std::map<LevelVector, real>& getCombiDict() { return combiDictionary_; }
 
@@ -199,6 +200,28 @@ class CombiParameters {
     return procsSet_;
   }
 
+  /**
+   * @brief Set the Decomposition
+   *
+   * @param decomposition a vector of index vectors, specifying for each dimension
+   *        the lowest 1d index (on a full grid of level lmax)
+   *        that will belong to each cartesian communicator slice
+   */
+  inline void setDecomposition(const std::vector<IndexVector>& decomposition) {
+    assert(uniformDecomposition);
+    decomposition_ = decomposition;
+    for (DimType d = 0; d < dim_; ++d) {
+      assert(decomposition[d][0] == 0);
+      auto numPoints = powerOfTwo[lmax_[d]] + (boundary_[d] ? 1 : -1);
+      assert(decomposition[d].back() < numPoints);
+      assert(procs_[d] == decomposition[d].size());
+    }
+  }
+
+  inline const std::vector<IndexVector>& getDecomposition() const {
+    return decomposition_;
+  }
+
   inline bool getForwardDecomposition() const {
     if (isGENE){
       assert(!forwardDecomposition_);
@@ -215,11 +238,11 @@ class CombiParameters {
 
   std::vector<bool> boundary_;
 
-  std::map<int, LevelVector> levels_;
+  std::map<size_t, LevelVector> levels_;
 
-  std::map<int, real> coeffs_;
+  std::map<size_t, real> coeffs_;
 
-  std::map<LevelVector, int> levelsToIDs_;
+  std::map<LevelVector, size_t> levelsToIDs_;
 
   std::map<LevelVector, real> combiDictionary_;
 
@@ -230,6 +253,8 @@ class CombiParameters {
   IndexVector procs_;
 
   bool procsSet_;
+
+  std::vector<IndexVector> decomposition_;
 
   bool forwardDecomposition_;
 
@@ -275,6 +300,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchicalBases_;
   ar& procs_;
   ar& procsSet_;
+  ar& decomposition_;
   ar& forwardDecomposition_;
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;
@@ -309,6 +335,28 @@ inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& c
   } else {
     throw std::invalid_argument("Hierarchical basis string not known.");
   }
+}
+
+inline static std::vector<LevelVector> getStandardDecomposition(LevelVector lref, IndexVector procsRef) {
+  assert(lref.size() == procsRef.size());
+  std::vector<LevelVector> decomposition;
+  for (DimType d = 0; d < lref.size(); ++d) {
+    LevelVector di;
+    if (procsRef[d] == 1) {
+      di = {0};
+    } else if (procsRef[d] == 2) {
+      di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1};
+    } else if (procsRef[d] == 3) {
+      di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1, 2 * powerOfTwo[lref[d]] / procsRef[d] + 1};
+    } else if (procsRef[d] == 4) {
+      di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1, 2 * powerOfTwo[lref[d]] / procsRef[d] + 1,
+            3 * powerOfTwo[lref[d]] / procsRef[d] + 1};
+    } else {
+      throw std::runtime_error("please implement a test decomposition matching procs and lref");
+    }
+    decomposition.push_back(di);
+  }
+  return decomposition;
 }
 
 }  // namespace combigrid

@@ -74,6 +74,9 @@ class ProcessGroupWorker {
   // parallel file io of final output grid for uniform decomposition
   void parallelEvalUniform();
 
+  // do task-specific postprocessing
+  void doDiagnostics();
+
   /** send back the Lp Norm to Manager */
   void sendLpNorms(int p);
 
@@ -86,8 +89,11 @@ class ProcessGroupWorker {
   /** evaluate norms of combi solution error on reference grid  */
   void evalErrorOnDFG();
 
-  /** interpolate values on all tasks' component grids  */
+  /** interpolate values on all tasks' component grids and send back combined result  */
   std::vector<CombiDataType> interpolateValues();
+
+  /** interpolate values on all tasks' component grids and write results to file */
+  void writeInterpolatedValuesPerGrid();
 
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
@@ -97,6 +103,21 @@ class ProcessGroupWorker {
 
   // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
   void setCombinedSolutionUniform(Task* t);
+
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
+    return combinedUniDSGVector_;
+  }
+
+  TaskContainer& getTasks(){
+    return tasks_;
+  }
+
+  /**
+   * @brief store task and run its init function with current combiParameters
+   *
+   * @param t pointer to a heap-allocated task, the function takes over ownership here
+   */
+  void initializeTaskAndFaults(Task* t);
 
  private:
   TaskContainer tasks_;  // task storage
@@ -126,7 +147,7 @@ class ProcessGroupWorker {
 
   // std::ofstream betasFile_;
 
-  void initializeTaskAndFaults(bool mayAlreadyExist = true);
+  void receiveAndInitializeTaskAndFaults(bool mayAlreadyExist = true);
 
   /** sets all subspaces in all dsgs to zero and allocates them if necessary */
   void zeroDsgsData();

@@ -34,8 +34,7 @@ class TaskExample : public Task {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
-    int lrank;
-    MPI_Comm_rank(lcomm, &lrank);
+    int lrank = theMPISystem()->getLocalRank();
 
     /* create distributed full grid. we try to find a balanced ratio between
      * the number of grid points and the number of processes per dimension
@@ -107,8 +106,7 @@ class TaskExample : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
 
-    int lrank;
-    MPI_Comm_rank(lcomm, &lrank);
+    int lrank = theMPISystem()->getLocalRank();
 
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
     // TODO if your Example uses another data structure, you need to copy

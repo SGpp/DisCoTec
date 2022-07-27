@@ -5,6 +5,13 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 
+#ifdef HAVE_HIGHFIVE
+#include <chrono>
+#include <random>
+// highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi versions)
+#include <highfive/H5File.hpp>
+#endif
+
 namespace combigrid {
 
 ProcessManager::~ProcessManager() {}
@@ -20,7 +27,7 @@ void ProcessManager::sortTasks(){
   );
 }
 
-bool ProcessManager::runfirst() {
+bool ProcessManager::runfirst(bool doInitDSGUs) {
   // sort instances in decreasing order
   sortTasks();
 
@@ -38,8 +45,10 @@ bool ProcessManager::runfirst() {
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   //receiveDurationsOfTasksFromGroupMasters(0);
 
-  // initialize dsgus
-  initDsgus();
+  if (doInitDSGUs) {
+    // initialize dsgus
+    initDsgus();
+  }
 
   // return true if no group failed
   return !group_failed;
@@ -141,7 +150,7 @@ void ProcessManager::updateCombiParameters() {
 /*
  * Compute the group faults that occured at this combination step using the fault simulator
  */
-void ProcessManager::getGroupFaultIDs(std::vector<int>& faultsID,
+void ProcessManager::getGroupFaultIDs(std::vector<size_t>& faultsID,
                                       std::vector<ProcessGroupManagerID>& groupFaults) {
   for (auto p : pgroups_) {
     StatusType status = p->waitStatus();
@@ -154,7 +163,7 @@ void ProcessManager::getGroupFaultIDs(std::vector<int>& faultsID,
   }
 }
 
-void ProcessManager::redistribute(std::vector<int>& taskID) {
+void ProcessManager::redistribute(std::vector<size_t>& taskID) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
     Task* t = NULL;
@@ -189,7 +198,7 @@ void ProcessManager::redistribute(std::vector<int>& taskID) {
 }
 
 void ProcessManager::reInitializeGroup(std::vector<ProcessGroupManagerID>& recoveredGroups,
-                                       std::vector<int>& tasksToIgnore) {
+                                       std::vector<size_t>& tasksToIgnore) {
   std::vector<Task*> removeTasks;
   for (auto g : recoveredGroups) {
     // erase existing tasks in group members to avoid doubled tasks
@@ -228,7 +237,7 @@ void ProcessManager::reInitializeGroup(std::vector<ProcessGroupManagerID>& recov
   std::cout << "Reinitialization finished" << std::endl;
 }
 
-void ProcessManager::recompute(std::vector<int>& taskID, bool failedRecovery,
+void ProcessManager::recompute(std::vector<size_t>& taskID, bool failedRecovery,
                                std::vector<ProcessGroupManagerID>& recoveredGroups) {
   for (size_t i = 0; i < taskID.size(); ++i) {
     // find id in list of tasks
@@ -309,13 +318,14 @@ bool ProcessManager::recoverCommunicators(std::vector<ProcessGroupManagerID> fai
 
 void ProcessManager::recover(int i, int nsteps) {  // outdated
 
-  std::vector<int> faultsID;
+  assert(false && "deprecated function recover");
+  std::vector<size_t> faultsID;
   std::vector<ProcessGroupManagerID> groupFaults;
   getGroupFaultIDs(faultsID, groupFaults);
 
   /* call optimization code to find new coefficients */
   const std::string prob_name = "interpolation based optimization";
-  std::vector<int> redistributeFaultsID, recomputeFaultsID;
+  std::vector<size_t> redistributeFaultsID, recomputeFaultsID;
   recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
   // time does not need to be updated in gene but maybe in other applications
   /*  for ( auto id : redistributeFaultsID ) {
@@ -397,8 +407,20 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
   }
 }
 
-std::map<int, double> ProcessManager::getLpNorms(int p) {
-  std::map<int, double> norms;
+void ProcessManager::doDiagnostics(int taskID) {
+  auto g = getProcessGroupWithTaskID(taskID);
+  g->doDiagnostics(taskID);
+  // call manager-side diagnostics on that Task
+  for (auto task : tasks_) {
+    if (task->getID() == taskID) {
+      task->receiveDiagnostics();
+      return;
+    }
+  }
+}
+
+std::map<size_t, double> ProcessManager::getLpNorms(int p) {
+  std::map<size_t, double> norms;
 
   for (const auto& pg : pgroups_) {
     pg->getLpNorms(p, norms);
@@ -452,6 +474,47 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
     }
   }
   return reducedValues;
+}
+
+void ProcessManager::writeInterpolatedValues(
+    const std::vector<std::vector<real>>& interpolationCoords) {
+  // send interpolation coords as a single array
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
+
+  for (size_t i = 0; i < pgroups_.size(); ++i) {
+    pgroups_[i]->writeInterpolatedValues(interpolationCoordsSerial);
+  }
+}
+
+void ProcessManager::writeInterpolationCoordinates(
+    const std::vector<std::vector<real>>& interpolationCoords) {
+#ifdef HAVE_HIGHFIVE
+  // generate a rank-local per-run random number
+  // std::random_device dev;
+  static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+  static std::uniform_int_distribution<std::mt19937::result_type> dist(
+      1, std::numeric_limits<size_t>::max());
+  static size_t rankLocalRandom = dist(rng);
+
+  std::string saveFilePath = "interpolation_coords.h5";
+  // check if file already exists, if no, create
+  HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
+
+  std::string groupName = "run_" + std::to_string(rankLocalRandom);
+  HighFive::Group group = h5_file.createGroup(groupName);
+
+  std::string datasetName = "coordinates";
+  HighFive::DataSet dataset =
+      group.createDataSet<real>(datasetName, HighFive::DataSpace::From(interpolationCoords));
+  dataset.write(interpolationCoords);
+
+#else  // if not compiled with hdf5
+  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
+#endif
+}
+
+void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
+  pgroups_.back()->writeSparseGridMinMaxCoefficients(filename);
 }
 
 void ProcessManager::reschedule() {

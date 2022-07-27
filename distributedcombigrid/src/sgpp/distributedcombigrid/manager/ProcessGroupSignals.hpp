@@ -57,6 +57,9 @@ const SignalType PARALLEL_EVAL_NORM = 33;
 const SignalType EVAL_ANALYTICAL_NORM = 34;
 const SignalType EVAL_ERROR_NORM = 35;
 const SignalType INTERPOLATE_VALUES = 36;
+const SignalType DO_DIAGNOSTICS = 37;
+const SignalType WRITE_DSG_MINMAX_COEFFICIENTS = 38;
+const SignalType WRITE_INTERPOLATED_VALUES_PER_GRID = 39;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;

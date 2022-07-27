@@ -1,4 +1,6 @@
 #define BOOST_TEST_DYN_LINK
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <boost/test/unit_test.hpp>
 #include <complex>
@@ -61,8 +63,7 @@ class TaskTest : public combigrid::Task {
 };
 
 BOOST_CLASS_EXPORT(TaskTest)
-
-BOOST_AUTO_TEST_SUITE(task, *boost::unit_test::timeout(60))
+BOOST_FIXTURE_TEST_SUITE(task, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test) {
   int size = 8;

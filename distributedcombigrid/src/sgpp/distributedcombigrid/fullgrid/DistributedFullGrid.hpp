@@ -144,7 +144,7 @@ class DistributedFullGrid {
 
   virtual ~DistributedFullGrid() {
     // todo: remove communicators? Yes -> Done
-    MPI_Comm_free(&communicator_);
+    // MPI_Comm_free(&communicator_);
     for (size_t i = 0; i < upwardSubarrays_.size(); ++i)  {
       MPI_Type_free(&upwardSubarrays_[i]);
     }
@@ -885,7 +885,7 @@ class DistributedFullGrid {
 
   // get 1d index of LeftPredecessor of a point
   // returns negative number if point has no left predecessor
-  inline IndexType getLeftPredecessor(DimType d, IndexType idx1d) {
+  inline IndexType getLeftPredecessor(DimType d, IndexType idx1d) const {
     LevelType l = getLevel(d, idx1d);
 
     // boundary points
@@ -897,7 +897,7 @@ class DistributedFullGrid {
     return lpidx;
   }
 
-  inline IndexType getRightPredecessor(DimType d, IndexType idx1d) {
+  inline IndexType getRightPredecessor(DimType d, IndexType idx1d) const {
     LevelType l = getLevel(d, idx1d);
 
     // boundary points
@@ -916,7 +916,7 @@ class DistributedFullGrid {
 
   // get coordinates of the partition which contains the point specified
   // by the global index vector
-  inline void getPartitionCoords(IndexVector& globalAxisIndex, IndexVector& partitionCoords) {
+  inline void getPartitionCoords(IndexVector& globalAxisIndex, IndexVector& partitionCoords) const {
     partitionCoords.resize(dim_);
 
     for (DimType d = 0; d < dim_; ++d) {
@@ -955,6 +955,10 @@ class DistributedFullGrid {
     return rank;
   }
 
+  /**
+   * @brief get a vector containing the ranks of all my cartesian neighboring
+   *        ranks in dimension dim (not only the direct neighbors, all of them)
+   */
   inline std::vector<RankType> getAllMyPoleNeighborRanks(DimType dim) const {
     auto ranks = std::vector<RankType>();
     auto myPartitionCoords = std::vector<int>();
@@ -1024,20 +1028,10 @@ class DistributedFullGrid {
         IndexVector subsizes = this->getUpperBounds(r) - this->getLowerBounds(r);
         IndexVector starts = this->getLowerBounds(r);
 
-        // we store our data in c format, i.e. first dimension is the innermost
-        // dimension. however, we access our data in fortran notation, with the
-        // first index in indexvectors being the first dimension.
-        // to comply with an ordering that mpi understands, we have to reverse
-        // our index vectors
-        // also we have to use int as datatype
         std::vector<int> csizes(sizes.begin(), sizes.end());
         std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
         std::vector<int> cstarts(starts.begin(), starts.end());
-        // if (!reverseOrderingDFGPartitions) { // not sure why, but this produces the wrong results
-        //   csizes.assign(sizes.begin(), sizes.end());
-        //   csubsizes.assign(subsizes.begin(), subsizes.end());
-        //   cstarts.assign(starts.begin(), starts.end());
-        // }
+
 
         // create subarray view on data
         MPI_Datatype mysubarray;
@@ -1188,11 +1182,11 @@ class DistributedFullGrid {
       auto level = sg.getLevelVector(subspaceID);
 
       if (dsg_->isContained(level)) {
-        auto index = dsg_->getIndex(level);
         // auto lsize = getLocalSizeOfSubspaceOnThisPartition(level);
         auto FGIndices = getFGPointsOfSubspace(level);
         auto lsize = FGIndices.size();
 
+        auto index = dsg_->getIndex(level);
         size_t subSgDataSize = dsg_->getDataSize(index);
         // resize DSG subspace if it has zero size
         if (subSgDataSize == 0) {
@@ -1201,7 +1195,9 @@ class DistributedFullGrid {
         } else {
           ASSERT(subSgDataSize == lsize,
                 "subSgDataSize: " << subSgDataSize << ", lsize: "
-                                      << lsize << std::endl);
+                                      << lsize << " from " << FGIndices
+                                      << " , level " << level << " , rank "
+                                      << this->getMpiRank() << std::endl);
         }
         subspaceIndexToFGIndices_.push_back(std::make_pair(index, FGIndices));
       }
@@ -1749,12 +1745,8 @@ class DistributedFullGrid {
     IndexVector subsizes = getUpperBounds() - getLowerBounds();
     IndexVector starts = getLowerBounds();
 
-    // we store our data in c format, i.e. first dimension is the innermost
-    // dimension. however, we access our data in fortran notation, with the
+    // we store our data in fortran notation, with the
     // first index in indexvectors being the first dimension.
-    // to comply with an ordering that mpi understands, we have to reverse
-    // our index vectors
-    // also we have to use int as datatype
     std::vector<int> csizes(sizes.begin(), sizes.end());
     std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
     std::vector<int> cstarts(starts.begin(), starts.end());
@@ -1826,12 +1818,8 @@ class DistributedFullGrid {
     IndexVector subsizes = getUpperBounds() - getLowerBounds();
     IndexVector starts = getLowerBounds();
 
-    // we store our data in c format, i.e. first dimension is the innermost
-    // dimension. however, we access our data in fortran notation, with the
+    // we store our data in fortran notation, with the
     // first index in indexvectors being the first dimension.
-    // to comply with an ordering that mpi understands, we have to reverse
-    // our index vectors
-    // also we have to use int as datatype
     std::vector<int> csizes(sizes.begin(), sizes.end());
     std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
     std::vector<int> cstarts(starts.begin(), starts.end());
@@ -1916,13 +1904,12 @@ class DistributedFullGrid {
         auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
 
         // create MPI datatype
-        // also, the data dimensions are reversed
         std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
         std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
         // the starts are local indices
         std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
 
-        // create subarray view on data //todo do this only once per dimension
+        // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
                                 subsizes.data(), starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(),
@@ -1986,10 +1973,10 @@ class DistributedFullGrid {
 
     // assert only boundaries have those neighbors (remove in case of periodicity)
     // this assumes no periodicity!
-    if(! this->getLowerBounds()[d] == 0){
+    if (!this->getLowerBounds()[d] == 0) {
       assert(highest < 0);
     }
-    if(! this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
+    if (!this->getUpperBounds()[d] == this->getGlobalSizes()[d]) {
       assert(lowest < 0);
     }
   }
@@ -2010,7 +1997,7 @@ class DistributedFullGrid {
         MPI_Sendrecv(this->getData(), 1, upSubarrays[d], lower, TRANSFER_GHOST_LAYER_TAG,
                      this->getData(), 1, downSubarrays[d], higher,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
-    }
+  }
 
   void writeLowerBoundaryToUpperBoundary(DimType d) {
     assert(hasBoundaryPoints_[d] == true);
@@ -2407,7 +2394,10 @@ class DistributedFullGrid {
             " cartdims: " << cartdims << " dims: " << dims);
       assert(cartdims == dims);
 
-      MPI_Comm_dup(comm, &communicator_);
+      // MPI_Comm_dup(comm, &communicator_);
+      // cf. https://www.researchgate.net/publication/220439585_MPI_on_millions_of_cores
+      // "Figure 3 shows the memory consumption in all these cases after 32 calls to MPI Comm dup"
+      communicator_ = comm;
 
 #ifdef DEBUG_OUTPUT
       std::cout << "DistributedFullGrid: using given cartcomm: " << communicator_ << std::endl;
@@ -2417,6 +2407,9 @@ class DistributedFullGrid {
       std::vector<int> periods(dim_, 0);
       int reorder = 0;
       MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0], reorder, &communicator_);
+      std::runtime_error("Currently testing to not duplicate communicator (to save memory), \
+                          if you do want to use this code please take care that \
+                          MPI_Comm_free(&communicator_) will be called at some point");
 #ifdef DEBUG_OUTPUT
       std::cout << "DistributedFullGrid: create new cartcomm" << std::endl;
 #endif
@@ -2610,6 +2603,35 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
   dfg.print(os);
 
   return os;
+}
+
+static inline std::vector<IndexVector> downsampleDecomposition(
+                                        const std::vector<IndexVector> decomposition,
+                                        const LevelVector& referenceLevel, const LevelVector& newLevel,
+                                        const std::vector<bool>& boundary) {
+  auto newDecomposition = decomposition;
+  if (decomposition.size() > 0) {
+    for (DimType d = 0 ; d < referenceLevel.size(); ++ d) {
+      // for now, assume that we never want to interpolate on a level finer than referenceLevel
+      assert(referenceLevel[d] >= newLevel[d]);
+      auto levelDiff = referenceLevel[d] - newLevel[d];
+      auto stepFactor = oneOverPowOfTwo[levelDiff];
+      if(boundary[d]) {
+        // all levels contain the boundary points -> point 0 is the same
+        for (auto& dec: newDecomposition[d]) {
+          dec = static_cast<IndexType>(std::ceil(static_cast<double>(dec)*stepFactor));
+        }
+      } else {
+        // all levels do not contain the boundary points -> mid point is the same
+        auto leftProtrusion = powerOfTwo[levelDiff] - 1;
+        for (auto& dec: newDecomposition[d]) {
+          // same as before, but subtract the "left" protrusion on the finer level
+          dec = static_cast<IndexType>(std::max(0., std::ceil(static_cast<double>(dec - leftProtrusion)*stepFactor)));
+        }
+      }
+    }
+  }
+  return newDecomposition;
 }
 
 }  // namespace combigrid

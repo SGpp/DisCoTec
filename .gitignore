@@ -71,3 +71,8 @@ coverage
 
 # ignoring images
 *.png
+
+# ignoring hdf5 files, and selalib input and output files
+*.h5
+*.txt
+*.nml

@@ -34,8 +34,7 @@ class TaskExample: public Task {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
-    int lrank;
-    MPI_Comm_rank(lcomm, &lrank);
+    int lrank = theMPISystem()->getLocalRank();
 
     /* create distributed full grid. we try to find a balanced ratio between
      * the number of grid points and the number of processes per dimension
@@ -109,9 +108,8 @@ class TaskExample: public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
 
-    int lrank, globalRank;
-    MPI_Comm_rank(lcomm, &lrank);
-    MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+    int globalRank = theMPISystem()->getGlobalRank();
+    int lrank = theMPISystem()->getLocalRank();
 
     /* pseudo timestepping to demonstrate the behaviour of your typical
      * time-dependent simulation problem. */
@@ -231,9 +229,9 @@ class TaskExample: public Task {
   void decideToKill(){ //toDo check if combiStep should be included in task and sent to process groups in case of reassignment
     using namespace std::chrono;
 
-    int globalRank;
+    int globalRank = theMPISystem()->getGlobalRank();
     // MPI_Comm_rank(lcomm, &lrank);
-    MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
+    // MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
     //theStatsContainer()->setTimerStop("computeIterationRank" + std::to_string(globalRank));
     //duration<real> dur = high_resolution_clock::now() - startTimeIteration_;
     //real t_iter = dur.count();

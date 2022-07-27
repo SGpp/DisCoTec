@@ -1,5 +1,9 @@
 #define BOOST_TEST_DYN_LINK
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+
+
 #include <boost/test/unit_test.hpp>
 #include <complex>
 #include <cstdarg>
@@ -11,6 +15,7 @@
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
 #include "sgpp/distributedcombigrid/hierarchization/Hierarchization.hpp"
+#include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 #include "test_helper.hpp"
@@ -130,6 +135,134 @@ class TestFn_3 {
   }
 };
 
+template <typename FG_ELEMENT>
+real getMonteCarloMass(DistributedFullGrid<FG_ELEMENT>& dfg, size_t npoints) {
+  BOOST_TEST_CHECKPOINT("start mass calculation");
+  auto dim = dfg.getDimension();
+  auto interpolationCoords = montecarlo::getRandomCoordinates(npoints, dim);
+  auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
+  real mass = 0.;
+  for (size_t i = 0; i < npoints; ++i) {
+    auto scalarCoordinate = std::accumulate(
+        interpolationCoords[i].begin(), interpolationCoords[i].end(), 1., std::multiplies<real>());
+    // TODO what about complex' imaginary part?
+    mass += std::real(interpolatedValues[i]);
+  }
+  mass = mass / npoints;
+  BOOST_TEST_CHECKPOINT("end mass calculation");
+  return mass;
+}
+
+template <typename FG_ELEMENT>
+std::vector<real> getMonteCarloMomenta(DistributedFullGrid<FG_ELEMENT>& dfg, size_t npoints) {
+  BOOST_TEST_CHECKPOINT("start momentum calculation");
+  const auto dim = dfg.getDimension();
+  auto interpolationCoords = montecarlo::getRandomCoordinates(npoints, dim);
+  auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
+  std::vector<real> momenta(dim + 1, 0.);
+  for (size_t i = 0; i < npoints; ++i) {
+    for (DimType d = 0; d < dim; ++d) {
+      momenta[d] += interpolationCoords[i][d] * std::real(interpolatedValues[i]);
+    }
+    auto scalarCoordinate = std::accumulate(
+        interpolationCoords[i].begin(), interpolationCoords[i].end(), 1., std::multiplies<real>());
+    // TODO what about complex' imaginary part?
+    momenta[dim] += scalarCoordinate * std::real(interpolatedValues[i]);
+  }
+  for (auto& momentum : momenta) {
+    momentum = momentum / npoints;
+  }
+  BOOST_TEST_CHECKPOINT("end momentum calculation");
+  return momenta;
+}
+
+template <typename FG_ELEMENT>
+using FunctionPointer = void (*)(DistributedFullGrid<FG_ELEMENT>& dfg,
+                                 const std::vector<bool>& dims);
+
+template <typename FG_ELEMENT>
+real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
+                                 FunctionPointer<FG_ELEMENT> hierarchizationOperator) {
+  const auto& procs = dfg.getParallelization();
+  const auto& boundary = dfg.returnBoundaryFlags();
+  const auto& comm = dfg.getCommunicator();
+  size_t nPointsMonteCarlo = 1e6;
+  assert(std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; }));
+  real mcMassBefore = getMonteCarloMass(dfg, nPointsMonteCarlo);
+  auto mcMomentaBefore = getMonteCarloMomenta(dfg, nPointsMonteCarlo);
+  real mcMomentumBefore = mcMomentaBefore.back();
+
+  BOOST_TEST_CHECKPOINT("begin hierarchization");
+  auto dim = dfg.getDimension();
+  std::vector<bool> hierarchizationDimensions(dim, true);
+  hierarchizationOperator(dfg, hierarchizationDimensions);
+  BOOST_TEST_CHECKPOINT("end hierarchization");
+
+  // now, all of the momentum should be on the coarsest level -> the corners
+  // register with dsg and extract very small dfg from it (with only corners)
+  BOOST_TEST_CHECKPOINT("create sparse grid");
+  LevelVector lmin(dim, 0);  // TODO
+  LevelVector lone(dim, 1);  // cannot use lmin 0 in dsgu's constructor
+  auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<FG_ELEMENT>>(
+      new DistributedSparseGridUniform<FG_ELEMENT>(dim, dfg.getLevels(), lone, boundary, comm));
+  dfg.registerUniformSG(*uniDSG);
+  // TODO also cannot use level 0 to register dfg -- problem!
+  auto dfgOne = std::unique_ptr<DistributedFullGrid<FG_ELEMENT>>(
+      new DistributedFullGrid<FG_ELEMENT>(dim, lone, comm, boundary, procs));
+  dfgOne->registerUniformSG(*uniDSG);
+  BOOST_TEST_CHECKPOINT("registered sparse grid");
+
+  dfg.addToUniformSG(*uniDSG, 1.);
+  dfgOne->extractFromUniformSG(*uniDSG);
+
+  // TODO extract boundary grid lvl 1 to lvl 0 for now
+  //  mostly stolen from dfg::getCornersValues
+  auto corners = dfgOne->getCornersGlobalVectorIndices();
+  std::sort(corners.begin(), corners.end());
+  std::vector<FG_ELEMENT> values;
+  std::vector<IndexType> localCornerIndices;
+  for (size_t cornerNo = 0; cornerNo < corners.size(); ++cornerNo) {
+    if (dfgOne->isGlobalIndexHere(corners[cornerNo])) {
+      // convert to local vector index, then to linear index
+      IndexVector locAxisIndex(dfgOne->getDimension());
+      bool present = dfgOne->getLocalVectorIndex(corners[cornerNo], locAxisIndex);
+      BOOST_CHECK(present);
+      auto index = dfgOne->getLocalLinearIndex(locAxisIndex);
+      localCornerIndices.push_back(index);
+    }
+  }
+  // make sure corner values are in right order
+  std::sort(localCornerIndices.begin(), localCornerIndices.end());
+  for (const auto& index : localCornerIndices) {
+    values.push_back(dfgOne->getElementVector()[index]);
+  }
+
+  auto dfgZero = std::unique_ptr<DistributedFullGrid<FG_ELEMENT>>(
+      new DistributedFullGrid<FG_ELEMENT>(dim, lmin, comm, boundary, procs));
+  BOOST_CHECK(values.size() == dfgZero->getElementVector().size());
+  dfgZero->getElementVector() = values;
+
+  // no need to dehierarchize, is nodal/scaling function on coarsest grid anyways
+
+  BOOST_TEST_CHECKPOINT("added and extracted from sparse grid");
+
+  real mcMassAfter = getMonteCarloMass(*dfgZero, nPointsMonteCarlo);
+  auto mcMomentaAfter = getMonteCarloMomenta(*dfgZero, nPointsMonteCarlo);
+  real mcMomentumAfter = mcMomentaAfter.back();
+
+  BOOST_TEST(mcMassAfter == mcMassBefore, boost::test_tools::tolerance(5e-2));
+
+  for (DimType d = 0; d < dim + 1; ++d) {
+    std::cout << d << std::endl;
+    BOOST_TEST(mcMomentaAfter[d] == mcMomentaBefore[d], boost::test_tools::tolerance(5e-2));
+  }
+
+  // std::cout << dfg << std::endl;
+  // std::cout << std::endl;
+  // std::cout << *dfgZero << std::endl;
+  return mcMomentumAfter;
+}
+
 template <typename Functor>
 void checkBiorthogonalHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>& dfg,
                                       bool checkValues = true) {
@@ -215,6 +348,24 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
   }
 }
 
+template <typename FG_ELEMENT>
+void fillDFGrandom(DistributedFullGrid<FG_ELEMENT>& dfg, real&& a, real&& b) {
+  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+    dfg.getData()[li] = static_cast<FG_ELEMENT>(
+        montecarlo::getRandomNumber(std::forward<real>(a), std::forward<real>(b)));
+  }
+}
+
+template <typename Functor, typename FG_ELEMENT>
+void fillDFGbyFunction(Functor& f, DistributedFullGrid<FG_ELEMENT>& dfg) {
+  const DimType dim = dfg.getDimension();
+  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+    std::vector<double> coords(dim);
+    dfg.getCoordsLocal(li, coords);
+    dfg.getData()[li] = f(coords);
+  }
+}
+
 template <typename Functor>
 void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>& dfg,
                           bool checkValues = true) {
@@ -226,11 +377,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
 
   if (checkValues) {
     // fill distributed fg with test function
-    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-      std::vector<double> coords(dim);
-      dfg.getCoordsLocal(li, coords);
-      dfg.getData()[li] = f(coords);
-    }
+    fillDFGbyFunction(f, dfg);
 
     // create fg and fill with test function
     fg.createFullGrid();
@@ -322,7 +469,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
   }
 }
 
-BOOST_AUTO_TEST_SUITE(hierarchization, *boost::unit_test::timeout(240))
+BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(240))
 
 // with boundary
 // isotropic
@@ -340,8 +487,11 @@ BOOST_AUTO_TEST_CASE(test_0) {
 // 2D case with 4 workers
 BOOST_AUTO_TEST_CASE(test_05) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
-  LevelVector levels = {2,2,};
-  IndexVector procs = {2,2};
+  LevelVector levels = {
+      2,
+      2,
+  };
+  IndexVector procs = {2, 2};
   std::vector<bool> boundary(2, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 4);
@@ -692,6 +842,10 @@ BOOST_AUTO_TEST_CASE(test_41) {
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
 }
+
+// these large tests only make sense when assertions are not checked (takes too long otherwise)
+#ifdef NDEBUG
+
 BOOST_AUTO_TEST_CASE(test_42) {
   // large test case with timing
   MPI_Barrier(MPI_COMM_WORLD);
@@ -729,7 +883,8 @@ BOOST_AUTO_TEST_CASE(test_43) {
     checkFullWeightingHierarchization(testFn, dfg, false);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    BOOST_TEST_MESSAGE("full weighting hierarchization time: " << duration.count() << " milliseconds");
+    BOOST_TEST_MESSAGE("full weighting hierarchization time: " << duration.count()
+                                                               << " milliseconds");
   }
   // on ipvs-epyc2@  : 3300 milliseconds w single msgs
 }
@@ -749,9 +904,68 @@ BOOST_AUTO_TEST_CASE(test_44) {
     checkBiorthogonalHierarchization(testFn, dfg, false);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    BOOST_TEST_MESSAGE("biorthogonal hierarchization time: " << duration.count() << " milliseconds");
+    BOOST_TEST_MESSAGE("biorthogonal hierarchization time: " << duration.count()
+                                                             << " milliseconds");
   }
   // on ipvs-epyc2@  : 3100 milliseconds w single msgs
+}
+
+#endif // def NDEBUG
+
+BOOST_AUTO_TEST_CASE(momentum) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  CommunicatorType comm = TestHelper::getComm(1);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = 3;
+    LevelVector levels(dim, 4);
+    IndexVector procs(dim, 1);
+    std::vector<bool> boundary(dim, true);
+    auto forward = true;  // todo toggle
+    TestFn_1 testFn(levels);
+    auto constFctn = [](const std::vector<double>& coords) { return 11.; };
+    //TODO make non-periodic operators momentum conserving by methodology from Frank Koster's diss
+    // std::cout << "test fcn" << std::endl;
+    // DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    // {
+    //   // initialize dfg with function
+    //   fillDFGbyFunction(testFn, dfg);
+    //   checkConservationOfMomentum<std::complex<double>>(
+    //       dfg, DistributedHierarchization::hierarchizeBiorthogonal<std::complex<double>>);
+    // }
+    // {
+    //   fillDFGbyFunction(testFn, dfg);
+    //   checkConservationOfMomentum<std::complex<double>>(
+    //       dfg, DistributedHierarchization::hierarchizeFullWeighting<std::complex<double>>);
+    // }
+    // std::cout << "random" << std::endl;
+    // DistributedFullGrid<real> dfg2(3, levels, comm, boundary, procs, forward);
+    // {
+    //   // initialize dfg with random numbers
+    //   fillDFGrandom(dfg2, -100., 100.);
+    //   checkConservationOfMomentum<real>(
+    //       dfg2, DistributedHierarchization::hierarchizeBiorthogonal<real>);
+    // }
+    // {
+    //   fillDFGrandom(dfg2, -100., 100.);
+    //   checkConservationOfMomentum<real>(
+    //       dfg2, DistributedHierarchization::hierarchizeFullWeighting<real>);
+    // }
+    // std::cout << "const" << std::endl;
+    DistributedFullGrid<real> dfg3(3, levels, comm, boundary, procs, forward);
+    {
+      // initialize dfg with constant function
+      fillDFGbyFunction(constFctn, dfg3);
+      // usually, momentum will not be conserved for periodic BC, but for constant functions it should work
+      auto momentum = checkConservationOfMomentum<real>(
+          dfg3, DistributedHierarchization::hierarchizeBiorthogonalPeriodic<real>);
+    }
+    {
+      fillDFGbyFunction(constFctn, dfg3);
+      auto momentum = checkConservationOfMomentum<real>(
+          dfg3, DistributedHierarchization::hierarchizeFullWeightingPeriodic<real>);
+      BOOST_TEST(momentum == std::pow(0.5, dim) * 11., boost::test_tools::tolerance(5e-2));
+    }
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

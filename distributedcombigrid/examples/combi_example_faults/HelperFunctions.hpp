@@ -7,6 +7,8 @@
 #ifndef HELPERFUNCTIONS_HPP_
 #define HELPERFUNCTIONS_HPP_
 
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include "mpi.h"
 #include <vector>
 

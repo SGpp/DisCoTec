@@ -63,7 +63,7 @@ void checkMPIRanksAndCommunication(size_t ngroup, size_t nprocs) {
 
   //   // create Tasks
   //   TaskContainer tasks;
-  //   std::vector<int> taskIDs;
+  //   std::vector<size_t> taskIDs;
   //   for (size_t i = 0; i < levels.size(); i++) {
   //     Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
   //     tasks.push_back(t);
@@ -136,7 +136,7 @@ unsigned long checkMPIMemory(size_t ngroup, size_t nprocs) {
   return local_vmsize;
 }
 
-BOOST_AUTO_TEST_SUITE(mpisystem)
+BOOST_FIXTURE_TEST_SUITE(mpisystem, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::timeout(60)) {
   std::vector<size_t> groupSizes {1,2,4,8};

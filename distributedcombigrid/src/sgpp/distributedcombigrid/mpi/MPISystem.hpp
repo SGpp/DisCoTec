@@ -2,6 +2,8 @@
 #define MPISYSTEM_HPP
 
 #include <assert.h>
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <ostream>
 #include <vector>
@@ -101,6 +103,17 @@ class MPISystem {
    * returns the local communicator which contains all ranks within the process group of caller
    */
   inline const CommunicatorType& getLocalComm() const;
+
+  /**
+   * @brief get own process group number
+   *
+   */
+  inline RankType getProcessGroupNumber() const {
+    if (worldRank_ == managerRankWorld_)
+      return -1;
+    else
+      return  worldRank_ / int(nprocs_);
+  }
 
   /**
    * returns the global reduce communicator which contains all ranks with wich the rank needs to

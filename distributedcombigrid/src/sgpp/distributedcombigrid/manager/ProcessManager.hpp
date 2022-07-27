@@ -47,7 +47,7 @@ class ProcessManager {
   // todo: add remove function
   inline void addTask(Task* t);
 
-  bool runfirst();
+  bool runfirst(bool doInitDSGUs = true);
 
   void initDsgus();
 
@@ -69,25 +69,27 @@ class ProcessManager {
   inline void gridEval(FullGrid<FG_ELEMENT>& fg);
 
   /* Generates no_faults random faults from the combischeme */
-  inline void createRandomFaults(std::vector<int>& faultIds, int no_faults);
+  inline void createRandomFaults(std::vector<size_t>& faultIds, int no_faults);
 
-  inline void recomputeOptimumCoefficients(std::string prob_name, std::vector<int>& faultsID,
-                                           std::vector<int>& redistributefaultsID,
-                                           std::vector<int>& recomputeFaultsID);
+  inline void recomputeOptimumCoefficients(std::string prob_name, std::vector<size_t>& faultsID,
+                                           std::vector<size_t>& redistributefaultsID,
+                                           std::vector<size_t>& recomputeFaultsID);
 
-  inline Task* getTask(int taskID);
+  inline Task* getTask(size_t taskID);
 
   void updateCombiParameters();
 
   /* Computes group faults in current combi scheme step */
-  void getGroupFaultIDs(std::vector<int>& faultsID,
+  void getGroupFaultIDs(std::vector<size_t>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);
 
   inline CombiParameters& getCombiParameters();
 
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
 
-  std::map<int, double> getLpNorms(int p = 2);
+  void doDiagnostics(int taskID);
+
+  std::map<size_t, double> getLpNorms(int p = 2);
 
   std::vector<double> parallelEvalNorm(const LevelVector& leval, size_t groupID = 0);
 
@@ -97,12 +99,18 @@ class ProcessManager {
 
   std::vector<CombiDataType> interpolateValues(const std::vector<std::vector<real>>& interpolationCoords);
 
-  void redistribute(std::vector<int>& taskID);
+  void writeInterpolatedValues(const std::vector<std::vector<real>>& interpolationCoords);
+
+  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords);
+
+  void writeSparseGridMinMaxCoefficients(const std::string& filename);
+
+  void redistribute(std::vector<size_t>& taskID);
 
   void reInitializeGroup(std::vector<ProcessGroupManagerID>& taskID,
-                         std::vector<int>& tasksToIgnore);
+                         std::vector<size_t>& tasksToIgnore);
 
-  void recompute(std::vector<int>& taskID, bool failedRecovery,
+  void recompute(std::vector<size_t>& taskID, bool failedRecovery,
                  std::vector<ProcessGroupManagerID>& recoveredGroups);
 
   void recover(int i, int nsteps);
@@ -146,9 +154,22 @@ class ProcessManager {
   void receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive);
 
   void sortTasks();
+
+  ProcessGroupManagerID getProcessGroupWithTaskID(int taskID){
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->hasTask(taskID)){
+        return pgroups_[i];
+      }
+    }
+  }
 };
 
-inline void ProcessManager::addTask(Task* t) { tasks_.push_back(t); }
+inline void ProcessManager::addTask(Task* t) {
+  tasks_.push_back(t);
+  // wait for available process group
+  ProcessGroupManagerID g = wait();
+  g->addTask(t);
+}
 
 inline ProcessGroupManagerID ProcessManager::wait() {
   while (true) {
@@ -297,8 +318,8 @@ CombiParameters& ProcessManager::getCombiParameters() { return params_; }
  * simply cannot give the evaluation results, but they are still available in the MPI
  * communication scheme (the nodes are not dead)
  */
-inline void ProcessManager::createRandomFaults(std::vector<int>& faultIds, int no_faults) {
-  int fault_id;
+inline void ProcessManager::createRandomFaults(std::vector<size_t>& faultIds, int no_faults) {
+  size_t fault_id;
 
   // create random faults
   int j = 0;
@@ -316,12 +337,12 @@ inline void ProcessManager::createRandomFaults(std::vector<int>& faultIds, int n
  * an optimization scheme
  */
 inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
-                                                         std::vector<int>& faultsID,
-                                                         std::vector<int>& redistributeFaultsID,
-                                                         std::vector<int>& recomputeFaultsID) {
+                                                         std::vector<size_t>& faultsID,
+                                                         std::vector<size_t>& redistributeFaultsID,
+                                                         std::vector<size_t>& recomputeFaultsID) {
   CombigridDict given_dict = params_.getCombiDict();
 
-  std::map<int, LevelVector> IDsToLevels = params_.getLevelsDict();
+  std::map<size_t, LevelVector> IDsToLevels = params_.getLevelsDict();
   LevelVectorList faultLevelVectors;
   for (auto id : faultsID) faultLevelVectors.push_back(IDsToLevels[id]);
 
@@ -340,7 +361,7 @@ inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
 
     LevelVectorList newLevels;
     std::vector<real> newCoeffs;
-    std::vector<int> newTaskIDs;
+    std::vector<size_t> newTaskIDs;
 
     int numLevels = int(params_.getNumLevels());
     for (int i = 0; i < numLevels; ++i) {
@@ -364,7 +385,7 @@ inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
     assert(roundedSum == 1);
     params_.setLevelsCoeffs(newTaskIDs, newLevels, newCoeffs);
 
-    std::map<LevelVector, int> LevelsToIDs = params_.getLevelsToIDs();
+    std::map<LevelVector, size_t> LevelsToIDs = params_.getLevelsToIDs();
     for (auto l : recomputeLevelVectors) {
       recomputeFaultsID.push_back(LevelsToIDs[l]);
     }
@@ -378,7 +399,7 @@ inline void ProcessManager::recomputeOptimumCoefficients(std::string prob_name,
   }
 }
 
-inline Task* ProcessManager::getTask(int taskID) {
+inline Task* ProcessManager::getTask(size_t taskID) {
   for (Task* tmp : tasks_) {
     if (tmp->getID() == taskID) {
       return tmp;

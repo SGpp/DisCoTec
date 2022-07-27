@@ -107,8 +107,10 @@ class Module(object):
     # export library name and dependencies
     libname = self.libname
     env.Export("libname")
-    moduleDependencies = self.moduleDependencies
     env.Export("moduleDependencies")
+
+    if env["USE_HDF5"]:
+      self.moduleDependencies.append("hdf5")
 
     if env["BUILD_STATICLIB"]:
       # build static library

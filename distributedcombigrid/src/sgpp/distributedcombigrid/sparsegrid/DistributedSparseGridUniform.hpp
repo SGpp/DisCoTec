@@ -149,10 +149,18 @@ class DistributedSparseGridUniform {
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
 
+  void writeMinMaxCoefficents(const std::string& filename, size_t i) const;
+
+  // naive read/write operations -- each rank writes their own data partition to a separate binary file
+  void writeToDisk(std::string filePrefix);
+
+  void readFromDisk(std::string filePrefix);
+
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
-  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax, std::vector<LevelVector>& created) const;
+  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax,
+                       std::vector<LevelVector>& created) const;
 
   // void setSizes();
 
@@ -163,8 +171,6 @@ class DistributedSparseGridUniform {
   std::vector<bool> boundary_;
 
   CommunicatorType comm_;
-
-  std::vector<RankType> subspaceToProc_;
 
   RankType rank_;
 
@@ -292,7 +298,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setZero() {
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::print(std::ostream& os) const {
   for (size_t i = 0; i < subspaces_.size(); ++i) {
-    os << i << " " << levels_[i] << " " //<< subspaces_[i].sizes_ << " "
+    os << i << " " << levels_[i] << " " << subspacesDataSizes_[i] << " "
       //  << subspaces_[i].size_
        << std::endl;
   }
@@ -571,6 +577,67 @@ inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const
 template <typename FG_ELEMENT>
 inline const std::vector<size_t>& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes() const {
   return subspacesDataSizes_;
+}
+
+template <typename FG_ELEMENT>
+inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
+    const std::string& filename, size_t i) const {
+  bool writerProcess = false;
+  std::ofstream ofs;
+  if (getCommRank(getCommunicator()) == 0) {
+    writerProcess = true;
+    ofs = std::ofstream(filename + "_" + std::to_string(i) + ".txt");
+    // std::cout << *this << std::endl;
+  }
+  // iterate subspaces
+  assert(levels_.size() > 0);
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<combigrid::real>());
+  auto realmax = std::numeric_limits<combigrid::real>::max();
+  auto realmin = std::numeric_limits<combigrid::real>::min();
+  auto smaller_real = [](const FG_ELEMENT& one, const FG_ELEMENT& two) {
+    return std::real(one) < std::real(two);
+  };
+
+  for (size_t i = 0; i < levels_.size(); ++i) {
+    auto minimumValue = realmax;
+    auto maximumValue = realmin;
+    if (subspacesDataSizes_[i] > 0) {
+      // auto first = subspacesData_.begin();
+      auto first = subspaces_[i].data_;
+      auto last = first + subspacesDataSizes_[i];
+      auto it = std::min_element(first, last, smaller_real);
+      minimumValue = std::real(*it);
+      first = subspaces_[i].data_;
+      it = std::max_element(first, last, smaller_real);
+      maximumValue = std::real(*it);
+    }
+    // allreduce the minimum and maxiumum values
+    MPI_Allreduce(MPI_IN_PLACE, &minimumValue, 1, dataType, MPI_MIN, getCommunicator());
+    MPI_Allreduce(MPI_IN_PLACE, &maximumValue, 1, dataType, MPI_MAX, getCommunicator());
+
+    // if on zero process, write them out to file
+    if (writerProcess) {
+      const auto& level = getLevelVector(i);
+      if (minimumValue < realmax)
+        ofs << level << " : " << minimumValue << ", " << maximumValue << std::endl;
+    }
+  }
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::writeToDisk(std::string filePrefix) {
+  std::string myFilename = filePrefix + std::to_string(this->rank_);
+  std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
+  ofp.write(reinterpret_cast<const char*>(this->getRawData()), this->getRawDataSize() * sizeof(FG_ELEMENT));
+  ofp.close();
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::readFromDisk(std::string filePrefix){
+  std::string myFilename = filePrefix + std::to_string(this->rank_);
+  std::ifstream ifp(myFilename, std::ios::in | std::ios::binary);
+  ifp.read(reinterpret_cast<char*>(this->getRawData()), this->getRawDataSize() * sizeof(FG_ELEMENT));
+  ifp.close();
 }
 
 /**
