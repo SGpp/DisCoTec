@@ -121,8 +121,6 @@ class CombiMinMaxScheme {
   /* Calculate the coefficients of the adaptive CT using the formula in Alfredo's
    * SDC paper (from Brendan Harding)*/
   void computeCombiCoeffsAdaptive();
-
-  LevelVector getLevelMinima();
 };
 
 inline std::ostream& operator<<(std::ostream& os, const combigrid::CombiMinMaxScheme& scheme) {

@@ -58,12 +58,27 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   computeCombiCoeffsClassical();
 }
 
+LevelVector getFurthestCorner(LevelVector& lmax, LevelVector& lmin) {
+  LevelVector ldiff = lmax - lmin;
+  std::vector<IndexType>::iterator result = std::max_element(ldiff.begin(), ldiff.end());
+  LevelType indexMax = std::distance(ldiff.begin(), result);
+  LevelVector lm(lmin);
+  lm[indexMax] = lmax[indexMax];
+  return lm;
+}
+
 void CombiMinMaxScheme::createAdaptiveCombischeme() {
-  LevelVector lm = getLevelMinima();
-  n_ = std::accumulate(lm.begin(), lm.end(), 0);
+  LevelVector lm = getFurthestCorner(lmax_, lmin_);
+  n_ = std::accumulate(lm.begin(), lm.end(), 0); // = sum(lmin_) + max(ldiff)
   LevelVector l(dim_);
-  // TODO: Why levelSum-1 ?
-  createLevelsRec(dim_, n_ - 1, dim_, l, lmax_);
+  // // TODO: Why levelSum-1 ?
+  // createLevelsRec(dim_, n_ - 1, dim_, l, lmax_);
+  auto n = n_ - sum(lmin_);
+  auto rlmin = lmax_;
+  for (auto& rl: rlmin) {
+    rl -= n;
+  }
+  combigrid::createTruncatedHierarchicalLevels(lmax_, rlmin, levels_);
 
   for (auto level : levels_) {
     int l1norm = std::accumulate(level.begin(), level.end(), 0);
@@ -90,15 +105,6 @@ void CombiMinMaxScheme::makeFaultTolerant() {
       }
     }
   }
-}
-
-LevelVector CombiMinMaxScheme::getLevelMinima() {
-  LevelVector tmp = lmax_ - lmin_;
-  std::vector<IndexType>::iterator result = std::max_element(tmp.begin(), tmp.end());
-  LevelType indexMax = std::distance(tmp.begin(), result);
-  LevelVector lm(lmin_);
-  lm[indexMax] = lmax_[indexMax];
-  return lm;
 }
 
 void CombiMinMaxScheme::createLevelsRec(DimType dim, LevelType n, DimType d, LevelVector& l,
