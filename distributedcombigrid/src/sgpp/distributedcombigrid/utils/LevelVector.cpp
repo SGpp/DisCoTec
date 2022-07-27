@@ -55,6 +55,8 @@ std::vector<std::vector<DimType>> getAllKOutOfDDimensions(DimType k, DimType d) 
 void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
                                         const LevelVector& lmax, const LevelVector& lmin,
                                         std::vector<LevelVector>& created) {
+  assert(lmax[dim-1] == lmin[dim-1] + n);
+
   // sum rightmost entries of level vector
   LevelType lsum(0);
   for (size_t i = dim; i < l.size(); ++i) {
