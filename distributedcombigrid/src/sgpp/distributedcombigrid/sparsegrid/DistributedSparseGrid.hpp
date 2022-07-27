@@ -129,8 +129,6 @@ class DistributedSparseGrid {
  private:
   void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
-  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax);
-
   void setSizes();
 
   void calcProcAssignment(int procsPerNode);
@@ -223,60 +221,10 @@ std::ostream& operator<<(std::ostream& os, const DistributedSparseGrid<FG_ELEMEN
 template <typename FG_ELEMENT>
 DistributedSparseGrid<FG_ELEMENT>::~DistributedSparseGrid() {}
 
-// start recursion by setting dim=d=dimensionality of the vector space
-template <typename FG_ELEMENT>
-void DistributedSparseGrid<FG_ELEMENT>::createLevelsRec(size_t dim, size_t n, size_t d,
-                                                        LevelVector& l, const LevelVector& nmax) {
-  // sum rightmost entries of level vector
-  LevelType lsum(0);
-
-  for (size_t i = dim; i < l.size(); ++i) lsum += l[i];
-
-  for (LevelType ldim = 1; ldim <= LevelType(n) + LevelType(d) - 1 - lsum; ++ldim) {
-    l[dim - 1] = ldim;
-
-    if (dim == 1) {
-      if (l <= nmax) {
-        levels_.push_back(l);
-        // std::cout << l << std::endl;
-      }
-    } else {
-      createLevelsRec(dim - 1, n, d, l, nmax);
-    }
-  }
-}
-
 template <typename FG_ELEMENT>
 void DistributedSparseGrid<FG_ELEMENT>::createLevels(DimType dim, const LevelVector& nmax,
                                                      const LevelVector& lmin) {
-  assert(nmax.size() == dim);
-  assert(lmin.size() == dim);
-
-  // compute c which fulfills nmax - c*1  >= lmin
-
-  LevelVector ltmp(nmax);
-  LevelType c = 0;
-
-  while (ltmp > lmin) {
-    ++c;
-
-    for (size_t i = 0; i < dim; ++i) {
-      ltmp[i] = nmax[i] - c;
-
-      if (ltmp[i] < 1) ltmp[i] = 1;
-    }
-  }
-
-  LevelVector rlmin(dim);
-
-  for (size_t i = 0; i < rlmin.size(); ++i) {
-    rlmin[i] = nmax[i] - c;
-  }
-
-  LevelType n = sum(rlmin) + c - dim + 1;
-
-  LevelVector l(dim);
-  createLevelsRec(dim, n, dim, l, nmax);
+  assert(false); //TODO steal back from DistributedSparseGridUniform
 }
 
 template <typename FG_ELEMENT>
