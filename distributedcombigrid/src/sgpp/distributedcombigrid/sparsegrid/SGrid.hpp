@@ -89,7 +89,8 @@ class SGrid {
  private:
   void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
-  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax);
+  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax,
+                       const LevelVector& lmin);
 
   void setSizes();
 
@@ -228,6 +229,8 @@ SGrid<FG_ELEMENT>::SGrid(DimType dim, const LevelVector& nmax, const LevelVector
   lmin_ = lmin;
   boundary_ = boundary;
 
+
+  std::cout << "SGrid "  << (nmax)  << (lmin) << std::endl;
   createLevels(dim, nmax_, lmin_);
 
   data_.resize(levels_.size());
@@ -423,25 +426,83 @@ SGrid<FG_ELEMENT>::~SGrid() {
   // TODO Auto-generated destructor stub
 }
 
-// start recursion by setting dim=d=dimensionality of the vector space
+// cf.
+// https://stackoverflow.com/questions/12991758/creating-all-possible-k-combinations-of-n-items-in-c
+static std::vector<std::vector<DimType>> getAllKOutOfDDimensions(DimType k, DimType d) {
+  std::vector<std::vector<DimType>> combinations;
+  std::vector<DimType> selected;
+  std::vector<DimType> selector(d);
+  std::fill(selector.begin(), selector.begin() + k, 1);
+  do {
+    for (DimType i = 0; i < d; i++) {
+      if (selector[i]) {
+        selected.push_back(i);
+      }
+    }
+    combinations.push_back(selected);
+    selected.clear();
+  } while (std::prev_permutation(selector.begin(), selector.end()));
+  return combinations;
+}
+
+/**
+ * @brief recursively generate a downward-closed set of hierarchical level vectors
+ *
+ * @param dim : the currently recursively iterated dimension
+ * @param n : the "regular level", here the minimum of the difference of lmax and lmin
+ * @param d : the dimensionality
+ * @param l : the currently populated level vector (entries filled only from dim to d-1)
+ * @param nmax
+ * @param lmin
+ *
+ *  start recursion by setting dim=d=dimensionality of the vector space
+    for correct subspace restriction in d > 2, we need 3 criteria:
+    the diagonal hyperplane that restricts to the simplex,
+    the maximum of lmax in every dimension, and
+    the mixed dimension sum restrictions
+ */
 template <typename FG_ELEMENT>
 void SGrid<FG_ELEMENT>::createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l,
-                                        const LevelVector& nmax) {
+                                        const LevelVector& nmax, const LevelVector& lmin) {
   // sum rightmost entries of level vector
   LevelType lsum(0);
+  for (size_t i = dim; i < l.size(); ++i) {
+    lsum += l[i];
+  }
 
-  for (size_t i = dim; i < l.size(); ++i) lsum += l[i];
-
-  for (LevelType ldim = 1; ldim <= LevelType(n) + LevelType(d) - 1 - lsum; ++ldim) {
-    l[dim - 1] = ldim;
-
-    if (dim == 1) {
-      if (l <= nmax) {
-        levels_.push_back(l);
-        // std::cout << l << std::endl;
-      }
+  // iterate everything below hyperplane
+  for (LevelType ldim = 1; ldim <= LevelType(sum(lmin) + n) - lsum; ++ldim) {
+    // smallereq than lmax in every dim
+    if (ldim > nmax[dim - 1]) {
+      continue;
     } else {
-      createLevelsRec(dim - 1, n, d, l, nmax);
+      l[dim - 1] = ldim;
+      if (dim == 1) {
+        // all mixed dimension sums
+        bool pleaseAdd = true;
+        for (DimType k = 2; k <= d; ++k) {
+          auto dimList = getAllKOutOfDDimensions(k, d);
+          // for each subselection of dimensions, compute sum of l and lmin
+          for (const auto& dimCombination : dimList) {
+            LevelType partlsum(0), partlminsum(0);
+            for (const auto& i : dimCombination) {
+              partlsum += l[i];
+              partlminsum += lmin[i];
+            }
+            if ((partlsum > static_cast<LevelType>(partlminsum + n))) {
+              // std::cout << k << " k " << l << partlsum << " " << dimCombination << " other stop "
+              // << partlminsum << " n " << n << std::endl;
+              pleaseAdd = false;
+              break;
+            }
+          }
+        }
+        if (pleaseAdd) {
+          levels_.push_back(l);
+        }
+      } else {
+        createLevelsRec(dim - 1, n, d, l, nmax, lmin);
+      }
     }
   }
 }
@@ -452,31 +513,19 @@ void SGrid<FG_ELEMENT>::createLevels(DimType dim, const LevelVector& nmax,
   assert(nmax.size() == dim);
   assert(lmin.size() == dim);
 
-  // compute c which fulfills nmax - c*1  >= lmin
-
-  LevelVector ltmp(nmax);
-  LevelType c = 0;
-
-  while (ltmp > lmin) {
-    ++c;
-
-    for (size_t i = 0; i < dim; ++i) {
-      ltmp[i] = nmax[i] - c;
-
-      if (ltmp[i] < 1) ltmp[i] = 1;
-    }
-  }
+  LevelVector ldiff = nmax - lmin;
+  LevelType minLevelDifference = *(std::min_element(ldiff.begin(), ldiff.end()));
 
   LevelVector rlmin(dim);
 
   for (size_t i = 0; i < rlmin.size(); ++i) {
-    rlmin[i] = nmax[i] - c;
+    rlmin[i] = nmax[i] - minLevelDifference;
   }
 
-  LevelType n = sum(rlmin) + c - dim + 1;
+  LevelType n = minLevelDifference;
 
   LevelVector l(dim);
-  createLevelsRec(dim, n, dim, l, nmax);
+  createLevelsRec(dim, n, dim, l, nmax, rlmin);
 }
 
 template <typename FG_ELEMENT>
