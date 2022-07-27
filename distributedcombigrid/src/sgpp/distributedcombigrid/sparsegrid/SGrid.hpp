@@ -229,8 +229,6 @@ SGrid<FG_ELEMENT>::SGrid(DimType dim, const LevelVector& nmax, const LevelVector
   lmin_ = lmin;
   boundary_ = boundary;
 
-
-  std::cout << "SGrid "  << (nmax)  << (lmin) << std::endl;
   createLevels(dim, nmax_, lmin_);
 
   data_.resize(levels_.size());
