@@ -82,6 +82,9 @@ class DistributedSparseGridUniform {
   // creates data if necessary and sets all data elements to zero
   void setZero();
 
+  // return all level vectors
+  inline const std::vector<LevelVector>& getAllLevelVectors() const;
+
   // return level vector of subspace i
   inline const LevelVector& getLevelVector(size_t i) const;
 
@@ -343,6 +346,12 @@ std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
 //     subspaces_[i].size_ = size_t(tmp);
 //   }
 // }
+
+template <typename FG_ELEMENT>
+inline const std::vector<LevelVector>&
+DistributedSparseGridUniform<FG_ELEMENT>::getAllLevelVectors() const {
+  return levels_;
+}
 
 template <typename FG_ELEMENT>
 inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVector(size_t i) const {
