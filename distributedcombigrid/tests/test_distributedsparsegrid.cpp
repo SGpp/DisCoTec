@@ -134,7 +134,9 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
                                        std::to_string(size) + "_" + std::to_string(boundary[0]),
                                    0);
     // and remove straight away
-    system("rm sparse_paraboloid_minmax_*");
+    if (rank == 0) {
+      system("rm sparse_paraboloid_minmax_*");
+    }
 
     // std::cout << *uniDSG << std::endl;
 
@@ -200,7 +202,9 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     uniDSG->readFromDisk("test_sg_");
 
     // and remove straight away
-    system( "rm test_sg_*" );
+    if (rank == 0) {
+      system( "rm test_sg_*" );
+    }
 
     // TODO test for reduced lmax
   }
