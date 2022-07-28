@@ -38,12 +38,12 @@ void mockUpDSGWriteToDisk(std::string filePrefix,
   }
 }
 
-void validateExchangedData(const std::vector<long long int>& dsgPartitionSizes,
-                           size_t partitionIndex) {
+void validateExchangedData(std::string filePrefix,
+                           const std::vector<long long int>& dsgPartitionSizes) {
   // generate data on heap
   std::unique_ptr<std::vector<real>> mockUpData(
-      new std::vector<real>(dsgPartitionSizes[partitionIndex]));
-  combigrid::montecarlo::getNumberSequenceFromSeed(*mockUpData, partitionIndex);
+      new std::vector<real>(dsgPartitionSizes[0]));
+  combigrid::montecarlo::getNumberSequenceFromSeed(*mockUpData, 0);
   std::cout << "test first data" << std::endl;
   decltype(mockUpData) mockUpDataInverted(new std::vector<real>());
   mockUpDataInverted->reserve(mockUpData->size());
@@ -51,8 +51,12 @@ void validateExchangedData(const std::vector<long long int>& dsgPartitionSizes,
   std::transform(mockUpData->begin(), mockUpData->end(), std::back_inserter(*mockUpDataInverted),
                  std::negate<real>());
   std::cout << "test transform data" << std::endl;
+  std::string myFilename = filePrefix + std::to_string(0);
+  std::ifstream ifp(myFilename, std::ios::in | std::ios::binary);
+  std::unique_ptr<std::vector<real>> readData(new std::vector<real>(dsgPartitionSizes[0]));
+  ifp.read(reinterpret_cast<char*>(readData->data()), dsgPartitionSizes[0] * sizeof(real));
   for (size_t i = 0; i < mockUpData->size(); ++i) {
-    if (mockUpData->at(i) + mockUpDataInverted->at(i) != 0.0) {
+    if (readData->at(i) + mockUpDataInverted->at(i) != 0.0) {
       throw std::runtime_error("binary data does not match");
     }
   }
@@ -216,10 +220,10 @@ int main(int argc, char** argv) {
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     // set up the ssh tunnel for third level communication, if necessary
     // todo: if this works, move to ProcessManager::setUpThirdLevel
-    if (thirdLevelSSHCommand != "") {
-      shellCommand::exec(thirdLevelSSHCommand.c_str());
-      std::cout << thirdLevelSSHCommand << " returned " << std::endl;
-    }
+    // if (thirdLevelSSHCommand != "") {
+    //   shellCommand::exec(thirdLevelSSHCommand.c_str());
+    //   std::cout << thirdLevelSSHCommand << " returned " << std::endl;
+    // }
 
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
@@ -240,10 +244,10 @@ int main(int argc, char** argv) {
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi*2, 1, p,
                            std::vector<IndexType>(dim, 0), reduceCombinationDimsLmax,
                            forwardDecomposition);
-    auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax);
-    if(ctDOF < sgDOF) {
-      throw std::runtime_error("Partitions don't match " + std::to_string(ctDOF) + " " + std::to_string(sgDOF));
-    }
+    // auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax);
+    // if(ctDOF < sgDOF) {
+    //   throw std::runtime_error("Partitions don't match " + std::to_string(ctDOF) + " " + std::to_string(sgDOF));
+    // }
     std::vector<LevelVector> decomposition;
     for (DimType d = 0; d < dim; ++d) {
       if (p[d] > (powerOfTwo[lmin[d]] + (boundary[d] ? +1 : -1))) {
@@ -284,36 +288,49 @@ int main(int argc, char** argv) {
 
     manager.updateCombiParameters();
 
-    auto dsguSizes =
-        getPartitionedNumDOFSGAdaptive(lmin, lmax - reduceCombinationDimsLmax, lmax, decomposition);
-    auto sgSumDOFPartitioned = std::accumulate(dsguSizes.begin(), dsguSizes.end(), static_cast<size_t>(0));
-    if(sgSumDOFPartitioned != sgDOF || ctDOF < sgDOF) {
-      throw std::runtime_error("Partitions don't match" + std::to_string(sgSumDOFPartitioned) + " " + std::to_string(sgDOF));
-    }
-    decltype(dsguSizes) dsguConjointSizes;
+    // auto dsguSizes =
+    //     getPartitionedNumDOFSGAdaptive(lmin, lmax - reduceCombinationDimsLmax, lmax, decomposition);
+    // auto sgSumDOFPartitioned = std::accumulate(dsguSizes.begin(), dsguSizes.end(), static_cast<size_t>(0));
+    // if(sgSumDOFPartitioned != sgDOF || ctDOF < sgDOF) {
+    //   throw std::runtime_error("Partitions don't match" + std::to_string(sgSumDOFPartitioned) + " " + std::to_string(sgDOF));
+    // }
+    // Stats::startEvent("manager calculate dsguConjointSizes");
+    // std::vector<long long int> dsguConjointSizes;
+    // {
+    //   std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
+    //       new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
+    //   dsguConjointSizes = getPartitionedNumDOFSGConjoint(*scheme, lmin, lmax, decomposition);
+    // }
+    // Stats::stopEvent("manager calculate dsguConjointSizes");
+    Stats::startEvent("manager calculate dsguConjointSize");
+    long long int dsguConjointSize;
     {
+      std::cout <<"scheme from file" << std::endl;
       std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
           new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
-      dsguConjointSizes = getPartitionedNumDOFSGConjoint(*scheme, lmin, lmax, decomposition);
+      std::cout <<"calc conjoint" << std::endl;
+      dsguConjointSize = getNumDOFSGConjoint(*scheme, lmin);
+      std::cout <<"have dof conjoint" << std::endl;
     }
+    Stats::stopEvent("manager calculate dsguConjointSize");
 
-    std::cout << dsguSizes << std::endl;
+    // std::cout << dsguSizes << std::endl;
     std::cout << "vs conjoint" << std::endl;
-    std::cout << dsguConjointSizes << std::endl;
+    std::cout << dsguConjointSize << std::endl;
     std::cout << "and that makes a total of DOF " << std::endl;
-    std::cout << std::accumulate(dsguSizes.begin(), dsguSizes.end(), 0ll) << std::endl;
-    std::cout << std::accumulate(dsguConjointSizes.begin(), dsguConjointSizes.end(), 0ll) << std::endl;
-    std::cout << "distributed over a total of partitions " << std::endl;
-    std::cout << dsguSizes.size() << " " << dsguConjointSizes.size() << std::endl;
+    // std::cout << std::accumulate(dsguSizes.begin(), dsguSizes.end(), 0ll) << std::endl;
+    // std::cout << std::accumulate(dsguConjointSizes.begin(), dsguConjointSizes.end(), 0ll) << std::endl;
+    // std::cout << "distributed over a total of partitions " << std::endl;
+    // std::cout << dsguConjointSizes.size() << std::endl;
 
     for (size_t i = 1; i < ncombi; ++i) {
       Stats::startEvent("manager pretend to third-level combine");
       // if (hasThirdLevel) {
         // manager.pretendCombineThirdLevel(dsguConjointSizes, false);//TODO
         std::cout << "mock" << std::endl;
-        mockUpDSGWriteToDisk("dsg_part_" + std::to_string(systemNumber) + "_", dsguConjointSizes);
+        mockUpDSGWriteToDisk("dsg_part_" + std::to_string(systemNumber) + "_", {dsguConjointSize});
         std::cout << "test" << std::endl;
-        validateExchangedData(dsguConjointSizes, i);
+        validateExchangedData("dsg_part_" + std::to_string(systemNumber) + "_", {dsguConjointSize});
         sleep(2);
       // } else {
       //   throw std::runtime_error("this was not intended!");
