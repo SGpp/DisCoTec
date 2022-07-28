@@ -80,6 +80,7 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorTy
 void MPISystem::init(size_t ngroup, size_t nprocs) {
   initSystemConstants(ngroup, nprocs);
 
+  initialized_ = true;
   if (ngroup * nprocs > 0) {
     /* init localComm
      * lcomm is the local communicator of its own process group for each worker process.
@@ -115,7 +116,6 @@ void MPISystem::init(size_t ngroup, size_t nprocs) {
       throw std::runtime_error(" too many MPI processes for manager-only setup");
     }
   }
-  initialized_ = true;
 }
 
 /*  here the local communicator has already been created by the application */
