@@ -172,7 +172,7 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
   std::vector<size_t> processGroupNumbers_;
 };
 
-static long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces) {
+inline long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces) {
   long long int numDOF = 0;
   for (const auto& space : combiSpaces) {
     long int numDOFSpace = 1;
@@ -192,20 +192,14 @@ static long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& 
   return numDOF;
 }
 
-static long long int printSGDegreesOfFreedomAdaptive(const LevelVector& lmin,
-                                                     const LevelVector& lmax) {
-  DimType dim = lmin.size();
+inline long long int getSGDegreesOfFreedomFromDownSet(const std::vector<LevelVector>& downSet) {
   long long int numDOF = 0;
-  CombiMinMaxScheme combischeme(dim, lmin, lmax);
-  combischeme.createAdaptiveCombischeme();
-  // combischeme.createDownSet();
-  auto downSet = combischeme.getDownSet();
   for (const auto& subspaceLevel : downSet) {
     long long int numDOFSpace = 1;
     for (const auto& level_i : subspaceLevel) {
       assert(level_i > -1);
-      // for the weird kind of boundary handling we currently have (the boundary points belong to
-      // level 1)
+      // for the weird kind of boundary handling we currently have
+      // (in the hierarchical spaces, the boundary points belong to level 1)
       assert(level_i > 0);
       if (level_i > 1) {
         numDOFSpace *= powerOfTwo[level_i - 1];
@@ -217,6 +211,17 @@ static long long int printSGDegreesOfFreedomAdaptive(const LevelVector& lmin,
     //           << numDOFSpace << " DOF " << std::endl;
     numDOF += numDOFSpace;
   }
+  return numDOF;
+}
+
+inline long long int printSGDegreesOfFreedomAdaptive(const LevelVector& lmin,
+                                                     const LevelVector& lmax) {
+  DimType dim = lmin.size();
+  CombiMinMaxScheme combischeme(dim, lmin, lmax);
+  combischeme.createAdaptiveCombischeme();
+  // combischeme.createDownSet();
+  auto downSet = combischeme.getDownSet();
+  auto numDOF = getSGDegreesOfFreedomFromDownSet(downSet);
 
   std::cout << "Sparse grid DOF : " << numDOF << " i.e. "
             << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
@@ -224,7 +229,7 @@ static long long int printSGDegreesOfFreedomAdaptive(const LevelVector& lmin,
   return numDOF;
 }
 
-static inline IndexType getHighestIndexInHierarchicalSubspaceLowerThanNodalIndexOnLref(
+inline IndexType getHighestIndexInHierarchicalSubspaceLowerThanNodalIndexOnLref(
     LevelType hierarchicalSubspaceLevel, IndexType nodalIndex, LevelType referenceLevel) {
   assert(hierarchicalSubspaceLevel <= referenceLevel);
   IndexType index = -1;
@@ -262,7 +267,7 @@ static inline IndexType getHighestIndexInHierarchicalSubspaceLowerThanNodalIndex
   return index;
 }
 
-static inline std::vector<long long int> getPartitionedNumDOFSG(
+inline std::vector<long long int> getPartitionedNumDOFSG(
     std::vector<LevelVector> downSet, const LevelVector& referenceLevel,
     const std::vector<IndexVector> decomposition) {
   // this is only valid for with-boundary schemes!
@@ -336,7 +341,7 @@ static inline std::vector<long long int> getPartitionedNumDOFSG(
   return numDOF;
 }
 
-static inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
+inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
     LevelVector lmin, LevelVector lmax, const LevelVector& referenceLevel,
     const std::vector<IndexVector> decomposition) {
   assert((lmin.size() == lmax.size()) == (referenceLevel.size() == decomposition.size()));
@@ -360,11 +365,8 @@ static inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
   return getPartitionedNumDOFSG(downSet2, referenceLevel, decomposition);
 }
 
-// for widely-distributed simulations, get the number of DOF that absolutely needs
-// to be exchanged with the other system
-static inline std::vector<long long int> getPartitionedNumDOFSGConjoint(
-    const CombiMinMaxSchemeFromFile& combischeme, const LevelVector& lmin, const LevelVector& referenceLevel,
-    const std::vector<IndexVector> decomposition) {
+inline std::vector<LevelVector> getConjointSet(const CombiMinMaxSchemeFromFile& combischeme,
+                                                      const LevelVector& lmin) {
   // we follow the idea in CombiMinMaxSchemeFromFile::createDownSet
   // but this time we count the occurrences of each grid in the individual downPoleSets
   // if a hierarchical level occurs d times, this means that this space is not required on the other
@@ -405,7 +407,23 @@ static inline std::vector<long long int> getPartitionedNumDOFSGConjoint(
     }
   }
   // std::cout << "Conjoint subspace level : " << conjointSet << std::endl;
+  return conjointSet;
+}
 
+// for widely-distributed simulations, get the number of DOF that absolutely needs
+// to be exchanged with the other system
+inline long long int getNumDOFSGConjoint(
+    const CombiMinMaxSchemeFromFile& combischeme, const LevelVector& lmin) {
+  auto conjointSet = getConjointSet(combischeme, lmin);
+  return getSGDegreesOfFreedomFromDownSet(conjointSet);
+}
+
+// for widely-distributed simulations, get the number of DOF that absolutely needs
+// to be exchanged with the other system -- partitioned
+inline std::vector<long long int> getPartitionedNumDOFSGConjoint(
+    const CombiMinMaxSchemeFromFile& combischeme, const LevelVector& lmin, const LevelVector& referenceLevel,
+    const std::vector<IndexVector> decomposition) {
+  auto conjointSet = getConjointSet(combischeme, lmin);
   return getPartitionedNumDOFSG(conjointSet, referenceLevel, decomposition);
 }
 
