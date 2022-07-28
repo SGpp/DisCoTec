@@ -111,10 +111,6 @@ class CombiMinMaxScheme {
   /* Combination coefficients */
   std::vector<real> coefficients_;
 
-  /* Creates the downset recursively */
-  void createLevelsRec(DimType dim, LevelType n, DimType d, LevelVector& l,
-                       const LevelVector& lmax);
-
   /* Calculate the coefficients of the classical CT (binomial coefficient)*/
   void computeCombiCoeffsClassical();
 

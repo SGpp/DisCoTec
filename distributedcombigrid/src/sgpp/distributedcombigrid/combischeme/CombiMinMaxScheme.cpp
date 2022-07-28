@@ -26,19 +26,11 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   } else {
     c = *std::min_element(cv.begin(), cv.end());
   }
-  LevelVector rlmin(effDim_);
-  for (size_t i = 0; i < rlmin.size(); ++i) {
-    rlmin[i] = lmaxtmp[i] - c;
-  }
-
-  // Define new lmin (dummy dimensions will be fixed later)
   for (size_t i = 0; i < lmin_.size(); ++i) {
     lmin_[i] = lmax_[i] - c;
   }
-  LevelType n = sum(rlmin) + c;
 
-  LevelVector l(effDim_, 0);
-  createLevelsRec(effDim_, n, effDim_, l, lmaxtmp);
+  combigrid::createTruncatedHierarchicalLevels(lmaxtmp, lmintmp, levels_);
 
   // re-insert dummy dimensions left out
   for (size_t i = 0; i < dummyDims.size(); ++i) {
@@ -103,24 +95,6 @@ void CombiMinMaxScheme::makeFaultTolerant() {
         combiSpaces_.push_back(l);
         coefficients_.push_back(0.0);
       }
-    }
-  }
-}
-
-void CombiMinMaxScheme::createLevelsRec(DimType dim, LevelType n, DimType d, LevelVector& l,
-                                        const LevelVector& lmax) {
-  // sum rightmost entries of level vector
-  LevelType lsum(0);
-  for (size_t i = dim; i < l.size(); ++i) lsum += l[i];
-
-  for (LevelType ldim = 1; ldim <= LevelType(n) + LevelType(d) - 1 - lsum; ++ldim) {
-    l[dim - 1] = ldim;
-    if (dim == 1) {
-      if (l <= lmax) {
-        levels_.push_back(l);
-      }
-    } else {
-      createLevelsRec(dim - 1, n, d, l, lmax);
     }
   }
 }
