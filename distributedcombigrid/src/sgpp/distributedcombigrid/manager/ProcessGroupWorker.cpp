@@ -1217,7 +1217,7 @@ void ProcessGroupWorker::combineThirdLevel() {
       // copy partial data from uniDSG to extraDSG
       for (size_t i = 0; i < uniDsg->getNumSubspaces(); ++i) {
         assert(dsgToUse->getDataSize(i) == 0 ||
-               dsgToUse->getDataSize(i) == uniDsg->getDataSize()[i]);
+               dsgToUse->getDataSize(i) == uniDsg->getDataSize(i));
         std::copy_n(uniDsg->getData(i), dsgToUse->getDataSize(i), dsgToUse->getData(i));
       }
     }
