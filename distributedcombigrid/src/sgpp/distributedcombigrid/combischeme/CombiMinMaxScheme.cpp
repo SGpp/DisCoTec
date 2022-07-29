@@ -26,19 +26,11 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   } else {
     c = *std::min_element(cv.begin(), cv.end());
   }
-  LevelVector rlmin(effDim_);
-  for (size_t i = 0; i < rlmin.size(); ++i) {
-    rlmin[i] = lmaxtmp[i] - c;
-  }
-
-  // Define new lmin (dummy dimensions will be fixed later)
   for (size_t i = 0; i < lmin_.size(); ++i) {
     lmin_[i] = lmax_[i] - c;
   }
-  LevelType n = sum(rlmin) + c;
 
-  LevelVector l(effDim_, 0);
-  createLevelsRec(effDim_, n, effDim_, l, lmaxtmp);
+  combigrid::createTruncatedHierarchicalLevels(lmaxtmp, lmintmp, levels_);
 
   // re-insert dummy dimensions left out
   for (size_t i = 0; i < dummyDims.size(); ++i) {
@@ -58,12 +50,27 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   computeCombiCoeffsClassical();
 }
 
+LevelVector getFurthestCorner(LevelVector& lmax, LevelVector& lmin) {
+  LevelVector ldiff = lmax - lmin;
+  std::vector<IndexType>::iterator result = std::max_element(ldiff.begin(), ldiff.end());
+  LevelType indexMax = std::distance(ldiff.begin(), result);
+  LevelVector lm(lmin);
+  lm[indexMax] = lmax[indexMax];
+  return lm;
+}
+
 void CombiMinMaxScheme::createAdaptiveCombischeme() {
-  LevelVector lm = getLevelMinima();
-  n_ = std::accumulate(lm.begin(), lm.end(), 0);
+  LevelVector lm = getFurthestCorner(lmax_, lmin_);
+  n_ = std::accumulate(lm.begin(), lm.end(), 0); // = sum(lmin_) + max(ldiff)
   LevelVector l(dim_);
-  // TODO: Why levelSum-1 ?
-  createLevelsRec(dim_, n_ - 1, dim_, l, lmax_);
+  // // TODO: Why levelSum-1 ?
+  // createLevelsRec(dim_, n_ - 1, dim_, l, lmax_);
+  auto n = n_ - sum(lmin_);
+  auto rlmin = lmax_;
+  for (auto& rl: rlmin) {
+    rl -= n;
+  }
+  combigrid::createTruncatedHierarchicalLevels(lmax_, rlmin, levels_);
 
   for (auto level : levels_) {
     int l1norm = std::accumulate(level.begin(), level.end(), 0);
@@ -88,33 +95,6 @@ void CombiMinMaxScheme::makeFaultTolerant() {
         combiSpaces_.push_back(l);
         coefficients_.push_back(0.0);
       }
-    }
-  }
-}
-
-LevelVector CombiMinMaxScheme::getLevelMinima() {
-  LevelVector tmp = lmax_ - lmin_;
-  std::vector<IndexType>::iterator result = std::max_element(tmp.begin(), tmp.end());
-  LevelType indexMax = std::distance(tmp.begin(), result);
-  LevelVector lm(lmin_);
-  lm[indexMax] = lmax_[indexMax];
-  return lm;
-}
-
-void CombiMinMaxScheme::createLevelsRec(DimType dim, LevelType n, DimType d, LevelVector& l,
-                                        const LevelVector& lmax) {
-  // sum rightmost entries of level vector
-  LevelType lsum(0);
-  for (size_t i = dim; i < l.size(); ++i) lsum += l[i];
-
-  for (LevelType ldim = 1; ldim <= LevelType(n) + LevelType(d) - 1 - lsum; ++ldim) {
-    l[dim - 1] = ldim;
-    if (dim == 1) {
-      if (l <= lmax) {
-        levels_.push_back(l);
-      }
-    } else {
-      createLevelsRec(dim - 1, n, d, l, lmax);
     }
   }
 }

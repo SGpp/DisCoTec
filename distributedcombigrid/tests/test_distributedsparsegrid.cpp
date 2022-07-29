@@ -33,10 +33,32 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
 
     assert(lmin.size() == lmax.size());
     const DimType dim = lmin.size();
+    auto ldiff = lmax - lmin;
+    bool schemeIsRegular = std::adjacent_find(ldiff.begin(), ldiff.end(),
+                                              std::not_equal_to<LevelType>()) == ldiff.end();
+    std::vector<LevelVector> cornersOfScheme(dim, lmin);
+    for (DimType d = 0; d < dim; ++d) {
+      cornersOfScheme[d][d] = lmax[d];
+    }
 
     // create with "own" constructor
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<std::complex<double>>>(
         new DistributedSparseGridUniform<std::complex<double>>(dim, lmax, lmin, boundary, comm));
+
+    for (const auto& corner : cornersOfScheme) {
+      // make sure corners are part of the scheme
+      BOOST_CHECK(std::find(uniDSG->getAllLevelVectors().begin(),
+                            uniDSG->getAllLevelVectors().end(),
+                            corner) != uniDSG->getAllLevelVectors().end());
+      // and higher neighbors of corner are not part of the scheme
+      for (DimType d = 0; d < dim; ++d) {
+        auto neighbor = corner;
+        neighbor[d] += 1;
+        BOOST_WARN(std::find(uniDSG->getAllLevelVectors().begin(),
+                             uniDSG->getAllLevelVectors().end(),
+                             neighbor) == uniDSG->getAllLevelVectors().end());
+      }
+    }
 
     // get all subspaces in the (optimized) combischeme
     SGrid<real> sg(dim, lmax, lmin, boundary);
@@ -102,27 +124,39 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     // attn: usually, the dfgs are hierarchized before adding to the dsg for combination in
     // hierarchical space (without interpolation on coarser component dfgs) here we use the nodal
     // values for testing purposes
+    BOOST_TEST_CHECKPOINT("Add to uniform SG");
     uniDFG->addToUniformSG(*uniDSG, 1.);
     // TODO test
 
+    BOOST_TEST_CHECKPOINT("write sparse min/max");
     // make sure that right min/max values are written
-    uniDSG->writeMinMaxCoefficents("sparse_paraboloid_minmax_" + std::to_string(size), 0);
+    uniDSG->writeMinMaxCoefficents("sparse_paraboloid_minmax_" + std::to_string(dim) + "D_" +
+                                       std::to_string(size) + "_" + std::to_string(boundary[0]),
+                                   0);
     // and remove straight away
-    system( "rm sparse_paraboloid_minmax_*" );
+    if (rank == 0) {
+      system("rm sparse_paraboloid_minmax_*");
+    }
 
     // std::cout << *uniDSG << std::endl;
 
     // add large full grid to sparse grid, to fill all the possible subspaces
-    dfgLevel = lmin + lmax;
+    BOOST_TEST_CHECKPOINT("create large full grid");
+    dfgLevel = lmax;
+    for (auto& l : dfgLevel) {
+      l += 1;
+    }
     dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
     auto largeUniDFG = std::unique_ptr<DistributedFullGrid<std::complex<double>>>(
         new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
 
+    BOOST_TEST_CHECKPOINT("Register to uniform SG");
     largeUniDFG->registerUniformSG(*uniDSG);
 
     // make sure that right min/max values are written %TODO remove
-    uniDSG->writeMinMaxCoefficents("sparse_paraboloid_minmax_large_" + std::to_string(size), 0);
+    uniDSG->writeMinMaxCoefficents(
+        "sparse_paraboloid_minmax_large_" + std::to_string(dim) + "D_" + std::to_string(size), 0);
 
     // check if the sizes set are actually the ones we calculate with CombiMinMaxScheme
     auto subspacesDataSizes = uniDSG->getSubspaceDataSizes();
@@ -131,26 +165,35 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     BOOST_CHECK(numDataPointsHere > 0);
 
     if (std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+      auto newLmin = lmin;
+      auto newLmax = lmax;
+      auto newLref = lref;
       // I think this flag may be the wrong way around...?
       if (!reverseOrderingDFGPartitions) {
-        std::reverse(lmin.begin(), lmin.end());
-        std::reverse(lmax.begin(), lmax.end());
-        std::reverse(lref.begin(), lref.end());
+        std::reverse(newLmin.begin(), newLmin.end());
+        std::reverse(newLmax.begin(), newLmax.end());
+        std::reverse(newLref.begin(), newLref.end());
         // std::reverse(procsRef.begin(), procsRef.end());
         std::reverse(decomposition.begin(), decomposition.end());
       }
       BOOST_TEST_CHECKPOINT("get partitioned num dofs");
-      auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lref, decomposition);
+      auto partitionedNumDOFs =
+          getPartitionedNumDOFSGAdaptive(newLmin, newLmax, newLref, decomposition);
 
       BOOST_TEST_CHECKPOINT("compare partitioned num dofs");
       auto myNumDOFs = partitionedNumDOFs[rank];
       // std::cout << "partitionedNumDOFs" << partitionedNumDOFs << std::endl;
-      BOOST_CHECK_EQUAL(myNumDOFs, numDataPointsHere);
+      if (schemeIsRegular) {
+        BOOST_CHECK_EQUAL(myNumDOFs, numDataPointsHere);
+      } else {
+        // TODO better match non-regular schemes!
+        BOOST_WARN_EQUAL(myNumDOFs, numDataPointsHere);
+      }
 
       if (rank == 0) {
         auto sumDOFPartitioned =
             std::accumulate(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), 0);
-        auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax);
+        auto sgDOF = printSGDegreesOfFreedomAdaptive(newLmin, newLmax);
         BOOST_CHECK_EQUAL(sgDOF, sumDOFPartitioned);
       }
     }
@@ -159,20 +202,22 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     uniDSG->readFromDisk("test_sg_");
 
     // and remove straight away
-    system( "rm test_sg_*" );
+    if (rank == 0) {
+      system( "rm test_sg_*" );
+    }
 
     // TODO test for reduced lmax
   }
 }
 
-BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(60))
+BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(240))
 
 BOOST_AUTO_TEST_CASE(test_1) {
   LevelVector lmin = {3,3};
   LevelVector lmax = {7,7};
   for (IndexType procOne : {1,2,3}) {
     for (IndexType procTwo : {1,2}) {
-      for (bool bValue : {true}) { //TODO false
+      for (bool bValue : {true}) {
         IndexVector procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
         auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
@@ -189,7 +234,7 @@ BOOST_AUTO_TEST_CASE(test_2) {
   LevelVector lmax = {6,8};
   for (IndexType procOne : {1,2,3}) {
     for (IndexType procTwo : {1,2}) {
-      for (bool bValue : {true}) { //TODO false
+      for (bool bValue : {true}) {
         IndexVector procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
         auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
@@ -206,7 +251,7 @@ BOOST_AUTO_TEST_CASE(test_3) {
   LevelVector lmax = {9,9};
   for (IndexType procOne : {1,2,3}) {
     for (IndexType procTwo : {1,2}) {
-      for (bool bValue : {true}) { //TODO false
+      for (bool bValue : {true, false}) {
         IndexVector procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
         auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
@@ -218,41 +263,149 @@ BOOST_AUTO_TEST_CASE(test_3) {
   }
 }
 
-BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive) {
-  {  // 1D case
-    LevelVector lmin = {1};
-    LevelVector lmax = {5};
-    IndexVector procs = {2};
-    std::vector<LevelVector> decomposition = {{0, 1}};
-    auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
-    // auto sln = LevelVector({1,32});//apparently, the 1D CombiScheme constructor only goes up to
-    // lmax-1
-    auto sln = LevelVector({1, 16});  // still leaving this here to check for changes
-    BOOST_CHECK_EQUAL_COLLECTIONS(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), sln.begin(),
-                                  sln.end());
-    if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
-      auto sumDOFPartitioned =
-          std::accumulate(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), 0);
-      auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax);
-      BOOST_CHECK_EQUAL(sgDOF, sumDOFPartitioned);
+BOOST_AUTO_TEST_CASE(test_4) {
+  LevelVector lmin = {3, 3, 3};
+  LevelVector lmax = {7, 7, 7};
+  for (IndexType procOne : {1, 2, 3}) {
+    for (IndexType procTwo : {1, 2}) {
+      for (bool bValue : {true}) {
+        IndexVector procs = {procOne, procTwo, 1};
+        std::vector<bool> boundary(3, bValue);
+        auto multProcs =
+            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+        BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+        MPI_Barrier(MPI_COMM_WORLD);
+      }
     }
   }
-  {  // 2D case
-    LevelVector lmin = {1, 1};
-    LevelVector lmax = {2, 2};
-    IndexVector procs = {2, 2};
-    std::vector<LevelVector> decomposition = {{0, 1}, {0, 3}};
-    auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
-    auto sln = LevelVector({3, 10, 2, 6});
-    BOOST_CHECK_EQUAL_COLLECTIONS(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), sln.begin(),
-                                  sln.end());
-    if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
-      auto sumDOFPartitioned =
-          std::accumulate(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), 0);
-      auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax);
-      BOOST_CHECK_EQUAL(sgDOF, sumDOFPartitioned);
+}
+// same for anisotropic
+BOOST_AUTO_TEST_CASE(test_5) {
+  LevelVector lmin = {2, 3, 4};
+  LevelVector lmax = {6, 7, 8};
+  for (IndexType procOne : {1, 2, 3}) {
+    for (IndexType procTwo : {1, 2}) {
+      for (bool bValue : {true}) {
+        IndexVector procs = {procOne, procTwo, 1};
+        std::vector<bool> boundary(3, bValue);
+        auto multProcs =
+            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+        BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+        MPI_Barrier(MPI_COMM_WORLD);
+      }
+    }
+  }
+}
+// non-regular truncated CT
+BOOST_AUTO_TEST_CASE(test_6) {
+  LevelVector lmin = {2, 3, 4};
+  LevelVector lmax = {7, 7, 7};
+  for (IndexType procOne : {1, 2, 3}) {
+    for (IndexType procTwo : {1, 2}) {
+      for (bool bValue : {true, false}) {
+        IndexVector procs = {procOne, procTwo, 1};
+        std::vector<bool> boundary(3, bValue);
+        auto multProcs =
+            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+        BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+        MPI_Barrier(MPI_COMM_WORLD);
+      }
     }
   }
 }
 
-BOOST_AUTO_TEST_SUITE_END()
+// 4D anisotropic but regular
+BOOST_AUTO_TEST_CASE(test_7) {
+  LevelVector lmin = {2, 3, 1, 1};
+  LevelVector lmax = {6, 7, 5, 5};
+  for (IndexType procOne : {1, 3}) {
+    for (IndexType procTwo : {1, 2}) {
+      for (bool bValue : {true, false}) {
+        IndexVector procs = {procOne, procTwo, 1, 1};
+        std::vector<bool> boundary(4, bValue);
+        auto multProcs =
+            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+        BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+        MPI_Barrier(MPI_COMM_WORLD);
+      }
+    }
+  }
+}
+
+// 6D anisotropic but regular
+BOOST_AUTO_TEST_CASE(test_8) {
+  LevelVector lmin = {2, 1, 4, 1, 3, 1};
+  LevelVector lmax = {4, 3, 6, 3, 5, 3};
+  for (IndexType procOne : {1, 3}) {
+    for (IndexType procTwo : {1, 2}) {
+      for (bool bValue : {true, false}) {
+        IndexVector procs = {1, 1, procOne, 1, procTwo, 1};
+        std::vector<bool> boundary(6, bValue);
+        auto multProcs =
+            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+        BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+        MPI_Barrier(MPI_COMM_WORLD);
+      }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_1) {
+  // 1D case
+  LevelVector lmin = {1};
+  LevelVector lmax = {5};
+  IndexVector procs = {2};
+  std::vector<LevelVector> decomposition = {{0, 1}};
+  auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
+  auto sln = LevelVector({1,32});
+  BOOST_CHECK_EQUAL_COLLECTIONS(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), sln.begin(),
+                                sln.end());
+  if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
+    auto sumDOFPartitioned =
+        std::accumulate(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), 0);
+    auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax);
+    BOOST_CHECK_EQUAL(sgDOF, sumDOFPartitioned);
+  }
+}
+BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_2) {
+  // 2D case
+  LevelVector lmin = {1, 1};
+  LevelVector lmax = {2, 2};
+  IndexVector procs = {2, 2};
+  std::vector<LevelVector> decomposition = {{0, 1}, {0, 3}};
+  auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
+  auto sln = LevelVector({3, 10, 2, 6});
+  BOOST_CHECK_EQUAL_COLLECTIONS(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), sln.begin(),
+                                sln.end());
+  if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
+    auto sumDOFPartitioned =
+        std::accumulate(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), 0);
+    auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax);
+    BOOST_CHECK_EQUAL(sgDOF, sumDOFPartitioned);
+  }
+}
+BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_3) {
+  // 3D case (still OK to visualize)
+  LevelVector lmin = {1, 1, 1};
+  LevelVector lmax = {3, 3, 3};
+  IndexVector procs = {2, 2, 2};
+  std::vector<LevelVector> decomposition = {{0, 1}, {0, 2}, {0, 3}};
+  auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
+  auto sln = LevelVector({4, 16, 13, 46, 8, 30, 24, 84});
+  BOOST_CHECK_EQUAL_COLLECTIONS(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), sln.begin(),
+                                sln.end());
+  if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
+    // std::cout << partitionedNumDOFs << std::endl;
+    auto sumDOFPartitioned =
+        std::accumulate(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), 0);
+    auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax);
+    BOOST_CHECK_EQUAL(sgDOF, sumDOFPartitioned);
+  }
+}
+
+  BOOST_AUTO_TEST_SUITE_END()

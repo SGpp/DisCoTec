@@ -82,6 +82,9 @@ class DistributedSparseGridUniform {
   // creates data if necessary and sets all data elements to zero
   void setZero();
 
+  // return all level vectors
+  inline const std::vector<LevelVector>& getAllLevelVectors() const;
+
   // return level vector of subspace i
   inline const LevelVector& getLevelVector(size_t i) const;
 
@@ -159,9 +162,6 @@ class DistributedSparseGridUniform {
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
-  void createLevelsRec(size_t dim, size_t n, size_t d, LevelVector& l, const LevelVector& nmax,
-                       std::vector<LevelVector>& created) const;
-
   // void setSizes();
 
   DimType dim_;
@@ -208,10 +208,10 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     const std::vector<bool>& boundary,
     CommunicatorType comm,
     size_t procsPerNode /*= 0*/)
-    : boundary_(boundary),
-      comm_(comm),
-      dim_(dim),
+    : dim_(dim),
       levels_(subspaces),
+      boundary_(boundary),
+      comm_(comm),
       subspacesDataSizes_(subspaces.size())
 {
   assert(dim > 0);
@@ -313,62 +313,11 @@ std::ostream& operator<<(std::ostream& os, const DistributedSparseGridUniform<FG
 template <typename FG_ELEMENT>
 DistributedSparseGridUniform<FG_ELEMENT>::~DistributedSparseGridUniform() {}
 
-// start recursion by setting dim=d=dimensionality of the vector space
 template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::createLevelsRec(size_t dim, size_t n, size_t d,
-                                                               LevelVector& l,
-                                                               const LevelVector& nmax, std::vector<LevelVector>& created) const {
-  // sum rightmost entries of level vector
-  LevelType lsum(0);
-
-  for (size_t i = dim; i < l.size(); ++i) lsum += l[i];
-
-  for (LevelType ldim = 1; ldim <= LevelType(n) + LevelType(d) - 1 - lsum; ++ldim) {
-    l[dim - 1] = ldim;
-
-    if (dim == 1) {
-      if (l <= nmax) {
-        created.push_back(l);
-        // std::cout << l << std::endl;
-      }
-    } else {
-      createLevelsRec(dim - 1, n, d, l, nmax, created);
-    }
-  }
-}
-
-template <typename FG_ELEMENT>
-std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(DimType dim, const LevelVector& nmax,
-                                                            const LevelVector& lmin) {
-  assert(nmax.size() == dim);
-  assert(lmin.size() == dim);
-
-  // compute c which fulfills nmax - c*1  >= lmin
-
-  LevelVector ltmp(nmax);
-  LevelType c = 0;
-
-  while (ltmp > lmin) {
-    ++c;
-
-    for (size_t i = 0; i < dim; ++i) {
-      ltmp[i] = nmax[i] - c;
-
-      if (ltmp[i] < 1) ltmp[i] = 1;
-    }
-  }
-
-  LevelVector rlmin(dim);
-
-  for (size_t i = 0; i < rlmin.size(); ++i) {
-    rlmin[i] = nmax[i] - c;
-  }
-
-  LevelType n = sum(rlmin) + c - dim + 1;
-
-  LevelVector l(dim);
-  std::vector<LevelVector> created {};
-  createLevelsRec(dim, n, dim, l, nmax, created);
+std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
+    DimType dim, const LevelVector& nmax, const LevelVector& lmin) {
+  std::vector<LevelVector> created{};
+  combigrid::createTruncatedHierarchicalLevels(nmax, lmin, created);
   return created;
 }
 
@@ -397,6 +346,12 @@ std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
 //     subspaces_[i].size_ = size_t(tmp);
 //   }
 // }
+
+template <typename FG_ELEMENT>
+inline const std::vector<LevelVector>&
+DistributedSparseGridUniform<FG_ELEMENT>::getAllLevelVectors() const {
+  return levels_;
+}
 
 template <typename FG_ELEMENT>
 inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVector(size_t i) const {
