@@ -1,0 +1,17 @@
+[ct]
+dim = 2
+lmin = 3 3
+lmax = 10 10
+leval = 10 10
+p = 2 4
+ncombi = 10000
+basis = hat 
+
+[application]
+dt = 1e-4
+nsteps = 1
+mcerror = 1
+
+[manager]
+ngroup = 1
+nprocs = 8
