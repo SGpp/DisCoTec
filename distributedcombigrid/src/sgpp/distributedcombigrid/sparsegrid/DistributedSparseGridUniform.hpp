@@ -162,6 +162,11 @@ class DistributedSparseGridUniform {
 
   void readFromDisk(std::string filePrefix);
 
+  // coordinated read/write to one single file containing the whole dsg data
+  bool writeOneFileToDisk(std::string fileName);
+
+  bool readOneFileFromDisk(std::string fileName);
+
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
 
@@ -547,7 +552,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
     const std::string& filename, size_t i) const {
   bool writerProcess = false;
   std::ofstream ofs;
-  if (getCommRank(getCommunicator()) == 0) {
+  if (this->rank_ == 0) {
     writerProcess = true;
     ofs = std::ofstream(filename + "_" + std::to_string(i) + ".txt");
     // std::cout << *this << std::endl;
@@ -601,6 +606,108 @@ void DistributedSparseGridUniform<FG_ELEMENT>::readFromDisk(std::string filePref
   std::ifstream ifp(myFilename, std::ios::in | std::ios::binary);
   ifp.read(reinterpret_cast<char*>(this->getRawData()), this->getRawDataSize() * sizeof(FG_ELEMENT));
   ifp.close();
+}
+
+template <typename FG_ELEMENT>
+bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fileName) {
+  auto comm = this->getCommunicator();
+  int size = this->getCommunicatorSize();
+
+  // get offset in file
+  MPI_Offset len = this->getRawDataSize();
+  MPI_Offset pos;
+  MPI_Exscan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
+
+  // get total file length
+  MPI_Offset file_len;
+  MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, comm);
+
+  // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
+  MPI_Info info = MPI_INFO_NULL;
+  // if (file_len * sizeof(FG_ELEMENT) > 4 * 1024 * 1024 || 256 < size) {
+  if (true) {
+    MPI_Info_create(&info);
+    MPI_Info_set(info, "cb_align", "2");
+    MPI_Info_set(info, "cb_nodes_list", "*:*");
+    MPI_Info_set(info, "direct_io", "false");
+    MPI_Info_set(info, "romio_ds_read", "disable");
+    MPI_Info_set(info, "romio_ds_write", "disable");
+    MPI_Info_set(info, "cb_nodes", "8");
+  }
+
+  // open file
+  MPI_File fh;
+  int err = MPI_File_open(comm, fileName.c_str(),
+                          MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, info, &fh);
+  if (err != MPI_SUCCESS) {
+    // file already existed, delete it and create new file
+    if (this->rank_ == 0) {
+      MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
+    }
+    err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY, info,
+                  &fh);
+  }
+
+  if(err == MPI_SUCCESS) {
+    // write to single file with MPI-IO
+    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+    MPI_Status status;
+    err = MPI_File_write_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType, &status);
+    int numWritten = 0;
+    MPI_Get_count(&status, dataType, &numWritten);
+    if (numWritten != len) {
+      std::cout << "not written enough: " << numWritten << " instead of " << len << std::endl;
+      err = ~MPI_SUCCESS;
+    }
+  }
+
+  MPI_File_close(&fh);
+  return err == MPI_SUCCESS;
+}
+
+template <typename FG_ELEMENT>
+bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string fileName) {
+  auto comm = this->getCommunicator();
+
+  // get offset in file
+  MPI_Offset len = this->getRawDataSize();
+  MPI_Offset pos;
+  MPI_Exscan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
+
+  // get total file length
+  MPI_Offset file_len;
+  MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, comm);
+
+  // open file
+  MPI_File fh;
+  MPI_Info info = MPI_INFO_NULL;
+  if (file_len * sizeof(FG_ELEMENT) > 4 * 1024 * 1024 || 256 < this->getCommunicatorSize()) {
+    MPI_Info_create(&info);
+    MPI_Info_set(info, "cb_align", "2");
+    MPI_Info_set(info, "cb_nodes_list", "*:*");
+    MPI_Info_set(info, "direct_io", "false");
+    MPI_Info_set(info, "romio_ds_read", "disable");
+    MPI_Info_set(info, "romio_ds_write", "disable");
+    MPI_Info_set(info, "cb_nodes", "8");
+  }
+  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY | MPI_MODE_EXCL, info, &fh);
+  if (err != MPI_SUCCESS) {
+    // silent failure
+    return false;
+  }
+  MPI_Offset fileSize = 0;
+  MPI_File_get_size(fh, &fileSize);
+  if (fileSize != file_len) {
+    // loud failure
+    std::cerr << fileSize << " and not " << file_len << std::endl;
+    throw std::runtime_error("read dsg: file size does not match!");
+  }
+
+  // write to single file with MPI-IO
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+  MPI_File_write_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType, MPI_STATUS_IGNORE);
+  MPI_File_close(&fh);
+  return true;
 }
 
 /**

@@ -98,6 +98,9 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
         new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true, dfgDecomposition));
 
     uniDFG->registerUniformSG(*uniDSG);
+    uniDFG->registerUniformSG(*uniDSGfromSubspaces);
+    BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getRawDataSize());
+
     for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
       const auto & level = uniDSG->getLevelVector(i);
       BOOST_ASSERT(lmin.size() > 1);
@@ -126,7 +129,23 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     // values for testing purposes
     BOOST_TEST_CHECKPOINT("Add to uniform SG");
     uniDFG->addToUniformSG(*uniDSG, 1.);
-    // TODO test
+    BOOST_CHECK_GT(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
+    uniDFG->addToUniformSG(*uniDSGfromSubspaces, 0.);
+    BOOST_CHECK_EQUAL(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
+    // TODO test if the values are correct
+
+    auto writeSuccess = uniDSG->writeOneFileToDisk("test_sg_all");
+    BOOST_WARN(writeSuccess);
+    if (writeSuccess) {
+      auto readSuccess = uniDSGfromSubspaces->readOneFileFromDisk("test_sg_all");
+      BOOST_WARN(readSuccess);
+      if (readSuccess) {
+        BOOST_TEST_CHECKPOINT("compare values");
+        for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
+          BOOST_CHECK_EQUAL(uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
+        }
+      }
+    }
 
     BOOST_TEST_CHECKPOINT("write sparse min/max");
     // make sure that right min/max values are written
