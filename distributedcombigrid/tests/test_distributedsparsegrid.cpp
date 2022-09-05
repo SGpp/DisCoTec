@@ -234,6 +234,19 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
 }
 
 BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(240))
+//very cheap
+BOOST_AUTO_TEST_CASE(test_0) {
+  LevelVector lmin = {1,1};
+  LevelVector lmax = {3,3};
+  for (bool bValue : {true}) {
+    IndexVector procs = {1,1};
+    std::vector<bool> boundary(2, bValue);
+    auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+    BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+    checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
 
 BOOST_AUTO_TEST_CASE(test_1) {
   LevelVector lmin = {3,3};
