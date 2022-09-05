@@ -691,10 +691,10 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
     MPI_Info_set(info, "romio_ds_write", "disable");
     MPI_Info_set(info, "cb_nodes", "8");
   }
-  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY | MPI_MODE_EXCL, info, &fh);
+  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
   if (err != MPI_SUCCESS) {
     // silent failure
-    std::cerr << err << "while reading OneFileFromDisk" << std::endl;
+    std::cerr << err << " while reading OneFileFromDisk" << std::endl;
     handle_error(err);
     return false;
   }
