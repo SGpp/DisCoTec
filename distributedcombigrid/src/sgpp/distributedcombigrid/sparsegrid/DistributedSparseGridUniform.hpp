@@ -603,10 +603,10 @@ void DistributedSparseGridUniform<FG_ELEMENT>::readFromDiskChunked(std::string f
 // cf.
 // https://github.com/open-mpi/ompi/blob/eb87378cd8c55c08fde666c03a04aa2811da395a/3rd-party/romio341/test/hindexed.c
 static void handle_error(int errcode) {
-    char msg[MPI_MAX_ERROR_STRING];
-    int resultlen;
-    MPI_Error_string(errcode, msg, &resultlen);
-    fprintf(stderr, "error: %s\n", msg);
+  char msg[MPI_MAX_ERROR_STRING];
+  int resultlen;
+  MPI_Error_string(errcode, msg, &resultlen);
+  fprintf(stderr, "error: %s\n", msg);
 }
 
 template <typename FG_ELEMENT>
