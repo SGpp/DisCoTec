@@ -608,9 +608,9 @@ void DistributedSparseGridUniform<FG_ELEMENT>::readFromDiskChunked(std::string f
   ifp.close();
 }
 
-// cf. https://github.com/open-mpi/ompi/blob/eb87378cd8c55c08fde666c03a04aa2811da395a/3rd-party/romio341/test/hindexed.c
-static void handle_error(int errcode)
-{
+// cf.
+// https://github.com/open-mpi/ompi/blob/eb87378cd8c55c08fde666c03a04aa2811da395a/3rd-party/romio341/test/hindexed.c
+static void handle_error(int errcode) {
     char msg[MPI_MAX_ERROR_STRING];
     int resultlen;
     MPI_Error_string(errcode, msg, &resultlen);
@@ -646,22 +646,23 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fi
 
   // open file
   MPI_File fh;
-  int err = MPI_File_open(comm, fileName.c_str(),
-                          MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, info, &fh);
+  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL,
+                          info, &fh);
   if (err != MPI_SUCCESS) {
     // file already existed, delete it and create new file
     if (this->rank_ == 0) {
       MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
     }
-    err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY, info,
-                  &fh);
+    err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
+                        info, &fh);
   }
 
-  if(err == MPI_SUCCESS) {
+  if (err == MPI_SUCCESS) {
     // write to single file with MPI-IO
     MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
     MPI_Status status;
-    err = MPI_File_write_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType, &status);
+    err = MPI_File_write_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType,
+                                &status);
     int numWritten = 0;
     MPI_Get_count(&status, dataType, &numWritten);
     if (numWritten != len) {
@@ -708,15 +709,16 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
   }
   MPI_Offset fileSize = 0;
   MPI_File_get_size(fh, &fileSize);
-  if (fileSize != file_len) {
+  if (fileSize < file_len * sizeof(FG_ELEMENT)) {
     // loud failure
     std::cerr << fileSize << " and not " << file_len << std::endl;
-    throw std::runtime_error("read dsg: file size does not match!");
+    throw std::runtime_error("read dsg: file size too small!");
   }
 
-  // write to single file with MPI-IO
+  // read from single file with MPI-IO
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-  MPI_File_write_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType, MPI_STATUS_IGNORE);
+  MPI_File_read_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType,
+                       MPI_STATUS_IGNORE);
   MPI_File_close(&fh);
   return true;
 }
