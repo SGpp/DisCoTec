@@ -685,6 +685,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY | MPI_MODE_EXCL, info, &fh);
   if (err != MPI_SUCCESS) {
     // silent failure
+    std::cerr << err << "while reading OneFileFromDisk" << std::endl;
     return false;
   }
   MPI_Offset fileSize = 0;
