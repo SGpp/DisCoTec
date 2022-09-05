@@ -337,12 +337,14 @@ int main(int argc, char** argv) {
       } else if (p[d] == 3 && lmax[d] == 18 && lmin[d] == 1) {
         // // naive
         // di = {0, 87382, 174763};
-        // optimal
-        di = {0, 80450, 181695};
+        // // optimal for [1]^6 -- [18]^6
+        // di = {0, 80448, 181697};
+        // optimal for [1,2,2,2,2,2] -- [18,19,19,19,19,19]
+        di = {0,  78849, 183296};
       } else if (p[d] == 5 && lmax[d] == 19 && lmin[d] == 2) {
         //naive
         // di = {0, 104858, 209716, 314573, 419431};
-        //optimal
+        //optimal for [2]^6--[19]^6
         di = {0, 98304, 196609, 327680, 425985};
       } else {
         throw std::runtime_error("please implement a decomposition matching p and lmax");
