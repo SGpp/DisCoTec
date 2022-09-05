@@ -137,6 +137,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     auto writeSuccess = uniDSG->writeOneFileToDisk("test_sg_all");
     BOOST_WARN(writeSuccess);
     if (writeSuccess) {
+      uniDSGfromSubspaces->setZero();
       auto readSuccess = uniDSGfromSubspaces->readOneFileFromDisk("test_sg_all");
       BOOST_WARN(readSuccess);
       if (readSuccess) {
@@ -217,15 +218,18 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
       }
     }
     // test for dumping sparse grid data to disk and reading back in
-    uniDSG->writeToDisk("test_sg_");
-    uniDSG->readFromDisk("test_sg_");
+    uniDSG->writeToDiskChunked("test_sg_");
+    uniDSGfromSubspaces->setZero();
+    uniDSGfromSubspaces->readFromDiskChunked("test_sg_");
+    BOOST_TEST_CHECKPOINT("compare values chunked");
+    for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
+      BOOST_CHECK_EQUAL(uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
+    }
 
     // and remove straight away
     if (rank == 0) {
       system( "rm test_sg_*" );
     }
-
-    // TODO test for reduced lmax
   }
 }
 
