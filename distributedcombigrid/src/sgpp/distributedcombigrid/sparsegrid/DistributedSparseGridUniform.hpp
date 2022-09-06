@@ -259,7 +259,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
     assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
 
     if (numDataPoints > 0) {
-      subspacesData_ = std::vector<FG_ELEMENT>(numDataPoints);
+      subspacesData_ = std::vector<FG_ELEMENT>(numDataPoints, 0.);
 
       // update pointers and sizes in subspaces
       size_t offset = 0;
@@ -631,8 +631,9 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fi
     MPI_Info_set(info, "cb_align", "2");
     MPI_Info_set(info, "cb_nodes_list", "*:*");
     MPI_Info_set(info, "direct_io", "false");
-    MPI_Info_set(info, "romio_ds_read", "disable");
     MPI_Info_set(info, "romio_ds_write", "disable");
+    MPI_Info_set(info, "romio_cb_write", "enable");
+    MPI_Info_set(info, "romio_no_indep_rw", "true");
     MPI_Info_set(info, "cb_nodes", "8");
   }
 
@@ -689,7 +690,8 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
     MPI_Info_set(info, "cb_nodes_list", "*:*");
     MPI_Info_set(info, "direct_io", "false");
     MPI_Info_set(info, "romio_ds_read", "disable");
-    MPI_Info_set(info, "romio_ds_write", "disable");
+    MPI_Info_set(info, "romio_cb_read", "enable");
+    MPI_Info_set(info, "romio_no_indep_rw", "true");
     MPI_Info_set(info, "cb_nodes", "8");
   }
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
@@ -709,9 +711,18 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
 
   // read from single file with MPI-IO
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+	MPI_Status status;
   MPI_File_read_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType,
-                       MPI_STATUS_IGNORE);
+                       &status);
   MPI_File_close(&fh);
+  int readcount = 0;
+	MPI_Get_count (&status, dataType, &readcount);
+  if (readcount < file_len) {
+    // loud failure
+    std::cerr << readcount << " and not " << file_len << std::endl;
+    throw std::runtime_error("read dsg: not read the right amount!");
+  }
+
   return true;
 }
 
