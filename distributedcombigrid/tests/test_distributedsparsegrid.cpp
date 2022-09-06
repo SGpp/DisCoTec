@@ -132,6 +132,13 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     BOOST_CHECK_GT(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
     uniDFG->addToUniformSG(*uniDSGfromSubspaces, 0.);
     BOOST_CHECK_EQUAL(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
+    for (size_t i = 0; i < uniDSGfromSubspaces->getNumSubspaces(); ++i) {
+      BOOST_CHECK_EQUAL(uniDSG->getDataSize(i), uniDSGfromSubspaces->getDataSize(i));
+    }
+    for (size_t i = 0; i < uniDSGfromSubspaces->getRawDataSize(); ++i) {
+      BOOST_TEST_CONTEXT(std::to_string(i))
+      BOOST_CHECK_EQUAL(uniDSGfromSubspaces->getRawData()[i], 0.);
+    }
     // TODO test if the values are correct
 
     auto writeSuccess = uniDSG->writeOneFileToDisk("test_sg_all");
