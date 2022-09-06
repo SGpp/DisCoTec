@@ -725,10 +725,10 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
   MPI_File_close(&fh);
   int readcount = 0;
 	MPI_Get_count (&status, dataType, &readcount);
-  if (readcount < file_len) {
-    // loud failure
-    std::cerr << readcount << " and not " << file_len << std::endl;
-    throw std::runtime_error("read dsg: not read the right amount!");
+  if (readcount < len) {
+    // loud non-failure
+    std::cerr << "read dsg: " << readcount << " and not " << len << std::endl;
+    // throw std::runtime_error("read dsg: not read the right amount!");
   }
 
   return true;
