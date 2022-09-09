@@ -346,6 +346,9 @@ int main(int argc, char** argv) {
         // di = {0, 104858, 209716, 314573, 419431};
         //optimal for [2]^6--[19]^6
         di = {0, 98304, 196609, 327680, 425985};
+      } else if (p[d] == 3 && lmax[d] == 19 && lmin[d] == 2) {
+        //optimal for [2]^6--[19]^6
+        di = {0, 160737, 363552};
       } else {
         throw std::runtime_error("please implement a decomposition matching p and lmax");
       }
