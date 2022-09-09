@@ -391,8 +391,8 @@ int main(int argc, char** argv) {
 
     double start, finish;
 
+    start = MPI_Wtime();
     for (size_t i = 1; i < ncombi; ++i) {
-      start = MPI_Wtime();
 
       Stats::startEvent("manager combine");
       if (hasThirdLevel) {
@@ -407,6 +407,7 @@ int main(int argc, char** argv) {
       }
       finish = MPI_Wtime();
       std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
+      start = finish;
 
       // run tasks for next time interval
       // start = MPI_Wtime();
@@ -416,9 +417,7 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager run");
       finish = MPI_Wtime();
       std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
-
-      // run currently sets the dsgs back to zero
-      // std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
+      start = finish;
     }
 
     Stats::startEvent("manager combine");
