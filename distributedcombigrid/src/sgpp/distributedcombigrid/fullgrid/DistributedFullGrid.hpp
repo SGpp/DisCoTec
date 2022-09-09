@@ -1892,68 +1892,74 @@ class DistributedFullGrid {
 
   const std::vector<IndexVector>& getDecomposition() const { return decomposition_; }
 
+  MPI_Datatype getUpwardSubarray(DimType d) {
+    // do index calculations
+    // set lower bounds of subarray
+    IndexVector subarrayLowerBounds = this->getLowerBounds();
+    IndexVector subarrayUpperBounds = this->getUpperBounds();
+    subarrayLowerBounds[d] += this->getLocalSizes()[d] - 1;
+
+    auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
+    assert(subarrayExtents[d] == 1);
+    auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
+
+    // create MPI datatype
+    std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+    std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
+    // the starts are local indices
+    std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
+
+    // create subarray view on data
+    MPI_Datatype mysubarray;
+    MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(),
+                             starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
+    MPI_Type_commit(&mysubarray);
+    return mysubarray;
+  }
+
   std::vector<MPI_Datatype> getUpwardSubarrays() {
     // initialize upwardSubarrays_ only once
-    if (upwardSubarrays_.size() == 0){
+    if (upwardSubarrays_.size() == 0) {
       upwardSubarrays_.resize(this->getDimension());
       for (DimType d = 0; d < this->getDimension(); ++d) {
-        // do index calculations
-        // set lower bounds of subarray
-        IndexVector subarrayLowerBounds = this->getLowerBounds();
-        IndexVector subarrayUpperBounds = this->getUpperBounds();
-        subarrayLowerBounds[d] += this->getLocalSizes()[d] - 1;
-
-        auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
-        assert(subarrayExtents[d] == 1);
-        auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
-
-        // create MPI datatype
-        std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
-        std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
-        // the starts are local indices
-        std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
-
-        // create subarray view on data
-        MPI_Datatype mysubarray;
-        MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
-                                subsizes.data(), starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(),
-                                &mysubarray);
-        MPI_Type_commit(&mysubarray);
-        upwardSubarrays_[d] = mysubarray;
+        upwardSubarrays_[d] = getUpwardSubarray(d);
       }
     }
     return upwardSubarrays_;
   }
 
+  MPI_Datatype getDownwardSubarray(DimType d) {
+    // do index calculations
+    // set upper bounds of subarray
+    IndexVector subarrayLowerBounds = this->getLowerBounds();
+    IndexVector subarrayUpperBounds = this->getUpperBounds();
+    subarrayUpperBounds[d] -= this->getLocalSizes()[d] - 1;
+
+    auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
+    assert(subarrayExtents[d] == 1);
+    auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
+
+    // create MPI datatype
+    // also, the data dimensions are reversed
+    std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+    std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
+    // the starts are local indices
+    std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
+
+    // create subarray view on data
+    MPI_Datatype mysubarray;
+    MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(), subsizes.data(),
+                             starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
+    MPI_Type_commit(&mysubarray);
+    return mysubarray;
+  }
+
   std::vector<MPI_Datatype> getDownwardSubarrays() {
     // initialize downwardSubarrays_ only once
-    if (downwardSubarrays_.size() == 0){
+    if (downwardSubarrays_.size() == 0) {
       downwardSubarrays_.resize(this->getDimension());
       for (DimType d = 0; d < this->getDimension(); ++d) {
-        // do index calculations
-        // set upper bounds of subarray
-        IndexVector subarrayLowerBounds = this->getLowerBounds();
-        IndexVector subarrayUpperBounds = this->getUpperBounds();
-        subarrayUpperBounds[d] -= this->getLocalSizes()[d] - 1;
-
-        auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
-        assert(subarrayExtents[d] == 1);
-        auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
-
-        // create MPI datatype
-        // also, the data dimensions are reversed
-        std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
-        std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
-        // the starts are local indices
-        std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
-
-        // create subarray view on data
-        MPI_Datatype mysubarray;
-        MPI_Type_create_subarray(static_cast<int>(this->getDimension()), sizes.data(),
-                                subsizes.data(), starts.data(), MPI_ORDER_FORTRAN, this->getMPIDatatype(),
-                                &mysubarray);
-        MPI_Type_commit(&mysubarray);
-        downwardSubarrays_[d] = mysubarray;
+        downwardSubarrays_[d] = getDownwardSubarray(d);
       }
     }
     return downwardSubarrays_;
@@ -1990,8 +1996,8 @@ class DistributedFullGrid {
     assert(hasBoundaryPoints_[d] == true);
 
     // create MPI datatypes
-    auto downSubarrays = getDownwardSubarrays();
-    auto upSubarrays = getUpwardSubarrays();
+    auto downSubarray = getDownwardSubarray(d);
+    auto upSubarray = getUpwardSubarray(d);
 
     // if I have the lowest neighbor (i. e. I am the highest rank), I need to send my highest layer in d to them,
     // if I have the highest neighbor (i. e. I am the lowest rank), I can receive it
@@ -1999,17 +2005,19 @@ class DistributedFullGrid {
     getHighestAndLowestNeighbor(d, higher, lower);
 
     auto success =
-        MPI_Sendrecv(this->getData(), 1, upSubarrays[d], lower, TRANSFER_GHOST_LAYER_TAG,
-                     this->getData(), 1, downSubarrays[d], higher,
+        MPI_Sendrecv(this->getData(), 1, upSubarray, lower, TRANSFER_GHOST_LAYER_TAG,
+                     this->getData(), 1, downSubarray, higher,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+    MPI_Type_free(&downSubarray);
+    MPI_Type_free(&upSubarray);
   }
 
   void writeLowerBoundaryToUpperBoundary(DimType d) {
     assert(hasBoundaryPoints_[d] == true);
 
     // create MPI datatypes
-    auto downSubarrays = getDownwardSubarrays();
-    auto upSubarrays = getUpwardSubarrays();
+    auto downSubarray = getDownwardSubarray(d);
+    auto upSubarray = getUpwardSubarray(d);
 
     // if I have the highest neighbor (i. e. I am the lowest rank), I need to send my lowest layer in d to them,
     // if I have the lowest neighbor (i. e. I am the highest rank), I can receive it
@@ -2018,10 +2026,12 @@ class DistributedFullGrid {
 
     // TODO asynchronous over d??
     auto success =
-        MPI_Sendrecv(this->getData(), 1, downSubarrays[d], higher, TRANSFER_GHOST_LAYER_TAG,
-                     this->getData(), 1, upSubarrays[d], lower,
+        MPI_Sendrecv(this->getData(), 1, downSubarray, higher, TRANSFER_GHOST_LAYER_TAG,
+                     this->getData(), 1, upSubarray, lower,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
+    MPI_Type_free(&downSubarray);
+    MPI_Type_free(&upSubarray);
   }
 
   void exchangeBoundaryLayers(DimType d, std::vector<FG_ELEMENT>& recvbufferFromUp,
@@ -2033,8 +2043,8 @@ class DistributedFullGrid {
                                        std::multiplies<IndexType>());
 
     // create MPI datatypes
-    auto downSubarrays = getDownwardSubarrays();
-    auto upSubarrays = getUpwardSubarrays();
+    auto downSubarray = getDownwardSubarray(d);
+    auto upSubarray = getUpwardSubarray(d);
 
     // if I have the highest neighbor (i. e. I am the lowest rank), I need to send my lowest layer
     // in d to them, if I have the lowest neighbor (i. e. I am the highest rank), I can receive it
@@ -2069,18 +2079,19 @@ class DistributedFullGrid {
     // TODO asynchronous??
     // send lower boundary values
     auto success =
-        MPI_Sendrecv(this->getData(), 1, downSubarrays[d], higher, TRANSFER_GHOST_LAYER_TAG,
+        MPI_Sendrecv(this->getData(), 1, downSubarray, higher, TRANSFER_GHOST_LAYER_TAG,
                      recvbufferFromDown.data(), static_cast<int>(recvbufferFromDown.size()),
                      this->getMPIDatatype(), lower, TRANSFER_GHOST_LAYER_TAG,
                      this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
     // send upper boundary values
-    success = MPI_Sendrecv(this->getData(), 1, upSubarrays[d], lower, TRANSFER_GHOST_LAYER_TAG,
+    success = MPI_Sendrecv(this->getData(), 1, upSubarray, lower, TRANSFER_GHOST_LAYER_TAG,
                            recvbufferFromUp.data(), static_cast<int>(recvbufferFromUp.size()),
                            this->getMPIDatatype(), higher, TRANSFER_GHOST_LAYER_TAG,
                            this->getCommunicator(), MPI_STATUS_IGNORE);
-
     assert(success == MPI_SUCCESS);
+    MPI_Type_free(&downSubarray);
+    MPI_Type_free(&upSubarray);
   }
 
   // non-RVO dependent version of ghost layer exchange
@@ -2090,7 +2101,7 @@ class DistributedFullGrid {
     subarrayExtents[d] = 1;
 
     // create MPI datatype
-    auto subarrays = getUpwardSubarrays();
+    auto subarray = getUpwardSubarray(d);
 
     // if I have a higher neighbor, I need to send my highest layer in d to them,
     // if I have a lower neighbor, I can receive it
@@ -2124,10 +2135,11 @@ class DistributedFullGrid {
 
     // TODO asynchronous over d??
     auto success =
-        MPI_Sendrecv(this->getData(), 1, subarrays[d], higher, TRANSFER_GHOST_LAYER_TAG,
+        MPI_Sendrecv(this->getData(), 1, subarray, higher, TRANSFER_GHOST_LAYER_TAG,
                      recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
+    MPI_Type_free(&subarray);
   }
 
   std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents) {
