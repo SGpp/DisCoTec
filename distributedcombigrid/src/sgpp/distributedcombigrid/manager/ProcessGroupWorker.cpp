@@ -557,20 +557,11 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   }
 #endif
 
-  // get all subspaces in the (optimized) combischeme
-  SGrid<real> sg(dim, lmax, lmin, boundary);
-  std::vector<LevelVector> subspaces;
-  for (size_t ssID = 0; ssID < sg.getSize(); ++ssID) {
-    const LevelVector& ss = sg.getLevelVector(ssID);
-    subspaces.push_back(ss);
-  }
-  assert(subspaces.size() > 0);
-
-  // create dsgs
+  // get all subspaces in the (optimized) combischeme, create dsgs
   combinedUniDSGVector_.resize((size_t) numGrids);
   for (auto& uniDSG : combinedUniDSGVector_) {
     uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-        new DistributedSparseGridUniform<CombiDataType>(dim, subspaces, boundary,
+        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
                                                         theMPISystem()->getLocalComm()));
 #ifdef DEBUG_OUTPUT
     MASTER_EXCLUSIVE_SECTION {
