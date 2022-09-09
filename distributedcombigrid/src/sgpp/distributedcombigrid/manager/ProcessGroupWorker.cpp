@@ -1074,7 +1074,9 @@ void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
           combiParameters_.getLMax(), currentTask_->getLevelVector(),
           combiParameters_.getBoundary());
   currentTask_->init(theMPISystem()->getLocalComm(), taskDecomposition);
-  t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
+  if (ENABLE_FT) {
+    t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
+  }
   Stats::stopEvent("task init in worker");
 }
 
