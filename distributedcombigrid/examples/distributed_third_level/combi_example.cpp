@@ -293,8 +293,8 @@ int main(int argc, char** argv) {
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
-    std::cout << "CombiScheme: " << std::endl;
-    for (const LevelVector& level : levels) std::cout << level << std::endl;
+    // std::cout << "CombiScheme: " << std::endl;
+    // for (const LevelVector& level : levels) std::cout << level << std::endl;
 
     // create Tasks
     TaskContainer tasks;
