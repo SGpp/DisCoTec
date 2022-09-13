@@ -77,7 +77,7 @@ class DistributedSparseGrid {
   // this is const only to prevent people from changing the size
   inline const std::vector<FG_ELEMENT>& getDataVector(const LevelVector& l);
 
-  inline size_t getDim() const;
+  inline DimType getDim() const;
 
   inline const LevelVector& getNMax() const;
 

@@ -518,11 +518,11 @@ void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
     for (size_t i = 0; i < reduceLmin.size(); ++i) {
       assert(reduceLmax[i] >= 0 && reduceLmin[i] >= 0);  // check for valid reduce values
       if (lmin[i] > 1) {
-        lmin[i] = std::max((IndexType)1, lmin[i] - reduceLmin[i]);
+        lmin[i] = std::max(static_cast<LevelType>(1), static_cast<LevelType>(lmin[i] - reduceLmin[i]));
       }
     }
     for (size_t i = 0; i < reduceLmax.size(); ++i) {
-      lmax[i] = std::max(lmin[i], lmax[i] - reduceLmax[i]);
+      lmax[i] = std::max(lmin[i], static_cast<LevelType>(lmax[i] - reduceLmax[i]));
     }
   }
 }

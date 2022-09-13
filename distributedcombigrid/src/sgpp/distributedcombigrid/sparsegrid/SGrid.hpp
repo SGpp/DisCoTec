@@ -67,7 +67,7 @@ class SGrid {
 
   inline bool isContained(const LevelVector& l) const;
 
-  inline size_t getDim() const;
+  inline DimType getDim() const;
 
   inline const LevelVector& getNMax() const;
 

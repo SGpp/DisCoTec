@@ -52,7 +52,7 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
 
 LevelVector getFurthestCorner(LevelVector& lmax, LevelVector& lmin) {
   LevelVector ldiff = lmax - lmin;
-  std::vector<IndexType>::iterator result = std::max_element(ldiff.begin(), ldiff.end());
+  LevelVector::iterator result = std::max_element(ldiff.begin(), ldiff.end());
   LevelType indexMax = std::distance(ldiff.begin(), result);
   LevelVector lm(lmin);
   lm[indexMax] = lmax[indexMax];

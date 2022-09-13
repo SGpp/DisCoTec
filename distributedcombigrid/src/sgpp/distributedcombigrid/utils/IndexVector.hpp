@@ -16,25 +16,6 @@ namespace combigrid {
 
 typedef std::vector<IndexType> IndexVector;
 
-inline IndexType sum(const IndexVector& l) {
-  IndexType lsum(0);
-
-  for (std::size_t d = 0; d < l.size(); ++d) lsum += l[d];
-
-  return lsum;
-}
-
-inline bool operator==(const IndexVector& l1, const IndexVector& l2) {
-  assert(l1.size() == l2.size());
-
-  // std::cout << "== at line number " << __LINE__ << " in file " << __FILE__ << std::endl;
-
-  for (std::size_t i = 0; i < l1.size(); ++i) {
-    if (l1[i] != l2[i]) return false;
-  }
-
-  return true;
-}
 
 // helper function to compare any vector
 template<typename T>
@@ -94,10 +75,11 @@ inline bool operator>=(const IndexVector& l1, const IndexVector& l2) {
   return true;
 }
 
-inline IndexVector operator+(const IndexVector& l1, const IndexVector& l2) {
+template<typename T>
+inline std::vector<T> operator+(const std::vector<T>& l1, const std::vector<T>& l2) {
   assert(l1.size() == l2.size());
 
-  IndexVector tmp(l1.size());
+  std::vector<T> tmp(l1.size());
 
   for (std::size_t i = 0; i < l1.size(); ++i) tmp[i] = l1[i] + l2[i];
 
@@ -114,11 +96,12 @@ inline std::ostream& operator<<(std::ostream& os, const IndexVector& l) {
   return os;
 }
 
-inline IndexVector operator-(const IndexVector& l1, const IndexVector& l2) {
+template<typename T>
+inline std::vector<T> operator-(const std::vector<T>& l1, const std::vector<T>& l2) {
   assert(l1.size() == l2.size());
   //  assert(l1 >= l2);
 
-  IndexVector tmp(l1.size());
+  std::vector<T> tmp(l1.size());
 
   for (std::size_t i = 0; i < l1.size(); ++i) {
     tmp[i] = l1[i] - l2[i];
@@ -127,17 +110,19 @@ inline IndexVector operator-(const IndexVector& l1, const IndexVector& l2) {
   return tmp;
 }
 
-inline IndexType l1(const IndexVector& l) {
-  IndexType lsum(0);
+template<typename T>
+inline T l1(const std::vector<T>& l) {
+  T lsum(0);
 
   for (std::size_t d = 0; d < l.size(); ++d) lsum += std::abs(l[d]);
 
   return lsum;
 }
 
-/* read in indexvector from string where ' ' serves as delimiter
+/* read in vector from string where ' ' serves as delimiter
  * the vector described by str MUST NOT have a different size than ivec */
-inline IndexVector& operator>>(std::string str, IndexVector& ivec) {
+template<typename T>
+inline std::vector<T>& operator>>(std::string str, std::vector<T>& ivec) {
   std::vector<std::string> strs;
   boost::split(strs, str, boost::is_any_of(" "));
 

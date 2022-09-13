@@ -3,12 +3,19 @@
 
 // #include <sstream>
 // #include <string>
+#include <numeric>
+#include <vector>
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 
 namespace combigrid {
 
-typedef IndexVector LevelVector;
+typedef std::vector<LevelType> LevelVector;
 std::string toString(combigrid::LevelVector const& l);
+
+
+inline LevelType sum(const LevelVector& l) {
+  return std::accumulate(l.begin(), l.end(), static_cast<LevelType>(0));
+}
 
 // get downward closed set of a single LevelVector
 std::vector<LevelVector> getDownSet(combigrid::LevelVector const& l);

@@ -102,7 +102,7 @@ class DistributedSparseGridUniform {
   // allows a linear access to the whole subspace data stored in this dsg
   inline FG_ELEMENT* getRawData();
 
-  inline size_t getDim() const;
+  inline DimType getDim() const;
 
   // return the number of subspaces
   inline size_t getNumSubspaces() const;
