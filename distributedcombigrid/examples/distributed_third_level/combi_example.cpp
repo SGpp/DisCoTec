@@ -495,10 +495,10 @@ int main(int argc, char** argv) {
               std::cout << "measured " << measured << " GB, expected " << expected << std::endl;
             }
 
-            if (task->getDistributedFullGrid().getElementVector().max_size() < ctdof ||
-                task->getDistributedFullGrid().getElementVector().size() < ctdof) {
-              throw std::runtime_error("max_size went wrong! " + std::to_string(ctdof));
-            }
+            // if (task->getDistributedFullGrid().getElementVector().max_size() < ctdofPartitioned ||
+            //     task->getDistributedFullGrid().getElementVector().size() < ctdofPartitioned) {
+            //   throw std::runtime_error("max_size went wrong! " + std::to_string(ctdofPartitioned));
+            // }
             former_vmrss = current_vmrss;
             former_vmsize = current_vmsize;
 #endif  // DEBUG_OUTPUT
