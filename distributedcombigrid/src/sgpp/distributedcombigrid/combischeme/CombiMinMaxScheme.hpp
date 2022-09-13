@@ -172,19 +172,24 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
   std::vector<size_t> processGroupNumbers_;
 };
 
+
+inline long long int getCombiDegreesOfFreedom(const LevelVector& level) {
+  long long int numDOF = 1;
+    for (const auto& level_i : level) {
+      assert(level_i > -1);
+      if (level_i > 0) {
+        numDOF *= powerOfTwo[level_i] + 1;
+      } else {
+        numDOF *= 2;
+      }
+    }
+  return numDOF;
+}
+
 inline long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces) {
   long long int numDOF = 0;
   for (const auto& space : combiSpaces) {
-    long int numDOFSpace = 1;
-    for (const auto& level_i : space) {
-      assert(level_i > -1);
-      if (level_i > 0) {
-        numDOFSpace *= powerOfTwo[level_i] + 1;
-      } else {
-        numDOFSpace *= 2;
-      }
-    }
-    numDOF += numDOFSpace;
+    numDOF += getCombiDegreesOfFreedom(space);
   }
   std::cout << "Combination scheme DOF : " << numDOF << " i.e. "
             << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
