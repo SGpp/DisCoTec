@@ -128,6 +128,8 @@ void runThirdLevelManager(unsigned short port) {
 
 /** Runs the tl manager*/
 void startInfrastructure(unsigned short port = 9999) {
+  // give former infrastructure some time to shut down
+  sleep(3);
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
