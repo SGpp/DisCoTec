@@ -17,8 +17,8 @@ class CombiParameters {
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
                   std::vector<size_t>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
                   const IndexVector parallelization = {0},
-                  LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
-                  LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
+                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
+                  LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   bool forwardDecomposition = !isGENE,
                   const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0,
@@ -53,8 +53,8 @@ class CombiParameters {
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
                   std::vector<bool>& hierarchizationDims, std::vector<size_t>& taskIDs,
                   IndexType numberOfCombinations, IndexType numGrids = 1,
-                  LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
-                  LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
+                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
+                  LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
@@ -403,11 +403,11 @@ inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& c
   }
 }
 
-inline static std::vector<LevelVector> getStandardDecomposition(LevelVector lref, IndexVector procsRef) {
+inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref, IndexVector procsRef) {
   assert(lref.size() == procsRef.size());
-  std::vector<LevelVector> decomposition;
+  std::vector<IndexVector> decomposition;
   for (DimType d = 0; d < lref.size(); ++d) {
-    LevelVector di;
+    IndexVector di;
     if (procsRef[d] == 1) {
       di = {0};
     } else if (procsRef[d] == 2) {

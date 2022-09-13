@@ -192,7 +192,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1, parallelization,
-                                std::vector<IndexType>(testParams.dim, 0), std::vector<IndexType>(testParams.dim, 1),
+                                LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
                                 true, testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
@@ -402,7 +402,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
     IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1, parallelization,
-                                std::vector<IndexType>(testParams.dim, 0), std::vector<IndexType>(testParams.dim, 1),
+                                LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
                                 true, testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
@@ -512,13 +512,13 @@ void testPretendThirdLevel(TestParams& testParams) {
     BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
-    auto reduceCombinationDimsLmax = std::vector<IndexType>(testParams.dim, 1);
+    auto reduceCombinationDimsLmax = LevelVector(testParams.dim, 1);
 
     // create combiparameters
     IndexVector parallelization = {static_cast<long>(testParams.nprocs), 1};
     CombiParameters combiParams(
         testParams.dim, testParams.lmin, testParams.lmax, boundary, levels, coeffs, taskIDs,
-        testParams.ncombi, 1, parallelization, std::vector<IndexType>(testParams.dim, 0),
+        testParams.ncombi, 1, parallelization, LevelVector(testParams.dim, 0),
         reduceCombinationDimsLmax, true, testParams.host, testParams.port, 0);
 
     auto decomposition = combigrid::getStandardDecomposition(testParams.lmax, parallelization);

@@ -83,7 +83,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     }
 
     // use decomposition for full grids
-    std::vector<LevelVector> decomposition;
+    std::vector<IndexVector> decomposition;
     auto lref = lmax + lmax;
     auto procsRef = procs;
     decomposition = combigrid::getStandardDecomposition(lref, procsRef);
@@ -405,7 +405,7 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_1) {
   LevelVector lmin = {1};
   LevelVector lmax = {5};
   IndexVector procs = {2};
-  std::vector<LevelVector> decomposition = {{0, 1}};
+  std::vector<IndexVector> decomposition = {{0, 1}};
   auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
   auto sln = LevelVector({1,32});
   BOOST_CHECK_EQUAL_COLLECTIONS(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), sln.begin(),
@@ -422,7 +422,7 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_2) {
   LevelVector lmin = {1, 1};
   LevelVector lmax = {2, 2};
   IndexVector procs = {2, 2};
-  std::vector<LevelVector> decomposition = {{0, 1}, {0, 3}};
+  std::vector<IndexVector> decomposition = {{0, 1}, {0, 3}};
   auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
   auto sln = LevelVector({3, 10, 2, 6});
   BOOST_CHECK_EQUAL_COLLECTIONS(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), sln.begin(),
@@ -439,7 +439,7 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_3) {
   LevelVector lmin = {1, 1, 1};
   LevelVector lmax = {3, 3, 3};
   IndexVector procs = {2, 2, 2};
-  std::vector<LevelVector> decomposition = {{0, 1}, {0, 2}, {0, 3}};
+  std::vector<IndexVector> decomposition = {{0, 1}, {0, 2}, {0, 3}};
   auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
   auto sln = LevelVector({4, 16, 13, 46, 8, 30, 24, 84});
   BOOST_CHECK_EQUAL_COLLECTIONS(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), sln.begin(),
