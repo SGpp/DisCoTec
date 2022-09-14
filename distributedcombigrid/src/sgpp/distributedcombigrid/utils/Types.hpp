@@ -36,12 +36,12 @@ typedef int64_t IndexType;
 
 typedef IndexType LevelType;
 
-typedef size_t DimType;
+typedef uint8_t DimType;
 
 typedef MPI_Comm CommunicatorType;
 
 typedef int RankType;
-}
+}  // namespace combigrid
 
 namespace abstraction {
 
@@ -133,6 +133,6 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
       ss << "]]";
       return ss.str();
   }
-}
+  }  // namespace abstraction
 
 #endif /* TYPES_HPP_ */
