@@ -624,7 +624,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fi
 
   // get offset in file
   MPI_Offset len = this->getRawDataSize();
-  MPI_Offset pos;
+  MPI_Offset pos = 0;
   MPI_Exscan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
 
   // get total file length
@@ -664,6 +664,10 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fi
     MPI_Status status;
     err = MPI_File_write_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType,
                                 &status);
+    if (err != MPI_SUCCESS) {
+      std::cerr << err << " in MPI_File_write_at_all" << std::endl;
+      handle_error(err);
+    }
     int numWritten = 0;
     MPI_Get_count(&status, dataType, &numWritten);
     if (numWritten != len) {
@@ -682,7 +686,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
 
   // get offset in file
   MPI_Offset len = this->getRawDataSize();
-  MPI_Offset pos;
+  MPI_Offset pos = 0;
   MPI_Exscan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
 
   // get total file length
