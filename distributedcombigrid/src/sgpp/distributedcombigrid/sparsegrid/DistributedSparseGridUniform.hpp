@@ -617,11 +617,13 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fi
   // get offset in file
   MPI_Offset len = this->getRawDataSize();
   MPI_Offset pos = 0;
-  MPI_Exscan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
+  MPI_Exscan(&len, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
+             MPI_SUM, comm);
 
   // get total file length
   MPI_Offset file_len;
-  MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, comm);
+  MPI_Allreduce(&len, &file_len, 1,
+                getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()), MPI_SUM, comm);
 
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
   MPI_Info info = MPI_INFO_NULL;
@@ -679,11 +681,13 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
   // get offset in file
   MPI_Offset len = this->getRawDataSize();
   MPI_Offset pos = 0;
-  MPI_Exscan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
+  MPI_Exscan(&len, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
+             MPI_SUM, comm);
 
   // get total file length
   MPI_Offset file_len;
-  MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, comm);
+  MPI_Allreduce(&len, &file_len, 1,
+                getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()), MPI_SUM, comm);
 
   // open file
   MPI_File fh;

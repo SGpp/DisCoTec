@@ -51,6 +51,7 @@ typedef enum {
   type_double,
   type_double_complex,
   type_float_complex,
+  type_long_long,
   type_size_t
 } DataType;
 
@@ -80,6 +81,11 @@ inline DataType getabstractionDataType<std::complex<float> >() {
 }
 
 template <>
+inline DataType getabstractionDataType<long long>() {
+  return abstraction::type_long_long;
+}
+
+template <>
 inline DataType getabstractionDataType<size_t>() {
   return abstraction::type_size_t;
 }
@@ -97,6 +103,9 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
 
     case abstraction::type_float_complex:
       return MPI_COMPLEX;
+
+    case abstraction::type_long_long:
+      return MPI_LONG_LONG;
 
     case abstraction::type_size_t:
       return MPI_SIZE_T;
