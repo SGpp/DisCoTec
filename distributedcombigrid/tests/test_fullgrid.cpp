@@ -39,7 +39,7 @@ void checkFullgrid(LevelVector& levels, std::vector<bool>& boundary) {
   if (comm == MPI_COMM_NULL) return;
 
   TestFn f;
-  const DimType dim = levels.size();
+  const auto dim = static_cast<DimType>(levels.size());
 
   // create fg
   FullGrid<std::complex<double>> fg(dim, levels, boundary);

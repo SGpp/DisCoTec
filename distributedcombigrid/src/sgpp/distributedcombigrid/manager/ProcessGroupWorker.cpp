@@ -697,7 +697,7 @@ static bool endsWith(const std::string& str, const std::string& suffix)
 }
 
 LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
-  const int dim = static_cast<int>(combiParameters_.getDim());
+  const auto dim = combiParameters_.getDim();
 
   // combine must have been called before this function
   assert(combinedUniDSGVector_.size() != 0 && "you must combine before you can eval");
@@ -705,7 +705,7 @@ LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
   // receive leval and broadcast to group members
   std::vector<int> tmp(dim);
   MASTER_EXCLUSIVE_SECTION {
-    MPI_Recv(&tmp[0], dim, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG,
+    MPI_Recv(&tmp[0], static_cast<int>(dim), MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG,
              theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
   }
 
@@ -727,7 +727,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
   auto numGrids = combiParameters_.getNumGrids();  // we assume here that every task has the same number of grids
 
   auto leval = receiveLevalAndBroadcast();
-  const int dim = static_cast<int>(leval.size());
+  const auto dim = static_cast<DimType>(leval.size());
 
   // receive filename and broadcast to group members
   std::string filename;
@@ -791,7 +791,7 @@ void sendEvalNorms(const DistributedFullGrid<CombiDataType>& dfg){
 
 void ProcessGroupWorker::parallelEvalNorm() {
   auto leval = receiveLevalAndBroadcast();
-  const int dim = static_cast<int>(leval.size());
+  const auto dim = static_cast<DimType>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
   auto levalDecomposition = combigrid::downsampleDecomposition(
           combiParameters_.getDecomposition(),
@@ -809,7 +809,7 @@ void ProcessGroupWorker::parallelEvalNorm() {
 
 void ProcessGroupWorker::evalAnalyticalOnDFG() {
   auto leval = receiveLevalAndBroadcast();
-  const int dim = static_cast<int>(leval.size());
+  const auto dim = static_cast<DimType>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
   auto levalDecomposition = combigrid::downsampleDecomposition(
           combiParameters_.getDecomposition(),
@@ -833,7 +833,7 @@ void ProcessGroupWorker::evalAnalyticalOnDFG() {
 
 void ProcessGroupWorker::evalErrorOnDFG() {
   auto leval = receiveLevalAndBroadcast();
-  const int dim = static_cast<int>(leval.size());
+  const auto dim = static_cast<DimType>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
   auto levalDecomposition = combigrid::downsampleDecomposition(
           combiParameters_.getDecomposition(),
