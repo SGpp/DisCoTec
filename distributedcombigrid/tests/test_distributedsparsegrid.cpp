@@ -144,7 +144,9 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     auto writeSuccess = uniDSG->writeOneFileToDisk("test_sg_all");
     BOOST_WARN(writeSuccess);
     if (writeSuccess) {
-      uniDSGfromSubspaces->setZero();
+      for (size_t i = 0; i < uniDSGfromSubspaces->getRawDataSize(); ++i) {
+        uniDSGfromSubspaces->getRawData()[i] = -1000.;
+      }
       auto readSuccess = uniDSGfromSubspaces->readOneFileFromDisk("test_sg_all");
       BOOST_CHECK(readSuccess);
       if (readSuccess) {
