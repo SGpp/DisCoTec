@@ -32,7 +32,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVecto
     }
 
     assert(lmin.size() == lmax.size());
-    const DimType dim = lmin.size();
+    const auto dim = static_cast<DimType>(lmin.size());
     auto ldiff = lmax - lmin;
     bool schemeIsRegular = std::adjacent_find(ldiff.begin(), ldiff.end(),
                                               std::not_equal_to<LevelType>()) == ldiff.end();

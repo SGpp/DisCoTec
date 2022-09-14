@@ -341,7 +341,7 @@ void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
                           bool checkValues = true) {
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm != MPI_COMM_NULL) {
-    const DimType dim = levels.size();
+    const auto dim = static_cast<DimType>(levels.size());
     DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
     // run test with value check
     checkHierarchization(f, dfg, true);

@@ -51,7 +51,7 @@ class RemoteDataContainer {
 
     assert(keyIndex > -1);
 
-    dim_ = sizes.size();
+    dim_ = static_cast<DimType>(sizes.size());
     dim1d_ = dim1d;
     index1d_ = keyIndex;
     nrPoints_ = sizes;

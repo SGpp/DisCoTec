@@ -221,7 +221,7 @@ inline long long int getSGDegreesOfFreedomFromDownSet(const std::vector<LevelVec
 
 inline long long int printSGDegreesOfFreedomAdaptive(const LevelVector& lmin,
                                                      const LevelVector& lmax) {
-  DimType dim = lmin.size();
+  const auto dim = static_cast<DimType>(lmin.size());
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
   // combischeme.createDownSet();
@@ -277,7 +277,7 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
     const std::vector<IndexVector>& decomposition) {
   // this is only valid for with-boundary schemes!
   // cf downsampleDecomposition to extend to non-boundary
-  DimType dim = downSet[0].size();
+  auto dim = static_cast<DimType>(downSet[0].size());
   IndexVector decompositionOffsets;
   IndexType multiplier = 1;
   for (const auto& d : decomposition) {
@@ -350,7 +350,7 @@ inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
     LevelVector lmin, LevelVector lmax, const LevelVector& referenceLevel,
     const std::vector<IndexVector> decomposition) {
   assert((lmin.size() == lmax.size()) == (referenceLevel.size() == decomposition.size()));
-  auto dim = lmin.size();
+  auto dim = static_cast<DimType>(lmin.size());
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
   // auto downSet = combischeme.getDownSet();

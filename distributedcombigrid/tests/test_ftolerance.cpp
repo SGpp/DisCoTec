@@ -46,7 +46,7 @@ class TestFn {
   // function value
   double operator()(std::vector<double>& coords, double t) {
     double exponent = 0;
-    for (DimType d = 0; d < coords.size(); ++d) {
+    for (DimType d = 0; d < static_cast<DimType>(coords.size()); ++d) {
       coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
       exponent -= std::pow(coords[d] - 0.5, 2);
     }

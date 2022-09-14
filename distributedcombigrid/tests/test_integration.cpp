@@ -440,7 +440,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
   // unit test for CombiMinMaxSchemeFromFile
   LevelVector lmin = {3, 6};
   LevelVector lmax = {7, 10};
-  auto dim = lmin.size();
+  auto dim = static_cast<DimType>(lmin.size());
   std::unique_ptr<CombiMinMaxScheme> scheme(
       new CombiMinMaxSchemeFromFile(dim, lmin, lmax, "test_scheme.json"));
   auto coeffs = scheme->getCoeffs();

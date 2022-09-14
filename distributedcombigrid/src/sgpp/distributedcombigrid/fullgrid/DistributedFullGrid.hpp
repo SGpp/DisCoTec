@@ -354,7 +354,7 @@ class DistributedFullGrid {
    */
   FG_ELEMENT evalMultiindexRecursively (const IndexVector& localIndex, DimType dim, const std::vector<real>& coords) const {
     assert(!(dim > this->getDimension()));
-    if (dim == this->getDimension()){
+    if (dim == this->getDimension()) {
       // std::cout << "eval " << localIndex << std::endl;
       return evalLocalIndexOn(localIndex, coords);
     } else {
@@ -362,8 +362,8 @@ class DistributedFullGrid {
       IndexVector localIndexDimPlusOne = localIndex;
       localIndexDimPlusOne[dim] += 1;
       // std::cout << localIndex << localIndexDimPlusOne << std::endl;
-      sum += evalMultiindexRecursively(localIndex, dim+1, coords);
-      sum += evalMultiindexRecursively(localIndexDimPlusOne, dim+1, coords);
+      sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
+      sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1), coords);
       return sum;
     }
   }
@@ -499,9 +499,10 @@ class DistributedFullGrid {
 
     IndexType tmp = globLinIndex;
 
-    for (int i = static_cast<int>(dim_) - 1; i >= 0; i--) {
-      globAxisIndex[i] = tmp / (this->getOffset(i));
-      tmp = tmp % this->getOffset(i);
+    for (auto i_shifted = dim_; i_shifted > 0; --i_shifted) {
+      auto dim_i = static_cast<DimType>(i_shifted - 1);
+      globAxisIndex[dim_i] = tmp / (this->getOffset(dim_i));
+      tmp = tmp % this->getOffset(dim_i);
     }
   }
 
@@ -1126,7 +1127,7 @@ class DistributedFullGrid {
     IndexVector ivec(dim_);
     size_t localSize = 0;
 
-    calcLocalSizeRecursive(dim_ - 1, l, ivec, localSize);
+    calcLocalSizeRecursive(dim_ - static_cast<DimType>(1), l, ivec, localSize);
     return localSize;
   }
 
@@ -1137,7 +1138,7 @@ class DistributedFullGrid {
     for (IndexType idx : oneDIndices) {
       ivec[d] = idx;
       if (d > 0)
-        getFGPointsOfSubspaceRecursive(d - 1, lvec, ivec, subspaceIndices);
+        getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), lvec, ivec, subspaceIndices);
       else {
         IndexType j = getLocalLinearIndex(ivec);
         subspaceIndices.emplace_back(j);
@@ -1155,7 +1156,7 @@ class DistributedFullGrid {
     std::vector<IndexType> subspaceIndices;
     IndexVector ivec(dim_);
 
-    getFGPointsOfSubspaceRecursive(dim_ - 1, l, ivec, subspaceIndices);
+    getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), l, ivec, subspaceIndices);
     return subspaceIndices;
   }
 
@@ -1991,7 +1992,6 @@ class DistributedFullGrid {
     }
   }
 
-
   void writeUpperBoundaryToLowerBoundary(DimType d) {
     assert(hasBoundaryPoints_[d] == true);
 
@@ -2110,7 +2110,7 @@ class DistributedFullGrid {
 
     // somehow the cartesian directions in the communicator are reversed
     // cf InitMPI(...)
-    DimType d_reverse = this->getDimension() - d - 1;
+    auto d_reverse = this->getDimension() - d - 1;
     if (!reverseOrderingDFGPartitions) {
       d_reverse = d;
     }
@@ -2255,8 +2255,8 @@ class DistributedFullGrid {
         newIndicesSoFar.push_back(indexVec);
         newIndicesSoFar.back().push_back(this->length(dim) - 1);
       }
-      assert(newIndicesSoFar.size() == 2*indicesSoFar.size());
-      return getCornersGlobalVectorIndicesRecursive(newIndicesSoFar, dim + 1);
+      assert(newIndicesSoFar.size() == 2 * indicesSoFar.size());
+      return getCornersGlobalVectorIndicesRecursive(newIndicesSoFar, static_cast<DimType>(dim + 1));
     } else {
       return indicesSoFar;
     }
@@ -2628,7 +2628,7 @@ static inline std::vector<IndexVector> downsampleDecomposition(
                                         const std::vector<bool>& boundary) {
   auto newDecomposition = decomposition;
   if (decomposition.size() > 0) {
-    for (DimType d = 0 ; d < referenceLevel.size(); ++ d) {
+    for (DimType d = 0 ; d < static_cast<DimType>(referenceLevel.size()); ++ d) {
       // for now, assume that we never want to interpolate on a level finer than referenceLevel
       assert(referenceLevel[d] >= newLevel[d]);
       auto levelDiff = referenceLevel[d] - newLevel[d];

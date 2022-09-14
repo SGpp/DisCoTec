@@ -73,7 +73,7 @@ void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
       if (dim == 1) {
         // all mixed dimension sums
         bool pleaseAdd = true;
-        DimType d = lmin.size();
+        DimType d = static_cast<DimType>(lmin.size());
         for (DimType k = 2; k <= d; ++k) {
           auto dimList = getAllKOutOfDDimensions(k, d);
           // for each subselection of dimensions, compute sum of l and lmin

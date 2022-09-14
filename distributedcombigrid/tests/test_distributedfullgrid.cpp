@@ -45,7 +45,7 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   }
   std::vector<long unsigned int> vmSizes(groupSizes.size());
   std::vector<long unsigned int> vmSizesReference(groupSizes.size());
-  const DimType dim = levels.size();
+  const auto dim = static_cast<DimType>(levels.size());
   IndexVector procs(dim, 1);
   std::vector<bool> boundary(dim, true);
 
@@ -116,7 +116,7 @@ void checkDistributedFullgrid(LevelVector& levels, IndexVector& procs, std::vect
   }
 
   TestFn f;
-  const DimType dim = levels.size();
+  const auto dim = static_cast<DimType>(levels.size());
 
   // create dfg
   DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
