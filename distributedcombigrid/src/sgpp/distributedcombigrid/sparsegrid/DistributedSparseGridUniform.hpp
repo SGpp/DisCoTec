@@ -720,9 +720,16 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
   // read from single file with MPI-IO
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 	MPI_Status status;
-  MPI_File_read_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType,
+  err = MPI_File_read_at_all(fh, pos, this->getRawData(), static_cast<int>(len), dataType,
                        &status);
   MPI_File_close(&fh);
+  if (err != MPI_SUCCESS) {
+    // silent failure
+    std::cerr << err << " in MPI_File_read_at_all" << std::endl;
+    handle_error(err);
+    return false;
+  }
+
   int readcount = 0;
 	MPI_Get_count (&status, dataType, &readcount);
   if (readcount < len) {
