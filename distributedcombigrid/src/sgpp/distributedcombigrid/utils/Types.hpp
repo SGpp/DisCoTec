@@ -37,7 +37,7 @@ namespace combigrid {
 
   typedef IndexType LevelType;
 
-  typedef size_t DimType;
+  typedef uint8_t DimType;
 
   typedef MPI_Comm CommunicatorType;
 
