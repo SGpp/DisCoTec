@@ -26,9 +26,12 @@ do
     if test -f "$PATHLRZ/$TOKEN_TRANSFER_FORWARD"; then
         # ./copy_sng_to_hawk.sh
         # try to copy the file
+        starttime=`date +%s`
         uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $PATHLRZ/$FILELRZ $HAWKURL:$PATHHAWK
+        uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $PATHLRZ/$TOKEN_TRANSFER_FORWARD $HAWKURL:$PATHHAWK
         rm "$PATHLRZ/$TOKEN_TRANSFER_FORWARD"
-        echo copied "$FILELRZ"
+        endtime=`date +%s`
+        echo copied "$FILELRZ" in `expr $endtime - $starttime` seconds.
         break
     fi
     if test -f "$PATHLRZ/$TOKEN_STOP"; then
@@ -45,9 +48,12 @@ do
     if (exit $cp_status); then
         # ./copy_hawk_to_sng.sh
         # try to copy the file
+        starttime=`date +%s`
         uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$PATHHAWK/$FILEHAWK $PATHLRZ
+        uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$PATHHAWK/$TOKEN_TRANSFER_BACKWARD $PATHLRZ
         uftp rm --quiet -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK "$HAWKURL:$PATHHAWK/$TOKEN_TRANSFER_BACKWARD"
-        echo copied "$FILEHAWK"
+        endtime=`date +%s`
+        echo copied "$FILEHAWK" in `expr $endtime - $starttime` seconds.
         break
     fi
     if test -f "$PATHLRZ/$TOKEN_STOP"; then
