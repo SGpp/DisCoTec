@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <sys/stat.h>
 
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
@@ -42,6 +43,21 @@ void mockUpDSGWriteToDisk(std::string filePrefix,
   }
 }
 
+void writeZeroDataToDisk(std::string filePrefix,
+                          const std::vector<long long int>& dsgPartitionSizes) {
+  Stats::startEvent("uftp write");
+  real zero = 0.;
+  for (size_t partitionIndex = 0; partitionIndex < dsgPartitionSizes.size(); ++partitionIndex) {
+    std::string myFilename = filePrefix + std::to_string(partitionIndex);
+    std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
+    for (size_t i = 0; i < dsgPartitionSizes[partitionIndex]; ++i) {
+      ofp.write(reinterpret_cast<char*>(&zero), sizeof(real));
+    }
+    ofp.close();
+  }
+  Stats::stopEvent("uftp write");
+}
+
 void validateExchangedData(std::string filePrefix, std::string tokenToWaitFor,
                            const std::vector<long long int>& dsgPartitionSizes) {
   // generate data on heap
@@ -68,6 +84,34 @@ void validateExchangedData(std::string filePrefix, std::string tokenToWaitFor,
       throw std::runtime_error("binary data does not match");
     }
   }
+}
+
+void checkSizeOfFile(std::string filePrefix, std::string tokenToWaitFor,
+                           const std::vector<long long int>& dsgPartitionSizes) {
+  Stats::startEvent("uftp wait check size");
+  Stats::startEvent("uftp wait");
+  std::string myFilename = filePrefix + std::to_string(0);
+  auto rmToken = "rm " + tokenToWaitFor;
+  {
+    std::ifstream tokenStream;
+    do {
+      tokenStream.open(tokenToWaitFor, std::ios::in | std::ios::binary);
+    } while (tokenStream.fail());
+  }
+  std::ifstream ifp(myFilename, std::ios::in | std::ios::binary);
+  Stats::stopEvent("uftp wait");
+
+  struct stat stat_buf;
+  if (stat(myFilename.c_str(), &stat_buf) != 0) {
+    std::cerr << "could not read size of " << myFilename << std::endl;
+  }
+  if (stat_buf.st_size != dsgPartitionSizes[0]) {
+    std::cerr << "wrong size of " << myFilename << " : " << std::to_string(stat_buf.st_size)
+              << std::endl;
+  }
+
+  system(rmToken.c_str());
+  Stats::stopEvent("uftp wait check size");
 }
 
 void readAndInvertDSGFromDisk(std::string filePrefixIn, std::string filePrefixOut,
@@ -325,11 +369,15 @@ int main(int argc, char** argv) {
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
     manager.updateCombiParameters();
 
+    bool validateData = false;
+
     // auto dsguSizes =
-    //     getPartitionedNumDOFSGAdaptive(lmin, lmax - reduceCombinationDimsLmax, lmax, decomposition);
-    // auto sgSumDOFPartitioned = std::accumulate(dsguSizes.begin(), dsguSizes.end(), static_cast<size_t>(0));
-    // if(sgSumDOFPartitioned != sgDOF || ctDOF < sgDOF) {
-    //   throw std::runtime_error("Partitions don't match" + std::to_string(sgSumDOFPartitioned) + " " + std::to_string(sgDOF));
+    //     getPartitionedNumDOFSGAdaptive(lmin, lmax - reduceCombinationDimsLmax, lmax,
+    //     decomposition);
+    // auto sgSumDOFPartitioned = std::accumulate(dsguSizes.begin(), dsguSizes.end(),
+    // static_cast<size_t>(0)); if(sgSumDOFPartitioned != sgDOF || ctDOF < sgDOF) {
+    //   throw std::runtime_error("Partitions don't match" + std::to_string(sgSumDOFPartitioned) + "
+    //   " + std::to_string(sgDOF));
     // }
     // Stats::startEvent("manager calculate dsguConjointSizes");
     // std::vector<long long int> dsguConjointSizes;
@@ -339,7 +387,12 @@ int main(int argc, char** argv) {
     //   dsguConjointSizes = getPartitionedNumDOFSGConjoint(*scheme, lmin, lmax, decomposition);
     // }
     // Stats::stopEvent("manager calculate dsguConjointSizes");
-    long long int dsguConjointSize = 2.5e8; // 106704795649;
+    long long int dsguConjointSize = 0;
+    if (validateData) {
+      dsguConjointSize = 2.5e8;
+    } else {
+      dsguConjointSize = 106704795649;
+    }
 
     // we're only interested in the largest possible for now!
     // Stats::startEvent("manager calculate dsguConjointSize");
@@ -371,26 +424,41 @@ int main(int argc, char** argv) {
         auto rmOther = "rm " + otherSystemDSGPrefix + "*";
         if (systemNumber == 0) {
           std::cout << "mock" << std::endl;
-          mockUpDSGWriteToDisk(mySystemDSGPrefix, {dsguConjointSize});
+          if (validateData) {
+            mockUpDSGWriteToDisk(mySystemDSGPrefix, {dsguConjointSize});
+          } else {
+            writeZeroDataToDisk(mySystemDSGPrefix, {dsguConjointSize});
+          }
           std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
-          validateExchangedData(otherSystemDSGPrefix,
-                                "uftp_transfer_" + std::to_string((systemNumber + 1) % 2) + ".txt",
-                                {dsguConjointSize});
+          if (validateData) {
+            validateExchangedData(
+                otherSystemDSGPrefix,
+                "uftp_transfer_" + std::to_string((systemNumber + 1) % 2) + ".txt",
+                {dsguConjointSize});
+          } else {
+            checkSizeOfFile(otherSystemDSGPrefix,
+                            "uftp_transfer_" + std::to_string((systemNumber + 1) % 2) + ".txt",
+                            {dsguConjointSize});
+          }
           std::cout << "test" << std::endl;
-          system(rmOther.c_str());
+          // system(rmOther.c_str());
         } else if (systemNumber == 1) {
           std::cout << "1 wait" << std::endl;
-          // std::ifstream input;
-          // do {
-          //   input.open("uftp_transfer_" + std::to_string((systemNumber) % 2) + ".txt");
-          // } while (input.fail());
-          readAndInvertDSGFromDisk(
-              otherSystemDSGPrefix, mySystemDSGPrefix,
-              "uftp_transfer_" + std::to_string((systemNumber + 1) % 2) + ".txt",
-              {dsguConjointSize});
-          std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
-          Stats::stopEvent("uftp read and invert file");
-          system(rmOther.c_str());
+          if (validateData) {
+            readAndInvertDSGFromDisk(
+                otherSystemDSGPrefix, mySystemDSGPrefix,
+                "uftp_transfer_" + std::to_string((systemNumber + 1) % 2) + ".txt",
+                {dsguConjointSize});
+            std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
+            Stats::stopEvent("uftp read and invert file");
+          } else {
+            checkSizeOfFile(otherSystemDSGPrefix,
+                            "uftp_transfer_" + std::to_string((systemNumber + 1) % 2) + ".txt",
+                            {dsguConjointSize});
+            writeZeroDataToDisk(mySystemDSGPrefix, {dsguConjointSize});
+            std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
+          }
+          // system(rmOther.c_str());
         }
         Stats::stopEvent("manager pretend to third-level combine");
     }
