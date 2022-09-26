@@ -60,7 +60,7 @@ void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
   // sum rightmost entries of level vector
   LevelType lsum(0);
   for (size_t i = dim; i < l.size(); ++i) {
-    lsum += l[i];
+    lsum = static_cast<LevelType>(lsum + l[i]);
   }
 
   // iterate everything below hyperplane
@@ -80,8 +80,8 @@ void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
           for (const auto& dimCombination : dimList) {
             LevelType partlsum(0), partlminsum(0);
             for (const auto& i : dimCombination) {
-              partlsum += l[i];
-              partlminsum += lmin[i];
+              partlsum = static_cast<LevelType>(partlsum + l[i]);
+              partlminsum = static_cast<LevelType>(partlminsum + lmin[i]);
             }
             if ((partlsum > static_cast<LevelType>(partlminsum + n))) {
               // std::cout << k << " k " << l << partlsum << " " << dimCombination << " other stop "

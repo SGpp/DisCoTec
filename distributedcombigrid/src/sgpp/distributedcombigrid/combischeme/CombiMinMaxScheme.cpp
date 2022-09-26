@@ -39,7 +39,7 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
     }
     lmin_[dummyDims[i]] = lmax_[i];
   }
-  n_ = sum(lmin_) + c;
+  n_ = static_cast<LevelType>(sum(lmin_) + c);
   // create combi spaces
   for (size_t i = 0; i < levels_.size(); ++i) {
     LevelVector& l = levels_[i];
@@ -53,7 +53,7 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
 LevelVector getFurthestCorner(LevelVector& lmax, LevelVector& lmin) {
   LevelVector ldiff = lmax - lmin;
   LevelVector::iterator result = std::max_element(ldiff.begin(), ldiff.end());
-  LevelType indexMax = std::distance(ldiff.begin(), result);
+  LevelType indexMax = static_cast<LevelType>(std::distance(ldiff.begin(), result));
   LevelVector lm(lmin);
   lm[indexMax] = lmax[indexMax];
   return lm;
@@ -61,7 +61,7 @@ LevelVector getFurthestCorner(LevelVector& lmax, LevelVector& lmin) {
 
 void CombiMinMaxScheme::createAdaptiveCombischeme() {
   LevelVector lm = getFurthestCorner(lmax_, lmin_);
-  n_ = std::accumulate(lm.begin(), lm.end(), 0); // = sum(lmin_) + max(ldiff)
+  n_ = std::accumulate(lm.begin(), lm.end(), static_cast<LevelType>(0)); // = sum(lmin_) + max(ldiff)
   LevelVector l(dim_);
   // // TODO: Why levelSum-1 ?
   // createLevelsRec(dim_, n_ - 1, dim_, l, lmax_);
@@ -124,7 +124,7 @@ void CombiMinMaxScheme::computeCombiCoeffsAdaptive() {
 void CombiMinMaxScheme::computeCombiCoeffsClassical() {
   for (DimType i = 0; i < combiSpaces_.size(); ++i) {
     LevelType l1 = sum(combiSpaces_[i]);
-    LevelType p = static_cast<unsigned int>(n_ - l1);
+    auto p = static_cast<LevelType>(n_ - l1);
     // Classical combination coefficients
     coefficients_.push_back(std::pow(-1, p) *
                             boost::math::binomial_coefficient<real>(static_cast<unsigned int>(effDim_ - 1), static_cast<unsigned int>(p)));

@@ -802,9 +802,9 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
     LevelType lidx = dfg.getLevel(dim, idx);
     // check if successors of idx outside local domain
     {
-      for (LevelType l = lidx + 1; l <= lmax; ++l) {
-        LevelType ldiff = lmax - l;
-        IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
+      for (LevelType l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
+        auto ldiff = static_cast<LevelType>(lmax - l);
+        auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
         // left successor, right successor
         for (const auto& indexShift : {-1, 1}) {
@@ -819,7 +819,7 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
         }
       }
     }
-    LevelType ldiff = lmax - lidx;
+    auto ldiff = static_cast<LevelType>(lmax - lidx);
     IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
     // check if predecessors of idx outside local domain
     IndexType pIdx;
@@ -956,9 +956,9 @@ static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType di
   LevelType lmax = dfg.getLevels()[dim];
 
   // check left successors of checkIdx
-  for (LevelType l = lidx + 1; l <= lmax; ++l) {
-    LevelType ldiff = lmax - l;
-    IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
+  for (auto l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
+    auto ldiff = static_cast<LevelType>(lmax - l);
+    auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
     IndexType lsIdx = checkIdx - idiff;
 
@@ -982,9 +982,9 @@ static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType d
   LevelType lmax = dfg.getLevels()[dim];
 
   // check right successors of checkIdx
-  for (LevelType l = lidx + 1; l <= lmax; ++l) {
-    LevelType ldiff = lmax - l;
-    IndexType idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
+  for (auto l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
+    auto ldiff = static_cast<LevelType>(lmax - l);
+    auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
     IndexType rsIdx = checkIdx + idiff;
 
@@ -1472,7 +1472,7 @@ inline void dehierarchizeX_full_weighting_boundary_kernel(FG_ELEMENT* data, Leve
   int idxmax = powerOfTwo[lmaxi];
   // auto length = idxmax + 1;
 
-  for (LevelType ldiff = lmax - lmin - 1; ldiff >= 0; --ldiff) {
+  for (auto ldiff = static_cast<LevelType>(lmax - lmin - 1); ldiff >= 0; --ldiff) {
     int step_width = powerOfTwo[ldiff];
     // update alpha / hierarchical surplus at odd indices
     for (int i = step_width; i < idxmax; i += 2 * step_width) {
@@ -1518,7 +1518,7 @@ inline void dehierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelT
   //     for i in range(step_width,2**(l_max),2*step_width):
   //         y[i]= 0.5*y[i-step_width] + y[i] + 0.5*y[i+step_width]
 
-  for (LevelType ldiff = lmax - lmin - 1; ldiff >= 0; --ldiff) {
+  for (auto ldiff = static_cast<LevelType>(lmax - lmin - 1); ldiff >= 0; --ldiff) {
     int step_width = powerOfTwo[ldiff];
     // update f at even indices
     if (periodic) {
