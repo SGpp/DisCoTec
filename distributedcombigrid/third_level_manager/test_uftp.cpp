@@ -2,6 +2,7 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+#include <boost/asio.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -44,23 +45,48 @@ void validateExchangedData(std::string filePrefix,
   std::unique_ptr<std::vector<real>> mockUpData(
       new std::vector<real>(dsgPartitionSizes[0]));
   combigrid::montecarlo::getNumberSequenceFromSeed(*mockUpData, 0);
-  std::cout << "test first data" << std::endl;
-  decltype(mockUpData) mockUpDataInverted(new std::vector<real>());
-  mockUpDataInverted->reserve(mockUpData->size());
-  std::cout << "test other data" << std::endl;
-  std::transform(mockUpData->begin(), mockUpData->end(), std::back_inserter(*mockUpDataInverted),
-                 std::negate<real>());
+  // std::cout << "test first data" << std::endl;
+  // decltype(mockUpData) mockUpDataInverted(new std::vector<real>());
+  // mockUpDataInverted->reserve(mockUpData->size());
+  // std::cout << "test other data" << std::endl;
+  // std::transform(mockUpData->begin(), mockUpData->end(), std::back_inserter(*mockUpDataInverted),
+  //                std::negate<real>());
   std::cout << "test transform data" << std::endl;
   std::string myFilename = filePrefix + std::to_string(0);
-  std::ifstream ifp(myFilename, std::ios::in | std::ios::binary);
+  std::ifstream ifp;
+  do {
+    ifp.open(myFilename, std::ios::in | std::ios::binary);
+  } while (ifp.fail());
+
   std::unique_ptr<std::vector<real>> readData(new std::vector<real>(dsgPartitionSizes[0]));
   ifp.read(reinterpret_cast<char*>(readData->data()), dsgPartitionSizes[0] * sizeof(real));
   for (size_t i = 0; i < mockUpData->size(); ++i) {
-    if (readData->at(i) + mockUpDataInverted->at(i) != 0.0) {
+    if (readData->at(i) + mockUpData->at(i) != 0.0) {
       throw std::runtime_error("binary data does not match");
     }
   }
 }
+void readAndInvertDSGFromDisk (std::string filePrefixIn,std::string filePrefixOut,
+                           const std::vector<long long int>& dsgPartitionSizes) {
+  std::ifstream ifp;
+  do {
+    ifp.open(filePrefixIn + std::to_string(0), std::ios::in | std::ios::binary);
+  } while (ifp.fail());
+  std::unique_ptr<std::vector<real>> readData(new std::vector<real>(dsgPartitionSizes[0]));
+  ifp.read(reinterpret_cast<char*>(readData->data()), dsgPartitionSizes[0] * sizeof(real));
+
+  decltype(readData) readDataInverted(new std::vector<real>());
+  readDataInverted->reserve(readData->size());
+  std::transform(readData->begin(), readData->end(), std::back_inserter(*readDataInverted),
+                 std::negate<real>());
+
+  std::ofstream ofp(filePrefixOut + std::to_string(0), std::ios::out | std::ios::binary);
+  ofp.write(reinterpret_cast<const char*>(readDataInverted->data()),
+            readDataInverted->size() * sizeof(real));
+  ofp.close();
+}
+
+
 
 namespace shellCommand {
 // cf.
@@ -225,6 +251,9 @@ int main(int argc, char** argv) {
     //   std::cout << thirdLevelSSHCommand << " returned " << std::endl;
     // }
 
+    std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
+    std::cout << hostnameInfo << std::endl;
+
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
@@ -285,7 +314,6 @@ int main(int argc, char** argv) {
     ProcessGroupManagerContainer pgroups;
     TaskContainer tasks;
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
-
     manager.updateCombiParameters();
 
     // auto dsguSizes =
@@ -327,15 +355,23 @@ int main(int argc, char** argv) {
       Stats::startEvent("manager pretend to third-level combine");
       // if (hasThirdLevel) {
         // manager.pretendCombineThirdLevel(dsguConjointSizes, false);//TODO
-        std::cout << "mock" << std::endl;
-        mockUpDSGWriteToDisk("dsg_part_" + std::to_string(systemNumber) + "_", {dsguConjointSize});
-        std::cout << "test" << std::endl;
-        validateExchangedData("dsg_part_" + std::to_string(systemNumber) + "_", {dsguConjointSize});
-        sleep(2);
-      // } else {
-      //   throw std::runtime_error("this was not intended!");
-      // }
-      Stats::stopEvent("manager pretend to third-level combine");
+        auto mySystemDSGPrefix = "dsg_part_" + std::to_string(systemNumber) + "_";
+        auto otherSystemDSGPrefix = "dsg_part_" + std::to_string((systemNumber + 1) % 2) + "_";
+        if (systemNumber == 0) {
+          std::cout << "mock" << std::endl;
+          mockUpDSGWriteToDisk(mySystemDSGPrefix, {dsguConjointSize});
+          std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
+          validateExchangedData(otherSystemDSGPrefix, {dsguConjointSize});
+          std::cout << "test" << std::endl;
+        } else if (systemNumber == 1) {
+          // std::ifstream input;
+          // do {
+          //   input.open("uftp_transfer_" + std::to_string((systemNumber) % 2) + ".txt");
+          // } while (input.fail());
+          readAndInvertDSGFromDisk(otherSystemDSGPrefix, mySystemDSGPrefix, {dsguConjointSize});
+          std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
+        }
+        Stats::stopEvent("manager pretend to third-level combine");
     }
     manager.exit();
   } else {
