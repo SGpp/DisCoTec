@@ -362,13 +362,14 @@ int main(int argc, char** argv) {
         // manager.pretendCombineThirdLevel(dsguConjointSizes, false);//TODO
         auto mySystemDSGPrefix = "dsg_part_" + std::to_string(systemNumber) + "_";
         auto otherSystemDSGPrefix = "dsg_part_" + std::to_string((systemNumber + 1) % 2) + "_";
+        auto rmOther = "rm " + otherSystemDSGPrefix + "*";
         if (systemNumber == 0) {
           std::cout << "mock" << std::endl;
           mockUpDSGWriteToDisk(mySystemDSGPrefix, {dsguConjointSize});
           std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
           validateExchangedData(otherSystemDSGPrefix, {dsguConjointSize});
           std::cout << "test" << std::endl;
-          system( "rm " + otherSystemDSGPrefix + "*" );
+          system(rmOther.c_str());
         } else if (systemNumber == 1) {
           std::cout << "1 wait" << std::endl;
           // std::ifstream input;
@@ -378,7 +379,7 @@ int main(int argc, char** argv) {
           readAndInvertDSGFromDisk(otherSystemDSGPrefix, mySystemDSGPrefix, {dsguConjointSize});
           std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
           Stats::stopEvent("uftp read and invert file");
-          system( "rm " + otherSystemDSGPrefix + "*" );
+          system(rmOther.c_str());
         }
         Stats::stopEvent("manager pretend to third-level combine");
     }
