@@ -602,6 +602,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
       const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
 
       std::vector<FG_ELEMENT*> bufs;
+      bufs.reserve(indices.size());
       IndexVector sizes = dfg.getLocalSizes();
       sizes[dim] = 1;
       int bsize = static_cast<int>(

@@ -962,6 +962,7 @@ class DistributedFullGrid {
    */
   inline std::vector<RankType> getAllMyPoleNeighborRanks(DimType dim) const {
     auto ranks = std::vector<RankType>();
+    ranks.reserve(procs_[dim] - 1);
     auto myPartitionCoords = std::vector<int>();
     this->getPartitionCoords(myPartitionCoords);
     for (int i = 0; i < myPartitionCoords[dim]; ++i) {
