@@ -19,7 +19,7 @@ thirdLevelManager: thirdLevelManager.cpp thirdLevelManager.hpp Params.cpp\
 
 testUFTPsystem: test_uftp.cpp
 	$(CC) $(CFLAGS) $(INC) -o testUFTPsystem test_uftp.cpp \
-                            -L$(SGPP_SRC)/../../lib/sgpp -lsgppdistributedcombigrid -lboost_iostreams
+                            -L$(SGPP_SRC)/../../lib/sgpp -lsgppdistributedcombigrid
 
 clean:
 	rm -f *.o out/* thirdLevelManager

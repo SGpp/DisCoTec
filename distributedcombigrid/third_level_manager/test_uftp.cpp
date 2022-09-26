@@ -6,7 +6,6 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
-#include <boost/iostreams/device/mapped_file.hpp>
 #include <random>
 #include <string>
 #include <vector>
@@ -48,17 +47,27 @@ void mockUpDSGWriteToDisk(std::string filePrefix,
 void writeRandomDataToDisk(std::string filePrefix,
                          const std::vector<long long int>& dsgPartitionSizes) {
   Stats::startEvent("uftp write");
-  for (size_t partitionIndex = 0; partitionIndex < dsgPartitionSizes.size(); ++partitionIndex) {
-    std::string myFilename = filePrefix + std::to_string(partitionIndex);
-    {
-      // cf. https://stackoverflow.com/a/47742514
-      boost::iostreams::mapped_file ofile(myFilename);
-
+  auto actualPartitionSizes = dsgPartitionSizes;
+  if (actualPartitionSizes.size() == 1) {
+    actualPartitionSizes.resize(15625);
+    std::fill(actualPartitionSizes.begin(), actualPartitionSizes.end(),
+              dsgPartitionSizes[0] / actualPartitionSizes.size());
+    auto sum = std::accumulate(actualPartitionSizes.begin(), actualPartitionSizes.end(), 0);
+    actualPartitionSizes.back() += (dsgPartitionSizes[0] - sum);
+  }
+  std::string myFilename = filePrefix + std::to_string(0);
+  // cf. https://stackoverflow.com/a/47742514
+  {
+    std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
+    for (size_t partitionIndex = 0; partitionIndex < actualPartitionSizes.size();
+         ++partitionIndex) {
       std::mt19937 rng{std::random_device{}()};
       std::uniform_int_distribution<char> dist;
-
-      std::generate_n(ofile.data(), dsgPartitionSizes[partitionIndex], [&] { return dist(rng); });
+      std::vector<real> tmp(actualPartitionSizes[partitionIndex]);
+      std::generate_n(tmp.data(), tmp.size(), [&] { return dist(rng); });
+      ofp.write(reinterpret_cast<const char*>(tmp.data()), tmp.size() * sizeof(real));
     }
+    ofp.close();
   }
   Stats::stopEvent("uftp write");
 }
