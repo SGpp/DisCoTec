@@ -775,7 +775,7 @@ template <typename FG_ELEMENT>
 static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                           RankType source, CommunicatorType comm) {
   FG_ELEMENT* data = dsgu->getRawData();
-  int dataSize = dsgu->getRawDataSize();
+  auto dataSize = dsgu->getRawDataSize();
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
   size_t sentRecvd = 0;
