@@ -27,6 +27,7 @@ void ThirdLevelUtils::connectToThirdLevelManager(double timeoutMinutes) {
   auto connectionSuccess = connection_->init();
   bool timeout = false;
   while (!(connectionSuccess || timeout)) {
+    sleep(5);
     connectionSuccess = connection_->init();
     auto t2 = std::chrono::steady_clock::now();
     timeout = (std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count() >
