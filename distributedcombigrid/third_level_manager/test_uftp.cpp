@@ -6,6 +6,8 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <boost/iostreams/device/mapped_file.hpp>
+#include <random>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -43,17 +45,20 @@ void mockUpDSGWriteToDisk(std::string filePrefix,
   }
 }
 
-void writeZeroDataToDisk(std::string filePrefix,
-                          const std::vector<long long int>& dsgPartitionSizes) {
+void writeRandomDataToDisk(std::string filePrefix,
+                         const std::vector<long long int>& dsgPartitionSizes) {
   Stats::startEvent("uftp write");
-  real zero = 0.;
   for (size_t partitionIndex = 0; partitionIndex < dsgPartitionSizes.size(); ++partitionIndex) {
     std::string myFilename = filePrefix + std::to_string(partitionIndex);
-    std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
-    for (size_t i = 0; i < dsgPartitionSizes[partitionIndex]; ++i) {
-      ofp.write(reinterpret_cast<char*>(&zero), sizeof(real));
+    {
+      // cf. https://stackoverflow.com/a/47742514
+      boost::iostreams::mapped_file ofile(myFilename);
+
+      std::mt19937 rng{std::random_device{}()};
+      std::uniform_int_distribution<char> dist;
+
+      std::generate_n(ofile.data(), dsgPartitionSizes[partitionIndex], [&] { return dist(rng); });
     }
-    ofp.close();
   }
   Stats::stopEvent("uftp write");
 }
@@ -427,7 +432,7 @@ int main(int argc, char** argv) {
           if (validateData) {
             mockUpDSGWriteToDisk(mySystemDSGPrefix, {dsguConjointSize});
           } else {
-            writeZeroDataToDisk(mySystemDSGPrefix, {dsguConjointSize});
+            writeRandomDataToDisk(mySystemDSGPrefix, {dsguConjointSize});
           }
           std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
           if (validateData) {
@@ -455,7 +460,7 @@ int main(int argc, char** argv) {
             checkSizeOfFile(otherSystemDSGPrefix,
                             "uftp_transfer_" + std::to_string((systemNumber + 1) % 2) + ".txt",
                             {dsguConjointSize});
-            writeZeroDataToDisk(mySystemDSGPrefix, {dsguConjointSize});
+            writeRandomDataToDisk(mySystemDSGPrefix, {dsguConjointSize});
             std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
           }
           // system(rmOther.c_str());

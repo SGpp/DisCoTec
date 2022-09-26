@@ -1,5 +1,5 @@
 CC=mpicxx
-CFLAGS=-std=c++11 -DNDEBUG -O3 -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DUNIFORMDECOMPOSITION -DTIMING
+CFLAGS=-std=c++11 -O3 -DNDEBUG -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DUNIFORMDECOMPOSITION -DTIMING
 
 SGPP_SRC=../src/
 THIRD_LEVEL_INC=$(SGPP_SRC)/sgpp/distributedcombigrid/third_level/
@@ -19,7 +19,7 @@ thirdLevelManager: thirdLevelManager.cpp thirdLevelManager.hpp Params.cpp\
 
 testUFTPsystem: test_uftp.cpp
 	$(CC) $(CFLAGS) $(INC) -o testUFTPsystem test_uftp.cpp \
-                            -L$(SGPP_SRC)/../../lib/sgpp -lsgppdistributedcombigrid
+                            -L$(SGPP_SRC)/../../lib/sgpp -lsgppdistributedcombigrid -lboost_iostreams
 
 clean:
 	rm -f *.o out/* thirdLevelManager testUFTPsystem
