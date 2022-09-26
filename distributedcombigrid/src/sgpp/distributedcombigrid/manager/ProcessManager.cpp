@@ -1,4 +1,5 @@
 #include "sgpp/distributedcombigrid/manager/ProcessManager.hpp"
+#include <boost/asio.hpp>
 #include <algorithm>
 #include <iostream>
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
@@ -485,7 +486,9 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
 }
 
 void ProcessManager::setupThirdLevel() {
-  thirdLevel_.connectToThirdLevelManager();
+  std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
+  std::cout << hostnameInfo << std::endl;
+  thirdLevel_.connectToThirdLevelManager(5.);
 }
 
 void ProcessManager::writeInterpolatedValues(

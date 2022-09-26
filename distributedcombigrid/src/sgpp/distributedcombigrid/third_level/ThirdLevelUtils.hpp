@@ -37,7 +37,7 @@ namespace combigrid {
 
       ~ThirdLevelUtils();
 
-      void connectToThirdLevelManager();
+      void connectToThirdLevelManager(double timeoutMinutes);
 
       void signalReadyToCombine() const;
 

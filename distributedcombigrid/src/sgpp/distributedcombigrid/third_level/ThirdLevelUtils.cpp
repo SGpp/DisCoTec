@@ -1,4 +1,5 @@
 #include "sgpp/distributedcombigrid/third_level/ThirdLevelUtils.hpp"
+#include <chrono>
 
 namespace combigrid {
 
@@ -15,18 +16,25 @@ ThirdLevelUtils::~ThirdLevelUtils(){
   }
 }
 
-void ThirdLevelUtils::connectToThirdLevelManager()
-{
-  if (isConnected_)
-    return;
+void ThirdLevelUtils::connectToThirdLevelManager(double timeoutMinutes) {
+  if (isConnected_) return;
 
   // create connection to third level manager
-  std::cout << "Connecting to third level manager at host " << host_ << " on port " << port_  << std::endl;
+  std::cout << "Connecting to third level manager at host " << host_ << " on port " << port_
+            << std::endl;
   connection_ = std::make_shared<ClientSocket>(host_, port_);
+  auto t1 = std::chrono::steady_clock::now();
   auto connectionSuccess = connection_->init();
-  assert(connectionSuccess && "Establishing data connection failed");
+  bool timeout = false;
+  while (!(connectionSuccess || timeout)) {
+    connectionSuccess = connection_->init();
+    auto t2 = std::chrono::steady_clock::now();
+    timeout = (std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count() >
+               timeoutMinutes * 60);
+  }
 
-  isConnected_ = true;
+  assert(connectionSuccess && "Establishing data connection failed");
+  if (!timeout) isConnected_ = true;
 }
 
 void ThirdLevelUtils::signalReadyToCombine() const
