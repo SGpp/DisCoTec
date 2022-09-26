@@ -333,22 +333,24 @@ int main(int argc, char** argv) {
     //   dsguConjointSizes = getPartitionedNumDOFSGConjoint(*scheme, lmin, lmax, decomposition);
     // }
     // Stats::stopEvent("manager calculate dsguConjointSizes");
-    Stats::startEvent("manager calculate dsguConjointSize");
-    long long int dsguConjointSize;
-    {
-      std::cout <<"scheme from file" << std::endl;
-      std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
-          new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
-      std::cout <<"calc conjoint" << std::endl;
-      dsguConjointSize = getNumDOFSGConjoint(*scheme, lmin);
-      std::cout <<"have dof conjoint" << std::endl;
-    }
-    Stats::stopEvent("manager calculate dsguConjointSize");
+    long long int dsguConjointSize = 106704795649;
+
+    // we're only interested in the largest possible for now!
+    // Stats::startEvent("manager calculate dsguConjointSize");
+    // {
+    //   std::cout <<"scheme from file" << std::endl;
+    //   std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
+    //       new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
+    //   std::cout <<"calc conjoint" << std::endl;
+    //   dsguConjointSize = getNumDOFSGConjoint(*scheme, lmin);
+    //   std::cout <<"have dof conjoint" << std::endl;
+    // }
+    // Stats::stopEvent("manager calculate dsguConjointSize");
 
     // std::cout << dsguSizes << std::endl;
     std::cout << "vs conjoint" << std::endl;
     std::cout << dsguConjointSize << std::endl;
-    std::cout << "and that makes a total of DOF " << std::endl;
+    // std::cout << "and that makes a total of DOF " << std::endl;
     // std::cout << std::accumulate(dsguSizes.begin(), dsguSizes.end(), 0ll) << std::endl;
     // std::cout << std::accumulate(dsguConjointSizes.begin(), dsguConjointSizes.end(), 0ll) << std::endl;
     // std::cout << "distributed over a total of partitions " << std::endl;
