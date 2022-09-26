@@ -28,14 +28,17 @@ void mockUpDSGWriteToDisk(std::string filePrefix,
                           const std::vector<long long int>& dsgPartitionSizes) {
   for (size_t partitionIndex = 0; partitionIndex < dsgPartitionSizes.size(); ++partitionIndex) {
     std::string myFilename = filePrefix + std::to_string(partitionIndex);
-    std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
     // generate data on heap
     std::unique_ptr<std::vector<real>> mockUpData(
         new std::vector<real>(dsgPartitionSizes[partitionIndex]));
     combigrid::montecarlo::getNumberSequenceFromSeed(*mockUpData, partitionIndex);
+
+    Stats::startEvent("uftp write wait read file");
+    std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
     ofp.write(reinterpret_cast<const char*>(mockUpData->data()),
               dsgPartitionSizes[partitionIndex] * sizeof(real));
     ofp.close();
+    Stats::startEvent("uftp wait");
   }
 }
 
@@ -45,34 +48,34 @@ void validateExchangedData(std::string filePrefix,
   std::unique_ptr<std::vector<real>> mockUpData(
       new std::vector<real>(dsgPartitionSizes[0]));
   combigrid::montecarlo::getNumberSequenceFromSeed(*mockUpData, 0);
-  // std::cout << "test first data" << std::endl;
-  // decltype(mockUpData) mockUpDataInverted(new std::vector<real>());
-  // mockUpDataInverted->reserve(mockUpData->size());
-  // std::cout << "test other data" << std::endl;
-  // std::transform(mockUpData->begin(), mockUpData->end(), std::back_inserter(*mockUpDataInverted),
-  //                std::negate<real>());
-  std::cout << "test transform data" << std::endl;
   std::string myFilename = filePrefix + std::to_string(0);
   std::ifstream ifp;
   do {
     ifp.open(myFilename, std::ios::in | std::ios::binary);
   } while (ifp.fail());
+  Stats::stopEvent("uftp wait");
 
   std::unique_ptr<std::vector<real>> readData(new std::vector<real>(dsgPartitionSizes[0]));
   ifp.read(reinterpret_cast<char*>(readData->data()), dsgPartitionSizes[0] * sizeof(real));
+
+  Stats::stopEvent("uftp write wait read file");
+
   for (size_t i = 0; i < mockUpData->size(); ++i) {
     if (readData->at(i) + mockUpData->at(i) != 0.0) {
       throw std::runtime_error("binary data does not match");
     }
   }
 }
+
 void readAndInvertDSGFromDisk (std::string filePrefixIn,std::string filePrefixOut,
                            const std::vector<long long int>& dsgPartitionSizes) {
+  std::unique_ptr<std::vector<real>> readData(new std::vector<real>(dsgPartitionSizes[0]));
   std::ifstream ifp;
   do {
     ifp.open(filePrefixIn + std::to_string(0), std::ios::in | std::ios::binary);
   } while (ifp.fail());
-  std::unique_ptr<std::vector<real>> readData(new std::vector<real>(dsgPartitionSizes[0]));
+
+  Stats::startEvent("uftp read and invert file");
   ifp.read(reinterpret_cast<char*>(readData->data()), dsgPartitionSizes[0] * sizeof(real));
 
   decltype(readData) readDataInverted(new std::vector<real>());
@@ -370,6 +373,7 @@ int main(int argc, char** argv) {
           // } while (input.fail());
           readAndInvertDSGFromDisk(otherSystemDSGPrefix, mySystemDSGPrefix, {dsguConjointSize});
           std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
+          Stats::stopEvent("uftp read and invert file");
         }
         Stats::stopEvent("manager pretend to third-level combine");
     }
