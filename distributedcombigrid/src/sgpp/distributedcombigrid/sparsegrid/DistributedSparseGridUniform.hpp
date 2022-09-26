@@ -771,7 +771,7 @@ static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
                                             "decomposition");
 
   FG_ELEMENT* data = dsgu->getRawData();
-  int dataSize  = static_cast<int>(dsgu->getRawDataSize());
+  auto dataSize = dsgu->getRawDataSize();
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
   MPI_Recv(data, dataSize, dataType, source, TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
