@@ -785,6 +785,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
 void ProcessGroupWorker::sendLpNorms(int p) {
   // get Lp norm on every worker; reduce through dfg function
   std::vector<double> lpnorms;
+  lpnorms.reserve(tasks_.size());
   for (const auto& t : tasks_) {
     auto lpnorm = t->getDistributedFullGrid().getLpNorm(p);
     lpnorms.push_back(lpnorm);

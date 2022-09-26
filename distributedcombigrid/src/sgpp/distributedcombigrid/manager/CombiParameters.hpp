@@ -131,6 +131,8 @@ class CombiParameters {
   inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
 
   inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) {
+    taskIDs.reserve(levels_.size());
+    levels.reserve(levels_.size());
     for (auto it : levels_) {
       taskIDs.push_back(it.first);
       levels.push_back(it.second);

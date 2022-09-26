@@ -268,14 +268,15 @@ void MPISystem::initThirdLevelComms(){
 
   for (size_t g = 0; g < ngroup_; g++) {
     std::vector<int> ranks;
+    ranks.reserve(nprocs_ + 1);
     for (size_t p = 0; p < nprocs_; p++)
-      ranks.push_back(static_cast<int>(g*nprocs_ + p)); // ranks of workers in pg
-    ranks.push_back(static_cast<int>(managerRankWorld_)); // rank of process manager
+      ranks.push_back(static_cast<int>(g * nprocs_ + p));  // ranks of workers in pg
+    ranks.push_back(static_cast<int>(managerRankWorld_));  // rank of process manager
 
     MPI_Group newGroup;
-    MPI_Group_incl( worldGroup, int(ranks.size()), ranks.data(), &newGroup );
+    MPI_Group_incl(worldGroup, int(ranks.size()), ranks.data(), &newGroup);
     CommunicatorType newComm;
-    MPI_Comm_create( worldComm_, newGroup, &newComm );
+    MPI_Comm_create(worldComm_, newGroup, &newComm);
 
     if (newComm != MPI_COMM_NULL) {
       thirdLevelComms_.push_back(newComm);
