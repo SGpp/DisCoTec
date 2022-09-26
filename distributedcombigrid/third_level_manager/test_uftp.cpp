@@ -333,7 +333,7 @@ int main(int argc, char** argv) {
     //   dsguConjointSizes = getPartitionedNumDOFSGConjoint(*scheme, lmin, lmax, decomposition);
     // }
     // Stats::stopEvent("manager calculate dsguConjointSizes");
-    long long int dsguConjointSize = 106704795649;
+    long long int dsguConjointSize = 2.5e8; // 106704795649;
 
     // we're only interested in the largest possible for now!
     // Stats::startEvent("manager calculate dsguConjointSize");
@@ -368,7 +368,9 @@ int main(int argc, char** argv) {
           std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
           validateExchangedData(otherSystemDSGPrefix, {dsguConjointSize});
           std::cout << "test" << std::endl;
+          system( "rm " + otherSystemDSGPrefix + "*" );
         } else if (systemNumber == 1) {
+          std::cout << "1 wait" << std::endl;
           // std::ifstream input;
           // do {
           //   input.open("uftp_transfer_" + std::to_string((systemNumber) % 2) + ".txt");
@@ -376,6 +378,7 @@ int main(int argc, char** argv) {
           readAndInvertDSGFromDisk(otherSystemDSGPrefix, mySystemDSGPrefix, {dsguConjointSize});
           std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
           Stats::stopEvent("uftp read and invert file");
+          system( "rm " + otherSystemDSGPrefix + "*" );
         }
         Stats::stopEvent("manager pretend to third-level combine");
     }
