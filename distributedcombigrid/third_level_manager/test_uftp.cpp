@@ -11,9 +11,6 @@
 #include <vector>
 #include <algorithm>
 #include <sys/stat.h>
-#include <iomanip>
-#include <fstream>
-#include <filesystem>
 
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
@@ -62,8 +59,8 @@ void writeRandomDataToDisk(std::string filePrefix,
   std::string myFilename = filePrefix + std::to_string(0);
   // cf. https://stackoverflow.com/a/47742514
   {
-    std::filesystem::path p = std::filesystem::current_path() / myFilename;
-    std::ofstream ofp(p, std::ios::out | std::ios::binary);
+    //std::filesystem::path p = std::filesystem::current_path() / myFilename;
+    std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
     // this isn't working and I don't understand it, resorting to
     // the shell command `truncate -s $size $file` for now (see below)
     // std::filesystem::resize_file(p, sumDOF * sizeof(real));
