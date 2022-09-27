@@ -369,7 +369,7 @@ inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
   return getPartitionedNumDOFSG(downSet2, referenceLevel, decomposition);
 }
 
-inline std::vector<LevelVector> getConjointSet(const CombiMinMaxSchemeFromFile& combischeme,
+inline std::vector<LevelVector> getConjointSet(const CombiMinMaxScheme& combischeme,
                                                       const LevelVector& lmin) {
   // we follow the idea in CombiMinMaxSchemeFromFile::createDownSet
   // but this time we count the occurrences of each grid in the individual downPoleSets
@@ -417,7 +417,7 @@ inline std::vector<LevelVector> getConjointSet(const CombiMinMaxSchemeFromFile& 
 // for widely-distributed simulations, get the number of DOF that absolutely needs
 // to be exchanged with the other system
 inline long long int getNumDOFSGConjoint(
-    const CombiMinMaxSchemeFromFile& combischeme, const LevelVector& lmin) {
+    const CombiMinMaxScheme& combischeme, const LevelVector& lmin) {
   auto conjointSet = getConjointSet(combischeme, lmin);
   return getSGDegreesOfFreedomFromDownSet(conjointSet);
 }
@@ -425,7 +425,7 @@ inline long long int getNumDOFSGConjoint(
 // for widely-distributed simulations, get the number of DOF that absolutely needs
 // to be exchanged with the other system -- partitioned
 inline std::vector<long long int> getPartitionedNumDOFSGConjoint(
-    const CombiMinMaxSchemeFromFile& combischeme, const LevelVector& lmin, const LevelVector& referenceLevel,
+    const CombiMinMaxScheme& combischeme, const LevelVector& lmin, const LevelVector& referenceLevel,
     const std::vector<IndexVector> decomposition) {
   auto conjointSet = getConjointSet(combischeme, lmin);
   return getPartitionedNumDOFSG(conjointSet, referenceLevel, decomposition);
