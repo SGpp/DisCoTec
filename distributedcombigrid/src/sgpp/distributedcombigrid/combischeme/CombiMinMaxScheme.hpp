@@ -282,6 +282,10 @@ inline IndexType getHighestIndexInHierarchicalSubspaceLowerThanNodalIndexOnLref(
 inline std::vector<long long int> getPartitionedNumDOFSG(
     std::vector<LevelVector> downSet, const LevelVector& referenceLevel,
     const std::vector<IndexVector>& decomposition) {
+  if (downSet.size() == 0) {
+    return {};
+  }
+
   // this is only valid for with-boundary schemes!
   // cf downsampleDecomposition to extend to non-boundary
   auto dim = static_cast<DimType>(downSet[0].size());
