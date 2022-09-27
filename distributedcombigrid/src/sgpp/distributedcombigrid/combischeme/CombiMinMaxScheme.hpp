@@ -38,6 +38,14 @@ class CombiMinMaxScheme {
       if (i == 0) effDim_--;
   }
 
+  CombiMinMaxScheme(const std::vector<LevelVector>& levels, const std::vector<real>& coefficients)
+    : combiSpaces_(levels), coefficients_(coefficients) {
+      assert(levels.size() > 0);
+      assert(levels.size() == coefficients.size());
+      n_ = 0;
+      dim_ = levels.back().size();
+    }
+
   virtual ~CombiMinMaxScheme() = default;
 
   /* Generate the combischeme corresponding to the classical combination technique.
