@@ -11,6 +11,9 @@
 #include <vector>
 #include <algorithm>
 #include <sys/stat.h>
+#include <iomanip>
+#include <fstream>
+#include <filesystem>
 
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiThirdLevelScheme.hpp"
@@ -55,10 +58,12 @@ void writeRandomDataToDisk(std::string filePrefix,
     auto sum = std::accumulate(actualPartitionSizes.begin(), actualPartitionSizes.end(), 0);
     actualPartitionSizes.back() += (dsgPartitionSizes[0] - sum);
   }
+  auto sumDOF = std::accumulate(actualPartitionSizes.begin(), actualPartitionSizes.end(), 0);
   std::string myFilename = filePrefix + std::to_string(0);
   // cf. https://stackoverflow.com/a/47742514
   {
     std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
+    std::filesystem::resize_file(myFilename, sumDOF * sizeof(real));
     for (size_t partitionIndex = 0; partitionIndex < actualPartitionSizes.size();
          ++partitionIndex) {
       std::mt19937 rng{std::random_device{}()};
