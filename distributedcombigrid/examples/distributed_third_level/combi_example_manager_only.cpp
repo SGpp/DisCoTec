@@ -32,16 +32,11 @@
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 // include user specific task. this is the interface to your application
 
-// to allow using test tasks
-#define BOOST_CHECK
-
-#include "TaskAdvection.hpp"
-
 using namespace combigrid;
 
-// this is necessary for correct function of task serialization
-#include "sgpp/distributedcombigrid/utils/BoostExports.hpp"
-BOOST_CLASS_EXPORT(TaskAdvection)
+#include "ConjointLarge.hpp"
+// // declared in ConjointLarge.hpp
+// std::vector<long long int> dsguConjointSizes;
 
 namespace shellCommand {
 // cf.
@@ -148,44 +143,46 @@ int main(int argc, char** argv) {
       printCombiDegreesOfFreedom(levels);
     }
   } else {
-    throw std::runtime_error("not yet implemented! not sure if needed");
-    // // read in CT scheme, if applicable
-    // std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
-    //     new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
-    // const auto& pgNumbers = scheme->getProcessGroupNumbers();
-    // if (pgNumbers.size() > 0) {
-    //   useStaticTaskAssignment = true;
-    //   const auto& allCoeffs = scheme->getCoeffs();
-    //   const auto& allLevels = scheme->getCombiSpaces();
-    //   const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
-    //   assert(*itMin == 0);  // make sure it starts with 0
-    //   // assert(*itMax == ngroup - 1); // and goes up to the maximum group //TODO
-    //   // filter out only those tasks that belong to "our" process group
-    //   const auto& pgroupNumber = theMPISystem()->getProcessGroupNumber();
-    //   for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
-    //     if (pgNumbers[taskNo] == pgroupNumber) {
-    //       taskNumbers.push_back(taskNo);
-    //       coeffs.push_back(allCoeffs[taskNo]);
-    //       levels.push_back(allLevels[taskNo]);
-    //     }
-    //   }
-    //   MASTER_EXCLUSIVE_SECTION {
-    //     std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
-    //               << pgNumbers.size() << " tasks." << std::endl;
-    //     printCombiDegreesOfFreedom(levels);
-    //   }
-    //   WORLD_MANAGER_EXCLUSIVE_SECTION{
-    //     coeffs = scheme->getCoeffs();
-    //     levels = scheme->getCombiSpaces();
-    //   }
-    // } else {
-    //   // levels and coeffs are only used in manager
-    //   WORLD_MANAGER_EXCLUSIVE_SECTION {
-    //     coeffs = scheme->getCoeffs();
-    //     levels = scheme->getCombiSpaces();
-    //     std::cout << levels.size() << " tasks to distribute." << std::endl;
-    //   }
-    // }
+    // read in CT scheme, if applicable
+    std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
+        new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
+    const auto& pgNumbers = scheme->getProcessGroupNumbers();
+    if (pgNumbers.size() > 0) {
+      useStaticTaskAssignment = true;
+      const auto& allCoeffs = scheme->getCoeffs();
+      const auto& allLevels = scheme->getCombiSpaces();
+      const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+      assert(*itMin == 0);  // make sure it starts with 0
+      // assert(*itMax == ngroup - 1); // and goes up to the maximum group //TODO
+      // filter out only those tasks that belong to "our" process group
+      const auto& pgroupNumber = theMPISystem()->getProcessGroupNumber();
+      for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
+        if (pgNumbers[taskNo] == pgroupNumber) {
+          taskNumbers.push_back(taskNo);
+          coeffs.push_back(allCoeffs[taskNo]);
+          levels.push_back(allLevels[taskNo]);
+        }
+      }
+      MASTER_EXCLUSIVE_SECTION {
+        std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
+                  << pgNumbers.size() << " tasks." << std::endl;
+        printCombiDegreesOfFreedom(levels);
+      }
+      WORLD_MANAGER_EXCLUSIVE_SECTION{
+        coeffs = scheme->getCoeffs();
+        levels = scheme->getCombiSpaces();
+      }
+    } else {
+      // levels and coeffs are only used in manager
+      WORLD_MANAGER_EXCLUSIVE_SECTION {
+        coeffs = scheme->getCoeffs();
+        levels = scheme->getCombiSpaces();
+        std::cout << levels.size() << " tasks to distribute." << std::endl;
+      }
+    }
+    WORLD_MANAGER_EXCLUSIVE_SECTION {
+      printCombiDegreesOfFreedom(levels);
+    }
   }
   // create load model
   std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
@@ -194,6 +191,7 @@ int main(int argc, char** argv) {
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     // set up the ssh tunnel for third level communication, if necessary
     // todo: if this works, move to ProcessManager::setUpThirdLevel
+
     if (thirdLevelSSHCommand != "") {
       shellCommand::exec(thirdLevelSSHCommand.c_str());
       std::cout << thirdLevelSSHCommand << " returned " << std::endl;
@@ -202,26 +200,25 @@ int main(int argc, char** argv) {
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
-    std::cout << "CombiScheme: " << std::endl;
-    for (const LevelVector& level : levels) std::cout << level << std::endl;
-
+    // std::cout << "CombiScheme: " << std::endl;
+    // for (const LevelVector& level : levels) std::cout << level << std::endl;
 
     // create combiparameters
     std::vector<size_t> taskIDs;
-    auto reduceCombinationDimsLmax = std::vector<IndexType>(dim, 1);
+    auto reduceCombinationDimsLmax = LevelVector(dim, 1);
     // lie about ncombi, because default is to not use reduced dims for last combi step,
     // which we don't want here because it makes the sparse grid too large
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi*2, 1, p,
-                           std::vector<IndexType>(dim, 0), reduceCombinationDimsLmax,
+                           LevelVector(dim, 0), reduceCombinationDimsLmax,
                            forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
     auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax);
-    std::vector<LevelVector> decomposition;
+    std::vector<IndexVector> decomposition;
     for (DimType d = 0; d < dim; ++d) {
-      if (p[d] < powerOfTwo[lmin[d]] + (boundary[d] ? +1 : -1)) {
+      if (p[d] > (powerOfTwo[lmin[d]] + (boundary[d] ? +1 : -1))) {
         throw std::runtime_error(
             "change p! not all processes can have points on minimum level with current p.");
       }
-      LevelVector di;
+      IndexVector di;
       if (p[d] == 1) {
         di = {0};
       } else if (p[d] == 2) {
@@ -254,13 +251,25 @@ int main(int argc, char** argv) {
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     manager.updateCombiParameters();
+    // {
+    //   // compute conjoint size, precomputing this for the large scheme
+    //   // (put into separate header)
+    //   std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
+    //       new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
+    //   dsguConjointSizes = getPartitionedNumDOFSGConjoint(*scheme, lmin, lmax, decomposition);
+    // }
 
-    auto dsguSizes = getPartitionedNumDOFSGAdaptive(lmin, lmax-reduceCombinationDimsLmax, lmax, decomposition);
+    std::cout << "conjoint" << std::endl;
+    std::cout << dsguConjointSizes << std::endl;
+    std::cout << "and that makes a total of DOF " << std::endl;
+    std::cout << std::accumulate(dsguConjointSizes.begin(), dsguConjointSizes.end(), 0ll) << std::endl;
+    std::cout << "distributed over a total of partitions " << std::endl;
+    std::cout << dsguConjointSizes.size() << std::endl;
 
     for (size_t i = 1; i < ncombi; ++i) {
       Stats::startEvent("manager pretend to third-level combine");
       if (hasThirdLevel) {
-        manager.pretendCombineThirdLevel(dsguSizes, false);
+        manager.pretendCombineThirdLevel(dsguConjointSizes, true);
       } else {
         throw std::runtime_error("this was not intended!");
       }
