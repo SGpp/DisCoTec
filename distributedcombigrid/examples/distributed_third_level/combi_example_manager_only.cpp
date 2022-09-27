@@ -200,11 +200,12 @@ int main(int argc, char** argv) {
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
-    // std::cout << "CombiScheme: " << std::endl;
-    // for (const LevelVector& level : levels) std::cout << level << std::endl;
+    std::cout << "CombiScheme: " << std::endl;
+    for (const LevelVector& level : levels) std::cout << level << std::endl;
 
     // create combiparameters
-    std::vector<size_t> taskIDs;
+    std::vector<size_t> taskIDs(levels.size());
+    std::iota(taskIDs.begin(), taskIDs.end(), 0);
     auto reduceCombinationDimsLmax = LevelVector(dim, 1);
     // lie about ncombi, because default is to not use reduced dims for last combi step,
     // which we don't want here because it makes the sparse grid too large
@@ -244,19 +245,14 @@ int main(int argc, char** argv) {
       decomposition.push_back(di);
     }
     params.setDecomposition(decomposition);
-
-     // create abstraction for Manager
-    ProcessGroupManagerContainer pgroups;
-    TaskContainer tasks;
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
-
-    manager.updateCombiParameters();
     // {
     //   // compute conjoint size, precomputing this for the large scheme
     //   // (put into separate header)
     //   std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
     //       new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
     //   dsguConjointSizes = getPartitionedNumDOFSGConjoint(*scheme, lmin, lmax, decomposition);
+    //   CombiMinMaxScheme scheme(levels, coeffs);
+    //   dsguConjointSizes = getPartitionedNumDOFSGConjoint(scheme, lmin, lmax, decomposition);
     // }
 
     std::cout << "conjoint" << std::endl;
@@ -266,6 +262,13 @@ int main(int argc, char** argv) {
     std::cout << "distributed over a total of partitions " << std::endl;
     std::cout << dsguConjointSizes.size() << std::endl;
 
+
+     // create abstraction for Manager
+    ProcessGroupManagerContainer pgroups;
+    TaskContainer tasks;
+    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
+
+    manager.updateCombiParameters();
     for (size_t i = 1; i < ncombi; ++i) {
       Stats::startEvent("manager pretend to third-level combine");
       if (hasThirdLevel) {
