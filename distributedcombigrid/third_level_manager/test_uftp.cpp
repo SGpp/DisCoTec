@@ -62,8 +62,11 @@ void writeRandomDataToDisk(std::string filePrefix,
   std::string myFilename = filePrefix + std::to_string(0);
   // cf. https://stackoverflow.com/a/47742514
   {
-    std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
-    std::filesystem::resize_file(myFilename, sumDOF * sizeof(real));
+    std::filesystem::path p = std::filesystem::current_path() / myFilename;
+    std::ofstream ofp(p, std::ios::out | std::ios::binary);
+    // this isn't working and I don't understand it, resorting to
+    // the shell command `truncate -s $size $file` for now (see below)
+    // std::filesystem::resize_file(p, sumDOF * sizeof(real));
     for (size_t partitionIndex = 0; partitionIndex < actualPartitionSizes.size();
          ++partitionIndex) {
       std::mt19937 rng{std::random_device{}()};
@@ -75,6 +78,21 @@ void writeRandomDataToDisk(std::string filePrefix,
     ofp.close();
   }
   Stats::stopEvent("uftp write");
+}
+
+void createLargeFile(std::string filePrefix, const std::vector<long long int>& dsgPartitionSizes) {
+  Stats::startEvent("uftp create file");
+  // cf. https://stackoverflow.com/a/47742514
+  {
+    for (size_t partitionIndex = 0; partitionIndex < dsgPartitionSizes.size(); ++partitionIndex) {
+      std::string myFilename = filePrefix + std::to_string(partitionIndex);
+      std::string truncateString =
+          "truncate -s " + std::to_string(dsgPartitionSizes[partitionIndex] * sizeof(real)) + " " +
+          myFilename;
+      system(truncateString.c_str());
+    }
+  }
+  Stats::stopEvent("uftp create file");
 }
 
 void validateExchangedData(std::string filePrefix, std::string tokenToWaitFor,
@@ -446,7 +464,7 @@ int main(int argc, char** argv) {
           if (validateData) {
             mockUpDSGWriteToDisk(mySystemDSGPrefix, {dsguConjointSize});
           } else {
-            writeRandomDataToDisk(mySystemDSGPrefix, {dsguConjointSize});
+            createLargeFile(mySystemDSGPrefix, {dsguConjointSize});
           }
           std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
           if (validateData) {
@@ -474,7 +492,7 @@ int main(int argc, char** argv) {
             checkSizeOfFile(otherSystemDSGPrefix,
                             "uftp_transfer_" + std::to_string((systemNumber + 1) % 2) + ".txt",
                             {dsguConjointSize});
-            writeRandomDataToDisk(mySystemDSGPrefix, {dsguConjointSize});
+            createLargeFile(mySystemDSGPrefix, {dsguConjointSize});
             std::ofstream output("uftp_transfer_" + std::to_string(systemNumber) + ".txt");
           }
           // system(rmOther.c_str());
