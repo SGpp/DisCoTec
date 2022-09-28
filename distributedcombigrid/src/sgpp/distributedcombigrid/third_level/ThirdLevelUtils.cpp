@@ -34,8 +34,10 @@ void ThirdLevelUtils::connectToThirdLevelManager(double timeoutMinutes) {
                timeoutMinutes * 60);
   }
 
-  assert(connectionSuccess && "Establishing data connection failed");
-  if (!timeout) isConnected_ = true;
+  if (!connectionSuccess) {
+    throw std::runtime_error("Establishing data connection failed");
+  }
+  isConnected_ = true;
 }
 
 void ThirdLevelUtils::signalReadyToCombine() const

@@ -488,7 +488,7 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
 void ProcessManager::setupThirdLevel() {
   std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
   std::cout << hostnameInfo << std::endl;
-  thirdLevel_.connectToThirdLevelManager(5.);
+  thirdLevel_.connectToThirdLevelManager(10.);
 }
 
 void ProcessManager::writeInterpolatedValues(
