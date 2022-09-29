@@ -67,9 +67,7 @@ class TaskAdvection : public Task {
     start = MPI_Wtime();
     // create local subgrid on each process
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true, decomposition);
-    mpimemory::print_memory_usage_local();
     phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
-    mpimemory::print_memory_usage_local();
 
     finish = MPI_Wtime();
     if (lrank == 0) {
@@ -233,6 +231,7 @@ class TaskAdvection : public Task {
   // new variables that are set by manager. need to be added to serialize
   real dt_;
   size_t nsteps_;
+  std::vector<int> p_;
 
   // pure local variables that exist only on the worker processes
   bool initialized_;
@@ -256,6 +255,7 @@ class TaskAdvection : public Task {
     // add our new variables
     ar& dt_;
     ar& nsteps_;
+    ar& p_;
   }
 };
 

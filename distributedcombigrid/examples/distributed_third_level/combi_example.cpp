@@ -461,7 +461,7 @@ int main(int argc, char** argv) {
     // wait for instructions from manager
     SignalType signal = -1;
 
-    // #ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT
     mpimemory::print_memory_usage_local();
     mpimemory::print_memory_usage_local();
     mpimemory::print_memory_usage_local();
@@ -471,14 +471,14 @@ int main(int argc, char** argv) {
     unsigned long current_vmsize = 0;
     double sumMeasured = 0.;
     double sumExpected = 0.;
-    // #endif  // DEBUG_OUTPUT
+#endif  // DEBUG_OUTPUT
     while (signal != EXIT) {
       signal = pgroup.wait();
-      // #ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT
       MASTER_EXCLUSIVE_SECTION { std::cout << "signal " << signal << std::endl; }
       mpimemory::print_memory_usage_local();
       mpimemory::get_memory_usage_local_kb(&former_vmrss, &former_vmsize);
-      // #endif  // DEBUG_OUTPUT
+#endif  // DEBUG_OUTPUT
       // if using static task assignment, we initialize all tasks after the combi parameters are
       // updated
       if (useStaticTaskAssignment) {
@@ -492,7 +492,7 @@ int main(int argc, char** argv) {
             }
             task->setID(taskNumbers[taskIndex]);
             pgroup.initializeTaskAndFaults(task);
-            // #ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT
             mpimemory::print_memory_usage_local();
             mpimemory::get_memory_usage_local_kb(&current_vmrss, &current_vmsize);
             auto measured = static_cast<double>(current_vmrss - former_vmrss) / 1e6;
@@ -514,14 +514,14 @@ int main(int argc, char** argv) {
             }
             former_vmrss = current_vmrss;
             former_vmsize = current_vmsize;
-            // #endif  // DEBUG_OUTPUT
+#endif  // DEBUG_OUTPUT
           }
-          // #ifdef DEBUG_OUTPUT
+#ifdef DEBUG_OUTPUT
           MASTER_EXCLUSIVE_SECTION {
             std::cout << "sumMeasured " << sumMeasured << " GB, sumExpected " << sumExpected
                       << std::endl;
           }
-          // #endif  // DEBUG_OUTPUT
+#endif  // DEBUG_OUTPUT
         }
         // make sure not to initialize them twice
         if (signal == RUN_FIRST) {
