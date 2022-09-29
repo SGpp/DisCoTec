@@ -77,7 +77,7 @@ class TestingTask : public combigrid::Task {
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
     // parallelization
     // assert(dfg_ == nullptr);
-    long nprocs = getCommSize(lcomm);
+    auto nprocs = getCommSize(lcomm);
     std::vector<int> p = {nprocs,1};
 
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
@@ -204,7 +204,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     //
     // Reduce combination dims lmin and lmax are 0!!
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+    params.setParallelization({static_cast<int>(nprocs), 1});
 
 
     // create abstraction for Manager
