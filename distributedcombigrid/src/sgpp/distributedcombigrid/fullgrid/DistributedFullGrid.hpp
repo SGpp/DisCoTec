@@ -67,7 +67,7 @@ class DistributedFullGrid {
  public:
   /** dimension adaptive Ctor */
   DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType comm,
-                      const std::vector<bool>& hasBdrPoints, const IndexVector& procs,
+                      const std::vector<bool>& hasBdrPoints, const std::vector<int>& procs,
                       bool forwardDecomposition = true,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>(),
                       const BasisFunctionBasis* basis = NULL)
@@ -2354,7 +2354,7 @@ class DistributedFullGrid {
   std::vector<IndexVector> decomposition_;
 
   /** number of procs in every dimension */
-  IndexVector procs_;
+  std::vector<int> procs_;
 
   /** the coordinates of each rank on the cartesian communicator*/
   std::vector<std::vector<int>> partitionCoords_;
@@ -2386,13 +2386,14 @@ class DistributedFullGrid {
     MPI_Comm_rank(comm, &rank_);
     MPI_Comm_size(comm, &size_);
 
-    IndexType numSubgrids =
-        std::accumulate(procs_.begin(), procs_.end(), 1, std::multiplies<size_t>());
+#ifndef NDEBUG
+    auto numSubgrids =
+        std::accumulate(procs_.begin(), procs_.end(), 1, std::multiplies<int>());
 
     ASSERT(size_ == static_cast<int>(numSubgrids),
            " size_: " << size_ << " numSubgrids: " << static_cast<int>(numSubgrids));
     assert(size_ == static_cast<int>(numSubgrids));
-
+#endif
 
     // check if communicator is already cartesian
     int status;
@@ -2477,7 +2478,7 @@ class DistributedFullGrid {
       IndexVector& llbnd = decomposition[i];
       llbnd.resize(procs_[i]);
 
-      for (IndexType j = 0; j < procs_[i]; ++j) {
+      for (int j = 0; j < procs_[i]; ++j) {
         double tmp = static_cast<double>(nrPoints_[i]) * static_cast<double>(j) /
                      static_cast<double>(procs_[i]);
 

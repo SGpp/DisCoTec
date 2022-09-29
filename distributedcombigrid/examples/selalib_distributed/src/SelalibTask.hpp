@@ -53,7 +53,7 @@ class SelalibTask : public combigrid::Task {
  public:
   SelalibTask(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
               LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
-              IndexVector p = IndexVector(0),
+              std::vector<int> p = std::vector<int>(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
         coeff_(coeff),
@@ -272,7 +272,7 @@ class SelalibTask : public combigrid::Task {
   // serialize function
   real coeff_; // combination technique coefficient
   std::string path_;  // directory in which task should be executed
-  IndexVector p_;
+  std::vector<int> p_;
 
   // following variables are only accessed in worker and do not need to be
   // serialized

@@ -16,7 +16,7 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
                   std::vector<size_t>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
-                  const IndexVector parallelization = {0},
+                  const std::vector<int> parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   bool forwardDecomposition = !isGENE,
@@ -44,7 +44,7 @@ class CombiParameters {
     }
     setLevelsCoeffs(taskIDs, levels, coeffs);
     numTasks_ = static_cast<long>(taskIDs.size());
-    if (parallelization != IndexVector({0})){
+    if (parallelization != std::vector<int>({0})){
       this->setParallelization(parallelization);
     }
   }
@@ -197,7 +197,7 @@ class CombiParameters {
   /* get the common parallelization
    * this function can only be used in the uniform mode
    */
-  inline const IndexVector getParallelization() const {
+  inline const std::vector<int> getParallelization() const {
     assert(uniformDecomposition && procsSet_);
     return procs_;
   }
@@ -242,7 +242,7 @@ class CombiParameters {
   /* set the common parallelization
    * this function can only be used in the uniform mode
    */
-  inline void setParallelization(const IndexVector p) {
+  inline void setParallelization(const std::vector<int>& p) {
     assert(uniformDecomposition);
 
     procs_ = p;
@@ -303,7 +303,7 @@ class CombiParameters {
 
   std::vector<BasisFunctionBasis*> hierarchicalBases_;
 
-  IndexVector procs_;
+  std::vector<int> procs_;
 
   bool procsSet_;
 

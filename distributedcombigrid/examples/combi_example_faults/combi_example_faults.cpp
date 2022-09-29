@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
 
   DimType dim;
   LevelVector lmin, lmax, leval;
-  IndexVector p;
+  std::vector<int> p;
   size_t ncombi, nsteps;
   combigrid::real dt;
   FaultsInfo faultsInfo;
