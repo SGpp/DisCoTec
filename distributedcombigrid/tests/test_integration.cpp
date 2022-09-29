@@ -128,7 +128,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+    params.setParallelization({static_cast<int>(nprocs), 1});
     if (nprocs == 5 && std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
       params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
     } else if (nprocs == 4 &&
@@ -322,7 +322,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, 2);
-    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+    params.setParallelization({static_cast<int>(nprocs), 1});
     setCombiParametersHierarchicalBasesUniform<T>(params);
 
     // create abstraction for Manager

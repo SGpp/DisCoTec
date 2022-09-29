@@ -35,7 +35,7 @@ class TaskConstParaboloid : public combigrid::Task {
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
     // parallelization
     // assert(dfg_ == nullptr);
-    long nprocs = getCommSize(lcomm);
+    auto nprocs = getCommSize(lcomm);
     std::vector<int> p = {nprocs,1};
 
     // decomposition = std::vector<IndexVector>(2);
