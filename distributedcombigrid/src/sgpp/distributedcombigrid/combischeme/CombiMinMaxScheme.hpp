@@ -43,7 +43,7 @@ class CombiMinMaxScheme {
       assert(levels.size() > 0);
       assert(levels.size() == coefficients.size());
       n_ = 0;
-      dim_ = levels.back().size();
+      dim_ = static_cast<combigrid::DimType>(levels.back().size());
     }
 
   virtual ~CombiMinMaxScheme() = default;
@@ -340,7 +340,7 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
       // subspaceExtentsPerProcessPerDimension[d] << std::endl;
     }
     // iterate all processes, add dof from subspace
-    for (size_t i = 0; i < numProcsPerGroup; ++i) {
+    for (size_t i = 0; i < static_cast<size_t>(numProcsPerGroup); ++i) {
       size_t numDOFtoAdd = 1;
       // iterate the vector index entries belonging to linear index i
       auto tmp = i;
