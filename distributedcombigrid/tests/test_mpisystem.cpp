@@ -72,7 +72,7 @@ void checkMPIRanksAndCommunication(size_t ngroup, size_t nprocs) {
 
   //   // create combiparameters
   //   CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-  //   params.setParallelization({static_cast<IndexType>(nprocs), 1});
+  //   params.setParallelization({static_cast<int>(nprocs), 1});
 
   //   // create abstraction for Manager
   //   ProcessManager manager{pgroups, tasks, params, std::move(loadmodel)};

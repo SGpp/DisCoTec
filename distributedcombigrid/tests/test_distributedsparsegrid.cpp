@@ -262,8 +262,8 @@ BOOST_AUTO_TEST_CASE(test_0) {
 BOOST_AUTO_TEST_CASE(test_1) {
   LevelVector lmin = {3,3};
   LevelVector lmax = {7,7};
-  for (IndexType procOne : {1,2,3}) {
-    for (IndexType procTwo : {1,2}) {
+  for (int procOne : {1,2,3}) {
+    for (int procTwo : {1,2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
@@ -279,8 +279,8 @@ BOOST_AUTO_TEST_CASE(test_1) {
 BOOST_AUTO_TEST_CASE(test_2) {
   LevelVector lmin = {2,4};
   LevelVector lmax = {6,8};
-  for (IndexType procOne : {1,2,3}) {
-    for (IndexType procTwo : {1,2}) {
+  for (int procOne : {1,2,3}) {
+    for (int procTwo : {1,2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
@@ -296,8 +296,8 @@ BOOST_AUTO_TEST_CASE(test_2) {
 BOOST_AUTO_TEST_CASE(test_3) {
   LevelVector lmin = {2,4};
   LevelVector lmax = {9,9};
-  for (IndexType procOne : {1,2,3}) {
-    for (IndexType procTwo : {1,2}) {
+  for (int procOne : {1,2,3}) {
+    for (int procTwo : {1,2}) {
       for (bool bValue : {true, false}) {
         std::vector<int> procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
@@ -313,8 +313,8 @@ BOOST_AUTO_TEST_CASE(test_3) {
 BOOST_AUTO_TEST_CASE(test_4) {
   LevelVector lmin = {3, 3, 3};
   LevelVector lmax = {7, 7, 7};
-  for (IndexType procOne : {1, 2, 3}) {
-    for (IndexType procTwo : {1, 2}) {
+  for (int procOne : {1, 2, 3}) {
+    for (int procTwo : {1, 2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo, 1};
         std::vector<bool> boundary(3, bValue);
@@ -331,8 +331,8 @@ BOOST_AUTO_TEST_CASE(test_4) {
 BOOST_AUTO_TEST_CASE(test_5) {
   LevelVector lmin = {2, 3, 4};
   LevelVector lmax = {6, 7, 8};
-  for (IndexType procOne : {1, 2, 3}) {
-    for (IndexType procTwo : {1, 2}) {
+  for (int procOne : {1, 2, 3}) {
+    for (int procTwo : {1, 2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo, 1};
         std::vector<bool> boundary(3, bValue);
@@ -349,8 +349,8 @@ BOOST_AUTO_TEST_CASE(test_5) {
 BOOST_AUTO_TEST_CASE(test_6) {
   LevelVector lmin = {2, 3, 4};
   LevelVector lmax = {7, 7, 7};
-  for (IndexType procOne : {1, 2, 3}) {
-    for (IndexType procTwo : {1, 2}) {
+  for (int procOne : {1, 2, 3}) {
+    for (int procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
         std::vector<int> procs = {procOne, procTwo, 1};
         std::vector<bool> boundary(3, bValue);
@@ -368,8 +368,8 @@ BOOST_AUTO_TEST_CASE(test_6) {
 BOOST_AUTO_TEST_CASE(test_7) {
   LevelVector lmin = {2, 3, 1, 1};
   LevelVector lmax = {6, 7, 5, 5};
-  for (IndexType procOne : {1, 3}) {
-    for (IndexType procTwo : {1, 2}) {
+  for (int procOne : {1, 3}) {
+    for (int procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
         std::vector<int> procs = {procOne, procTwo, 1, 1};
         std::vector<bool> boundary(4, bValue);
@@ -387,8 +387,8 @@ BOOST_AUTO_TEST_CASE(test_7) {
 BOOST_AUTO_TEST_CASE(test_8) {
   LevelVector lmin = {2, 1, 4, 1, 3, 1};
   LevelVector lmax = {4, 3, 6, 3, 5, 3};
-  for (IndexType procOne : {1, 3}) {
-    for (IndexType procTwo : {1, 2}) {
+  for (int procOne : {1, 3}) {
+    for (int procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
         std::vector<int> procs = {1, 1, procOne, 1, procTwo, 1};
         std::vector<bool> boundary(6, bValue);

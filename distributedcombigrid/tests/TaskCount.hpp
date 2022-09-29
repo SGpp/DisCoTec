@@ -37,7 +37,7 @@ class TaskCount : public combigrid::Task {
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
 
-    long nprocs = getCommSize(lcomm);
+    auto nprocs = getCommSize(lcomm);
     std::vector<int> p;
     if (decomposition.size() == 0) {
       p = {nprocs,1};
