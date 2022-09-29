@@ -8,6 +8,7 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
+#include <boost/asio.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -277,6 +278,10 @@ int main(int argc, char** argv) {
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     // set up the ssh tunnel for third level communication, if necessary
     // todo: if this works, move to ProcessManager::setUpThirdLevel
+
+    std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
+    std::cout << hostnameInfo << std::endl;
+
     if (thirdLevelSSHCommand != "") {
       shellCommand::exec(thirdLevelSSHCommand.c_str());
       std::cout << thirdLevelSSHCommand << " returned " << std::endl;
@@ -299,7 +304,9 @@ int main(int argc, char** argv) {
 
     // create Tasks
     TaskContainer tasks;
+    tasks.reserve(levels.size());
     std::vector<size_t> taskIDs;
+    taskIDs.reserve(levels.size());
     for (size_t i = 0; i < levels.size(); i++) {
       Task* t =
           new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
@@ -357,9 +364,6 @@ int main(int argc, char** argv) {
     }
     params.setDecomposition(decomposition);
 
-    // create abstraction for Manager
-    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
-
     if (useStaticTaskAssignment) {
       // read in CT scheme -- again!
       std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(new CombiMinMaxSchemeFromFile(
@@ -372,6 +376,8 @@ int main(int argc, char** argv) {
       }
     }
 
+    // create abstraction for Manager
+    ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
     manager.updateCombiParameters();
     std::cout << "set up component grids and run until first combination point" << std::endl;
 

@@ -8,6 +8,7 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
+#include <boost/asio.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -192,6 +193,9 @@ int main(int argc, char** argv) {
     // set up the ssh tunnel for third level communication, if necessary
     // todo: if this works, move to ProcessManager::setUpThirdLevel
 
+    std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
+    std::cout << hostnameInfo << std::endl;
+
     if (thirdLevelSSHCommand != "") {
       shellCommand::exec(thirdLevelSSHCommand.c_str());
       std::cout << thirdLevelSSHCommand << " returned " << std::endl;
@@ -258,12 +262,12 @@ int main(int argc, char** argv) {
     std::cout << "conjoint" << std::endl;
     std::cout << dsguConjointSizes << std::endl;
     std::cout << "and that makes a total of DOF " << std::endl;
-    std::cout << std::accumulate(dsguConjointSizes.begin(), dsguConjointSizes.end(), 0ll) << std::endl;
+    std::cout << std::accumulate(dsguConjointSizes.begin(), dsguConjointSizes.end(), 0ll)
+              << std::endl;
     std::cout << "distributed over a total of partitions " << std::endl;
     std::cout << dsguConjointSizes.size() << std::endl;
 
-
-     // create abstraction for Manager
+    // create abstraction for Manager
     ProcessGroupManagerContainer pgroups;
     TaskContainer tasks;
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
