@@ -802,7 +802,7 @@ class DistributedFullGrid {
   }
 
   /** Number of Grids in every dimension*/
-  inline const IndexVector& getParallelization() const { return procs_; }
+  inline const std::vector<int>& getParallelization() const { return procs_; }
 
   /** MPI Rank */
   inline int getMpiRank() { return rank_; }

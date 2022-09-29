@@ -344,7 +344,7 @@ inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& c
   }
 }
 
-inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref, IndexVector procsRef) {
+inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref, std::vector<int> procsRef) {
   assert(lref.size() == procsRef.size());
   std::vector<IndexVector> decomposition;
   for (DimType d = 0; d < static_cast<DimType>(lref.size()); ++d) {
