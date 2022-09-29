@@ -17,8 +17,7 @@ class TaskConst : public combigrid::Task {
     // parallelization
     // assert(dfg_ == nullptr);
     long nprocs = getCommSize(lcomm);
-    // IndexVector p = {nprocs, 1};
-    IndexVector p = {nprocs,1};
+    std::vector<int> p = {nprocs,1};
 
     // decomposition = std::vector<IndexVector>(2);
     // size_t l1 = getLevelVector()[1];

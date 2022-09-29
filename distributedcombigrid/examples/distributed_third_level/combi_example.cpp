@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
   /* read in parameters from ctparam */
   DimType dim = cfg.get<DimType>("ct.dim");
   LevelVector lmin(dim), lmax(dim), leval(dim);
-  IndexVector p(dim);
+  std::vector<int> p(dim);
   combigrid::real dt;
   size_t nsteps, ncombi;
   cfg.get<std::string>("ct.lmin") >> lmin;
@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
   auto forwardDecomposition = true;
 
   // check whether parallelization vector p agrees with nprocs
-  IndexType checkProcs = 1;
+  int checkProcs = 1;
   for (auto k : p) checkProcs *= k;
   if(checkProcs != IndexType(nprocs)){
     throw std::invalid_argument("process group size and parallelization do not match");
@@ -461,7 +461,7 @@ int main(int argc, char** argv) {
     // wait for instructions from manager
     SignalType signal = -1;
 
-#ifdef DEBUG_OUTPUT
+    // #ifdef DEBUG_OUTPUT
     mpimemory::print_memory_usage_local();
     mpimemory::print_memory_usage_local();
     mpimemory::print_memory_usage_local();
@@ -471,14 +471,14 @@ int main(int argc, char** argv) {
     unsigned long current_vmsize = 0;
     double sumMeasured = 0.;
     double sumExpected = 0.;
-#endif  // DEBUG_OUTPUT
+    // #endif  // DEBUG_OUTPUT
     while (signal != EXIT) {
       signal = pgroup.wait();
-#ifdef DEBUG_OUTPUT
+      // #ifdef DEBUG_OUTPUT
       MASTER_EXCLUSIVE_SECTION { std::cout << "signal " << signal << std::endl; }
       mpimemory::print_memory_usage_local();
       mpimemory::get_memory_usage_local_kb(&former_vmrss, &former_vmsize);
-#endif  // DEBUG_OUTPUT
+      // #endif  // DEBUG_OUTPUT
       // if using static task assignment, we initialize all tasks after the combi parameters are
       // updated
       if (useStaticTaskAssignment) {
@@ -487,9 +487,12 @@ int main(int argc, char** argv) {
           for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
             auto task = new TaskAdvection(dim, levels[taskIndex], boundary, coeffs[taskIndex],
                                           loadmodel.get(), dt, nsteps, p);
+            if (taskIndex > 99) {
+              break;
+            }
             task->setID(taskNumbers[taskIndex]);
             pgroup.initializeTaskAndFaults(task);
-#ifdef DEBUG_OUTPUT
+            // #ifdef DEBUG_OUTPUT
             mpimemory::print_memory_usage_local();
             mpimemory::get_memory_usage_local_kb(&current_vmrss, &current_vmsize);
             auto measured = static_cast<double>(current_vmrss - former_vmrss) / 1e6;
@@ -501,20 +504,24 @@ int main(int argc, char** argv) {
               std::cout << "measured " << measured << " GB, expected " << expected << std::endl;
             }
 
-            // if (task->getDistributedFullGrid().getElementVector().max_size() < ctdofPartitioned ||
-            //     task->getDistributedFullGrid().getElementVector().size() < ctdofPartitioned) {
-            //   throw std::runtime_error("max_size went wrong! " + std::to_string(ctdofPartitioned));
-            // }
+            if (task->getDistributedFullGrid().getElementVector().max_size() <
+                    task->getDistributedFullGrid().getNrLocalElements() ||
+                task->getDistributedFullGrid().getElementVector().size() <
+                    task->getDistributedFullGrid().getNrLocalElements()) {
+              throw std::runtime_error(
+                  "max_size went wrong! " +
+                  std::to_string(task->getDistributedFullGrid().getNrLocalElements()));
+            }
             former_vmrss = current_vmrss;
             former_vmsize = current_vmsize;
-#endif  // DEBUG_OUTPUT
+            // #endif  // DEBUG_OUTPUT
           }
-#ifdef DEBUG_OUTPUT
+          // #ifdef DEBUG_OUTPUT
           MASTER_EXCLUSIVE_SECTION {
             std::cout << "sumMeasured " << sumMeasured << " GB, sumExpected " << sumExpected
                       << std::endl;
           }
-#endif  // DEBUG_OUTPUT
+          // #endif  // DEBUG_OUTPUT
         }
         // make sure not to initialize them twice
         if (signal == RUN_FIRST) {

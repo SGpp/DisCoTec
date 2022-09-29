@@ -2,6 +2,7 @@
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPIMemory.hpp"
 
 namespace combigrid {
 
@@ -32,7 +33,8 @@ class TaskAdvection : public Task {
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
   TaskAdvection(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
-                LoadModel* loadModel, real dt, size_t nsteps, IndexVector p = IndexVector(0),
+                LoadModel* loadModel, real dt, size_t nsteps,
+                std::vector<int> p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
@@ -40,7 +42,8 @@ class TaskAdvection : public Task {
         p_(p),
         initialized_(false),
         stepsTotal_(0),
-        dfg_(nullptr), phi_(nullptr) {}
+        dfg_(nullptr),
+        phi_(nullptr) {}
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -64,10 +67,17 @@ class TaskAdvection : public Task {
     start = MPI_Wtime();
     // create local subgrid on each process
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true, decomposition);
+    mpimemory::print_memory_usage_local();
     phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
+    mpimemory::print_memory_usage_local();
+
     finish = MPI_Wtime();
     if (lrank == 0) {
       std::cout << " created dfg_ and phi_ took " << finish - start << std::flush;
+    }
+    if (phi_->size() != dfg_->getElementVector().size() || phi_->size() != dfg_->getNrLocalElements() ) {
+      throw std::runtime_error("allocation went wrong! " + std::to_string(phi_->size()) + " vs " +
+                               std::to_string(dfg_->getElementVector().size()));
     }
 
     start = MPI_Wtime();
@@ -223,7 +233,6 @@ class TaskAdvection : public Task {
   // new variables that are set by manager. need to be added to serialize
   real dt_;
   size_t nsteps_;
-  IndexVector p_;
 
   // pure local variables that exist only on the worker processes
   bool initialized_;
@@ -247,7 +256,6 @@ class TaskAdvection : public Task {
     // add our new variables
     ar& dt_;
     ar& nsteps_;
-    ar& p_;
   }
 };
 

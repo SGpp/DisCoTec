@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
   /* read in parameters from ctparam */
   DimType dim = cfg.get<DimType>("ct.dim");
   LevelVector lmin(dim), lmax(dim);
-  IndexVector p(dim);
+  std::vector<int> p(dim);
   cfg.get<std::string>("ct.lmin") >> lmin;
   cfg.get<std::string>("ct.lmax") >> lmax;
   cfg.get<std::string>("ct.p") >> p;
