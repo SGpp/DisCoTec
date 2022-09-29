@@ -2393,11 +2393,6 @@ class DistributedFullGrid {
            " size_: " << size_ << " numSubgrids: " << static_cast<int>(numSubgrids));
     assert(size_ == static_cast<int>(numSubgrids));
 
-    // important: note reverse ordering of dims!
-    std::vector<int> dims(procs_.rbegin(), procs_.rend());
-    if (!reverseOrderingDFGPartitions) {
-      dims.assign(procs_.begin(), procs_.end());
-    }
 
     // check if communicator is already cartesian
     int status;
@@ -2408,9 +2403,17 @@ class DistributedFullGrid {
       auto maxdims = static_cast<int>(procs_.size());
       std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
       MPI_Cart_get(comm, static_cast<int>(maxdims), &cartdims[0], &periods[0], &coords[0]);
-      ASSERT(cartdims == dims,
-            " cartdims: " << cartdims << " dims: " << dims);
+#ifndef NDEBUG
+      // important: note reverse ordering of dims!
+      std::vector<int> dims(procs_.size());
+      if (reverseOrderingDFGPartitions) {
+        dims.assign(procs_.rbegin(), procs_.rend());
+      } else {
+        dims.assign(procs_.begin(), procs_.end());
+      }
+      ASSERT(cartdims == dims, " cartdims: " << cartdims << " dims: " << dims);
       assert(cartdims == dims);
+#endif
 
       // MPI_Comm_dup(comm, &communicator_);
       // cf. https://www.researchgate.net/publication/220439585_MPI_on_millions_of_cores
@@ -2421,6 +2424,13 @@ class DistributedFullGrid {
       std::cout << "DistributedFullGrid: using given cartcomm: " << communicator_ << std::endl;
 #endif
     } else {
+      // important: note reverse ordering of dims!
+      std::vector<int> dims(procs_.size());
+      if (reverseOrderingDFGPartitions) {
+        dims.assign(procs_.rbegin(), procs_.rend());
+      } else {
+        dims.assign(procs_.begin(), procs_.end());
+      }
       // todo mh: think whether periodic bc will be useful
       std::vector<int> periods(dim_, 0);
       int reorder = 0;
@@ -2441,8 +2451,9 @@ class DistributedFullGrid {
         MPI_Cart_coords(communicator_, i, static_cast<int>(dim_), &tmp[0]);
 
         // important: reverse ordering of partition coords!
-        partitionCoords_[i].assign(tmp.rbegin(), tmp.rend());
-        if (!reverseOrderingDFGPartitions) {
+        if (reverseOrderingDFGPartitions) {
+          partitionCoords_[i].assign(tmp.rbegin(), tmp.rend());
+        } else {
           partitionCoords_[i].assign(tmp.begin(), tmp.end());
         }
       }
