@@ -65,7 +65,7 @@ class TaskAdvFDM : public combigrid::Task {
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     // only use one process per group
-    IndexVector p(getDim(), 1);
+    std::vector<int> p(getDim(), 1);
 
     dfg_ =
         new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p);

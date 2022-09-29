@@ -38,8 +38,7 @@ class TaskConst : public combigrid::Task {
     // parallelization
     // assert(dfg_ == nullptr);
     long nprocs = getCommSize(lcomm);
-    // IndexVector p = {nprocs, 1};
-    IndexVector p = {nprocs,1};
+    std::vector<int> p = {nprocs,1};
 
     // decomposition = std::vector<IndexVector>(2);
     // size_t l1 = getLevelVector()[1];
@@ -167,7 +166,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
       taskIDs.push_back(t->getID());
     }
 
-    IndexVector parallelization = {static_cast<IndexType>(nprocs), 1};
+    std::vector<int> parallelization = {static_cast<int>(nprocs), 1};
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
     params.setParallelization(parallelization); //TODO why??

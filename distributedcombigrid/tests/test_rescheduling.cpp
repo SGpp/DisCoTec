@@ -78,7 +78,7 @@ class TestingTask : public combigrid::Task {
     // parallelization
     // assert(dfg_ == nullptr);
     long nprocs = getCommSize(lcomm);
-    IndexVector p = {nprocs,1};
+    std::vector<int> p = {nprocs,1};
 
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
                                                   p, false, decomposition);

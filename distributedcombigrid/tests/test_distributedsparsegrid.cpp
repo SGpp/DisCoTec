@@ -22,7 +22,7 @@
 
 using namespace combigrid;
 
-void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, IndexVector& procs, std::vector<bool>& boundary,
+void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vector<int>& procs, std::vector<bool>& boundary,
                               int size) {
   CommunicatorType comm = TestHelper::getComm(size);
   if (comm != MPI_COMM_NULL) {
@@ -250,7 +250,7 @@ BOOST_AUTO_TEST_CASE(test_0) {
   LevelVector lmin = {1,1};
   LevelVector lmax = {3,3};
   for (bool bValue : {true}) {
-    IndexVector procs = {1,1};
+    std::vector<int> procs = {1,1};
     std::vector<bool> boundary(2, bValue);
     auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -265,7 +265,7 @@ BOOST_AUTO_TEST_CASE(test_1) {
   for (IndexType procOne : {1,2,3}) {
     for (IndexType procTwo : {1,2}) {
       for (bool bValue : {true}) {
-        IndexVector procs = {procOne, procTwo};
+        std::vector<int> procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
         auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -282,7 +282,7 @@ BOOST_AUTO_TEST_CASE(test_2) {
   for (IndexType procOne : {1,2,3}) {
     for (IndexType procTwo : {1,2}) {
       for (bool bValue : {true}) {
-        IndexVector procs = {procOne, procTwo};
+        std::vector<int> procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
         auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -299,7 +299,7 @@ BOOST_AUTO_TEST_CASE(test_3) {
   for (IndexType procOne : {1,2,3}) {
     for (IndexType procTwo : {1,2}) {
       for (bool bValue : {true, false}) {
-        IndexVector procs = {procOne, procTwo};
+        std::vector<int> procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
         auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -316,7 +316,7 @@ BOOST_AUTO_TEST_CASE(test_4) {
   for (IndexType procOne : {1, 2, 3}) {
     for (IndexType procTwo : {1, 2}) {
       for (bool bValue : {true}) {
-        IndexVector procs = {procOne, procTwo, 1};
+        std::vector<int> procs = {procOne, procTwo, 1};
         std::vector<bool> boundary(3, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
@@ -334,7 +334,7 @@ BOOST_AUTO_TEST_CASE(test_5) {
   for (IndexType procOne : {1, 2, 3}) {
     for (IndexType procTwo : {1, 2}) {
       for (bool bValue : {true}) {
-        IndexVector procs = {procOne, procTwo, 1};
+        std::vector<int> procs = {procOne, procTwo, 1};
         std::vector<bool> boundary(3, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
@@ -352,7 +352,7 @@ BOOST_AUTO_TEST_CASE(test_6) {
   for (IndexType procOne : {1, 2, 3}) {
     for (IndexType procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
-        IndexVector procs = {procOne, procTwo, 1};
+        std::vector<int> procs = {procOne, procTwo, 1};
         std::vector<bool> boundary(3, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
@@ -371,7 +371,7 @@ BOOST_AUTO_TEST_CASE(test_7) {
   for (IndexType procOne : {1, 3}) {
     for (IndexType procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
-        IndexVector procs = {procOne, procTwo, 1, 1};
+        std::vector<int> procs = {procOne, procTwo, 1, 1};
         std::vector<bool> boundary(4, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
@@ -390,7 +390,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
   for (IndexType procOne : {1, 3}) {
     for (IndexType procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
-        IndexVector procs = {1, 1, procOne, 1, procTwo, 1};
+        std::vector<int> procs = {1, 1, procOne, 1, procTwo, 1};
         std::vector<bool> boundary(6, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
@@ -406,7 +406,7 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_1) {
   // 1D case
   LevelVector lmin = {1};
   LevelVector lmax = {5};
-  IndexVector procs = {2};
+  std::vector<int> procs = {2};
   std::vector<IndexVector> decomposition = {{0, 1}};
   auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
   auto sln = LevelVector({1,32});
@@ -423,7 +423,7 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_2) {
   // 2D case
   LevelVector lmin = {1, 1};
   LevelVector lmax = {2, 2};
-  IndexVector procs = {2, 2};
+  std::vector<int> procs = {2, 2};
   std::vector<IndexVector> decomposition = {{0, 1}, {0, 3}};
   auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
   auto sln = LevelVector({3, 10, 2, 6});
@@ -440,7 +440,7 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_3) {
   // 3D case (still OK to visualize)
   LevelVector lmin = {1, 1, 1};
   LevelVector lmax = {3, 3, 3};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<IndexVector> decomposition = {{0, 1}, {0, 2}, {0, 3}};
   auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
   auto sln = LevelVector({4, 16, 13, 46, 8, 30, 24, 84});

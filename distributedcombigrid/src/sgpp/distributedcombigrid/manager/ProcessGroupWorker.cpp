@@ -1119,8 +1119,10 @@ void ProcessGroupWorker::updateCombiParameters() {
     auto par = combiParameters_.getParallelization();
 
     // important: note reverse ordering of dims! -- cf DistributedFullGrid //TODO(pollinta) remove reverse ordering
-    std::vector<int> dims (par.rbegin(), par.rend());
-    if (!reverseOrderingDFGPartitions) {
+    std::vector<int> dims (par.size());
+    if (reverseOrderingDFGPartitions) {
+      dims.assign(par.rbegin(), par.rend());
+    } else {
       dims.assign(par.begin(), par.end());
     }
 
