@@ -115,7 +115,7 @@ void createTruncatedHierarchicalLevels(const LevelVector& lmax,
   LevelVector rlmin(dim);
 
   for (size_t i = 0; i < rlmin.size(); ++i) {
-    rlmin[i] = lmax[i] - minLevelDifference;
+    rlmin[i] = static_cast<LevelType>(lmax[i] - minLevelDifference);
   }
 
   LevelType n = minLevelDifference;

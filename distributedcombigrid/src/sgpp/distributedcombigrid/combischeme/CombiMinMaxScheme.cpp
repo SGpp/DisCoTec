@@ -7,8 +7,8 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   // and effDim_ = 2)
   LevelVector lmaxtmp = lmax_;
   LevelVector lmintmp = lmin_;
-  LevelVector dummyDims;
-  for (size_t i = 0; i < lmax_.size(); ++i) {
+  std::vector<DimType> dummyDims;
+  for (DimType i = 0; i < static_cast<DimType>(lmax_.size()); ++i) {
     if (lmax_[i] - lmin_[i] == 0) {
       lmaxtmp.erase(lmaxtmp.begin() + i - dummyDims.size());
       lmintmp.erase(lmintmp.begin() + i - dummyDims.size());
@@ -20,14 +20,14 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   LevelType c(0);
   LevelVector cv = lmaxtmp - lmintmp;
 
-  // check if all elements in lmax-lmin are equal. If not, define c as the max of cv
+  // check if all elements in lmax-lmin are equal. If not, define c as the min of cv
   if (std::adjacent_find(cv.begin(), cv.end(), std::not_equal_to<int>()) == cv.end()) {
     c = cv[effDim_ - 1];
   } else {
     c = *std::min_element(cv.begin(), cv.end());
   }
-  for (size_t i = 0; i < lmin_.size(); ++i) {
-    lmin_[i] = lmax_[i] - c;
+  for (DimType i = 0; i < static_cast<DimType>(lmin_.size()); ++i) {
+    lmin_[i] = static_cast<LevelType>(lmax_[i] - c);
   }
 
   combigrid::createTruncatedHierarchicalLevels(lmaxtmp, lmintmp, levels_);
@@ -65,10 +65,10 @@ void CombiMinMaxScheme::createAdaptiveCombischeme() {
   LevelVector l(dim_);
   // // TODO: Why levelSum-1 ?
   // createLevelsRec(dim_, n_ - 1, dim_, l, lmax_);
-  auto n = n_ - sum(lmin_);
+  auto n = static_cast<LevelType>(n_ - sum(lmin_));
   auto rlmin = lmax_;
   for (auto& rl: rlmin) {
-    rl -= n;
+    rl = static_cast<LevelType>(rl - n);
   }
   combigrid::createTruncatedHierarchicalLevels(lmax_, rlmin, levels_);
 
