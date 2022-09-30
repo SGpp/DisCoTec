@@ -81,7 +81,7 @@ inline std::vector<T> operator+(const std::vector<T>& l1, const std::vector<T>& 
 
   std::vector<T> tmp(l1.size());
 
-  for (std::size_t i = 0; i < l1.size(); ++i) tmp[i] = l1[i] + l2[i];
+  for (std::size_t i = 0; i < l1.size(); ++i) tmp[i] = static_cast<T>(l1[i] + l2[i]);
 
   return tmp;
 }
@@ -104,7 +104,7 @@ inline std::vector<T> operator-(const std::vector<T>& l1, const std::vector<T>& 
   std::vector<T> tmp(l1.size());
 
   for (std::size_t i = 0; i < l1.size(); ++i) {
-    tmp[i] = l1[i] - l2[i];
+    tmp[i] = static_cast<T>(l1[i] - l2[i]);
   }
 
   return tmp;

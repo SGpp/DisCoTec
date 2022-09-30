@@ -155,7 +155,7 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
           LevelVector lvl(dim);
           int i = 0;
           for (const auto& l : c.second) {
-            lvl[i] = l.second.get_value<int>();
+            lvl[i] = l.second.get_value<LevelType>();
             ++i;
           }
           assert(lvl <= lmax);

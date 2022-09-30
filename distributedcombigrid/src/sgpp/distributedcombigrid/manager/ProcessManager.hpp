@@ -193,6 +193,7 @@ class ProcessManager {
         return pgroups_[i];
       }
     }
+    return nullptr;
   }
 };
 

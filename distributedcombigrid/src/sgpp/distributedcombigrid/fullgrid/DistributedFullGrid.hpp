@@ -881,7 +881,7 @@ class DistributedFullGrid {
     // builtin is fast and should work with gcc and clang
     // if it is not available, use the one above (at a slight performance hit)
     // or c++20's std::countr_zero
-    LevelType l = lmax - static_cast<LevelType>(__builtin_ctzl(static_cast<unsigned long>(idx1d)));
+    LevelType l = static_cast<LevelType>(lmax - __builtin_ctzl(static_cast<unsigned long>(idx1d)));
     return l;
   }
 
@@ -893,7 +893,7 @@ class DistributedFullGrid {
     // boundary points
     if (l == 0) return -1;
 
-    LevelType ldiff = levels_[d] - l;
+    LevelType ldiff = static_cast<LevelType>(levels_[d] - l);
     IndexType lpidx = idx1d - static_cast<IndexType>(std::pow(2, ldiff));
 
     return lpidx;
@@ -905,7 +905,7 @@ class DistributedFullGrid {
     // boundary points
     if (l == 0) return -1;
 
-    LevelType ldiff = levels_[d] - l;
+    LevelType ldiff = static_cast<LevelType>(levels_[d] - l);
     IndexType rpidx = idx1d + static_cast<IndexType>(std::pow(2, ldiff));
 
     // check if outside of domain
