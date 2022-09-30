@@ -2488,6 +2488,7 @@ class DistributedFullGrid {
   }
 
   void setDecomposition(const std::vector<IndexVector>& decomposition) {
+#ifndef NDEBUG
     assert(decomposition.size() == dim_);
     for (DimType i = 0; i < dim_; ++i)
       assert(decomposition[i].size() == static_cast<size_t>(procs_[i]));
@@ -2512,6 +2513,7 @@ class DistributedFullGrid {
       // this means all entries in tmp are unique
       assert(last == tmp.end() && "some partition in decomposition is of zero size!");
     }
+#endif // not def NDEBUG
 
     decomposition_ = decomposition;
   }
