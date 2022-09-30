@@ -1127,23 +1127,20 @@ void ProcessGroupWorker::deleteTasks() {
 }
 
 void ProcessGroupWorker::updateCombiParameters() {
-  CombiParameters tmp;
-
-  // local root receives task
+  // local root receives combi parameters
   MASTER_EXCLUSIVE_SECTION {
-    MPIUtils::receiveClass(&tmp, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+    MPIUtils::receiveClass(&combiParameters_, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
     //std::cout << "master received combiparameters \n";
   }
 
-  // broadcast task to other process of pgroup
-  MPIUtils::broadcastClass(&tmp, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  // broadcast parameters to other process of pgroup
+  MPIUtils::broadcastClass(&combiParameters_, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
   //std::cout << "worker received combiparameters \n";
 
-  combiParameters_ = tmp;
   combiParametersSet_ = true;
 
   // overwrite local comm with cartesian communicator
-  if (!isGENE  && tmp.isParallelizationSet()){
+  if (!isGENE  && combiParameters_.isParallelizationSet()){
     // cf. https://www.rookiehpc.com/mpi/docs/mpi_cart_create.php
     // get decompositon from combi params
     auto par = combiParameters_.getParallelization();
