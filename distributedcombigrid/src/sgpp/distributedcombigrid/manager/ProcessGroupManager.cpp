@@ -197,15 +197,16 @@ void ProcessGroupManager::writeSparseGridMinMaxCoefficients(const std::string& f
   this->setProcessGroupBusyAndReceive();
 }
 
-
-void ProcessGroupManager::doDiagnostics(int taskID) {
+void ProcessGroupManager::doDiagnostics(size_t taskID) {
   auto status = waitStatus();
   assert(status == PROCESS_GROUP_WAIT);
   for (auto task : tasks_) {
     if (task->getID() == taskID) {
       sendSignalToProcessGroup(DO_DIAGNOSTICS);
       // send task ID to do postprocessing on
-      MPI_Send(&taskID, 1, MPI_INT, this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
+      MPI_Send(&taskID, 1,
+               abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
+               this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
       return;
     }
   }
@@ -341,7 +342,9 @@ Task* ProcessGroupManager::rescheduleRemoveTask(const LevelVector& lvlVec) {
       Task* removedTask;
       auto taskID = currentTask->getID();
       sendSignalToProcessGroup(RESCHEDULE_REMOVE_TASK);
-      MPI_Send(&taskID, 1, MPI_INT, this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
+      MPI_Send(&taskID, 1,
+               abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
+               this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
       Task::receive(&removedTask, this->pgroupRootID_, theMPISystem()->getGlobalComm());
       setProcessGroupBusyAndReceive();
 

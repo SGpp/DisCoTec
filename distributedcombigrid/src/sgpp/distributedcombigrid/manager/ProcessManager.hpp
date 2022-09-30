@@ -87,7 +87,7 @@ class ProcessManager {
 
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
 
-  void doDiagnostics(int taskID);
+  void doDiagnostics(size_t taskID);
 
   std::map<size_t, double> getLpNorms(int p = 2);
 
@@ -155,7 +155,7 @@ class ProcessManager {
 
   void sortTasks();
 
-  ProcessGroupManagerID getProcessGroupWithTaskID(int taskID){
+  ProcessGroupManagerID getProcessGroupWithTaskID(size_t taskID){
     for (size_t i = 0; i < pgroups_.size(); ++i) {
       if (pgroups_[i]->hasTask(taskID)){
         return pgroups_[i];

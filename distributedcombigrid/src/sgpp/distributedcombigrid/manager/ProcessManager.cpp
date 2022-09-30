@@ -85,8 +85,9 @@ bool ProcessManager::runnext() {
   group_failed = waitAllFinished();
   
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
-  if(!group_failed)
+  // if(!group_failed) {
     // receiveDurationsOfTasksFromGroupMasters(0);
+  // }
   // return true if no group failed
   return !group_failed;
 }
@@ -407,7 +408,7 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
   }
 }
 
-void ProcessManager::doDiagnostics(int taskID) {
+void ProcessManager::doDiagnostics(size_t taskID) {
   auto g = getProcessGroupWithTaskID(taskID);
   g->doDiagnostics(taskID);
   // call manager-side diagnostics on that Task
