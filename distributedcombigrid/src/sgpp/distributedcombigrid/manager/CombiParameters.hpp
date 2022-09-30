@@ -261,14 +261,16 @@ class CombiParameters {
    *        that will belong to each cartesian communicator slice
    */
   inline void setDecomposition(const std::vector<IndexVector>& decomposition) {
-    assert(uniformDecomposition);
     decomposition_ = decomposition;
+#ifndef NDEBUG
+    assert(uniformDecomposition);
     for (DimType d = 0; d < dim_; ++d) {
       assert(decomposition[d][0] == 0);
       auto numPoints = powerOfTwo[lmax_[d]] + (boundary_[d] ? 1 : -1);
       assert(decomposition[d].back() < numPoints);
       assert(procs_[d] == decomposition[d].size());
     }
+#endif // not def NDEBUG
   }
 
   inline const std::vector<IndexVector>& getDecomposition() const {
