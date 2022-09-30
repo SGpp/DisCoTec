@@ -341,20 +341,25 @@ SignalType ProcessGroupWorker::wait() {
       updateTaskWithCurrentValues(*currentTask_, combiParameters_.getNumGrids());
       currentTask_->setFinished(true);
       currentTask_ = nullptr;
-		} break;
+    } break;
     case RESCHEDULE_REMOVE_TASK: {
       assert(currentTask_ == nullptr);
 
-      int taskID;
+      size_t taskID;
       MASTER_EXCLUSIVE_SECTION {
-        MPI_Recv(&taskID, 1, MPI_INT, theMPISystem()->getManagerRank(), 0,
-                 theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+        MPI_Recv(
+            &taskID, 1,
+            abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
+            theMPISystem()->getManagerRank(), 0, theMPISystem()->getGlobalComm(),
+            MPI_STATUS_IGNORE);
       }
-      MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(),
-                theMPISystem()->getLocalComm());
+      MPI_Bcast(
+          &taskID, 1,
+          abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
+          theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
       // search for task send to group master and remove
-      for(size_t i=0; i < tasks_.size(); ++i) {
+      for (size_t i = 0; i < tasks_.size(); ++i) {
         if (tasks_[i]->getID() == taskID) {
           MASTER_EXCLUSIVE_SECTION {
             // send to group master
@@ -880,18 +885,22 @@ void ProcessGroupWorker::evalErrorOnDFG() {
 
 void ProcessGroupWorker::doDiagnostics() {
   // receive taskID and broadcast
-  int taskID;
+  size_t taskID;
   MASTER_EXCLUSIVE_SECTION {
-    MPI_Recv(&taskID, 1, MPI_INT, theMPISystem()->getManagerRank(), 0,
-             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+    MPI_Recv(&taskID, 1,
+             abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
+             theMPISystem()->getManagerRank(), 0, theMPISystem()->getGlobalComm(),
+             MPI_STATUS_IGNORE);
   }
-  MPI_Bcast(&taskID, 1, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  MPI_Bcast(&taskID, 1,
+            abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
+            theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
   // call diagnostics on that Task
   for (auto task : tasks_) {
     if (task->getID() == taskID) {
       std::vector<DistributedSparseGridUniform<CombiDataType>*> dsgsToPassToTask;
-      for (auto& dsgPtr : combinedUniDSGVector_){
+      for (auto& dsgPtr : combinedUniDSGVector_) {
         dsgsToPassToTask.push_back(dsgPtr.get());
       }
       task->doDiagnostics(dsgsToPassToTask, combiParameters_.getHierarchizationDims());

@@ -110,7 +110,7 @@ class ProcessManager {
 
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
 
-  void doDiagnostics(int taskID);
+  void doDiagnostics(size_t taskID);
 
   std::map<size_t, double> getLpNorms(int p = 2);
 
@@ -187,7 +187,7 @@ class ProcessManager {
 
   void sortTasks();
 
-  ProcessGroupManagerID getProcessGroupWithTaskID(int taskID){
+  ProcessGroupManagerID getProcessGroupWithTaskID(size_t taskID){
     for (size_t i = 0; i < pgroups_.size(); ++i) {
       if (pgroups_[i]->hasTask(taskID)){
         return pgroups_[i];
@@ -365,13 +365,14 @@ void ProcessManager::combineThirdLevel() {
  * -- sending dummy data instead
  *
  */
-size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate, bool checkValues) {
+size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate,
+                                                bool checkValues) {
   size_t numWrongValues = 0;
   // obtain instructions from third level manager
   thirdLevel_.signalReadyToCombine();
   std::string instruction = thirdLevel_.fetchInstruction();
 
-  std::cout << " pretend "<< instruction << std::endl;
+  std::cout << " pretend " << instruction << std::endl;
 
   Stats::startEvent("manager exchange data with remote");
   for (const auto& dsguSize : numDofsToCommunicate) {
@@ -386,7 +387,7 @@ size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsTo
       // recv combined dsgu from remote
       thirdLevel_.recvData(dsguData.data(), dsguSize);
       if (checkValues) {
-        for (size_t j = 0; j < dsguSize; ++j) {
+        for (long long j = 0; j < dsguSize; ++j) {
           if (dsguData[j] != initialData[j]) {
             ++numWrongValues;
           }

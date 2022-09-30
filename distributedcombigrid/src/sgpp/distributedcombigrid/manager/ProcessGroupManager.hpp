@@ -87,7 +87,7 @@ class ProcessGroupManager {
 
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 
-  void doDiagnostics(int taskID);
+  void doDiagnostics(size_t taskID);
 
   void getLpNorms(int p, std::map<size_t, double>& norms);
 
