@@ -487,9 +487,6 @@ int main(int argc, char** argv) {
           for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
             auto task = new TaskAdvection(dim, levels[taskIndex], boundary, coeffs[taskIndex],
                                           loadmodel.get(), dt, nsteps, p);
-            if (taskIndex > 99) {
-              break;
-            }
             task->setID(taskNumbers[taskIndex]);
             pgroup.initializeTaskAndFaults(task);
 #ifdef DEBUG_OUTPUT
