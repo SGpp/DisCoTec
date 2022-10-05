@@ -107,8 +107,8 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   TestHelper::testStrayMessages();
 }
 
-void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs, std::vector<bool>& boundary,
-                              int size, bool forward = false) {
+void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
+                              std::vector<bool>& boundary, bool forward = false) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm == MPI_COMM_NULL) return;
 
@@ -325,21 +325,21 @@ BOOST_AUTO_TEST_CASE(test_minus3) {
   LevelVector levels = {1, 2};
   std::vector<int> procs = {1, 1};
   std::vector<bool> boundary(2, true);
-  checkDistributedFullgrid(levels, procs, boundary, 1);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_minus2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {2, 3};
   std::vector<int> procs = {1, 1};
   std::vector<bool> boundary(2, true);
-  checkDistributedFullgrid(levels, procs, boundary, 1);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_minus1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {1, 1, 2};
   std::vector<int> procs = {1, 1, 1};
   std::vector<bool> boundary(3, true);
-  checkDistributedFullgrid(levels, procs, boundary, 1);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 
 BOOST_AUTO_TEST_CASE(test_0) {
@@ -347,28 +347,28 @@ BOOST_AUTO_TEST_CASE(test_0) {
   LevelVector levels = {2, 3};
   std::vector<int> procs = {1, 1};
   std::vector<bool> boundary(2, true);
-  checkDistributedFullgrid(levels, procs, boundary, 1);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(6));
   LevelVector levels = {2, 2};
   std::vector<int> procs = {2, 3};
   std::vector<bool> boundary(2, true);
-  checkDistributedFullgrid(levels, procs, boundary, 6);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
-  checkDistributedFullgrid(levels, procs, boundary, 8);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_3) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
-  checkDistributedFullgrid(levels, procs, boundary, 8, true);
+  checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -378,21 +378,21 @@ BOOST_AUTO_TEST_CASE(test_4) {
   LevelVector levels = {2, 3};
   std::vector<int> procs = {2, 2};
   std::vector<bool> boundary(2, true);
-  checkDistributedFullgrid(levels, procs, boundary, 4);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_5) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {1, 4, 2};
   std::vector<bool> boundary(3, true);
-  checkDistributedFullgrid(levels, procs, boundary, 8);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_6) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {1, 4, 2};
   std::vector<bool> boundary(3, true);
-  checkDistributedFullgrid(levels, procs, boundary, 8, true);
+  checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
 // without boundary
@@ -403,21 +403,21 @@ BOOST_AUTO_TEST_CASE(test_7) {
   LevelVector levels = {3, 3};
   std::vector<int> procs = {2, 1};
   std::vector<bool> boundary(2, false);
-  checkDistributedFullgrid(levels, procs, boundary, 2);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_8) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
-  checkDistributedFullgrid(levels, procs, boundary, 8);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_9) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
-  checkDistributedFullgrid(levels, procs, boundary, 8, true);
+  checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -427,21 +427,21 @@ BOOST_AUTO_TEST_CASE(test_10) {
   LevelVector levels = {2, 3};
   std::vector<int> procs = {2, 2};
   std::vector<bool> boundary(2, false);
-  checkDistributedFullgrid(levels, procs, boundary, 4);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_11) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
-  checkDistributedFullgrid(levels, procs, boundary, 8);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_12) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
-  checkDistributedFullgrid(levels, procs, boundary, 8, true);
+  checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
 // partial boundary
@@ -453,7 +453,7 @@ BOOST_AUTO_TEST_CASE(test_13) {
   std::vector<int> procs = {2, 2};
   std::vector<bool> boundary(2, false);
   boundary[1] = true;
-  checkDistributedFullgrid(levels, procs, boundary, 4);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_14) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -461,7 +461,7 @@ BOOST_AUTO_TEST_CASE(test_14) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
   boundary[0] = true;
-  checkDistributedFullgrid(levels, procs, boundary, 8);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_15) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -469,7 +469,7 @@ BOOST_AUTO_TEST_CASE(test_15) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
   boundary[0] = true;
-  checkDistributedFullgrid(levels, procs, boundary, 8, true);
+  checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -480,7 +480,7 @@ BOOST_AUTO_TEST_CASE(test_16) {
   std::vector<int> procs = {2, 2};
   std::vector<bool> boundary(2, false);
   boundary[0] = true;
-  checkDistributedFullgrid(levels, procs, boundary, 4);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_17) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -488,7 +488,7 @@ BOOST_AUTO_TEST_CASE(test_17) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
   boundary[2] = true;
-  checkDistributedFullgrid(levels, procs, boundary, 8);
+  checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_18) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -496,7 +496,7 @@ BOOST_AUTO_TEST_CASE(test_18) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
   boundary[2] = true;
-  checkDistributedFullgrid(levels, procs, boundary, 8, true);
+  checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
 // memory

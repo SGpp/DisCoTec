@@ -337,7 +337,7 @@ void checkFullWeightingHierarchization(Functor& f, DistributedFullGrid<std::comp
 
 template <typename Functor>
 void checkHierarchization(Functor& f, LevelVector& levels, std::vector<int>& procs,
-                          std::vector<bool>& boundary, int size, bool forward = false,
+                          std::vector<bool>& boundary, bool forward = false,
                           bool checkValues = true) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
