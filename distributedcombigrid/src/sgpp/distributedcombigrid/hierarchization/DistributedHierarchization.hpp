@@ -680,7 +680,7 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
 
-  auto poleNeighbors = dfg.getAllMyPoleNeighborRanks(dim);
+  auto poleNeighbors = dfg.getCartesianUtils().getAllMyPoleNeighborRanks(dim);
 
   std::set<IndexType> allMyIndices;
   for (IndexType i = idxMin; i <= idxMax; ++i) {
@@ -728,7 +728,7 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
   CommunicatorType comm = dfg.getCommunicator();
   auto rank = dfg.getRank();
   std::vector<int> coords(dfg.getDimension());
-  dfg.getPartitionCoords(coords);
+  dfg.getCartesianUtils().getPartitionCoordsOfLocalRank(coords);
   {
     std::cout << "in debug output" << std::endl;
 
@@ -866,7 +866,7 @@ static void exchangeData1dDehierarchization(
   CommunicatorType comm = dfg.getCommunicator();
   auto rank = dfg.getRank();
   std::vector<int> coords(dfg.getDimension());
-  dfg.getPartitionCoords(coords);
+  dfg.getCartesianUtils().getPartitionCoordsOfLocalRank(coords);
   {
     IndexType fidx = dfg.getFirstGlobal1dIndex(dim);
     LevelType flvl = dfg.getLevel(dim, fidx);
@@ -1060,9 +1060,9 @@ RankType getNeighbor1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim, 
   IndexVector globalAxisIndex = dfg.getLowerBounds();
   globalAxisIndex[dim] = idx1d;
 
-  IndexVector partitionCoords(dfg.getDimension());
+  std::vector<int> partitionCoords(dfg.getDimension());
   dfg.getPartitionCoords(globalAxisIndex, partitionCoords);
-  RankType r = dfg.getRank(partitionCoords);
+  RankType r = dfg.getCartesianUtils().getRankFromPartitionCoords(partitionCoords);
 
   // check if global index vector is actually contained in the domain of rank r
   assert(globalAxisIndex >= dfg.getLowerBounds(r));
