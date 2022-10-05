@@ -25,7 +25,7 @@
 
 . ./../../setenv.sh
 
-mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=ftolerance
+# mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=ftolerance
 mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=fullgrid
 mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=hierarchization
 mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=loadmodel
@@ -37,3 +37,4 @@ mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=d
 mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=integration
 mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=distributedsparsegrid
 mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=thirdLevel
+mpiexec -np 9 ./test_distributedcombigrid_boost --log_level=message --run_test=mpisystem
