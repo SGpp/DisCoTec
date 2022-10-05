@@ -8,6 +8,7 @@
 #include <string>
 
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
+#include "sgpp/distributedcombigrid/mpi/MPICartesianUtils.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
@@ -707,7 +708,7 @@ class DistributedFullGrid {
     // get coords of r in cart comm
     std::vector<int> coords(dim_);
     IndexVector lowerBounds(dim_);
-    getPartitionCoords(r, coords);
+    cartesianUtils_.getPartitionCoordsOfRank(r, coords);
 
     for (DimType i = 0; i < dim_; ++i) {
       lowerBounds[i] = getDecomposition()[i][coords[i]];
@@ -739,7 +740,7 @@ class DistributedFullGrid {
     assert(r >= 0 && r < size_);
     std::vector<int> coords(dim_);
     IndexVector upperBounds(dim_);
-    getPartitionCoords(r, coords);
+    cartesianUtils_.getPartitionCoordsOfRank(r, coords);
 
     for (DimType i = 0; i < dim_; ++i) {
       RankType n;
@@ -748,7 +749,7 @@ class DistributedFullGrid {
       if (nc[i] < procs_[i] - 1) {
         // get rank of next neighbor in dim i
         nc[i] += 1;
-        n = this->getRank(nc);
+        n = this->getCartesianUtils().getRankFromPartitionCoords(nc);
         upperBounds[i] = getLowerBounds(n)[i];
       } else {
         // no neighbor in dim i -> end of domain
@@ -771,7 +772,7 @@ class DistributedFullGrid {
     for (RankType r = 0; r < size_; ++r) {
       // get coords of r in cart comm
       std::vector<int> coords(dim_);
-      getPartitionCoords(r, coords);
+      cartesianUtils_.getPartitionCoordsOfRank(r, coords);
 
       for (DimType i = 0; i < dim_; ++i) {
         decompositionCoords[i][coords[i]] = getLowerBoundsCoords(r)[i];
@@ -809,22 +810,6 @@ class DistributedFullGrid {
 
   /** MPI Size */
   inline int getMpiSize() { return size_; }
-
-  /** position of a process in the grid of processes */
-  inline void getPartitionCoords(RankType r, IndexVector& coords) const {
-    assert(r >= 0 && r < size_);
-    assert (!partitionCoords_.empty());
-    coords.assign(partitionCoords_[r].begin(), partitionCoords_[r].end());
-  }
-  inline void getPartitionCoords(RankType r, std::vector<int>& coords) const {
-    assert(r >= 0 && r < size_);
-    assert (!partitionCoords_.empty());
-    coords.assign(partitionCoords_[r].begin(), partitionCoords_[r].end());
-  }
-
-  /** position of the local process in the grid of processes */
-  inline void getPartitionCoords(IndexVector& coords) const { getPartitionCoords(rank_, coords); }
-  inline void getPartitionCoords(std::vector<int>& coords) const { getPartitionCoords(rank_, coords); }
 
   /** returns the 1d global index of the first point in the local domain
    *
@@ -917,7 +902,7 @@ class DistributedFullGrid {
 
   // get coordinates of the partition which contains the point specified
   // by the global index vector
-  inline void getPartitionCoords(IndexVector& globalAxisIndex, IndexVector& partitionCoords) const {
+  inline void getPartitionCoords(IndexVector& globalAxisIndex, std::vector<int>& partitionCoords) const {
     partitionCoords.resize(dim_);
 
     for (DimType d = 0; d < dim_; ++d) {
@@ -929,59 +914,6 @@ class DistributedFullGrid {
       // check whether the partition coordinates are valid
       assert(partitionCoords[d] > -1 && partitionCoords[d] < procs_[d]);
     }
-  }
-
-  inline RankType getRank(std::vector<int>& partitionCoordsInt) const {
-    // check wheter the partition coords are valid
-    assert(partitionCoordsInt.size() == dim_);
-
-    for (DimType d = 0; d < dim_; ++d) assert(partitionCoordsInt[d] < procs_[d]);
-
-    assert(!partitionCoords_.empty());
-    auto dim = dim_;
-    auto it = std::find_if(partitionCoords_.begin(), partitionCoords_.end(),
-                           [&partitionCoordsInt, &dim](std::vector<int> pcoord) {
-                             return (pcoord == partitionCoordsInt);
-                           });
-    bool found = (it != partitionCoords_.end());
-    assert(found);
-
-    RankType rank = static_cast<RankType>(it - partitionCoords_.begin());
-
-    // RankType rank_old;
-    // MPI_Cart_rank(communicator_, &partitionCoordsInt[0], &rank_old);
-
-    // assert (rank_old == rank);
-
-    return rank;
-  }
-
-  /**
-   * @brief get a vector containing the ranks of all my cartesian neighboring
-   *        ranks in dimension dim (not only the direct neighbors, all of them)
-   */
-  inline std::vector<RankType> getAllMyPoleNeighborRanks(DimType dim) const {
-    auto ranks = std::vector<RankType>();
-    ranks.reserve(procs_[dim] - 1);
-    auto myPartitionCoords = std::vector<int>();
-    this->getPartitionCoords(myPartitionCoords);
-    for (int i = 0; i < myPartitionCoords[dim]; ++i) {
-      auto neighborPartitionCoords = myPartitionCoords;
-      neighborPartitionCoords[dim] = i;
-      ranks.push_back(getRank(neighborPartitionCoords));
-    }
-    for (int i = myPartitionCoords[dim] + 1; i < procs_[dim]; ++i) {
-      auto neighborPartitionCoords = myPartitionCoords;
-      neighborPartitionCoords[dim] = i;
-      ranks.push_back(getRank(neighborPartitionCoords));
-    }
-    return ranks;
-  }
-
-  inline RankType getRank(IndexVector& partitionCoords) const {
-    std::vector<int> partitionCoordsInt(partitionCoords.begin(), partitionCoords.end());
-
-    return getRank(partitionCoordsInt);
   }
 
   inline void print(std::ostream& os) const {
@@ -2305,6 +2237,10 @@ class DistributedFullGrid {
     return values;
   }
 
+  const MPICartesianUtils& getCartesianUtils() const {
+    return cartesianUtils_;
+  }
+
  private:
   /** dimension of the full grid */
   DimType dim_;
@@ -2352,8 +2288,8 @@ class DistributedFullGrid {
   /** number of procs in every dimension */
   std::vector<int> procs_;
 
-  /** the coordinates of each rank on the cartesian communicator*/
-  std::vector<std::vector<int>> partitionCoords_;
+  /** utility to get info about cartesian communicator  */
+  MPICartesianUtils cartesianUtils_;
 
   /** mpi rank */
   RankType rank_;
@@ -2439,25 +2375,12 @@ class DistributedFullGrid {
       std::cout << "DistributedFullGrid: create new cartcomm" << std::endl;
 #endif
     }
-    // fill the partitionCoords_
     {
-      partitionCoords_.resize(this->getCommunicatorSize());
-      // fill partition coords vector, only once
-      for (int i = 0; i < this->getCommunicatorSize(); ++i) {
-        std::vector<int> tmp(dim_);
-        MPI_Cart_coords(communicator_, i, static_cast<int>(dim_), &tmp[0]);
-
-        // important: reverse ordering of partition coords!
-        if (reverseOrderingDFGPartitions) {
-          partitionCoords_[i].assign(tmp.rbegin(), tmp.rend());
-        } else {
-          partitionCoords_[i].assign(tmp.begin(), tmp.end());
-        }
-      }
-    }
+      cartesianUtils_ = MPICartesianUtils(communicator_);
 #ifdef DEBUG_OUTPUT
-    std::cout << "dfg partition coords "<< partitionCoords_[size_ - 1] << std::endl;
+      std::cout << "set new cartesian utils "<< cartesianUtils_.getCommunicatorSize() << std::endl;
 #endif
+    }
   }
 
   /* a regular (equidistant) domain decompositioning for an even number of processes
