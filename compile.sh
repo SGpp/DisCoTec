@@ -17,7 +17,7 @@ scons -j 8 ISGENE=0 VERBOSE=1 COMPILE_BOOST_TESTS=1 RUN_BOOST_TESTS=0 RUN_CPPLIN
 #LRZ
 #scons -j 8 ISGENE=0 VERBOSE=1 COMPILE_BOOST_TESTS=1 RUN_BOOST_TESTS=0 RUN_CPPLINT=0 BUILD_STATICLIB=0 CC=mpicc FC=mpifort.mpich CXX=mpiCC OPT=1 TIMING=0 UNIFORMDECOMPOSITION=1 ENABLEFT=0 USE_VTK=0 #DEBUG_OUTPUT=1
 
-mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=ftolerance
+#mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=ftolerance
 mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=fullgrid
 mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=hierarchization
 mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=loadmodel
@@ -28,3 +28,4 @@ mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost
 mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=distributedfullgrid
 mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=integration
 mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=distributedsparsegrid
+mpiexec.mpich -np 9 ./distributedcombigrid/tests/test_distributedcombigrid_boost --run_test=mpisystem
