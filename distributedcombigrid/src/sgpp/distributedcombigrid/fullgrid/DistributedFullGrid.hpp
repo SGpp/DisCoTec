@@ -2288,7 +2288,7 @@ class DistributedFullGrid {
   std::vector<int> procs_;
 
   /** utility to get info about cartesian communicator  */
-  MPICartesianUtils cartesianUtils_;
+  static MPICartesianUtils cartesianUtils_;
 
   /** mpi rank */
   RankType rank_;
@@ -2375,10 +2375,13 @@ class DistributedFullGrid {
 #endif
     }
     {
-      cartesianUtils_ = MPICartesianUtils(communicator_);
+      if (communicator_ != cartesianUtils_.getComm()) {
+        assert(uniformDecomposition);
+        cartesianUtils_ = MPICartesianUtils(communicator_);
 #ifdef DEBUG_OUTPUT
-      std::cout << "set new cartesian utils "<< cartesianUtils_.getCommunicatorSize() << std::endl;
+        std::cout << "set new cartesian utils "<< cartesianUtils_.getCommunicatorSize() << std::endl;
 #endif
+      }
     }
   }
 
@@ -2534,6 +2537,9 @@ class DistributedFullGrid {
 
 };
 // end class
+
+template <typename FG_ELEMENT>
+MPICartesianUtils DistributedFullGrid<FG_ELEMENT>::cartesianUtils_;
 
 // output operator
 template <typename FG_ELEMENT>
