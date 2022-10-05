@@ -7,8 +7,8 @@ namespace combigrid {
 WeibullFaults::WeibullFaults(real k, real lambda, int numberOfCombis, bool faultMaster)
     : k_(k),
       lambda_(lambda),
-      numberOfCombis_(numberOfCombis),
       faultMaster_(faultMaster),
+      numberOfCombis_(numberOfCombis),
       t_fault_(-1.0) {}
 
 WeibullFaults::WeibullFaults() : k_(0.7), lambda_(1000), faultMaster_(false), t_fault_(-1.0) {}

@@ -95,7 +95,7 @@ struct FaultsInfo {
   int numFaults_;
   IndexVector iterationFaults_;
   IndexVector globalRankFaults_;
-  IndexVector taskFaults_;
+  // IndexVector taskFaults_;
 
  private:
   friend class boost::serialization::access;
@@ -109,7 +109,7 @@ void FaultsInfo::serialize(Archive& ar, const unsigned int version) {
   ar& numFaults_;
   ar& iterationFaults_;
   ar& globalRankFaults_;
-  ar& taskFaults_;
+  // ar& taskFaults_;
 }
 
 }  // namespace combigrid
