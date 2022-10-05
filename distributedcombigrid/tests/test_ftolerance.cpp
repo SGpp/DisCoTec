@@ -447,7 +447,7 @@ for (size_t i = 1; i < ncombi; ++i){
   return finished;
 }
 
-BOOST_FIXTURE_TEST_SUITE(ftolerance, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
+BOOST_FIXTURE_TEST_SUITE(ftolerance, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60) * boost::unit_test::disabled())
 
 #ifdef ENABLEFT
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance) *
