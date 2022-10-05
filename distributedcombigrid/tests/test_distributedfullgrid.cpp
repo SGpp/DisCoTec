@@ -46,12 +46,13 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   std::vector<long unsigned int> vmSizes(groupSizes.size());
   std::vector<long unsigned int> vmSizesReference(groupSizes.size());
   const auto dim = static_cast<DimType>(levels.size());
-  std::vector<int> procs(dim, 1);
   std::vector<bool> boundary(dim, true);
 
   for (size_t i = 0; i < groupSizes.size(); ++i) {
     // get memory footprints for after allocating different dfgs
-    CommunicatorType comm = TestHelper::getComm(groupSizes[i]);
+    std::vector<int> procs(dim, 1);
+    procs[0] = groupSizes[i];
+    CommunicatorType comm = TestHelper::getComm(procs);
 
     long unsigned int vmRSS, vmSize = 0;
     if (comm != MPI_COMM_NULL) {
@@ -108,7 +109,7 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
 
 void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs, std::vector<bool>& boundary,
                               int size, bool forward = false) {
-  CommunicatorType comm = TestHelper::getComm(size);
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm == MPI_COMM_NULL) return;
 
   if (TestHelper::getRank(comm) == 0) {
