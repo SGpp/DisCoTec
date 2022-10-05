@@ -8,6 +8,7 @@
 // #include <boost/test/floating_point_comparison.hpp>
 // new header for boost >= 1.59
 #include <boost/test/tools/floating_point_comparison.hpp>
+#include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 namespace TestHelper{
   static constexpr double tolerance = 1e-12;
@@ -55,6 +56,7 @@ namespace TestHelper{
   struct BarrierAtEnd {
     BarrierAtEnd() = default;
     ~BarrierAtEnd() {
+      BOOST_CHECK(!combigrid::Stats::isInitialized());
       MPI_Barrier(MPI_COMM_WORLD);
       TestHelper::testStrayMessages();
     }
