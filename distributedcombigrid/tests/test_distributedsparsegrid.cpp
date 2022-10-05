@@ -24,7 +24,7 @@ using namespace combigrid;
 
 void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vector<int>& procs, std::vector<bool>& boundary,
                               int size) {
-  CommunicatorType comm = TestHelper::getComm(size);
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     auto rank = TestHelper::getRank(comm);
     if (rank == 0) {

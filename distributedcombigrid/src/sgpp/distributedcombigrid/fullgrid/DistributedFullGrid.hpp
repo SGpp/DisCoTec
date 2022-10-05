@@ -2396,11 +2396,11 @@ class DistributedFullGrid {
     MPI_Topo_test(comm, &status);
 
     if (status == MPI_CART) {
+#ifndef NDEBUG
       // check if process grid of comm uses the required ordering
       auto maxdims = static_cast<int>(procs_.size());
       std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
       MPI_Cart_get(comm, static_cast<int>(maxdims), &cartdims[0], &periods[0], &coords[0]);
-#ifndef NDEBUG
       // important: note reverse ordering of dims!
       std::vector<int> dims(procs_.size());
       if (reverseOrderingDFGPartitions) {
@@ -2432,7 +2432,7 @@ class DistributedFullGrid {
       std::vector<int> periods(dim_, 0);
       int reorder = 0;
       MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0], reorder, &communicator_);
-      std::runtime_error("Currently testing to not duplicate communicator (to save memory), \
+      throw std::runtime_error("Currently testing to not duplicate communicator (to save memory), \
                           if you do want to use this code please take care that \
                           MPI_Comm_free(&communicator_) will be called at some point");
 #ifdef DEBUG_OUTPUT

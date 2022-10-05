@@ -339,12 +339,12 @@ template <typename Functor>
 void checkHierarchization(Functor& f, LevelVector& levels, std::vector<int>& procs,
                           std::vector<bool>& boundary, int size, bool forward = false,
                           bool checkValues = true) {
-  CommunicatorType comm = TestHelper::getComm(size);
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     const auto dim = static_cast<DimType>(levels.size());
     DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
     // run test with value check
-    checkHierarchization(f, dfg, true);
+    checkHierarchization(f, dfg, checkValues);
   }
 }
 
@@ -850,10 +850,10 @@ BOOST_AUTO_TEST_CASE(test_42) {
   // large test case with timing
   MPI_Barrier(MPI_COMM_WORLD);
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  CommunicatorType comm = TestHelper::getComm(8);
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels = {11, 11, 4};
-    std::vector<int> procs = {2, 2, 2};
     std::vector<bool> boundary(3, true);
     auto forward = true;
     TestFn_1 testFn(levels);
@@ -871,10 +871,10 @@ BOOST_AUTO_TEST_CASE(test_43) {
   // large test case with timing for full weighting
   MPI_Barrier(MPI_COMM_WORLD);
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  CommunicatorType comm = TestHelper::getComm(8);
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels = {11, 11, 4};
-    std::vector<int> procs = {2, 2, 2};
     std::vector<bool> boundary(3, true);
     auto forward = true;
     TestFn_1 testFn(levels);
@@ -892,10 +892,10 @@ BOOST_AUTO_TEST_CASE(test_44) {
   // large test case with timing for full weighting
   MPI_Barrier(MPI_COMM_WORLD);
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  CommunicatorType comm = TestHelper::getComm(8);
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels = {11, 11, 4};
-    std::vector<int> procs = {2, 2, 2};
     std::vector<bool> boundary(3, true);
     auto forward = true;
     TestFn_1 testFn(levels);
@@ -914,11 +914,11 @@ BOOST_AUTO_TEST_CASE(test_44) {
 
 BOOST_AUTO_TEST_CASE(momentum) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  CommunicatorType comm = TestHelper::getComm(1);
+  DimType dim = 3;
+  std::vector<int> procs(dim, 1);
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
-    DimType dim = 3;
     LevelVector levels(dim, 4);
-    std::vector<int> procs(dim, 1);
     std::vector<bool> boundary(dim, true);
     auto forward = true;  // todo toggle
     TestFn_1 testFn(levels);

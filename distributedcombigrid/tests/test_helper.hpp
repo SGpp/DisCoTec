@@ -4,7 +4,10 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+#include <algorithm>
 #include <complex>
+#include <numeric>
+#include <vector>
 // #include <boost/test/floating_point_comparison.hpp>
 // new header for boost >= 1.59
 #include <boost/test/tools/floating_point_comparison.hpp>
@@ -31,6 +34,29 @@ namespace TestHelper{
       return lcomm;
     } else {
       return MPI_COMM_NULL;
+    }
+  }
+
+  /**
+   * @brief Get a cartesian communicator of specified extents
+   *
+   * @param procs a vector of the extents
+   * @return MPI_Comm the cartesian communicator (or MPI_COMM_NULL)
+   */
+  static inline MPI_Comm getComm(std::vector<int> procs) {
+    auto comm = getComm(std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<int>()));
+    if (comm == MPI_COMM_NULL) {
+      return comm;
+    } else {
+      // Make all dimensions not periodic
+      std::vector<int> periods(procs.size(), 0);
+      // let MPI assign arbitrary ranks?
+      int reorder = false;
+      // Create a communicator given the topology
+      MPI_Comm new_communicator;
+      MPI_Cart_create(comm, static_cast<int>(procs.size()), procs.data(), periods.data(), reorder,
+                      &new_communicator);
+      return new_communicator;
     }
   }
 
