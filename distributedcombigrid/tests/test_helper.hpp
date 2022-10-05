@@ -20,7 +20,8 @@ namespace TestHelper{
     return size >= nprocs;
   }
 
-  static MPI_Comm getComm(int nprocs) {
+  static inline MPI_Comm getComm(int nprocs) {
+    BOOST_CHECK(TestHelper::checkNumMPIProcsAvailable(nprocs));
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int color = rank < nprocs ? 0 : 1;
