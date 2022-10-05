@@ -60,6 +60,8 @@ class Stats {
    */
   static void finalize();
 
+  static bool isInitialized() { return initialized_; }
+
   /**
    * start a new timer for event with given name
    */
