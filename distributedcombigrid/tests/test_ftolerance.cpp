@@ -55,12 +55,14 @@ class TestFn {
 };
 class TaskAdvFDM : public combigrid::Task {
  public:
-  TaskAdvFDM(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
-                   real dt, size_t nsteps,
-      FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})) ) :
-        Task(2, l, boundary, coeff, loadModel, faultCrit), dt_(dt), nsteps_(
-            nsteps), stepsTotal_(0),combiStep_(0)
-       {}
+  TaskAdvFDM(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel, real dt,
+             size_t nsteps,
+             FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
+      : Task(2, l, boundary, coeff, loadModel, faultCrit),
+        dt_(dt),
+        nsteps_(nsteps),
+        stepsTotal_(0),
+        combiStep_(0) {}
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -155,12 +157,12 @@ class TaskAdvFDM : public combigrid::Task {
  private:
   friend class boost::serialization::access;
 
-  DistributedFullGrid<CombiDataType>* dfg_;
   real dt_;
   size_t nsteps_;
-  std::vector<CombiDataType> phi_;
   size_t stepsTotal_;
   size_t combiStep_;
+  DistributedFullGrid<CombiDataType>* dfg_;
+  std::vector<CombiDataType> phi_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
@@ -206,14 +208,17 @@ class TaskAdvFDM : public combigrid::Task {
 // this is necessary for correct function of task serialization
 BOOST_CLASS_EXPORT(TaskAdvFDM)
 
-void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, size_t ncombi, int nfaults,int iteration_faults, int global_rank_faults) {
-
+bool checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, size_t ncombi,
+                     int nfaults, int iteration_faults, int global_rank_faults) {
   int size = useFG ? 2 : 7;
 
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
   CommunicatorType comm = TestHelper::getComm(size);
-  if (comm == MPI_COMM_NULL){ return; }
+  if (comm == MPI_COMM_NULL) {
+    return true;
+  }
+  bool finished = false;
 
   combigrid::Stats::initialize();
 
@@ -256,11 +261,7 @@ void checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
 
   BOOST_REQUIRE(true); //if things go wrong weirdly, see where things go wrong
 
-  #ifdef TIMING
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
-#else // TIMING
-    std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
-#endif //def TIMING
 
     /* create Tasks */
    TaskContainer tasks;
@@ -417,15 +418,18 @@ for (size_t i = 1; i < ncombi; ++i){
 
     /* send exit signal to workers in order to enable a clean program termination */
     manager.exit();
+    finished = true;
   }
 
-else {
+  else {
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
     while (signal != EXIT) {
       signal = pgroup.wait();
       BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
     }
+    BOOST_TEST_ERROR("worker never cleanly exits! " + std::to_string(signal));
+    finished = true;
   }
 
   if( ENABLE_FT ){
@@ -440,19 +444,22 @@ else {
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
+  return finished;
 }
 
 BOOST_FIXTURE_TEST_SUITE(ftolerance, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 #ifdef ENABLEFT
-BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(20)) {
+BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::timeout(20)) {
   checkFtolerance(false, false, 0.295448, 2.283454, 3, 1, 1, 3);
   MPI_Barrier(MPI_COMM_WORLD);
 }
 #else
-BOOST_AUTO_TEST_CASE(test_1, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
+BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::timeout(40)) {
   // use recombination
-  checkFtolerance(true, false, 0.973230, 7.820831,100, 0, 0, 0);
+  BOOST_CHECK(checkFtolerance(true, false, 0.973230, 7.820831, 100, 0, 0, 0));
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
