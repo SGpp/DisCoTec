@@ -6,7 +6,6 @@
 #include "boost/lexical_cast.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
-#include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
@@ -205,7 +204,7 @@ class LookupTable {
     // check if in local part of the distributed full grid
     if (globalIndexVector >= dfg_.getLowerBounds() && globalIndexVector < dfg_.getUpperBounds()) {
       // return point to value in dfg
-      IndexVector localIndexVector(dfg_.getDimension());
+      static IndexVector localIndexVector(dfg_.getDimension());
       dfg_.getLocalVectorIndex(globalIndexVector, localIndexVector);
 
       IndexType localLinearIndex = dfg_.getLocalLinearIndex(localIndexVector);
@@ -1822,10 +1821,10 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == true);
 
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType size = dfg.getNrLocalElements();
-  IndexType stride = dfg.getLocalOffsets()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
+  const auto& lmax = dfg.getLevels()[dim];
+  const auto& size = dfg.getNrLocalElements();
+  const auto& stride = dfg.getLocalOffsets()[dim];
+  const auto& ndim = dfg.getLocalSizes()[dim];
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
@@ -2152,13 +2151,9 @@ class DistributedHierarchization {
   }
 
   template <typename FG_ELEMENT>
-  static void fillDFGFromDSGU(DistributedFullGrid<FG_ELEMENT>& dfg,
-                              DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+  static void dehierarchizeDFG(DistributedFullGrid<FG_ELEMENT>& dfg,
                               const std::vector<bool>& hierarchizationDims,
                               const std::vector<BasisFunctionBasis*>& hierarchicalBases) {
-    // fill dfg with hierarchical coefficients from distributed sparse grid
-    dfg.extractFromUniformSG(dsg);
-
     // dehierarchize dfg
     DistributedHierarchization::dehierarchize<FG_ELEMENT>(dfg, hierarchizationDims,
                                                           hierarchicalBases);

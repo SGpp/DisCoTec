@@ -103,10 +103,6 @@ class ProcessGroupWorker {
   /** returns the combi parameters */
   inline CombiParameters& getCombiParameters();
 
-  /** initializes the component grid from the sparse grid; used to reinitialize
-   * tasks after fault */
-  void setCombinedSolutionUniform(Task* t);
-
   /** performes the sparse grid reduce with the remote system, bcasts solution
    * and updates fgs. */
   void combineThirdLevel();
@@ -187,11 +183,19 @@ class ProcessGroupWorker {
 
   void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);
 
-  void updateTaskWithCurrentValues(Task& taskToUpdate, size_t numGrids);
-
   /** helper functions for parallelEval and norm calculations*/
   LevelVector receiveLevalAndBroadcast();
+
+  /**
+   * @brief copy the sparse grid data into the full grid and dehierarchize
+   *
+   * @param dfg the distributed full grid to fill
+   * @param g the dimension index (in the case that there are multiple different full grids per
+   * task)
+   */
   void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
+
+  void fillDFGFromDSGU(Task* t);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() {

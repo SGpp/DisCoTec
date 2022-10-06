@@ -262,7 +262,7 @@ SignalType ProcessGroupWorker::wait() {
 
       // fill task with combisolution
       if (!isGENE) {
-        setCombinedSolutionUniform(currentTask_);
+        fillDFGFromDSGU(currentTask_);
       }
       // execute task
       Stats::Event e = Stats::Event();
@@ -338,7 +338,7 @@ SignalType ProcessGroupWorker::wait() {
       receiveAndInitializeTaskAndFaults(); // receive and initalize new task
 			// now the variable currentTask_ contains the newly received task
       currentTask_->setZero();
-      updateTaskWithCurrentValues(*currentTask_, combiParameters_.getNumGrids());
+      fillDFGFromDSGU(currentTask_);
       currentTask_->setFinished(true);
       currentTask_ = nullptr;
     } break;
@@ -736,9 +736,20 @@ LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
 }
 
 void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g) {
-  DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
-                                              combiParameters_.getHierarchizationDims(),
-                                              combiParameters_.getHierarchicalBases());
+  // fill dfg with hierarchical coefficients from distributed sparse grid
+  dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
+  DistributedHierarchization::dehierarchizeDFG(dfg, combiParameters_.getHierarchizationDims(),
+                                               combiParameters_.getHierarchicalBases());
+}
+
+void ProcessGroupWorker::fillDFGFromDSGU(Task* t) {
+  auto numGrids = static_cast<int>(
+      combiParameters_
+          .getNumGrids());  // we assume here that every task has the same number of grids
+  for (int g = 0; g < numGrids; g++) {
+    assert(combinedUniDSGVector_[g] != nullptr);
+    this->fillDFGFromDSGU(t->getDistributedFullGrid(g), g);
+  }
 }
 
 void ProcessGroupWorker::parallelEvalUniform() {
@@ -1167,30 +1178,26 @@ void ProcessGroupWorker::updateCombiParameters() {
   }
 }
 
-void ProcessGroupWorker::setCombinedSolutionUniform(Task* t) {
-  assert(combinedUniDSGVector_.size() != 0);
-  assert(combiParametersSet_);
-
-  auto numGrids = combiParameters_.getNumGrids();  // we assume here that every task has the same number of grids
-
-  for (IndexType g = 0; g < numGrids; g++) {
-    assert(combinedUniDSGVector_[g] != NULL);
-
-    // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
-
-    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
-                                                combiParameters_.getHierarchizationDims(),
-                                                combiParameters_.getHierarchicalBases());
-  }
-}
-
 void ProcessGroupWorker::integrateCombinedSolution() {
-  int numGrids = static_cast<int>(combiParameters_.getNumGrids());
-  Stats::startEvent("integrateCombinedSolution");
-  for (Task* t : tasks_)
-    updateTaskWithCurrentValues(*t, numGrids);
-  Stats::stopEvent("integrateCombinedSolution");
+  auto numGrids = static_cast<int>(combiParameters_.getNumGrids());
+  Stats::startEvent("copyDataFromDSGtoDFG");
+  for (Task* taskToUpdate : tasks_) {
+    for (int g = 0; g < numGrids; g++) {
+      // fill dfg with hierarchical coefficients from distributed sparse grid
+      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(*combinedUniDSGVector_[g]);
+    }
+  }
+  Stats::stopEvent("copyDataFromDSGtoDFG");
+
+  Stats::startEvent("dehierarchizeDFGData");
+  for (Task* taskToUpdate : tasks_) {
+    for (int g = 0; g < numGrids; g++) {
+      DistributedHierarchization::dehierarchizeDFG(taskToUpdate->getDistributedFullGrid(g),
+                                                   combiParameters_.getHierarchizationDims(),
+                                                   combiParameters_.getHierarchicalBases());
+    }
+  }
+  Stats::stopEvent("dehierarchizeDFGData");
 }
 
 void ProcessGroupWorker::combineThirdLevel() {
@@ -1395,26 +1402,4 @@ void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
 void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
   for (Task* task : tasks_) writeVTKPlotFileOfTask(*task);
 }
-
-void ProcessGroupWorker::updateTaskWithCurrentValues(Task& taskToUpdate, size_t numGrids) {
-  for (int g = 0; g < numGrids; g++) {
-    // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg = taskToUpdate.getDistributedFullGrid(g);
-
-    DistributedHierarchization::fillDFGFromDSGU(dfg, *combinedUniDSGVector_[g],
-                                                combiParameters_.getHierarchizationDims(),
-                                                combiParameters_.getHierarchicalBases());
-
-    // std::vector<CombiDataType> datavector(dfg.getElementVector());
-    // afterCombi = datavector;
-    // if exceeds normalization limit, normalize dfg with global max norm
-    /*
-    if( globalMax > 1000 ){
-      dfg.mul( 1.0 / globalMax );
-      std::cout << "normalized dfg with " << globalMax << std::endl;
-    }
-    */
-  }
-}
-
 } /* namespace combigrid */
