@@ -88,7 +88,7 @@ class TaskAdvection : public Task {
 
     TestFn f;
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-      std::vector<double> coords(this->getDim());
+      static std::vector<double> coords(this->getDim());
       dfg_->getCoordsLocal(li, coords);
       dfg_->getData()[li] = f(coords, 0.);
     }
@@ -138,14 +138,14 @@ class TaskAdvection : public Task {
 
         for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
           // calculate local axis index of backward neighbor
-          IndexVector locAxisIndex(this->getDim());
+          static IndexVector locAxisIndex(this->getDim());
           dfg_->getLocalVectorIndex(li, locAxisIndex);
           //TODO can be unrolled into ghost and other part, avoiding if-statement
           CombiDataType phi_neighbor = 0.;
           if (locAxisIndex[d] == 0){
             // if we are in the lowest layer in d,
             // make sure we are not on the lowest global layer
-            IndexVector globAxisIndex(this->getDim());
+            static IndexVector globAxisIndex(this->getDim());
             dfg_->getGlobalVectorIndex(locAxisIndex, globAxisIndex);
             if (globAxisIndex[d] == 0){
               assert(phi_ghost.size()==0);
