@@ -72,13 +72,12 @@ class DistributedFullGrid {
                       bool forwardDecomposition = true,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>(),
                       const BasisFunctionBasis* basis = NULL)
-      : dim_(dim), levels_(levels), procs_(procs) {
-    assert(levels.size() == dim);
-    assert(hasBdrPoints.size() == dim);
+      : dim_(dim), levels_(levels), hasBoundaryPoints_(hasBdrPoints) {
+    assert(levels_.size() == dim);
+    assert(hasBdrPoints_.size() == dim);
     assert(procs.size() == dim);
-    hasBoundaryPoints_ = hasBdrPoints;
 
-    InitMPI(comm);  // will also check grids per dim
+    InitMPI(comm, procs);  // will also check grids per dim
 
     // set global num of elements and offsets
     nrElements_ = 1;
@@ -744,7 +743,7 @@ class DistributedFullGrid {
       RankType n;
       std::vector<int> nc(coords);
 
-      if (nc[i] < procs_[i] - 1) {
+      if (nc[i] < this->getCartesianUtils().getCartesianDimensions()[i] - 1) {
         // get rank of next neighbor in dim i
         nc[i] += 1;
         n = this->getCartesianUtils().getRankFromPartitionCoords(nc);
@@ -764,7 +763,8 @@ class DistributedFullGrid {
    */
   inline std::vector<std::vector<real>> getDecompositionCoords() const {
     std::vector<std::vector<real>> decompositionCoords(dim_);
-    for (size_t j = 0; j < dim_; ++j) decompositionCoords[j].resize(procs_[j]);
+    for (size_t j = 0; j < dim_; ++j)
+      decompositionCoords[j].resize(this->getCartesianUtils().getCartesianDimensions()[j]);
     assert(false && "this is pretty much untested, please add test before using this");
 
     for (RankType r = 0; r < size_; ++r) {
@@ -801,7 +801,9 @@ class DistributedFullGrid {
   }
 
   /** Number of Grids in every dimension*/
-  inline const std::vector<int>& getParallelization() const { return procs_; }
+  inline const std::vector<int>& getParallelization() const {
+    return this->getCartesianUtils().getCartesianDimensions();
+  }
 
   /** MPI Rank */
   inline int getMpiRank() { return rank_; }
@@ -905,12 +907,13 @@ class DistributedFullGrid {
 
     for (DimType d = 0; d < dim_; ++d) {
       partitionCoords[d] = -1;
-      for (size_t i = 0; i < getDecomposition()[d].size(); ++i) {
+      for (int i = 0; i < this->getCartesianUtils().getCartesianDimensions()[d]; ++i) {
         if (globalAxisIndex[d] >= getDecomposition()[d][i]) partitionCoords[d] = i;
       }
 
       // check whether the partition coordinates are valid
-      assert(partitionCoords[d] > -1 && partitionCoords[d] < procs_[d]);
+      assert(partitionCoords[d] > -1 &&
+             partitionCoords[d] < this->getCartesianUtils().getCartesianDimensions()[d]);
     }
   }
 
@@ -2284,9 +2287,6 @@ class DistributedFullGrid {
   */
   std::vector<IndexVector> decomposition_;
 
-  /** number of procs in every dimension */
-  std::vector<int> procs_;
-
   /** utility to get info about cartesian communicator  */
   static MPICartesianUtils cartesianUtils_;
 
@@ -2313,13 +2313,19 @@ class DistributedFullGrid {
 
   DistributedSparseGridUniform<FG_ELEMENT>* dsg_;
 
-  void InitMPI(MPI_Comm comm) {
+  /**
+   * @brief sets the MPI-related members rank_, size_, communicator_, and cartesianUtils_
+   *
+   * @param comm the communicator to use (assumed to be cartesian)
+   * @param procs the desired partition (for sanity checking)
+   */
+  void InitMPI(MPI_Comm comm, const std::vector<int>& procs) {
     MPI_Comm_rank(comm, &rank_);
     MPI_Comm_size(comm, &size_);
 
 #ifndef NDEBUG
     auto numSubgrids =
-        std::accumulate(procs_.begin(), procs_.end(), 1, std::multiplies<int>());
+        std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<int>());
 
     ASSERT(size_ == static_cast<int>(numSubgrids),
            " size_: " << size_ << " numSubgrids: " << static_cast<int>(numSubgrids));
@@ -2333,15 +2339,15 @@ class DistributedFullGrid {
     if (status == MPI_CART) {
 #ifndef NDEBUG
       // check if process grid of comm uses the required ordering
-      auto maxdims = static_cast<int>(procs_.size());
+      auto maxdims = static_cast<int>(procs.size());
       std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
       MPI_Cart_get(comm, static_cast<int>(maxdims), &cartdims[0], &periods[0], &coords[0]);
       // important: note reverse ordering of dims!
-      std::vector<int> dims(procs_.size());
+      std::vector<int> dims(procs.size());
       if (reverseOrderingDFGPartitions) {
-        dims.assign(procs_.rbegin(), procs_.rend());
+        dims.assign(procs.rbegin(), procs.rend());
       } else {
-        dims.assign(procs_.begin(), procs_.end());
+        dims.assign(procs.begin(), procs.end());
       }
       ASSERT(cartdims == dims, " cartdims: " << cartdims << " dims: " << dims);
       assert(cartdims == dims);
@@ -2357,11 +2363,11 @@ class DistributedFullGrid {
 #endif
     } else {
       // important: note reverse ordering of dims!
-      std::vector<int> dims(procs_.size());
+      std::vector<int> dims(procs.size());
       if (reverseOrderingDFGPartitions) {
-        dims.assign(procs_.rbegin(), procs_.rend());
+        dims.assign(procs.rbegin(), procs.rend());
       } else {
-        dims.assign(procs_.begin(), procs_.end());
+        dims.assign(procs.begin(), procs.end());
       }
       // todo mh: think whether periodic bc will be useful
       std::vector<int> periods(dim_, 0);
@@ -2394,14 +2400,15 @@ class DistributedFullGrid {
   std::vector<IndexVector> getDefaultDecomposition(bool forwardDecomposition) const {
     // create decomposition vectors
     std::vector<IndexVector> decomposition(dim_);
+    auto procs = this->getCartesianUtils().getCartesianDimensions();
 
     for (DimType i = 0; i < dim_; ++i) {
       IndexVector& llbnd = decomposition[i];
-      llbnd.resize(procs_[i]);
+      llbnd.resize(procs[i]);
 
-      for (int j = 0; j < procs_[i]; ++j) {
+      for (int j = 0; j < procs[i]; ++j) {
         double tmp = static_cast<double>(nrPoints_[i]) * static_cast<double>(j) /
-                     static_cast<double>(procs_[i]);
+                     static_cast<double>(procs[i]);
 
         if (forwardDecomposition)
           llbnd[j] = static_cast<IndexType>(std::ceil(tmp));
@@ -2416,7 +2423,8 @@ class DistributedFullGrid {
 #ifndef NDEBUG
     assert(decomposition.size() == dim_);
     for (DimType i = 0; i < dim_; ++i)
-      assert(decomposition[i].size() == static_cast<size_t>(procs_[i]));
+      assert(decomposition[i].size() ==
+             static_cast<size_t>(this->getCartesianUtils().getCartesianDimensions()[i]));
 
     // check if 1d bounds given in ascending order
     // if not, this might indicate there's something wrong
