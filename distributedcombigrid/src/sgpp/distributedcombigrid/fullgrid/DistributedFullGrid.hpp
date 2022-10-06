@@ -679,10 +679,8 @@ class DistributedFullGrid {
   //   fullgridVector_ = in;
   // }
 
-  inline void setZero(){
-    for (auto& element : this->getElementVector()){
-      element = 0.;
-    }
+  inline void setZero() {
+    std::fill(this->getElementVector().begin(), this->getElementVector().end(), 0.);
   }
 
   inline FG_ELEMENT* getData() { return &fullgridVector_[0]; }
@@ -2060,7 +2058,8 @@ class DistributedFullGrid {
       numElements = 0;
       subarrayExtents = IndexVector(this->getDimension(), 0);
     }
-    recvbuffer = std::vector<FG_ELEMENT>(numElements);
+    recvbuffer.resize(numElements);
+    std::fill(recvbuffer.begin(), recvbuffer.end(), 0.);
 
     // TODO asynchronous over d??
     auto success =

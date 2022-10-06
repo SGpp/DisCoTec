@@ -259,7 +259,8 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
     assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
 
     if (numDataPoints > 0) {
-      subspacesData_ = std::vector<FG_ELEMENT>(numDataPoints, 0.);
+      subspacesData_.resize(numDataPoints);
+      std::fill(subspacesData_.begin(), subspacesData_.end(), 0.);
 
       // update pointers and sizes in subspaces
       size_t offset = 0;
@@ -283,7 +284,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
   //        "way to reset the localFGIndexToLocalSGPointerList_ member, since it will become "
   //        "invalidated by the next line, or to have it use the subspaces_[*].data_ structures");
   if (isSubspaceDataCreated()) {
-    subspacesData_ = std::vector<FG_ELEMENT>();
+    subspacesData_.clear();
 
     // update pointers in subspaces
     for (auto& ss : subspaces_) {
