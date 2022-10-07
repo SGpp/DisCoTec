@@ -94,7 +94,7 @@ class MPICartesianUtils {
     assert(!partitionCoords_.empty());
     auto dim = dim_;
     auto it = std::find_if(partitionCoords_.begin(), partitionCoords_.end(),
-                           [&partitionCoordsInt, &dim](std::vector<int> pcoord) {
+                           [&partitionCoordsInt, &dim](const std::vector<int>& pcoord) {
                              return (pcoord == partitionCoordsInt);
                            });
     // check if found
@@ -103,6 +103,16 @@ class MPICartesianUtils {
     RankType rank = static_cast<RankType>(it - partitionCoords_.begin());
 
     return rank;
+  }
+
+  RankType getNeighbor1dFromPartitionIndex(DimType dim, int idx1d) const {
+    assert(idx1d >= 0);
+    assert(idx1d < this->getCartesianDimensions()[dim]);
+
+    auto neighborPartitionCoords = this->localCoords_;
+    neighborPartitionCoords[dim] = idx1d;
+    RankType r = this->getRankFromPartitionCoords(neighborPartitionCoords);
+    return r;
   }
 
   /**

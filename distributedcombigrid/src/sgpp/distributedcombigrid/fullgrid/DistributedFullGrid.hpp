@@ -74,7 +74,7 @@ class DistributedFullGrid {
                       const BasisFunctionBasis* basis = NULL)
       : dim_(dim), levels_(levels), hasBoundaryPoints_(hasBdrPoints) {
     assert(levels_.size() == dim);
-    assert(hasBdrPoints_.size() == dim);
+    assert(hasBoundaryPoints_.size() == dim);
     assert(procs.size() == dim);
 
     InitMPI(comm, procs);  // will also check grids per dim
@@ -694,7 +694,7 @@ class DistributedFullGrid {
   inline int getCommunicatorSize() const { return size_; }
 
   /** lower Bounds of this process */
-  inline IndexVector getLowerBounds() const {
+  inline const IndexVector& getLowerBounds() const {
     // return getLowerBounds(rank_);
     return myPartitionsLowerBounds_;
   }
@@ -800,28 +800,24 @@ class DistributedFullGrid {
     return coords;
   }
 
-
   /* returns the neighboring process (in the sense that the neighbor has the same
-  * partion coordinates in all other dimensions than d) in dimension d which
-  * contains the point with the one-dimensional index idx1d
-  */
-  RankType getNeighbor1d(DimType dim, IndexType idx1d) const {
+   * partion coordinates in all other dimensions than d) in dimension d which
+   * contains the point with the one-dimensional index idx1d
+   */
+  RankType getNeighbor1dFromAxisIndex(DimType dim, IndexType idx1d) const {
     // if global index is outside of domain return negative value
     {
       if (idx1d < 0) return -1;
       if (idx1d > this->getGlobalSizes()[dim] - 1) return -1;
     }
-
-    IndexVector globalAxisIndex = this->getLowerBounds();
-    globalAxisIndex[dim] = idx1d;
-
-    std::vector<int> partitionCoords(this->getDimension());
-    this->getPartitionCoords(globalAxisIndex, partitionCoords);
-    RankType r = this->getCartesianUtils().getRankFromPartitionCoords(partitionCoords);
+    const auto& decomp1d = this->getDecomposition()[dim];
+    auto lower = std::lower_bound(decomp1d.begin(), decomp1d.end(), idx1d + 1);
+    int partitionIdx1d = static_cast<int>(std::distance(decomp1d.begin(), lower)) - 1;
+    RankType r = this->getCartesianUtils().getNeighbor1dFromPartitionIndex(dim, partitionIdx1d);
 
     // check if global index vector is actually contained in the domain of rank r
-    assert(globalAxisIndex >= this->getLowerBounds(r));
-    assert(globalAxisIndex < this->getUpperBounds(r));
+    assert(idx1d >= this->getLowerBounds(r)[dim]);
+    assert(idx1d < this->getUpperBounds(r)[dim]);
     assert(r < this->getCommunicatorSize());
     return r;
   }
