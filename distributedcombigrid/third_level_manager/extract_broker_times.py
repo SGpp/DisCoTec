@@ -26,6 +26,7 @@ for root, dirs, files in os.walk('.'):
             temp = re.findall(r'\d+', filename)
             t, n = list(map(int, temp))
             small_series = pd.read_csv(filename, header=None)[0]
+            small_series = small_series[small_series != 0]
             new_row = [t, n, small_series.size, small_series.min(), small_series.max(),
                        small_series.mean(), small_series.std()]
             ic(new_row)
@@ -36,6 +37,8 @@ for root, dirs, files in os.walk('.'):
 
 df_NG = df_NG.astype({'t': 'int', 'n': 'int', 'nsamples': 'int'})
 df_hawk = df_hawk.astype({'t': 'int', 'n': 'int', 'nsamples': 'int'})
+df_NG.sort_values(by=["n","t"],inplace=True)
+df_hawk.sort_values(by=["n","t"],inplace=True)
 df_NG.to_csv("copy_uftp_NG_to_hawk.csv", index=False)
 df_hawk.to_csv("copy_uftp_hawk_to_NG.csv", index=False)
 
