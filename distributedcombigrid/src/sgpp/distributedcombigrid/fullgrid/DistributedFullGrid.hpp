@@ -800,6 +800,32 @@ class DistributedFullGrid {
     return coords;
   }
 
+
+  /* returns the neighboring process (in the sense that the neighbor has the same
+  * partion coordinates in all other dimensions than d) in dimension d which
+  * contains the point with the one-dimensional index idx1d
+  */
+  RankType getNeighbor1d(DimType dim, IndexType idx1d) const {
+    // if global index is outside of domain return negative value
+    {
+      if (idx1d < 0) return -1;
+      if (idx1d > this->getGlobalSizes()[dim] - 1) return -1;
+    }
+
+    IndexVector globalAxisIndex = this->getLowerBounds();
+    globalAxisIndex[dim] = idx1d;
+
+    std::vector<int> partitionCoords(this->getDimension());
+    this->getPartitionCoords(globalAxisIndex, partitionCoords);
+    RankType r = this->getCartesianUtils().getRankFromPartitionCoords(partitionCoords);
+
+    // check if global index vector is actually contained in the domain of rank r
+    assert(globalAxisIndex >= this->getLowerBounds(r));
+    assert(globalAxisIndex < this->getUpperBounds(r));
+    assert(r < this->getCommunicatorSize());
+    return r;
+  }
+
   /** Number of Grids in every dimension*/
   inline const std::vector<int>& getParallelization() const {
     return this->getCartesianUtils().getCartesianDimensions();
