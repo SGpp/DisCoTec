@@ -74,28 +74,31 @@ class RemoteDataContainer {
      */
   }
 
-  inline FG_ELEMENT* getData(const IndexVector& globalIndexVector) {
-    assert(globalIndexVector.size() == dim_);
+  inline FG_ELEMENT* getData(const IndexVector& localIndexVector) {
+    static_assert(uniformDecomposition,
+                  "this assumes uniform decomposition, so local index vectors are almost the same "
+                  "along pole");
+    assert(localIndexVector.size() == dim_);
 
     // we have to find the corresponding local IndexVector of the
     // subdomain where the remoteData comes from and reduce it by the
     // key dimension
 
     // compute local index in remote domain
-    static IndexVector localIndexVector;
-    localIndexVector = globalIndexVector - lowerBounds_;
+    static IndexVector tmpLocalIndexVector;
+    tmpLocalIndexVector = localIndexVector;
 
     // reduce by key dimension
-    localIndexVector[dim1d_] = 0;
+    tmpLocalIndexVector[dim1d_] = 0;
 
     for (DimType i = 0; i < dim_; ++i) {
-      assert(localIndexVector[i] < nrPoints_[i]);
+      assert(tmpLocalIndexVector[i] < nrPoints_[i]);
     }
 
     IndexType idx = 0;
 
     for (DimType i = 0; i < dim_; ++i) {
-      idx = idx + offsets_[i] * localIndexVector[i];
+      idx = idx + offsets_[i] * tmpLocalIndexVector[i];
     }
 
     assert(idx < nrElements_);
@@ -1134,13 +1137,10 @@ static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // copy remote data to tmp
     std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
-    IndexVector tmpGlobalIndexVector = baseGlobalIndexVector;
 
     // go through remote containers
     for (size_t i = 0; i < rdcs.size(); ++i) {
-      IndexType global1didx = rdcs[i].getKeyIndex();
-      tmpGlobalIndexVector[dim] = global1didx;
-      tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
 
     for (LevelType l = lmax; l > 0; --l) {
@@ -1217,13 +1217,10 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // copy remote data to tmp
     std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
-    IndexVector tmpGlobalIndexVector = baseGlobalIndexVector;
 
     // go through remote containers
     for (size_t i = 0; i < rdcs.size(); ++i) {
-      IndexType global1didx = rdcs[i].getKeyIndex();
-      tmpGlobalIndexVector[dim] = global1didx;
-      tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
 
     for (LevelType l = 2; l <= lmax; ++l) {
@@ -1540,7 +1537,6 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   IndexVector localIndexVector(dfg.getDimension());
   IndexVector baseGlobalIndexVector(dfg.getDimension());
-  IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
   IndexType gstart = dfg.getLowerBounds()[dim];
   IndexType linIdxBlockStart;
@@ -1555,7 +1551,6 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     linIdxBlockStart = xBlock * ndim;
 
     dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
     assert(localIndexVector[dim] == 0);
 
     // copy local data to tmp
@@ -1566,9 +1561,7 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // go through remote containers
     for (size_t i = 0; i < rdcs.size(); ++i) {
-      IndexType global1didx = rdcs[i].getKeyIndex();
-      tmpGlobalIndexVector[dim] = global1didx;
-      tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
 
     HIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, 0);
@@ -1601,7 +1594,6 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   IndexVector localIndexVector(dfg.getDimension());
   IndexVector baseGlobalIndexVector(dfg.getDimension());
-  IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
   IndexType gstart = dfg.getLowerBounds()[dim];
   IndexType linIdxBlockStart;
@@ -1616,7 +1608,6 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     linIdxBlockStart = xBlock * ndim;
 
     dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
     assert(localIndexVector[dim] == 0);
 
     // copy local data to tmp
@@ -1627,9 +1618,7 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // go through remote containers
     for (size_t i = 0; i < rdcs.size(); ++i) {
-      IndexType global1didx = rdcs[i].getKeyIndex();
-      tmpGlobalIndexVector[dim] = global1didx;
-      tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
 
     DEHIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, 0);
@@ -1657,7 +1646,6 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   IndexVector localIndexVector(dfg.getDimension());
   IndexVector baseGlobalIndexVector(dfg.getDimension());
-  IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
   std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
@@ -1673,7 +1661,6 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
     assert(localIndexVector[dim] == 0);
 
     // copy remote data to tmp
@@ -1681,9 +1668,7 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // go through remote containers
     for (size_t i = 0; i < rdcs.size(); ++i) {
-      IndexType global1didx = rdcs[i].getKeyIndex();
-      tmpGlobalIndexVector[dim] = global1didx;
-      tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
 
     // copy local data
@@ -1714,7 +1699,6 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   IndexVector localIndexVector(dfg.getDimension());
   IndexVector baseGlobalIndexVector(dfg.getDimension());
-  IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
   std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
@@ -1730,7 +1714,6 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
     assert(localIndexVector[dim] == 0);
 
     // copy remote data to tmp
@@ -1738,9 +1721,7 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // go through remote containers
     for (size_t i = 0; i < rdcs.size(); ++i) {
-      IndexType global1didx = rdcs[i].getKeyIndex();
-      tmpGlobalIndexVector[dim] = global1didx;
-      tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
 
     // copy local data
@@ -1804,7 +1785,6 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   IndexVector localIndexVector(dfg.getDimension());
   IndexVector baseGlobalIndexVector(dfg.getDimension());
-  IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
   std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
@@ -1820,7 +1800,6 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
     assert(localIndexVector[dim] == 0);
 
     // copy remote data to tmp
@@ -1828,9 +1807,7 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // go through remote containers
     for (size_t i = 0; i < rdcs.size(); ++i) {
-      IndexType global1didx = rdcs[i].getKeyIndex();
-      tmpGlobalIndexVector[dim] = global1didx;
-      tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
 
     // copy local data
@@ -1861,7 +1838,6 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   IndexVector localIndexVector(dfg.getDimension());
   IndexVector baseGlobalIndexVector(dfg.getDimension());
-  IndexVector tmpGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
   std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
@@ -1877,7 +1853,6 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, tmpGlobalIndexVector);
     assert(localIndexVector[dim] == 0);
 
     // copy remote data to tmp
@@ -1885,9 +1860,7 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // go through remote containers
     for (size_t i = 0; i < rdcs.size(); ++i) {
-      IndexType global1didx = rdcs[i].getKeyIndex();
-      tmpGlobalIndexVector[dim] = global1didx;
-      tmp[global1didx] = *rdcs[i].getData(tmpGlobalIndexVector);
+      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
 
     // copy local data
