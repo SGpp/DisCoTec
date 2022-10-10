@@ -535,7 +535,9 @@ class DistributedFullGrid {
     assert(globAxisIndex.size() == dim_);
 
     if (globAxisIndex >= getLowerBounds() && globAxisIndex < getUpperBounds()) {
-      locAxisIndex = globAxisIndex - this->getLowerBounds();
+      locAxisIndex.assign(globAxisIndex.begin(), globAxisIndex.end());
+      std::transform(locAxisIndex.begin(), locAxisIndex.end(), this->getLowerBounds().begin(),
+                     locAxisIndex.begin(), std::minus<IndexType>());
       return true;
     } else {
       return false;
@@ -563,11 +565,13 @@ class DistributedFullGrid {
     assert(locLinIndex < nrLocalElements_);
 
     // convert to local vector index
-    IndexVector locAxisIndex(dim_);
+    static IndexVector locAxisIndex(dim_);
+    locAxisIndex.resize(dim_);
     getLocalVectorIndex(locLinIndex, locAxisIndex);
 
     // convert to global vector index
-    IndexVector globAxisIndex(dim_);
+    static IndexVector globAxisIndex(dim_);
+    globAxisIndex.resize(dim_);
     getGlobalVectorIndex(locAxisIndex, globAxisIndex);
 
     // convert to global linear index
@@ -599,11 +603,13 @@ class DistributedFullGrid {
     assert(globLinIndex < nrElements_);
 
     // convert to global vector index
-    IndexVector globAxisIndex(dim_);
+    static IndexVector globAxisIndex(dim_);
+    globAxisIndex.resize(dim_);
     getGlobalVectorIndex(globLinIndex, globAxisIndex);
 
     // convert to local vector index
-    IndexVector locAxisIndex(dim_);
+    static IndexVector locAxisIndex(dim_);
+    locAxisIndex.resize(dim_);
 
     if (getLocalVectorIndex(globAxisIndex, locAxisIndex)) {
       // convert to local linear index
