@@ -1,5 +1,11 @@
 #include "thirdLevelManager.hpp"
 
+#ifdef BROKER_ON_SYSTEM
+  // to resolve https://github.com/open-mpi/ompi/issues/5157
+  #define OMPI_SKIP_MPICXX 1
+  #include <mpi.h>
+#endif // BROKER_ON_SYSTEM
+
 using namespace combigrid;
 
 int main(int argc, char* argv[])
@@ -9,6 +15,22 @@ int main(int argc, char* argv[])
                   or ./thirdLevelManager --port=9999 --numSystems=2 --chunksize=131072" << std::endl;
     return 0;
   }
+
+#ifdef BROKER_ON_SYSTEM
+  // if broker is running on highest rank on same system, need to split it away from world
+  // communicator
+  MPI_Init(&argc, &argv);
+  int color = 1;
+  int key = 0;
+  MPI_Comm worldComm;
+  MPI_Comm_split(MPI_COMM_WORLD, color, key, &worldComm);
+  int size = 0;
+  MPI_Comm_size(worldComm, &size);
+  std::cout << "thirdLevelManager running on same system as simulation" << std::endl;
+#else
+  std::cout << "thirdLevelManager running on separate system" << std::endl;
+#endif  // BROKER_ON_SYSTEM
+
   // Load config file
 #ifdef DEBUG_OUTPUT
   std::cout << "Loading parameters" << std::endl;

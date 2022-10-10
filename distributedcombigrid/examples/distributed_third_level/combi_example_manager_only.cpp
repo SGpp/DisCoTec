@@ -1,9 +1,3 @@
-/*
- * combi_example.cpp
- *
- *  Created on: Sep 23, 2015
- *      Author: heenemo
- */
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
@@ -69,10 +63,6 @@ int main(int argc, char** argv) {
   size_t ngroup = 0;
   size_t nprocs = 0;
 
-  // divide the MPI processes into process group and initialize the
-  // corresponding communicators
-  theMPISystem()->init(ngroup, nprocs);
-
   /* read in parameters from ctparam */
   DimType dim = cfg.get<DimType>("ct.dim");
   LevelVector lmin(dim), lmax(dim);
@@ -89,6 +79,7 @@ int main(int argc, char** argv) {
   unsigned short thirdLevelPort = 0;
   bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
   std::vector<real> fractionsOfScheme;
+  bool brokerOnSameSystem = false;
   if (hasThirdLevel) {
     std::cout << "Using third-level parallelism" << std::endl;
     thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
@@ -96,6 +87,7 @@ int main(int argc, char** argv) {
     numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
     thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
     thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand", "");
+    brokerOnSameSystem = static_cast<bool>(cfg.get_child_optional("thirdLevel.brokerOnSameSystem"));
     bool hasFractions = static_cast<bool>(cfg.get_child_optional("thirdLevel.fractionsOfScheme"));
     if (hasFractions) {
       std::string fractionsString = cfg.get<std::string>("thirdLevel.fractionsOfScheme");
@@ -115,6 +107,23 @@ int main(int argc, char** argv) {
     } else {
       fractionsOfScheme = std::vector<real>(numSystems, 1. / static_cast<real>(numSystems));
     }
+  }
+
+  if (brokerOnSameSystem) {
+    // split communicator into the one for broker and one for workers + manager
+    int globalID;
+    MPI_Comm_rank(MPI_COMM_WORLD, &globalID);
+    MPI_Comm worldComm;
+    int color = 0;
+    MPI_Comm_split(MPI_COMM_WORLD, color, globalID, &worldComm);
+    theMPISystem()->initWorldReusable(worldComm, ngroup, nprocs);
+    if (thirdLevelHost != "localhost") {
+      throw std::runtime_error("Broker on same system, but third level host is not localhost");
+    }
+  } else {
+    // divide the MPI processes into process group and initialize the
+    // corresponding communicators
+    theMPISystem()->init(ngroup, nprocs);
   }
 
   std::vector<bool> boundary(dim, true);

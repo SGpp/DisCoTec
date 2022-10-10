@@ -144,29 +144,36 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm) {
  * this method can be called multiple times (needed for tests)
  */
 void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t nprocs) {
-  
   initSystemConstants(ngroup, nprocs, wcomm, true);
-
-  /* init localComm
-   * lcomm is the local communicator of its own process group for each worker process.
-   * for manager, lcomm is a group which contains only manager process and can be ignored
-   */
-  initLocalComm();
-
-  /* create global communicator which contains only the manager and the master
-   * process of each process group
-   * the master processes of the process groups are the processes which have
-   * rank 0 in lcomm
-   * this communicator is used for communication between master processes of the
-   * process groups and the manager and the master processes to each other
-   */
-  initGlobalComm();
-
-  initGlobalReduceCommm();
-
-  initThirdLevelComms();
-
   initialized_ = true;
+  
+  if (ngroup * nprocs > 0) {
+    /* init localComm
+     * lcomm is the local communicator of its own process group for each worker process.
+     * for manager, lcomm is a group which contains only manager process and can be ignored
+     */
+    initLocalComm();
+
+    /* create global communicator which contains only the manager and the master
+     * process of each process group
+     * the master processes of the process groups are the processes which have
+     * rank 0 in lcomm
+     * this communicator is used for communication between master processes of the
+     * process groups and the manager and the master processes to each other
+     */
+    initGlobalComm();
+
+    initGlobalReduceCommm();
+
+    initThirdLevelComms();
+  } else {
+    // make sure we really only have manager process
+    auto worldSize = getWorldSize();
+    if (worldSize > 1) {
+      throw std::runtime_error(" too many MPI processes for manager-only setup: " +
+                               std::to_string(worldSize));
+    }
+  }
 }
 
 void MPISystem::initLocalComm() {
