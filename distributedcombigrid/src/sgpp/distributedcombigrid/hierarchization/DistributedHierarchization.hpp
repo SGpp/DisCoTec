@@ -1502,7 +1502,6 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
   IndexVector localIndexVector(dfg.getDimension());
-  IndexVector baseGlobalIndexVector(dfg.getDimension());
 
   IndexType gstart = dfg.getLowerBounds()[dim];
   IndexType linIdxBlockStart;
@@ -1559,7 +1558,6 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
   IndexVector localIndexVector(dfg.getDimension());
-  IndexVector baseGlobalIndexVector(dfg.getDimension());
 
   IndexType gstart = dfg.getLowerBounds()[dim];
   IndexType linIdxBlockStart;
@@ -1611,7 +1609,6 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType nbrOfPoles = size / ndim;
 
   IndexVector localIndexVector(dfg.getDimension());
-  IndexVector baseGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
   static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
@@ -1665,7 +1662,6 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType nbrOfPoles = size / ndim;
 
   IndexVector localIndexVector(dfg.getDimension());
-  IndexVector baseGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
   std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
@@ -1751,7 +1747,6 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType nbrOfPoles = size / ndim;
 
   IndexVector localIndexVector(dfg.getDimension());
-  IndexVector baseGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
   std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
@@ -1804,7 +1799,6 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType nbrOfPoles = size / ndim;
 
   IndexVector localIndexVector(dfg.getDimension());
-  IndexVector baseGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
   static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
