@@ -376,30 +376,48 @@ int main(int argc, char** argv) {
       }
     }
 
+    double start, finish;
+    start = MPI_Wtime();
+
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
     manager.updateCombiParameters();
-    std::cout << "set up component grids and run until first combination point" << std::endl;
+    finish = MPI_Wtime();
+    std::cout << "manager: updated parameters in " << finish - start << " seconds" << std::endl;
+    start = finish;
+    std::cout << "manager: set up component grids and run until first combination point" << std::endl;
 
     /* distribute task according to load model and start computation for
      * the first time */
     Stats::startEvent("manager run first");
     if (useStaticTaskAssignment) {
       manager.runnext();
+      finish = MPI_Wtime();
+      std::cout << "manager: ran in " << finish - start << " seconds" << std::endl;
+      start = finish;
+      std::cout << "manager: initialize sparse grid data structures" << std::endl;
       manager.initDsgus();
+      finish = MPI_Wtime();
+      std::cout << "manager: initialized SG in " << finish - start << " seconds" << std::endl;
+      start = finish;
     } else {
       manager.runfirst();
+      finish = MPI_Wtime();
+      std::cout << "manager: ran in " << finish - start << " seconds" << std::endl;
+      start = finish;
     }
     Stats::stopEvent("manager run first");
 
     // exchange subspace sizes to unify the dsgs in the third level case
     if (hasThirdLevel) {
       Stats::startEvent("manager unify subspace sizes with remote");
+      std::cout << "manager: unify sparse grid data structures w/ remote" << std::endl;
       manager.unifySubspaceSizesThirdLevel(extraSparseGrid);
       Stats::stopEvent("manager unify subspace sizes with remote");
+      finish = MPI_Wtime();
+      std::cout << "manager: unified SG in " << finish - start << " seconds" << std::endl;
+      start = finish;
     }
-
-    double start, finish;
 
     start = MPI_Wtime();
     for (size_t i = 1; i < ncombi; ++i) {
@@ -446,7 +464,11 @@ int main(int argc, char** argv) {
     // Stats::stopEvent("manager write solution");
 
     if (evalMCError) {
+      start = MPI_Wtime();
+      std::cout << "manager: eval Monte Carlo" << std::endl;
       managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt, hasThirdLevel);
+      finish = MPI_Wtime();
+      std::cout << "manager: eval MC in " << finish - start << " seconds" << std::endl;
     }
     std::cout << "manager exit" << std::endl;
     // send exit signal to workers in order to enable a clean program termination
