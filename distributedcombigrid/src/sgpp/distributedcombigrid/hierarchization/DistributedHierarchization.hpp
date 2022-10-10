@@ -198,35 +198,6 @@ class LookupTable {
     }
   }
 
-  inline FG_ELEMENT* getData(IndexVector globalIndexVector) {
-    assert(globalIndexVector.size() == dfg_.getDimension());
-
-    // check if in local part of the distributed full grid
-    if (globalIndexVector >= dfg_.getLowerBounds() && globalIndexVector < dfg_.getUpperBounds()) {
-      // return point to value in dfg
-      static IndexVector localIndexVector(dfg_.getDimension());
-      dfg_.getLocalVectorIndex(globalIndexVector, localIndexVector);
-
-      IndexType localLinearIndex = dfg_.getLocalLinearIndex(localIndexVector);
-
-      return &dfg_.getData()[localLinearIndex];
-    } else {
-      // find subarray remote data wich corresponds to key index
-      bool found = false;
-
-      for (size_t i = 0; i < remoteData_.size(); ++i) {
-        DimType keyDim = remoteData_[i].getKeyDimension();
-
-        if (remoteData_[i].getKeyIndex() == globalIndexVector[keyDim]) {
-          // translate globalIndexVector to IndexVector for remote Data
-          return remoteData_[i].getData(globalIndexVector);
-        }
-      }
-
-      assert(found && "subarray not found in remote data");
-    }
-  }
-
   inline std::vector<RemoteDataContainer<FG_ELEMENT> >& getRDCVector() const { return remoteData_; }
 
  private:
@@ -1674,10 +1645,10 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == true);
 
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType size = dfg.getNrLocalElements();
-  IndexType stride = dfg.getLocalOffsets()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
+  auto lmax = dfg.getLevels()[dim];
+  auto size = dfg.getNrLocalElements();
+  auto stride = dfg.getLocalOffsets()[dim];
+  auto ndim = dfg.getLocalSizes()[dim];
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
@@ -1878,10 +1849,10 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                    LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == false);
 
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType size = dfg.getNrLocalElements();
-  IndexType stride = dfg.getLocalOffsets()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
+  auto lmax = dfg.getLevels()[dim];
+  auto size = dfg.getNrLocalElements();
+  auto stride = dfg.getLocalOffsets()[dim];
+  auto ndim = dfg.getLocalSizes()[dim];
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
