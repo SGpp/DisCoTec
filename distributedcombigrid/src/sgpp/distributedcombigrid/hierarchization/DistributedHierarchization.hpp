@@ -333,14 +333,12 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
     for (const auto& index : indices) {
       // convert global 1d index i to local 1d index
       IndexVector lidxvec(dfg.getDimension(), 0);
-#ifndef NDEBUG
       {
         IndexVector gidxvec = dfg.getLowerBounds();
         gidxvec[dim] = index;
         bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
         assert(tmp && "index to be send not in local domain");
       }
-#endif  // !NDEBUG
 
       // create subarray view on the block with the local index
       MPI_Datatype mysubarray;
