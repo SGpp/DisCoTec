@@ -1,4 +1,5 @@
 #include "thirdLevelManager.hpp"
+#include <boost/asio.hpp>
 
 #ifdef BROKER_ON_SYSTEM
   // to resolve https://github.com/open-mpi/ompi/issues/5157
@@ -30,6 +31,9 @@ int main(int argc, char* argv[])
 #else
   std::cout << "thirdLevelManager running on separate system" << std::endl;
 #endif  // BROKER_ON_SYSTEM
+
+  std::string hostnameInfo = "broker = " + boost::asio::ip::host_name();
+  std::cout << hostnameInfo << std::endl;
 
   // Load config file
 #ifdef DEBUG_OUTPUT
