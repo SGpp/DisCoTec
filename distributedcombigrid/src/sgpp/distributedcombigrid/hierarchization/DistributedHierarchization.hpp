@@ -82,7 +82,8 @@ class RemoteDataContainer {
     // key dimension
 
     // compute local index in remote domain
-    IndexVector localIndexVector = globalIndexVector - lowerBounds_;
+    static IndexVector localIndexVector;
+    localIndexVector = globalIndexVector - lowerBounds_;
 
     // reduce by key dimension
     localIndexVector[dim1d_] = 0;
