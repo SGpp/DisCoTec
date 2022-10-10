@@ -713,14 +713,18 @@ class DistributedFullGrid {
     return lowerBounds;
   }
 
+  inline IndexType getLowestGlobalIndexOfRank(RankType r) const {
+    auto lowestIndex = getGlobalLinearIndex(getLowerBounds(r));
+    return lowestIndex;
+  }
+
   /** coordinates of this process' lower bounds */
   inline std::vector<real> getLowerBoundsCoords() const { return getLowerBoundsCoords(rank_); }
 
   /** coordinates of rank r's lower bounds */
   inline std::vector<real> getLowerBoundsCoords(RankType r) const {
     assert(r >= 0 && r < size_);
-    const IndexVector& lbvi = getLowerBounds(r);
-    IndexType lbli = getGlobalLinearIndex(lbvi);
+    IndexType lbli = getLowestGlobalIndexOfRank(r);
     std::vector<real> coords(dim_);
     getCoordsGlobal(lbli, coords);
     return coords;
