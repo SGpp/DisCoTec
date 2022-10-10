@@ -332,9 +332,11 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
     // for each index in index list
     for (const auto& index : indices) {
       // convert global 1d index i to local 1d index
-      IndexVector lidxvec(dfg.getDimension(), 0);
+      static IndexVector lidxvec(dfg.getDimension(), 0);
+      lidxvec.resize(dfg.getDimension());
       {
-        IndexVector gidxvec = dfg.getLowerBounds();
+        static IndexVector gidxvec;
+        gidxvec = dfg.getLowerBounds();
         gidxvec[dim] = index;
         bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
         assert(tmp && "index to be send not in local domain");
@@ -523,8 +525,10 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
         // convert global 1d index i to local 1d index
         IndexType localLinearIndex = 0;
         {
-          IndexVector lidxvec(dfg.getDimension(), 0);
-          IndexVector gidxvec = dfg.getLowerBounds();
+          static IndexVector lidxvec(dfg.getDimension(), 0);
+          lidxvec.resize(dfg.getDimension());
+          static IndexVector gidxvec;
+          gidxvec = dfg.getLowerBounds();
           gidxvec[dim] = index;
           bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
           assert(tmp && "index to be send not in local domain");
