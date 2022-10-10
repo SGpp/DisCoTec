@@ -1648,7 +1648,8 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexVector baseGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  tmp.resize(dfg.getGlobalSizes()[dim]);
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
@@ -1840,7 +1841,8 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexVector baseGlobalIndexVector(dfg.getDimension());
 
   // loop over poles
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  tmp.resize(dfg.getGlobalSizes()[dim]);
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
