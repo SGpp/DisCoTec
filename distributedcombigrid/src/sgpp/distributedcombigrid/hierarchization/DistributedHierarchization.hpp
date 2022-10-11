@@ -926,10 +926,9 @@ template <typename FG_ELEMENT>
 static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
                                const DistributedFullGrid<FG_ELEMENT>& dfg,
                                std::map<RankType, std::set<IndexType>>& OneDIndices) {
-  LevelType lidx = dfg.getLevel(dim, checkIdx);
-  IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
-  // IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-  LevelType lmax = dfg.getLevels()[dim];
+  const auto lidx = dfg.getLevel(dim, checkIdx);
+  const auto idxMin = dfg.getFirstGlobal1dIndex(dim);
+  const auto lmax = dfg.getLevels()[dim];
 
   // check left successors of checkIdx
   for (auto l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
