@@ -27,6 +27,9 @@ int main(int argc, char* argv[])
   MPI_Comm_split(MPI_COMM_WORLD, color, key, &worldComm);
   int size = 0;
   MPI_Comm_size(worldComm, &size);
+  if(size != 1) {
+    throw std::runtime_error("Broker is not running on a single process");
+  }
   std::cout << "thirdLevelManager running on same system as simulation" << std::endl;
 #else
   std::cout << "thirdLevelManager running on separate system" << std::endl;

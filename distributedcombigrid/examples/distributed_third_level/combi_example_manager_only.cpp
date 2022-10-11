@@ -48,6 +48,9 @@ void exec(const char* cmd) {
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
 
+  std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
+  std::cout << hostnameInfo << std::endl;
+
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
    */
@@ -110,6 +113,7 @@ int main(int argc, char** argv) {
   }
 
   if (brokerOnSameSystem) {
+    std::cout << "broker running on same system" << std::endl;
     // split communicator into the one for broker and one for workers + manager
     int globalID;
     MPI_Comm_rank(MPI_COMM_WORLD, &globalID);
@@ -201,10 +205,6 @@ int main(int argc, char** argv) {
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     // set up the ssh tunnel for third level communication, if necessary
     // todo: if this works, move to ProcessManager::setUpThirdLevel
-
-    std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
-    std::cout << hostnameInfo << std::endl;
-
     if (thirdLevelSSHCommand != "") {
       shellCommand::exec(thirdLevelSSHCommand.c_str());
       std::cout << thirdLevelSSHCommand << " returned " << std::endl;
@@ -213,8 +213,7 @@ int main(int argc, char** argv) {
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
-    std::cout << "CombiScheme: " << std::endl;
-    for (const LevelVector& level : levels) std::cout << level << std::endl;
+    std::cout << "CombiScheme size: " << levels.size() << std::endl;
 
     // create combiparameters
     std::vector<size_t> taskIDs(levels.size());
