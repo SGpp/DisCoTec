@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi*2, 1, p,
                            LevelVector(dim, 0), reduceCombinationDimsLmax,
                            forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
-    auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax);
+    // auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax);
     std::vector<IndexVector> decomposition;
     for (DimType d = 0; d < dim; ++d) {
       if (p[d] > (powerOfTwo[lmin[d]] + (boundary[d] ? +1 : -1))) {
