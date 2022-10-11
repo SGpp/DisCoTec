@@ -281,7 +281,7 @@ int main(int argc, char** argv) {
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
     manager.updateCombiParameters();
-    for (size_t i = 1; i < ncombi; ++i) {
+    for (size_t i = 0; i < ncombi; ++i) {
       Stats::startEvent("manager pretend to third-level combine");
       if (hasThirdLevel) {
         manager.pretendCombineThirdLevel(dsguConjointSizes, true);
