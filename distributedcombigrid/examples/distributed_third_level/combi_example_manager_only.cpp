@@ -136,68 +136,68 @@ int main(int argc, char** argv) {
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
   std::vector<size_t> taskNumbers; // only used in case of static task assignment
-  bool useStaticTaskAssignment = false;
-  if (ctschemeFile == "") {
-    /* generate a list of levelvectors and coefficients
-     * CombiMinMaxScheme will create a classical combination scheme.
-     * however, you could also read in a list of levelvectors and coefficients
-     * from a file */
-    CombiMinMaxScheme combischeme(dim, lmin, lmax);
-    combischeme.createAdaptiveCombischeme();
-    std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
-    std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
+  // bool useStaticTaskAssignment = false;
+  // if (ctschemeFile == "") {
+  //   /* generate a list of levelvectors and coefficients
+  //    * CombiMinMaxScheme will create a classical combination scheme.
+  //    * however, you could also read in a list of levelvectors and coefficients
+  //    * from a file */
+  //   CombiMinMaxScheme combischeme(dim, lmin, lmax);
+  //   combischeme.createAdaptiveCombischeme();
+  //   std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
+  //   std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
 
-    // split scheme and assign each fraction to a system
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary, systemNumber,
-                                                  numSystems, levels, coeffs, fractionsOfScheme);
-    WORLD_MANAGER_EXCLUSIVE_SECTION {
-      std::cout << fullLevels.size()
-                << " component grids in full combination scheme; this system will run "
-                << levels.size() << " of them." << std::endl;
-      printCombiDegreesOfFreedom(levels);
-    }
-  } else {
-    // read in CT scheme, if applicable
-    std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
-        new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
-    const auto& pgNumbers = scheme->getProcessGroupNumbers();
-    if (pgNumbers.size() > 0) {
-      useStaticTaskAssignment = true;
-      const auto& allCoeffs = scheme->getCoeffs();
-      const auto& allLevels = scheme->getCombiSpaces();
-      const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
-      assert(*itMin == 0);  // make sure it starts with 0
-      // assert(*itMax == ngroup - 1); // and goes up to the maximum group //TODO
-      // filter out only those tasks that belong to "our" process group
-      const auto& pgroupNumber = theMPISystem()->getProcessGroupNumber();
-      for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
-        if (pgNumbers[taskNo] == pgroupNumber) {
-          taskNumbers.push_back(taskNo);
-          coeffs.push_back(allCoeffs[taskNo]);
-          levels.push_back(allLevels[taskNo]);
-        }
-      }
-      MASTER_EXCLUSIVE_SECTION {
-        std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
-                  << pgNumbers.size() << " tasks." << std::endl;
-        printCombiDegreesOfFreedom(levels);
-      }
-      WORLD_MANAGER_EXCLUSIVE_SECTION{
-        coeffs = scheme->getCoeffs();
-        levels = scheme->getCombiSpaces();
-      }
-    } else {
-      // levels and coeffs are only used in manager
-      WORLD_MANAGER_EXCLUSIVE_SECTION {
-        coeffs = scheme->getCoeffs();
-        levels = scheme->getCombiSpaces();
-        std::cout << levels.size() << " tasks to distribute." << std::endl;
-      }
-    }
-    WORLD_MANAGER_EXCLUSIVE_SECTION {
-      printCombiDegreesOfFreedom(levels);
-    }
-  }
+  //   // split scheme and assign each fraction to a system
+  //   CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary, systemNumber,
+  //                                                 numSystems, levels, coeffs, fractionsOfScheme);
+  //   WORLD_MANAGER_EXCLUSIVE_SECTION {
+  //     std::cout << fullLevels.size()
+  //               << " component grids in full combination scheme; this system will run "
+  //               << levels.size() << " of them." << std::endl;
+  //     printCombiDegreesOfFreedom(levels);
+  //   }
+  // } else {
+  //   // read in CT scheme, if applicable
+  //   std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
+  //       new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
+  //   const auto& pgNumbers = scheme->getProcessGroupNumbers();
+  //   if (pgNumbers.size() > 0) {
+  //     useStaticTaskAssignment = true;
+  //     const auto& allCoeffs = scheme->getCoeffs();
+  //     const auto& allLevels = scheme->getCombiSpaces();
+  //     const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+  //     assert(*itMin == 0);  // make sure it starts with 0
+  //     // assert(*itMax == ngroup - 1); // and goes up to the maximum group //TODO
+  //     // filter out only those tasks that belong to "our" process group
+  //     const auto& pgroupNumber = theMPISystem()->getProcessGroupNumber();
+  //     for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
+  //       if (pgNumbers[taskNo] == pgroupNumber) {
+  //         taskNumbers.push_back(taskNo);
+  //         coeffs.push_back(allCoeffs[taskNo]);
+  //         levels.push_back(allLevels[taskNo]);
+  //       }
+  //     }
+  //     MASTER_EXCLUSIVE_SECTION {
+  //       std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
+  //                 << pgNumbers.size() << " tasks." << std::endl;
+  //       printCombiDegreesOfFreedom(levels);
+  //     }
+  //     WORLD_MANAGER_EXCLUSIVE_SECTION{
+  //       coeffs = scheme->getCoeffs();
+  //       levels = scheme->getCombiSpaces();
+  //     }
+  //   } else {
+  //     // levels and coeffs are only used in manager
+  //     WORLD_MANAGER_EXCLUSIVE_SECTION {
+  //       coeffs = scheme->getCoeffs();
+  //       levels = scheme->getCombiSpaces();
+  //       std::cout << levels.size() << " tasks to distribute." << std::endl;
+  //     }
+  //   }
+  //   WORLD_MANAGER_EXCLUSIVE_SECTION {
+  //     printCombiDegreesOfFreedom(levels);
+  //   }
+  // }
   // create load model
   std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
@@ -267,8 +267,8 @@ int main(int argc, char** argv) {
     //   dsguConjointSizes = getPartitionedNumDOFSGConjoint(scheme, lmin, lmax, decomposition);
     // }
 
-    std::cout << "conjoint" << std::endl;
-    std::cout << dsguConjointSizes << std::endl;
+    // std::cout << "conjoint" << std::endl;
+    // std::cout << dsguConjointSizes << std::endl;
     std::cout << "and that makes a total of DOF " << std::endl;
     std::cout << std::accumulate(dsguConjointSizes.begin(), dsguConjointSizes.end(), 0ll)
               << std::endl;
