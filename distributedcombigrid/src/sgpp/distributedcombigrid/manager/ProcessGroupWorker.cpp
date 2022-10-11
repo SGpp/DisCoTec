@@ -190,11 +190,10 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE: {  // start combination
-
-      Stats::startEvent("combine");
+      Stats::startEvent("worker combine");
       combineUniform();
       currentCombi_++;
-      Stats::stopEvent("combine");
+      Stats::stopEvent("worker combine");
 
     } break;
     case GRID_EVAL: {  // not supported anymore
@@ -673,13 +672,25 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
   hierarchizeFullGrids();
   Stats::stopEvent("combine hierarchize");
 
+#ifdef DEBUG_OUTPUT
+  MASTER_EXCLUSIVE_SECTION { std::cout << "mid combining \n"; }
+#endif
+
   Stats::startEvent("combine local reduce");
   addFullGridsToUniformSG();
   Stats::stopEvent("combine local reduce");
 
+#ifdef DEBUG_OUTPUT
+  MASTER_EXCLUSIVE_SECTION { std::cout << "almost done combining \n"; }
+#endif
+
   Stats::startEvent("combine global reduce");
   reduceUniformSG();
   Stats::stopEvent("combine global reduce");
+
+#ifdef DEBUG_OUTPUT
+  MASTER_EXCLUSIVE_SECTION { std::cout << "end combining \n"; }
+#endif
 }
 
 void ProcessGroupWorker::combineUniform() {
