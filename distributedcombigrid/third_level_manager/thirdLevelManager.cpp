@@ -302,7 +302,8 @@ size_t ThirdLevelManager::forwardData(const System& sender, const System& receiv
 
   // forward data to other system
   if (dataSize != 0)
-    NetworkUtils::forward(*sender.getConnection(), *receiver.getConnection(), 2048, dataSize);
+    NetworkUtils::forward(*sender.getConnection(), *receiver.getConnection(),
+                          this->params_.getChunksize(), dataSize);
 
   return dataSize;
 }

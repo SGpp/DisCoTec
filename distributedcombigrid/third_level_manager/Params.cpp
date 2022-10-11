@@ -54,3 +54,5 @@ bool Params::areLoaded() const
 {
   return loadedFromFile_;
 }
+
+size_t Params::getChunksize() const { return chunksize_; }

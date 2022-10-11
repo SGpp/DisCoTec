@@ -12,13 +12,14 @@ class Params
     size_t  chunksize_      = 131072;
     bool    loadedFromFile_ = false;
 
-  public:
+   public:
     Params();
 
     void loadFromFile(const std::string& filename);
     void loadFromCmd(int argc, char* argv[]);
 
-    bool    areLoaded()     const;
-    u_short getPort()       const;
-    u_int   getNumSystems() const;
+    bool areLoaded() const;
+    u_short getPort() const;
+    u_int getNumSystems() const;
+    size_t getChunksize() const;
 };
