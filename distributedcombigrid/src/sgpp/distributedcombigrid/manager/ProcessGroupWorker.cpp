@@ -188,10 +188,10 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE: {  // start combination
-      Stats::startEvent("combine");
+      Stats::startEvent("worker combine");
       combineUniform();
       currentCombi_++;
-      Stats::stopEvent("combine");
+      Stats::stopEvent("worker combine");
 
     } break;
     case COMBINE_LOCAL_AND_GLOBAL: {
@@ -662,29 +662,29 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
 #endif
-  //Stats::startEvent("combine zeroDsgsData");
+  Stats::startEvent("combine zeroDsgsData");
   zeroDsgsData();
-  //Stats::stopEvent("combine zeroDsgsData");
+  Stats::stopEvent("combine zeroDsgsData");
 
-  //Stats::startEvent("combine hierarchize");
+  Stats::startEvent("combine hierarchize");
   hierarchizeFullGrids();
-  //Stats::stopEvent("combine hierarchize");
+  Stats::stopEvent("combine hierarchize");
 
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "mid combining \n"; }
 #endif
 
-  //Stats::startEvent("combine local reduce");
+  Stats::startEvent("combine local reduce");
   addFullGridsToUniformSG();
-  //Stats::stopEvent("combine local reduce");
+  Stats::stopEvent("combine local reduce");
 
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "almost done combining \n"; }
 #endif
 
-  //Stats::startEvent("combine global reduce");
+  Stats::startEvent("combine global reduce");
   reduceUniformSG();
-  //Stats::stopEvent("combine global reduce");
+  Stats::stopEvent("combine global reduce");
 
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "end combining \n"; }
