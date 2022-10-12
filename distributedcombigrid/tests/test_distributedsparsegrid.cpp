@@ -17,6 +17,7 @@
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
+#include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "test_helper.hpp"
 
@@ -465,4 +466,41 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_3) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels) {
+  LevelVector lmin = {2, 2, 2, 2};
+  LevelVector lmax = {4, 4, 4, 4};
+  DimType dim = lmin.size();
+  std::vector<LevelVector> created;
+  combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
+  // std::cout << lmin << lmax << std::endl;
+  // std::cout << "created.size() = " << created.size() << std::endl;
+  // std::cout << created << std::endl;
+
+  std::vector<LevelVector> cornersOfScheme(dim, lmin);
+  for (DimType d = 0; d < dim; ++d) {
+    cornersOfScheme[d][d] = lmax[d];
+  }
+  for (const auto& corner : cornersOfScheme) {
+    // make sure corners are part of the scheme
+    BOOST_CHECK(std::find(created.begin(), created.end(), corner) != created.end());
+    // and higher neighbors of corner are not part of the scheme
+    for (DimType d = 0; d < dim; ++d) {
+      auto neighbor = corner;
+      neighbor[d] += 1;
+      BOOST_CHECK(std::find(created.begin(), created.end(), neighbor) == created.end());
+    }
+  }
+  LevelType largestCornerSum = 0;
+  for (const auto& corner : cornersOfScheme) {
+    auto cornerSum = std::accumulate(corner.begin(), corner.end(), static_cast<LevelType>(0));
+    largestCornerSum = std::max(largestCornerSum, cornerSum);
+  }
+  for (const auto& level : created) {
+    for (DimType d = 0; d < dim; ++d) {
+      BOOST_CHECK(level[d] <= lmax[d]);
+    }
+    auto levelSum = std::accumulate(level.begin(), level.end(), 0);
+    BOOST_CHECK(levelSum <= largestCornerSum);
+  }
+}
   BOOST_AUTO_TEST_SUITE_END()
