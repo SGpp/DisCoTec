@@ -10,6 +10,7 @@
 #include <random>
 #include <vector>
 
+#include "TaskConstParaboloid.hpp"
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
@@ -18,12 +19,11 @@
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "test_helper.hpp"
-#include "TaskConstParaboloid.hpp"
 
 using namespace combigrid;
 
-void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vector<int>& procs, std::vector<bool>& boundary,
-                              int size) {
+void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vector<int>& procs,
+                                std::vector<bool>& boundary, int size) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     auto rank = TestHelper::getRank(comm);
@@ -54,9 +54,19 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       for (DimType d = 0; d < dim; ++d) {
         auto neighbor = corner;
         neighbor[d] += 1;
-        BOOST_WARN(std::find(uniDSG->getAllLevelVectors().begin(),
-                             uniDSG->getAllLevelVectors().end(),
-                             neighbor) == uniDSG->getAllLevelVectors().end());
+        std::stringstream stringStream;
+        stringStream << "corner: " << corner << " neighbor: " << neighbor;
+        BOOST_TEST_CONTEXT(stringStream.str());
+        if (schemeIsRegular) {
+          BOOST_CHECK(std::find(uniDSG->getAllLevelVectors().begin(),
+                                uniDSG->getAllLevelVectors().end(),
+                                neighbor) == uniDSG->getAllLevelVectors().end());
+
+        } else {
+          BOOST_WARN(std::find(uniDSG->getAllLevelVectors().begin(),
+                               uniDSG->getAllLevelVectors().end(),
+                               neighbor) == uniDSG->getAllLevelVectors().end());
+        }
       }
     }
 
