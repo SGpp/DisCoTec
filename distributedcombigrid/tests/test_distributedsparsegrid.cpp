@@ -503,4 +503,51 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels) {
     BOOST_CHECK(levelSum <= largestCornerSum);
   }
 }
-  BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
+  LevelVector lmin = {4, 3, 4, 5};
+  LevelVector lmax = lmin;
+  DimType dim = lmin.size();
+  std::vector<LevelVector> created;
+  combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
+  auto downSet = getDownSet(lmax);
+  // BOOST_CHECK_EQUAL_COLLECTIONS(downSet.begin(), downSet.end(), created.begin(), created.end());
+  BOOST_CHECK_EQUAL(downSet.size(), created.size());
+  for (const auto& level : downSet) {
+    BOOST_CHECK(std::find(created.begin(), created.end(), level) != created.end());
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
+  LevelVector lmin = {2, 2, 2, 2, 2, 2};
+  LevelVector lmax = {19, 19, 19, 19, 19, 19};
+  DimType dim = lmin.size();
+  std::vector<LevelVector> created;
+
+  auto start = std::chrono::high_resolution_clock::now();
+  combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE("time to create regular hierarchical levels: " << duration.count()
+                                                                    << " milliseconds");
+  BOOST_TEST_MESSAGE("number of levels created: " << created.size());
+  BOOST_CHECK(duration.count() < 10000);
+}
+
+BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
+  LevelVector lmin = {5, 5, 5, 5, 5, 4};
+  LevelVector lmax = lmin;
+  DimType dim = lmin.size();
+  std::vector<LevelVector> created;
+
+  auto start = std::chrono::high_resolution_clock::now();
+  combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE("time to create block of hierarchical levels: " << duration.count()
+                                                                     << " milliseconds");
+  BOOST_TEST_MESSAGE("number of levels created: " << created.size());
+  BOOST_CHECK(duration.count() < 1000);
+}
+
+BOOST_AUTO_TEST_SUITE_END()

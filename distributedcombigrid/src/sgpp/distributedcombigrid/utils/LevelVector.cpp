@@ -101,10 +101,14 @@ void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
   }
 }
 
-void createTruncatedHierarchicalLevels(const LevelVector& lmax,
-                                     const LevelVector& lmin, std::vector<LevelVector>& created) {
+void createTruncatedHierarchicalLevels(const LevelVector& lmax, const LevelVector& lmin,
+                                       std::vector<LevelVector>& created) {
   auto dim = lmax.size();
   assert(lmin.size() == dim);
+
+  for (DimType d = 0; d < dim; ++d) {
+    assert(lmin[d] <= lmax[d]);
+  }
 
   LevelVector ldiff = lmax - lmin;
   LevelType minLevelDifference = *(std::min_element(ldiff.begin(), ldiff.end()));
