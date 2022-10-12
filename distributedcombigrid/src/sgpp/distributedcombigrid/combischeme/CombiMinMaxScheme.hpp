@@ -7,7 +7,6 @@
 #include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-#include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 
 namespace combigrid {
 
