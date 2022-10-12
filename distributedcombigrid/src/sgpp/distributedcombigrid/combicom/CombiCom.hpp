@@ -2,7 +2,6 @@
 #define COMBICOM_HPP_
 
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
-#include "sgpp/distributedcombigrid/fullgrid/DistributedFullGridNonUniform.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGrid.hpp"
@@ -60,10 +59,6 @@ class CombiCom {
   // template <typename FG_ELEMENT>
   // static void distributedLocalReduceNB(DistributedFullGrid<FG_ELEMENT>& dfg,
   //                                      DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff);
-
-  // template <typename FG_ELEMENT>
-  // static void distributedLocalReduceBlock(DistributedFullGridNonUniform<FG_ELEMENT>& dfg,
-  //                                         DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff);
 
   // template <typename FG_ELEMENT>
   // static void distributedLocalReduceRed(DistributedFullGrid<FG_ELEMENT>& dfg,
@@ -428,87 +423,6 @@ void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
 //       }
 //     }
 //   }
-// }
-
-// template <typename FG_ELEMENT>
-// void CombiCom::distributedLocalReduceBlock(DistributedFullGridNonUniform<FG_ELEMENT>& dfg,
-//                                            DistributedSparseGrid<FG_ELEMENT>& dsg, real coeff) {
-//   // copy data into subspace datastructures
-//   dfg.fillSubspaces();
-
-//   // get a list of all the subspaces in dfg
-//   std::vector<LevelVector> dfgSubspacesLevels;
-//   dfg.getSubspacesLevelVectors(dfgSubspacesLevels);
-
-//   // buffers for send and recvdata, one for each process
-//   std::vector<std::vector<FG_ELEMENT> > senddata(dfg.getCommunicatorSize());
-//   std::vector<std::vector<int> > sendsizes(dfg.getCommunicatorSize());
-//   std::vector<std::vector<int> > sendsubspaces(dfg.getCommunicatorSize());
-//   std::vector<std::vector<FG_ELEMENT> > recvdata(dfg.getCommunicatorSize());
-//   std::vector<std::vector<int> > recvsizes(dfg.getCommunicatorSize());
-//   std::vector<std::vector<int> > recvsubspaces(dfg.getCommunicatorSize());
-
-//   // loop over all subspaces include in dfg
-//   // and gather those which are contained in the sparse grid
-//   for (size_t i = 0; i < dfgSubspacesLevels.size(); ++i) {
-//     const LevelVector& gatherL = dfgSubspacesLevels[i];
-
-//     if (!dsg.isContained(gatherL)) continue;
-
-//     std::vector<FG_ELEMENT> buf;
-
-//     // index of the current subspace in dsg
-//     size_t dsgSubID = dsg.getIndex(gatherL);
-
-//     // destination process to store the subspace
-//     RankType dst = dsg.getRank(dsgSubID);
-
-//     // get send and recvdata for this subspace
-//     dfg.gatherSubspaceBlock(gatherL, dst, senddata, sendsizes, sendsubspaces, recvsizes,
-//                             recvsubspaces);
-//   }
-
-//   // start send and recv operations to all other processes
-//   std::vector<MPI_Request> requests;
-//   size_t totalsendsize(0), totalrecvsize(0);
-
-//   for (int r = 0; r < dfg.getCommunicatorSize(); ++r) {
-//     MPI_Request sendrequest;
-//     MPI_Isend(senddata[r].data(), int(senddata[r].size()), MPI_INT, r, 0, dfg.getCommunicator(),
-//               &sendrequest);
-//     requests.push_back(sendrequest);
-
-//     totalsendsize += senddata[r].size();
-
-//     // calc recv data size
-//     int rsize = 0;
-
-//     for (auto s : recvsizes[r]) rsize += s;
-
-//     recvdata[r].resize(rsize);
-
-//     MPI_Request recvrequest;
-//     MPI_Irecv(recvdata[r].data(), rsize, MPI_INT, r, 0, dfg.getCommunicator(), &recvrequest);
-//     requests.push_back(recvrequest);
-
-//     totalrecvsize += rsize;
-//   }
-
-//   MPI_Waitall(int(requests.size()), &requests[0], MPI_STATUSES_IGNORE);
-
-//   int rank = dfg.getMpiRank();
-
-//   for (int r = 0; r < dfg.getCommunicatorSize(); ++r) {
-//     if (r == rank) {
-//       std::cout << "rank " << rank << " tot send " << totalsendsize << " tot recv " <<
-//       totalrecvsize
-//                 << std::endl;
-//     }
-
-//     MPI_Barrier(dfg.getCommunicator());
-//   }
-
-//   // todo: for own dsg subspaces -> put togheter subspace data from recvdata
 // }
 
 // template <typename FG_ELEMENT>
