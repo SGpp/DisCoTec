@@ -11,14 +11,13 @@
 #include "sgpp/distributedcombigrid/mpi/MPICartesianUtils.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
-#include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
+#include "sgpp/distributedcombigrid/utils/LevelSetUtils.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 //#define DEBUG_OUTPUT
-#define UNIFORM_SG
 
 namespace combigrid {
 
@@ -1070,12 +1069,11 @@ class DistributedFullGrid {
     // subspaceIndexToFGIndices_.reserve(std::accumulate(levels_.begin(), levels_.end(), 1,
     //                                    std::multiplies<LevelType>()));
 
-    // a sparse grid that knows all the hierarchical subspaces
-    //    contained in this full grid
-    SGrid<bool> sg(dim_, levels_, levels_, hasBoundaryPoints_);
+    // all the hierarchical subspaces contained in this full grid
+    auto downwardClosedSet = combigrid::getDownSet(levels_);
     // resize all common subspaces in dsg, if necessary
-    for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
-      auto level = sg.getLevelVector(subspaceID);
+    for (size_t subspaceID = 0; subspaceID < downwardClosedSet.size(); ++subspaceID) {
+      auto level = downwardClosedSet[subspaceID];
 
       if (dsg_->isContained(level)) {
         // auto lsize = getLocalSizeOfSubspaceOnThisPartition(level);
@@ -1089,11 +1087,10 @@ class DistributedFullGrid {
           dsg_->setDataSize(index, lsize);
           // subSgData.resize(lsize);
         } else {
-          ASSERT(subSgDataSize == lsize,
-                "subSgDataSize: " << subSgDataSize << ", lsize: "
-                                      << lsize << " from " << FGIndices
-                                      << " , level " << level << " , rank "
-                                      << this->getMpiRank() << std::endl);
+          ASSERT(subSgDataSize == lsize, "subSgDataSize: " << subSgDataSize << ", lsize: " << lsize
+                                                           << " from " << FGIndices << " , level "
+                                                           << level << " , rank "
+                                                           << this->getMpiRank() << std::endl);
         }
         subspaceIndexToFGIndices_.push_back(std::make_pair(index, FGIndices));
       }
@@ -1121,7 +1118,6 @@ class DistributedFullGrid {
     }
   }
 
-
   /**
    * @brief set localFGIndexToLocalSGPointerList_ based on the current sizes of
    *        dsg_
@@ -1135,17 +1131,16 @@ class DistributedFullGrid {
 
       localFGIndexToLocalSGPointerList_.resize(nrLocalElements_, nullptr);
 
-      // a sparse grid that knows all the hierarchical subspaces
-      //    contained in this full grid
-      SGrid<bool> sg(dim_, levels_, levels_, hasBoundaryPoints_);
+      // all the hierarchical subspaces contained in this full grid
+      auto downwardClosedSet = combigrid::getDownSet(levels_);
       // resize all common subspaces in dsg, if necessary
-      for (size_t subspaceID = 0; subspaceID < sg.getSize(); ++subspaceID) {
-        auto level = sg.getLevelVector(subspaceID);
+      for (size_t subspaceID = 0; subspaceID < downwardClosedSet.size(); ++subspaceID) {
+        auto level = downwardClosedSet[subspaceID];
         if (dsg_->isContained(level)) {
           FG_ELEMENT* dpointer = dsg_->getData(level);
           IndexVector ivec(dim_);
           setLocalFGPointersRecursive(dim_ - 1, level, ivec, dpointer);
-          assert((dpointer-dsg_->getData(level)) == dsg_->getDataSize(level));
+          assert((dpointer - dsg_->getData(level)) == dsg_->getDataSize(level));
         }
       }
     }
@@ -1232,11 +1227,6 @@ class DistributedFullGrid {
         ++sPointer;
       }
     }
-  }
-
-  inline size_t getNumSubspaces() const {
-    SGrid<bool> sg(dim_, levels_, levels_, hasBoundaryPoints_);
-    return sg.getSize();
   }
 
   /**

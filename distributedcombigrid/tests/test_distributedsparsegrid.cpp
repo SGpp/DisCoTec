@@ -17,6 +17,7 @@
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
+#include "sgpp/distributedcombigrid/sparsegrid/SGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelSetUtils.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
@@ -107,17 +108,18 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
 
     auto uniDFG = std::unique_ptr<DistributedFullGrid<std::complex<double>>>(
-        new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true, dfgDecomposition));
+        new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
+                                                      dfgDecomposition));
 
     uniDFG->registerUniformSG(*uniDSG);
     uniDFG->registerUniformSG(*uniDSGfromSubspaces);
     BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getRawDataSize());
 
     for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
-      const auto & level = uniDSG->getLevelVector(i);
+      const auto& level = uniDSG->getLevelVector(i);
       BOOST_ASSERT(lmin.size() > 1);
       auto secondDimLevel = level[1];
-      if(secondDimLevel > lmin[1]) {
+      if (secondDimLevel > lmin[1]) {
         BOOST_CHECK(secondDimLevel <= lmax[1]);
         BOOST_CHECK_EQUAL(uniDSG->getDataSize(i), 0);
         BOOST_CHECK_EQUAL(uniDFG->getFGPointsOfSubspace(level).size(), 0);
@@ -251,18 +253,18 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
 
     // and remove straight away
     if (rank == 0) {
-      system( "rm test_sg_*" );
+      system("rm test_sg_*");
     }
   }
 }
 
 BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(480))
-//very cheap
+// very cheap
 BOOST_AUTO_TEST_CASE(test_0) {
-  LevelVector lmin = {1,1};
-  LevelVector lmax = {3,3};
+  LevelVector lmin = {1, 1};
+  LevelVector lmax = {3, 3};
   for (bool bValue : {true}) {
-    std::vector<int> procs = {1,1};
+    std::vector<int> procs = {1, 1};
     std::vector<bool> boundary(2, bValue);
     auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -272,14 +274,15 @@ BOOST_AUTO_TEST_CASE(test_0) {
 }
 
 BOOST_AUTO_TEST_CASE(test_1) {
-  LevelVector lmin = {3,3};
-  LevelVector lmax = {7,7};
-  for (int procOne : {1,2,3}) {
-    for (int procTwo : {1,2}) {
+  LevelVector lmin = {3, 3};
+  LevelVector lmax = {7, 7};
+  for (int procOne : {1, 2, 3}) {
+    for (int procTwo : {1, 2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
-        auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+        auto multProcs =
+            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
         checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
         MPI_Barrier(MPI_COMM_WORLD);
@@ -287,16 +290,17 @@ BOOST_AUTO_TEST_CASE(test_1) {
     }
   }
 }
-//same for anisotropic
+// same for anisotropic
 BOOST_AUTO_TEST_CASE(test_2) {
-  LevelVector lmin = {2,4};
-  LevelVector lmax = {6,8};
-  for (int procOne : {1,2,3}) {
-    for (int procTwo : {1,2}) {
+  LevelVector lmin = {2, 4};
+  LevelVector lmax = {6, 8};
+  for (int procOne : {1, 2, 3}) {
+    for (int procTwo : {1, 2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
-        auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+        auto multProcs =
+            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
         checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
         MPI_Barrier(MPI_COMM_WORLD);
@@ -304,16 +308,17 @@ BOOST_AUTO_TEST_CASE(test_2) {
     }
   }
 }
-//and non-regular truncated CT
+// and non-regular truncated CT
 BOOST_AUTO_TEST_CASE(test_3) {
-  LevelVector lmin = {2,4};
-  LevelVector lmax = {9,9};
-  for (int procOne : {1,2,3}) {
-    for (int procTwo : {1,2}) {
+  LevelVector lmin = {2, 4};
+  LevelVector lmax = {9, 9};
+  for (int procOne : {1, 2, 3}) {
+    for (int procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
         std::vector<int> procs = {procOne, procTwo};
         std::vector<bool> boundary(2, bValue);
-        auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+        auto multProcs =
+            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
         checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
         MPI_Barrier(MPI_COMM_WORLD);
@@ -421,7 +426,7 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_1) {
   std::vector<int> procs = {2};
   std::vector<IndexVector> decomposition = {{0, 1}};
   auto partitionedNumDOFs = getPartitionedNumDOFSGAdaptive(lmin, lmax, lmax, decomposition);
-  auto sln = LevelVector({1,32});
+  auto sln = LevelVector({1, 32});
   BOOST_CHECK_EQUAL_COLLECTIONS(partitionedNumDOFs.begin(), partitionedNumDOFs.end(), sln.begin(),
                                 sln.end());
   if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
