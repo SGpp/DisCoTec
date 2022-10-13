@@ -534,7 +534,9 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
   BOOST_TEST_MESSAGE("time to create regular hierarchical levels: " << duration.count()
                                                                     << " milliseconds");
   BOOST_TEST_MESSAGE("number of levels created: " << created.size());
+#ifdef NDEBUG
   BOOST_CHECK(duration.count() < 10000);
+#endif
 }
 
 BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
@@ -552,7 +554,9 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
   BOOST_TEST_MESSAGE("time to create block of hierarchical levels: " << duration.count()
                                                                      << " milliseconds");
   BOOST_TEST_MESSAGE("number of levels created: " << created.size());
+#ifdef NDEBUG
   BOOST_CHECK(duration.count() < 1000);
+#endif
 }
 
 BOOST_AUTO_TEST_CASE(test_getAllKOutOfDDimensions) {
