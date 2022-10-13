@@ -2,6 +2,7 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+
 #include <boost/test/unit_test.hpp>
 #include <complex>
 #include <cstdarg>
@@ -13,7 +14,6 @@
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIMemory.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-
 #include "test_helper.hpp"
 
 using namespace combigrid;
@@ -67,7 +67,8 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
         std::vector<int> intProcs(procs.rbegin(), procs.rend());
         std::vector<int> periods(dim, 0);
         int reorder = 0;
-        MPI_Cart_create(comm, static_cast<int>(dim), &intProcs[0], &periods[0], reorder, &cartesian_communicator);
+        MPI_Cart_create(comm, static_cast<int>(dim), &intProcs[0], &periods[0], reorder,
+                        &cartesian_communicator);
 
         // this should scale linearly w.r.t. size of comm
         mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSizesReference[i], comm);
@@ -82,18 +83,19 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
         unsigned long numElementsRef = static_cast<unsigned long>(dfg.getNrElements());
         unsigned long numElements = 0;
         unsigned long numLocalElements = static_cast<unsigned long>(dfg.getNrLocalElements());
-        MPI_Allreduce(&numLocalElements, &numElements, 1,
-                      MPI_UNSIGNED_LONG,
-                      MPI_SUM, comm);
+        MPI_Allreduce(&numLocalElements, &numElements, 1, MPI_UNSIGNED_LONG, MPI_SUM, comm);
         BOOST_TEST(numElements == numElementsRef);
       }
       vmSizes[i] = vmSize - vmSizesReference[i];
       // compare allocated memory sizes
       // check for linear scaling (grace 100% for memory size jitter & decomposition_ member)
       if (TestHelper::getRank(comm) == 0) {
-        BOOST_TEST_CHECKPOINT( "reference " + std::to_string(groupSizes[i]) +
-                                ": " + std::to_string(vmSizesReference[i]) +
-                                ", vmSize: " + std::to_string(vmSizes[i]) );
+        BOOST_TEST_CHECKPOINT("reference " + std::to_string(groupSizes[i]) + ": " +
+                              std::to_string(vmSizesReference[i]) +
+                              ", vmSize: " + std::to_string(vmSizes[i]));
+        BOOST_TEST_MESSAGE("reference " + std::to_string(groupSizes[i]) + ": " +
+                           std::to_string(vmSizesReference[i]) +
+                           ", vmSize: " + std::to_string(vmSizes[i]));
         if (i > 0) {
           BOOST_TEST(static_cast<double>(vmSizes[i]) <= ((vmSizes[0] + 500) * 2.));
         }
@@ -518,6 +520,48 @@ BOOST_AUTO_TEST_CASE(test_21) {
 BOOST_AUTO_TEST_CASE(test_22) {
   LevelVector levels = {3, 3, 3, 3, 3, 2};
   checkDistributedFullgridMemory(levels, false);
+}
+
+BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
+  std::vector<int> procs = {5, 1, 1, 1, 1, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    LevelVector lmin(dim, 2);
+    LevelVector lmax(dim, 18);
+    LevelVector fullGridLevel = {19, 2, 2, 2, 2, 2};
+    std::vector<bool> boundary(dim, true);
+    std::vector<IndexVector> decomposition = {
+        {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
+
+    auto start = std::chrono::high_resolution_clock::now();
+    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to create full grid w/ level sum 29: " << duration.count()
+                                                                    << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 2500);
+#endif
+
+    start = std::chrono::high_resolution_clock::now();
+    DistributedSparseGridUniform<real> dsg(dim, lmax, lmin, boundary, comm);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to create sparse grid: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 10000);
+#endif
+
+    start = std::chrono::high_resolution_clock::now();
+    dfg.registerUniformSG(dsg);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time register sparse grid: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 20000);
+#endif
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()
