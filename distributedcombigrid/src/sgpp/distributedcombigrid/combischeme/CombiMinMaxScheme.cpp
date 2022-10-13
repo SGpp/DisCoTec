@@ -39,12 +39,12 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
     }
     lmin_[dummyDims[i]] = lmax_[i];
   }
-  n_ = static_cast<LevelType>(sum(lmin_) + c);
+  n_ = static_cast<LevelType>(combigrid::levelSum(lmin_) + c);
   // create combi spaces
   for (size_t i = 0; i < levels_.size(); ++i) {
     LevelVector& l = levels_[i];
     for (LevelType p = 0; p < LevelType(effDim_); ++p) {
-      if (l >= lmin_ && sum(l) == n_ - p) combiSpaces_.push_back(l);
+      if (l >= lmin_ && combigrid::levelSum(l) == n_ - p) combiSpaces_.push_back(l);
     }
   }
   computeCombiCoeffsClassical();
@@ -65,7 +65,7 @@ void CombiMinMaxScheme::createAdaptiveCombischeme() {
   LevelVector l(dim_);
   // // TODO: Why levelSum-1 ?
   // createLevelsRec(dim_, n_ - 1, dim_, l, lmax_);
-  auto n = static_cast<LevelType>(n_ - sum(lmin_));
+  auto n = static_cast<LevelType>(n_ - combigrid::levelSum(lmin_));
   auto rlmin = lmax_;
   for (auto& rl: rlmin) {
     rl = static_cast<LevelType>(rl - n);
@@ -91,7 +91,7 @@ void CombiMinMaxScheme::makeFaultTolerant() {
   for (size_t i = 0; i < levels_.size(); ++i) {
     LevelVector& l = levels_[i];
     for (LevelType p = LevelType(effDim_); p < LevelType(effDim_) + extraDiags; ++p) {
-      if (l >= lmin_ && sum(l) == n_ - p) {
+      if (l >= lmin_ && combigrid::levelSum(l) == n_ - p) {
         combiSpaces_.push_back(l);
         coefficients_.push_back(0.0);
       }
@@ -123,7 +123,7 @@ void CombiMinMaxScheme::computeCombiCoeffsAdaptive() {
 
 void CombiMinMaxScheme::computeCombiCoeffsClassical() {
   for (DimType i = 0; i < combiSpaces_.size(); ++i) {
-    LevelType l1 = sum(combiSpaces_[i]);
+    LevelType l1 = combigrid::levelSum(combiSpaces_[i]);
     auto p = static_cast<LevelType>(n_ - l1);
     // Classical combination coefficients
     coefficients_.push_back(std::pow(-1, p) *
