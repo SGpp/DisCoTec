@@ -3,6 +3,7 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
+#include <boost/math/special_functions/binomial.hpp>
 #include <boost/test/unit_test.hpp>
 #include <complex>
 #include <cstdarg>
@@ -552,6 +553,23 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
                                                                      << " milliseconds");
   BOOST_TEST_MESSAGE("number of levels created: " << created.size());
   BOOST_CHECK(duration.count() < 1000);
+}
+
+BOOST_AUTO_TEST_CASE(test_getAllKOutOfDDimensions) {
+  if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
+    for (DimType d = 1; d < 8; ++d) {
+      for (DimType k = 1; k <= d; ++k) {
+        auto allKOutOfD = AllKOutOfDDimensions::get(k, d);
+        BOOST_CHECK_EQUAL(allKOutOfD.size(), boost::math::binomial_coefficient<real>(d, k));
+        for (const auto& combination : allKOutOfD) {
+          BOOST_CHECK_EQUAL(combination.size(), k);
+          for (const auto& index : combination) {
+            BOOST_CHECK(index < d);
+          }
+        }
+      }
+    }
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

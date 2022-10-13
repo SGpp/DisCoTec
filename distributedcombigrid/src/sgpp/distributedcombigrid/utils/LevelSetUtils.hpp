@@ -10,7 +10,6 @@ namespace combigrid {
 // get downward closed set of a single LevelVector
 std::vector<LevelVector> getDownSet(combigrid::LevelVector const& l);
 
-
 struct AllKOutOfDDimensions {
   /**
    * @brief Get all combinations of k out of d dimensions (from 0 to d-1)
