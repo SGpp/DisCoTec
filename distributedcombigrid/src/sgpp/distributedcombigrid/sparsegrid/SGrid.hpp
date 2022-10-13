@@ -11,7 +11,7 @@
 
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
-#include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
+#include "sgpp/distributedcombigrid/utils/LevelSetUtils.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 namespace combigrid {
