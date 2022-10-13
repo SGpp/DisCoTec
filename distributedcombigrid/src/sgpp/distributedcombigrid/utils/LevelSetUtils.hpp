@@ -11,6 +11,14 @@ namespace combigrid {
 std::vector<LevelVector> getDownSet(combigrid::LevelVector const& l);
 
 
+struct AllKOutOfDDimensions {
+  /**
+   * @brief Get all combinations of k out of d dimensions (from 0 to d-1)
+   */
+  static const std::vector<std::vector<DimType>>& get(DimType k, DimType d);
+
+  static std::map<std::pair<DimType, DimType>, std::vector<std::vector<DimType>>> cache_;
+};
 
 /**
  * @brief recursively generate a downward-closed set of hierarchical level vectors

@@ -523,6 +523,8 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
   LevelVector lmax = {19, 19, 19, 19, 19, 19};
   DimType dim = lmin.size();
   std::vector<LevelVector> created;
+  // create once to fill the cache
+  combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
 
   auto start = std::chrono::high_resolution_clock::now();
   combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
@@ -539,6 +541,8 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
   LevelVector lmax = lmin;
   DimType dim = lmin.size();
   std::vector<LevelVector> created;
+  // create once to fill the cache
+  combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
 
   auto start = std::chrono::high_resolution_clock::now();
   combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
