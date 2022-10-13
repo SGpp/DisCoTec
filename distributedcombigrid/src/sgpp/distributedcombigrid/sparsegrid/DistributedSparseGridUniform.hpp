@@ -212,38 +212,24 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
 // at construction create only levels, no data
 template <typename FG_ELEMENT>
 DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
-    DimType dim,
-    const std::vector<LevelVector>& subspaces,
-    const std::vector<bool>& boundary,
-    CommunicatorType comm,
-    size_t procsPerNode /*= 0*/)
+    DimType dim, const std::vector<LevelVector>& subspaces, const std::vector<bool>& boundary,
+    CommunicatorType comm, size_t procsPerNode /*= 0*/)
     : dim_(dim),
       levels_(subspaces),
       boundary_(boundary),
       comm_(comm),
-      subspacesDataSizes_(subspaces.size())
-{
+      subspaces_(subspaces.size()),
+      subspacesDataSizes_(subspaces.size()) {
   assert(dim > 0);
   assert(boundary.size() == dim);
 
-  for (auto& l : subspaces){
+  for (auto& l : subspaces) {
     assert(l.size() == dim);
     for (size_t i = 0; i < l.size(); ++i) {
       assert(l[i] > 0);
     }
   }
 
-  // init subspaces
-  subspaces_.reserve(subspaces.size());
-  for (size_t i = 0; i < subspaces.size(); i++) {
-   subspaces_.push_back({ ///*.level_    =*/ subspaces[i],
-                          // /*.sizes_    =*/ IndexVector(0),
-                          // /*.size_     =*/ 0,
-                          /*.data_     =*/ nullptr
-                          });
-  }
-
-  // setSizes();
 
   MPI_Comm_rank(comm_, &rank_);
   MPI_Comm_size(comm_, &commSize_);
