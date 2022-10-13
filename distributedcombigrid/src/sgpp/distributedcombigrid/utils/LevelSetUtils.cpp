@@ -46,6 +46,18 @@ std::vector<std::vector<DimType>> getAllKOutOfDDimensions(DimType k, DimType d) 
   return combinations;
 }
 
+const std::vector<std::vector<DimType>>& AllKOutOfDDimensions::get(DimType k, DimType d) {
+  // TODO why does caching take longer?
+  auto key = std::make_pair(k, d);
+  if (cache_.find(key) == cache_.end()) {
+    cache_[key] = getAllKOutOfDDimensions(k, d);
+  }
+  return cache_[key];
+  // return getAllKOutOfDDimensions(k, d);
+}
+std::map<std::pair<DimType, DimType>, std::vector<std::vector<DimType>>>
+    AllKOutOfDDimensions::cache_;
+
 void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
                                           const LevelVector& lmax, const LevelVector& lmin,
                                           std::vector<LevelVector>& created) {
