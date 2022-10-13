@@ -524,7 +524,7 @@ BOOST_AUTO_TEST_CASE(test_22) {
   checkDistributedFullgridMemory(levels, false);
 }
 
-BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
+BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_boundary_firstdim) {
   std::vector<int> procs = {5, 1, 1, 1, 1, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
@@ -532,89 +532,221 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
     LevelVector fullGridLevel = {19, 2, 2, 2, 2, 2};
     std::vector<IndexVector> decomposition = {
         {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
-    {
-      std::vector<bool> boundary(dim, true);
+    std::vector<bool> boundary(dim, true);
 
-      DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
 
-      LevelVector level = {6, 5, 4, 3, 2, 1};  //{18, 1, 2, 3, 4, 5},
-      for (DimType d = 0; d < dim; ++d) {
-        IndexVector indices;
-        dfg.get1dIndicesLocal(d, level[d], indices);
-        auto rank = dfg.getRank();
-        if (rank == 0 && d == 0) {
-          IndexVector expected = {8192, 24576, 40960, 57344, 73728, 90112};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (rank == 1 && d == 0) {
-          IndexVector expected = {8192, 24576, 40960, 57344, 73728, 90112};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (rank == 2 && d == 0) {
-          IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111, 106495, 122879};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (rank == 3 && d == 0) {
-          IndexVector expected = {8192, 24576, 40960, 57344, 73728, 90112};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (rank == 4 && d == 0) {
-          IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (d == 4) {
-          IndexVector expected = {1, 3};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (d == 5) {
-          IndexVector expected = {0, 2, 4};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else {
-          BOOST_CHECK(indices.empty());
-        }
+    LevelVector level = {6, 5, 4, 3, 2, 1};  //{18, 1, 2, 3, 4, 5},
+    for (DimType d = 0; d < dim; ++d) {
+      IndexVector indices;
+      dfg.get1dIndicesLocal(d, level[d], indices);
+      auto rank = dfg.getRank();
+      if (rank == 0 && d == 0) {
+        IndexVector expected = {8192, 24576, 40960, 57344, 73728, 90112};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (rank == 1 && d == 0) {
+        IndexVector expected = {8192, 24576, 40960, 57344, 73728, 90112};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (rank == 2 && d == 0) {
+        IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111, 106495, 122879};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (rank == 3 && d == 0) {
+        IndexVector expected = {8192, 24576, 40960, 57344, 73728, 90112};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (rank == 4 && d == 0) {
+        IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (d == 4) {
+        IndexVector expected = {1, 3};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (d == 5) {
+        IndexVector expected = {0, 2, 4};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else {
+        BOOST_CHECK(indices.empty());
       }
     }
-    {
-      std::vector<bool> boundary(dim, false);
+  }
+}
 
-      DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_boundary_threedim) {
+  std::vector<int> procs = {1, 2, 1, 2, 1, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    LevelVector fullGridLevel = {2, 3, 4, 5, 6, 7};
+    std::vector<IndexVector> decomposition = {{0}, {0, 3}, {0}, {0, 17}, {0}, {0, 63}};
 
-      LevelVector level = {6, 5, 4, 3, 2, 1};
-      for (DimType d = 0; d < dim; ++d) {
-        IndexVector indices;
-        dfg.get1dIndicesLocal(d, level[d], indices);
-        auto rank = dfg.getRank();
-        if (rank == 0 && d == 0) {
-          IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (rank == 1 && d == 0) {
-          IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (rank == 2 && d == 0) {
-          IndexVector expected = {8190, 24574, 40958, 57342, 73726, 90110, 106494, 122878};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (rank == 3 && d == 0) {
-          IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (rank == 4 && d == 0) {
-          IndexVector expected = {8190, 24574, 40958, 57342, 73726, 90110};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (d == 4) {
-          IndexVector expected = {0, 2};
-          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
-                                        expected.end());
-        } else if (d == 5) {
+    std::vector<bool> boundary(dim, true);
+
+    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+
+    LevelVector level = {5, 3, 4, 5, 2, 5};  //{18, 1, 2, 3, 4, 5},
+    for (DimType d = 0; d < dim; ++d) {
+      IndexVector indices;
+      dfg.get1dIndicesLocal(d, level[d], indices);
+      auto rank = dfg.getRank();
+      if (d == 0) {
+        BOOST_CHECK(indices.empty());
+      } else if (d == 1) {
+        if (rank < 4) {
           IndexVector expected = {1};
           BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
                                         expected.end());
         } else {
-          BOOST_CHECK(indices.empty());
+          IndexVector expected = {0, 2, 4};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        }
+      } else if (d == 2) {
+        IndexVector expected = {1, 3, 5, 7, 9, 11, 13, 15};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (d == 3) {
+        if ((rank / 2) % 2 == 0) {
+          IndexVector expected = {1, 3, 5, 7, 9, 11, 13, 15};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        } else {
+          IndexVector expected = {0, 2, 4, 6, 8, 10, 12, 14};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        }
+      } else if (d == 4) {
+        IndexVector expected = {16, 48};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (d == 5) {
+        if (rank % 2 == 0) {
+          IndexVector expected = {4, 12, 20, 28, 36, 44, 52, 60};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        } else {
+          IndexVector expected = {5, 13, 21, 29, 37, 45, 53, 61};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        }
+      }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_noboundary_firstdim) {
+  std::vector<int> procs = {5, 1, 1, 1, 1, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    LevelVector fullGridLevel = {19, 2, 2, 2, 2, 2};
+    std::vector<IndexVector> decomposition = {
+        {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
+
+    std::vector<bool> boundary(dim, false);
+
+    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+
+    LevelVector level = {6, 5, 4, 3, 2, 1};
+    for (DimType d = 0; d < dim; ++d) {
+      IndexVector indices;
+      dfg.get1dIndicesLocal(d, level[d], indices);
+      auto rank = dfg.getRank();
+      if (rank == 0 && d == 0) {
+        IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (rank == 1 && d == 0) {
+        IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (rank == 2 && d == 0) {
+        IndexVector expected = {8190, 24574, 40958, 57342, 73726, 90110, 106494, 122878};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (rank == 3 && d == 0) {
+        IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (rank == 4 && d == 0) {
+        IndexVector expected = {8190, 24574, 40958, 57342, 73726, 90110};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (d == 4) {
+        IndexVector expected = {0, 2};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (d == 5) {
+        IndexVector expected = {1};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else {
+        BOOST_CHECK(indices.empty());
+      }
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_noboundary_threedim) {
+  std::vector<int> procs = {1, 2, 1, 2, 1, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    LevelVector fullGridLevel = {2, 3, 4, 5, 6, 7};
+    std::vector<IndexVector> decomposition = {{0}, {0, 3}, {0}, {0, 17}, {0}, {0, 63}};
+
+    std::vector<bool> boundary(dim, false);
+
+    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+
+    LevelVector level = {5, 3, 4, 5, 2, 5};  //{18, 1, 2, 3, 4, 5},
+    for (DimType d = 0; d < dim; ++d) {
+      IndexVector indices;
+      dfg.get1dIndicesLocal(d, level[d], indices);
+      auto rank = dfg.getRank();
+      if (d == 0) {
+        BOOST_CHECK(indices.empty());
+      } else if (d == 1) {
+        if (rank < 4) {
+          IndexVector expected = {0, 2};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        } else {
+          IndexVector expected = {1, 3};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        }
+      } else if (d == 2) {
+        IndexVector expected = {0, 2, 4, 6, 8, 10, 12, 14};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (d == 3) {
+        if ((rank / 2) % 2 == 0) {
+          IndexVector expected = {0, 2, 4, 6, 8, 10, 12, 14, 16};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        } else {
+          IndexVector expected = {1, 3, 5, 7, 9, 11, 13};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        }
+      } else if (d == 4) {
+        IndexVector expected = {15, 47};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                      expected.end());
+      } else if (d == 5) {
+        if (rank % 2 == 0) {
+          IndexVector expected = {3, 11, 19, 27, 35, 43, 51, 59};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
+        } else {
+          IndexVector expected = {4, 12, 20, 28, 36, 44, 52, 60};
+          BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(),
+                                        expected.end());
         }
       }
     }
