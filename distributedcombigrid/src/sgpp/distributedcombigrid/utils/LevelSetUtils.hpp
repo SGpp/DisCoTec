@@ -7,6 +7,11 @@
 
 namespace combigrid {
 
+// compute powers of two quickly by bit-shifting
+inline IndexType powerOfTwoByBitshift(IndexType x) {
+  return 2<<(x-1);
+}
+
 // get downward closed set of a single LevelVector
 std::vector<LevelVector> getDownSet(combigrid::LevelVector const& l);
 
