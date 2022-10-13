@@ -1263,9 +1263,9 @@ class DistributedFullGrid {
 
     // special treatment for level 1 suspaces with boundary
     if (l == 1 && hasBoundaryPoints_[d]) {
-      stride = IndexType(std::pow(2, levels_[d] - 1));
+      stride = combigrid::powerOfTwoByBitshift(levels_[d] - 1);
     } else {
-      stride = IndexType(std::pow(2, levels_[d] - l + 1));
+      stride = combigrid::powerOfTwoByBitshift(levels_[d] - l + 1);
     }
 
     for (IndexType idx = start; idx < nrLocalPoints_[d]; idx += stride) {
