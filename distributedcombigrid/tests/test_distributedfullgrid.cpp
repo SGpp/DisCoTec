@@ -521,6 +521,43 @@ BOOST_AUTO_TEST_CASE(test_22) {
   checkDistributedFullgridMemory(levels, false);
 }
 
+BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
+  std::vector<int> procs = {5, 1, 1, 1, 1, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    std::vector<bool> boundary(dim, true);
+    LevelVector fullGridLevel = {19, 2, 2, 2, 2, 2};
+    std::vector<IndexVector> decomposition = {
+        {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
+
+    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+
+    LevelVector level = {6, 5, 4, 3, 2, 1};  //{18, 1, 2, 3, 4, 5},
+    for (DimType d = 0; d < dim; ++d) {
+      IndexVector indices;
+      dfg.get1dIndicesLocal(d, level[d], indices);
+      if (rank == 0 && d == 0) {
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8192 24576 40960 57344 73728 90112});
+      } else if (rank == 1 && d == 0) {
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8192 24576 40960 57344 73728 90112});
+      } else if (rank == 2 && d == 0) {
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8191 24575 40959 57343 73727 90111 106495 122879});
+      } else if (rank == 3 && d == 0) {
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8192 24576 40960 57344 73728 90112});
+      } else if (rank == 4 && d == 0) {
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8191 24575 40959 57343 73727 90111});
+      } else if (d == 4) {
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {1, 3});
+      } else if (d == 5) {
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {0, 2, 4});
+      } else{
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {});
+      }
+    }
+  }
+}
+
 BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
   std::vector<int> procs = {5, 1, 1, 1, 1, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
@@ -556,7 +593,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     dfg.registerUniformSG(dsg);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    BOOST_TEST_MESSAGE("time register sparse grid: " << duration.count() << " milliseconds");
+    BOOST_TEST_MESSAGE("time to register sparse grid: " << duration.count() << " milliseconds");
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 20000);
 #endif

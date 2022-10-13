@@ -993,7 +993,7 @@ class DistributedFullGrid {
 
   void calcLocalSizeRecursive(DimType d, const LevelVector& lvec, IndexVector& ivec, size_t& localSize) {
     IndexVector oneDIndices;
-    get1dIndicesLocal(d, lvec, oneDIndices);
+    get1dIndicesLocal(d, lvec[d], oneDIndices);
 
     // stupid additive recursion, could be multiplicative (since hyper-rectangular)
     for (IndexType idx : oneDIndices) {
@@ -1024,7 +1024,7 @@ class DistributedFullGrid {
   void getFGPointsOfSubspaceRecursive(DimType d, const LevelVector& lvec, IndexVector& ivec,
                                       std::vector<IndexType>& subspaceIndices) {
     IndexVector oneDIndices;
-    get1dIndicesLocal(d, lvec, oneDIndices);
+    get1dIndicesLocal(d, lvec[d], oneDIndices);
 
     for (const auto idx : oneDIndices) {
       ivec[d] = idx;
@@ -1043,7 +1043,7 @@ class DistributedFullGrid {
    * @return size_t the indices of points on this partition
    */
   std::vector<IndexType> getFGPointsOfSubspace(LevelVector l) {
-    std::vector<IndexType> subspaceIndices;
+    IndexVector subspaceIndices;
     IndexVector ivec(dim_);
 
     getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), l, ivec, subspaceIndices);
@@ -1103,7 +1103,7 @@ class DistributedFullGrid {
 
   void setLocalFGPointersRecursive(DimType d, const LevelVector& lvec, IndexVector& ivec, FG_ELEMENT*& sgDataPointer) {
     IndexVector oneDIndices;
-    get1dIndicesLocal(d, lvec, oneDIndices);
+    get1dIndicesLocal(d, lvec[d], oneDIndices);
 
     for (IndexType idx : oneDIndices) {
       ivec[d] = idx;
@@ -1226,6 +1226,50 @@ class DistributedFullGrid {
         fullgridVector_[fIndex] = *sPointer;
         ++sPointer;
       }
+    }
+  }
+
+  /**
+   * @brief get the local 1d indices that correspond to a given level
+   *
+   * @param d the dimension in which we want the indices for the level
+   * @param l the level
+   * @param oneDIndices a list of the local vector indices
+   */
+  void get1dIndicesLocal(DimType d, LevelType l, IndexVector& oneDIndices) {
+    // get first local idx which has level l
+    IndexType start = -1;
+    const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
+
+    for (IndexType i = 0; i < nrLocalPoints_[d]; ++i) {
+      const IndexType global1dIdx = firstGlobal1dIdx + i;
+
+      auto myLevel = getLevel(d, global1dIdx);
+
+      // myLevel can be zero if boundary point, but we have our boundary
+      // points in level 1 subspaces
+      if (myLevel == 0) myLevel = 1;
+
+      if (myLevel == l) {
+        start = i;
+        break;
+      }
+    }
+
+    // no point of this level found
+    if (start == -1) return;
+
+    IndexType stride;
+
+    // special treatment for level 1 suspaces with boundary
+    if (l == 1 && hasBoundaryPoints_[d]) {
+      stride = IndexType(std::pow(2, levels_[d] - 1));
+    } else {
+      stride = IndexType(std::pow(2, levels_[d] - l + 1));
+    }
+
+    for (IndexType idx = start; idx < nrLocalPoints_[d]; idx += stride) {
+      oneDIndices.push_back(idx);
     }
   }
 
@@ -2072,45 +2116,6 @@ class DistributedFullGrid {
 #endif // not def NDEBUG
 
     decomposition_ = decomposition;
-  }
-
-  void get1dIndicesLocal(DimType d, const LevelVector& lvec, IndexVector& oneDIndices) {
-    const auto& l = lvec[d];
-
-    // get first local idx which has level l
-    IndexType start = -1;
-    const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
-
-    for (IndexType i = 0; i < nrLocalPoints_[d]; ++i) {
-      const IndexType global1dIdx = firstGlobal1dIdx + i;
-
-      auto myLevel = getLevel(d, global1dIdx);
-
-      // myLevel can be zero if boundary point, but we have our boundary
-      // points in level 1 subspaces
-      if (myLevel == 0) myLevel = 1;
-
-      if (myLevel == l) {
-        start = i;
-        break;
-      }
-    }
-
-    // no point of this level found
-    if (start == -1) return;
-
-    IndexType stride;
-
-    // special treatment for level 1 suspaces with boundary
-    if (l == 1 && hasBoundaryPoints_[d]) {
-      stride = IndexType(std::pow(2, levels_[d] - 1));
-    } else {
-      stride = IndexType(std::pow(2, levels_[d] - l + 1));
-    }
-
-    for (IndexType idx = start; idx < nrLocalPoints_[d]; idx += stride) {
-      oneDIndices.push_back(idx);
-    }
   }
 
   // 2d output
