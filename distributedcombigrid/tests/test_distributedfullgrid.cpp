@@ -162,33 +162,36 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
 
   // test full grid interpolation
   std::vector<std::vector<double>> interpolationCoords;
-  interpolationCoords.emplace_back(dim, 1./std::sqrt(2.));
-  interpolationCoords.emplace_back(dim, 1./std::sqrt(3.));
-  interpolationCoords.emplace_back(dim, 1./std::sqrt(5.));
+  interpolationCoords.emplace_back(dim, 1. / std::sqrt(2.));
+  interpolationCoords.emplace_back(dim, 1. / std::sqrt(3.));
+  interpolationCoords.emplace_back(dim, 1. / std::sqrt(5.));
   interpolationCoords.emplace_back(dim, 0.5);
   interpolationCoords.emplace_back(dim, 0.5 + 1e-4);
   interpolationCoords.emplace_back(dim, 0.5 - 1e-4);
   interpolationCoords.emplace_back(dim, 0.5 + 1e-5);
   interpolationCoords.emplace_back(dim, 0.5 - 1e-5);
-  BOOST_CHECK_CLOSE(dfg.eval(interpolationCoords[0]).real(), f(interpolationCoords[0]).real(), TestHelper::tolerance);
+  BOOST_CHECK_CLOSE(dfg.eval(interpolationCoords[0]).real(), f(interpolationCoords[0]).real(),
+                    TestHelper::tolerance);
 
   auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
 
   for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-    BOOST_CHECK_CLOSE(interpolatedValues[i].real(), f(interpolationCoords[i]).real(), TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(interpolatedValues[i].real(), f(interpolationCoords[i]).real(),
+                      TestHelper::tolerance);
   }
 
   // test norm calculation
   auto maxnorm = dfg.getLpNorm(0);
   auto onenorm = dfg.getLpNorm(1);
   auto twonorm = dfg.getLpNorm(2);
-  if (std::all_of(boundary.begin(), boundary.end(), [](bool i){return i;})){
+  if (std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
     // check that InnerNodalBasisFunctionIntegral is correct
     double numFullInnerBasisFcns = 1.;
     for (DimType d = 0; d < dim; ++d) {
       numFullInnerBasisFcns *= static_cast<double>(dfg.length(d) - 1);
     }
-    BOOST_CHECK_CLOSE(dfg.getInnerNodalBasisFunctionIntegral(), 1./numFullInnerBasisFcns, TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(dfg.getInnerNodalBasisFunctionIntegral(), 1. / numFullInnerBasisFcns,
+                      TestHelper::tolerance);
 
     std::vector<double> maxcoords(dim, 1.);
     BOOST_CHECK_EQUAL(f(maxcoords), maxnorm);
@@ -211,9 +214,9 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
       numElements *= subarrayExtents[j];
     }
     BOOST_CHECK_EQUAL(ghostLayer.size(), numElements);
-    if(numElements > 0){
+    if (numElements > 0) {
       BOOST_CHECK_EQUAL(subarrayExtents[d], 1);
-      for (size_t j=0; j < numElements; ++j){
+      for (size_t j = 0; j < numElements; ++j) {
         // calculate local axis indices of ghost layer points
         // == axis index of lowest layer in dim d for dfg
         IndexVector locAxisIndex(dim), globAxisIndex(dim);
@@ -249,7 +252,6 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   // ss << "test_dfg_" << levels << procs << boundary << forward << ".vtk";
   // dfg.writePlotFileVTK(ss.str().c_str());
 
-
   // create distributed fg and copy values
   DistributedFullGrid<std::complex<double>> dfgCopy(
       dim, dfg.getLevels(), dfg.getCommunicator(), dfg.returnBoundaryFlags(),
@@ -277,22 +279,22 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   // test lower to upper exchange
   for (DimType d = 0; d < dim; ++d) {
     // std::cout << dfg << std::endl;
-    if (boundary[d] == true){
+    if (boundary[d] == true) {
       dfg.writeLowerBoundaryToUpperBoundary(d);
 
-      for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i){
+      for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
         std::vector<double> coords(dim);
         dfg.getCoordsLocal(i, coords);
-        if (std::abs((coords[d] - 1.)) < TestHelper::tolerance){
+        if (std::abs((coords[d] - 1.)) < TestHelper::tolerance) {
           bool edge = false;
           // if other dimensions are at maximum too, we are at an edge
           // results may differ; skip
-          for (DimType d_i = 0; d_i < dim; ++d_i){
-            if (d_i != d && std::abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+          for (DimType d_i = 0; d_i < dim; ++d_i) {
+            if (d_i != d && std::abs((coords[d_i] - 1.)) < TestHelper::tolerance) {
               edge = true;
             }
           }
-          if (!edge){
+          if (!edge) {
             // check if the value is the same as on the lower boundary
             auto compareCoords = coords;
             compareCoords[d] = 0.;
@@ -300,12 +302,12 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
           }
         } else {
           bool otherBoundary = false;
-          for (DimType d_i = 0; d_i < dim; ++d_i){
-            if (d_i != d && std::abs((coords[d_i] - 1.)) < TestHelper::tolerance){
+          for (DimType d_i = 0; d_i < dim; ++d_i) {
+            if (d_i != d && std::abs((coords[d_i] - 1.)) < TestHelper::tolerance) {
               otherBoundary = true;
             }
           }
-          if (!otherBoundary){
+          if (!otherBoundary) {
             // make sure all other values remained the same
             BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(coords));
           }
@@ -317,7 +319,8 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   // std::cout << dfg << std::endl;
 }
 
-BOOST_FIXTURE_TEST_SUITE(distributedfullgrid, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
+BOOST_FIXTURE_TEST_SUITE(distributedfullgrid, TestHelper::BarrierAtEnd,
+                         *boost::unit_test::timeout(120))
 
 // with boundary
 // isotropic
@@ -538,22 +541,30 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
     for (DimType d = 0; d < dim; ++d) {
       IndexVector indices;
       dfg.get1dIndicesLocal(d, level[d], indices);
+      auto rank = dfg.getRank();
       if (rank == 0 && d == 0) {
-        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8192 24576 40960 57344 73728 90112});
+        IndexVector expected = {8192, 24576, 40960, 57344, 73728, 90112};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
       } else if (rank == 1 && d == 0) {
-        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8192 24576 40960 57344 73728 90112});
+        IndexVector expected = {8192, 24576, 40960, 57344, 73728, 90112};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
       } else if (rank == 2 && d == 0) {
-        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8191 24575 40959 57343 73727 90111 106495 122879});
+        IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111, 106495, 122879};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
       } else if (rank == 3 && d == 0) {
-        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8192 24576 40960 57344 73728 90112});
+        IndexVector expected = {8192, 24576, 40960, 57344, 73728, 90112};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
       } else if (rank == 4 && d == 0) {
-        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {8191 24575 40959 57343 73727 90111});
+        IndexVector expected = {8191, 24575, 40959, 57343, 73727, 90111};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
       } else if (d == 4) {
-        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {1, 3});
+        IndexVector expected = {1, 3};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
       } else if (d == 5) {
-        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {0, 2, 4});
+        IndexVector expected = {0, 2, 4};
+        BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
       } else{
-        BOOST_CHECK_EQUAL_COLLECTIONS(indices, {});
+        BOOST_CHECK(indices.empty());
       }
     }
   }
