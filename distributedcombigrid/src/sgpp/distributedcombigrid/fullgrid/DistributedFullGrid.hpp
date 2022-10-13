@@ -1021,17 +1021,17 @@ class DistributedFullGrid {
     return localSize;
   }
 
-  void getFGPointsOfSubspaceRecursive(DimType d, const LevelVector& lvec, IndexVector& ivec, std::vector<IndexType>& subspaceIndices) {
+  void getFGPointsOfSubspaceRecursive(DimType d, const LevelVector& lvec, IndexVector& ivec,
+                                      std::vector<IndexType>& subspaceIndices) {
     IndexVector oneDIndices;
     get1dIndicesLocal(d, lvec, oneDIndices);
 
-    for (IndexType idx : oneDIndices) {
+    for (const auto idx : oneDIndices) {
       ivec[d] = idx;
       if (d > 0)
         getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), lvec, ivec, subspaceIndices);
       else {
-        IndexType j = getLocalLinearIndex(ivec);
-        subspaceIndices.emplace_back(j);
+        subspaceIndices.emplace_back(getLocalLinearIndex(ivec));
       }
     }
   }
@@ -1070,18 +1070,18 @@ class DistributedFullGrid {
     //                                    std::multiplies<LevelType>()));
 
     // all the hierarchical subspaces contained in this full grid
-    auto downwardClosedSet = combigrid::getDownSet(levels_);
+    const auto downwardClosedSet = combigrid::getDownSet(levels_);
     // resize all common subspaces in dsg, if necessary
     for (size_t subspaceID = 0; subspaceID < downwardClosedSet.size(); ++subspaceID) {
-      auto level = downwardClosedSet[subspaceID];
+      const auto level = downwardClosedSet[subspaceID];
 
       if (dsg_->isContained(level)) {
         // auto lsize = getLocalSizeOfSubspaceOnThisPartition(level);
-        auto FGIndices = getFGPointsOfSubspace(level);
-        auto lsize = FGIndices.size();
+        const auto FGIndices = getFGPointsOfSubspace(level);
+        const auto lsize = FGIndices.size();
 
-        auto index = dsg_->getIndex(level);
-        size_t subSgDataSize = dsg_->getDataSize(index);
+        const auto index = dsg_->getIndex(level);
+        const auto subSgDataSize = dsg_->getDataSize(index);
         // resize DSG subspace if it has zero size
         if (subSgDataSize == 0) {
           dsg_->setDataSize(index, lsize);
@@ -2075,16 +2075,16 @@ class DistributedFullGrid {
   }
 
   void get1dIndicesLocal(DimType d, const LevelVector& lvec, IndexVector& oneDIndices) {
-    LevelType l = lvec[d];
+    const auto& l = lvec[d];
 
     // get first local idx which has level l
     IndexType start = -1;
-    IndexType firstGlobal1dIdx = getFirstGlobal1dIndex(d);
+    const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
 
     for (IndexType i = 0; i < nrLocalPoints_[d]; ++i) {
-      IndexType global1dIdx = firstGlobal1dIdx + i;
+      const IndexType global1dIdx = firstGlobal1dIdx + i;
 
-      LevelType myLevel = getLevel(d, global1dIdx);
+      auto myLevel = getLevel(d, global1dIdx);
 
       // myLevel can be zero if boundary point, but we have our boundary
       // points in level 1 subspaces
