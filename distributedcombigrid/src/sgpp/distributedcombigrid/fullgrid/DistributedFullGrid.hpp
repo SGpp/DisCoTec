@@ -1021,17 +1021,20 @@ class DistributedFullGrid {
     return localSize;
   }
 
-  void getFGPointsOfSubspaceRecursive(DimType d, const LevelVector& lvec, IndexVector& ivec,
+  void getFGPointsOfSubspaceRecursive(DimType d, const LevelVector& lvec,
+                                      IndexType localLinearIndexSum,
                                       std::vector<IndexType>& subspaceIndices) {
     IndexVector oneDIndices;
     get1dIndicesLocal(d, lvec[d], oneDIndices);
 
     for (const auto idx : oneDIndices) {
-      ivec[d] = idx;
+      auto updatedLocalIndexSum = localLinearIndexSum;
+      updatedLocalIndexSum += localOffsets_[d] * idx;
       if (d > 0)
-        getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), lvec, ivec, subspaceIndices);
+        getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), lvec, updatedLocalIndexSum,
+                                       subspaceIndices);
       else {
-        subspaceIndices.emplace_back(getLocalLinearIndex(ivec));
+        subspaceIndices.emplace_back(updatedLocalIndexSum);
       }
     }
   }
@@ -1044,9 +1047,10 @@ class DistributedFullGrid {
    */
   std::vector<IndexType> getFGPointsOfSubspace(LevelVector l) {
     IndexVector subspaceIndices;
-    IndexVector ivec(dim_);
+    IndexType localLinearIndexSum = 0;
 
-    getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), l, ivec, subspaceIndices);
+    getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), l, localLinearIndexSum,
+                                   subspaceIndices);
     return subspaceIndices;
   }
 
