@@ -9,7 +9,13 @@ namespace combigrid {
 
 // compute powers of two quickly by bit-shifting
 inline IndexType powerOfTwoByBitshift(IndexType x) {
-  return 2<<(x-1);
+  if (x == 0) {
+    return 1;
+  } else if (x > 0) {
+    return 2 << (x - 1);
+  } else if (x < 0) {
+    throw std::runtime_error("powerOfTwoByBitshift: negative argument");
+  }
 }
 
 // get downward closed set of a single LevelVector
