@@ -525,6 +525,81 @@ BOOST_AUTO_TEST_CASE(test_22) {
   checkDistributedFullgridMemory(levels, false);
 }
 
+BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
+  std::vector<int> procs = {3};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    std::vector<bool> boundary(dim, true);
+    std::vector<bool> noboundary(dim, false);
+    LevelVector fullGridLevel = {3};
+    std::vector<IndexVector> decomposition = {{0, 4, 6}};
+    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, true,
+                                            decomposition);
+
+    IndexVector indices;
+    IndexVector expected;
+    dfg.get1dIndicesLocal(0, 3, indices);
+    auto rank = dfg.getRank();
+    if (rank == 0) {
+      expected = {1, 3};
+    } else if (rank == 1 || rank == 2) {
+      expected = {1};
+    }
+    BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
+    indices.clear();
+    dfg.get1dIndicesLocal(0, 2, indices);
+    if (rank == 0) {
+      expected = {2};
+    } else if (rank == 1) {
+      expected = {};
+    } else if (rank == 2) {
+      expected = {0};
+    }
+    BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
+    indices.clear();
+    dfg.get1dIndicesLocal(0, 1, indices);
+    if (rank == 0) {
+      expected = {0};
+    } else if (rank == 1) {
+      expected = {0};
+    } else if (rank == 2) {
+      expected = {2};
+    }
+    BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
+
+    indices.clear();
+    dfgNoBoundary.get1dIndicesLocal(0, 3, indices);
+    if (rank == 0) {
+      expected = {0, 2};
+    } else if (rank == 1 || rank == 2) {
+      expected = {0};
+    }
+    BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
+    indices.clear();
+    dfgNoBoundary.get1dIndicesLocal(0, 2, indices);
+    if (rank == 0) {
+      expected = {1};
+    } else if (rank == 1) {
+      expected = {1};
+    } else if (rank == 2) {
+      expected = {};
+    }
+    BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
+    indices.clear();
+    dfgNoBoundary.get1dIndicesLocal(0, 1, indices);
+    if (rank == 0) {
+      expected = {3};
+    } else if (rank == 1) {
+      expected = {};
+    } else if (rank == 2) {
+      expected = {};
+    }
+    BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
+  }
+}
+
 BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_boundary_firstdim) {
   std::vector<int> procs = {5, 1, 1, 1, 1, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
