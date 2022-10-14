@@ -857,7 +857,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create sparse grid: " << duration.count() << " milliseconds");
 #ifdef NDEBUG
-    BOOST_CHECK(duration.count() < 10000);
+    BOOST_CHECK(duration.count() < 5000);
 #endif
 
     start = std::chrono::high_resolution_clock::now();
@@ -866,7 +866,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to register sparse grid: " << duration.count() << " milliseconds");
 #ifdef NDEBUG
-    BOOST_CHECK(duration.count() < 20000);
+    BOOST_CHECK(duration.count() < 5000);
 #endif
   }
 }
