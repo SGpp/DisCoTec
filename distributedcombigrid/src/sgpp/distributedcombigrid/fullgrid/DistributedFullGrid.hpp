@@ -1260,11 +1260,6 @@ class DistributedFullGrid {
         // offsetForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l);
         offsetForThisLevel = strideForThisLevel / 2;
       }
-      firstGlobalIndexOnThisPartition =
-          (firstGlobal1dIdx < offsetForThisLevel)
-              ? 0
-              : (firstGlobal1dIdx - offsetForThisLevel + strideForThisLevel - 1) /
-                    strideForThisLevel;
     } else {
       offsetForThisLevel = strideForThisLevel / 2 - 1;
     }
