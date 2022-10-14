@@ -249,19 +249,17 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::isSubspaceDataCreated() const {
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
   if (not isSubspaceDataCreated()) {
-    size_t numDataPoints = std::accumulate(subspacesDataSizes_.begin(), subspacesDataSizes_.end(), 0);
+    size_t numDataPoints = std::accumulate(subspacesDataSizes_.begin(), subspacesDataSizes_.end(),
+                                           static_cast<size_t>(0));
     assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
+    subspacesData_.resize(numDataPoints);
+    std::fill(subspacesData_.begin(), subspacesData_.end(), 0.);
 
-    if (numDataPoints > 0) {
-      subspacesData_.resize(numDataPoints);
-      std::fill(subspacesData_.begin(), subspacesData_.end(), 0.);
-
-      // update pointers and sizes in subspaces
-      size_t offset = 0;
-      for (size_t i = 0; i < subspaces_.size(); i++) {
-        subspaces_[i].data_ = subspacesData_.data() + offset;
-        offset += subspacesDataSizes_[i];
-      }
+    // update pointers and sizes in subspaces
+    size_t offset = 0;
+    for (size_t i = 0; i < subspaces_.size(); i++) {
+      subspaces_[i].data_ = subspacesData_.data() + offset;
+      offset += subspacesDataSizes_[i];
     }
   }
 }
