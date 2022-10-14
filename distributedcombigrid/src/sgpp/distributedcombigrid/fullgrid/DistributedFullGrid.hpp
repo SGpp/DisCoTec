@@ -1066,33 +1066,31 @@ class DistributedFullGrid {
     assert(dsg_->getDim() == dim_);
 
     subspaceIndexToFGIndices_.clear();
-    // subspaceIndexToFGIndices_.reserve(std::accumulate(levels_.begin(), levels_.end(), 1,
-    //                                    std::multiplies<LevelType>()));
+    // // typically, there will be at most one of the full grid's subspaces left out in the sparse grid
+    // subspaceIndexToFGIndices_.reserve(
+    //     std::accumulate(levels_.begin(), levels_.end(), 1, std::multiplies<LevelType>()) - 1);
 
     // all the hierarchical subspaces contained in this full grid
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
+
     // resize all common subspaces in dsg, if necessary
-    for (size_t subspaceID = 0; subspaceID < downwardClosedSet.size(); ++subspaceID) {
-      const auto level = downwardClosedSet[subspaceID];
-
+    for (const auto& level : downwardClosedSet) {
       if (dsg_->isContained(level)) {
-        // auto lsize = getLocalSizeOfSubspaceOnThisPartition(level);
-        const auto FGIndices = getFGPointsOfSubspace(level);
+        subspaceIndexToFGIndices_.emplace_back(
+            std::make_pair(dsg_->getIndex(level), getFGPointsOfSubspace(level)));
+        const auto& FGIndices = subspaceIndexToFGIndices_.back().second;
+        const auto& index = subspaceIndexToFGIndices_.back().first;
         const auto lsize = FGIndices.size();
-
-        const auto index = dsg_->getIndex(level);
         const auto subSgDataSize = dsg_->getDataSize(index);
         // resize DSG subspace if it has zero size
         if (subSgDataSize == 0) {
           dsg_->setDataSize(index, lsize);
-          // subSgData.resize(lsize);
         } else {
           ASSERT(subSgDataSize == lsize, "subSgDataSize: " << subSgDataSize << ", lsize: " << lsize
                                                            << " from " << FGIndices << " , level "
                                                            << level << " , rank "
                                                            << this->getMpiRank() << std::endl);
         }
-        subspaceIndexToFGIndices_.push_back(std::make_pair(index, FGIndices));
       }
     }
     assert(subspaceIndexToFGIndices_.size() > 0);
