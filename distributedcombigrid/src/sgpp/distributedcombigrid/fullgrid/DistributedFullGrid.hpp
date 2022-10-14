@@ -1278,8 +1278,16 @@ class DistributedFullGrid {
 
     assert(getLevel(d, localStart) == l);
     assert(localStart >= firstGlobal1dIdx);
-    for (IndexType idx = localStart; idx < nrLocalPoints_[d]; idx += strideForThisLevel) {
-      oneDIndices.push_back(idx);
+    auto numPointsOnThisPartition =
+        (nrLocalPoints_[d] - 1 < localStart)
+            ? 0
+            : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
+    oneDIndices.resize(numPointsOnThisPartition);
+    auto oneDit = oneDIndices.begin();
+    for (IndexType localIdx = localStart; localIdx < nrLocalPoints_[d];
+         localIdx += strideForThisLevel) {
+      *oneDit = localIdx;
+      ++oneDit;
     }
   }
 
