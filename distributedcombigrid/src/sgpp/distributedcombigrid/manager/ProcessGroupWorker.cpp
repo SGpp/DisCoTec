@@ -558,6 +558,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   }
 #endif
 
+  Stats::startEvent("create dsgus");
   // get all subspaces in the (optimized) combischeme, create dsgs
   combinedUniDSGVector_.resize(static_cast<size_t>(combiParameters_.getNumGrids()));
   for (auto& uniDSG : combinedUniDSGVector_) {
@@ -572,9 +573,11 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     }
 #endif  // def DEBUG_OUTPUT
   }
+  Stats::stopEvent("create dsgus");
 
   // register dsgs in all dfgs
-  for (int g = 0; g < combinedUniDSGVector_.size(); g++) {
+  Stats::startEvent("register dsgus");
+  for (size_t g = 0; g < combinedUniDSGVector_.size(); ++g) {
     for (Task* t : tasks_) {
 #ifdef DEBUG_OUTPUT
       MASTER_EXCLUSIVE_SECTION { std::cout << "register task " << t->getID() << std::endl; }
@@ -588,8 +591,10 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     // // ...such as for rescheduling or interpolation (parallelEval/ evalNorm / ...)
     // combinedUniDSGVector_[(size_t) g]->resetLevels();
   }
+  Stats::stopEvent("register dsgus");
 
   // global reduce of subspace sizes
+  Stats::startEvent("reduce dsgus");
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
   for (auto& uniDSG : combinedUniDSGVector_) {
     uniDSG->reduceSubspaceSizes(globalReduceComm);
@@ -600,6 +605,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     }
 #endif  // def DEBUG_OUTPUT
   }
+  Stats::stopEvent("reduce dsgus");
 }
 
 void ProcessGroupWorker::hierarchizeFullGrids() {
