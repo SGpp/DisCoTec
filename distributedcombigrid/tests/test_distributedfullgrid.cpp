@@ -868,6 +868,17 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 5000);
 #endif
+
+    start = std::chrono::high_resolution_clock::now();
+    dsg.setZero();
+    // this is not the "correct" communicator, but using it here so something is communicated
+    dsg.reduceSubspaceSizes(comm);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to create sparse grid data: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 5000);
+#endif
   }
 }
 
