@@ -153,6 +153,9 @@ class DistributedSparseGridUniform {
   // allows linear access to the data sizes of all subspaces
   const std::vector<size_t>& getSubspaceDataSizes() const;
 
+  // reduces the data sizes (between process groups) in-place
+  void reduceSubspaceSizes(CommunicatorType comm);
+
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
 
@@ -535,6 +538,24 @@ inline const std::vector<size_t>& DistributedSparseGridUniform<FG_ELEMENT>::getS
   return subspacesDataSizes_;
 }
 
+/** Performs a max allreduce in comm with subspace sizes of each dsg
+ *
+ * After calling, all workers which share the same spatial decomposition will
+ * have the same subspace sizes and therefor. in the end have equally sized dsgs.
+ */
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::reduceSubspaceSizes(CommunicatorType comm) {
+  assert(this->getNumSubspaces() > 0);
+
+  // prepare for MPI call in globalReduceComm
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
+
+  // perform allreduce
+  assert(subspacesDataSizes_.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
+  MPI_Allreduce(MPI_IN_PLACE, subspacesDataSizes_.data(),
+                static_cast<int>(subspacesDataSizes_.size()), dtype, MPI_MAX, comm);
+}
+
 template <typename FG_ELEMENT>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
     const std::string& filename, size_t i) const {
@@ -861,34 +882,6 @@ static MPI_Request recvAndBcastSubspaceDataSizes(DistributedSparseGridUniform<FG
     dsgu->setDataSize(i, buf[i]);
   }
   return request;
-}
-
-
-/** Performs a max allreduce in comm with subspace sizes of each dsg
- *
- * After calling, all workers which share the same spatial decomposition will
- * have the same subspace sizes and therefor in the end have equally sized dsgs.
- */
-template <typename FG_ELEMENT>
-static void reduceSubspaceSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
-                               CommunicatorType comm) {
-  assert(dsgu->getNumSubspaces() > 0);
-
-  // prepare for MPI call in globalReduceComm
-  MPI_Datatype dtype = getMPIDatatype(
-                        abstraction::getabstractionDataType<size_t>());
-
-  const std::vector<size_t>& subspacesDataSizes = dsgu->getSubspaceDataSizes();
-  std::vector<size_t> buf(subspacesDataSizes.size());
-
-  // perform allreduce
-  assert(buf.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
-  MPI_Allreduce(subspacesDataSizes.data(), buf.data(), static_cast<int>(buf.size()), dtype, MPI_MAX, comm);
-
-  // set updated sizes in dsg
-  for (size_t i = 0; i < subspacesDataSizes.size(); i++) {
-    dsgu->setDataSize(i, buf[i]);
-  }
 }
 
 } /* namespace combigrid */

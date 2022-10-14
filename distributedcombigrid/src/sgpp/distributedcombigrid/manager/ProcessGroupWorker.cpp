@@ -581,12 +581,10 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   for (int g = 0; g < numGrids; g++) {
     for (Task* t : tasks_) {
 #ifdef DEBUG_OUTPUT
-      MASTER_EXCLUSIVE_SECTION {
-        std::cout << "register task " << t->getID() << std::endl;
-      }
-#endif // def DEBUG_OUTPUT
+      MASTER_EXCLUSIVE_SECTION { std::cout << "register task " << t->getID() << std::endl; }
+#endif  // def DEBUG_OUTPUT
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-      dfg.registerUniformSG(*(combinedUniDSGVector_[(size_t) g]));
+      dfg.registerUniformSG(*(combinedUniDSGVector_[(size_t)g]));
     }
     // // we may clear the levels_ member of the sparse grids here to save memory
     // // but only if we need no new full grids initialized from the sparse grids!
@@ -597,7 +595,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   // global reduce of subspace sizes
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
   for (int g = 0; g < numGrids; g++) {
-    reduceSubspaceSizes(combinedUniDSGVector_[(size_t)g].get(), globalReduceComm);
+    combinedUniDSGVector_[(size_t)g]->reduceSubspaceSizes(globalReduceComm);
 #ifdef DEBUG_OUTPUT
     MASTER_EXCLUSIVE_SECTION {
       std::cout << "dsg size: " << combinedUniDSGVector_[(size_t)g]->getRawDataSize() << " * "
