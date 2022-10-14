@@ -1257,11 +1257,10 @@ class DistributedFullGrid {
       if (l == 1) {
         offsetForThisLevel = 0;
       } else {
-        // offsetForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l);
-        offsetForThisLevel = strideForThisLevel / 2;
+        offsetForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l);
       }
     } else {
-      offsetForThisLevel = strideForThisLevel / 2 - 1;
+      offsetForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l) - 1;
     }
     assert(offsetForThisLevel > -1);
     assert(strideForThisLevel >= offsetForThisLevel);
@@ -1284,7 +1283,7 @@ class DistributedFullGrid {
             : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
     oneDIndices.resize(numPointsOnThisPartition);
     auto oneDit = oneDIndices.begin();
-    for (IndexType localIdx = localStart; localIdx < nrLocalPoints_[d];
+    for (IndexType localIdx = localStart; oneDit != oneDIndices.end();
          localIdx += strideForThisLevel) {
       *oneDit = localIdx;
       ++oneDit;
