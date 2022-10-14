@@ -527,7 +527,6 @@ void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
   }
 }
 
-
 /** Initializes the dsgu for each species by setting the subspace sizes of all
  * dfgs in the global reduce comm. After calling, all workers which share the
  * same spatial distribution of the dsgu (those who combine during global
@@ -541,11 +540,8 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   }
   assert(combiParametersSet_);
   // we assume here that every task has the same number of grids, e.g. species in GENE
-  auto numGrids = combiParameters_.getNumGrids();
-  DimType dim = combiParameters_.getDim();
   LevelVector lmin = combiParameters_.getLMin();
   LevelVector lmax = combiParameters_.getLMax();
-  const std::vector<bool>& boundary = combiParameters_.getBoundary();
 
   // the dsg can be smaller than lmax because the highest subspaces do not have
   // to be exchanged
@@ -563,28 +559,29 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
 #endif
 
   // get all subspaces in the (optimized) combischeme, create dsgs
-  combinedUniDSGVector_.resize((size_t) numGrids);
+  combinedUniDSGVector_.resize(static_cast<size_t>(combiParameters_.getNumGrids()));
   for (auto& uniDSG : combinedUniDSGVector_) {
     uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin, boundary,
+        new DistributedSparseGridUniform<CombiDataType>(combiParameters_.getDim(), lmax, lmin,
+                                                        combiParameters_.getBoundary(),
                                                         theMPISystem()->getLocalComm()));
 #ifdef DEBUG_OUTPUT
     MASTER_EXCLUSIVE_SECTION {
-      std::cout << "dsg size: " << uniDSG->getRawDataSize() << " * " << sizeof(CombiDataType) << std::endl;
+      std::cout << "dsg size: " << uniDSG->getRawDataSize() << " * " << sizeof(CombiDataType)
+                << std::endl;
     }
-#endif // def DEBUG_OUTPUT
+#endif  // def DEBUG_OUTPUT
   }
 
-  // set subspace sizes local and global
-
   // register dsgs in all dfgs
-  for (int g = 0; g < numGrids; g++) {
+  for (int g = 0; g < combinedUniDSGVector_.size(); g++) {
     for (Task* t : tasks_) {
 #ifdef DEBUG_OUTPUT
       MASTER_EXCLUSIVE_SECTION { std::cout << "register task " << t->getID() << std::endl; }
 #endif  // def DEBUG_OUTPUT
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
-      dfg.registerUniformSG(*(combinedUniDSGVector_[(size_t)g]));
+      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
+      // set subspace sizes local
+      dfg.registerUniformSG(*(combinedUniDSGVector_[g]));
     }
     // // we may clear the levels_ member of the sparse grids here to save memory
     // // but only if we need no new full grids initialized from the sparse grids!
@@ -594,12 +591,12 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
 
   // global reduce of subspace sizes
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  for (int g = 0; g < numGrids; g++) {
-    combinedUniDSGVector_[(size_t)g]->reduceSubspaceSizes(globalReduceComm);
+  for (auto& uniDSG : combinedUniDSGVector_) {
+    uniDSG->reduceSubspaceSizes(globalReduceComm);
 #ifdef DEBUG_OUTPUT
     MASTER_EXCLUSIVE_SECTION {
-      std::cout << "dsg size: " << combinedUniDSGVector_[(size_t)g]->getRawDataSize() << " * "
-                << sizeof(CombiDataType) << std::endl;
+      std::cout << "dsg size: " << uniDSG->getRawDataSize() << " * " << sizeof(CombiDataType)
+                << std::endl;
     }
 #endif  // def DEBUG_OUTPUT
   }
