@@ -876,7 +876,7 @@ class DistributedFullGrid {
     if (l == 0) return -1;
 
     LevelType ldiff = static_cast<LevelType>(levels_[d] - l);
-    IndexType lpidx = idx1d - static_cast<IndexType>(std::pow(2, ldiff));
+    IndexType lpidx = idx1d - combigrid::powerOfTwoByBitshift(ldiff);
 
     return lpidx;
   }
@@ -888,7 +888,7 @@ class DistributedFullGrid {
     if (l == 0) return -1;
 
     LevelType ldiff = static_cast<LevelType>(levels_[d] - l);
-    IndexType rpidx = idx1d + static_cast<IndexType>(std::pow(2, ldiff));
+    IndexType rpidx = idx1d + combigrid::powerOfTwoByBitshift(ldiff);
 
     // check if outside of domain
     IndexType numElementsD = this->getGlobalSizes()[d];
