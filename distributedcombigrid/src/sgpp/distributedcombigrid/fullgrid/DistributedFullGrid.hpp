@@ -1237,38 +1237,53 @@ class DistributedFullGrid {
    * @param oneDIndices a list of the local vector indices
    */
   void get1dIndicesLocal(DimType d, LevelType l, IndexVector& oneDIndices) {
-    // get first local idx which has level l
-    IndexType start = -1;
+    assert(l > 0);
+    if (l > levels_[d]) {
+      return;
+    }
     const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
 
-    for (IndexType i = 0; i < nrLocalPoints_[d]; ++i) {
-      const IndexType global1dIdx = firstGlobal1dIdx + i;
-
-      auto myLevel = getLevel(d, global1dIdx);
-
-      // myLevel can be zero if boundary point, but we have our boundary
-      // points in level 1 subspaces
-      if (myLevel == 0) myLevel = 1;
-
-      if (myLevel == l) {
-        start = i;
-        break;
-      }
-    }
-
-    // no point of this level found
-    if (start == -1) return;
-
-    IndexType stride;
-
+    IndexType strideForThisLevel;
     // special treatment for level 1 suspaces with boundary
     if (l == 1 && hasBoundaryPoints_[d]) {
-      stride = combigrid::powerOfTwoByBitshift(levels_[d] - 1);
+      strideForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - 1);
     } else {
-      stride = combigrid::powerOfTwoByBitshift(levels_[d] - l + 1);
+      strideForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l + 1);
     }
+    // get global offset to find indices of this level
+    // this is the first global index that has level l in dimension d
+    IndexType offsetForThisLevel;
+    if (hasBoundaryPoints_[d]) {
+      if (l == 1) {
+        offsetForThisLevel = 0;
+      } else {
+        // offsetForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l);
+        offsetForThisLevel = strideForThisLevel / 2;
+      }
+      firstGlobalIndexOnThisPartition =
+          (firstGlobal1dIdx < offsetForThisLevel)
+              ? 0
+              : (firstGlobal1dIdx - offsetForThisLevel + strideForThisLevel - 1) /
+                    strideForThisLevel;
+    } else {
+      offsetForThisLevel = strideForThisLevel / 2 - 1;
+    }
+    assert(offsetForThisLevel > -1);
+    assert(strideForThisLevel >= offsetForThisLevel);
 
-    for (IndexType idx = start; idx < nrLocalPoints_[d]; idx += stride) {
+    // first level-index that is on our partition
+    IndexType firstGlobalIndexOnThisPartition =
+        (firstGlobal1dIdx < offsetForThisLevel)
+            ? 0
+            : (firstGlobal1dIdx - offsetForThisLevel + strideForThisLevel - 1) / strideForThisLevel;
+    // get global index of first local index which has level l
+    IndexType globalStart =
+        (firstGlobalIndexOnThisPartition)*strideForThisLevel + offsetForThisLevel;
+    IndexType localStart = globalStart - firstGlobal1dIdx;
+
+    assert(getLevel(d, localStart) == l);
+    assert(localStart >= firstGlobal1dIdx);
+    for (IndexType idx = localStart; idx < nrLocalPoints_[d]; idx += strideForThisLevel) {
       oneDIndices.push_back(idx);
     }
   }
