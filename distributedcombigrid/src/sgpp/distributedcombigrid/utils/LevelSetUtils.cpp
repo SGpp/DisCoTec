@@ -79,8 +79,8 @@ void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
         bool pleaseAdd = true;
         DimType d = static_cast<DimType>(lmin.size());
         for (DimType k = 2; k <= d; ++k) {
-          // auto dimList = AllKOutOfDDimensions::get(k, d);
-          auto dimList = getAllKOutOfDDimensions(k, d);
+          auto dimList = AllKOutOfDDimensions::get(k, d);
+          // auto dimList = getAllKOutOfDDimensions(k, d);
           // for each subselection of dimensions, compute sum of l and lmin
           for (const auto& dimCombination : dimList) {
             LevelType partlsum(0), partlminsum(0);
