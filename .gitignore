@@ -76,3 +76,7 @@ coverage
 *.h5
 *.txt
 *.nml
+
+# ignoring SLURM output files
+*.err
+*.out
