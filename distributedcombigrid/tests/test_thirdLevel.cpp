@@ -259,6 +259,8 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     std::string filename("thirdLevel_" + std::to_string(testParams.ncombi) + ".raw");
     Stats::startEvent("manager write solution");
     manager.parallelEval(testParams.lmax, filename, 0);
+    manager.writeDSGsToDisk("thirdLevel_" + std::to_string(testParams.ncombi) + "_dsgs");
+    manager.readDSGsFromDisk("thirdLevel_" + std::to_string(testParams.ncombi) + "_dsgs");
     Stats::stopEvent("manager write solution");
 
     manager.exit();
