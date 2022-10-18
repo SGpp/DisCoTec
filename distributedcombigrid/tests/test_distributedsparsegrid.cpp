@@ -508,6 +508,8 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels) {
     auto levelSum = std::accumulate(level.begin(), level.end(), 0);
     BOOST_CHECK(levelSum <= largestCornerSum);
   }
+  auto it = std::unique(created.begin(), created.end());
+  BOOST_CHECK(it == created.end());
 }
 
 BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
@@ -521,6 +523,10 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
   for (const auto& level : downSet) {
     BOOST_CHECK(std::find(created.begin(), created.end(), level) != created.end());
   }
+  auto it = std::unique(created.begin(), created.end());
+  BOOST_CHECK(it == created.end());
+  BOOST_CHECK_EQUAL(created.size(),
+                    std::accumulate(lmax.begin(), lmax.end(), 1, std::multiplies<LevelType>()));
 }
 
 BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
@@ -529,6 +535,7 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
   std::vector<LevelVector> created;
   // create once to fill the cache
   combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
+  created.clear();
 
   auto start = std::chrono::high_resolution_clock::now();
   combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
@@ -540,6 +547,8 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
 #ifdef NDEBUG
   BOOST_CHECK(duration.count() < 10000);
 #endif
+  auto it = std::unique(created.begin(), created.end());
+  BOOST_CHECK(it == created.end());
 }
 
 BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
@@ -548,6 +557,7 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
   std::vector<LevelVector> created;
   // create once to fill the cache
   combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
+  created.clear();
 
   auto start = std::chrono::high_resolution_clock::now();
   combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
@@ -559,6 +569,32 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
 #ifdef NDEBUG
   BOOST_CHECK(duration.count() < 1000);
 #endif
+  std::sort(created.begin(), created.end());
+  auto it = std::unique(created.begin(), created.end());
+  BOOST_CHECK(it == created.end());
+  LevelVector allOnes = {1, 1, 1, 1, 1, 1};
+  BOOST_CHECK_EQUAL_COLLECTIONS(created[0].begin(), created[0].end(), allOnes.begin(),
+                                allOnes.end());
+  BOOST_CHECK_EQUAL_COLLECTIONS(created.back().begin(), created.back().end(), lmax.begin(),
+                                lmax.end());
+  BOOST_CHECK_EQUAL(created.size(),
+                    std::accumulate(lmax.begin(), lmax.end(), 1, std::multiplies<LevelType>()));
+
+  start = std::chrono::high_resolution_clock::now();
+  auto downSet = getDownSet(lmax);
+  end = std::chrono::high_resolution_clock::now();
+  duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE("time to create downward closed set: " << duration.count() << " milliseconds");
+  for (const auto& level : created) {
+    BOOST_CHECK(level.size() == lmin.size());
+  }
+  BOOST_CHECK_EQUAL(created.size(), downSet.size());
+  for (const auto& level : created) {
+    std::stringstream stringStream;
+    stringStream << "level: " << level;
+    BOOST_TEST_CONTEXT(stringStream.str());
+    BOOST_REQUIRE(std::find(downSet.begin(), downSet.end(), level) != downSet.end());
+  }
 }
 
 BOOST_AUTO_TEST_CASE(test_getAllKOutOfDDimensions) {
