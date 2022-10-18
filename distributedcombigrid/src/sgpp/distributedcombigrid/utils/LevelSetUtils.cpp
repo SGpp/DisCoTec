@@ -96,7 +96,7 @@ void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
             }
           }
         }
-        if (pleaseAdd) {
+        if (pleaseAdd == true) {
           created.push_back(l);
         }
       } else {
@@ -108,6 +108,7 @@ void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
 
 void createTruncatedHierarchicalLevels(const LevelVector& lmax, const LevelVector& lmin,
                                        std::vector<LevelVector>& created) {
+  assert(created.empty());
   auto dim = lmax.size();
   assert(lmin.size() == dim);
 
