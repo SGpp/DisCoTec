@@ -552,4 +552,14 @@ void ProcessManager::reschedule() {
   }
 }
 
+void ProcessManager::writeDSGsToDisk(std::string filenamePrefix) {
+  pgroups_.back()->writeDSGsToDisk(filenamePrefix);
+  waitAllFinished();
+}
+
+void ProcessManager::readDSGsFromDisk(std::string filenamePrefix) {
+  pgroups_.back()->readDSGsFromDisk(filenamePrefix);
+  waitAllFinished();
+}
+
 } /* namespace combigrid */

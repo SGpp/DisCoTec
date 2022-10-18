@@ -196,6 +196,30 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("worker combine");
 
     } break;
+    case WRITE_DSGS_TO_DISK: {
+      Stats::startEvent("worker write to disk");
+      std::string filenamePrefix;
+      MASTER_EXCLUSIVE_SECTION {
+        MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
+                               theMPISystem()->getGlobalComm());
+      }
+      MPIUtils::broadcastClass(&filenamePrefix, theMPISystem()->getMasterRank(),
+                               theMPISystem()->getLocalComm());
+      writeDSGsToDisk(filenamePrefix);
+      Stats::stopEvent("worker write to disk");
+    } break;
+    case READ_DSGS_FROM_DISK: {
+      Stats::startEvent("worker read from disk");
+      std::string filenamePrefix;
+      MASTER_EXCLUSIVE_SECTION {
+        MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
+                               theMPISystem()->getGlobalComm());
+      }
+      MPIUtils::broadcastClass(&filenamePrefix, theMPISystem()->getMasterRank(),
+                               theMPISystem()->getLocalComm());
+      readDSGsFromDisk(filenamePrefix);
+      Stats::stopEvent("worker read from disk");
+    } break;
     case GRID_EVAL: {  // not supported anymore
 
       Stats::startEvent("eval");
@@ -1194,4 +1218,19 @@ void ProcessGroupWorker::deleteDsgsData() {
     dsg->deleteSubspaceData();
 }
 
+void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
+  for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
+    auto uniDsg = combinedUniDSGVector_[i].get();
+    auto dsgToUse = uniDsg;
+    dsgToUse->writeOneFileToDisk(filenamePrefix + "_" + std::to_string(i));
+  }
+}
+
+void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix) {
+  for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
+    auto uniDsg = combinedUniDSGVector_[i].get();
+    auto dsgToUse = uniDsg;
+    dsgToUse->readOneFileFromDisk(filenamePrefix + "_" + std::to_string(i));
+  }
+}
 } /* namespace combigrid */

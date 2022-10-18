@@ -132,6 +132,10 @@ class ProcessManager {
    */
   void reschedule();
 
+  void writeDSGsToDisk(std::string filenamePrefix);
+
+  void readDSGsFromDisk(std::string filenamePrefix);
+
  private:
   ProcessGroupManagerContainer& pgroups_;
 
