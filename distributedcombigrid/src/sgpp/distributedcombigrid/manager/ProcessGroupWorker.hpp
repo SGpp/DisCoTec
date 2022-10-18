@@ -97,6 +97,12 @@ class ProcessGroupWorker {
   /** interpolate values on all tasks' component grids and write results to file */
   void writeInterpolatedValuesPerGrid();
 
+  /** write extra SGs to disk (binary w/ MPI-IO) */
+  void writeDSGsToDisk(std::string filenamePrefix);
+
+  /** read extra SGs from disk (binary w/ MPI-IO) */
+  void readDSGsFromDisk(std::string filenamePrefix);
+
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 

@@ -131,6 +131,10 @@ class ProcessGroupManager {
 
   bool writeCombigridsToVTKPlotFile();
 
+  bool writeDSGsToDisk(std::string filenamePrefix);
+
+  bool readDSGsFromDisk(std::string filenamePrefix);
+
   void storeTaskReference(Task* t);
 
  private:

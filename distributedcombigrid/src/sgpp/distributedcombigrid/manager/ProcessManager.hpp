@@ -159,6 +159,10 @@ class ProcessManager {
 
   void writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg);
 
+  void writeDSGsToDisk(std::string filenamePrefix);
+
+  void readDSGsFromDisk(std::string filenamePrefix);
+
  private:
   ProcessGroupManagerContainer& pgroups_;
 

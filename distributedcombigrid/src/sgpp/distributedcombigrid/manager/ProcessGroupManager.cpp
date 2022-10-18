@@ -605,4 +605,18 @@ bool ProcessGroupManager::writeCombigridsToVTKPlotFile() {
   return true;
 }
 
+bool ProcessGroupManager::writeDSGsToDisk(std::string filenamePrefix) {
+  assert(status_ == PROCESS_GROUP_WAIT);
+  sendSignalAndReceive(WRITE_DSGS_TO_DISK);
+  MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
+  return true;
+}
+
+bool ProcessGroupManager::readDSGsFromDisk(std::string filenamePrefix) {
+  assert(status_ == PROCESS_GROUP_WAIT);
+  sendSignalAndReceive(WRITE_DSGS_TO_DISK);
+  MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
+  return true;
+}
+
 } /* namespace combigrid */

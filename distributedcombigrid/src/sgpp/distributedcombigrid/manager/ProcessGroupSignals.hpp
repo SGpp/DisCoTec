@@ -72,6 +72,8 @@ const SignalType WRITE_DSG_MINMAX_COEFFICIENTS = 38;
 const SignalType WRITE_INTERPOLATED_VALUES_PER_GRID = 39;
 
 const SignalType REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG = 40;
+const SignalType WRITE_DSGS_TO_DISK = 41;
+const SignalType READ_DSGS_FROM_DISK = 42;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;

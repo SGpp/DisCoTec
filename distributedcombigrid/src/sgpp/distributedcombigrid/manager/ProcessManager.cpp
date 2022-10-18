@@ -632,4 +632,14 @@ void ProcessManager::writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg) {
 #endif /* defined(USE_VTK) */
 }
 
+void ProcessManager::writeDSGsToDisk(std::string filenamePrefix) {
+  thirdLevelPGroup_->writeDSGsToDisk(filenamePrefix);
+  waitForPG(thirdLevelPGroup_);
+}
+
+void ProcessManager::readDSGsFromDisk(std::string filenamePrefix) {
+  thirdLevelPGroup_->readDSGsFromDisk(filenamePrefix);
+  waitForPG(thirdLevelPGroup_);
+}
+
 } /* namespace combigrid */
