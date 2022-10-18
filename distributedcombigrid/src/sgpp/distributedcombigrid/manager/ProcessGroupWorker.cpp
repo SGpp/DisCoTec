@@ -182,9 +182,9 @@ SignalType ProcessGroupWorker::wait() {
       }
     } break;
     case INIT_DSGUS: {
-      Stats::startEvent("initializeCombinedUniDSGVector");
+      Stats::startEvent("worker initialize dsgu vector");
       initCombinedUniDSGVector();
-      Stats::stopEvent("initializeCombinedUniDSGVector");
+      Stats::stopEvent("worker initialize dsgu vector");
 
     } break;
     case COMBINE: {  // start combination
@@ -195,53 +195,53 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE_LOCAL_AND_GLOBAL: {
-      Stats::startEvent("combineLocalAndGlobal");
+      Stats::startEvent("worker combine local and global");
       combineLocalAndGlobal();
-      Stats::stopEvent("combineLocalAndGlobal");
+      Stats::stopEvent("worker combine local and global");
 
     } break;
     case COMBINE_THIRD_LEVEL: {
-      Stats::startEvent("combineThirdLevel");
+      Stats::startEvent("worker combine third level");
       combineThirdLevel();
       currentCombi_++;
-      Stats::stopEvent("combineThirdLevel");
+      Stats::stopEvent("worker combine third level");
 
     } break;
     case WAIT_FOR_TL_COMBI_RESULT: {
-      Stats::startEvent("waitForThirdLevelCombiResult");
+      Stats::startEvent("worker wait third level result");
       waitForThirdLevelCombiResult();
       currentCombi_++;
-      Stats::stopEvent("waitForThirdLevelCombiResult");
+      Stats::stopEvent("worker wait third level result");
 
     } break;
     case REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG: {
-      Stats::startEvent("unifySubspaceSizesThirdLevelExtra");
+      Stats::startEvent("worker unify extra third level");
       reduceSubspaceSizesThirdLevel(true);
-      Stats::stopEvent("unifySubspaceSizesThirdLevelExtra");
+      Stats::stopEvent("worker unify extra third level");
 
     } break;
     case REDUCE_SUBSPACE_SIZES_TL: {
-      Stats::startEvent("unifySubspaceSizesThirdLevel");
+      Stats::startEvent("worker unify sizes third level");
       reduceSubspaceSizesThirdLevel(false);
-      Stats::stopEvent("unifySubspaceSizesThirdLevel");
+      Stats::stopEvent("worker unify sizes third level");
 
     } break;
     case WAIT_FOR_TL_SIZE_UPDATE: {
-      Stats::startEvent("waitForThirdLevelSizeUpdate");
+      Stats::startEvent("worker wait third level size");
       waitForThirdLevelSizeUpdate();
-      Stats::stopEvent("waitForThirdLevelSizeUpdate");
+      Stats::stopEvent("worker wait third level size");
 
     } break;
     case WRITE_DFGS_TO_VTK: {
-      Stats::startEvent("writeVTKPlotFilesOfAllTasks");
+      Stats::startEvent("worker write vtk all tasks");
       writeVTKPlotFilesOfAllTasks();
-      Stats::stopEvent("writeVTKPlotFilesOfAllTasks");
+      Stats::stopEvent("worker write vtk all tasks");
     } break;
     case GRID_EVAL: {  // not supported anymore
 
-      Stats::startEvent("eval");
+      Stats::startEvent("worker eval");
       gridEval();
-      Stats::stopEvent("eval");
+      Stats::stopEvent("worker eval");
 
       return signal;
 
@@ -277,47 +277,47 @@ SignalType ProcessGroupWorker::wait() {
       return signal;
     } break;
     case PARALLEL_EVAL: {  // output final grid
-      Stats::startEvent("parallel eval");
+      Stats::startEvent("worker parallel eval");
       parallelEval();
-      Stats::stopEvent("parallel eval");
+      Stats::stopEvent("worker parallel eval");
     } break;
     case DO_DIAGNOSTICS: {  // task-specific diagnostics/post-processing
-      Stats::startEvent("diagnostics");
+      Stats::startEvent("worker diagnostics");
       doDiagnostics();
-      Stats::stopEvent("diagnostics");
+      Stats::stopEvent("worker diagnostics");
     } break;
     case GET_L2_NORM: {  // evaluate norm on dfgs and send
-      Stats::startEvent("get L2 norm");
+      Stats::startEvent("worker get L2 norm");
       sendLpNorms(2);
-      Stats::stopEvent("get L2 norm");
+      Stats::stopEvent("worker get L2 norm");
     } break;
     case GET_L1_NORM: {  // evaluate norm on dfgs and send
-      Stats::startEvent("get L1 norm");
+      Stats::startEvent("worker get L1 norm");
       sendLpNorms(1);
-      Stats::stopEvent("get L1 norm");
+      Stats::stopEvent("worker get L1 norm");
     } break;
     case GET_MAX_NORM: {  // evaluate norm on dfgs and send
-      Stats::startEvent("get max norm");
+      Stats::startEvent("worker get max norm");
       sendLpNorms(0);
-      Stats::stopEvent("get max norm");
+      Stats::stopEvent("worker get max norm");
     } break;
     case PARALLEL_EVAL_NORM: {  // evaluate norms on new dfg and send
-      Stats::startEvent("parallel eval norm");
+      Stats::startEvent("worker parallel eval norm");
       parallelEvalNorm();
-      Stats::stopEvent("parallel eval norm");
+      Stats::stopEvent("worker parallel eval norm");
     } break;
     case EVAL_ANALYTICAL_NORM: {  // evaluate analytical norms on new dfg and send
-      Stats::startEvent("eval analytical norm");
+      Stats::startEvent("worker eval analytical norm");
       evalAnalyticalOnDFG();
-      Stats::stopEvent("eval analytical norm");
+      Stats::stopEvent("worker eval analytical norm");
     } break;
     case EVAL_ERROR_NORM: {  // evaluate analytical norms on new dfg and send difference
-      Stats::startEvent("eval error norm");
+      Stats::startEvent("worker eval error norm");
       evalErrorOnDFG();
-      Stats::stopEvent("eval error norm");
+      Stats::stopEvent("worker eval error norm");
     } break;
     case INTERPOLATE_VALUES: {  // interpolate values on given coordinates
-      Stats::startEvent("interpolate values");
+      Stats::startEvent("worker interpolate values");
       auto values = interpolateValues();
       // send result
       MASTER_EXCLUSIVE_SECTION {
@@ -325,12 +325,12 @@ SignalType ProcessGroupWorker::wait() {
           abstraction::getabstractionDataType<CombiDataType>()), theMPISystem()->getManagerRank(),
           TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm());
       }
-      Stats::stopEvent("interpolate values");
+      Stats::stopEvent("worker interpolate values");
     } break;
     case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write values to .h5
-      Stats::startEvent("write interpolated values");
+      Stats::startEvent("worker write interpolated values");
       writeInterpolatedValuesPerGrid();
-      Stats::stopEvent("write interpolated values");
+      Stats::stopEvent("worker write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
@@ -558,7 +558,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   }
 #endif
 
-  Stats::startEvent("create dsgus");
   // get all subspaces in the (optimized) combischeme, create dsgs
   combinedUniDSGVector_.resize(static_cast<size_t>(combiParameters_.getNumGrids()));
   for (auto& uniDSG : combinedUniDSGVector_) {
@@ -573,10 +572,9 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     }
 #endif  // def DEBUG_OUTPUT
   }
-  Stats::stopEvent("create dsgus");
 
   // register dsgs in all dfgs
-  Stats::startEvent("register dsgus");
+  Stats::startEvent("worker register dsgus");
   for (size_t g = 0; g < combinedUniDSGVector_.size(); ++g) {
     for (Task* t : tasks_) {
 #ifdef DEBUG_OUTPUT
@@ -591,10 +589,9 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     // // ...such as for rescheduling or interpolation (parallelEval/ evalNorm / ...)
     // combinedUniDSGVector_[(size_t) g]->resetLevels();
   }
-  Stats::stopEvent("register dsgus");
+  Stats::stopEvent("worker register dsgus");
 
   // global reduce of subspace sizes
-  Stats::startEvent("reduce dsgus");
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
   for (auto& uniDSG : combinedUniDSGVector_) {
     uniDSG->reduceSubspaceSizes(globalReduceComm);
@@ -605,7 +602,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     }
 #endif  // def DEBUG_OUTPUT
   }
-  Stats::stopEvent("reduce dsgus");
 }
 
 void ProcessGroupWorker::hierarchizeFullGrids() {
@@ -663,29 +659,27 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
 #endif
-  Stats::startEvent("combine zeroDsgsData");
   zeroDsgsData();
-  Stats::stopEvent("combine zeroDsgsData");
 
-  Stats::startEvent("combine hierarchize");
+  Stats::startEvent("worker hierarchize");
   hierarchizeFullGrids();
-  Stats::stopEvent("combine hierarchize");
+  Stats::stopEvent("worker hierarchize");
 
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "mid combining \n"; }
 #endif
 
-  Stats::startEvent("combine local reduce");
+  Stats::startEvent("worker local reduce");
   addFullGridsToUniformSG();
-  Stats::stopEvent("combine local reduce");
+  Stats::stopEvent("worker local reduce");
 
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "almost done combining \n"; }
 #endif
 
-  Stats::startEvent("combine global reduce");
+  Stats::startEvent("worker global reduce");
   reduceUniformSG();
-  Stats::stopEvent("combine global reduce");
+  Stats::stopEvent("worker global reduce");
 
 #ifdef DEBUG_OUTPUT
   MASTER_EXCLUSIVE_SECTION { std::cout << "end combining \n"; }
@@ -1111,7 +1105,6 @@ void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
   currentTask_ = tasks_.back();
 
   // initalize task
-  Stats::startEvent("task init in worker");
   auto taskDecomposition = combigrid::downsampleDecomposition(
           combiParameters_.getDecomposition(),
           combiParameters_.getLMax(), currentTask_->getLevelVector(),
@@ -1120,7 +1113,6 @@ void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
   if (ENABLE_FT) {
     t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
   }
-  Stats::stopEvent("task init in worker");
 }
 
 // todo: this is just a temporary function which will drop out some day
@@ -1181,16 +1173,14 @@ void ProcessGroupWorker::updateCombiParameters() {
 
 void ProcessGroupWorker::integrateCombinedSolution() {
   auto numGrids = static_cast<int>(combiParameters_.getNumGrids());
-  Stats::startEvent("copyDataFromDSGtoDFG");
   for (Task* taskToUpdate : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       // fill dfg with hierarchical coefficients from distributed sparse grid
       taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(*combinedUniDSGVector_[g]);
     }
   }
-  Stats::stopEvent("copyDataFromDSGtoDFG");
 
-  Stats::startEvent("dehierarchizeDFGData");
+  Stats::startEvent("worker dehierarchize");
   for (Task* taskToUpdate : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       DistributedHierarchization::dehierarchizeDFG(taskToUpdate->getDistributedFullGrid(g),
@@ -1198,7 +1188,7 @@ void ProcessGroupWorker::integrateCombinedSolution() {
                                                    combiParameters_.getHierarchicalBases());
     }
   }
-  Stats::stopEvent("dehierarchizeDFGData");
+  Stats::stopEvent("worker dehierarchize");
 }
 
 void ProcessGroupWorker::combineThirdLevel() {
@@ -1233,14 +1223,14 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // send dsg data to manager
-    Stats::startEvent("combine send dsg data to manager");
+    Stats::startEvent("worker send dsg data to manager");
     sendDsgData(dsgToUse, manager, managerComm);
-    Stats::stopEvent("combine send dsg data to manager");
+    Stats::stopEvent("worker send dsg data to manager");
 
     // recv combined dsgu from manager
-    Stats::startEvent("combine recv combined data from manager");
+    Stats::startEvent("worker recv dsg data from manager");
     recvDsgData(dsgToUse, manager, managerComm);
-    Stats::stopEvent("combine recv combined data from manager");
+    Stats::stopEvent("worker recv dsg data from manager");
 
     if (extraUniDSGVector_.size() > 0) {
       // copy partial data from extraDSG back to uniDSG
@@ -1257,10 +1247,10 @@ void ProcessGroupWorker::combineThirdLevel() {
   integrateCombinedSolution();
 
   // wait for bcasts to other pgs in globalReduceComm
-  Stats::startEvent("combine wait for async bcasts");
+  Stats::startEvent("worker wait for bcasts");
   for (MPI_Request& request : requests)
     MPI_Wait(&request, MPI_STATUS_IGNORE);
-  Stats::stopEvent("combine wait for async bcasts");
+  Stats::stopEvent("worker wait for bcasts");
 }
 
 /** Reduces subspace sizes with remote.
