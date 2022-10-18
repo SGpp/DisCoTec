@@ -58,24 +58,6 @@ void exec(const char* cmd) {
 }  // namespace shellCommand
 
 void managerMonteCarlo(ProcessManager& manager, DimType dim, double time, bool hasThirdLevel) {
-  // Stats::startEvent("manager get norms");
-  // std::cout << manager.getLpNorms(0) << std::endl;
-  // std::cout << manager.getLpNorms(1) << std::endl;
-  // std::cout << manager.getLpNorms(2) << std::endl;
-  // std::cout << "eval norms " << manager.parallelEvalNorm(leval, 0) << std::endl;
-
-  // auto analytical = manager.evalAnalyticalOnDFG(leval, 0);
-  // std::cout << "analytical " << analytical << std::endl;
-  // auto error = manager.evalErrorOnDFG(leval, 0);
-  // std::cout << "errors " << error << std::endl;
-
-  // std::cout << "relative errors ";
-  // for (size_t i=0; i < 3 ; ++i){
-  //   std::cout << error[i]/analytical[i] << " ";
-  // }
-  // std::cout << std::endl;
-  // Stats::stopEvent("manager get norms");
-
   // 100000 was tested to be sufficient for the 6D blob,
   // but output three times just to make sure
   std::vector<size_t> numValuesToTry{100000};
@@ -376,30 +358,19 @@ int main(int argc, char** argv) {
       }
     }
 
-    double start, finish;
-    start = MPI_Wtime();
-
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
     manager.updateCombiParameters();
-    finish = MPI_Wtime();
-    std::cout << "manager: updated parameters in " << finish - start << " seconds" << std::endl;
-    start = finish;
-    std::cout << "manager: set up component grids and run until first combination point" << std::endl;
+    auto durationParams = Stats::getDuration("manager update parameters")/ 1000.0;
+    std::cout << "manager: updated parameters in " << durationParams << " seconds" << std::endl;
 
     /* distribute task according to load model and start computation for
      * the first time */
     Stats::startEvent("manager run first");
     if (useStaticTaskAssignment) {
       manager.runnext();
-      finish = MPI_Wtime();
-      std::cout << "manager: ran in " << finish - start << " seconds" << std::endl;
-      start = finish;
       std::cout << "manager: initialize sparse grid data structures" << std::endl;
       manager.initDsgus();
-      finish = MPI_Wtime();
-      std::cout << "manager: initialized SG in " << finish - start << " seconds" << std::endl;
-      start = finish;
     } else {
       manager.runfirst();
       finish = MPI_Wtime();
@@ -407,6 +378,9 @@ int main(int argc, char** argv) {
       start = finish;
     }
     Stats::stopEvent("manager run first");
+    auto durationInit = Stats::getDuration("manager init dsgus")/ 1000.0;
+    auto durationRun = Stats::getDuration("manager run first")/ 1000.0;
+    std::cout << "manager: ran solver in " << durationRun << " seconds, of which SG init were " << durationInit << "" << std::endl;
 
     // exchange subspace sizes to unify the dsgs in the third level case
     if (hasThirdLevel) {
@@ -414,12 +388,10 @@ int main(int argc, char** argv) {
       std::cout << "manager: unify sparse grid data structures w/ remote" << std::endl;
       manager.unifySubspaceSizesThirdLevel(extraSparseGrid);
       Stats::stopEvent("manager unify subspace sizes with remote");
-      finish = MPI_Wtime();
-      std::cout << "manager: unified SG in " << finish - start << " seconds" << std::endl;
-      start = finish;
+      auto durationUnify = Stats::getDuration("manager init dsgus")/ 1000.0;
+      std::cout << "manager: unified SG in " << durationUnify << " seconds" << std::endl;
     }
 
-    start = MPI_Wtime();
     for (size_t i = 1; i < ncombi; ++i) {
 
       Stats::startEvent("manager combine");
@@ -431,11 +403,12 @@ int main(int argc, char** argv) {
       // manager.waitAllFinished();
       Stats::stopEvent("manager combine");
       if (evalMCError && i % 10 == 0) {
+        std::cout << "manager: eval Monte Carlo" << std::endl;
         managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt, hasThirdLevel);
       }
-      finish = MPI_Wtime();
-      std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
-      start = finish;
+      auto durationCombine = Stats::getDuration("manager combine")/ 1000.0;
+      std::cout << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
+
 
       // run tasks for next time interval
       // start = MPI_Wtime();
@@ -443,9 +416,8 @@ int main(int argc, char** argv) {
       manager.runnext();
       // manager.waitAllFinished();
       Stats::stopEvent("manager run");
-      finish = MPI_Wtime();
-      std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
-      start = finish;
+      durationRun = Stats::getDuration("manager run")/ 1000.0;
+      std::cout << "calculation " << i << " took: " << durationRun << " seconds" << std::endl;
     }
 
     Stats::startEvent("manager combine");
@@ -456,21 +428,12 @@ int main(int argc, char** argv) {
     }
     Stats::stopEvent("manager combine");
 
-    // // evaluate solution and
-    // // write solution to file
-    // std::string filename("out/solution_" + std::to_string(ncombi) + ".raw");
-    // Stats::startEvent("manager write solution");
-    // manager.parallelEval(leval, filename, 0);
-    // Stats::stopEvent("manager write solution");
-
     if (evalMCError) {
-      start = MPI_Wtime();
       std::cout << "manager: eval Monte Carlo" << std::endl;
       managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt, hasThirdLevel);
-      finish = MPI_Wtime();
-      std::cout << "manager: eval MC in " << finish - start << " seconds" << std::endl;
     }
     std::cout << "manager exit" << std::endl;
+
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
   }
