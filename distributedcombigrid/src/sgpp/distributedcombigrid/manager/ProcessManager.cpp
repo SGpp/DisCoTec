@@ -115,6 +115,7 @@ void ProcessManager::exit() {
 }
 
 void ProcessManager::initDsgus() {
+  Stats::startEvent("manager init dsgus");
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
   size_t numWaiting = 0;
@@ -123,8 +124,7 @@ void ProcessManager::initDsgus() {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
     }
   }
 
@@ -135,9 +135,11 @@ void ProcessManager::initDsgus() {
   }
 
   waitAllFinished();
+  Stats::stopEvent("manager init dsgus");
 }
 
 void ProcessManager::updateCombiParameters() {
+  Stats::startEvent("manager update parameters");
   {
     bool fail = waitAllFinished();
     assert(!fail && "should not fail here");
@@ -148,8 +150,8 @@ void ProcessManager::updateCombiParameters() {
     bool fail = waitAllFinished();
     assert(!fail && "should not fail here");
   }
+  Stats::stopEvent("manager update parameters");
 }
-
 
 /*
  * Compute the group faults that occured at this combination step using the
@@ -487,19 +489,23 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
 }
 
 void ProcessManager::setupThirdLevel() {
+  Stats::startEvent("manager connect third level");
   std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
   std::cout << hostnameInfo << std::endl;
   thirdLevel_.connectToThirdLevelManager(10.);
+  Stats::stopEvent("manager connect third level");
 }
 
 void ProcessManager::writeInterpolatedValues(
     const std::vector<std::vector<real>>& interpolationCoords) {
+  Stats::startEvent("manager write interpolated");
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
   for (size_t i = 0; i < pgroups_.size(); ++i) {
     pgroups_[i]->writeInterpolatedValues(interpolationCoordsSerial);
   }
+  Stats::stopEvent("manager write interpolated");
 }
 
 void ProcessManager::writeInterpolationCoordinates(
@@ -530,6 +536,7 @@ void ProcessManager::writeInterpolationCoordinates(
 }
 
 void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values) {
+  Stats::startEvent("manager MC third level");
   coordinates = montecarlo::getRandomCoordinates(numPoints, params_.getDim());
   auto ourCoordinatesSerial = serializeInterpolationCoords(coordinates);
 
@@ -575,6 +582,7 @@ void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vec
   for (size_t i = 0; i < numPoints; ++i){
     values[i] += remoteValues[i];
   }
+  Stats::stopEvent("manager MC third level");
 }
 
 void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
