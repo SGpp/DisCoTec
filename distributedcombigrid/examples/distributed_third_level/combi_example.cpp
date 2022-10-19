@@ -373,9 +373,6 @@ int main(int argc, char** argv) {
       manager.initDsgus();
     } else {
       manager.runfirst();
-      finish = MPI_Wtime();
-      std::cout << "manager: ran in " << finish - start << " seconds" << std::endl;
-      start = finish;
     }
     Stats::stopEvent("manager run first");
     auto durationInit = Stats::getDuration("manager init dsgus")/ 1000.0;
@@ -411,7 +408,6 @@ int main(int argc, char** argv) {
 
 
       // run tasks for next time interval
-      // start = MPI_Wtime();
       Stats::startEvent("manager run");
       manager.runnext();
       // manager.waitAllFinished();
