@@ -65,8 +65,7 @@ class DistributedFullGrid {
     nrPoints_.resize(dim_);
 
     for (DimType j = 0; j < dim_; j++) {
-      nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                      : (powerOfTwo[levels_[j]] - 1));
+      nrPoints_[j] = combigrid::getNumDofNodal(levels_[j], hasBoundaryPoints_[j]);
       offsets_[j] = nrElements_;
       nrElements_ = nrElements_ * nrPoints_[j];
     }

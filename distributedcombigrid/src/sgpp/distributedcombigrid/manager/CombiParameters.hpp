@@ -266,7 +266,7 @@ class CombiParameters {
     assert(uniformDecomposition);
     for (DimType d = 0; d < dim_; ++d) {
       assert(decomposition[d][0] == 0);
-      auto numPoints = powerOfTwo[lmax_[d]] + (boundary_[d] ? 1 : -1);
+      auto numPoints = combigrid::getNumDofNodal(lmax_[d], boundary_[d]);
       assert(decomposition[d].back() < numPoints);
       assert(procs_[d] == decomposition[d].size());
     }
