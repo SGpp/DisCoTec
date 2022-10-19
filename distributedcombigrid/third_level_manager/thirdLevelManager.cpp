@@ -1,7 +1,7 @@
 #include "thirdLevelManager.hpp"
 #include <boost/asio.hpp>
 
-#ifdef BROKER_ON_SYSTEM
+#if BROKER_ON_SYSTEM
   // to resolve https://github.com/open-mpi/ompi/issues/5157
   #define OMPI_SKIP_MPICXX 1
   #include <mpi.h>
@@ -17,7 +17,7 @@ int main(int argc, char* argv[])
     return 0;
   }
 
-#ifdef BROKER_ON_SYSTEM
+#if BROKER_ON_SYSTEM
   // if broker is running on highest rank on same system, need to split it away from world
   // communicator
   MPI_Init(&argc, &argv);

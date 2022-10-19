@@ -15,7 +15,7 @@ thirdLevelManager: thirdLevelManager.cpp thirdLevelManager.hpp\
                    $(THIRD_LEVEL_INC)/NetworkUtils.hpp\
                    $(THIRD_LEVEL_INC)/NetworkUtils.cpp -lboost_program_options
 	$(CC) $(CFLAGS) $(INC) -o thirdLevelManager thirdLevelManager.cpp\
-			    -DBROKER_ON_SYSTEM=1\
+			    -DBROKER_ON_SYSTEM=0\
                             Params.cpp System.cpp Stats.cpp\
                             $(THIRD_LEVEL_INC)/NetworkUtils.cpp -lboost_program_options -DDEBUG_ON # > build.log 2>&1
 
