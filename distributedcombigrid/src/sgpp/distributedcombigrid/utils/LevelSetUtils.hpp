@@ -18,23 +18,27 @@ inline IndexType powerOfTwoByBitshift(LevelType x) {
   }
 }
 
+inline IndexType getNumDofNodal(const LevelType& l_i, const bool& boundary) {
+  assert(l_i > -1);
+  if (l_i > 0) {
+    if (boundary == true) {
+      return powerOfTwoByBitshift(l_i) + 1;
+    } else {
+      return powerOfTwoByBitshift(l_i) - 1;
+    }
+  } else {
+    if (boundary == false) {
+      throw std::runtime_error("without boundary, there are no points on level 0");
+    }
+    return 2;
+  }
+}
+
 inline IndexType getNumDofNodal(const LevelVector& l, const std::vector<bool>& boundary) {
   IndexType numDofPerGrid = 1;
   auto b = boundary.cbegin();
   for (const auto& l_i : l) {
-    assert(l_i > -1);
-    if (l_i > 0) {
-      if (*b == true) {
-        numDofPerGrid *= (powerOfTwoByBitshift(l_i) + 1);
-      } else {
-        numDofPerGrid *= (powerOfTwoByBitshift(l_i) - 1);
-      }
-    } else {
-      if (*b == false) {
-        throw std::runtime_error("without boundary, there are no points on level 0");
-      }
-      numDofPerGrid *= 2;
-    }
+    numDofPerGrid *= getNumDofNodal(l_i, *b);
     ++b;
   }
   return numDofPerGrid;
@@ -49,16 +53,20 @@ inline IndexType getNumDofNodal(const std::vector<LevelVector>& levelVectors,
   return numDof;
 }
 
+inline IndexType getNumDofHierarchical(const LevelType& l_i, const bool& boundary) {
+  assert(l_i > 0);
+  if (l_i == 1 && boundary == true) {
+    return 3;
+  } else {
+    return powerOfTwoByBitshift(l_i - 1);
+  }
+}
+
 inline IndexType getNumDofHierarchical(const LevelVector& l, const std::vector<bool>& boundary) {
   auto b = boundary.cbegin();
   IndexType numDofPerSubspace = 1;
   for (const auto& l_i : l) {
-    assert(l_i > 0);
-    if (l_i == 1 && *b == true) {
-      numDofPerSubspace *= 3;
-    } else {
-      numDofPerSubspace *= powerOfTwoByBitshift(l_i - 1);
-    }
+    numDofPerSubspace *= getNumDofHierarchical(l_i, *b);
     ++b;
   }
   return numDofPerSubspace;
