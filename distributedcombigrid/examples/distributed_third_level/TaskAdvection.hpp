@@ -147,9 +147,7 @@ class TaskAdvection : public Task {
           if (locAxisIndex[d] == 0){
             // if we are in the lowest layer in d,
             // make sure we are not on the lowest global layer
-            static IndexVector globAxisIndex(this->getDim());
-            dfg_->getGlobalVectorIndex(locAxisIndex, globAxisIndex);
-            if (globAxisIndex[d] == 0){
+            if (dfg_->getCartesianUtils().isOnLowerBoundaryInDimension(d)){
               assert(phi_ghost.size()==0);
               continue;
             }
