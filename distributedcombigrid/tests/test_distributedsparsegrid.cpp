@@ -527,6 +527,13 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
   BOOST_CHECK(it == created.end());
   BOOST_CHECK_EQUAL(created.size(),
                     std::accumulate(lmax.begin(), lmax.end(), 1, std::multiplies<LevelType>()));
+  for (bool boundary : {true, false}) {
+    std::vector<bool> boundaryVector = {boundary, boundary, boundary, !boundary};
+    BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),
+                      getNumDofHierarchical(downSet, boundaryVector));
+    BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),
+                      getNumDofHierarchical(created, boundaryVector));
+  }
 }
 
 BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
