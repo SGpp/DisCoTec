@@ -28,4 +28,4 @@ manager_only: combi_example_manager_only.cpp
 	$(CC) $(CFLAGS) $(LDIR) $(INC) -o manager_only combi_example_manager_only.cpp $(LIBS) -DUNIFORMDECOMPOSITION -DTIMING
 
 clean:
-	rm -f *.o out/* combi_example
+	rm -f *.o out/* combi_example manager_only
