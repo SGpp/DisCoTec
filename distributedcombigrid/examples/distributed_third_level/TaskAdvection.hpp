@@ -81,10 +81,12 @@ class TaskAdvection : public Task {
     start = MPI_Wtime();
     std::vector<double> h = dfg_->getGridSpacing();
     auto sumOneOverH = 0.;
-    for (const auto & h_x : h) {
-      sumOneOverH += 1./h_x;
+    for (const auto& h_x : h) {
+      sumOneOverH += 1. / h_x;
     }
-    assert(dt_ * sumOneOverH < 1. && "CFL condition not satisfied!");
+    if (!(dt_ * sumOneOverH < 1.)) {
+      throw std::runtime_error("CFL condition not satisfied!");
+    }
 
     TestFn f;
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
