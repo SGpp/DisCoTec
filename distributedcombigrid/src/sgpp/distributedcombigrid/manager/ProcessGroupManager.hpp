@@ -171,11 +171,11 @@ class ProcessGroupManager {
                      bool isSendingFirst);
 
   bool collectSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
-                            std::unique_ptr<uint64_t[]>& buff, size_t& buffSize,
+                            std::unique_ptr<SubspaceSizeType[]>& buff, size_t& buffSize,
                             std::vector<int>& numSubspacesPerWorker);
 
   bool distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
-                               const std::unique_ptr<uint64_t[]>& buff, size_t buffSize,
+                               const std::unique_ptr<SubspaceSizeType[]>& buff, size_t buffSize,
                                const std::vector<int>& numSubspacesPerWorker);
 
   bool reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,

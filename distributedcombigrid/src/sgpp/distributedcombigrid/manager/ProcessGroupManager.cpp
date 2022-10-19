@@ -138,14 +138,14 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
   }
 
   // prepare buffers
-  std::unique_ptr<uint64_t[]> sendBuff;
-  std::unique_ptr<uint64_t[]> recvBuff;
+  std::unique_ptr<SubspaceSizeType[]> sendBuff;
+  std::unique_ptr<SubspaceSizeType[]> recvBuff;
   size_t buffSize;
   std::vector<int> numSubspacesPerWorker;
 
   // gather subspace sizes from workers
   collectSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
-  recvBuff.reset(new uint64_t[buffSize]);
+  recvBuff.reset(new SubspaceSizeType[buffSize]);
 
   /* TODO can be easily parallelized by removing the condition and call send and
      receive in a separate thread*/
@@ -163,7 +163,7 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
   
   // set accumulated dsgu sizes per worker
   formerDsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  uint64_t* sizePtr = sendBuff.get();
+  SubspaceSizeType* sizePtr = sendBuff.get();
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
     int sum = 0;
     for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
@@ -249,7 +249,8 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel, Combi
 
 bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel,
                                                CombiParameters& params,
-                                               std::unique_ptr<uint64_t[]>& buff, size_t& buffSize,
+                                               std::unique_ptr<SubspaceSizeType[]>& buff,
+                                               size_t& buffSize,
                                                std::vector<int>& numSubspacesPerWorker) {
   // prepare args of MPI_Gather
   const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[(size_t)pgroupRootID_];
@@ -286,15 +287,15 @@ bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel
   numSubspacesPerWorker.pop_back();
 
   // create machine independent buffer
-  buff.reset(new size_t[buffSize]);
-  for (size_t i = 0; i < buffSize; ++i) buff[i] = static_cast<uint64_t>(mdBuff[i]);
+  buff.reset(new SubspaceSizeType[buffSize]);
+  for (size_t i = 0; i < buffSize; ++i) buff[i] = static_cast<SubspaceSizeType>(mdBuff[i]);
 
   return true;
 }
 
 bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel,
                                                   CombiParameters& params,
-                                                  const std::unique_ptr<uint64_t[]>& buff,
+                                                  const std::unique_ptr<SubspaceSizeType[]>& buff,
                                                   size_t buffSize,
                                                   const std::vector<int>& numSubspacesPerWorker) {
   // prepare args of MPI_Scatterv

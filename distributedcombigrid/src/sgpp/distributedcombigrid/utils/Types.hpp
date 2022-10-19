@@ -43,6 +43,11 @@ namespace combigrid {
 
   typedef int RankType;
 
+  // type used for widely-distributed reduction of subspace sizes
+  // it is easily enough to fit the largest subspace (19,1,1,1,1,1) in the current scenario
+  // (= 2^19 * 3 * 3 * 3 * 3 * 3 = 2^19 * 3^5 = 127401984)
+  typedef uint32_t SubspaceSizeType;
+
 
   template <typename T>
   inline std::string toString(std::vector<T> const& v){
