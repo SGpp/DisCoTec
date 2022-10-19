@@ -210,8 +210,23 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
 
         // exchange subspace sizes to unify the dsgs with the remote system
         Stats::startEvent("manager unify subspace sizes with remote");
-        manager.unifySubspaceSizesThirdLevel(thirdLevelExtraSparseGrid),
+        auto newSGsize = manager.unifySubspaceSizesThirdLevel(thirdLevelExtraSparseGrid);
         Stats::stopEvent("manager unify subspace sizes with remote");
+        {
+          std::vector<LevelVector> created;
+          auto lmaxReduced = testParams.lmax;
+          for (auto& l : lmaxReduced) {
+            l -= 1;
+          }
+          combigrid::createTruncatedHierarchicalLevels(lmaxReduced, testParams.lmin, created);
+          auto numDofSG = combigrid::getNumDofHierarchical(created, boundary);
+          if (thirdLevelExtraSparseGrid) {
+            //TODO more accurate check
+            BOOST_CHECK_LT(newSGsize, numDofSG);
+          } else {
+            BOOST_CHECK_EQUAL(newSGsize, numDofSG);
+          }
+        }
       } else {
         Stats::startEvent("manager run");
         manager.runnext();

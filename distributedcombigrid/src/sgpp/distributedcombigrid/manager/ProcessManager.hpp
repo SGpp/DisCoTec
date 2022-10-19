@@ -77,7 +77,7 @@ class ProcessManager {
 
   inline size_t pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate, bool checkValues);
 
-  inline void unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
+  inline size_t unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
   void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values);
 
@@ -430,7 +430,7 @@ size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsTo
  * sizes back to the workers of the third level pg who will then distribute it
  * to the other pgs.
  */
-void ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
+ size_t ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
   if (!thirdLevelExtraSparseGrid) {
     // tell other pgroups to idle and wait for update
     for (auto& pg : pgroups_) {
@@ -456,8 +456,10 @@ void ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid
   const auto& formerDsguDataSizePerWorker = thirdLevelPGroup_->getFormerDsguDataSizePerWorker();
   const auto& dsguDataSizePerWorker = thirdLevelPGroup_->getDsguDataSizePerWorker();
 
-  auto formerDsguDataSize = std::accumulate(formerDsguDataSizePerWorker.begin(), formerDsguDataSizePerWorker.end(), 0);
-  auto dsguDataSize = std::accumulate(dsguDataSizePerWorker.begin(), dsguDataSizePerWorker.end(), 0);
+  auto formerDsguDataSize =
+      std::accumulate(formerDsguDataSizePerWorker.begin(), formerDsguDataSizePerWorker.end(), 0);
+  auto dsguDataSize =
+      std::accumulate(dsguDataSizePerWorker.begin(), dsguDataSizePerWorker.end(), 0);
   Stats::setAttribute("formerDsguDataSize", std::to_string(formerDsguDataSize));
   Stats::setAttribute("dsguDataSize", std::to_string(dsguDataSize));
 
@@ -466,6 +468,8 @@ void ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid
   } else if (!thirdLevelExtraSparseGrid && dsguDataSize < formerDsguDataSize) {
     throw std::runtime_error("why is it smaller???");
   }
+
+  return dsguDataSize;
 }
 
 /** This function performs the so-called recombination. First, the combination
