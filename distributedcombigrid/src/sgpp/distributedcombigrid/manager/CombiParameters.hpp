@@ -4,6 +4,7 @@
 #include <boost/serialization/map.hpp>
 #include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
+#include "sgpp/distributedcombigrid/utils/LevelSetUtils.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 namespace combigrid {
