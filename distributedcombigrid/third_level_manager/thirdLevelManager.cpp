@@ -93,26 +93,20 @@ void ThirdLevelManager::init()
     std::cout << "ThirdLevelManager::init(): Could not initialize server!" << std::endl;
     exit(0);
   }
-#ifdef DEBUG_OUTPUT
   std::cout << "Third level manager running on port: " << port_ << std::endl;
-#endif
 
   // Create abstraction for each system
 #ifdef DEBUG_OUTPUT
   std::cout << "Creating abstraction for systems" << std::endl;
 #endif
   for (u_int i = 0; i < params_.getNumSystems(); i++) {
-#ifdef DEBUG_OUTPUT
     std::cout << " Waiting for system (" << i+1 << "/" << params_.getNumSystems() << ")" << std::endl;
-#endif
     std::shared_ptr<ClientSocket> connection = std::shared_ptr<ClientSocket>(server_.acceptClient());
     assert(connection != nullptr && "Connecting to system failed");
     System sys(connection, i+1);
     systems_.push_back(std::move(sys));
   }
-#ifdef DEBUG_OUTPUT
   std::cout << "All systems connected successfully" << std::endl;
-#endif
 }
 
 
@@ -318,18 +312,6 @@ void ThirdLevelManager::writeStatistics(std::string filename)
   size_t totalBytesTransferredInCombination = stats_.getTotalBytesTransferredInCombination();
   size_t numBytesTransferredPerCombination = totalBytesTransferredInCombination / numCombinations;
   size_t totalBytesTransferredInSizeExchange = stats_.getTotalBytesTransferredInSizeExchange();
-#ifdef DEBUG_OUTPUT
-  std::cout << "Simulation took:                     "
-    << (double) walltime / 1e6 << "sec" << std::endl;
-  std::cout << "Num combinations:                    "
-    << numCombinations << std::endl;
-  std::cout << "Total transfer during combination:   "
-    << totalBytesTransferredInCombination << "B" << std::endl;
-  std::cout << "Transfer per combination:            "
-    << numBytesTransferredPerCombination << "B" << std::endl;
-  std::cout << "Total transfer during size exchange: "
-    << totalBytesTransferredInSizeExchange << "B" << std::endl;
-#endif
   if (filename != "")
   {
     std::ofstream ofs (filename, std::ofstream::out);
@@ -342,6 +324,16 @@ void ThirdLevelManager::writeStatistics(std::string filename)
     boost::property_tree::write_json(ofs, pt);
     ofs.close();
   }
+  std::cout << "Simulation took:                     "
+    << (double) walltime / 1e6 << "sec" << std::endl;
+  std::cout << "Num combinations:                    "
+    << numCombinations << std::endl;
+  std::cout << "Total transfer during combination:   "
+    << totalBytesTransferredInCombination << "B" << std::endl;
+  std::cout << "Transfer per combination:            "
+    << numBytesTransferredPerCombination << "B" << std::endl;
+  std::cout << "Total transfer during size exchange: "
+    << totalBytesTransferredInSizeExchange << "B" << std::endl;
 }
 
 }
