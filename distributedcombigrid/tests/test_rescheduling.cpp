@@ -266,7 +266,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
-  TestHelper::testStrayMessages(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
 BOOST_FIXTURE_TEST_SUITE(rescheduling, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))

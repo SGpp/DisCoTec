@@ -468,7 +468,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
     }
   }
 
-  TestHelper::testStrayMessages(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
 BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(240))

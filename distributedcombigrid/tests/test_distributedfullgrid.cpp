@@ -106,7 +106,7 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
-  TestHelper::testStrayMessages();
+  BOOST_CHECK(!TestHelper::testStrayMessages());
 }
 
 void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
