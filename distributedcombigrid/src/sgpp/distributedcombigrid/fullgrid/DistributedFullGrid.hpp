@@ -1276,8 +1276,9 @@ class DistributedFullGrid {
         (firstGlobalIndexOnThisPartition)*strideForThisLevel + offsetForThisLevel;
     IndexType localStart = globalStart - firstGlobal1dIdx;
 
-    assert(getLevel(d, localStart) == l);
-    assert(localStart >= firstGlobal1dIdx);
+    assert(getLevel(d, globalStart) == l ||
+           (getLevel(d, globalStart) == 0 && hasBoundaryPoints_[d] && l == 1));
+    assert(globalStart >= firstGlobal1dIdx);
     auto numPointsOnThisPartition =
         (nrLocalPoints_[d] - 1 < localStart)
             ? 0
