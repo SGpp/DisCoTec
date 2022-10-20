@@ -248,6 +248,7 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
     }
     dsguDataSizePerWorker_[w] = sum;
   }
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
   return true;
 }
 
@@ -580,10 +581,13 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
 void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                                             std::vector<CombiDataType>& values,
                                             MPI_Request& request) {
-  sendSignalToProcessGroup(INTERPOLATE_VALUES);
-  MPI_Request dummyRequest;
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
+  for (const auto& coord : interpolationCoordsSerial) {
+    assert(coord >= 0.0 && coord <= 1.0);
+  }
+  sendSignalToProcessGroup(INTERPOLATE_VALUES);
+  MPI_Request dummyRequest;
   MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
             abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
@@ -593,6 +597,7 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
             pgroupRootID_, TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &request);
 
   setProcessGroupBusyAndReceive();
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
 }
 
 void ProcessGroupManager::writeInterpolatedValues(const std::vector<real>& interpolationCoordsSerial) {
@@ -605,6 +610,7 @@ void ProcessGroupManager::writeInterpolatedValues(const std::vector<real>& inter
             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
   MPI_Request_free(&dummyRequest);
   setProcessGroupBusyAndReceive();
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
 }
 
 void ProcessGroupManager::recvStatus() {
@@ -655,21 +661,21 @@ Task* ProcessGroupManager::rescheduleRemoveTask(const LevelVector& lvlVec) {
 
 bool ProcessGroupManager::writeCombigridsToVTKPlotFile() {
   // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
 
   sendSignalAndReceive(WRITE_DFGS_TO_VTK);
   return true;
 }
 
 bool ProcessGroupManager::writeDSGsToDisk(std::string filenamePrefix) {
-  assert(status_ == PROCESS_GROUP_WAIT);
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(WRITE_DSGS_TO_DISK);
   MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
   return true;
 }
 
 bool ProcessGroupManager::readDSGsFromDisk(std::string filenamePrefix) {
-  assert(status_ == PROCESS_GROUP_WAIT);
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(WRITE_DSGS_TO_DISK);
   MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
   return true;
