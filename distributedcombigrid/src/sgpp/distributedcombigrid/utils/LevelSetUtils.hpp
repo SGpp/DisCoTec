@@ -16,6 +16,7 @@ inline IndexType powerOfTwoByBitshift(LevelType x) {
   } else if (x < 0) {
     throw std::runtime_error("powerOfTwoByBitshift: negative argument");
   }
+  return -1;
 }
 
 inline IndexType getNumDofNodal(const LevelType& l_i, const bool& boundary) {
