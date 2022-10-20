@@ -357,7 +357,12 @@ class DistributedFullGrid {
     auto h = getGridSpacing();
     IndexVector localIndexLowerNonzeroNeighborPoint (dim_);
     for (DimType d = 0 ; d < dim_ ; ++d){
+#ifndef NDEBUG
+      if(coords[d] < 0. || coords[d] > 1.) {
+        std::cout << "coords " << coords << " out of bounds" << std::endl;
+      }
       assert(coords[d] >= 0. && coords[d] <= 1.);
+#endif // ndef NDEBUG
       localIndexLowerNonzeroNeighborPoint[d] = static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
     }
     // std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
