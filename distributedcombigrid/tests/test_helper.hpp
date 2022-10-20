@@ -66,7 +66,7 @@ namespace TestHelper{
     return rank;
   }
 
-  static void testStrayMessages(MPI_Comm comm = MPI_COMM_WORLD) {
+  static bool testStrayMessages(MPI_Comm comm = MPI_COMM_WORLD) {
     // general test for stray messages
     int flag;
     MPI_Status status;
@@ -77,7 +77,7 @@ namespace TestHelper{
       std::cout << getRank(MPI_COMM_WORLD) << " received " << number_amount << " bytes from "
                 << status.MPI_SOURCE << " with tag " << status.MPI_TAG << std::endl;
     }
-    BOOST_CHECK(flag == false);
+    // BOOST_CHECK(flag == false);
     if (flag) {
       std::vector<char> buffer(number_amount);
       MPI_Recv(buffer.data(), number_amount, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, comm,
@@ -87,6 +87,7 @@ namespace TestHelper{
         std::cout << std::to_string(c) << " ";
       std::cout << std::endl;
     }
+    return flag;
   }
 
   struct BarrierAtEnd {
@@ -94,7 +95,7 @@ namespace TestHelper{
     ~BarrierAtEnd() {
       BOOST_CHECK(!combigrid::Stats::isInitialized());
       MPI_Barrier(MPI_COMM_WORLD);
-      TestHelper::testStrayMessages();
+      BOOST_CHECK(!TestHelper::testStrayMessages());
     }
   };
 }  // namespace TestHelper

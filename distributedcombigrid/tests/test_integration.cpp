@@ -234,7 +234,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     remove(("integration_" + std::to_string(ncombi) + "_0.raw").c_str());
     remove(("integration_" + std::to_string(ncombi) + "_0.raw_header").c_str());
 
-    TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
   }
   else {
     BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), nprocs);
@@ -242,6 +242,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       BOOST_CHECK(theMPISystem()->isMaster());
     }
     BOOST_TEST_CHECKPOINT("Worker starts");
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
     // omitting to count RUN_FIRST signal, as it is executed once for every task
@@ -263,15 +264,15 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       }
     }
     BOOST_CHECK_EQUAL(nrun, ncombi);
-    TestHelper::testStrayMessages(theMPISystem()->getLocalComm());
-    MASTER_EXCLUSIVE_SECTION { TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()); }
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
+    MASTER_EXCLUSIVE_SECTION { BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm())); }
   }
 
   combigrid::Stats::finalize();
   Stats::write("integration_" + std::to_string(ngroup) + "_" + std::to_string(nprocs) + ".json");
 
   MPI_Barrier(comm);
-  TestHelper::testStrayMessages(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
 /**
@@ -342,7 +343,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 
     manager.exit();
 
-    TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
   }
   else {
     BOOST_TEST_CHECKPOINT("Worker starts");
@@ -357,12 +358,12 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     for (const auto& b : bases) {
       BOOST_TEST(dynamic_cast<T*>(b) != nullptr);
     }
-    TestHelper::testStrayMessages(theMPISystem()->getLocalComm());
-    MASTER_EXCLUSIVE_SECTION { TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()); }
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
+    MASTER_EXCLUSIVE_SECTION { BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm())); }
   }
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
-  TestHelper::testStrayMessages(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
 #ifndef ISGENE  // integration tests won't work with ISGENE because of worker magic
@@ -405,7 +406,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    TestHelper::testStrayMessages();
+    BOOST_CHECK(!TestHelper::testStrayMessages());
   }
 }
 

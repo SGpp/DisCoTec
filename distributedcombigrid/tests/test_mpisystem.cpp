@@ -132,7 +132,7 @@ unsigned long checkMPIMemory(size_t ngroup, size_t nprocs) {
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
-  TestHelper::testStrayMessages(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
   return local_vmsize;
 }
 
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::timeout(60)) {
     }
   }
   MPI_Barrier(MPI_COMM_WORLD);
-  TestHelper::testStrayMessages();
+  BOOST_CHECK(!TestHelper::testStrayMessages());
 }
 
 //TODO make test for checkMPIRanksAndCommunication
