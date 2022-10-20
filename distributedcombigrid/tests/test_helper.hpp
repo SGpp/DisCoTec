@@ -66,18 +66,27 @@ namespace TestHelper{
     return rank;
   }
 
-  static void testStrayMessages(MPI_Comm comm = MPI_COMM_WORLD){
+  static void testStrayMessages(MPI_Comm comm = MPI_COMM_WORLD) {
     // general test for stray messages
     int flag;
     MPI_Status status;
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &flag, &status);
-    if (flag){
-      int number_amount;
+    int number_amount;
+    if (flag) {
       MPI_Get_count(&status, MPI_CHAR, &number_amount);
-      std::cout << getRank(MPI_COMM_WORLD) << " received " << number_amount << " from "
+      std::cout << getRank(MPI_COMM_WORLD) << " received " << number_amount << " bytes from "
                 << status.MPI_SOURCE << " with tag " << status.MPI_TAG << std::endl;
     }
     BOOST_CHECK(flag == false);
+    if (flag) {
+      std::vector<char> buffer(number_amount);
+      MPI_Recv(buffer.data(), number_amount, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, comm,
+               MPI_STATUS_IGNORE);
+      std::cout << " content " ;
+      for (const auto& c: buffer)
+        std::cout << std::to_string(c) << " ";
+      std::cout << std::endl;
+    }
   }
 
   struct BarrierAtEnd {
