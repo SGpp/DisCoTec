@@ -287,7 +287,10 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < ncombi; ++i) {
       Stats::startEvent("manager pretend to third-level combine");
       if (hasThirdLevel) {
-        manager.pretendCombineThirdLevel(dsguConjointSizes, true);
+        auto numErrors = manager.pretendCombineThirdLevel(dsguConjointSizes, true);
+        if (numErrors > 0) {
+          throw std::runtime_error("wrong numbers!");
+        }
       } else {
         throw std::runtime_error("this was not intended!");
       }
