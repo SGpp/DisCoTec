@@ -145,6 +145,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // the combiparameters are sent to all process groups before the
     // computations start
     manager.updateCombiParameters();
+    manager.pretendUnifySubspaceSizesThirdLevel();
 
     /* distribute task according to load model and start computation for
      * the first time */

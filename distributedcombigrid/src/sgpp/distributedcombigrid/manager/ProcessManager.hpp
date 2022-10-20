@@ -75,11 +75,15 @@ class ProcessManager {
 
   inline void combineThirdLevel();
 
-  inline size_t pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate, bool checkValues);
+  inline size_t pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate,
+                                         bool checkValues);
 
   inline size_t unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
-  void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values);
+  inline size_t pretendUnifySubspaceSizesThirdLevel();
+
+  void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates,
+                            std::vector<CombiDataType>& values);
 
   inline void combineLocalAndGlobal();
 
@@ -467,6 +471,37 @@ size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsTo
     throw std::runtime_error("why is it larger???");
   } else if (!thirdLevelExtraSparseGrid && dsguDataSize < formerDsguDataSize) {
     throw std::runtime_error("why is it smaller???");
+  }
+
+  return dsguDataSize;
+}
+
+// like unifySubspaceSizesThirdLevel, but without sending any data widely
+// instead, the manager sends only zeros to the third level group, so it will keep its own sparse
+// grid sizes
+size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
+  // tell other pgroups to idle and wait for update
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelSizeUpdate();
+  }
+
+  // exchange sizes with remote
+  thirdLevelPGroup_->pretendReduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_);
+
+  waitAllFinished();
+
+  const auto& formerDsguDataSizePerWorker = thirdLevelPGroup_->getFormerDsguDataSizePerWorker();
+  const auto& dsguDataSizePerWorker = thirdLevelPGroup_->getDsguDataSizePerWorker();
+
+  auto formerDsguDataSize =
+      std::accumulate(formerDsguDataSizePerWorker.begin(), formerDsguDataSizePerWorker.end(), 0);
+  auto dsguDataSize =
+      std::accumulate(dsguDataSizePerWorker.begin(), dsguDataSizePerWorker.end(), 0);
+  Stats::setAttribute("formerDsguDataSize", std::to_string(formerDsguDataSize));
+  Stats::setAttribute("dsguDataSize", std::to_string(dsguDataSize));
+
+  if (dsguDataSize != formerDsguDataSize) {
+    throw std::runtime_error("wrong number of dofs pretending unifying dsgu sizes");
   }
 
   return dsguDataSize;

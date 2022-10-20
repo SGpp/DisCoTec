@@ -181,13 +181,14 @@ class ProcessGroupManager {
   bool reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
                                          bool isSendingFirst, bool thirdLevelExtraSparseGrid);
 
+  bool pretendReduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel,
+                                                CombiParameters& params);
+
   const std::vector<size_t>& getFormerDsguDataSizePerWorker() {
     return formerDsguDataSizePerWorker_;
   }
 
-  const std::vector<size_t>& getDsguDataSizePerWorker() {
-    return dsguDataSizePerWorker_;
-  }
+  const std::vector<size_t>& getDsguDataSizePerWorker() { return dsguDataSizePerWorker_; }
 
   bool waitForThirdLevelSizeUpdate();
 

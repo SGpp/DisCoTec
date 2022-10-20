@@ -160,7 +160,7 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
     // send subspace sizes to remote
     thirdLevel.sendData(sendBuff.get(), buffSize);
   }
-  
+
   // set accumulated dsgu sizes per worker
   formerDsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
   SubspaceSizeType* sizePtr = sendBuff.get();
@@ -174,11 +174,66 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
 
   if (thirdLevelExtraSparseGrid) {
     // perform min reduce
-    for (size_t i = 0; i < buffSize; ++i) sendBuff[i] = std::min(sendBuff[i], recvBuff[i]);
+    for (size_t i = 0; i < buffSize; ++i) {
+      assert(recvBuff[i] == sendBuff[i] || recvBuff[i] == 0 || sendBuff[i] == 0);
+      sendBuff[i] = std::min(sendBuff[i], recvBuff[i]);
+    }
   } else {
     // perform max reduce
-    for (size_t i = 0; i < buffSize; ++i) sendBuff[i] = std::max(sendBuff[i], recvBuff[i]);
+    for (size_t i = 0; i < buffSize; ++i) {
+      assert(recvBuff[i] == sendBuff[i] || recvBuff[i] == 0 || sendBuff[i] == 0);
+      sendBuff[i] = std::max(sendBuff[i], recvBuff[i]);
+    }
   }
+
+  // scatter data back to workers
+  distributeSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
+
+  // set accumulated dsgu sizes per worker
+  dsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
+  sizePtr = sendBuff.get();
+  for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
+    int sum = 0;
+    for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
+      sum += (int)*(sizePtr++);
+    }
+    dsguDataSizePerWorker_[w] = sum;
+  }
+  return true;
+}
+
+bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
+    const ThirdLevelUtils& thirdLevel, CombiParameters& params) {
+  sendSignalAndReceive(REDUCE_SUBSPACE_SIZES_TL);
+
+  // prepare buffers
+  std::unique_ptr<SubspaceSizeType[]> sendBuff;
+  std::unique_ptr<SubspaceSizeType[]> recvBuff;
+  size_t buffSize;
+  std::vector<int> numSubspacesPerWorker;
+
+  // gather subspace sizes from workers
+  collectSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
+  recvBuff.reset(new SubspaceSizeType[buffSize]);
+
+  // don't send subspace sizes to remote
+  // don't receive remote subspace sizes
+  // instead, just return zeros to process group
+  std::fill(recvBuff.get(), recvBuff.get() + buffSize, static_cast<SubspaceSizeType>(0));
+
+  // set accumulated dsgu sizes per worker
+  formerDsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
+  SubspaceSizeType* sizePtr = sendBuff.get();
+  for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
+    int sum = 0;
+    for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
+      sum += (int)*(sizePtr++);
+    }
+    formerDsguDataSizePerWorker_[w] = sum;
+  }
+
+  // perform max reduce
+  for (size_t i = 0; i < buffSize; ++i) sendBuff[i] = std::max(sendBuff[i], recvBuff[i]);
 
   // scatter data back to workers
   distributeSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
