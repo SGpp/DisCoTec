@@ -22,7 +22,6 @@
 #include "sgpp/distributedcombigrid/fault_tolerance/FaultCriterion.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/StaticFaults.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/WeibullFaults.hpp"
-#include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupManager.hpp"
@@ -387,6 +386,8 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager unify subspace sizes with remote");
       auto durationUnify = Stats::getDuration("manager init dsgus")/ 1000.0;
       std::cout << "manager: unified SG in " << durationUnify << " seconds" << std::endl;
+    } else {
+
     }
 
     for (size_t i = 1; i < ncombi; ++i) {
@@ -406,6 +407,17 @@ int main(int argc, char** argv) {
       auto durationCombine = Stats::getDuration("manager combine")/ 1000.0;
       std::cout << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
 
+      Stats::startEvent("manager write to disk");
+      manager.writeDSGsToDisk("uftp_dsgu_");
+      Stats::stopEvent("manager write to disk");
+      auto durationWrite = Stats::getDuration("manager write to disk")/ 1000.0;
+      std::cout << "write " << i << " took: " << durationWrite << " seconds" << std::endl;
+
+      Stats::startEvent("manager read from disk");
+      manager.readDSGsFromDisk("uftp_dsgu_");
+      Stats::stopEvent("manager read from disk");
+      auto durationRead = Stats::getDuration("manager read from disk")/ 1000.0;
+      std::cout << "read " << i << " took: " << durationRead << " seconds" << std::endl;
 
       // run tasks for next time interval
       Stats::startEvent("manager run");
