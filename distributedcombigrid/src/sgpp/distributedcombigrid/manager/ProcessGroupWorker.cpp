@@ -951,14 +951,23 @@ void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& inte
 
     // resize buffer to appropriate size and receive
     interpolationCoordsSerial.resize(coordsSize);
-    MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getManagerRank(),
-             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+    int result = MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getManagerRank(),
+             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &status);
+    assert(result == MPI_SUCCESS);
+    assert(status.MPI_ERROR == MPI_SUCCESS);
+    for (const auto& coord : interpolationCoordsSerial) {
+      assert(coord >= 0.0 && coord <= 1.0);
+    }
   }
-  // broadcast size of vector, and vector
-  MPI_Bcast(&coordsSize, 1, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  // broadcast size of vector, and then vector
+  MPI_Bcast(&coordsSize, 1, MPI_INT, theMPISystem()->getMasterRank(),
+            theMPISystem()->getLocalComm());
   interpolationCoordsSerial.resize(coordsSize);
-  MPI_Bcast(interpolationCoordsSerial.data(), coordsSize, realType,
-            theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  MPI_Bcast(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getMasterRank(),
+            theMPISystem()->getLocalComm());
+  for (const auto& coord : interpolationCoordsSerial) {
+    assert(coord >= 0.0 && coord <= 1.0);
+  }
 
   // split vector into coordinates
   const int dimInt = static_cast<int>(dim);
