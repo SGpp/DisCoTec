@@ -454,7 +454,7 @@ int main(int argc, char** argv) {
     if (hasThirdLevel) {
       manager.combineThirdLevel();
     } else {
-      manager.combine();
+      manager.pretendCombineThirdLevelForWorkers();
     }
     Stats::stopEvent("manager combine");
 
