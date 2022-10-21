@@ -371,7 +371,7 @@ int main(int argc, char** argv) {
       std::cout << "manager: initialize sparse grid data structures" << std::endl;
       manager.initDsgus();
     } else {
-      manager.runfirst();
+      manager.runfirst(true);
     }
     Stats::stopEvent("manager run first");
     auto durationInit = Stats::getDuration("manager init dsgus")/ 1000.0;
@@ -384,10 +384,16 @@ int main(int argc, char** argv) {
       std::cout << "manager: unify sparse grid data structures w/ remote" << std::endl;
       manager.unifySubspaceSizesThirdLevel(extraSparseGrid);
       Stats::stopEvent("manager unify subspace sizes with remote");
-      auto durationUnify = Stats::getDuration("manager init dsgus")/ 1000.0;
+      auto durationUnify = Stats::getDuration("manager unify subspace sizes with remote") / 1000.0;
       std::cout << "manager: unified SG in " << durationUnify << " seconds" << std::endl;
     } else {
-
+      Stats::startEvent("manager pretend unify subspace sizes with remote");
+      std::cout << "manager: unify sparse grid data structures w/ remote" << std::endl;
+      manager.pretendUnifySubspaceSizesThirdLevel();
+      Stats::stopEvent("manager pretend unify subspace sizes with remote");
+      auto durationUnify =
+          Stats::getDuration("manager pretend unify subspace sizes with remote") / 1000.0;
+      std::cout << "manager: unified SG in " << durationUnify << " seconds" << std::endl;
     }
 
     for (size_t i = 1; i < ncombi; ++i) {
@@ -396,7 +402,7 @@ int main(int argc, char** argv) {
       if (hasThirdLevel) {
         manager.combineThirdLevel();
       } else {
-        manager.combine();
+        manager.pretendCombineThirdLevelForWorkers();
       }
       // manager.waitAllFinished();
       Stats::stopEvent("manager combine");
