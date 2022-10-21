@@ -75,7 +75,7 @@ class ProcessManager {
 
   inline void combineThirdLevel();
 
-  inline size_t pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate,
+  inline size_t pretendCombineThirdLevelForBroker(std::vector<long long> numDofsToCommunicate,
                                          bool checkValues);
 
   inline size_t unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
@@ -374,7 +374,7 @@ void ProcessManager::combineThirdLevel() {
  * -- sending dummy data instead
  *
  */
-size_t ProcessManager::pretendCombineThirdLevel(std::vector<long long> numDofsToCommunicate,
+size_t ProcessManager::pretendCombineThirdLevelForBroker(std::vector<long long> numDofsToCommunicate,
                                                 bool checkValues) {
   size_t numWrongValues = 0;
   // obtain instructions from third level manager

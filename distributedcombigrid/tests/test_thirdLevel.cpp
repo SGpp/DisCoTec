@@ -552,8 +552,8 @@ void testPretendThirdLevel(TestParams& testParams) {
 
     BOOST_TEST_CHECKPOINT("partitioned num dof " + std::to_string(dsguSizes[0]));
     for (unsigned int i = 0; i < testParams.ncombi; i++) {
-      BOOST_TEST_CHECKPOINT("pretend combine " + std::to_string(i));
-      auto numErrors = manager.pretendCombineThirdLevel(dsguSizes, true);
+      BOOST_TEST_CHECKPOINT("pretend combine for broker " + std::to_string(i));
+      auto numErrors = manager.pretendCombineThirdLevelForBroker(dsguSizes, true);
       BOOST_CHECK_EQUAL(numErrors, 0);
     }
     manager.exit();
