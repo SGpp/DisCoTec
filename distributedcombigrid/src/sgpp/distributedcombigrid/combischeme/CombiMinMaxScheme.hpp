@@ -181,11 +181,8 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
 };
 
 inline long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces) {
-  long long int numDOF = 0;
   std::vector<bool> boundary(combiSpaces[0].size(), true);
-  for (const auto& space : combiSpaces) {
-    numDOF += combigrid::getNumDofNodal(space, boundary);
-  }
+  long long int numDOF = combigrid::getNumDofNodal(combiSpaces, boundary);
   std::cout << "Combination scheme DOF : " << numDOF << " i.e. "
             << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
 

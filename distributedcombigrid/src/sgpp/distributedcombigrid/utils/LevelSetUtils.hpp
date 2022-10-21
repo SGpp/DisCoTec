@@ -36,6 +36,7 @@ inline IndexType getNumDofNodal(const LevelType& l_i, const bool& boundary) {
 }
 
 inline IndexType getNumDofNodal(const LevelVector& l, const std::vector<bool>& boundary) {
+  assert(l.size() == boundary.size());
   IndexType numDofPerGrid = 1;
   auto b = boundary.cbegin();
   for (const auto& l_i : l) {
@@ -64,6 +65,7 @@ inline IndexType getNumDofHierarchical(const LevelType& l_i, const bool& boundar
 }
 
 inline IndexType getNumDofHierarchical(const LevelVector& l, const std::vector<bool>& boundary) {
+  assert(l.size() == boundary.size());
   auto b = boundary.cbegin();
   IndexType numDofPerSubspace = 1;
   for (const auto& l_i : l) {
