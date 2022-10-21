@@ -67,7 +67,8 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
   return any;
 }
 
-void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = true) {
+void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = true,
+                      bool pretendThirdLevel = true) {
   size_t size = ngroup * nprocs + 1;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
@@ -145,16 +146,23 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // the combiparameters are sent to all process groups before the
     // computations start
     manager.updateCombiParameters();
-    manager.pretendUnifySubspaceSizesThirdLevel();
 
     /* distribute task according to load model and start computation for
      * the first time */
     BOOST_TEST_CHECKPOINT("run first");
-    manager.runfirst();
+    if (pretendThirdLevel) {
+      manager.runfirst(true);
+      manager.pretendUnifySubspaceSizesThirdLevel();
+    } else {
+      manager.runfirst();
+    }
 
     for (size_t it = 0; it < ncombi - 1; ++it) {
       BOOST_TEST_CHECKPOINT("combine");
       manager.combine();
+      if (pretendThirdLevel) {
+        manager.pretendCombineThirdLevelForWorkers();
+      }
 
       BOOST_TEST_CHECKPOINT("run next");
       manager.runnext();

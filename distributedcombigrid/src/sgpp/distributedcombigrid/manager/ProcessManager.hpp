@@ -78,6 +78,8 @@ class ProcessManager {
   inline size_t pretendCombineThirdLevelForBroker(std::vector<long long> numDofsToCommunicate,
                                          bool checkValues);
 
+  inline void pretendCombineThirdLevelForWorkers();
+
   inline size_t unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
   inline size_t pretendUnifySubspaceSizesThirdLevel();
@@ -369,13 +371,33 @@ void ProcessManager::combineThirdLevel() {
   waitAllFinished();
 }
 
+void ProcessManager::pretendCombineThirdLevelForWorkers() {
+  // first combine local and global
+  Stats::startEvent("manager combine local and global");
+  combineLocalAndGlobal();
+  waitAllFinished();
+  Stats::stopEvent("manager combine local and global");
+
+  // tell other pgroups to idle and wait for the combination result
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
+  }
+
+  // combine
+  Stats::startEvent("manager exchange no data with remote");
+  thirdLevelPGroup_->pretendCombineThirdLevelForWorkers(params_);
+  Stats::stopEvent("manager exchange no data with remote");
+
+  waitAllFinished();
+}
+
 /**
  * @brief like combineThirdLevel, but without involving any process groups
  * -- sending dummy data instead
  *
  */
-size_t ProcessManager::pretendCombineThirdLevelForBroker(std::vector<long long> numDofsToCommunicate,
-                                                bool checkValues) {
+size_t ProcessManager::pretendCombineThirdLevelForBroker(
+    std::vector<long long> numDofsToCommunicate, bool checkValues) {
   size_t numWrongValues = 0;
   // obtain instructions from third level manager
   thirdLevel_.signalReadyToCombine();

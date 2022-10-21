@@ -55,6 +55,8 @@ class ProcessGroupManager {
                                CombiParameters& params,
                                bool isSendingFirst);
 
+  bool pretendCombineThirdLevelForWorkers(CombiParameters& params);
+
   bool combineLocalAndGlobal();
 
 

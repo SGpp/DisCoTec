@@ -120,6 +120,52 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
   return true;
 }
 
+bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& params) {
+  // can only send sync signal when in wait state
+  assert(status_ == PROCESS_GROUP_WAIT);
+
+  sendSignalAndReceive(COMBINE_THIRD_LEVEL);
+
+  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
+  assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
+         "initialisation of third level communicator failed");
+  const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
+
+  // exchange dsgus
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
+  IndexType numGrids = params.getNumGrids();
+  std::unique_ptr<CombiDataType[]> dsguData;
+  for (IndexType g = 0; g < numGrids; g++) {
+    for (RankType p = 0; p < (RankType)theMPISystem()->getNumProcs(); p++) {
+      // we assume here that all dsgus have the same size otherwise size collection must change
+      size_t dsguSize = (size_t)(dsguDataSizePerWorker_[(size_t)p] / numGrids);
+      assert(dsguSize > 0);
+
+      // recv dsgu from worker
+      dsguData.reset(new CombiDataType[dsguSize]);
+      size_t sentRecvd = 0;
+      while ((dsguSize - sentRecvd) / INT_MAX > 0) {
+        MPI_Recv(dsguData.get() + sentRecvd, (int)INT_MAX, dataType, p, TRANSFER_DSGU_DATA_TAG,
+                 comm, MPI_STATUS_IGNORE);
+        sentRecvd += INT_MAX;
+      }
+      MPI_Recv(dsguData.get() + sentRecvd, (int)(dsguSize - sentRecvd), dataType, p,
+               TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
+
+      // send back to worker immediately
+      sentRecvd = 0;
+      while ((dsguSize - sentRecvd) / INT_MAX > 0) {
+        MPI_Send(dsguData.get() + sentRecvd, (int)INT_MAX, dataType, p, TRANSFER_DSGU_DATA_TAG,
+                 comm);
+        sentRecvd += INT_MAX;
+      }
+      MPI_Send(dsguData.get() + sentRecvd, (int)(dsguSize - sentRecvd), dataType, p,
+               TRANSFER_DSGU_DATA_TAG, comm);
+    }
+  }
+
+  return true;
+}
 
 /*
  * Differs from third level reduce since we have enough memory space to collect
@@ -230,6 +276,10 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
       sum += (int)*(sizePtr++);
     }
     formerDsguDataSizePerWorker_[w] = sum;
+  }
+  assert(sizePtr == sendBuff.get() + buffSize);
+  for (const auto& dataSize : formerDsguDataSizePerWorker_) {
+    assert(dataSize > 0);
   }
 
   // perform max reduce

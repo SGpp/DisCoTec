@@ -1304,6 +1304,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
       buff.push_back(size);
     }
   }
+  assert(buff.size() > 0);
 
   // prepare for MPI calls to manager
   CommunicatorType thirdLevelComm = theMPISystem()->getThirdLevelComms()[0];
