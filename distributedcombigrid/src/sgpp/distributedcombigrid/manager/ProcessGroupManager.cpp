@@ -112,12 +112,34 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
 
   sendSignalAndReceive(COMBINE_THIRD_LEVEL);
 
-  if (isSendingFirst)
-    exchangeDsgus(thirdLevel, params, true);
-  else
-    exchangeDsgus(thirdLevel, params, false);
+  exchangeDsgus(thirdLevel, params, isSendingFirst);
 
   return true;
+}
+
+bool recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
+  auto dsguSize = dsguData.size();
+  size_t sentRecvd = 0;
+  while ((dsguSize - sentRecvd) / INT_MAX > 0) {
+    MPI_Recv(dsguData.data() + sentRecvd, (int)INT_MAX, dataType, r, TRANSFER_DSGU_DATA_TAG, comm,
+             MPI_STATUS_IGNORE);
+    sentRecvd += INT_MAX;
+  }
+  MPI_Recv(dsguData.data() + sentRecvd, (int)(dsguSize - sentRecvd), dataType, r,
+           TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
+}
+
+bool sendDsguToWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
+  auto dsguSize = dsguData.size();
+  size_t sentRecvd = 0;
+  while ((dsguSize - sentRecvd) / INT_MAX > 0) {
+    MPI_Send(dsguData.data() + sentRecvd, (int)INT_MAX, dataType, r, TRANSFER_DSGU_DATA_TAG, comm);
+    sentRecvd += INT_MAX;
+  }
+  MPI_Send(dsguData.data() + sentRecvd, (int)(dsguSize - sentRecvd), dataType, r,
+           TRANSFER_DSGU_DATA_TAG, comm);
 }
 
 bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& params) {
@@ -132,9 +154,8 @@ bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& pa
   const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
   // exchange dsgus
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
   IndexType numGrids = params.getNumGrids();
-  std::unique_ptr<CombiDataType[]> dsguData;
+  std::vector<CombiDataType> dsguData;
   for (IndexType g = 0; g < numGrids; g++) {
     for (RankType p = 0; p < (RankType)theMPISystem()->getNumProcs(); p++) {
       // we assume here that all dsgus have the same size otherwise size collection must change
@@ -142,25 +163,11 @@ bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& pa
       assert(dsguSize > 0);
 
       // recv dsgu from worker
-      dsguData.reset(new CombiDataType[dsguSize]);
-      size_t sentRecvd = 0;
-      while ((dsguSize - sentRecvd) / INT_MAX > 0) {
-        MPI_Recv(dsguData.get() + sentRecvd, (int)INT_MAX, dataType, p, TRANSFER_DSGU_DATA_TAG,
-                 comm, MPI_STATUS_IGNORE);
-        sentRecvd += INT_MAX;
-      }
-      MPI_Recv(dsguData.get() + sentRecvd, (int)(dsguSize - sentRecvd), dataType, p,
-               TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
+      dsguData.resize(dsguSize);
+      recvDsguFromWorker(dsguData, p, comm);
 
       // send back to worker immediately
-      sentRecvd = 0;
-      while ((dsguSize - sentRecvd) / INT_MAX > 0) {
-        MPI_Send(dsguData.get() + sentRecvd, (int)INT_MAX, dataType, p, TRANSFER_DSGU_DATA_TAG,
-                 comm);
-        sentRecvd += INT_MAX;
-      }
-      MPI_Send(dsguData.get() + sentRecvd, (int)(dsguSize - sentRecvd), dataType, p,
-               TRANSFER_DSGU_DATA_TAG, comm);
+      sendDsguToWorker(dsguData, p, comm);
     }
   }
 
@@ -310,45 +317,30 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel, Combi
   const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
   // exchange dsgus
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
   IndexType numGrids = params.getNumGrids();
-  std::unique_ptr<CombiDataType[]> dsguData;
+  std::vector<CombiDataType> dsguData;
   for (IndexType g = 0; g < numGrids; g++) {
     for (RankType p = 0; p < (RankType)theMPISystem()->getNumProcs(); p++) {
       // we assume here that all dsgus have the same size otherwise size collection must change
       size_t dsguSize = (size_t)(dsguDataSizePerWorker_[(size_t)p] / numGrids);
 
       // recv dsgu from worker
-      dsguData.reset(new CombiDataType[dsguSize]);
-      size_t sentRecvd = 0;
-      while ((dsguSize - sentRecvd) / INT_MAX > 0) {
-        MPI_Recv(dsguData.get() + sentRecvd, (int)INT_MAX, dataType, p, TRANSFER_DSGU_DATA_TAG,
-                 comm, MPI_STATUS_IGNORE);
-        sentRecvd += INT_MAX;
-      }
-      MPI_Recv(dsguData.get() + sentRecvd, (int)(dsguSize - sentRecvd), dataType, p,
-               TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
+      dsguData.resize(dsguSize);
+      recvDsguFromWorker(dsguData, p, comm);
 
       if (isSendingFirst) {
         // send dsgu to remote
-        thirdLevel.sendData(dsguData.get(), dsguSize);
+        thirdLevel.sendData(dsguData.data(), dsguSize);
         // recv combined dsgu from remote
-        thirdLevel.recvData(dsguData.get(), dsguSize);
+        thirdLevel.recvData(dsguData.data(), dsguSize);
       } else {
         // recv and combine dsgu from remote
-        thirdLevel.recvAndAddToData(dsguData.get(), dsguSize);
+        thirdLevel.recvAndAddToData(dsguData.data(), dsguSize);
         // send combined solution to remote
-        thirdLevel.sendData(dsguData.get(), dsguSize);
+        thirdLevel.sendData(dsguData.data(), dsguSize);
       }
       // send to worker
-      sentRecvd = 0;
-      while ((dsguSize - sentRecvd) / INT_MAX > 0) {
-        MPI_Send(dsguData.get() + sentRecvd, (int)INT_MAX, dataType, p, TRANSFER_DSGU_DATA_TAG,
-                 comm);
-        sentRecvd += INT_MAX;
-      }
-      MPI_Send(dsguData.get() + sentRecvd, (int)(dsguSize - sentRecvd), dataType, p,
-               TRANSFER_DSGU_DATA_TAG, comm);
+      sendDsguToWorker(dsguData, p, comm);
     }
   }
 }
