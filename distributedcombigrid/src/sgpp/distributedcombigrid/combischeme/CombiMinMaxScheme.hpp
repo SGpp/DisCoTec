@@ -180,23 +180,61 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
   std::vector<size_t> processGroupNumbers_;
 };
 
+
+inline long long int getCombiDegreesOfFreedom(const LevelVector& level) {
+  long long int numDOF = 1;
+    for (const auto& level_i : level) {
+      assert(level_i > -1);
+      if (level_i > 0) {
+        numDOF *= powerOfTwo[level_i] + 1;
+      } else {
+        numDOF *= 2;
+      }
+    }
+  return numDOF;
+}
+
 inline long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces) {
-  std::vector<bool> boundary(combiSpaces[0].size(), true);
-  long long int numDOF = combigrid::getNumDofNodal(combiSpaces, boundary);
+  long long int numDOF = 0;
+  for (const auto& space : combiSpaces) {
+    numDOF += getCombiDegreesOfFreedom(space);
+  }
   std::cout << "Combination scheme DOF : " << numDOF << " i.e. "
             << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
 
   return numDOF;
 }
 
-inline IndexType printSGDegreesOfFreedomAdaptive(const LevelVector& lmin, const LevelVector& lmax) {
+inline long long int getSGDegreesOfFreedomFromDownSet(const std::vector<LevelVector>& downSet) {
+  long long int numDOF = 0;
+  for (const auto& subspaceLevel : downSet) {
+    long long int numDOFSpace = 1;
+    for (const auto& level_i : subspaceLevel) {
+      assert(level_i > -1);
+      // for the weird kind of boundary handling we currently have
+      // (in the hierarchical spaces, the boundary points belong to level 1)
+      assert(level_i > 0);
+      if (level_i > 1) {
+        numDOFSpace *= powerOfTwo[level_i - 1];
+      } else {
+        numDOFSpace *= 3;
+      }
+    }
+    // std::cout << "Sparse grid subspace level : " << subspaceLevel << " has "
+    //           << numDOFSpace << " DOF " << std::endl;
+    numDOF += numDOFSpace;
+  }
+  return numDOF;
+}
+
+inline long long int printSGDegreesOfFreedomAdaptive(const LevelVector& lmin,
+                                                     const LevelVector& lmax) {
   const auto dim = static_cast<DimType>(lmin.size());
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
   // combischeme.createDownSet();
   auto downSet = combischeme.getDownSet();
-  std::vector<bool> boundary(downSet[0].size(), true);
-  auto numDOF = combigrid::getNumDofHierarchical(downSet, boundary);
+  auto numDOF = getSGDegreesOfFreedomFromDownSet(downSet);
 
   std::cout << "Sparse grid DOF : " << numDOF << " i.e. "
             << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
@@ -391,11 +429,10 @@ inline std::vector<LevelVector> getConjointSet(const CombiMinMaxScheme& combisch
 
 // for widely-distributed simulations, get the number of DOF that absolutely needs
 // to be exchanged with the other system
-inline long long int getNumDOFSGConjoint(const CombiMinMaxScheme& combischeme,
-                                         const LevelVector& lmin) {
+inline long long int getNumDOFSGConjoint(
+    const CombiMinMaxScheme& combischeme, const LevelVector& lmin) {
   auto conjointSet = getConjointSet(combischeme, lmin);
-  std::vector<bool> boundary(conjointSet[0].size(), true);
-  return combigrid::getNumDofHierarchical(conjointSet, boundary);
+  return getSGDegreesOfFreedomFromDownSet(conjointSet);
 }
 
 // for widely-distributed simulations, get the number of DOF that absolutely needs
