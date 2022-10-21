@@ -117,9 +117,12 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
   return true;
 }
 
-bool recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
+void recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
   auto dsguSize = dsguData.size();
+  if (dsguSize == 0) {
+    throw std::runtime_error("dsguData is empty");
+  }
   size_t sentRecvd = 0;
   while ((dsguSize - sentRecvd) / INT_MAX > 0) {
     MPI_Recv(dsguData.data() + sentRecvd, (int)INT_MAX, dataType, r, TRANSFER_DSGU_DATA_TAG, comm,
@@ -130,9 +133,12 @@ bool recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, Commun
            TRANSFER_DSGU_DATA_TAG, comm, MPI_STATUS_IGNORE);
 }
 
-bool sendDsguToWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
+void sendDsguToWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
   auto dsguSize = dsguData.size();
+  if (dsguSize == 0) {
+    throw std::runtime_error("dsguData is empty");
+  }
   size_t sentRecvd = 0;
   while ((dsguSize - sentRecvd) / INT_MAX > 0) {
     MPI_Send(dsguData.data() + sentRecvd, (int)INT_MAX, dataType, r, TRANSFER_DSGU_DATA_TAG, comm);
