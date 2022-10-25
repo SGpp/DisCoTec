@@ -618,7 +618,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::readFromDiskChunked(std::string f
 template <typename FG_ELEMENT>
 bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fileName) {
   auto comm = this->getCommunicator();
-  int size = this->getCommunicatorSize();
 
   // get offset in file
   MPI_Offset len = this->getRawDataSize();
