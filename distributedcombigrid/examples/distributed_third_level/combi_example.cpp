@@ -120,10 +120,6 @@ int main(int argc, char** argv) {
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
   size_t nprocs = cfg.get<size_t>("manager.nprocs");
 
-  // divide the MPI processes into process group and initialize the
-  // corresponding communicators
-  theMPISystem()->init(ngroup, nprocs);
-
   /* read in parameters from ctparam */
   DimType dim = cfg.get<DimType>("ct.dim");
   LevelVector lmin(dim), lmax(dim), leval(dim);
@@ -147,6 +143,7 @@ int main(int argc, char** argv) {
   bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
   bool extraSparseGrid = true;
   std::vector<real> fractionsOfScheme;
+  bool brokerOnSameSystem = false;
   if (hasThirdLevel) {
     std::cout << "Using third-level parallelism" << std::endl;
     thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
@@ -155,6 +152,7 @@ int main(int argc, char** argv) {
     thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
     thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand", "");
     extraSparseGrid = cfg.get<bool>("thirdLevel.extraSparseGrid");
+    brokerOnSameSystem = static_cast<bool>(cfg.get_child_optional("thirdLevel.brokerOnSameSystem"));
     bool hasFractions = static_cast<bool>(cfg.get_child_optional("thirdLevel.fractionsOfScheme"));
     if (hasFractions) {
       std::string fractionsString = cfg.get<std::string>("thirdLevel.fractionsOfScheme");
@@ -174,6 +172,24 @@ int main(int argc, char** argv) {
     } else {
       fractionsOfScheme = std::vector<real>(numSystems, 1. / static_cast<real>(numSystems));
     }
+  }
+
+  if (brokerOnSameSystem) {
+    std::cout << "broker running on same system" << std::endl;
+    // split communicator into the one for broker and one for workers + manager
+    int globalID;
+    MPI_Comm_rank(MPI_COMM_WORLD, &globalID);
+    MPI_Comm worldComm;
+    int color = 0;
+    MPI_Comm_split(MPI_COMM_WORLD, color, globalID, &worldComm);
+    theMPISystem()->initWorldReusable(worldComm, ngroup, nprocs);
+    if (thirdLevelHost != "localhost") {
+      throw std::runtime_error("Broker on same system, but third level host is not localhost");
+    }
+  } else {
+    // divide the MPI processes into process group and initialize the
+    // corresponding communicators
+    theMPISystem()->init(ngroup, nprocs);
   }
 
   // todo: read in boundary vector from ctparam
@@ -438,7 +454,7 @@ int main(int argc, char** argv) {
     if (hasThirdLevel) {
       manager.combineThirdLevel();
     } else {
-      manager.combine();
+      manager.pretendCombineThirdLevelForWorkers();
     }
     Stats::stopEvent("manager combine");
 
