@@ -194,20 +194,20 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
   pos -= len;
 
   // get total file length
-  MPI_Offset file_len;
-  MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, comm);
+  // MPI_Offset file_len;
+  // MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, comm);
 
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
   MPI_Info info = MPI_INFO_NULL;
-  if (file_len > 4 * 1024 * 1024 || 256 < size) {
-    MPI_Info_create(&info);
-    MPI_Info_set(info, "cb_align", "2");
-    MPI_Info_set(info, "cb_nodes_list", "*:*");
-    MPI_Info_set(info, "direct_io", "false");
-    MPI_Info_set(info, "romio_ds_read", "disable");
-    MPI_Info_set(info, "romio_ds_write", "disable");
-    MPI_Info_set(info, "cb_nodes", "8");
-  }
+  // if (file_len > 4 * 1024 * 1024 || 256 < size) {
+  //   MPI_Info_create(&info);
+  //   MPI_Info_set(info, "cb_align", "2");
+  //   MPI_Info_set(info, "cb_nodes_list", "*:*");
+  //   MPI_Info_set(info, "direct_io", "false");
+  //   MPI_Info_set(info, "romio_ds_read", "disable");
+  //   MPI_Info_set(info, "romio_ds_write", "disable");
+  //   MPI_Info_set(info, "cb_nodes", "8");
+  // }
 
   // open file
   MPI_File fh;
