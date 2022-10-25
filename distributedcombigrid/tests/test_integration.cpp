@@ -225,7 +225,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       // output files are not needed, remove them right away
       // (if this doesn't happen, there may be hdf5 errors due to duplicate task IDs)
       sleep(1);
-      system("rm interpolated_*.h5");
+      auto status = system("rm interpolated_*.h5");
+      BOOST_WARN_GE(status, 0);
       // system("rm interpolation_coords.h5");
       remove("interpolation_coords.h5");
       sleep(1);
