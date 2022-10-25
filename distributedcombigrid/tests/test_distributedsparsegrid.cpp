@@ -179,7 +179,8 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
                                    0);
     // and remove straight away
     if (rank == 0) {
-      system("rm sparse_paraboloid_minmax_*");
+      auto status = system("rm sparse_paraboloid_minmax_*");
+      BOOST_CHECK_GE(status, 0);
     }
 
     // std::cout << *uniDSG << std::endl;
@@ -253,7 +254,8 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
 
     // and remove straight away
     if (rank == 0) {
-      system("rm test_sg_*");
+      auto status = system("rm test_sg_*");
+      BOOST_CHECK_GE(status, 0);
     }
   }
 }
@@ -672,7 +674,8 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
 #endif
 
     if (TestHelper::getRank(comm) == 0) {
-      system("rm test_sg_timing");
+      auto status = system("rm test_sg_timing");
+      BOOST_CHECK_GE(status, 0);
     }
   }
 }
