@@ -260,7 +260,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
   }
 }
 
-BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(1000))
+BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(1500))
 // very cheap
 BOOST_AUTO_TEST_CASE(test_0) {
   LevelVector lmin = {1, 1};
