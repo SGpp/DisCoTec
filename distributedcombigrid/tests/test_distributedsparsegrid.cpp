@@ -626,7 +626,7 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     DimType dim = static_cast<DimType>(procs.size());
-    LevelVector lmin = {1, 1, 1, 1, 1, 1};
+    LevelVector lmin = {2, 2, 2, 2, 2, 2};
     LevelVector lmax = {11, 11, 11, 11, 11, 11};
     std::vector<bool> boundary(dim, true);
     auto decomposition = combigrid::getStandardDecomposition(lmax, procs);
@@ -634,16 +634,21 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
         new DistributedSparseGridUniform<combigrid::real>(dim, lmax, lmin, boundary, comm));
     // iterate main diagonal of combi scheme and register to populate all subspaces
     for (const auto& level : uniDSG->getAllLevelVectors()) {
-      if (levelSum(level) == 16) {
+      if (levelSum(level) == 21) {
         auto dfgDecomposition =
             combigrid::downsampleDecomposition(decomposition, lmax, level, boundary);
-        auto uniDFG = std::unique_ptr <
-                      DistributedFullGrid<combigrid::real>>(new DistributedFullGrid<combigrid::real>(
-                          dim, level, comm, boundary, procs, true, dfgDecomposition));
+        auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::real>>(
+            new DistributedFullGrid<combigrid::real>(dim, level, comm, boundary, procs, true,
+                                                     dfgDecomposition));
         uniDFG->registerUniformSG(*uniDSG);
       }
     }
     uniDSG->setZero();
+    size_t totalNumPoints = uniDSG->getRawDataSize();
+    MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
+    MPI_Allreduce(MPI_IN_PLACE, &totalNumPoints, 1, dtype, MPI_SUM, comm);
+    BOOST_CHECK_EQUAL(totalNumPoints, 1050968065);
+    MPI_Barrier(comm);
 
     auto start = std::chrono::high_resolution_clock::now();
     auto writeSuccess = uniDSG->writeOneFileToDisk("test_sg_timing");
