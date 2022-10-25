@@ -143,8 +143,8 @@ real getMonteCarloMass(DistributedFullGrid<FG_ELEMENT>& dfg, size_t npoints) {
   auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
   real mass = 0.;
   for (size_t i = 0; i < npoints; ++i) {
-    auto scalarCoordinate = std::accumulate(
-        interpolationCoords[i].begin(), interpolationCoords[i].end(), 1., std::multiplies<real>());
+    // auto scalarCoordinate = std::accumulate(
+    //     interpolationCoords[i].begin(), interpolationCoords[i].end(), 1., std::multiplies<real>());
     // TODO what about complex' imaginary part?
     mass += std::real(interpolatedValues[i]);
   }
@@ -293,7 +293,7 @@ void checkBiorthogonalHierarchization(Functor& f, DistributedFullGrid<std::compl
     analyticalL1 *= innerIntegral;
     BOOST_TEST(formerL1 == analyticalL1, boost::test_tools::tolerance(TestHelper::tolerance));
     auto cornersValues = dfg.getCornersValues();
-    BOOST_CHECK(cornersValues.size() == powerOfTwo[dim]);
+    BOOST_CHECK(cornersValues.size() == static_cast<size_t>(powerOfTwo[dim]));
     auto sumOfCornerValues =
         std::accumulate(cornersValues.begin(), cornersValues.end(), std::complex<double>(0.),
                         std::plus<std::complex<double>>());
