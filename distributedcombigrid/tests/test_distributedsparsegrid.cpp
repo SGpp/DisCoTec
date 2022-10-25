@@ -653,11 +653,27 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
     auto start = std::chrono::high_resolution_clock::now();
     auto writeSuccess = uniDSG->writeOneFileToDisk("test_sg_timing");
     auto end = std::chrono::high_resolution_clock::now();
+    BOOST_CHECK(writeSuccess);
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to write sparse grid: " << duration.count() << " milliseconds");
 #ifdef NDEBUG
-  BOOST_CHECK(duration.count() < 120000);
+    BOOST_CHECK(duration.count() < 120000);
 #endif
+    MPI_Barrier(comm);
+
+    start = std::chrono::high_resolution_clock::now();
+    auto readSuccess = uniDSG->readOneFileFromDisk("test_sg_timing");
+    end = std::chrono::high_resolution_clock::now();
+    BOOST_CHECK(readSuccess);
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to read sparse grid: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 30000);
+#endif
+
+    if (TestHelper::getRank(comm) == 0) {
+      system("rm test_sg_timing");
+    }
   }
 }
 
