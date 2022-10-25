@@ -618,28 +618,24 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fi
   MPI_Exscan(&len, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
              MPI_SUM, comm);
 
-  // get total file length
-  MPI_Offset file_len;
-  MPI_Allreduce(&len, &file_len, 1,
-                getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()), MPI_SUM, comm);
-
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
   MPI_Info info = MPI_INFO_NULL;
-  // if (file_len * sizeof(FG_ELEMENT) > 4 * 1024 * 1024 || 256 < size) {
   if (true) {
     MPI_Info_create(&info);
-    MPI_Info_set(info, "cb_align", "2");
-    MPI_Info_set(info, "cb_nodes_list", "*:*");
+    // MPI_Info_set(info, "cb_align", "2");
+    // MPI_Info_set(info, "cb_nodes_list", "*:*");
+    // MPI_Info_set(info, "cb_nodes", "4");
+    // MPI_Info_set(info, "cb_buffer_size", "16777211");
     MPI_Info_set(info, "direct_io", "false");
     MPI_Info_set(info, "romio_ds_write", "disable");
-    MPI_Info_set(info, "romio_cb_write", "enable");
+    MPI_Info_set(info, "romio_cb_write", "disable");
     MPI_Info_set(info, "romio_no_indep_rw", "true");
-    MPI_Info_set(info, "cb_nodes", "8");
+    // MPI_Info_set(info, "romio_filesystem_type", "Lustre");
   }
 
   // open file
   MPI_File fh;
-  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL,
+  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
                           info, &fh);
   if (err != MPI_SUCCESS) {
     // file already existed, delete it and create new file
@@ -659,12 +655,14 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fi
     if (err != MPI_SUCCESS) {
       std::cerr << err << " in MPI_File_write_at_all" << std::endl;
     }
+#ifndef NDEBUG
     int numWritten = 0;
     MPI_Get_count(&status, dataType, &numWritten);
     if (numWritten != len) {
       std::cout << "not written enough: " << numWritten << " instead of " << len << std::endl;
       err = ~MPI_SUCCESS;
     }
+#endif // !NDEBUG
   }
 
   MPI_File_close(&fh);
@@ -681,23 +679,18 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
   MPI_Exscan(&len, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
              MPI_SUM, comm);
 
-  // get total file length
-  MPI_Offset file_len;
-  MPI_Allreduce(&len, &file_len, 1,
-                getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()), MPI_SUM, comm);
-
   // open file
   MPI_File fh;
   MPI_Info info = MPI_INFO_NULL;
-  if (file_len * sizeof(FG_ELEMENT) > 4 * 1024 * 1024 || 256 < this->getCommunicatorSize()) {
+  if (true) {
     MPI_Info_create(&info);
-    MPI_Info_set(info, "cb_align", "2");
-    MPI_Info_set(info, "cb_nodes_list", "*:*");
+    // MPI_Info_set(info, "cb_align", "2");
+    // MPI_Info_set(info, "cb_nodes_list", "*:*");
+    // MPI_Info_set(info, "cb_nodes", "8");
     MPI_Info_set(info, "direct_io", "false");
     MPI_Info_set(info, "romio_ds_read", "disable");
-    MPI_Info_set(info, "romio_cb_read", "enable");
+    MPI_Info_set(info, "romio_cb_read", "disable");
     MPI_Info_set(info, "romio_no_indep_rw", "true");
-    MPI_Info_set(info, "cb_nodes", "8");
   }
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
   if (err != MPI_SUCCESS) {
@@ -705,13 +698,15 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
     std::cerr << err << " while reading OneFileFromDisk" << std::endl;
     return false;
   }
+#ifndef NDEBUG
   MPI_Offset fileSize = 0;
   MPI_File_get_size(fh, &fileSize);
-  if (fileSize < file_len * sizeof(FG_ELEMENT)) {
-    // loud failure
-    std::cerr << fileSize << " and not " << file_len << std::endl;
+  if (fileSize < len * sizeof(FG_ELEMENT)) {
+    // loud failure if file is too small
+    std::cerr << fileSize << " and not " << len << std::endl;
     throw std::runtime_error("read dsg: file size too small!");
   }
+#endif
 
   // read from single file with MPI-IO
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
@@ -725,6 +720,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
     return false;
   }
 
+#ifndef NDEBUG
   int readcount = 0;
 	MPI_Get_count (&status, dataType, &readcount);
   if (readcount < len) {
@@ -732,6 +728,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
     std::cerr << "read dsg: " << readcount << " and not " << len << std::endl;
     // throw std::runtime_error("read dsg: not read the right amount!");
   }
+#endif
 
   return true;
 }
