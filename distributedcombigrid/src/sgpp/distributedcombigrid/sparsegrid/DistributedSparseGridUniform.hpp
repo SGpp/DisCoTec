@@ -628,7 +628,8 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fi
 
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
   MPI_Info info = MPI_INFO_NULL;
-  if (true) {
+  // take IO hints from environment variables for now
+  if (false) {
     MPI_Info_create(&info);
     // MPI_Info_set(info, "cb_align", "2");
     // MPI_Info_set(info, "cb_nodes_list", "*:*");
@@ -690,7 +691,8 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
   // open file
   MPI_File fh;
   MPI_Info info = MPI_INFO_NULL;
-  if (true) {
+  // take IO hints from environment variables for now
+  if (false) {
     MPI_Info_create(&info);
     // MPI_Info_set(info, "cb_align", "2");
     // MPI_Info_set(info, "cb_nodes_list", "*:*");
