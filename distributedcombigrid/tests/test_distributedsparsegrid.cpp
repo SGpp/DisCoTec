@@ -258,7 +258,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
   }
 }
 
-BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(480))
+BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(540))
 // very cheap
 BOOST_AUTO_TEST_CASE(test_0) {
   LevelVector lmin = {1, 1};
@@ -618,6 +618,41 @@ BOOST_AUTO_TEST_CASE(test_getAllKOutOfDDimensions) {
         }
       }
     }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
+  std::vector<int> procs = {3, 1, 3, 1, 1, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    LevelVector lmin = {1, 1, 1, 1, 1, 1};
+    LevelVector lmax = {11, 11, 11, 11, 11, 11};
+    std::vector<bool> boundary(dim, true);
+    auto decomposition = combigrid::getStandardDecomposition(lmax, procs);
+    auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<combigrid::real>>(
+        new DistributedSparseGridUniform<combigrid::real>(dim, lmax, lmin, boundary, comm));
+    // iterate main diagonal of combi scheme and register to populate all subspaces
+    for (const auto& level : uniDSG->getAllLevelVectors()) {
+      if (levelSum(level) == 16) {
+        auto dfgDecomposition =
+            combigrid::downsampleDecomposition(decomposition, lmax, level, boundary);
+        auto uniDFG = std::unique_ptr <
+                      DistributedFullGrid<combigrid::real>>(new DistributedFullGrid<combigrid::real>(
+                          dim, level, comm, boundary, procs, true, dfgDecomposition));
+        uniDFG->registerUniformSG(*uniDSG);
+      }
+    }
+    uniDSG->setZero();
+
+    auto start = std::chrono::high_resolution_clock::now();
+    auto writeSuccess = uniDSG->writeOneFileToDisk("test_sg_timing");
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to write sparse grid: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+  BOOST_CHECK(duration.count() < 120000);
+#endif
   }
 }
 
