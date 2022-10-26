@@ -1250,13 +1250,11 @@ class DistributedFullGrid {
     }
     const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
 
-    IndexType strideForThisLevel;
     // special treatment for level 1 suspaces with boundary
-    if (l == 1 && hasBoundaryPoints_[d]) {
-      strideForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - 1);
-    } else {
-      strideForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l + 1);
-    }
+    const IndexType strideForThisLevel = (l == 1 && hasBoundaryPoints_[d])
+                                             ? combigrid::powerOfTwoByBitshift(levels_[d] - 1)
+                                             : combigrid::powerOfTwoByBitshift(levels_[d] - l + 1);
+
     // get global offset to find indices of this level
     // this is the first global index that has level l in dimension d
     IndexType offsetForThisLevel;
@@ -1264,9 +1262,11 @@ class DistributedFullGrid {
       if (l == 1) {
         offsetForThisLevel = 0;
       } else {
+        // offsetForThisLevel = strideForThisLevel / 2;
         offsetForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l);
       }
     } else {
+      // offsetForThisLevel = strideForThisLevel / 2 - 1;
       offsetForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l) - 1;
     }
     assert(offsetForThisLevel > -1);
@@ -1280,17 +1280,17 @@ class DistributedFullGrid {
     // get global index of first local index which has level l
     IndexType globalStart =
         (firstGlobalIndexOnThisPartition)*strideForThisLevel + offsetForThisLevel;
-    IndexType localStart = globalStart - firstGlobal1dIdx;
-
     assert(getLevel(d, globalStart) == l ||
            (getLevel(d, globalStart) == 0 && hasBoundaryPoints_[d] && l == 1));
     assert(globalStart >= firstGlobal1dIdx);
+
+    IndexType localStart = globalStart - firstGlobal1dIdx;
     auto numPointsOnThisPartition =
         (nrLocalPoints_[d] - 1 < localStart)
             ? 0
             : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
     oneDIndices.resize(numPointsOnThisPartition);
-    std::generate(oneDIndices.begin(), oneDIndices.end(), [&localStart,&strideForThisLevel]() {
+    std::generate(oneDIndices.begin(), oneDIndices.end(), [&localStart, &strideForThisLevel]() {
       localStart += strideForThisLevel;
       return localStart;
     });
