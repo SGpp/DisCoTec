@@ -363,15 +363,13 @@ IndexType DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& 
     assert(l_i > 0);
   }
 #endif
-  // std::cout << "get index of "<< toString(l) <<" before"<< std::endl;
-  for (IndexType i = 0; i < IndexType(levels_.size()); ++i) {
-    // std::cout << "...vs "<< toString(levels_[i]) << std::endl;
-    if (levels_[i] == l) {
-      return i;
-    }
+  auto found = std::find(levels_.begin(), levels_.end(), l);
+  if (found != levels_.end()) {
+    return std::distance(levels_.begin(), found);
+  } else {
+    assert(false && "space not found in levels_");
+    return -1;
   }
-  // assert (false && "space not found in levels_");
-  return -1;
 }
 
 template <typename FG_ELEMENT>
