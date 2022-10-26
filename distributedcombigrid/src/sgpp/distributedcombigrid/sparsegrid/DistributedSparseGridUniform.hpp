@@ -201,7 +201,7 @@ class DistributedSparseGridUniform {
   void serialize(Archive& ar, const unsigned int version);
 };
 
-}  // namespace
+}  // namespace combigrid
 
 namespace combigrid {
 
@@ -319,8 +319,8 @@ std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
   std::vector<LevelVector> created{};
   combigrid::createTruncatedHierarchicalLevels(nmax, lmin, created);
   // std::sort(created.begin(), created.end());
-  if(created.size() > std::numeric_limits<SubspaceIndexType>::max())
-    throw std::runtime_error("number of subspaces exceeds the maximum value of SubspaceIndexType"); {
+  if (created.size() > std::numeric_limits<SubspaceIndexType>::max()) {
+    throw std::runtime_error("number of subspaces exceeds the maximum value of SubspaceIndexType");
   }
   return created;
 }
