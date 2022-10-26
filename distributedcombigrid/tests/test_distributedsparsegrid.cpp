@@ -88,7 +88,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     BOOST_CHECK_EQUAL(subspaces.size(), uniDSGfromSubspaces->getNumSubspaces());
     BOOST_CHECK_EQUAL(uniDSG->getNumSubspaces(), uniDSGfromSubspaces->getNumSubspaces());
 
-    for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
+    for (decltype(uniDSG->getNumSubspaces()) i = 0; i < uniDSG->getNumSubspaces(); ++i) {
       BOOST_CHECK_EQUAL(0, uniDSG->getDataSize(i));
       BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getDataSize(i));
       for (DimType d = 0; d < dim; ++d)
@@ -115,7 +115,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     uniDFG->registerUniformSG(*uniDSGfromSubspaces);
     BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getRawDataSize());
 
-    for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
+    for (decltype(uniDSG->getNumSubspaces()) i = 0; i < uniDSG->getNumSubspaces(); ++i) {
       const auto& level = uniDSG->getLevelVector(i);
       BOOST_ASSERT(lmin.size() > 1);
       auto secondDimLevel = level[1];
@@ -124,6 +124,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         BOOST_CHECK_EQUAL(uniDSG->getDataSize(i), 0);
         BOOST_CHECK_EQUAL(uniDFG->getFGPointsOfSubspace(level).size(), 0);
       } else {
+        BOOST_TEST_CONTEXT(std::to_string(i));
         BOOST_CHECK_EQUAL(uniDSG->getDataSize(i), uniDFG->getFGPointsOfSubspace(level).size());
       }
     }
@@ -146,7 +147,8 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     BOOST_CHECK_GT(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
     uniDFG->addToUniformSG(*uniDSGfromSubspaces, 0.);
     BOOST_CHECK_EQUAL(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
-    for (size_t i = 0; i < uniDSGfromSubspaces->getNumSubspaces(); ++i) {
+    for (decltype(uniDSGfromSubspaces->getNumSubspaces()) i = 0;
+         i < uniDSGfromSubspaces->getNumSubspaces(); ++i) {
       BOOST_CHECK_EQUAL(uniDSG->getDataSize(i), uniDSGfromSubspaces->getDataSize(i));
     }
     for (size_t i = 0; i < uniDSGfromSubspaces->getRawDataSize(); ++i) {
@@ -248,7 +250,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     uniDSGfromSubspaces->readFromDiskChunked("test_sg_");
     BOOST_TEST_CHECKPOINT("compare values chunked");
     for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
-      BOOST_TEST_CONTEXT(std::to_string(i))
+      BOOST_TEST_CONTEXT(std::to_string(i));
       BOOST_CHECK_EQUAL(uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
     }
 
