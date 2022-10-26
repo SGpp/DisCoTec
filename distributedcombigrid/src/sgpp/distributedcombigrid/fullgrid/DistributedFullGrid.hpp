@@ -1049,7 +1049,7 @@ class DistributedFullGrid {
    * @param l level of hierarchical subspace
    * @return size_t the indices of points on this partition
    */
-  std::vector<IndexType> getFGPointsOfSubspace(LevelVector l) {
+  std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) {
     IndexVector subspaceIndices;
     IndexType localLinearIndexSum = 0;
 
@@ -1235,24 +1235,14 @@ class DistributedFullGrid {
     }
   }
 
-  /**
-   * @brief get the local 1d indices that correspond to a given level
-   *
-   * @param d the dimension in which we want the indices for the level
-   * @param l the level
-   * @param oneDIndices a list of the local vector indices
-   */
-  void get1dIndicesLocal(DimType d, LevelType l, IndexVector& oneDIndices) {
-    assert(l > 0);
-    if (l > levels_[d]) {
-      return;
-    }
-    const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
-
+  inline IndexType getStrideForThisLevel(LevelType l, DimType d) {
     // special treatment for level 1 suspaces with boundary
-    const IndexType strideForThisLevel = (l == 1 && hasBoundaryPoints_[d])
-                                             ? combigrid::powerOfTwoByBitshift(levels_[d] - 1)
+    return (l == 1 && hasBoundaryPoints_[d]) ? combigrid::powerOfTwoByBitshift(levels_[d] - 1)
                                              : combigrid::powerOfTwoByBitshift(levels_[d] - l + 1);
+  }
+
+  inline IndexType getLocalStartForThisLevel(LevelType l, DimType d, IndexType strideForThisLevel) {
+    const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
 
     // get global offset to find indices of this level
     // this is the first global index that has level l in dimension d
@@ -1272,23 +1262,46 @@ class DistributedFullGrid {
     assert(strideForThisLevel >= offsetForThisLevel);
 
     // first level-index that is on our partition
-    IndexType firstGlobalIndexOnThisPartition =
+    const IndexType firstGlobalIndexOnThisPartition =
         (firstGlobal1dIdx < offsetForThisLevel)
             ? 0
             : (firstGlobal1dIdx - offsetForThisLevel + strideForThisLevel - 1) / strideForThisLevel;
     // get global index of first local index which has level l
-    IndexType globalStart =
+    const IndexType globalStart =
         (firstGlobalIndexOnThisPartition)*strideForThisLevel + offsetForThisLevel;
     assert(getLevel(d, globalStart) == l ||
            (getLevel(d, globalStart) == 0 && hasBoundaryPoints_[d] && l == 1));
     assert(globalStart >= firstGlobal1dIdx);
 
-    IndexType localStart = globalStart - firstGlobal1dIdx;
-    auto numPointsOnThisPartition =
-        (nrLocalPoints_[d] - 1 < localStart)
-            ? 0
-            : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
+    return globalStart - firstGlobal1dIdx;
+  }
+
+  inline IndexType getNumPointsOnThisPartition(DimType d, IndexType localStart,
+                                               IndexType strideForThisLevel) {
+    return (nrLocalPoints_[d] - 1 < localStart)
+               ? 0
+               : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
+  }
+
+  /**
+   * @brief get the local 1d indices that correspond to a given level
+   *
+   * @param d the dimension in which we want the indices for the level
+   * @param l the level
+   * @param oneDIndices a list of the local vector indices
+   */
+  inline void get1dIndicesLocal(DimType d, LevelType l, IndexVector& oneDIndices) {
+    assert(l > 0);
+    if (l > levels_[d]) {
+      return;
+    }
+
+    const IndexType strideForThisLevel = getStrideForThisLevel(l, d);
+    IndexType localStart = getLocalStartForThisLevel(l, d, strideForThisLevel);
+    const IndexType numPointsOnThisPartition =
+        getNumPointsOnThisPartition(d, localStart, strideForThisLevel);
     oneDIndices.resize(numPointsOnThisPartition);
+
     std::generate(oneDIndices.begin(), oneDIndices.end(), [&localStart, &strideForThisLevel]() {
       auto localStartBefore = localStart;
       localStart += strideForThisLevel;
