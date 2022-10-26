@@ -363,7 +363,8 @@ IndexType DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& 
     assert(l_i > 0);
   }
 #endif
-  auto found = std::find(levels_.begin(), levels_.end(), l);
+  auto found = std::find_if(levels_.begin(), levels_.end(),
+                            [&l](const LevelVector& l_i) { return equals_no_size_check(l_i, l); });
   if (found != levels_.end()) {
     return std::distance(levels_.begin(), found);
   } else {
