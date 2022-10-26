@@ -51,6 +51,10 @@ namespace combigrid {
 template <typename FG_ELEMENT>
 class DistributedSparseGridUniform {
  public:
+  // type used to index the subspaces
+  // should be enough for the current scenario (cf. test_createTruncatedHierarchicalLevels_large)
+  using SubspaceIndexType = int32_t;
+
   /** create sparse grid of dimension d and specify for each dimension the
    * maximum discretization level and whether there is a boundary or not
    * No data is allocated and the sizes of the subspace data is initialized to 0.
@@ -90,7 +94,7 @@ class DistributedSparseGridUniform {
   inline const LevelVector& getLevelVector(size_t i) const;
 
   // return index of subspace i
-  inline IndexType getIndex(const LevelVector& l) const;
+  inline SubspaceIndexType getIndex(const LevelVector& l) const;
 
   inline const std::vector<bool>& getBoundaryVector() const;
 
@@ -315,6 +319,9 @@ std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
   std::vector<LevelVector> created{};
   combigrid::createTruncatedHierarchicalLevels(nmax, lmin, created);
   // std::sort(created.begin(), created.end());
+  if(created.size() > std::numeric_limits<SubspaceIndexType>::max())
+    throw std::runtime_error("number of subspaces exceeds the maximum value of SubspaceIndexType"); {
+  }
   return created;
 }
 
@@ -359,7 +366,8 @@ inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVect
 
 /* get index of space with l. returns -1 if not included */
 template <typename FG_ELEMENT>
-IndexType DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
+typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType
+DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
 #ifndef NDEBUG
   for (const auto& l_i : l) {
 #ifdef DEBUG_OUTPUT
@@ -371,7 +379,7 @@ IndexType DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& 
   auto found = std::find_if(levels_.cbegin(), levels_.cend(),
                             [&l](const LevelVector& l_i) { return equals_no_size_check(l_i, l); });
   if (found != levels_.end()) {
-    return std::distance(levels_.begin(), found);
+    return static_cast<SubspaceIndexType>(std::distance(levels_.begin(), found));
   } else {
     // assert(false && "space not found in levels_");
     return -1;
@@ -387,7 +395,7 @@ inline const std::vector<bool>& DistributedSparseGridUniform<FG_ELEMENT>::getBou
 template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(const LevelVector& l) {
   createSubspaceData();
-  IndexType i = getIndex(l);
+  auto i = getIndex(l);
 
   if (i < 0) {
     std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
@@ -473,7 +481,7 @@ size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(size_t i) const {
 
 template <typename FG_ELEMENT>
 size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(const LevelVector& l) const {
-  IndexType i = getIndex(l);
+  auto i = getIndex(l);
 
   if (i < 0) {
     std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
@@ -498,7 +506,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(size_t i, size_t newS
 
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(const LevelVector& l, size_t newSize) {
-  IndexType i = getIndex(l);
+  auto i = getIndex(l);
 
   if (i < 0) {
     std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
