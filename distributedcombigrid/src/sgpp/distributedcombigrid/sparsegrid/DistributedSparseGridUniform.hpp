@@ -291,10 +291,12 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setZero() {
 
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::print(std::ostream& os) const {
+  auto levelIterator = levels_.cbegin();
   for (size_t i = 0; i < subspaces_.size(); ++i) {
-    os << i << " " << levels_[i] << " " << subspacesDataSizes_[i] << " "
+    os << i << " " << *levelIterator << " " << subspacesDataSizes_[i] << " "
       //  << subspaces_[i].size_
        << std::endl;
+    ++levelIterator;
   }
 }
 
@@ -312,6 +314,7 @@ std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
     DimType dim, const LevelVector& nmax, const LevelVector& lmin) {
   std::vector<LevelVector> created{};
   combigrid::createTruncatedHierarchicalLevels(nmax, lmin, created);
+  // std::sort(created.begin(), created.end());
   return created;
 }
 
@@ -349,7 +352,9 @@ DistributedSparseGridUniform<FG_ELEMENT>::getAllLevelVectors() const {
 
 template <typename FG_ELEMENT>
 inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVector(size_t i) const {
-  return levels_[i];
+  auto levelIterator = levels_.cbegin();
+  std::advance(levelIterator, i);
+  return *levelIterator;
 }
 
 /* get index of space with l. returns -1 if not included */
@@ -363,7 +368,7 @@ IndexType DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& 
     assert(l_i > 0);
   }
 #endif
-  auto found = std::find_if(levels_.begin(), levels_.end(),
+  auto found = std::find_if(levels_.cbegin(), levels_.cend(),
                             [&l](const LevelVector& l_i) { return equals_no_size_check(l_i, l); });
   if (found != levels_.end()) {
     return std::distance(levels_.begin(), found);
@@ -416,17 +421,9 @@ inline size_t DistributedSparseGridUniform<FG_ELEMENT>::getNumSubspaces() const 
 
 template <typename FG_ELEMENT>
 bool DistributedSparseGridUniform<FG_ELEMENT>::isContained(const LevelVector& l) const {
-  // get index of l
-  bool found = false;
-
-  for (size_t i = 0; i < levels_.size(); ++i) {
-    if (levels_[i] == l) {
-      found = true;
-      break;
-    }
-  }
-
-  return found;
+  auto found = std::find_if(levels_.cbegin(), levels_.cend(),
+                            [&l](const LevelVector& l_i) { return equals_no_size_check(l_i, l); });
+  return found != levels_.end();
 }
 
 // template <typename FG_ELEMENT>
@@ -823,7 +820,6 @@ static void reduceDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 */
 template <typename FG_ELEMENT>
 static void sendSubspaceDataSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
-                          const std::vector<LevelVector>& subspaces,
                           RankType dest, CommunicatorType comm) {
   assert(dsgu->getNumSubspaces() > 0);
 
