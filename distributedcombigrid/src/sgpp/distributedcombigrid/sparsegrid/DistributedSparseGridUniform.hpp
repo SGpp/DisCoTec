@@ -355,12 +355,14 @@ inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVect
 /* get index of space with l. returns -1 if not included */
 template <typename FG_ELEMENT>
 IndexType DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
-  for (const auto& l_i : l){
-    #ifdef DEBUG_OUTPUT
-    // std::cerr << "getIndex()"<< std::endl;
-    #endif
+#ifndef NDEBUG
+  for (const auto& l_i : l) {
+#ifdef DEBUG_OUTPUT
+// std::cerr << "getIndex()"<< std::endl;
+#endif
     assert(l_i > 0);
   }
+#endif
   // std::cout << "get index of "<< toString(l) <<" before"<< std::endl;
   for (IndexType i = 0; i < IndexType(levels_.size()); ++i) {
     // std::cout << "...vs "<< toString(levels_[i]) << std::endl;
@@ -487,10 +489,13 @@ size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(const LevelVector& 
 
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(size_t i, size_t newSize) {
+#ifndef NDEBUG
   if (i >= getNumSubspaces()) {
-    std::cout << "Index too large, no subspace with this index included in distributed sparse grid" << std::endl;
+    std::cout << "Index too large, no subspace with this index included in distributed sparse grid"
+              << std::endl;
     assert(false);
   }
+#endif  // NDEBUG
 
   subspacesDataSizes_[i] = newSize;
 }
@@ -506,7 +511,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(const LevelVector& l,
 
   subspacesDataSizes_[i] = newSize;
 }
-
 
 template <typename FG_ELEMENT>
 inline size_t DistributedSparseGridUniform<FG_ELEMENT>::getRawDataSize() const {
