@@ -60,7 +60,7 @@ inline IndexType getNumDofHierarchical(const LevelType& l_i, const bool& boundar
   if (l_i == 1 && boundary == true) {
     return 3;
   } else {
-    return powerOfTwoByBitshift(l_i - 1);
+    return powerOfTwoByBitshift(static_cast<LevelType>(l_i - 1));
   }
 }
 

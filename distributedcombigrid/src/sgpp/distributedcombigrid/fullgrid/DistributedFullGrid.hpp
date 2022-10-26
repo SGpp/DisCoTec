@@ -1033,7 +1033,7 @@ class DistributedFullGrid {
     IndexType localLinearIndexSum = 0;
     getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), l, localLinearIndexSum,
                                    subspaceIndices);
-    assert(subspaceIndices.size() == numPointsOfSubspace);
+    assert(static_cast<IndexType>(subspaceIndices.size()) == numPointsOfSubspace);
     return subspaceIndices;
   }
 
@@ -1214,8 +1214,9 @@ class DistributedFullGrid {
   inline IndexType getStrideForThisLevel(LevelType l, DimType d) {
     assert(d < this->getDimension());
     // special treatment for level 1 suspaces with boundary
-    return (l == 1 && hasBoundaryPoints_[d]) ? combigrid::powerOfTwoByBitshift(levels_[d] - 1)
-                                             : combigrid::powerOfTwoByBitshift(levels_[d] - l + 1);
+    return (l == 1 && hasBoundaryPoints_[d])
+               ? combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - 1))
+               : combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l + 1));
   }
 
   inline IndexType getLocalStartForThisLevel(LevelType l, DimType d, IndexType strideForThisLevel) {
@@ -1229,11 +1230,13 @@ class DistributedFullGrid {
         offsetForThisLevel = 0;
       } else {
         // offsetForThisLevel = strideForThisLevel / 2;
-        offsetForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l);
+        offsetForThisLevel =
+            combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l));
       }
     } else {
       // offsetForThisLevel = strideForThisLevel / 2 - 1;
-      offsetForThisLevel = combigrid::powerOfTwoByBitshift(levels_[d] - l) - 1;
+      offsetForThisLevel =
+          combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l)) - 1;
     }
     assert(offsetForThisLevel > -1);
     assert(strideForThisLevel >= offsetForThisLevel);
