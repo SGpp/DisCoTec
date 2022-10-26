@@ -182,9 +182,9 @@ SignalType ProcessGroupWorker::wait() {
       }
     } break;
     case INIT_DSGUS: {
-      Stats::startEvent("worker initialize dsgu vector");
+      Stats::startEvent("worker initialize dsgu");
       initCombinedUniDSGVector();
-      Stats::stopEvent("worker initialize dsgu vector");
+      Stats::stopEvent("worker initialize dsgu");
 
     } break;
     case COMBINE: {  // start combination
@@ -195,9 +195,9 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE_LOCAL_AND_GLOBAL: {
-      Stats::startEvent("worker combine local and global");
+      Stats::startEvent("worker combine local");
       combineLocalAndGlobal();
-      Stats::stopEvent("worker combine local and global");
+      Stats::stopEvent("worker combine local");
 
     } break;
     case COMBINE_THIRD_LEVEL: {

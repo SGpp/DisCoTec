@@ -296,8 +296,8 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
-
 void ProcessManager::combineLocalAndGlobal() {
+  Stats::startEvent("manager combine local");
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
   size_t numWaiting = 0;
@@ -306,8 +306,7 @@ void ProcessManager::combineLocalAndGlobal() {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
     }
   }
 
@@ -318,41 +317,38 @@ void ProcessManager::combineLocalAndGlobal() {
   }
 
   waitAllFinished();
+  Stats::stopEvent("manager combine local");
 }
 
 /** Combination with third level parallelism e.g. between two HPC systems
-*
-* The process manager induces a local and global combination first.
-* Then he signals ready to the third level manager who decides which system
-* sends and receives first. All pgs which do not participate in the third level
-* combination directly idle in a broadcast function and wait for their update
-* from the third level pg.
-*
-* Different roles of the manager:
-*
-* Senders role:
-* The processGroupManager transfers the dsgus from the workers of the third
-* level pg to the third level manager, who further forwards them to the remote
-* system. After sending, he receives the remotely reduced data and sends it back
-* to the third level pg.
-*
-* Receivers role:
-* In the role of the receiver, the ProcessGroupManager receives the remote dsgus
-* and reduces it with the local solution.
-* Afterwards, he sends the solution back to the remote system and to the local
-* workers.
-*/
+ *
+ * The process manager induces a local and global combination first.
+ * Then he signals ready to the third level manager who decides which system
+ * sends and receives first. All pgs which do not participate in the third level
+ * combination directly idle in a broadcast function and wait for their update
+ * from the third level pg.
+ *
+ * Different roles of the manager:
+ *
+ * Senders role:
+ * The processGroupManager transfers the dsgus from the workers of the third
+ * level pg to the third level manager, who further forwards them to the remote
+ * system. After sending, he receives the remotely reduced data and sends it back
+ * to the third level pg.
+ *
+ * Receivers role:
+ * In the role of the receiver, the ProcessGroupManager receives the remote dsgus
+ * and reduces it with the local solution.
+ * Afterwards, he sends the solution back to the remote system and to the local
+ * workers.
+ */
 void ProcessManager::combineThirdLevel() {
   // first combine local and global
-  Stats::startEvent("manager combine local and global");
   combineLocalAndGlobal();
-  waitAllFinished();
-  Stats::stopEvent("manager combine local and global");
 
   // tell other pgroups to idle and wait for the combination result
   for (auto& pg : pgroups_) {
-    if (pg != thirdLevelPGroup_)
-      pg->waitForThirdLevelCombiResult();
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
   }
   // obtain instructions from third level manager
   thirdLevel_.signalReadyToCombine();
@@ -373,22 +369,17 @@ void ProcessManager::combineThirdLevel() {
 
 void ProcessManager::pretendCombineThirdLevelForWorkers() {
   // first combine local and global
-  Stats::startEvent("manager combine local and global");
   combineLocalAndGlobal();
-  waitAllFinished();
-  Stats::stopEvent("manager combine local and global");
 
+  // combine
+  Stats::startEvent("manager exchange no data with remote");
   // tell other pgroups to idle and wait for the combination result
   for (auto& pg : pgroups_) {
     if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
   }
-
-  // combine
-  Stats::startEvent("manager exchange no data with remote");
   thirdLevelPGroup_->pretendCombineThirdLevelForWorkers(params_);
-  Stats::stopEvent("manager exchange no data with remote");
-
   waitAllFinished();
+  Stats::stopEvent("manager exchange no data with remote");
 }
 
 /**
