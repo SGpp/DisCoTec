@@ -1034,6 +1034,7 @@ class DistributedFullGrid {
     IndexType localLinearIndexSum = 0;
     getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), l, localLinearIndexSum,
                                    subspaceIndices);
+    assert(subspaceIndices.size() == numPointsOfSubspace);
     return subspaceIndices;
   }
 
@@ -1053,9 +1054,6 @@ class DistributedFullGrid {
     assert(dsg_->getDim() == dim_);
 
     subspaceIndexToFGIndices_.clear();
-    // // typically, there will be at most one of the full grid's subspaces left out in the sparse grid
-    // subspaceIndexToFGIndices_.reserve(
-    //     std::accumulate(levels_.begin(), levels_.end(), 1, std::multiplies<LevelType>()) - 1);
 
     // all the hierarchical subspaces contained in this full grid
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
@@ -1215,6 +1213,7 @@ class DistributedFullGrid {
   }
 
   inline IndexType getStrideForThisLevel(LevelType l, DimType d) {
+    assert(d < this->getDimension());
     // special treatment for level 1 suspaces with boundary
     return (l == 1 && hasBoundaryPoints_[d]) ? combigrid::powerOfTwoByBitshift(levels_[d] - 1)
                                              : combigrid::powerOfTwoByBitshift(levels_[d] - l + 1);
@@ -1257,6 +1256,7 @@ class DistributedFullGrid {
 
   inline IndexType getNumPointsOnThisPartition(DimType d, IndexType localStart,
                                                IndexType strideForThisLevel) {
+    assert(d < this->getDimension());
     return (nrLocalPoints_[d] - 1 < localStart)
                ? 0
                : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
@@ -1278,6 +1278,7 @@ class DistributedFullGrid {
    */
   inline void get1dIndicesLocal(DimType d, LevelType l, IndexVector& oneDIndices) {
     assert(l > 0);
+    assert(d < this->getDimension());
     if (l > levels_[d]) {
       oneDIndices.clear();
       return;
