@@ -996,37 +996,7 @@ class DistributedFullGrid {
     for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
   }
 
-  void calcLocalSizeRecursive(DimType d, const LevelVector& lvec, IndexVector& ivec, size_t& localSize) {
-    IndexVector oneDIndices;
-    get1dIndicesLocal(d, lvec[d], oneDIndices);
-
-    // stupid additive recursion, could be multiplicative (since hyper-rectangular)
-    for (IndexType idx : oneDIndices) {
-      ivec[d] = idx;
-
-      if (d > 0)
-        calcLocalSizeRecursive(d - 1, lvec, ivec, localSize);
-      else {
-        ++localSize;
-      }
-    }
-  }
-
-  /**
-   * @brief Get the number of points of the subspace on this partition
-   *
-   * @param l level of hierarchical subspace
-   * @return size_t the number of points on this partition
-   */
-  size_t getLocalSizeOfSubspaceOnThisPartition(LevelVector l) {
-    IndexVector ivec(dim_);
-    size_t localSize = 0;
-
-    calcLocalSizeRecursive(dim_ - static_cast<DimType>(1), l, ivec, localSize);
-    return localSize;
-  }
-
-  void getFGPointsOfSubspaceRecursive(DimType d, const LevelVector& lvec,
+  inline void getFGPointsOfSubspaceRecursive(DimType d, const LevelVector& lvec,
                                       IndexType localLinearIndexSum,
                                       std::vector<IndexType>& subspaceIndices) {
     IndexVector oneDIndices;
@@ -1035,10 +1005,10 @@ class DistributedFullGrid {
     for (const auto idx : oneDIndices) {
       auto updatedLocalIndexSum = localLinearIndexSum;
       updatedLocalIndexSum += localOffsets_[d] * idx;
-      if (d > 0)
+      if (d > 0) {
         getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), lvec, updatedLocalIndexSum,
                                        subspaceIndices);
-      else {
+      } else {
         subspaceIndices.emplace_back(updatedLocalIndexSum);
       }
     }
@@ -1050,10 +1020,15 @@ class DistributedFullGrid {
    * @param l level of hierarchical subspace
    * @return size_t the indices of points on this partition
    */
-  std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) {
+  inline std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) {
+    IndexType numPointsOfSubspace = 1;
+    for (DimType d = 0; d < dim_; ++d) {
+      numPointsOfSubspace *= getNumPointsOnThisPartition(l[d], d);
+    }
     IndexVector subspaceIndices;
-    IndexType localLinearIndexSum = 0;
+    subspaceIndices.reserve(numPointsOfSubspace);
 
+    IndexType localLinearIndexSum = 0;
     getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), l, localLinearIndexSum,
                                    subspaceIndices);
     return subspaceIndices;
@@ -1282,6 +1257,12 @@ class DistributedFullGrid {
     return (nrLocalPoints_[d] - 1 < localStart)
                ? 0
                : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
+  }
+
+  inline IndexType getNumPointsOnThisPartition(LevelType l, DimType d) {
+    const auto strideForThisLevel = getStrideForThisLevel(l, d);
+    return getNumPointsOnThisPartition(d, getLocalStartForThisLevel(l, d, strideForThisLevel),
+                                       strideForThisLevel);
   }
 
   /**
