@@ -1290,12 +1290,10 @@ class DistributedFullGrid {
             ? 0
             : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
     oneDIndices.resize(numPointsOnThisPartition);
-    auto oneDit = oneDIndices.begin();
-    for (IndexType localIdx = localStart; oneDit != oneDIndices.end();
-         localIdx += strideForThisLevel) {
-      *oneDit = localIdx;
-      ++oneDit;
-    }
+    std::generate(oneDIndices.begin(), oneDIndices.end(), [&localStart,&strideForThisLevel]() {
+      localStart += strideForThisLevel;
+      return localStart;
+    });
   }
 
   /**
