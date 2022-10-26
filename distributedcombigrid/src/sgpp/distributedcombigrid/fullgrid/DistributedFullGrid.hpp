@@ -1997,9 +1997,12 @@ class DistributedFullGrid {
   // use only one of localFGIndexToLocalSGPointerList_ or subspaceIndexToFGIndices_
   std::vector<FG_ELEMENT*> localFGIndexToLocalSGPointerList_;
 
-  // contains for each (local) dsg subspace (.first) the dfg indices that belong to that subspace (.second)
+  // contains for each (local) dsg subspace (.first)
+  // the dfg indices that belong to that subspace (.second)
   // if the subspace is not present in either the dsg or the dfg, the entry is not created
-  std::vector<std::pair<IndexType, std::vector<IndexType>>> subspaceIndexToFGIndices_;
+  std::vector<std::pair<typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType,
+                        std::vector<IndexType>>>
+      subspaceIndexToFGIndices_;
 
   DistributedSparseGridUniform<FG_ELEMENT>* dsg_;
 
