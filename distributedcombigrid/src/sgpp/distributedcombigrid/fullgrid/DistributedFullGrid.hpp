@@ -1021,11 +1021,14 @@ class DistributedFullGrid {
    * @return size_t the indices of points on this partition
    */
   inline std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) {
+    IndexVector subspaceIndices;
     IndexType numPointsOfSubspace = 1;
     for (DimType d = 0; d < dim_; ++d) {
+      if (l[d] > levels_[d]) {
+        return subspaceIndices;
+      }
       numPointsOfSubspace *= getNumPointsOnThisPartition(l[d], d);
     }
-    IndexVector subspaceIndices;
     subspaceIndices.reserve(numPointsOfSubspace);
 
     IndexType localLinearIndexSum = 0;
@@ -1260,6 +1263,7 @@ class DistributedFullGrid {
   }
 
   inline IndexType getNumPointsOnThisPartition(LevelType l, DimType d) {
+    assert(!(l > levels_[d]));
     const auto strideForThisLevel = getStrideForThisLevel(l, d);
     return getNumPointsOnThisPartition(d, getLocalStartForThisLevel(l, d, strideForThisLevel),
                                        strideForThisLevel);
@@ -1275,6 +1279,7 @@ class DistributedFullGrid {
   inline void get1dIndicesLocal(DimType d, LevelType l, IndexVector& oneDIndices) {
     assert(l > 0);
     if (l > levels_[d]) {
+      oneDIndices.clear();
       return;
     }
 
