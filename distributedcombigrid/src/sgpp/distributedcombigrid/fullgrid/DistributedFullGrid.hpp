@@ -1083,11 +1083,11 @@ class DistributedFullGrid {
 
     // resize all common subspaces in dsg, if necessary
     for (const auto& level : downwardClosedSet) {
-      if (dsg_->isContained(level)) {
+      const auto index = dsg_->getIndex(level);
+      if (index > -1) {
         subspaceIndexToFGIndices_.emplace_back(
-            std::make_pair(dsg_->getIndex(level), getFGPointsOfSubspace(level)));
+            std::make_pair(index, getFGPointsOfSubspace(level)));
         const auto& FGIndices = subspaceIndexToFGIndices_.back().second;
-        const auto& index = subspaceIndexToFGIndices_.back().first;
         const auto lsize = FGIndices.size();
         const auto subSgDataSize = dsg_->getDataSize(index);
         // resize DSG subspace if it has zero size
