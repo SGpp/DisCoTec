@@ -408,7 +408,7 @@ inline DimType DistributedSparseGridUniform<FG_ELEMENT>::getDim() const {
 template <typename FG_ELEMENT>
 inline typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType
 DistributedSparseGridUniform<FG_ELEMENT>::getNumSubspaces() const {
-  return subspaces_.size();
+  return static_cast<SubspaceIndexType>(subspaces_.size());
 }
 
 template <typename FG_ELEMENT>

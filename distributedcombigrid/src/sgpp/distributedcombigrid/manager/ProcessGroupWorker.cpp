@@ -1248,7 +1248,7 @@ void ProcessGroupWorker::combineThirdLevel() {
     // if we have an extra dsg for third level exchange, we use it
     if (extraUniDSGVector_.size() > 0) {
       // copy partial data from uniDSG to extraDSG
-      for (size_t i = 0; i < uniDsg->getNumSubspaces(); ++i) {
+      for (decltype(uniDsg->getNumSubspaces()) i = 0; i < uniDsg->getNumSubspaces(); ++i) {
         assert(dsgToUse->getDataSize(i) == 0 ||
                dsgToUse->getDataSize(i) == uniDsg->getDataSize(i));
         std::copy_n(uniDsg->getData(i), dsgToUse->getDataSize(i), dsgToUse->getData(i));
@@ -1267,7 +1267,7 @@ void ProcessGroupWorker::combineThirdLevel() {
 
     if (extraUniDSGVector_.size() > 0) {
       // copy partial data from extraDSG back to uniDSG
-      for (size_t i = 0; i < uniDsg->getNumSubspaces(); ++i) {
+      for (decltype(uniDsg->getNumSubspaces()) i = 0; i < uniDsg->getNumSubspaces(); ++i) {
         std::copy_n(dsgToUse->getData(i), dsgToUse->getDataSize(i), uniDsg->getData(i));
       }
     }
@@ -1351,7 +1351,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
   // set updated sizes in dsgs
   std::vector<size_t>::iterator buffIt = buff.begin();
   for (auto& dsg : *uniDSGVectorToSet) {
-    for(size_t i = 0; i < dsg->getNumSubspaces(); ++i) {
+    for(decltype(dsg->getNumSubspaces()) i = 0; i < dsg->getNumSubspaces(); ++i) {
       dsg->setDataSize(i, *(buffIt++));
     }
     dsg->createSubspaceData();
@@ -1381,7 +1381,7 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   // set updated sizes in dsgs
   std::vector<size_t>::iterator buffIt = buff.begin();
   for (auto& dsg : combinedUniDSGVector_) {
-    for(size_t i = 0; i < dsg->getNumSubspaces(); ++i) {
+    for(decltype(dsg->getNumSubspaces()) i = 0; i < dsg->getNumSubspaces(); ++i) {
       dsg->setDataSize(i, *(buffIt++));
     }
   }
