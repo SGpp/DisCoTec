@@ -56,9 +56,11 @@ const std::vector<std::vector<DimType>>& AllKOutOfDDimensions::get(DimType k, Di
 std::map<std::pair<DimType, DimType>, std::vector<std::vector<DimType>>>
     AllKOutOfDDimensions::cache_;
 
-void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
+void createTruncatedHierarchicalLevelsRec(DimType dim, size_t n, LevelVector& l,
                                           const LevelVector& lmax, const LevelVector& lmin,
                                           std::vector<LevelVector>& created) {
+  assert(lmax.size() == lmin.size());
+  auto dimensionality = static_cast<DimType>(lmax.size());
   assert(lmax[dim - 1] == lmin[dim - 1] + n);
 
   // sum rightmost entries of level vector
@@ -77,10 +79,9 @@ void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
       if (dim == 1) {
         // all mixed dimension sums
         bool pleaseAdd = true;
-        DimType d = static_cast<DimType>(lmin.size());
-        for (DimType k = 2; k <= d; ++k) {
-          auto dimList = AllKOutOfDDimensions::get(k, d);
-          // auto dimList = getAllKOutOfDDimensions(k, d);
+        for (DimType k = 2; k <= dimensionality; ++k) {
+          auto dimList = AllKOutOfDDimensions::get(k, dimensionality);
+          // auto dimList = getAllKOutOfDDimensions(k, dimensionality);
           // for each subselection of dimensions, compute sum of l and lmin
           for (const auto& dimCombination : dimList) {
             LevelType partlsum(0), partlminsum(0);
@@ -109,7 +110,7 @@ void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
 void createTruncatedHierarchicalLevels(const LevelVector& lmax, const LevelVector& lmin,
                                        std::vector<LevelVector>& created) {
   assert(created.empty());
-  auto dim = lmax.size();
+  auto dim = static_cast<DimType>(lmax.size());
   assert(lmin.size() == dim);
 
   for (DimType d = 0; d < dim; ++d) {

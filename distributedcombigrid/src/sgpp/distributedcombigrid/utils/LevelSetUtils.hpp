@@ -101,10 +101,10 @@ struct AllKOutOfDDimensions {
  *
  * @param dim : the currently recursively iterated dimension
  * @param n : the "regular level", here the minimum of the difference of lmax and lmin
- * @param d : the dimensionality
  * @param l : the currently populated level vector (entries filled only from dim to d-1)
  * @param lmax
  * @param lmin
+ * @param created : output vector of subspaces
  *
  *  start recursion by setting dim=d=dimensionality of the vector space.
     For instance, for correct subspace restriction in d > 2, we need 3 criteria:
@@ -112,7 +112,7 @@ struct AllKOutOfDDimensions {
     the maximum of lmax in every dimension, and
     the mixed dimension sum restrictions
  */
-void createTruncatedHierarchicalLevelsRec(size_t dim, size_t n, LevelVector& l,
+void createTruncatedHierarchicalLevelsRec(DimType dim, size_t n, LevelVector& l,
                                           const LevelVector& lmax, const LevelVector& lmin,
                                           std::vector<LevelVector>& created);
 
