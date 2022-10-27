@@ -320,7 +320,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
 }
 
 BOOST_FIXTURE_TEST_SUITE(distributedfullgrid, TestHelper::BarrierAtEnd,
-                         *boost::unit_test::timeout(120))
+                         *boost::unit_test::timeout(600))
 
 // with boundary
 // isotropic
@@ -856,11 +856,12 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     decomposition[0] = {0, 1, 2, 3, 4};
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    DistributedFullGrid<real> otherDfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    DistributedFullGrid<real> otherDfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                       decomposition);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create other full grid w/ level sum 29: " << duration.count()
-                                                                    << " milliseconds");
+                                                                          << " milliseconds");
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 2500);
 #endif
@@ -890,7 +891,8 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     otherDfg.registerUniformSG(dsg);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    BOOST_TEST_MESSAGE("time to register sparse grid again: " << duration.count() << " milliseconds");
+    BOOST_TEST_MESSAGE("time to register sparse grid again: " << duration.count()
+                                                              << " milliseconds");
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 50000);
 #endif
@@ -904,7 +906,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create sparse grid data: " << duration.count() << " milliseconds");
 #ifdef NDEBUG
-    BOOST_CHECK(duration.count() < 5000);
+    BOOST_CHECK(duration.count() < 15000);
 #endif
   }
 }
