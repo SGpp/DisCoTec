@@ -1057,11 +1057,11 @@ class DistributedFullGrid {
   void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     dsg_ = &dsg;
     assert(dsg_->getDim() == dim_);
-
-    subspaceIndexToFGIndices_.clear();
-
     // all the hierarchical subspaces contained in this full grid
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
+
+    subspaceIndexToFGIndices_.clear();
+    subspaceIndexToFGIndices_.reserve(downwardClosedSet.size());
 
     IndexType index = 0;
     // resize all common subspaces in dsg, if necessary
@@ -1084,6 +1084,7 @@ class DistributedFullGrid {
         }
       }
     }
+    subspaceIndexToFGIndices_.shrink_to_fit();
     assert(subspaceIndexToFGIndices_.size() > 0);
     // if localFGIndexToLocalSGPointerList_ was already initialized,
     // it is invalidated now
