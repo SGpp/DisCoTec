@@ -61,22 +61,22 @@ void createTruncatedHierarchicalLevelsRec(DimType dim, size_t n, LevelVector& l,
                                           std::vector<LevelVector>& created) {
   assert(lmax.size() == lmin.size());
   auto dimensionality = static_cast<DimType>(lmax.size());
-  assert(lmax[dim - 1] == lmin[dim - 1] + n);
+  assert(lmax[dim] == lmin[dim] + n);
 
-  // sum rightmost entries of level vector
+  // sum leftmost entries of level vector
   LevelType lsum(0);
-  for (size_t i = dim; i < l.size(); ++i) {
+  for (DimType i = 0; i < dim; ++i) {
     lsum = static_cast<LevelType>(lsum + l[i]);
   }
 
   // iterate everything below hyperplane
   for (LevelType ldim = 1; ldim <= LevelType(combigrid::levelSum(lmin) + n) - lsum; ++ldim) {
     // smallereq than lmax in every dim
-    if (ldim > lmax[dim - 1]) {
+    if (ldim > lmax[dim]) {
       continue;
     } else {
-      l[dim - 1] = ldim;
-      if (dim == 1) {
+      l[dim] = ldim;
+      if (dim == dimensionality - 1) {
         // all mixed dimension sums
         bool pleaseAdd = true;
         for (DimType k = 2; k <= dimensionality; ++k) {
@@ -101,7 +101,7 @@ void createTruncatedHierarchicalLevelsRec(DimType dim, size_t n, LevelVector& l,
           created.push_back(l);
         }
       } else {
-        createTruncatedHierarchicalLevelsRec(dim - 1, n, l, lmax, lmin, created);
+        createTruncatedHierarchicalLevelsRec(dim + 1, n, l, lmax, lmin, created);
       }
     }
   }
@@ -132,7 +132,7 @@ void createTruncatedHierarchicalLevels(const LevelVector& lmax, const LevelVecto
   LevelType n = minLevelDifference;
 
   LevelVector l(dim);
-  createTruncatedHierarchicalLevelsRec(dim, n, l, lmax, rlmin, created);
+  createTruncatedHierarchicalLevelsRec(0, n, l, lmax, rlmin, created);
 }
 
 }  // namespace combigrid

@@ -201,11 +201,13 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     BOOST_TEST_CHECKPOINT("Register to uniform SG");
     largeUniDFG->registerUniformSG(*uniDSG);
 
-    // make sure that right min/max values are written %TODO remove
+    // make sure that right min/max values are written %TODO remove file
+    BOOST_TEST_CHECKPOINT("write min/max coefficients");
     uniDSG->writeMinMaxCoefficents(
         "sparse_paraboloid_minmax_large_" + std::to_string(dim) + "D_" + std::to_string(size), 0);
 
     // check if the sizes set are actually the ones we calculate with CombiMinMaxScheme
+    BOOST_TEST_CHECKPOINT("check subspace sizes");
     auto subspacesDataSizes = uniDSG->getSubspaceDataSizes();
     size_t numDataPointsHere =
         std::accumulate(subspacesDataSizes.begin(), subspacesDataSizes.end(), 0);
@@ -514,6 +516,7 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels) {
   }
   auto it = std::unique(created.begin(), created.end());
   BOOST_CHECK(it == created.end());
+  BOOST_CHECK(std::is_sorted(created.begin(), created.end()));
 }
 
 BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
@@ -538,6 +541,8 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
     BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),
                       getNumDofHierarchical(created, boundaryVector));
   }
+  BOOST_CHECK(std::is_sorted(downSet.begin(), downSet.end()));
+  BOOST_CHECK(std::is_sorted(created.begin(), created.end()));
 }
 
 BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
@@ -560,6 +565,7 @@ BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels_large) {
 #endif
   auto it = std::unique(created.begin(), created.end());
   BOOST_CHECK(it == created.end());
+  BOOST_CHECK(std::is_sorted(created.begin(), created.end()));
 }
 
 BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
@@ -606,6 +612,8 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
     BOOST_TEST_CONTEXT(stringStream.str());
     BOOST_REQUIRE(std::find(downSet.begin(), downSet.end(), level) != downSet.end());
   }
+  BOOST_CHECK(std::is_sorted(downSet.begin(), downSet.end()));
+  BOOST_CHECK(std::is_sorted(created.begin(), created.end()));
 }
 
 BOOST_AUTO_TEST_CASE(test_getAllKOutOfDDimensions) {
