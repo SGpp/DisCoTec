@@ -373,7 +373,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
   }
 #endif  // NDEBUG
   auto found = std::find_if(levels_.cbegin(), levels_.cend(),
-                            [&l](const LevelVector& l_i) { return equals_no_size_check(l_i, l); });
+                            [&l](const LevelVector& l_i) { return l_i == l; });
   if (found != levels_.end()) {
     return static_cast<SubspaceIndexType>(std::distance(levels_.begin(), found));
   } else {
@@ -414,7 +414,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::getNumSubspaces() const {
 template <typename FG_ELEMENT>
 bool DistributedSparseGridUniform<FG_ELEMENT>::isContained(const LevelVector& l) const {
   auto found = std::find_if(levels_.cbegin(), levels_.cend(),
-                            [&l](const LevelVector& l_i) { return equals_no_size_check(l_i, l); });
+                            [&l](const LevelVector& l_i) { return l_i == l; });
   return found != levels_.end();
 }
 
