@@ -996,18 +996,20 @@ class DistributedFullGrid {
     for (size_t i = 0; i < subarrayTypes.size(); ++i) MPI_Type_free(&subarrayTypes[i]);
   }
 
-  inline void getFGPointsOfSubspaceRecursive(DimType d, const LevelVector& lvec,
-                                      IndexType localLinearIndexSum,
-                                      std::vector<IndexType>& subspaceIndices) {
-    IndexVector oneDIndices;
-    get1dIndicesLocal(d, lvec[d], oneDIndices);
+  inline void getFGPointsOfSubspaceRecursive(DimType d, IndexType localLinearIndexSum,
+                                             std::vector<IndexVector>& oneDIndices,
+                                             std::vector<IndexType>& subspaceIndices) {
+    assert(d < dim_);
+    assert(lvec.size == dim_);
+    assert(oneDIndices.size() == dim_);
+    assert(!oneDIndices.empty());
 
-    for (const auto idx : oneDIndices) {
+    for (const auto idx : oneDIndices[d]) {
       auto updatedLocalIndexSum = localLinearIndexSum;
       updatedLocalIndexSum += localOffsets_[d] * idx;
       if (d > 0) {
-        getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), lvec, updatedLocalIndexSum,
-                                       subspaceIndices);
+        getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), updatedLocalIndexSum,
+                                       oneDIndices, subspaceIndices);
       } else {
         subspaceIndices.emplace_back(updatedLocalIndexSum);
       }
@@ -1018,22 +1020,26 @@ class DistributedFullGrid {
    * @brief Get the indices of the points of the subspace on this partition
    *
    * @param l level of hierarchical subspace
-   * @return size_t the indices of points on this partition
+   * @return the indices of points on this partition
    */
   inline std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) {
     IndexVector subspaceIndices;
     IndexType numPointsOfSubspace = 1;
+    auto oneDIndices = std::vector<IndexVector>(dim_);
     for (DimType d = 0; d < dim_; ++d) {
       if (l[d] > levels_[d]) {
         return subspaceIndices;
       }
-      numPointsOfSubspace *= getNumPointsOnThisPartition(l[d], d);
+      get1dIndicesLocal(d, l[d], oneDIndices[d]);
+      numPointsOfSubspace *= oneDIndices[d].size();
     }
-    subspaceIndices.reserve(numPointsOfSubspace);
+    if (numPointsOfSubspace > 0) {
+      subspaceIndices.reserve(numPointsOfSubspace);
 
-    IndexType localLinearIndexSum = 0;
-    getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), l, localLinearIndexSum,
-                                   subspaceIndices);
+      IndexType localLinearIndexSum = 0;
+      getFGPointsOfSubspaceRecursive(static_cast<DimType>(dim_ - 1), localLinearIndexSum,
+                                     oneDIndices, subspaceIndices);
+    }
     assert(static_cast<IndexType>(subspaceIndices.size()) == numPointsOfSubspace);
     return subspaceIndices;
   }
