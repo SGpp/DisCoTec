@@ -310,6 +310,7 @@ std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
   std::vector<LevelVector> created{};
   combigrid::createTruncatedHierarchicalLevels(nmax, lmin, created);
   // std::sort(created.begin(), created.end());
+  assert(std::is_sorted(created.begin(), created.end()));
   if (created.size() > std::numeric_limits<SubspaceIndexType>::max()) {
     throw std::runtime_error("number of subspaces exceeds the maximum value of SubspaceIndexType");
   }
@@ -368,9 +369,8 @@ DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
     assert(l_i > 0);
   }
 #endif  // NDEBUG
-  auto found = std::find_if(levels_.cbegin(), levels_.cend(),
-                            [&l](const LevelVector& l_i) { return l_i == l; });
-  if (found != levels_.end()) {
+  auto found = std::lower_bound(levels_.cbegin(), levels_.cend(), l);
+  if (found != levels_.end() && *found == l) {
     return static_cast<SubspaceIndexType>(std::distance(levels_.begin(), found));
   } else {
     // assert(false && "space not found in levels_");
@@ -409,9 +409,8 @@ DistributedSparseGridUniform<FG_ELEMENT>::getNumSubspaces() const {
 
 template <typename FG_ELEMENT>
 bool DistributedSparseGridUniform<FG_ELEMENT>::isContained(const LevelVector& l) const {
-  auto found = std::find_if(levels_.cbegin(), levels_.cend(),
-                            [&l](const LevelVector& l_i) { return l_i == l; });
-  return found != levels_.end();
+  auto found = std::lower_bound(levels_.cbegin(), levels_.cend(), l);
+  return (found != levels_.end() && *found == l);
 }
 
 // template <typename FG_ELEMENT>
