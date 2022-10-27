@@ -96,6 +96,8 @@ class DistributedSparseGridUniform {
   // return level vector of subspace i
   inline const LevelVector& getLevelVector(SubspaceIndexType i) const;
 
+  inline SubspaceIndexType getIndexInRange(const LevelVector& l, IndexType lowerBound) const;
+
   // return index of subspace i
   inline SubspaceIndexType getIndex(const LevelVector& l) const;
 
@@ -361,25 +363,31 @@ inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVect
   return *levelIterator;
 }
 
-/* get index of space with l. returns -1 if not included */
 template <typename FG_ELEMENT>
 typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType
-DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
+DistributedSparseGridUniform<FG_ELEMENT>::getIndexInRange(const LevelVector& l,
+                                                          IndexType lowerBound) const {
 #ifndef NDEBUG
   for (const auto& l_i : l) {
-#ifdef DEBUG_OUTPUT
-// std::cerr << "getIndex()"<< std::endl;
-#endif
     assert(l_i > 0);
   }
 #endif  // NDEBUG
-  auto found = std::lower_bound(levels_.cbegin(), levels_.cend(), l);
+  auto start = levels_.cbegin();
+  std::advance(start, lowerBound);
+  auto found = std::lower_bound(start, levels_.end(), l);
   if (found != levels_.end() && *found == l) {
-    return static_cast<SubspaceIndexType>(std::distance(levels_.begin(), found));
+    return static_cast<SubspaceIndexType>(std::distance(levels_.cbegin(), found));
   } else {
     // assert(false && "space not found in levels_");
     return -1;
   }
+}
+
+/* get index of space with l. returns -1 if not included */
+template <typename FG_ELEMENT>
+typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType
+DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
+  return getIndexInRange(l, 0);
 }
 
 template <typename FG_ELEMENT>
