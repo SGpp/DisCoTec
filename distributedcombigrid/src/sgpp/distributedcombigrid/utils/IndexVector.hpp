@@ -21,9 +21,6 @@ typedef std::vector<IndexType> IndexVector;
 template<typename T>
 inline bool operator==(const std::vector<T> &u, const std::vector<T> &v) {
   using namespace std;
-  if(u.size() != v.size()) {
-    return false;
-  }
   for (std::size_t i = 0; i < u.size(); ++i) {
     if (u[i] != v[i]) return false;
   }
@@ -31,7 +28,10 @@ inline bool operator==(const std::vector<T> &u, const std::vector<T> &v) {
 }
 
 template <typename T>
-inline bool equals_no_size_check(const std::vector<T>& u, const std::vector<T>& v) {
+inline bool equals_with_size_check(const std::vector<T>& u, const std::vector<T>& v) {
+  if(u.size() != v.size()) {
+    return false;
+  }
   for (std::size_t i = 0; i < u.size(); ++i) {
     if (u[i] != v[i]) return false;
   }
