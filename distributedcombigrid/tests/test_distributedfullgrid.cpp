@@ -841,6 +841,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     std::vector<IndexVector> decomposition = {
         {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
 
+    MPI_Barrier(comm);
     auto start = std::chrono::high_resolution_clock::now();
     DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
     auto end = std::chrono::high_resolution_clock::now();
@@ -850,7 +851,21 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 2500);
 #endif
+    std::reverse(fullGridLevel.begin(), fullGridLevel.end());
+    std::reverse(boundary.begin(), boundary.end());
+    decomposition[0] = {0, 1, 2, 3, 4};
+    MPI_Barrier(comm);
+    start = std::chrono::high_resolution_clock::now();
+    DistributedFullGrid<real> otherDfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to create other full grid w/ level sum 29: " << duration.count()
+                                                                    << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 2500);
+#endif
 
+    MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
     DistributedSparseGridUniform<real> dsg(dim, lmax, lmin, boundary, comm);
     end = std::chrono::high_resolution_clock::now();
@@ -860,6 +875,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     BOOST_CHECK(duration.count() < 5000);
 #endif
 
+    MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
     dfg.registerUniformSG(dsg);
     end = std::chrono::high_resolution_clock::now();
@@ -869,6 +885,17 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     BOOST_CHECK(duration.count() < 5000);
 #endif
 
+    MPI_Barrier(comm);
+    start = std::chrono::high_resolution_clock::now();
+    otherDfg.registerUniformSG(dsg);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to register sparse grid again: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 50000);
+#endif
+
+    MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
     dsg.setZero();
     // this is not the "correct" communicator, but using it here so something is communicated
