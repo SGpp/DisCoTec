@@ -1058,9 +1058,10 @@ class DistributedFullGrid {
     // all the hierarchical subspaces contained in this full grid
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
+    IndexType index = 0;
     // resize all common subspaces in dsg, if necessary
     for (const auto& level : downwardClosedSet) {
-      const auto index = dsg_->getIndex(level);
+      index = dsg_->getIndexInRange(level, index);
       if (index > -1) {
         subspaceIndexToFGIndices_.emplace_back(
             std::make_pair(index, getFGPointsOfSubspace(level)));
