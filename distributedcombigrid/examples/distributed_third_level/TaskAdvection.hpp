@@ -50,35 +50,19 @@ class TaskAdvection : public Task {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
-    double start, finish;
-    start = MPI_Wtime();
-
     auto lrank = theMPISystem()->getLocalRank();
     DimType dim = this->getDim();
     const LevelVector& l = this->getLevelVector();
 
-    finish = MPI_Wtime();
-
-    if (lrank == 0) {
-      std::cout << "init task " << this->getID() << " with l = " << this->getLevelVector()
-                << " and p = " << p_ << " took " << finish - start << std::flush;
-    }
-
-    start = MPI_Wtime();
     // create local subgrid on each process
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true, decomposition);
     phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
 
-    finish = MPI_Wtime();
-    if (lrank == 0) {
-      std::cout << " created dfg_ and phi_ took " << finish - start << std::flush;
-    }
     if (phi_->size() != dfg_->getElementVector().size() || phi_->size() != dfg_->getNrLocalElements() ) {
       throw std::runtime_error("allocation went wrong! " + std::to_string(phi_->size()) + " vs " +
                                std::to_string(dfg_->getElementVector().size()));
     }
 
-    start = MPI_Wtime();
     std::vector<double> h = dfg_->getGridSpacing();
     auto sumOneOverH = 0.;
     for (const auto& h_x : h) {
@@ -93,10 +77,6 @@ class TaskAdvection : public Task {
       static std::vector<double> coords(this->getDim());
       dfg_->getCoordsLocal(li, coords);
       dfg_->getData()[li] = f(coords, 0.);
-    }
-    finish = MPI_Wtime();
-    if (lrank == 0) {
-      std::cout << " set values on dfg_ took " << finish - start << std::endl;
     }
 
     initialized_ = true;
