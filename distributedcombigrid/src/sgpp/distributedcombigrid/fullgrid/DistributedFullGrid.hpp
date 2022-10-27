@@ -999,7 +999,6 @@ class DistributedFullGrid {
                                              std::vector<IndexVector>& oneDIndices,
                                              std::vector<IndexType>& subspaceIndices) {
     assert(d < dim_);
-    assert(lvec.size == dim_);
     assert(oneDIndices.size() == dim_);
     assert(!oneDIndices.empty());
 
