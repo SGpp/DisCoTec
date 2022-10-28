@@ -724,7 +724,7 @@ bool ProcessGroupManager::writeDSGsToDisk(std::string filenamePrefix) {
 
 bool ProcessGroupManager::readDSGsFromDisk(std::string filenamePrefix) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
-  sendSignalAndReceive(WRITE_DSGS_TO_DISK);
+  sendSignalAndReceive(READ_DSGS_FROM_DISK);
   MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
   return true;
 }
