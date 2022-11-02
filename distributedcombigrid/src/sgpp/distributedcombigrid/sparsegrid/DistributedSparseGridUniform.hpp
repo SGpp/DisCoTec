@@ -156,6 +156,10 @@ class DistributedSparseGridUniform {
   // broadcasts subspace sizes from one rank to all others in comm
   void broadcastDsgSizes(CommunicatorType comm, RankType sendingRank);
 
+  void sendDsgSizesWithGather(CommunicatorType comm, RankType collectorRank);
+
+  void receiveDsgSizesWithScatter(CommunicatorType comm, RankType collectorRank);
+
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
 
@@ -542,6 +546,36 @@ void DistributedSparseGridUniform<FG_ELEMENT>::broadcastDsgSizes(CommunicatorTyp
   assert(subspacesDataSizes_.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
   MPI_Bcast(subspacesDataSizes_.data(), static_cast<int>(subspacesDataSizes_.size()), dtype,
             sendingRank, comm);
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::sendDsgSizesWithGather(CommunicatorType comm,
+                                                                      RankType collectorRank) {
+  auto numSubspaces = static_cast<int>(this->getNumSubspaces());
+  assert(numSubspaces > 0);
+  assert(numSubspaces == subspacesDataSizes_.size());
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
+
+  // perform gather (towards tl-manager)
+  // send size of buffer to manager
+  MPI_Gather(&numSubspaces, 1, MPI_INT, nullptr, 0, MPI_INT, collectorRank, comm);
+
+  // send subspace sizes to manager
+  MPI_Gatherv(subspacesDataSizes_.data(), numSubspaces, dtype, nullptr, nullptr, nullptr, dtype,
+              collectorRank, comm);
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::receiveDsgSizesWithScatter(CommunicatorType comm,
+                                                                          RankType collectorRank) {
+  auto numSubspaces = static_cast<int>(this->getNumSubspaces());
+  assert(numSubspaces > 0);
+  assert(numSubspaces == subspacesDataSizes_.size());
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
+
+  // receive updated sizes from manager
+  MPI_Scatterv(nullptr, 0, nullptr, dtype, subspacesDataSizes_.data(), numSubspaces, dtype,
+               collectorRank, comm);
 }
 
 template <typename FG_ELEMENT>
