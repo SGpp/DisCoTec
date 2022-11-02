@@ -77,8 +77,8 @@ class TestingTask : public combigrid::Task {
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
     // parallelization
     // assert(dfg_ == nullptr);
-    long nprocs = getCommSize(lcomm);
-    IndexVector p = {nprocs,1};
+    auto nprocs = getCommSize(lcomm);
+    std::vector<int> p = {nprocs,1};
 
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
                                                   p, false, decomposition);
@@ -204,7 +204,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
     //
     // Reduce combination dims lmin and lmax are 0!!
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+    params.setParallelization({static_cast<int>(nprocs), 1});
 
 
     // create abstraction for Manager
@@ -266,7 +266,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
-  TestHelper::testStrayMessages(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
 BOOST_FIXTURE_TEST_SUITE(rescheduling, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))

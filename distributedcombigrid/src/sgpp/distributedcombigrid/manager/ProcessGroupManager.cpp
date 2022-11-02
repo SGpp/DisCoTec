@@ -197,15 +197,16 @@ void ProcessGroupManager::writeSparseGridMinMaxCoefficients(const std::string& f
   this->setProcessGroupBusyAndReceive();
 }
 
-
-void ProcessGroupManager::doDiagnostics(int taskID) {
+void ProcessGroupManager::doDiagnostics(size_t taskID) {
   auto status = waitStatus();
   assert(status == PROCESS_GROUP_WAIT);
   for (auto task : tasks_) {
     if (task->getID() == taskID) {
       sendSignalToProcessGroup(DO_DIAGNOSTICS);
       // send task ID to do postprocessing on
-      MPI_Send(&taskID, 1, MPI_INT, this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
+      MPI_Send(&taskID, 1,
+               abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
+               this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
       return;
     }
   }
@@ -235,7 +236,7 @@ std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& lev
 }
 
 void ProcessGroupManager::getLpNorms(int p, std::map<size_t, double>& norms) {
-  SignalType signal;
+  SignalType signal = GET_L1_NORM;
   if (p == 2) {
     signal = GET_L2_NORM;
   } else if (p == 1) {
@@ -283,10 +284,13 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
 void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                                             std::vector<CombiDataType>& values,
                                             MPI_Request& request) {
-  sendSignalToProcessGroup(INTERPOLATE_VALUES);
-  MPI_Request dummyRequest;
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
+  for (const auto& coord : interpolationCoordsSerial) {
+    assert(coord >= 0.0 && coord <= 1.0);
+  }
+  sendSignalToProcessGroup(INTERPOLATE_VALUES);
+  MPI_Request dummyRequest;
   MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
             abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
@@ -296,6 +300,7 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
             pgroupRootID_, TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &request);
 
   setProcessGroupBusyAndReceive();
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
 }
 
 void ProcessGroupManager::writeInterpolatedValues(const std::vector<real>& interpolationCoordsSerial) {
@@ -308,6 +313,7 @@ void ProcessGroupManager::writeInterpolatedValues(const std::vector<real>& inter
             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
   MPI_Request_free(&dummyRequest);
   setProcessGroupBusyAndReceive();
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
 }
 
 void ProcessGroupManager::recvStatus() {
@@ -341,7 +347,9 @@ Task* ProcessGroupManager::rescheduleRemoveTask(const LevelVector& lvlVec) {
       Task* removedTask;
       auto taskID = currentTask->getID();
       sendSignalToProcessGroup(RESCHEDULE_REMOVE_TASK);
-      MPI_Send(&taskID, 1, MPI_INT, this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
+      MPI_Send(&taskID, 1,
+               abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
+               this->pgroupRootID_, 0, theMPISystem()->getGlobalComm());
       Task::receive(&removedTask, this->pgroupRootID_, theMPISystem()->getGlobalComm());
       setProcessGroupBusyAndReceive();
 
@@ -352,6 +360,20 @@ Task* ProcessGroupManager::rescheduleRemoveTask(const LevelVector& lvlVec) {
     }
   }
   return nullptr;
+}
+
+bool ProcessGroupManager::writeDSGsToDisk(std::string filenamePrefix) {
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
+  sendSignalAndReceive(WRITE_DSGS_TO_DISK);
+  MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
+  return true;
+}
+
+bool ProcessGroupManager::readDSGsFromDisk(std::string filenamePrefix) {
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
+  sendSignalAndReceive(READ_DSGS_FROM_DISK);
+  MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
+  return true;
 }
 
 } /* namespace combigrid */

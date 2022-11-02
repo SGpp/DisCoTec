@@ -6,6 +6,7 @@
 #include <numeric>
 #include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
+#include "sgpp/distributedcombigrid/utils/LevelSetUtils.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 namespace combigrid {
@@ -36,6 +37,14 @@ class CombiMinMaxScheme {
     for (auto i : diff)
       if (i == 0) effDim_--;
   }
+
+  CombiMinMaxScheme(const std::vector<LevelVector>& levels, const std::vector<real>& coefficients)
+    : combiSpaces_(levels), coefficients_(coefficients) {
+      assert(levels.size() > 0);
+      assert(levels.size() == coefficients.size());
+      n_ = 0;
+      dim_ = static_cast<combigrid::DimType>(levels.back().size());
+    }
 
   virtual ~CombiMinMaxScheme() = default;
 
@@ -146,7 +155,7 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
           LevelVector lvl(dim);
           int i = 0;
           for (const auto& l : c.second) {
-            lvl[i] = l.second.get_value<int>();
+            lvl[i] = l.second.get_value<LevelType>();
             ++i;
           }
           assert(lvl <= lmax);
@@ -171,19 +180,24 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
   std::vector<size_t> processGroupNumbers_;
 };
 
+
+inline long long int getCombiDegreesOfFreedom(const LevelVector& level) {
+  long long int numDOF = 1;
+    for (const auto& level_i : level) {
+      assert(level_i > -1);
+      if (level_i > 0) {
+        numDOF *= powerOfTwo[level_i] + 1;
+      } else {
+        numDOF *= 2;
+      }
+    }
+  return numDOF;
+}
+
 inline long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces) {
   long long int numDOF = 0;
   for (const auto& space : combiSpaces) {
-    long int numDOFSpace = 1;
-    for (const auto& level_i : space) {
-      assert(level_i > -1);
-      if (level_i > 0) {
-        numDOFSpace *= powerOfTwo[level_i];
-      } else {
-        numDOFSpace *= 2;
-      }
-    }
-    numDOF += numDOFSpace;
+    numDOF += getCombiDegreesOfFreedom(space);
   }
   std::cout << "Combination scheme DOF : " << numDOF << " i.e. "
             << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
@@ -215,7 +229,7 @@ inline long long int getSGDegreesOfFreedomFromDownSet(const std::vector<LevelVec
 
 inline long long int printSGDegreesOfFreedomAdaptive(const LevelVector& lmin,
                                                      const LevelVector& lmax) {
-  DimType dim = lmin.size();
+  const auto dim = static_cast<DimType>(lmin.size());
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
   // combischeme.createDownSet();
@@ -268,10 +282,14 @@ inline IndexType getHighestIndexInHierarchicalSubspaceLowerThanNodalIndexOnLref(
 
 inline std::vector<long long int> getPartitionedNumDOFSG(
     std::vector<LevelVector> downSet, const LevelVector& referenceLevel,
-    const std::vector<IndexVector> decomposition) {
+    const std::vector<IndexVector>& decomposition) {
+  if (downSet.size() == 0) {
+    return {};
+  }
+
   // this is only valid for with-boundary schemes!
   // cf downsampleDecomposition to extend to non-boundary
-  DimType dim = downSet[0].size();
+  auto dim = static_cast<DimType>(downSet[0].size());
   IndexVector decompositionOffsets;
   IndexType multiplier = 1;
   for (const auto& d : decomposition) {
@@ -322,7 +340,7 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
       // subspaceExtentsPerProcessPerDimension[d] << std::endl;
     }
     // iterate all processes, add dof from subspace
-    for (size_t i = 0; i < numProcsPerGroup; ++i) {
+    for (size_t i = 0; i < static_cast<size_t>(numProcsPerGroup); ++i) {
       size_t numDOFtoAdd = 1;
       // iterate the vector index entries belonging to linear index i
       auto tmp = i;
@@ -344,7 +362,7 @@ inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
     LevelVector lmin, LevelVector lmax, const LevelVector& referenceLevel,
     const std::vector<IndexVector> decomposition) {
   assert((lmin.size() == lmax.size()) == (referenceLevel.size() == decomposition.size()));
-  auto dim = lmin.size();
+  auto dim = static_cast<DimType>(lmin.size());
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
   // auto downSet = combischeme.getDownSet();
@@ -364,7 +382,7 @@ inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
   return getPartitionedNumDOFSG(downSet2, referenceLevel, decomposition);
 }
 
-inline std::vector<LevelVector> getConjointSet(const CombiMinMaxSchemeFromFile& combischeme,
+inline std::vector<LevelVector> getConjointSet(const CombiMinMaxScheme& combischeme,
                                                       const LevelVector& lmin) {
   // we follow the idea in CombiMinMaxSchemeFromFile::createDownSet
   // but this time we count the occurrences of each grid in the individual downPoleSets
@@ -412,7 +430,7 @@ inline std::vector<LevelVector> getConjointSet(const CombiMinMaxSchemeFromFile& 
 // for widely-distributed simulations, get the number of DOF that absolutely needs
 // to be exchanged with the other system
 inline long long int getNumDOFSGConjoint(
-    const CombiMinMaxSchemeFromFile& combischeme, const LevelVector& lmin) {
+    const CombiMinMaxScheme& combischeme, const LevelVector& lmin) {
   auto conjointSet = getConjointSet(combischeme, lmin);
   return getSGDegreesOfFreedomFromDownSet(conjointSet);
 }
@@ -420,7 +438,7 @@ inline long long int getNumDOFSGConjoint(
 // for widely-distributed simulations, get the number of DOF that absolutely needs
 // to be exchanged with the other system -- partitioned
 inline std::vector<long long int> getPartitionedNumDOFSGConjoint(
-    const CombiMinMaxSchemeFromFile& combischeme, const LevelVector& lmin, const LevelVector& referenceLevel,
+    const CombiMinMaxScheme& combischeme, const LevelVector& lmin, const LevelVector& referenceLevel,
     const std::vector<IndexVector> decomposition) {
   auto conjointSet = getConjointSet(combischeme, lmin);
   return getPartitionedNumDOFSG(conjointSet, referenceLevel, decomposition);

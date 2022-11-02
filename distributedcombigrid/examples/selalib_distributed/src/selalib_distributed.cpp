@@ -104,7 +104,7 @@ void setCheckpointRestart(std::string basename, std::vector<LevelVector> levels,
 }
 
 bool adaptParameterFile(std::string infilename, std::string outfilename, IndexVector resolution,
-                        IndexVector p, size_t nsteps, double dt, size_t n_diagnostics) {
+                        std::vector<int> p, size_t nsteps, double dt, size_t n_diagnostics) {
   assert(resolution.size() == p.size());
   std::ifstream inputFileStream(infilename, std::ifstream::in);
   auto contents = getFile(inputFileStream);
@@ -122,7 +122,7 @@ bool adaptParameterFile(std::string infilename, std::string outfilename, IndexVe
 }
 
 bool adaptParameterFileFirstFolder(std::string basename, IndexVector resolution,
-                                   IndexVector p, size_t nsteps, double dt, size_t n_diagnostics,
+                                   std::vector<int> p, size_t nsteps, double dt, size_t n_diagnostics,
                                    std::string suffix = "") {
   std::string baseFolder = "./" + basename;
   std::string taskFolder = baseFolder + suffix + std::to_string(0);
@@ -134,7 +134,7 @@ bool adaptParameterFileFirstFolder(std::string basename, IndexVector resolution,
   return yes;
 }
 
-bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, IndexVector p,
+bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, std::vector<int> p,
                        size_t nsteps, double dt, size_t n_diagnostics, std::string suffix = "") {
   std::string baseFolder = "./" + basename;
   std::string templateFolder = "./template";
@@ -226,7 +226,7 @@ int main(int argc, char** argv) {
     DimType dim = cfg.get<DimType>("ct.dim");
     LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim), reduceCombinationDimsLmin(dim),
         reduceCombinationDimsLmax(dim);
-    IndexVector p(dim), resolution(dim);
+    std::vector<int> p(dim), resolution(dim);
     std::vector<bool> boundary(dim), hierarchizationDims(dim);
     combigrid::real dt;
     // time inteveral of 1 combination

@@ -3,6 +3,7 @@
 
 #include <complex>
 
+#ifndef NDEBUG
 #define ASSERT(cond, msg) {\
     if(!(cond))\
     {\
@@ -12,6 +13,9 @@
         BOOST_ASSERT_MSG(cond, str.str().c_str());\
     }\
 }
+#else // NDEBUG
+#define ASSERT(cond, msg)
+#endif
 
 namespace combigrid {
 

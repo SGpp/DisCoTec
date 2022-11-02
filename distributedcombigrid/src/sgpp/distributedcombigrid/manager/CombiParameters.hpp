@@ -4,6 +4,7 @@
 #include <boost/serialization/map.hpp>
 #include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
+#include "sgpp/distributedcombigrid/utils/LevelSetUtils.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 namespace combigrid {
@@ -16,9 +17,11 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
                   std::vector<size_t>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
-                  LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
-                  LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
-                  bool forwardDecomposition = !isGENE)
+                  const std::vector<int> parallelization = {0},
+                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
+                  LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  bool forwardDecomposition = !isGENE
+                  )
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
@@ -34,7 +37,10 @@ class CombiParameters {
       hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
     }
     setLevelsCoeffs(taskIDs, levels, coeffs);
-    numTasks_ = taskIDs.size();
+    numTasks_ = static_cast<long>(taskIDs.size());
+    if (parallelization != std::vector<int>({0})){
+      this->setParallelization(parallelization);
+    }
   }
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
@@ -115,6 +121,8 @@ class CombiParameters {
   inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
 
   inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) {
+    taskIDs.reserve(levels_.size());
+    levels.reserve(levels_.size());
     for (auto it : levels_) {
       taskIDs.push_back(it.first);
       levels.push_back(it.second);
@@ -179,7 +187,7 @@ class CombiParameters {
   /* get the common parallelization
    * this function can only be used in the uniform mode
    */
-  inline const IndexVector getParallelization() const {
+  inline const std::vector<int> getParallelization() const {
     assert(uniformDecomposition && procsSet_);
     return procs_;
   }
@@ -189,7 +197,7 @@ class CombiParameters {
   /* set the common parallelization
    * this function can only be used in the uniform mode
    */
-  inline void setParallelization(const IndexVector p) {
+  inline void setParallelization(const std::vector<int>& p) {
     assert(uniformDecomposition);
 
     procs_ = p;
@@ -208,14 +216,16 @@ class CombiParameters {
    *        that will belong to each cartesian communicator slice
    */
   inline void setDecomposition(const std::vector<IndexVector>& decomposition) {
-    assert(uniformDecomposition);
     decomposition_ = decomposition;
+#ifndef NDEBUG
+    assert(uniformDecomposition);
     for (DimType d = 0; d < dim_; ++d) {
       assert(decomposition[d][0] == 0);
       auto numPoints = powerOfTwo[lmax_[d]] + (boundary_[d] ? 1 : -1);
       assert(decomposition[d].back() < numPoints);
       assert(procs_[d] == decomposition[d].size());
     }
+#endif // not def NDEBUG
   }
 
   inline const std::vector<IndexVector>& getDecomposition() const {
@@ -250,7 +260,7 @@ class CombiParameters {
 
   std::vector<BasisFunctionBasis*> hierarchicalBases_;
 
-  IndexVector procs_;
+  std::vector<int> procs_;
 
   bool procsSet_;
 
@@ -337,11 +347,11 @@ inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& c
   }
 }
 
-inline static std::vector<LevelVector> getStandardDecomposition(LevelVector lref, IndexVector procsRef) {
+inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref, std::vector<int> procsRef) {
   assert(lref.size() == procsRef.size());
-  std::vector<LevelVector> decomposition;
-  for (DimType d = 0; d < lref.size(); ++d) {
-    LevelVector di;
+  std::vector<IndexVector> decomposition;
+  for (DimType d = 0; d < static_cast<DimType>(lref.size()); ++d) {
+    IndexVector di;
     if (procsRef[d] == 1) {
       di = {0};
     } else if (procsRef[d] == 2) {

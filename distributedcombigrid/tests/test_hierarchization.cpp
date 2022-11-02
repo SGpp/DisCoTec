@@ -143,8 +143,8 @@ real getMonteCarloMass(DistributedFullGrid<FG_ELEMENT>& dfg, size_t npoints) {
   auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
   real mass = 0.;
   for (size_t i = 0; i < npoints; ++i) {
-    auto scalarCoordinate = std::accumulate(
-        interpolationCoords[i].begin(), interpolationCoords[i].end(), 1., std::multiplies<real>());
+    // auto scalarCoordinate = std::accumulate(
+    //     interpolationCoords[i].begin(), interpolationCoords[i].end(), 1., std::multiplies<real>());
     // TODO what about complex' imaginary part?
     mass += std::real(interpolatedValues[i]);
   }
@@ -293,7 +293,7 @@ void checkBiorthogonalHierarchization(Functor& f, DistributedFullGrid<std::compl
     analyticalL1 *= innerIntegral;
     BOOST_TEST(formerL1 == analyticalL1, boost::test_tools::tolerance(TestHelper::tolerance));
     auto cornersValues = dfg.getCornersValues();
-    BOOST_CHECK(cornersValues.size() == powerOfTwo[dim]);
+    BOOST_CHECK(cornersValues.size() == static_cast<size_t>(powerOfTwo[dim]));
     auto sumOfCornerValues =
         std::accumulate(cornersValues.begin(), cornersValues.end(), std::complex<double>(0.),
                         std::plus<std::complex<double>>());
@@ -336,15 +336,15 @@ void checkFullWeightingHierarchization(Functor& f, DistributedFullGrid<std::comp
 }
 
 template <typename Functor>
-void checkHierarchization(Functor& f, LevelVector& levels, IndexVector& procs,
-                          std::vector<bool>& boundary, int size, bool forward = false,
+void checkHierarchization(Functor& f, LevelVector& levels, std::vector<int>& procs,
+                          std::vector<bool>& boundary, bool forward = false,
                           bool checkValues = true) {
-  CommunicatorType comm = TestHelper::getComm(size);
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
-    const DimType dim = levels.size();
+    const auto dim = static_cast<DimType>(levels.size());
     DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
     // run test with value check
-    checkHierarchization(f, dfg, true);
+    checkHierarchization(f, dfg, checkValues);
   }
 }
 
@@ -467,6 +467,8 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
       }
     }
   }
+
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
 BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(240))
@@ -478,7 +480,7 @@ BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit
 BOOST_AUTO_TEST_CASE(test_0) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {1, 1, 1};
+  std::vector<int> procs = {1, 1, 1};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 1);
@@ -491,7 +493,7 @@ BOOST_AUTO_TEST_CASE(test_05) {
       2,
       2,
   };
-  IndexVector procs = {2, 2};
+  std::vector<int> procs = {2, 2};
   std::vector<bool> boundary(2, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 4);
@@ -500,7 +502,7 @@ BOOST_AUTO_TEST_CASE(test_05) {
 BOOST_AUTO_TEST_CASE(test_1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -508,7 +510,7 @@ BOOST_AUTO_TEST_CASE(test_1) {
 BOOST_AUTO_TEST_CASE(test_2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8, true);
@@ -516,7 +518,7 @@ BOOST_AUTO_TEST_CASE(test_2) {
 BOOST_AUTO_TEST_CASE(test_3) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {6, 6, 6};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -524,7 +526,7 @@ BOOST_AUTO_TEST_CASE(test_3) {
 BOOST_AUTO_TEST_CASE(test_4) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {1, 4, 2};
+  std::vector<int> procs = {1, 4, 2};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -532,7 +534,7 @@ BOOST_AUTO_TEST_CASE(test_4) {
 BOOST_AUTO_TEST_CASE(test_5) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {1, 1, 8};
+  std::vector<int> procs = {1, 1, 8};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -540,7 +542,7 @@ BOOST_AUTO_TEST_CASE(test_5) {
 BOOST_AUTO_TEST_CASE(test_6) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3, 3};
-  IndexVector procs = {1, 2, 2, 2};
+  std::vector<int> procs = {1, 2, 2, 2};
   std::vector<bool> boundary(4, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -548,7 +550,7 @@ BOOST_AUTO_TEST_CASE(test_6) {
 BOOST_AUTO_TEST_CASE(test_7) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {3, 3, 3};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9);
@@ -556,7 +558,7 @@ BOOST_AUTO_TEST_CASE(test_7) {
 BOOST_AUTO_TEST_CASE(test_8) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {3, 3, 3};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
@@ -567,7 +569,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
 BOOST_AUTO_TEST_CASE(test_9) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -575,7 +577,7 @@ BOOST_AUTO_TEST_CASE(test_9) {
 BOOST_AUTO_TEST_CASE(test_10) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8, true);
@@ -583,7 +585,7 @@ BOOST_AUTO_TEST_CASE(test_10) {
 BOOST_AUTO_TEST_CASE(test_11) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
-  IndexVector procs = {2, 1, 4};
+  std::vector<int> procs = {2, 1, 4};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -591,7 +593,7 @@ BOOST_AUTO_TEST_CASE(test_11) {
 BOOST_AUTO_TEST_CASE(test_12) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {1, 4, 4};
-  IndexVector procs = {1, 2, 4};
+  std::vector<int> procs = {1, 2, 4};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -599,7 +601,7 @@ BOOST_AUTO_TEST_CASE(test_12) {
 BOOST_AUTO_TEST_CASE(test_13) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 1, 3, 3, 2};
-  IndexVector procs = {2, 1, 2, 2, 1};
+  std::vector<int> procs = {2, 1, 2, 2, 1};
   std::vector<bool> boundary(5, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -607,7 +609,7 @@ BOOST_AUTO_TEST_CASE(test_13) {
 BOOST_AUTO_TEST_CASE(test_14) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9);
@@ -615,7 +617,7 @@ BOOST_AUTO_TEST_CASE(test_14) {
 BOOST_AUTO_TEST_CASE(test_15) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, true);
   TestFn_1 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
@@ -627,7 +629,7 @@ BOOST_AUTO_TEST_CASE(test_15) {
 BOOST_AUTO_TEST_CASE(test_16) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -635,7 +637,7 @@ BOOST_AUTO_TEST_CASE(test_16) {
 BOOST_AUTO_TEST_CASE(test_17) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8, true);
@@ -643,7 +645,7 @@ BOOST_AUTO_TEST_CASE(test_17) {
 BOOST_AUTO_TEST_CASE(test_18) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {6, 6, 6};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -651,7 +653,7 @@ BOOST_AUTO_TEST_CASE(test_18) {
 BOOST_AUTO_TEST_CASE(test_19) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {4, 2, 1};
+  std::vector<int> procs = {4, 2, 1};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -659,7 +661,7 @@ BOOST_AUTO_TEST_CASE(test_19) {
 BOOST_AUTO_TEST_CASE(test_20) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
@@ -670,7 +672,7 @@ BOOST_AUTO_TEST_CASE(test_20) {
 BOOST_AUTO_TEST_CASE(test_21) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -678,7 +680,7 @@ BOOST_AUTO_TEST_CASE(test_21) {
 BOOST_AUTO_TEST_CASE(test_22) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8, true);
@@ -686,7 +688,7 @@ BOOST_AUTO_TEST_CASE(test_22) {
 BOOST_AUTO_TEST_CASE(test_23) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
-  IndexVector procs = {2, 1, 4};
+  std::vector<int> procs = {2, 1, 4};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -694,7 +696,7 @@ BOOST_AUTO_TEST_CASE(test_23) {
 BOOST_AUTO_TEST_CASE(test_24) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {1, 4, 4};
-  IndexVector procs = {1, 2, 4};
+  std::vector<int> procs = {1, 2, 4};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -702,7 +704,7 @@ BOOST_AUTO_TEST_CASE(test_24) {
 BOOST_AUTO_TEST_CASE(test_25) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 1, 3, 3, 2};
-  IndexVector procs = {2, 1, 2, 2, 1};
+  std::vector<int> procs = {2, 1, 2, 2, 1};
   std::vector<bool> boundary(5, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -710,7 +712,7 @@ BOOST_AUTO_TEST_CASE(test_25) {
 BOOST_AUTO_TEST_CASE(test_26) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, false);
   TestFn_2 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
@@ -722,7 +724,7 @@ BOOST_AUTO_TEST_CASE(test_26) {
 BOOST_AUTO_TEST_CASE(test_27) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -730,7 +732,7 @@ BOOST_AUTO_TEST_CASE(test_27) {
 BOOST_AUTO_TEST_CASE(test_28) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8, true);
@@ -738,7 +740,7 @@ BOOST_AUTO_TEST_CASE(test_28) {
 BOOST_AUTO_TEST_CASE(test_29) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {6, 6, 6};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -746,7 +748,7 @@ BOOST_AUTO_TEST_CASE(test_29) {
 BOOST_AUTO_TEST_CASE(test_30) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {1, 4, 2};
+  std::vector<int> procs = {1, 4, 2};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -754,7 +756,7 @@ BOOST_AUTO_TEST_CASE(test_30) {
 BOOST_AUTO_TEST_CASE(test_31) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
-  IndexVector procs = {1, 1, 8};
+  std::vector<int> procs = {1, 1, 8};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -762,7 +764,7 @@ BOOST_AUTO_TEST_CASE(test_31) {
 BOOST_AUTO_TEST_CASE(test_32) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3, 3};
-  IndexVector procs = {1, 2, 2, 2};
+  std::vector<int> procs = {1, 2, 2, 2};
   std::vector<bool> boundary(4, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -770,7 +772,7 @@ BOOST_AUTO_TEST_CASE(test_32) {
 BOOST_AUTO_TEST_CASE(test_33) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {3, 3, 3};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9);
@@ -778,7 +780,7 @@ BOOST_AUTO_TEST_CASE(test_33) {
 BOOST_AUTO_TEST_CASE(test_34) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {3, 3, 3};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
@@ -789,7 +791,7 @@ BOOST_AUTO_TEST_CASE(test_34) {
 BOOST_AUTO_TEST_CASE(test_35) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -797,7 +799,7 @@ BOOST_AUTO_TEST_CASE(test_35) {
 BOOST_AUTO_TEST_CASE(test_36) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
-  IndexVector procs = {2, 2, 2};
+  std::vector<int> procs = {2, 2, 2};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8, true);
@@ -805,7 +807,7 @@ BOOST_AUTO_TEST_CASE(test_36) {
 BOOST_AUTO_TEST_CASE(test_37) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
-  IndexVector procs = {2, 1, 4};
+  std::vector<int> procs = {2, 1, 4};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -813,7 +815,7 @@ BOOST_AUTO_TEST_CASE(test_37) {
 BOOST_AUTO_TEST_CASE(test_38) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {1, 4, 4};
-  IndexVector procs = {1, 2, 4};
+  std::vector<int> procs = {1, 2, 4};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -821,7 +823,7 @@ BOOST_AUTO_TEST_CASE(test_38) {
 BOOST_AUTO_TEST_CASE(test_39) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 1, 3, 3, 2};
-  IndexVector procs = {2, 1, 2, 2, 1};
+  std::vector<int> procs = {2, 1, 2, 2, 1};
   std::vector<bool> boundary(5, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 8);
@@ -829,7 +831,7 @@ BOOST_AUTO_TEST_CASE(test_39) {
 BOOST_AUTO_TEST_CASE(test_40) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9);
@@ -837,7 +839,7 @@ BOOST_AUTO_TEST_CASE(test_40) {
 BOOST_AUTO_TEST_CASE(test_41) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
-  IndexVector procs = {3, 3, 1};
+  std::vector<int> procs = {3, 3, 1};
   std::vector<bool> boundary(3, true);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, 9, true);
@@ -850,10 +852,10 @@ BOOST_AUTO_TEST_CASE(test_42) {
   // large test case with timing
   MPI_Barrier(MPI_COMM_WORLD);
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  CommunicatorType comm = TestHelper::getComm(8);
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels = {11, 11, 4};
-    IndexVector procs = {2, 2, 2};
     std::vector<bool> boundary(3, true);
     auto forward = true;
     TestFn_1 testFn(levels);
@@ -871,10 +873,10 @@ BOOST_AUTO_TEST_CASE(test_43) {
   // large test case with timing for full weighting
   MPI_Barrier(MPI_COMM_WORLD);
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  CommunicatorType comm = TestHelper::getComm(8);
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels = {11, 11, 4};
-    IndexVector procs = {2, 2, 2};
     std::vector<bool> boundary(3, true);
     auto forward = true;
     TestFn_1 testFn(levels);
@@ -892,10 +894,10 @@ BOOST_AUTO_TEST_CASE(test_44) {
   // large test case with timing for full weighting
   MPI_Barrier(MPI_COMM_WORLD);
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  CommunicatorType comm = TestHelper::getComm(8);
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels = {11, 11, 4};
-    IndexVector procs = {2, 2, 2};
     std::vector<bool> boundary(3, true);
     auto forward = true;
     TestFn_1 testFn(levels);
@@ -914,11 +916,11 @@ BOOST_AUTO_TEST_CASE(test_44) {
 
 BOOST_AUTO_TEST_CASE(momentum) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
-  CommunicatorType comm = TestHelper::getComm(1);
+  DimType dim = 3;
+  std::vector<int> procs(dim, 1);
+  CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
-    DimType dim = 3;
     LevelVector levels(dim, 4);
-    IndexVector procs(dim, 1);
     std::vector<bool> boundary(dim, true);
     auto forward = true;  // todo toggle
     TestFn_1 testFn(levels);

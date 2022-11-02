@@ -95,14 +95,17 @@ class ProcessGroupWorker {
   /** interpolate values on all tasks' component grids and write results to file */
   void writeInterpolatedValuesPerGrid();
 
+  /** write extra SGs to disk (binary w/ MPI-IO) */
+  void writeDSGsToDisk(std::string filenamePrefix);
+
+  /** read extra SGs from disk (binary w/ MPI-IO) */
+  void readDSGsFromDisk(std::string filenamePrefix);
+
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 
   // returns the combi parameters
   inline CombiParameters& getCombiParameters();
-
-  // initializes the component grid from the sparse grid; used to reinitialize tasks after fault
-  void setCombinedSolutionUniform(Task* t);
 
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
     return combinedUniDSGVector_;
@@ -157,11 +160,19 @@ class ProcessGroupWorker {
 
   void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);
 
-  void updateTaskWithCurrentValues(Task& taskToUpdate, size_t numGrids);
-
   /** helper functions for parallelEval and norm calculations*/
   LevelVector receiveLevalAndBroadcast();
+
+  /**
+   * @brief copy the sparse grid data into the full grid and dehierarchize
+   *
+   * @param dfg the distributed full grid to fill
+   * @param g the dimension index (in the case that there are multiple different full grids per
+   * task)
+   */
   void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
+
+  void fillDFGFromDSGU(Task* t);
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() {

@@ -72,7 +72,7 @@ void checkMPIRanksAndCommunication(size_t ngroup, size_t nprocs) {
 
   //   // create combiparameters
   //   CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-  //   params.setParallelization({static_cast<IndexType>(nprocs), 1});
+  //   params.setParallelization({static_cast<int>(nprocs), 1});
 
   //   // create abstraction for Manager
   //   ProcessManager manager{pgroups, tasks, params, std::move(loadmodel)};
@@ -132,7 +132,7 @@ unsigned long checkMPIMemory(size_t ngroup, size_t nprocs) {
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
-  TestHelper::testStrayMessages(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
   return local_vmsize;
 }
 
@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::timeout(60)) {
     }
   }
   MPI_Barrier(MPI_COMM_WORLD);
-  TestHelper::testStrayMessages();
+  BOOST_CHECK(!TestHelper::testStrayMessages());
 }
 
 //TODO make test for checkMPIRanksAndCommunication

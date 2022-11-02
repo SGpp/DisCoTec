@@ -87,8 +87,8 @@ void testDataSave(int size) {
   // }
   combigrid::Stats::finalize();
   MPI_Barrier(theMPISystem()->getGlobalComm());
-  TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
-  TestHelper::testStrayMessages();
+  BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
+  BOOST_CHECK(!TestHelper::testStrayMessages());
 }
 
 BOOST_FIXTURE_TEST_SUITE(loadmodel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))

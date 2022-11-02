@@ -75,7 +75,7 @@ class ProcessGroupManager {
 
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 
-  void doDiagnostics(int taskID);
+  void doDiagnostics(size_t taskID);
 
   void getLpNorms(int p, std::map<size_t, double>& norms);
 
@@ -109,7 +109,7 @@ class ProcessGroupManager {
   Task *rescheduleRemoveTask(const LevelVector& lvlVec);
 
 
-  bool hasTask(int taskID){
+  bool hasTask(size_t taskID){
     auto foundIt = std::find_if(tasks_.begin(), tasks_.end(),
                         [taskID](Task* t){
                           return ((t->getID()) == taskID);
@@ -118,6 +118,10 @@ class ProcessGroupManager {
   }
 
   bool writeCombigridsToVTKPlotFile();
+
+  bool writeDSGsToDisk(std::string filenamePrefix);
+
+  bool readDSGsFromDisk(std::string filenamePrefix);
 
   void storeTaskReference(Task* t);
 

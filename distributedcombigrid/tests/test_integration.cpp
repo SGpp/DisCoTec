@@ -127,7 +127,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+    params.setParallelization({static_cast<int>(nprocs), 1});
     if (nprocs == 5 && std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
       params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
     } else if (nprocs == 4 &&
@@ -165,6 +165,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     Stats::startEvent("manager write solution");
     manager.parallelEval(lmax, filename, 0);
     manager.writeSparseGridMinMaxCoefficients("integration_" + std::to_string(boundaryV) + "_sparse_minmax");
+    manager.writeDSGsToDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
+    manager.readDSGsFromDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
     Stats::stopEvent("manager write solution");
     std::cout << "wrote solution  " << ngroup << " " << nprocs << std::endl;
 
@@ -194,7 +196,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       // output files are not needed, remove them right away
       // (if this doesn't happen, there may be hdf5 errors due to duplicate task IDs)
       sleep(1);
-      system("rm interpolated_*.h5");
+      auto status = system("rm interpolated_*.h5");
+      BOOST_WARN_GE(status, 0);
       // system("rm interpolation_coords.h5");
       remove("interpolation_coords.h5");
       sleep(1);
@@ -211,7 +214,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     remove(("integration_" + std::to_string(ncombi) + "_0.raw").c_str());
     remove(("integration_" + std::to_string(ncombi) + "_0.raw_header").c_str());
 
-    TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
   }
   else {
     BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), nprocs);
@@ -219,6 +222,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       BOOST_CHECK(theMPISystem()->isMaster());
     }
     BOOST_TEST_CHECKPOINT("Worker starts");
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
     ProcessGroupWorker pgroup;
     SignalType signal = -1;
     // omitting to count RUN_FIRST signal, as it is executed once for every task
@@ -240,15 +244,15 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       }
     }
     BOOST_CHECK_EQUAL(nrun, ncombi);
-    TestHelper::testStrayMessages(theMPISystem()->getLocalComm());
-    MASTER_EXCLUSIVE_SECTION { TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()); }
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
+    MASTER_EXCLUSIVE_SECTION { BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm())); }
   }
 
   combigrid::Stats::finalize();
   Stats::write("integration_" + std::to_string(ngroup) + "_" + std::to_string(nprocs) + ".json");
 
   MPI_Barrier(comm);
-  TestHelper::testStrayMessages(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
 /**
@@ -302,7 +306,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, 2);
-    params.setParallelization({static_cast<IndexType>(nprocs), 1});
+    params.setParallelization({static_cast<int>(nprocs), 1});
     setCombiParametersHierarchicalBasesUniform<T>(params);
 
     // create abstraction for Manager
@@ -319,7 +323,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 
     manager.exit();
 
-    TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
   }
   else {
     BOOST_TEST_CHECKPOINT("Worker starts");
@@ -334,12 +338,12 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     for (const auto& b : bases) {
       BOOST_TEST(dynamic_cast<T*>(b) != nullptr);
     }
-    TestHelper::testStrayMessages(theMPISystem()->getLocalComm());
-    MASTER_EXCLUSIVE_SECTION { TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()); }
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
+    MASTER_EXCLUSIVE_SECTION { BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm())); }
   }
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
-  TestHelper::testStrayMessages(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
 #ifndef ISGENE  // integration tests won't work with ISGENE because of worker magic
@@ -382,7 +386,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    TestHelper::testStrayMessages();
+    BOOST_CHECK(!TestHelper::testStrayMessages());
   }
 }
 
@@ -420,7 +424,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
   // unit test for CombiMinMaxSchemeFromFile
   LevelVector lmin = {3, 6};
   LevelVector lmax = {7, 10};
-  auto dim = lmin.size();
+  auto dim = static_cast<DimType>(lmin.size());
   std::unique_ptr<CombiMinMaxScheme> scheme(
       new CombiMinMaxSchemeFromFile(dim, lmin, lmax, "test_scheme.json"));
   auto coeffs = scheme->getCoeffs();

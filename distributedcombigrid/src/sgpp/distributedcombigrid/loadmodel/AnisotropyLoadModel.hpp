@@ -21,7 +21,7 @@ class AnisotropyLoadModel : public LoadModel {
 
 inline real AnisotropyLoadModel::eval(const LevelVector& l) {
   // number of grid points
-  LevelType lsum = sum(l);
+  LevelType lsum = levelSum(l);
 
   // todo: remove 0.5 - war nur wegen konsistenz mit matlab implementierung
   const real N = std::pow(real(2.0), static_cast<real>(lsum));

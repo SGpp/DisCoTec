@@ -22,7 +22,7 @@ class TaskExample: public Task {
    */
   TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary,
       real coeff, LoadModel* loadModel, real dt,
-      size_t nsteps, IndexVector p = IndexVector(0),
+      size_t nsteps, std::vector<int> p = std::vector<int>(0),
       FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})) ) :
         Task(dim, l, boundary, coeff, loadModel, faultCrit), dt_(dt), nsteps_(
             nsteps), stepsTotal_(0), p_(p),
@@ -48,7 +48,7 @@ class TaskExample: public Task {
       assert(false && "number of processes not power of two");
 
     DimType dim = this->getDim();
-    IndexVector p(dim, 1);
+    std::vector<int> p(dim, 1);
     const LevelVector& l = this->getLevelVector();
 
     if (p_.size() == 0) {
@@ -196,7 +196,7 @@ class TaskExample: public Task {
   real dt_;
   size_t nsteps_;
   size_t stepsTotal_;
-  IndexVector p_;
+  std::vector<int> p_;
 
   // pure local variables that exist only on the worker processes
   bool initialized_;

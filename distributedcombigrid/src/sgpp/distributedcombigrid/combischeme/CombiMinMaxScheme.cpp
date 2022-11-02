@@ -7,8 +7,8 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   // and effDim_ = 2)
   LevelVector lmaxtmp = lmax_;
   LevelVector lmintmp = lmin_;
-  LevelVector dummyDims;
-  for (size_t i = 0; i < lmax_.size(); ++i) {
+  std::vector<DimType> dummyDims;
+  for (DimType i = 0; i < static_cast<DimType>(lmax_.size()); ++i) {
     if (lmax_[i] - lmin_[i] == 0) {
       lmaxtmp.erase(lmaxtmp.begin() + i - dummyDims.size());
       lmintmp.erase(lmintmp.begin() + i - dummyDims.size());
@@ -20,14 +20,14 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   LevelType c(0);
   LevelVector cv = lmaxtmp - lmintmp;
 
-  // check if all elements in lmax-lmin are equal. If not, define c as the max of cv
+  // check if all elements in lmax-lmin are equal. If not, define c as the min of cv
   if (std::adjacent_find(cv.begin(), cv.end(), std::not_equal_to<int>()) == cv.end()) {
     c = cv[effDim_ - 1];
   } else {
     c = *std::min_element(cv.begin(), cv.end());
   }
-  for (size_t i = 0; i < lmin_.size(); ++i) {
-    lmin_[i] = lmax_[i] - c;
+  for (DimType i = 0; i < static_cast<DimType>(lmin_.size()); ++i) {
+    lmin_[i] = static_cast<LevelType>(lmax_[i] - c);
   }
 
   combigrid::createTruncatedHierarchicalLevels(lmaxtmp, lmintmp, levels_);
@@ -39,12 +39,12 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
     }
     lmin_[dummyDims[i]] = lmax_[i];
   }
-  n_ = sum(lmin_) + c;
+  n_ = static_cast<LevelType>(combigrid::levelSum(lmin_) + c);
   // create combi spaces
   for (size_t i = 0; i < levels_.size(); ++i) {
     LevelVector& l = levels_[i];
     for (LevelType p = 0; p < LevelType(effDim_); ++p) {
-      if (l >= lmin_ && sum(l) == n_ - p) combiSpaces_.push_back(l);
+      if (l >= lmin_ && combigrid::levelSum(l) == n_ - p) combiSpaces_.push_back(l);
     }
   }
   computeCombiCoeffsClassical();
@@ -52,8 +52,8 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
 
 LevelVector getFurthestCorner(LevelVector& lmax, LevelVector& lmin) {
   LevelVector ldiff = lmax - lmin;
-  std::vector<IndexType>::iterator result = std::max_element(ldiff.begin(), ldiff.end());
-  LevelType indexMax = std::distance(ldiff.begin(), result);
+  LevelVector::iterator result = std::max_element(ldiff.begin(), ldiff.end());
+  LevelType indexMax = static_cast<LevelType>(std::distance(ldiff.begin(), result));
   LevelVector lm(lmin);
   lm[indexMax] = lmax[indexMax];
   return lm;
@@ -61,14 +61,14 @@ LevelVector getFurthestCorner(LevelVector& lmax, LevelVector& lmin) {
 
 void CombiMinMaxScheme::createAdaptiveCombischeme() {
   LevelVector lm = getFurthestCorner(lmax_, lmin_);
-  n_ = std::accumulate(lm.begin(), lm.end(), 0); // = sum(lmin_) + max(ldiff)
+  n_ = std::accumulate(lm.begin(), lm.end(), static_cast<LevelType>(0)); // = sum(lmin_) + max(ldiff)
   LevelVector l(dim_);
   // // TODO: Why levelSum-1 ?
   // createLevelsRec(dim_, n_ - 1, dim_, l, lmax_);
-  auto n = n_ - sum(lmin_);
+  auto n = static_cast<LevelType>(n_ - combigrid::levelSum(lmin_));
   auto rlmin = lmax_;
   for (auto& rl: rlmin) {
-    rl -= n;
+    rl = static_cast<LevelType>(rl - n);
   }
   combigrid::createTruncatedHierarchicalLevels(lmax_, rlmin, levels_);
 
@@ -91,7 +91,7 @@ void CombiMinMaxScheme::makeFaultTolerant() {
   for (size_t i = 0; i < levels_.size(); ++i) {
     LevelVector& l = levels_[i];
     for (LevelType p = LevelType(effDim_); p < LevelType(effDim_) + extraDiags; ++p) {
-      if (l >= lmin_ && sum(l) == n_ - p) {
+      if (l >= lmin_ && combigrid::levelSum(l) == n_ - p) {
         combiSpaces_.push_back(l);
         coefficients_.push_back(0.0);
       }
@@ -123,8 +123,8 @@ void CombiMinMaxScheme::computeCombiCoeffsAdaptive() {
 
 void CombiMinMaxScheme::computeCombiCoeffsClassical() {
   for (DimType i = 0; i < combiSpaces_.size(); ++i) {
-    LevelType l1 = sum(combiSpaces_[i]);
-    LevelType p = static_cast<unsigned int>(n_ - l1);
+    LevelType l1 = combigrid::levelSum(combiSpaces_[i]);
+    auto p = static_cast<LevelType>(n_ - l1);
     // Classical combination coefficients
     coefficients_.push_back(std::pow(-1, p) *
                             boost::math::binomial_coefficient<real>(static_cast<unsigned int>(effDim_ - 1), static_cast<unsigned int>(p)));
