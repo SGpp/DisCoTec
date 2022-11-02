@@ -153,6 +153,9 @@ class DistributedSparseGridUniform {
   // reduces the data sizes (between process groups) in-place
   void reduceSubspaceSizes(CommunicatorType comm);
 
+  // broadcasts subspace sizes from one rank to all others in comm
+  void broadcastDsgSizes(CommunicatorType comm, RankType sendingRank);
+
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
 
@@ -527,6 +530,18 @@ void DistributedSparseGridUniform<FG_ELEMENT>::reduceSubspaceSizes(CommunicatorT
   assert(subspacesDataSizes_.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
   MPI_Allreduce(MPI_IN_PLACE, subspacesDataSizes_.data(),
                 static_cast<int>(subspacesDataSizes_.size()), dtype, MPI_MAX, comm);
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::broadcastDsgSizes(CommunicatorType comm,
+                                                                RankType sendingRank) {
+  assert(this->getNumSubspaces() > 0);
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
+
+  // perform broadcast
+  assert(subspacesDataSizes_.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
+  MPI_Bcast(subspacesDataSizes_.data(), static_cast<int>(subspacesDataSizes_.size()), dtype,
+            sendingRank, comm);
 }
 
 template <typename FG_ELEMENT>
