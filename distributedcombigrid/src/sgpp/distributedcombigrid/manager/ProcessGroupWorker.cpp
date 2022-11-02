@@ -1365,31 +1365,17 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
 }
 
 void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
-  // prepare a buffer with enough space for all subspace sizes from all dsgs
-  int buffSize = 0;
-  for (auto& dsg : combinedUniDSGVector_)
-    buffSize += static_cast<int>(dsg->getSubspaceDataSizes().size());
-  std::vector<size_t> buff((size_t) buffSize);
-
-  // receive updated sizes from third level pgroup (global reduce comm)
-  RankType thirdLevelPG = (RankType) combiParameters_.getThirdLevelPG();
+  RankType thirdLevelPG = (RankType)combiParameters_.getThirdLevelPG();
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  MPI_Datatype dtype = getMPIDatatype(
-                        abstraction::getabstractionDataType<size_t>());
-  MPI_Bcast(buff.data(), buffSize, dtype, thirdLevelPG, globalReduceComm);
 
-  // set updated sizes in dsgs
-  std::vector<size_t>::iterator buffIt = buff.begin();
   for (auto& dsg : combinedUniDSGVector_) {
-    for(decltype(dsg->getNumSubspaces()) i = 0; i < dsg->getNumSubspaces(); ++i) {
-      dsg->setDataSize(i, *(buffIt++));
-    }
+    dsg->broadcastDsgSizes(globalReduceComm, thirdLevelPG);
   }
 }
 
 void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   // receive third level combi result from third level pgroup (global reduce comm)
-  RankType thirdLevelPG = (RankType) combiParameters_.getThirdLevelPG();
+  RankType thirdLevelPG = (RankType)combiParameters_.getThirdLevelPG();
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   for (auto& dsg : combinedUniDSGVector_) {
