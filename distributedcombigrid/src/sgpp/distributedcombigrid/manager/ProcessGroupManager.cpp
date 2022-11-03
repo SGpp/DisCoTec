@@ -221,14 +221,15 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
 
   // set accumulated dsgu sizes per worker
   formerDsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  auto sizePtr = sendBuff.begin();
+  auto from = sendBuff.begin();
+  auto to = sendBuff.begin();
+  assert(numSubspacesPerWorker.size() > 0);
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
-    int sum = 0;
-    for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
-      sum += (int)*(sizePtr++);
-    }
-    formerDsguDataSizePerWorker_[w] = sum;
+    std::advance(to, numSubspacesPerWorker[w]);
+    formerDsguDataSizePerWorker_[w] = std::accumulate(from, to, 0);
+    from = to;
   }
+  assert(to == sendBuff.end());
 
   if (thirdLevelExtraSparseGrid) {
     // perform min reduce
@@ -249,14 +250,15 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
 
   // set accumulated dsgu sizes per worker
   dsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  sizePtr = sendBuff.begin();
+  from = sendBuff.begin();
+  to = sendBuff.begin();
+  assert(numSubspacesPerWorker.size() > 0);
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
-    int sum = 0;
-    for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
-      sum += (int)*(sizePtr++);
-    }
-    dsguDataSizePerWorker_[w] = sum;
+    std::advance(to, numSubspacesPerWorker[w]);
+    dsguDataSizePerWorker_[w] = std::accumulate(from, to, 0);
+    from = to;
   }
+  assert(to == sendBuff.end());
   return true;
 }
 
@@ -281,15 +283,15 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
 
   // set accumulated dsgu sizes per worker
   formerDsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  auto sizePtr = sendBuff.begin();
+  auto from = sendBuff.begin();
+  auto to = sendBuff.begin();
+  assert(numSubspacesPerWorker.size() > 0);
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
-    int sum = 0;
-    for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
-      sum += (int)*(sizePtr++);
-    }
-    formerDsguDataSizePerWorker_[w] = sum;
+    std::advance(to, numSubspacesPerWorker[w]);
+    formerDsguDataSizePerWorker_[w] = std::accumulate(from, to, 0);
+    from = to;
   }
-  assert(sizePtr == sendBuff.end());
+  assert(to == sendBuff.end());
   for (const auto& dataSize : formerDsguDataSizePerWorker_) {
     assert(dataSize > 0);
   }
@@ -302,15 +304,15 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
 
   // set accumulated dsgu sizes per worker
   dsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  sizePtr = sendBuff.begin();
+  from = sendBuff.begin();
+  to = sendBuff.begin();
+  assert(numSubspacesPerWorker.size() > 0);
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
-    int sum = 0;
-    for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
-      sum += (int)*(sizePtr++);
-    }
-    dsguDataSizePerWorker_[w] = sum;
+    std::advance(to, numSubspacesPerWorker[w]);
+    dsguDataSizePerWorker_[w] = std::accumulate(from, to, 0);
+    from = to;
   }
-  assert(sizePtr == sendBuff.end());
+  assert(to == sendBuff.end());
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   return true;
 }
