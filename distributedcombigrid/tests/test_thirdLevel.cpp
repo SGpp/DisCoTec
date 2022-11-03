@@ -586,14 +586,15 @@ void testPretendThirdLevel(TestParams& testParams) {
       BOOST_TEST_CHECKPOINT("pretend combine for broker " + std::to_string(i));
       auto numErrors = manager.pretendCombineThirdLevelForBroker(dsguSizes, true);
       BOOST_CHECK_EQUAL(numErrors, 0);
-      BOOST_TEST_CHECKPOINT("pretend combine for workers " + std::to_string(i));
-      manager.pretendCombineThirdLevelForBroker(dsguSizes, true);
-      BOOST_CHECK_EQUAL(numErrors, 0);
+      // BOOST_TEST_CHECKPOINT("pretend combine for workers " + std::to_string(i));
+      // manager.pretendCombineThirdLevelForWorkers(dsguSizes, true);
+      // BOOST_CHECK_EQUAL(numErrors, 0);
     }
     manager.exit();
   }
   else {
     // do nothing
+    BOOST_TEST_CHECKPOINT("exited worker main loop");
   }
   combigrid::Stats::finalize();
   MPI_Barrier(testParams.comm);
