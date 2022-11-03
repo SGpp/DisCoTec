@@ -123,7 +123,8 @@ void runThirdLevelManager(unsigned short port) {
   std::cout << "starting thirdLevelManager..." << std::endl;
   std::string command = "../../distributedcombigrid/third_level_manager/thirdLevelManager --port=" +
                         std::to_string(port) + " &";
-  system(command.c_str());
+  auto status = system(command.c_str());
+  BOOST_WARN_GE(status, 0);
 }
 
 /** Runs the tl manager*/
@@ -291,6 +292,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     // omitting to count RUN_FIRST signal, as it is executed once for every task
     int nrun = 1;
     while (signal != EXIT) {
+      BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
       signal = pgroup.wait();
       if (signal == RUN_NEXT) {
         ++nrun;
@@ -332,6 +334,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
         }
         std::cout << std::endl;
       }
+      TestHelper::testStrayMessages(theMPISystem()->getLocalComm());
     }
     for (const auto& b : pgroup.getCombiParameters().getBoundary())
       BOOST_CHECK_EQUAL(b, testParams.boundary);
@@ -342,7 +345,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
   combigrid::Stats::finalize();
   combigrid::Stats::write("stats_thirdLevel_" + std::to_string(testParams.sysNum) + ".json");
   MPI_Barrier(testParams.comm);
-  TestHelper::testStrayMessages(testParams.comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
 
@@ -495,13 +498,15 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
   combigrid::Stats::finalize();
   combigrid::Stats::write("stats_thirdLevel_static_" + std::to_string(testParams.sysNum) + ".json");
   MPI_Barrier(testParams.comm);
-  TestHelper::testStrayMessages(testParams.comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
 
 
 void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
+
+  combigrid::Stats::initialize();
 
   size_t procsPerSys = testParams.ngroup * testParams.nprocs + 1;
 
@@ -555,14 +560,18 @@ void testPretendThirdLevel(TestParams& testParams) {
       BOOST_TEST_CHECKPOINT("pretend combine for broker " + std::to_string(i));
       auto numErrors = manager.pretendCombineThirdLevelForBroker(dsguSizes, true);
       BOOST_CHECK_EQUAL(numErrors, 0);
+      BOOST_TEST_CHECKPOINT("pretend combine for workers " + std::to_string(i));
+      manager.pretendCombineThirdLevelForBroker(dsguSizes, true);
+      BOOST_CHECK_EQUAL(numErrors, 0);
     }
     manager.exit();
   }
   else {
     // do nothing
   }
+  combigrid::Stats::finalize();
   MPI_Barrier(testParams.comm);
-  TestHelper::testStrayMessages(testParams.comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
 BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(600))
