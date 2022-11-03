@@ -107,20 +107,34 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
 
 void assignProcsToSystems(unsigned int ngroup, unsigned int nprocs, unsigned int numSystems,
                           unsigned int& sysNum, CommunicatorType& newcomm) {
-  int rank, size, color, key;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-  unsigned int procsPerSys = ngroup * nprocs + 1;
 
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(int(numSystems * procsPerSys) + 1));
+  int procsPerSys = ngroup * nprocs + 1;
+  int totalProcs = numSystems * procsPerSys;
 
-  // assign procs to systems
-  sysNum = unsigned(rank) / procsPerSys;
-  color = int(sysNum);
-  key = rank % (int)procsPerSys;
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(totalProcs));
+  auto smallerComm = TestHelper::getComm(totalProcs);
+  if (smallerComm == MPI_COMM_NULL) {
+    newcomm = MPI_COMM_NULL;
+    sysNum = -1;
+    return;
+  } else {
+    int size = 0;
+    MPI_Comm_size(smallerComm, &size);
+    BOOST_CHECK_EQUAL(size, totalProcs);
+    auto rank = TestHelper::getRank(smallerComm);
+    BOOST_CHECK_LT(rank, totalProcs);
+    // assign procs to systems
+    sysNum = unsigned(rank) / procsPerSys;
+    int color = int(sysNum);
+    BOOST_CHECK_LT(color, numSystems);
+    int key = rank % (int)procsPerSys;
+    BOOST_CHECK_LT(key, procsPerSys);
 
-  MPI_Comm_split(MPI_COMM_WORLD, color, key, &newcomm);
+    MPI_Comm_split(smallerComm, color, key, &newcomm);
+    MPI_Comm_size(newcomm, &size);
+    BOOST_CHECK_EQUAL(size, procsPerSys);
+  }
 }
 
 /** Runs the third level manager in the background as a forked child process */
@@ -144,6 +158,7 @@ void startInfrastructure(unsigned short port = 7777) {
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   if (rank == 0) {
+    BOOST_TEST_CHECKPOINT("starting broker");
     runThirdLevelManager(port);
   }
   // give infrastructure some time to set up
@@ -602,7 +617,7 @@ BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)
   for (bool boundary : {false, true}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-    if (sysNum < numSystems) {  // remove unnecessary procs
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
       testCombineThirdLevel(testParams, false);
@@ -627,7 +642,7 @@ BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)
   for (bool boundary : {true}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-    if (sysNum < numSystems) {  // remove unnecessary procs
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
       testCombineThirdLevel(testParams, false);
@@ -653,7 +668,7 @@ BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)
     for (bool extraSparseGrid : {false, true}) {
       assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-      if (sysNum < numSystems) {  // remove unnecessary procs
+      if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
         startInfrastructure();
         testCombineThirdLevel(testParams, extraSparseGrid);
@@ -679,7 +694,7 @@ BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)
   for (bool boundary : {false, true}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-    if (sysNum < numSystems) {  // remove unnecessary procs
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
       testCombineThirdLevel(testParams, false);
@@ -704,12 +719,12 @@ BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance)
   for (bool boundary : {false, true}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-    if (sysNum < numSystems) {  // remove unnecessary procs
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
       testCombineThirdLevel(testParams, false);
+      MPI_Barrier(newcomm);
     }
-
     MPI_Barrier(MPI_COMM_WORLD);
   }
 }
@@ -730,7 +745,8 @@ BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)
   for (bool boundary : {false, true}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
     BOOST_TEST_CHECKPOINT("static group assignment. sysNum: " + std::to_string(sysNum));
-    if (sysNum < numSystems) {  // remove unnecessary procs
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
+      BOOST_TEST_CHECKPOINT("static sysNum: " + std::to_string(sysNum));
       for (bool extraSparseGrid : {false, true}) {
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
         startInfrastructure();
@@ -758,7 +774,7 @@ BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance)
     for (unsigned int nprocs : {1, 2, 3}) {
       assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
-      if (sysNum < numSystems) {  // remove unnecessary procs
+      if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
         startInfrastructure();
         testPretendThirdLevel(testParams);
