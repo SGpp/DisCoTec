@@ -47,7 +47,11 @@ class TestParams {
   TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax, bool boundary, unsigned int ngroup,
              unsigned int nprocs, unsigned int ncombi, unsigned int sysNum,
              const CommunicatorType& comm, const std::string& host = "localhost",
+#ifdef NDEBUG
              unsigned short dataPort = 9999)
+#else
+             unsigned short dataPort = 7777)
+#endif  // NDEBUG
       : dim(dim),
         lmin(lmin),
         lmax(lmax),
@@ -58,7 +62,8 @@ class TestParams {
         sysNum(sysNum),
         comm(comm),
         host(host),
-        port(dataPort) {}
+        port(dataPort) {
+  }
 };
 
 /**
@@ -128,7 +133,11 @@ void runThirdLevelManager(unsigned short port) {
 }
 
 /** Runs the tl manager*/
+#ifdef NDEBUG
 void startInfrastructure(unsigned short port = 9999) {
+#else
+void startInfrastructure(unsigned short port = 7777) {
+#endif // NDEBUG
   // give former infrastructure some time to shut down
   sleep(3);
   int rank;
@@ -482,9 +491,12 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
       // updated
       if (useStaticTaskAssignment) {
         if (signal == UPDATE_COMBI_PARAMETERS) {
+          BOOST_TEST_CHECKPOINT("Update for static task assignment " +
+                                std::to_string(taskNumbers.size()));
           // initialize all "our" tasks
           for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
-            auto task = new TaskConstParaboloid(levels[taskIndex], boundary, coeffs[taskIndex], loadmodel.get());
+            auto task = new TaskConstParaboloid(levels[taskIndex], boundary, coeffs[taskIndex],
+                                                loadmodel.get());
             task->setID(taskNumbers[taskIndex]);
             pgroup.initializeTaskAndFaults(task);
           }
@@ -494,14 +506,13 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
         }
       }
     }
+    BOOST_TEST_CHECKPOINT("exited worker main loop");
   }
   combigrid::Stats::finalize();
   combigrid::Stats::write("stats_thirdLevel_static_" + std::to_string(testParams.sysNum) + ".json");
   MPI_Barrier(testParams.comm);
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
-
-
 
 void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
@@ -718,7 +729,7 @@ BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)
 
   for (bool boundary : {false, true}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
-
+    BOOST_TEST_CHECKPOINT("static group assignment. sysNum: " + std::to_string(sysNum));
     if (sysNum < numSystems) {  // remove unnecessary procs
       for (bool extraSparseGrid : {false, true}) {
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
