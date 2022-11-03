@@ -462,9 +462,11 @@ size_t ProcessManager::pretendCombineThirdLevelForBroker(
 
   // exchange sizes with remote
   if (instruction == "send_first") {
-    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_, true, thirdLevelExtraSparseGrid);
+    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, true,
+                                                         thirdLevelExtraSparseGrid);
   } else if (instruction == "recv_first") {
-    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_, false, thirdLevelExtraSparseGrid);
+    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, false,
+                                                         thirdLevelExtraSparseGrid);
   }
   thirdLevel_.signalReady();
 
@@ -499,7 +501,7 @@ size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
   }
 
   // exchange sizes with remote
-  thirdLevelPGroup_->pretendReduceLocalAndRemoteSubspaceSizes(thirdLevel_, params_);
+  thirdLevelPGroup_->pretendReduceLocalAndRemoteSubspaceSizes(thirdLevel_);
 
   waitAllFinished();
 

@@ -186,7 +186,6 @@ bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& pa
  * MPI_Gather call.
  */
 bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                                                            CombiParameters& params,
                                                             bool isSendingFirst,
                                                             bool thirdLevelExtraSparseGrid) {
   // tell workers to perform reduce
@@ -197,32 +196,32 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
   }
 
   // prepare buffers
-  std::unique_ptr<SubspaceSizeType[]> sendBuff;
-  std::unique_ptr<SubspaceSizeType[]> recvBuff;
+  std::vector<SubspaceSizeType> sendBuff;
+  std::vector<SubspaceSizeType> recvBuff;
   size_t buffSize;
   std::vector<int> numSubspacesPerWorker;
 
   // gather subspace sizes from workers
-  collectSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
-  recvBuff.reset(new SubspaceSizeType[buffSize]);
+  collectSubspaceSizes(thirdLevel, sendBuff, buffSize, numSubspacesPerWorker);
+  recvBuff.resize(buffSize);
 
   /* TODO can be easily parallelized by removing the condition and call send and
      receive in a separate thread*/
   if (isSendingFirst) {
     // send subspace sizes to remote
-    thirdLevel.sendData(sendBuff.get(), buffSize);
+    thirdLevel.sendData(sendBuff.data(), buffSize);
     // receive remote subspace sizes
-    thirdLevel.recvData(recvBuff.get(), buffSize);
+    thirdLevel.recvData(recvBuff.data(), buffSize);
   } else {
     // receive remote subspace sizes
-    thirdLevel.recvData(recvBuff.get(), buffSize);
+    thirdLevel.recvData(recvBuff.data(), buffSize);
     // send subspace sizes to remote
-    thirdLevel.sendData(sendBuff.get(), buffSize);
+    thirdLevel.sendData(sendBuff.data(), buffSize);
   }
 
   // set accumulated dsgu sizes per worker
   formerDsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  SubspaceSizeType* sizePtr = sendBuff.get();
+  auto sizePtr = sendBuff.begin();
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
     int sum = 0;
     for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
@@ -246,11 +245,11 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
   }
 
   // scatter data back to workers
-  distributeSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
+  distributeSubspaceSizes(thirdLevel, sendBuff, buffSize, numSubspacesPerWorker);
 
   // set accumulated dsgu sizes per worker
   dsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  sizePtr = sendBuff.get();
+  sizePtr = sendBuff.begin();
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
     int sum = 0;
     for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
@@ -262,27 +261,27 @@ bool ProcessGroupManager::reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtil
 }
 
 bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
-    const ThirdLevelUtils& thirdLevel, CombiParameters& params) {
+    const ThirdLevelUtils& thirdLevel) {
   sendSignalAndReceive(REDUCE_SUBSPACE_SIZES_TL);
 
   // prepare buffers
-  std::unique_ptr<SubspaceSizeType[]> sendBuff;
-  std::unique_ptr<SubspaceSizeType[]> recvBuff;
+  std::vector<SubspaceSizeType> sendBuff;
+  std::vector<SubspaceSizeType> recvBuff;
   size_t buffSize;
   std::vector<int> numSubspacesPerWorker;
 
   // gather subspace sizes from workers
-  collectSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
-  recvBuff.reset(new SubspaceSizeType[buffSize]);
+  collectSubspaceSizes(thirdLevel, sendBuff, buffSize, numSubspacesPerWorker);
+  recvBuff.resize(buffSize);
 
   // don't send subspace sizes to remote
   // don't receive remote subspace sizes
   // instead, just return zeros to process group
-  std::fill(recvBuff.get(), recvBuff.get() + buffSize, static_cast<SubspaceSizeType>(0));
+  std::fill(recvBuff.begin(), recvBuff.end(), static_cast<SubspaceSizeType>(0));
 
   // set accumulated dsgu sizes per worker
   formerDsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  SubspaceSizeType* sizePtr = sendBuff.get();
+  auto sizePtr = sendBuff.begin();
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
     int sum = 0;
     for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
@@ -290,7 +289,7 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
     }
     formerDsguDataSizePerWorker_[w] = sum;
   }
-  assert(sizePtr == sendBuff.get() + buffSize);
+  assert(sizePtr == sendBuff.end());
   for (const auto& dataSize : formerDsguDataSizePerWorker_) {
     assert(dataSize > 0);
   }
@@ -299,11 +298,11 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
   for (size_t i = 0; i < buffSize; ++i) sendBuff[i] = std::max(sendBuff[i], recvBuff[i]);
 
   // scatter data back to workers
-  distributeSubspaceSizes(thirdLevel, params, sendBuff, buffSize, numSubspacesPerWorker);
+  distributeSubspaceSizes(thirdLevel, sendBuff, buffSize, numSubspacesPerWorker);
 
   // set accumulated dsgu sizes per worker
   dsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());
-  sizePtr = sendBuff.get();
+  sizePtr = sendBuff.begin();
   for (size_t w = 0; w < numSubspacesPerWorker.size(); ++w) {
     int sum = 0;
     for (int ss = 0; ss < numSubspacesPerWorker[w]; ++ss) {
@@ -311,6 +310,7 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
     }
     dsguDataSizePerWorker_[w] = sum;
   }
+  assert(sizePtr == sendBuff.end());
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   return true;
 }
@@ -352,8 +352,7 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel, Combi
 }
 
 bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                                               CombiParameters& params,
-                                               std::unique_ptr<SubspaceSizeType[]>& buff,
+                                               std::vector<SubspaceSizeType>& buff,
                                                size_t& buffSize,
                                                std::vector<int>& numSubspacesPerWorker) {
   // prepare args of MPI_Gather
@@ -369,7 +368,7 @@ bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel
 
   buffSize = std::accumulate(recvCounts.begin(), recvCounts.end(), 0U);
 
-  std::unique_ptr<size_t[]> mdBuff(new size_t[buffSize]);  // size_t is machine dependent
+  std::vector<size_t> mdBuff(buffSize);  // size_t is machine dependent
   assert(buffSize < INT_MAX &&
          "bufSize is larger than what we can send in a "
          "single mpi call");
@@ -383,7 +382,7 @@ bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel
   }
   // perform gather of subspace sizes
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
-  MPI_Gatherv(&dummy, 0, dataType, mdBuff.get(), recvCounts.data(), displacements.data(), dataType,
+  MPI_Gatherv(&dummy, 0, dataType, mdBuff.data(), recvCounts.data(), displacements.data(), dataType,
               thirdLevelManagerRank, comm);
 
   // remove master
@@ -391,15 +390,14 @@ bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel
   numSubspacesPerWorker.pop_back();
 
   // create machine independent buffer
-  buff.reset(new SubspaceSizeType[buffSize]);
-  for (size_t i = 0; i < buffSize; ++i) buff[i] = static_cast<SubspaceSizeType>(mdBuff[i]);
+  buff.resize(buffSize);
+  buff.assign(mdBuff.begin(), mdBuff.end());
 
   return true;
 }
 
 bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                                                  CombiParameters& params,
-                                                  const std::unique_ptr<SubspaceSizeType[]>& buff,
+                                                  const std::vector<SubspaceSizeType>& buff,
                                                   size_t buffSize,
                                                   const std::vector<int>& numSubspacesPerWorker) {
   // prepare args of MPI_Scatterv
@@ -415,12 +413,12 @@ bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLe
   }
 
   // create machine dependent buffer
-  std::unique_ptr<size_t[]> mdBuff(new size_t[buffSize]);
-  for (size_t i = 0; i < buffSize; ++i) mdBuff[i] = static_cast<size_t>(buff[i]);
+  std::vector<size_t> mdBuff(buffSize);
+  mdBuff.assign(buff.begin(), buff.end());
 
   // perform scatter of subspace sizes
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
-  MPI_Scatterv(mdBuff.get(), sendCounts.data(), displacements.data(), dataType, nullptr, 0,
+  MPI_Scatterv(mdBuff.data(), sendCounts.data(), displacements.data(), dataType, nullptr, 0,
                dataType, thirdLevelManagerRank, comm);
 
   return true;

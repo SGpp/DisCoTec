@@ -172,19 +172,17 @@ class ProcessGroupManager {
   void exchangeDsgus(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
                      bool isSendingFirst);
 
-  bool collectSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
-                            std::unique_ptr<SubspaceSizeType[]>& buff, size_t& buffSize,
-                            std::vector<int>& numSubspacesPerWorker);
+  bool collectSubspaceSizes(const ThirdLevelUtils& thirdLevel, std::vector<SubspaceSizeType>& buff,
+                            size_t& buffSize, std::vector<int>& numSubspacesPerWorker);
 
-  bool distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
-                               const std::unique_ptr<SubspaceSizeType[]>& buff, size_t buffSize,
+  bool distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel,
+                               const std::vector<SubspaceSizeType>& buff, size_t buffSize,
                                const std::vector<int>& numSubspacesPerWorker);
 
-  bool reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
-                                         bool isSendingFirst, bool thirdLevelExtraSparseGrid);
+  bool reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel, bool isSendingFirst,
+                                         bool thirdLevelExtraSparseGrid);
 
-  bool pretendReduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel,
-                                                CombiParameters& params);
+  bool pretendReduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel);
 
   const std::vector<size_t>& getFormerDsguDataSizePerWorker() {
     return formerDsguDataSizePerWorker_;
