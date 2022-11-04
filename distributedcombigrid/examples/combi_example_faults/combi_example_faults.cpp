@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
                     leval, p, ncombi, dt, nsteps, faultsInfo);
 
 
-  std::vector<bool> boundary(dim,true);
+  std::vector<BoundaryType> boundary(dim,true);
 
   theMPISystem()->init( ngroup, nprocs );
 

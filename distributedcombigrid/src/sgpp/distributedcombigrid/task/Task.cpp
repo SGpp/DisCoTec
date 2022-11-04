@@ -8,7 +8,7 @@ namespace combigrid {
 
 Task::Task() : isFinished_(false) {}
 
-Task::Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff, 
+Task::Task(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, 
     LoadModel* loadModel, FaultCriterion* faultCrit)
     : faultCriterion_(faultCrit),
       dim_(dim),

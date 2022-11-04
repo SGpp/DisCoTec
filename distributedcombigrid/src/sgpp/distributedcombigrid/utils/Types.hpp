@@ -38,6 +38,10 @@ typedef IndexType LevelType;
 
 typedef uint8_t DimType;
 
+// type used to denote how many boundary points there are in a dimension
+// may be changed to enum class if needed (eg to distinguish one-sided left and right boundaries)
+typedef uint8_t BoundaryType;
+
 typedef MPI_Comm CommunicatorType;
 
 typedef int RankType;

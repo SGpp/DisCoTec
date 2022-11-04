@@ -26,7 +26,7 @@
 using namespace combigrid;
 
 void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vector<int>& procs,
-                                std::vector<bool>& boundary, int size) {
+                                std::vector<BoundaryType>& boundary, int size) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     auto rank = TestHelper::getRank(comm);
@@ -271,7 +271,7 @@ BOOST_AUTO_TEST_CASE(test_0) {
   LevelVector lmax = {3, 3};
   for (bool bValue : {true}) {
     std::vector<int> procs = {1, 1};
-    std::vector<bool> boundary(2, bValue);
+    std::vector<BoundaryType> boundary(2, bValue);
     auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
     checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
@@ -286,7 +286,7 @@ BOOST_AUTO_TEST_CASE(test_1) {
     for (int procTwo : {1, 2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo};
-        std::vector<bool> boundary(2, bValue);
+        std::vector<BoundaryType> boundary(2, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -304,7 +304,7 @@ BOOST_AUTO_TEST_CASE(test_2) {
     for (int procTwo : {1, 2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo};
-        std::vector<bool> boundary(2, bValue);
+        std::vector<BoundaryType> boundary(2, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -322,7 +322,7 @@ BOOST_AUTO_TEST_CASE(test_3) {
     for (int procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
         std::vector<int> procs = {procOne, procTwo};
-        std::vector<bool> boundary(2, bValue);
+        std::vector<BoundaryType> boundary(2, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -340,7 +340,7 @@ BOOST_AUTO_TEST_CASE(test_4) {
     for (int procTwo : {1, 2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo, 1};
-        std::vector<bool> boundary(3, bValue);
+        std::vector<BoundaryType> boundary(3, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -358,7 +358,7 @@ BOOST_AUTO_TEST_CASE(test_5) {
     for (int procTwo : {1, 2}) {
       for (bool bValue : {true}) {
         std::vector<int> procs = {procOne, procTwo, 1};
-        std::vector<bool> boundary(3, bValue);
+        std::vector<BoundaryType> boundary(3, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -376,7 +376,7 @@ BOOST_AUTO_TEST_CASE(test_6) {
     for (int procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
         std::vector<int> procs = {procOne, procTwo, 1};
-        std::vector<bool> boundary(3, bValue);
+        std::vector<BoundaryType> boundary(3, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -395,7 +395,7 @@ BOOST_AUTO_TEST_CASE(test_7) {
     for (int procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
         std::vector<int> procs = {procOne, procTwo, 1, 1};
-        std::vector<bool> boundary(4, bValue);
+        std::vector<BoundaryType> boundary(4, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -414,7 +414,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
     for (int procTwo : {1, 2}) {
       for (bool bValue : {true, false}) {
         std::vector<int> procs = {1, 1, procOne, 1, procTwo, 1};
-        std::vector<bool> boundary(6, bValue);
+        std::vector<BoundaryType> boundary(6, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -535,7 +535,7 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
   BOOST_CHECK_EQUAL(created.size(),
                     std::accumulate(lmax.begin(), lmax.end(), 1, std::multiplies<LevelType>()));
   for (bool boundary : {true, false}) {
-    std::vector<bool> boundaryVector = {boundary, boundary, boundary, !boundary};
+    std::vector<BoundaryType> boundaryVector = {boundary, boundary, boundary, !boundary};
     BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),
                       getNumDofHierarchical(downSet, boundaryVector));
     BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),
@@ -640,7 +640,7 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
     DimType dim = static_cast<DimType>(procs.size());
     LevelVector lmin = {2, 2, 2, 2, 2, 2};
     LevelVector lmax = {11, 11, 11, 11, 11, 11};
-    std::vector<bool> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, true);
     auto decomposition = combigrid::getStandardDecomposition(lmax, procs);
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<combigrid::real>>(
         new DistributedSparseGridUniform<combigrid::real>(dim, lmax, lmin, boundary, comm));

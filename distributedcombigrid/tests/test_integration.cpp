@@ -104,7 +104,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
-    std::vector<bool> boundary(dim, boundaryV);
+    std::vector<BoundaryType> boundary(dim, boundaryV);
 
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
@@ -288,7 +288,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-    std::vector<bool> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, true);
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
@@ -438,7 +438,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
 
     BOOST_CHECK(*itMax == 7);
     BOOST_CHECK(*itMin == 0);
-    auto boundary = std::vector<bool>(dim, true);
+    auto boundary = std::vector<BoundaryType>(dim, true);
     auto rank = TestHelper::getRank(MPI_COMM_WORLD);
     for (size_t taskNo = 0; taskNo < coeffs.size(); ++taskNo) {
       BOOST_TEST_CHECKPOINT(std::to_string(rank) + " Last taskNo " + std::to_string(taskNo));

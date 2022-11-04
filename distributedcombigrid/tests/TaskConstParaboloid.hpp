@@ -27,7 +27,7 @@ class ParaboloidFn {
  */
 class TaskConstParaboloid : public combigrid::Task {
  public:
-  TaskConstParaboloid(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel)
+  TaskConstParaboloid(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel)
       : Task(2, l, boundary, coeff, loadModel), dfg_(nullptr){
         BOOST_TEST_CHECKPOINT("TaskConstParaboloid constructor");
       }

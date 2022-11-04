@@ -60,14 +60,14 @@ class DistributedSparseGridUniform {
    * No data is allocated and the sizes of the subspace data is initialized to 0.
    */
   DistributedSparseGridUniform(DimType dim, const LevelVector& lmax, const LevelVector& lmin,
-                               const std::vector<bool>& boundary, CommunicatorType comm,
+                               const std::vector<BoundaryType>& boundary, CommunicatorType comm,
                                size_t procsPerNode = 0);
 
   /**
    * create an empty (no data) sparse grid with given subspaces.
    */
   DistributedSparseGridUniform(DimType dim, const std::vector<LevelVector>& subspaces,
-                               const std::vector<bool>& boundary, CommunicatorType comm,
+                               const std::vector<BoundaryType>& boundary, CommunicatorType comm,
                                size_t procsPerNode = 0);
 
   virtual ~DistributedSparseGridUniform();
@@ -101,7 +101,7 @@ class DistributedSparseGridUniform {
   // return index of subspace i
   inline SubspaceIndexType getIndex(const LevelVector& l) const;
 
-  inline const std::vector<bool>& getBoundaryVector() const;
+  inline const std::vector<BoundaryType>& getBoundaryVector() const;
 
   // returns a pointer to first element in subspace i
   inline FG_ELEMENT* getData(SubspaceIndexType i);
@@ -174,7 +174,7 @@ class DistributedSparseGridUniform {
 
   std::vector<LevelVector> levels_; // linear access to all subspaces
 
-  std::vector<bool> boundary_;
+  std::vector<BoundaryType> boundary_;
 
   CommunicatorType comm_;
 
@@ -202,14 +202,14 @@ namespace combigrid {
 template <typename FG_ELEMENT>
 DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     DimType dim, const LevelVector& lmax, const LevelVector& lmin,
-    const std::vector<bool>& boundary, CommunicatorType comm, size_t procsPerNode)
+    const std::vector<BoundaryType>& boundary, CommunicatorType comm, size_t procsPerNode)
     : DistributedSparseGridUniform(dim,createLevels(dim, lmax, lmin),boundary, comm, procsPerNode)
     {}
 
 // at construction create only levels, no data
 template <typename FG_ELEMENT>
 DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
-    DimType dim, const std::vector<LevelVector>& subspaces, const std::vector<bool>& boundary,
+    DimType dim, const std::vector<LevelVector>& subspaces, const std::vector<BoundaryType>& boundary,
     CommunicatorType comm, size_t procsPerNode /*= 0*/)
     : dim_(dim),
       levels_(subspaces),
@@ -387,7 +387,7 @@ DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
 }
 
 template <typename FG_ELEMENT>
-inline const std::vector<bool>& DistributedSparseGridUniform<FG_ELEMENT>::getBoundaryVector()
+inline const std::vector<BoundaryType>& DistributedSparseGridUniform<FG_ELEMENT>::getBoundaryVector()
     const {
   return boundary_;
 }

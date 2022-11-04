@@ -42,7 +42,7 @@ class DistributedSparseGrid {
    *  the maximum discretization level and whether there is a boundary or not
    */
   DistributedSparseGrid(DimType dim, const LevelVector& lmax, const LevelVector& lmin,
-                        const std::vector<bool>& boundary, CommunicatorType comm,
+                        const std::vector<BoundaryType>& boundary, CommunicatorType comm,
                         size_t procsPerNode = 0);
 
   virtual ~DistributedSparseGrid();
@@ -61,7 +61,7 @@ class DistributedSparseGrid {
   // return to which rank the subspace with level l is assigned
   inline RankType getRank(const LevelVector& l) const;
 
-  inline const std::vector<bool>& getBoundaryVector() const;
+  inline const std::vector<BoundaryType>& getBoundaryVector() const;
 
   // get pointer to first element in subspace with l
   inline FG_ELEMENT* getData(const LevelVector& l);
@@ -141,7 +141,7 @@ class DistributedSparseGrid {
 
   std::vector<LevelVector> levels_;
 
-  std::vector<bool> boundary_;
+  std::vector<BoundaryType> boundary_;
 
   CommunicatorType comm_;
 
@@ -163,7 +163,7 @@ namespace combigrid {
 template <typename FG_ELEMENT>
 DistributedSparseGrid<FG_ELEMENT>::DistributedSparseGrid(DimType dim, const LevelVector& lmax,
                                                          const LevelVector& lmin,
-                                                         const std::vector<bool>& boundary,
+                                                         const std::vector<BoundaryType>& boundary,
                                                          CommunicatorType comm, size_t procsPerNode)
     : dim_(dim) {
   assert(dim > 0);
@@ -318,7 +318,7 @@ size_t DistributedSparseGrid<FG_ELEMENT>::getIndex(const LevelVector& l) const {
 }
 
 template <typename FG_ELEMENT>
-inline const std::vector<bool>& DistributedSparseGrid<FG_ELEMENT>::getBoundaryVector() const {
+inline const std::vector<BoundaryType>& DistributedSparseGrid<FG_ELEMENT>::getBoundaryVector() const {
   return boundary_;
 }
 

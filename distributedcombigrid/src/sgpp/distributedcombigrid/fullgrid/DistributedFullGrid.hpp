@@ -48,7 +48,7 @@ class DistributedFullGrid {
  public:
   /** dimension adaptive Ctor */
   DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType comm,
-                      const std::vector<bool>& hasBdrPoints, const std::vector<int>& procs,
+                      const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
                       bool forwardDecomposition = true,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>(),
                       const BasisFunctionBasis* basis = NULL)
@@ -653,7 +653,7 @@ class DistributedFullGrid {
   inline IndexType length(DimType i) const { return nrPoints_[i]; }
 
   /** vector of flags to show if the dimension has boundary points*/
-  inline const std::vector<bool>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
+  inline const std::vector<BoundaryType>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
 
   inline void setZero() {
     std::fill(this->getElementVector().begin(), this->getElementVector().end(), 0.);
@@ -1962,7 +1962,8 @@ class DistributedFullGrid {
   IndexVector nrPoints_;
 
   /** flag to show if the dimension has boundary points*/
-  std::vector<bool> hasBoundaryPoints_;
+  std::vector<BoundaryType> hasBoundaryPoints_;
+
   /** the offsets in each direction*/
   IndexVector offsets_;
 
@@ -2238,7 +2239,7 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
 static inline std::vector<IndexVector> downsampleDecomposition(
                                         const std::vector<IndexVector> decomposition,
                                         const LevelVector& referenceLevel, const LevelVector& newLevel,
-                                        const std::vector<bool>& boundary) {
+                                        const std::vector<BoundaryType>& boundary) {
   auto newDecomposition = decomposition;
   if (decomposition.size() > 0) {
     for (DimType d = 0 ; d < static_cast<DimType>(referenceLevel.size()); ++ d) {

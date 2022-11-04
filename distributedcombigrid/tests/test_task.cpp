@@ -21,7 +21,7 @@ class TaskTest : public combigrid::Task {
  public:
   int test;
 
-  TaskTest(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,  LoadModel* loadModel,
+  TaskTest(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,  LoadModel* loadModel,
           int t)
       : Task(dim, l, boundary, coeff, loadModel), test(t) {}
 
@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(test) {
 
   DimType dim = 3;
   LevelVector l(dim, 2);
-  std::vector<bool> boundary(dim, true);
+  std::vector<BoundaryType> boundary(dim, true);
 
   std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 

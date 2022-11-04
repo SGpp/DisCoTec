@@ -14,7 +14,7 @@ class CombiParameters {
   CombiParameters()
       : procsSet_(false) {}
 
-  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
+  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<BoundaryType>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
                   std::vector<size_t>& taskIDs, IndexType numberOfCombinations, IndexType numGrids = 1,
                   const std::vector<int> parallelization = {0},
@@ -43,7 +43,7 @@ class CombiParameters {
     }
   }
 
-  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<bool>& boundary,
+  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<BoundaryType>& boundary,
                   std::vector<LevelVector>& levels, std::vector<real>& coeffs,
                   std::vector<bool>& hierarchizationDims, std::vector<size_t>& taskIDs,
                   IndexType numberOfCombinations, IndexType numGrids = 1,
@@ -83,7 +83,7 @@ class CombiParameters {
 
   inline const LevelVector& getLMaxReductionVector() { return reduceCombinationDimsLmax_; }
 
-  inline const std::vector<bool>& getBoundary() { return boundary_; }
+  inline const std::vector<BoundaryType>& getBoundary() { return boundary_; }
 
   inline real getCoeff(size_t taskID) { return coeffs_[taskID]; }
 
@@ -246,7 +246,7 @@ class CombiParameters {
 
   LevelVector lmax_;
 
-  std::vector<bool> boundary_;
+  std::vector<BoundaryType> boundary_;
 
   std::map<size_t, LevelVector> levels_;
 

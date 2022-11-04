@@ -62,7 +62,7 @@ class FullGrid {
            const BasisFunctionBasis* basis = NULL);
 
   /** dimension adaptive Ctor */
-  FullGrid(DimType dim, const LevelVector& levels, const std::vector<bool>& hasBdrPoints,
+  FullGrid(DimType dim, const LevelVector& levels, const std::vector<BoundaryType>& hasBdrPoints,
            const BasisFunctionBasis* basis = NULL);
 
   // load archived fg from file
@@ -157,7 +157,7 @@ class FullGrid {
   inline IndexVector& getSGppIndex() const;
 
   /** vector of flags to show if the dimension has boundary points*/
-  inline const std::vector<bool>& returnBoundaryFlags() const;
+  inline const std::vector<BoundaryType>& returnBoundaryFlags() const;
 
   /** copies the input vector to the full grid vector
    * in most cases the add function would be more save
@@ -221,7 +221,7 @@ class FullGrid {
   IndexVector nrPoints_;
 
   /** flag to show if the dimension has boundary points*/
-  std::vector<bool> hasBoundaryPoints_;
+  std::vector<BoundaryType> hasBoundaryPoints_;
 
   /** the offsets in each direction*/
   IndexVector offsets_;
@@ -336,7 +336,7 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, bool hasB
 /** dimension adaptive Ctor */
 template <typename FG_ELEMENT>
 FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
-                               const std::vector<bool>& hasBdrPoints,
+                               const std::vector<BoundaryType>& hasBdrPoints,
                                const BasisFunctionBasis* basis) {
   assert(levels.size() == dim);
   assert(hasBdrPoints.size() == dim);
@@ -811,7 +811,7 @@ inline IndexType FullGrid<FG_ELEMENT>::length(DimType i) const {
 
 /** vector of flags to show if the dimension has boundary points*/
 template <typename FG_ELEMENT>
-inline const std::vector<bool>& FullGrid<FG_ELEMENT>::returnBoundaryFlags() const {
+inline const std::vector<BoundaryType>& FullGrid<FG_ELEMENT>::returnBoundaryFlags() const {
   return hasBoundaryPoints_;
 }
 

@@ -19,7 +19,7 @@ inline IndexType powerOfTwoByBitshift(LevelType x) {
   return -1;
 }
 
-inline IndexType getNumDofNodal(const LevelType& l_i, const bool& boundary) {
+inline IndexType getNumDofNodal(const LevelType& l_i, const BoundaryType& boundary) {
   assert(l_i > -1);
   if (l_i > 0) {
     if (boundary == true) {
@@ -35,7 +35,7 @@ inline IndexType getNumDofNodal(const LevelType& l_i, const bool& boundary) {
   }
 }
 
-inline IndexType getNumDofNodal(const LevelVector& l, const std::vector<bool>& boundary) {
+inline IndexType getNumDofNodal(const LevelVector& l, const std::vector<BoundaryType>& boundary) {
   assert(l.size() == boundary.size());
   IndexType numDofPerGrid = 1;
   auto b = boundary.cbegin();
@@ -47,7 +47,7 @@ inline IndexType getNumDofNodal(const LevelVector& l, const std::vector<bool>& b
 }
 
 inline IndexType getNumDofNodal(const std::vector<LevelVector>& levelVectors,
-                                const std::vector<bool>& boundary) {
+                                const std::vector<BoundaryType>& boundary) {
   IndexType numDof = 0;
   for (const auto& l : levelVectors) {
     numDof += getNumDofNodal(l, boundary);
@@ -55,7 +55,7 @@ inline IndexType getNumDofNodal(const std::vector<LevelVector>& levelVectors,
   return numDof;
 }
 
-inline IndexType getNumDofHierarchical(const LevelType& l_i, const bool& boundary) {
+inline IndexType getNumDofHierarchical(const LevelType& l_i, const BoundaryType& boundary) {
   assert(l_i > 0);
   if (l_i == 1 && boundary == true) {
     return 3;
@@ -64,7 +64,7 @@ inline IndexType getNumDofHierarchical(const LevelType& l_i, const bool& boundar
   }
 }
 
-inline IndexType getNumDofHierarchical(const LevelVector& l, const std::vector<bool>& boundary) {
+inline IndexType getNumDofHierarchical(const LevelVector& l, const std::vector<BoundaryType>& boundary) {
   assert(l.size() == boundary.size());
   auto b = boundary.cbegin();
   IndexType numDofPerSubspace = 1;
@@ -76,7 +76,7 @@ inline IndexType getNumDofHierarchical(const LevelVector& l, const std::vector<b
 }
 
 inline IndexType getNumDofHierarchical(const std::vector<LevelVector>& levelVectors,
-                                       const std::vector<bool>& boundary) {
+                                       const std::vector<BoundaryType>& boundary) {
   IndexType numDof = 0;
   for (const auto& l : levelVectors) {
     numDof += getNumDofHierarchical(l, boundary);

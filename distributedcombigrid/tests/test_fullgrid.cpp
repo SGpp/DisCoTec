@@ -34,7 +34,7 @@ class TestFn {
   }
 };
 
-void checkFullgrid(LevelVector& levels, std::vector<bool>& boundary) {
+void checkFullgrid(LevelVector& levels, std::vector<BoundaryType>& boundary) {
   CommunicatorType comm = TestHelper::getComm(1);
   if (comm == MPI_COMM_NULL) return;
 
@@ -113,12 +113,12 @@ BOOST_FIXTURE_TEST_SUITE(fullgrid, TestHelper::BarrierAtEnd, *boost::unit_test::
 
 BOOST_AUTO_TEST_CASE(test_1) {
   LevelVector levels = {2, 2};
-  std::vector<bool> boundary(2, true);
+  std::vector<BoundaryType> boundary(2, true);
   checkFullgrid(levels, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_2) {
   LevelVector levels = {3, 3, 3};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, true);
   checkFullgrid(levels, boundary);
 }
 
@@ -126,12 +126,12 @@ BOOST_AUTO_TEST_CASE(test_2) {
 
 BOOST_AUTO_TEST_CASE(test_3) {
   LevelVector levels = {2, 3};
-  std::vector<bool> boundary(2, true);
+  std::vector<BoundaryType> boundary(2, true);
   checkFullgrid(levels, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_4) {
   LevelVector levels = {2, 4, 6};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, true);
   checkFullgrid(levels, boundary);
 }
 
@@ -140,12 +140,12 @@ BOOST_AUTO_TEST_CASE(test_4) {
 
 BOOST_AUTO_TEST_CASE(test_5) {
   LevelVector levels = {3, 3};
-  std::vector<bool> boundary(2, false);
+  std::vector<BoundaryType> boundary(2, false);
   checkFullgrid(levels, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_6) {
   LevelVector levels = {4, 4, 4};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, false);
   checkFullgrid(levels, boundary);
 }
 
@@ -153,12 +153,12 @@ BOOST_AUTO_TEST_CASE(test_6) {
 
 BOOST_AUTO_TEST_CASE(test_7) {
   LevelVector levels = {2, 3};
-  std::vector<bool> boundary(2, false);
+  std::vector<BoundaryType> boundary(2, false);
   checkFullgrid(levels, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_8) {
   LevelVector levels = {2, 3, 4};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, false);
   checkFullgrid(levels, boundary);
 }
 
@@ -167,13 +167,13 @@ BOOST_AUTO_TEST_CASE(test_8) {
 
 BOOST_AUTO_TEST_CASE(test_9) {
   LevelVector levels = {4, 4};
-  std::vector<bool> boundary(2, false);
+  std::vector<BoundaryType> boundary(2, false);
   boundary[1] = true;
   checkFullgrid(levels, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_10) {
   LevelVector levels = {3, 3, 3};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, false);
   boundary[0] = true;
   checkFullgrid(levels, boundary);
 }
@@ -182,13 +182,13 @@ BOOST_AUTO_TEST_CASE(test_10) {
 
 BOOST_AUTO_TEST_CASE(test_11) {
   LevelVector levels = {2, 3};
-  std::vector<bool> boundary(2, false);
+  std::vector<BoundaryType> boundary(2, false);
   boundary[0] = true;
   checkFullgrid(levels, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_12) {
   LevelVector levels = {3, 4, 3};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, false);
   boundary[2] = true;
   checkFullgrid(levels, boundary);
 }

@@ -487,7 +487,7 @@ void ProcessGroupWorker::combine() {
   DimType dim = combiParameters_.getDim();
   const LevelVector& lmin = combiParameters_.getLMin();
   const LevelVector& lmax = combiParameters_.getLMax();
-  const std::vector<bool>& boundary = combiParameters_.getBoundary();
+  const std::vector<BoundaryType>& boundary = combiParameters_.getBoundary();
 
   // erzeug dsg
   DistributedSparseGrid<CombiDataType> dsg(dim, lmax, lmin, boundary,
@@ -1073,7 +1073,7 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
   }
 
   assert(combiParametersSet_);
-  const std::vector<bool>& boundary = combiParameters_.getBoundary();
+  const std::vector<BoundaryType>& boundary = combiParameters_.getBoundary();
   FullGrid<CombiDataType> fg_red(dim, leval, boundary);
 
   // create the empty grid on only on localroot
