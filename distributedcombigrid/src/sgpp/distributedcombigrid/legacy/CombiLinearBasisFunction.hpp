@@ -47,6 +47,14 @@ class HierarchicalHatBasisFunction : public combigrid::LinearBasisFunction {
     ar& boost::serialization::base_object<BasisFunctionBasis>(*this);
   }
 };
+class HierarchicalHatPeriodicBasisFunction : public combigrid::LinearBasisFunction {
+  // serialize
+  friend class boost::serialization::access;
+  template <class Archive>
+  void serialize(Archive& ar, const unsigned int version) {
+    ar& boost::serialization::base_object<BasisFunctionBasis>(*this);
+  }
+};
 class FullWeightingBasisFunction : public combigrid::LinearBasisFunction {
   // serialize
   friend class boost::serialization::access;

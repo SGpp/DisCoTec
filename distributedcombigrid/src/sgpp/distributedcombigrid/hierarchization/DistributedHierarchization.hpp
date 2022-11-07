@@ -2119,6 +2119,10 @@ class DistributedHierarchization {
       &hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>;
 
   template <typename FG_ELEMENT>
+  constexpr static FunctionPointer<FG_ELEMENT> hierarchizeHierarchicalHatPeriodic =
+      &hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatPeriodicBasisFunction>;
+
+  template <typename FG_ELEMENT>
   constexpr static FunctionPointer<FG_ELEMENT> hierarchizeFullWeighting =
       &hierarchizeHierachicalBasis<FG_ELEMENT, FullWeightingBasisFunction>;
 
