@@ -128,11 +128,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
     params.setParallelization({static_cast<int>(nprocs), 1});
-    if (nprocs == 5 &&
-        std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i > 0; })) {
+    if (nprocs == 5 && boundaryV == 2) {
       params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
-    } else if (nprocs == 4 &&
-               std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i > 0; })) {
+    } else if (nprocs == 4 && boundaryV == 2) {
       // should be the same as default decomposition with forwardDecomposition
       params.setDecomposition({{0, 9, 17, 25}, {0}});
     } else if (nprocs == 3) {
@@ -165,7 +163,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     BOOST_TEST_CHECKPOINT("write solution " + filename);
     Stats::startEvent("manager write solution");
     manager.parallelEval(lmax, filename, 0);
-    manager.writeSparseGridMinMaxCoefficients("integration_" + std::to_string(boundaryV) + "_sparse_minmax");
+    manager.writeSparseGridMinMaxCoefficients("integration_" + std::to_string(boundaryV) +
+                                              "_sparse_minmax");
     manager.writeDSGsToDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
     manager.readDSGsFromDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
     Stats::stopEvent("manager write solution");
@@ -173,11 +172,14 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 
     // test Monte-Carlo interpolation
     // only if boundary values are used
-    if (boundaryV) {
+    if (boundaryV > 0) {
       BOOST_TEST_CHECKPOINT("MC interpolation coordinates");
       auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
       BOOST_TEST_CHECKPOINT("MC interpolation");
       Stats::startEvent("manager interpolate");
+      if (boundaryV == 1) {
+        throw std::runtime_error("not yet implemented");
+      }
       auto values = manager.interpolateValues(interpolationCoords);
       Stats::stopEvent("manager interpolate");
       std::cout << "did interpolation " << ngroup << " " << nprocs << std::endl;
