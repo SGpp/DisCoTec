@@ -187,7 +187,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   const auto& boundary = dfg.returnBoundaryFlags();
   const auto& comm = dfg.getCommunicator();
   size_t nPointsMonteCarlo = 1e6;
-  assert(std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; }));
+  BOOST_CHECK(std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b == 2; }));
   real mcMassBefore = getMonteCarloMass(dfg, nPointsMonteCarlo);
   auto mcMomentaBefore = getMonteCarloMomenta(dfg, nPointsMonteCarlo);
   real mcMomentumBefore = mcMomentaBefore.back();
@@ -440,7 +440,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
 
   // call this so that tests are also run for mass-conserving bases
   // but only for boundary grids and in case we are not measuring time
-  if (checkValues && std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; })) {
+  if (checkValues && std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b == 2; })) {
     if (!(typeid(Functor) == typeid(TestFn_3))) {
       // TODO figure out what is supposed to happen for true complex numbers,
       // currently std::abs does not seem to do the right thing
