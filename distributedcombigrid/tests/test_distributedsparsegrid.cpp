@@ -534,7 +534,7 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
   BOOST_CHECK(it == created.end());
   BOOST_CHECK_EQUAL(created.size(),
                     std::accumulate(lmax.begin(), lmax.end(), 1, std::multiplies<LevelType>()));
-  for (BoundaryType boundary : {0, 2}) {
+  for (BoundaryType boundary : {0, 1, 2}) {
     std::vector<BoundaryType> boundaryVector = {boundary, boundary, boundary,
                                                 (boundary == 0) ? 2 : 0};
     BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),
