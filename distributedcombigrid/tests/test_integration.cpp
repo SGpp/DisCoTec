@@ -360,6 +360,7 @@ BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_tes
 #endif // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto rank = TestHelper::getRank(MPI_COMM_WORLD);
+  for (BoundaryType boundary : {0, 2}) {
     for (size_t ngroup : {1, 2, 3, 4}) {
       for (size_t nprocs : {1, 2}) {
         if (rank == 0)
