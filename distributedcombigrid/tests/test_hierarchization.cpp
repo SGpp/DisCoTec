@@ -3,7 +3,6 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
-
 #include <boost/test/unit_test.hpp>
 #include <complex>
 #include <cstdarg>
@@ -17,7 +16,6 @@
 #include "sgpp/distributedcombigrid/hierarchization/Hierarchization.hpp"
 #include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-
 #include "test_helper.hpp"
 
 /**
@@ -144,7 +142,8 @@ real getMonteCarloMass(DistributedFullGrid<FG_ELEMENT>& dfg, size_t npoints) {
   real mass = 0.;
   for (size_t i = 0; i < npoints; ++i) {
     // auto scalarCoordinate = std::accumulate(
-    //     interpolationCoords[i].begin(), interpolationCoords[i].end(), 1., std::multiplies<real>());
+    //     interpolationCoords[i].begin(), interpolationCoords[i].end(), 1.,
+    //     std::multiplies<real>());
     // TODO what about complex' imaginary part?
     mass += std::real(interpolatedValues[i]);
   }
@@ -375,7 +374,14 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
   const DimType dim = dfg.getDimension();
   auto boundary = dfg.returnBoundaryFlags();
 
-  FullGrid<std::complex<double>> fg(dim, dfg.getLevels(), boundary);
+  auto nonDistributedBoundary = boundary;
+  // non-distributed (de)hierarchization not adapted to one-sided boundary (yet?)
+  bool anyOneSidedBoundary =
+      std::any_of(boundary.begin(), boundary.end(), [](const BoundaryType& b) { return b == 1; });
+  if (anyOneSidedBoundary) {
+    nonDistributedBoundary = std::vector<BoundaryType>(dim, 2);
+  }
+  FullGrid<std::complex<double>> fg(dim, dfg.getLevels(), nonDistributedBoundary);
 
   if (checkValues) {
     // fill distributed fg with test function
@@ -390,9 +396,11 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
     }
 
     // hierarchize fg
+    BOOST_TEST_CHECKPOINT("Non-Distributed Hierarchization begins");
     Hierarchization::hierarchize(fg);
   }
 
+  BOOST_TEST_CHECKPOINT("Distributed Hierarchization begins");
   // hierarchize distributed fg
   DistributedHierarchization::hierarchize(dfg);
 
@@ -400,22 +408,30 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
     // compare hierarchical surpluses
     for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
       IndexType gi = dfg.getGlobalLinearIndex(li);
-      IndexVector axisIndex(dim);
-      fg.getVectorIndex(gi, axisIndex);
-
-      // compare fg and distributed fg
-      BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
-                 boost::test_tools::tolerance(TestHelper::tolerance));
+      IndexVector axisIndex(dim), localAxisIndex(dim);
+      dfg.getLocalVectorIndex(li, localAxisIndex);
+      dfg.getGlobalVectorIndex(localAxisIndex, axisIndex);
+      BOOST_REQUIRE_EQUAL(dfg.getGlobalLinearIndex(axisIndex), gi);
+      if (!anyOneSidedBoundary) {
+        auto fgAxisIndex = axisIndex;
+        fg.getVectorIndex(gi, fgAxisIndex);
+        BOOST_REQUIRE(axisIndex == fgAxisIndex);
+        // compare fg and distributed fg
+        BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                   boost::test_tools::tolerance(TestHelper::tolerance));
+      }
       // compare distributed fg to exact solution
       BOOST_TEST(dfg.getData()[li] == f(axisIndex),
                  boost::test_tools::tolerance(TestHelper::tolerance));
     }
 
     // dehiarchize fg
+    BOOST_TEST_CHECKPOINT("Non-distributed Dehierarchization begins");
     Hierarchization::dehierarchize(fg);
   }
 
   // dehierarchize distributed fg
+  BOOST_TEST_CHECKPOINT("Distributed Dehierarchization begins");
   DistributedHierarchization::dehierarchize(dfg);
 
   if (checkValues) {
@@ -423,26 +439,27 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
     for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
       IndexType gi = dfg.getGlobalLinearIndex(li);
 
-      std::vector<double> coords_fg(dim);
-      fg.getCoords(gi, coords_fg);
-
       std::vector<double> coords_dfg(dim);
       dfg.getCoordsLocal(li, coords_dfg);
 
-      BOOST_CHECK(coords_dfg == coords_fg);
-
-      // compare fg and distributed fg
-      BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
-                 boost::test_tools::tolerance(TestHelper::tolerance));
+      if (!anyOneSidedBoundary) {
+        std::vector<double> coords_fg(dim);
+        fg.getCoords(gi, coords_fg);
+        BOOST_CHECK(coords_dfg == coords_fg);
+        // compare fg and distributed fg
+        BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                   boost::test_tools::tolerance(TestHelper::tolerance));
+      }
       // compare distributed fg and fg to exact solution
-      BOOST_TEST(dfg.getData()[li] == f(coords_fg),
+      BOOST_TEST(dfg.getData()[li] == f(coords_dfg),
                  boost::test_tools::tolerance(TestHelper::tolerance));
     }
   }
 
   // call this so that tests are also run for mass-conserving bases
   // but only for boundary grids and in case we are not measuring time
-  if (checkValues && std::all_of(boundary.begin(), boundary.end(), [](BoundaryType b) { return b == 2; })) {
+  if (checkValues &&
+      std::all_of(boundary.begin(), boundary.end(), [](BoundaryType b) { return b == 2; })) {
     if (!(typeid(Functor) == typeid(TestFn_3))) {
       // TODO figure out what is supposed to happen for true complex numbers,
       // currently std::abs does not seem to do the right thing
