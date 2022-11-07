@@ -592,7 +592,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   for (auto& uniDSG : combinedUniDSGVector_) {
     uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
         new DistributedSparseGridUniform<CombiDataType>(combiParameters_.getDim(), lmax, lmin,
-                                                        combiParameters_.getBoundary(),
                                                         theMPISystem()->getLocalComm()));
 #ifdef DEBUG_OUTPUT
     MASTER_EXCLUSIVE_SECTION {

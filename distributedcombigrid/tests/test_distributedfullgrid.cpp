@@ -144,7 +144,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   for (DimType d = 0; d < dim; ++d) {
     lmax[d] *= 2;
   }
-  DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, boundary, comm);
+  DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, comm);
   dfg.registerUniformSG(dsg);
   BOOST_TEST_CHECKPOINT("register uniform sg");
   dfg.addToUniformSG(dsg, 2.1);
@@ -899,7 +899,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    DistributedSparseGridUniform<real> dsg(dim, lmax, lmin, boundary, comm);
+    DistributedSparseGridUniform<real> dsg(dim, lmax, lmin, comm);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create sparse grid: " << duration.count() << " milliseconds");
