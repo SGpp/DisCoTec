@@ -22,16 +22,12 @@ inline IndexType powerOfTwoByBitshift(LevelType x) {
 inline IndexType getNumDofNodal(const LevelType& l_i, const BoundaryType& boundary) {
   assert(l_i > -1);
   if (l_i > 0) {
-    if (boundary == true) {
-      return powerOfTwoByBitshift(l_i) + 1;
-    } else {
-      return powerOfTwoByBitshift(l_i) - 1;
-    }
+    return powerOfTwoByBitshift(l_i) + boundary - 1;
   } else {
-    if (boundary == false) {
+    if (boundary == 0) {
       throw std::runtime_error("without boundary, there are no points on level 0");
     }
-    return 2;
+    return boundary;
   }
 }
 
@@ -57,8 +53,8 @@ inline IndexType getNumDofNodal(const std::vector<LevelVector>& levelVectors,
 
 inline IndexType getNumDofHierarchical(const LevelType& l_i, const BoundaryType& boundary) {
   assert(l_i > 0);
-  if (l_i == 1 && boundary == true) {
-    return 3;
+  if (l_i == 1) {
+    return 1 + boundary;
   } else {
     return powerOfTwoByBitshift(static_cast<LevelType>(l_i - 1));
   }

@@ -285,8 +285,7 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, LevelType level, bool hasBdrPoints,
   nrPoints_.resize(dim_);
 
   for (DimType j = 0; j < dim_; j++) {
-    nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                    : (powerOfTwo[levels_[j]] - 1));
+    nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
     offsets_[j] = nrElements_;
     nrElements_ = nrElements_ * nrPoints_[j];
 
@@ -321,8 +320,7 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, bool hasB
   nrPoints_.resize(dim_);
 
   for (DimType j = 0; j < dim_; j++) {
-    nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                    : (powerOfTwo[levels_[j]] - 1));
+    nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
     offsets_[j] = nrElements_;
     nrElements_ = nrElements_ * nrPoints_[j];
 
@@ -361,8 +359,7 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
   nrPoints_.resize(dim_);
 
   for (DimType j = 0; j < dim_; j++) {
-    nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                    : (powerOfTwo[levels_[j]] - 1));
+    nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
     offsets_[j] = nrElements_;
     nrElements_ = nrElements_ * nrPoints_[j];
     nrElementsNoBoundary_ = nrElementsNoBoundary_ * (powerOfTwo[levels_[j]] - 1);
@@ -424,8 +421,7 @@ FullGrid<FG_ELEMENT>::FullGrid(const LevelVector& levels, const SGrid<FG_ELEMENT
   nrPoints_.resize(dim_);
 
   for (DimType j = 0; j < dim_; j++) {
-    nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                    : (powerOfTwo[levels_[j]] - 1));
+    nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
     offsets_[j] = nrElements_;
     nrElements_ = nrElements_ * nrPoints_[j];
     // ADDED
@@ -622,7 +618,7 @@ void FullGrid<FG_ELEMENT>::getCoords(IndexType elemIndex, std::vector<real>& coo
       ind = elemIndex % nrPoints_[j];
       elemIndex = elemIndex / nrPoints_[j];
       // set the coordinate based on if we have boundary points
-      tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
+      tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
       coords[j] = static_cast<real>(ind + tmp_add) * oneOverPowOfTwo[levels_[j]];
     }
   } else {

@@ -65,8 +65,7 @@ class DistributedFullGrid {
     nrPoints_.resize(dim_);
 
     for (DimType j = 0; j < dim_; j++) {
-      nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                      : (powerOfTwo[levels_[j]] - 1));
+      nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
       offsets_[j] = nrElements_;
       nrElements_ = nrElements_ * nrPoints_[j];
     }
@@ -407,7 +406,7 @@ class DistributedFullGrid {
       ind = globalLinearIndex % nrPoints_[j];
       globalLinearIndex = globalLinearIndex / nrPoints_[j];
       // set the coordinate based on if we have boundary points
-      tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
+      tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
       coords[j] = static_cast<double>(ind + tmp_add) * getGridSpacing()[j];
     }
   }
@@ -441,7 +440,7 @@ class DistributedFullGrid {
 
     // first calculate intermediary indexes
     for (DimType k = 0; k < dim_; k++) {
-      startindex = (hasBoundaryPoints_[k]) ? 0 : 1;
+      startindex = (hasBoundaryPoints_[k] > 0) ? 0 : 1;
       indexes[k] = tmp_val % nrPoints_[k] + startindex;
       tmp_val = tmp_val / nrPoints_[k];
     }
@@ -775,7 +774,7 @@ class DistributedFullGrid {
     IndexType tmp_add = 0;
 
     for (DimType j = 0; j < dim_; ++j) {
-      tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
+      tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
       coords[j] = static_cast<double>(ubvi[j] + tmp_add) * getGridSpacing()[j];
     }
     return coords;
@@ -854,7 +853,7 @@ class DistributedFullGrid {
     // getGlobalLI(idx, levels, tmp);
     // return levels[d];
 
-    if (!this->hasBoundaryPoints_[d]) {
+    if (this->hasBoundaryPoints_[d] == 0) {
       ++idx1d;
     }
     // get level of idx1d by rightmost set bit
@@ -1223,7 +1222,7 @@ class DistributedFullGrid {
   inline IndexType getStrideForThisLevel(LevelType l, DimType d) {
     assert(d < this->getDimension());
     // special treatment for level 1 suspaces with boundary
-    return (l == 1 && hasBoundaryPoints_[d])
+    return (l == 1 && hasBoundaryPoints_[d] > 0)
                ? combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - 1))
                : combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l + 1));
   }
@@ -1234,7 +1233,7 @@ class DistributedFullGrid {
     // get global offset to find indices of this level
     // this is the first global index that has level l in dimension d
     IndexType offsetForThisLevel;
-    if (hasBoundaryPoints_[d]) {
+    if (hasBoundaryPoints_[d] > 0) {
       if (l == 1) {
         offsetForThisLevel = 0;
       } else {
@@ -1259,7 +1258,7 @@ class DistributedFullGrid {
     const IndexType globalStart =
         (firstGlobalIndexOnThisPartition)*strideForThisLevel + offsetForThisLevel;
     assert(getLevel(d, globalStart) == l ||
-           (getLevel(d, globalStart) == 0 && hasBoundaryPoints_[d] && l == 1));
+           (getLevel(d, globalStart) == 0 && hasBoundaryPoints_[d] > 0 && l == 1));
     assert(globalStart >= firstGlobal1dIdx);
 
     return globalStart - firstGlobal1dIdx;
@@ -1625,7 +1624,7 @@ class DistributedFullGrid {
   }
 
   void writeUpperBoundaryToLowerBoundary(DimType d) {
-    assert(hasBoundaryPoints_[d] == true);
+    assert(hasBoundaryPoints_[d] == 2);
 
     // create MPI datatypes
     auto downSubarray = getDownwardSubarray(d);
@@ -1645,7 +1644,7 @@ class DistributedFullGrid {
   }
 
   void writeLowerBoundaryToUpperBoundary(DimType d) {
-    assert(hasBoundaryPoints_[d] == true);
+    assert(hasBoundaryPoints_[d] == 2);
 
     // create MPI datatypes
     auto downSubarray = getDownwardSubarray(d);
@@ -1668,7 +1667,7 @@ class DistributedFullGrid {
 
   void exchangeBoundaryLayers(DimType d, std::vector<FG_ELEMENT>& recvbufferFromUp,
                               std::vector<FG_ELEMENT>& recvbufferFromDown) {
-    assert(hasBoundaryPoints_[d] == true);
+    assert(hasBoundaryPoints_[d] == 2);
     auto subarrayExtents = this->getLocalSizes();
     subarrayExtents[d] = 1;
     auto numElements = std::accumulate(subarrayExtents.begin(), subarrayExtents.end(), 1,
@@ -1838,7 +1837,7 @@ class DistributedFullGrid {
 
   void averageBoundaryValues() {
     for (DimType d = 0; d < this->getDimension(); ++d) {
-      if (this->hasBoundaryPoints_[d]) {
+      if (this->hasBoundaryPoints_[d] == 2) {
         this->averageBoundaryValues(d);
       }
     }

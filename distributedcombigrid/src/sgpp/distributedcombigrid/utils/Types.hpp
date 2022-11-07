@@ -39,7 +39,12 @@ typedef IndexType LevelType;
 typedef uint8_t DimType;
 
 // type used to denote how many boundary points there are in a dimension
-// may be changed to enum class if needed (eg to distinguish one-sided left and right boundaries)
+// 0 -> no boundary points;
+// 1 -> boundary point on one side (assume the "left" side with coordinate 0);
+// 2 -> boundary points on each side
+// may be changed to enum class if needed
+// (eg to distinguish one-sided left and right boundaries,
+// or to implement GENE's twisted boundary conditions into the hierarchization operator directly...)
 typedef uint8_t BoundaryType;
 
 typedef MPI_Comm CommunicatorType;

@@ -46,7 +46,7 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   std::vector<long unsigned int> vmSizes(groupSizes.size());
   std::vector<long unsigned int> vmSizesReference(groupSizes.size());
   const auto dim = static_cast<DimType>(levels.size());
-  std::vector<BoundaryType> boundary(dim, true);
+  std::vector<BoundaryType> boundary(dim, 2);
 
   for (size_t i = 0; i < groupSizes.size(); ++i) {
     // get memory footprints for after allocating different dfgs
@@ -126,7 +126,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
 
   IndexType nrElements = 1;
   for (DimType d = 0; d < dim; ++d) {
-    nrElements *= (1 << levels[d]) + (boundary[d] ? 1 : -1);
+    nrElements *= (1 << levels[d]) + boundary[d] - 1;
   }
   BOOST_CHECK(nrElements == dfg.getNrElements());
 
@@ -184,7 +184,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   auto maxnorm = dfg.getLpNorm(0);
   auto onenorm = dfg.getLpNorm(1);
   auto twonorm = dfg.getLpNorm(2);
-  if (std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+  if (std::all_of(boundary.begin(), boundary.end(), [](BoundaryType i) { return i == 2; })) {
     // check that InnerNodalBasisFunctionIntegral is correct
     double numFullInnerBasisFcns = 1.;
     for (DimType d = 0; d < dim; ++d) {
@@ -268,7 +268,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
       static_cast<double>(formerCorners.size());
   // test averageBoundaryValues
   dfgCopy.averageBoundaryValues();
-  if (std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; })) {
+  if (std::all_of(boundary.begin(), boundary.end(), [](BoundaryType b) { return b == 2; })) {
     // assert that all the corners values are the same now
     auto cornersValues = dfgCopy.getCornersValues();
     for (const auto& cornerValue : cornersValues) {
@@ -279,7 +279,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   // test lower to upper exchange
   for (DimType d = 0; d < dim; ++d) {
     // std::cout << dfg << std::endl;
-    if (boundary[d] == true) {
+    if (boundary[d] == 2) {
       dfg.writeLowerBoundaryToUpperBoundary(d);
 
       for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
@@ -329,49 +329,49 @@ BOOST_AUTO_TEST_CASE(test_minus3) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {1, 2};
   std::vector<int> procs = {1, 1};
-  std::vector<BoundaryType> boundary(2, true);
+  std::vector<BoundaryType> boundary(2, 2);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_minus2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {2, 3};
   std::vector<int> procs = {1, 1};
-  std::vector<BoundaryType> boundary(2, true);
+  std::vector<BoundaryType> boundary(2, 2);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_minus1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {1, 1, 2};
   std::vector<int> procs = {1, 1, 1};
-  std::vector<BoundaryType> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_0) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {2, 3};
   std::vector<int> procs = {1, 1};
-  std::vector<BoundaryType> boundary(2, true);
+  std::vector<BoundaryType> boundary(2, 2);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(6));
   LevelVector levels = {2, 2};
   std::vector<int> procs = {2, 3};
-  std::vector<BoundaryType> boundary(2, true);
+  std::vector<BoundaryType> boundary(2, 2);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_3) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
@@ -381,21 +381,21 @@ BOOST_AUTO_TEST_CASE(test_4) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
   LevelVector levels = {2, 3};
   std::vector<int> procs = {2, 2};
-  std::vector<BoundaryType> boundary(2, true);
+  std::vector<BoundaryType> boundary(2, 2);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_5) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {1, 4, 2};
-  std::vector<BoundaryType> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_6) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {1, 4, 2};
-  std::vector<BoundaryType> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
@@ -406,21 +406,21 @@ BOOST_AUTO_TEST_CASE(test_7) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(2));
   LevelVector levels = {3, 3};
   std::vector<int> procs = {2, 1};
-  std::vector<BoundaryType> boundary(2, false);
+  std::vector<BoundaryType> boundary(2, 0);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_8) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_9) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
@@ -430,21 +430,21 @@ BOOST_AUTO_TEST_CASE(test_10) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
   LevelVector levels = {2, 3};
   std::vector<int> procs = {2, 2};
-  std::vector<BoundaryType> boundary(2, false);
+  std::vector<BoundaryType> boundary(2, 0);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_11) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_12) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
@@ -455,24 +455,24 @@ BOOST_AUTO_TEST_CASE(test_13) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
   LevelVector levels = {4, 4};
   std::vector<int> procs = {2, 2};
-  std::vector<BoundaryType> boundary(2, false);
-  boundary[1] = true;
+  std::vector<BoundaryType> boundary(2, 0);
+  boundary[1] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_14) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, false);
-  boundary[0] = true;
+  std::vector<BoundaryType> boundary(3, 0);
+  boundary[0] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_15) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, false);
-  boundary[0] = true;
+  std::vector<BoundaryType> boundary(3, 0);
+  boundary[0] = 2;
   checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
@@ -482,24 +482,24 @@ BOOST_AUTO_TEST_CASE(test_16) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
   LevelVector levels = {2, 3};
   std::vector<int> procs = {2, 2};
-  std::vector<BoundaryType> boundary(2, false);
-  boundary[0] = true;
+  std::vector<BoundaryType> boundary(2, 0);
+  boundary[0] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_17) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 4, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, false);
-  boundary[2] = true;
+  std::vector<BoundaryType> boundary(3, 0);
+  boundary[2] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_18) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 4, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, false);
-  boundary[2] = true;
+  std::vector<BoundaryType> boundary(3, 0);
+  boundary[2] = 2;
   checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
@@ -529,11 +529,14 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     DimType dim = static_cast<DimType>(procs.size());
-    std::vector<BoundaryType> boundary(dim, true);
-    std::vector<BoundaryType> noboundary(dim, false);
+    std::vector<BoundaryType> boundary(dim, 2);
+    std::vector<BoundaryType> oneboundary(dim, 1);
+    std::vector<BoundaryType> noboundary(dim, 0);
     LevelVector fullGridLevel = {3};
     std::vector<IndexVector> decomposition = {{0, 4, 6}};
     DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    DistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs, true,
+                                            decomposition);
     DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, true,
                                             decomposition);
 
@@ -565,6 +568,35 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
       expected = {0};
     } else if (rank == 2) {
       expected = {2};
+    }
+    BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
+
+    indices.clear();
+    dfgOneBoundary.get1dIndicesLocal(0, 3, indices);
+    if (rank == 0) {
+      expected = {1, 3};
+    } else if (rank == 1 || rank == 2) {
+      expected = {1};
+    }
+    BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
+    indices.clear();
+    dfgOneBoundary.get1dIndicesLocal(0, 2, indices);
+    if (rank == 0) {
+      expected = {2};
+    } else if (rank == 1) {
+      expected = {};
+    } else if (rank == 2) {
+      expected = {0};
+    }
+    BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
+    indices.clear();
+    dfgOneBoundary.get1dIndicesLocal(0, 1, indices);
+    if (rank == 0) {
+      expected = {0};
+    } else if (rank == 1) {
+      expected = {0};
+    } else if (rank == 2) {
+      expected = {};
     }
     BOOST_CHECK_EQUAL_COLLECTIONS(indices.begin(), indices.end(), expected.begin(), expected.end());
 
@@ -607,7 +639,7 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_boundary_firstdim) {
     LevelVector fullGridLevel = {19, 2, 2, 2, 2, 2};
     std::vector<IndexVector> decomposition = {
         {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
-    std::vector<BoundaryType> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
 
     DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
 
