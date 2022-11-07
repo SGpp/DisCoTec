@@ -1041,7 +1041,7 @@ BOOST_AUTO_TEST_CASE(test_42) {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("hat hierarchization time: " << duration.count() << " milliseconds");
   }
-  // on ipvs-epyc2@  : 600 milliseconds w single msgs
+  // on ipvs-epyc2@  : 500 milliseconds w single msgs
 }
 
 BOOST_AUTO_TEST_CASE(test_43) {
@@ -1063,7 +1063,7 @@ BOOST_AUTO_TEST_CASE(test_43) {
     BOOST_TEST_MESSAGE("full weighting hierarchization time: " << duration.count()
                                                                << " milliseconds");
   }
-  // on ipvs-epyc2@  : 3300 milliseconds w single msgs
+  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
 }
 BOOST_AUTO_TEST_CASE(test_44) {
   // large test case with timing for full weighting
@@ -1084,7 +1084,71 @@ BOOST_AUTO_TEST_CASE(test_44) {
     BOOST_TEST_MESSAGE("biorthogonal hierarchization time: " << duration.count()
                                                              << " milliseconds");
   }
-  // on ipvs-epyc2@  : 3100 milliseconds w single msgs
+  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
+}
+
+BOOST_AUTO_TEST_CASE(test_p_42) {
+  // large test case with timing
+  MPI_Barrier(MPI_COMM_WORLD);
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector levels = {11, 11, 4};
+    std::vector<BoundaryType> boundary(3, 1);
+    auto forward = false;
+    TestFn_1 testFn(levels);
+    DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    auto start = std::chrono::high_resolution_clock::now();
+    checkHierarchization(testFn, dfg, false);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("hat hierarchization time: " << duration.count() << " milliseconds");
+  }
+  // on ipvs-epyc2@  : 480 milliseconds
+}
+
+BOOST_AUTO_TEST_CASE(test_p_43) {
+  // large test case with timing for full weighting
+  MPI_Barrier(MPI_COMM_WORLD);
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector levels = {11, 11, 4};
+    std::vector<BoundaryType> boundary(3, 1);
+    auto forward = false;
+    TestFn_1 testFn(levels);
+    DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    auto start = std::chrono::high_resolution_clock::now();
+    checkFullWeightingHierarchization(testFn, dfg, false);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("full weighting hierarchization time: " << duration.count()
+                                                               << " milliseconds");
+  }
+  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
+}
+BOOST_AUTO_TEST_CASE(test_p_44) {
+  // large test case with timing for full weighting
+  MPI_Barrier(MPI_COMM_WORLD);
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector levels = {11, 11, 4};
+    std::vector<BoundaryType> boundary(3, 1);
+    auto forward = false;
+    TestFn_1 testFn(levels);
+    DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    auto start = std::chrono::high_resolution_clock::now();
+    checkBiorthogonalHierarchization(testFn, dfg, false);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("biorthogonal hierarchization time: " << duration.count()
+                                                             << " milliseconds");
+  }
+  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
 }
 
 #endif  // def NDEBUG
