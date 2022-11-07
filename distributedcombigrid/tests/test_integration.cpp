@@ -75,7 +75,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     BOOST_TEST_CHECKPOINT("drop out of test comm");
     return;
   }
-
+  BOOST_TEST_CHECKPOINT("initialize stats");
   combigrid::Stats::initialize();
 
   theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
@@ -126,6 +126,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     // std::cout << "taskIDs " << taskIDs << std::endl;
 
     // create combiparameters
+    BOOST_TEST_CHECKPOINT("manager create combi parameters");
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
     params.setParallelization({static_cast<int>(nprocs), 1});
     if (nprocs == 5 && boundaryV == 2) {
@@ -142,6 +143,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
 
     // the combiparameters are sent to all process groups before the
     // computations start
+    BOOST_TEST_CHECKPOINT("manager update combi parameters");
     manager.updateCombiParameters();
 
     /* distribute task according to load model and start computation for
@@ -351,20 +353,27 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 
 #ifndef ISGENE  // integration tests won't work with ISGENE because of worker magic
 
+#ifndef NDEBUG // in case of a build with asserts, have longer timeout
 BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(180))
-
+#else
+BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(40))
+#endif // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
-  for (BoundaryType boundary : {0, 2}) {
+  auto rank = TestHelper::getRank(MPI_COMM_WORLD);
     for (size_t ngroup : {1, 2, 3, 4}) {
       for (size_t nprocs : {1, 2}) {
-        std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+        if (rank == 0)
+          std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
+                    << nprocs << std::endl;
         checkIntegration(ngroup, nprocs, boundary);
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
     for (size_t ngroup : {1, 2}) {
       for (size_t nprocs : {3}) {  // TODO currently fails for non-power-of-2-decompositions
-        std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+        if (rank == 0)
+          std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
+                    << nprocs << std::endl;
         checkIntegration(ngroup, nprocs, boundary);
         MPI_Barrier(MPI_COMM_WORLD);
       }
@@ -372,7 +381,9 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     for (size_t ngroup : {1, 2}) {
       if (boundary > 0) {
         for (size_t nprocs : {4}) {  // TODO currently fails for non-power-of-2-decompositions
-          std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+          if (rank == 0)
+            std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
+                      << nprocs << std::endl;
           checkIntegration(ngroup, nprocs, boundary);
           MPI_Barrier(MPI_COMM_WORLD);
         }
@@ -381,7 +392,9 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     for (size_t ngroup : {1}) {
       for (size_t nprocs : {5}) {
         if (boundary > 0) {
-          std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+          if (rank == 0)
+            std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
+                      << nprocs << std::endl;
           checkIntegration(ngroup, nprocs, boundary);
           MPI_Barrier(MPI_COMM_WORLD);
         }
