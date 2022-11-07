@@ -184,10 +184,12 @@ template <typename FG_ELEMENT>
 real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  FunctionPointer<FG_ELEMENT> hierarchizationOperator) {
   const auto& procs = dfg.getParallelization();
+  BOOST_CHECK(procs.size() == dfg.getDimension());
   const auto& boundary = dfg.returnBoundaryFlags();
+  BOOST_CHECK(boundary.size() == dfg.getDimension());
   const auto& comm = dfg.getCommunicator();
   size_t nPointsMonteCarlo = 1e6;
-  BOOST_CHECK(std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b == 2; }));
+  BOOST_CHECK(std::all_of(boundary.begin(), boundary.end(), [](BoundaryType b) { return b == 2; }));
   real mcMassBefore = getMonteCarloMass(dfg, nPointsMonteCarlo);
   auto mcMomentaBefore = getMonteCarloMomenta(dfg, nPointsMonteCarlo);
   real mcMomentumBefore = mcMomentaBefore.back();
@@ -440,7 +442,7 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
 
   // call this so that tests are also run for mass-conserving bases
   // but only for boundary grids and in case we are not measuring time
-  if (checkValues && std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b == 2; })) {
+  if (checkValues && std::all_of(boundary.begin(), boundary.end(), [](BoundaryType b) { return b == 2; })) {
     if (!(typeid(Functor) == typeid(TestFn_3))) {
       // TODO figure out what is supposed to happen for true complex numbers,
       // currently std::abs does not seem to do the right thing

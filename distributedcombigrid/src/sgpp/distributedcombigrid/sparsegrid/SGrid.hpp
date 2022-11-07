@@ -22,7 +22,7 @@ class SGrid {
   /** create sparse grid of dimension d and level n with or without boundary
    *  in all dimensions
    */
-  SGrid(DimType dim, LevelType n, bool boundary = false);
+  SGrid(DimType dim, LevelType n, BoundaryType boundary = 0);
 
   /** create sparse grid of dimension d and specify for each dimension the
    *  the maximum discretization level and whether there is a boundary or not
@@ -101,8 +101,7 @@ inline const LevelVector& SGrid<FG_ELEMENT>::getLevelVector(size_t i) const {
 
 // at construction create only levels, no data
 template <typename FG_ELEMENT>
-SGrid<FG_ELEMENT>::SGrid(DimType dim, LevelType n, bool boundary)
-    : dim_(dim) {
+SGrid<FG_ELEMENT>::SGrid(DimType dim, LevelType n, BoundaryType boundary) : dim_(dim) {
   assert(dim > 0);
   assert(n > 0);
 

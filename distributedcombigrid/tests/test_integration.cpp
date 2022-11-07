@@ -66,7 +66,7 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
   return any;
 }
 
-void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = true) {
+void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundaryV = 2) {
   size_t size = ngroup * nprocs + 1;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
