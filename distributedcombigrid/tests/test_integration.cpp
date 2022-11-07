@@ -128,10 +128,11 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // create combiparameters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
     params.setParallelization({static_cast<int>(nprocs), 1});
-    if (nprocs == 5 && std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+    if (nprocs == 5 &&
+        std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i > 0; })) {
       params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
     } else if (nprocs == 4 &&
-               std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+               std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i > 0; })) {
       // should be the same as default decomposition with forwardDecomposition
       params.setDecomposition({{0, 9, 17, 25}, {0}});
     } else if (nprocs == 3) {
@@ -288,7 +289,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-    std::vector<BoundaryType> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
@@ -351,7 +352,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(180))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
-  for (bool boundary : {true, false}) {
+  for (BoundaryType boundary : {0, 2}) {
     for (size_t ngroup : {1, 2, 3, 4}) {
       for (size_t nprocs : {1, 2}) {
         std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
@@ -367,7 +368,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
       }
     }
     for (size_t ngroup : {1, 2}) {
-      if (boundary) {
+      if (boundary > 0) {
         for (size_t nprocs : {4}) {  // TODO currently fails for non-power-of-2-decompositions
           std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
           checkIntegration(ngroup, nprocs, boundary);
@@ -377,7 +378,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     }
     for (size_t ngroup : {1}) {
       for (size_t nprocs : {5}) {
-        if (boundary) {
+        if (boundary > 0) {
           std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
           checkIntegration(ngroup, nprocs, boundary);
           MPI_Barrier(MPI_COMM_WORLD);
@@ -438,7 +439,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
 
     BOOST_CHECK(*itMax == 7);
     BOOST_CHECK(*itMin == 0);
-    auto boundary = std::vector<BoundaryType>(dim, true);
+    auto boundary = std::vector<BoundaryType>(dim, 2);
     auto rank = TestHelper::getRank(MPI_COMM_WORLD);
     for (size_t taskNo = 0; taskNo < coeffs.size(); ++taskNo) {
       BOOST_TEST_CHECKPOINT(std::to_string(rank) + " Last taskNo " + std::to_string(taskNo));
