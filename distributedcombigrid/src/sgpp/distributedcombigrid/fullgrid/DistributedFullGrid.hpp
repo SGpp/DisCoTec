@@ -68,6 +68,9 @@ class DistributedFullGrid {
       nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
       offsets_[j] = nrElements_;
       nrElements_ = nrElements_ * nrPoints_[j];
+      if (hasBoundaryPoints_[j] == 1) {
+        assert(!decomposition.empty() || !forwardDecomposition);
+      }
     }
 
     if (decomposition.size() == 0) {
