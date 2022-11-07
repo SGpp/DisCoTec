@@ -243,7 +243,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       if (signal == COMBINE) {
         // after combination check workers' grids
         // only if boundary values are used
-        if (boundaryV) {
+        if (boundaryV > 0) {
           BOOST_CHECK(checkReducedFullGridIntegration(pgroup, nrun));
         }
       }
@@ -360,7 +360,7 @@ BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_tes
 #endif // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto rank = TestHelper::getRank(MPI_COMM_WORLD);
-  for (BoundaryType boundary : {0, 2}) {
+  for (BoundaryType boundary : {0, 1, 2}) {
     for (size_t ngroup : {1, 2, 3, 4}) {
       for (size_t nprocs : {1, 2}) {
         if (rank == 0)
