@@ -17,6 +17,7 @@
 #include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "test_helper.hpp"
+#include "TaskConstParaboloid.hpp"
 
 /**
  * functor for test function $f(x) = \prod_{i=0}^d x_i^2$
@@ -886,6 +887,137 @@ BOOST_AUTO_TEST_CASE(test_41) {
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
   checkHierarchization(testFn, levels, procs, boundary, true);
+}
+
+// periodic with one-sided boundary
+// isotropic
+BOOST_AUTO_TEST_CASE(test_p_minus1) {
+  LevelVector levels = {1, 1, 1};
+  std::vector<int> procs = {1, 1, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_0) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 1, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_05) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
+  LevelVector levels = {2, 2};
+  std::vector<int> procs = {2, 2};
+  std::vector<BoundaryType> boundary(2, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_1) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {2, 2, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_4) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 4, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_5) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 1, 8};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_6) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {3, 3, 3, 3};
+  std::vector<int> procs = {1, 2, 2, 2};
+  std::vector<BoundaryType> boundary(4, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_7) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {3, 3, 3};
+  std::vector<int> procs = {3, 3, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_27) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {2, 2, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_30) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 4, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_31) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 1, 8};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_32) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {3, 3, 3, 3};
+  std::vector<int> procs = {1, 2, 2, 2};
+  std::vector<BoundaryType> boundary(4, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_33) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {3, 3, 3};
+  std::vector<int> procs = {3, 3, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+
+// anisotropic
+
+BOOST_AUTO_TEST_CASE(test_p_35) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 4, 6};
+  std::vector<int> procs = {2, 2, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_37) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 4, 6};
+  std::vector<int> procs = {2, 1, 4};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_38) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {1, 4, 4};
+  std::vector<int> procs = {1, 2, 4};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_39) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 1, 3, 3, 2};
+  std::vector<int> procs = {2, 1, 2, 2, 1};
+  std::vector<BoundaryType> boundary(5, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_40) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {2, 3, 4};
+  std::vector<int> procs = {3, 3, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
 }
 
 // these large tests only make sense when assertions are not checked (takes too long otherwise)
