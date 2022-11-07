@@ -59,7 +59,7 @@ class Hierarchization {
     IndexVector n(d);
 
     for (DimType i = 0; i < fg.getDimension(); ++i) {
-      if (fg.returnBoundaryFlags()[i] == false) {
+      if (fg.returnBoundaryFlags()[i] == 0) {
         n[i] = static_cast<IndexType>(std::pow(2, fg.getLevels()[i])) - 1;
       } else {
         n[i] = static_cast<IndexType>(std::pow(2, fg.getLevels()[i])) + 1;
@@ -77,7 +77,7 @@ class Hierarchization {
     IndexType nbrOfPoles = size / ndim;
     IndexType start = -100;
 
-    if (fg.returnBoundaryFlags()[0] == false) {
+    if (fg.returnBoundaryFlags()[0] == 0) {
 #pragma omp parallel for schedule(static) firstprivate(ndim, nbrOfPoles, start)
 
       for (IndexType kk = 0; kk < nbrOfPoles; kk++) {
@@ -102,7 +102,7 @@ class Hierarchization {
 
       //      std::cout << "dim " << dim << "size " << size << "ndim " << ndim << "nbrpoles" <<
       //      nbrOfPoles << std::endl;
-      if (fg.returnBoundaryFlags()[dim] == false) {
+      if (fg.returnBoundaryFlags()[dim] == 0) {
 #pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
                                                        start, jump)
 
@@ -144,7 +144,7 @@ class Hierarchization {
     IndexVector n(d);
 
     for (DimType i = 0; i < fg.getDimension(); ++i) {
-      if (fg.returnBoundaryFlags()[i] == false) {
+      if (fg.returnBoundaryFlags()[i] == 0) {
         n[i] = static_cast<IndexType>(std::pow(2, fg.getLevels()[i])) - 1;
       } else {
         n[i] = static_cast<IndexType>(std::pow(2, fg.getLevels()[i])) + 1;
@@ -162,7 +162,7 @@ class Hierarchization {
     IndexType nbrOfPoles = size / ndim;
     IndexType start = -100;
 
-    if (fg.returnBoundaryFlags()[0] == false) {
+    if (fg.returnBoundaryFlags()[0] == 0) {
 #pragma omp parallel for schedule(static) firstprivate(ndim, nbrOfPoles, start)
 
       for (IndexType kk = 0; kk < nbrOfPoles; kk++) {
@@ -187,7 +187,7 @@ class Hierarchization {
       jump = stride * ndim;
       nbrOfPoles = size / ndim;
 
-      if (fg.returnBoundaryFlags()[dim] == false) {
+      if (fg.returnBoundaryFlags()[dim] == 0) {
 #pragma omp parallel for schedule(static) firstprivate(divresult, stride, dim, ndim, nbrOfPoles, \
                                                        start, jump)
 
