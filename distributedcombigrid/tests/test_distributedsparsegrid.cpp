@@ -213,7 +213,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         std::accumulate(subspacesDataSizes.begin(), subspacesDataSizes.end(), 0);
     BOOST_CHECK(numDataPointsHere > 0);
 
-    if (std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+    if (std::all_of(boundary.begin(), boundary.end(), [](BoundaryType i) { return i == 2; })) {
       auto newLmin = lmin;
       auto newLmax = lmax;
       auto newLref = lref;
@@ -320,7 +320,7 @@ BOOST_AUTO_TEST_CASE(test_3) {
   LevelVector lmax = {9, 9};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {0, 2}) {
+      for (BoundaryType bValue : {0, 1, 2}) {
         std::vector<int> procs = {procOne, procTwo};
         std::vector<BoundaryType> boundary(2, bValue);
         auto multProcs =
@@ -374,7 +374,7 @@ BOOST_AUTO_TEST_CASE(test_6) {
   LevelVector lmax = {7, 7, 7};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {0, 2}) {
+      for (BoundaryType bValue : {0, 1, 2}) {
         std::vector<int> procs = {procOne, procTwo, 1};
         std::vector<BoundaryType> boundary(3, bValue);
         auto multProcs =
@@ -393,7 +393,7 @@ BOOST_AUTO_TEST_CASE(test_7) {
   LevelVector lmax = {6, 7, 5, 5};
   for (int procOne : {1, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {0, 2}) {
+      for (BoundaryType bValue : {0, 1, 2}) {
         std::vector<int> procs = {procOne, procTwo, 1, 1};
         std::vector<BoundaryType> boundary(4, bValue);
         auto multProcs =
@@ -412,7 +412,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
   LevelVector lmax = {4, 3, 6, 3, 5, 3};
   for (int procOne : {1, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {0, 2}) {
+      for (BoundaryType bValue : {0, 1, 2}) {
         std::vector<int> procs = {1, 1, procOne, 1, procTwo, 1};
         std::vector<BoundaryType> boundary(6, bValue);
         auto multProcs =

@@ -2246,7 +2246,7 @@ static inline std::vector<IndexVector> downsampleDecomposition(
       assert(referenceLevel[d] >= newLevel[d]);
       auto levelDiff = referenceLevel[d] - newLevel[d];
       auto stepFactor = oneOverPowOfTwo[levelDiff];
-      if(boundary[d]) {
+      if(boundary[d] > 0) {
         // all levels contain the boundary points -> point 0 is the same
         for (auto& dec: newDecomposition[d]) {
           dec = static_cast<IndexType>(std::ceil(static_cast<double>(dec)*stepFactor));
