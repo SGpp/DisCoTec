@@ -31,7 +31,7 @@ class TaskAdvection : public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskAdvection(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+  TaskAdvection(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
                 LoadModel* loadModel, real dt, size_t nsteps, IndexVector p = IndexVector(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
