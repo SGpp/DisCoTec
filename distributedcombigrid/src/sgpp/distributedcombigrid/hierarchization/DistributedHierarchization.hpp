@@ -1524,7 +1524,7 @@ template <typename FG_ELEMENT,
 static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                       LookupTable<FG_ELEMENT>& lookupTable) {
   const DimType dim = 0;
-  assert(dfg.returnBoundaryFlags()[dim] == true);
+  assert(dfg.returnBoundaryFlags()[dim] > 0);
 
   LevelType lmax = dfg.getLevels()[dim];
   IndexType ndim = dfg.getLocalSizes()[dim];
@@ -1582,7 +1582,7 @@ template <typename FG_ELEMENT,
 static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                         LookupTable<FG_ELEMENT>& lookupTable) {
   const DimType dim = 0;
-  assert(dfg.returnBoundaryFlags()[dim] == true);
+  assert(dfg.returnBoundaryFlags()[dim] > 0);
 
   LevelType lmax = dfg.getLevels()[dim];
   IndexType ndim = dfg.getLocalSizes()[dim];
@@ -1638,7 +1638,7 @@ template <typename FG_ELEMENT,
                                        LevelType) = hierarchizeX_opt_boundary_kernel>
 void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
-  assert(dfg.returnBoundaryFlags()[dim] == true);
+  assert(dfg.returnBoundaryFlags()[dim] > 0);
 
   auto lmax = dfg.getLevels()[dim];
   auto size = dfg.getNrLocalElements();
@@ -1777,7 +1777,7 @@ template <typename FG_ELEMENT,
                                        LevelType) = dehierarchizeX_opt_boundary_kernel>
 void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
-  assert(dfg.returnBoundaryFlags()[dim] == true);
+  assert(dfg.returnBoundaryFlags()[dim] > 0);
 
   const auto& lmax = dfg.getLevels()[dim];
   const auto& size = dfg.getNrLocalElements();
