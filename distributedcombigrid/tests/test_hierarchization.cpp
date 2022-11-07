@@ -490,12 +490,36 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
   BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
+void checkHierarchizationParaboloid(LevelVector& levels, std::vector<int>& procs,
+                                    std::vector<BoundaryType>& boundary, bool forward = false,
+                                    bool checkValues = true) {
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    const auto dim = static_cast<DimType>(levels.size());
+    DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+    auto f = ParaboloidFn<std::complex<double>>(&dfg);
+    // run test with value check
+    checkHierarchization<decltype(f)>(f, dfg, checkValues);
+  }
+}
+
 BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(240))
 
 // with boundary
 // isotropic
 
 // the most basic case with a single worker
+BOOST_AUTO_TEST_CASE(test_minus1) {
+  for (DimType d : {1, 2, 3, 4, 5}) {
+    BOOST_TEST_CHECKPOINT("Testing dimension " + std::to_string(d));
+    // LevelVector levels(d, 1);
+    LevelVector levels(d, 3);
+    std::vector<int> procs(d, 1);
+    std::vector<BoundaryType> boundary(d, 2);
+
+    checkHierarchizationParaboloid(levels, procs, boundary);
+  }
+}
 BOOST_AUTO_TEST_CASE(test_0) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {4, 4, 4};

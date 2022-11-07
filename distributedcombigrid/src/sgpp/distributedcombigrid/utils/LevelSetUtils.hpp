@@ -9,6 +9,7 @@ namespace combigrid {
 
 // compute powers of two quickly by bit-shifting
 inline IndexType powerOfTwoByBitshift(LevelType x) {
+  assert(x < sizeof(IndexType) * 8);
   if (x == 0) {
     return 1;
   } else if (x > 0) {
