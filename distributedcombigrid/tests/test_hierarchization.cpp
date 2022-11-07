@@ -483,7 +483,7 @@ BOOST_AUTO_TEST_CASE(test_0) {
   std::vector<int> procs = {1, 1, 1};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 1);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 
 // 2D case with 4 workers
@@ -496,7 +496,7 @@ BOOST_AUTO_TEST_CASE(test_05) {
   std::vector<int> procs = {2, 2};
   std::vector<BoundaryType> boundary(2, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 4);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 
 BOOST_AUTO_TEST_CASE(test_1) {
@@ -505,7 +505,7 @@ BOOST_AUTO_TEST_CASE(test_1) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -513,7 +513,7 @@ BOOST_AUTO_TEST_CASE(test_2) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_3) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -521,7 +521,7 @@ BOOST_AUTO_TEST_CASE(test_3) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_4) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -529,7 +529,7 @@ BOOST_AUTO_TEST_CASE(test_4) {
   std::vector<int> procs = {1, 4, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_5) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -537,7 +537,7 @@ BOOST_AUTO_TEST_CASE(test_5) {
   std::vector<int> procs = {1, 1, 8};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_6) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -545,7 +545,7 @@ BOOST_AUTO_TEST_CASE(test_6) {
   std::vector<int> procs = {1, 2, 2, 2};
   std::vector<BoundaryType> boundary(4, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_7) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -553,7 +553,7 @@ BOOST_AUTO_TEST_CASE(test_7) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_8) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -561,7 +561,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -572,7 +572,7 @@ BOOST_AUTO_TEST_CASE(test_9) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_10) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -580,7 +580,7 @@ BOOST_AUTO_TEST_CASE(test_10) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_11) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -588,7 +588,7 @@ BOOST_AUTO_TEST_CASE(test_11) {
   std::vector<int> procs = {2, 1, 4};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_12) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -596,7 +596,7 @@ BOOST_AUTO_TEST_CASE(test_12) {
   std::vector<int> procs = {1, 2, 4};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_13) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -604,7 +604,7 @@ BOOST_AUTO_TEST_CASE(test_13) {
   std::vector<int> procs = {2, 1, 2, 2, 1};
   std::vector<BoundaryType> boundary(5, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_14) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -612,7 +612,7 @@ BOOST_AUTO_TEST_CASE(test_14) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_15) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -620,7 +620,7 @@ BOOST_AUTO_TEST_CASE(test_15) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // without boundary
@@ -632,7 +632,7 @@ BOOST_AUTO_TEST_CASE(test_16) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_17) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -640,7 +640,7 @@ BOOST_AUTO_TEST_CASE(test_17) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_18) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -648,7 +648,7 @@ BOOST_AUTO_TEST_CASE(test_18) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_19) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -656,7 +656,7 @@ BOOST_AUTO_TEST_CASE(test_19) {
   std::vector<int> procs = {4, 2, 1};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_20) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -664,7 +664,7 @@ BOOST_AUTO_TEST_CASE(test_20) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -675,7 +675,7 @@ BOOST_AUTO_TEST_CASE(test_21) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_22) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -683,7 +683,7 @@ BOOST_AUTO_TEST_CASE(test_22) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_23) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -691,7 +691,7 @@ BOOST_AUTO_TEST_CASE(test_23) {
   std::vector<int> procs = {2, 1, 4};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_24) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -699,7 +699,7 @@ BOOST_AUTO_TEST_CASE(test_24) {
   std::vector<int> procs = {1, 2, 4};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_25) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -707,7 +707,7 @@ BOOST_AUTO_TEST_CASE(test_25) {
   std::vector<int> procs = {2, 1, 2, 2, 1};
   std::vector<BoundaryType> boundary(5, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_26) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -715,7 +715,7 @@ BOOST_AUTO_TEST_CASE(test_26) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // with boundary
@@ -727,7 +727,7 @@ BOOST_AUTO_TEST_CASE(test_27) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_28) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -735,7 +735,7 @@ BOOST_AUTO_TEST_CASE(test_28) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_29) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -743,7 +743,7 @@ BOOST_AUTO_TEST_CASE(test_29) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_30) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -751,7 +751,7 @@ BOOST_AUTO_TEST_CASE(test_30) {
   std::vector<int> procs = {1, 4, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_31) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -759,7 +759,7 @@ BOOST_AUTO_TEST_CASE(test_31) {
   std::vector<int> procs = {1, 1, 8};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_32) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -767,7 +767,7 @@ BOOST_AUTO_TEST_CASE(test_32) {
   std::vector<int> procs = {1, 2, 2, 2};
   std::vector<BoundaryType> boundary(4, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_33) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -775,7 +775,7 @@ BOOST_AUTO_TEST_CASE(test_33) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_34) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -783,7 +783,7 @@ BOOST_AUTO_TEST_CASE(test_34) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -794,7 +794,7 @@ BOOST_AUTO_TEST_CASE(test_35) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_36) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -802,7 +802,7 @@ BOOST_AUTO_TEST_CASE(test_36) {
   std::vector<int> procs = {2, 2, 2};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_37) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -810,7 +810,7 @@ BOOST_AUTO_TEST_CASE(test_37) {
   std::vector<int> procs = {2, 1, 4};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_38) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -818,7 +818,7 @@ BOOST_AUTO_TEST_CASE(test_38) {
   std::vector<int> procs = {1, 2, 4};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_39) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
@@ -826,7 +826,7 @@ BOOST_AUTO_TEST_CASE(test_39) {
   std::vector<int> procs = {2, 1, 2, 2, 1};
   std::vector<BoundaryType> boundary(5, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_40) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -834,7 +834,7 @@ BOOST_AUTO_TEST_CASE(test_40) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_41) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
@@ -842,7 +842,7 @@ BOOST_AUTO_TEST_CASE(test_41) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // these large tests only make sense when assertions are not checked (takes too long otherwise)
