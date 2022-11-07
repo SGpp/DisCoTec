@@ -137,7 +137,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     LevelVector lmax(dim, 4), leval(dim, 4);
 
     size_t ncombi = 2;
-    std::vector<BoundaryType> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
 
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     // combischeme.createClassicalCombischeme();

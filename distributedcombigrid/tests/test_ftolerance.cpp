@@ -231,7 +231,7 @@ bool checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
   size_t nsteps = 1;
   combigrid::real dt = useFG ? 0.0001 : 0.01;
 
-  std::vector<BoundaryType> boundary(dim,true);
+  std::vector<BoundaryType> boundary(dim, 2);
   theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
 
   BOOST_TEST_CHECKPOINT("Initialize checkFtolerance");

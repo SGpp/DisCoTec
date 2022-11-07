@@ -536,7 +536,7 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
     std::vector<IndexVector> decomposition = {{0, 4, 6}};
     DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
     DistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs, true,
-                                            decomposition);
+                                             decomposition);
     DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, true,
                                             decomposition);
 
@@ -691,7 +691,7 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_boundary_threedim) {
     LevelVector fullGridLevel = {2, 3, 4, 5, 6, 7};
     std::vector<IndexVector> decomposition = {{0}, {0, 3}, {0}, {0, 17}, {0}, {0, 63}};
 
-    std::vector<BoundaryType> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
 
     DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
 
@@ -754,7 +754,7 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_noboundary_firstdim) {
     std::vector<IndexVector> decomposition = {
         {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
 
-    std::vector<BoundaryType> boundary(dim, false);
+    std::vector<BoundaryType> boundary(dim, 0);
 
     DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
 
@@ -806,7 +806,7 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_noboundary_threedim) {
     LevelVector fullGridLevel = {2, 3, 4, 5, 6, 7};
     std::vector<IndexVector> decomposition = {{0}, {0, 3}, {0}, {0, 17}, {0}, {0, 63}};
 
-    std::vector<BoundaryType> boundary(dim, false);
+    std::vector<BoundaryType> boundary(dim, 0);
 
     DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
 
@@ -868,7 +868,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     LevelVector lmin(dim, 2);
     LevelVector lmax(dim, 18);
     LevelVector fullGridLevel = {19, 2, 2, 2, 2, 2};
-    std::vector<BoundaryType> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
     std::vector<IndexVector> decomposition = {
         {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
 

@@ -74,7 +74,7 @@ BOOST_AUTO_TEST_CASE(test) {
 
   DimType dim = 3;
   LevelVector l(dim, 2);
-  std::vector<BoundaryType> boundary(dim, true);
+  std::vector<BoundaryType> boundary(dim, 2);
 
   std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LinearLoadModel>(new LinearLoadModel());
 

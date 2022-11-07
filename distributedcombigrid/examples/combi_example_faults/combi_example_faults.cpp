@@ -56,10 +56,9 @@ int main(int argc, char** argv) {
   readParameterFile(fileName, ngroup, nprocs, dim, lmin, lmax,
                     leval, p, ncombi, dt, nsteps, faultsInfo);
 
+  std::vector<BoundaryType> boundary(dim, 2);
 
-  std::vector<BoundaryType> boundary(dim,true);
-
-  theMPISystem()->init( ngroup, nprocs );
+  theMPISystem()->init(ngroup, nprocs);
 
   // manager code
   if ( theMPISystem()->getWorldRank() == theMPISystem()->getManagerRankWorld() ) {
