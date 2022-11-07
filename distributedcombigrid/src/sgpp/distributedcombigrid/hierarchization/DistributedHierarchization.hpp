@@ -1102,7 +1102,7 @@ template <typename FG_ELEMENT>
 static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                         LookupTable<FG_ELEMENT>& lookupTable) {
   const DimType dim = 0;
-  assert(dfg.returnBoundaryFlags()[dim] == false);
+  assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   LevelType lmax = dfg.getLevels()[dim];
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
@@ -1185,7 +1185,7 @@ template <typename FG_ELEMENT>
 static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                           LookupTable<FG_ELEMENT>& lookupTable) {
   const DimType dim = 0;
-  assert(dfg.returnBoundaryFlags()[dim] == false);
+  assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   LevelType lmax = dfg.getLevels()[dim];
   IndexType ndim = dfg.getLocalSizes()[dim];
@@ -1692,7 +1692,7 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 template <typename FG_ELEMENT>
 void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
-  assert(dfg.returnBoundaryFlags()[dim] == false);
+  assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   LevelType lmax = dfg.getLevels()[dim];
   IndexType size = dfg.getNrLocalElements();
@@ -1831,7 +1831,7 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 template <typename FG_ELEMENT>
 void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                                    LookupTable<FG_ELEMENT>& lookupTable, DimType dim) {
-  assert(dfg.returnBoundaryFlags()[dim] == false);
+  assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   auto lmax = dfg.getLevels()[dim];
   auto size = dfg.getNrLocalElements();
@@ -1930,7 +1930,7 @@ class DistributedHierarchization {
       }
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
-      if (dfg.returnBoundaryFlags()[dim] == true) {
+      if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
           if (dim == 0)
@@ -2025,7 +2025,7 @@ class DistributedHierarchization {
       }
       LookupTable<FG_ELEMENT> lookupTable(remoteData, dfg, dim);
 
-      if (dfg.returnBoundaryFlags()[dim] == true) {
+      if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
           if (dim == 0)
