@@ -38,6 +38,7 @@ class ParaboloidFn {
     if (std::any_of(level.begin(), level.end(), [](LevelType l) { return l == 0; })) {
       return FG_ELEMENT(0.);
     }
+    BOOST_REQUIRE(levelSum(level) < 18);
     FG_ELEMENT result =
         sign / static_cast<FG_ELEMENT>(combigrid::powerOfTwoByBitshift(levelSum(level) * 2));
     return result;
