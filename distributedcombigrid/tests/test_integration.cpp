@@ -41,7 +41,7 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
     for (int g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       for (auto b : dfg.returnBoundaryFlags()) {
-        BOOST_CHECK(b);
+        BOOST_CHECK(b == 2);
       }
 
       TestFnCount<CombiDataType> initialFunction;
@@ -243,7 +243,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       if (signal == COMBINE) {
         // after combination check workers' grids
         // only if boundary values are used
-        if (boundaryV > 0) {
+        if (boundaryV == 2) {
           BOOST_CHECK(checkReducedFullGridIntegration(pgroup, nrun));
         }
       }
