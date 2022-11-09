@@ -13,8 +13,10 @@
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIMemory.hpp"
+#include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "test_helper.hpp"
+#include "TaskConstParaboloid.hpp"
 
 using namespace combigrid;
 
@@ -600,6 +602,106 @@ BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
     }
   }
 }
+
+BOOST_AUTO_TEST_CASE(interpolation_test) {
+  std::vector<int> procs = {2, 2, 2, 1, 1, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector fullGridLevel = {3, 2, 3, 1, 1, 1};
+    DimType dim = static_cast<DimType>(procs.size());
+    std::vector<BoundaryType> boundary(dim, 2);
+    std::vector<BoundaryType> oneboundary(dim, 1);
+    std::vector<BoundaryType> noboundary(dim, 0);
+    DistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs, false);
+    DistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs, false);
+    DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, false);
+
+    // set function values on dfgs
+    ParaboloidFn<CombiDataType> f;
+    std::vector<double> coords(dim);
+    for (IndexType li = 0; li < dfgTwoBoundary.getNrLocalElements(); ++li) {
+      dfgTwoBoundary.getCoordsLocal(li, coords);
+      dfgTwoBoundary.getData()[li] = f(coords);
+    }
+    for (IndexType li = 0; li < dfgOneBoundary.getNrLocalElements(); ++li) {
+      dfgOneBoundary.getCoordsLocal(li, coords);
+      dfgOneBoundary.getData()[li] = f(coords);
+    }
+    BOOST_CHECK_EQUAL(dfgTwoBoundary.getData()[0], dfgOneBoundary.getData()[0]);
+    BOOST_CHECK_EQUAL(dfgTwoBoundary.getData()[1], dfgOneBoundary.getData()[1]);
+    for (IndexType li = 0; li < dfgNoBoundary.getNrLocalElements(); ++li) {
+      dfgNoBoundary.getCoordsLocal(li, coords);
+      dfgNoBoundary.getData()[li] = f(coords);
+    }
+
+    auto numMCCoordinates = 1e3;
+    std::vector<std::vector<double>> interpolationCoords =
+        montecarlo::getRandomCoordinates(numMCCoordinates, static_cast<size_t>(dim));
+
+    auto interpolatedValuesTwoBoundary = dfgTwoBoundary.getInterpolatedValues(interpolationCoords);
+
+    // auto interpolatedValuesOneBoundary =
+    // dfgOneBoundary.getInterpolatedValues(interpolationCoords);
+
+    auto interpolatedValuesNoBoundary = dfgNoBoundary.getInterpolatedValues(interpolationCoords);
+
+    // BOOST_CHECK_EQUAL_COLLECTIONS(interpolatedValuesTwoBoundary.begin(),
+    //                               interpolatedValuesTwoBoundary.end(),
+    //                               interpolatedValuesOneBoundary.begin(),
+    //                               interpolatedValuesOneBoundary.end());
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        interpolatedValuesTwoBoundary.begin(), interpolatedValuesTwoBoundary.end(),
+        interpolatedValuesNoBoundary.begin(), interpolatedValuesNoBoundary.end());
+  }
+}
+
+#ifdef NDEBUG // speed test -> run only in release mode
+BOOST_AUTO_TEST_CASE(interpolation_speed_test) {
+  std::vector<int> procs = {2, 2, 2, 1, 1, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector fullGridLevel = {3, 2, 3, 1, 1, 1};
+    DimType dim = static_cast<DimType>(procs.size());
+    std::vector<BoundaryType> boundary(dim, 2);
+    std::vector<BoundaryType> oneboundary(dim, 1);
+    std::vector<BoundaryType> noboundary(dim, 0);
+    DistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs, false);
+    DistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs, false);
+    DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, false);
+
+    auto numMCCoordinates = 1e6;
+    std::vector<std::vector<double>> interpolationCoords =
+        montecarlo::getRandomCoordinates(numMCCoordinates, static_cast<size_t>(dim));
+
+    MPI_Barrier(comm);
+    auto start = std::chrono::high_resolution_clock::now();
+    auto interpolatedValues = dfgTwoBoundary.getInterpolatedValues(interpolationCoords);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to interpolate 1e6 values on two-boundary grid: " << duration.count()
+                                                                               << " milliseconds");
+    BOOST_CHECK(duration.count() < 25000);
+
+    MPI_Barrier(comm);
+    start = std::chrono::high_resolution_clock::now();
+    interpolatedValues = dfgOneBoundary.getInterpolatedValues(interpolationCoords);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to interpolate 1e6 values on one-boundary grid: " << duration.count()
+                                                                               << " milliseconds");
+    BOOST_CHECK(duration.count() < 25000);
+
+    MPI_Barrier(comm);
+    start = std::chrono::high_resolution_clock::now();
+    interpolatedValues = dfgNoBoundary.getInterpolatedValues(interpolationCoords);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to interpolate 1e6 values on no-boundary grid: " << duration.count()
+                                                                              << " milliseconds");
+    BOOST_CHECK(duration.count() < 25000);
+  }
+}
+# endif // NDEBUG
 
 BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
   std::vector<int> procs = {3};
