@@ -109,6 +109,46 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   BOOST_CHECK(!TestHelper::testStrayMessages());
 }
 
+template <typename T>
+real checkInnerBasisFunctionIntegral(const DistributedFullGrid<T>& dfg) {
+  auto dim = dfg.getDimension();
+  auto& levels = dfg.getLevels();
+  auto& boundary = dfg.returnBoundaryFlags();
+
+  IndexType nrElements = 1;
+  for (DimType d = 0; d < dim; ++d) {
+    nrElements *= (1 << levels[d]) + boundary[d] - 1;
+  }
+  BOOST_CHECK(nrElements == dfg.getNrElements());
+
+  auto innerNodalBasisFunctionIntegral = dfg.getInnerNodalBasisFunctionIntegral();
+  auto levelSum = combigrid::levelSum(levels);
+  BOOST_CHECK_CLOSE(innerNodalBasisFunctionIntegral, oneOverPowOfTwo[levelSum],
+                    TestHelper::tolerance);
+
+  return innerNodalBasisFunctionIntegral;
+}
+
+template <typename T>
+std::vector<double> checkCoordinates(const DistributedFullGrid<T>& dfg) {
+  // check coordinates
+  std::vector<double> coordsGlobal(dfg.getDimension());
+  std::vector<double> coordsGlobalAgain(dfg.getDimension());
+  IndexType globalIndex = -1;
+  for (IndexType i = 0; i < dfg.getNrLocalElements(); ++i) {
+    globalIndex = dfg.getGlobalLinearIndex(i);
+    dfg.getCoordsGlobal(globalIndex, coordsGlobal);
+    dfg.getCoordsLocal(i, coordsGlobalAgain);
+    auto lowerBoundsCoords = dfg.getLowerBoundsCoords();
+    BOOST_CHECK_EQUAL_COLLECTIONS(coordsGlobal.begin(), coordsGlobal.end(),
+                                  coordsGlobalAgain.begin(), coordsGlobalAgain.end());
+    for (DimType d = 0; d < dfg.getDimension(); ++d) {
+      BOOST_CHECK_GE(coordsGlobal[d], lowerBoundsCoords[d]);
+    }
+  }
+  return coordsGlobalAgain;
+}
+
 void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
                               std::vector<BoundaryType>& boundary, bool forward = false) {
   CommunicatorType comm = TestHelper::getComm(procs);
@@ -123,12 +163,6 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
 
   // create dfg
   DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
-
-  IndexType nrElements = 1;
-  for (DimType d = 0; d < dim; ++d) {
-    nrElements *= (1 << levels[d]) + boundary[d] - 1;
-  }
-  BOOST_CHECK(nrElements == dfg.getNrElements());
 
   // set function values
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
@@ -455,7 +489,7 @@ BOOST_AUTO_TEST_CASE(test_13) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
   LevelVector levels = {4, 4};
   std::vector<int> procs = {2, 2};
-  std::vector<BoundaryType> boundary(2, 0);
+  std::vector<BoundaryType> boundary(2, 1);
   boundary[1] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
@@ -463,7 +497,7 @@ BOOST_AUTO_TEST_CASE(test_14) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, 0);
+  std::vector<BoundaryType> boundary(3, 1);
   boundary[0] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
@@ -471,7 +505,7 @@ BOOST_AUTO_TEST_CASE(test_15) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, 0);
+  std::vector<BoundaryType> boundary(3, 1);
   boundary[0] = 2;
   checkDistributedFullgrid(levels, procs, boundary, true);
 }
@@ -482,7 +516,7 @@ BOOST_AUTO_TEST_CASE(test_16) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
   LevelVector levels = {2, 3};
   std::vector<int> procs = {2, 2};
-  std::vector<BoundaryType> boundary(2, 0);
+  std::vector<BoundaryType> boundary(2, 1);
   boundary[0] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
@@ -490,7 +524,7 @@ BOOST_AUTO_TEST_CASE(test_17) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 4, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, 0);
+  std::vector<BoundaryType> boundary(3, 1);
   boundary[2] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
@@ -498,7 +532,7 @@ BOOST_AUTO_TEST_CASE(test_18) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 4, 3};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, 0);
+  std::vector<BoundaryType> boundary(3, 1);
   boundary[2] = 2;
   checkDistributedFullgrid(levels, procs, boundary, true);
 }
@@ -522,6 +556,41 @@ BOOST_AUTO_TEST_CASE(test_21) {
 BOOST_AUTO_TEST_CASE(test_22) {
   LevelVector levels = {3, 3, 3, 3, 3, 2};
   checkDistributedFullgridMemory(levels, false);
+}
+
+BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
+  std::vector<int> procs = {2, 2, 2, 1, 1, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector fullGridLevel = {3, 2, 3, 1, 1, 1};
+    DimType dim = static_cast<DimType>(procs.size());
+    std::vector<BoundaryType> boundary(dim, 2);
+    std::vector<BoundaryType> oneboundary(dim, 1);
+    std::vector<BoundaryType> noboundary(dim, 0);
+    DistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs, false);
+    DistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs, false);
+    DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, false);
+
+    auto twoBoundaryIntegral = checkInnerBasisFunctionIntegral(dfgTwoBoundary);
+    auto oneBoundaryIntegral = checkInnerBasisFunctionIntegral(dfgOneBoundary);
+    auto noBoundaryIntegral = checkInnerBasisFunctionIntegral(dfgNoBoundary);
+    BOOST_CHECK_CLOSE(twoBoundaryIntegral, oneBoundaryIntegral, TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(twoBoundaryIntegral, noBoundaryIntegral, TestHelper::tolerance);
+
+    auto twoBoundaryHighestCoordinate = checkCoordinates(dfgTwoBoundary);
+    auto oneBoundaryHighestCoordinate = checkCoordinates(dfgOneBoundary);
+    auto noBoundaryHighestCoordinate = checkCoordinates(dfgNoBoundary);
+    BOOST_CHECK_EQUAL_COLLECTIONS(
+        noBoundaryHighestCoordinate.begin(), noBoundaryHighestCoordinate.end(),
+        oneBoundaryHighestCoordinate.begin(), oneBoundaryHighestCoordinate.end());
+    for (DimType d = 0; d < dim; d++) {
+      if (dfgTwoBoundary.getCartesianUtils().isOnUpperBoundaryInDimension(d)) {
+        BOOST_CHECK_GT(twoBoundaryHighestCoordinate[d], noBoundaryHighestCoordinate[d]);
+      } else {
+        BOOST_CHECK_EQUAL(twoBoundaryHighestCoordinate[d], noBoundaryHighestCoordinate[d]);
+      }
+    }
+  }
 }
 
 BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {

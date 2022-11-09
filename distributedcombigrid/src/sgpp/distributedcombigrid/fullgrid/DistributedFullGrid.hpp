@@ -635,6 +635,7 @@ class DistributedFullGrid {
   std::vector<double> getGridSpacing() const {
     std::vector<double> h(dim_);
     for (DimType d = 0 ; d < dim_ ; ++d){
+      assert(levels_[d] < 30);
       h[d] = oneOverPowOfTwo[levels_[d]];
     }
     return h;
