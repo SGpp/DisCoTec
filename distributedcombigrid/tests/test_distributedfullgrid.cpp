@@ -559,10 +559,10 @@ BOOST_AUTO_TEST_CASE(test_22) {
 }
 
 BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
-  std::vector<int> procs = {2, 2, 2, 1, 1, 1};
+  std::vector<int> procs = {2, 2, 2, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
-    LevelVector fullGridLevel = {3, 2, 3, 1, 1, 1};
+    LevelVector fullGridLevel = {3, 2, 3, 1};
     DimType dim = static_cast<DimType>(procs.size());
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<BoundaryType> oneboundary(dim, 1);
@@ -576,6 +576,14 @@ BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
     auto noBoundaryIntegral = checkInnerBasisFunctionIntegral(dfgNoBoundary);
     BOOST_CHECK_CLOSE(twoBoundaryIntegral, oneBoundaryIntegral, TestHelper::tolerance);
     BOOST_CHECK_CLOSE(twoBoundaryIntegral, noBoundaryIntegral, TestHelper::tolerance);
+
+    auto twoBoundaryGridSpacing = dfgTwoBoundary.getGridSpacing();
+    auto oneBoundaryGridSpacing = dfgOneBoundary.getGridSpacing();
+    auto noBoundaryGridSpacing = dfgNoBoundary.getGridSpacing();
+    for (DimType d = 0; d < dim; d++) {
+      BOOST_CHECK_CLOSE(twoBoundaryGridSpacing[d], oneBoundaryGridSpacing[d], TestHelper::tolerance);
+      BOOST_CHECK_CLOSE(twoBoundaryGridSpacing[d], noBoundaryGridSpacing[d], TestHelper::tolerance);
+    }
 
     auto twoBoundaryHighestCoordinate = checkCoordinates(dfgTwoBoundary);
     auto oneBoundaryHighestCoordinate = checkCoordinates(dfgOneBoundary);
