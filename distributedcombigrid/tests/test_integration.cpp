@@ -179,23 +179,22 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
       BOOST_TEST_CHECKPOINT("MC interpolation");
       Stats::startEvent("manager interpolate");
-      if (boundaryV == 1) {
-        throw std::runtime_error("not yet implemented");
-      }
       auto values = manager.interpolateValues(interpolationCoords);
       Stats::stopEvent("manager interpolate");
       std::cout << "did interpolation " << ngroup << " " << nprocs << std::endl;
 
-      TestFnCount<CombiDataType> initialFunction;
-      for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-        if (std::abs(initialFunction(interpolationCoords[i], ncombi) - values[i]) >
-            TestHelper::tolerance) {
-          std::cout << "err " << interpolationCoords.size() << interpolationCoords[i] << " " << i
-                    << std::endl;
+      if (boundaryV > 1) {
+        TestFnCount<CombiDataType> initialFunction;
+        for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+          if (std::abs(initialFunction(interpolationCoords[i], ncombi) - values[i]) >
+              TestHelper::tolerance) {
+            std::cout << "err " << interpolationCoords.size() << interpolationCoords[i] << " " << i
+                      << std::endl;
+          }
+          auto ref = initialFunction(interpolationCoords[i], ncombi);
+          BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
+          BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
         }
-        auto ref = initialFunction(interpolationCoords[i], ncombi);
-        BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
-        BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
       }
 #ifdef HAVE_HIGHFIVE
       // output files are not needed, remove them right away
