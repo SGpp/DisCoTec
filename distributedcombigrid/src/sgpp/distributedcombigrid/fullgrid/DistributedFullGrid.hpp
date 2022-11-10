@@ -717,7 +717,15 @@ class DistributedFullGrid {
   }
 
   /** coordinates of this process' lower bounds */
-  inline std::vector<real> getLowerBoundsCoords() const { return getLowerBoundsCoords(rank_); }
+  inline std::vector<real> getLowerBoundsCoords() const {
+    const auto& lowerBounds = this->getLowerBounds();
+    std::vector<real> coords(dim_);
+    for (DimType i = 0; i < dim_; ++i) {
+      coords[i] =
+          (lowerBounds[i] + (hasBoundaryPoints_[i] > 0 ? 0 : 1)) * this->getGridSpacing()[i];
+    }
+    return coords;
+  }
 
   /** coordinates of rank r's lower bounds */
   inline std::vector<real> getLowerBoundsCoords(RankType r) const {
