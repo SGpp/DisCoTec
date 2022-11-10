@@ -290,26 +290,28 @@ class DistributedFullGrid {
 
   FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex,
                               const std::vector<real>& coords) const {
-    // get coords corresponding to localIndex
-    auto localLinearIndex = getLocalLinearIndex(localIndex);
-    std::vector<real> pointCoords(this->getDimension());
-    getCoordsLocal(localLinearIndex, pointCoords);
+    static std::vector<real> coordDistance;
+    coordDistance = this->getLowerBoundsCoords();
 
     // get product of 1D hat functions on coords
     const auto& h = getGridSpacing();
     real phi_c = 1.;  // value of product of basis function on coords
     for (DimType d = 0; d < dim_; ++d) {
       // get distance between coords and point
-      pointCoords[d] -= coords[d];
-      if (std::abs(pointCoords[d]) > h[d]) {
-        std::cout << "assert bounds " << pointCoords << coords << h << static_cast<int>(d)
+      coordDistance[d] = (coordDistance[d] + localIndex[d] * h[d]) - coords[d];
+#ifndef NDEBUG
+      if (std::abs(coordDistance[d]) > h[d]) {
+        std::cout << "assert bounds " << coordDistance << coords << h << static_cast<int>(d)
                   << localIndex << std::endl;
         assert(false &&
                "should only be called for coordinates within the support of this point's basis "
                "function");
       }
-      phi_c *= 1. - std::abs(pointCoords[d] / h[d]);
+#endif // ndef NDEBUG
+      phi_c *= 1. - std::abs(coordDistance[d] / h[d]);
     }
+
+    auto localLinearIndex = getLocalLinearIndex(localIndex);
     // std::cout << "coords " <<  localIndex << coords << localLinearIndex << h << std::endl;
     // std::cout << "phi_c " << phi_c << this->getElementVector()[localLinearIndex] << std::endl;
     assert(phi_c >= 0.);
