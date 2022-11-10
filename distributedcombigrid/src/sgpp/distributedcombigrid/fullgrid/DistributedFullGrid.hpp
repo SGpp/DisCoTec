@@ -300,7 +300,11 @@ class DistributedFullGrid {
       // this should be the same as
       // coordDistance = this->getCoordsLocal(localIndex) - coords;
       // cf. getLowerBoundsCoords()
-      auto coordDistance = (lowerBounds[d] + (hasBoundaryPoints_[d] > 0 ? 0 : 1) + localIndex[d]) * h[d] - coords[d];
+      auto coordDistance =
+          static_cast<double>(lowerBounds[d] + (hasBoundaryPoints_[d] > 0 ? 0 : 1) +
+                              localIndex[d]) *
+              h[d] -
+          coords[d];
 #ifndef NDEBUG
       if (std::abs(coordDistance) > h[d]) {
         std::cout << "assert bounds " << coordDistance << coords << h << static_cast<int>(d)
@@ -309,7 +313,7 @@ class DistributedFullGrid {
                "should only be called for coordinates within the support of this point's basis "
                "function");
       }
-#endif // ndef NDEBUG
+#endif  // ndef NDEBUG
       phi_c *= 1. - std::abs(coordDistance / h[d]);
     }
 
@@ -376,19 +380,19 @@ class DistributedFullGrid {
     return value;
   }
 
-  void eval(const std::vector<real>& coords, FG_ELEMENT& value, MPI_Request* request = nullptr) const {
+  void eval(const std::vector<real>& coords, FG_ELEMENT& value) const {
     assert(coords.size() == this->getDimension());
 
     // get the lowest-index point of the points
     // whose basis functions contribute to the interpolated value
     auto lowerCoords = getLowerBoundsCoords();
     const auto& h = getGridSpacing();
-    static IndexVector localIndexLowerNonzeroNeighborPoint; 
+    static IndexVector localIndexLowerNonzeroNeighborPoint;
     localIndexLowerNonzeroNeighborPoint.resize(dim_);
-    for (DimType d = 0 ; d < dim_ ; ++d){
+    for (DimType d = 0; d < dim_; ++d) {
 #ifndef NDEBUG
       if (coords[d] < 0. || coords[d] > 1.) {
-      std::cout << "coords " << coords << " out of bounds" << std::endl;
+        std::cout << "coords " << coords << " out of bounds" << std::endl;
       }
       assert(coords[d] >= 0. && coords[d] <= 1.);
 #endif  // ndef NDEBUG
@@ -402,26 +406,20 @@ class DistributedFullGrid {
     // evaluate at those points and sum up according to the basis function
     // needs to be recursive in order to be dimensionally adaptive
     value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
-
-    if (request == nullptr) {
-      MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM,
-                    this->getCommunicator());
-    } else {
-      MPI_Iallreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM,
-                     this->getCommunicator(), request);
-    }
   }
 
   /** evaluates the full grid on the specified coordinates
    * @param interpolationCoords vector of ND coordinates on the unit square [0,1]^D*/
-  std::vector<FG_ELEMENT> getInterpolatedValues(const std::vector<std::vector<real>>& interpolationCoords) const {
+  std::vector<FG_ELEMENT> getInterpolatedValues(
+      const std::vector<std::vector<real>>& interpolationCoords) const {
     auto numValues = interpolationCoords.size();
     std::vector<FG_ELEMENT> values;
     values.resize(numValues);
-    // using the asynchronous communication makes the runtime quadratic in numValues -> synchronous MPI for now
     for (size_t i = 0; i < numValues; ++i) {
-      this->eval(interpolationCoords[i], values[i]);//, &requests[i]);
+      this->eval(interpolationCoords[i], values[i]);
     }
+    MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numValues), this->getMPIDatatype(),
+                  MPI_SUM, this->getCommunicator());
     return values;
   }
 
@@ -729,8 +727,8 @@ class DistributedFullGrid {
     const auto& lowerBounds = this->getLowerBounds();
     std::vector<real> coords(dim_);
     for (DimType i = 0; i < dim_; ++i) {
-      coords[i] =
-          (lowerBounds[i] + (hasBoundaryPoints_[i] > 0 ? 0 : 1)) * this->getGridSpacing()[i];
+      coords[i] = static_cast<double>(lowerBounds[i] + (hasBoundaryPoints_[i] > 0 ? 0 : 1)) *
+                  this->getGridSpacing()[i];
     }
     return coords;
   }
