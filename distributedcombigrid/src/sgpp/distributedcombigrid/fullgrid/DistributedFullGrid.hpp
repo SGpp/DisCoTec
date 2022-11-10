@@ -285,33 +285,35 @@ class DistributedFullGrid {
     DistributedFullGrid* dfgPointer_;
   };
 
-  FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex, const std::vector<real>& coords) const {
+  FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex,
+                              const std::vector<real>& coords) const {
     auto firstIndex = IndexVector(dim_, 0);
     auto lastIndex = this->getLastGlobalIndex() - this->getFirstGlobalIndex();
     // if this local index is out of bounds, return 0. (will be contributed by other partial dfg)
-    if (! (localIndex >= firstIndex && localIndex <= lastIndex) ) {
+    if (!(localIndex >= firstIndex && localIndex <= lastIndex)) {
       // std::cout << "out of bounds" << localIndex << firstIndex << lastIndex << std::endl;
       return 0.;
     }
 
     // get coords corresponding to localIndex
     auto localLinearIndex = getLocalLinearIndex(localIndex);
-    std::vector<real> pointCoords (this->getDimension());
+    std::vector<real> pointCoords(this->getDimension());
     getCoordsLocal(localLinearIndex, pointCoords);
 
     // get product of 1D hat functions on coords
     auto h = getGridSpacing();
-    real phi_c = 1.; // value of product of basis function on coords
-    for (DimType d = 0 ; d < dim_ ; ++d){
+    real phi_c = 1.;  // value of product of basis function on coords
+    for (DimType d = 0; d < dim_; ++d) {
       // get distance between coords and point
       pointCoords[d] -= coords[d];
-      if (std::abs(pointCoords[d]) > h[d]){
-        std::cout << "assert bounds " << pointCoords << coords <<
-         h << d << localIndex << lastIndex << std::endl;
+      if (std::abs(pointCoords[d]) > h[d]) {
+        std::cout << "assert bounds " << pointCoords << coords << h << static_cast<int>(d)
+                  << localIndex << lastIndex << std::endl;
         assert(false &&
-          "should only be called for coordinates within the support of this point's basis function");
+               "should only be called for coordinates within the support of this point's basis "
+               "function");
       }
-      phi_c *= 1. - std::abs(pointCoords[d]/h[d]);
+      phi_c *= 1. - std::abs(pointCoords[d] / h[d]);
     }
     // std::cout << "coords " <<  localIndex << coords << localLinearIndex << h << std::endl;
     // std::cout << "phi_c " << phi_c << this->getElementVector()[localLinearIndex] << std::endl;
@@ -320,14 +322,16 @@ class DistributedFullGrid {
   }
 
   /**
-   * @brief recursive call to evaluate all neighbor points' contributions to the coordinate (on this part of the grid)
+   * @brief recursive call to evaluate all neighbor points' contributions to the coordinate (on this
+   * part of the grid)
    *
    * @param localIndex the (in-all-dimensions lower) neighbor of coords
    * @param dim the current dimension to split on (start with 0)
    * @param coords the coordinate to interpolate on
    * @return FG_ELEMENT the interpolated value at coords
    */
-  FG_ELEMENT evalMultiindexRecursively (const IndexVector& localIndex, DimType dim, const std::vector<real>& coords) const {
+  FG_ELEMENT evalMultiindexRecursively(const IndexVector& localIndex, DimType dim,
+                                       const std::vector<real>& coords) const {
     assert(!(dim > this->getDimension()));
     if (dim == this->getDimension()) {
       // std::cout << "eval " << localIndex << std::endl;
@@ -338,7 +342,20 @@ class DistributedFullGrid {
       localIndexDimPlusOne[dim] += 1;
       // std::cout << localIndex << localIndexDimPlusOne << std::endl;
       sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
-      sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1), coords);
+      auto secondCoords = coords;
+      if (this->hasBoundaryPoints_[dim] == 1) {
+        // assume periodicity
+        if (this->getCartesianUtils().isOnLowerBoundaryInDimension(dim) &&
+            localIndexDimPlusOne[dim] == this->getGlobalSizes()[dim]) {
+          // if we are at the end of the dimension, wrap around
+          localIndexDimPlusOne[dim] = 0;
+          secondCoords[dim] -= 1.;
+          // std::cout << "wrap around " << localIndex << coords << localIndexDimPlusOne
+          //           << secondCoords << std::endl;
+        }
+      }
+      sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
+                                       secondCoords);
       return sum;
     }
   }
