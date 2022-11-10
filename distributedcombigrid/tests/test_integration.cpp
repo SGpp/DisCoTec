@@ -149,17 +149,28 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     /* distribute task according to load model and start computation for
      * the first time */
     BOOST_TEST_CHECKPOINT("run first");
+    auto start = std::chrono::high_resolution_clock::now();
     manager.runfirst();
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("manager run first solver step: " << duration.count() << " milliseconds");
 
     for (size_t it = 0; it < ncombi - 1; ++it) {
       BOOST_TEST_CHECKPOINT("combine");
+      start = std::chrono::high_resolution_clock::now();
       manager.combine();
+      end = std::chrono::high_resolution_clock::now();
+      duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      BOOST_TEST_MESSAGE("manager combine: " << duration.count() << " milliseconds");
 
       BOOST_TEST_CHECKPOINT("run next");
+      start = std::chrono::high_resolution_clock::now();
       manager.runnext();
+      end = std::chrono::high_resolution_clock::now();
+      duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      BOOST_TEST_MESSAGE("manager run: " << duration.count() << " milliseconds");
     }
     manager.combine();
-    std::cout << "combined " << ngroup << " " << nprocs << std::endl;
 
     std::string filename("integration_" + std::to_string(ncombi) + ".raw");
     BOOST_TEST_CHECKPOINT("write solution " + filename);
@@ -167,11 +178,16 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     manager.parallelEval(lmax, filename, 0);
     manager.writeSparseGridMinMaxCoefficients("integration_" + std::to_string(boundaryV) +
                                               "_sparse_minmax");
+    Stats::stopEvent("manager write solution");
+    BOOST_TEST_MESSAGE("manager write solution: " << Stats::getDuration("manager write solution")
+                                                  << " milliseconds");
+    Stats::startEvent("manager write DSG");
     manager.writeDSGsToDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
     manager.readDSGsFromDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
-    Stats::stopEvent("manager write solution");
-    std::cout << "wrote solution  " << ngroup << " " << nprocs << std::endl;
 
+    Stats::stopEvent("manager write DSG");
+    BOOST_TEST_MESSAGE("manager write/read DSG: " << Stats::getDuration("manager write DSG")
+                                                  << " milliseconds");
     // test Monte-Carlo interpolation
     // only if boundary values are used
     if (boundaryV > 0) {
@@ -181,7 +197,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       Stats::startEvent("manager interpolate");
       auto values = manager.interpolateValues(interpolationCoords);
       Stats::stopEvent("manager interpolate");
-      std::cout << "did interpolation " << ngroup << " " << nprocs << std::endl;
+      BOOST_TEST_MESSAGE("manager interpolate: " << Stats::getDuration("manager interpolate")
+                                                 << " milliseconds");
 
       if (boundaryV > 1) {
         TestFnCount<CombiDataType> initialFunction;
@@ -353,11 +370,12 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 #ifndef ISGENE  // integration tests won't work with ISGENE because of worker magic
 
 #ifndef NDEBUG // in case of a build with asserts, have longer timeout
-BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(180))
+BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(280))
 #else
-BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(40))
-#endif // NDEBUG
+BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(80))
+#endif  // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
+  auto start = std::chrono::high_resolution_clock::now();
   auto rank = TestHelper::getRank(MPI_COMM_WORLD);
   for (BoundaryType boundary : {0, 1, 2}) {
     for (size_t ngroup : {1, 2, 3, 4}) {
@@ -370,7 +388,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
       }
     }
     for (size_t ngroup : {1, 2}) {
-      for (size_t nprocs : {3}) {  // TODO currently fails for non-power-of-2-decompositions
+      for (size_t nprocs : {3}) {
         if (rank == 0)
           std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
                     << nprocs << std::endl;
@@ -380,7 +398,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     }
     for (size_t ngroup : {1, 2}) {
       if (boundary > 0) {
-        for (size_t nprocs : {4}) {  // TODO currently fails for non-power-of-2-decompositions
+        for (size_t nprocs : {4}) {
           if (rank == 0)
             std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
                       << nprocs << std::endl;
@@ -391,7 +409,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     }
     for (size_t ngroup : {1}) {
       for (size_t nprocs : {5}) {
-        if (boundary > 0) {
+        if (boundary == 2) {
           if (rank == 0)
             std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
                       << nprocs << std::endl;
@@ -404,6 +422,10 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     MPI_Barrier(MPI_COMM_WORLD);
     BOOST_CHECK(!TestHelper::testStrayMessages());
   }
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE("time to run all 'integration' tests: " << duration.count()
+                                                             << " milliseconds");
 }
 
 BOOST_AUTO_TEST_CASE(test_2) { checkPassingHierarchicalBases<HierarchicalHatBasisFunction>(1, 1); }
