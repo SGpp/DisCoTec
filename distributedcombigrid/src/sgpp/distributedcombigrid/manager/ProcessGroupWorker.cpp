@@ -995,7 +995,7 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   // receive coordinates and broadcast to group members
   std::vector<std::vector<real>> interpolationCoords;
-  receiveAndBroadcastInterpolaolationCoords) {
+  receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
   auto numCoordinates = interpolationCoords.size();
 
   // call interpolation function on tasks and write out task-wise
