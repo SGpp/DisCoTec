@@ -481,7 +481,7 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_3) {
 BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels) {
   LevelVector lmin = {2, 2, 2, 2};
   LevelVector lmax = {4, 4, 4, 4};
-  DimType dim = lmin.size();
+  auto dim = static_cast<DimType>(lmin.size());
   std::vector<LevelVector> created;
   combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
   // std::cout << lmin << lmax << std::endl;
@@ -536,7 +536,7 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
                     std::accumulate(lmax.begin(), lmax.end(), 1, std::multiplies<LevelType>()));
   for (BoundaryType boundary : {0, 1, 2}) {
     std::vector<BoundaryType> boundaryVector = {boundary, boundary, boundary,
-                                                (boundary == 0) ? 2 : 0};
+                                                static_cast<BoundaryType>((boundary == 0) ? 2 : 0)};
     BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),
                       getNumDofHierarchical(downSet, boundaryVector));
     BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),

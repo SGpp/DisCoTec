@@ -1098,7 +1098,7 @@ class DistributedFullGrid {
     subspaceIndexToFGIndices_.clear();
     subspaceIndexToFGIndices_.reserve(downwardClosedSet.size());
 
-    IndexType index = 0;
+    typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType index = 0;
     // resize all common subspaces in dsg, if necessary
     for (const auto& level : downwardClosedSet) {
       index = dsg_->getIndexInRange(level, index);

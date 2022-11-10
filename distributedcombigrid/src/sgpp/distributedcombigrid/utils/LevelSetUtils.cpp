@@ -101,7 +101,8 @@ void createTruncatedHierarchicalLevelsRec(DimType dim, size_t n, LevelVector& l,
           created.push_back(l);
         }
       } else {
-        createTruncatedHierarchicalLevelsRec(dim + 1, n, l, lmax, lmin, created);
+        createTruncatedHierarchicalLevelsRec(static_cast<DimType>(dim + 1), n, l, lmax, lmin,
+                                             created);
       }
     }
   }

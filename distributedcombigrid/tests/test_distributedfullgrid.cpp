@@ -53,7 +53,7 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
   for (size_t i = 0; i < groupSizes.size(); ++i) {
     // get memory footprints for after allocating different dfgs
     std::vector<int> procs(dim, 1);
-    procs[0] = groupSizes[i];
+    procs[0] = static_cast<int>(groupSizes[i]);
     CommunicatorType comm = TestHelper::getComm(procs);
 
     long unsigned int vmRSS, vmSize = 0;
