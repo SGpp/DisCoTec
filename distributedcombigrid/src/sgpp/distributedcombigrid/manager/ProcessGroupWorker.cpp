@@ -978,24 +978,24 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
 
   // call interpolation function on tasks and reduce with combination coefficient
   std::vector<CombiDataType> values(numCoordinates, 0.);
-  for (Task* t : tasks_){
+  for (Task* t : tasks_) {
     auto coeff = this->combiParameters_.getCoeff(t->getID());
-    auto taskVals = t->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
-
     for (size_t i = 0; i < numCoordinates; ++i) {
-      values[i] += taskVals[i] * coeff;
+      values[i] += t->getDistributedFullGrid().evalLocal(interpolationCoords[i]) * coeff;
     }
   }
+  MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
+                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
+                MPI_SUM, theMPISystem()->getLocalComm());
   return values;
 }
-
 
 void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
 #ifdef HAVE_HIGHFIVE
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   // receive coordinates and broadcast to group members
   std::vector<std::vector<real>> interpolationCoords;
-  receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
+  receiveAndBroadcastInterpolaolationCoords) {
   auto numCoordinates = interpolationCoords.size();
 
   // call interpolation function on tasks and write out task-wise
