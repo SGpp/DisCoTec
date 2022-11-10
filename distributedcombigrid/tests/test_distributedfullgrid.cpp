@@ -600,6 +600,33 @@ BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
         BOOST_CHECK_EQUAL(twoBoundaryHighestCoordinate[d], noBoundaryHighestCoordinate[d]);
       }
     }
+
+    for (const auto* dfg : {&dfgTwoBoundary, &dfgOneBoundary, &dfgNoBoundary}) {
+      auto localSizes = dfg->getLocalSizes();
+      auto upperBounds = dfg->getUpperBounds();
+      auto lowerBounds = dfg->getLowerBounds();
+      auto boundsDiff = upperBounds - lowerBounds;
+      BOOST_CHECK_EQUAL_COLLECTIONS(localSizes.begin(), localSizes.end(), boundsDiff.begin(),
+                                    boundsDiff.end());
+      auto globalSizes = dfg->getGlobalSizes();
+      BOOST_CHECK(localSizes <= globalSizes);
+      auto numDof = combigrid::getNumDofNodal(fullGridLevel, dfg->returnBoundaryFlags());
+      BOOST_CHECK_EQUAL(numDof, std::accumulate(globalSizes.begin(), globalSizes.end(), 1,
+                                                std::multiplies<IndexType>()));
+
+      auto localSizesReduced = localSizes;
+      MPI_Allreduce(MPI_IN_PLACE, localSizesReduced.data(), dim,
+                    abstraction::getMPIDatatype(abstraction::getabstractionDataType<IndexType>()),
+                    MPI_SUM, comm);
+      auto numProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<int>());
+      for (DimType d = 0; d < dim; d++) {
+        // correct the reduced number of points that were added from processes parallel in other
+        // dimensions
+        localSizesReduced[d] = localSizesReduced[d] / (numProcs / procs[d]);
+      }
+      BOOST_CHECK_EQUAL_COLLECTIONS(localSizesReduced.begin(), localSizesReduced.end(),
+                                    globalSizes.begin(), globalSizes.end());
+    }
   }
 }
 
