@@ -287,14 +287,6 @@ class DistributedFullGrid {
 
   FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex,
                               const std::vector<real>& coords) const {
-    auto firstIndex = IndexVector(dim_, 0);
-    auto lastIndex = this->getLastGlobalIndex() - this->getFirstGlobalIndex();
-    // if this local index is out of bounds, return 0. (will be contributed by other partial dfg)
-    if (!(localIndex >= firstIndex && localIndex <= lastIndex)) {
-      // std::cout << "out of bounds" << localIndex << firstIndex << lastIndex << std::endl;
-      return 0.;
-    }
-
     // get coords corresponding to localIndex
     auto localLinearIndex = getLocalLinearIndex(localIndex);
     std::vector<real> pointCoords(this->getDimension());
@@ -308,7 +300,7 @@ class DistributedFullGrid {
       pointCoords[d] -= coords[d];
       if (std::abs(pointCoords[d]) > h[d]) {
         std::cout << "assert bounds " << pointCoords << coords << h << static_cast<int>(d)
-                  << localIndex << lastIndex << std::endl;
+                  << localIndex << std::endl;
         assert(false &&
                "should only be called for coordinates within the support of this point's basis "
                "function");
@@ -341,7 +333,10 @@ class DistributedFullGrid {
       IndexVector localIndexDimPlusOne = localIndex;
       localIndexDimPlusOne[dim] += 1;
       // std::cout << localIndex << localIndexDimPlusOne << std::endl;
-      sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
+      auto lastIndexInDim = this->getLastGlobalIndex()[dim] - this->getFirstGlobalIndex()[dim];
+      if (localIndex[dim] >= 0 && localIndex[dim] <= lastIndexInDim) {
+        sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
+      }
       auto secondCoords = coords;
       if (this->hasBoundaryPoints_[dim] == 1) {
         // assume periodicity
@@ -354,8 +349,10 @@ class DistributedFullGrid {
           //           << secondCoords << std::endl;
         }
       }
-      sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
-                                       secondCoords);
+      if (localIndexDimPlusOne[dim] >= 0 && localIndexDimPlusOne[dim] <= lastIndexInDim) {
+        sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
+                                         secondCoords);
+      }
       return sum;
     }
   }
@@ -378,12 +375,15 @@ class DistributedFullGrid {
     IndexVector localIndexLowerNonzeroNeighborPoint (dim_);
     for (DimType d = 0 ; d < dim_ ; ++d){
 #ifndef NDEBUG
-      if(coords[d] < 0. || coords[d] > 1.) {
-        std::cout << "coords " << coords << " out of bounds" << std::endl;
+      if (coords[d] < 0. || coords[d] > 1.) {
+      std::cout << "coords " << coords << " out of bounds" << std::endl;
       }
       assert(coords[d] >= 0. && coords[d] <= 1.);
-#endif // ndef NDEBUG
-      localIndexLowerNonzeroNeighborPoint[d] = static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
+#endif  // ndef NDEBUG
+      // this gets the local index of the point that is lower than the coordinate
+      // may also be negative if the coordinate is lower than this processes' coordinates
+      localIndexLowerNonzeroNeighborPoint[d] =
+          static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
     }
     // std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
 
@@ -392,9 +392,11 @@ class DistributedFullGrid {
     value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
 
     if (request == nullptr) {
-      MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
+      MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM,
+                    this->getCommunicator());
     } else {
-      MPI_Iallreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator(), request);
+      MPI_Iallreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM,
+                     this->getCommunicator(), request);
     }
   }
 
