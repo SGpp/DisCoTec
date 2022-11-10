@@ -579,9 +579,9 @@ BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
     BOOST_CHECK_CLOSE(twoBoundaryIntegral, oneBoundaryIntegral, TestHelper::tolerance);
     BOOST_CHECK_CLOSE(twoBoundaryIntegral, noBoundaryIntegral, TestHelper::tolerance);
 
-    auto twoBoundaryGridSpacing = dfgTwoBoundary.getGridSpacing();
-    auto oneBoundaryGridSpacing = dfgOneBoundary.getGridSpacing();
-    auto noBoundaryGridSpacing = dfgNoBoundary.getGridSpacing();
+    const auto& twoBoundaryGridSpacing = dfgTwoBoundary.getGridSpacing();
+    const auto& oneBoundaryGridSpacing = dfgOneBoundary.getGridSpacing();
+    const auto& noBoundaryGridSpacing = dfgNoBoundary.getGridSpacing();
     for (DimType d = 0; d < dim; d++) {
       BOOST_CHECK_CLOSE(twoBoundaryGridSpacing[d], oneBoundaryGridSpacing[d], TestHelper::tolerance);
       BOOST_CHECK_CLOSE(twoBoundaryGridSpacing[d], noBoundaryGridSpacing[d], TestHelper::tolerance);
@@ -617,6 +617,7 @@ BOOST_AUTO_TEST_CASE(interpolation_test) {
     DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, false);
 
     // set function values on dfgs
+    // choose function that will be 0 on boundary
     ParaboloidFn<CombiDataType> f;
     std::vector<double> coords(dim);
     for (IndexType li = 0; li < dfgTwoBoundary.getNrLocalElements(); ++li) {
@@ -634,24 +635,22 @@ BOOST_AUTO_TEST_CASE(interpolation_test) {
       dfgNoBoundary.getData()[li] = f(coords);
     }
 
-    auto numMCCoordinates = 1e3;
+    auto numMCCoordinates = 1e2;
     std::vector<std::vector<double>> interpolationCoords =
         montecarlo::getRandomCoordinates(numMCCoordinates, static_cast<size_t>(dim));
 
     auto interpolatedValuesTwoBoundary = dfgTwoBoundary.getInterpolatedValues(interpolationCoords);
-
-    // auto interpolatedValuesOneBoundary =
-    // dfgOneBoundary.getInterpolatedValues(interpolationCoords);
-
+    auto interpolatedValuesOneBoundary = dfgOneBoundary.getInterpolatedValues(interpolationCoords);
     auto interpolatedValuesNoBoundary = dfgNoBoundary.getInterpolatedValues(interpolationCoords);
 
-    // BOOST_CHECK_EQUAL_COLLECTIONS(interpolatedValuesTwoBoundary.begin(),
-    //                               interpolatedValuesTwoBoundary.end(),
-    //                               interpolatedValuesOneBoundary.begin(),
-    //                               interpolatedValuesOneBoundary.end());
-    BOOST_CHECK_EQUAL_COLLECTIONS(
-        interpolatedValuesTwoBoundary.begin(), interpolatedValuesTwoBoundary.end(),
-        interpolatedValuesNoBoundary.begin(), interpolatedValuesNoBoundary.end());
+    if (TestHelper::getRank(comm) == 0) {
+      BOOST_CHECK_EQUAL_COLLECTIONS(
+          interpolatedValuesTwoBoundary.begin(), interpolatedValuesTwoBoundary.end(),
+          interpolatedValuesOneBoundary.begin(), interpolatedValuesOneBoundary.end());
+      BOOST_CHECK_EQUAL_COLLECTIONS(
+          interpolatedValuesTwoBoundary.begin(), interpolatedValuesTwoBoundary.end(),
+          interpolatedValuesNoBoundary.begin(), interpolatedValuesNoBoundary.end());
+    }
   }
 }
 
