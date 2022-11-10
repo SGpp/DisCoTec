@@ -290,17 +290,19 @@ class DistributedFullGrid {
 
   FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex,
                               const std::vector<real>& coords) const {
-    static std::vector<real> coordDistance;
-    coordDistance = this->getLowerBoundsCoords();
+    const auto& lowerBounds = this->getLowerBounds();
 
     // get product of 1D hat functions on coords
     const auto& h = getGridSpacing();
     real phi_c = 1.;  // value of product of basis function on coords
     for (DimType d = 0; d < dim_; ++d) {
       // get distance between coords and point
-      coordDistance[d] = (coordDistance[d] + localIndex[d] * h[d]) - coords[d];
+      // this should be the same as
+      // coordDistance = this->getCoordsLocal(localIndex) - coords;
+      // cf. getLowerBoundsCoords()
+      auto coordDistance = (lowerBounds[d] + (hasBoundaryPoints_[d] > 0 ? 0 : 1) + localIndex[d]) * h[d] - coords[d];
 #ifndef NDEBUG
-      if (std::abs(coordDistance[d]) > h[d]) {
+      if (std::abs(coordDistance) > h[d]) {
         std::cout << "assert bounds " << coordDistance << coords << h << static_cast<int>(d)
                   << localIndex << std::endl;
         assert(false &&
@@ -308,7 +310,7 @@ class DistributedFullGrid {
                "function");
       }
 #endif // ndef NDEBUG
-      phi_c *= 1. - std::abs(coordDistance[d] / h[d]);
+      phi_c *= 1. - std::abs(coordDistance / h[d]);
     }
 
     auto localLinearIndex = getLocalLinearIndex(localIndex);
@@ -335,28 +337,27 @@ class DistributedFullGrid {
       return evalLocalIndexOn(localIndex, coords);
     } else {
       FG_ELEMENT sum = 0.;
-      IndexVector localIndexDimPlusOne = localIndex;
-      localIndexDimPlusOne[dim] += 1;
-      // std::cout << localIndex << localIndexDimPlusOne << std::endl;
       auto lastIndexInDim = this->getLastGlobalIndex()[dim] - this->getFirstGlobalIndex()[dim];
       if (localIndex[dim] >= 0 && localIndex[dim] <= lastIndexInDim) {
         sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
       }
-      auto secondCoords = coords;
-      if (this->hasBoundaryPoints_[dim] == 1) {
-        // assume periodicity
-        if (this->getCartesianUtils().isOnLowerBoundaryInDimension(dim) &&
+
+      IndexVector localIndexDimPlusOne = localIndex;
+      localIndexDimPlusOne[dim] += 1;
+      if (localIndexDimPlusOne[dim] >= 0) {
+        auto secondCoords = coords;
+        if (this->hasBoundaryPoints_[dim] == 1 &&
+            this->getCartesianUtils().isOnLowerBoundaryInDimension(dim) &&
             localIndexDimPlusOne[dim] == this->getGlobalSizes()[dim]) {
+          // assume periodicity
           // if we are at the end of the dimension, wrap around
           localIndexDimPlusOne[dim] = 0;
           secondCoords[dim] -= 1.;
-          // std::cout << "wrap around " << localIndex << coords << localIndexDimPlusOne
-          //           << secondCoords << std::endl;
         }
-      }
-      if (localIndexDimPlusOne[dim] >= 0 && localIndexDimPlusOne[dim] <= lastIndexInDim) {
-        sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
-                                         secondCoords);
+        if (localIndexDimPlusOne[dim] <= lastIndexInDim) {
+          sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
+                                           secondCoords);
+        }
       }
       return sum;
     }
