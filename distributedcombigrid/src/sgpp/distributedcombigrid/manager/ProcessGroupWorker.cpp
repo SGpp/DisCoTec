@@ -1179,15 +1179,24 @@ void ProcessGroupWorker::updateCombiParameters() {
       dims.assign(par.begin(), par.end());
     }
 
-    // Make all dimensions not periodic //TODO(pollinta) allow periodicity
-    std::vector<int> periods (combiParameters_.getDim(), 0);
+    std::vector<int> periods(combiParameters_.getDim());
+    // Make dimensions periodic depending on boundary parameters
+    for (const auto& b : combiParameters_.getBoundary()) {
+      if (b == 1) {
+        periods.push_back(1);
+
+      } else {
+        periods.push_back(0);
+      }
+    }
 
     // don't let MPI assign arbitrary ranks
     int reorder = false;
 
     // Create a communicator given the topology.
     MPI_Comm new_communicator;
-    MPI_Cart_create(theMPISystem()->getLocalComm(), combiParameters_.getDim(), dims.data(), periods.data(), reorder, &new_communicator);
+    MPI_Cart_create(theMPISystem()->getLocalComm(), combiParameters_.getDim(), dims.data(),
+                    periods.data(), reorder, &new_communicator);
 
     theMPISystem()->storeLocalComm(new_communicator);
   }
