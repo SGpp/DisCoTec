@@ -206,9 +206,6 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   interpolationCoords.emplace_back(dim, 0.5 - 1e-4);
   interpolationCoords.emplace_back(dim, 0.5 + 1e-5);
   interpolationCoords.emplace_back(dim, 0.5 - 1e-5);
-  BOOST_CHECK_CLOSE(dfg.eval(interpolationCoords[0]).real(), f(interpolationCoords[0]).real(),
-                    TestHelper::tolerance);
-
   auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
 
   for (size_t i = 0; i < interpolationCoords.size(); ++i) {

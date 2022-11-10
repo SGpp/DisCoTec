@@ -374,13 +374,13 @@ class DistributedFullGrid {
 
   /** evaluates the full grid on the specified coordinates
    * @param coords ND coordinates on the unit square [0,1]^D*/
-  FG_ELEMENT eval(const std::vector<real>& coords) const {
+  FG_ELEMENT evalLocal(const std::vector<real>& coords) const {
     FG_ELEMENT value;
-    eval(coords, value);
+    evalLocal(coords, value);
     return value;
   }
 
-  void eval(const std::vector<real>& coords, FG_ELEMENT& value) const {
+  void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
     assert(coords.size() == this->getDimension());
 
     // get the lowest-index point of the points
@@ -416,7 +416,7 @@ class DistributedFullGrid {
     std::vector<FG_ELEMENT> values;
     values.resize(numValues);
     for (size_t i = 0; i < numValues; ++i) {
-      this->eval(interpolationCoords[i], values[i]);
+      this->evalLocal(interpolationCoords[i], values[i]);
     }
     MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numValues), this->getMPIDatatype(),
                   MPI_SUM, this->getCommunicator());
