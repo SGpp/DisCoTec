@@ -176,15 +176,17 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     BOOST_TEST_CHECKPOINT("write solution " + filename);
     Stats::startEvent("manager write solution");
     manager.parallelEval(lmax, filename, 0);
+    BOOST_TEST_CHECKPOINT("write min/max coefficients");
     manager.writeSparseGridMinMaxCoefficients("integration_" + std::to_string(boundaryV) +
                                               "_sparse_minmax");
     Stats::stopEvent("manager write solution");
     BOOST_TEST_MESSAGE("manager write solution: " << Stats::getDuration("manager write solution")
                                                   << " milliseconds");
+    filename = "integration_" + std::to_string(boundaryV) +
+               "_dsgs" BOOST_TEST_CHECKPOINT("write DSGS " + filename);
     Stats::startEvent("manager write DSG");
-    manager.writeDSGsToDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
-    manager.readDSGsFromDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
-
+    manager.writeDSGsToDisk(filename);
+    manager.readDSGsFromDisk(filename);
     Stats::stopEvent("manager write DSG");
     BOOST_TEST_MESSAGE("manager write/read DSG: " << Stats::getDuration("manager write DSG")
                                                   << " milliseconds");
