@@ -63,6 +63,7 @@ class DistributedFullGrid {
     nrElements_ = 1;
     offsets_.resize(dim_);
     nrPoints_.resize(dim_);
+    gridSpacing_.resize(dim_);
 
     for (DimType j = 0; j < dim_; j++) {
       nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
@@ -71,6 +72,8 @@ class DistributedFullGrid {
       if (hasBoundaryPoints_[j] == 1) {
         assert(!decomposition.empty() || !forwardDecomposition);
       }
+      assert(levels_[j] < 30);
+      gridSpacing_[j] = oneOverPowOfTwo[levels_[j]];
     }
 
     if (decomposition.size() == 0) {
@@ -293,7 +296,7 @@ class DistributedFullGrid {
     getCoordsLocal(localLinearIndex, pointCoords);
 
     // get product of 1D hat functions on coords
-    auto h = getGridSpacing();
+    const auto& h = getGridSpacing();
     real phi_c = 1.;  // value of product of basis function on coords
     for (DimType d = 0; d < dim_; ++d) {
       // get distance between coords and point
@@ -371,8 +374,9 @@ class DistributedFullGrid {
     // get the lowest-index point of the points
     // whose basis functions contribute to the interpolated value
     auto lowerCoords = getLowerBoundsCoords();
-    auto h = getGridSpacing();
-    IndexVector localIndexLowerNonzeroNeighborPoint (dim_);
+    const auto& h = getGridSpacing();
+    static IndexVector localIndexLowerNonzeroNeighborPoint; 
+    localIndexLowerNonzeroNeighborPoint.resize(dim_);
     for (DimType d = 0 ; d < dim_ ; ++d){
 #ifndef NDEBUG
       if (coords[d] < 0. || coords[d] > 1.) {
@@ -651,17 +655,12 @@ class DistributedFullGrid {
   inline const LevelVector& getLevels() const { return levels_; }
 
   /** returns the grid spacing (sometimes called h) */
-  std::vector<double> getGridSpacing() const {
-    std::vector<double> h(dim_);
-    for (DimType d = 0 ; d < dim_ ; ++d){
-      assert(levels_[d] < 30);
-      h[d] = oneOverPowOfTwo[levels_[d]];
-    }
-    return h;
+  inline const std::vector<double>& getGridSpacing() const {
+    return gridSpacing_;
   }
 
   double getInnerNodalBasisFunctionIntegral() const {
-    auto h = this->getGridSpacing();
+    const auto& h = this->getGridSpacing();
     return std::accumulate(h.begin(), h.end(), 1., std::multiplies<double>());
   }
 
@@ -1979,6 +1978,9 @@ class DistributedFullGrid {
 
   /** levels for each dimension */
   LevelVector levels_;
+
+  /** the grid spacing h for each dimension */
+  std::vector<double> gridSpacing_;
 
   /** number of points per axis boundary included*/
   IndexVector nrPoints_;
