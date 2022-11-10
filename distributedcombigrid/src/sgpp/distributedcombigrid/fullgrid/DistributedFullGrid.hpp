@@ -345,18 +345,23 @@ class DistributedFullGrid {
       IndexVector localIndexDimPlusOne = localIndex;
       localIndexDimPlusOne[dim] += 1;
       if (localIndexDimPlusOne[dim] >= 0) {
-        auto secondCoords = coords;
         if (this->hasBoundaryPoints_[dim] == 1 &&
             this->getCartesianUtils().isOnLowerBoundaryInDimension(dim) &&
             localIndexDimPlusOne[dim] == this->getGlobalSizes()[dim]) {
           // assume periodicity
           // if we are at the end of the dimension, wrap around
           localIndexDimPlusOne[dim] = 0;
+          auto secondCoords = coords;
           secondCoords[dim] -= 1.;
-        }
-        if (localIndexDimPlusOne[dim] <= lastIndexInDim) {
-          sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
-                                           secondCoords);
+          if (localIndexDimPlusOne[dim] <= lastIndexInDim) {
+            sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
+                                             secondCoords);
+          }
+        } else {
+          if (localIndexDimPlusOne[dim] <= lastIndexInDim) {
+            sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
+                                             coords);
+          }
         }
       }
       return sum;
