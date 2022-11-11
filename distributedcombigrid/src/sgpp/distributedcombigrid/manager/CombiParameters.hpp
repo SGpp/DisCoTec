@@ -96,7 +96,13 @@ class CombiParameters {
 
   inline const std::vector<bool>& getBoundary() { return boundary_; }
 
-  inline real getCoeff(size_t taskID) { return coeffs_[taskID]; }
+  inline real getCoeff(size_t taskID) {
+    if (coeffs_.find(taskID) == coeffs_.end()) {
+      return 0;
+    } else {
+      return coeffs_[taskID];
+    }
+  }
 
   inline void getCoeffs(std::vector<size_t>& taskIDs, std::vector<real>& coeffs) {
     for (auto it : coeffs_) {
@@ -105,29 +111,48 @@ class CombiParameters {
     }
   }
 
-  inline std::map<size_t, real>& getCoeffsDict() { return coeffs_; }
-
   inline std::map<LevelVector, size_t>& getLevelsToIDs() { return levelsToIDs_; }
 
   inline void setCoeff(size_t taskID, real coeff) {
+    assert(coeffs_.find(taskID) != coeffs_.end());
     coeffs_[taskID] = coeff;
     combiDictionary_[levels_[taskID]] = coeff;
   }
 
   inline void setLevelsCoeffs(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels,
                               std::vector<real>& coeffs) {
-    assert(taskIDs.size() == coeffs.size());
-    assert(taskIDs.size() == levels.size());
+    if (taskIDs.empty() && ENABLE_FT) {
+      throw std::runtime_error(
+          "CombiParameters::setLevelsCoeffs: taskIDs is empty. Not sure if this should be possible "
+          "but this is an error for now so I can see where it happens.");
+    }
+#ifndef NDEBUG
+    assert(taskIDs.size() == coeffs.size() || taskIDs.empty());
+    auto sorted = taskIDs;
+    std::sort(sorted.begin(), sorted.end());
+    assert(std::unique(sorted.begin(), sorted.end()) == sorted.end());
+    assert(coeffs.size() == levels.size());
+#endif  // NDEBUG
 
-    for (size_t i = 0; i < taskIDs.size(); ++i) {
-      coeffs_[taskIDs[i]] = coeffs[i];
-      levels_[taskIDs[i]] = levels[i];
-      levelsToIDs_[levels[i]] = taskIDs[i];
-      combiDictionary_[levels[i]] = coeffs[i];
+    if (taskIDs.empty()) {
+      //not sure what to do then; testing...
+    } else {
+      for (size_t i = 0; i < taskIDs.size(); ++i) {
+        coeffs_[taskIDs[i]] = coeffs[i];
+        levels_[taskIDs[i]] = levels[i];
+        levelsToIDs_[levels[i]] = taskIDs[i];
+        combiDictionary_[levels[i]] = coeffs[i];
+      }
     }
   }
 
-  inline const LevelVector& getLevel(size_t taskID) { return levels_[taskID]; }
+  inline const LevelVector& getLevel(size_t taskID) {
+    static LevelVector emptyLevelVector(0);
+    if (levels_.find(taskID) == levels_.end()) {
+      return emptyLevelVector;
+    } else {
+    } return levels_[taskID];
+  }
 
   inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
 

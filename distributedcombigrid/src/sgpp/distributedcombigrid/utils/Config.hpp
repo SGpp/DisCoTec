@@ -4,11 +4,13 @@
 #include <complex>
 
 #ifndef NDEBUG
+#include <boost/assert.hpp>
 #define ASSERT(cond, msg) {\
     if(!(cond))\
     {\
         std::stringstream str;\
         str << msg;\
+        std::cout << msg;\
         std::cerr << msg;\
         BOOST_ASSERT_MSG(cond, str.str().c_str());\
     }\

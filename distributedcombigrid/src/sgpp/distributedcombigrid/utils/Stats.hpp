@@ -117,13 +117,13 @@ inline void Stats::finalize() {
 }
 
 inline void Stats::startEvent(const std::string& name) {
-  assert(initialized_);
+  ASSERT(initialized_, name);
 
   event_[name].emplace_back();
 }
 
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {
-  assert(initialized_);
+  ASSERT(initialized_, name << " " << value);
 
   attributes_[name] = value;
 }
