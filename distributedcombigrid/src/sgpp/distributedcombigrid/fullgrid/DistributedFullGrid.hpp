@@ -83,7 +83,8 @@ class DistributedFullGrid {
 
     nrLocalElements_ = 1;
     localOffsets_.resize(dim);
-
+    // cf. https://en.wikipedia.org/wiki/Row-_and_column-major_order#Address_calculation_in_general
+    // -> column-major order
     for (DimType j = 0; j < dim_; ++j) {
       localOffsets_[j] = nrLocalElements_;
       nrLocalElements_ *= nrLocalPoints_[j];
@@ -169,7 +170,18 @@ class DistributedFullGrid {
       assert(MPITypeIntegers.back() == MPI_ORDER_FORTRAN);
       assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
     }
+
+    SubarrayIterator(const std::vector<int>& subsizes, const std::vector<int>& starts,
+                                            DistributedFullGrid* dfgPointer)
+        : currentLocalIndex_(starts),
+          subsizes_(subsizes),
+          starts_(starts),
+          dfgPointer_(dfgPointer) {
+      assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
+    }
+
     // cheap rule of 5
+    SubarrayIterator() = delete;
     SubarrayIterator(const SubarrayIterator& other) = delete;
     SubarrayIterator& operator=( const SubarrayIterator & ) = delete;
     SubarrayIterator(SubarrayIterator&& other) = delete;

@@ -1009,7 +1009,6 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
   // receive coordinates and broadcast to group members
   std::vector<std::vector<real>> interpolationCoords;
   receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
-  auto numCoordinates = interpolationCoords.size();
 
   // call interpolation function on tasks and write out task-wise
   for (size_t i = 0; i < tasks_.size(); ++i) {
@@ -1249,21 +1248,20 @@ void ProcessGroupWorker::combineThirdLevel() {
     if (extraUniDSGVector_.size() > 0) {
       // copy partial data from uniDSG to extraDSG
       for (decltype(uniDsg->getNumSubspaces()) i = 0; i < uniDsg->getNumSubspaces(); ++i) {
-        assert(dsgToUse->getDataSize(i) == 0 ||
-               dsgToUse->getDataSize(i) == uniDsg->getDataSize(i));
+        assert(dsgToUse->getDataSize(i) == 0 || dsgToUse->getDataSize(i) == uniDsg->getDataSize(i));
         std::copy_n(uniDsg->getData(i), dsgToUse->getDataSize(i), dsgToUse->getData(i));
       }
     }
 
     // send dsg data to manager
-    Stats::startEvent("worker send dsg data to manager");
+    Stats::startEvent("worker send dsg data");
     sendDsgData(dsgToUse, manager, managerComm);
-    Stats::stopEvent("worker send dsg data to manager");
+    Stats::stopEvent("worker send dsg data");
 
     // recv combined dsgu from manager
-    Stats::startEvent("worker recv dsg data from manager");
+    Stats::startEvent("worker recv dsg data");
     recvDsgData(dsgToUse, manager, managerComm);
-    Stats::stopEvent("worker recv dsg data from manager");
+    Stats::stopEvent("worker recv dsg data");
 
     if (extraUniDSGVector_.size() > 0) {
       // copy partial data from extraDSG back to uniDSG
