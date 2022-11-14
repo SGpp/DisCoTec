@@ -36,6 +36,10 @@ static inline std::vector<IndexVector> getDefaultDecomposition(
   // create decomposition vectors
   std::vector<IndexVector> decomposition(dim);
   for (DimType i = 0; i < dim; ++i) {
+    if (cartesianProcsPerDimension[i] > globalNumPointsPerDimension[i]) {
+      throw std::runtime_error(
+          "change to coarser parallelization! currently not all processes can have points.");
+    }
     IndexVector& llbnd = decomposition[i];
     llbnd.resize(cartesianProcsPerDimension[i]);
 
