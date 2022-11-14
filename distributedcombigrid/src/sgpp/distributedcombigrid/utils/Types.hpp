@@ -48,21 +48,7 @@ namespace combigrid {
   // (= 2^19 * 3 * 3 * 3 * 3 * 3 = 2^19 * 3^5 = 127401984)
   typedef uint32_t SubspaceSizeType;
 
-
-  template <typename T>
-  inline std::string toString(std::vector<T> const& v){
-      std::stringstream ss;
-      ss << "[[";
-      for(size_t i = 0; i < v.size(); ++i)
-      {
-          if(i != 0)
-              ss << ",";
-          ss << v[i];
-      }
-      ss << "]]";
-      return ss.str();
-  }
-}
+}  // namespace combigrid
 
 namespace abstraction {
 
@@ -140,7 +126,19 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
 
   throw new std::invalid_argument("MPI_Datatype Convert(abstraction::DataType) failed!");
 }
-
-}
+  template <typename T>
+  inline std::string toString(std::vector<T> const& v){
+      std::stringstream ss;
+      ss << "[[";
+      for(size_t i = 0; i < v.size(); ++i)
+      {
+          if(i != 0)
+              ss << ",";
+          ss << v[i];
+      }
+      ss << "]]";
+      return ss.str();
+  }
+}  // namespace abstraction
 
 #endif /* TYPES_HPP_ */

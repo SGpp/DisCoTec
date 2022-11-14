@@ -8,7 +8,8 @@ cc = sys.argv[3]
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 GLPK_DIR= str(dir_path) + "/glpk"
-examples = ["combi_example", "combi_example_faults", "distributed_third_level", "gene_distributed", "gene_distributed_linear", "gene_distributed_third_level", "selalib_distributed"]
+examples = ["combi_example", "combi_example_faults", "distributed_third_level", "gene_distributed", "gene_distributed_linear", "gene_distributed_third_level", "distributed_advection", "selalib_distributed"]
+
 for example in examples:
     pfilein = open(str(dir_path)+ "/distributedcombigrid/examples/" + example + "/Makefile.template" ,'r')
     temp = pfilein.read()

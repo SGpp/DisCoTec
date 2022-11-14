@@ -236,8 +236,6 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
       assert(l[i] > 0);
     }
   }
-
-
   MPI_Comm_rank(comm_, &rank_);
   MPI_Comm_size(comm_, &commSize_);
 }

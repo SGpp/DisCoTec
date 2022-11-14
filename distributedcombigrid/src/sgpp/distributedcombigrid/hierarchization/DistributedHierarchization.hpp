@@ -1016,6 +1016,35 @@ static IndexType checkPredecessors(IndexType idx, DimType dim,
   return idx;
 }
 
+/* returns the neighboring process (in the sense that the neighbor has the same
+ * partion coordinates in all other dimensions than d) in dimension d which
+ * contains the point with the one-dimensional index idx1d
+ */
+template <typename FG_ELEMENT>
+RankType getNeighbor1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim, IndexType idx1d) {
+  // if global index is outside of domain return negative value
+  {
+    if (idx1d < 0) return -1;
+
+    IndexType numElementsD = dfg.getGlobalSizes()[dim];
+
+    if (idx1d > numElementsD - 1) return -1;
+  }
+
+  IndexVector globalAxisIndex = dfg.getLowerBounds();
+  globalAxisIndex[dim] = idx1d;
+
+  std::vector<int> partitionCoords(dfg.getDimension());
+  dfg.getPartitionCoords(globalAxisIndex, partitionCoords);
+  RankType r = dfg.getCartesianUtils().getRankFromPartitionCoords(partitionCoords);
+
+  // check if global index vector is actually contained in the domain of rank r
+  assert(globalAxisIndex >= dfg.getLowerBounds(r));
+  assert(globalAxisIndex < dfg.getUpperBounds(r));
+  assert(r < dfg.getCommunicatorSize());
+  return r;
+}
+
 // returns the next one-dimensional global index which fulfills
 // min( lmax, l(idx1d) + 1 )
 template <typename FG_ELEMENT>
