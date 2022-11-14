@@ -2137,15 +2137,16 @@ class DistributedFullGrid {
       }
       ASSERT(cartdims == dims, " cartdims: " << cartdims << " dims: " << dims);
       assert(cartdims == dims);
-      for (int d = 0; d < maxdims; ++d) {
-        if (hasBoundaryPoints_[d] == 1) {
-          // assert periodicity
-          assert(periods[d] == 1);
-        } else {
-          // assert no periodicity
-          assert(periods[d] == 0);
-        }
-      }
+      // not sure if this should be asserted -> for now, check only in exchangeGhostLayer...
+      // for (int d = 0; d < maxdims; ++d) {
+      //   if (hasBoundaryPoints_[d] == 1) {
+      //     // assert periodicity
+      //     assert(periods[d] == 1);
+      //   } else {
+      //     // assert no periodicity
+      //     assert(periods[d] == 0);
+      //   }
+      // }
 #endif
 
       // MPI_Comm_dup(comm, &communicator_);
