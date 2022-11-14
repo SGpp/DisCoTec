@@ -190,7 +190,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     auto normsLmax = manager.parallelEvalNorm(lmax, 0);
     auto analyticalNorms = manager.evalAnalyticalOnDFG(lmax, 0);
     auto error = manager.evalErrorOnDFG(lmax, 0);
-    if (boundaryV) {
+    if (boundaryV == 2) {
       BOOST_CHECK_CLOSE(analyticalNorms[0], normsLmax[0], TestHelper::tolerance);
       BOOST_CHECK_CLOSE(analyticalNorms[1], normsLmax[1], TestHelper::tolerance);
       BOOST_CHECK_CLOSE(analyticalNorms[2], normsLmax[2], TestHelper::tolerance);
