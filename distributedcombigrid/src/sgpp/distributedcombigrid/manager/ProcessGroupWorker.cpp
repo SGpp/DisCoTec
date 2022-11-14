@@ -1179,7 +1179,7 @@ void ProcessGroupWorker::updateCombiParameters() {
       dims.assign(par.begin(), par.end());
     }
 
-    std::vector<int> periods(combiParameters_.getDim());
+    std::vector<int> periods;
     // Make dimensions periodic depending on boundary parameters
     for (const auto& b : combiParameters_.getBoundary()) {
       if (b == 1) {
