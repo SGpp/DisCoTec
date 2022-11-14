@@ -4,30 +4,54 @@
 #define BOOST_TEST_DYN_LINK
 
 #include <boost/serialization/export.hpp>
+
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 
 using namespace combigrid;
 
 template <typename FG_ELEMENT>
 class ParaboloidFn {
-  public:
-    FG_ELEMENT operator()(std::vector<double>& coords) {
-      size_t dim = coords.size();
-      FG_ELEMENT sign;
-      (dim%2) ? sign = 1. : sign = -1.;
-      FG_ELEMENT result(sign);
-      for (size_t d = 0; d < dim; ++d) {
-        result *= coords[d] * (coords[d] - 1.);
-      }
-      return result;
+ public:
+  ParaboloidFn() = default;
+  ParaboloidFn(DistributedFullGrid<FG_ELEMENT>* dfg) : dfg_(dfg) {}
+
+  FG_ELEMENT operator()(std::vector<double>& coords) {
+    auto dim = static_cast<DimType>(coords.size());
+    FG_ELEMENT sign;
+    (dim % 2) ? sign = 1. : sign = -1.;
+    FG_ELEMENT result(sign);
+    for (size_t d = 0; d < dim; ++d) {
+      result *= coords[d] * (coords[d] - 1.);
     }
+    return result;
+  }
+
+  // overload for hierarchical surpluses
+  FG_ELEMENT operator()(IndexVector& globalIndex) {
+    auto dim = static_cast<DimType>(globalIndex.size());
+    FG_ELEMENT sign = -1.;
+    // (dim % 2) ? sign = -1. : sign = 1.;
+    LevelVector level(dim), index(dim);
+    BOOST_REQUIRE_NE(dfg_, nullptr);
+    auto globalLinearIndex = dfg_->getGlobalLinearIndex(globalIndex);
+    dfg_->getGlobalLI(globalLinearIndex, level, index);
+    if (std::any_of(level.begin(), level.end(), [](LevelType l) { return l == 0; })) {
+      return FG_ELEMENT(0.);
+    }
+    BOOST_REQUIRE(levelSum(level) < 18);
+    FG_ELEMENT result =
+        sign / static_cast<FG_ELEMENT>(combigrid::powerOfTwoByBitshift(levelSum(level) * 2));
+    return result;
+  }
+
+  DistributedFullGrid<FG_ELEMENT>* dfg_ = nullptr;
 };
 
 /* simple task class to set all values on the grid to $levelVector_1 / levelVector_2$
  */
 class TaskConstParaboloid : public combigrid::Task {
  public:
-  TaskConstParaboloid(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel)
+  TaskConstParaboloid(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel)
       : Task(2, l, boundary, coeff, loadModel), dfg_(nullptr){
         BOOST_TEST_CHECKPOINT("TaskConstParaboloid constructor");
       }

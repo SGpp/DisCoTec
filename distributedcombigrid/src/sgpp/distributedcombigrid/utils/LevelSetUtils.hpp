@@ -9,6 +9,7 @@ namespace combigrid {
 
 // compute powers of two quickly by bit-shifting
 inline IndexType powerOfTwoByBitshift(LevelType x) {
+  assert(x < sizeof(IndexType) * 8);
   if (x == 0) {
     return 1;
   } else if (x > 0) {
@@ -19,23 +20,19 @@ inline IndexType powerOfTwoByBitshift(LevelType x) {
   return -1;
 }
 
-inline IndexType getNumDofNodal(const LevelType& l_i, const bool& boundary) {
+inline IndexType getNumDofNodal(const LevelType& l_i, const BoundaryType& boundary) {
   assert(l_i > -1);
   if (l_i > 0) {
-    if (boundary == true) {
-      return powerOfTwoByBitshift(l_i) + 1;
-    } else {
-      return powerOfTwoByBitshift(l_i) - 1;
-    }
+    return powerOfTwoByBitshift(l_i) + boundary - 1;
   } else {
-    if (boundary == false) {
+    if (boundary == 0) {
       throw std::runtime_error("without boundary, there are no points on level 0");
     }
-    return 2;
+    return boundary;
   }
 }
 
-inline IndexType getNumDofNodal(const LevelVector& l, const std::vector<bool>& boundary) {
+inline IndexType getNumDofNodal(const LevelVector& l, const std::vector<BoundaryType>& boundary) {
   assert(l.size() == boundary.size());
   IndexType numDofPerGrid = 1;
   auto b = boundary.cbegin();
@@ -47,7 +44,7 @@ inline IndexType getNumDofNodal(const LevelVector& l, const std::vector<bool>& b
 }
 
 inline IndexType getNumDofNodal(const std::vector<LevelVector>& levelVectors,
-                                const std::vector<bool>& boundary) {
+                                const std::vector<BoundaryType>& boundary) {
   IndexType numDof = 0;
   for (const auto& l : levelVectors) {
     numDof += getNumDofNodal(l, boundary);
@@ -55,16 +52,16 @@ inline IndexType getNumDofNodal(const std::vector<LevelVector>& levelVectors,
   return numDof;
 }
 
-inline IndexType getNumDofHierarchical(const LevelType& l_i, const bool& boundary) {
+inline IndexType getNumDofHierarchical(const LevelType& l_i, const BoundaryType& boundary) {
   assert(l_i > 0);
-  if (l_i == 1 && boundary == true) {
-    return 3;
+  if (l_i == 1) {
+    return 1 + boundary;
   } else {
     return powerOfTwoByBitshift(static_cast<LevelType>(l_i - 1));
   }
 }
 
-inline IndexType getNumDofHierarchical(const LevelVector& l, const std::vector<bool>& boundary) {
+inline IndexType getNumDofHierarchical(const LevelVector& l, const std::vector<BoundaryType>& boundary) {
   assert(l.size() == boundary.size());
   auto b = boundary.cbegin();
   IndexType numDofPerSubspace = 1;
@@ -76,7 +73,7 @@ inline IndexType getNumDofHierarchical(const LevelVector& l, const std::vector<b
 }
 
 inline IndexType getNumDofHierarchical(const std::vector<LevelVector>& levelVectors,
-                                       const std::vector<bool>& boundary) {
+                                       const std::vector<BoundaryType>& boundary) {
   IndexType numDof = 0;
   for (const auto& l : levelVectors) {
     numDof += getNumDofHierarchical(l, boundary);

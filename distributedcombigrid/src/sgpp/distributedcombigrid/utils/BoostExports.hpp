@@ -20,6 +20,8 @@ BOOST_CLASS_EXPORT(combigrid::LinearBasisFunction)
 // BOOST_CLASS_EXPORT_GUID(combigrid::LinearBasisFunction, "LinearBasisFunction")
 // BOOST_CLASS_EXPORT(combigrid::HierarchicalHatBasisFunction);
 BOOST_CLASS_EXPORT_GUID(combigrid::HierarchicalHatBasisFunction, "HierarchicalHatBasisFunction")
+BOOST_CLASS_EXPORT_GUID(combigrid::HierarchicalHatPeriodicBasisFunction,
+                        "HierarchicalHatPeriodicBasisFunction")
 BOOST_CLASS_EXPORT_GUID(combigrid::FullWeightingBasisFunction, "FullWeightingBasisFunction")
 BOOST_CLASS_EXPORT_GUID(combigrid::FullWeightingPeriodicBasisFunction,
                         "FullWeightingPeriodicBasisFunction")
@@ -30,3 +32,5 @@ BOOST_CLASS_EXPORT_GUID(combigrid::BiorthogonalPeriodicBasisFunction,
 BOOST_CLASS_EXPORT(combigrid::FaultCriterion)
 BOOST_CLASS_EXPORT(combigrid::StaticFaults)
 BOOST_CLASS_EXPORT(combigrid::WeibullFaults)
+
+BOOST_CLASS_EXPORT(combigrid::CombiParameters)

@@ -42,7 +42,7 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
     for (int g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       for (auto b : dfg.returnBoundaryFlags()) {
-        BOOST_CHECK(b);
+        BOOST_CHECK(b == 2);
       }
 
       TestFnCount<CombiDataType> initialFunction;
@@ -67,7 +67,7 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
   return any;
 }
 
-void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = true,
+void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundaryV = 2,
                       bool pretendThirdLevel = true) {
   size_t size = ngroup * nprocs + 1;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
@@ -77,7 +77,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     BOOST_TEST_CHECKPOINT("drop out of test comm");
     return;
   }
-
+  BOOST_TEST_CHECKPOINT("initialize stats");
   combigrid::Stats::initialize();
 
   theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
@@ -106,7 +106,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
-    std::vector<bool> boundary(dim, boundaryV);
+    std::vector<BoundaryType> boundary(dim, boundaryV);
 
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
@@ -128,12 +128,12 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     // std::cout << "taskIDs " << taskIDs << std::endl;
 
     // create combiparameters
+    BOOST_TEST_CHECKPOINT("manager create combi parameters");
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
     params.setParallelization({static_cast<int>(nprocs), 1});
-    if (nprocs == 5 && std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+    if (nprocs == 5 && boundaryV == 2) {
       params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
-    } else if (nprocs == 4 &&
-               std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+    } else if (nprocs == 4 && boundaryV == 2) {
       // should be the same as default decomposition with forwardDecomposition
       params.setDecomposition({{0, 9, 17, 25}, {0}});
     } else if (nprocs == 3) {
@@ -145,30 +145,42 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
 
     // the combiparameters are sent to all process groups before the
     // computations start
+    BOOST_TEST_CHECKPOINT("manager update combi parameters");
     manager.updateCombiParameters();
 
     /* distribute task according to load model and start computation for
      * the first time */
     BOOST_TEST_CHECKPOINT("run first");
+    auto start = std::chrono::high_resolution_clock::now();
     if (pretendThirdLevel) {
       manager.runfirst(true);
       manager.pretendUnifySubspaceSizesThirdLevel();
     } else {
       manager.runfirst();
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("manager run first solver step: " << duration.count() << " milliseconds");
 
     for (size_t it = 0; it < ncombi - 1; ++it) {
       BOOST_TEST_CHECKPOINT("combine");
+      start = std::chrono::high_resolution_clock::now();
       manager.combine();
       if (pretendThirdLevel) {
         manager.pretendCombineThirdLevelForWorkers();
       }
+      end = std::chrono::high_resolution_clock::now();
+      duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      BOOST_TEST_MESSAGE("manager combine: " << duration.count() << " milliseconds");
 
       BOOST_TEST_CHECKPOINT("run next");
+      start = std::chrono::high_resolution_clock::now();
       manager.runnext();
+      end = std::chrono::high_resolution_clock::now();
+      duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      BOOST_TEST_MESSAGE("manager run: " << duration.count() << " milliseconds");
     }
     manager.combine();
-    std::cout << "combined " << ngroup << " " << nprocs << std::endl;
 
     Stats::startEvent("manager get norms");
     // get all kinds of norms
@@ -193,33 +205,44 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
     BOOST_TEST_CHECKPOINT("write solution " + filename);
     Stats::startEvent("manager write solution");
     manager.parallelEval(lmax, filename, 0);
-    manager.writeSparseGridMinMaxCoefficients("integration_" + std::to_string(boundaryV) + "_sparse_minmax");
-    manager.writeDSGsToDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
-    manager.readDSGsFromDisk("integration_" + std::to_string(boundaryV) + "_dsgs");
+    BOOST_TEST_CHECKPOINT("write min/max coefficients");
+    manager.writeSparseGridMinMaxCoefficients("integration_" + std::to_string(boundaryV) +
+                                              "_sparse_minmax");
     Stats::stopEvent("manager write solution");
-    std::cout << "wrote solution  " << ngroup << " " << nprocs << std::endl;
-
+    BOOST_TEST_MESSAGE("manager write solution: " << Stats::getDuration("manager write solution")
+                                                  << " milliseconds");
+    filename = "integration_" + std::to_string(boundaryV) + "_dsgs";
+    BOOST_TEST_CHECKPOINT("write DSGS " + filename);
+    Stats::startEvent("manager write DSG");
+    manager.writeDSGsToDisk(filename);
+    manager.readDSGsFromDisk(filename);
+    Stats::stopEvent("manager write DSG");
+    BOOST_TEST_MESSAGE("manager write/read DSG: " << Stats::getDuration("manager write DSG")
+                                                  << " milliseconds");
     // test Monte-Carlo interpolation
     // only if boundary values are used
-    if (boundaryV) {
+    if (boundaryV > 0) {
       BOOST_TEST_CHECKPOINT("MC interpolation coordinates");
       auto interpolationCoords = montecarlo::getRandomCoordinates(1000, dim);
       BOOST_TEST_CHECKPOINT("MC interpolation");
       Stats::startEvent("manager interpolate");
       auto values = manager.interpolateValues(interpolationCoords);
       Stats::stopEvent("manager interpolate");
-      std::cout << "did interpolation " << ngroup << " " << nprocs << std::endl;
+      BOOST_TEST_MESSAGE("manager interpolate: " << Stats::getDuration("manager interpolate")
+                                                 << " milliseconds");
 
-      TestFnCount<CombiDataType> initialFunction;
-      for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-        if (std::abs(initialFunction(interpolationCoords[i], ncombi) - values[i]) >
-            TestHelper::tolerance) {
-          std::cout << "err " << interpolationCoords.size() << interpolationCoords[i] << " " << i
-                    << std::endl;
+      if (boundaryV > 1) {
+        TestFnCount<CombiDataType> initialFunction;
+        for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+          if (std::abs(initialFunction(interpolationCoords[i], ncombi) - values[i]) >
+              TestHelper::tolerance) {
+            std::cout << "err " << interpolationCoords.size() << interpolationCoords[i] << " " << i
+                      << std::endl;
+          }
+          auto ref = initialFunction(interpolationCoords[i], ncombi);
+          BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
+          BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
         }
-        auto ref = initialFunction(interpolationCoords[i], ncombi);
-        BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
-        BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
       }
 #ifdef HAVE_HIGHFIVE
       // output files are not needed, remove them right away
@@ -267,7 +290,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, bool boundaryV = tru
       if (signal == COMBINE) {
         // after combination check workers' grids
         // only if boundary values are used
-        if (boundaryV) {
+        if (boundaryV == 2) {
           BOOST_CHECK(checkReducedFullGridIntegration(pgroup, nrun));
         }
       }
@@ -317,7 +340,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-    std::vector<bool> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
@@ -377,28 +400,39 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 
 #ifndef ISGENE  // integration tests won't work with ISGENE because of worker magic
 
+#ifndef NDEBUG // in case of a build with asserts, have longer timeout
+BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(380))
+#else
 BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(180))
-
+#endif  // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
-  for (bool boundary : {true, false}) {
+  auto start = std::chrono::high_resolution_clock::now();
+  auto rank = TestHelper::getRank(MPI_COMM_WORLD);
+  for (BoundaryType boundary : {0, 1, 2}) {
     for (size_t ngroup : {1, 2, 3, 4}) {
       for (size_t nprocs : {1, 2}) {
-        std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+        if (rank == 0)
+          std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
+                    << nprocs << std::endl;
         checkIntegration(ngroup, nprocs, boundary);
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
     for (size_t ngroup : {1, 2}) {
-      for (size_t nprocs : {3}) {  // TODO currently fails for non-power-of-2-decompositions
-        std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+      for (size_t nprocs : {3}) {
+        if (rank == 0)
+          std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
+                    << nprocs << std::endl;
         checkIntegration(ngroup, nprocs, boundary);
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
     for (size_t ngroup : {1, 2}) {
-      if (boundary) {
-        for (size_t nprocs : {4}) {  // TODO currently fails for non-power-of-2-decompositions
-          std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+      if (boundary > 0) {
+        for (size_t nprocs : {4}) {
+          if (rank == 0)
+            std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
+                      << nprocs << std::endl;
           checkIntegration(ngroup, nprocs, boundary);
           MPI_Barrier(MPI_COMM_WORLD);
         }
@@ -406,8 +440,10 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     }
     for (size_t ngroup : {1}) {
       for (size_t nprocs : {5}) {
-        if (boundary) {
-          std::cout << "integration/test_1 " << ngroup << " " << nprocs << std::endl;
+        if (boundary == 2) {
+          if (rank == 0)
+            std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
+                      << nprocs << std::endl;
           checkIntegration(ngroup, nprocs, boundary);
           MPI_Barrier(MPI_COMM_WORLD);
         }
@@ -417,6 +453,10 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     MPI_Barrier(MPI_COMM_WORLD);
     BOOST_CHECK(!TestHelper::testStrayMessages());
   }
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE("time to run all 'integration' tests: " << duration.count()
+                                                             << " milliseconds");
 }
 
 BOOST_AUTO_TEST_CASE(test_2) { checkPassingHierarchicalBases<HierarchicalHatBasisFunction>(1, 1); }
@@ -467,7 +507,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
 
     BOOST_CHECK(*itMax == 7);
     BOOST_CHECK(*itMin == 0);
-    auto boundary = std::vector<bool>(dim, true);
+    auto boundary = std::vector<BoundaryType>(dim, 2);
     auto rank = TestHelper::getRank(MPI_COMM_WORLD);
     for (size_t taskNo = 0; taskNo < coeffs.size(); ++taskNo) {
       BOOST_TEST_CHECKPOINT(std::to_string(rank) + " Last taskNo " + std::to_string(taskNo));

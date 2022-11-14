@@ -587,7 +587,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   for (auto& uniDSG : combinedUniDSGVector_) {
     uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
         new DistributedSparseGridUniform<CombiDataType>(combiParameters_.getDim(), lmax, lmin,
-                                                        combiParameters_.getBoundary(),
                                                         theMPISystem()->getLocalComm()));
 #ifdef DEBUG_OUTPUT
     MASTER_EXCLUSIVE_SECTION {
@@ -991,17 +990,17 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
 
   // call interpolation function on tasks and reduce with combination coefficient
   std::vector<CombiDataType> values(numCoordinates, 0.);
-  for (Task* t : tasks_){
+  for (Task* t : tasks_) {
     auto coeff = this->combiParameters_.getCoeff(t->getID());
-    auto taskVals = t->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
-
     for (size_t i = 0; i < numCoordinates; ++i) {
-      values[i] += taskVals[i] * coeff;
+      values[i] += t->getDistributedFullGrid().evalLocal(interpolationCoords[i]) * coeff;
     }
   }
+  MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
+                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
+                MPI_SUM, theMPISystem()->getLocalComm());
   return values;
 }
-
 
 void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
 #ifdef HAVE_HIGHFIVE
@@ -1084,7 +1083,7 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
   }
 
   assert(combiParametersSet_);
-  const std::vector<bool>& boundary = combiParameters_.getBoundary();
+  const std::vector<BoundaryType>& boundary = combiParameters_.getBoundary();
   FullGrid<CombiDataType> fg_red(dim, leval, boundary);
 
   // create the empty grid on only on localroot
@@ -1189,15 +1188,24 @@ void ProcessGroupWorker::updateCombiParameters() {
       dims.assign(par.begin(), par.end());
     }
 
-    // Make all dimensions not periodic //TODO(pollinta) allow periodicity
-    std::vector<int> periods (combiParameters_.getDim(), 0);
+    std::vector<int> periods(combiParameters_.getDim());
+    // Make dimensions periodic depending on boundary parameters
+    for (const auto& b : combiParameters_.getBoundary()) {
+      if (b == 1) {
+        periods.push_back(1);
+
+      } else {
+        periods.push_back(0);
+      }
+    }
 
     // don't let MPI assign arbitrary ranks
     int reorder = false;
 
     // Create a communicator given the topology.
     MPI_Comm new_communicator;
-    MPI_Cart_create(theMPISystem()->getLocalComm(), combiParameters_.getDim(), dims.data(), periods.data(), reorder, &new_communicator);
+    MPI_Cart_create(theMPISystem()->getLocalComm(), combiParameters_.getDim(), dims.data(),
+                    periods.data(), reorder, &new_communicator);
 
     theMPISystem()->storeLocalComm(new_communicator);
   }
@@ -1298,7 +1306,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
         extraUniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
             new DistributedSparseGridUniform<CombiDataType>(
                 combinedUniDSGVector_[0]->getDim(), combinedUniDSGVector_[0]->getAllLevelVectors(),
-                combinedUniDSGVector_[0]->getBoundaryVector(), theMPISystem()->getLocalComm()));
+                theMPISystem()->getLocalComm()));
       }
     }
     uniDSGVectorToSet = &extraUniDSGVector_;

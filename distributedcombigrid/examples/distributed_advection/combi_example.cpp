@@ -173,7 +173,7 @@ int main(int argc, char** argv) {
                             "-" + std::to_string(lmax[0]);
 
     // todo: read in boundary vector from ctparam
-    std::vector<bool> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;

@@ -35,7 +35,7 @@ class TestParams {
   DimType dim = 2;
   LevelVector lmin;
   LevelVector lmax;
-  bool boundary;
+  BoundaryType boundary;
   unsigned int ngroup = 1;
   unsigned int nprocs = 1;
   unsigned int ncombi = 1;
@@ -44,7 +44,7 @@ class TestParams {
   std::string host = "localhost";
   unsigned short port = 9999;
 
-  TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax, bool boundary, unsigned int ngroup,
+  TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax, BoundaryType boundary, unsigned int ngroup,
              unsigned int nprocs, unsigned int ncombi, unsigned int sysNum,
              const CommunicatorType& comm, const std::string& host = "localhost",
 #ifdef NDEBUG
@@ -182,7 +182,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     }
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-    std::vector<bool> boundary(testParams.dim, testParams.boundary);
+    std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
 
     // create third level specific scheme
     CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
@@ -290,11 +290,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
 
     std::cout << "Monte carlo errors are " << l2ErrorSingle << " on this system and " <<
       l2ErrorTwoSystems << " in total. boundary: " << boundary << std::endl;
-    // only do check if no boundary, otherwise all components interpolate exactly on the hyperplane anyways
-    // auto hasBoundary = std::all_of(boundary.begin(), boundary.end(), [] (bool b) {return std::forward<bool>(b);});
-    // if (!hasBoundary) {
     BOOST_CHECK_LE(l2ErrorTwoSystems, l2ErrorSingle);
-    // }
 
     std::string filename("thirdLevel_" + std::to_string(testParams.ncombi) + ".raw");
     Stats::startEvent("manager write solution");
@@ -383,7 +379,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
   theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs);
 
   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-  std::vector<bool> boundary(testParams.dim, testParams.boundary);
+  std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
 
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
@@ -542,7 +538,7 @@ void testPretendThirdLevel(TestParams& testParams) {
     ProcessGroupManagerContainer pgroups;
 
     auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-    std::vector<bool> boundary(testParams.dim, testParams.boundary);
+    std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
 
     // create third level specific scheme
     CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
@@ -615,7 +611,7 @@ BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (bool boundary : {false, true}) {
+  for (BoundaryType boundary : {0, 1, 1}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -640,7 +636,7 @@ BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (bool boundary : {true}) {
+  for (BoundaryType boundary : {2}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -665,7 +661,7 @@ BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (bool boundary : {false, true}) {
+  for (BoundaryType boundary : {0, 1, 2}) {
     for (bool extraSparseGrid : {false, true}) {
       assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
@@ -692,7 +688,7 @@ BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (bool boundary : {false, true}) {
+  for (BoundaryType boundary : {0, 1, 2}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -717,7 +713,7 @@ BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (bool boundary : {false, true}) {
+  for (BoundaryType boundary : {0, 1, 2}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -743,7 +739,7 @@ BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (bool boundary : {false, true}) {
+  for (BoundaryType boundary : {0, 1, 2}) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
     BOOST_TEST_CHECKPOINT("static group assignment. sysNum: " + std::to_string(sysNum));
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -771,7 +767,7 @@ BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (bool boundary : {true}) {  // todo false
+  for (BoundaryType boundary : {2}) {
     for (unsigned int nprocs : {1, 2, 3}) {
       assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 

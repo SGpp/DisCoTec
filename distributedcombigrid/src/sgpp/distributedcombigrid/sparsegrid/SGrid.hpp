@@ -22,13 +22,13 @@ class SGrid {
   /** create sparse grid of dimension d and level n with or without boundary
    *  in all dimensions
    */
-  SGrid(DimType dim, LevelType n, bool boundary = false);
+  SGrid(DimType dim, LevelType n, BoundaryType boundary = 0);
 
   /** create sparse grid of dimension d and specify for each dimension the
    *  the maximum discretization level and whether there is a boundary or not
    */
   SGrid(DimType dim, const LevelVector& nmax, const LevelVector& lmin,
-        const std::vector<bool>& boundary);
+        const std::vector<BoundaryType>& boundary);
 
   virtual ~SGrid();
 
@@ -50,7 +50,7 @@ class SGrid {
 
   inline const LevelVector& getLevelVector(size_t i) const;
 
-  inline const std::vector<bool>& getBoundaryVector() const;
+  inline const std::vector<BoundaryType>& getBoundaryVector() const;
 
  private:
   void createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
@@ -63,7 +63,7 @@ class SGrid {
 
   std::vector<LevelVector> levels_;
 
-  std::vector<bool> boundary_;
+  std::vector<BoundaryType> boundary_;
 };
 
 }  // namespace
@@ -101,8 +101,7 @@ inline const LevelVector& SGrid<FG_ELEMENT>::getLevelVector(size_t i) const {
 
 // at construction create only levels, no data
 template <typename FG_ELEMENT>
-SGrid<FG_ELEMENT>::SGrid(DimType dim, LevelType n, bool boundary)
-    : dim_(dim) {
+SGrid<FG_ELEMENT>::SGrid(DimType dim, LevelType n, BoundaryType boundary) : dim_(dim) {
   assert(dim > 0);
   assert(n > 0);
 
@@ -116,7 +115,7 @@ SGrid<FG_ELEMENT>::SGrid(DimType dim, LevelType n, bool boundary)
 // at construction create only levels, no data
 template <typename FG_ELEMENT>
 SGrid<FG_ELEMENT>::SGrid(DimType dim, const LevelVector& nmax, const LevelVector& lmin,
-                         const std::vector<bool>& boundary)
+                         const std::vector<BoundaryType>& boundary)
     : dim_(dim) {
   assert(dim > 0);
 
@@ -154,7 +153,7 @@ void SGrid<FG_ELEMENT>::createLevels(DimType dim, const LevelVector& nmax,
 }
 
 template <typename FG_ELEMENT>
-inline const std::vector<bool>& SGrid<FG_ELEMENT>::getBoundaryVector() const {
+inline const std::vector<BoundaryType>& SGrid<FG_ELEMENT>::getBoundaryVector() const {
   return boundary_;
 }
 

@@ -53,7 +53,7 @@ void checkMPIRanksAndCommunication(size_t ngroup, size_t nprocs) {
 
   //   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
 
-  //   std::vector<bool> boundary(dim, boundaryV);
+  //   std::vector<BoundaryType> boundary(dim, boundaryV);
 
   //   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   //   combischeme.createAdaptiveCombischeme();

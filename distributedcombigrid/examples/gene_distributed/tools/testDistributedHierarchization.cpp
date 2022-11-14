@@ -70,7 +70,7 @@ void test2D() {
   DimType dim = 2;
   LevelVector l = { 2, 3 };
   CommunicatorType comm = MPI_COMM_WORLD;
-  std::vector<bool> boundary(dim, true);
+  std::vector<BoundaryType> boundary(dim, true);
   IndexVector gpd = { 1,2 };
 
   std::vector<IndexVector> decomposition(dim);
@@ -190,7 +190,7 @@ void test5D() {
   l[2] = 4;
   l[1] = 1;
   l[0] = 2;
-  std::vector<bool> boundary(dim, false);
+  std::vector<BoundaryType> boundary(dim, false);
   boundary[0] = true; //x
   boundary[2] = true; //z
   boundary[3] = true; //v
@@ -267,7 +267,7 @@ void test6D() {
   DimType dim = 6;
 
   LevelVector l = { 2, 1, 4, 4, 3, 1 };
-  std::vector<bool> boundary = { true, false, true, true, true, false };
+  std::vector<BoundaryType> boundary = { true, false, true, true, true, false };
   IndexVector gpd = { 1, 1, 1, 1, 2, 1 };
 
   std::vector<IndexVector> decomposition(6);

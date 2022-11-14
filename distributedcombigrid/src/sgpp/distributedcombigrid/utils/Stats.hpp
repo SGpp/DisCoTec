@@ -249,14 +249,16 @@ inline const Stats::Event Stats::stopEvent(const std::string& name) {
   return e;
 }
 
-inline const Stats::Event& Stats::getEvent(const std::string& name){
-  return event_[name].back();
-}
+inline const Stats::Event& Stats::getEvent(const std::string& name) { return event_[name].back(); }
 
-inline long unsigned int Stats::getDuration(const std::string& name){
-  return getEventDuration(getEvent(name));
+inline long unsigned int Stats::getDuration(const std::string& name) {
+  if (event_.find(name) != event_.end()) {
+    return getEventDuration(getEvent(name));
+  } else {
+    return std::numeric_limits<long unsigned int>::max();
+  }
 }
-}
+}  // namespace combigrid
 // end namespace combigrid
 
 #endif /* STATS_HPP_ */

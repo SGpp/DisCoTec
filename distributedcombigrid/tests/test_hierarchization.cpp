@@ -3,7 +3,6 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
-
 #include <boost/test/unit_test.hpp>
 #include <complex>
 #include <cstdarg>
@@ -17,8 +16,8 @@
 #include "sgpp/distributedcombigrid/hierarchization/Hierarchization.hpp"
 #include "sgpp/distributedcombigrid/utils/MonteCarlo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-
 #include "test_helper.hpp"
+#include "TaskConstParaboloid.hpp"
 
 /**
  * functor for test function $f(x) = \prod_{i=0}^d x_i^2$
@@ -144,7 +143,8 @@ real getMonteCarloMass(DistributedFullGrid<FG_ELEMENT>& dfg, size_t npoints) {
   real mass = 0.;
   for (size_t i = 0; i < npoints; ++i) {
     // auto scalarCoordinate = std::accumulate(
-    //     interpolationCoords[i].begin(), interpolationCoords[i].end(), 1., std::multiplies<real>());
+    //     interpolationCoords[i].begin(), interpolationCoords[i].end(), 1.,
+    //     std::multiplies<real>());
     // TODO what about complex' imaginary part?
     mass += std::real(interpolatedValues[i]);
   }
@@ -184,10 +184,12 @@ template <typename FG_ELEMENT>
 real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
                                  FunctionPointer<FG_ELEMENT> hierarchizationOperator) {
   const auto& procs = dfg.getParallelization();
+  BOOST_CHECK(procs.size() == dfg.getDimension());
   const auto& boundary = dfg.returnBoundaryFlags();
+  BOOST_CHECK(boundary.size() == dfg.getDimension());
   const auto& comm = dfg.getCommunicator();
   size_t nPointsMonteCarlo = 1e6;
-  assert(std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; }));
+  BOOST_CHECK(std::all_of(boundary.begin(), boundary.end(), [](BoundaryType b) { return b == 2; }));
   real mcMassBefore = getMonteCarloMass(dfg, nPointsMonteCarlo);
   auto mcMomentaBefore = getMonteCarloMomenta(dfg, nPointsMonteCarlo);
   real mcMomentumBefore = mcMomentaBefore.back();
@@ -204,7 +206,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   LevelVector lmin(dim, 0);  // TODO
   LevelVector lone(dim, 1);  // cannot use lmin 0 in dsgu's constructor
   auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<FG_ELEMENT>>(
-      new DistributedSparseGridUniform<FG_ELEMENT>(dim, dfg.getLevels(), lone, boundary, comm));
+      new DistributedSparseGridUniform<FG_ELEMENT>(dim, dfg.getLevels(), lone, comm));
   dfg.registerUniformSG(*uniDSG);
   // TODO also cannot use level 0 to register dfg -- problem!
   auto dfgOne = std::unique_ptr<DistributedFullGrid<FG_ELEMENT>>(
@@ -337,7 +339,7 @@ void checkFullWeightingHierarchization(Functor& f, DistributedFullGrid<std::comp
 
 template <typename Functor>
 void checkHierarchization(Functor& f, LevelVector& levels, std::vector<int>& procs,
-                          std::vector<bool>& boundary, bool forward = false,
+                          std::vector<BoundaryType>& boundary, bool forward = false,
                           bool checkValues = true) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
@@ -373,7 +375,14 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
   const DimType dim = dfg.getDimension();
   auto boundary = dfg.returnBoundaryFlags();
 
-  FullGrid<std::complex<double>> fg(dim, dfg.getLevels(), boundary);
+  auto nonDistributedBoundary = boundary;
+  // non-distributed (de)hierarchization not adapted to one-sided boundary (yet?)
+  bool anyOneSidedBoundary =
+      std::any_of(boundary.begin(), boundary.end(), [](const BoundaryType& b) { return b == 1; });
+  if (anyOneSidedBoundary) {
+    nonDistributedBoundary = std::vector<BoundaryType>(dim, 2);
+  }
+  FullGrid<std::complex<double>> fg(dim, dfg.getLevels(), nonDistributedBoundary);
 
   if (checkValues) {
     // fill distributed fg with test function
@@ -388,9 +397,11 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
     }
 
     // hierarchize fg
+    BOOST_TEST_CHECKPOINT("Non-Distributed Hierarchization begins");
     Hierarchization::hierarchize(fg);
   }
 
+  BOOST_TEST_CHECKPOINT("Distributed Hierarchization begins");
   // hierarchize distributed fg
   DistributedHierarchization::hierarchize(dfg);
 
@@ -398,22 +409,30 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
     // compare hierarchical surpluses
     for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
       IndexType gi = dfg.getGlobalLinearIndex(li);
-      IndexVector axisIndex(dim);
-      fg.getVectorIndex(gi, axisIndex);
-
-      // compare fg and distributed fg
-      BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
-                 boost::test_tools::tolerance(TestHelper::tolerance));
+      IndexVector axisIndex(dim), localAxisIndex(dim);
+      dfg.getLocalVectorIndex(li, localAxisIndex);
+      dfg.getGlobalVectorIndex(localAxisIndex, axisIndex);
+      BOOST_REQUIRE_EQUAL(dfg.getGlobalLinearIndex(axisIndex), gi);
+      if (!anyOneSidedBoundary) {
+        auto fgAxisIndex = axisIndex;
+        fg.getVectorIndex(gi, fgAxisIndex);
+        BOOST_REQUIRE(axisIndex == fgAxisIndex);
+        // compare fg and distributed fg
+        BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                   boost::test_tools::tolerance(TestHelper::tolerance));
+      }
       // compare distributed fg to exact solution
       BOOST_TEST(dfg.getData()[li] == f(axisIndex),
                  boost::test_tools::tolerance(TestHelper::tolerance));
     }
 
     // dehiarchize fg
+    BOOST_TEST_CHECKPOINT("Non-distributed Dehierarchization begins");
     Hierarchization::dehierarchize(fg);
   }
 
   // dehierarchize distributed fg
+  BOOST_TEST_CHECKPOINT("Distributed Dehierarchization begins");
   DistributedHierarchization::dehierarchize(dfg);
 
   if (checkValues) {
@@ -421,26 +440,27 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
     for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
       IndexType gi = dfg.getGlobalLinearIndex(li);
 
-      std::vector<double> coords_fg(dim);
-      fg.getCoords(gi, coords_fg);
-
       std::vector<double> coords_dfg(dim);
       dfg.getCoordsLocal(li, coords_dfg);
 
-      BOOST_CHECK(coords_dfg == coords_fg);
-
-      // compare fg and distributed fg
-      BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
-                 boost::test_tools::tolerance(TestHelper::tolerance));
+      if (!anyOneSidedBoundary) {
+        std::vector<double> coords_fg(dim);
+        fg.getCoords(gi, coords_fg);
+        BOOST_CHECK(coords_dfg == coords_fg);
+        // compare fg and distributed fg
+        BOOST_TEST(dfg.getData()[li] == fg.getData()[gi],
+                   boost::test_tools::tolerance(TestHelper::tolerance));
+      }
       // compare distributed fg and fg to exact solution
-      BOOST_TEST(dfg.getData()[li] == f(coords_fg),
+      BOOST_TEST(dfg.getData()[li] == f(coords_dfg),
                  boost::test_tools::tolerance(TestHelper::tolerance));
     }
   }
 
   // call this so that tests are also run for mass-conserving bases
   // but only for boundary grids and in case we are not measuring time
-  if (checkValues && std::all_of(boundary.begin(), boundary.end(), [](bool b) { return b; })) {
+  if (checkValues &&
+      std::all_of(boundary.begin(), boundary.end(), [](BoundaryType b) { return b == 2; })) {
     if (!(typeid(Functor) == typeid(TestFn_3))) {
       // TODO figure out what is supposed to happen for true complex numbers,
       // currently std::abs does not seem to do the right thing
@@ -471,19 +491,43 @@ void checkHierarchization(Functor& f, DistributedFullGrid<std::complex<double>>&
   BOOST_CHECK(!TestHelper::testStrayMessages(comm));
 }
 
+void checkHierarchizationParaboloid(LevelVector& levels, std::vector<int>& procs,
+                                    std::vector<BoundaryType>& boundary, bool forward = false,
+                                    bool checkValues = true) {
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    const auto dim = static_cast<DimType>(levels.size());
+    DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+    auto f = ParaboloidFn<std::complex<double>>(&dfg);
+    // run test with value check
+    checkHierarchization<decltype(f)>(f, dfg, checkValues);
+  }
+}
+
 BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(240))
 
 // with boundary
 // isotropic
 
 // the most basic case with a single worker
+BOOST_AUTO_TEST_CASE(test_minus1) {
+  for (DimType d : {1, 2, 3, 4, 5}) {
+    BOOST_TEST_CHECKPOINT("Testing dimension " + std::to_string(d));
+    // LevelVector levels(d, 1);
+    LevelVector levels(d, 3);
+    std::vector<int> procs(d, 1);
+    std::vector<BoundaryType> boundary(d, 2);
+
+    checkHierarchizationParaboloid(levels, procs, boundary);
+  }
+}
 BOOST_AUTO_TEST_CASE(test_0) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {1, 1, 1};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 1);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 
 // 2D case with 4 workers
@@ -494,74 +538,74 @@ BOOST_AUTO_TEST_CASE(test_05) {
       2,
   };
   std::vector<int> procs = {2, 2};
-  std::vector<bool> boundary(2, true);
+  std::vector<BoundaryType> boundary(2, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 4);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 
 BOOST_AUTO_TEST_CASE(test_1) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_2) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_3) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {6, 6, 6};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_4) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {1, 4, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_5) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {1, 1, 8};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_6) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3, 3};
   std::vector<int> procs = {1, 2, 2, 2};
-  std::vector<bool> boundary(4, true);
+  std::vector<BoundaryType> boundary(4, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_7) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_8) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -570,57 +614,57 @@ BOOST_AUTO_TEST_CASE(test_9) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_10) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_11) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {2, 1, 4};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_12) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {1, 4, 4};
   std::vector<int> procs = {1, 2, 4};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_13) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 1, 3, 3, 2};
   std::vector<int> procs = {2, 1, 2, 2, 1};
-  std::vector<bool> boundary(5, true);
+  std::vector<BoundaryType> boundary(5, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_14) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_15) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_1 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // without boundary
@@ -630,41 +674,41 @@ BOOST_AUTO_TEST_CASE(test_16) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_17) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_18) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {6, 6, 6};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_19) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {4, 2, 1};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_20) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -673,49 +717,49 @@ BOOST_AUTO_TEST_CASE(test_21) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_22) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_23) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {2, 1, 4};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_24) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {1, 4, 4};
   std::vector<int> procs = {1, 2, 4};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_25) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 1, 3, 3, 2};
   std::vector<int> procs = {2, 1, 2, 2, 1};
-  std::vector<bool> boundary(5, false);
+  std::vector<BoundaryType> boundary(5, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_26) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, false);
+  std::vector<BoundaryType> boundary(3, 0);
   TestFn_2 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // with boundary
@@ -725,65 +769,65 @@ BOOST_AUTO_TEST_CASE(test_27) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_28) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_29) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {6, 6, 6};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_30) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {1, 4, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_31) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {4, 4, 4};
   std::vector<int> procs = {1, 1, 8};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_32) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {3, 3, 3, 3};
   std::vector<int> procs = {1, 2, 2, 2};
-  std::vector<bool> boundary(4, true);
+  std::vector<BoundaryType> boundary(4, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_33) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_34) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {3, 3, 3};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 
 // anisotropic
@@ -792,57 +836,188 @@ BOOST_AUTO_TEST_CASE(test_35) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_36) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {2, 2, 2};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
 }
 BOOST_AUTO_TEST_CASE(test_37) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 4, 6};
   std::vector<int> procs = {2, 1, 4};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_38) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {1, 4, 4};
   std::vector<int> procs = {1, 2, 4};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_39) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
   LevelVector levels = {2, 1, 3, 3, 2};
   std::vector<int> procs = {2, 1, 2, 2, 1};
-  std::vector<bool> boundary(5, true);
+  std::vector<BoundaryType> boundary(5, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 8);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_40) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9);
+  checkHierarchization(testFn, levels, procs, boundary);
 }
 BOOST_AUTO_TEST_CASE(test_41) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   LevelVector levels = {2, 3, 4};
   std::vector<int> procs = {3, 3, 1};
-  std::vector<bool> boundary(3, true);
+  std::vector<BoundaryType> boundary(3, 2);
   TestFn_3 testFn(levels);
-  checkHierarchization(testFn, levels, procs, boundary, 9, true);
+  checkHierarchization(testFn, levels, procs, boundary, true);
+}
+
+// periodic with one-sided boundary
+// isotropic
+BOOST_AUTO_TEST_CASE(test_p_minus1) {
+  LevelVector levels = {1, 1, 1};
+  std::vector<int> procs = {1, 1, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_0) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 1, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_05) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(4));
+  LevelVector levels = {2, 2};
+  std::vector<int> procs = {2, 2};
+  std::vector<BoundaryType> boundary(2, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_1) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {2, 2, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_4) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 4, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_5) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 1, 8};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_6) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {3, 3, 3, 3};
+  std::vector<int> procs = {1, 2, 2, 2};
+  std::vector<BoundaryType> boundary(4, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_7) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {3, 3, 3};
+  std::vector<int> procs = {3, 3, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_27) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {2, 2, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_30) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 4, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_31) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {4, 4, 4};
+  std::vector<int> procs = {1, 1, 8};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_32) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {3, 3, 3, 3};
+  std::vector<int> procs = {1, 2, 2, 2};
+  std::vector<BoundaryType> boundary(4, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_33) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {3, 3, 3};
+  std::vector<int> procs = {3, 3, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+
+// anisotropic
+
+BOOST_AUTO_TEST_CASE(test_p_35) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 4, 6};
+  std::vector<int> procs = {2, 2, 2};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_37) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 4, 6};
+  std::vector<int> procs = {2, 1, 4};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_38) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {1, 4, 4};
+  std::vector<int> procs = {1, 2, 4};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_39) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  LevelVector levels = {2, 1, 3, 3, 2};
+  std::vector<int> procs = {2, 1, 2, 2, 1};
+  std::vector<BoundaryType> boundary(5, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
+}
+BOOST_AUTO_TEST_CASE(test_p_40) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  LevelVector levels = {2, 3, 4};
+  std::vector<int> procs = {3, 3, 1};
+  std::vector<BoundaryType> boundary(3, 1);
+  checkHierarchizationParaboloid(levels, procs, boundary);
 }
 
 // these large tests only make sense when assertions are not checked (takes too long otherwise)
@@ -856,7 +1031,7 @@ BOOST_AUTO_TEST_CASE(test_42) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels = {11, 11, 4};
-    std::vector<bool> boundary(3, true);
+    std::vector<BoundaryType> boundary(3, 2);
     auto forward = true;
     TestFn_1 testFn(levels);
     DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
@@ -866,7 +1041,7 @@ BOOST_AUTO_TEST_CASE(test_42) {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("hat hierarchization time: " << duration.count() << " milliseconds");
   }
-  // on ipvs-epyc2@  : 600 milliseconds w single msgs
+  // on ipvs-epyc2@  : 500 milliseconds w single msgs
 }
 
 BOOST_AUTO_TEST_CASE(test_43) {
@@ -877,7 +1052,7 @@ BOOST_AUTO_TEST_CASE(test_43) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels = {11, 11, 4};
-    std::vector<bool> boundary(3, true);
+    std::vector<BoundaryType> boundary(3, 2);
     auto forward = true;
     TestFn_1 testFn(levels);
     DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
@@ -888,7 +1063,7 @@ BOOST_AUTO_TEST_CASE(test_43) {
     BOOST_TEST_MESSAGE("full weighting hierarchization time: " << duration.count()
                                                                << " milliseconds");
   }
-  // on ipvs-epyc2@  : 3300 milliseconds w single msgs
+  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
 }
 BOOST_AUTO_TEST_CASE(test_44) {
   // large test case with timing for full weighting
@@ -898,7 +1073,7 @@ BOOST_AUTO_TEST_CASE(test_44) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels = {11, 11, 4};
-    std::vector<bool> boundary(3, true);
+    std::vector<BoundaryType> boundary(3, 2);
     auto forward = true;
     TestFn_1 testFn(levels);
     DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
@@ -909,10 +1084,74 @@ BOOST_AUTO_TEST_CASE(test_44) {
     BOOST_TEST_MESSAGE("biorthogonal hierarchization time: " << duration.count()
                                                              << " milliseconds");
   }
-  // on ipvs-epyc2@  : 3100 milliseconds w single msgs
+  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
 }
 
-#endif // def NDEBUG
+BOOST_AUTO_TEST_CASE(test_p_42) {
+  // large test case with timing
+  MPI_Barrier(MPI_COMM_WORLD);
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector levels = {11, 11, 4};
+    std::vector<BoundaryType> boundary(3, 1);
+    auto forward = false;
+    TestFn_1 testFn(levels);
+    DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    auto start = std::chrono::high_resolution_clock::now();
+    checkHierarchization(testFn, dfg, false);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("hat hierarchization time: " << duration.count() << " milliseconds");
+  }
+  // on ipvs-epyc2@  : 480 milliseconds
+}
+
+BOOST_AUTO_TEST_CASE(test_p_43) {
+  // large test case with timing for full weighting
+  MPI_Barrier(MPI_COMM_WORLD);
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector levels = {11, 11, 4};
+    std::vector<BoundaryType> boundary(3, 1);
+    auto forward = false;
+    TestFn_1 testFn(levels);
+    DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    auto start = std::chrono::high_resolution_clock::now();
+    checkFullWeightingHierarchization(testFn, dfg, false);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("full weighting hierarchization time: " << duration.count()
+                                                               << " milliseconds");
+  }
+  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
+}
+BOOST_AUTO_TEST_CASE(test_p_44) {
+  // large test case with timing for full weighting
+  MPI_Barrier(MPI_COMM_WORLD);
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
+  std::vector<int> procs = {2, 2, 2};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    LevelVector levels = {11, 11, 4};
+    std::vector<BoundaryType> boundary(3, 1);
+    auto forward = false;
+    TestFn_1 testFn(levels);
+    DistributedFullGrid<std::complex<double>> dfg(3, levels, comm, boundary, procs, forward);
+    auto start = std::chrono::high_resolution_clock::now();
+    checkBiorthogonalHierarchization(testFn, dfg, false);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("biorthogonal hierarchization time: " << duration.count()
+                                                             << " milliseconds");
+  }
+  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
+}
+
+#endif  // def NDEBUG
 
 BOOST_AUTO_TEST_CASE(momentum) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
@@ -921,7 +1160,7 @@ BOOST_AUTO_TEST_CASE(momentum) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     LevelVector levels(dim, 4);
-    std::vector<bool> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
     auto forward = true;  // todo toggle
     TestFn_1 testFn(levels);
     auto constFctn = [](const std::vector<double>& coords) { return 11.; };
@@ -957,7 +1196,8 @@ BOOST_AUTO_TEST_CASE(momentum) {
     {
       // initialize dfg with constant function
       fillDFGbyFunction(constFctn, dfg3);
-      // usually, momentum will not be conserved for periodic BC, but for constant functions it should work
+      // usually, momentum will not be conserved for periodic BC, but for constant functions it
+      // should work
       auto momentum = checkConservationOfMomentum<real>(
           dfg3, DistributedHierarchization::hierarchizeBiorthogonalPeriodic<real>);
     }

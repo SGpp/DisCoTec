@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     nsteps = cfg.get<size_t>("application.nsteps");
 
     // todo: read in boundary vector from ctparam
-    std::vector<bool> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;

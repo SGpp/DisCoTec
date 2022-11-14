@@ -48,7 +48,7 @@ class DistributedFullGrid {
  public:
   /** dimension adaptive Ctor */
   DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType comm,
-                      const std::vector<bool>& hasBdrPoints, const std::vector<int>& procs,
+                      const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
                       bool forwardDecomposition = true,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>(),
                       const BasisFunctionBasis* basis = NULL)
@@ -63,11 +63,17 @@ class DistributedFullGrid {
     nrElements_ = 1;
     offsets_.resize(dim_);
     nrPoints_.resize(dim_);
+    gridSpacing_.resize(dim_);
 
     for (DimType j = 0; j < dim_; j++) {
       nrPoints_[j] = combigrid::getNumDofNodal(levels_[j], hasBoundaryPoints_[j]);
       offsets_[j] = nrElements_;
       nrElements_ = nrElements_ * nrPoints_[j];
+      if (hasBoundaryPoints_[j] == 1) {
+        assert(!decomposition.empty() || !forwardDecomposition);
+      }
+      assert(levels_[j] < 30);
+      gridSpacing_[j] = oneOverPowOfTwo[levels_[j]];
     }
 
     if (decomposition.size() == 0) {
@@ -294,34 +300,36 @@ class DistributedFullGrid {
     DistributedFullGrid* dfgPointer_;
   };
 
-  FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex, const std::vector<real>& coords) const {
-    auto firstIndex = IndexVector(dim_, 0);
-    auto lastIndex = this->getLastGlobalIndex() - this->getFirstGlobalIndex();
-    // if this local index is out of bounds, return 0. (will be contributed by other partial dfg)
-    if (! (localIndex >= firstIndex && localIndex <= lastIndex) ) {
-      // std::cout << "out of bounds" << localIndex << firstIndex << lastIndex << std::endl;
-      return 0.;
-    }
-
-    // get coords corresponding to localIndex
-    auto localLinearIndex = getLocalLinearIndex(localIndex);
-    std::vector<real> pointCoords (this->getDimension());
-    getCoordsLocal(localLinearIndex, pointCoords);
+  FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex,
+                              const std::vector<real>& coords) const {
+    const auto& lowerBounds = this->getLowerBounds();
 
     // get product of 1D hat functions on coords
-    auto h = getGridSpacing();
-    real phi_c = 1.; // value of product of basis function on coords
-    for (DimType d = 0 ; d < dim_ ; ++d){
+    const auto& h = getGridSpacing();
+    real phi_c = 1.;  // value of product of basis function on coords
+    for (DimType d = 0; d < dim_; ++d) {
       // get distance between coords and point
-      pointCoords[d] -= coords[d];
-      if (std::abs(pointCoords[d]) > h[d]){
-        std::cout << "assert bounds " << pointCoords << coords <<
-         h << d << localIndex << lastIndex << std::endl;
+      // this should be the same as
+      // coordDistance = this->getCoordsLocal(localIndex) - coords;
+      // cf. getLowerBoundsCoords()
+      auto coordDistance =
+          static_cast<double>(lowerBounds[d] + (hasBoundaryPoints_[d] > 0 ? 0 : 1) +
+                              localIndex[d]) *
+              h[d] -
+          coords[d];
+#ifndef NDEBUG
+      if (std::abs(coordDistance) > h[d]) {
+        std::cout << "assert bounds " << coordDistance << coords << h << static_cast<int>(d)
+                  << localIndex << std::endl;
         assert(false &&
-          "should only be called for coordinates within the support of this point's basis function");
+               "should only be called for coordinates within the support of this point's basis "
+               "function");
       }
-      phi_c *= 1. - std::abs(pointCoords[d]/h[d]);
+#endif  // ndef NDEBUG
+      phi_c *= 1. - std::abs(coordDistance / h[d]);
     }
+
+    auto localLinearIndex = getLocalLinearIndex(localIndex);
     // std::cout << "coords " <<  localIndex << coords << localLinearIndex << h << std::endl;
     // std::cout << "phi_c " << phi_c << this->getElementVector()[localLinearIndex] << std::endl;
     assert(phi_c >= 0.);
@@ -329,77 +337,101 @@ class DistributedFullGrid {
   }
 
   /**
-   * @brief recursive call to evaluate all neighbor points' contributions to the coordinate (on this part of the grid)
+   * @brief recursive call to evaluate all neighbor points' contributions to the coordinate (on this
+   * part of the grid)
    *
    * @param localIndex the (in-all-dimensions lower) neighbor of coords
    * @param dim the current dimension to split on (start with 0)
    * @param coords the coordinate to interpolate on
    * @return FG_ELEMENT the interpolated value at coords
    */
-  FG_ELEMENT evalMultiindexRecursively (const IndexVector& localIndex, DimType dim, const std::vector<real>& coords) const {
+  FG_ELEMENT evalMultiindexRecursively(const IndexVector& localIndex, DimType dim,
+                                       const std::vector<real>& coords) const {
     assert(!(dim > this->getDimension()));
     if (dim == this->getDimension()) {
       // std::cout << "eval " << localIndex << std::endl;
       return evalLocalIndexOn(localIndex, coords);
     } else {
       FG_ELEMENT sum = 0.;
+      auto lastIndexInDim = this->getLastGlobalIndex()[dim] - this->getFirstGlobalIndex()[dim];
+      if (localIndex[dim] >= 0 && localIndex[dim] <= lastIndexInDim) {
+        sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
+      }
+
       IndexVector localIndexDimPlusOne = localIndex;
       localIndexDimPlusOne[dim] += 1;
-      // std::cout << localIndex << localIndexDimPlusOne << std::endl;
-      sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
-      sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1), coords);
+      if (localIndexDimPlusOne[dim] >= 0) {
+        if (this->hasBoundaryPoints_[dim] == 1 &&
+            this->getCartesianUtils().isOnLowerBoundaryInDimension(dim) &&
+            localIndexDimPlusOne[dim] == this->getGlobalSizes()[dim]) {
+          // assume periodicity
+          // if we are at the end of the dimension, wrap around
+          localIndexDimPlusOne[dim] = 0;
+          auto secondCoords = coords;
+          secondCoords[dim] -= 1.;
+          if (localIndexDimPlusOne[dim] <= lastIndexInDim) {
+            sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
+                                             secondCoords);
+          }
+        } else {
+          if (localIndexDimPlusOne[dim] <= lastIndexInDim) {
+            sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
+                                             coords);
+          }
+        }
+      }
       return sum;
     }
   }
 
   /** evaluates the full grid on the specified coordinates
    * @param coords ND coordinates on the unit square [0,1]^D*/
-  FG_ELEMENT eval(const std::vector<real>& coords) const {
+  FG_ELEMENT evalLocal(const std::vector<real>& coords) const {
     FG_ELEMENT value;
-    eval(coords, value);
+    evalLocal(coords, value);
     return value;
   }
 
-  void eval(const std::vector<real>& coords, FG_ELEMENT& value, MPI_Request* request = nullptr) const {
+  void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
     assert(coords.size() == this->getDimension());
 
     // get the lowest-index point of the points
     // whose basis functions contribute to the interpolated value
     auto lowerCoords = getLowerBoundsCoords();
-    auto h = getGridSpacing();
-    IndexVector localIndexLowerNonzeroNeighborPoint (dim_);
-    for (DimType d = 0 ; d < dim_ ; ++d){
+    const auto& h = getGridSpacing();
+    static IndexVector localIndexLowerNonzeroNeighborPoint;
+    localIndexLowerNonzeroNeighborPoint.resize(dim_);
+    for (DimType d = 0; d < dim_; ++d) {
 #ifndef NDEBUG
-      if(coords[d] < 0. || coords[d] > 1.) {
+      if (coords[d] < 0. || coords[d] > 1.) {
         std::cout << "coords " << coords << " out of bounds" << std::endl;
       }
       assert(coords[d] >= 0. && coords[d] <= 1.);
-#endif // ndef NDEBUG
-      localIndexLowerNonzeroNeighborPoint[d] = static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
+#endif  // ndef NDEBUG
+      // this gets the local index of the point that is lower than the coordinate
+      // may also be negative if the coordinate is lower than this processes' coordinates
+      localIndexLowerNonzeroNeighborPoint[d] =
+          static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
     }
     // std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
 
     // evaluate at those points and sum up according to the basis function
     // needs to be recursive in order to be dimensionally adaptive
     value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
-
-    if (request == nullptr) {
-      MPI_Allreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator());
-    } else {
-      MPI_Iallreduce(MPI_IN_PLACE, &value, 1, this->getMPIDatatype(), MPI_SUM, this->getCommunicator(), request);
-    }
   }
 
   /** evaluates the full grid on the specified coordinates
    * @param interpolationCoords vector of ND coordinates on the unit square [0,1]^D*/
-  std::vector<FG_ELEMENT> getInterpolatedValues(const std::vector<std::vector<real>>& interpolationCoords) const {
+  std::vector<FG_ELEMENT> getInterpolatedValues(
+      const std::vector<std::vector<real>>& interpolationCoords) const {
     auto numValues = interpolationCoords.size();
     std::vector<FG_ELEMENT> values;
     values.resize(numValues);
-    // using the asynchronous communication makes the runtime quadratic in numValues -> synchronous MPI for now
     for (size_t i = 0; i < numValues; ++i) {
-      this->eval(interpolationCoords[i], values[i]);//, &requests[i]);
+      this->evalLocal(interpolationCoords[i], values[i]);
     }
+    MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numValues), this->getMPIDatatype(),
+                  MPI_SUM, this->getCommunicator());
     return values;
   }
 
@@ -418,7 +450,7 @@ class DistributedFullGrid {
       ind = globalLinearIndex % nrPoints_[j];
       globalLinearIndex = globalLinearIndex / nrPoints_[j];
       // set the coordinate based on if we have boundary points
-      tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
+      tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
       coords[j] = static_cast<double>(ind + tmp_add) * getGridSpacing()[j];
     }
   }
@@ -452,7 +484,7 @@ class DistributedFullGrid {
 
     // first calculate intermediary indexes
     for (DimType k = 0; k < dim_; k++) {
-      startindex = (hasBoundaryPoints_[k]) ? 0 : 1;
+      startindex = (hasBoundaryPoints_[k] > 0) ? 0 : 1;
       indexes[k] = tmp_val % nrPoints_[k] + startindex;
       tmp_val = tmp_val / nrPoints_[k];
     }
@@ -641,16 +673,12 @@ class DistributedFullGrid {
   inline const LevelVector& getLevels() const { return levels_; }
 
   /** returns the grid spacing (sometimes called h) */
-  std::vector<double> getGridSpacing() const {
-    std::vector<double> h(dim_);
-    for (DimType d = 0 ; d < dim_ ; ++d){
-      h[d] = oneOverPowOfTwo[levels_[d]];
-    }
-    return h;
+  inline const std::vector<double>& getGridSpacing() const {
+    return gridSpacing_;
   }
 
   double getInnerNodalBasisFunctionIntegral() const {
-    auto h = this->getGridSpacing();
+    const auto& h = this->getGridSpacing();
     return std::accumulate(h.begin(), h.end(), 1., std::multiplies<double>());
   }
 
@@ -664,7 +692,7 @@ class DistributedFullGrid {
   inline IndexType length(DimType i) const { return nrPoints_[i]; }
 
   /** vector of flags to show if the dimension has boundary points*/
-  inline const std::vector<bool>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
+  inline const std::vector<BoundaryType>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
 
   inline void setZero() {
     std::fill(this->getElementVector().begin(), this->getElementVector().end(), 0.);
@@ -707,7 +735,15 @@ class DistributedFullGrid {
   }
 
   /** coordinates of this process' lower bounds */
-  inline std::vector<real> getLowerBoundsCoords() const { return getLowerBoundsCoords(rank_); }
+  inline std::vector<real> getLowerBoundsCoords() const {
+    const auto& lowerBounds = this->getLowerBounds();
+    std::vector<real> coords(dim_);
+    for (DimType i = 0; i < dim_; ++i) {
+      coords[i] = static_cast<double>(lowerBounds[i] + (hasBoundaryPoints_[i] > 0 ? 0 : 1)) *
+                  this->getGridSpacing()[i];
+    }
+    return coords;
+  }
 
   /** coordinates of rank r's lower bounds */
   inline std::vector<real> getLowerBoundsCoords(RankType r) const {
@@ -786,7 +822,7 @@ class DistributedFullGrid {
     IndexType tmp_add = 0;
 
     for (DimType j = 0; j < dim_; ++j) {
-      tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
+      tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
       coords[j] = static_cast<double>(ubvi[j] + tmp_add) * getGridSpacing()[j];
     }
     return coords;
@@ -865,7 +901,7 @@ class DistributedFullGrid {
     // getGlobalLI(idx, levels, tmp);
     // return levels[d];
 
-    if (!this->hasBoundaryPoints_[d]) {
+    if (this->hasBoundaryPoints_[d] == 0) {
       ++idx1d;
     }
     // get level of idx1d by rightmost set bit
@@ -1074,7 +1110,7 @@ class DistributedFullGrid {
     subspaceIndexToFGIndices_.clear();
     subspaceIndexToFGIndices_.reserve(downwardClosedSet.size());
 
-    IndexType index = 0;
+    typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType index = 0;
     // resize all common subspaces in dsg, if necessary
     for (const auto& level : downwardClosedSet) {
       index = dsg_->getIndexInRange(level, index);
@@ -1233,7 +1269,7 @@ class DistributedFullGrid {
   inline IndexType getStrideForThisLevel(LevelType l, DimType d) {
     assert(d < this->getDimension());
     // special treatment for level 1 suspaces with boundary
-    return (l == 1 && hasBoundaryPoints_[d])
+    return (l == 1 && hasBoundaryPoints_[d] > 0)
                ? combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - 1))
                : combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l + 1));
   }
@@ -1244,7 +1280,7 @@ class DistributedFullGrid {
     // get global offset to find indices of this level
     // this is the first global index that has level l in dimension d
     IndexType offsetForThisLevel;
-    if (hasBoundaryPoints_[d]) {
+    if (hasBoundaryPoints_[d] > 0) {
       if (l == 1) {
         offsetForThisLevel = 0;
       } else {
@@ -1269,7 +1305,7 @@ class DistributedFullGrid {
     const IndexType globalStart =
         (firstGlobalIndexOnThisPartition)*strideForThisLevel + offsetForThisLevel;
     assert(getLevel(d, globalStart) == l ||
-           (getLevel(d, globalStart) == 0 && hasBoundaryPoints_[d] && l == 1));
+           (getLevel(d, globalStart) == 0 && hasBoundaryPoints_[d] > 0 && l == 1));
     assert(globalStart >= firstGlobal1dIdx);
 
     return globalStart - firstGlobal1dIdx;
@@ -1635,7 +1671,7 @@ class DistributedFullGrid {
   }
 
   void writeUpperBoundaryToLowerBoundary(DimType d) {
-    assert(hasBoundaryPoints_[d] == true);
+    assert(hasBoundaryPoints_[d] == 2);
 
     // create MPI datatypes
     auto downSubarray = getDownwardSubarray(d);
@@ -1655,7 +1691,7 @@ class DistributedFullGrid {
   }
 
   void writeLowerBoundaryToUpperBoundary(DimType d) {
-    assert(hasBoundaryPoints_[d] == true);
+    assert(hasBoundaryPoints_[d] == 2);
 
     // create MPI datatypes
     auto downSubarray = getDownwardSubarray(d);
@@ -1678,7 +1714,7 @@ class DistributedFullGrid {
 
   void exchangeBoundaryLayers(DimType d, std::vector<FG_ELEMENT>& recvbufferFromUp,
                               std::vector<FG_ELEMENT>& recvbufferFromDown) {
-    assert(hasBoundaryPoints_[d] == true);
+    assert(hasBoundaryPoints_[d] == 2);
     auto subarrayExtents = this->getLocalSizes();
     subarrayExtents[d] = 1;
     auto numElements = std::accumulate(subarrayExtents.begin(), subarrayExtents.end(), 1,
@@ -1848,7 +1884,7 @@ class DistributedFullGrid {
 
   void averageBoundaryValues() {
     for (DimType d = 0; d < this->getDimension(); ++d) {
-      if (this->hasBoundaryPoints_[d]) {
+      if (this->hasBoundaryPoints_[d] == 2) {
         this->averageBoundaryValues(d);
       }
     }
@@ -1968,11 +2004,15 @@ class DistributedFullGrid {
   /** levels for each dimension */
   LevelVector levels_;
 
+  /** the grid spacing h for each dimension */
+  std::vector<double> gridSpacing_;
+
   /** number of points per axis boundary included*/
   IndexVector nrPoints_;
 
   /** flag to show if the dimension has boundary points*/
-  std::vector<bool> hasBoundaryPoints_;
+  std::vector<BoundaryType> hasBoundaryPoints_;
+
   /** the offsets in each direction*/
   IndexVector offsets_;
 
@@ -2248,7 +2288,7 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
 static inline std::vector<IndexVector> downsampleDecomposition(
                                         const std::vector<IndexVector> decomposition,
                                         const LevelVector& referenceLevel, const LevelVector& newLevel,
-                                        const std::vector<bool>& boundary) {
+                                        const std::vector<BoundaryType>& boundary) {
   auto newDecomposition = decomposition;
   if (decomposition.size() > 0) {
     for (DimType d = 0 ; d < static_cast<DimType>(referenceLevel.size()); ++ d) {
@@ -2256,7 +2296,7 @@ static inline std::vector<IndexVector> downsampleDecomposition(
       assert(referenceLevel[d] >= newLevel[d]);
       auto levelDiff = referenceLevel[d] - newLevel[d];
       auto stepFactor = oneOverPowOfTwo[levelDiff];
-      if(boundary[d]) {
+      if(boundary[d] > 0) {
         // all levels contain the boundary points -> point 0 is the same
         for (auto& dec: newDecomposition[d]) {
           dec = static_cast<IndexType>(std::ceil(static_cast<double>(dec)*stepFactor));
