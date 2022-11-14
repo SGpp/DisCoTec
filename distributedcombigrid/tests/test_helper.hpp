@@ -54,6 +54,12 @@ namespace TestHelper{
     } else {
       // Make all dimensions not periodic
       std::vector<int> periods(procs.size(), 0);
+      // ...except if there is a one-sided boundary
+      for (size_t i = 0; i < procs.size(); i++) {
+        if (procs[i] == 1) {
+          periods[i] = 1;
+        }
+      }
       // let MPI assign arbitrary ranks?
       int reorder = false;
       // Create a communicator given the topology
