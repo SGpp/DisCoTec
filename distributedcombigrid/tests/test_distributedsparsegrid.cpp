@@ -26,7 +26,7 @@
 using namespace combigrid;
 
 void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vector<int>& procs,
-                                std::vector<bool>& boundary, int size) {
+                                std::vector<BoundaryType>& boundary, int size) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     auto rank = TestHelper::getRank(comm);
@@ -46,7 +46,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
 
     // create with "own" constructor
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<std::complex<double>>>(
-        new DistributedSparseGridUniform<std::complex<double>>(dim, lmax, lmin, boundary, comm));
+        new DistributedSparseGridUniform<std::complex<double>>(dim, lmax, lmin, comm));
 
     for (const auto& corner : cornersOfScheme) {
       // make sure corners are part of the scheme
@@ -83,7 +83,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
 
     // compare to subspace constructor
     auto uniDSGfromSubspaces = std::unique_ptr<DistributedSparseGridUniform<std::complex<double>>>(
-        new DistributedSparseGridUniform<std::complex<double>>(dim, subspaces, boundary, comm));
+        new DistributedSparseGridUniform<std::complex<double>>(dim, subspaces, comm));
 
     BOOST_CHECK_EQUAL(subspaces.size(), uniDSGfromSubspaces->getNumSubspaces());
     BOOST_CHECK_EQUAL(uniDSG->getNumSubspaces(), uniDSGfromSubspaces->getNumSubspaces());
@@ -213,7 +213,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         std::accumulate(subspacesDataSizes.begin(), subspacesDataSizes.end(), 0);
     BOOST_CHECK(numDataPointsHere > 0);
 
-    if (std::all_of(boundary.begin(), boundary.end(), [](bool i) { return i; })) {
+    if (std::all_of(boundary.begin(), boundary.end(), [](BoundaryType i) { return i == 2; })) {
       auto newLmin = lmin;
       auto newLmax = lmax;
       auto newLref = lref;
@@ -269,9 +269,9 @@ BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(1500))
 BOOST_AUTO_TEST_CASE(test_0) {
   LevelVector lmin = {1, 1};
   LevelVector lmax = {3, 3};
-  for (bool bValue : {true}) {
+  for (BoundaryType bValue : {2}) {
     std::vector<int> procs = {1, 1};
-    std::vector<bool> boundary(2, bValue);
+    std::vector<BoundaryType> boundary(2, bValue);
     auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
     BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
     checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
@@ -284,9 +284,9 @@ BOOST_AUTO_TEST_CASE(test_1) {
   LevelVector lmax = {7, 7};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (bool bValue : {true}) {
+      for (BoundaryType bValue : {2}) {
         std::vector<int> procs = {procOne, procTwo};
-        std::vector<bool> boundary(2, bValue);
+        std::vector<BoundaryType> boundary(2, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -302,9 +302,9 @@ BOOST_AUTO_TEST_CASE(test_2) {
   LevelVector lmax = {6, 8};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (bool bValue : {true}) {
+      for (BoundaryType bValue : {2}) {
         std::vector<int> procs = {procOne, procTwo};
-        std::vector<bool> boundary(2, bValue);
+        std::vector<BoundaryType> boundary(2, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -320,9 +320,9 @@ BOOST_AUTO_TEST_CASE(test_3) {
   LevelVector lmax = {9, 9};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (bool bValue : {true, false}) {
+      for (BoundaryType bValue : {0, 1, 2}) {
         std::vector<int> procs = {procOne, procTwo};
-        std::vector<bool> boundary(2, bValue);
+        std::vector<BoundaryType> boundary(2, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -338,9 +338,9 @@ BOOST_AUTO_TEST_CASE(test_4) {
   LevelVector lmax = {7, 7, 7};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (bool bValue : {true}) {
+      for (BoundaryType bValue : {2}) {
         std::vector<int> procs = {procOne, procTwo, 1};
-        std::vector<bool> boundary(3, bValue);
+        std::vector<BoundaryType> boundary(3, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -356,9 +356,9 @@ BOOST_AUTO_TEST_CASE(test_5) {
   LevelVector lmax = {6, 7, 8};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (bool bValue : {true}) {
+      for (BoundaryType bValue : {2}) {
         std::vector<int> procs = {procOne, procTwo, 1};
-        std::vector<bool> boundary(3, bValue);
+        std::vector<BoundaryType> boundary(3, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -374,9 +374,9 @@ BOOST_AUTO_TEST_CASE(test_6) {
   LevelVector lmax = {7, 7, 7};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (bool bValue : {true, false}) {
+      for (BoundaryType bValue : {0, 1, 2}) {
         std::vector<int> procs = {procOne, procTwo, 1};
-        std::vector<bool> boundary(3, bValue);
+        std::vector<BoundaryType> boundary(3, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -393,9 +393,9 @@ BOOST_AUTO_TEST_CASE(test_7) {
   LevelVector lmax = {6, 7, 5, 5};
   for (int procOne : {1, 3}) {
     for (int procTwo : {1, 2}) {
-      for (bool bValue : {true, false}) {
+      for (BoundaryType bValue : {0, 1, 2}) {
         std::vector<int> procs = {procOne, procTwo, 1, 1};
-        std::vector<bool> boundary(4, bValue);
+        std::vector<BoundaryType> boundary(4, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -412,9 +412,9 @@ BOOST_AUTO_TEST_CASE(test_8) {
   LevelVector lmax = {4, 3, 6, 3, 5, 3};
   for (int procOne : {1, 3}) {
     for (int procTwo : {1, 2}) {
-      for (bool bValue : {true, false}) {
+      for (BoundaryType bValue : {0, 1, 2}) {
         std::vector<int> procs = {1, 1, procOne, 1, procTwo, 1};
-        std::vector<bool> boundary(6, bValue);
+        std::vector<BoundaryType> boundary(6, bValue);
         auto multProcs =
             std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
         BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
@@ -481,7 +481,7 @@ BOOST_AUTO_TEST_CASE(test_getPartitionedNumDOFSGAdaptive_3) {
 BOOST_AUTO_TEST_CASE(test_createTruncatedHierarchicalLevels) {
   LevelVector lmin = {2, 2, 2, 2};
   LevelVector lmax = {4, 4, 4, 4};
-  DimType dim = lmin.size();
+  auto dim = static_cast<DimType>(lmin.size());
   std::vector<LevelVector> created;
   combigrid::createTruncatedHierarchicalLevels(lmax, lmin, created);
   // std::cout << lmin << lmax << std::endl;
@@ -534,8 +534,9 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel) {
   BOOST_CHECK(it == created.end());
   BOOST_CHECK_EQUAL(created.size(),
                     std::accumulate(lmax.begin(), lmax.end(), 1, std::multiplies<LevelType>()));
-  for (bool boundary : {true, false}) {
-    std::vector<bool> boundaryVector = {boundary, boundary, boundary, !boundary};
+  for (BoundaryType boundary : {0, 1, 2}) {
+    std::vector<BoundaryType> boundaryVector = {boundary, boundary, boundary,
+                                                static_cast<BoundaryType>((boundary == 0) ? 2 : 0)};
     BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),
                       getNumDofHierarchical(downSet, boundaryVector));
     BOOST_CHECK_EQUAL(combigrid::getNumDofNodal(lmax, boundaryVector),
@@ -640,10 +641,10 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
     DimType dim = static_cast<DimType>(procs.size());
     LevelVector lmin = {2, 2, 2, 2, 2, 2};
     LevelVector lmax = {11, 11, 11, 11, 11, 11};
-    std::vector<bool> boundary(dim, true);
+    std::vector<BoundaryType> boundary(dim, 2);
     auto decomposition = combigrid::getStandardDecomposition(lmax, procs);
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<combigrid::real>>(
-        new DistributedSparseGridUniform<combigrid::real>(dim, lmax, lmin, boundary, comm));
+        new DistributedSparseGridUniform<combigrid::real>(dim, lmax, lmin, comm));
     // iterate main diagonal of combi scheme and register to populate all subspaces
     for (const auto& level : uniDSG->getAllLevelVectors()) {
       if (levelSum(level) == 21) {

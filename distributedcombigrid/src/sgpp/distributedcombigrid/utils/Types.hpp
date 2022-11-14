@@ -38,6 +38,15 @@ typedef IndexType LevelType;
 
 typedef uint8_t DimType;
 
+// type used to denote how many boundary points there are in a dimension
+// 0 -> no boundary points;
+// 1 -> boundary point on one side (assume the "left" side with coordinate 0);
+// 2 -> boundary points on each side
+// may be changed to enum class if needed
+// (eg to distinguish one-sided left and right boundaries,
+// or to implement GENE's twisted boundary conditions into the hierarchization operator directly...)
+typedef uint8_t BoundaryType;
+
 typedef MPI_Comm CommunicatorType;
 
 typedef int RankType;
@@ -52,6 +61,7 @@ typedef enum {
   type_double_complex,
   type_float_complex,
   type_long_long,
+  type_long,
   type_size_t
 } DataType;
 
@@ -86,6 +96,11 @@ inline DataType getabstractionDataType<long long>() {
 }
 
 template <>
+inline DataType getabstractionDataType<long>() {
+  return abstraction::type_long;
+}
+
+template <>
 inline DataType getabstractionDataType<size_t>() {
   return abstraction::type_size_t;
 }
@@ -106,6 +121,9 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
 
     case abstraction::type_long_long:
       return MPI_LONG_LONG;
+
+    case abstraction::type_long:
+      return MPI_LONG;
 
     case abstraction::type_size_t:
       return MPI_SIZE_T;

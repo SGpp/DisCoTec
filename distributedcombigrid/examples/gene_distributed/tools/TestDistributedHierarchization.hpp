@@ -32,7 +32,7 @@ public:
       {
         const DimType dim = 1;
         LevelVector levels(dim);
-        std::vector<bool> boundary(dim, false);
+        std::vector<BoundaryType> boundary(dim, false);
         std::vector<size_t> gpd(dim);
 
         levels[0] = 4;
@@ -53,7 +53,7 @@ public:
       {
         const DimType dim = 1;
         LevelVector levels(dim);
-        std::vector<bool> boundary(dim, false);
+        std::vector<BoundaryType> boundary(dim, false);
         std::vector<size_t> gpd(dim);
 
         levels[0] = 4;
@@ -74,7 +74,7 @@ public:
       {
         const DimType dim = 2;
         LevelVector levels(dim);
-        std::vector<bool> boundary(dim, false);
+        std::vector<BoundaryType> boundary(dim, false);
         std::vector<size_t> gpd(dim);
 
         levels[0] = 4;
@@ -100,7 +100,7 @@ public:
       {
         const DimType dim = 2;
         LevelVector levels(dim);
-        std::vector<bool> boundary(dim, false);
+        std::vector<BoundaryType> boundary(dim, false);
         std::vector<size_t> gpd(dim);
 
         levels[0] = 4;
@@ -126,7 +126,7 @@ public:
       {
         const DimType dim = 3;
         LevelVector levels(dim);
-        std::vector<bool> boundary(dim, false);
+        std::vector<BoundaryType> boundary(dim, false);
         std::vector<size_t> gpd(dim);
 
         levels[0] = 4;
@@ -155,7 +155,7 @@ public:
       {
         const DimType dim = 3;
         LevelVector levels(dim);
-        std::vector<bool> boundary(dim, false);
+        std::vector<BoundaryType> boundary(dim, false);
         std::vector<size_t> gpd(dim);
 
         levels[0] = 4;
@@ -184,7 +184,7 @@ public:
       {
         const DimType dim = 5;
         LevelVector levels(dim);
-        std::vector<bool> boundary(dim, false);
+        std::vector<BoundaryType> boundary(dim, false);
         std::vector<size_t> gpd(dim);
 
         levels[0] = 4;

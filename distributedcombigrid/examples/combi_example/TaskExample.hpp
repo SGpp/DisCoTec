@@ -18,7 +18,7 @@ class TaskExample : public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+  TaskExample(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
               LoadModel* loadModel, real dt, size_t nsteps,
               std::vector<int> p = std::vector<int>(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))

@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
   DimType dim = cfg.get<DimType>("ct.dim");
   LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim), reduceCombinationDimsLmin(dim), reduceCombinationDimsLmax(dim);
   IndexVector p(dim);
-  std::vector<bool> boundary(dim), hierarchizationDims(dim);
+  std::vector<BoundaryType> boundary(dim), hierarchizationDims(dim);
   combigrid::real dt;
   //time inteveral of 1 combination
   //only necessary if number of timesteps varies for each grid

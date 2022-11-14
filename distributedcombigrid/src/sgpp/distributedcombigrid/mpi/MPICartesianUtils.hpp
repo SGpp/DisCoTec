@@ -87,6 +87,10 @@ class MPICartesianUtils {
 
   inline bool isOnLowerBoundaryInDimension(DimType d) const { return localCoords_[d] == 0; }
 
+  inline bool isOnUpperBoundaryInDimension(DimType d) const {
+    return localCoords_[d] + 1 == cartdims_[d];
+  }
+
   inline RankType getRankFromPartitionCoords(const std::vector<int>& partitionCoordsInt) const {
     // check wheter the partition coords are valid
     assert(partitionCoordsInt.size() == dim_);

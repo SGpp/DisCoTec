@@ -25,7 +25,7 @@ class Task {
  protected:
   Task();
 
-  Task(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+  Task(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
        LoadModel* loadModel, FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
   // cheapest rule of 5 ever
@@ -52,7 +52,7 @@ class Task {
 
   inline const LevelVector& getLevelVector() const;
 
-  inline const std::vector<bool>& getBoundary() const;
+  inline const std::vector<BoundaryType>& getBoundary() const;
 
   inline size_t getID() const;
 
@@ -129,7 +129,7 @@ class Task {
 
   LevelVector l_;  // levelvector of partial solution
 
-  std::vector<bool> boundary_;
+  std::vector<BoundaryType> boundary_;
 
   size_t id_;  // unique id of task, same on manager and worker
 
@@ -164,7 +164,7 @@ inline DimType Task::getDim() const { return dim_; }
 
 inline const LevelVector& Task::getLevelVector() const { return l_; }
 
-inline const std::vector<bool>& Task::getBoundary() const { return boundary_; }
+inline const std::vector<BoundaryType>& Task::getBoundary() const { return boundary_; }
 
 inline size_t Task::getID() const { return id_; }
 

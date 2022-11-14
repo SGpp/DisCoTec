@@ -182,7 +182,7 @@ readGG( const char* ggFileName )
   std::cout << "levels: " << LevelVector( levels.begin(), levels.end() )
       << std::endl;
 
-  std::vector<bool> boundary( 5 );
+  std::vector<BoundaryType> boundary( 5 );
   boundary[0] = true;
   boundary[1] = false;
   boundary[2] = true;

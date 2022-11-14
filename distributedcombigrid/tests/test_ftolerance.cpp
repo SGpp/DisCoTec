@@ -55,7 +55,7 @@ class TestFn {
 };
 class TaskAdvFDM : public combigrid::Task {
  public:
-  TaskAdvFDM(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel, real dt,
+  TaskAdvFDM(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel, real dt,
              size_t nsteps,
              FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(2, l, boundary, coeff, loadModel, faultCrit),
@@ -231,7 +231,7 @@ bool checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
   size_t nsteps = 1;
   combigrid::real dt = useFG ? 0.0001 : 0.01;
 
-  std::vector<bool> boundary(dim,true);
+  std::vector<BoundaryType> boundary(dim, 2);
   theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
 
   BOOST_TEST_CHECKPOINT("Initialize checkFtolerance");

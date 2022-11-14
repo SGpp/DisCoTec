@@ -23,6 +23,10 @@ namespace TestHelper{
     return size >= nprocs;
   }
 
+  static inline bool checkNumMPIProcsAvailable(size_t nprocs) {
+    return checkNumMPIProcsAvailable(static_cast<int>(nprocs));
+  }
+
   static inline MPI_Comm getComm(int nprocs) {
     BOOST_CHECK(TestHelper::checkNumMPIProcsAvailable(nprocs));
     int rank;

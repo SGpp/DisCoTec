@@ -20,15 +20,18 @@ class TaskExample: public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, p as a new parameters.
    */
-  TaskExample(DimType dim, LevelVector& l, std::vector<bool>& boundary,
-      real coeff, LoadModel* loadModel, real dt,
-      size_t nsteps, std::vector<int> p = std::vector<int>(0),
-      FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})) ) :
-        Task(dim, l, boundary, coeff, loadModel, faultCrit), dt_(dt), nsteps_(
-            nsteps), stepsTotal_(0), p_(p),
-            initialized_(false), combiStep_(0), dfg_(NULL)
- {
- }
+  TaskExample(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
+              LoadModel* loadModel, real dt, size_t nsteps,
+              std::vector<int> p = std::vector<int>(0),
+              FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
+      : Task(dim, l, boundary, coeff, loadModel, faultCrit),
+        dt_(dt),
+        nsteps_(nsteps),
+        stepsTotal_(0),
+        p_(p),
+        initialized_(false),
+        combiStep_(0),
+        dfg_(NULL) {}
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     assert(!initialized_);
@@ -85,8 +88,7 @@ class TaskExample: public Task {
     }
 
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm,
-        this->getBoundary(), p);
+    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
     /* loop over local subgrid and set initial values */
     std::vector<CombiDataType>& elements = dfg_->getElementVector();

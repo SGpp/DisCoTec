@@ -227,7 +227,8 @@ int main(int argc, char** argv) {
     LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim), reduceCombinationDimsLmin(dim),
         reduceCombinationDimsLmax(dim);
     std::vector<int> p(dim), resolution(dim);
-    std::vector<bool> boundary(dim), hierarchizationDims(dim);
+    std::vector<bool>, hierarchizationDims(dim);
+    std::vector<BoundaryType> boundary(dim);
     combigrid::real dt;
     // time inteveral of 1 combination
     // only necessary if number of timesteps varies for each grid

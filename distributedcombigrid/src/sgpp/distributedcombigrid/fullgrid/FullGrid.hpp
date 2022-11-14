@@ -2,8 +2,10 @@
 #define COMBIFULLGRID_HPP_
 
 #include <assert.h>
+
 #include <boost/serialization/access.hpp>
 #include <string>
+
 #include "boost/archive/binary_iarchive.hpp"
 #include "boost/archive/binary_oarchive.hpp"
 #include "boost/archive/text_iarchive.hpp"
@@ -19,7 +21,7 @@
 
 // switch on alternative assignment of level vector: the boundary points have
 // level 1 and not level 0
-//#define ALT_LEVEL_VECTOR
+// #define ALT_LEVEL_VECTOR
 
 namespace combigrid {
 
@@ -54,15 +56,15 @@ template <typename FG_ELEMENT>
 class FullGrid {
  public:
   /** simplest Ctor with homogeneous  levels */
-  FullGrid(DimType dim, LevelType level, bool hasBdrPoints = true,
+  FullGrid(DimType dim, LevelType level, BoundaryType hasBdrPoints = 2,
            const BasisFunctionBasis* basis = NULL);
 
   /** dimension adaptive Ctor */
-  FullGrid(DimType dim, const LevelVector& levels, bool hasBdrPoints = true,
+  FullGrid(DimType dim, const LevelVector& levels, BoundaryType hasBdrPoints = 2,
            const BasisFunctionBasis* basis = NULL);
 
   /** dimension adaptive Ctor */
-  FullGrid(DimType dim, const LevelVector& levels, const std::vector<bool>& hasBdrPoints,
+  FullGrid(DimType dim, const LevelVector& levels, const std::vector<BoundaryType>& hasBdrPoints,
            const BasisFunctionBasis* basis = NULL);
 
   // load archived fg from file
@@ -146,9 +148,6 @@ class FullGrid {
   /** returns the number of elements in the full grid */
   inline IndexType getNrElements() const;
 
-  /** returns the number of elements in the full grid */
-  inline IndexType getNrElementsNoBoundary() const;
-
   /** number of points per dimension i */
   inline IndexType length(DimType i) const;
 
@@ -157,7 +156,7 @@ class FullGrid {
   inline IndexVector& getSGppIndex() const;
 
   /** vector of flags to show if the dimension has boundary points*/
-  inline const std::vector<bool>& returnBoundaryFlags() const;
+  inline const std::vector<BoundaryType>& returnBoundaryFlags() const;
 
   /** copies the input vector to the full grid vector
    * in most cases the add function would be more save
@@ -208,9 +207,6 @@ class FullGrid {
   /** the size of the vector, nr of total elements */
   IndexType nrElements_;
 
-  /** ADDED the size of the vector, nr of total elements without boundary */
-  IndexType nrElementsNoBoundary_;
-
   /** flag to show if the grid is created */
   bool isFGcreated_;
 
@@ -221,7 +217,7 @@ class FullGrid {
   IndexVector nrPoints_;
 
   /** flag to show if the dimension has boundary points*/
-  std::vector<bool> hasBoundaryPoints_;
+  std::vector<BoundaryType> hasBoundaryPoints_;
 
   /** the offsets in each direction*/
   IndexVector offsets_;
@@ -262,12 +258,12 @@ class FullGrid {
 namespace combigrid {
 
 template <typename FG_ELEMENT>
-FullGrid<FG_ELEMENT>::FullGrid(DimType dim, LevelType level, bool hasBdrPoints,
+FullGrid<FG_ELEMENT>::FullGrid(DimType dim, LevelType level, BoundaryType hasBdrPoints,
                                const BasisFunctionBasis* basis) {
   // set the basis function for the full grid
   if (basis == NULL)
-    //TODO deal with memory leak
-    basis_ = new LinearBasisFunction(); // LinearBasisFunction::getDefaultBasis();
+    // TODO deal with memory leak
+    basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
   else
     basis_ = basis;
 
@@ -278,20 +274,13 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, LevelType level, bool hasBdrPoints,
   hasBoundaryPoints_.resize(dim, hasBdrPoints);
   nrElements_ = 1;
 
-  // ADDED
-  nrElementsNoBoundary_ = 1;
-
   offsets_.resize(dim_);
   nrPoints_.resize(dim_);
 
   for (DimType j = 0; j < dim_; j++) {
-    nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                    : (powerOfTwo[levels_[j]] - 1));
+    nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
     offsets_[j] = nrElements_;
     nrElements_ = nrElements_ * nrPoints_[j];
-
-    // ADDED
-    nrElementsNoBoundary_ = nrElementsNoBoundary_ * (powerOfTwo[levels_[j]] - 1);
   }
 
   isHierarchized_ = false;
@@ -299,12 +288,12 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, LevelType level, bool hasBdrPoints,
 
 /** dimension adaptive Ctor */
 template <typename FG_ELEMENT>
-FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, bool hasBdrPoints,
+FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, BoundaryType hasBdrPoints,
                                const BasisFunctionBasis* basis) {
   // set the basis function for the full grid
   if (basis == NULL)
-    //TODO deal with memory leak
-    basis_ = new LinearBasisFunction(); // LinearBasisFunction::getDefaultBasis();
+    // TODO deal with memory leak
+    basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
   else
     basis_ = basis;
 
@@ -314,20 +303,14 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, bool hasB
   levels_ = levels;
   hasBoundaryPoints_.resize(dim, hasBdrPoints);
   nrElements_ = 1;
-  // ADDED
-  nrElementsNoBoundary_ = 1;
 
   offsets_.resize(dim_);
   nrPoints_.resize(dim_);
 
   for (DimType j = 0; j < dim_; j++) {
-    nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                    : (powerOfTwo[levels_[j]] - 1));
+    nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
     offsets_[j] = nrElements_;
     nrElements_ = nrElements_ * nrPoints_[j];
-
-    // ADDED
-    nrElementsNoBoundary_ = nrElementsNoBoundary_ * (powerOfTwo[levels_[j]] - 1);
   }
 
   isHierarchized_ = false;
@@ -336,15 +319,15 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, bool hasB
 /** dimension adaptive Ctor */
 template <typename FG_ELEMENT>
 FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
-                               const std::vector<bool>& hasBdrPoints,
+                               const std::vector<BoundaryType>& hasBdrPoints,
                                const BasisFunctionBasis* basis) {
   assert(levels.size() == dim);
   assert(hasBdrPoints.size() == dim);
 
   // set the basis function for the full grid
   if (basis == NULL)
-    //TODO deal with memory leak
-    basis_ = new LinearBasisFunction(); // LinearBasisFunction::getDefaultBasis();
+    // TODO deal with memory leak
+    basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
   else
     basis_ = basis;
 
@@ -354,18 +337,14 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
   levels_ = levels;
   hasBoundaryPoints_ = hasBdrPoints;
   nrElements_ = 1;
-  // ADDED
-  nrElementsNoBoundary_ = 1;
 
   offsets_.resize(dim_);
   nrPoints_.resize(dim_);
 
   for (DimType j = 0; j < dim_; j++) {
-    nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                    : (powerOfTwo[levels_[j]] - 1));
+    nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
     offsets_[j] = nrElements_;
     nrElements_ = nrElements_ * nrPoints_[j];
-    nrElementsNoBoundary_ = nrElementsNoBoundary_ * (powerOfTwo[levels_[j]] - 1);
   }
 
   isHierarchized_ = false;
@@ -409,8 +388,8 @@ FullGrid<FG_ELEMENT>::FullGrid(const LevelVector& levels, const SGrid<FG_ELEMENT
 
   // set the basis function for the full grid
   // at the moment we don't have any other basis for sg
-  //TODO deal with memory leak
-  basis_ = new LinearBasisFunction(); // LinearBasisFunction::getDefaultBasis();
+  // TODO deal with memory leak
+  basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
 
   gridDomain_ = NULL;
   dim_ = sg2.getDim();
@@ -418,18 +397,14 @@ FullGrid<FG_ELEMENT>::FullGrid(const LevelVector& levels, const SGrid<FG_ELEMENT
   levels_ = levels;
   hasBoundaryPoints_ = sg2.getBoundaryVector();
   nrElements_ = 1;
-  nrElementsNoBoundary_ = 1;
 
   offsets_.resize(dim_);
   nrPoints_.resize(dim_);
 
   for (DimType j = 0; j < dim_; j++) {
-    nrPoints_[j] = ((hasBoundaryPoints_[j] == true) ? (powerOfTwo[levels_[j]] + 1)
-                                                    : (powerOfTwo[levels_[j]] - 1));
+    nrPoints_[j] = powerOfTwo[levels_[j]] + hasBoundaryPoints_[j] - 1;
     offsets_[j] = nrElements_;
     nrElements_ = nrElements_ * nrPoints_[j];
-    // ADDED
-    nrElementsNoBoundary_ = nrElementsNoBoundary_ * (powerOfTwo[levels_[j]] - 1);
   }
 
   createFullGrid();
@@ -526,7 +501,7 @@ FG_ELEMENT FullGrid<FG_ELEMENT>::eval(std::vector<real>& coords) {
     normcoord = coords[ii] * powerOfTwo[levels_[ii]];
     aindex[ii] = static_cast<IndexType>(std::floor(normcoord));
 
-    if (hasBoundaryPoints_[ii] == true) {
+    if (hasBoundaryPoints_[ii] > 0) {
       aindex[ii] = (aindex[ii] < 0) ? 0 : aindex[ii];
       aindex[ii] = (aindex[ii] >= (nrPoints_[ii] - 1)) ? (nrPoints_[ii] - 2) : aindex[ii];
       // calculate the coordinates
@@ -583,7 +558,7 @@ FG_ELEMENT FullGrid<FG_ELEMENT>::eval(std::vector<real>& coords) {
       // always evals zero. i think the intersect values are not
       // computed correctly, but do not fully understand the code
       if (nrPoints_[jj] == 1) {
-        assert(!hasBoundaryPoints_[jj]);
+        assert(hasBoundaryPoints_[jj] == 0);
         assert(aindex[jj] == 0);
         assert(coords[jj] <= 1.0 && coords[jj] >= 0.0);
 
@@ -622,7 +597,7 @@ void FullGrid<FG_ELEMENT>::getCoords(IndexType elemIndex, std::vector<real>& coo
       ind = elemIndex % nrPoints_[j];
       elemIndex = elemIndex / nrPoints_[j];
       // set the coordinate based on if we have boundary points
-      tmp_add = (hasBoundaryPoints_[j] == true) ? (0) : (1);
+      tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
       coords[j] = static_cast<real>(ind + tmp_add) * oneOverPowOfTwo[levels_[j]];
     }
   } else {
@@ -797,12 +772,6 @@ inline IndexType FullGrid<FG_ELEMENT>::getNrElements() const {
   return nrElements_;
 }
 
-/** returns the number of elements in the full grid */
-template <typename FG_ELEMENT>
-inline IndexType FullGrid<FG_ELEMENT>::getNrElementsNoBoundary() const {
-  return nrElementsNoBoundary_;
-}
-
 /** number of points per dimension i */
 template <typename FG_ELEMENT>
 inline IndexType FullGrid<FG_ELEMENT>::length(DimType i) const {
@@ -811,7 +780,7 @@ inline IndexType FullGrid<FG_ELEMENT>::length(DimType i) const {
 
 /** vector of flags to show if the dimension has boundary points*/
 template <typename FG_ELEMENT>
-inline const std::vector<bool>& FullGrid<FG_ELEMENT>::returnBoundaryFlags() const {
+inline const std::vector<BoundaryType>& FullGrid<FG_ELEMENT>::returnBoundaryFlags() const {
   return hasBoundaryPoints_;
 }
 
@@ -960,7 +929,6 @@ template <class Archive>
 void FullGrid<FG_ELEMENT>::serialize(Archive& ar, const unsigned int version) {
   ar& dim_;
   ar& nrElements_;
-  ar& nrElementsNoBoundary_;
   ar& isFGcreated_;
   ar& levels_;
   ar& nrPoints_;
@@ -1102,5 +1070,5 @@ inline std::ostream& operator<<(std::ostream& os, const FullGrid<FG_ELEMENT>& fg
   return os;
 }
 
-}  // namespace
+}  // namespace combigrid
 #endif /* COMBIFULLGRID_HPP_ */
