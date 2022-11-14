@@ -21,6 +21,37 @@
 
 namespace combigrid {
 
+/* a regular (equidistant) domain decompositioning for an even number of processes
+ * leads to grid points on the (geometrical) process boundaries.
+ * with the forwardDecomposition flag it can be decided if the grid points on
+ * the process boundaries belong to the process on the right-hand side (true)
+ * of the process boundary, or to the one on the left-hand side (false).
+ */
+static inline std::vector<IndexVector> getDefaultDecomposition(
+    IndexVector globalNumPointsPerDimension, std::vector<int> cartesianProcsPerDimension,
+    bool forwardDecomposition) {
+  auto dim = static_cast<DimType>(globalNumPointsPerDimension.size());
+  assert(cartesianProcsPerDimension.size() == dim);
+
+  // create decomposition vectors
+  std::vector<IndexVector> decomposition(dim);
+  for (DimType i = 0; i < dim; ++i) {
+    IndexVector& llbnd = decomposition[i];
+    llbnd.resize(cartesianProcsPerDimension[i]);
+
+    for (int j = 0; j < cartesianProcsPerDimension[i]; ++j) {
+      double tmp = static_cast<double>(globalNumPointsPerDimension[i]) * static_cast<double>(j) /
+                   static_cast<double>(cartesianProcsPerDimension[i]);
+
+      if (forwardDecomposition)
+        llbnd[j] = static_cast<IndexType>(std::ceil(tmp));
+      else
+        llbnd[j] = static_cast<IndexType>(std::floor(tmp));
+    }
+  }
+  return decomposition;
+}
+
 /** The full grid class which is the main building block of the combi grid <br>
  *  The index of a gridpoint in the full grid is given by the formula : <br>
  *  ind = i0 + i1*N0 + i2*N0*N1 + ... + id*N0*N1*N2*...*Nd, where i0,i1,i2,... are the indexes in
@@ -77,7 +108,8 @@ class DistributedFullGrid {
     }
 
     if (decomposition.size() == 0) {
-      decomposition_ = getDefaultDecomposition(forwardDecomposition);
+      decomposition_ = getDefaultDecomposition(
+          nrPoints_, this->getCartesianUtils().getCartesianDimensions(), forwardDecomposition);
     } else {
       setDecomposition(decomposition);
     }
@@ -2146,34 +2178,6 @@ class DistributedFullGrid {
     }
   }
 
-  /* a regular (equidistant) domain decompositioning for an even number of processes
-   * leads to grid points on the (geometrical) process boundaries.
-   * with the forwardDecomposition flag it can be decided if the grid points on
-   * the process boundaries belong to the process on the right-hand side (true)
-   * of the process boundary, or to the one on the left-hand side (false).
-   */
-  std::vector<IndexVector> getDefaultDecomposition(bool forwardDecomposition) const {
-    // create decomposition vectors
-    std::vector<IndexVector> decomposition(dim_);
-    auto procs = this->getCartesianUtils().getCartesianDimensions();
-
-    for (DimType i = 0; i < dim_; ++i) {
-      IndexVector& llbnd = decomposition[i];
-      llbnd.resize(procs[i]);
-
-      for (int j = 0; j < procs[i]; ++j) {
-        double tmp = static_cast<double>(nrPoints_[i]) * static_cast<double>(j) /
-                     static_cast<double>(procs[i]);
-
-        if (forwardDecomposition)
-          llbnd[j] = static_cast<IndexType>(std::ceil(tmp));
-        else
-          llbnd[j] = static_cast<IndexType>(std::floor(tmp));
-      }
-    }
-    return decomposition;
-  }
-
   void setDecomposition(const std::vector<IndexVector>& decomposition) {
 #ifndef NDEBUG
     assert(decomposition.size() == dim_);
@@ -2286,9 +2290,8 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
 }
 
 static inline std::vector<IndexVector> downsampleDecomposition(
-                                        const std::vector<IndexVector> decomposition,
-                                        const LevelVector& referenceLevel, const LevelVector& newLevel,
-                                        const std::vector<BoundaryType>& boundary) {
+    const std::vector<IndexVector> decomposition, const LevelVector& referenceLevel,
+    const LevelVector& newLevel, const std::vector<BoundaryType>& boundary) {
   auto newDecomposition = decomposition;
   if (decomposition.size() > 0) {
     for (DimType d = 0 ; d < static_cast<DimType>(referenceLevel.size()); ++ d) {
