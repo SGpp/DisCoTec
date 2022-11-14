@@ -519,14 +519,6 @@ BOOST_AUTO_TEST_CASE(test_17) {
   boundary[2] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
-BOOST_AUTO_TEST_CASE(test_18) {
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  LevelVector levels = {3, 4, 3};
-  std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, 1);
-  boundary[2] = 2;
-  checkDistributedFullgrid(levels, procs, boundary, true);
-}
 
 // memory
 BOOST_AUTO_TEST_CASE(test_19) {
