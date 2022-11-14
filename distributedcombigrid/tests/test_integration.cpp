@@ -127,8 +127,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
 
     // create combiparameters
     BOOST_TEST_CHECKPOINT("manager create combi parameters");
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-    params.setParallelization({static_cast<int>(nprocs), 1});
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
+                           {static_cast<int>(nprocs), 1}, LevelVector(0), LevelVector(0), false);
     if (nprocs == 5 && boundaryV == 2) {
       params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
     } else if (nprocs == 4 && boundaryV == 2) {
