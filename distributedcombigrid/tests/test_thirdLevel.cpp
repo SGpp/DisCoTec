@@ -194,8 +194,8 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     // split scheme and assign each half to a system
     std::vector<LevelVector> levels;
     std::vector<combigrid::real> coeffs;
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary,
-                                                  testParams.sysNum, 2, levels, coeffs);
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, testParams.sysNum, 2,
+                                                  levels, coeffs);
 
     BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
     // std::cout << "Combischeme " << testParams.sysNum << ":" << std::endl;
@@ -550,8 +550,8 @@ void testPretendThirdLevel(TestParams& testParams) {
     // split scheme and assign each half to a system
     std::vector<LevelVector> levels;
     std::vector<combigrid::real> coeffs;
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary,
-                                                  testParams.sysNum, 2, levels, coeffs);
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, testParams.sysNum, 2,
+                                                  levels, coeffs);
 
     BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
     TaskContainer tasks;

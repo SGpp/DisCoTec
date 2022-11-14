@@ -10,7 +10,6 @@ namespace combigrid {
  */
 void CombiThirdLevelScheme::createThirdLevelScheme(const std::vector<LevelVector>& levels,
                                                    const std::vector<real>& coeffs,
-                                                   const std::vector<bool>& boundary,
                                                    unsigned int systemNumber,
                                                    unsigned int numSystems,
                                                    std::vector<LevelVector>& newLevels,
