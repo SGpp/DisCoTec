@@ -1830,12 +1830,18 @@ class DistributedFullGrid {
     }
     MPI_Cart_shift( this->getCommunicator(), static_cast<int>(d_reverse), 1, &lower, &higher );
 
-    // assert that boundaries have no neighbors (remove in case of periodicity)
-    if(this->getLowerBounds()[d] == 0){
-      assert(lower < 0);
-    }
-    if(this->getUpperBounds()[d] == this->getGlobalSizes()[d]){
-      assert(higher < 0);
+    if (this->returnBoundaryFlags()[d] == 1) {
+      // if one-sided boundary, assert that everyone has neighbors
+      assert(lower >= 0);
+      assert(higher >= 0);
+    } else if (this->returnBoundaryFlags()[d] == 2) {
+      // assert that boundaries have no neighbors
+      if (this->getLowerBounds()[d] == 0) {
+        assert(lower < 0);
+      }
+      if (this->getUpperBounds()[d] == this->getGlobalSizes()[d]) {
+        assert(higher < 0);
+      }
     }
 
     // create recvbuffer
@@ -2142,6 +2148,15 @@ class DistributedFullGrid {
       }
       ASSERT(cartdims == dims, " cartdims: " << cartdims << " dims: " << dims);
       assert(cartdims == dims);
+      for (int d = 0; d < maxdims; ++d) {
+        if (hasBoundaryPoints_[d] == 1) {
+          // assert periodicity
+          assert(periods[d] == 1);
+        } else {
+          // assert no periodicity
+          assert(periods[d] == 0);
+        }
+      }
 #endif
 
       // MPI_Comm_dup(comm, &communicator_);
