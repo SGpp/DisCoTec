@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
     theMPISystem()->init(ngroup, nprocs);
   }
 
-  std::vector<bool> boundary(dim, true);
-  auto forwardDecomposition = true;
+  std::vector<BoundaryType> boundary(dim, 1);
+  auto forwardDecomposition = false;
 
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
       std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
 
       // split scheme and assign each fraction to a system
-      CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary, systemNumber,
+      CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, systemNumber,
                                                     numSystems, levels, coeffs, fractionsOfScheme);
       WORLD_MANAGER_EXCLUSIVE_SECTION {
         std::cout << fullLevels.size()
@@ -226,38 +226,15 @@ int main(int argc, char** argv) {
                            LevelVector(dim, 0), reduceCombinationDimsLmax,
                            forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
     // auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax);
-    std::vector<IndexVector> decomposition;
+    IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
-      if (p[d] > (powerOfTwo[lmin[d]] + (boundary[d] ? +1 : -1))) {
-        throw std::runtime_error(
-            "change p! not all processes can have points on minimum level with current p.");
-      }
-      IndexVector di;
-      if (p[d] == 1) {
-        di = {0};
-      } else if (p[d] == 2) {
-        // forwardDecomposition for powers of 2!
-        assert(forwardDecomposition && boundary[d]);
-        di = {0, powerOfTwo[lmax[d]]/p[d] + 1};
-      } else if (p[d] == 3 && lmax[d] == 10) {
-        // naive
-        di = {0, 342, 683};
-      } else if (p[d] == 3 && lmax[d] == 18 && lmin[d] == 1) {
-        // // naive
-        // di = {0, 87382, 174763};
-        // optimal
-        di = {0, 80450, 181695};
-      } else if (p[d] == 5 && lmax[d] == 19 && lmin[d] == 2) {
-        //naive
-        // di = {0, 104858, 209716, 314573, 419431};
-        //optimal
-        di = {0, 98304, 196609, 327680, 425985};
-      } else {
-        throw std::runtime_error("please implement a decomposition matching p and lmax");
-      }
-      decomposition.push_back(di);
+      minNumPoints[d] = combigrid::getNumDofNodal(lmin[d], boundary[d]);
+      maxNumPoints[d] = combigrid::getNumDofNodal(lmax[d], boundary[d]);
     }
-    params.setDecomposition(decomposition);
+    // first, test if decomposition possible for small resolution
+    auto decomposition = combigrid::getDefaultDecomposition(minNumPoints, p, forwardDecomposition);
+    // then assign the actual used one
+    decomposition = combigrid::getDefaultDecomposition(maxNumPoints, p, forwardDecomposition);
     {
       // compute conjoint size, precomputing this for the large scheme
       // (put into separate header)

@@ -32,7 +32,7 @@ class TaskAdvection : public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskAdvection(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+  TaskAdvection(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
                 LoadModel* loadModel, real dt, size_t nsteps,
                 std::vector<int> p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
@@ -55,7 +55,8 @@ class TaskAdvection : public Task {
     const LevelVector& l = this->getLevelVector();
 
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true, decomposition);
+    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true,
+                                                  decomposition);
     phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
 
     if (phi_->size() != dfg_->getElementVector().size() || phi_->size() != dfg_->getNrLocalElements() ) {
@@ -127,10 +128,12 @@ class TaskAdvection : public Task {
           if (locAxisIndex[d] == 0){
             // if we are in the lowest layer in d,
             // make sure we are not on the lowest global layer
-            if (dfg_->getCartesianUtils().isOnLowerBoundaryInDimension(d)){
-              assert(phi_ghost.size()==0);
+            if (this->getBoundary()[d] == 2 &&
+                dfg_->getCartesianUtils().isOnLowerBoundaryInDimension(d)) {
+              assert(phi_ghost.size() == 0);
               continue;
             }
+            assert(phi_ghost.size() > 0);
             // then use values from boundary exchange
             IndexType gli = 0;
             for (DimType d_j = 0; d_j < this->getDim(); ++d_j) {
@@ -157,7 +160,9 @@ class TaskAdvection : public Task {
       phi_->swap(dfg_->getElementVector());
       for (DimType d = 0; d < dim_; ++d) {
         // implement periodic BC
-        dfg_->writeUpperBoundaryToLowerBoundary(d);
+        if (this->getBoundary()[d] == 2) {
+          dfg_->writeUpperBoundaryToLowerBoundary(d);
+        }
       }
     }
     stepsTotal_ += nsteps_;

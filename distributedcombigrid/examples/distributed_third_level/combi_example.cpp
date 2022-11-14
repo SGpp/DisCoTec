@@ -193,8 +193,8 @@ int main(int argc, char** argv) {
   }
 
   // todo: read in boundary vector from ctparam
-  std::vector<bool> boundary(dim, true);
-  auto forwardDecomposition = true;
+  std::vector<BoundaryType> boundary(dim, 1);
+  auto forwardDecomposition = false;
 
   // check whether parallelization vector p agrees with nprocs
   int checkProcs = 1;
@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
     std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
 
     // split scheme and assign each fraction to a system
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, boundary, systemNumber,
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, systemNumber,
                                                   numSystems, levels, coeffs, fractionsOfScheme);
     WORLD_MANAGER_EXCLUSIVE_SECTION {
       std::cout << fullLevels.size()
@@ -320,49 +320,18 @@ int main(int argc, char** argv) {
     auto reduceCombinationDimsLmax = LevelVector(dim, 1);
     // lie about ncombi, because default is to not use reduced dims for last combi step,
     // which we don't want here because it makes the sparse grid too large
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi*2, 1, p,
-                           LevelVector(dim, 0), reduceCombinationDimsLmax,
-                           forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
-    std::vector<IndexVector> decomposition;
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi * 2, 1, p,
+                           LevelVector(dim, 0), reduceCombinationDimsLmax, forwardDecomposition,
+                           thirdLevelHost, thirdLevelPort, 0);
+    IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
-      if (p[d] > (powerOfTwo[lmin[d]] + (boundary[d] ? +1 : -1))) {
-        throw std::runtime_error(
-            "change p! not all processes can have points on minimum level with current p.");
-      }
-      IndexVector di;
-      if (p[d] == 1) {
-        di = {0};
-      } else if (p[d] == 2 || p[d] == 4) {
-        // forwardDecomposition for powers of 2!
-        assert(forwardDecomposition && boundary[d]);
-        di = {0, powerOfTwo[lmax[d]]/p[d] + 1};
-      } else if (p[d] == 3 && lmax[d] == 10) {
-        // naive
-        di = {0, 342, 683};
-      } else if (p[d] == 3 && lmax[d] == 18 && lmin[d] == 1) {
-        // // naive
-        // di = {0, 87382, 174763};
-        // // optimal for [1]^6 -- [18]^6
-        // di = {0, 80448, 181697};
-        // optimal for [1,2,2,2,2,2] -- [18,19,19,19,19,19]
-        di = {0,  78849, 183296};
-      } else if (p[d] == 3 && lmax[d] == 8 && lmin[d] == 3) {
-        di = {0,  81, 176, 257};
-      } else if (p[d] == 5 && lmax[d] == 8 && lmin[d] == 3) {
-        di = {0,  41,  97, 160, 216, 257};
-      } else if (p[d] == 5 && lmax[d] == 19 && lmin[d] == 2) {
-        //naive
-        // di = {0, 104858, 209716, 314573, 419431};
-        //optimal for [2]^6--[19]^6
-        di = {0, 98304, 196609, 327680, 425985};
-      } else if (p[d] == 3 && lmax[d] == 19 && lmin[d] == 2) {
-        //optimal for [2]^6--[19]^6
-        di = {0, 160737, 363552};
-      } else {
-        throw std::runtime_error("please implement a decomposition matching p and lmax");
-      }
-      decomposition.push_back(di);
+      minNumPoints[d] = combigrid::getNumDofNodal(lmin[d], boundary[d]);
+      maxNumPoints[d] = combigrid::getNumDofNodal(lmax[d], boundary[d]);
     }
+    // first, test if decomposition possible for small resolution
+    auto decomposition = combigrid::getDefaultDecomposition(minNumPoints, p, forwardDecomposition);
+    // then assign the actual used one
+    decomposition = combigrid::getDefaultDecomposition(maxNumPoints, p, forwardDecomposition);
     params.setDecomposition(decomposition);
 
     if (useStaticTaskAssignment) {
