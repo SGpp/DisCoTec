@@ -172,6 +172,25 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     }
     manager.combine();
 
+    Stats::startEvent("manager get norms");
+    // get all kinds of norms
+    manager.getLpNorms(0);
+    manager.getLpNorms(1);
+    manager.getLpNorms(2);
+    auto normsLmax = manager.parallelEvalNorm(lmax, 0);
+    auto analyticalNorms = manager.evalAnalyticalOnDFG(lmax, 0);
+    auto error = manager.evalErrorOnDFG(lmax, 0);
+    if (boundaryV == 2) {
+      BOOST_CHECK_CLOSE(analyticalNorms[0], normsLmax[0], TestHelper::tolerance);
+      BOOST_CHECK_CLOSE(analyticalNorms[1], normsLmax[1], TestHelper::tolerance);
+      BOOST_CHECK_CLOSE(analyticalNorms[2], normsLmax[2], TestHelper::tolerance);
+      BOOST_CHECK_CLOSE(error[0], 0., TestHelper::tolerance);
+      BOOST_CHECK_CLOSE(error[1], 0., TestHelper::tolerance);
+      BOOST_CHECK_CLOSE(error[2], 0., TestHelper::tolerance);
+    }
+    Stats::stopEvent("manager get norms");
+
+    BOOST_TEST_CHECKPOINT("write solution");
     std::string filename("integration_" + std::to_string(ncombi) + ".raw");
     BOOST_TEST_CHECKPOINT("write solution " + filename);
     Stats::startEvent("manager write solution");
