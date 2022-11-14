@@ -501,14 +501,6 @@ BOOST_AUTO_TEST_CASE(test_14) {
   boundary[0] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
-BOOST_AUTO_TEST_CASE(test_15) {
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  LevelVector levels = {3, 3, 3};
-  std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, 1);
-  boundary[0] = 2;
-  checkDistributedFullgrid(levels, procs, boundary, true);
-}
 
 // anisotropic
 
