@@ -1934,7 +1934,7 @@ class DistributedFullGrid {
     IndexVector globalAxisIndex(dim_);
     getGlobalVectorIndex(globalLinearIndex, globalAxisIndex);
     for (DimType d = 0; d < this->getDimension(); ++d) {
-      if (this->returnBoundaryFlags()[d]) {
+      if (this->returnBoundaryFlags()[d] == 2) {
         if (globalAxisIndex[d] == 0 || globalAxisIndex[d] == this->length(d) - 1) {
           isOnBoundary[d] = true;
         }
