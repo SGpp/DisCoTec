@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
     /* read in parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
     LevelVector lmin(dim), lmax(dim), leval(dim);
-    IndexVector p(dim);
+    std::vector<int> p(dim);
     combigrid::real dt;
     size_t nsteps, ncombi;
     cfg.get<std::string>("ct.lmin") >> lmin;
