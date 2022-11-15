@@ -218,7 +218,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1, parallelization,
                                 LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
-                                true, testParams.host, testParams.port, 0);
+                                false, testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
