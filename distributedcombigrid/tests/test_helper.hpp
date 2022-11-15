@@ -47,18 +47,14 @@ namespace TestHelper{
    * @param procs a vector of the extents
    * @return MPI_Comm the cartesian communicator (or MPI_COMM_NULL)
    */
-  static inline MPI_Comm getComm(std::vector<int> procs) {
+  static inline MPI_Comm getComm(std::vector<int> procs, std::vector<int> periods = {}) {
     auto comm = getComm(std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<int>()));
     if (comm == MPI_COMM_NULL) {
       return comm;
     } else {
-      // Make all dimensions not periodic
-      std::vector<int> periods(procs.size(), 0);
-      // ...except if there is a one-sided boundary
-      for (size_t i = 0; i < procs.size(); i++) {
-        if (procs[i] == 1) {
-          periods[i] = 1;
-        }
+      if (procs.size() != periods.size()) {
+        // Make all dimensions not periodic
+        periods.resize(procs.size(), 0);
       }
       // let MPI assign arbitrary ranks?
       int reorder = false;
