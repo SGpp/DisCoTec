@@ -77,7 +77,7 @@ class TaskConstParaboloid : public combigrid::Task {
     // }
 
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p, true, decomposition);
+                                                  p, false, decomposition);
 
     // set paraboloid function values
     ParaboloidFn<CombiDataType> f;
