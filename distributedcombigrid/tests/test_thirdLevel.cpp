@@ -318,7 +318,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       }
       // std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " processed signal "
       //           << signal << std::endl;
-      if (signal == COMBINE_THIRD_LEVEL) {
+      if (signal == COMBINE_THIRD_LEVEL || WAIT_FOR_TL_COMBI_RESULT) {
         // after combination check workers' grids
         BOOST_CHECK(checkReducedFullGrid(pgroup, nrun));
       }
