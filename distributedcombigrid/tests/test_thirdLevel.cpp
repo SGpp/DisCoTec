@@ -95,8 +95,7 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
         CombiDataType expected = initialFunction(coords);
         CombiDataType occuring = dfg.getData()[li];
         BOOST_CHECK_CLOSE(expected, occuring, TestHelper::tolerance);
-        // BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance); //TODO use this once
-        // debugging is finished
+        BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance);
         any = true;
       }
     }
@@ -321,9 +320,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       //           << signal << std::endl;
       if (signal == COMBINE_THIRD_LEVEL) {
         // after combination check workers' grids
-        BOOST_CHECK(
-            !testParams.boundary ||
-            checkReducedFullGrid(pgroup, nrun));  // TODO for no boundary, check inner values
+        BOOST_CHECK(checkReducedFullGrid(pgroup, nrun));
       }
       // if(signal == WAIT_FOR_TL_SIZE_UPDATE)
       // if(signal == WAIT_FOR_TL_COMBI_RESULT)
