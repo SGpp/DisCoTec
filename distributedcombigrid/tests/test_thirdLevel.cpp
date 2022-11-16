@@ -318,12 +318,10 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       }
       // std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " processed signal "
       //           << signal << std::endl;
-      if (signal == COMBINE_THIRD_LEVEL || WAIT_FOR_TL_COMBI_RESULT) {
+      if (signal == COMBINE_THIRD_LEVEL || signal == WAIT_FOR_TL_COMBI_RESULT) {
         // after combination check workers' grids
         BOOST_CHECK(checkReducedFullGrid(pgroup, nrun));
       }
-      // if(signal == WAIT_FOR_TL_SIZE_UPDATE)
-      // if(signal == WAIT_FOR_TL_COMBI_RESULT)
       if (signal == REDUCE_SUBSPACE_SIZES_TL) {
         std::cout << "reduce ";
         for (auto& dsg : pgroup.getCombinedUniDSGVector()) {
@@ -353,6 +351,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       }
       TestHelper::testStrayMessages(theMPISystem()->getLocalComm());
     }
+    BOOST_CHECK_EQUAL(pgroup.getCurrentNumberOfCombinations(), testParams.ncombi);
     for (const auto& b : pgroup.getCombiParameters().getBoundary())
       BOOST_CHECK_EQUAL(b, testParams.boundary);
     for (const auto& r : pgroup.getCombiParameters().getLMaxReductionVector())
@@ -608,7 +607,7 @@ BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (BoundaryType boundary : {0, 1, 1}) {
+  for (BoundaryType boundary : std::vector<BoundaryType>({0, 1, 2})) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
