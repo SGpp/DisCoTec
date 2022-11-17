@@ -1279,7 +1279,7 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // distribute solution in globalReduceComm to other pgs
-    MPI_Request request = asyncBcastDsgData(uniDsg, globalReduceRank, globalReduceComm);
+    auto request = asyncBcastDsgData(uniDsg, globalReduceRank, globalReduceComm);
     requests.push_back(request);
   }
   // update fgs
@@ -1288,12 +1288,8 @@ void ProcessGroupWorker::combineThirdLevel() {
   // wait for bcasts to other pgs in globalReduceComm
   Stats::startEvent("worker wait for bcasts");
   for (MPI_Request& request : requests) {
-    MPI_Status status;
-    MPI_Wait(&request, &status);
-    if (status.MPI_ERROR != MPI_SUCCESS) {
-      std::cout << "MPI error in Ibcast: " << status.MPI_ERROR << std::endl;
-    }
-    assert(status.MPI_ERROR == MPI_SUCCESS);
+    auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+    assert(returnedValue == MPI_SUCCESS);
   }
   Stats::stopEvent("worker wait for bcasts");
 }
@@ -1358,10 +1354,9 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   for (auto& dsg : combinedUniDSGVector_) {
-    MPI_Request request = asyncBcastDsgData(dsg.get(), thirdLevelPG, globalReduceComm);
-    MPI_Status status;
-    MPI_Wait(&request, &status);
-    assert(status.MPI_ERROR == MPI_SUCCESS);
+    auto request = asyncBcastDsgData(dsg.get(), thirdLevelPG, globalReduceComm);
+    auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+    assert(returnedValue == MPI_SUCCESS);
   }
 
   integrateCombinedSolution();
