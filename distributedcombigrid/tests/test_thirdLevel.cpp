@@ -607,7 +607,7 @@ BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (BoundaryType boundary : std::vector<BoundaryType>({0, 1, 2})) {
+  for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -632,7 +632,7 @@ BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (BoundaryType boundary : {2}) {
+  for (auto boundary : std::vector<BoundaryType>({2})) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -657,7 +657,7 @@ BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (BoundaryType boundary : {0, 1, 2}) {
+  for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
     for (bool extraSparseGrid : {false, true}) {
       assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
@@ -684,7 +684,7 @@ BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (BoundaryType boundary : {0, 1, 2}) {
+  for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -709,7 +709,7 @@ BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (BoundaryType boundary : {0, 1, 2}) {
+  for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -735,7 +735,7 @@ BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (BoundaryType boundary : {0, 1, 2}) {
+  for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
     BOOST_TEST_CHECKPOINT("static group assignment. sysNum: " + std::to_string(sysNum));
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
@@ -763,7 +763,7 @@ BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int sysNum;
   CommunicatorType newcomm;
 
-  for (BoundaryType boundary : {2}) {
+  for (auto boundary : std::vector<BoundaryType>({2})) {
     for (unsigned int nprocs : {1, 2, 3}) {
       assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
@@ -775,6 +775,33 @@ BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance)
 
       MPI_Barrier(MPI_COMM_WORLD);
     }
+  }
+}
+// "target" case: one-sided boundary, extra sparse grid, many process groups
+BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+  unsigned int numSystems = 2;
+  unsigned int nprocs = 1;
+  unsigned int ncombi = 10;
+  DimType dim = 2;
+  BoundaryType boundary = 1;
+  LevelVector lmin(dim, 4);
+  LevelVector lmax(dim, 7);
+
+  unsigned int sysNum;
+  CommunicatorType newcomm;
+
+  // the fact that values are sometimes wrong for ngroup > 1 indicates that there is some race
+  // condition at work
+  for (unsigned int ngroup : {1, 2, 3}) {
+    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+      startInfrastructure();
+      testCombineThirdLevel(testParams, true);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
   }
 }
 
