@@ -781,7 +781,8 @@ static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT>* d
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
   MPI_Request request;
 
-  MPI_Ibcast(data, dataSize, dataType, root, comm, &request);
+  auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, &request);
+  assert(success == MPI_SUCCESS);
   return request;
 }
 
