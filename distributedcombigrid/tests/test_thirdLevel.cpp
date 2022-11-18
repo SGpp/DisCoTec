@@ -94,8 +94,11 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
         // CombiDataType expected = initialFunction(coords, nrun);
         CombiDataType expected = initialFunction(coords);
         CombiDataType occuring = dfg.getData()[li];
-        BOOST_CHECK_CLOSE(expected, occuring, TestHelper::tolerance);
-        BOOST_REQUIRE_CLOSE(expected, occuring, TestHelper::tolerance);
+        if (expected == 0.) {
+          BOOST_CHECK_SMALL(occuring, 1e-300);
+        } else {
+          BOOST_REQUIRE_CLOSE(occuring, expected, TestHelper::tolerance);
+        }
         any = true;
       }
     }
