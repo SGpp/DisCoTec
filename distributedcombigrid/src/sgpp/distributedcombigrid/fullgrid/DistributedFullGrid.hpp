@@ -28,8 +28,8 @@ namespace combigrid {
  * of the process boundary, or to the one on the left-hand side (false).
  */
 static inline std::vector<IndexVector> getDefaultDecomposition(
-    IndexVector globalNumPointsPerDimension, std::vector<int> cartesianProcsPerDimension,
-    bool forwardDecomposition) {
+    const IndexVector& globalNumPointsPerDimension,
+    const std::vector<int>& cartesianProcsPerDimension, bool forwardDecomposition) {
   auto dim = static_cast<DimType>(globalNumPointsPerDimension.size());
   assert(cartesianProcsPerDimension.size() == dim);
 
@@ -37,7 +37,7 @@ static inline std::vector<IndexVector> getDefaultDecomposition(
   std::vector<IndexVector> decomposition(dim);
   for (DimType i = 0; i < dim; ++i) {
     if (cartesianProcsPerDimension[i] > globalNumPointsPerDimension[i]) {
-      throw std::runtime_error(
+      throw std::invalid_argument(
           "change to coarser parallelization! currently not all processes can have points.");
     }
     IndexVector& llbnd = decomposition[i];

@@ -9,7 +9,7 @@ namespace combigrid {
 
 // compute powers of two quickly by bit-shifting
 inline IndexType powerOfTwoByBitshift(LevelType x) {
-  assert(x < sizeof(IndexType) * 8);
+  assert(static_cast<long unsigned int>(x) < sizeof(IndexType) * 8);
   if (x == 0) {
     return 1;
   } else if (x > 0) {
@@ -79,6 +79,11 @@ inline IndexType getNumDofHierarchical(const std::vector<LevelVector>& levelVect
     numDof += getNumDofHierarchical(l, boundary);
   }
   return numDof;
+}
+
+template <typename T>
+inline bool isPowerOfTwo(const T& x) {
+  return (x != 0) && ((x & (x - 1)) == 0);
 }
 
 // get downward closed set of a single LevelVector
