@@ -1565,6 +1565,10 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     HIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, 0);
 
+    if (oneSidedBoundary) {
+      assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
+    }
+
     // copy local data back
     for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
   }
@@ -1628,6 +1632,9 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     }
 
     DEHIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, 0);
+    if (oneSidedBoundary) {
+      assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
+    }
     // copy local data back
     for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
   }
@@ -1679,17 +1686,21 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     for (size_t i = 0; i < rdcs.size(); ++i) {
       tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
+
+    // copy local data
+    for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
+
     if (oneSidedBoundary) {
       // assume periodicity
       //  assert(HIERARCHIZATION_FCTN::periodic); //TODO
       tmp[dfg.getGlobalSizes()[dim]] = tmp[0];
     }
-
-    // copy local data
-    for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
-
     // hierarchize tmp array with hupp function
     HIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, 0);
+
+    if (oneSidedBoundary) {
+      assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
+    }
 
     // copy pole back
     for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
@@ -1825,16 +1836,20 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     for (size_t i = 0; i < rdcs.size(); ++i) {
       tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
     }
-    if (oneSidedBoundary) {
-      // assume periodicity
-      tmp[dfg.getGlobalSizes()[dim]] = tmp[0];
-    }
 
     // copy local data
     for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
 
+    if (oneSidedBoundary) {
+      // assume periodicity
+      tmp[dfg.getGlobalSizes()[dim]] = tmp[0];
+    }
     // hierarchize tmp array with hupp function
     DEHIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, 0);
+
+    if (oneSidedBoundary) {
+      assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
+    }
 
     // copy pole back
     for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
