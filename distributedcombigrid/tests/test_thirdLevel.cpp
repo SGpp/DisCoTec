@@ -216,7 +216,8 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     }
 
     // create combiparameters
-    std::vector<int> parallelization = {static_cast<int>(testParams.nprocs), 1};
+    std::vector<int> parallelization(testParams.dim, 1);
+    parallelization[1] = static_cast<int>(testParams.nprocs);
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1, parallelization,
                                 LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
@@ -268,13 +269,14 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
 
     // test Monte-Carlo interpolation
     std::vector<std::vector<real>> interpolationCoords;
-    std::vector<real> values (1000);
+    size_t numMCValues = (testParams.dim > 2) ? 1000 : 10000;
+    std::vector<real> values(numMCValues, 0.0);
     real l2ErrorSingle = 0.;
     // TestFnCount<CombiDataType> initialFunction;
     ParaboloidFn<CombiDataType> initialFunction;
 
     // compare to third-level monte carlo interpolation
-    manager.monteCarloThirdLevel(1000, interpolationCoords, values);
+    manager.monteCarloThirdLevel(numMCValues, interpolationCoords, values);
     real l2ErrorTwoSystems = 0.;
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
       // l2ErrorTwoSystems += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
@@ -780,23 +782,22 @@ BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance)
     }
   }
 }
-// "target" case: one-sided boundary, extra sparse grid, many process groups
+
+// "target" case: 6-dim, one-sided boundary, extra sparse grid, many process groups
 BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
   unsigned int ncombi = 10;
-  DimType dim = 2;
+  DimType dim = 6;
   BoundaryType boundary = 1;
-  // LevelVector lmin(dim, 4);
-  // LevelVector lmax(dim, 7);
-  LevelVector lmin(dim, 1);
-  LevelVector lmax(dim, 4);
+  LevelVector lmin(dim, 4);
+  LevelVector lmax(dim, 7);
 
-  // the fact that values are wrong when calling this more often for boundary = 1
+  // the fact that values are wrong when calling this for ngroup = 3
   // but not for other values is a bug that I dont understand yet
-  for (unsigned int ngroup : {1, 1, 1}) {
+  for (unsigned int ngroup : std::vector<unsigned int>({1, 2, 3})) {
     unsigned int sysNum;
-    CommunicatorType newcomm;
+    CommunicatorType newcomm = MPI_COMM_NULL;
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
