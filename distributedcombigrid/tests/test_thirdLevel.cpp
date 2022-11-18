@@ -790,8 +790,10 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int ncombi = 10;
   DimType dim = 6;
   BoundaryType boundary = 1;
-  LevelVector lmin(dim, 4);
-  LevelVector lmax(dim, 7);
+  // LevelVector lmin(dim, 4);
+  // LevelVector lmax(dim, 7);
+  LevelVector lmin(dim, 1);
+  LevelVector lmax(dim, 4);
 
   // the fact that values are wrong when calling this for ngroup = 3
   // but not for other values is a bug that I dont understand yet
