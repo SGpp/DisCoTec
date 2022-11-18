@@ -123,9 +123,11 @@ void ThirdLevelManager::runtimeLoop()
       std::string message;
       bool hasMessage = systems_[s].hasMessage(timeout_);
       if (hasMessage) {
-        systems_[s].receiveMessage(message);
+        auto success = systems_[s].receiveMessage(message);
+        assert(success);
 #ifdef DEBUG_OUTPUT
-        std::cout << "received message from system " << std::to_string(s) << ": " << message << std::endl;
+        std::cout << "received message from system " << std::to_string(s) << ": " << message
+                  << std::endl;
 #endif
         processMessage(message, s);
       }
