@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
   // todo: read in boundary vector from ctparam
   std::vector<bool> boundary(dim, true);
   auto forwardDecomposition = true;
-
+  
   // check whether parallelization vector p agrees with nprocs
   int checkProcs = 1;
   for (auto k : p) checkProcs *= k;
@@ -252,17 +252,17 @@ int main(int argc, char** argv) {
                   << pgNumbers.size() << " tasks." << std::endl;
         printCombiDegreesOfFreedom(levels);
       }
-      WORLD_MANAGER_EXCLUSIVE_SECTION{
-        coeffs = scheme->getCoeffs();
-        levels = scheme->getCombiSpaces();
-      }
     } else {
       // levels and coeffs are only used in manager
       WORLD_MANAGER_EXCLUSIVE_SECTION {
-        coeffs = scheme->getCoeffs();
-        levels = scheme->getCombiSpaces();
-        std::cout << levels.size() << " tasks to distribute." << std::endl;
+        std::cout << scheme->getCombiSpaces().size() << " tasks to distribute." << std::endl;
       }
+    }
+    WORLD_MANAGER_EXCLUSIVE_SECTION{
+      assert(coeffs.size() == 0);
+      assert(levels.size() == 0);
+      coeffs = scheme->getCoeffs();
+      levels = scheme->getCombiSpaces();
     }
   }
   // create load model
@@ -284,15 +284,6 @@ int main(int argc, char** argv) {
       std::cout << thirdLevelSSHCommand << " returned " << std::endl;
     }
 
-    /* create an abstraction of the process groups for the manager's view
-     * a pgroup is identified by the ID in gcomm
-     */
-    ProcessGroupManagerContainer pgroups;
-    for (size_t i = 0; i < ngroup; ++i) {
-      int pgroupRootID(i);
-      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
-    }
-
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
     std::cout << "lmax = " << lmax << std::endl;
@@ -301,19 +292,25 @@ int main(int argc, char** argv) {
 
     // create Tasks
     TaskContainer tasks;
-    tasks.reserve(levels.size());
     std::vector<size_t> taskIDs;
-    taskIDs.reserve(levels.size());
-    for (size_t i = 0; i < levels.size(); i++) {
-      Task* t =
-          new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
-      // Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel);
-      // Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
+    if (!useStaticTaskAssignment) {
+      // the world manager only needs to have task instances if it needs to distribute tasks
+      tasks.reserve(levels.size());
+      taskIDs.reserve(levels.size());
+      for (size_t i = 0; i < levels.size(); i++) {
+        Task* t =
+            new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
+        // Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel);
+        // Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
 
-      static_assert(!isGENE, "isGENE");
+        static_assert(!isGENE, "isGENE");
 
-      tasks.push_back(t);
-      taskIDs.push_back(t->getID());
+        tasks.push_back(t);
+        taskIDs.push_back(t->getID());
+      }
+    } else {
+      // taskIDs.resize(levels.size());
+      // std::iota(taskIDs.begin(), taskIDs.end(), 0);
     }
 
     // create combiparameters
@@ -364,19 +361,13 @@ int main(int argc, char** argv) {
       decomposition.push_back(di);
     }
     params.setDecomposition(decomposition);
+    std::cout << "manager: generated parameters" << std::endl;
 
-    if (useStaticTaskAssignment) {
-      // read in CT scheme -- again!
-      std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(new CombiMinMaxSchemeFromFile(
-          dim, lmin, lmax, ctschemeFile));
-      const auto& pgNumbers = scheme->getProcessGroupNumbers();
-      for (size_t taskNo = 0; taskNo < tasks.size(); ++taskNo) {
-        if (pgNumbers[taskNo] < ngroup) { //TODO remove for production
-          pgroups[pgNumbers[taskNo]]->storeTaskReference(tasks[taskNo]);
-        }
-      }
+    ProcessGroupManagerContainer pgroups;
+    for (size_t i = 0; i < ngroup; ++i) {
+      int pgroupRootID(i);
+      pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
-
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
     manager.updateCombiParameters();
