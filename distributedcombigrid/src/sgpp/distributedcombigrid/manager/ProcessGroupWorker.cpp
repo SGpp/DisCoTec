@@ -164,7 +164,7 @@ SignalType ProcessGroupWorker::wait() {
         // serialize tasks as string
         std::stringstream tasksStream;
         for (const auto& t : tasks_) {
-          tasksStream <<t->getID() << ": " << combiParameters_.getCoeff(t->getID()) << t->getLevelVector()  << "; ";
+          tasksStream <<t->getID() << ": " << t->getCoefficient() << t->getLevelVector()  << "; ";
         }
         std::string tasksString = tasksStream.str();
         Stats::setAttribute("tasks: levels", tasksString);
@@ -652,10 +652,10 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
       // lokales reduce auf sg ->
-      dfg.addToUniformSG(*combinedUniDSGVector_[g], combiParameters_.getCoeff(t->getID()));
+      dfg.addToUniformSG(*combinedUniDSGVector_[g], t->getCoefficient());
 #ifdef DEBUG_OUTPUT
       std::cout << "Combination: added task " << t->getID() << " with coefficient "
-                << combiParameters_.getCoeff(t->getID()) << "\n";
+                << t->getCoefficient() << "\n";
 #endif
     }
   }
@@ -992,7 +992,7 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
   // call interpolation function on tasks and reduce with combination coefficient
   std::vector<CombiDataType> values(numCoordinates, 0.);
   for (Task* t : tasks_){
-    auto coeff = this->combiParameters_.getCoeff(t->getID());
+    auto coeff = t->getCoefficient();
     auto taskVals = t->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
 
     for (size_t i = 0; i < numCoordinates; ++i) {
@@ -1101,7 +1101,7 @@ void ProcessGroupWorker::gridEval() {  // not supported anymore
 
     t->getFullGrid(fg, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
-    MASTER_EXCLUSIVE_SECTION { fg_red.add(fg, combiParameters_.getCoeff(t->getID())); }
+    MASTER_EXCLUSIVE_SECTION { fg_red.add(fg, t->getCoefficient()); }
   }
   // global reduce of f_red
   MASTER_EXCLUSIVE_SECTION {

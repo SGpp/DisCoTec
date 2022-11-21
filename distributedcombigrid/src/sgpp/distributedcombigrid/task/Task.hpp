@@ -56,6 +56,8 @@ class Task {
 
   inline size_t getID() const;
 
+  inline real getCoefficient() const;
+
   /**
    * @brief explicitly set a new ID for the task;
    * may be useful if process groups read their task assignment from file instead of receiving it
@@ -129,6 +131,8 @@ class Task {
 
   LevelVector l_;  // levelvector of partial solution
 
+  real coeff_;  // coefficient of partial solution
+
   std::vector<bool> boundary_;
 
   size_t id_;  // unique id of task, same on manager and worker
@@ -156,6 +160,7 @@ void Task::serialize(Archive& ar, const unsigned int version) {
   ar& dim_;
   ar& id_;
   ar& l_;
+  ar& coeff_;
   ar& boundary_;
   ar& isFinished_;
 }
@@ -167,6 +172,8 @@ inline const LevelVector& Task::getLevelVector() const { return l_; }
 inline const std::vector<bool>& Task::getBoundary() const { return boundary_; }
 
 inline size_t Task::getID() const { return id_; }
+
+inline real Task::getCoefficient() const { return coeff_; }
 
 inline void Task::setID(size_t id) { id_ = id; }
 

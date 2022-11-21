@@ -30,3 +30,5 @@ BOOST_CLASS_EXPORT_GUID(combigrid::BiorthogonalPeriodicBasisFunction,
 BOOST_CLASS_EXPORT(combigrid::FaultCriterion)
 BOOST_CLASS_EXPORT(combigrid::StaticFaults)
 BOOST_CLASS_EXPORT(combigrid::WeibullFaults)
+
+BOOST_CLASS_EXPORT(combigrid::CombiParameters)
