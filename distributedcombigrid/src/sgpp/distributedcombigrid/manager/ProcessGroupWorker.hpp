@@ -122,6 +122,10 @@ class ProcessGroupWorker {
    */
   void initializeTaskAndFaults(Task* t);
 
+  IndexType getCurrentNumberOfCombinations() const {
+    return currentCombi_;
+  }
+
  private:
   TaskContainer tasks_;  // task storage
 

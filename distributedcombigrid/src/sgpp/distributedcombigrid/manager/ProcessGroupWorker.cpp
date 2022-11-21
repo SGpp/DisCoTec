@@ -1179,7 +1179,7 @@ void ProcessGroupWorker::updateCombiParameters() {
       dims.assign(par.begin(), par.end());
     }
 
-    std::vector<int> periods(combiParameters_.getDim());
+    std::vector<int> periods;
     // Make dimensions periodic depending on boundary parameters
     for (const auto& b : combiParameters_.getBoundary()) {
       if (b == 1) {
@@ -1189,6 +1189,8 @@ void ProcessGroupWorker::updateCombiParameters() {
         periods.push_back(0);
       }
     }
+    assert(combiParameters_.getDim() == static_cast<DimType>(periods.size()));
+    assert(periods.size() == dims.size());
 
     // don't let MPI assign arbitrary ranks
     int reorder = false;

@@ -51,16 +51,18 @@ class ParaboloidFn {
  */
 class TaskConstParaboloid : public combigrid::Task {
  public:
-  TaskConstParaboloid(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel)
-      : Task(2, l, boundary, coeff, loadModel), dfg_(nullptr){
-        BOOST_TEST_CHECKPOINT("TaskConstParaboloid constructor");
-      }
+  TaskConstParaboloid(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
+                      LoadModel* loadModel)
+      : Task(static_cast<DimType>(l.size()), l, boundary, coeff, loadModel), dfg_(nullptr) {
+    BOOST_TEST_CHECKPOINT("TaskConstParaboloid constructor");
+  }
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
     // parallelization
     // assert(dfg_ == nullptr);
     auto nprocs = getCommSize(lcomm);
-    std::vector<int> p = {nprocs,1};
+    std::vector<int> p(getDim(), 1);
+    p[1] = nprocs;
 
     // decomposition = std::vector<IndexVector>(2);
     // size_t l1 = getLevelVector()[1];
@@ -77,7 +79,7 @@ class TaskConstParaboloid : public combigrid::Task {
     // }
 
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p, true, decomposition);
+                                                  p, false, decomposition);
 
     // set paraboloid function values
     ParaboloidFn<CombiDataType> f;

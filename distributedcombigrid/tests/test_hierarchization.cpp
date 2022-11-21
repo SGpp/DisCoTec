@@ -511,7 +511,7 @@ BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit
 
 // the most basic case with a single worker
 BOOST_AUTO_TEST_CASE(test_minus1) {
-  for (DimType d : {1, 2, 3, 4, 5}) {
+  for (auto d : std::vector<DimType>({1, 2, 3, 4, 5})) {
     BOOST_TEST_CHECKPOINT("Testing dimension " + std::to_string(d));
     // LevelVector levels(d, 1);
     LevelVector levels(d, 3);
@@ -1209,5 +1209,32 @@ BOOST_AUTO_TEST_CASE(momentum) {
     }
   }
 }
+
+#ifdef NDEBUG
+BOOST_AUTO_TEST_CASE(test_timing_parallel) {
+  // large test case with timing
+  for (BoundaryType b : std::vector<BoundaryType>({1, 2})) {
+    std::vector<int> procs = {1, 8, 1, 1, 1, 1};
+    auto dim = static_cast<DimType>(procs.size());
+    std::vector<BoundaryType> boundary(dim, b);
+    CommunicatorType comm =
+        TestHelper::getComm(procs, std::vector<int>(dim, b == 1 ? 1 : 0));
+    if (comm != MPI_COMM_NULL) {
+      LevelVector lmin = {1, 3, 1, 2, 1, 1};
+      LevelVector levels = {1, 19, 1, 2, 1, 1};
+      auto forward = false;
+      TestFn_1 testFn(levels);
+      DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+      MPI_Barrier(comm);
+      auto start = std::chrono::high_resolution_clock::now();
+      checkHierarchization(testFn, dfg, false);
+      auto end = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+      BOOST_TEST_MESSAGE("hat hierarchization time: " + std::to_string(duration.count()) + " milliseconds with "
+                                                      + std::to_string(b) + "-sided boundary");
+    }
+  }
+}
+#endif  // def NDEBUG
 
 BOOST_AUTO_TEST_SUITE_END()

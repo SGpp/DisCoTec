@@ -153,7 +153,11 @@ std::vector<double> checkCoordinates(const DistributedFullGrid<T>& dfg) {
 
 void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
                               std::vector<BoundaryType>& boundary, bool forward = false) {
-  CommunicatorType comm = TestHelper::getComm(procs);
+  std::vector<int> periodic;
+  for (const auto& b : boundary) {
+    periodic.push_back(b == 1 ? 1 : 0);
+  }
+  CommunicatorType comm = TestHelper::getComm(procs, periodic);
   if (comm == MPI_COMM_NULL) return;
 
   if (TestHelper::getRank(comm) == 0) {
@@ -261,6 +265,10 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
         // calculate global indices and coordinates of ghost layer points
         dfg.getGlobalVectorIndex(locAxisIndex, globAxisIndex);
         --globAxisIndex[d];
+        if (boundary[d] == 1 && globAxisIndex[d] < 0) {
+          // wrap around
+          globAxisIndex[d] += dfg.length(d);
+        }
         std::vector<double> coords(dim);
         dfg.getCoordsGlobal(dfg.getGlobalLinearIndex(globAxisIndex), coords);
         BOOST_CHECK_EQUAL(ghostLayer[j], f(coords));
@@ -500,14 +508,6 @@ BOOST_AUTO_TEST_CASE(test_14) {
   boundary[0] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
 }
-BOOST_AUTO_TEST_CASE(test_15) {
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  LevelVector levels = {3, 3, 3};
-  std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, 1);
-  boundary[0] = 2;
-  checkDistributedFullgrid(levels, procs, boundary, true);
-}
 
 // anisotropic
 
@@ -526,14 +526,6 @@ BOOST_AUTO_TEST_CASE(test_17) {
   std::vector<BoundaryType> boundary(3, 1);
   boundary[2] = 2;
   checkDistributedFullgrid(levels, procs, boundary);
-}
-BOOST_AUTO_TEST_CASE(test_18) {
-  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(8));
-  LevelVector levels = {3, 4, 3};
-  std::vector<int> procs = {2, 2, 2};
-  std::vector<BoundaryType> boundary(3, 1);
-  boundary[2] = 2;
-  checkDistributedFullgrid(levels, procs, boundary, true);
 }
 
 // memory

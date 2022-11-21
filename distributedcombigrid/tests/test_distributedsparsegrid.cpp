@@ -269,7 +269,8 @@ BOOST_AUTO_TEST_SUITE(distributedsparsegrid, *boost::unit_test::timeout(1500))
 BOOST_AUTO_TEST_CASE(test_0) {
   LevelVector lmin = {1, 1};
   LevelVector lmax = {3, 3};
-  for (BoundaryType bValue : {2}) {
+  BoundaryType bValue = 2;
+  for (BoundaryType bValue : std::vector<BoundaryType>({0, 1, 2})) {
     std::vector<int> procs = {1, 1};
     std::vector<BoundaryType> boundary(2, bValue);
     auto multProcs = std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
@@ -284,15 +285,14 @@ BOOST_AUTO_TEST_CASE(test_1) {
   LevelVector lmax = {7, 7};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {2}) {
-        std::vector<int> procs = {procOne, procTwo};
-        std::vector<BoundaryType> boundary(2, bValue);
-        auto multProcs =
-            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
-        BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
-        MPI_Barrier(MPI_COMM_WORLD);
-      }
+      BoundaryType bValue = 2;
+      std::vector<BoundaryType> boundary(2, bValue);
+      std::vector<int> procs = {procOne, procTwo};
+      auto multProcs =
+          std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+      BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+      checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+      MPI_Barrier(MPI_COMM_WORLD);
     }
   }
 }
@@ -302,15 +302,14 @@ BOOST_AUTO_TEST_CASE(test_2) {
   LevelVector lmax = {6, 8};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {2}) {
-        std::vector<int> procs = {procOne, procTwo};
-        std::vector<BoundaryType> boundary(2, bValue);
-        auto multProcs =
-            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
-        BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
-        MPI_Barrier(MPI_COMM_WORLD);
-      }
+      BoundaryType bValue = 2;
+      std::vector<BoundaryType> boundary(2, bValue);
+      std::vector<int> procs = {procOne, procTwo};
+      auto multProcs =
+          std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+      BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+      checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+      MPI_Barrier(MPI_COMM_WORLD);
     }
   }
 }
@@ -320,7 +319,7 @@ BOOST_AUTO_TEST_CASE(test_3) {
   LevelVector lmax = {9, 9};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {0, 1, 2}) {
+      for (BoundaryType bValue : std::vector<BoundaryType>({0, 1, 2})) {
         std::vector<int> procs = {procOne, procTwo};
         std::vector<BoundaryType> boundary(2, bValue);
         auto multProcs =
@@ -338,15 +337,14 @@ BOOST_AUTO_TEST_CASE(test_4) {
   LevelVector lmax = {7, 7, 7};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {2}) {
-        std::vector<int> procs = {procOne, procTwo, 1};
-        std::vector<BoundaryType> boundary(3, bValue);
-        auto multProcs =
-            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
-        BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
-        MPI_Barrier(MPI_COMM_WORLD);
-      }
+      BoundaryType bValue = 2;
+      std::vector<BoundaryType> boundary(3, bValue);
+      std::vector<int> procs = {procOne, procTwo, 1};
+      auto multProcs =
+          std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+      BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+      checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+      MPI_Barrier(MPI_COMM_WORLD);
     }
   }
 }
@@ -356,15 +354,14 @@ BOOST_AUTO_TEST_CASE(test_5) {
   LevelVector lmax = {6, 7, 8};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {2}) {
-        std::vector<int> procs = {procOne, procTwo, 1};
-        std::vector<BoundaryType> boundary(3, bValue);
-        auto multProcs =
-            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
-        BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
-        checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
-        MPI_Barrier(MPI_COMM_WORLD);
-      }
+      BoundaryType bValue = 2;
+      std::vector<BoundaryType> boundary(3, bValue);
+      std::vector<int> procs = {procOne, procTwo, 1};
+      auto multProcs =
+          std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<IndexType>());
+      BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(multProcs));
+      checkDistributedSparsegrid(lmin, lmax, procs, boundary, multProcs);
+      MPI_Barrier(MPI_COMM_WORLD);
     }
   }
 }
@@ -374,7 +371,7 @@ BOOST_AUTO_TEST_CASE(test_6) {
   LevelVector lmax = {7, 7, 7};
   for (int procOne : {1, 2, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {0, 1, 2}) {
+      for (BoundaryType bValue : std::vector<BoundaryType>({0, 1, 2})) {
         std::vector<int> procs = {procOne, procTwo, 1};
         std::vector<BoundaryType> boundary(3, bValue);
         auto multProcs =
@@ -393,7 +390,7 @@ BOOST_AUTO_TEST_CASE(test_7) {
   LevelVector lmax = {6, 7, 5, 5};
   for (int procOne : {1, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {0, 1, 2}) {
+      for (BoundaryType bValue : std::vector<BoundaryType>({0, 1, 2})) {
         std::vector<int> procs = {procOne, procTwo, 1, 1};
         std::vector<BoundaryType> boundary(4, bValue);
         auto multProcs =
@@ -412,7 +409,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
   LevelVector lmax = {4, 3, 6, 3, 5, 3};
   for (int procOne : {1, 3}) {
     for (int procTwo : {1, 2}) {
-      for (BoundaryType bValue : {0, 1, 2}) {
+      for (BoundaryType bValue : std::vector<BoundaryType>({0, 1, 2})) {
         std::vector<int> procs = {1, 1, procOne, 1, procTwo, 1};
         std::vector<BoundaryType> boundary(6, bValue);
         auto multProcs =

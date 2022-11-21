@@ -141,6 +141,13 @@ inline std::vector<T>& operator>>(std::string str, std::vector<T>& ivec) {
   return ivec;
 }
 
+// helper function to output small types (may otherwise not be printed)
+inline std::ostream &operator <<(std::ostream &os, const DimType &v) {
+  using namespace std;
+  os << static_cast<int>(v);
+  return os;
+}
+
 // helper function to output any vector
 template<typename T>
 inline std::ostream &operator <<(std::ostream &os, const std::vector<T> &v) {
