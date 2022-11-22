@@ -783,7 +783,7 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
     // check if successors of idx outside local domain
     {
       for (LevelType l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
-        if (l >= lmin) {
+        if (l > lmin) {
           auto ldiff = static_cast<LevelType>(lmax - l);
           auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
@@ -806,7 +806,7 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
     // check if predecessors of idx outside local domain
     IndexType pIdx;
     // only recv if this index idx needs to be hierarchized
-    if (lidx >= lmin) {
+    if (lidx > lmin) {
       // left, right predecessor
       for (const auto& indexShift : {-1, 1}) {
         pIdx = idx + indexShift * idiff;
