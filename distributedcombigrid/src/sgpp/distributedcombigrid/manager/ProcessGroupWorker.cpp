@@ -642,7 +642,8 @@ void ProcessGroupWorker::hierarchizeFullGrids() {
 
       // hierarchize dfg
       DistributedHierarchization::hierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims(), combiParameters_.getHierarchicalBases());
+          dfg, combiParameters_.getHierarchizationDims(), combiParameters_.getHierarchicalBases(),
+          combiParameters_.getLMin());
     }
   }
 }
@@ -762,7 +763,8 @@ void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg
   // fill dfg with hierarchical coefficients from distributed sparse grid
   dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
   DistributedHierarchization::dehierarchizeDFG(dfg, combiParameters_.getHierarchizationDims(),
-                                               combiParameters_.getHierarchicalBases());
+                                               combiParameters_.getHierarchicalBases(),
+                                               combiParameters_.getLMin());
 }
 
 void ProcessGroupWorker::fillDFGFromDSGU(Task* t) {
@@ -1230,9 +1232,9 @@ void ProcessGroupWorker::integrateCombinedSolution() {
   Stats::startEvent("worker dehierarchize");
   for (Task* taskToUpdate : tasks_) {
     for (int g = 0; g < numGrids; g++) {
-      DistributedHierarchization::dehierarchizeDFG(taskToUpdate->getDistributedFullGrid(g),
-                                                   combiParameters_.getHierarchizationDims(),
-                                                   combiParameters_.getHierarchicalBases());
+      DistributedHierarchization::dehierarchizeDFG(
+          taskToUpdate->getDistributedFullGrid(g), combiParameters_.getHierarchizationDims(),
+          combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
     }
   }
   Stats::stopEvent("worker dehierarchize");
