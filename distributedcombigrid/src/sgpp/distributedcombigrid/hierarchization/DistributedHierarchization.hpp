@@ -917,7 +917,6 @@ static void exchangeData1dDehierarchization(
   // LevelType lmax = dfg.getLevels()[dim];
 
   IndexType idx = idxMin;
-  auto lidx = dfg.getLevel(dim, idx);
 
   // for dehierarchization, we need to exchange the full tree of
   // successors and predecessors
@@ -948,18 +947,21 @@ static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType di
     auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
     IndexType lsIdx = checkIdx - idiff;
+    auto leftSuccessorLevel = dfg.getLevel(dim, lsIdx);
 
     if (lsIdx >= 0 && lsIdx < idxMin) {
-      auto leftSuccessorLevel = dfg.getLevel(dim, lsIdx);
-      // only send if my successors need to be dehierarchized
-      if (leftSuccessorLevel > lmin + 1) {
+      assert(leftSuccessorLevel <= lmax);
+      // only send if my successor needs to be dehierarchized
+      if (leftSuccessorLevel > lmin) {
         // get rank which has lsIdx and add to send list
         int r = dfg.getNeighbor1dFromAxisIndex(dim, lsIdx);
         if (r >= 0) OneDIndices[r].insert(rootIdx);
       }
     }
-
-    if (lsIdx >= 0) checkLeftSuccesors(lsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
+    // only recurse if my successor needs to be dehierarchized
+    if (leftSuccessorLevel > lmin) {
+      if (lsIdx >= 0) checkLeftSuccesors(lsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
+    }
   }
 }
 
@@ -968,10 +970,9 @@ static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType d
                                 const DistributedFullGrid<FG_ELEMENT>& dfg,
                                 std::map<RankType, std::set<IndexType>>& OneDIndices,
                                 LevelType lmin) {
-  LevelType lidx = dfg.getLevel(dim, checkIdx);
-
-  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-  LevelType lmax = dfg.getLevels()[dim];
+  const auto lidx = dfg.getLevel(dim, checkIdx);
+  const auto idxMax = dfg.getLastGlobal1dIndex(dim);
+  const auto lmax = dfg.getLevels()[dim];
 
   // check right successors of checkIdx
   for (auto l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
@@ -979,19 +980,23 @@ static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType d
     auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
     IndexType rsIdx = checkIdx + idiff;
+    auto rightSuccessorLevel = dfg.getLevel(dim, rsIdx);
 
     if (rsIdx < dfg.getGlobalSizes()[dim] && rsIdx > idxMax) {
-      auto rightSuccessorLevel = dfg.getLevel(dim, rsIdx);
-      // only send if my successors need to be dehierarchized
-      if (rightSuccessorLevel > lmin + 1) {
+      assert(rightSuccessorLevel <= lmax);
+      // only send if my successor needs to be dehierarchized
+      if (rightSuccessorLevel > lmin) {
         // get rank which has rsIdx and add to send list
         int r = dfg.getNeighbor1dFromAxisIndex(dim, rsIdx);
         if (r >= 0) OneDIndices[r].insert(rootIdx);
       }
     }
 
-    if (rsIdx < dfg.length(dim)) {
-      checkRightSuccesors(rsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
+    // only recurse if my successor needs to be dehierarchized
+    if (rightSuccessorLevel > lmin) {
+      if (rsIdx < dfg.length(dim)) {
+        checkRightSuccesors(rsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
+      }
     }
   }
 }
@@ -1002,43 +1007,44 @@ static IndexType checkPredecessors(IndexType idx, DimType dim,
                                    std::map<RankType, std::set<IndexType>>& OneDIndices,
                                    LevelType lmin) {
   auto lidx = dfg.getLevel(dim, idx);
-  // if this level is lmin or smaller, idx does not need to be dehierarchized
-  // and we can end recursing here
-  if (lidx >= lmin) {
-    auto idxMin = dfg.getFirstGlobal1dIndex(dim);
-    auto idxMax = dfg.getLastGlobal1dIndex(dim);
+  auto idxMin = dfg.getFirstGlobal1dIndex(dim);
+  auto idxMax = dfg.getLastGlobal1dIndex(dim);
 
-    // check if left predecessor outside local domain
-    // if returns negative value there's no left predecessor
-    auto lpIdx = dfg.getLeftPredecessor(dim, idx);
+  // check if left predecessor outside local domain
+  // if returns negative value there's no left predecessor
+  auto lpIdx = dfg.getLeftPredecessor(dim, idx);
 
-    if (lpIdx >= 0 && lpIdx < idxMin) {
+  if (lpIdx >= 0 && lpIdx < idxMin) {
+    if (lidx > lmin) {
       // get rank which has left predecessor and add to list of indices
       int r = dfg.getNeighbor1dFromAxisIndex(dim, lpIdx);
       OneDIndices[r].insert(lpIdx);
     }
-    if (lpIdx >= 0) checkPredecessors(lpIdx, dim, dfg, OneDIndices, lmin);
+  }
+  if (lpIdx >= 0) checkPredecessors(lpIdx, dim, dfg, OneDIndices, lmin);
 
-      // check if right predecessor outside local domain
-      // if returns negative value there's no right predecessor
-      auto rpIdx = dfg.getRightPredecessor(dim, idx);
+  // check if right predecessor outside local domain
+  // if returns negative value there's no right predecessor
+  auto rpIdx = dfg.getRightPredecessor(dim, idx);
 
-      if (rpIdx < 0) {
-        idx = getNextIndex1d(dfg, dim, idx);
-        return idx;
-      }
+  if (rpIdx < 0) {
+    idx = getNextIndex1d(dfg, dim, idx);
+    return idx;
+  }
 
-    if (rpIdx > idxMax) {
+  if (rpIdx > idxMax) {
+    if (lidx > lmin) {
       // get rank which has right predecessor and add to list of indices to recv
       int r = dfg.getNeighbor1dFromAxisIndex(dim, rpIdx);
       OneDIndices[r].insert(rpIdx);
-      idx = getNextIndex1d(dfg, dim, idx);
-    } else {
-      idx = rpIdx;
     }
-
-    checkPredecessors(rpIdx, dim, dfg, OneDIndices, lmin);
+    idx = getNextIndex1d(dfg, dim, idx);
+  } else {
+    idx = rpIdx;
   }
+
+  checkPredecessors(rpIdx, dim, dfg, OneDIndices, lmin);
+
   return idx;
 }
 
@@ -2097,7 +2103,7 @@ class DistributedHierarchization {
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT>> remoteData;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-        exchangeData1dDehierarchization(dfg, dim, remoteData);
+        exchangeData1dDehierarchization(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
