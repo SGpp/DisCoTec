@@ -213,18 +213,22 @@ class LookupTable {
 };
 
 template <typename FG_ELEMENT>
-static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
+static void checkLeftSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
                                const DistributedFullGrid<FG_ELEMENT>& dfg,
-                               std::map<RankType, std::set<IndexType>>& OneDIndices, LevelType lmin);
+                               std::map<RankType, std::set<IndexType>>& OneDIndices,
+                               const LevelType& lmin);
 
 template <typename FG_ELEMENT>
-static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
+static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
                                 const DistributedFullGrid<FG_ELEMENT>& dfg,
-                                std::map<RankType, std::set<IndexType>>& OneDIndices, LevelType lmin);
+                                std::map<RankType, std::set<IndexType>>& OneDIndices,
+                                const LevelType& lmin);
 
 template <typename FG_ELEMENT>
-static IndexType checkPredecessors(IndexType idx, DimType dim, const DistributedFullGrid<FG_ELEMENT>& dfg,
-                                   std::map<RankType, std::set<IndexType>>& OneDIndices, LevelType lmin);
+static IndexType checkPredecessors(IndexType idx, const DimType& dim,
+                                   const DistributedFullGrid<FG_ELEMENT>& dfg,
+                                   std::map<RankType, std::set<IndexType>>& OneDIndices,
+                                   const LevelType& lmin);
 
 template <typename FG_ELEMENT>
 static RankType getNeighbor1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d, IndexType idx1d);
@@ -934,10 +938,10 @@ static void exchangeData1dDehierarchization(
 }
 
 template <typename FG_ELEMENT>
-static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
+static void checkLeftSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
                                const DistributedFullGrid<FG_ELEMENT>& dfg,
                                std::map<RankType, std::set<IndexType>>& OneDIndices,
-                               LevelType lmin) {
+                               const LevelType& lmin) {
   const auto lidx = dfg.getLevel(dim, checkIdx);
   const auto idxMin = dfg.getFirstGlobal1dIndex(dim);
   const auto lmax = dfg.getLevels()[dim];
@@ -967,10 +971,10 @@ static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType di
 }
 
 template <typename FG_ELEMENT>
-static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
+static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
                                 const DistributedFullGrid<FG_ELEMENT>& dfg,
                                 std::map<RankType, std::set<IndexType>>& OneDIndices,
-                                LevelType lmin) {
+                                const LevelType& lmin) {
   const auto lidx = dfg.getLevel(dim, checkIdx);
   const auto idxMax = dfg.getLastGlobal1dIndex(dim);
   const auto lmax = dfg.getLevels()[dim];
@@ -1004,10 +1008,10 @@ static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType d
 }
 
 template <typename FG_ELEMENT>
-static IndexType checkPredecessors(IndexType idx, DimType dim,
+static IndexType checkPredecessors(IndexType idx, const DimType& dim,
                                    const DistributedFullGrid<FG_ELEMENT>& dfg,
                                    std::map<RankType, std::set<IndexType>>& OneDIndices,
-                                   LevelType lmin) {
+                                   const LevelType& lmin) {
   auto lidx = dfg.getLevel(dim, idx);
   auto idxMin = dfg.getFirstGlobal1dIndex(dim);
   auto idxMax = dfg.getLastGlobal1dIndex(dim);
