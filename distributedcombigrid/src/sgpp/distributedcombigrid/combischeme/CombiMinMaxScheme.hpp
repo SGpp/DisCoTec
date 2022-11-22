@@ -176,28 +176,33 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
   }
 
   inline const std::vector<size_t>& getProcessGroupNumbers() const { return processGroupNumbers_; }
+
  private:
   std::vector<size_t> processGroupNumbers_;
 };
 
-
-inline long long int getCombiDegreesOfFreedom(const LevelVector& level) {
+inline long long int getCombiDegreesOfFreedom(const LevelVector& level,
+                                              const std::vector<BoundaryType>& boundary) {
   long long int numDOF = 1;
-    for (const auto& level_i : level) {
-      assert(level_i > -1);
-      if (level_i > 0) {
-        numDOF *= powerOfTwo[level_i] + 1;
-      } else {
-        numDOF *= 2;
-      }
+  assert(level.size() == boundary.size());
+  auto dim = static_cast<DimType>(level.size());
+  for (DimType d = 0; d < dim; ++d) {
+    const auto& level_i = level[d];
+    assert(level_i > -1);
+    if (level_i > 0) {
+      numDOF *= powerOfTwo[level_i] - 1 + boundary[d];
+    } else {
+      numDOF *= boundary[d];
     }
+  }
   return numDOF;
 }
 
-inline long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces) {
+inline long long int printCombiDegreesOfFreedom(const std::vector<LevelVector>& combiSpaces,
+                                                const std::vector<BoundaryType>& boundary) {
   long long int numDOF = 0;
   for (const auto& space : combiSpaces) {
-    numDOF += getCombiDegreesOfFreedom(space);
+    numDOF += getCombiDegreesOfFreedom(space, boundary);
   }
   std::cout << "Combination scheme DOF : " << numDOF << " i.e. "
             << (static_cast<double>(numDOF * sizeof(CombiDataType)) / 1e9) << " GB " << std::endl;
