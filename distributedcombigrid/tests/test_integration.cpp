@@ -316,7 +316,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     combischeme.createAdaptiveCombischeme();
     std::vector<LevelVector> levels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
-    auto numDOF = printCombiDegreesOfFreedom(levels);
+    auto numDOF = printCombiDegreesOfFreedom(levels, boundary);
 
     // create Tasks
     TaskContainer tasks;
@@ -379,7 +379,7 @@ BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_tes
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto start = std::chrono::high_resolution_clock::now();
   auto rank = TestHelper::getRank(MPI_COMM_WORLD);
-  for (BoundaryType boundary : {0, 1, 2}) {
+  for (BoundaryType boundary : std::vector<BoundaryType>({0, 1, 2})) {
     for (size_t ngroup : {1, 2, 3, 4}) {
       for (size_t nprocs : {1, 2}) {
         if (rank == 0)

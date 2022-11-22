@@ -298,7 +298,7 @@ int main(int argc, char** argv) {
       std::cout << "reduceCombinationDimsLmax = " << reduceCombinationDimsLmax << std::endl;
       std::cout << "boundary = " << boundary << std::endl;
       std::cout << "hierarchization_dims = " << hierarchizationDims << std::endl;
-      auto numDOF = printCombiDegreesOfFreedom(combischeme.getCombiSpaces());
+      auto numDOF = printCombiDegreesOfFreedom(combischeme.getCombiSpaces(), boundary);
       std::cout << "CombiScheme: " << std::endl;
       for (size_t i = 0; i < levels.size(); ++i) {
         std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
