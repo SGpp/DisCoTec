@@ -555,6 +555,26 @@ void reduceSparseGridCoefficients(LevelVector& lmax, LevelVector& lmin,
   }
 }
 
+void registerAllSubspacesInDSGU(DistributedSparseGridUniform<CombiDataType>& dsgu,
+                                const CombiParameters& combiParameters) {
+  // the last level vector should have the highest level sum
+  const auto highestLevelSum = levelSum(dsgu.getAllLevelVectors().back());
+  for (const auto& level : dsgu.getAllLevelVectors()) {
+    if (levelSum(level) == highestLevelSum) {
+      const auto& boundary = combiParameters.getBoundary();
+      auto dfgDecomposition = combigrid::downsampleDecomposition(
+          combiParameters.getDecomposition(), combiParameters.getLMax(), level, boundary);
+      auto uniDFG = std::unique_ptr<DistributedFullGrid<CombiDataType>>(
+          new DistributedFullGrid<CombiDataType>(
+              combiParameters.getDim(), level, dsgu.getCommunicator(), boundary,
+              combiParameters.getParallelization(), false, dfgDecomposition));
+      uniDFG->registerUniformSG(dsgu);
+    } else {
+      assert(levelSum(level) < highestLevelSum);
+    }
+  }
+}
+
 /** Initializes the dsgu for each species by setting the subspace sizes of all
  * dfgs in the global reduce comm. After calling, all workers which share the
  * same spatial distribution of the dsgu (those who combine during global
@@ -593,6 +613,9 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
         new DistributedSparseGridUniform<CombiDataType>(combiParameters_.getDim(), lmax, lmin,
                                                         theMPISystem()->getLocalComm()));
+    // // this registers all possible subspaces in the DSGU
+    // // can be used to test the memory consumption of the "filled" DSGU
+    // registerAllSubspacesInDSGU(*uniDSG, combiParameters_);
 #ifdef DEBUG_OUTPUT
     MASTER_EXCLUSIVE_SECTION {
       std::cout << "dsg size: " << uniDSG->getRawDataSize() << " * " << sizeof(CombiDataType)
