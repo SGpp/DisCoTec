@@ -224,7 +224,7 @@ int main(int argc, char** argv) {
       std::cout << fullLevels.size()
                 << " component grids in full combination scheme; this system will run "
                 << levels.size() << " of them." << std::endl;
-      printCombiDegreesOfFreedom(levels);
+      printCombiDegreesOfFreedom(levels, boundary);
     }
   } else {
     // read in CT scheme, if applicable
@@ -250,7 +250,7 @@ int main(int argc, char** argv) {
       MASTER_EXCLUSIVE_SECTION {
         std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
                   << pgNumbers.size() << " tasks." << std::endl;
-        printCombiDegreesOfFreedom(levels);
+        printCombiDegreesOfFreedom(levels, boundary);
       }
     } else {
       // levels and coeffs are only used in manager
@@ -329,6 +329,7 @@ int main(int argc, char** argv) {
     auto decomposition = combigrid::getDefaultDecomposition(minNumPoints, p, forwardDecomposition);
     // then assign the actual used one
     decomposition = combigrid::getDefaultDecomposition(maxNumPoints, p, forwardDecomposition);
+    // default decomposition works only for powers of 2!
     params.setDecomposition(decomposition);
     std::cout << "manager: generated parameters" << std::endl;
 
@@ -475,7 +476,7 @@ int main(int argc, char** argv) {
             mpimemory::get_memory_usage_local_kb(&current_vmrss, &current_vmsize);
             auto measured = static_cast<double>(current_vmrss - former_vmrss) / 1e6;
             sumMeasured += measured;
-            auto ctdof = getCombiDegreesOfFreedom(levels[taskIndex]);
+            auto ctdof = getCombiDegreesOfFreedom(levels[taskIndex], boundary);
             auto expected = ctdof * 2. * 8. / 1e9;
             sumExpected += expected;
             MASTER_EXCLUSIVE_SECTION {

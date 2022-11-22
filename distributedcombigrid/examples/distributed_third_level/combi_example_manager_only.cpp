@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
         std::cout << fullLevels.size()
                   << " component grids in full combination scheme; this system will run "
                   << levels.size() << " of them." << std::endl;
-        printCombiDegreesOfFreedom(levels);
+        printCombiDegreesOfFreedom(levels, boundary);
       }
     } else {
       // read in CT scheme, if applicable
@@ -182,7 +182,7 @@ int main(int argc, char** argv) {
         MASTER_EXCLUSIVE_SECTION {
           std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
                     << pgNumbers.size() << " tasks." << std::endl;
-          printCombiDegreesOfFreedom(levels);
+          printCombiDegreesOfFreedom(levels, boundary);
         }
         WORLD_MANAGER_EXCLUSIVE_SECTION {
           coeffs = scheme->getCoeffs();
@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
           std::cout << levels.size() << " tasks to distribute." << std::endl;
         }
       }
-      WORLD_MANAGER_EXCLUSIVE_SECTION { printCombiDegreesOfFreedom(levels); }
+      WORLD_MANAGER_EXCLUSIVE_SECTION { printCombiDegreesOfFreedom(levels, boundary); }
     }
   }
   // create load model
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi*2, 1, p,
                            LevelVector(dim, 0), reduceCombinationDimsLmax,
                            forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
-    // auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax);
+    // auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax, boundary);
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
       minNumPoints[d] = combigrid::getNumDofNodal(lmin[d], boundary[d]);
