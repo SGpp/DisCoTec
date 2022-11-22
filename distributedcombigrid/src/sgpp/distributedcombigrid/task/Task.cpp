@@ -13,6 +13,7 @@ Task::Task(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, rea
     : faultCriterion_(faultCrit),
       dim_(dim),
       l_(l),
+      coeff_(coeff),
       boundary_(boundary),
       id_(count++),
       loadModel_(loadModel),

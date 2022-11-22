@@ -72,9 +72,9 @@ bool ProcessGroupManager::runnext() {
   // and should be avoided
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  if (tasks_.size() == 0) return false;
-
   sendSignalAndReceive(RUN_NEXT);
+
+  if (tasks_.size() == 0) return false;
 
   return true;
 }
