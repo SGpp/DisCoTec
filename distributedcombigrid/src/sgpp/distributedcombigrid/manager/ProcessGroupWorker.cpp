@@ -634,23 +634,33 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
 
 void ProcessGroupWorker::hierarchizeFullGrids() {
   auto numGrids = combiParameters_.getNumGrids();
-  //real localMax(0.0);
-  // std::vector<CombiDataType> beforeCombi;
+  // real localMax(0.0);
+  //  std::vector<CombiDataType> beforeCombi;
+  bool anyNotBoundary =
+      std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
+                  [](BoundaryType b) { return b == 0; });
   for (Task* t : tasks_) {
     for (IndexType g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
       // hierarchize dfg
-      DistributedHierarchization::hierarchize<CombiDataType>(
-          dfg, combiParameters_.getHierarchizationDims(), combiParameters_.getHierarchicalBases(),
-          combiParameters_.getLMin());
+      if (anyNotBoundary) {
+        DistributedHierarchization::hierarchize<CombiDataType>(
+            dfg, combiParameters_.getHierarchizationDims(),
+            combiParameters_.getHierarchicalBases());
+      } else {
+        DistributedHierarchization::hierarchize<CombiDataType>(
+            dfg, combiParameters_.getHierarchizationDims(), combiParameters_.getHierarchicalBases(),
+            combiParameters_.getLMin());
+      }
     }
   }
 }
 
 void ProcessGroupWorker::addFullGridsToUniformSG() {
-  assert(combinedUniDSGVector_.size() > 0 && "Initialize dsgu first with "
-                                             "initCombinedUniDSGVector()");
+  assert(combinedUniDSGVector_.size() > 0 &&
+         "Initialize dsgu first with "
+         "initCombinedUniDSGVector()");
   auto numGrids = combiParameters_.getNumGrids();
   for (Task* t : tasks_) {
     for (IndexType g = 0; g < numGrids; g++) {
@@ -762,9 +772,19 @@ LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
 void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g) {
   // fill dfg with hierarchical coefficients from distributed sparse grid
   dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
-  DistributedHierarchization::dehierarchizeDFG(dfg, combiParameters_.getHierarchizationDims(),
-                                               combiParameters_.getHierarchicalBases(),
-                                               combiParameters_.getLMin());
+
+  bool anyNotBoundary =
+      std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
+                  [](BoundaryType b) { return b == 0; });
+
+  if (anyNotBoundary) {
+    DistributedHierarchization::dehierarchizeDFG(dfg, combiParameters_.getHierarchizationDims(),
+                                                 combiParameters_.getHierarchicalBases());
+  } else {
+    DistributedHierarchization::dehierarchizeDFG(dfg, combiParameters_.getHierarchizationDims(),
+                                                 combiParameters_.getHierarchicalBases(),
+                                                 combiParameters_.getLMin());
+  }
 }
 
 void ProcessGroupWorker::fillDFGFromDSGU(Task* t) {
@@ -1229,12 +1249,21 @@ void ProcessGroupWorker::integrateCombinedSolution() {
     }
   }
 
+  bool anyNotBoundary =
+      std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
+                  [](BoundaryType b) { return b == 0; });
   Stats::startEvent("worker dehierarchize");
   for (Task* taskToUpdate : tasks_) {
     for (int g = 0; g < numGrids; g++) {
-      DistributedHierarchization::dehierarchizeDFG(
-          taskToUpdate->getDistributedFullGrid(g), combiParameters_.getHierarchizationDims(),
-          combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+      if (anyNotBoundary) {
+        DistributedHierarchization::dehierarchizeDFG(taskToUpdate->getDistributedFullGrid(g),
+                                                     combiParameters_.getHierarchizationDims(),
+                                                     combiParameters_.getHierarchicalBases());
+      } else {
+        DistributedHierarchization::dehierarchizeDFG(
+            taskToUpdate->getDistributedFullGrid(g), combiParameters_.getHierarchizationDims(),
+            combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+      }
     }
   }
   Stats::stopEvent("worker dehierarchize");
