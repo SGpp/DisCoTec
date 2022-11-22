@@ -921,14 +921,12 @@ static void exchangeData1dDehierarchization(
 
   // for dehierarchization, we need to exchange the full tree of
   // successors and predecessors
-  while (idx <= idxMax && lidx >= lmin) {
+  while (idx <= idxMax) {
     checkLeftSuccesors(idx, idx, dim, dfg, send1dIndices, lmin);
 
     checkRightSuccesors(idx, idx, dim, dfg, send1dIndices, lmin);
 
     idx = checkPredecessors(idx, dim, dfg, recv1dIndices, lmin);
-
-    lidx = dfg.getLevel(dim, idx);
   }
 
   sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
@@ -946,29 +944,30 @@ static void checkLeftSuccesors(IndexType checkIdx, IndexType rootIdx, DimType di
 
   // check left successors of checkIdx
   for (auto l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
+    auto ldiff = static_cast<LevelType>(lmax - l);
+    auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
-    // only send if my successors on level l need to be dehierarchized
-    if (l >= lmin) {
-      auto ldiff = static_cast<LevelType>(lmax - l);
-      auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
+    IndexType lsIdx = checkIdx - idiff;
 
-      IndexType lsIdx = checkIdx - idiff;
-
-      if (lsIdx >= 0 && lsIdx < idxMin) {
+    if (lsIdx >= 0 && lsIdx < idxMin) {
+      auto leftSuccessorLevel = dfg.getLevel(dim, lsIdx);
+      // only send if my successors need to be dehierarchized
+      if (leftSuccessorLevel > lmin + 1) {
         // get rank which has lsIdx and add to send list
         int r = dfg.getNeighbor1dFromAxisIndex(dim, lsIdx);
         if (r >= 0) OneDIndices[r].insert(rootIdx);
       }
-
-      if (lsIdx >= 0) checkLeftSuccesors(lsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
     }
+
+    if (lsIdx >= 0) checkLeftSuccesors(lsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
   }
 }
 
 template <typename FG_ELEMENT>
-static void checkRightSuccesors(
-    IndexType checkIdx, IndexType rootIdx, DimType dim, const DistributedFullGrid<FG_ELEMENT> & dfg,
-    std::map<RankType, std::set<IndexType>> & OneDIndices, LevelType lmin) {
+static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType dim,
+                                const DistributedFullGrid<FG_ELEMENT>& dfg,
+                                std::map<RankType, std::set<IndexType>>& OneDIndices,
+                                LevelType lmin) {
   LevelType lidx = dfg.getLevel(dim, checkIdx);
 
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
@@ -976,22 +975,23 @@ static void checkRightSuccesors(
 
   // check right successors of checkIdx
   for (auto l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
-    // only send if my successors on level l need to be dehierarchized
-    if (l >= lmin) {
-      auto ldiff = static_cast<LevelType>(lmax - l);
-      auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
+    auto ldiff = static_cast<LevelType>(lmax - l);
+    auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
 
-      IndexType rsIdx = checkIdx + idiff;
+    IndexType rsIdx = checkIdx + idiff;
 
-      if (rsIdx < dfg.getGlobalSizes()[dim] && rsIdx > idxMax) {
+    if (rsIdx < dfg.getGlobalSizes()[dim] && rsIdx > idxMax) {
+      auto rightSuccessorLevel = dfg.getLevel(dim, rsIdx);
+      // only send if my successors need to be dehierarchized
+      if (rightSuccessorLevel > lmin + 1) {
         // get rank which has rsIdx and add to send list
         int r = dfg.getNeighbor1dFromAxisIndex(dim, rsIdx);
         if (r >= 0) OneDIndices[r].insert(rootIdx);
       }
+    }
 
-      if (rsIdx < dfg.length(dim)) {
-        checkRightSuccesors(rsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
-      }
+    if (rsIdx < dfg.length(dim)) {
+      checkRightSuccesors(rsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
     }
   }
 }
