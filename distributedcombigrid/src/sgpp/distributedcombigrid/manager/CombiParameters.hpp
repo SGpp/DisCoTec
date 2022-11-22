@@ -91,26 +91,26 @@ class CombiParameters {
     // }
   }
 
-  inline const LevelVector& getLMin() { return lmin_; }
+  inline const LevelVector& getLMin() const { return lmin_; }
 
-  inline const LevelVector& getLMax() { return lmax_; }
+  inline const LevelVector& getLMax() const { return lmax_; }
 
-  inline const LevelVector& getLMinReductionVector() { return reduceCombinationDimsLmin_; }
+  inline const LevelVector& getLMinReductionVector() const { return reduceCombinationDimsLmin_; }
 
-  inline const LevelVector& getLMaxReductionVector() { return reduceCombinationDimsLmax_; }
+  inline const LevelVector& getLMaxReductionVector() const { return reduceCombinationDimsLmax_; }
 
-  inline const std::vector<BoundaryType>& getBoundary() { return boundary_; }
+  inline const std::vector<BoundaryType>& getBoundary() const { return boundary_; }
 
-  inline real getCoeff(size_t taskID) {
+  inline real getCoeff(size_t taskID) const {
     if (coeffs_.find(taskID) == coeffs_.end()) {
       return 0;
     } else {
-      return coeffs_[taskID];
+      return coeffs_.at(taskID);
     }
   }
 
-  inline void getCoeffs(std::vector<size_t>& taskIDs, std::vector<real>& coeffs) {
-    for (auto it : coeffs_) {
+  inline void getCoeffs(std::vector<size_t>& taskIDs, std::vector<real>& coeffs) const {
+    for (const auto& it : coeffs_) {
       taskIDs.push_back(it.first);
       coeffs.push_back(it.second);
     }
@@ -151,17 +151,17 @@ class CombiParameters {
     }
   }
 
-  inline const LevelVector& getLevel(size_t taskID) {
+  inline const LevelVector& getLevel(size_t taskID) const {
     static LevelVector emptyLevelVector(0);
     if (levels_.find(taskID) == levels_.end()) {
       return emptyLevelVector;
     } else {
-    } return levels_[taskID];
+    } return levels_.at(taskID);
   }
 
   inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
 
-  inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) {
+  inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) const {
     taskIDs.reserve(levels_.size());
     levels.reserve(levels_.size());
     for (auto it : levels_) {
@@ -174,9 +174,9 @@ class CombiParameters {
 
   inline std::map<LevelVector, real>& getCombiDict() { return combiDictionary_; }
 
-  inline DimType getDim() { return dim_; }
+  inline DimType getDim() const { return dim_; }
 
-  inline size_t getNumLevels() { return levels_.size(); }
+  inline size_t getNumLevels() const { return levels_.size(); }
   /**
    * this method returns the number of grids a task contains
    * in case we have multiple grids in our simulation
@@ -186,9 +186,9 @@ class CombiParameters {
    * this method returns the number of tasks also referred to as component grids (one task might
    * contain multiple grids)
    */
-  inline IndexType getNumTasks() { return numTasks_; }
+  inline IndexType getNumTasks() const { return numTasks_; }
 
-  inline const std::vector<bool>& getHierarchizationDims() { return hierarchizationDims_; }
+  inline const std::vector<bool>& getHierarchizationDims() const { return hierarchizationDims_; }
 
   /**
    * @brief Set the Hierarchical Bases object
@@ -220,7 +220,7 @@ class CombiParameters {
    * @return std::vector<BasisFunctionBasis*> pointers of the type of basis function
    *          may be nullptr or anything for a non-hierarchization dimension
    */
-  inline const std::vector<BasisFunctionBasis*>& getHierarchicalBases() {
+  inline const std::vector<BasisFunctionBasis*>& getHierarchicalBases() const {
     assert(hierarchicalBases_.size() == dim_);
     return hierarchicalBases_;
   }
@@ -228,7 +228,7 @@ class CombiParameters {
   /* get the common parallelization
    * this function can only be used in the uniform mode
    */
-  inline const std::vector<int> getParallelization() const {
+  inline const std::vector<int>& getParallelization() const {
     assert(uniformDecomposition && procsSet_);
     return procs_;
   }
@@ -438,7 +438,8 @@ inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& c
   }
 }
 
-inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref, std::vector<int> procsRef) {
+inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref,
+                                                                std::vector<int> procsRef) {
   assert(lref.size() == procsRef.size());
   std::vector<IndexVector> decomposition;
   for (DimType d = 0; d < static_cast<DimType>(lref.size()); ++d) {
