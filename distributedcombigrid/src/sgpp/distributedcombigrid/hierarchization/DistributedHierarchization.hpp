@@ -772,7 +772,8 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
   // main loop
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-  auto globalIdxMax = dfg.length(dim);
+  // this lets the receiver know to get the highest index from the lowest rank
+  auto globalIdxMax = dfg.length(dim) + (dfg.returnBoundaryFlags()[dim] == 1 ? 1 : 0);
   LevelType lmax = dfg.getLevels()[dim];
 
   IndexType idx = idxMin;
@@ -780,7 +781,7 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
   // for hierarchization, we only need to exchange the direct predecessors
   while (idx <= idxMax) {
     LevelType lidx = dfg.getLevel(dim, idx);
-    // check if successors of idx outside local domain
+    // check if direct successors of idx outside local domain
     {
       for (LevelType l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
         if (l > lmin) {
@@ -816,7 +817,7 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
                           (indexShift > 0 && pIdx > idxMax && pIdx < globalIdxMax))) {
           // get rank which has predecessor and add to list of indices to recv
           int r = dfg.getNeighbor1dFromAxisIndex(dim, pIdx);
-          recv1dIndices[r].insert(pIdx);
+          if (r >= 0) recv1dIndices[r].insert(pIdx);
         }
       }
     } else {
@@ -994,7 +995,8 @@ static void checkRightSuccesors(IndexType checkIdx, IndexType rootIdx, DimType d
 
     // only recurse if my successor needs to be dehierarchized
     if (rightSuccessorLevel > lmin) {
-      if (rsIdx < dfg.length(dim)) {
+      auto globalIdxMax = dfg.length(dim) + (dfg.returnBoundaryFlags()[dim] == 1 ? 1 : 0);
+      if (rsIdx < globalIdxMax) {
         checkRightSuccesors(rsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
       }
     }
