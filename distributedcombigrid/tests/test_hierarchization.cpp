@@ -1280,18 +1280,23 @@ BOOST_AUTO_TEST_CASE(test_timing_parallel) {
     std::vector<BoundaryType> boundary(dim, b);
     CommunicatorType comm = TestHelper::getComm(procs, std::vector<int>(dim, b == 1 ? 1 : 0));
     if (comm != MPI_COMM_NULL) {
-      LevelVector lmin = {1, 5, 1, 2, 1, 1};
       LevelVector levels = {1, 19, 1, 2, 1, 1};
-      auto forward = false;
-      TestFn_1 testFn(levels);
-      DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
-      MPI_Barrier(comm);
-      auto start = std::chrono::high_resolution_clock::now();
-      checkHierarchization(testFn, dfg, false, lmin);
-      auto end = std::chrono::high_resolution_clock::now();
-      auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-      BOOST_TEST_MESSAGE("hat hierarchization time: " + std::to_string(duration.count()) +
-                         " milliseconds with " + std::to_string(b) + "-sided boundary");
+      LevelVector lzero(dim, 0);
+      LevelVector lhalf = levels;
+      std::transform(lhalf.begin(), lhalf.end(), lhalf.begin(), [](int i) { return i / 2; });
+      for (LevelVector lmin : std::vector<LevelVector>({lzero, lhalf, levels})) {
+        auto forward = false;
+        TestFn_1 testFn(levels);
+        DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+        MPI_Barrier(comm);
+        auto start = std::chrono::high_resolution_clock::now();
+        checkHierarchization(testFn, dfg, false, lmin);
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        BOOST_TEST_MESSAGE("hat hierarchization time: " + std::to_string(duration.count()) +
+                           " milliseconds with " + std::to_string(b) + "-sided boundary and lmin " +
+                           std::to_string(combigrid::levelSum(lmin)));
+      }
     }
   }
 }
