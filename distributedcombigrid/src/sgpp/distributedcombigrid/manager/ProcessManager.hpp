@@ -75,6 +75,8 @@ class ProcessManager {
 
   inline void combineThirdLevel();
 
+  inline void combineThirdLevelFileBased();
+
   inline size_t pretendCombineThirdLevelForBroker(std::vector<long long> numDofsToCommunicate,
                                          bool checkValues);
 
@@ -362,6 +364,26 @@ void ProcessManager::combineThirdLevel() {
     thirdLevelPGroup_->combineThirdLevel(thirdLevel_, params_, false);
   }
   Stats::stopEvent("manager exchange data with remote");
+  thirdLevel_.signalReady();
+
+  waitAllFinished();
+}
+
+void ProcessManager::combineThirdLevelFileBased() {
+  // first combine local and global
+  combineLocalAndGlobal();
+
+  // tell other pgroups to idle and wait for the combination result
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
+  }
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToCombine();
+
+  // combine
+  Stats::startEvent("manager combine UFTP");
+  thirdLevelPGroup_->combineThirdLevelFileBased();
+  Stats::stopEvent("manager combine UFTP");
   thirdLevel_.signalReady();
 
   waitAllFinished();

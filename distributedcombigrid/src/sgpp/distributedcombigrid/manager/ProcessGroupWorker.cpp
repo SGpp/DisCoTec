@@ -205,7 +205,12 @@ SignalType ProcessGroupWorker::wait() {
       combineThirdLevel();
       currentCombi_++;
       Stats::stopEvent("worker combine third level");
-
+    } break;
+    case COMBINE_THIRD_LEVEL_FILE: {
+      Stats::startEvent("worker combine third level file");
+      combineThirdLevelFileBased();
+      currentCombi_++;
+      Stats::stopEvent("worker combine third level file");
     } break;
     case WAIT_FOR_TL_COMBI_RESULT: {
       Stats::startEvent("worker wait third level result");
@@ -1294,6 +1299,12 @@ void ProcessGroupWorker::combineThirdLevel() {
     assert(returnedValue == MPI_SUCCESS);
   }
   Stats::stopEvent("worker wait for bcasts");
+}
+
+void ProcessGroupWorker::combineThirdLevelFileBased() {
+  // TODO(pollinta) steal parts from above functions
+  // and write, wait, read, and combine
+  throw std::runtime_error("combineThirdLevelFileBased not implemented yet");
 }
 
 /** Reduces subspace sizes with remote.

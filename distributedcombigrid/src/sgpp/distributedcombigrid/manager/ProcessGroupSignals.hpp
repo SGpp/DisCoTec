@@ -76,6 +76,8 @@ const SignalType REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG = 40;
 const SignalType WRITE_DSGS_TO_DISK = 41;
 const SignalType READ_DSGS_FROM_DISK = 42;
 
+const SignalType COMBINE_THIRD_LEVEL_FILE = 43;
+
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
 const NormalizationType L1_NORMALIZATION = 1;

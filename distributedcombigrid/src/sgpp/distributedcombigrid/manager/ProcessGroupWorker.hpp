@@ -113,6 +113,8 @@ class ProcessGroupWorker {
    * and updates fgs. */
   void combineThirdLevel();
 
+  void combineThirdLevelFileBased();
+
   /** waits until the third level pg bcasts the combined solution and updates
    * fgs */
   void waitForThirdLevelCombiResult();

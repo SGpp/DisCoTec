@@ -117,6 +117,11 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
   return true;
 }
 
+bool ProcessGroupManager::combineThirdLevelFileBased() {
+  sendSignalAndReceive(COMBINE_THIRD_LEVEL_FILE);
+  return true;
+}
+
 void recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
   auto dsguSize = dsguData.size();
