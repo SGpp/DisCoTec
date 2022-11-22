@@ -1240,7 +1240,8 @@ void ProcessGroupWorker::integrateCombinedSolution() {
   bool anyNotBoundary =
       std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
                   [](BoundaryType b) { return b == 0; });
-  Stats::startEvent("dehierarchizeDFGData");
+
+  Stats::startEvent("worker dehierarchize");
   for (Task* taskToUpdate : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       if (anyNotBoundary) {
@@ -1254,7 +1255,7 @@ void ProcessGroupWorker::integrateCombinedSolution() {
       }
     }
   }
-  Stats::stopEvent("dehierarchizeDFGData");
+  Stats::stopEvent("worker dehierarchize");
 }
 
 void ProcessGroupWorker::zeroDsgsData() {
