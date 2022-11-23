@@ -2008,7 +2008,8 @@ class DistributedHierarchization {
 
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT>> remoteData;
-      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
+          dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
         exchangeData1d(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
@@ -2120,7 +2121,8 @@ class DistributedHierarchization {
 
       // exchange data
       std::vector<RemoteDataContainer<FG_ELEMENT>> remoteData;
-      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
+      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
+          dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
         exchangeData1dDehierarchization(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
