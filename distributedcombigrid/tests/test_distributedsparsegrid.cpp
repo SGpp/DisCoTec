@@ -172,6 +172,15 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
           BOOST_CHECK_EQUAL(uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
         }
       }
+      auto reduceSuccess = uniDSGfromSubspaces->readOneFileFromDiskAndReduce("test_sg_all");
+      BOOST_CHECK(readSuccess);
+      if (readSuccess) {
+        BOOST_TEST_CHECKPOINT("compare double values");
+        for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
+          BOOST_TEST_CONTEXT(std::to_string(i))
+          BOOST_CHECK_EQUAL(uniDSG->getRawData()[i] + uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
+        }
+      }
     }
 
     BOOST_TEST_CHECKPOINT("write sparse min/max");

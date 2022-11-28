@@ -102,8 +102,13 @@ class DistributedSparseGridUniform {
   // returns a pointer to first element in subspace i
   inline FG_ELEMENT* getData(SubspaceIndexType i);
 
+  // returns a const pointer to first element in subspace i
+  inline const FG_ELEMENT* getData(SubspaceIndexType i) const;
+
   // allows a linear access to the whole subspace data stored in this dsg
   inline FG_ELEMENT* getRawData();
+
+  inline const FG_ELEMENT* getRawData() const;
 
   inline DimType getDim() const;
 
@@ -167,12 +172,15 @@ class DistributedSparseGridUniform {
   void readFromDiskChunked(std::string filePrefix);
 
   // coordinated read/write to one single file containing the whole dsg data
-  bool writeOneFileToDisk(std::string fileName);
+  bool writeOneFileToDisk(std::string fileName) const;
 
   bool readOneFileFromDisk(std::string fileName);
 
+  bool readOneFileFromDiskAndReduce(std::string fileName, int numElementsToBuffer = 1024);
+
  private:
-  std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax, const LevelVector& lmin);
+  std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
+                                        const LevelVector& lmin);
 
   DimType dim_;
 
@@ -367,8 +375,21 @@ inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(SubspaceInd
 }
 
 template <typename FG_ELEMENT>
+inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
+    SubspaceIndexType i) const {
+  assert(isSubspaceDataCreated() && "subspace data not created");
+  return subspaces_[i].data_;
+}
+
+template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getRawData() {
   createSubspaceData();
+  return subspacesData_.data();
+}
+
+template <typename FG_ELEMENT>
+inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getRawData() const {
+  assert(isSubspaceDataCreated() && "subspace data not created");
   return subspacesData_.data();
 }
 
@@ -597,7 +618,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::readFromDiskChunked(std::string f
 }
 
 template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fileName) {
+bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fileName) const {
   auto comm = this->getCommunicator();
 
   // get offset in file
@@ -712,7 +733,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
 
 #ifndef NDEBUG
   int readcount = 0;
-	MPI_Get_count (&status, dataType, &readcount);
+  MPI_Get_count(&status, dataType, &readcount);
   if (readcount < len) {
     // loud non-failure
     std::cerr << "read dsg: " << readcount << " and not " << len << std::endl;
@@ -723,12 +744,54 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
   return true;
 }
 
-/**
-* Sends the raw dsg data to the destination process in communicator comm.
-*/
 template <typename FG_ELEMENT>
-static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
-                          RankType dest, CommunicatorType comm) {
+bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDiskAndReduce(
+    std::string fileName, int numElementsToBuffer) {
+  auto comm = this->getCommunicator();
+
+  // get offset in file
+  MPI_Offset len = this->getRawDataSize();
+  MPI_Offset pos = 0;
+  MPI_Exscan(&len, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
+             MPI_SUM, comm);
+  // open file
+  MPI_File fh;
+  MPI_Info info = MPI_INFO_NULL;
+  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
+
+  // read from single file with MPI-IO
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+  MPI_Status status;
+  int readcount = 0;
+  std::vector<FG_ELEMENT> buffer(numElementsToBuffer);
+  auto writePointer = this->subspacesData_.begin();
+  while (readcount < len) {
+    // if there is less to read than the buffer length, overwrite numElementsToBuffer
+    if (len - readcount < numElementsToBuffer) {
+      numElementsToBuffer = len - readcount;
+      buffer.resize(numElementsToBuffer);
+    }
+    err = MPI_File_read_at_all(fh, pos * sizeof(FG_ELEMENT), buffer.data(),
+                               static_cast<int>(numElementsToBuffer), dataType, &status);
+    int readcount_increment = 0;
+    MPI_Get_count(&status, dataType, &readcount_increment);
+    // reduce with present sparse grid data
+    std::transform(buffer.cbegin(), buffer.cend(), writePointer, writePointer,
+                   std::plus<FG_ELEMENT>{});
+    readcount += readcount_increment;
+    pos += readcount_increment;
+    std::advance(writePointer, readcount_increment);
+  }
+  MPI_File_close(&fh);
+  return true;
+}
+
+/**
+ * Sends the raw dsg data to the destination process in communicator comm.
+ */
+template <typename FG_ELEMENT>
+static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT>* dsgu, RankType dest,
+                        CommunicatorType comm) {
   FG_ELEMENT* data = dsgu->getRawData();
   auto dataSize = dsgu->getRawDataSize();
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
