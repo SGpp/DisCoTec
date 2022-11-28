@@ -1476,6 +1476,7 @@ void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
     auto dsgToUse = uniDsg;
     if (extraUniDSGVector_.size() > 0) {
       dsgToUse = extraUniDSGVector_[i].get();
+      copyFromCombinedDSGUToExtraDSGU(*uniDsg, *dsgToUse);
     }
     dsgToUse->writeOneFileToDisk(filenamePrefix + "_" + std::to_string(i));
   }
@@ -1489,6 +1490,9 @@ void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
     dsgToUse->readOneFileFromDisk(filenamePrefix + "_" + std::to_string(i));
+    if (extraUniDSGVector_.size() > 0) {
+      copyFromExtraDSGUToCombinedDSGU(*dsgToUse, *uniDsg);
+    }
   }
 }
 } /* namespace combigrid */
