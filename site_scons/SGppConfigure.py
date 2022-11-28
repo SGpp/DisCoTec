@@ -88,26 +88,9 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   # detour compiler output
   env["PRINT_CMD_LINE_FUNC"] = Helper.printCommand
 
-  checkCpp11(config)
-  checkDoxygen(config)
-  checkDot(config)
-  checkOpenCL(config)
-  checkSWIG(config)
-  checkPython(config)
-  checkJava(config)
+  checkCpp17(config)
 
-  if env["USE_CUDA"] == True:
-    config.env['CUDA_TOOLKIT_PATH'] = '/usr/local.nfs/sw/cuda/cuda-7.5/'
-    config.env['CUDA_SDK_PATH'] = ''
-    config.env.Tool('cuda')
-    # clean up the flags to forward
-    # flagsToForward = [flag for flag in config.env["CPPFLAGS"] if flag not in ['-Wmissing-format-attribute', '']]
-    # flagsToForward = " -Xcompiler " + (" -Xcompiler ".join(flagsToForward))
-    # ensure same flags for host code
-    config.env['NVCCFLAGS'] = "-ccbin " + config.env["CXX"] + " -std=c++11 -Xcompiler -fpic,-Wall "# + flagsToForward
-    # config.env.AppendUnique(LIBPATH=['/usr/local.nfs/sw/cuda/cuda-7.5/'])
-
-    # glpk library
+  # glpk library
   config.env.AppendUnique(CPPPATH=[config.env['GLPK_INCLUDE_PATH']])
   config.env.AppendUnique(LIBPATH=[config.env['GLPK_LIBRARY_PATH']])
 
@@ -117,76 +100,17 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   print("Configuration done.")
   print()
 
-def checkCpp11(config):
-  # check C++11 support
+def checkCpp17(config):
+  # check C++17 support
   if not config.CheckFlag(""):
     Helper.printErrorAndExit("The compiler doesn't seem to receive sensible CPPFLAGS.\
       Maybe you forgot to set OPT? Abort!")
     Exit(1)
-  if not config.CheckFlag("-std=c++11"):
-    Helper.printErrorAndExit("The compiler doesn't seem to support the C++11 standard. Abort!")
+  if not config.CheckFlag("-std=c++17"):
+    Helper.printErrorAndExit("The compiler doesn't seem to support the C++17 standard. Abort!")
     Exit(1)
 
-  config.env.PrependUnique(CPPFLAGS="-std=c++11")
-
-def checkDoxygen(config):
-  if not config.env["DOC"]:
-    return
-  # check whether Doxygen installed
-  if not config.CheckExec("doxygen"):
-    Helper.printWarning("Doxygen cannot be found.",
-                        "You will not be able to generate the documentation.",
-                        "Check the PATH environment variable!")
-  else:
-    Helper.printInfo("Using Doxygen " + re.findall(
-       r"[0-9.]*[0-9]+", subprocess.check_output(["doxygen", "--version"]))[0] + ".")
-
-def checkDot(config):
-  if not config.env["DOC"]:
-    return
-
-  # check whether dot installed
-  if not config.CheckExec("dot"):
-    Helper.printWarning("dot (Graphviz) cannot be found.",
-                        "The documentation might lack diagrams.",
-                        "Check the PATH environment variable!")
-  else:
-    Helper.printInfo("Using " +
-        str(subprocess.check_output(["dot", "-V"], stderr=subprocess.STDOUT)).strip() + ".")
-
-def checkOpenCL(config):
-  if config.env["USE_OCL"]:
-    if "OCL_INCLUDE_PATH" in config.env["ENV"]:
-      config.env.AppendUnique(CPPPATH=[config.env["ENV"]["OCL_INCLUDE_PATH"]])
-    elif "OCL_INCLUDE_PATH" in config.env:
-      config.env.AppendUnique(CPPPATH=[config.env["OCL_INCLUDE_PATH"]])
-    else:
-      Helper.printInfo("Trying to find the OpenCL header without the OCL_INCLUDE_PATH variable.")
-
-    if not config.CheckCXXHeader("CL/cl.h"):
-      Helper.printErrorAndExit("CL/cl.h not found, but required for OpenCL")
-
-    if "OCL_LIBRARY_PATH" in config.env["ENV"]:
-      config.env.AppendUnique(LIBPATH=[config.env["ENV"]["OCL_LIBRARY_PATH"]])
-    elif "OCL_LIBRARY_PATH" in config.env:
-      config.env.AppendUnique(LIBPATH=[config.env["OCL_LIBRARY_PATH"]])
-    else:
-      Helper.printInfo("Trying to find the libOpenCL library without the OCL_LIBRARY_PATH variable.")
-
-    if not config.CheckLib("OpenCL", language="c++", autoadd=1):
-      Helper.printErrorAndExit("libOpenCL not found, but required for OpenCL")
-
-    # TODO: continue - add boost include path!
-    config.env.AppendUnique(LIBPATH="C:\\boost_1_60_0\stage\lib")
-
-    if not config.CheckLib("boost_program_options", language="c++", autoadd=0):
-      Helper.printErrorAndExit("libboost-program-options not found, but required for OpenCL",
-                               "On debian-like system the package libboost-program-options-dev",
-                               "can be installed to solve this issue.")
-    config.env["CPPDEFINES"]["USE_OCL"] = "1"
-  else:
-    Helper.printInfo("OpenCL is not enabled")
-
+  config.env.PrependUnique(CPPFLAGS="-std=c++17")
 def checkBoostTests(config):
   config.env.AppendUnique(CPPPATH=[config.env["BOOST_INCLUDE_PATH"]])
   config.env.AppendUnique(LIBPATH=[config.env["BOOST_LIBRARY_PATH"]])
@@ -210,105 +134,6 @@ def checkBoostTests(config):
                           "Please install the corresponding package, e.g., on Ubuntu",
                           "> sudo apt-get install libboost-test-dev",
                           "****************************************************")
-
-# def checkHDF5(config):
-#   # Check the availability of hdf libs
-#   hdf5Found = True
-#   if not config.CheckHeader(os.path.join("boost", "test", "unit_test.hpp"), language="c++"):
-#     config.env["COMPILE_BOOST_TESTS"] = False
-#     Helper.printWarning("****************************************************",
-#                         "No Boost Unit Test Headers found. Omitting Boost unit tests.",
-#                         "Please install the corresponding package, e.g., on Ubuntu",
-#                         "> sudo apt-get install libboost-test-dev",
-#                         "****************************************************")
-
-#   if not config.CheckLib("boost_unit_test_framework", autoadd=0, language="c++"):
-#     config.env["COMPILE_BOOST_TESTS"] = False
-#     Helper.printWarning("****************************************************",
-#                         "No Boost Unit Test library found. Omitting Boost unit tests.",
-#                         "Please install the corresponding package, e.g., on Ubuntu",
-#                         "> sudo apt-get install libboost-test-dev",
-#                         "****************************************************")
-
-def checkSWIG(config):
-  if config.env["SG_PYTHON"] or config.env["SG_JAVA"]:
-    # check whether swig installed
-    if not config.CheckExec("swig"):
-      Helper.printErrorAndExit("SWIG cannot be found, but required for SG_PYTHON.",
-                               "Check the PATH environment variable!")
-
-    # make sure swig version is new enough
-    swigVersion = re.findall(
-        r"[0-9.]*[0-9]+", subprocess.check_output(["swig", "-version"]))[0]
-
-    swigVersionTuple = config.env._get_major_minor_revision(swigVersion)
-    if swigVersionTuple < (3, 0, 0):
-      Helper.printErrorAndExit("SWIG version too old! At least 3.0 required.")
-
-    Helper.printInfo("Using SWIG " + swigVersion + ".")
-
-def checkPython(config):
-  if config.env["SG_PYTHON"]:
-    config.env.AppendUnique(CPPPATH=[distutils.sysconfig.get_python_inc()])
-    Helper.printInfo("pythonpath = " + distutils.sysconfig.get_python_inc())
-
-    if not config.CheckCXXHeader("Python.h"):
-      Helper.printErrorAndExit("Python.h not found, but required for SG_PYTHON.",
-                               "Check path to Python include files:",
-                               distutils.sysconfig.get_python_inc(),
-                               "Hint: You might have to install the package python-dev.")
-
-    if not config.CheckCXXHeader("pyconfig.h"):
-      Helper.printErrorAndExit("pyconfig.h not found, but required for SG_PYTHON.",
-                               "Check path to Python include files:",
-                               distutils.sysconfig.get_python_inc(),
-                               "Hint: You might have to install the package python-dev.")
-
-    try:
-      import numpy
-      numpy_path = os.path.join(os.path.split(numpy.__file__)[0], "core", "include")
-      config.env.AppendUnique(CPPPATH=[numpy_path])
-      if not config.CheckCXXHeader(["Python.h", "pyconfig.h", "numpy/arrayobject.h"]):
-        Helper.printWarning("Cannot find NumPy header files in " + str(numpy_path))
-        if config.env["RUN_PYTHON_TESTS"]:
-          config.env["RUN_PYTHON_TESTS"] = False
-          Helper.printWarning("Python unit tests were disabled due to missing numpy development headers.")
-    except:
-      Helper.printWarning("Warning: Numpy doesn't seem to be installed.")
-      if config.env["RUN_PYTHON_TESTS"]:
-        Helper.printWarning("Python unit tests were disabled because numpy is not available.")
-        config.env["RUN_PYTHON_TESTS"] = False
-  else:
-    Helper.printInfo("Python extension (SG_PYTHON) not enabled.")
-
-def checkJava(config):
-  if config.env["SG_JAVA"]:
-    # check for $JAVA_HOME; prepend to search path
-    if os.environ.get("JAVA_HOME"):
-      config.env.PrependENVPath("PATH", os.path.join(os.environ.get("JAVA_HOME"), "bin"))
-
-    # check whether javac installed
-    if not config.CheckExec("javac"):
-      Helper.printErrorAndExit("javac cannot be found, but required by SG_JAVA.",
-                               "Check the PATH environment variable!")
-
-    # check whether java installed
-    if not config.CheckExec("java"):
-      Helper.printErrorAndExit("java cannot be found, but required by SG_JAVA.",
-                               "Check the PATH environment variable!")
-
-    # check for JNI headers
-    if os.environ.get("JNI_CPPINCLUDE"):
-      config.env.AppendUnique(CPPPATH=[os.environ.get("JNI_CPPINCLUDE")])
-    if not config.CheckCXXHeader("jni.h"):
-      # not found; try to find
-      if not config.CheckJNI():
-        Helper.printErrorAndExit(" jni.h not found."
-                                 "Please set JAVA_HOME environment variable"
-                                 "with $JAVA_HOME/bin/javac, $JAVA_HOME/include/jni.h"
-                                 "or directly $JNI_CPPINCLUDE with $JNI_CPPINCLUDE/jni.h.")
-  else:
-    Helper.printInfo("Java support (SG_JAVA) not enabled.")
 
 def configureGNUCompiler(config):
   if config.env["COMPILER"] == "openmpi":
