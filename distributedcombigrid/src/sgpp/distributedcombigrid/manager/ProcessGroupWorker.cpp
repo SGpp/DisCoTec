@@ -1292,6 +1292,26 @@ void ProcessGroupWorker::integrateCombinedSolution() {
   Stats::stopEvent("worker dehierarchize");
 }
 
+template <typename T>
+void copyFromCombinedDSGUToExtraDSGU(const DistributedSparseGridUniform<T>& combinedUniDSG,
+                                     DistributedSparseGridUniform<T>& extraUniDSG) {
+  // copy partial data from uniDSG to extraDSG
+  for (decltype(combinedUniDSG.getNumSubspaces()) i = 0; i < combinedUniDSG.getNumSubspaces(); ++i) {
+    assert(extraUniDSG.getDataSize(i) == 0 ||
+           extraUniDSG.getDataSize(i) == combinedUniDSG.getDataSize(i));
+    std::copy_n(combinedUniDSG.getData(i), extraUniDSG.getDataSize(i), extraUniDSG.getData(i));
+  }
+}
+
+template <typename T>
+void copyFromExtraDSGUToCombinedDSGU(const DistributedSparseGridUniform<T>& extraUniDSG,
+                                       DistributedSparseGridUniform<T>& combinedUniDSG) {
+  // copy partial data from extraDSG back to uniDSG
+  for (decltype(combinedUniDSG.getNumSubspaces()) i = 0; i < combinedUniDSG.getNumSubspaces(); ++i) {
+    std::copy_n(extraUniDSG.getData(i), extraUniDSG.getDataSize(i), combinedUniDSG.getData(i));
+  }
+}
+
 void ProcessGroupWorker::combineThirdLevel() {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
@@ -1315,11 +1335,7 @@ void ProcessGroupWorker::combineThirdLevel() {
                                              "decomposition");
     // if we have an extra dsg for third level exchange, we use it
     if (extraUniDSGVector_.size() > 0) {
-      // copy partial data from uniDSG to extraDSG
-      for (decltype(uniDsg->getNumSubspaces()) i = 0; i < uniDsg->getNumSubspaces(); ++i) {
-        assert(dsgToUse->getDataSize(i) == 0 || dsgToUse->getDataSize(i) == uniDsg->getDataSize(i));
-        std::copy_n(uniDsg->getData(i), dsgToUse->getDataSize(i), dsgToUse->getData(i));
-      }
+      copyFromCombinedDSGUToExtraDSGU(*uniDsg, *dsgToUse);
     }
 
     // send dsg data to manager
@@ -1333,10 +1349,7 @@ void ProcessGroupWorker::combineThirdLevel() {
     Stats::stopEvent("worker recv dsg data");
 
     if (extraUniDSGVector_.size() > 0) {
-      // copy partial data from extraDSG back to uniDSG
-      for (decltype(uniDsg->getNumSubspaces()) i = 0; i < uniDsg->getNumSubspaces(); ++i) {
-        std::copy_n(dsgToUse->getData(i), dsgToUse->getDataSize(i), uniDsg->getData(i));
-      }
+      copyFromExtraDSGUToCombinedDSGU(*dsgToUse, *uniDsg);
     }
 
     // distribute solution in globalReduceComm to other pgs
