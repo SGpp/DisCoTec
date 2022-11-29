@@ -385,15 +385,16 @@ void ProcessManager::combineThirdLevelFileBased(std::string filenamePrefixToWrit
   }
   // obtain instructions from third level manager
   thirdLevel_.signalReadyToCombineFile();
+  std::string instruction = thirdLevel_.fetchInstruction();
+  assert(instruction == "write_ok");
 
   // combine
   Stats::startEvent("manager combine file");
   thirdLevelPGroup_->combineThirdLevelFileBased(filenamePrefixToWrite, writeCompleteTokenFileName,
                                                 filenamePrefixToRead, startReadingTokenFileName);
   Stats::stopEvent("manager combine file");
+  waitForPG(thirdLevelPGroup_);
   thirdLevel_.signalReady();
-
-  waitAllFinished();
 }
 
 void ProcessManager::pretendCombineThirdLevelForWorkers() {

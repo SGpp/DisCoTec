@@ -1402,7 +1402,6 @@ void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixTo
   // write sparse grid and corresponding token file
   this->writeDSGsToDisk(filenamePrefixToWrite);
   MASTER_EXCLUSIVE_SECTION {
-    std::cout << "write token " << writeCompleteTokenFileName << std::endl;
     std::ofstream tokenFile(writeCompleteTokenFileName);
   }
 
@@ -1412,11 +1411,6 @@ void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixTo
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
-  // remove reading token
-  MASTER_EXCLUSIVE_SECTION {
-    std::cout << "removing token " << startReadingTokenFileName << std::endl;
-    std::filesystem::remove(startReadingTokenFileName);
-  }
 
   if (combinedUniDSGVector_.size() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
@@ -1428,6 +1422,11 @@ void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixTo
 
   // update fgs
   integrateCombinedSolution();
+
+  // remove reading token
+  MASTER_EXCLUSIVE_SECTION {
+    std::filesystem::remove(startReadingTokenFileName);
+  }
 
   // wait for bcasts to other pgs in globalReduceComm
   Stats::startEvent("worker wait for bcasts");

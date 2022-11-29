@@ -210,8 +210,10 @@ void ThirdLevelManager::processCombinationFile(size_t initiatorIndex)
 #ifdef DEBUG_OUTPUT
   std::cout << std::endl << "Processing third level combination w files" << std::endl;
 #endif
+  initiator.sendMessage("write_ok");
   other.receiveMessage(message);
   assert(message == "ready_to_combine_file");
+  other.sendMessage("write_ok");
 
   initiator.receiveMessage(message);
   assert(message == "ready");
