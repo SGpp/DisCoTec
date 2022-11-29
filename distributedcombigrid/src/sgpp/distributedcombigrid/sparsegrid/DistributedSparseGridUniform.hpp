@@ -758,6 +758,11 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDiskAndReduce(
   MPI_File fh;
   MPI_Info info = MPI_INFO_NULL;
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
+  if (err != MPI_SUCCESS) {
+    // silent failure
+    std::cerr << err << " while reading OneFileFromDisk" << std::endl;
+    return false;
+  }
 
   // read from single file with MPI-IO
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
@@ -771,10 +776,11 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDiskAndReduce(
       numElementsToBuffer = len - readcount;
       buffer.resize(numElementsToBuffer);
     }
-    err = MPI_File_read_at_all(fh, pos * sizeof(FG_ELEMENT), buffer.data(),
-                               static_cast<int>(numElementsToBuffer), dataType, &status);
+    err = MPI_File_read_at(fh, pos * sizeof(FG_ELEMENT), buffer.data(),
+                           static_cast<int>(numElementsToBuffer), dataType, &status);
     int readcount_increment = 0;
     MPI_Get_count(&status, dataType, &readcount_increment);
+    assert(readcount_increment > 0);
     // reduce with present sparse grid data
     std::transform(buffer.cbegin(), buffer.cend(), writePointer, writePointer,
                    std::plus<FG_ELEMENT>{});
