@@ -170,8 +170,6 @@ void startInfrastructure(unsigned short port = 7777) {
 void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGrid = false) {
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
-  size_t procsPerSys = testParams.ngroup * testParams.nprocs + 1;
-
   combigrid::Stats::initialize();
 
   theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs);
@@ -262,7 +260,18 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       }
       // combine grids
       Stats::startEvent("manager combine third level");
-      manager.combineThirdLevel();
+      // do two TCP-based communications and one file-based one
+      if (i < 2) {
+        manager.combineThirdLevel();
+      } else {
+        std::string filenamePrefixToWrite = "dsgu_combine_" + std::to_string(testParams.sysNum);
+        std::string writeCompleteTokenFileName = filenamePrefixToWrite + "_complete.txt";
+        std::string filenamePrefixToRead =
+            "dsgu_combine_" + std::to_string((testParams.sysNum + 1) % 2);
+        std::string startReadingTokenFileName = filenamePrefixToRead + "_complete.txt";
+        manager.combineThirdLevelFileBased(filenamePrefixToWrite, writeCompleteTokenFileName,
+                                           filenamePrefixToRead, startReadingTokenFileName);
+      }
       // manager.combine();
       Stats::stopEvent("manager combine third level");
     }
