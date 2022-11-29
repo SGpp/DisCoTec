@@ -1,7 +1,13 @@
 #include "sgpp/distributedcombigrid/manager/ProcessGroupWorker.hpp"
 
-#include "boost/lexical_cast.hpp"
+#include <algorithm>
+#include <chrono>
+#include <filesystem>
+#include <iostream>
+#include <string>
+#include <thread>
 
+#include "boost/lexical_cast.hpp"
 #include "sgpp/distributedcombigrid/combicom/CombiCom.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/hierarchization/DistributedHierarchization.hpp"
@@ -12,14 +18,10 @@
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGrid.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
-
-#include <algorithm>
-#include <iostream>
-#include <string>
 #ifdef HAVE_HIGHFIVE
-#include <chrono>
 #include <random>
-// highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi versions)
+// highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi
+// versions)
 #include <highfive/H5File.hpp>
 #endif
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
@@ -208,7 +210,28 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case COMBINE_THIRD_LEVEL_FILE: {
       Stats::startEvent("worker combine third level file");
-      combineThirdLevelFileBased();
+      std::string filenamePrefixToWrite, writeCompleteTokenFileName, filenamePrefixToRead,
+          startReadingTokenFileName;
+      MASTER_EXCLUSIVE_SECTION {
+        MPIUtils::receiveClass(&filenamePrefixToWrite, theMPISystem()->getManagerRank(),
+                               theMPISystem()->getGlobalComm());
+        MPIUtils::receiveClass(&writeCompleteTokenFileName, theMPISystem()->getManagerRank(),
+                               theMPISystem()->getGlobalComm());
+        MPIUtils::receiveClass(&filenamePrefixToRead, theMPISystem()->getManagerRank(),
+                               theMPISystem()->getGlobalComm());
+        MPIUtils::receiveClass(&startReadingTokenFileName, theMPISystem()->getManagerRank(),
+                               theMPISystem()->getGlobalComm());
+      }
+      MPIUtils::broadcastClass(&filenamePrefixToWrite, theMPISystem()->getMasterRank(),
+                               theMPISystem()->getLocalComm());
+      MPIUtils::broadcastClass(&writeCompleteTokenFileName, theMPISystem()->getMasterRank(),
+                               theMPISystem()->getLocalComm());
+      MPIUtils::broadcastClass(&filenamePrefixToRead, theMPISystem()->getMasterRank(),
+                               theMPISystem()->getLocalComm());
+      MPIUtils::broadcastClass(&startReadingTokenFileName, theMPISystem()->getMasterRank(),
+                               theMPISystem()->getLocalComm());
+      combineThirdLevelFileBased(filenamePrefixToWrite, writeCompleteTokenFileName,
+                                 filenamePrefixToRead, startReadingTokenFileName);
       currentCombi_++;
       Stats::stopEvent("worker combine third level file");
     } break;
@@ -1368,10 +1391,49 @@ void ProcessGroupWorker::combineThirdLevel() {
   Stats::stopEvent("worker wait for bcasts");
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBased() {
-  // TODO(pollinta) steal parts from above functions
-  // and write, wait, read, and combine
-  throw std::runtime_error("combineThirdLevelFileBased not implemented yet");
+void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                                    std::string writeCompleteTokenFileName,
+                                                    std::string filenamePrefixToRead,
+                                                    std::string startReadingTokenFileName) {
+  assert(combinedUniDSGVector_.size() != 0);
+  assert(combiParametersSet_);
+  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
+
+  // write sparse grid and corresponding token file
+  this->writeDSGsToDisk(filenamePrefixToWrite);
+  MASTER_EXCLUSIVE_SECTION {
+    std::cout << "write token " << writeCompleteTokenFileName << std::endl;
+    std::ofstream tokenFile(writeCompleteTokenFileName);
+  }
+
+  // wait until we can start to read
+  while (!std::filesystem::exists(startReadingTokenFileName)) {
+    // wait for token file to appear
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
+  // remove reading token
+  MASTER_EXCLUSIVE_SECTION {
+    std::cout << "removing token " << startReadingTokenFileName << std::endl;
+    std::filesystem::remove(startReadingTokenFileName);
+  }
+
+  if (combinedUniDSGVector_.size() != 1) {
+    throw std::runtime_error("Combining more than one DSG is not implemented yet");
+  }
+  // distribute solution in globalReduceComm to other pgs
+  auto request =
+      asyncBcastDsgData(combinedUniDSGVector_[0].get(), theMPISystem()->getGlobalReduceRank(),
+                        theMPISystem()->getGlobalReduceComm());
+
+  // update fgs
+  integrateCombinedSolution();
+
+  // wait for bcasts to other pgs in globalReduceComm
+  Stats::startEvent("worker wait for bcasts");
+  auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+  assert(returnedValue == MPI_SUCCESS);
+  Stats::stopEvent("worker wait for bcasts");
 }
 
 /** Reduces subspace sizes with remote.

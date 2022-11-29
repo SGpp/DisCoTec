@@ -41,6 +41,8 @@ namespace combigrid {
 
       void signalReadyToCombine() const;
 
+      void signalReadyToCombineFile() const;
+
       void signalReadyToUnifySubspaceSizes() const;
 
       void signalReadyToExchangeData() const;

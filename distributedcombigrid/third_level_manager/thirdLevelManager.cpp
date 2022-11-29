@@ -143,6 +143,8 @@ void ThirdLevelManager::processMessage(const std::string& message, size_t sysInd
 {
   if (message == "ready_to_combine")
     processCombination(sysIndex);
+  else if (message == "ready_to_combine_file")
+    processFileCombination(sysIndex);
   else if (message == "ready_to_unify_subspace_sizes")
     processUnifySubspaceSizes(sysIndex);
   else if (message == "ready_to_exchange_data")
@@ -188,6 +190,31 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
   }
 
   // wait for other system to finish receiving
+  other.receiveMessage(message);
+  assert(message == "ready");
+#ifdef DEBUG_OUTPUT
+  std::cout << "Finished combination" << std::endl;
+#endif
+}
+
+
+void ThirdLevelManager::processCombinationFile(size_t initiatorIndex)
+{
+  assert(systems_.size() == 2 && "Not implemented for different amount of systems");
+  stats_.increaseNumCombinations();
+  System& initiator = systems_[initiatorIndex];
+  size_t otherIndex = (initiatorIndex + 1) % systems_.size();
+  System& other = systems_[otherIndex];
+
+  std::string message;
+#ifdef DEBUG_OUTPUT
+  std::cout << std::endl << "Processing third level combination w files" << std::endl;
+#endif
+  other.receiveMessage(message);
+  assert(message == "ready_to_combine_file");
+
+  initiator.receiveMessage(message);
+  assert(message == "ready");
   other.receiveMessage(message);
   assert(message == "ready");
 #ifdef DEBUG_OUTPUT

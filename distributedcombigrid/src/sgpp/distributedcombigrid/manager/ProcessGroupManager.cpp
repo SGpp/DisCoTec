@@ -117,9 +117,21 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
   return true;
 }
 
-bool ProcessGroupManager::combineThirdLevelFileBased() {
+bool ProcessGroupManager::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                                     std::string writeCompleteTokenFileName,
+                                                     std::string filenamePrefixToRead,
+                                                     std::string startReadingTokenFileName) {
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(COMBINE_THIRD_LEVEL_FILE);
-  return true;
+
+  // send filenames
+  MPIUtils::sendClass(&filenamePrefixToWrite, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&writeCompleteTokenFileName, this->pgroupRootID_,
+                      theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&filenamePrefixToRead, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&startReadingTokenFileName, this->pgroupRootID_,
+                      theMPISystem()->getGlobalComm());
+  return this->waitStatus() == PROCESS_GROUP_WAIT;
 }
 
 void recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
