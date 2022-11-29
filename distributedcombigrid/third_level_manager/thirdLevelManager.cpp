@@ -144,7 +144,7 @@ void ThirdLevelManager::processMessage(const std::string& message, size_t sysInd
   if (message == "ready_to_combine")
     processCombination(sysIndex);
   else if (message == "ready_to_combine_file")
-    processFileCombination(sysIndex);
+    processCombinationFile(sysIndex);
   else if (message == "ready_to_unify_subspace_sizes")
     processUnifySubspaceSizes(sysIndex);
   else if (message == "ready_to_exchange_data")
