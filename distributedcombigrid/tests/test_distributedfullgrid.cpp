@@ -187,10 +187,11 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, comm);
   dfg.registerUniformSG(dsg);
   BOOST_TEST_CHECKPOINT("register uniform sg");
-  dfg.addToUniformSG(dsg, 2.1);
-  BOOST_TEST_CHECKPOINT("add to uniform sg");
   DistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
   dfg2.registerUniformSG(dsg);
+  dsg.createSubspaceData();
+  dfg.addToUniformSG(dsg, 2.1);
+  BOOST_TEST_CHECKPOINT("add to uniform sg");
   dfg2.extractFromUniformSG(dsg);
   BOOST_TEST_CHECKPOINT("extract from uniform sg");
 
