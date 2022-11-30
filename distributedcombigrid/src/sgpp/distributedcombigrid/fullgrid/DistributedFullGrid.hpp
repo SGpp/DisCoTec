@@ -1093,9 +1093,11 @@ class DistributedFullGrid {
    * @return the indices of points on this partition
    */
   inline std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) {
-    IndexVector subspaceIndices;
+    static IndexVector subspaceIndices;
+    subspaceIndices.clear();
     IndexType numPointsOfSubspace = 1;
-    auto oneDIndices = std::vector<IndexVector>(dim_);
+    static auto oneDIndices = std::vector<IndexVector>(dim_);
+    oneDIndices.resize(dim_);
     for (DimType d = 0; d < dim_; ++d) {
       if (l[d] > levels_[d]) {
         return subspaceIndices;
