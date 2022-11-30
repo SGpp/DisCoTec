@@ -112,8 +112,6 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
                                                       dfgDecomposition));
 
     uniDFG->registerUniformSG(*uniDSG);
-    uniDFG->registerUniformSG(*uniDSGfromSubspaces);
-    BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getRawDataSize());
 
     for (decltype(uniDSG->getNumSubspaces()) i = 0; i < uniDSG->getNumSubspaces(); ++i) {
       const auto& level = uniDSG->getLevelVector(i);
@@ -146,6 +144,10 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     // create subspace data
     uniDSG->createSubspaceData();
     uniDFG->addToUniformSG(*uniDSG, 1.);
+
+    BOOST_TEST_CHECKPOINT("Add to uniform SG from subspaces");
+    uniDFG->registerUniformSG(*uniDSGfromSubspaces);
+    BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getRawDataSize());
     BOOST_CHECK_GT(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
     uniDSGfromSubspaces->createSubspaceData();
     uniDFG->addToUniformSG(*uniDSGfromSubspaces, 0.);
@@ -202,7 +204,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
                                                       dfgDecomposition));
 
     BOOST_TEST_CHECKPOINT("Register to uniform SG");
-    largeUniDFG->registerUniformSG(*uniDSG);
+    largeUniDFG->registerUniformSG(*uniDSG); //TODO create levels and actually test something
 
     // make sure that right min/max values are written %TODO remove file
     BOOST_TEST_CHECKPOINT("write min/max coefficients");
