@@ -1157,57 +1157,8 @@ class DistributedFullGrid {
     }
     subspaceIndexToFGIndices_.shrink_to_fit();
     assert(subspaceIndexToFGIndices_.size() > 0);
-    // if localFGIndexToLocalSGPointerList_ was already initialized,
-    // it is invalidated now
-    localFGIndexToLocalSGPointerList_.clear();
   }
 
-
-  void setLocalFGPointersRecursive(DimType d, const LevelVector& lvec, IndexVector& ivec, FG_ELEMENT*& sgDataPointer) {
-    IndexVector oneDIndices;
-    get1dIndicesLocal(d, lvec[d], oneDIndices);
-
-    for (IndexType idx : oneDIndices) {
-      ivec[d] = idx;
-
-      if (d > 0)
-        setLocalFGPointersRecursive(d - 1, lvec, ivec, sgDataPointer);
-      else {
-        IndexType j = getLocalLinearIndex(ivec);
-        localFGIndexToLocalSGPointerList_[j] = sgDataPointer;
-        ++sgDataPointer;
-      }
-    }
-  }
-
-  /**
-   * @brief set localFGIndexToLocalSGPointerList_ based on the current sizes of
-   *        dsg_
-   *       (dsg_'s sizes may have changed as other full grids were registered)
-   *        and return it
-   */
-  std::vector<FG_ELEMENT*>& getLocalFGIndexToLocalSGPointerList() {
-    if (localFGIndexToLocalSGPointerList_.size() == 0) {
-      // make sure that using pointers instead of indices is sensible
-      assert(sizeof(FG_ELEMENT*) <= sizeof(IndexType));
-
-      localFGIndexToLocalSGPointerList_.resize(nrLocalElements_, nullptr);
-
-      // all the hierarchical subspaces contained in this full grid
-      auto downwardClosedSet = combigrid::getDownSet(levels_);
-      // resize all common subspaces in dsg, if necessary
-      for (size_t subspaceID = 0; subspaceID < downwardClosedSet.size(); ++subspaceID) {
-        auto level = downwardClosedSet[subspaceID];
-        if (dsg_->isContained(level)) {
-          FG_ELEMENT* dpointer = dsg_->getData(level);
-          IndexVector ivec(dim_);
-          setLocalFGPointersRecursive(dim_ - 1, level, ivec, dpointer);
-          assert((dpointer - dsg_->getData(level)) == dsg_->getDataSize(level));
-        }
-      }
-    }
-    return localFGIndexToLocalSGPointerList_;
-  }
 
   /**
    * @brief adds the (hopefully) hierarchical coefficients from fullgridVector_
@@ -2085,10 +2036,6 @@ class DistributedFullGrid {
 
   /** number of local (in this grid cell) points per axis*/
   IndexVector nrLocalPoints_;
-
-  // contains for each (local) gridpoint assigment to memory location on the registered dsg
-  // use only one of localFGIndexToLocalSGPointerList_ or subspaceIndexToFGIndices_
-  std::vector<FG_ELEMENT*> localFGIndexToLocalSGPointerList_;
 
   // contains for each (local) dsg subspace (.first)
   // the dfg indices that belong to that subspace (.second)
