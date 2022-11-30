@@ -1167,9 +1167,7 @@ class DistributedFullGrid {
    */
   void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
     // test if dsg has already been registered
-    if (dsg_ != &dsg) {
-      this->registerUniformSG(dsg);
-    }
+    assert(dsg_ == &dsg);
     assert(dsg.isSubspaceDataCreated());
 
     bool anythingWasAdded = false;
@@ -1206,9 +1204,7 @@ class DistributedFullGrid {
    */
   void extractFromUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     // test if dsg has already been registered
-    if (dsg_ != &dsg) {
-      this->registerUniformSG(dsg);
-    }
+    assert(dsg_ == &dsg);
     assert(dsg.isSubspaceDataCreated());
 
     // all the hierarchical subspaces contained in this full grid
