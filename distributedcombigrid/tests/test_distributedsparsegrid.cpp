@@ -143,8 +143,11 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     // hierarchical space (without interpolation on coarser component dfgs) here we use the nodal
     // values for testing purposes
     BOOST_TEST_CHECKPOINT("Add to uniform SG");
+    // create subspace data
+    uniDSG->createSubspaceData();
     uniDFG->addToUniformSG(*uniDSG, 1.);
     BOOST_CHECK_GT(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
+    uniDSGfromSubspaces->createSubspaceData();
     uniDFG->addToUniformSG(*uniDSGfromSubspaces, 0.);
     BOOST_CHECK_EQUAL(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
     for (decltype(uniDSGfromSubspaces->getNumSubspaces()) i = 0;
