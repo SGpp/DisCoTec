@@ -1166,8 +1166,8 @@ class DistributedFullGrid {
    * @param coeff the coefficient that gets multiplied to all entries
    */
   void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
-    // test if dsg has already been registered
-    assert(dsg_ == &dsg);
+    // // test if dsg has already been registered
+    // assert(dsg_ == &dsg);
     assert(dsg.isSubspaceDataCreated());
 
     bool anythingWasAdded = false;
@@ -1180,7 +1180,7 @@ class DistributedFullGrid {
     // loop over all subspaces of the full grid
     for (const auto& level : downwardClosedSet) {
       sIndex = dsg_->getIndexInRange(level, sIndex);
-      if (sIndex > -1) {
+      if (sIndex > -1 && dsg_->getDataSize(sIndex) > 0) {
         auto sPointer = dsg_->getData(sIndex);
         subspaceIndices = getFGPointsOfSubspace(level);
         for (const auto& fIndex : subspaceIndices) {
@@ -1203,8 +1203,8 @@ class DistributedFullGrid {
    * @param dsg the DSG to extract from
    */
   void extractFromUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
-    // test if dsg has already been registered
-    assert(dsg_ == &dsg);
+    // // test if dsg has already been registered
+    // assert(dsg_ == &dsg);
     assert(dsg.isSubspaceDataCreated());
 
     // all the hierarchical subspaces contained in this full grid
@@ -1215,7 +1215,7 @@ class DistributedFullGrid {
     static IndexVector subspaceIndices;
     for (const auto& level : downwardClosedSet) {
       sIndex = dsg_->getIndexInRange(level, sIndex);
-      if (sIndex > -1) {
+      if (sIndex > -1 && dsg_->getDataSize(sIndex) > 0) {
         auto sPointer = dsg_->getData(sIndex);
         subspaceIndices = getFGPointsOfSubspace(level);
         for (const auto& fIndex : subspaceIndices) {
