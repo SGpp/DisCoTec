@@ -486,6 +486,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::reduceSubspaceSizes(CommunicatorT
 template <typename FG_ELEMENT>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
     const std::string& filename, size_t outputIndex) const {
+  assert(this->isSubspaceDataCreated());
   bool writerProcess = false;
   std::ofstream ofs;
   if (this->rank_ == 0) {
@@ -515,7 +516,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
       it = std::max_element(first, last, smaller_real);
       maximumValue = std::real(*it);
     }
-    // allreduce the minimum and maxiumum values
+    // allreduce the minimum and maximum values
     MPI_Allreduce(MPI_IN_PLACE, &minimumValue, 1, dataType, MPI_MIN, getCommunicator());
     MPI_Allreduce(MPI_IN_PLACE, &maximumValue, 1, dataType, MPI_MAX, getCommunicator());
 
