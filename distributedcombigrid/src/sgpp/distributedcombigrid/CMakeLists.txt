@@ -92,7 +92,6 @@ target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../) #
 find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
-message(WARNING ${CMAKE_BUILD_PARALLEL_LEVEL})
 include(ExternalProject)
 
 ExternalProject_Add( #TODO: first search for glpk
