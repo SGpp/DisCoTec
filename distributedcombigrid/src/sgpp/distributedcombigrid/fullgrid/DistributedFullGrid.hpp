@@ -134,8 +134,6 @@ class DistributedFullGrid {
     // in contrast to serial implementation we directly create the grid
     fullgridVector_.resize(nrLocalElements_);
 
-    dsg_ = nullptr;
-
 #ifdef DEBUG_OUTPUT
     if (rank_ == 0) {
       for (RankType r = 0; r < size_; ++r) {
@@ -880,17 +878,15 @@ class DistributedFullGrid {
   }
 
   /** MPI Rank */
-  inline int getMpiRank() { return rank_; }
+  inline int getMpiRank() const { return rank_; }
 
   /** MPI Size */
-  inline int getMpiSize() { return size_; }
+  inline int getMpiSize() const { return size_; }
 
   /** returns the 1d global index of the first point in the local domain
    *
    */
-  inline IndexType getFirstGlobal1dIndex(DimType d) const {
-    return getLowerBounds()[d];
-  }
+  inline IndexType getFirstGlobal1dIndex(DimType d) const { return getLowerBounds()[d]; }
 
   IndexVector getFirstGlobalIndex() const {
     IndexVector firstGlobalIndex(dim_);
@@ -1117,7 +1113,6 @@ class DistributedFullGrid {
 
   /**
    * @brief "registers" the DistributedSparseGridUniform with this DistributedFullGrid:
-   *        sets the dsg_ member,
    *        and sets the dsg's subspaceSizes where they are not yet set:
    *        If the subspaces in the dsg have zero size, all subspaces
    *        of the dsg that the dfg and dsg have in common are resized. The
@@ -1126,9 +1121,8 @@ class DistributedFullGrid {
    *
    * @param dsg the DSG to register
    */
-  void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
-    dsg_ = &dsg;
-    assert(dsg_->getDim() == dim_);
+  void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) const {
+    assert(dsg.getDim() == dim_);
     // all the hierarchical subspaces contained in this full grid
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
@@ -1137,16 +1131,16 @@ class DistributedFullGrid {
     IndexType numPointsOfSubspace = 1;
     // resize all common subspaces in dsg, if necessary
     for (const auto& level : downwardClosedSet) {
-      index = dsg_->getIndexInRange(level, index);
+      index = dsg.getIndexInRange(level, index);
       if (index > -1) {
         numPointsOfSubspace = 1;
         for (DimType d = 0; d < dim_; ++d) {
           numPointsOfSubspace *= getNumPointsOnThisPartition(level[d], d);
         }
-        const auto subSgDataSize = dsg_->getDataSize(index);
+        const auto subSgDataSize = dsg.getDataSize(index);
         // resize DSG subspace if it has zero size
         if (subSgDataSize == 0) {
-          dsg_->setDataSize(index, numPointsOfSubspace);
+          dsg.setDataSize(index, numPointsOfSubspace);
         } else {
           ASSERT(subSgDataSize == numPointsOfSubspace,
                  "subSgDataSize: " << subSgDataSize << ", numPointsOfSubspace: "
@@ -1166,8 +1160,6 @@ class DistributedFullGrid {
    * @param coeff the coefficient that gets multiplied to all entries
    */
   void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
-    // // test if dsg has already been registered
-    // assert(dsg_ == &dsg);
     assert(dsg.isSubspaceDataCreated());
 
     bool anythingWasAdded = false;
@@ -1179,9 +1171,9 @@ class DistributedFullGrid {
     typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType sIndex = 0;
     // loop over all subspaces of the full grid
     for (const auto& level : downwardClosedSet) {
-      sIndex = dsg_->getIndexInRange(level, sIndex);
-      if (sIndex > -1 && dsg_->getDataSize(sIndex) > 0) {
-        auto sPointer = dsg_->getData(sIndex);
+      sIndex = dsg.getIndexInRange(level, sIndex);
+      if (sIndex > -1 && dsg.getDataSize(sIndex) > 0) {
+        auto sPointer = dsg.getData(sIndex);
         subspaceIndices = getFGPointsOfSubspace(level);
         for (const auto& fIndex : subspaceIndices) {
           *sPointer += coeff * fullgridVector_[fIndex];
@@ -1197,14 +1189,12 @@ class DistributedFullGrid {
   }
 
   /**
-   * @brief extracts the (hopefully) hierarchical coefficients from dsg_
+   * @brief extracts the (hopefully) hierarchical coefficients from dsg
    *        to the full grid's data structure
    *
    * @param dsg the DSG to extract from
    */
   void extractFromUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
-    // // test if dsg has already been registered
-    // assert(dsg_ == &dsg);
     assert(dsg.isSubspaceDataCreated());
 
     // all the hierarchical subspaces contained in this full grid
@@ -1214,9 +1204,9 @@ class DistributedFullGrid {
     typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType sIndex = 0;
     static IndexVector subspaceIndices;
     for (const auto& level : downwardClosedSet) {
-      sIndex = dsg_->getIndexInRange(level, sIndex);
-      if (sIndex > -1 && dsg_->getDataSize(sIndex) > 0) {
-        auto sPointer = dsg_->getData(sIndex);
+      sIndex = dsg.getIndexInRange(level, sIndex);
+      if (sIndex > -1 && dsg.getDataSize(sIndex) > 0) {
+        auto sPointer = dsg.getData(sIndex);
         subspaceIndices = getFGPointsOfSubspace(level);
         for (const auto& fIndex : subspaceIndices) {
           fullgridVector_[fIndex] = *sPointer;
@@ -1226,7 +1216,7 @@ class DistributedFullGrid {
     }
   }
 
-  inline IndexType getStrideForThisLevel(LevelType l, DimType d) {
+  inline IndexType getStrideForThisLevel(LevelType l, DimType d) const {
     assert(d < this->getDimension());
     // special treatment for level 1 suspaces with boundary
     return (l == 1 && hasBoundaryPoints_[d] > 0)
@@ -1234,7 +1224,7 @@ class DistributedFullGrid {
                : combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l + 1));
   }
 
-  inline IndexType getLocalStartForThisLevel(LevelType l, DimType d, IndexType strideForThisLevel) {
+  inline IndexType getLocalStartForThisLevel(LevelType l, DimType d, IndexType strideForThisLevel) const {
     const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
 
     // get global offset to find indices of this level
@@ -1272,14 +1262,14 @@ class DistributedFullGrid {
   }
 
   inline IndexType getNumPointsOnThisPartition(DimType d, IndexType localStart,
-                                               IndexType strideForThisLevel) {
+                                               IndexType strideForThisLevel) const {
     assert(d < this->getDimension());
     return (nrLocalPoints_[d] - 1 < localStart)
                ? 0
                : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
   }
 
-  inline IndexType getNumPointsOnThisPartition(LevelType l, DimType d) {
+  inline IndexType getNumPointsOnThisPartition(LevelType l, DimType d) const {
     assert(!(l > levels_[d]));
     const auto strideForThisLevel = getStrideForThisLevel(l, d);
     return getNumPointsOnThisPartition(d, getLocalStartForThisLevel(l, d, strideForThisLevel),
@@ -1293,7 +1283,7 @@ class DistributedFullGrid {
    * @param l the level
    * @param oneDIndices a list of the local vector indices
    */
-  inline void get1dIndicesLocal(DimType d, LevelType l, IndexVector& oneDIndices) {
+  inline void get1dIndicesLocal(DimType d, LevelType l, IndexVector& oneDIndices) const {
     assert(l > 0);
     assert(d < this->getDimension());
     if (l > levels_[d]) {
@@ -2020,8 +2010,6 @@ class DistributedFullGrid {
 
   /** number of local (in this grid cell) points per axis*/
   IndexVector nrLocalPoints_;
-
-  DistributedSparseGridUniform<FG_ELEMENT>* dsg_;
 
   /**
    * @brief sets the MPI-related members rank_, size_, communicator_, and cartesianUtils_
