@@ -914,4 +914,4 @@ static MPI_Request recvAndBcastSubspaceDataSizes(DistributedSparseGridUniform<FG
 
 } /* namespace combigrid */
 
-#endif /* SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRID_HPP_ */
+#endif SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRID_HPP_

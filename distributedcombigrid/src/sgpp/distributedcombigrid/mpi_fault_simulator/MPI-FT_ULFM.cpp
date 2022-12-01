@@ -27,7 +27,7 @@ int MPI_Comm_failure_ack(simft::Sim_FT_MPI_Comm f_comm) {
   MPI_Group tempgroup;
   MPI_Comm_group(f_comm->c_comm, &tempgroup);
 
-  if (f_comm->dead_set.size() > 0) {
+  if (!f_comm->dead_set.empty()) {
     if (f_comm->failedgrp != MPI_GROUP_NULL) {
       // if failedgrp already exists, free its resources
       MPI_Group_free(&f_comm->failedgrp);
@@ -70,7 +70,7 @@ int MPI_Comm_agree(simft::Sim_FT_MPI_Comm f_comm, int* flag) {
     *flag = 1;
   }
 
-  if (f_comm->dead_nodes.size() == 0) {
+  if (f_comm->dead_nodes.empty()) {
     return MPI_SUCCESS;
   } else {
     return MPI_ERR_PROC_FAILED;
