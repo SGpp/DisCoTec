@@ -431,13 +431,17 @@ size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(SubspaceIndexType i
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(SubspaceIndexType i, size_t newSize) {
 #ifndef NDEBUG
+  assert(subspacesDataSizes_[i] == 0 || subspacesDataSizes_[i] == newSize);
   if (i >= getNumSubspaces()) {
     std::cout << "Index too large, no subspace with this index included in distributed sparse grid"
               << std::endl;
     assert(false);
   }
 #endif  // NDEBUG
-
+  if (newSize != subspacesDataSizes_[i]) {
+    // invalidate the data vector
+    this->deleteSubspaceData();
+  }
   subspacesDataSizes_[i] = newSize;
 }
 
