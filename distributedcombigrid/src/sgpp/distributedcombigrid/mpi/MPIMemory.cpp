@@ -14,7 +14,7 @@ namespace mpimemory {
  * (we could not find one of the memory usages)
  */
 int get_memory_usage_kb(unsigned long* vmrss_kb, unsigned long* vmsize_kb) {
-  /* Get the the current process' status file from the proc filesystem */
+  /* Get the current process' status file from the proc filesystem */
   FILE* procfile = fopen("/proc/self/status", "r");
 
   long to_read = 8192;
