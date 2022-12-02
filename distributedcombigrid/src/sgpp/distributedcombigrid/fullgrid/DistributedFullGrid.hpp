@@ -1065,7 +1065,7 @@ class DistributedFullGrid {
 
   inline void getFGPointsOfSubspaceRecursive(DimType d, IndexType localLinearIndexSum,
                                              std::vector<IndexVector>& oneDIndices,
-                                             std::vector<IndexType>& subspaceIndices) {
+                                             std::vector<IndexType>& subspaceIndices) const {
     assert(d < dim_);
     assert(oneDIndices.size() == dim_);
     assert(!oneDIndices.empty());
@@ -1088,7 +1088,7 @@ class DistributedFullGrid {
    * @param l level of hierarchical subspace
    * @return the indices of points on this partition
    */
-  inline std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) {
+  inline std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) const {
     IndexVector subspaceIndices;
     IndexType numPointsOfSubspace = 1;
     static auto oneDIndices = std::vector<IndexVector>(dim_);
@@ -1112,89 +1112,12 @@ class DistributedFullGrid {
   }
 
   /**
-   * @brief "registers" the DistributedSparseGridUniform with this DistributedFullGrid:
-   *        and sets the dsg's subspaceSizes where they are not yet set:
-   *        If the subspaces in the dsg have zero size, all subspaces
-   *        of the dsg that the dfg and dsg have in common are resized. The
-   *        size of a subspace in the dsg is chosen according to the corresponding
-   *        subspace size in the dfg.
-   *
-   * @param dsg the DSG to register
-   */
-  void registerUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) const {
-    assert(dsg.getDim() == dim_);
-    // all the hierarchical subspaces contained in this full grid
-    const auto downwardClosedSet = combigrid::getDownSet(levels_);
-
-    typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType index = 0;
-
-    IndexType numPointsOfSubspace = 1;
-    // resize all common subspaces in dsg, if necessary
-    for (const auto& level : downwardClosedSet) {
-      index = dsg.getIndexInRange(level, index);
-      if (index > -1) {
-        numPointsOfSubspace = 1;
-        for (DimType d = 0; d < dim_; ++d) {
-          numPointsOfSubspace *= getNumPointsOnThisPartition(level[d], d);
-        }
-        const auto subSgDataSize = dsg.getDataSize(index);
-        // resize DSG subspace if it has zero size
-        if (subSgDataSize == 0) {
-          dsg.setDataSize(index, numPointsOfSubspace);
-        } else {
-          ASSERT(subSgDataSize == numPointsOfSubspace,
-                 "subSgDataSize: " << subSgDataSize << ", numPointsOfSubspace: "
-                                   << numPointsOfSubspace << " , level " << level << " , rank "
-                                   << this->getMpiRank() << std::endl);
-        }
-      }
-    }
-  }
-
-
-  /**
-   * @brief adds the (hopefully) hierarchical coefficients from fullgridVector_
-   *        to the dsg's data structure, multiplied by coeff
-   *
-   * @param dsg the DSG to add to
-   * @param coeff the coefficient that gets multiplied to all entries
-   */
-  void addToUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg, real coeff) {
-    assert(dsg.isSubspaceDataCreated());
-
-    bool anythingWasAdded = false;
-
-    // all the hierarchical subspaces contained in this full grid
-    const auto downwardClosedSet = combigrid::getDownSet(levels_);
-    static IndexVector subspaceIndices;
-
-    typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType sIndex = 0;
-    // loop over all subspaces of the full grid
-    for (const auto& level : downwardClosedSet) {
-      sIndex = dsg.getIndexInRange(level, sIndex);
-      if (sIndex > -1 && dsg.getDataSize(sIndex) > 0) {
-        auto sPointer = dsg.getData(sIndex);
-        subspaceIndices = getFGPointsOfSubspace(level);
-        for (const auto& fIndex : subspaceIndices) {
-          *sPointer += coeff * fullgridVector_[fIndex];
-          ++sPointer;
-          anythingWasAdded = true;
-        }
-      }
-    }
-
-    // make sure that anything was added -- I can only think of weird setups
-    // where that would not be the case
-    assert(anythingWasAdded);
-  }
-
-  /**
    * @brief extracts the (hopefully) hierarchical coefficients from dsg
    *        to the full grid's data structure
    *
    * @param dsg the DSG to extract from
    */
-  void extractFromUniformSG(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
+  void extractFromUniformSG(const DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     assert(dsg.isSubspaceDataCreated());
 
     // all the hierarchical subspaces contained in this full grid

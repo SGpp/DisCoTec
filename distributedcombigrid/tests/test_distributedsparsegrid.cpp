@@ -111,7 +111,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
 
-    uniDFG->registerUniformSG(*uniDSG);
+    uniDSG->registerDistributedFullGrid(*uniDFG);
 
     for (decltype(uniDSG->getNumSubspaces()) i = 0; i < uniDSG->getNumSubspaces(); ++i) {
       const auto& level = uniDSG->getLevelVector(i);
@@ -143,14 +143,14 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     BOOST_TEST_CHECKPOINT("Add to uniform SG");
     // create subspace data
     uniDSG->setZero();
-    uniDFG->addToUniformSG(*uniDSG, 1.);
+    uniDSG->addDistributedFullGrid(*uniDFG, 1.);
 
     BOOST_TEST_CHECKPOINT("Add to uniform SG from subspaces");
-    uniDFG->registerUniformSG(*uniDSGfromSubspaces);
+    uniDSGfromSubspaces->registerDistributedFullGrid(*uniDFG);
     BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getRawDataSize());
     BOOST_CHECK_GT(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
     uniDSGfromSubspaces->setZero();
-    uniDFG->addToUniformSG(*uniDSGfromSubspaces, 0.);
+    uniDSGfromSubspaces->addDistributedFullGrid(*uniDFG, 0.);
     BOOST_CHECK_EQUAL(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
     for (decltype(uniDSGfromSubspaces->getNumSubspaces()) i = 0;
          i < uniDSGfromSubspaces->getNumSubspaces(); ++i) {
@@ -221,7 +221,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     }
 
     BOOST_TEST_CHECKPOINT("Register to uniform SG");
-    largeUniDFG->registerUniformSG(*uniDSG); //TODO create levels and actually test something
+    uniDSG->registerDistributedFullGrid(*largeUniDFG);//TODO create levels and actually test something
 
     // // make sure that right min/max values are written %TODO remove file
     // BOOST_TEST_CHECKPOINT("write min/max coefficients");
@@ -657,7 +657,7 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
         auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::real>>(
             new DistributedFullGrid<combigrid::real>(dim, level, comm, boundary, procs, true,
                                                      dfgDecomposition));
-        uniDFG->registerUniformSG(*uniDSG);
+        uniDSG->registerDistributedFullGrid(*uniDFG);
       }
     }
     uniDSG->setZero();

@@ -178,19 +178,19 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   }
   BOOST_TEST_CHECKPOINT("set function values");
 
-  // test addToUniformSG, extractFromUniformSG
+  // test addDistributedFullGrid, extractFromUniformSG
   LevelVector lmin = levels;
   LevelVector lmax = levels;
   for (DimType d = 0; d < dim; ++d) {
     lmax[d] *= 2;
   }
   DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, comm);
-  dfg.registerUniformSG(dsg);
+  dsg.registerDistributedFullGrid(dfg);
   BOOST_TEST_CHECKPOINT("register uniform sg");
   DistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
-  dfg2.registerUniformSG(dsg);
+  dsg.registerDistributedFullGrid(dfg2);
   dsg.setZero();
-  dfg.addToUniformSG(dsg, 2.1);
+  dsg.addDistributedFullGrid(dfg, 2.1);
   BOOST_TEST_CHECKPOINT("add to uniform sg");
   dfg2.extractFromUniformSG(dsg);
   BOOST_TEST_CHECKPOINT("extract from uniform sg");
@@ -1105,7 +1105,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    dfg.registerUniformSG(dsg);
+    dsg.registerDistributedFullGrid(dfg);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to register sparse grid: " << duration.count() << " milliseconds");
@@ -1115,7 +1115,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    otherDfg.registerUniformSG(dsg);
+    dsg.registerDistributedFullGrid(otherDfg);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to register sparse grid again: " << duration.count()
@@ -1138,7 +1138,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    dfg.addToUniformSG(dsg, 1.);
+    dsg.addDistributedFullGrid(dfg, 1.);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to add to sparse grid: " << duration.count() << " milliseconds");
@@ -1148,7 +1148,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    otherDfg.addToUniformSG(dsg, 1.);
+    dsg.addDistributedFullGrid(otherDfg, 1.);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to add to sparse grid again: " << duration.count() << " milliseconds");
