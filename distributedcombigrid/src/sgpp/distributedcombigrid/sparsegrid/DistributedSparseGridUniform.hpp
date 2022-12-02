@@ -473,7 +473,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(SubspaceIndexType i, 
 template <typename FG_ELEMENT>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGrid(
     const DistributedFullGrid<FG_ELEMENT>& dfg) {
-  assert(dfg.getDim() == dim_);
+  assert(dfg.getDimension() == dim_);
   // all the hierarchical subspaces contained in the full grid
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
 
@@ -495,7 +495,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
         ASSERT(subSgDataSize == numPointsOfSubspace,
                "subSgDataSize: " << subSgDataSize
                                  << ", numPointsOfSubspace: " << numPointsOfSubspace << " , level "
-                                 << level << " , rank " << this->getMpiRank() << std::endl);
+                                 << level << " , rank " << this->rank_ << std::endl);
       }
     }
   }
