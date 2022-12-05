@@ -798,7 +798,7 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int nprocs = 1;
   unsigned int ncombi = 10;
   DimType dim = 6;
-  BoundaryType boundary = 1;
+  BoundaryType boundary = 2;
   // LevelVector lmin(dim, 4);
   // LevelVector lmax(dim, 7);
   LevelVector lmin(dim, 1);
@@ -814,7 +814,7 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
-      testCombineThirdLevel(testParams, true);
+      BOOST_CHECK_NO_THROW(testCombineThirdLevel(testParams, true));
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
