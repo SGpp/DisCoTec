@@ -1012,20 +1012,33 @@ void ProcessGroupWorker::doDiagnostics() {
   assert(false && "this taskID is not here");
 }
 
-void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& interpolationCoords, DimType dim) {
+void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& interpolationCoords,
+                                            DimType dim) {
   std::vector<real> interpolationCoordsSerial;
   auto realType = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
   int coordsSize;
   MASTER_EXCLUSIVE_SECTION {
     MPI_Status status;
-    MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &status);
+    MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+              theMPISystem()->getGlobalComm(), &status);
     MPI_Get_count(&status, realType, &coordsSize);
 
     // resize buffer to appropriate size and receive
     interpolationCoordsSerial.resize(coordsSize);
-    int result = MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getManagerRank(),
-             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &status);
+    int result = MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType,
+                          theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+                          theMPISystem()->getGlobalComm(), &status);
     assert(result == MPI_SUCCESS);
+// #ifndef NDEBUG
+    if (status.MPI_ERROR != MPI_SUCCESS) {
+      std::string errorString;
+      errorString.resize(10000);
+      int errorStringLength;
+      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
+      errorString.resize(errorStringLength);
+      std::cout << "error: " << errorString << std::endl;
+    }
+// #endif  // NDEBUG
     assert(status.MPI_ERROR == MPI_SUCCESS);
     for (const auto& coord : interpolationCoordsSerial) {
       assert(coord >= 0.0 && coord <= 1.0);
@@ -1044,11 +1057,11 @@ void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& inte
   // split vector into coordinates
   const int dimInt = static_cast<int>(dim);
   auto numCoordinates = coordsSize / dimInt;
-  assert( coordsSize % dimInt == 0);
+  assert(coordsSize % dimInt == 0);
   interpolationCoords.resize(numCoordinates);
   auto it = interpolationCoordsSerial.cbegin();
-  for (auto& coord: interpolationCoords) {
-    coord.insert(coord.end(), it, it+dimInt);
+  for (auto& coord : interpolationCoords) {
+    coord.insert(coord.end(), it, it + dimInt);
     it += dimInt;
   }
   assert(it == interpolationCoordsSerial.end());
