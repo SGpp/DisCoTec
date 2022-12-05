@@ -1022,6 +1022,7 @@ void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& inte
     status.MPI_ERROR = MPI_SUCCESS;
     int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
                            theMPISystem()->getGlobalComm(), &status);
+#ifndef NDEBUG
     assert(result == MPI_SUCCESS);
     if (status.MPI_ERROR != MPI_SUCCESS) {
       std::string errorString;
@@ -1031,16 +1032,9 @@ void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& inte
       errorString.resize(errorStringLength);
       std::cout << "error probe: " << errorString << std::endl;
     }
+#endif  // NDEBUG
     result = MPI_Get_count(&status, realType, &coordsSize);
     assert(result == MPI_SUCCESS);
-    if (status.MPI_ERROR != MPI_SUCCESS) {
-      std::string errorString;
-      errorString.resize(10000);
-      int errorStringLength;
-      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
-      errorString.resize(errorStringLength);
-      std::cout << "error get count: " << errorString << " count " << coordsSize << std::endl;
-    }
     assert(coordsSize > 0);
 
     // resize buffer to appropriate size and receive
@@ -1048,8 +1042,8 @@ void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& inte
     result = MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType,
                       theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
                       theMPISystem()->getGlobalComm(), &status);
+#ifndef NDEBUG
     assert(result == MPI_SUCCESS);
-// #ifndef NDEBUG
     if (status.MPI_ERROR != MPI_SUCCESS) {
       std::string errorString;
       errorString.resize(10000);
@@ -1058,11 +1052,11 @@ void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& inte
       errorString.resize(errorStringLength);
       std::cout << "error recv: " << errorString << std::endl;
     }
-// #endif  // NDEBUG
     assert(status.MPI_ERROR == MPI_SUCCESS);
     for (const auto& coord : interpolationCoordsSerial) {
       assert(coord >= 0.0 && coord <= 1.0);
     }
+#endif  // NDEBUG
   }
   // broadcast size of vector, and then vector
   MPI_Bcast(&coordsSize, 1, MPI_INT, theMPISystem()->getMasterRank(),
