@@ -371,6 +371,11 @@ SignalType ProcessGroupWorker::wait() {
     case INTERPOLATE_VALUES: {  // interpolate values on given coordinates
       Stats::startEvent("worker interpolate values");
       auto values = interpolateValues();
+      Stats::stopEvent("worker interpolate values");
+    } break;
+    case INTERPOLATE_VALUES_AND_SEND_BACK: {  // interpolate values on given coordinates
+      Stats::startEvent("worker interpolate values");
+      auto values = interpolateValues();
       // send result
       MASTER_EXCLUSIVE_SECTION {
         MPI_Send(values.data(), values.size(), abstraction::getMPIDatatype(
@@ -1090,15 +1095,24 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
 
   // call interpolation function on tasks and reduce with combination coefficient
   std::vector<CombiDataType> values(numCoordinates, 0.);
-  for (Task* t : tasks_){
+  for (Task* t : tasks_) {
     auto coeff = t->getCoefficient();
     for (size_t i = 0; i < numCoordinates; ++i) {
       values[i] += t->getDistributedFullGrid().evalLocal(interpolationCoords[i]) * coeff;
     }
   }
+  // reduce interpolated values within process group
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getLocalComm());
+
+  // need to reduce across process groups too
+  // these do not strictly need to be allreduce (could be reduce), but it is easier to maintain that
+  // way (all processes end up with valid values)
+  MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
+                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
+                MPI_SUM, theMPISystem()->getGlobalReduceComm());
+
   return values;
 }
 
