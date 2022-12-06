@@ -1132,168 +1132,6 @@ static IndexType getLastIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& df
   return -1;
 }
 
-
-template <typename FG_ELEMENT>
-static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                        LookupTable<FG_ELEMENT>& lookupTable) {
-  const DimType dim = 0;
-  assert(dfg.returnBoundaryFlags()[dim] == 0);
-
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-  IndexType ndim = dfg.getLocalSizes()[dim];
-
-  // size of xBlcok
-  IndexType xSize = dfg.getLocalSizes()[0];
-
-  // FG_ELEMENT zeroVal(0);
-
-  // create tmp array to store xblock
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
-
-  // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
-  IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
-
-  for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
-    // get globalIndexVector of block start
-    // this is the base IndexVector of this block
-    // only dim component is varied
-    IndexType linIdxBlockStart = xBlock * ndim;
-
-    IndexVector localIndexVector(dfg.getDimension());
-    IndexVector baseGlobalIndexVector(dfg.getDimension());
-    dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, baseGlobalIndexVector);
-    assert(localIndexVector[dim] == 0);
-
-    // copy local data to tmp
-    for (IndexType i = 0; i < xSize; ++i)
-      tmp[baseGlobalIndexVector[dim] + i] = localData[linIdxBlockStart + i];
-
-    // copy remote data to tmp
-    std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
-
-    // go through remote containers
-    for (size_t i = 0; i < rdcs.size(); ++i) {
-      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
-    }
-
-    for (LevelType l = lmax; l > 0; --l) {
-      // get first local point of level and corresponding stride
-      IndexType firstOfLevel = getFirstIndexOfLevel1d(dfg, dim, l);
-      IndexType parentOffset = static_cast<IndexType>(powerOfTwo[lmax - l]);
-      IndexType levelStride = parentOffset * 2;
-
-      // loop over points of this level with level specific stride
-      // as long as inside domain
-      if (firstOfLevel > -1) {
-        for (IndexType idx = firstOfLevel; idx <= idxMax; idx += levelStride) {
-          // when no boundary in this dimension we have to check if
-          // 1d indices outside domain
-          FG_ELEMENT left(0.0);
-          FG_ELEMENT right(0.0);
-
-          if (idx - parentOffset > 0) {
-            left = tmp[idx - parentOffset];
-          }
-
-          if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
-            right = tmp[idx + parentOffset];
-          }
-
-          // do calculation
-          FG_ELEMENT buf = -0.5 * left;
-          tmp[idx] -= 0.5 * right;
-          tmp[idx] += buf;
-        }
-      }
-    }
-
-    // copy local data back
-    for (IndexType i = 0; i < xSize; ++i)
-      localData[linIdxBlockStart + i] = tmp[baseGlobalIndexVector[dim] + i];
-  }
-}
-
-template <typename FG_ELEMENT>
-static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                          LookupTable<FG_ELEMENT>& lookupTable) {
-  const DimType dim = 0;
-  assert(dfg.returnBoundaryFlags()[dim] == 0);
-
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
-
-  // size of xBlcok
-  IndexType xSize = dfg.getLocalSizes()[0];
-
-  // create tmp array to store xblock
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
-
-  // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
-  IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
-
-  for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
-    // get globalIndexVector of block start
-    // this is the base IndexVector of this block
-    // only dim component is varied
-    IndexType linIdxBlockStart = xBlock * ndim;
-
-    IndexVector localIndexVector(dfg.getDimension());
-    IndexVector baseGlobalIndexVector(dfg.getDimension());
-    dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    dfg.getGlobalVectorIndex(localIndexVector, baseGlobalIndexVector);
-    assert(localIndexVector[dim] == 0);
-
-    // copy local data to tmp
-    for (IndexType i = 0; i < xSize; ++i)
-      tmp[baseGlobalIndexVector[dim] + i] = localData[linIdxBlockStart + i];
-
-    // copy remote data to tmp
-    std::vector<RemoteDataContainer<FG_ELEMENT> >& rdcs = lookupTable.getRDCVector();
-
-    // go through remote containers
-    for (size_t i = 0; i < rdcs.size(); ++i) {
-      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
-    }
-
-    for (LevelType l = 2; l <= lmax; ++l) {
-      // get first local point of level and corresponding stride
-      IndexType parentOffset = static_cast<IndexType>(powerOfTwo[lmax - l]);
-      IndexType first = parentOffset - 1;
-      IndexType levelStride = parentOffset * 2;
-
-      // loop over points of this level with level specific stride
-      // as long as inside domain
-      for (IndexType idx = first; idx < dfg.getGlobalSizes()[dim]; idx += levelStride) {
-        // when no boundary in this dimension we have to check if
-        // 1d indices outside domain
-        FG_ELEMENT left(0.0);
-        FG_ELEMENT right(0.0);
-
-        if (idx - parentOffset > 0) {
-          left = tmp[idx - parentOffset];
-        }
-
-        if (idx + parentOffset < dfg.getGlobalSizes()[dim]) {
-          right = tmp[idx + parentOffset];
-        }
-
-        // do calculation
-        FG_ELEMENT buf = 0.5 * left;
-        tmp[idx] += 0.5 * right;
-        tmp[idx] += buf;
-      }
-    }
-
-    // copy local data back
-    for (IndexType i = 0; i < xSize; ++i)
-      localData[linIdxBlockStart + i] = tmp[baseGlobalIndexVector[dim] + i];
-  }
-}
-
 template <typename FG_ELEMENT, bool periodic = false>
 inline void hierarchizeX_opt_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
                                              int stride, LevelType lmin = 0) {
@@ -1542,142 +1380,7 @@ inline void dehierarchizeX_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelT
 }
 
 /**
- * @brief hierarchize a DFG in dimension X (with contiguous access)
- *
- * @param dfg : the DFG to hierarchize
- * @param lookupTable: the lookup table for local and remote data
- */
-template <typename FG_ELEMENT,
-          void (*HIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int, LevelType)>
-static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                      LookupTable<FG_ELEMENT>& lookupTable, LevelType lmin_x = 0) {
-  const DimType dim = 0;
-  assert(dfg.returnBoundaryFlags()[dim] > 0);
-
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
-
-  // size of xBlcok
-  IndexType xSize = ndim;
-
-  // create tmp array to store xblock
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
-  // if we are using periodicity, add an entry to tmp for the virtual last value
-  bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0), std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
-
-  static IndexVector localIndexVector(dfg.getDimension());
-  localIndexVector.resize(dfg.getDimension());
-
-  IndexType gstart = dfg.getLowerBounds()[dim];
-  IndexType linIdxBlockStart;
-
-  // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
-  IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
-
-  for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
-    // get globalIndexVector of block start
-    // this is the base IndexVector of this block
-    // only dim component is varied
-    linIdxBlockStart = xBlock * ndim;
-
-    dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    assert(localIndexVector[dim] == 0);
-
-    // copy local data to tmp
-    for (IndexType i = 0; i < xSize; ++i) tmp[gstart + i] = localData[linIdxBlockStart + i];
-
-    // copy remote data to tmp
-    std::vector<RemoteDataContainer<FG_ELEMENT>>& rdcs = lookupTable.getRDCVector();
-
-    // go through remote containers
-    for (size_t i = 0; i < rdcs.size(); ++i) {
-      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
-    }
-    if (oneSidedBoundary) {
-      // assume periodicity
-      tmp[dfg.getGlobalSizes()[dim]] = tmp[0];
-    }
-
-    HIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_x);
-
-    if (oneSidedBoundary) {
-      assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
-    }
-
-    // copy local data back
-    for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
-  }
-}
-
-/**
- * @brief inverse operation for hierarchizeX_opt_boundary
- */
-template <typename FG_ELEMENT,
-          void (*DEHIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int,
-                                         LevelType) = dehierarchizeX_opt_boundary_kernel>
-static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                        LookupTable<FG_ELEMENT>& lookupTable,
-                                        LevelType lmin_x = 0) {
-  const DimType dim = 0;
-  assert(dfg.returnBoundaryFlags()[dim] > 0);
-
-  LevelType lmax = dfg.getLevels()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
-
-  // size of xBlcok
-  IndexType xSize = ndim;
-
-  // create tmp array to store xblock
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
-  // if we are using periodicity, add an entry to tmp for the virtual last value
-  bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0), std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
-
-  static IndexVector localIndexVector(dfg.getDimension());
-  localIndexVector.resize(dfg.getDimension());
-
-  IndexType gstart = dfg.getLowerBounds()[dim];
-  IndexType linIdxBlockStart;
-
-  // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
-  IndexType nbrxBlocks = dfg.getNrLocalElements() / ndim;
-
-  for (IndexType xBlock = 0; xBlock < nbrxBlocks; ++xBlock) {
-    // get globalIndexVector of block start
-    // this is the base IndexVector of this block
-    // only dim component is varied
-    linIdxBlockStart = xBlock * ndim;
-
-    dfg.getLocalVectorIndex(linIdxBlockStart, localIndexVector);
-    assert(localIndexVector[dim] == 0);
-
-    // copy local data to tmp
-    for (IndexType i = 0; i < xSize; ++i) tmp[gstart + i] = localData[linIdxBlockStart + i];
-
-    // copy remote data to tmp
-    std::vector<RemoteDataContainer<FG_ELEMENT>>& rdcs = lookupTable.getRDCVector();
-
-    // go through remote containers
-    for (size_t i = 0; i < rdcs.size(); ++i) {
-      tmp[rdcs[i].getKeyIndex()] = *rdcs[i].getData(localIndexVector);
-    }
-    if (oneSidedBoundary) {
-      // assume periodicity
-      tmp[dfg.getGlobalSizes()[dim]] = tmp[0];
-    }
-
-    DEHIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_x);
-
-    // copy local data back
-    for (IndexType i = 0; i < xSize; ++i) localData[linIdxBlockStart + i] = tmp[gstart + i];
-  }
-}
-
-/**
- * @brief  hierarchize a DFG with boundary points in dimension dim (with non-contiguous access)
+ * @brief  hierarchize a DFG with boundary points in dimension dim
  */
 template <typename FG_ELEMENT,
           void (*HIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int,
@@ -1745,7 +1448,7 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 }
 
 /**
- * @brief  hierarchize a DFG without boundary points in dimension dim (with non-contiguous access)
+ * @brief  hierarchize a DFG without boundary points in dimension dim
  */
 template <typename FG_ELEMENT>
 void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
@@ -2007,60 +1710,30 @@ class DistributedHierarchization {
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          if (dim == 0)
-            hierarchizeX_opt_boundary<FG_ELEMENT, hierarchizeX_opt_boundary_kernel<FG_ELEMENT>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            hierarchizeN_opt_boundary<FG_ELEMENT, hierarchizeX_opt_boundary_kernel<FG_ELEMENT>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          hierarchizeN_opt_boundary<FG_ELEMENT, hierarchizeX_opt_boundary_kernel<FG_ELEMENT>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          if (dim == 0)
-            hierarchizeX_opt_boundary<FG_ELEMENT,
-                                      hierarchizeX_opt_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            hierarchizeN_opt_boundary<FG_ELEMENT,
-                                      hierarchizeX_opt_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          hierarchizeN_opt_boundary<FG_ELEMENT, hierarchizeX_opt_boundary_kernel<FG_ELEMENT, true>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          if (dim == 0)
-            hierarchizeX_opt_boundary<
-                FG_ELEMENT, hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            hierarchizeN_opt_boundary<
-                FG_ELEMENT, hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          hierarchizeN_opt_boundary<FG_ELEMENT,
+                                    hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          if (dim == 0)
-            hierarchizeX_opt_boundary<
-                FG_ELEMENT, hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            hierarchizeN_opt_boundary<
-                FG_ELEMENT, hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          hierarchizeN_opt_boundary<FG_ELEMENT,
+                                    hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          if (dim == 0)
-            hierarchizeX_opt_boundary<
-                FG_ELEMENT, hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            hierarchizeN_opt_boundary<
-                FG_ELEMENT, hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          hierarchizeN_opt_boundary<FG_ELEMENT,
+                                    hierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          if (dim == 0)
-            hierarchizeX_opt_boundary<
-                FG_ELEMENT, hierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            hierarchizeN_opt_boundary<
-                FG_ELEMENT, hierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          hierarchizeN_opt_boundary<FG_ELEMENT,
+                                    hierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else {
           throw std::logic_error("Not implemented");
         }
@@ -2069,11 +1742,7 @@ class DistributedHierarchization {
           throw std::logic_error("currently only hats supported for non-boundary grids");
         }
         assert(lmin[dim] == 0);
-        if (dim == 0) {
-          hierarchizeX_opt_noboundary(dfg, lookupTable);
-        } else {
-          hierarchizeN_opt_noboundary(dfg, lookupTable, dim);
-        }
+        hierarchizeN_opt_noboundary(dfg, lookupTable, dim);
       }
     }
   }
@@ -2120,60 +1789,31 @@ class DistributedHierarchization {
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          if (dim == 0)
-            dehierarchizeX_opt_boundary<FG_ELEMENT, dehierarchizeX_opt_boundary_kernel<FG_ELEMENT>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            dehierarchizeN_opt_boundary<FG_ELEMENT, dehierarchizeX_opt_boundary_kernel<FG_ELEMENT>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          dehierarchizeN_opt_boundary<FG_ELEMENT, dehierarchizeX_opt_boundary_kernel<FG_ELEMENT>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          if (dim == 0)
-            dehierarchizeX_opt_boundary<FG_ELEMENT,
-                                        dehierarchizeX_opt_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            dehierarchizeN_opt_boundary<FG_ELEMENT,
-                                        dehierarchizeX_opt_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          dehierarchizeN_opt_boundary<FG_ELEMENT,
+                                      dehierarchizeX_opt_boundary_kernel<FG_ELEMENT, true>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          if (dim == 0)
-            dehierarchizeX_opt_boundary<
-                FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            dehierarchizeN_opt_boundary<
-                FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          dehierarchizeN_opt_boundary<
+              FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          if (dim == 0)
-            dehierarchizeX_opt_boundary<
-                FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            dehierarchizeN_opt_boundary<
-                FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          dehierarchizeN_opt_boundary<
+              FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          if (dim == 0)
-            dehierarchizeX_opt_boundary<
-                FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            dehierarchizeN_opt_boundary<
-                FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          dehierarchizeN_opt_boundary<
+              FG_ELEMENT, dehierarchizeX_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          if (dim == 0)
-            dehierarchizeX_opt_boundary<
-                FG_ELEMENT, dehierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, lmin[dim]);
-          else
-            dehierarchizeN_opt_boundary<
-                FG_ELEMENT, dehierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
-                dfg, lookupTable, dim, lmin[dim]);
+          dehierarchizeN_opt_boundary<
+              FG_ELEMENT, dehierarchizeX_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
+              dfg, lookupTable, dim, lmin[dim]);
         } else {
           throw std::logic_error("Not implemented");
         }
@@ -2181,12 +1821,8 @@ class DistributedHierarchization {
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) == nullptr) {
           throw std::logic_error("currently only hats supported for non-boundary grids");
         }
-        if (dim == 0) {
-          dehierarchizeX_opt_noboundary(dfg, lookupTable);
-        } else {
-          assert(lmin[dim] == 0);
-          dehierarchizeN_opt_noboundary(dfg, lookupTable, dim);
-        }
+        assert(lmin[dim] == 0);
+        dehierarchizeN_opt_noboundary(dfg, lookupTable, dim);
       }
     }
   }
@@ -2264,7 +1900,6 @@ class DistributedHierarchization {
   template <typename FG_ELEMENT>
   constexpr static FunctionPointer<FG_ELEMENT> dehierarchizeBiorthogonalPeriodic =
       &dehierarchizeHierachicalBasis<FG_ELEMENT, BiorthogonalPeriodicBasisFunction>;
-
 };
 // class DistributedHierarchization
 
