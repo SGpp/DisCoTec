@@ -1149,7 +1149,7 @@ static void hierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   // FG_ELEMENT zeroVal(0);
 
   // create tmp array to store xblock
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
@@ -1229,7 +1229,7 @@ static void dehierarchizeX_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType xSize = dfg.getLocalSizes()[0];
 
   // create tmp array to store xblock
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
   // loop over all xBlocks of local domain -> linearIndex with stride localndim[0]
@@ -1561,10 +1561,10 @@ static void hierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType xSize = ndim;
 
   // create tmp array to store xblock
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   // if we are using periodicity, add an entry to tmp for the virtual last value
   bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0));
+  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0), std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
   static IndexVector localIndexVector(dfg.getDimension());
@@ -1630,10 +1630,10 @@ static void dehierarchizeX_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType xSize = ndim;
 
   // create tmp array to store xblock
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   // if we are using periodicity, add an entry to tmp for the virtual last value
   bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0));
+  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0), std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& localData = dfg.getElementVector();
 
   static IndexVector localIndexVector(dfg.getDimension());
@@ -1698,10 +1698,10 @@ void hierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   localIndexVector.resize(dfg.getDimension());
 
   // loop over poles
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   // if we are using periodicity, add an entry to tmp for the virtual last value
   bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0));
+  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0), std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
@@ -1762,7 +1762,7 @@ void hierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexVector localIndexVector(dfg.getDimension());
 
   // loop over poles
-  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
@@ -1849,10 +1849,10 @@ void dehierarchizeN_opt_boundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   localIndexVector.resize(dfg.getDimension());
 
   // loop over poles
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
+  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   // if we are using periodicity, add an entry to tmp for the virtual last value
   bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0));
+  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0), std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
@@ -1912,8 +1912,8 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexVector localIndexVector(dfg.getDimension());
 
   // loop over poles
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim]);
-  tmp.resize(dfg.getGlobalSizes()[dim]);
+  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
+  tmp.resize(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
