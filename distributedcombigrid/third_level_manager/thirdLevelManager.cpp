@@ -266,9 +266,7 @@ void ThirdLevelManager::processUnifySubspaceSizes(size_t initiatorIndex)
 #endif
 }
 
-
-void ThirdLevelManager::processAnyData(size_t initiatorIndex)
-{
+void ThirdLevelManager::processAnyData(size_t initiatorIndex) {
   assert(systems_.size() == 2 && "Not implemented for different number of systems");
   System& initiator = systems_[initiatorIndex];
   size_t otherIndex = (initiatorIndex + 1) % systems_.size();
@@ -276,33 +274,36 @@ void ThirdLevelManager::processAnyData(size_t initiatorIndex)
 
   std::string message;
 #ifdef DEBUG_OUTPUT
-  std::cout << std::endl << "Processing unification of subspace sizes" << std::endl;
+  std::cout << std::endl << "Processing data exchange" << std::endl;
 #endif
-  initiator.sendMessage("send_first" );
-  other.receiveMessage( message);
+  initiator.sendMessage("send_first");
+  other.receiveMessage(message);
   assert(message == "ready_to_exchange_data");
-  other.sendMessage("recv_first" );
+  other.sendMessage("recv_first");
 
   // transfer data from initiator (sends first) to other (receives first)
   initiator.receiveMessage(message);
-  if (message == "sending_data")
-  {
+  if (message == "sending_data") {
     // size_t dataSize = forwardData(initiator, other);
     forwardData(initiator, other);
   }
-  // transfer data from other to initiator
+  // transfer data from other to initiator if there is any
   other.receiveMessage(message);
-  if (message == "sending_data")
-  {
+  if (message == "sending_data") {
     // size_t dataSize = forwardData(other, initiator);
     forwardData(other, initiator);
+    initiator.receiveMessage(message);
+    assert(message == "ready");
+    other.receiveMessage(message);
+    assert(message == "ready");
+  } else if (message == "ready") {
+    initiator.receiveMessage(message);
+    assert(message == "ready");
+  } else {
+    throw std::runtime_error("Unexpected message: " + message);
   }
-  initiator.receiveMessage(message);
-  assert(message == "ready");
-  other.receiveMessage(message);
-  assert(message == "ready");
 #ifdef DEBUG_OUTPUT
-  std::cout << "Finished unification of subspace sizes" << std::endl;
+  std::cout << "Finished data exchange" << std::endl;
 #endif
 }
 
