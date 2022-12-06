@@ -1,24 +1,13 @@
 #ifndef DISTRIBUTEDHIERARCHIZATION_HPP_
 #define DISTRIBUTEDHIERARCHIZATION_HPP_
 
-//#define DEBUG_OUTPUT
-
 #include "boost/lexical_cast.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
-using namespace combigrid;
-
-/*
- * Instead of having private static functions, I put these functions in an
- * unnamed namespace. So, they are not accessible from outside the file, as well.
- * In the general case, this would have the advantage, that we can change
- * the declaration of these functions without changing the declaration of the
- * class. So we avoid recompilation of all files that use the class.
- */
-namespace {
+namespace combigrid {
 
 /* The RemoteDataContainer is meant to store a (d-1)-dimensional block of a
  * d-dimensional DistributedFullGrid. The RemoteDataContainer is d-dimensional,
@@ -342,7 +331,7 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
         static IndexVector gidxvec;
         gidxvec = dfg.getLowerBounds();
         gidxvec[dim] = index;
-        bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
+        [[maybe_unused]] bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
         assert(tmp && "index to be send not in local domain");
       }
 
@@ -534,7 +523,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
           static IndexVector gidxvec;
           gidxvec = dfg.getLowerBounds();
           gidxvec[dim] = index;
-          bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
+          [[maybe_unused]] bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
           assert(tmp && "index to be send not in local domain");
           localLinearIndex = dfg.getLocalLinearIndex(lidxvec);
         }
