@@ -1339,6 +1339,7 @@ void ProcessGroupWorker::integrateCombinedSolution() {
   bool anyNotBoundary =
       std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
                   [](BoundaryType b) { return b == 0; });
+
   Stats::startEvent("worker dehierarchize");
   for (Task* taskToUpdate : tasks_) {
     for (int g = 0; g < numGrids; g++) {
