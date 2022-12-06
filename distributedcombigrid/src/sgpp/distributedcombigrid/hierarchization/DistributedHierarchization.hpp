@@ -228,24 +228,6 @@ static IndexType getNextIndex1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimT
 template <typename FG_ELEMENT>
 static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
                                         LevelType l);
-template <typename FG_ELEMENT>
-static IndexType getLastIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
-                                        LevelType l);
-
-template <typename FG_ELEMENT>
-static IndexVector getFirstIndexOfEachLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d) {
-  LevelType lmax = dfg.getLevels()[d];
-  IndexVector firstIndices(lmax, -1);
-  for (LevelType lidx = 0; lidx <= lmax; ++lidx) {
-    // leftmost point of this level
-    // currently leaving out level 0
-    firstIndices[lidx] = getFirstIndexOfLevel1d(dfg, d, lidx + 1);
-  }
-  return firstIndices;
-}
-
-template <typename FG_ELEMENT>
-static IndexVector getLastIndicesOfLevel1d(DistributedFullGrid<FG_ELEMENT>& dfg, DimType d);
 
 /**
  * @brief helper function for data exchange
@@ -1104,20 +1086,6 @@ static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& d
   }
 
   // no index on level l found, return -1
-  return -1;
-}
-
-template <typename FG_ELEMENT>
-static IndexType getLastIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                                        LevelType l) {
-  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-  IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
-
-  for (IndexType i = idxMax; i >= idxMin; --i) {
-    if (dfg.getLevel(dim, i) == l) return i;
-  }
-
-  // no index on level l found
   return -1;
 }
 
