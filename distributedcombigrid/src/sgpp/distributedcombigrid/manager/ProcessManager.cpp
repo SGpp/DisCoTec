@@ -466,6 +466,19 @@ std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<re
   return interpolationCoordsSerial;
 }
 
+std::vector<std::vector<real>> deserializeInterpolationCoords(
+    const std::vector<real>& interpolationCoordsSerial, DimType numDimensions) {
+  assert(interpolationCoordsSerial.size() % numDimensions == 0);
+  auto numCoords = interpolationCoordsSerial.size() / numDimensions;
+  std::vector<std::vector<real>> interpolationCoords;
+  interpolationCoords.reserve(numCoords);
+  for (size_t i = 0; i < numCoords; ++i) {
+    interpolationCoords.emplace_back(interpolationCoordsSerial.begin() + i * numDimensions,
+                                     interpolationCoordsSerial.begin() + (i + 1) * numDimensions);
+  }
+  return interpolationCoords;
+}
+
 std::vector<CombiDataType> ProcessManager::interpolateValues(
     const std::vector<std::vector<real>>& interpolationCoords) {
   auto numValues = interpolationCoords.size();
@@ -545,15 +558,22 @@ void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vec
   // exchange coordinates with remote
   if (instruction == "send_first") {
     thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+#ifndef NDEBUG
     // this part is redundant but also doesn't hurt (?)
     auto theirCoordinates = ourCoordinatesSerial; // to reserve the size
     thirdLevel_.recvData(theirCoordinates.data(), theirCoordinates.size());
     for (size_t i = 0; i < theirCoordinates.size(); ++i) {
       assert(ourCoordinatesSerial[i] == theirCoordinates[i]);
     }
+#endif // !NDEBUG
   } else if (instruction == "recv_first") {
     thirdLevel_.recvData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+#ifndef NDEBUG
     thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+#endif // !NDEBUG
+    coordinates = deserializeInterpolationCoords(ourCoordinatesSerial, params_.getDim());
+  } else {
+    throw std::runtime_error("unknown instruction: " + instruction);
   }
   thirdLevel_.signalReady();
 

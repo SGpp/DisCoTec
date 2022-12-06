@@ -433,7 +433,7 @@ size_t ProcessManager::pretendCombineThirdLevelForBroker(
     if (instruction == "send_first") {
       // if sending first, initialize with random
       auto initialData = montecarlo::getRandomCoordinates(1, dsguSize)[0];
-      dsguData = initialData;
+      dsguData.assign(initialData.begin(), initialData.end());
       // send dsgu to remote
       thirdLevel_.sendData(dsguData.data(), dsguSize);
       // recv combined dsgu from remote
