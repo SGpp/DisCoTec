@@ -1677,10 +1677,6 @@ void dehierarchizeN_opt_noboundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
 }
 
-}  // unnamed namespace
-
-namespace combigrid {
-
 class DistributedHierarchization {
  public:
   // inplace hierarchization
