@@ -39,6 +39,9 @@ struct SubspaceSGU {
 }  // end anonymous namespace
 
 namespace combigrid {
+// forward declaration
+template <typename FG_ELEMENT>
+class DistributedFullGrid;
 
 /* This class can store a distributed sparse grid with a uniform space
  * decomposition. During construction no data is created and the data size of
@@ -102,6 +105,8 @@ class DistributedSparseGridUniform {
   // returns a pointer to first element in subspace i
   inline FG_ELEMENT* getData(SubspaceIndexType i);
 
+  inline const FG_ELEMENT* getData(SubspaceIndexType i) const;
+
   // allows a linear access to the whole subspace data stored in this dsg
   inline FG_ELEMENT* getRawData();
 
@@ -132,6 +137,10 @@ class DistributedSparseGridUniform {
 
   // sets data size of subspace with index i to newSize
   inline void setDataSize(SubspaceIndexType i, size_t newSize);
+
+  inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg);
+
+  inline void addDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg, combigrid::real coeff);
 
   // returns the number of allocated grid points == size of the raw data vector
   inline size_t getRawDataSize() const;
@@ -353,7 +362,14 @@ DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
 
 template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(SubspaceIndexType i) {
-  createSubspaceData();
+  assert(isSubspaceDataCreated());
+  return subspaces_[i].data_;
+}
+
+template <typename FG_ELEMENT>
+inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
+    SubspaceIndexType i) const {
+  assert(isSubspaceDataCreated());
   return subspaces_[i].data_;
 }
 
@@ -431,14 +447,96 @@ size_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(SubspaceIndexType i
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(SubspaceIndexType i, size_t newSize) {
 #ifndef NDEBUG
+  assert(subspacesDataSizes_[i] == 0 || subspacesDataSizes_[i] == newSize);
   if (i >= getNumSubspaces()) {
     std::cout << "Index too large, no subspace with this index included in distributed sparse grid"
               << std::endl;
     assert(false);
   }
 #endif  // NDEBUG
-
+  if (newSize != subspacesDataSizes_[i]) {
+    // invalidate the data vector
+    this->deleteSubspaceData();
+  }
   subspacesDataSizes_[i] = newSize;
+}
+
+/**
+ * @brief "registers" the DistributedFullGrid with this DistributedSparseGridUniform:
+ *         sets the dsg's subspaceSizes where they are not yet set to contain all of the DFG's
+ *         subspaces.
+ *        The size of a subspace in the dsg is chosen according to the corresponding
+ *        subspace size in the dfg.
+ *
+ * @param dfg the DFG to register
+ */
+template <typename FG_ELEMENT>
+inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGrid(
+    const DistributedFullGrid<FG_ELEMENT>& dfg) {
+  assert(dfg.getDimension() == dim_);
+  // all the hierarchical subspaces contained in the full grid
+  const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
+
+  SubspaceIndexType index = 0;
+  IndexType numPointsOfSubspace = 1;
+  // resize all common subspaces in dsg, if necessary
+  for (const auto& level : downwardClosedSet) {
+    index = this->getIndexInRange(level, index);
+    if (index > -1) {
+      numPointsOfSubspace = 1;
+      for (DimType d = 0; d < dim_; ++d) {
+        numPointsOfSubspace *= dfg.getNumPointsOnThisPartition(level[d], d);
+      }
+      const auto subSgDataSize = this->getDataSize(index);
+      // resize DSG subspace if it has zero size
+      if (subSgDataSize == 0) {
+        this->setDataSize(index, numPointsOfSubspace);
+      } else {
+        ASSERT(subSgDataSize == numPointsOfSubspace,
+               "subSgDataSize: " << subSgDataSize
+                                 << ", numPointsOfSubspace: " << numPointsOfSubspace << " , level "
+                                 << level << " , rank " << this->rank_ << std::endl);
+      }
+    }
+  }
+}
+
+/**
+ * @brief adds the (hopefully) hierarchical coefficients from the DFG
+ *        to the DSG's data structure, multiplied by coeff
+ *
+ * @param dfg the DFG to add
+ * @param coeff the coefficient that gets multiplied to all entries in DFG
+ */
+template <typename FG_ELEMENT>
+inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
+    const DistributedFullGrid<FG_ELEMENT>& dfg, combigrid::real coeff) {
+  assert(this->isSubspaceDataCreated());
+
+  bool anythingWasAdded = false;
+
+  // all the hierarchical subspaces contained in this full grid
+  const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
+  static IndexVector subspaceIndices;
+
+  SubspaceIndexType sIndex = 0;
+  // loop over all subspaces of the full grid
+  for (const auto& level : downwardClosedSet) {
+    sIndex = this->getIndexInRange(level, sIndex);
+    if (sIndex > -1 && this->getDataSize(sIndex) > 0) {
+      auto sPointer = this->getData(sIndex);
+      subspaceIndices = dfg.getFGPointsOfSubspace(level);
+      for (const auto& fIndex : subspaceIndices) {
+        *sPointer += coeff * dfg.getElementVector()[fIndex];
+        ++sPointer;
+        anythingWasAdded = true;
+      }
+    }
+  }
+
+  // make sure that anything was added -- I can only think of weird setups
+  // where that would not be the case
+  assert(anythingWasAdded);
 }
 
 template <typename FG_ELEMENT>
@@ -482,6 +580,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::reduceSubspaceSizes(CommunicatorT
 template <typename FG_ELEMENT>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
     const std::string& filename, size_t outputIndex) const {
+  assert(this->isSubspaceDataCreated());
   bool writerProcess = false;
   std::ofstream ofs;
   if (this->rank_ == 0) {
@@ -511,7 +610,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
       it = std::max_element(first, last, smaller_real);
       maximumValue = std::real(*it);
     }
-    // allreduce the minimum and maxiumum values
+    // allreduce the minimum and maximum values
     MPI_Allreduce(MPI_IN_PLACE, &minimumValue, 1, dataType, MPI_MIN, getCommunicator());
     MPI_Allreduce(MPI_IN_PLACE, &maximumValue, 1, dataType, MPI_MAX, getCommunicator());
 

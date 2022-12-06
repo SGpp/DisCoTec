@@ -111,9 +111,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
 
-    uniDFG->registerUniformSG(*uniDSG);
-    uniDFG->registerUniformSG(*uniDSGfromSubspaces);
-    BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getRawDataSize());
+    uniDSG->registerDistributedFullGrid(*uniDFG);
 
     for (decltype(uniDSG->getNumSubspaces()) i = 0; i < uniDSG->getNumSubspaces(); ++i) {
       const auto& level = uniDSG->getLevelVector(i);
@@ -143,9 +141,16 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     // hierarchical space (without interpolation on coarser component dfgs) here we use the nodal
     // values for testing purposes
     BOOST_TEST_CHECKPOINT("Add to uniform SG");
-    uniDFG->addToUniformSG(*uniDSG, 1.);
+    // create subspace data
+    uniDSG->setZero();
+    uniDSG->addDistributedFullGrid(*uniDFG, 1.);
+
+    BOOST_TEST_CHECKPOINT("Add to uniform SG from subspaces");
+    uniDSGfromSubspaces->registerDistributedFullGrid(*uniDFG);
+    BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getRawDataSize());
     BOOST_CHECK_GT(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
-    uniDFG->addToUniformSG(*uniDSGfromSubspaces, 0.);
+    uniDSGfromSubspaces->setZero();
+    uniDSGfromSubspaces->addDistributedFullGrid(*uniDFG, 0.);
     BOOST_CHECK_EQUAL(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
     for (decltype(uniDSGfromSubspaces->getNumSubspaces()) i = 0;
          i < uniDSGfromSubspaces->getNumSubspaces(); ++i) {
@@ -198,13 +203,30 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
 
-    BOOST_TEST_CHECKPOINT("Register to uniform SG");
-    largeUniDFG->registerUniformSG(*uniDSG);
 
-    // make sure that right min/max values are written %TODO remove file
-    BOOST_TEST_CHECKPOINT("write min/max coefficients");
-    uniDSG->writeMinMaxCoefficents(
-        "sparse_paraboloid_minmax_large_" + std::to_string(dim) + "D_" + std::to_string(size), 0);
+    // test for dumping sparse grid data to disk and reading back in
+    uniDSG->writeToDiskChunked("test_sg_");
+    uniDSGfromSubspaces->setZero();
+    uniDSGfromSubspaces->readFromDiskChunked("test_sg_");
+    BOOST_TEST_CHECKPOINT("compare values chunked");
+    for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
+      BOOST_TEST_CONTEXT(std::to_string(i));
+      BOOST_CHECK_EQUAL(uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
+    }
+
+    // and remove straight away
+    if (rank == 0) {
+      auto status = system("rm test_sg_*");
+      BOOST_CHECK_GE(status, 0);
+    }
+
+    BOOST_TEST_CHECKPOINT("Register to uniform SG");
+    uniDSG->registerDistributedFullGrid(*largeUniDFG);//TODO create levels and actually test something
+
+    // // make sure that right min/max values are written %TODO remove file
+    // BOOST_TEST_CHECKPOINT("write min/max coefficients");
+    // uniDSG->writeMinMaxCoefficents(
+    //     "sparse_paraboloid_minmax_large_" + std::to_string(dim) + "D_" + std::to_string(size), 0);
 
     // check if the sizes set are actually the ones we calculate with CombiMinMaxScheme
     BOOST_TEST_CHECKPOINT("check subspace sizes");
@@ -245,21 +267,6 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         auto sgDOF = printSGDegreesOfFreedomAdaptive(newLmin, newLmax);
         BOOST_CHECK_EQUAL(sgDOF, sumDOFPartitioned);
       }
-    }
-    // test for dumping sparse grid data to disk and reading back in
-    uniDSG->writeToDiskChunked("test_sg_");
-    uniDSGfromSubspaces->setZero();
-    uniDSGfromSubspaces->readFromDiskChunked("test_sg_");
-    BOOST_TEST_CHECKPOINT("compare values chunked");
-    for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
-      BOOST_TEST_CONTEXT(std::to_string(i));
-      BOOST_CHECK_EQUAL(uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
-    }
-
-    // and remove straight away
-    if (rank == 0) {
-      auto status = system("rm test_sg_*");
-      BOOST_CHECK_GE(status, 0);
     }
   }
 }
@@ -650,7 +657,7 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
         auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::real>>(
             new DistributedFullGrid<combigrid::real>(dim, level, comm, boundary, procs, true,
                                                      dfgDecomposition));
-        uniDFG->registerUniformSG(*uniDSG);
+        uniDSG->registerDistributedFullGrid(*uniDFG);
       }
     }
     uniDSG->setZero();
