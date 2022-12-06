@@ -262,7 +262,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       Stats::startEvent("manager combine third level");
       // do two TCP-based communications and one file-based one
       if (i < 2) {
-        manager.combineThirdLevel();
+        BOOST_CHECK_NO_THROW(manager.combineThirdLevel());
       } else {
         std::string filenamePrefixToWrite = "dsgu_combine_" + std::to_string(testParams.sysNum);
         std::string writeCompleteTokenFileName = filenamePrefixToWrite + "_complete.txt";
@@ -279,7 +279,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     // test Monte-Carlo interpolation
     std::vector<std::vector<real>> interpolationCoords;
     size_t numMCValues = (testParams.dim > 2) ? 1000 : 10000;
-    std::vector<real> values(numMCValues, 0.0);
+    std::vector<CombiDataType> values(numMCValues, 0.0);
     real l2ErrorSingle = 0.;
     // TestFnCount<CombiDataType> initialFunction;
     ParaboloidFn<CombiDataType> initialFunction;
@@ -326,7 +326,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     int nrun = 1;
     while (signal != EXIT) {
       BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
-      signal = pgroup.wait();
+      BOOST_REQUIRE_NO_THROW(signal = pgroup.wait());
       if (signal == RUN_NEXT) {
         ++nrun;
       }
