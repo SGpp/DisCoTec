@@ -27,8 +27,6 @@ std::vector<std::vector<real>> getRandomCoordinates(int numCoordinates, size_t d
 }
 
 void getNumberSequenceFromSeed(std::vector<real>& randomNumsToBeSet, size_t seed) {
-  static_assert(std::is_same<CombiDataType,real>::value, "when using this, implement for other CombiDataType");
-
   std::mt19937 mersenne_engine {seed};
   std::uniform_real_distribution<> dist {0., 1.};
   auto gen = [&](){
