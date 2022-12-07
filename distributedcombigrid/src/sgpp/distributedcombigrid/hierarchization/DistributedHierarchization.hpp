@@ -25,8 +25,7 @@ class RemoteDataContainer {
    * \param[in] lowerBounds lower bounds of the subdomain where the remote data
    *            comes from. this is required for address calculations
    */
-  RemoteDataContainer(const IndexVector& sizes, DimType dim1d, IndexType keyIndex,
-                      const IndexVector& lowerBounds) {
+  RemoteDataContainer(const IndexVector& sizes, DimType dim1d, IndexType keyIndex) {
     assert(sizes.size() > 0);
     assert(lowerBounds.size() == sizes.size());
 
@@ -39,19 +38,17 @@ class RemoteDataContainer {
 
     assert(keyIndex > -1);
 
-    dim_ = static_cast<DimType>(sizes.size());
+    auto dim = static_cast<DimType>(sizes.size());
     dim1d_ = dim1d;
     index1d_ = keyIndex;
-    nrPoints_ = sizes;
-    lowerBounds_ = lowerBounds;
 
     // compute num of elements and offsets
     IndexType nrElements = 1;
-    offsets_.resize(dim_);
+    offsets_.resize(dim);
 
-    for (DimType j = 0; j < dim_; j++) {
+    for (DimType j = 0; j < dim; j++) {
       offsets_[j] = nrElements;
-      nrElements = nrElements * nrPoints_[j];
+      nrElements = nrElements * sizes[j];
     }
 
     data_.resize(nrElements);
@@ -67,7 +64,8 @@ class RemoteDataContainer {
     static_assert(uniformDecomposition,
                   "this assumes uniform decomposition, so local index vectors are almost the same "
                   "along pole");
-    assert(localIndexVector.size() == dim_);
+    auto dim = static_cast<DimType>(offsets_.size());
+    assert(localIndexVector.size() == dim);
 
     // we have to find the corresponding local IndexVector of the
     // subdomain where the remoteData comes from and reduce it by the
@@ -80,13 +78,9 @@ class RemoteDataContainer {
     // reduce by key dimension
     tmpLocalIndexVector[dim1d_] = 0;
 
-    for (DimType i = 0; i < dim_; ++i) {
-      assert(tmpLocalIndexVector[i] < nrPoints_[i]);
-    }
-
     IndexType idx = 0;
 
-    for (DimType i = 0; i < dim_; ++i) {
+    for (DimType i = 0; i < dim; ++i) {
       idx = idx + offsets_[i] * tmpLocalIndexVector[i];
     }
 
@@ -94,37 +88,6 @@ class RemoteDataContainer {
 
     return &data_[idx];
   }
-
-  inline IndexType get1dIndex(const IndexVector& globalIndexVector) const {
-    assert(globalIndexVector.size() == dim_);
-
-    // we have to find the corresponding local IndexVector of the
-    // subdomain where the remoteData comes from and reduce it by the
-    // key dimension
-
-    // compute local index in remote domain
-    IndexVector localIndexVector = globalIndexVector - lowerBounds_;
-
-    // reduce by key dimension
-    localIndexVector[dim1d_] = 0;
-
-    for (DimType i = 0; i < dim_; ++i) {
-      assert(localIndexVector[i] < nrPoints_[i]);
-    }
-
-    IndexType idx = 0;
-
-    for (DimType i = 0; i < dim_; ++i) {
-      idx = idx + offsets_[i] * localIndexVector[i];
-    }
-
-    assert(idx < data_.size());
-
-    return idx;
-  }
-
-  inline FG_ELEMENT* getData() { return &data_[0]; }
-
   /** the getters for the full grid vector */
   inline std::vector<FG_ELEMENT>& getElementVector() { return data_; }
 
@@ -133,34 +96,18 @@ class RemoteDataContainer {
   // return index of (d-1)-dimensional subgrid in the d-dimensional grid
   inline IndexType getKeyIndex() const { return index1d_; }
 
-  inline IndexType getSize() { return data_.size(); }
-
-  inline DimType getDimension() { return dim_; }
-
-  inline DimType getKeyDimension() { return dim1d_; }
-
  private:
-  // dimensionality of the container. although only one point in dim1d, we
-  // always use the full dimensionality
-  DimType dim_;
-
   // reduced dimension
   DimType dim1d_;
 
   // index of (d-1)-dimensional subgrid in the d-dimensional grid
   IndexType index1d_;
 
-  // nr of points in each dimension (d-dimensional)
-  IndexVector nrPoints_;
-
   // offsets in each dimension. d-dimensional, but 0 in dim1d dimension
   IndexVector offsets_;
 
   // data vector
   std::vector<FG_ELEMENT> data_;
-
-  // lower bounds of remote domain
-  IndexVector lowerBounds_;
 };
 
 template <typename FG_ELEMENT>
@@ -333,17 +280,17 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
         // create RemoteDataContainer to store the subarray
         IndexVector sizes = dfg.getLocalSizes();
         sizes[dim] = 1;
-        remoteData.emplace_back(sizes, dim, index, lowerBoundsNeighbor);
+        remoteData.emplace_back(sizes, dim, index);
 
         // start recv operation, use global index as tag
         {
           int src = static_cast<int>(r);
           int tag = static_cast<int>(index);
 
-          FG_ELEMENT* buf = remoteData.back().getData();
-          int bsize = static_cast<int>(remoteData.back().getSize());
+          auto& buf = remoteData.back().getElementVector();
+          auto bsize = static_cast<int>(buf.size());
 
-          MPI_Irecv(buf, bsize, dfg.getMPIDatatype(), src, tag, dfg.getCommunicator(),
+          MPI_Irecv(buf.data(), bsize, dfg.getMPIDatatype(), src, tag, dfg.getCommunicator(),
                     &recvRequests[recvcount + k++]);
 
 #ifdef DEBUG_OUTPUT
@@ -522,11 +469,11 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
 
       for (const auto& index : indices) {
         // create RemoteDataContainer to store the subarray
-        remoteData.emplace_back(sizes, dim, index, lowerBoundsNeighbor);
+        remoteData.emplace_back(sizes, dim, index);
 
-        FG_ELEMENT* buf = remoteData.back().getData();
-        bufs.push_back(buf);
-        assert(bsize == static_cast<int>(remoteData.back().getSize()));
+        auto& buf = remoteData.back().getElementVector();
+        bufs.push_back(buf.data());
+        assert(bsize == static_cast<int>(buf.size()));
       }
       {
         // make datatype hblock for all indices
