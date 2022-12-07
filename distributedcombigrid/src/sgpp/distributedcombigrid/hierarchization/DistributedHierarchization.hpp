@@ -27,7 +27,6 @@ class RemoteDataContainer {
    */
   RemoteDataContainer(const IndexVector& sizes, DimType dim1d, IndexType keyIndex) {
     assert(sizes.size() > 0);
-    assert(lowerBounds.size() == sizes.size());
 
     for (DimType i = 0; i < sizes.size(); ++i) {
       assert(sizes[i] > 0);
@@ -84,7 +83,7 @@ class RemoteDataContainer {
       idx = idx + offsets_[i] * tmpLocalIndexVector[i];
     }
 
-    assert(idx < data_.size());
+    assert(static_cast<size_t>(idx) < data_.size());
 
     return &data_[idx];
   }
@@ -188,6 +187,7 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
   MPI_Barrier(comm);
 
 #endif
+  assert(remoteData.empty());
 
   std::vector<MPI_Request> sendRequests;
   std::vector<MPI_Request> recvRequests;
@@ -355,6 +355,8 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
   MPI_Barrier(comm);
 
 #endif
+  assert(remoteData.empty());
+
   // count non-empty elements of input indices
   auto numSend = send1dIndices.size();
   auto numRecv = recv1dIndices.size();
