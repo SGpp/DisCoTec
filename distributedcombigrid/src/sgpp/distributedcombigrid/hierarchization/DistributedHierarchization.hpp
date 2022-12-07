@@ -227,23 +227,19 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
       MPI_Datatype mysubarray;
       {
         // sizes of local grid
-        IndexVector sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
+        std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
 
         // sizes of subarray ( full size except dimension d )
-        IndexVector subsizes = sizes;
+        std::vector<int> subsizes = sizes;
         subsizes[dim] = 1;
 
         // start
-        IndexVector starts(dfg.getDimension(), 0);
-        starts[dim] = lidxvec[dim];
-
-        std::vector<int> csizes(sizes.begin(), sizes.end());
-        std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
-        std::vector<int> cstarts(starts.begin(), starts.end());
+        std::vector<int> starts(dfg.getDimension(), 0);
+        starts[dim] = static_cast<int>(lidxvec[dim]);
 
         // create subarray view on data
-        MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &csizes[0], &csubsizes[0],
-                                 &cstarts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
+        MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
+                                 &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
         MPI_Type_commit(&mysubarray);
       }
 
@@ -370,22 +366,18 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
   MPI_Datatype mysubarray;
   {
     // sizes of local grid
-    IndexVector sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
+    std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
 
     // sizes of subarray ( full size except dimension d )
-    IndexVector subsizes = sizes;
+    std::vector<int> subsizes = sizes;
     subsizes[dim] = 1;
 
     // start
-    IndexVector starts(dfg.getDimension(), 0);
-
-    std::vector<int> csizes(sizes.begin(), sizes.end());
-    std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
-    std::vector<int> cstarts(starts.begin(), starts.end());
+    std::vector<int> starts(dfg.getDimension(), 0);
 
     // create subarray view on data
-    MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &csizes[0], &csubsizes[0],
-                             &cstarts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
+    MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
+                             &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
     MPI_Type_commit(&mysubarray);
   }
 
