@@ -99,7 +99,7 @@ ExternalProject_Add( #TODO: first search for glpk
     URL http://ftp.gnu.org/gnu/glpk/glpk-4.55.tar.gz # TODO: use newer and not hardcoded Version
     DOWNLOAD_EXTRACT_TIMESTAMP false
     CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=<INSTALL_DIR>
-    BUILD_COMMAND make -j htopinstall # TODO: get thread count and build parallel
+    BUILD_COMMAND make -j install # TODO: get thread count and build parallel
     )
 add_dependencies(discotec glpk)
 

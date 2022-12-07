@@ -7,6 +7,7 @@ project("DisCoTec"
 
 add_subdirectory(examples)
 add_subdirectory(src/sgpp/distributedcombigrid/)
+enable_testing()
 add_subdirectory(tests)
 add_subdirectory(third_level_manager)
 add_subdirectory(tools)
