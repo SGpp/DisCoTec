@@ -100,6 +100,7 @@ def doConfigure(env, moduleFolders, languageWrapperFolders):
   print("Configuration done.")
   print()
 
+
 def checkCpp17(config):
   # check C++17 support
   if not config.CheckFlag(""):
@@ -107,10 +108,13 @@ def checkCpp17(config):
       Maybe you forgot to set OPT? Abort!")
     Exit(1)
   if not config.CheckFlag("-std=c++17"):
-    Helper.printErrorAndExit("The compiler doesn't seem to support the C++17 standard. Abort!")
+    Helper.printErrorAndExit(
+        "The compiler doesn't seem to support the C++17 standard. Abort!")
     Exit(1)
 
   config.env.PrependUnique(CPPFLAGS="-std=c++17")
+
+
 def checkBoostTests(config):
   config.env.AppendUnique(CPPPATH=[config.env["BOOST_INCLUDE_PATH"]])
   config.env.AppendUnique(LIBPATH=[config.env["BOOST_LIBRARY_PATH"]])
@@ -208,14 +212,6 @@ def configureGNUCompiler(config):
     config.env.Append(CPPFLAGS=["-DENABLEFT"])
   if config.env["ISGENE"]:
     config.env.Append(CPPFLAGS=["-DISGENE"])
-  if config.env["USE_VTK"]:
-    config.env.Append(CPPFLAGS=["-DUSE_VTK"])
-    config.env.Append(LINKFLAGS=[
-      "-lvtkCommonCore",
-      "-lvtkIOXML",
-      "-lvtkIOParallelXML"
-    ])
-    config.env.AppendUnique(CPPPATH=[config.env['VTK_INCLUDE_PATH']])
 
   if config.env["ARCH"] == "sse3":
     config.env.AppendUnique(CPPFLAGS=["-msse3"])
