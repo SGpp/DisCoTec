@@ -75,7 +75,10 @@ class ProcessManager {
 
   inline void combineThirdLevel();
 
-  inline void combineThirdLevelFileBased();
+  inline void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                  std::string writeCompleteTokenFileName,
+                                  std::string filenamePrefixToRead,
+                                  std::string startReadingTokenFileName);
 
   inline size_t pretendCombineThirdLevelForBroker(std::vector<long long> numDofsToCommunicate,
                                          bool checkValues);
@@ -369,7 +372,10 @@ void ProcessManager::combineThirdLevel() {
   waitAllFinished();
 }
 
-void ProcessManager::combineThirdLevelFileBased() {
+void ProcessManager::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                                std::string writeCompleteTokenFileName,
+                                                std::string filenamePrefixToRead,
+                                                std::string startReadingTokenFileName) {
   // first combine local and global
   combineLocalAndGlobal();
 
@@ -378,15 +384,17 @@ void ProcessManager::combineThirdLevelFileBased() {
     if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
   }
   // obtain instructions from third level manager
-  thirdLevel_.signalReadyToCombine();
+  thirdLevel_.signalReadyToCombineFile();
+  std::string instruction = thirdLevel_.fetchInstruction();
+  assert(instruction == "write_ok");
 
   // combine
-  Stats::startEvent("manager combine UFTP");
-  thirdLevelPGroup_->combineThirdLevelFileBased();
-  Stats::stopEvent("manager combine UFTP");
+  Stats::startEvent("manager combine file");
+  thirdLevelPGroup_->combineThirdLevelFileBased(filenamePrefixToWrite, writeCompleteTokenFileName,
+                                                filenamePrefixToRead, startReadingTokenFileName);
+  Stats::stopEvent("manager combine file");
+  waitForPG(thirdLevelPGroup_);
   thirdLevel_.signalReady();
-
-  waitAllFinished();
 }
 
 void ProcessManager::pretendCombineThirdLevelForWorkers() {
@@ -425,7 +433,7 @@ size_t ProcessManager::pretendCombineThirdLevelForBroker(
     if (instruction == "send_first") {
       // if sending first, initialize with random
       auto initialData = montecarlo::getRandomCoordinates(1, dsguSize)[0];
-      dsguData = initialData;
+      dsguData.assign(initialData.begin(), initialData.end());
       // send dsgu to remote
       thirdLevel_.sendData(dsguData.data(), dsguSize);
       // recv combined dsgu from remote

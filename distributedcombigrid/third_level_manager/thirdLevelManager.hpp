@@ -26,6 +26,8 @@ class ThirdLevelManager
 
     void processCombination(size_t initiatorIndex);
 
+    void processCombinationFile(size_t initiatorIndex);
+
     void processUnifySubspaceSizes(size_t initiatorIndex);
 
     void processAnyData(size_t initiatorIndex);

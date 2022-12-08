@@ -107,10 +107,13 @@ def checkCpp17(config):
       Maybe you forgot to set OPT? Abort!")
     Exit(1)
   if not config.CheckFlag("-std=c++17"):
-    Helper.printErrorAndExit("The compiler doesn't seem to support the C++17 standard. Abort!")
+    Helper.printErrorAndExit(
+        "The compiler doesn't seem to support the C++17 standard. Abort!")
     Exit(1)
 
   config.env.PrependUnique(CPPFLAGS="-std=c++17")
+
+
 def checkBoostTests(config):
   config.env.AppendUnique(CPPPATH=[config.env["BOOST_INCLUDE_PATH"]])
   config.env.AppendUnique(LIBPATH=[config.env["BOOST_LIBRARY_PATH"]])

@@ -103,6 +103,8 @@ class ProcessGroupWorker {
   /** read extra SGs from disk (binary w/ MPI-IO) */
   void readDSGsFromDisk(std::string filenamePrefix);
 
+  void readDSGsFromDiskAndReduce(std::string filenamePrefixToRead);
+
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 
@@ -113,7 +115,10 @@ class ProcessGroupWorker {
    * and updates fgs. */
   void combineThirdLevel();
 
-  void combineThirdLevelFileBased();
+  void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                  std::string writeCompleteTokenFileName,
+                                  std::string filenamePrefixToRead,
+                                  std::string startReadingTokenFileName);
 
   /** waits until the third level pg bcasts the combined solution and updates
    * fgs */

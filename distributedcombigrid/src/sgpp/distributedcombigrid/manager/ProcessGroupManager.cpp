@@ -117,9 +117,21 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
   return true;
 }
 
-bool ProcessGroupManager::combineThirdLevelFileBased() {
+bool ProcessGroupManager::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                                     std::string writeCompleteTokenFileName,
+                                                     std::string filenamePrefixToRead,
+                                                     std::string startReadingTokenFileName) {
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(COMBINE_THIRD_LEVEL_FILE);
-  return true;
+
+  // send filenames
+  MPIUtils::sendClass(&filenamePrefixToWrite, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&writeCompleteTokenFileName, this->pgroupRootID_,
+                      theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&filenamePrefixToRead, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&startReadingTokenFileName, this->pgroupRootID_,
+                      theMPISystem()->getGlobalComm());
+  return this->waitStatus() == PROCESS_GROUP_WAIT;
 }
 
 void recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
@@ -633,24 +645,34 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
 
 void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                                             std::vector<CombiDataType>& values,
-                                            MPI_Request& request) {
+                                            MPI_Request* request) {
+  assert(interpolationCoordsSerial.size() > 0);
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
   for (const auto& coord : interpolationCoordsSerial) {
     assert(coord >= 0.0 && coord <= 1.0);
   }
-  sendSignalToProcessGroup(INTERPOLATE_VALUES);
+  // assert that either no request and no values are given or both are given
+  assert((request == nullptr && values.empty()) ||
+         (request != nullptr && interpolationCoordsSerial.size() % values.size() == 0));
+  // if no request was passed, assume we are not waiting for a reply from that group
+  if (request == nullptr) {
+    sendSignalToProcessGroup(INTERPOLATE_VALUES);
+  } else {
+    sendSignalToProcessGroup(INTERPOLATE_VALUES_AND_SEND_BACK);
+  }
   MPI_Request dummyRequest;
+  // send interpolation coordinates to all groups
   MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
             abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
   MPI_Request_free(&dummyRequest);
-  MPI_Irecv(values.data(), static_cast<int>(values.size()),
-            abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
-            pgroupRootID_, TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &request);
-
+  if (request != nullptr) {
+    MPI_Irecv(values.data(), static_cast<int>(values.size()),
+              abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
+              pgroupRootID_, TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), request);
+  }
   setProcessGroupBusyAndReceive();
-  assert(waitStatus() == PROCESS_GROUP_WAIT);
 }
 
 void ProcessGroupManager::writeInterpolatedValues(const std::vector<real>& interpolationCoordsSerial) {

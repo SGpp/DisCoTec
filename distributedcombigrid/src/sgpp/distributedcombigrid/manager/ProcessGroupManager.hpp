@@ -55,7 +55,10 @@ class ProcessGroupManager {
                                CombiParameters& params,
                                bool isSendingFirst);
 
-  bool combineThirdLevelFileBased();
+  bool combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                  std::string writeCompleteTokenFileName,
+                                  std::string filenamePrefixToRead,
+                                  std::string startReadingTokenFileName);
 
   bool pretendCombineThirdLevelForWorkers(CombiParameters& params);
 
@@ -102,8 +105,7 @@ class ProcessGroupManager {
   std::vector<double> evalErrorOnDFG(const LevelVector& leval);
 
   void interpolateValues(const std::vector<real>& interpolationCoordsSerial,
-                                              std::vector<CombiDataType>& values,
-                                              MPI_Request& request);
+                         std::vector<CombiDataType>& values, MPI_Request* request = nullptr);
 
   void writeInterpolatedValues(const std::vector<real>& interpolationCoordsSerial);
 

@@ -78,6 +78,8 @@ const SignalType READ_DSGS_FROM_DISK = 42;
 
 const SignalType COMBINE_THIRD_LEVEL_FILE = 43;
 
+const SignalType INTERPOLATE_VALUES_AND_SEND_BACK = 46;
+
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
 const NormalizationType L1_NORMALIZATION = 1;

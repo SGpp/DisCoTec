@@ -55,7 +55,7 @@ class TaskAdvection : public Task {
     const LevelVector& l = this->getLevelVector();
 
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, true,
+    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, false,
                                                   decomposition);
     phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
 

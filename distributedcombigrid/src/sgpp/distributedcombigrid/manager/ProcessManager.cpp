@@ -466,26 +466,37 @@ std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<re
   return interpolationCoordsSerial;
 }
 
-std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
+std::vector<std::vector<real>> deserializeInterpolationCoords(
+    const std::vector<real>& interpolationCoordsSerial, DimType numDimensions) {
+  assert(interpolationCoordsSerial.size() % numDimensions == 0);
+  auto numCoords = interpolationCoordsSerial.size() / numDimensions;
+  std::vector<std::vector<real>> interpolationCoords;
+  interpolationCoords.reserve(numCoords);
+  for (size_t i = 0; i < numCoords; ++i) {
+    interpolationCoords.emplace_back(interpolationCoordsSerial.begin() + i * numDimensions,
+                                     interpolationCoordsSerial.begin() + (i + 1) * numDimensions);
+  }
+  return interpolationCoords;
+}
+
+std::vector<CombiDataType> ProcessManager::interpolateValues(
+    const std::vector<std::vector<real>>& interpolationCoords) {
   auto numValues = interpolationCoords.size();
-  std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN()));
-  std::vector<MPI_Request> requests(pgroups_.size());
+  auto values = std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN());
+  MPI_Request request = MPI_REQUEST_NULL;
 
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->interpolateValues(interpolationCoordsSerial, values[i], requests[i]);
+  // have the last process group return the all-reduced values
+  pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, values, &request);
+  for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
+    // all other groups only communicate the interpolation coords to last group
+    auto dummyValues = std::vector<CombiDataType>(0);
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValues);
   }
-  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
-
-  std::vector<CombiDataType> reducedValues(numValues);
-  for (const auto& v : values){
-    for (size_t i = 0; i < numValues; ++i) {
-      reducedValues[i] += v[i];
-    }
-  }
-  return reducedValues;
+  MPI_Wait(&request, MPI_STATUS_IGNORE);
+  return values;
 }
 
 void ProcessManager::setupThirdLevel() {
@@ -547,15 +558,22 @@ void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vec
   // exchange coordinates with remote
   if (instruction == "send_first") {
     thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+#ifndef NDEBUG
     // this part is redundant but also doesn't hurt (?)
     auto theirCoordinates = ourCoordinatesSerial; // to reserve the size
     thirdLevel_.recvData(theirCoordinates.data(), theirCoordinates.size());
     for (size_t i = 0; i < theirCoordinates.size(); ++i) {
       assert(ourCoordinatesSerial[i] == theirCoordinates[i]);
     }
+#endif // !NDEBUG
   } else if (instruction == "recv_first") {
     thirdLevel_.recvData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+#ifndef NDEBUG
     thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+#endif // !NDEBUG
+    coordinates = deserializeInterpolationCoords(ourCoordinatesSerial, params_.getDim());
+  } else {
+    throw std::runtime_error("unknown instruction: " + instruction);
   }
   thirdLevel_.signalReady();
 

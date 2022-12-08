@@ -156,7 +156,8 @@ class CombiParameters {
     if (levels_.find(taskID) == levels_.end()) {
       return emptyLevelVector;
     } else {
-    } return levels_.at(taskID);
+      return levels_.at(taskID);
+    }
   }
 
   inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
