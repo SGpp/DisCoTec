@@ -550,7 +550,142 @@ void checkHierarchizationParaboloid(LevelVector& levels, std::vector<int>& procs
   }
 }
 
+template <typename FG_ELEMENT>
+IndexVector checkExtentsOfDFG(const DistributedFullGrid<FG_ELEMENT>& dfg) {
+  // check that all MPI ranks agree on the extents of the grid
+  auto extents = dfg.getGlobalSizes();
+  auto extents_max = extents;
+  auto extents_min = extents;
+  int dim = static_cast<int>(extents.size());
+  MPI_Datatype indexDType = getMPIDatatype(abstraction::getabstractionDataType<IndexType>());
+  MPI_Allreduce(MPI_IN_PLACE, extents_max.data(), dim, indexDType, MPI_MAX, dfg.getCommunicator());
+  MPI_Allreduce(MPI_IN_PLACE, extents_min.data(), dim, indexDType, MPI_MIN, dfg.getCommunicator());
+  BOOST_CHECK_EQUAL_COLLECTIONS(extents.begin(), extents.end(), extents_max.begin(),
+                                extents_max.end());
+  BOOST_CHECK_EQUAL_COLLECTIONS(extents.begin(), extents.end(), extents_min.begin(),
+                                extents_min.end());
+  return extents;
+}
+
 BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(240))
+
+BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
+  std::vector<int> procs = {1, 4, 1, 2, 1, 1};
+  auto dimensionality = static_cast<DimType>(procs.size());
+  LevelVector levels = {1, 10, 1, 6, 1, 1};
+  LevelVector lzero(dimensionality, 0);
+  LevelVector lhalf = levels;
+  std::transform(lhalf.begin(), lhalf.end(), lhalf.begin(), [](int i) { return i / 2; });
+  for (DimType d = 0; d < dimensionality; ++d) {
+    std::vector<std::vector<IndexType>> remoteKeysHierarchization(3);
+    std::vector<std::vector<IndexType>> remoteKeysDehierarchization(3);
+    bool isOnLowerBoundaryInD = false;
+    bool isOnUpperBoundaryInD = false;
+    for (BoundaryType b : std::vector<BoundaryType>({0, 2, 1})) {
+      std::vector<BoundaryType> boundary(dimensionality, b);
+      auto lmin = lzero;  // TODO this could be a loop as well
+      CommunicatorType comm =
+          TestHelper::getComm(procs, std::vector<int>(dimensionality, b == 1 ? 1 : 0));
+      if (comm != MPI_COMM_NULL) {
+        BOOST_TEST_CHECKPOINT("Testing dimension " << d << " with boundary " << b);
+        DistributedFullGrid<std::complex<double>> dfg(dimensionality, levels, comm, boundary, procs,
+                                                      false);
+        {
+          isOnLowerBoundaryInD = dfg.getCartesianUtils().isOnLowerBoundaryInDimension(d);
+          std::vector<int> processLocation;
+          dfg.getCartesianUtils().getPartitionCoordsOfLocalRank(processLocation);
+          isOnUpperBoundaryInD = processLocation[d] == procs[d] - 1;
+        }
+        auto extents = checkExtentsOfDFG(dfg);
+
+        // exchange data
+        std::vector<RemoteDataContainer<std::complex<double>>> remoteDataHierarchization;
+        exchangeData1d(dfg, d, remoteDataHierarchization, lmin[d]);
+        BOOST_CHECK((remoteDataHierarchization.size() == 0) || (procs[d] > 1));
+        for (const auto& r : remoteDataHierarchization) {
+          auto receiveKeyIndex = r.getKeyIndex();
+          BOOST_CHECK_LT(receiveKeyIndex, extents[d]);
+          remoteKeysHierarchization[b].push_back(receiveKeyIndex);
+        }
+        BOOST_CHECK(std::is_sorted(remoteKeysHierarchization[b].begin(),
+                                   remoteKeysHierarchization[b].end()));
+
+        std::vector<RemoteDataContainer<std::complex<double>>> remoteDataDehierarchization;
+        exchangeData1dDehierarchization(dfg, d, remoteDataDehierarchization, lmin[d]);
+        BOOST_CHECK((remoteDataDehierarchization.size() == 0) || (procs[d] > 1));
+        // more data may need to be exchanged for dehierarchization
+        BOOST_CHECK_GE(remoteDataDehierarchization.size(), remoteDataHierarchization.size());
+        for (const auto& r : remoteDataDehierarchization) {
+          auto receiveKeyIndex = r.getKeyIndex();
+          BOOST_CHECK_LT(receiveKeyIndex, extents[d]);
+          remoteKeysDehierarchization[b].push_back(receiveKeyIndex);
+        }
+        BOOST_CHECK(std::is_sorted(remoteKeysDehierarchization[b].begin(),
+                                   remoteKeysDehierarchization[b].end()));
+
+        std::vector<RemoteDataContainer<std::complex<double>>> remoteDataAll;
+        exchangeAllData1d(dfg, d, remoteDataAll);
+        BOOST_CHECK((procs[d] == 1 && remoteDataAll.size() == 0) ||
+                    (procs[d] > 1 && remoteDataAll.size() > 0));
+        if (procs[d] > 1) {
+          // check that all indices from other ranks along the pole are present
+          BOOST_CHECK_EQUAL(remoteDataAll.size(), dfg.getGlobalSizes()[d] - dfg.getLocalSizes()[d]);
+        }
+        MPI_Barrier(comm);
+        TestHelper::testStrayMessages(comm);
+      }
+    }
+    if (remoteKeysDehierarchization[2].empty()) {
+      // either the rank did not take part in the test
+      if (TestHelper::getRank(MPI_COMM_WORLD) <
+          std::accumulate(procs.begin(), procs.end(), 0, std::multiplies<int>())) {
+        // or this dimension was not distributed
+        BOOST_CHECK_EQUAL(procs[d], 1);
+        BOOST_CHECK(isOnLowerBoundaryInD);
+        BOOST_CHECK(isOnUpperBoundaryInD);
+      }
+    } else {
+      IndexType upperBoundaryIndex = powerOfTwo[levels[d]];
+      // compare remoteKeysHierarchization and remoteKeysDehierarchization for different boundary
+      // types
+
+      for (const auto& remoteKeys : {remoteKeysHierarchization, remoteKeysDehierarchization}) {
+        // check that the indices without boundary are the same ones as with one boundary, except
+        // for the 0
+        auto remoteKeysExpectedForZero = remoteKeys[1];
+        if (remoteKeysExpectedForZero.front() == 0) {
+          remoteKeysExpectedForZero.erase(remoteKeysExpectedForZero.begin());
+        }
+        // shift because that the lower boundary index is not included in the 0 boundary case
+        for (auto& key : remoteKeysExpectedForZero) {
+          key -= 1;
+        }
+        BOOST_CHECK_EQUAL_COLLECTIONS(remoteKeys[0].begin(), remoteKeys[0].end(),
+                                      remoteKeysExpectedForZero.begin(),
+                                      remoteKeysExpectedForZero.end());
+
+        // check that the same indices are exchanged for 1 and 2 sided boundaries
+        auto remoteKeysExpectedForOne = remoteKeys[2];
+        // but where the upper boundary is expected in the two-boundary case, we need the lower
+        // boundary
+        if (remoteKeysExpectedForOne.back() == upperBoundaryIndex) {
+          remoteKeysExpectedForOne.pop_back();
+          if (remoteKeysExpectedForOne.front() != 0 && !isOnLowerBoundaryInD) {
+            remoteKeysExpectedForOne.insert(remoteKeysExpectedForOne.begin(), 0);
+          }
+        }
+        // in case we are at the highest index along the pole, also need index 0
+        if (isOnUpperBoundaryInD && !isOnLowerBoundaryInD &&
+            remoteKeysExpectedForOne.front() != 0) {
+          remoteKeysExpectedForOne.insert(remoteKeysExpectedForOne.begin(), 0);
+        }
+        BOOST_CHECK_EQUAL_COLLECTIONS(remoteKeys[1].begin(), remoteKeys[1].end(),
+                                      remoteKeysExpectedForOne.begin(),
+                                      remoteKeysExpectedForOne.end());
+      }
+    }
+  }
+}
 
 // with boundary
 // isotropic
