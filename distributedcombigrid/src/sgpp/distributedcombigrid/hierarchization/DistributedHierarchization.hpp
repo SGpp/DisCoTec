@@ -574,9 +574,8 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
  */
 template <typename FG_ELEMENT>
 static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                           std::vector<RemoteDataContainer<FG_ELEMENT> >& remoteData,
+                           std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
                            LevelType lmin = 0) {
-
 #ifdef DEBUG_OUTPUT
   auto commSize = dfg.getCommunicatorSize();
   CommunicatorType comm = dfg.getCommunicator();
@@ -647,8 +646,8 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
   // main loop
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-  // this lets the receiver know to get the highest index from the lowest rank
-  auto globalIdxMax = dfg.length(dim) + (dfg.returnBoundaryFlags()[dim] == 1 ? 1 : 0);
+  bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
+  auto globalIdxMax = dfg.length(dim);
   LevelType lmax = dfg.getLevels()[dim];
 
   IndexType idx = idxMin;
@@ -673,6 +672,17 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
               int r = dfg.getNeighbor1dFromAxisIndex(dim, sIdx);
               if (r >= 0) send1dIndices[r].insert(idx);
             }
+            // also send to the left if on lower boundary and periodic
+            if (oneSidedBoundary && idx == 0 && sIdx < 0) {
+              assert(dfg.getCartesianUtils().isOnLowerBoundaryInDimension(dim));
+              // wrap around
+              auto mirroredShiftedIndex = globalIdxMax + sIdx;
+              assert(mirroredShiftedIndex > 0);
+              if (mirroredShiftedIndex > idxMax) {
+                int r = dfg.getNeighbor1dFromAxisIndex(dim, mirroredShiftedIndex);
+                if (r >= 0) send1dIndices[r].insert(idx);
+              }
+            }
           }
         }
       }
@@ -689,10 +699,18 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
         // if we are not on the boundary level, and
         // pIdx is outside of my domain, but still in the global domain
         if (lidx > 0 && ((indexShift < 0 && pIdx >= 0 && pIdx < idxMin) ||
-                          (indexShift > 0 && pIdx > idxMax && pIdx < globalIdxMax))) {
+                         (indexShift > 0 && pIdx > idxMax && pIdx < globalIdxMax))) {
           // get rank which has predecessor and add to list of indices to recv
           int r = dfg.getNeighbor1dFromAxisIndex(dim, pIdx);
           if (r >= 0) recv1dIndices[r].insert(pIdx);
+        }
+        // in case I need the upper boundary index and we have periodic boundary
+        if (oneSidedBoundary && indexShift > 0 && pIdx == globalIdxMax) {
+          // request index 0
+          int r = dfg.getNeighbor1dFromAxisIndex(dim, 0);
+          if (r >= 0 && r != dfg.getRank()) {
+            recv1dIndices[r].insert(0);
+          }
         }
       }
     } else {
@@ -870,7 +888,8 @@ static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, co
 
     // only recurse if my successor needs to be dehierarchized
     if (rightSuccessorLevel > lmin) {
-      auto globalIdxMax = dfg.length(dim) + (dfg.returnBoundaryFlags()[dim] == 1 ? 1 : 0);
+      bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
+      auto globalIdxMax = dfg.length(dim) + (oneSidedBoundary ? 1 : 0);
       if (rsIdx < globalIdxMax) {
         checkRightSuccesors(rsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
       }
