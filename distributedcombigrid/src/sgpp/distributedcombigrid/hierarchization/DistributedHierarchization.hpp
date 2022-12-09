@@ -1233,8 +1233,8 @@ template <typename FG_ELEMENT,
           void (*HIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int,
                                        LevelType) = hierarchize_hat_boundary_kernel>
 void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                               std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
-                               DimType dim, LevelType lmin_n = 0) {
+                             std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData, DimType dim,
+                             LevelType lmin_n = 0) {
   assert(dfg.returnBoundaryFlags()[dim] > 0);
 
   auto lmax = dfg.getLevels()[dim];
@@ -1248,10 +1248,12 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   localIndexVector.resize(dfg.getDimension());
 
   // loop over poles
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
+  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim],
+                                     std::numeric_limits<double>::quiet_NaN());
   // if we are using periodicity, add an entry to tmp for the virtual last value
   bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0), std::numeric_limits<double>::quiet_NaN());
+  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0),
+             std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
@@ -1282,7 +1284,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     // hierarchize tmp array with hupp function
     HIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_n);
 
-    if (oneSidedBoundary) {
+    if (oneSidedBoundary && !remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
       assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
     }
 
@@ -1296,8 +1298,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
  */
 template <typename FG_ELEMENT>
 void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                 std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
-                                 DimType dim) {
+                           std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData, DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   LevelType lmax = dfg.getLevels()[dim];
@@ -1379,8 +1380,8 @@ template <typename FG_ELEMENT,
           void (*DEHIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int,
                                          LevelType) = dehierarchize_hat_boundary_kernel>
 void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                 std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
-                                 DimType dim, LevelType lmin_n = 0) {
+                               std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
+                               DimType dim, LevelType lmin_n = 0) {
   assert(dfg.returnBoundaryFlags()[dim] > 0);
 
   const auto& lmax = dfg.getLevels()[dim];
@@ -1394,10 +1395,12 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   localIndexVector.resize(dfg.getDimension());
 
   // loop over poles
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
+  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim],
+                                     std::numeric_limits<double>::quiet_NaN());
   // if we are using periodicity, add an entry to tmp for the virtual last value
   bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0), std::numeric_limits<double>::quiet_NaN());
+  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0),
+             std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
@@ -1427,7 +1430,7 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     // hierarchize tmp array with hupp function
     DEHIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_n);
 
-    if (oneSidedBoundary) {
+    if (oneSidedBoundary && !remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
       assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
     }
 
@@ -1441,8 +1444,8 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
  */
 template <typename FG_ELEMENT>
 void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                                   std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
-                                   DimType dim) {
+                             std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
+                             DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   auto lmax = dfg.getLevels()[dim];
@@ -1455,7 +1458,7 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexVector localIndexVector(dfg.getDimension());
 
   // loop over poles
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
+  static std::vector<FG_ELEMENT> tmp;
   tmp.resize(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
   lldiv_t divresult;
