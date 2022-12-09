@@ -63,7 +63,7 @@ inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
 void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool doOnlyRecompute = false){
 
   //vector with IDs of faulted tasks (=component grids)
-  std::vector<int> faultsID;
+  std::vector<size_t> faultsID;
 
   //vector with pointers to managers of failed groups
   std::vector< ProcessGroupManagerID> groupFaults;
@@ -73,7 +73,7 @@ void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool do
   const std::string prob_name = "interpolation based optimization";
   //vector with tasks that need to be redistributed (but not recomputed)
   //and tasks that need to be recomputed
-  std::vector<int> redistributeFaultsID, recomputeFaultsID;
+  std::vector<size_t> redistributeFaultsID, recomputeFaultsID;
   manager.recomputeOptimumCoefficients(prob_name, faultsID, redistributeFaultsID, recomputeFaultsID);
   //timestep does not need to be updated in gene but maybe in other applications
   for ( auto id : redistributeFaultsID ) {
@@ -94,7 +94,7 @@ void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool do
   if(doOnlyRecompute){
     //only used for testing in case all tasks should be recomputed
     recomputeFaultsID = faultsID;
-    redistributeFaultsID = std::vector<int>(0);
+    redistributeFaultsID = std::vector<size_t>(0);
   }
 
   if(failedRecovery){
@@ -208,8 +208,9 @@ int main(int argc, char** argv) {
     * also read in a list of levelvectors and coefficients from a file */
   DimType dim = cfg.get<DimType>("ct.dim");
   LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim), reduceCombinationDimsLmin(dim), reduceCombinationDimsLmax(dim);
-  IndexVector p(dim);
-  std::vector<BoundaryType> boundary(dim), hierarchizationDims(dim);
+  std::vector<int> p(dim);
+  std::vector<BoundaryType> boundary(dim);
+  std::vector<bool> hierarchizationDims(dim);
   combigrid::real dt;
   //time inteveral of 1 combination
   //only necessary if number of timesteps varies for each grid

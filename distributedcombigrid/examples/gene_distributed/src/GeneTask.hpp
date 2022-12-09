@@ -29,10 +29,10 @@ namespace combigrid {
 
 class GeneTask: public combigrid::Task {
 public:
-  GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+  GeneTask( DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
             LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
             real shat, real lx, int ky0_ind,
-            IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
+            std::vector<int> p = std::vector<int>(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
             IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true, size_t checkpointFrequency = 1, size_t offsetForDiagnostics = 0);
 
   GeneTask();
@@ -313,7 +313,7 @@ private:
   size_t checkpointFrequency_;
   /// offset for diagnostics numbering to avoid overwritting diagnostics from previous runs that are continued
   size_t offsetForDiagnostics_;
-  IndexVector p_;
+  std::vector<int> p_;
   /**
    * some Gene specific physical parameters
    */

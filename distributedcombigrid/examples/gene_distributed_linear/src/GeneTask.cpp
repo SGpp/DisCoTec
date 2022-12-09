@@ -12,7 +12,8 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <unistd.h>
 #include <fstream>
-#include "CombiGeneConverter.hpp"
+#include "../../gene_distributed/src/CombiGeneConverter.hpp"
+#include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include <math.h>
@@ -23,10 +24,10 @@ namespace combigrid
 {
 
 GeneTask::GeneTask( DimType dim, LevelVector& l,
-                    std::vector<bool>& boundary, real coeff, LoadModel* loadModel,
+                    std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel,
                     std::string& path, real dt, real combitime, size_t nsteps,
                     real shat, real lx, int ky0_ind,
-                    IndexVector p , FaultCriterion *faultCrit,
+                    std::vector<int> p , FaultCriterion *faultCrit,
                     IndexType numSpecies, bool GENE_Global, bool GENE_Linear)
     : Task( dim, l, boundary, coeff, loadModel,faultCrit),
       path_( path ),
@@ -422,13 +423,13 @@ GeneTask::saveCheckpoint( FullGrid<CombiDataType>& fg, const char* filename )
 // first make sure we have a valid fullgrid
 assert( fg.isGridCreated() );
 assert( fg.getDimension() == 6 );
-const std::vector<bool>& boundary = fg.returnBoundaryFlags();
-assert( boundary[0] == true ); //x
-assert( boundary[1] == false ); //y
-assert( boundary[2] == true ); // z
-assert( boundary[3] == true ); // v
-assert( boundary[4] == true ); // w
-assert( boundary[5] == false ); // nspec
+const auto& boundary = fg.returnBoundaryFlags();
+assert( boundary[0] == 2 ); //x
+assert( boundary[1] == 0 ); //y
+assert( boundary[2] == 2 ); // z
+assert( boundary[3] == 2 ); // v
+assert( boundary[4] == 2 ); // w
+assert( boundary[5] == 0 ); // nspec
 assert( fg.getLevels()[1] == 1 ); // y
 assert( fg.getLevels()[5] == 1 ); // nspec
 
@@ -622,8 +623,8 @@ void GeneTask::setDFG(){
     // some checks
     const IndexVector p( dfgVector_[species]->getParallelization().rbegin(),
                           dfgVector_[species]->getParallelization().rend() );
-    IndexVector tmp( dfgVector_[species]->getDimension() );
-    dfgVector_[species]->getPartitionCoords( tmp );
+    std::vector<int> tmp( dfgVector_[species]->getDimension() );
+    dfgVector_[species]->getCartesianUtils().getPartitionCoordsOfLocalRank( tmp );
 
     // get partition coords of the current process in the ordering as
     // the shape of the multi arrays, i.e. spec, w, v, z, y, x
@@ -753,8 +754,8 @@ void GeneTask::adaptBoundaryZKernel(MultiArrayRef6& sourceData, MultiArrayRef6& 
   // calculate offset and factor
     const IndexVector p( dfgVector_[species]->getParallelization().rbegin(),
                           dfgVector_[species]->getParallelization().rend() );
-    IndexVector tmp( dfgVector_[species]->getDimension() );
-    dfgVector_[species]->getPartitionCoords( tmp );
+    std::vector<int> tmp( dfgVector_[species]->getDimension() );
+    dfgVector_[species]->getCartesianUtils().getPartitionCoordsOfLocalRank( tmp );
 
     // get partition coords of the current process in the ordering as
     // the shape of the multi arrays, i.e. spec, w, v, z, y, x
@@ -893,9 +894,9 @@ void GeneTask::adaptBoundaryZglobal(int species){
   // everything in normal dfg notation here except MPI subarrays!
 
   // get parallelization and coordinates of process
-  const IndexVector& p = dfgVector_[species]->getParallelization();
-  IndexVector coords( dfgVector_[species]->getDimension() );
-  dfgVector_[species]->getPartitionCoords( coords );
+  const auto& p = dfgVector_[species]->getParallelization();
+  std::vector<int> coords( dfgVector_[species]->getDimension() );
+  dfgVector_[species]->getCartesianUtils().getPartitionCoordsOfLocalRank(coords);
 
   // x range of current process in global coordinates
   IndexVector lBounds( dfgVector_[species]->getLowerBounds() );
@@ -1091,7 +1092,7 @@ void GeneTask::adaptBoundaryZglobal(int species){
   else{
     coords[2] = 0;
   }
-  RankType r = dfgVector_[species]->getRank( coords );
+  RankType r = dfgVector_[species]->getCartesianUtils().getRankFromPartitionCoords(coords);
   if( sendingProc ){
     MPI_Isend( dfgVector_[species]->getData(), 1, mysubarray, r, 1000, dfgVector_[species]->getCommunicator(),
                &requestArray_[species]);
