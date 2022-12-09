@@ -3,8 +3,8 @@
 
 #include "boost/lexical_cast.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
-#include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
+#include "sgpp/distributedcombigrid/utils/PowerOfTwo.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 namespace combigrid {
