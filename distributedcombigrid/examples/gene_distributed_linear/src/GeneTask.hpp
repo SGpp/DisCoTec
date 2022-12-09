@@ -22,7 +22,7 @@
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
-#include "GeneLocalCheckpoint.hpp"
+#include "../../gene_distributed/src/GeneLocalCheckpoint.hpp"
 #include "sgpp/distributedcombigrid/fault_tolerance/FTUtils.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/MultiArray.hpp"
 
@@ -30,10 +30,10 @@ namespace combigrid {
 
 class GeneTask: public combigrid::Task {
 public:
-  GeneTask( DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+  GeneTask( DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
             LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
             real shat, real lx, int ky0_ind,
-            IndexVector p = IndexVector(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
+            std::vector<int> p = std::vector<int>(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
             IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);
 
   GeneTask();
@@ -283,7 +283,7 @@ private:
   size_t nsteps_;
   size_t stepsTotal_; //number of time-steps done so far (there might be multiple timesteps in between two combinations)
   size_t combiStep_; //number of combinations done so far
-  IndexVector p_;
+  std::vector<int> p_;
   /**
    * some Gene specific physical parameters
    */
