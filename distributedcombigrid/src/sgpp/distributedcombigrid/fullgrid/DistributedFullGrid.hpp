@@ -14,6 +14,7 @@
 #include "sgpp/distributedcombigrid/utils/IndexVector.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelSetUtils.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
+#include "sgpp/distributedcombigrid/utils/PowerOfTwo.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
