@@ -1,6 +1,6 @@
 CC=$(CC)
 FC=$(FC)
-CFLAGS=-std=c++11 -O3 -DNDEBUG -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -DUNIFORMDECOMPOSITION -DTIMING
+CFLAGS=-std=c++17 -O3 -DNDEBUG -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -fpic -DUNIFORMDECOMPOSITION -DTIMING
 FFLAGS=-std=f2008 -ffree-line-length-none   -fstack-arrays -O3 -fbacktrace -Werror=intrinsics-std -Wall -pedantic -Wconversion-extra -Wuninitialized   -fcheck=array-temps,bounds,do,pointer,recursion   -ffpe-trap=invalid,zero,overflow -Wno-unused-function -Wno-unused-dummy-argument  -fopenmp -DUNIFORMDECOMPOSITION -DTIMING
 
 SGPP_DIR=$(SGPP)

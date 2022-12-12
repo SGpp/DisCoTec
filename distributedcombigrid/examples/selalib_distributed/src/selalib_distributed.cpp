@@ -103,7 +103,7 @@ void setCheckpointRestart(std::string basename, std::vector<LevelVector> levels,
   }
 }
 
-bool adaptParameterFile(std::string infilename, std::string outfilename, IndexVector resolution,
+bool adaptParameterFile(std::string infilename, std::string outfilename, std::vector<int> resolution,
                         std::vector<int> p, size_t nsteps, double dt, size_t n_diagnostics) {
   assert(resolution.size() == p.size());
   std::ifstream inputFileStream(infilename, std::ifstream::in);
@@ -121,7 +121,7 @@ bool adaptParameterFile(std::string infilename, std::string outfilename, IndexVe
   return true;
 }
 
-bool adaptParameterFileFirstFolder(std::string basename, IndexVector resolution,
+bool adaptParameterFileFirstFolder(std::string basename, std::vector<int> resolution,
                                    std::vector<int> p, size_t nsteps, double dt, size_t n_diagnostics,
                                    std::string suffix = "") {
   std::string baseFolder = "./" + basename;
@@ -148,7 +148,7 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, st
       throw std::runtime_error("Cannot create destination directory " + taskFolder);
     }
     // adapt each parameter file
-    IndexVector resolutions;
+    std::vector<int> resolutions;
     for (DimType d = 0; d < levels[0].size(); ++d) {
       resolutions.push_back(static_cast<IndexType>(std::pow(2, levels[i][d])));
     }
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
     LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim), reduceCombinationDimsLmin(dim),
         reduceCombinationDimsLmax(dim);
     std::vector<int> p(dim), resolution(dim);
-    std::vector<bool>, hierarchizationDims(dim);
+    std::vector<bool> hierarchizationDims(dim);
     std::vector<BoundaryType> boundary(dim);
     combigrid::real dt;
     // time inteveral of 1 combination
