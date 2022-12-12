@@ -8,7 +8,6 @@
 #include "sgpp/distributedcombigrid/manager/CombiParameters.hpp"
 #include "sgpp/distributedcombigrid/manager/ProcessGroupSignals.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPIUtils.hpp"
-#include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGrid.hpp"
 #include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
@@ -475,51 +474,6 @@ void ProcessGroupWorker::ready() {
     }
   }
 }
-/* not supported anymore
-void ProcessGroupWorker::combine() {
-  assert( false && "not properly implemented" );
-
-  // early exit if no tasks available
-  // todo: doesnt work, each pgrouproot must call reduce function
-  assert(tasks_.size() > 0);
-
-  assert( combiParametersSet_ );
-  DimType dim = combiParameters_.getDim();
-  const LevelVector& lmin = combiParameters_.getLMin();
-  const LevelVector& lmax = combiParameters_.getLMax();
-  const std::vector<BoundaryType>& boundary = combiParameters_.getBoundary();
-
-  // erzeug dsg
-  DistributedSparseGrid<CombiDataType> dsg(dim, lmax, lmin, boundary,
-theMPISystem()->getLocalComm());
-
-  for (Task* t : tasks_) {
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-    // hierarchize dfg
-    DistributedHierarchization::hierarchize<CombiDataType>(dfg);
-
-    // lokales reduce auf sg ->
-    //CombiCom::distributedLocalReduce<CombiDataType>( dfg, dsg, combiParameters_.getCoeff(
-t->getID() ) );
-  }
-
-  // globales reduce
-  CombiCom::distributedGlobalReduce(dsg);
-
-  for (Task* t : tasks_) {
-    // get handle to dfg
-    DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid();
-
-    // lokales scatter von dsg auf dfg
-    //CombiCom::distributedLocalScatter<CombiDataType>( dfg, dsg );
-
-    // dehierarchize dfg
-    DistributedHierarchization::dehierarchize<CombiDataType>(dfg);
-  }
-} */
-
-
 
 
 /**
