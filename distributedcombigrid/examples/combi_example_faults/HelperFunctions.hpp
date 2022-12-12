@@ -61,9 +61,10 @@ void createCommunicators( size_t ngroup, size_t nprocs, int globalID, int global
   }
 }
 
-void readParameterFile(const std::string& fileName, size_t &ngroup, size_t &nprocs, DimType &dim, LevelVector &lmin, LevelVector &lmax, LevelVector &leval,
-    IndexVector &p, size_t &ncombi, combigrid::real &dt, size_t &nsteps, FaultsInfo &faultsInfo){
-
+void readParameterFile(const std::string &fileName, size_t &ngroup, size_t &nprocs, DimType &dim,
+                       LevelVector &lmin, LevelVector &lmax, LevelVector &leval,
+                       std::vector<int> &p, size_t &ncombi, combigrid::real &dt, size_t &nsteps,
+                       FaultsInfo &faultsInfo) {
   boost::property_tree::ptree cfg;
   boost::property_tree::ini_parser::read_ini(fileName, cfg);
 

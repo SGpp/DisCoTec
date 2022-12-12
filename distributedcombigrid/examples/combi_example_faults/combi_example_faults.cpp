@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
         std::cout << "failed group detected at combi iteration " << i-1<< std::endl;
 //        manager.recover();
 
-        std::vector<int> faultsID;
+        std::vector<size_t> faultsID;
 
         //vector with pointers to managers of failed groups
         std::vector< ProcessGroupManagerID> groupFaults;
@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
 
         /* call optimization code to find new coefficients */
         const std::string prob_name = "interpolation based optimization";
-        std::vector<int> redistributeFaultsID, recomputeFaultsID;
+        std::vector<size_t> redistributeFaultsID, recomputeFaultsID;
         manager.recomputeOptimumCoefficients(prob_name, faultsID,
                                              redistributeFaultsID, recomputeFaultsID);
 
