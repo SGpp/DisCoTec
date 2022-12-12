@@ -4,7 +4,6 @@
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/mpi/MPISystem.hpp"
-#include "sgpp/distributedcombigrid/sparsegrid/DistributedSparseGrid.hpp"
 #include "sgpp/distributedcombigrid/utils/Stats.hpp"
 
 namespace combigrid {
@@ -23,9 +22,6 @@ class CombiCom {
   // reduced fg will be available on all member of comm
   template <typename FG_ELEMENT>
   static void FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm);
-
-  template <typename FG_ELEMENT>
-  static void distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg);
 
   template <typename FG_ELEMENT>
   static void distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg);
@@ -71,44 +67,6 @@ void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
 
   MPI_Allreduce(MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()), dtype, MPI_SUM,
                 comm);
-}
-
-// sparse grid reduce
-template <typename FG_ELEMENT>
-void CombiCom::distributedGlobalReduce(DistributedSparseGrid<FG_ELEMENT>& dsg) {
-  // get rank in pgroup communicator.
-  RankType lrank = getCommRank(dsg.getCommunicator());
-
-  std::vector<MPI_Request> myrequests;
-
-  for (size_t i = 0; i < dsg.getNumSubspaces(); ++i) {
-    // skip all subspaces which are not stored on lrank
-    if (dsg.getRank(i) != lrank) continue;
-
-    MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
-
-    // make sure that subspace is initialized. not all subspaces will be initialized
-    // after local reduce. this will not overwrite an already initialized subspace
-    dsg.initSubspace(i, 0.0);
-
-    FG_ELEMENT* buf = dsg.getData(i);
-    int bsize = int(dsg.getDataSize(i));
-    MPI_Datatype dtype =
-        abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-
-    // mpi allreduce
-    if (USE_NONBLOCKING_MPI_COLLECTIVE) {
-      MPI_Request request;
-      MPI_Iallreduce(MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm, &request);
-      myrequests.push_back(request);
-    } else {
-      MPI_Allreduce(MPI_IN_PLACE, buf, bsize, dtype, MPI_SUM, mycomm);
-    }
-  }
-
-  if (USE_NONBLOCKING_MPI_COLLECTIVE) {
-    MPI_Waitall(int(myrequests.size()), &myrequests[0], MPI_STATUSES_IGNORE);
-  }
 }
 
 template <typename FG_ELEMENT>
