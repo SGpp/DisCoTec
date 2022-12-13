@@ -10,21 +10,10 @@ project("DisCoTec"
         LANGUAGES CXX
         DESCRIPTION "TODO")
 
-
-option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" OFF)
-option(DISCOTEC_GENE "Build for GENE (as task library)" OFF)
-option(DISCOTEC_TIMING "Build with high-resolution timing" ON)
-option(DISCOTEC_TEST "Build with Bost tests" ON) #TODO: sinvoller Bescreiben oder in Boost auslagern
-option(DISCOTEC_OPENMP "Parallelize with OpenMP" OFF)
-option(DISCOTEC_HDF5 "Interpolation output with HDF5" ON)
-option(DISCOTEC_DEBUG "Build with assertions and debug symbols" OFF) #TODO: Move to build type
-
-
 #TODO: find or fetch highfive if hdf5 is enabled ??
 #TODO: find or fetch GENE if enabled
 #TODO: find or fetch hdf5 if is enabled
 
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)
 
 set (DISCOTEC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/combicom/CombiCom.cpp
@@ -92,20 +81,46 @@ target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../) #
 find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
-include(ExternalProject)
-
-ExternalProject_Add( #TODO: first search for glpk
-    glpk
-    URL http://ftp.gnu.org/gnu/glpk/glpk-4.55.tar.gz # TODO: use newer and not hardcoded Version
-    DOWNLOAD_EXTRACT_TIMESTAMP false
-    CONFIGURE_COMMAND <SOURCE_DIR>/configure --prefix=<INSTALL_DIR>
-    BUILD_COMMAND make -j install # TODO: get thread count and build parallel
-    )
-add_dependencies(discotec glpk)
+find_package(Boost REQUIRED COMPONENTS serialization headers) #TODO: add all required components
+target_include_directories(discotec PUBLIC Boost::headers)
+target_link_libraries(discotec PRIVATE Boost::serialization)
+include(FetchContent)
 
 
-ExternalProject_Get_property(glpk INSTALL_DIR) # TODO: better
-target_include_directories(discotec PUBLIC ${INSTALL_DIR}/include)
-target_link_libraries(discotec PUBLIC ${INSTALL_DIR}/lib/libglpk.a)
-find_package(Boost REQUIRED COMPONENTS serialization)
-target_link_libraries(discotec PUBLIC ${Boost_LIBRARIES})
+if(DISCOTEC_TIMING)
+    target_compile_definitions(discotec PUBLIC TIMING)
+endif()
+
+if(DISCOTEC_HDF5)
+    find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True)
+    if(HDF5_FOUND AND HDF5_IS_PARALLEL)
+        message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
+        #TODO: handle
+    else()
+        message(WARNING "HDF5 not found, building own HDF5!")
+        FetchContent_Declare(
+                HDF5
+                HDF5_ENABLE_PARALLEL=ON
+                CMAKE_BUILD_TYPE:STRING=Release
+                BUILD_SHARED_LIBS:BOOL=OFF
+                BUILD_TESTING:BOOL=OFF
+                DHDF5_BUILD_TOOLS:BOOL=OFF
+                TEST_SHELL_SCRIPTS:BOOL=OFF
+                GIT_REPOSITORY git@github.com:HDFGroup/hdf5.git
+                GIT_TAG        hdf5-1_12_0)
+        FetchContent_MakeAvailable(HDF5)
+    endif()
+    target_link_libraries(discotec PUBLIC ${HDF5_CXX_LIBRARIES})
+endif()
+
+FetchContent_Declare(
+        glpk
+        URL http://ftp.gnu.org/gnu/glpk/glpk-4.55.tar.gz # TODO: use newer and not hardcoded Version
+)
+FetchContent_MakeAvailable(glpk)
+execute_process(COMMAND ${glpk_SOURCE_DIR}/configure --prefix=${glpk_BINARY_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND make -j ${nproc} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND make install OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${glpk_BINARY_DIR})
+target_include_directories(discotec PUBLIC ${glpk_BINARY_DIR}/include)
+target_link_libraries(discotec PUBLIC ${glpk_BINARY_DIR}/lib/libglpk.a)
