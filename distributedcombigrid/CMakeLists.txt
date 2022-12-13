@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 
-project("DisCoTec"
+project("DisCoTec main project"
         VERSION 0.1.0
         LANGUAGES CXX
         DESCRIPTION "TODO")
@@ -19,23 +19,7 @@ endif()
 
 
 
-option(DISCOTEC_GENE "Build for GENE (as task library)" OFF)
-option(DISCOTEC_TIMING "Build with high-resolution timing" ON) # Done
-option(DISCOTEC_OPENMP "Parallelize with OpenMP" OFF)
 
-option(DISCOTEC_HDF5 "Interpolation output with HDF5" OFF) # ON
-
-
-option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" OFF)
-if(DISCOTEC_ENABLEFT)
-    # TODO: package handeling
-    add_compile_definitions(ENABLEFT)
-endif()
-
-option(DISCOTEC_DEBUG "Build with assertions and debug symbols" OFF) #TODO: Move to build type
-if(DISCOTEC_DEBUG)
-    add_compile_definitions(DEBUG_OUTPUT) #TODO: Add only to specific targets if they are sorted
-endif()
 
 
 

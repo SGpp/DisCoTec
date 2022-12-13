@@ -10,9 +10,9 @@ project("DisCoTec"
         LANGUAGES CXX
         DESCRIPTION "TODO")
 
-#TODO: find or fetch highfive if hdf5 is enabled ??
+
+
 #TODO: find or fetch GENE if enabled
-#TODO: find or fetch hdf5 if is enabled
 
 
 set (DISCOTEC_SOURCES
@@ -84,20 +84,36 @@ target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 find_package(Boost REQUIRED COMPONENTS serialization headers) #TODO: add all required components
 target_include_directories(discotec PUBLIC Boost::headers)
 target_link_libraries(discotec PRIVATE Boost::serialization)
+
 include(FetchContent)
 
+FetchContent_Declare(
+        glpk
+        URL http://ftp.gnu.org/gnu/glpk/glpk-4.55.tar.gz # TODO: use newer and not hardcoded Version
+)
+FetchContent_MakeAvailable(glpk)
+execute_process(COMMAND ${glpk_SOURCE_DIR}/configure --prefix=${glpk_BINARY_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND make -j ${nproc} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND make install OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${glpk_BINARY_DIR})
+target_include_directories(discotec PUBLIC ${glpk_BINARY_DIR}/include)
+target_link_libraries(discotec PUBLIC ${glpk_BINARY_DIR}/lib/libglpk.a)
 
+
+
+option(DISCOTEC_TIMING "Build with high-resolution timing" ON)
 if(DISCOTEC_TIMING)
     target_compile_definitions(discotec PUBLIC TIMING)
 endif()
 
+option(DISCOTEC_HDF5 "Interpolation output with HDF5" ON) # ON
 if(DISCOTEC_HDF5)
+    #TODO: find or fetch highfive if hdf5 is enabled ??
     find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True)
     if(HDF5_FOUND AND HDF5_IS_PARALLEL)
         message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
-        #TODO: handle
     else()
-        message(WARNING "HDF5 not found, building own HDF5!")
+        message(WARNING "parallel HDF5 not found, building own HDF5!")
         FetchContent_Declare(
                 HDF5
                 HDF5_ENABLE_PARALLEL=ON
@@ -113,19 +129,30 @@ if(DISCOTEC_HDF5)
     target_link_libraries(discotec PUBLIC ${HDF5_CXX_LIBRARIES})
 endif()
 
-FetchContent_Declare(
-        glpk
-        URL http://ftp.gnu.org/gnu/glpk/glpk-4.55.tar.gz # TODO: use newer and not hardcoded Version
-)
-FetchContent_MakeAvailable(glpk)
-execute_process(COMMAND ${glpk_SOURCE_DIR}/configure --prefix=${glpk_BINARY_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
-execute_process(COMMAND make -j ${nproc} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
-execute_process(COMMAND make install OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${glpk_BINARY_DIR})
-target_include_directories(discotec PUBLIC ${glpk_BINARY_DIR}/include)
-target_link_libraries(discotec PUBLIC ${glpk_BINARY_DIR}/lib/libglpk.a)
 
 option(DISCOTEC_UNIFORMDECOMPOSITION "Use uniform decomposition" ON) # TODO: @polinta: does not compile if off
 if(DISCOTEC_UNIFORMDECOMPOSITION)
     target_compile_definitions(discotec PUBLIC UNIFORMDECOMPOSITION) # has to be PUBLIC for tests, rename to DISCOTEC_UNIFORMDECOMPOSITION?
+endif()
+option(DISCOTEC_GENE "Build for GENE (as task library)" OFF) #TODO: handle
+if(DISCOTEC_GENE)
+    message(FATAL_ERROR "Building with GENE is not supported yet")
+endif()
+
+option(DISCOTEC_OPENMP "Parallelize with OpenMP" OFF) # TODO: handle
+if(DISCOTEC_OPENMP)
+    find_package(OpenMP REQUIRED)
+    target_link_libraries(discotec PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+
+option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" OFF)
+if(DISCOTEC_ENABLEFT)
+    # TODO: package handeling
+    add_compile_definitions(ENABLEFT)
+endif()
+
+option(DISCOTEC_DEBUG "Build with assertions and debug symbols" OFF) #TODO: Move to build type
+if(DISCOTEC_DEBUG)
+    add_compile_definitions(DEBUG_OUTPUT) #TODO: Add only to specific targets if they are sorted
 endif()
