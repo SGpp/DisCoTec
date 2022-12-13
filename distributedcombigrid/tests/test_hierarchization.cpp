@@ -207,14 +207,15 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   LevelVector lone(dim, 1);  // cannot use lmin 0 in dsgu's constructor
   auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<FG_ELEMENT>>(
       new DistributedSparseGridUniform<FG_ELEMENT>(dim, dfg.getLevels(), lone, comm));
-  dfg.registerUniformSG(*uniDSG);
+  uniDSG->registerDistributedFullGrid(dfg);
   // TODO also cannot use level 0 to register dfg -- problem!
   auto dfgOne = std::unique_ptr<DistributedFullGrid<FG_ELEMENT>>(
       new DistributedFullGrid<FG_ELEMENT>(dim, lone, comm, boundary, procs));
-  dfgOne->registerUniformSG(*uniDSG);
+  uniDSG->registerDistributedFullGrid(*dfgOne);
+  uniDSG->setZero();
   BOOST_TEST_CHECKPOINT("registered sparse grid");
 
-  dfg.addToUniformSG(*uniDSG, 1.);
+  uniDSG->addDistributedFullGrid(dfg, 1.);
   dfgOne->extractFromUniformSG(*uniDSG);
 
   // TODO extract boundary grid lvl 1 to lvl 0 for now
@@ -550,6 +551,59 @@ void checkHierarchizationParaboloid(LevelVector& levels, std::vector<int>& procs
 }
 
 BOOST_FIXTURE_TEST_SUITE(hierarchization, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(240))
+
+BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
+  std::vector<int> procs = {1, 4, 1, 2, 1, 1};
+  auto dimensionality = static_cast<DimType>(procs.size());
+  LevelVector levels = {1, 10, 1, 6, 1, 1};
+  LevelVector lzero(dimensionality, 0);
+  LevelVector lhalf = levels;
+  std::transform(lhalf.begin(), lhalf.end(), lhalf.begin(), [](int i) { return i / 2; });
+  std::vector<std::vector<IndexType>> remoteKeysHierarchization(3);
+  std::vector<std::vector<IndexType>> remoteKeysDehierarchization(3);
+  std::vector<std::vector<IndexType>> remoteKeysAll(3);
+  for (BoundaryType b : std::vector<BoundaryType>({0, 1, 2})) {
+    std::vector<BoundaryType> boundary(dimensionality, b);
+    CommunicatorType comm =
+        TestHelper::getComm(procs, std::vector<int>(dimensionality, b == 1 ? 1 : 0));
+    if (comm != MPI_COMM_NULL) {
+      DimType d = 3;
+      auto lmin = lzero;
+      DistributedFullGrid<std::complex<double>> dfg(dimensionality, levels, comm, boundary, procs,
+                                                    false);
+      // exchange data
+      std::vector<RemoteDataContainer<std::complex<double>>> remoteDataHierarchization;
+      exchangeData1d(dfg, d, remoteDataHierarchization, lmin[d]);
+      BOOST_CHECK((remoteDataHierarchization.size() == 0) || (procs[d] > 1));
+      for (const auto& r : remoteDataHierarchization) {
+        remoteKeysHierarchization[b].push_back(r.getKeyIndex());
+      }
+      // std::cout << " rank " << dfg.getRank() << " remoteDataHierarchization " <<
+      // remoteKeysHierarchization[b] << std::endl;
+
+      std::vector<RemoteDataContainer<std::complex<double>>> remoteDataDehierarchization;
+      exchangeData1dDehierarchization(dfg, d, remoteDataDehierarchization, lmin[d]);
+      BOOST_CHECK((remoteDataDehierarchization.size() == 0) || (procs[d] > 1));
+      // more data may need to be exchanged for dehierarchization
+      BOOST_CHECK_GE(remoteDataDehierarchization.size(), remoteDataHierarchization.size());
+      for (const auto& r : remoteDataDehierarchization) {
+        remoteKeysDehierarchization[b].push_back(r.getKeyIndex());
+      }
+      // std::cout << " rank " << dfg.getRank() << " remoteDataDehierarchization " <<
+      // remoteKeysDehierarchization[b] << std::endl;
+
+      std::vector<RemoteDataContainer<std::complex<double>>> remoteDataAll;
+      exchangeAllData1d(dfg, d, remoteDataAll);
+      BOOST_CHECK((procs[d] == 1 && remoteDataAll.size() == 0) ||
+                  (procs[d] > 1 && remoteDataAll.size() > 0));
+      if (procs[d] > 1) {
+        // check that all indices from other ranks along the pole are present
+        BOOST_CHECK_EQUAL(remoteDataAll.size(), dfg.getGlobalSizes()[d] - dfg.getLocalSizes()[d]);
+      }
+      MPI_Barrier(comm);
+    }
+  }
+}
 
 // with boundary
 // isotropic
