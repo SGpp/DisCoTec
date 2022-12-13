@@ -23,12 +23,4 @@ endif()
 
 
 
-#USE_NON_BLOCKING_COLLECTIVES #wird nirgends in SCONS definiert also ka wann definieren
-#ALT_LEVEL_VECTOR #wird nirgends in SCONS definiert also ka wann definieren
-#HAVE_HIGHFIVE #wird nirgends in SCONS definiert also ka wann definieren
-#USE_VTK
-#SIMFTMPI
-#USENONBLOCKINGMPICOLLECTIVE
-#OMITREADYSIGNAL
-#UNIFORMDECOMPOSITION
-#ISGENE
+

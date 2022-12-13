@@ -2,13 +2,13 @@
 #ifndef VTK_HPP_
 #define VTK_HPP_
 
-#include <vtk/vtkSmartPointer.h>
-#include <vtk/vtkImageData.h>
-#include <vtk/vtkPointData.h>
-#include <vtk/vtkDoubleArray.h>
-#include <vtk/vtkNew.h>
-#include <vtk/vtkXMLPImageDataWriter.h>
-#include <vtk/vtkXMLImageDataWriter.h>
+#include <vtkSmartPointer.h>
+#include <vtkImageData.h>
+#include <vtkPointData.h>
+#include <vtkDoubleArray.h>
+#include <vtkNew.h>
+#include <vtkXMLPImageDataWriter.h>
+#include <vtkXMLImageDataWriter.h>
 #include <boost/property_tree/xml_parser.hpp>
 #include "sgpp/distributedcombigrid/fullgrid/DistributedFullGrid.hpp"
 

@@ -14,6 +14,7 @@ project("DisCoTec"
 
 #TODO: find or fetch GENE if enabled
 
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
 set (DISCOTEC_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/combicom/CombiCom.cpp
@@ -77,6 +78,7 @@ set (DISCOTEC_SOURCES
 )
 
 add_library(discotec ${DISCOTEC_SOURCES})
+target_compile_features(discotec PRIVATE cxx_std_17)
 target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../) #TODO: fix paths
 find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
@@ -107,6 +109,8 @@ if(DISCOTEC_TIMING)
 endif()
 
 option(DISCOTEC_HDF5 "Interpolation output with HDF5" ON) # ON
+include(CMakeDependentOption)
+cmake_dependent_option(DISCOTEC_USE_HIGHFIVE "Use HighFive for HDF5" ON DISCOTEC_HDF5 OFF)
 if(DISCOTEC_HDF5)
     #TODO: find or fetch highfive if hdf5 is enabled ??
     find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True)
@@ -114,19 +118,56 @@ if(DISCOTEC_HDF5)
         message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
     else()
         message(WARNING "parallel HDF5 not found, building own HDF5!")
+
+
         FetchContent_Declare(
                 HDF5
-                HDF5_ENABLE_PARALLEL=ON
-                CMAKE_BUILD_TYPE:STRING=Release
-                BUILD_SHARED_LIBS:BOOL=OFF
-                BUILD_TESTING:BOOL=OFF
-                DHDF5_BUILD_TOOLS:BOOL=OFF
-                TEST_SHELL_SCRIPTS:BOOL=OFF
                 GIT_REPOSITORY git@github.com:HDFGroup/hdf5.git
-                GIT_TAG        hdf5-1_12_0)
+                GIT_TAG        hdf5-1_12_0
+                GIT_SHALLOW    TRUE
+                QUIET
+
+
+            )
+        set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE)
+        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+        set(HDF5_BUILD_FRAMEWORKS OFF CACHE BOOL "" FORCE)
+        set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+        set(HDF5_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+        set(TEST_SHELL_SCRIPTS OFF CACHE BOOL "" FORCE)
+        set(HDF5_TEST_TOOLS OFF CACHE BOOL "" FORCE)
+        set(HDF5_TEST_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(HDF5_TEST_SWMR OFF CACHE BOOL "" FORCE)
+        set(HDF5_TESTS_PARALLEL OFF CACHE BOOL "" FORCE)
+        set(HDF5_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(HDF5_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+        set(HDF5_BUILD_CPP_LIB OFF CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(HDF5)
     endif()
     target_link_libraries(discotec PUBLIC ${HDF5_CXX_LIBRARIES})
+
+    if (DISCOTEC_USE_HIGHFIVE)
+        find_package(HighFive)
+        if(HighFive_FOUND)
+            message(STATUS "Found HighFive: ${HighFive_INCLUDE_DIRS}")
+        else()
+            message(WARNING "HighFive not found, building own HighFive!")
+            FetchContent_Declare(
+                    HighFive
+                    GIT_REPOSITORY git@github.com:BlueBrain/HighFive.git
+                    GIT_TAG        v2.6.2
+                    GIT_SHALLOW    TRUE
+                    QUIET
+            )
+            set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "" FORCE)
+            set(HIGHFIVE_PARALLEL_HDF5 ON CACHE BOOL "" FORCE)
+            set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+            set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+            FetchContent_MakeAvailable(HighFive)
+        endif()
+        target_include_directories(discotec PUBLIC ${HighFive_INCLUDE_DIRS})
+        target_link_libraries(discotec PUBLIC HighFive)
+    endif ()
 endif()
 
 
@@ -139,7 +180,7 @@ if(DISCOTEC_GENE)
     message(FATAL_ERROR "Building with GENE is not supported yet")
 endif()
 
-option(DISCOTEC_OPENMP "Parallelize with OpenMP" OFF) # TODO: handle
+option(DISCOTEC_OPENMP "Parallelize with OpenMP" OFF)
 if(DISCOTEC_OPENMP)
     find_package(OpenMP REQUIRED)
     target_link_libraries(discotec PUBLIC OpenMP::OpenMP_CXX)
@@ -148,11 +189,35 @@ endif()
 
 option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" OFF)
 if(DISCOTEC_ENABLEFT)
-    # TODO: package handeling
     add_compile_definitions(ENABLEFT)
 endif()
 
 option(DISCOTEC_DEBUG "Build with assertions and debug symbols" OFF) #TODO: Move to build type
-if(DISCOTEC_DEBUG)
-    add_compile_definitions(DEBUG_OUTPUT) #TODO: Add only to specific targets if they are sorted
+if(DISCOTEC_DEBUG OR CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    target_compile_definitions(discotec PUBLIC DEBUG_OUTPUT)
 endif()
+
+option(DISCOTEC_USE_VTK "Use VTK for visualization" ON)
+if(DISCOTEC_USE_VTK)
+    enable_language(C)
+    find_package(VTK REQUIRED) # TODO: add minimum version and components
+    target_link_libraries(discotec PRIVATE ${VTK_LIBRARIES})
+    target_include_directories(discotec PRIVATE ${VTK_INCLUDE_DIRS})
+    target_compile_definitions(discotec PRIVATE USE_VTK)
+endif()
+
+option(DISCOTEC_OMITREADYSIGNAL "Omit ready signal" OFF)
+if(DISCOTEC_OMITREADYSIGNAL)
+    target_compile_definitions(discotec PRIVATE OMITREADYSIGNAL)
+endif()
+
+option(DISCOTEC_USENONBLOCKINGMPICOLLECTIVE "Use non-blocking MPI collective operations" OFF)
+if(DISCOTEC_USENONBLOCKINGMPICOLLECTIVE)
+    target_compile_definitions(discotec PRIVATE USENONBLOCKINGMPICOLLECTIVE)
+endif()
+
+#USE_NON_BLOCKING_COLLECTIVES #wird nirgends in SCONS definiert also ka wann definieren
+#ALT_LEVEL_VECTOR #wird nirgends in SCONS definiert also ka wann definieren
+#HAVE_HIGHFIVE #wird nirgends in SCONS definiert also ka wann definieren
+#SIMFTMPI #TODO: @polinta: what is this? in confg.hpp the same is set no matter if defined or not ...
+#ISGENE #TODO: handle if access to GENE
