@@ -59,11 +59,11 @@ typedef std::complex<real> complex;
  * to enable the uniform operations set this to true.
  * so far, only the uniform operations are properly implemented
  */
-//#ifdef UNIFORMDECOMPOSITION
+#ifdef UNIFORMDECOMPOSITION
 	constexpr bool uniformDecomposition = true;
-//#else
-//	constexpr bool uniformDecomposition = false; //TODO: @freifrauvonbleifrei  not compilable
-//#endif
+#else
+	constexpr bool uniformDecomposition = false;
+#endif
 /* switch on fault tolerance functionality */
 #ifdef ENABLEFT
 	constexpr bool ENABLE_FT = true; //TODO move this switch to a more sensible place

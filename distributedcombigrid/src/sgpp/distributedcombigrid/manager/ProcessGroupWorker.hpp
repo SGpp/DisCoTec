@@ -213,8 +213,6 @@ class ProcessGroupWorker {
   void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
 
   void fillDFGFromDSGU(Task* t);
-
-  void readDSGsFromDiskAndReduce(std::string filenamePrefixToRead); //TODO: @freifrauvonbleifrei  check why missing
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() {
