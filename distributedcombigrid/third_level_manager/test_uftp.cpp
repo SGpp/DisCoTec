@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
       std::cout << fullLevels.size()
                 << " component grids in full combination scheme; this system will run "
                 << levels.size() << " of them." << std::endl;
-      ctDOF = printCombiDegreesOfFreedom(levels);
+      ctDOF = printCombiDegreesOfFreedom(levels, boundary); // TODO: @polinta i added the boundary here, correct?
     }
   } else {
     // read in CT scheme, if applicable
@@ -308,7 +308,7 @@ int main(int argc, char** argv) {
       MASTER_EXCLUSIVE_SECTION {
         std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
                   << pgNumbers.size() << " tasks." << std::endl;
-        ctDOF = printCombiDegreesOfFreedom(levels);
+        ctDOF = printCombiDegreesOfFreedom(levels, boundary); // TODO: @polinta i added the boundary here, correct?
       }
       WORLD_MANAGER_EXCLUSIVE_SECTION{
         coeffs = scheme->getCoeffs();
@@ -323,7 +323,7 @@ int main(int argc, char** argv) {
       }
     }
     WORLD_MANAGER_EXCLUSIVE_SECTION {
-      ctDOF = printCombiDegreesOfFreedom(levels);
+      ctDOF = printCombiDegreesOfFreedom(levels, boundary); // TODO: @polinta i added the boundary here, correct?
     }
   }
   // create load model

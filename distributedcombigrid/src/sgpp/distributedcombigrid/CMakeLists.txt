@@ -124,3 +124,8 @@ execute_process(COMMAND make install OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${glpk_BINARY_DIR})
 target_include_directories(discotec PUBLIC ${glpk_BINARY_DIR}/include)
 target_link_libraries(discotec PUBLIC ${glpk_BINARY_DIR}/lib/libglpk.a)
+
+option(DISCOTEC_UNIFORMDECOMPOSITION "Use uniform decomposition" ON) # TODO: @polinta: does not compile if off
+if(DISCOTEC_UNIFORMDECOMPOSITION)
+    target_compile_definitions(discotec PUBLIC UNIFORMDECOMPOSITION) # has to be PUBLIC for tests, rename to DISCOTEC_UNIFORMDECOMPOSITION?
+endif()
