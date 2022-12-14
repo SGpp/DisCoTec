@@ -82,7 +82,7 @@ target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../) #
 find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
-set(FETCHCONTENT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/_deps CACHE PATH "Base directory for FetchContent downloads, don't forget to remove this")
+#set(FETCHCONTENT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/_deps CACHE PATH "Base directory for FetchContent downloads, don't forget to remove this")
 include(FetchContent)
 
 find_package(Boost COMPONENTS serialization headers PATHS ${CMAKE_CURRENT_SOURCE_DIR}/_deps/Boost-build) #TODO: add all required components
