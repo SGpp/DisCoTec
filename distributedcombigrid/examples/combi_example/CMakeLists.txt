@@ -6,13 +6,12 @@
 cmake_minimum_required(VERSION 3.18)
 
 project("DisCoTec distributed combi example"
-        VERSION 0.1.0
         LANGUAGES CXX
         DESCRIPTION "TODO")
 
 if (NOT TARGET discotec)
     add_subdirectory(../../src/sgpp/distributedcombigrid discotec)
-endif()
+endif ()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(combi_example combi_example.cpp)

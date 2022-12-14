@@ -1,13 +1,11 @@
 cmake_minimum_required(VERSION 3.0.0)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(thirdLevelManager Params.cpp Stats.cpp System.cpp  thirdLevelManager.cpp )
-add_executable(test_uftp Params.cpp Stats.cpp System.cpp  test_uftp.cpp )
+add_executable(thirdLevelManager Params.cpp Stats.cpp System.cpp thirdLevelManager.cpp)
+add_executable(test_uftp Params.cpp Stats.cpp System.cpp test_uftp.cpp)
 find_package(MPI REQUIRED)
 target_link_libraries(thirdLevelManager PUBLIC MPI::MPI_CXX)
 target_link_libraries(test_uftp PUBLIC MPI::MPI_CXX)
-#target_include_directories(thirdLevelManager PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../src)
-#target_include_directories(test_uftp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 
 target_link_libraries(thirdLevelManager PUBLIC discotec)
 target_link_libraries(test_uftp PUBLIC discotec)

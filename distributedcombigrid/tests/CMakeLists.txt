@@ -1,13 +1,12 @@
 cmake_minimum_required(VERSION 3.5) # TODO: check minimum version
 
 project("DisCoTec Tests"
-        VERSION 0.1.0
         LANGUAGES CXX
         DESCRIPTION "TODO")
 
 if (NOT TARGET discotec)
     add_subdirectory(../src/sgpp/distributedcombigrid discotec)
-endif()
+endif ()
 
 include(CTest)
 
