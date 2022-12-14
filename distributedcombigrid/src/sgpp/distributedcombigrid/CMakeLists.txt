@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.24)
 project("DisCoTec"
         VERSION 0.1.0
         LANGUAGES CXX
-        DESCRIPTION "TODO")
+        DESCRIPTION "DisCoTec is a code for running the distributed sparse grid combination technique with MPI parallelization.")
 
 
 #TODO: find or fetch GENE if enabled
@@ -82,7 +82,10 @@ target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../) #
 find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
-find_package(Boost COMPONENTS serialization headers) #TODO: add all required components
+set(FETCHCONTENT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/_deps CACHE PATH "Base directory for FetchContent downloads, don't forget to remove this")
+include(FetchContent)
+
+find_package(Boost COMPONENTS serialization headers PATHS ${CMAKE_CURRENT_SOURCE_DIR}/_deps/Boost-build) #TODO: add all required components
 if (Boost_FOUND)
     message(STATUS "Boost found")
 else ()
@@ -93,6 +96,7 @@ else ()
             GIT_TAG boost-1.80.0
             GIT_SHALLOW TRUE
             QUIET
+            OVERRIDE_FIND_PACKAGE
     )
     FetchContent_MakeAvailable(Boost)
 endif ()
@@ -100,7 +104,6 @@ endif ()
 target_include_directories(discotec PUBLIC Boost::headers)
 target_link_libraries(discotec PRIVATE Boost::serialization) #TODO: add all required components
 
-include(FetchContent)
 
 FetchContent_Declare(
         glpk
@@ -125,7 +128,7 @@ include(CMakeDependentOption)
 cmake_dependent_option(DISCOTEC_USE_HIGHFIVE "Use HighFive for HDF5" ON DISCOTEC_HDF5 OFF)
 if (DISCOTEC_HDF5)
     #TODO: find or fetch highfive if hdf5 is enabled ??
-    find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True)
+    find_package(HDF5 COMPONENTS CXX PATHS ${CMAKE_CURRENT_SOURCE_DIR}/_deps/hdf5-build HINTS HDF5_PREFER_PARALLEL=True )
     if (HDF5_FOUND AND HDF5_IS_PARALLEL)
         message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
     else ()
@@ -136,6 +139,7 @@ if (DISCOTEC_HDF5)
                 GIT_TAG hdf5-1_12_0
                 GIT_SHALLOW TRUE
                 QUIET
+                OVERRIDE_FIND_PACKAGE
         )
         set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE)
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -155,7 +159,7 @@ if (DISCOTEC_HDF5)
     target_link_libraries(discotec PUBLIC ${HDF5_CXX_LIBRARIES})
 
     if (DISCOTEC_USE_HIGHFIVE)
-        find_package(HighFive)
+        find_package(HighFive QUIET PATHS ${CMAKE_CURRENT_SOURCE_DIR}/_deps/highfive-build)
         if (HighFive_FOUND)
             message(STATUS "Found HighFive: ${HighFive_INCLUDE_DIRS}")
         else ()
@@ -166,6 +170,7 @@ if (DISCOTEC_HDF5)
                     GIT_TAG v2.6.2
                     GIT_SHALLOW TRUE
                     QUIET
+                    OVERRIDE_FIND_PACKAGE
             )
             set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "" FORCE)
             set(HIGHFIVE_PARALLEL_HDF5 ON CACHE BOOL "" FORCE)
@@ -195,7 +200,7 @@ if (DISCOTEC_OPENMP)
 endif ()
 
 
-option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" OFF)
+option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" ON)
 if (DISCOTEC_ENABLEFT)
     add_compile_definitions(ENABLEFT)
 endif ()
