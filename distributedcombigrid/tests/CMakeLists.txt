@@ -10,7 +10,6 @@ endif ()
 
 include(CTest)
 
-find_package(Boost COMPONENTS unit_test_framework REQUIRED)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 

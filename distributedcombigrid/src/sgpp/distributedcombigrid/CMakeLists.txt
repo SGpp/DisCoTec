@@ -83,11 +83,15 @@ find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
 include(FetchContent)
+option(DISCOTEC_BUILD_MISSING_DEPS "Automatic fetch and build first layer of missing dependencies" ON)
 
 find_package(Boost COMPONENTS serialization headers) #TODO: add all required components
 if (Boost_FOUND)
     message(STATUS "Boost found")
 else ()
+    if (NOT DISCOTEC_BUILD_MISSING_DEPS)
+        message(FATAL_ERROR "Boost not found")
+    endif ()
     message(WARNING "Boost not found. Building own Boost!")
     FetchContent_Declare(
             Boost
@@ -100,12 +104,13 @@ else ()
 endif ()
 
 target_include_directories(discotec PUBLIC Boost::headers)
-target_link_libraries(discotec PRIVATE Boost::serialization) #TODO: add all required components
+target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_options Boost::unit_test_framework) #TODO: add all required components
 
 
 FetchContent_Declare(
         glpk
         URL http://ftp.gnu.org/gnu/glpk/glpk-4.55.tar.gz # TODO: use newer and not hardcoded Version
+        QUIET
 )
 FetchContent_MakeAvailable(glpk)
 execute_process(COMMAND ${glpk_SOURCE_DIR}/configure --prefix=${glpk_BINARY_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
@@ -126,10 +131,13 @@ include(CMakeDependentOption)
 cmake_dependent_option(DISCOTEC_USE_HIGHFIVE "Use HighFive for HDF5" ON DISCOTEC_HDF5 OFF)
 if (DISCOTEC_HDF5)
     #TODO: find or fetch highfive if hdf5 is enabled ??
-    find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True)
+    find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True) # TODO: add minimum version and components
     if (HDF5_FOUND AND HDF5_IS_PARALLEL)
         message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
     else ()
+        if(NOT DISCOTEC_BUILD_MISSING_DEPS)
+            message(FATAL_ERROR "HDF5 not found")
+        endif()
         message(WARNING "Parallel HDF5 not found, building own HDF5!")
         FetchContent_Declare(
                 HDF5
@@ -156,10 +164,13 @@ if (DISCOTEC_HDF5)
     target_link_libraries(discotec PUBLIC ${HDF5_CXX_LIBRARIES})
 
     if (DISCOTEC_USE_HIGHFIVE)
-        find_package(HighFive QUIET)
+        find_package(HighFive QUIET)  # TODO: add minimum version and components
         if (HighFive_FOUND)
             message(STATUS "Found HighFive: ${HighFive_INCLUDE_DIRS}")
         else ()
+            if(NOT DISCOTEC_BUILD_MISSING_DEPS)
+                message(FATAL_ERROR "HighFive not found")
+            endif()
             message(WARNING "HighFive not found, building own HighFive!")
             FetchContent_Declare(
                     HighFive
@@ -213,6 +224,9 @@ if (DISCOTEC_USE_VTK)
     if (VTK_FOUND)
         message(STATUS "Found VTK: ${VTK_VERSION}")
     else ()
+        if(NOT DISCOTEC_BUILD_MISSING_DEPS)
+            message(FATAL_ERROR "VTK not found")
+        endif()
         message(WARNING "VTK not found, building own VTK!")
         FetchContent_Declare(
                 VTK
@@ -222,7 +236,7 @@ if (DISCOTEC_USE_VTK)
         )
         add_library(hdf5::hdf5 INTERFACE IMPORTED)
         set(VTK_USE_MPI ON CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(HDF5 VTK)
+        FetchContent_MakeAvailable(VTK)
     endif ()
 
 
