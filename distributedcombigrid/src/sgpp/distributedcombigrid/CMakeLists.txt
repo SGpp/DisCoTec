@@ -83,9 +83,23 @@ target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../) #
 find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
-find_package(Boost REQUIRED COMPONENTS serialization headers) #TODO: add all required components
+find_package(Boost COMPONENTS serialization headers) #TODO: add all required components
+if(Boost_FOUND)
+    message(STATUS "Boost found")
+else()
+    message(WARNING "Boost not found. Building own Boost!")
+    FetchContent_Declare(
+        Boost
+        GIT_REPOSITORY https://github.com/boostorg/boost.git
+        GIT_TAG        boost-1.80.0
+        GIT_SHALLOW     TRUE
+        QUIET
+    )
+    FetchContent_MakeAvailable(Boost)
+endif()
+
 target_include_directories(discotec PUBLIC Boost::headers)
-target_link_libraries(discotec PRIVATE Boost::serialization)
+target_link_libraries(discotec PRIVATE Boost::serialization) #TODO: add all required components
 
 include(FetchContent)
 
@@ -117,17 +131,13 @@ if(DISCOTEC_HDF5)
     if(HDF5_FOUND AND HDF5_IS_PARALLEL)
         message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
     else()
-        message(WARNING "parallel HDF5 not found, building own HDF5!")
-
-
+        message(WARNING "Parallel HDF5 not found, building own HDF5!")
         FetchContent_Declare(
                 HDF5
                 GIT_REPOSITORY git@github.com:HDFGroup/hdf5.git
                 GIT_TAG        hdf5-1_12_0
                 GIT_SHALLOW    TRUE
                 QUIET
-
-
             )
         set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE)
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
