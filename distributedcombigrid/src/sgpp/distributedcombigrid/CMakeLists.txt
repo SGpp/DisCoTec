@@ -11,71 +11,70 @@ project("DisCoTec"
         DESCRIPTION "TODO")
 
 
-
 #TODO: find or fetch GENE if enabled
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
-set (DISCOTEC_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/combicom/CombiCom.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiMinMaxScheme.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiThirdLevelScheme.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FaultCriterion.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FTUtils.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/LPOptimizationInterpolation.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/StaticFaults.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/WeibullFaults.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AverageOfLastNLoadModel.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AveragingLoadModel.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/LinearLoadModel.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessGroupManager.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessGroupWorker.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessManager.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPIMemory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPISystem.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_bitflips.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_ULFM.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_abort.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_allreduce.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_barrier.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_bcast.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_coords.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_create.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_rank.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_create.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_free.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_group.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_rank.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_set_errhandler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_size.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_split.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_finalize.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_get_count.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_iallreduce.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_ibarrier.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_ibcast.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_init.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_irecv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_isend.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_probe.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_recv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_reduce.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_request_free.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_send.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_wait.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_waitall.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/rescheduler/RebalancingTaskRescheduler.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/task/Task.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_level/NetworkUtils.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_level/ThirdLevelUtils.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelSetUtils.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelVector.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/MonteCarlo.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/utils/Stats.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/vtk/PlotFileWriter.cpp
-)
+set(DISCOTEC_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/combicom/CombiCom.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiMinMaxScheme.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiThirdLevelScheme.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FaultCriterion.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FTUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/LPOptimizationInterpolation.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/StaticFaults.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/WeibullFaults.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AverageOfLastNLoadModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AveragingLoadModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/LinearLoadModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessGroupManager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessGroupWorker.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessManager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPIMemory.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPISystem.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_bitflips.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_ULFM.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_abort.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_allreduce.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_barrier.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_bcast.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_coords.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_create.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_rank.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_create.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_free.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_group.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_rank.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_set_errhandler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_size.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_split.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_finalize.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_get_count.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_iallreduce.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_ibarrier.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_ibcast.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_init.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_irecv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_isend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_probe.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_recv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_reduce.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_request_free.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_send.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_wait.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_waitall.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/rescheduler/RebalancingTaskRescheduler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/task/Task.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_level/NetworkUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_level/ThirdLevelUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelSetUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelVector.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/MonteCarlo.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/Stats.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/vtk/PlotFileWriter.cpp
+        )
 
 add_library(discotec ${DISCOTEC_SOURCES})
 target_compile_features(discotec PRIVATE cxx_std_17)
@@ -84,19 +83,19 @@ find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
 find_package(Boost COMPONENTS serialization headers) #TODO: add all required components
-if(Boost_FOUND)
+if (Boost_FOUND)
     message(STATUS "Boost found")
-else()
+else ()
     message(WARNING "Boost not found. Building own Boost!")
     FetchContent_Declare(
-        Boost
-        GIT_REPOSITORY https://github.com/boostorg/boost.git
-        GIT_TAG        boost-1.80.0
-        GIT_SHALLOW     TRUE
-        QUIET
+            Boost
+            GIT_REPOSITORY https://github.com/boostorg/boost.git
+            GIT_TAG boost-1.80.0
+            GIT_SHALLOW TRUE
+            QUIET
     )
     FetchContent_MakeAvailable(Boost)
-endif()
+endif ()
 
 target_include_directories(discotec PUBLIC Boost::headers)
 target_link_libraries(discotec PRIVATE Boost::serialization) #TODO: add all required components
@@ -116,29 +115,28 @@ target_include_directories(discotec PUBLIC ${glpk_BINARY_DIR}/include)
 target_link_libraries(discotec PUBLIC ${glpk_BINARY_DIR}/lib/libglpk.a)
 
 
-
 option(DISCOTEC_TIMING "Build with high-resolution timing" ON)
-if(DISCOTEC_TIMING)
+if (DISCOTEC_TIMING)
     target_compile_definitions(discotec PUBLIC TIMING)
-endif()
+endif ()
 
 option(DISCOTEC_HDF5 "Interpolation output with HDF5" ON) # ON
 include(CMakeDependentOption)
 cmake_dependent_option(DISCOTEC_USE_HIGHFIVE "Use HighFive for HDF5" ON DISCOTEC_HDF5 OFF)
-if(DISCOTEC_HDF5)
+if (DISCOTEC_HDF5)
     #TODO: find or fetch highfive if hdf5 is enabled ??
     find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True)
-    if(HDF5_FOUND AND HDF5_IS_PARALLEL)
+    if (HDF5_FOUND AND HDF5_IS_PARALLEL)
         message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
-    else()
+    else ()
         message(WARNING "Parallel HDF5 not found, building own HDF5!")
         FetchContent_Declare(
                 HDF5
                 GIT_REPOSITORY git@github.com:HDFGroup/hdf5.git
-                GIT_TAG        hdf5-1_12_0
-                GIT_SHALLOW    TRUE
+                GIT_TAG hdf5-1_12_0
+                GIT_SHALLOW TRUE
                 QUIET
-            )
+        )
         set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE)
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
         set(HDF5_BUILD_FRAMEWORKS OFF CACHE BOOL "" FORCE)
@@ -153,20 +151,20 @@ if(DISCOTEC_HDF5)
         set(HDF5_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
         set(HDF5_BUILD_CPP_LIB OFF CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(HDF5)
-    endif()
+    endif ()
     target_link_libraries(discotec PUBLIC ${HDF5_CXX_LIBRARIES})
 
     if (DISCOTEC_USE_HIGHFIVE)
         find_package(HighFive)
-        if(HighFive_FOUND)
+        if (HighFive_FOUND)
             message(STATUS "Found HighFive: ${HighFive_INCLUDE_DIRS}")
-        else()
+        else ()
             message(WARNING "HighFive not found, building own HighFive!")
             FetchContent_Declare(
                     HighFive
                     GIT_REPOSITORY git@github.com:BlueBrain/HighFive.git
-                    GIT_TAG        v2.6.2
-                    GIT_SHALLOW    TRUE
+                    GIT_TAG v2.6.2
+                    GIT_SHALLOW TRUE
                     QUIET
             )
             set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "" FORCE)
@@ -174,57 +172,57 @@ if(DISCOTEC_HDF5)
             set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "" FORCE)
             set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "" FORCE)
             FetchContent_MakeAvailable(HighFive)
-        endif()
+        endif ()
         target_include_directories(discotec PUBLIC ${HighFive_INCLUDE_DIRS})
         target_link_libraries(discotec PUBLIC HighFive)
     endif ()
-endif()
+endif ()
 
 
 option(DISCOTEC_UNIFORMDECOMPOSITION "Use uniform decomposition" ON) # TODO: @polinta: does not compile if off
-if(DISCOTEC_UNIFORMDECOMPOSITION)
+if (DISCOTEC_UNIFORMDECOMPOSITION)
     target_compile_definitions(discotec PUBLIC UNIFORMDECOMPOSITION) # has to be PUBLIC for tests, rename to DISCOTEC_UNIFORMDECOMPOSITION?
-endif()
+endif ()
 option(DISCOTEC_GENE "Build for GENE (as task library)" OFF) #TODO: handle
-if(DISCOTEC_GENE)
+if (DISCOTEC_GENE)
     message(FATAL_ERROR "Building with GENE is not supported yet")
-endif()
+endif ()
 
 option(DISCOTEC_OPENMP "Parallelize with OpenMP" OFF)
-if(DISCOTEC_OPENMP)
+if (DISCOTEC_OPENMP)
     find_package(OpenMP REQUIRED)
     target_link_libraries(discotec PUBLIC OpenMP::OpenMP_CXX)
-endif()
+endif ()
 
 
 option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" OFF)
-if(DISCOTEC_ENABLEFT)
+if (DISCOTEC_ENABLEFT)
     add_compile_definitions(ENABLEFT)
-endif()
+endif ()
 
 option(DISCOTEC_DEBUG "Build with assertions and debug symbols" OFF) #TODO: Move to build type
-if(DISCOTEC_DEBUG OR CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+if (DISCOTEC_DEBUG OR CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     target_compile_definitions(discotec PUBLIC DEBUG_OUTPUT)
-endif()
+endif ()
 
 option(DISCOTEC_USE_VTK "Use VTK for visualization" ON)
-if(DISCOTEC_USE_VTK)
+if (DISCOTEC_USE_VTK)
     enable_language(C)
     find_package(VTK REQUIRED) # TODO: add minimum version and components
     target_link_libraries(discotec PRIVATE ${VTK_LIBRARIES})
     target_include_directories(discotec PRIVATE ${VTK_INCLUDE_DIRS})
     target_compile_definitions(discotec PRIVATE USE_VTK)
-endif()
+endif ()
 
 option(DISCOTEC_OMITREADYSIGNAL "Omit ready signal" OFF)
-if(DISCOTEC_OMITREADYSIGNAL)
+if (DISCOTEC_OMITREADYSIGNAL)
     target_compile_definitions(discotec PRIVATE OMITREADYSIGNAL)
-endif()
+endif ()
 
 option(DISCOTEC_USENONBLOCKINGMPICOLLECTIVE "Use non-blocking MPI collective operations" OFF)
-if(DISCOTEC_USENONBLOCKINGMPICOLLECTIVE)
+if (DISCOTEC_USENONBLOCKINGMPICOLLECTIVE)
     target_compile_definitions(discotec PRIVATE USENONBLOCKINGMPICOLLECTIVE)
-endif()
+endif ()
 
 #USE_NON_BLOCKING_COLLECTIVES #wird nirgends in SCONS definiert also ka wann definieren
 #ALT_LEVEL_VECTOR #wird nirgends in SCONS definiert also ka wann definieren
