@@ -85,7 +85,7 @@ target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 #set(FETCHCONTENT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/_deps CACHE PATH "Base directory for FetchContent downloads, don't forget to remove this")
 include(FetchContent)
 
-find_package(Boost COMPONENTS serialization headers PATHS ${CMAKE_CURRENT_SOURCE_DIR}/_deps/Boost-build) #TODO: add all required components
+find_package(Boost COMPONENTS serialization headers) #TODO: add all required components
 if (Boost_FOUND)
     message(STATUS "Boost found")
 else ()
@@ -128,7 +128,7 @@ include(CMakeDependentOption)
 cmake_dependent_option(DISCOTEC_USE_HIGHFIVE "Use HighFive for HDF5" ON DISCOTEC_HDF5 OFF)
 if (DISCOTEC_HDF5)
     #TODO: find or fetch highfive if hdf5 is enabled ??
-    find_package(HDF5 COMPONENTS CXX PATHS ${CMAKE_CURRENT_SOURCE_DIR}/_deps/hdf5-build HINTS HDF5_PREFER_PARALLEL=True )
+    find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True )
     if (HDF5_FOUND AND HDF5_IS_PARALLEL)
         message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
     else ()
@@ -159,7 +159,7 @@ if (DISCOTEC_HDF5)
     target_link_libraries(discotec PUBLIC ${HDF5_CXX_LIBRARIES})
 
     if (DISCOTEC_USE_HIGHFIVE)
-        find_package(HighFive QUIET PATHS ${CMAKE_CURRENT_SOURCE_DIR}/_deps/highfive-build)
+        find_package(HighFive QUIET )
         if (HighFive_FOUND)
             message(STATUS "Found HighFive: ${HighFive_INCLUDE_DIRS}")
         else ()
