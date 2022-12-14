@@ -82,7 +82,6 @@ target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../) #
 find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
-#set(FETCHCONTENT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/_deps CACHE PATH "Base directory for FetchContent downloads, don't forget to remove this")
 include(FetchContent)
 
 find_package(Boost COMPONENTS serialization headers) #TODO: add all required components
@@ -96,7 +95,6 @@ else ()
             GIT_TAG boost-1.80.0
             GIT_SHALLOW TRUE
             QUIET
-            OVERRIDE_FIND_PACKAGE
     )
     FetchContent_MakeAvailable(Boost)
 endif ()
@@ -128,7 +126,7 @@ include(CMakeDependentOption)
 cmake_dependent_option(DISCOTEC_USE_HIGHFIVE "Use HighFive for HDF5" ON DISCOTEC_HDF5 OFF)
 if (DISCOTEC_HDF5)
     #TODO: find or fetch highfive if hdf5 is enabled ??
-    find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True )
+    find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True)
     if (HDF5_FOUND AND HDF5_IS_PARALLEL)
         message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
     else ()
@@ -139,7 +137,6 @@ if (DISCOTEC_HDF5)
                 GIT_TAG hdf5-1_12_0
                 GIT_SHALLOW TRUE
                 QUIET
-                OVERRIDE_FIND_PACKAGE
         )
         set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE)
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -159,7 +156,7 @@ if (DISCOTEC_HDF5)
     target_link_libraries(discotec PUBLIC ${HDF5_CXX_LIBRARIES})
 
     if (DISCOTEC_USE_HIGHFIVE)
-        find_package(HighFive QUIET )
+        find_package(HighFive QUIET)
         if (HighFive_FOUND)
             message(STATUS "Found HighFive: ${HighFive_INCLUDE_DIRS}")
         else ()
@@ -170,7 +167,6 @@ if (DISCOTEC_HDF5)
                     GIT_TAG v2.6.2
                     GIT_SHALLOW TRUE
                     QUIET
-                    OVERRIDE_FIND_PACKAGE
             )
             set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "" FORCE)
             set(HIGHFIVE_PARALLEL_HDF5 ON CACHE BOOL "" FORCE)
@@ -213,7 +209,23 @@ endif ()
 option(DISCOTEC_USE_VTK "Use VTK for visualization" ON)
 if (DISCOTEC_USE_VTK)
     enable_language(C)
-    find_package(VTK REQUIRED) # TODO: add minimum version and components
+    find_package(VTK) # TODO: add minimum version and components
+    if (VTK_FOUND)
+        message(STATUS "Found VTK: ${VTK_VERSION}")
+    else ()
+        message(WARNING "VTK not found, building own VTK!")
+        FetchContent_Declare(
+                VTK
+                GIT_REPOSITORY git@github.com:Kitware/VTK.git
+                GIT_TAG v9.0.1
+                GIT_SHALLOW TRUE
+        )
+        add_library(hdf5::hdf5 INTERFACE IMPORTED)
+        set(VTK_USE_MPI ON CACHE BOOL "" FORCE)
+        FetchContent_MakeAvailable(HDF5 VTK)
+    endif ()
+
+
     target_link_libraries(discotec PRIVATE ${VTK_LIBRARIES})
     target_include_directories(discotec PRIVATE ${VTK_INCLUDE_DIRS})
     target_compile_definitions(discotec PRIVATE USE_VTK)
