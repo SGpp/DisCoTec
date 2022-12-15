@@ -597,7 +597,7 @@ void registerAllSubspacesInDSGU(DistributedSparseGridUniform<CombiDataType>& dsg
           new DistributedFullGrid<CombiDataType>(
               combiParameters.getDim(), level, dsgu.getCommunicator(), boundary,
               combiParameters.getParallelization(), false, dfgDecomposition));
-      uniDFG->registerUniformSG(dsgu);
+      dsgu.registerDistributedFullGrid(*uniDFG);
     } else {
       assert(levelSum(level) < highestLevelSum);
     }
@@ -660,8 +660,8 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
       MASTER_EXCLUSIVE_SECTION { std::cout << "register task " << t->getID() << std::endl; }
 #endif  // def DEBUG_OUTPUT
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
-      // set subspace sizes local
-      dfg.registerUniformSG(*(combinedUniDSGVector_[g]));
+      // set subspace sizes locally
+      combinedUniDSGVector_[g]->registerDistributedFullGrid(dfg);
     }
     // // we may clear the levels_ member of the sparse grids here to save memory
     // // but only if we need no new full grids initialized from the sparse grids!
@@ -718,7 +718,7 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
       // lokales reduce auf sg ->
-      dfg.addToUniformSG(*combinedUniDSGVector_[g], t->getCoefficient());
+      combinedUniDSGVector_[g]->addDistributedFullGrid(dfg, combiParameters_.getCoeff(t->getID()));
 #ifdef DEBUG_OUTPUT
       std::cout << "Combination: added task " << t->getID() << " with coefficient "
                 << t->getCoefficient() << "\n";

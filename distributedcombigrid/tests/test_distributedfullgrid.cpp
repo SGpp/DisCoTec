@@ -178,19 +178,20 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   }
   BOOST_TEST_CHECKPOINT("set function values");
 
-  // test addToUniformSG, extractFromUniformSG
+  // test addDistributedFullGrid, extractFromUniformSG
   LevelVector lmin = levels;
   LevelVector lmax = levels;
   for (DimType d = 0; d < dim; ++d) {
     lmax[d] *= 2;
   }
   DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, comm);
-  dfg.registerUniformSG(dsg);
+  dsg.registerDistributedFullGrid(dfg);
   BOOST_TEST_CHECKPOINT("register uniform sg");
-  dfg.addToUniformSG(dsg, 2.1);
-  BOOST_TEST_CHECKPOINT("add to uniform sg");
   DistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
-  dfg2.registerUniformSG(dsg);
+  dsg.registerDistributedFullGrid(dfg2);
+  dsg.setZero();
+  dsg.addDistributedFullGrid(dfg, 2.1);
+  BOOST_TEST_CHECKPOINT("add to uniform sg");
   dfg2.extractFromUniformSG(dsg);
   BOOST_TEST_CHECKPOINT("extract from uniform sg");
 
@@ -1077,6 +1078,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 2500);
 #endif
+    // go to the other extreme anisotropy by reversing the level vector
     std::reverse(fullGridLevel.begin(), fullGridLevel.end());
     std::reverse(boundary.begin(), boundary.end());
     decomposition[0] = {0, 1, 2, 3, 4};
@@ -1104,7 +1106,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    dfg.registerUniformSG(dsg);
+    dsg.registerDistributedFullGrid(dfg);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to register sparse grid: " << duration.count() << " milliseconds");
@@ -1114,7 +1116,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    otherDfg.registerUniformSG(dsg);
+    dsg.registerDistributedFullGrid(otherDfg);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to register sparse grid again: " << duration.count()
@@ -1131,6 +1133,47 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create sparse grid data: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 15000);
+#endif
+
+    MPI_Barrier(comm);
+    start = std::chrono::high_resolution_clock::now();
+    dsg.addDistributedFullGrid(dfg, 1.);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to add to sparse grid: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 15000);
+#endif
+
+    MPI_Barrier(comm);
+    start = std::chrono::high_resolution_clock::now();
+    dsg.addDistributedFullGrid(otherDfg, 1.);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to add to sparse grid again: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 15000);
+#endif
+
+    MPI_Barrier(comm);
+    start = std::chrono::high_resolution_clock::now();
+    dfg.extractFromUniformSG(dsg);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to extract from sparse grid: " << duration.count() << " milliseconds");
+#ifdef NDEBUG
+    BOOST_CHECK(duration.count() < 15000);
+#endif
+
+    MPI_Barrier(comm);
+    start = std::chrono::high_resolution_clock::now();
+    otherDfg.extractFromUniformSG(dsg);
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("time to extract from sparse grid again: " << duration.count()
+                                                                  << " milliseconds");
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 15000);
 #endif
