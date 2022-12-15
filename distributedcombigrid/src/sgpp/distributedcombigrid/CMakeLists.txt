@@ -85,7 +85,7 @@ target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 include(FetchContent)
 option(DISCOTEC_BUILD_MISSING_DEPS "Automatic fetch and build first layer of missing dependencies" ON)
 
-find_package(Boost COMPONENTS serialization headers) #TODO: add all required components
+find_package(Boost COMPONENTS serialization headers program_options unit_test_framework) #TODO: add all required components
 if (Boost_FOUND)
     message(STATUS "Boost found")
 else ()
@@ -93,7 +93,7 @@ else ()
         message(FATAL_ERROR "Boost not found")
     endif ()
     message(WARNING "Boost not found. Building own Boost!")
-    FetchContent_Declare(
+    FetchContent_Declare( # TODO: build only necessary components after determining necessary components
             Boost
             GIT_REPOSITORY https://github.com/boostorg/boost.git
             GIT_TAG boost-1.80.0
@@ -231,12 +231,21 @@ if (DISCOTEC_USE_VTK)
         FetchContent_Declare(
                 VTK
                 GIT_REPOSITORY git@github.com:Kitware/VTK.git
-                GIT_TAG v9.0.1
+                GIT_TAG v8.1.2
                 GIT_SHALLOW TRUE
         )
-        add_library(hdf5::hdf5 INTERFACE IMPORTED)
         set(VTK_USE_MPI ON CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(VTK)
+        set(VTK_USE_EXTERNAL ON CACHE BOOL "" FORCE)
+        set(VTK_MODULE_USE_EXTERNAL_VTK_hdf5 ON CACHE BOOL "" FORCE)
+
+        FetchContent_GetProperties(VTK)
+        if(NOT VTK_POPULATED)
+            FetchContent_Populate(VTK)
+            add_subdirectory(${VTK_SOURCE_DIR} ${VTK_BINARY_DIR})
+            set(VTK_DIR ${VTK_BINARY_DIR})
+            find_package(VTK REQUIRED)
+            include("${VTK_USE_FILE}")
+        endif()
     endif ()
 
 
