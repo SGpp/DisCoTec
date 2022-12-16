@@ -1288,10 +1288,6 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
     }
 
-    if (oneSidedBoundary) {
-      assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
-    }
-
     // copy pole back
     for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
   }
@@ -1435,10 +1431,6 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     DEHIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_n);
 
     if (oneSidedBoundary && !remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
-      assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
-    }
-
-    if (oneSidedBoundary) {
       assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
     }
 
