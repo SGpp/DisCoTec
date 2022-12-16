@@ -10,6 +10,7 @@ endif ()
 
 include(CTest)
 
+find_package(MPI REQUIRED)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -25,5 +26,5 @@ set_property(TARGET test_distributedcombigrid_boost PROPERTY CROSSCOMPILING_EMUL
 foreach (test_file ${UNIT_TESTS_SRC_FILES})
     get_filename_component(test_name ${test_file} NAME_WE)
     string(REPLACE "test_" "" test_name ${test_name})
-    add_test(NAME ${test_name} COMMAND {MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 9 ${CMAKE_CURRENT_SOURCE_DIR}/test_distributedcombigrid_boost --run_test=${test_name})
+    add_test(NAME ${test_name} COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 9 ${CMAKE_CURRENT_SOURCE_DIR}/test_distributedcombigrid_boost --run_test=${test_name})
 endforeach ()
