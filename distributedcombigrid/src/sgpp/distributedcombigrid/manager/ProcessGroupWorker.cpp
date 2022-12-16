@@ -1548,11 +1548,15 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult() {
 void ProcessGroupWorker::zeroDsgsData() {
   for (auto& dsg : combinedUniDSGVector_)
     dsg->setZero();
+  for (auto& dsg : extraUniDSGVector_)
+    dsg->setZero();
 }
 
 /** free dsgus space */
 void ProcessGroupWorker::deleteDsgsData() {
   for (auto& dsg : combinedUniDSGVector_)
+    dsg->deleteSubspaceData();
+  for (auto& dsg : extraUniDSGVector_)
     dsg->deleteSubspaceData();
 }
 
