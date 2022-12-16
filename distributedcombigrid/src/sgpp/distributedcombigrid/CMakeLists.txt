@@ -120,6 +120,20 @@ if (DISCOTEC_USE_LTO)
 endif ()
 #TODO: find or fetch GENE if enabled
 
+option(DISCOTEC_OMITREADYSIGNAL "Omit ready signal" OFF)
+if (DISCOTEC_OMITREADYSIGNAL)
+    target_compile_definitions(discotec PRIVATE OMITREADYSIGNAL)
+endif ()
+
+option(DISCOTEC_USENONBLOCKINGMPICOLLECTIVE "Use non-blocking MPI collective operations" OFF)
+if (DISCOTEC_USENONBLOCKINGMPICOLLECTIVE)
+    target_compile_definitions(discotec PRIVATE USENONBLOCKINGMPICOLLECTIVE)
+endif ()
+
+#USE_NON_BLOCKING_COLLECTIVES #TODO: @polinta wird nirgends in SCONS definiert also ka wann definieren
+#ALT_LEVEL_VECTOR #TODO: @polinta wird nirgends in SCONS definiert also ka wann definieren
+#SIMFTMPI #TODO: @polinta: what is this? in confg.hpp the same is set no matter if defined or not ...
+#ISGENE #TODO: handle if access to GENE
 
 # Handle dependencies
 find_package(MPI REQUIRED)
@@ -135,6 +149,7 @@ else ()
         message(FATAL_ERROR "Boost not found")
     endif ()
     message(WARNING "Boost not found. Building own Boost!")
+    list(APPEND CMAKE_MESSAGE_INDENT "Boost: ")
     FetchContent_Declare(
             Boost
             GIT_REPOSITORY https://github.com/boostorg/boost.git
@@ -147,6 +162,7 @@ else ()
     if (IS_DIRECTORY "${Boost_SOURCE_DIR}")
         set_property(DIRECTORY ${Boost_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
     endif ()
+    list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif ()
 
 target_include_directories(discotec PRIVATE Boost::headers)
@@ -183,6 +199,8 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
         if (NOT DISCOTEC_BUILD_MISSING_DEPS)
             message(FATAL_ERROR "HDF5 not found")
         endif ()
+        list(APPEND CMAKE_MESSAGE_INDENT "HDF5: ")
+
         message(WARNING "Parallel HDF5 not found, building own HDF5!")
         FetchContent_Declare(
                 HDF5
@@ -214,7 +232,7 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
         if (IS_DIRECTORY "${HDF5_SOURCE_DIR}")
             set_property(DIRECTORY ${HDF5_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
         endif ()
-
+        list(POP_BACK CMAKE_MESSAGE_INDENT)
 
     endif ()
 
@@ -228,6 +246,7 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
                 message(FATAL_ERROR "HighFive not found")
             endif ()
             message(WARNING "HighFive not found, building own HighFive!")
+            list(APPEND CMAKE_MESSAGE_INDENT "HighFive: ")
             FetchContent_Declare(
                     HighFive
                     GIT_REPOSITORY git@github.com:BlueBrain/HighFive.git
@@ -246,6 +265,8 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
         endif ()
         target_include_directories(discotec PRIVATE ${HighFive_INCLUDE_DIRS})
         target_link_libraries(discotec PRIVATE HighFive)
+        target_compile_definitions(discotec PRIVATE HAVE_HIGHFIVE)
+        list(POP_BACK CMAKE_MESSAGE_INDENT)
     endif ()
 endif ()
 
@@ -260,6 +281,7 @@ if (DISCOTEC_USE_VTK)
             message(FATAL_ERROR "VTK not found")
         endif ()
         message(WARNING "VTK not found, building own VTK!")
+        list(APPEND CMAKE_MESSAGE_INDENT "VTK: ")
         FetchContent_Declare(
                 VTK
                 GIT_REPOSITORY git@github.com:Kitware/VTK.git
@@ -283,20 +305,8 @@ if (DISCOTEC_USE_VTK)
         target_link_libraries(discotec PRIVATE VTK::CommonCore VTK::CommonDataModel VTK::IOParallelXML)
     endif ()
     target_compile_definitions(discotec PRIVATE USE_VTK)
+    list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif ()
 
-option(DISCOTEC_OMITREADYSIGNAL "Omit ready signal" OFF)
-if (DISCOTEC_OMITREADYSIGNAL)
-    target_compile_definitions(discotec PRIVATE OMITREADYSIGNAL)
-endif ()
 
-option(DISCOTEC_USENONBLOCKINGMPICOLLECTIVE "Use non-blocking MPI collective operations" OFF)
-if (DISCOTEC_USENONBLOCKINGMPICOLLECTIVE)
-    target_compile_definitions(discotec PRIVATE USENONBLOCKINGMPICOLLECTIVE)
-endif ()
 
-#USE_NON_BLOCKING_COLLECTIVES #wird nirgends in SCONS definiert also ka wann definieren
-#ALT_LEVEL_VECTOR #wird nirgends in SCONS definiert also ka wann definieren
-#HAVE_HIGHFIVE #wird nirgends in SCONS definiert also ka wann definieren
-#SIMFTMPI #TODO: @polinta: what is this? in confg.hpp the same is set no matter if defined or not ...
-#ISGENE #TODO: handle if access to GENE
