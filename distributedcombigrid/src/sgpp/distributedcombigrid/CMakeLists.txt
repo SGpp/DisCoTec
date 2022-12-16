@@ -99,8 +99,12 @@ else ()
             GIT_TAG boost-1.80.0
             GIT_SHALLOW TRUE
             QUIET
+            OVERRIDE_FIND_PACKAGE
     )
     FetchContent_MakeAvailable(Boost)
+    if(IS_DIRECTORY "${Boost_SOURCE_DIR}")
+    set_property(DIRECTORY ${Boost_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
+endif()
 endif ()
 
 target_include_directories(discotec PUBLIC Boost::headers)
@@ -113,8 +117,8 @@ FetchContent_Declare(
         QUIET
 )
 FetchContent_MakeAvailable(glpk)
-execute_process(COMMAND ${glpk_SOURCE_DIR}/configure --prefix=${glpk_BINARY_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
-execute_process(COMMAND make -j ${nproc} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND ${glpk_SOURCE_DIR}/configure --prefix=${glpk_BINARY_DIR} OUTPUT_QUIET ERROR_QUIET COMMAND_ERROR_IS_FATAL ANY)
+execute_process(COMMAND make -j ${nproc} OUTPUT_QUIET ERROR_QUIET COMMAND_ERROR_IS_FATAL ANY)
 execute_process(COMMAND make install OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${glpk_BINARY_DIR})
 target_include_directories(discotec PUBLIC ${glpk_BINARY_DIR}/include)
@@ -130,8 +134,12 @@ option(DISCOTEC_HDF5 "Interpolation output with HDF5" ON) # ON
 include(CMakeDependentOption)
 cmake_dependent_option(DISCOTEC_USE_HIGHFIVE "Use HighFive for HDF5" ON DISCOTEC_HDF5 OFF)
 if (DISCOTEC_HDF5)
-    #TODO: find or fetch highfive if hdf5 is enabled ??
-    find_package(HDF5 COMPONENTS CXX HINTS HDF5_PREFER_PARALLEL=True) # TODO: add minimum version and components
+    enable_language(C)
+
+    set(HDF5_PREFER_PARALLEL ON)
+#    find_package(HDF5) # TODO: add minimum version and components
+
+
     if (HDF5_FOUND AND HDF5_IS_PARALLEL)
         message(STATUS "Found HDF5: ${HDF5_CXX_LIBRARIES}")
     else ()
@@ -142,26 +150,40 @@ if (DISCOTEC_HDF5)
         FetchContent_Declare(
                 HDF5
                 GIT_REPOSITORY git@github.com:HDFGroup/hdf5.git
-                GIT_TAG hdf5-1_12_0
+                GIT_TAG hdf5-1_13_3 #1_13_3
                 GIT_SHALLOW TRUE
                 QUIET
+                OVERRIDE_FIND_PACKAGE
         )
         set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE)
+        set(HDF5_IS_PARALLEL ON CACHE BOOL "" FORCE)
+#        set(HDF5_BUILD_PARALLEL_TOOLS OFF CACHE BOOL "" FORCE)
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_FRAMEWORKS OFF CACHE BOOL "" FORCE)
-        set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
-        set(TEST_SHELL_SCRIPTS OFF CACHE BOOL "" FORCE)
-        set(HDF5_TEST_TOOLS OFF CACHE BOOL "" FORCE)
-        set(HDF5_TEST_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(HDF5_TEST_SWMR OFF CACHE BOOL "" FORCE)
-        set(HDF5_TESTS_PARALLEL OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_CPP_LIB OFF CACHE BOOL "" FORCE)
+#        set(HDF5_BUILD_FRAMEWORKS OFF CACHE BOOL "" FORCE)
+#        set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+#        set(HDF5_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+#        set(TEST_SHELL_SCRIPTS OFF CACHE BOOL "" FORCE)
+#        set(HDF5_TEST_TOOLS OFF CACHE BOOL "" FORCE)
+#        set(HDF5_TEST_EXAMPLES OFF CACHE BOOL "" FORCE)
+#        set(HDF5_TEST_SWMR OFF CACHE BOOL "" FORCE)
+#        set(HDF5_TESTS_PARALLEL OFF CACHE BOOL "" FORCE)
+#        set(HDF5_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+#        set(HDF5_BUILD_CPP_LIB OFF CACHE BOOL "" FORCE)
+#        set(HDF5_BUILD_FORTRAN OFF CACHE BOOL "" FORCE)
+#        set(HDF5_ENABLE_THREADSAFE OFF CACHE BOOL "" FORCE)
+#        set(HDF5_BUILD_JAVA OFF CACHE BOOL "" FORCE)
+#        set(HDF_PACKAGE_NAMESPACE "hdf5" CACHE STRING "" FORCE)
         FetchContent_MakeAvailable(HDF5)
+#        add_library(hdf5::hdf5 ALIAS hdf5-static)
+#        add_library(hdf5::hdf5_hl ALIAS hdf5_hl-static)
+        if(IS_DIRECTORY "${HDF5_SOURCE_DIR}")
+            set_property(DIRECTORY ${HDF5_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
+        endif()
+
+
     endif ()
-    target_link_libraries(discotec PUBLIC ${HDF5_CXX_LIBRARIES})
+    target_link_libraries(discotec PUBLIC ${HDF5_LIBRARIES})
+    target_include_directories(discotec PUBLIC ${HDF5_INCLUDE_DIRS})
 
     if (DISCOTEC_USE_HIGHFIVE)
         find_package(HighFive QUIET)  # TODO: add minimum version and components
@@ -177,13 +199,16 @@ if (DISCOTEC_HDF5)
                     GIT_REPOSITORY git@github.com:BlueBrain/HighFive.git
                     GIT_TAG v2.6.2
                     GIT_SHALLOW TRUE
-                    QUIET
+#                    QUIET
             )
             set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "" FORCE)
             set(HIGHFIVE_PARALLEL_HDF5 ON CACHE BOOL "" FORCE)
             set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "" FORCE)
             set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "" FORCE)
             FetchContent_MakeAvailable(HighFive)
+            if(IS_DIRECTORY "${HighFive_SOURCE_DIR}")
+                set_property(DIRECTORY ${HighFive_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
+            endif()
         endif ()
         target_include_directories(discotec PUBLIC ${HighFive_INCLUDE_DIRS})
         target_link_libraries(discotec PUBLIC HighFive)
@@ -220,7 +245,7 @@ endif ()
 option(DISCOTEC_USE_VTK "Use VTK for visualization" ON)
 if (DISCOTEC_USE_VTK)
     enable_language(C)
-    find_package(VTK) # TODO: add minimum version and components
+#    find_package(VTK) # TODO: add minimum version and components
     if (VTK_FOUND)
         message(STATUS "Found VTK: ${VTK_VERSION}")
     else ()
@@ -231,25 +256,42 @@ if (DISCOTEC_USE_VTK)
         FetchContent_Declare(
                 VTK
                 GIT_REPOSITORY git@github.com:Kitware/VTK.git
-                GIT_TAG v8.1.2
+                GIT_TAG v9.1.0
                 GIT_SHALLOW TRUE
         )
         set(VTK_USE_MPI ON CACHE BOOL "" FORCE)
-        set(VTK_USE_EXTERNAL ON CACHE BOOL "" FORCE)
+#        set(VTK_USE_EXTERNAL ON CACHE BOOL "" FORCE)
         set(VTK_MODULE_USE_EXTERNAL_VTK_hdf5 ON CACHE BOOL "" FORCE)
 
-        FetchContent_GetProperties(VTK)
-        if(NOT VTK_POPULATED)
-            FetchContent_Populate(VTK)
-            add_subdirectory(${VTK_SOURCE_DIR} ${VTK_BINARY_DIR})
-            set(VTK_DIR ${VTK_BINARY_DIR})
-            find_package(VTK REQUIRED)
-            include("${VTK_USE_FILE}")
+        FetchContent_MakeAvailable(VTK)
+
+        if(IS_DIRECTORY "${VTK_SOURCE_DIR}")
+            set_property(DIRECTORY ${VTK_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
         endif()
+
+#        FetchContent_GetProperties(VTK)
+#        if(NOT VTK_POPULATED)
+#            FetchContent_Populate(VTK)
+#            message(WARNING "VTK_SOURCE_DIR: ${VTK_SOURCE_DIR}")
+#            message(WARNING "VTK_BINARY_DIR: ${VTK_BINARY_DIR}")
+#            add_subdirectory(${VTK_SOURCE_DIR} ${VTK_BINARY_DIR})
+#            set(VTK_DIR ${VTK_BINARY_DIR})
+#            find_package(VTK REQUIRED)
+#            message(WARNING ${VTK_USE_FILE})
+#            include("${VTK_USE_FILE}")
+#        endif()
     endif ()
 
 
-    target_link_libraries(discotec PRIVATE ${VTK_LIBRARIES})
+
+#    if(VTK_LIBRARIES)
+#        target_link_libraries(discotec PRIVATE ${VTK_LIBRARIES})
+#    else()
+#        target_link_libraries(discotec PRIVATE vtkHybrid vtkSMP vtkRendering vtkGraphics vtkImaging vtkIO vtkFiltering vtkCommon)
+#    endif()
+    message(WARNING "VTK_LIBRARIES: ${BUILDSYSTEM_TARGETS}")
+    target_link_libraries(discotec PRIVATE  VTK::CommonCore VTK::CommonDataModel VTK::IOParallelXML)
+
     target_include_directories(discotec PRIVATE ${VTK_INCLUDE_DIRS})
     target_compile_definitions(discotec PRIVATE USE_VTK)
 endif ()
