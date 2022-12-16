@@ -13,8 +13,6 @@ class LinearBasisFunction : public combigrid::BasisFunctionBasis {
   LinearBasisFunction() = default;
   virtual ~LinearBasisFunction() = default;
 
-  // /** return the default basis function*/
-  // static const BasisFunctionBasis* getDefaultBasis() { return defaultBasis_; }
  private:
    // serialize
   friend class boost::serialization::access;
