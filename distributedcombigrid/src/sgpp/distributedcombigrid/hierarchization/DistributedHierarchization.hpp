@@ -70,17 +70,13 @@ class RemoteDataContainer {
     // subdomain where the remoteData comes from and reduce it by the
     // key dimension
 
-    // compute local index in remote domain
-    static IndexVector tmpLocalIndexVector;
-    tmpLocalIndexVector = localIndexVector;
-
-    // reduce by key dimension
-    tmpLocalIndexVector[dim1d_] = 0;
-
     IndexType idx = 0;
 
     for (DimType i = 0; i < dim; ++i) {
-      idx = idx + offsets_[i] * tmpLocalIndexVector[i];
+      // only use non-key dimensions
+      if (i != dim1d_) {
+        idx = idx + offsets_[i] * localIndexVector[i];
+      }
     }
 
     assert(static_cast<size_t>(idx) < data_.size());
@@ -102,7 +98,7 @@ class RemoteDataContainer {
   // index of (d-1)-dimensional subgrid in the d-dimensional grid
   IndexType index1d_;
 
-  // offsets in each dimension. d-dimensional, but 0 in dim1d dimension
+  // offsets in each dimension. d-dimensional
   IndexVector offsets_;
 
   // data vector
