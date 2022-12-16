@@ -28,7 +28,7 @@ void CombiGeneConverter::GeneGridToFullGrid(  GeneGrid& gg,
   assert( fg.getDimension() == 5 );
 
   // check boundary
-  const std::vector<bool>& boundary = fg.returnBoundaryFlags();
+  const auto& boundary = fg.returnBoundaryFlags();
   assert( boundary[0] == true );
   assert( boundary[1] == false );
   assert( boundary[2] == true );

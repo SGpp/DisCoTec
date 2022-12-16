@@ -5,10 +5,10 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+#include <memory>
 #include <ostream>
 #include <vector>
 
-#include "sgpp/distributedcombigrid/mpi/MPISystemID.hpp"
 #include "sgpp/distributedcombigrid/mpi_fault_simulator/MPI-FT.h"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
@@ -20,6 +20,10 @@
 
 namespace combigrid {
 
+class ProcessGroupManager;
+
+class MPISystem;
+typedef std::shared_ptr<MPISystem> MPISystemID;
 /** MPI Communication System
  *
  * This class encapsulates the access to the different communicators being used.
@@ -72,7 +76,7 @@ namespace combigrid {
  *
  * isThirdLevelManager returns true if the process is the manager process.
  */
-class ProcessGroupManager;
+
 class MPISystem {
  public:
   ~MPISystem();
@@ -610,13 +614,6 @@ inline size_t MPISystem::getNumProcs() const {
 }
 
 inline bool MPISystem::isInitialized() const { return initialized_; }
-
-/*
-// operators
-std::ostream& operator<<(std::ostream& os, const MPISystem& ms);
-std::ostream& operator<<(std::ostream& os, const MPISystemID& ms);
-std::ostream& operator<<(std::ostream& os, const ConstMPISystemID& ms);
-*/
 
 static inline int getCommSize(const CommunicatorType& comm) {
   int commSize;

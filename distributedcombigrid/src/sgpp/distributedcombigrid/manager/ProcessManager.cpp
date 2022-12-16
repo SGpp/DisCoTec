@@ -400,6 +400,19 @@ bool ProcessManager::waitForPG(ProcessGroupManagerID pg) {
   return false;
 }
 
+void ProcessManager::waitForAllGroupsToWait() const {
+// wait until all process groups are in wait state
+  size_t numWaiting = 0;
+
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
+    }
+  }
+}
+
 void ProcessManager::parallelEval(const LevelVector& leval, std::string& filename, size_t groupID) {
   // actually it would be enough to wait for the group which does the eval
   {

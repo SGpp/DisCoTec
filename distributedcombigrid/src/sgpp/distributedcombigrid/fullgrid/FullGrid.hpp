@@ -1,10 +1,17 @@
 #ifndef COMBIFULLGRID_HPP_
 #define COMBIFULLGRID_HPP_
 
+#include "sgpp/distributedcombigrid/hierarchization/CombiLinearBasisFunction.hpp"
+#include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
+#include "sgpp/distributedcombigrid/utils/PowerOfTwo.hpp"
+#include "sgpp/distributedcombigrid/utils/Types.hpp"
+
 #include <assert.h>
 
 #include <boost/serialization/access.hpp>
 #include <string>
+#include <fstream>
+#include <iostream>
 
 #include "boost/archive/binary_iarchive.hpp"
 #include "boost/archive/binary_oarchive.hpp"
@@ -12,45 +19,14 @@
 #include "boost/archive/text_oarchive.hpp"
 #include "boost/serialization/complex.hpp"
 #include "boost/serialization/vector.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiBasisFunctionBasis.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiGridDomain.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
-#include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
-#include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
-#include "sgpp/distributedcombigrid/utils/Types.hpp"
-
-// switch on alternative assignment of level vector: the boundary points have
-// level 1 and not level 0
-// #define ALT_LEVEL_VECTOR
 
 namespace combigrid {
 
 template <typename FG_ELEMENT>
 class SGrid;
-
-// forward declarations, we cannot include Hierarchization.hpp
-// before FullGrid.hpp is completely parsed
 class Hierarchization;
 
-// forward declarations necessary here because of SGrid and HierarchizedFullGrid
-// including each other
-// todo: separate declaration and definition. besides better readability, this
-// problem would have been avoided. it cost me several hours to figure that out
-
-/** The full grid class which is the main building block of the combi grid <br>
- *  It is important that the grid will actually occupy memory when the createFullGrid()
- *  method is called. <br>
- *  The index of a gridpoint in the full grid is given by the formula : <br>
- *  ind = i0 + i1*N0 + i2*N0*N1 + ... + id*N0*N1*N2*...*Nd, where i0,i1,i2,... are the indexes in
- * every dimension,
- *  and Nk is the number of gridpoints in direction k. <br>
- *  For more infos you can look at the "getVectorIndex" and "getLinearIndex" functions and their
- * implementation. <br>
- *  Nk=2^level[k]+1 for every k for the directions with boundary points and Nk=2^level[k]-1 for the
- * directions without boundary. <br>
- *  <br>
- *  The full grid can also be scaled which is done with a separate "combigrid::GridDomain" object.
- * <br>
+/** The full grid class which is the main building block of the combi grid
  * */
 template <typename FG_ELEMENT>
 class FullGrid {
@@ -107,15 +83,6 @@ class FullGrid {
   /** returns the linear index for one linear index
    * @param axisIndex [IN] the vector index */
   inline IndexType getLinearIndex(const IndexVector& axisIndex) const;
-
-  /** sets the domain of the full grid */
-  inline void setDomain(GridDomain* gridDomain) const;
-
-  /** returns the domain of the full grid */
-  inline const GridDomain* getDomain() const;
-
-  /** returns the domain of the full grid */
-  inline GridDomain* getDomain();
 
   /** returns pointer to the basis function */
   inline const BasisFunctionBasis* getBasisFct() const;
@@ -228,9 +195,6 @@ class FullGrid {
   /** pointer to the function basis*/
   const BasisFunctionBasis* basis_;
 
-  /** the domain transformation */
-  mutable GridDomain* gridDomain_;
-
   friend class boost::serialization::access;
 
   // serialize
@@ -267,7 +231,6 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, LevelType level, BoundaryType hasBdr
   else
     basis_ = basis;
 
-  gridDomain_ = NULL;
   isFGcreated_ = false;
   dim_ = dim;
   levels_.resize(dim, level);
@@ -297,7 +260,6 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels, BoundaryT
   else
     basis_ = basis;
 
-  gridDomain_ = NULL;
   dim_ = dim;
   isFGcreated_ = false;
   levels_ = levels;
@@ -330,8 +292,6 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
     basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
   else
     basis_ = basis;
-
-  gridDomain_ = NULL;
   dim_ = dim;
   isFGcreated_ = false;
   levels_ = levels;
@@ -352,26 +312,11 @@ FullGrid<FG_ELEMENT>::FullGrid(DimType dim, const LevelVector& levels,
 
 template <typename FG_ELEMENT>
 FullGrid<FG_ELEMENT>::FullGrid(const char* filename, const BasisFunctionBasis* basis) {
-  /*
-  // set the basis function for the full grid
-  if (basis == NULL)
-    basis_ = LinearBasisFunction::getDefaultBasis();
-  else
-    basis_ = basis;
-  */
-
   std::ifstream ifs(filename, std::ios::binary);
   // boost::archive::binary_iarchive ia(ifs);
   boost::archive::text_iarchive ia(ifs);
   ia >> *this;
 
-  /*
-  gridDomain_ = NULL;
-
-  isHierarchized_ = false;
-
-  isFGcreated_ = true;
-  */
 }
 
 /* create hierarchized fullgrid from SGrid */
@@ -391,7 +336,6 @@ FullGrid<FG_ELEMENT>::FullGrid(const LevelVector& levels, const SGrid<FG_ELEMENT
   // TODO deal with memory leak
   basis_ = new LinearBasisFunction();  // LinearBasisFunction::getDefaultBasis();
 
-  gridDomain_ = NULL;
   dim_ = sg2.getDim();
   isFGcreated_ = false;
   levels_ = levels;
@@ -476,19 +420,6 @@ FG_ELEMENT FullGrid<FG_ELEMENT>::eval(std::vector<real>& coords) {
   real intersect[127];
   IndexType aindex[63];
 
-  // if there is a transformation then transform to the unit coordinates
-  if (gridDomain_ != NULL) {
-    assert(false && "not implemented");
-
-    /* todo: commented because transform not compatible with types
-     for( ii = dim_ - 1; ii >= 0; ii-- ){
-     ( gridDomain_->get1DDomain( ii ) ).transformRealToUnit(
-     coords[ii], coords[ii], levels_[ii],
-     ( hasBoundaryPoints_[ii] == false ) );
-     }
-     */
-  }
-
   // the coordinates are on the unit square
   for (ii = dim_ - 1; ii >= 0; ii--) {
     // the value has to be between 0.0 and 1.0
@@ -532,12 +463,9 @@ FG_ELEMENT FullGrid<FG_ELEMENT>::eval(std::vector<real>& coords) {
       aindex[ii] = (aindex[ii] < 0) ? 0 : aindex[ii];
     }
 
-    // COMBIGRID_OUT_LEVEL3( verb , "FullGrid::eval ii:" << ii << " , coords[ii]:" << coords[ii] <<
-    // " , aindex[ii]:" << aindex[ii]
-    //                     << " , level[ii]:" << levels_[ii] << " , normcoord:" << normcoord );
-    // evaluate the basis functions on the 1D coordinates
-    intersect[2 * ii] = basis_->functionEval1(normcoord);
-    intersect[2 * ii + 1] = basis_->functionEval2(normcoord);
+    // evaluate the linear basis functions on the 1D coordinates
+    intersect[2 * ii] = 1.0 - normcoord;
+    intersect[2 * ii + 1] = normcoord;
   }
 
   nr = powerOfTwo[dim_];
@@ -563,9 +491,9 @@ FG_ELEMENT FullGrid<FG_ELEMENT>::eval(std::vector<real>& coords) {
         assert(coords[jj] <= 1.0 && coords[jj] >= 0.0);
 
         if (coords[jj] > 0.5)
-          baseVal = baseVal * basis_->functionEval1(coords[jj]);
+          baseVal = baseVal * 1.0 - coords[jj];
         else
-          baseVal = baseVal * basis_->functionEval2(coords[jj]);
+          baseVal = baseVal * coords[jj];
       } else
         baseVal = baseVal * intersect[2 * jj + vv];
 
@@ -592,28 +520,12 @@ void FullGrid<FG_ELEMENT>::getCoords(IndexType elemIndex, std::vector<real>& coo
   IndexType ind = 0;
   IndexType tmp_add = 0;
 
-  if (gridDomain_ == NULL) {
-    for (DimType j = 0; j < dim_; j++) {
-      ind = elemIndex % nrPoints_[j];
-      elemIndex = elemIndex / nrPoints_[j];
-      // set the coordinate based on if we have boundary points
-      tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
-      coords[j] = static_cast<real>(ind + tmp_add) * oneOverPowOfTwo[levels_[j]];
-    }
-  } else {
-    // we have a valid Domain
-    assert(false && "not implemented");
-    /* todo: commented because transformunittoreal not working with IndexType
-     for( DimType j = 0; j < dim_; j++ ){
-     ind = elemIndex % (IndexType) ( nrPoints_[j] );
-     elemIndex = elemIndex / (IndexType) ( nrPoints_[j] );
-     // set the coordinate based on if we have boundary points
-     tmp_add = ( hasBoundaryPoints_[j] == true ) ? ( 0 ) : ( 1 );
-     ( gridDomain_->get1DDomain( j ) ).transformUnitToReal( levels_[j],
-     ind + tmp_add,
-     coords[j] );
-     }
-     */
+  for (DimType j = 0; j < dim_; j++) {
+    ind = elemIndex % nrPoints_[j];
+    elemIndex = elemIndex / nrPoints_[j];
+    // set the coordinate based on if we have boundary points
+    tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
+    coords[j] = static_cast<real>(ind + tmp_add) * oneOverPowOfTwo[levels_[j]];
   }
 }
 
@@ -651,16 +563,6 @@ void FullGrid<FG_ELEMENT>::getLI(IndexType elementIndex, LevelVector& levels,
 
     levels[k] = tmp_val;
   }
-
-// a little hack to allow switching on an alternative assignment of
-// the level vectors: the boundary points have level 1 and not level 0
-// as in the standard case
-#ifdef ALT_LEVEL_VECTOR
-
-  for (DimType k = 0; k < dim_; k++)
-    if (levels[k] == 0) levels[k] = 1;
-
-#endif
 }
 
 /** returns the vector index for one linear index
@@ -690,23 +592,6 @@ inline IndexType FullGrid<FG_ELEMENT>::getLinearIndex(const IndexVector& axisInd
   return tmp;
 }
 
-/** sets the domain of the full grid */
-template <typename FG_ELEMENT>
-inline void FullGrid<FG_ELEMENT>::setDomain(GridDomain* gridDomain) const {
-  gridDomain_ = gridDomain;
-}
-
-/** returns the domain of the full grid */
-template <typename FG_ELEMENT>
-inline const GridDomain* FullGrid<FG_ELEMENT>::getDomain() const {
-  return gridDomain_;
-}
-
-/** returns the domain of the full grid */
-template <typename FG_ELEMENT>
-inline GridDomain* FullGrid<FG_ELEMENT>::getDomain() {
-  return gridDomain_;
-}
 
 /** returns pointer to the basis function */
 template <typename FG_ELEMENT>

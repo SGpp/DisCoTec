@@ -6,6 +6,7 @@
 #include <boost/serialization/export.hpp>
 
 #include "sgpp/distributedcombigrid/task/Task.hpp"
+#include "sgpp/distributedcombigrid/utils/PowerOfTwo.hpp"
 
 using namespace combigrid;
 

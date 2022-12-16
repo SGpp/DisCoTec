@@ -18,7 +18,7 @@
 #include "sgpp/distributedcombigrid/task/Task.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 #include "sgpp/distributedcombigrid/combischeme/CombiMinMaxScheme.hpp"
-#include "sgpp/distributedcombigrid/legacy/CombiLinearBasisFunction.hpp"
+#include "sgpp/distributedcombigrid/hierarchization/CombiLinearBasisFunction.hpp"
 #include "sgpp/distributedcombigrid/fullgrid/FullGrid.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LinearLoadModel.hpp"
 #include "sgpp/distributedcombigrid/loadmodel/LearningLoadModel.hpp"

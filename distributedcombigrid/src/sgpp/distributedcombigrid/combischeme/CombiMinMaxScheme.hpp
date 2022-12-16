@@ -4,9 +4,9 @@
 #include <boost/math/special_functions/binomial.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <numeric>
-#include "sgpp/distributedcombigrid/legacy/combigrid_utils.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelVector.hpp"
 #include "sgpp/distributedcombigrid/utils/LevelSetUtils.hpp"
+#include "sgpp/distributedcombigrid/utils/PowerOfTwo.hpp"
 #include "sgpp/distributedcombigrid/utils/Types.hpp"
 
 namespace combigrid {
