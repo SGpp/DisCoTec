@@ -10,7 +10,7 @@ add_subdirectory(examples)
 add_subdirectory(third_level_manager)
 add_subdirectory(tools)
 
-option(DISCOTEC_TEST "Build with Bost tests" ON) #TODO: sinvoller Bescreiben oder in Boost auslagern
+option(DISCOTEC_TEST "Build with Boost tests" ON) #TODO: sinvoller Bescreiben oder in Boost auslagern
 if(DISCOTEC_TEST)
     enable_testing()
     add_subdirectory(tests)
