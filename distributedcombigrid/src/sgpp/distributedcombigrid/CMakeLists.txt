@@ -207,13 +207,15 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
         FetchContent_Declare(
                 HDF5
                 GIT_REPOSITORY git@github.com:HDFGroup/hdf5.git
-                GIT_TAG hdf5-1_13_3
+                GIT_TAG hdf5-1_13_0
                 GIT_SHALLOW TRUE
                 QUIET
                 OVERRIDE_FIND_PACKAGE
         )
         set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE)
         set(HDF5_IS_PARALLEL ON CACHE BOOL "" FORCE)
+        set(HDF5_EXTERNALLY_CONFIGURED ON CACHE BOOL "" FORCE)
+        set(HDF5_EXTERNALLY_CONFIGURED ON CACHE BOOL "" FORCE)
         set(HDF5_BUILD_PARALLEL_TOOLS OFF CACHE BOOL "" FORCE)
         set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
         set(HDF5_BUILD_FRAMEWORKS OFF CACHE BOOL "" FORCE)
@@ -235,6 +237,13 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
             set_property(DIRECTORY ${HDF5_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
         endif ()
         list(POP_BACK CMAKE_MESSAGE_INDENT)
+
+        target_include_directories(discotec PRIVATE ${HDF5_SOURCE_DIR}/src) # TODO
+        target_include_directories(discotec PRIVATE ${HDF5_BINARY_DIR}/src) # TODO:
+
+        target_link_libraries(discotec PUBLIC hdf5-static)
+
+
 
     endif ()
 
@@ -301,11 +310,11 @@ if (DISCOTEC_USE_VTK)
     endif ()
 
 
-    if (VTK_LIBRARIES)
-        target_link_libraries(discotec PRIVATE ${VTK_LIBRARIES})
-    else ()
-        target_link_libraries(discotec PRIVATE VTK::CommonCore VTK::CommonDataModel VTK::IOParallelXML)
-    endif ()
+
+
+    target_link_libraries(discotec PRIVATE  VTK::CommonCore VTK::CommonDataModel VTK::IOParallelXML)
+
+    target_include_directories(discotec PRIVATE ${VTK_INCLUDE_DIRS})
     target_compile_definitions(discotec PRIVATE USE_VTK)
     list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif ()
