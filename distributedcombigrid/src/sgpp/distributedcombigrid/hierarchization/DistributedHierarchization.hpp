@@ -1289,7 +1289,10 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     }
 
     // copy pole back
-    for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
+    for (IndexType i = 0; i < ndim; ++i) {
+      ldata[start + stride * i] = tmp[gstart + i];
+      assert(!std::isnan(std::real(tmp[gstart + i])));
+    }
   }
 }
 
@@ -1435,7 +1438,10 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     }
 
     // copy pole back
-    for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
+    for (IndexType i = 0; i < ndim; ++i) {
+      ldata[start + stride * i] = tmp[gstart + i];
+      assert(!std::isnan(std::real(tmp[gstart + i])));
+    }
   }
 }
 
