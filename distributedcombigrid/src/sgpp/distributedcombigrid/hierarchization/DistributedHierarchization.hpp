@@ -1276,11 +1276,15 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       // assume periodicity
       //  assert(HIERARCHIZATION_FCTN::periodic); //TODO
       tmp[dfg.getGlobalSizes()[dim]] = tmp[0];
+      if (!remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
+        assert(!std::isnan(std::real(tmp[0])));
+      }
     }
     // hierarchize tmp array with hupp function
     HIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_n);
 
     if (oneSidedBoundary && !remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
+      assert(!std::isnan(std::real(tmp[0])));
       assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
     }
 
