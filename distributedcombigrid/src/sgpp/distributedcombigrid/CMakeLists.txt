@@ -141,7 +141,7 @@ target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
 include(FetchContent)
 
-find_package(Boost COMPONENTS serialization headers program_options unit_test_framework) #TODO: add all required components
+find_package(Boost QUIET COMPONENTS serialization headers program_options unit_test_framework system ) #TODO: add all required components
 if (Boost_FOUND)
     message(STATUS "Boost found")
 else ()
@@ -153,11 +153,13 @@ else ()
     FetchContent_Declare(
             Boost
             GIT_REPOSITORY https://github.com/boostorg/boost.git
-            GIT_TAG boost-1.80.0
+            GIT_TAG boost-1.81.0
             GIT_SHALLOW TRUE
             QUIET
             OVERRIDE_FIND_PACKAGE
             )
+    set(BOOST_ENABLE_CMAKE ON)
+
     FetchContent_MakeAvailable(Boost)
     if (IS_DIRECTORY "${Boost_SOURCE_DIR}")
         set_property(DIRECTORY ${Boost_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
@@ -166,7 +168,7 @@ else ()
 endif ()
 
 target_include_directories(discotec PRIVATE Boost::headers)
-target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_options Boost::unit_test_framework)
+target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_options Boost::system )
 
 message(STATUS "Fetching glpk")
 FetchContent_Declare(
