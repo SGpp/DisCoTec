@@ -67,7 +67,11 @@ class CombiParameters {
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax) {
     for (DimType d = 0; d < dim_; ++d) {
-      hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
+      if (boundary_[d] == 1) {
+        hierarchicalBases_.push_back(new HierarchicalHatPeriodicBasisFunction());
+      } else {
+        hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
+      }
     }
     setLevelsCoeffs(taskIDs, levels, coeffs);
     numTasks_ = taskIDs.size();
@@ -352,6 +356,8 @@ inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& c
                                                 std::string basisName) {
   if (basisName == "hat") {
     setCombiParametersHierarchicalBasesUniform<HierarchicalHatBasisFunction>(combiParameters);
+  } else if (basisName == "hat_periodic") {
+    setCombiParametersHierarchicalBasesUniform<HierarchicalHatPeriodicBasisFunction>(combiParameters);
   } else if (basisName == "fullweighting") {
     setCombiParametersHierarchicalBasesUniform<FullWeightingBasisFunction>(combiParameters);
   } else if (basisName == "fullweighting_periodic") {
