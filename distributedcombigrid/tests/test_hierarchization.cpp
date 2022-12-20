@@ -615,7 +615,7 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
           BOOST_CHECK_NO_THROW(
               exchangeData1dDehierarchization(dfg, d, remoteDataDehierarchization, lmin[d]));
           BOOST_CHECK((remoteDataDehierarchization.size() == 0) || (procs[d] > 1));
-          // more data may need to be exchanged for dehierarchization
+          // more data may need to be exchanged for dehierarchization, but never less
           BOOST_CHECK_GE(remoteDataDehierarchization.size(), remoteDataHierarchization.size());
           for (const auto& r : remoteDataDehierarchization) {
             auto receiveKeyIndex = r.getKeyIndex();
@@ -641,11 +641,15 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
       if (remoteKeysDehierarchization[2].empty()) {
         // either the rank did not take part in the test
         if (TestHelper::getRank(MPI_COMM_WORLD) <
-            std::accumulate(procs.begin(), procs.end(), 0, std::multiplies<int>())) {
-          // or this dimension was not distributed
-          BOOST_CHECK_EQUAL(procs[d], 1);
-          BOOST_CHECK(isOnLowerBoundaryInD);
-          BOOST_CHECK(isOnUpperBoundaryInD);
+            std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<int>())) {
+          if(procs[d] == 1) {
+            // or this dimension was not distributed
+            BOOST_CHECK(isOnLowerBoundaryInD);
+            BOOST_CHECK(isOnUpperBoundaryInD);
+          } else {
+            // or lmin was too large
+            BOOST_CHECK_EQUAL(lmin[d], levels[d]);
+          }
         }
       } else {
         IndexType upperBoundaryIndex = powerOfTwo[levels[d]];
@@ -671,7 +675,8 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
           auto remoteKeysExpectedForOne = remoteKeys[2];
           // but where the upper boundary is expected in the two-boundary case, we need the lower
           // boundary
-          if (remoteKeysExpectedForOne.back() == upperBoundaryIndex) {
+          if (!remoteKeysExpectedForOne.empty() &&
+              remoteKeysExpectedForOne.back() == upperBoundaryIndex) {
             remoteKeysExpectedForOne.pop_back();
             if (remoteKeysExpectedForOne.front() != 0 && !isOnLowerBoundaryInD) {
               remoteKeysExpectedForOne.insert(remoteKeysExpectedForOne.begin(), 0);
@@ -679,9 +684,11 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
           }
           // in case we are at the highest index along the pole, also need index 0
           if (isOnUpperBoundaryInD && !isOnLowerBoundaryInD &&
-              remoteKeysExpectedForOne.front() != 0) {
+              (remoteKeysExpectedForOne.empty() || remoteKeysExpectedForOne.front() != 0)) {
             remoteKeysExpectedForOne.insert(remoteKeysExpectedForOne.begin(), 0);
           }
+          // std::cout << "remoteKeysExpectedForOne: " << remoteKeysExpectedForOne << 
+          //      " remoteKeys[1]: " << remoteKeys[1] << std::endl;
           BOOST_CHECK_EQUAL_COLLECTIONS(remoteKeys[1].begin(), remoteKeys[1].end(),
                                         remoteKeysExpectedForOne.begin(),
                                         remoteKeysExpectedForOne.end());
