@@ -869,6 +869,8 @@ static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, co
   const auto levelOfCheckIndex = dfg.getLevel(dim, checkIdx);
   const auto localMaximalIndex = dfg.getLastGlobal1dIndex(dim);
   const auto lmax = dfg.getLevels()[dim];
+  bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
+  const auto globalIdxMax = dfg.getGlobalSizes()[dim];
 
   // check right successors of checkIdx
   for (auto l = static_cast<LevelType>(levelOfCheckIndex + 1); l <= lmax; ++l) {
@@ -885,18 +887,23 @@ static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, co
       }
     }
 
-    if (rightSuccessorIndex < dfg.getGlobalSizes()[dim] &&
-        rightSuccessorIndex > localMaximalIndex) {
-      assert(rightSuccessorLevel <= lmax);
-      // only send if my successor needs to be dehierarchized w.r.t. rootIndex
-      if (rightSuccessorLevel > lmin) {
+    // only send if my successor needs to be dehierarchized w.r.t. rootIndex
+    if (rightSuccessorLevel > lmin) {
+      if (rightSuccessorIndex < globalIdxMax && rightSuccessorIndex > localMaximalIndex) {
+        assert(rightSuccessorLevel <= lmax);
         // get rank which has rightSuccessorIndex and add to send list
         int r = dfg.getNeighbor1dFromAxisIndex(dim, rightSuccessorIndex);
         if (r >= 0) sendOneDIndices[r].insert(rootIdx);
       }
+      // if we are at the lower boundary and are periodic, we need to mirror this index as well
+      if (rootIdx == 0 && oneSidedBoundary) {
+        auto mirroredRightSuccessorIndex = globalIdxMax - rightSuccessorIndex;
+        if (mirroredRightSuccessorIndex > localMaximalIndex) {
+          int r = dfg.getNeighbor1dFromAxisIndex(dim, mirroredRightSuccessorIndex);
+          if (r >= 0) sendOneDIndices[r].insert(rootIdx);
+        }
+      }
     }
-    bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-    const auto globalIdxMax = dfg.length(dim) + (oneSidedBoundary ? 1 : 0);
     if (rightSuccessorIndex < globalIdxMax) {
       checkRightSuccesors(rightSuccessorIndex, rootIdx, dim, dfg, sendOneDIndices, lmin);
     }
@@ -946,11 +953,22 @@ static IndexType checkPredecessors(IndexType idx, const DimType& dim,
 
   if (rightPredecessorIndex > localMaximalIndex) {
     // get rank which has right predecessor and add to list of indices to recv
-    int r = dfg.getNeighbor1dFromAxisIndex(dim, rightPredecessorIndex);
-    recvOneDIndices[r].insert(rightPredecessorIndex);
-    if (rightPredecessorLevel >= lmin) {
-      // check if further dependencies arise from right predecessor
-      checkPredecessors(rightPredecessorIndex, dim, dfg, recvOneDIndices, lmin);
+    bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
+    if (oneSidedBoundary && rightPredecessorIndex == dfg.getGlobalSizes()[dim]) {
+      if (localMinimalIndex > 0) {
+        // if we need the highest index, and are periodic, need to require 0 instead
+        int r = dfg.getNeighbor1dFromAxisIndex(dim, 0);
+        if (r != dfg.getRank()) {
+          recvOneDIndices[r].insert(0);
+        }
+      }
+    } else {
+      int r = dfg.getNeighbor1dFromAxisIndex(dim, rightPredecessorIndex);
+      recvOneDIndices[r].insert(rightPredecessorIndex);
+      if (rightPredecessorLevel >= lmin) {
+        // check if further dependencies arise from right predecessor
+        checkPredecessors(rightPredecessorIndex, dim, dfg, recvOneDIndices, lmin);
+      }
     }
     idx = getNextIndex1d(dfg, dim, idx);
   } else {
