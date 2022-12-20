@@ -825,70 +825,87 @@ static void exchangeData1dDehierarchization(
 template <typename FG_ELEMENT>
 static void checkLeftSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
                                const DistributedFullGrid<FG_ELEMENT>& dfg,
-                               std::map<RankType, std::set<IndexType>>& OneDIndices,
+                               std::map<RankType, std::set<IndexType>>& sendOneDIndices,
                                const LevelType& lmin) {
-  const auto lidx = dfg.getLevel(dim, checkIdx);
-  const auto idxMin = dfg.getFirstGlobal1dIndex(dim);
+  const auto levelOfCheckIndex = dfg.getLevel(dim, checkIdx);
+  const auto localMinimalIndex = dfg.getFirstGlobal1dIndex(dim);
   const auto lmax = dfg.getLevels()[dim];
 
   // check left successors of checkIdx
-  for (auto l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
-    auto ldiff = static_cast<LevelType>(lmax - l);
-    auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
+  for (auto l = static_cast<LevelType>(levelOfCheckIndex + 1); l <= lmax; ++l) {
+    const auto levelDifference = static_cast<LevelType>(lmax - l);
+    const auto indexDifference = static_cast<IndexType>(powerOfTwo[levelDifference]);
 
-    IndexType lsIdx = checkIdx - idiff;
-    auto leftSuccessorLevel = dfg.getLevel(dim, lsIdx);
+    const IndexType leftSuccessorIndex = checkIdx - indexDifference;
+    const auto leftSuccessorLevel = dfg.getLevel(dim, leftSuccessorIndex);
 
-    if (lsIdx >= 0 && lsIdx < idxMin) {
+    if (checkIdx == rootIdx) {
+      // if we are at recursion depth 0, we need to decide if we need to send this root index
+      // through this path at all
+      if (leftSuccessorLevel <= lmin) {
+        continue;
+      }
+    }
+
+    if (leftSuccessorIndex >= 0 && leftSuccessorIndex < localMinimalIndex) {
       assert(leftSuccessorLevel <= lmax);
       // only send if my successor needs to be dehierarchized
       if (leftSuccessorLevel > lmin) {
-        // get rank which has lsIdx and add to send list
-        int r = dfg.getNeighbor1dFromAxisIndex(dim, lsIdx);
-        if (r >= 0) OneDIndices[r].insert(rootIdx);
+        // get rank which has leftSuccessorIndex and add to send list
+        int r = dfg.getNeighbor1dFromAxisIndex(dim, leftSuccessorIndex);
+        if (r >= 0) sendOneDIndices[r].insert(rootIdx);
       }
     }
-    // only recurse if my successor needs to be dehierarchized
-    if (leftSuccessorLevel > lmin) {
-      if (lsIdx >= 0) checkLeftSuccesors(lsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
-    }
+    if (leftSuccessorIndex >= 0)
+      checkLeftSuccesors(leftSuccessorIndex, rootIdx, dim, dfg, sendOneDIndices, lmin);
   }
 }
 
 template <typename FG_ELEMENT>
 static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, const DimType& dim,
                                 const DistributedFullGrid<FG_ELEMENT>& dfg,
-                                std::map<RankType, std::set<IndexType>>& OneDIndices,
+                                std::map<RankType, std::set<IndexType>>& sendOneDIndices,
                                 const LevelType& lmin) {
-  const auto lidx = dfg.getLevel(dim, checkIdx);
-  const auto idxMax = dfg.getLastGlobal1dIndex(dim);
+  const auto levelOfCheckIndex = dfg.getLevel(dim, checkIdx);
+  const auto localMaximalIndex = dfg.getLastGlobal1dIndex(dim);
   const auto lmax = dfg.getLevels()[dim];
+  bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
+  const auto globalIdxMax = dfg.getGlobalSizes()[dim];
 
   // check right successors of checkIdx
-  for (auto l = static_cast<LevelType>(lidx + 1); l <= lmax; ++l) {
-    auto ldiff = static_cast<LevelType>(lmax - l);
-    auto idiff = static_cast<IndexType>(powerOfTwo[ldiff]);
+  for (auto l = static_cast<LevelType>(levelOfCheckIndex + 1); l <= lmax; ++l) {
+    const auto levelDifference = static_cast<LevelType>(lmax - l);
+    const auto indexDifference = static_cast<IndexType>(powerOfTwo[levelDifference]);
 
-    IndexType rsIdx = checkIdx + idiff;
-    auto rightSuccessorLevel = dfg.getLevel(dim, rsIdx);
-
-    if (rsIdx < dfg.getGlobalSizes()[dim] && rsIdx > idxMax) {
-      assert(rightSuccessorLevel <= lmax);
-      // only send if my successor needs to be dehierarchized
-      if (rightSuccessorLevel > lmin) {
-        // get rank which has rsIdx and add to send list
-        int r = dfg.getNeighbor1dFromAxisIndex(dim, rsIdx);
-        if (r >= 0) OneDIndices[r].insert(rootIdx);
+    const IndexType rightSuccessorIndex = checkIdx + indexDifference;
+    const auto rightSuccessorLevel = dfg.getLevel(dim, rightSuccessorIndex);
+    if (checkIdx == rootIdx) {
+      // if we are at recursion depth 0, we need to decide if we need to send this root index
+      // through this path at all
+      if (rightSuccessorLevel <= lmin) {
+        continue;
       }
     }
 
-    // only recurse if my successor needs to be dehierarchized
+    // only send if my successor needs to be dehierarchized w.r.t. rootIndex
     if (rightSuccessorLevel > lmin) {
-      bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-      auto globalIdxMax = dfg.length(dim) + (oneSidedBoundary ? 1 : 0);
-      if (rsIdx < globalIdxMax) {
-        checkRightSuccesors(rsIdx, rootIdx, dim, dfg, OneDIndices, lmin);
+      if (rightSuccessorIndex < globalIdxMax && rightSuccessorIndex > localMaximalIndex) {
+        assert(rightSuccessorLevel <= lmax);
+        // get rank which has rightSuccessorIndex and add to send list
+        int r = dfg.getNeighbor1dFromAxisIndex(dim, rightSuccessorIndex);
+        if (r >= 0) sendOneDIndices[r].insert(rootIdx);
       }
+      // if we are at the lower boundary and are periodic, we need to mirror this index as well
+      if (rootIdx == 0 && oneSidedBoundary) {
+        auto mirroredRightSuccessorIndex = globalIdxMax - rightSuccessorIndex;
+        if (mirroredRightSuccessorIndex > localMaximalIndex) {
+          int r = dfg.getNeighbor1dFromAxisIndex(dim, mirroredRightSuccessorIndex);
+          if (r >= 0) sendOneDIndices[r].insert(rootIdx);
+        }
+      }
+    }
+    if (rightSuccessorIndex < globalIdxMax) {
+      checkRightSuccesors(rightSuccessorIndex, rootIdx, dim, dfg, sendOneDIndices, lmin);
     }
   }
 }
@@ -896,47 +913,67 @@ static void checkRightSuccesors(IndexType checkIdx, const IndexType& rootIdx, co
 template <typename FG_ELEMENT>
 static IndexType checkPredecessors(IndexType idx, const DimType& dim,
                                    const DistributedFullGrid<FG_ELEMENT>& dfg,
-                                   std::map<RankType, std::set<IndexType>>& OneDIndices,
+                                   std::map<RankType, std::set<IndexType>>& recvOneDIndices,
                                    const LevelType& lmin) {
-  auto lidx = dfg.getLevel(dim, idx);
-  auto idxMin = dfg.getFirstGlobal1dIndex(dim);
-  auto idxMax = dfg.getLastGlobal1dIndex(dim);
+  const auto levelOfIndex = dfg.getLevel(dim, idx);
+  const auto localMinimalIndex = dfg.getFirstGlobal1dIndex(dim);
+  const auto localMaximalIndex = dfg.getLastGlobal1dIndex(dim);
 
-  // check if left predecessor outside local domain
-  // if returns negative value there's no left predecessor
-  auto lpIdx = dfg.getLeftPredecessor(dim, idx);
-
-  if (lpIdx >= 0 && lpIdx < idxMin) {
-    if (lidx > lmin) {
-      // get rank which has left predecessor and add to list of indices
-      int r = dfg.getNeighbor1dFromAxisIndex(dim, lpIdx);
-      OneDIndices[r].insert(lpIdx);
-    }
-  }
-  if (lpIdx >= 0) checkPredecessors(lpIdx, dim, dfg, OneDIndices, lmin);
-
-  // check if right predecessor outside local domain
-  // if returns negative value there's no right predecessor
-  auto rpIdx = dfg.getRightPredecessor(dim, idx);
-
-  if (rpIdx < 0) {
+  // if the current level is already small enough, end recursion here since no further predecessors
+  // have to be received
+  if (levelOfIndex <= lmin || idx < 0) {
     idx = getNextIndex1d(dfg, dim, idx);
     return idx;
   }
 
-  if (rpIdx > idxMax) {
-    if (lidx > lmin) {
-      // get rank which has right predecessor and add to list of indices to recv
-      int r = dfg.getNeighbor1dFromAxisIndex(dim, rpIdx);
-      OneDIndices[r].insert(rpIdx);
+  // check if left predecessor outside local domain
+  // if returns negative value there's no left predecessor
+  const auto leftPredecessorIndex = dfg.getLeftPredecessor(dim, idx);
+  const auto leftPredecessorLevel = dfg.getLevel(dim, leftPredecessorIndex);
+
+  if (leftPredecessorIndex >= 0 && leftPredecessorIndex < localMinimalIndex) {
+    // get rank which has left predecessor and add to list of indices
+    int r = dfg.getNeighbor1dFromAxisIndex(dim, leftPredecessorIndex);
+    recvOneDIndices[r].insert(leftPredecessorIndex);
+  }
+  // check if further dependencies arise from left predecessor
+  if (leftPredecessorIndex >= 0 && leftPredecessorLevel >= lmin) {
+    checkPredecessors(leftPredecessorIndex, dim, dfg, recvOneDIndices, lmin);
+  }
+
+  // check if right predecessor outside local domain
+  // if returns negative value there's no right predecessor
+  const auto rightPredecessorIndex = dfg.getRightPredecessor(dim, idx);
+  const auto rightPredecessorLevel = dfg.getLevel(dim, rightPredecessorIndex);
+
+  if (rightPredecessorIndex < 0) {
+    idx = getNextIndex1d(dfg, dim, idx);
+    return idx;
+  }
+
+  if (rightPredecessorIndex > localMaximalIndex) {
+    // get rank which has right predecessor and add to list of indices to recv
+    bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
+    if (oneSidedBoundary && rightPredecessorIndex == dfg.getGlobalSizes()[dim]) {
+      if (localMinimalIndex > 0) {
+        // if we need the highest index, and are periodic, need to require 0 instead
+        int r = dfg.getNeighbor1dFromAxisIndex(dim, 0);
+        if (r != dfg.getRank()) {
+          recvOneDIndices[r].insert(0);
+        }
+      }
+    } else {
+      int r = dfg.getNeighbor1dFromAxisIndex(dim, rightPredecessorIndex);
+      recvOneDIndices[r].insert(rightPredecessorIndex);
+      if (rightPredecessorLevel >= lmin) {
+        // check if further dependencies arise from right predecessor
+        checkPredecessors(rightPredecessorIndex, dim, dfg, recvOneDIndices, lmin);
+      }
     }
     idx = getNextIndex1d(dfg, dim, idx);
   } else {
-    idx = rpIdx;
+    idx = rightPredecessorIndex;
   }
-
-  checkPredecessors(rpIdx, dim, dfg, OneDIndices, lmin);
-
   return idx;
 }
 

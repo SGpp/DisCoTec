@@ -978,6 +978,10 @@ class DistributedFullGrid {
     // check if outside of domain
     IndexType numElementsD = this->getGlobalSizes()[d];
 
+    // in case of periodic, "virtual" domain is larger by one
+    bool oneSidedBoundary = this->returnBoundaryFlags()[d] == 1;
+    if (oneSidedBoundary && rpidx == numElementsD) return numElementsD;
+
     if (rpidx > numElementsD - 1) rpidx = -1;
 
     return rpidx;
