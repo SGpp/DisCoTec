@@ -385,7 +385,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
         if (rank == 0)
           std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
                     << nprocs << std::endl;
-        checkIntegration(ngroup, nprocs, boundary);
+        BOOST_CHECK_NO_THROW(checkIntegration(ngroup, nprocs, boundary));
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
@@ -394,7 +394,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
         if (rank == 0)
           std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
                     << nprocs << std::endl;
-        checkIntegration(ngroup, nprocs, boundary);
+        BOOST_CHECK_NO_THROW(checkIntegration(ngroup, nprocs, boundary));
         MPI_Barrier(MPI_COMM_WORLD);
       }
     }
@@ -404,7 +404,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
           if (rank == 0)
             std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
                       << nprocs << std::endl;
-          checkIntegration(ngroup, nprocs, boundary);
+          BOOST_CHECK_NO_THROW(checkIntegration(ngroup, nprocs, boundary));
           MPI_Barrier(MPI_COMM_WORLD);
         }
       }
@@ -415,7 +415,7 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
           if (rank == 0)
             std::cout << "integration/test_1 " << static_cast<int>(boundary) << " " << ngroup << " "
                       << nprocs << std::endl;
-          checkIntegration(ngroup, nprocs, boundary);
+          BOOST_CHECK_NO_THROW(checkIntegration(ngroup, nprocs, boundary));
           MPI_Barrier(MPI_COMM_WORLD);
         }
       }
