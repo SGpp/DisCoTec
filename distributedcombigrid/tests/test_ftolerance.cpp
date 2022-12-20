@@ -444,10 +444,12 @@ for (size_t i = 1; i < ncombi; ++i){
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
+  BOOST_CHECK(finished);
   return finished;
 }
 
-BOOST_FIXTURE_TEST_SUITE(ftolerance, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60) * boost::unit_test::disabled())
+BOOST_FIXTURE_TEST_SUITE(ftolerance, TestHelper::BarrierAtEnd,
+                         *boost::unit_test::timeout(60) * boost::unit_test::disabled())
 
 #ifdef ENABLEFT
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance) *
@@ -459,37 +461,42 @@ BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::timeout(40)) {
   // use recombination
-  BOOST_CHECK(checkFtolerance(true, false, 0.973230, 7.820831, 100, 0, 0, 0));
+  BOOST_CHECK_NO_THROW(checkFtolerance(true, false, 0.973230, 7.820831, 100, 0, 0, 0));
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
-BOOST_AUTO_TEST_CASE(test_2, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
+BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::timeout(60)) {
   // don't use recombination
-  checkFtolerance(false, false, 1.428688, 10.692053,100, 0, 0, 0);
+  BOOST_CHECK_NO_THROW(checkFtolerance(false, false, 1.428688, 10.692053, 100, 0, 0, 0));
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
-BOOST_AUTO_TEST_CASE(test_3, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(80)) {
+BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::timeout(80)) {
   // calculate solution on fullgrid
-  checkFtolerance(false, true, 0.060661, 0.350710, 100, 0, 0, 0);
+  BOOST_CHECK_NO_THROW(checkFtolerance(false, true, 0.060661, 0.350710, 100, 0, 0, 0));
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
-BOOST_AUTO_TEST_CASE(test_4, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(40)) {
+BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::timeout(40)) {
   // use recombination
-  checkFtolerance(true, false, 0.043363, 0.300988, 0, 0, 0, 0);
+  BOOST_CHECK_NO_THROW(checkFtolerance(true, false, 0.043363, 0.300988, 0, 0, 0, 0));
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
-BOOST_AUTO_TEST_CASE(test_5, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(60)) {
+BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::timeout(60)) {
   // don't use recombination
-  checkFtolerance(false, false, 0.043363, 0.300988,0, 0, 0, 0);
+  BOOST_CHECK_NO_THROW(checkFtolerance(false, false, 0.043363, 0.300988, 0, 0, 0, 0));
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
-BOOST_AUTO_TEST_CASE(test_6, * boost::unit_test::tolerance(TestHelper::tolerance) * boost::unit_test::timeout(80)) {
+BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::timeout(80)) {
   // calculate solution on fullgrid
-  checkFtolerance(false, true, 0.000623, 0.003553,0, 0, 0, 0);
+  BOOST_CHECK_NO_THROW(checkFtolerance(false, true, 0.000623, 0.003553, 0, 0, 0, 0));
   MPI_Barrier(MPI_COMM_WORLD);
 }
 #endif
