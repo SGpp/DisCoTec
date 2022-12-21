@@ -95,32 +95,34 @@ class TaskAdvection : public Task {
     std::vector<CombiDataType> velocity(this->getDim(), 1);
 
     std::vector<double> h = dfg_->getGridSpacing();
-    auto fullOffsets = dfg_->getLocalOffsets();
+    const auto& fullOffsets = dfg_->getLocalOffsets();
+
+    phi_->resize(dfg_->getNrLocalElements());
+    std::fill(phi_->begin(), phi_->end(), 0.);
 
     for (size_t i = 0; i < nsteps_; ++i) {
       // compute the gradient in the original dfg_, then update into phi_ and
       // swap at the end of each time step
-      auto u_dot_dphi = std::vector<CombiDataType> (dfg_->getNrLocalElements(), 0.);
+      auto& u_dot_dphi = *phi_;
 
       for (unsigned int d = 0; d < this->getDim(); ++d) {
-        // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
+        // to update the values in the "lowest" layer, we need the ghost values from the lower
+        // neighbor
         IndexVector subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
         int subarrayOffset = 1;
-	// int subarraySize = 1;
-        IndexVector subarrayOffsets (this->getDim());
+        IndexVector subarrayOffsets(this->getDim());
         for (DimType d_j = 0; d_j < dim_; ++d_j) {
           subarrayOffsets[d_j] = subarrayOffset;
           subarrayOffset *= subarrayExtents[d_j];
-	  // subarraySize *= subarrayExtents[d_j];
         }
 
         for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
           // calculate local axis index of backward neighbor
           static IndexVector locAxisIndex(this->getDim());
           dfg_->getLocalVectorIndex(li, locAxisIndex);
-          //TODO can be unrolled into ghost and other part, avoiding if-statement
+          // TODO can be unrolled into ghost and other part, avoiding if-statement
           CombiDataType phi_neighbor = 0.;
           if (locAxisIndex[d] == 0){
             // if we are in the lowest layer in d,
