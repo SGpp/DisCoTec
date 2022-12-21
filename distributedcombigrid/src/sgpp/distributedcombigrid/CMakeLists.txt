@@ -151,19 +151,26 @@ else ()
     message(WARNING "Boost not found. Building own Boost!")
     list(APPEND CMAKE_MESSAGE_INDENT "Boost: ")
     FetchContent_Declare(
-            Boost
-            GIT_REPOSITORY https://github.com/boostorg/boost.git
-            GIT_TAG boost-1.81.0
-            GIT_SHALLOW TRUE
-            QUIET
+            Boost_binaries
+            URL https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.tar.gz
             OVERRIDE_FIND_PACKAGE
             )
-    set(BOOST_ENABLE_CMAKE ON)
+    FetchContent_MakeAvailable(Boost_binaries)
+    message(STATUS "Cloning Boost")
+    FetchContent_GetProperties(Boost_binaries)
+    message(STATUS "Bootstraping Boost")
+    #TODO: some caching to speedup
+    execute_process(COMMAND ./bootstrap.sh --prefix=${boost_binaries_BINARY_DIR} --with-libraries=serialization,program_options,system,math,test,headers WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR}  OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+    message(STATUS "Building Boost")
+    execute_process(COMMAND ./b2 WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+    execute_process(COMMAND ./b2 headers WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
+    execute_process(COMMAND ./b2 install WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
 
-    FetchContent_MakeAvailable(Boost)
-    if (IS_DIRECTORY "${Boost_SOURCE_DIR}")
-        set_property(DIRECTORY ${Boost_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
-    endif ()
+
+    set(BOOST_ROOT ${boost_binaries_BINARY_DIR})
+    set(Boost_NO_SYSTEM_PATHS ON)
+    find_package(Boost REQUIRED COMPONENTS serialization program_options system unit_test_framework)
+
     list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif ()
 
