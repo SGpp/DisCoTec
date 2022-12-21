@@ -92,10 +92,7 @@ class TaskAdvection : public Task {
     assert(initialized_);
     // dfg_->print(std::cout);
 
-    std::vector<CombiDataType> u(this->getDim(), 1);
-
-    // gradient of phi
-    std::vector<CombiDataType> dphi(this->getDim());
+    std::vector<CombiDataType> velocity(this->getDim(), 1);
 
     std::vector<double> h = dfg_->getGridSpacing();
     auto fullOffsets = dfg_->getLocalOffsets();
@@ -151,7 +148,7 @@ class TaskAdvection : public Task {
           // calculate gradient of phi with backward differential quotient
           auto dphi = (dfg_->getElementVector()[li] - phi_neighbor) / h[d];
 
-          u_dot_dphi[li] += u[d] * dphi;
+          u_dot_dphi[li] += velocity[d] * dphi;
         }
       }
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
@@ -191,8 +188,8 @@ class TaskAdvection : public Task {
   }
 
   ~TaskAdvection() {
-    if (dfg_ != NULL) delete dfg_;
-    if (phi_ != NULL) delete phi_;
+    if (dfg_ != nullptr) delete dfg_;
+    if (phi_ != nullptr) delete phi_;
   }
 
   CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const override {
