@@ -14,7 +14,7 @@ if (NOT TARGET discotec)
 endif ()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+find_package(Boost REQUIRED)
 
 add_executable(combi_example_faults combi_example_faults.cpp)
-target_link_libraries(combi_example_faults discotec)
-
+target_link_libraries(combi_example_faults discotec Boost::boost)

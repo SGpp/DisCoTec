@@ -12,11 +12,9 @@ project("DisCoTec distributed advection example"
 if (NOT TARGET discotec)
     add_subdirectory(../../src/sgpp/distributedcombigrid discotec)
 endif ()
+find_package(Boost REQUIRED)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(distributed_combi_example combi_example.cpp)
-target_link_libraries(distributed_combi_example discotec)
-
-#TODO: Boost
-#TODO: get_mc_variance auslagern ?
+target_link_libraries(distributed_combi_example discotec Boost::boost)

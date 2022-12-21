@@ -152,7 +152,7 @@ else ()
     list(APPEND CMAKE_MESSAGE_INDENT "Boost: ")
     FetchContent_Declare(
             Boost_binaries
-            URL https://boostorg.jfrog.io/artifactory/main/release/1.81.0/source/boost_1_81_0.tar.gz
+            URL https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/boost_1_80_0.tar.gz
             OVERRIDE_FIND_PACKAGE
             )
     FetchContent_MakeAvailable(Boost_binaries)
@@ -250,6 +250,13 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
 
         target_link_libraries(discotec PUBLIC hdf5-static)
 
+        if(${HDF5_LIBRARIES} MATCHES ".*-NOTFOUND")
+         set(HDF5_LIBRARIES "")
+        endif()
+        if (${HDF5_INCLUDE_DIRS} MATCHES ".*-NOTFOUND")
+         set(HDF5_INCLUDE_DIRS "")
+        endif()
+
 
 
     endif ()
@@ -276,6 +283,8 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
             set(HIGHFIVE_PARALLEL_HDF5 ON CACHE BOOL "" FORCE)
             set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "" FORCE)
             set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "" FORCE)
+            set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "" FORCE)
+
             FetchContent_MakeAvailable(HighFive)
             if (IS_DIRECTORY "${HighFive_SOURCE_DIR}")
                 set_property(DIRECTORY ${HighFive_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
