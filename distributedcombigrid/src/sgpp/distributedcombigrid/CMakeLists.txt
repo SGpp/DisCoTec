@@ -3,7 +3,7 @@
 # use, please see the copyright notice provided with SG++ or at
 # sgpp.sparsegrids.org
 
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.24.2)
 
 project("DisCoTec"
         VERSION 0.1.0
