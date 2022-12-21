@@ -42,8 +42,7 @@ class TaskAdvection : public Task {
         p_(p),
         initialized_(false),
         stepsTotal_(0),
-        dfg_(nullptr),
-        phi_(nullptr) {}
+        dfg_(nullptr) {}
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -57,11 +56,8 @@ class TaskAdvection : public Task {
     // create local subgrid on each process
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, false,
                                                   decomposition);
-    phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
-
-    if (phi_->size() != dfg_->getElementVector().size() || phi_->size() != dfg_->getNrLocalElements() ) {
-      throw std::runtime_error("allocation went wrong! " + std::to_string(phi_->size()) + " vs " +
-                               std::to_string(dfg_->getElementVector().size()));
+    if (phi_ == nullptr) {
+      phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
     }
 
     std::vector<double> h = dfg_->getGridSpacing();
@@ -207,7 +203,7 @@ class TaskAdvection : public Task {
    * this constructor before overwriting the variables that are set by the
    * manager. here we need to set the initialized variable to make sure it is
    * set to false. */
-  TaskAdvection() : initialized_(false), stepsTotal_(0), dfg_(nullptr), phi_(nullptr) {}
+  TaskAdvection() : initialized_(false), stepsTotal_(0), dfg_(nullptr) {}
 
  private:
   friend class boost::serialization::access;
@@ -221,7 +217,7 @@ class TaskAdvection : public Task {
   bool initialized_;
   size_t stepsTotal_;
   DistributedFullGrid<CombiDataType>* dfg_;
-  std::vector<CombiDataType>* phi_;
+  static std::vector<CombiDataType>* phi_;
 
   /**
    * The serialize function has to be extended by the new member variables.
@@ -242,5 +238,7 @@ class TaskAdvection : public Task {
     ar& p_;
   }
 };
+
+std::vector<CombiDataType>* TaskAdvection::phi_ = nullptr;
 
 }  // namespace combigrid
