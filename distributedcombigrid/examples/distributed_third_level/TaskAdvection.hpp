@@ -42,7 +42,11 @@ class TaskAdvection : public Task {
         p_(p),
         initialized_(false),
         stepsTotal_(0),
-        dfg_(nullptr) {}
+        dfg_(nullptr) {
+          for (const auto& b : boundary) {
+            assert(b == 1);
+          }
+        }
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -121,13 +125,6 @@ class TaskAdvection : public Task {
           // TODO can be unrolled into ghost and other part, avoiding if-statement
           CombiDataType phi_neighbor = 0.;
           if (locAxisIndex[d] == 0){
-            // if we are in the lowest layer in d,
-            // make sure we are not on the lowest global layer
-            if (this->getBoundary()[d] == 2 &&
-                dfg_->getCartesianUtils().isOnLowerBoundaryInDimension(d)) {
-              assert(phi_ghost.size() == 0);
-              continue;
-            }
             assert(phi_ghost.size() > 0);
             // then use values from boundary exchange
             IndexType gli = 0;
@@ -153,12 +150,6 @@ class TaskAdvection : public Task {
         (*phi_)[li] = dfg_->getElementVector()[li] - u_dot_dphi[li] * dt_;
       }
       phi_->swap(dfg_->getElementVector());
-      for (DimType d = 0; d < dim_; ++d) {
-        // implement periodic BC
-        if (this->getBoundary()[d] == 2) {
-          dfg_->writeUpperBoundaryToLowerBoundary(d);
-        }
-      }
     }
     stepsTotal_ += nsteps_;
 
