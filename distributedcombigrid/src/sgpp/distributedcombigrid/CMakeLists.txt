@@ -250,10 +250,10 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
 
         target_link_libraries(discotec PUBLIC hdf5-static)
 
-        if(${HDF5_LIBRARIES} MATCHES ".*-NOTFOUND")
+        if("${HDF5_LIBRARIES}" MATCHES ".*-NOTFOUND")
          set(HDF5_LIBRARIES "")
         endif()
-        if (${HDF5_INCLUDE_DIRS} MATCHES ".*-NOTFOUND")
+        if ("${HDF5_INCLUDE_DIRS}" MATCHES ".*-NOTFOUND")
          set(HDF5_INCLUDE_DIRS "")
         endif()
 
