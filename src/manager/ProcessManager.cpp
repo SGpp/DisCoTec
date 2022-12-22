@@ -503,26 +503,42 @@ void ProcessManager::writeInterpolatedValuesPerGrid(
 }
 
 void ProcessManager::writeInterpolationCoordinates(
-    const std::vector<std::vector<real>>& interpolationCoords) {
+    const std::vector<std::vector<real>>& interpolationCoords) const {
 #ifdef HAVE_HIGHFIVE
-  // generate a rank-local per-run random number
-  // std::random_device dev;
-  static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-  static std::uniform_int_distribution<std::mt19937::result_type> dist(
-      1, std::numeric_limits<size_t>::max());
-  static size_t rankLocalRandom = dist(rng);
 
   std::string saveFilePath = "interpolation_coords.h5";
   // check if file already exists, if no, create
   HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
 
-  std::string groupName = "run_" + std::to_string(rankLocalRandom);
+  // // generate a rank-local per-run random number
+  // // std::random_device dev;
+  // static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+  // static std::uniform_int_distribution<std::mt19937::result_type> dist(
+  //     1, std::numeric_limits<size_t>::max());
+  // static size_t rankLocalRandom = dist(rng);
+  std::string groupName = "manager";
   HighFive::Group group = h5_file.createGroup(groupName);
 
   std::string datasetName = "coordinates";
   HighFive::DataSet dataset =
       group.createDataSet<real>(datasetName, HighFive::DataSpace::From(interpolationCoords));
   dataset.write(interpolationCoords);
+
+#else  // if not compiled with hdf5
+  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
+#endif
+}
+
+void ProcessManager::readInterpolationCoordinates(
+    std::vector<std::vector<real>>& interpolationCoords, std::string saveFilePath) const {
+#ifdef HAVE_HIGHFIVE
+  HighFive::File h5_file(saveFilePath, HighFive::File::ReadOnly);
+
+  // we get the dataset
+  std::string datasetName = "manager/coordinates";
+  auto dataset = h5_file.getDataSet(datasetName);
+
+  dataset.read(interpolationCoords);
 
 #else  // if not compiled with hdf5
   throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
