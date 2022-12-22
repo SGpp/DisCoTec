@@ -227,7 +227,14 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       manager.writeInterpolatedValuesPerGrid(interpolationCoords);
       BOOST_TEST_CHECKPOINT("wrote interpolated values");
       manager.writeInterpolationCoordinates(interpolationCoords);
+      decltype(interpolationCoords) interpolationCoordsRead;
+      manager.readInterpolationCoordinates(interpolationCoordsRead, "interpolation_coords.h5");
       BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
+      for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+        for (size_t d = 0; d < dim; ++d) {
+          BOOST_CHECK_EQUAL(interpolationCoords[i][d], interpolationCoordsRead[i][d]);
+        }
+      }
 #endif  // def HAVE_HIGHFIVE
     }
 

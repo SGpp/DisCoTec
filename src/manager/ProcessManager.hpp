@@ -103,7 +103,11 @@ class ProcessManager {
 
   void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords);
 
-  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords);
+  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords) const;
+
+  void readInterpolationCoordinates(
+    std::vector<std::vector<real>>& interpolationCoords, std::string saveFilePath) const;
+
 
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 
