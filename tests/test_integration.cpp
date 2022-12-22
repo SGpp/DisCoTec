@@ -224,7 +224,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       // system("rm interpolation_coords.h5");
       remove("interpolation_coords.h5");
       sleep(1);
-      manager.writeInterpolatedValues(interpolationCoords);
+      manager.writeInterpolatedValuesPerGrid(interpolationCoords);
       BOOST_TEST_CHECKPOINT("wrote interpolated values");
       manager.writeInterpolationCoordinates(interpolationCoords);
       BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
