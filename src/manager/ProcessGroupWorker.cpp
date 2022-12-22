@@ -298,18 +298,36 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("eval error norm");
     } break;
     case INTERPOLATE_VALUES: {  // interpolate values on given coordinates
-      Stats::startEvent("interpolate values");
+      Stats::startEvent("worker interpolate values");
+      auto values = interpolateValues();
+      Stats::stopEvent("worker interpolate values");
+    } break;
+    case INTERPOLATE_VALUES_AND_SEND_BACK: {
+      Stats::startEvent("worker interpolate values");
       auto values = interpolateValues();
       // send result
       MASTER_EXCLUSIVE_SECTION {
-        MPI_Send(values.data(), values.size(), abstraction::getMPIDatatype(
-          abstraction::getabstractionDataType<CombiDataType>()), theMPISystem()->getManagerRank(),
-          TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm());
+        MPI_Send(values.data(), values.size(),
+                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
+                 theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+                 theMPISystem()->getGlobalComm());
       }
-      Stats::stopEvent("interpolate values");
+      Stats::stopEvent("worker interpolate values");
     } break;
-    case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write values to .h5
-      Stats::startEvent("write interpolated values");
+    case INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE: {
+      Stats::startEvent("worker interpolate values");
+      auto values = interpolateValues();
+      // write result
+      MASTER_EXCLUSIVE_SECTION {
+        std::string valuesWriteFilename =
+            "interpolated_values_" + std::to_string(currentCombi_) + ".h5";
+        writeInterpolatedValues(values, valuesWriteFilename);
+      }
+      Stats::stopEvent("worker interpolate values");
+    } break;
+    case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write
+                                                // values to .h5
+      Stats::startEvent("worker write interpolated values");
       writeInterpolatedValuesPerGrid();
       Stats::stopEvent("write interpolated values");
     } break;
@@ -975,9 +993,18 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
       values[i] += t->getDistributedFullGrid().evalLocal(interpolationCoords[i]) * coeff;
     }
   }
+  // reduce interpolated values within process group
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getLocalComm());
+
+  // need to reduce across process groups too
+  // these do not strictly need to be allreduce (could be reduce), but it is easier to maintain that
+  // way (all processes end up with valid values)
+  MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
+                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
+                MPI_SUM, theMPISystem()->getGlobalReduceComm());
+
   return values;
 }
 
@@ -1037,6 +1064,15 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
                           tasks_[i]->getCurrentTime());
     }
   }
+}
+
+void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType>& values,
+                                                 const std::string& valuesWriteFilename) {
+  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  std::string groupName = "all_grids";
+  std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
+  writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
+                      tasks_[0]->getCurrentTime());
 }
 
 void ProcessGroupWorker::gridEval() {  // not supported anymore
