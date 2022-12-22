@@ -150,9 +150,11 @@ else ()
     endif ()
     message(WARNING "Boost not found. Building own Boost!")
     list(APPEND CMAKE_MESSAGE_INDENT "Boost: ")
+    set(Boost_VERSION 1.80.0 CACHE STRING "Boost version to build")
+    set(Boost_URL https://boostorg.jfrog.io/artifactory/main/release/${Boost_VERSION}/source/boost_${Boost_VERSION//./_}.tar.gz)
     FetchContent_Declare(
             Boost_binaries
-            URL https://boostorg.jfrog.io/artifactory/main/release/1.80.0/source/boost_1_80_0.tar.gz
+            URL ${Boost_URL}
             OVERRIDE_FIND_PACKAGE
             )
     FetchContent_MakeAvailable(Boost_binaries)
@@ -169,7 +171,7 @@ else ()
 
     set(BOOST_ROOT ${boost_binaries_BINARY_DIR})
     set(Boost_NO_SYSTEM_PATHS ON)
-    find_package(Boost REQUIRED COMPONENTS serialization program_options system unit_test_framework)
+    find_package(Boost ${Boost_VERSION} REQUIRED COMPONENTS serialization program_options system unit_test_framework)
 
     list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif ()
