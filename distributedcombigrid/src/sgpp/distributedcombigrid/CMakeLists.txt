@@ -12,7 +12,6 @@ project("DisCoTec"
 
 
 set(DISCOTEC_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/combicom/CombiCom.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiMinMaxScheme.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiThirdLevelScheme.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FaultCriterion.cpp
