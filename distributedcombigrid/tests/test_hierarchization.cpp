@@ -207,15 +207,14 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   LevelVector lone(dim, 1);  // cannot use lmin 0 in dsgu's constructor
   auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<FG_ELEMENT>>(
       new DistributedSparseGridUniform<FG_ELEMENT>(dim, dfg.getLevels(), lone, comm));
-  uniDSG->registerDistributedFullGrid(dfg);
+  dfg.registerUniformSG(*uniDSG);
   // TODO also cannot use level 0 to register dfg -- problem!
   auto dfgOne = std::unique_ptr<DistributedFullGrid<FG_ELEMENT>>(
       new DistributedFullGrid<FG_ELEMENT>(dim, lone, comm, boundary, procs));
-  uniDSG->registerDistributedFullGrid(*dfgOne);
-  uniDSG->setZero();
+  dfgOne->registerUniformSG(*uniDSG);
   BOOST_TEST_CHECKPOINT("registered sparse grid");
 
-  uniDSG->addDistributedFullGrid(dfg, 1.);
+  dfg.addToUniformSG(*uniDSG, 1.);
   dfgOne->extractFromUniformSG(*uniDSG);
 
   // TODO extract boundary grid lvl 1 to lvl 0 for now
