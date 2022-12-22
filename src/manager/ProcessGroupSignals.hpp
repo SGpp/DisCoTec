@@ -64,6 +64,9 @@ const SignalType WRITE_INTERPOLATED_VALUES_PER_GRID = 39;
 const SignalType WRITE_DSGS_TO_DISK = 41;
 const SignalType READ_DSGS_FROM_DISK = 42;
 
+const SignalType INTERPOLATE_VALUES_AND_SEND_BACK = 46;
+const SignalType INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE = 47;
+
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;
 const NormalizationType L1_NORMALIZATION = 1;

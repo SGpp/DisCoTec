@@ -472,24 +472,21 @@ std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<re
 
 std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
   auto numValues = interpolationCoords.size();
-  std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN()));
-  std::vector<MPI_Request> requests(pgroups_.size());
+  auto values = std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN());
+  MPI_Request request = MPI_REQUEST_NULL;
 
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
-
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->interpolateValues(interpolationCoordsSerial, values[i], requests[i]);
+  // have the last process group return the all-reduced values
+  pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, values, &request);
+  for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
+    // all other groups only communicate the interpolation values to last group
+    auto dummyValues = std::vector<CombiDataType>(0);
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValues);
   }
-  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
 
-  std::vector<CombiDataType> reducedValues(numValues);
-  for (const auto& v : values){
-    for (size_t i = 0; i < numValues; ++i) {
-      reducedValues[i] += v[i];
-    }
-  }
-  return reducedValues;
+  MPI_Wait(&request, MPI_STATUS_IGNORE);
+  return values;
 }
 
 void ProcessManager::writeInterpolatedValuesPerGrid(
@@ -500,6 +497,23 @@ void ProcessManager::writeInterpolatedValuesPerGrid(
   for (size_t i = 0; i < pgroups_.size(); ++i) {
     pgroups_[i]->writeInterpolatedValuesPerGrid(interpolationCoordsSerial);
   }
+}
+
+void ProcessManager::writeInterpolatedValuesSingleFile(
+    const std::vector<std::vector<real>>& interpolationCoords) {
+  Stats::startEvent("manager write interpolated");
+  // send interpolation coords as a single array
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
+
+  // have the last process group write the all-reduced values
+  auto dummyValuesNotEmpty = std::vector<CombiDataType>(1, 0.0);
+  pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, dummyValuesNotEmpty);
+  for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
+    // all other groups only communicate the interpolation values to last group
+    auto dummyValuesEmpty = std::vector<CombiDataType>(0);
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValuesEmpty);
+  }
+  Stats::stopEvent("manager write interpolated");
 }
 
 void ProcessManager::writeInterpolationCoordinates(
