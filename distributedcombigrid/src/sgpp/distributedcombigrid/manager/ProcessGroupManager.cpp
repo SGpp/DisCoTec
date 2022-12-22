@@ -675,7 +675,7 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
   setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::writeInterpolatedValues(const std::vector<real>& interpolationCoordsSerial) {
+void ProcessGroupManager::writeInterpolatedValuesPerGrid(const std::vector<real>& interpolationCoordsSerial) {
   sendSignalToProcessGroup(WRITE_INTERPOLATED_VALUES_PER_GRID);
   MPI_Request dummyRequest;
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&

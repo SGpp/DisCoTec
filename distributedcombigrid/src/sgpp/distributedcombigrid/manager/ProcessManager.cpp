@@ -520,14 +520,14 @@ void ProcessManager::setupThirdLevel() {
   Stats::stopEvent("manager connect third level");
 }
 
-void ProcessManager::writeInterpolatedValues(
+void ProcessManager::writeInterpolatedValuesPerGrid(
     const std::vector<std::vector<real>>& interpolationCoords) {
   Stats::startEvent("manager write interpolated");
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->writeInterpolatedValues(interpolationCoordsSerial);
+    pgroups_[i]->writeInterpolatedValuesPerGrid(interpolationCoordsSerial);
   }
   Stats::stopEvent("manager write interpolated");
 }
