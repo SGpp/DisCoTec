@@ -282,7 +282,7 @@ int main(int argc, char** argv) {
       std::cout << fullLevels.size()
                 << " component grids in full combination scheme; this system will run "
                 << levels.size() << " of them." << std::endl;
-      ctDOF = printCombiDegreesOfFreedom(levels, boundary); // TODO: @polinta i added the boundary here, correct?
+      ctDOF = printCombiDegreesOfFreedom(levels, boundary); // TODO: @polinta I added the boundary here, correct?
     }
   } else {
     // read in CT scheme, if applicable
