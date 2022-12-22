@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <random>
 #include <string>
 #ifdef HAVE_HIGHFIVE
 #include <chrono>
