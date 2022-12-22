@@ -372,18 +372,31 @@ SignalType ProcessGroupWorker::wait() {
       auto values = interpolateValues();
       Stats::stopEvent("worker interpolate values");
     } break;
-    case INTERPOLATE_VALUES_AND_SEND_BACK: {  // interpolate values on given coordinates
+    case INTERPOLATE_VALUES_AND_SEND_BACK: {
       Stats::startEvent("worker interpolate values");
       auto values = interpolateValues();
       // send result
       MASTER_EXCLUSIVE_SECTION {
-        MPI_Send(values.data(), values.size(), abstraction::getMPIDatatype(
-          abstraction::getabstractionDataType<CombiDataType>()), theMPISystem()->getManagerRank(),
-          TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm());
+        MPI_Send(values.data(), values.size(),
+                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
+                 theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+                 theMPISystem()->getGlobalComm());
       }
       Stats::stopEvent("worker interpolate values");
     } break;
-    case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write values to .h5
+    case INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE: {
+      Stats::startEvent("worker interpolate values");
+      auto values = interpolateValues();
+      // write result
+      MASTER_EXCLUSIVE_SECTION {
+        std::string valuesWriteFilename =
+            "interpolated_values_" + std::to_string(currentCombi_) + ".h5";
+        writeInterpolatedValues(values, valuesWriteFilename);
+      }
+      Stats::stopEvent("worker interpolate values");
+    } break;
+    case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write
+                                                // values to .h5
       Stats::startEvent("worker write interpolated values");
       writeInterpolatedValuesPerGrid();
       Stats::stopEvent("worker write interpolated values");
@@ -1170,6 +1183,15 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
                           tasks_[i]->getCurrentTime());
     }
   }
+}
+
+void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType>& values,
+                                                 const std::string& valuesWriteFilename) {
+  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  std::string groupName = "all_grids";
+  std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
+  writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
+                      tasks_[0]->getCurrentTime());
 }
 
 void ProcessGroupWorker::gridEval() {  // not supported anymore

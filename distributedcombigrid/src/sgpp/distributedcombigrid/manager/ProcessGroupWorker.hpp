@@ -97,6 +97,11 @@ class ProcessGroupWorker {
   /** interpolate values on all tasks' component grids and write results to file */
   void writeInterpolatedValuesPerGrid();
 
+  /** interpolate values on all tasks' component grids, combine results, and write to a single file
+   */
+  void writeInterpolatedValues(const std::vector<CombiDataType>& values,
+                               const std::string& valuesWriteFilename);
+
   /** write extra SGs to disk (binary w/ MPI-IO) */
   void writeDSGsToDisk(std::string filenamePrefix);
 
