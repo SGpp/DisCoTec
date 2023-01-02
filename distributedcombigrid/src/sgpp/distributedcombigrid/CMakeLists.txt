@@ -124,9 +124,6 @@ if (DISCOTEC_USENONBLOCKINGMPICOLLECTIVE)
     target_compile_definitions(discotec PRIVATE USENONBLOCKINGMPICOLLECTIVE)
 endif ()
 
-#USE_NON_BLOCKING_COLLECTIVES #TODO: @polinta wird nirgends in SCONS definiert also ka wann definieren
-#ALT_LEVEL_VECTOR #TODO: @polinta wird nirgends in SCONS definiert also ka wann definieren
-#SIMFTMPI #TODO: @polinta: what is this? in confg.hpp the same is set no matter if defined or not ...
 #ISGENE #TODO: handle if access to GENE
 
 # Handle dependencies
@@ -135,7 +132,7 @@ target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
 include(FetchContent)
 
-find_package(Boost QUIET COMPONENTS serialization headers program_options unit_test_framework system ) #TODO: add all required components
+find_package(Boost QUIET COMPONENTS serialization headers program_options unit_test_framework system filesystem)
 if (Boost_FOUND)
     message(STATUS "Boost found")
 else ()
@@ -155,7 +152,6 @@ else ()
     message(STATUS "Cloning Boost")
     FetchContent_GetProperties(Boost_binaries)
     message(STATUS "Bootstraping Boost")
-    #TODO: some caching to speedup
     execute_process(COMMAND ./bootstrap.sh --prefix=${boost_binaries_BINARY_DIR} --with-libraries=serialization,program_options,system,math,test,headers WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR}  OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
     message(STATUS "Building Boost")
     execute_process(COMMAND ./b2 WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
@@ -231,7 +227,7 @@ if (DISCOTEC_HDF5)
         set(HDF5_TESTS_PARALLEL OFF CACHE BOOL "" FORCE)
         set(HDF5_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
         set(HDF5_BUILD_CPP_LIB OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_FORTRAN OFF CACHE BOOL "" FORCE)
+        set(HDF5_BUILD_FORTRAN OFF CACHE BOOL "" FORCE) # TODO: enable fortran when using selalib
         set(HDF5_ENABLE_THREADSAFE OFF CACHE BOOL "" FORCE)
         set(HDF5_BUILD_JAVA OFF CACHE BOOL "" FORCE)
         FetchContent_MakeAvailable(HDF5)
@@ -252,9 +248,6 @@ if (DISCOTEC_HDF5)
         if ("${HDF5_INCLUDE_DIRS}" MATCHES ".*-NOTFOUND")
          set(HDF5_INCLUDE_DIRS "")
         endif()
-
-
-
     endif ()
 
 
