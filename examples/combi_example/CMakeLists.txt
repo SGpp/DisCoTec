@@ -10,7 +10,7 @@ project("DisCoTec distributed combi example"
         DESCRIPTION "TODO")
 
 if (NOT TARGET discotec)
-    add_subdirectory(../src discotec)
+    add_subdirectory(../../src discotec)
 endif ()
 find_package(Boost REQUIRED)
 

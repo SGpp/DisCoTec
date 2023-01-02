@@ -12,7 +12,7 @@ project("DisCoTec distributed third level example"
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY .)
 
 if (NOT TARGET discotec)
-    add_subdirectory(../src discotec)
+    add_subdirectory(../../src discotec)
 endif ()
 
 find_package(MPI REQUIRED)
