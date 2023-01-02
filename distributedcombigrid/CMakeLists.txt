@@ -14,12 +14,3 @@ if(DISCOTEC_TEST)
     enable_testing()
     add_subdirectory(tests)
 endif()
-
-
-
-
-
-
-
-
-
