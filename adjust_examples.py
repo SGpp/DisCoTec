@@ -11,7 +11,7 @@ GLPK_DIR= str(dir_path) + "/glpk"
 examples = ["combi_example", "combi_example_faults", "distributed_third_level", "gene_distributed", "gene_distributed_linear", "distributed_advection", "selalib_distributed"]
 
 for example in examples:
-    pfilein = open(str(dir_path)+ "/distributedcombigrid/examples/" + example + "/Makefile.template" ,'r')
+    pfilein = open(str(dir_path)+ "/examples/" + example + "/Makefile.template" ,'r')
     temp = pfilein.read()
     pfilein.close()
     temp = temp.replace('$(SGPP)', str(dir_path))
@@ -19,7 +19,7 @@ for example in examples:
     temp = temp.replace('$(CC)', CC)
     temp = temp.replace('$(FC)', FC)
     temp = temp.replace('$(cc)', cc)
-    pfileout = open(str(dir_path)+ "/distributedcombigrid/examples/" + example + "/Makefile" ,'w')
+    pfileout = open(str(dir_path)+ "/examples/" + example + "/Makefile" ,'w')
     pfileout.write(temp)
     pfileout.close()
 gene_versions = ["gene_mgr", "gene-non-linear", "gene-dev-exahd"]
@@ -36,19 +36,19 @@ for geneVersion in gene_versions:
             temp = temp.replace('$(cc)', cc)
             with open(fname + ".mk" ,'w') as pfileout:
                 pfileout.write(temp)
-pfilein = open(str(dir_path)+ "/distributedcombigrid/examples/gene_distributed/preproc.py" ,'r')
+pfilein = open(str(dir_path)+ "/examples/gene_distributed/preproc.py" ,'r')
 temp = pfilein.read()
 pfilein.close()
 temp = temp.replace('$(SGPP)', str(dir_path))
-pfileout = open(str(dir_path)+ "/distributedcombigrid/examples/gene_distributed/preproc.py" ,'w')
+pfileout = open(str(dir_path)+ "/examples/gene_distributed/preproc.py" ,'w')
 pfileout.write(temp)
 pfileout.close()
 
-pfilein = open(str(dir_path)+ "/distributedcombigrid/examples/gene_distributed_linear/preproc.py" ,'r')
+pfilein = open(str(dir_path)+ "/examples/gene_distributed_linear/preproc.py" ,'r')
 temp = pfilein.read()
 pfilein.close()
 temp = temp.replace('$(SGPP)', str(dir_path))
-pfileout = open(str(dir_path)+ "/distributedcombigrid/examples/gene_distributed_linear/preproc.py" ,'w')
+pfileout = open(str(dir_path)+ "/examples/gene_distributed_linear/preproc.py" ,'w')
 pfileout.write(temp)
 pfileout.close()
 
