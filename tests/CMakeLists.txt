@@ -5,14 +5,14 @@ project("DisCoTec Tests"
         DESCRIPTION "Tests for DisCoTec")
 
 if (NOT TARGET discotec)
-    add_subdirectory(../../src/sgpp/distributedcombigrid discotec)
+    add_subdirectory(../src discotec)
 endif ()
 
 include(CTest)
 
 find_package(MPI REQUIRED)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY .)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 file(GLOB UNIT_TESTS_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
