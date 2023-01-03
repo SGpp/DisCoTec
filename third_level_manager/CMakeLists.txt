@@ -4,7 +4,7 @@ project("DisCoTec Tests"
         LANGUAGES CXX
         DESCRIPTION "DisCoTec manager for distributed combitechnic")
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY .)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(thirdLevelManager Params.cpp Stats.cpp System.cpp thirdLevelManager.cpp)
 add_executable(test_uftp Params.cpp Stats.cpp System.cpp test_uftp.cpp)
