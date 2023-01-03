@@ -142,7 +142,7 @@ void assignProcsToSystems(unsigned int ngroup, unsigned int nprocs, unsigned int
 /** Runs the third level manager in the background as a forked child process */
 void runThirdLevelManager(unsigned short port) {
   std::cout << "starting thirdLevelManager..." << std::endl;
-  std::string command = "../../distributedcombigrid/third_level_manager/thirdLevelManager --port=" +
+  std::string command = "../third_level_manager/thirdLevelManager --port=" +
                         std::to_string(port) + " &";
   auto status = system(command.c_str());
   BOOST_WARN_GE(status, 0);
