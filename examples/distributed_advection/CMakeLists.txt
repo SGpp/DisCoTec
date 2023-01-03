@@ -10,7 +10,7 @@ project("DisCoTec distributed advection example"
         DESCRIPTION "TODO")
 
 if (NOT TARGET discotec)
-    add_subdirectory(../../src/sgpp/distributedcombigrid discotec)
+    add_subdirectory(../../src discotec)
 endif ()
 find_package(Boost REQUIRED)
 

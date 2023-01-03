@@ -5,7 +5,7 @@ project("DisCoTec Tests"
         DESCRIPTION "Tests for DisCoTec")
 
 if (NOT TARGET discotec)
-    add_subdirectory(../src/sgpp/distributedcombigrid discotec)
+    add_subdirectory(../src discotec)
 endif ()
 
 include(CTest)
