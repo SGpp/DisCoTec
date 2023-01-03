@@ -101,6 +101,8 @@ class ProcessManager {
 
   std::vector<CombiDataType> interpolateValues(const std::vector<std::vector<real>>& interpolationCoords);
 
+  void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords);
+
   void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords);
 
   void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords) const;
