@@ -16,4 +16,5 @@ find_package(Boost REQUIRED)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY .)
 add_executable(combi_example combi_example.cpp)
+target_compile_features(combi_example PRIVATE cxx_std_17)
 target_link_libraries(combi_example discotec Boost::boost)
