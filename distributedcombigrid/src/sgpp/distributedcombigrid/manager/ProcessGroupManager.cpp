@@ -652,18 +652,17 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
   for (const auto& coord : interpolationCoordsSerial) {
     assert(coord >= 0.0 && coord <= 1.0);
   }
+  // assert that either no request and no values are given or both are given
+  assert((request == nullptr && values.empty()) ||
+         (request != nullptr && interpolationCoordsSerial.size() % values.size() == 0));
   // if no request was passed, assume we are not waiting for a reply from that group
-  if (request == nullptr && values.empty()) {
+  if (request == nullptr) {
     sendSignalToProcessGroup(INTERPOLATE_VALUES);
-  } else if (request != nullptr && !values.empty()) {
-    sendSignalToProcessGroup(INTERPOLATE_VALUES_AND_SEND_BACK);
-  } else if (request == nullptr && !values.empty()) {
-    sendSignalToProcessGroup(INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE);
   } else {
-    assert(false && "invalid combination of arguments");
+    sendSignalToProcessGroup(INTERPOLATE_VALUES_AND_SEND_BACK);
   }
   MPI_Request dummyRequest;
-  // send interpolation coordinates to group
+  // send interpolation coordinates to all groups
   MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
             abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
@@ -676,7 +675,7 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
   setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::writeInterpolatedValuesPerGrid(const std::vector<real>& interpolationCoordsSerial) {
+void ProcessGroupManager::writeInterpolatedValues(const std::vector<real>& interpolationCoordsSerial) {
   sendSignalToProcessGroup(WRITE_INTERPOLATED_VALUES_PER_GRID);
   MPI_Request dummyRequest;
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&

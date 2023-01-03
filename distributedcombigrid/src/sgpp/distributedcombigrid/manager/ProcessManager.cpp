@@ -504,7 +504,7 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(
   // have the last process group return the all-reduced values
   pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, values, &request);
   for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
-    // all other groups only communicate the interpolation values to last group
+    // all other groups only communicate the interpolation coords to last group
     auto dummyValues = std::vector<CombiDataType>(0);
     pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValues);
   }
@@ -520,50 +520,33 @@ void ProcessManager::setupThirdLevel() {
   Stats::stopEvent("manager connect third level");
 }
 
-void ProcessManager::writeInterpolatedValuesPerGrid(
+void ProcessManager::writeInterpolatedValues(
     const std::vector<std::vector<real>>& interpolationCoords) {
   Stats::startEvent("manager write interpolated");
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->writeInterpolatedValuesPerGrid(interpolationCoordsSerial);
-  }
-  Stats::stopEvent("manager write interpolated");
-}
-
-void ProcessManager::writeInterpolatedValuesSingleFile(
-    const std::vector<std::vector<real>>& interpolationCoords) {
-  Stats::startEvent("manager write interpolated");
-  // send interpolation coords as a single array
-  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
-
-  // have the last process group write the all-reduced values
-  auto dummyValuesNotEmpty = std::vector<CombiDataType>(1, 0.0);
-  pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, dummyValuesNotEmpty);
-  for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
-    // all other groups only communicate the interpolation values to last group
-    auto dummyValuesEmpty = std::vector<CombiDataType>(0);
-    pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValuesEmpty);
+    pgroups_[i]->writeInterpolatedValues(interpolationCoordsSerial);
   }
   Stats::stopEvent("manager write interpolated");
 }
 
 void ProcessManager::writeInterpolationCoordinates(
-    const std::vector<std::vector<real>>& interpolationCoords) const {
+    const std::vector<std::vector<real>>& interpolationCoords) {
 #ifdef HAVE_HIGHFIVE
+  // generate a rank-local per-run random number
+  // std::random_device dev;
+  static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+  static std::uniform_int_distribution<std::mt19937::result_type> dist(
+      1, std::numeric_limits<size_t>::max());
+  static size_t rankLocalRandom = dist(rng);
 
   std::string saveFilePath = "interpolation_coords.h5";
   // check if file already exists, if no, create
   HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
 
-  // // generate a rank-local per-run random number
-  // // std::random_device dev;
-  // static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-  // static std::uniform_int_distribution<std::mt19937::result_type> dist(
-  //     1, std::numeric_limits<size_t>::max());
-  // static size_t rankLocalRandom = dist(rng);
-  std::string groupName = "manager";
+  std::string groupName = "run_" + std::to_string(rankLocalRandom);
   HighFive::Group group = h5_file.createGroup(groupName);
 
   std::string datasetName = "coordinates";
@@ -576,25 +559,7 @@ void ProcessManager::writeInterpolationCoordinates(
 #endif
 }
 
-void ProcessManager::readInterpolationCoordinates(
-    std::vector<std::vector<real>>& interpolationCoords, std::string saveFilePath) const {
-#ifdef HAVE_HIGHFIVE
-  HighFive::File h5_file(saveFilePath, HighFive::File::ReadOnly);
-
-  // we get the dataset
-  std::string datasetName = "manager/coordinates";
-  auto dataset = h5_file.getDataSet(datasetName);
-
-  dataset.read(interpolationCoords);
-
-#else  // if not compiled with hdf5
-  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
-#endif
-}
-
-void ProcessManager::monteCarloThirdLevel(size_t numPoints,
-                                          std::vector<std::vector<real>>& coordinates,
-                                          std::vector<CombiDataType>& values) {
+void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values) {
   Stats::startEvent("manager MC third level");
   coordinates = montecarlo::getRandomCoordinates(numPoints, params_.getDim());
   auto ourCoordinatesSerial = serializeInterpolationCoords(coordinates);

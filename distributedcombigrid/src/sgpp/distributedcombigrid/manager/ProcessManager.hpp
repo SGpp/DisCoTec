@@ -135,14 +135,9 @@ class ProcessManager {
 
   std::vector<CombiDataType> interpolateValues(const std::vector<std::vector<real>>& interpolationCoords);
 
-  void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords);
+  void writeInterpolatedValues(const std::vector<std::vector<real>>& interpolationCoords);
 
-  void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords);
-
-  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords) const;
-
-  void readInterpolationCoordinates(
-    std::vector<std::vector<real>>& interpolationCoords, std::string saveFilePath) const;
+  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords);
 
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 

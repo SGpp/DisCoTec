@@ -248,23 +248,15 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       // output files are not needed, remove them right away
       // (if this doesn't happen, there may be hdf5 errors due to duplicate task IDs)
       sleep(1);
-      auto status = system("rm interpolated*.h5");
+      auto status = system("rm interpolated_*.h5");
       BOOST_WARN_GE(status, 0);
       // system("rm interpolation_coords.h5");
       remove("interpolation_coords.h5");
       sleep(1);
-      manager.writeInterpolatedValuesSingleFile(interpolationCoords);
-      manager.writeInterpolatedValuesPerGrid(interpolationCoords);
+      manager.writeInterpolatedValues(interpolationCoords);
       BOOST_TEST_CHECKPOINT("wrote interpolated values");
       manager.writeInterpolationCoordinates(interpolationCoords);
-      decltype(interpolationCoords) interpolationCoordsRead;
-      manager.readInterpolationCoordinates(interpolationCoordsRead, "interpolation_coords.h5");
       BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
-      for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-        for (size_t d = 0; d < dim; ++d) {
-          BOOST_CHECK_EQUAL(interpolationCoords[i][d], interpolationCoordsRead[i][d]);
-        }
-      }
 #endif  // def HAVE_HIGHFIVE
     }
 
