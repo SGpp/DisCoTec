@@ -26,6 +26,17 @@
 
 namespace combigrid {
 
+std::string receiveStringFromManagerAndBroadcastToGroup() {
+  std::string stringToReceive;
+  MASTER_EXCLUSIVE_SECTION {
+    MPIUtils::receiveClass(&stringToReceive, theMPISystem()->getManagerRank(),
+                           theMPISystem()->getGlobalComm());
+  }
+  MPIUtils::broadcastClass(&stringToReceive, theMPISystem()->getMasterRank(),
+                           theMPISystem()->getLocalComm());
+  return stringToReceive;
+}
+
 ProcessGroupWorker::ProcessGroupWorker()
     : currentTask_(nullptr),
       status_(PROCESS_GROUP_WAIT),
@@ -189,25 +200,13 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case WRITE_DSGS_TO_DISK: {
       Stats::startEvent("worker write to disk");
-      std::string filenamePrefix;
-      MASTER_EXCLUSIVE_SECTION {
-        MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
-                               theMPISystem()->getGlobalComm());
-      }
-      MPIUtils::broadcastClass(&filenamePrefix, theMPISystem()->getMasterRank(),
-                               theMPISystem()->getLocalComm());
+      std::string filenamePrefix = receiveStringFromManagerAndBroadcastToGroup();
       writeDSGsToDisk(filenamePrefix);
       Stats::stopEvent("worker write to disk");
     } break;
     case READ_DSGS_FROM_DISK: {
       Stats::startEvent("worker read from disk");
-      std::string filenamePrefix;
-      MASTER_EXCLUSIVE_SECTION {
-        MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
-                               theMPISystem()->getGlobalComm());
-      }
-      MPIUtils::broadcastClass(&filenamePrefix, theMPISystem()->getMasterRank(),
-                               theMPISystem()->getLocalComm());
+      std::string filenamePrefix = receiveStringFromManagerAndBroadcastToGroup();
       readDSGsFromDisk(filenamePrefix);
       Stats::stopEvent("worker read from disk");
     } break;
@@ -725,14 +724,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
   const auto dim = static_cast<DimType>(leval.size());
 
   // receive filename and broadcast to group members
-  std::string filename;
-  MASTER_EXCLUSIVE_SECTION {
-    MPIUtils::receiveClass(&filename, theMPISystem()->getManagerRank(),
-                           theMPISystem()->getGlobalComm());
-  }
-
-  MPIUtils::broadcastClass(&filename, theMPISystem()->getMasterRank(),
-                           theMPISystem()->getLocalComm());
+  std::string filename = receiveStringFromManagerAndBroadcastToGroup();
 
   for (int g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
