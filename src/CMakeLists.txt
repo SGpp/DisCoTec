@@ -272,6 +272,7 @@ if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
                     GIT_TAG v2.6.2
                     GIT_SHALLOW TRUE
                     QUIET
+                    OVERRIDE_FIND_PACKAGE
             )
             set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "" FORCE)
             set(HIGHFIVE_PARALLEL_HDF5 ON CACHE BOOL "" FORCE)
