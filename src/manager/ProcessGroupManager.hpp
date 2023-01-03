@@ -86,8 +86,7 @@ class ProcessGroupManager {
   std::vector<double> evalErrorOnDFG(const LevelVector& leval);
 
   void interpolateValues(const std::vector<real>& interpolationCoordsSerial,
-                                              std::vector<CombiDataType>& values,
-                                              MPI_Request& request);
+                         std::vector<CombiDataType>& values, MPI_Request* request = nullptr);
 
   void writeInterpolatedValuesPerGrid(const std::vector<real>& interpolationCoordsSerial);
 
