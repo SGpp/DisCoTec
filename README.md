@@ -57,8 +57,7 @@ For building only the DisCoTec library, run cmake with the `src` folder as sourc
 - `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform decomposition of the grid.
 - `DISCOTEC_GENE=ON|**OFF**` - Currently GEne is not supported with CMake!
 - `DISCOTEC_OPENMP=ON|**OFF**` - Enables OpenMP support.
-- `DISCOTEC_ENABLEFT=**ON**|OFF` - Enables the use of the FT library.
-- `DISCOTEC_DEBUG=ON|**OFF**` - Enables debug mode. Has to be used with a cmake debug build mode.
+- `DISCOTEC_ENABLEFT=ON|**OFF**` - Enables the use of the FT library.
 - `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler supports it.
 - `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI communication. This can be used to reduce the communication overhead.
 - `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - TODO: Add description

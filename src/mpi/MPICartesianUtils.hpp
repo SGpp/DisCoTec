@@ -46,10 +46,6 @@ class MPICartesianUtils {
           }
         }
       }
-// #ifdef DEBUG_OUTPUT
-//       std::cout << "mpi partition coords " << partitionCoords_[getCommunicatorSize() - 1]
-//                 << std::endl;
-// #endif
     } else {
       cartdims_.clear();
       periods_.clear();
