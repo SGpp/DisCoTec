@@ -286,3 +286,5 @@ if (DISCOTEC_HDF5)
         list(POP_BACK CMAKE_MESSAGE_INDENT)
     endif ()
 endif ()
+
+install(TARGETS discotec DESTINATION lib)
