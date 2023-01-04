@@ -515,11 +515,6 @@ void ProcessManager::writeInterpolationCoordinates(
   h5io::writeValuesToH5File(interpolationCoords, saveFilePath, "manager", "coordinates");
 }
 
-void ProcessManager::readInterpolationCoordinates(
-    std::vector<std::vector<real>>& interpolationCoords, std::string saveFilePath) const {
-  h5io::readValuesFromH5File(interpolationCoords, saveFilePath);
-}
-
 void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
   pgroups_.back()->writeSparseGridMinMaxCoefficients(filename);
 }

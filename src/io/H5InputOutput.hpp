@@ -61,5 +61,10 @@ void readValuesFromH5File(T& values, const std::string& fileName) {
 #endif
 }
 
+// some instantiations
+void readH5Coordinates(std::vector<std::vector<real>>& coordinates, std::string saveFilePath);
+
+void readH5Values(std::vector<real>& values, std::string saveFilePath);
+
 }  // namespace h5io
 }  // namespace combigrid
