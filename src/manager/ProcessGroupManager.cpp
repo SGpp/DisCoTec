@@ -283,21 +283,22 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
 
 void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                                             std::vector<CombiDataType>& values,
-                                            MPI_Request* request) {
+                                            MPI_Request* request, std::string filenamePrefix) {
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
   for (const auto& coord : interpolationCoordsSerial) {
     assert(coord >= 0.0 && coord <= 1.0);
   }
   // if no request was passed, assume we are not waiting for a reply from that group
-  if (request == nullptr && values.empty()) {
+  if (request == nullptr && values.empty() && filenamePrefix == "") {
     sendSignalToProcessGroup(INTERPOLATE_VALUES);
-  } else if (request != nullptr && !values.empty()) {
+  } else if (request != nullptr && !values.empty() && filenamePrefix == "") {
     sendSignalToProcessGroup(INTERPOLATE_VALUES_AND_SEND_BACK);
-  } else if (request == nullptr && !values.empty()) {
+  } else if (request == nullptr && values.empty() && filenamePrefix != "") {
     sendSignalToProcessGroup(INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE);
+    MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
   } else {
-    assert(false && "invalid combination of arguments");
+    throw std::runtime_error("invalid combination of arguments");
   }
   MPI_Request dummyRequest;
   // send interpolation coordinates to group
@@ -313,8 +314,11 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
   setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::writeInterpolatedValuesPerGrid(const std::vector<real>& interpolationCoordsSerial) {
+void ProcessGroupManager::writeInterpolatedValuesPerGrid(
+    const std::vector<real>& interpolationCoordsSerial, const std::string& filenamePrefix) {
   sendSignalToProcessGroup(WRITE_INTERPOLATED_VALUES_PER_GRID);
+  // send filename prefix to group
+  MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
   MPI_Request dummyRequest;
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");

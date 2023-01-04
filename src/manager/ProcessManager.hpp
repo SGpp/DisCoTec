@@ -99,17 +99,20 @@ class ProcessManager {
 
   std::vector<double> evalErrorOnDFG(const LevelVector& leval, size_t groupID = 0);
 
-  std::vector<CombiDataType> interpolateValues(const std::vector<std::vector<real>>& interpolationCoords);
+  std::vector<CombiDataType> interpolateValues(
+      const std::vector<std::vector<real>>& interpolationCoords);
 
-  void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords);
+  void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords,
+                                         std::string filenamePrefix);
 
-  void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords);
+  void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords,
+                                      std::string filenamePrefix);
 
-  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords) const;
+  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords,
+                                     std::string filenamePrefix) const;
 
-  void readInterpolationCoordinates(
-    std::vector<std::vector<real>>& interpolationCoords, std::string saveFilePath) const;
-
+  void readInterpolationCoordinates(std::vector<std::vector<real>>& interpolationCoords,
+                                    std::string saveFilePath) const;
 
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 
