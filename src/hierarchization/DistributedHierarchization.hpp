@@ -144,45 +144,6 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
                            const std::map<RankType, std::set<IndexType>>& recv1dIndices,
                            const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                            std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
-#ifdef DEBUG_OUTPUT
-  auto commSize = dfg.getCommunicatorSize();
-  CommunicatorType comm = dfg.getCommunicator();
-  auto rank = dfg.getRank();
-  MPI_Barrier(comm);
-
-  // print recvindices
-  {
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << r << " recv1dIndices ";
-        for (const auto& r : recv1dIndices) {
-          std::cout << r.second;
-        }
-        std::cout << std::endl;
-      }
-      MPI_Barrier(comm);
-    }
-  }
-
-  if (rank == 0) std::cout << std::endl;
-
-  // print sendindices
-  {
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << r << " send1dIndices ";
-        for (const auto& s : send1dIndices) {
-          std::cout << s.second;
-        }
-        std::cout << std::endl;
-      }
-      MPI_Barrier(comm);
-    }
-  }
-
-  MPI_Barrier(comm);
-
-#endif
   assert(remoteData.empty());
 
   std::vector<MPI_Request> sendRequests;
@@ -246,12 +207,6 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
         MPI_Isend(dfg.getData(), 1, mysubarray, dest, tag, dfg.getCommunicator(),
                 &sendRequests[sendcount + k++]);
 
-#ifdef DEBUG_OUTPUT
-        auto rank = dfg.getRank();
-        // print info: dest, size, index
-        std::cout << "rank " << rank << ": send gindex " << index << " dest " << dest
-                  << std::endl;
-#endif
       }
 
       MPI_Type_free(&mysubarray);
@@ -285,12 +240,6 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
           MPI_Irecv(buf.data(), bsize, dfg.getMPIDatatype(), src, tag, dfg.getCommunicator(),
                     &recvRequests[recvcount + k++]);
 
-#ifdef DEBUG_OUTPUT
-          auto rank = dfg.getRank();
-          // print info: dest, size, index
-          std::cout << "rank " << rank << ": recv gindex " << index << " src " << src
-                    << " size: " << bsize << std::endl;
-#endif
         }
       }
       recvcount += indices.size();
@@ -312,45 +261,6 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
                                 const std::map<RankType, std::set<IndexType>>& recv1dIndices,
                                 const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                                 std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
-#ifdef DEBUG_OUTPUT
-  auto commSize = dfg.getCommunicatorSize();
-  CommunicatorType comm = dfg.getCommunicator();
-  auto rank = dfg.getRank();
-  MPI_Barrier(comm);
-
-  // print recvindices
-  {
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << r << " recv1dIndices ";
-        for (const auto& r : recv1dIndices) {
-          std::cout << r.second;
-        }
-        std::cout << std::endl;
-      }
-      MPI_Barrier(comm);
-    }
-  }
-
-  if (rank == 0) std::cout << std::endl;
-
-  // print sendindices
-  {
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << r << " send1dIndices ";
-        for (const auto& s : send1dIndices) {
-          std::cout << s.second;
-        }
-        std::cout << std::endl;
-      }
-      MPI_Barrier(comm);
-    }
-  }
-
-  MPI_Barrier(comm);
-
-#endif
   assert(remoteData.empty());
 
   // count non-empty elements of input indices
@@ -422,19 +332,6 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
         MPI_Isend(dfg.getData(), 1, myHBlock, dest, tag, dfg.getCommunicator(),
                   &sendRequests[numSend++]);
 
-#ifdef DEBUG_OUTPUT
-        auto rank = dfg.getRank();
-        int mpiDSize = 0;
-        MPI_Type_size(myHBlock, &mpiDSize);
-        // MPI_Type_size(mysubarrayBlock, &mpiDSize);
-        // print info: dest, size, index
-        std::cout << "rank " << rank << ": send gindex " << *(indices.begin()) << " + " << displacements << " dest " << dest
-                  // << " data " << *(dfg.getData()) << " " << *(dfg.getData()+1)
-                  // << " full data " << dfg.getElementVector()
-                  << " size " << mpiDSize
-                  << std::endl;
-
-#endif
       }
       // MPI_Type_free(&mysubarrayBlock);
       MPI_Type_free(&myHBlock);
@@ -489,17 +386,6 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
 
           MPI_Irecv(static_cast<void*>(bufs[0]), 1, myHBlock, src, tag, dfg.getCommunicator(),
                     &recvRequests[numRecv++]);
-
-#ifdef DEBUG_OUTPUT
-          auto rank = dfg.getRank();
-          int mpiDSize = 0;
-          MPI_Type_size(myHBlock, &mpiDSize);
-          // print info: dest, size, index
-          std::cout << "rank " << rank << ": recv gindex " << *(indices.begin()) << " src " << src
-                    << " size: " << bsize << "*" << indices.size()
-                    << " size " << mpiDSize
-                    << std::endl;
-#endif
         }
         MPI_Type_free(&myHBlock);
       }
@@ -572,68 +458,6 @@ template <typename FG_ELEMENT>
 static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                            std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
                            LevelType lmin = 0) {
-#ifdef DEBUG_OUTPUT
-  auto commSize = dfg.getCommunicatorSize();
-  CommunicatorType comm = dfg.getCommunicator();
-  auto rank = dfg.getRank();
-  std::vector<int> coords(dfg.getDimension());
-  dfg.getCartesianUtils().getPartitionCoordsOfLocalRank(coords);
-  {
-    std::cout << "in debug output" << std::endl;
-
-    IndexType fidx = dfg.getFirstGlobal1dIndex(dim);
-    LevelType flvl = dfg.getLevel(dim, fidx);
-    IndexType fleftpre = dfg.getLeftPredecessor(dim, fidx);
-    IndexType frightpre = dfg.getRightPredecessor(dim, fidx);
-    RankType leftPreRank = dfg.getNeighbor1dFromAxisIndex(dim, fleftpre);
-    RankType rightPreRank = dfg.getNeighbor1dFromAxisIndex(dim, frightpre);
-
-    if (rank == 0) std::cout << "first point for dim: " << dim << std::endl;
-
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << rank << " "
-                  << "coords " << coords << " "
-                  << "idx " << fidx << " "
-                  << "lvl " << flvl << " "
-                  << "leftpre " << fleftpre << " "
-                  << "right pre " << frightpre << " "
-                  << "rank of left pre " << leftPreRank << " "
-                  << "rank of righ pre " << rightPreRank << " " << std::endl;
-      }
-
-      MPI_Barrier(comm);
-    }
-  }
-
-  MPI_Barrier(comm);
-
-  {
-    if (rank == 0) std::cout << "\n last point:" << std::endl;
-
-    IndexType lidx = dfg.getLastGlobal1dIndex(dim);
-    LevelType llvl = dfg.getLevel(dim, lidx);
-    IndexType lleftpre = dfg.getLeftPredecessor(dim, lidx);
-    IndexType lrightpre = dfg.getRightPredecessor(dim, lidx);
-    RankType leftPreRank = dfg.getNeighbor1dFromAxisIndex(dim, lleftpre);
-    RankType rightPreRank = dfg.getNeighbor1dFromAxisIndex(dim, lrightpre);
-
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << rank << " "
-                  << "coords " << coords << " "
-                  << "idx " << lidx << " "
-                  << "lvl " << llvl << " "
-                  << "leftpre " << lleftpre << " "
-                  << "rightpre " << lrightpre << " "
-                  << "rank of left pre " << leftPreRank << " "
-                  << "rank of righ pre " << rightPreRank << " " << std::endl;
-      }
-
-      MPI_Barrier(comm);
-    }
-  }
-#endif
 
   // create buffers for every rank
   std::map<RankType, std::set<IndexType>> recv1dIndices;
@@ -736,66 +560,6 @@ template <typename FG_ELEMENT>
 static void exchangeData1dDehierarchization(
     const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
     std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData, LevelType lmin = 0) {
-#ifdef DEBUG_OUTPUT
-  auto commSize = dfg.getCommunicatorSize();
-  CommunicatorType comm = dfg.getCommunicator();
-  auto rank = dfg.getRank();
-  std::vector<int> coords(dfg.getDimension());
-  dfg.getCartesianUtils().getPartitionCoordsOfLocalRank(coords);
-  {
-    IndexType fidx = dfg.getFirstGlobal1dIndex(dim);
-    LevelType flvl = dfg.getLevel(dim, fidx);
-    IndexType fleftpre = dfg.getLeftPredecessor(dim, fidx);
-    IndexType frightpre = dfg.getRightPredecessor(dim, fidx);
-    RankType leftPreRank = dfg.getNeighbor1dFromAxisIndex(dim, fleftpre);
-    RankType rightPreRank = dfg.getNeighbor1dFromAxisIndex(dim, frightpre);
-
-    if (rank == 0) std::cout << "first point:" << std::endl;
-
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << rank << " "
-                  << "coords " << coords << " "
-                  << "idx " << fidx << " "
-                  << "lvl " << flvl << " "
-                  << "leftpre " << fleftpre << " "
-                  << "right pre " << frightpre << " "
-                  << "rank of left pre " << leftPreRank << " "
-                  << "rank of righ pre " << rightPreRank << " " << std::endl;
-      }
-
-      MPI_Barrier(comm);
-    }
-  }
-
-  MPI_Barrier(comm);
-
-  {
-    if (rank == 0) std::cout << "\n last point:" << std::endl;
-
-    IndexType lidx = dfg.getLastGlobal1dIndex(dim);
-    LevelType llvl = dfg.getLevel(dim, lidx);
-    IndexType lleftpre = dfg.getLeftPredecessor(dim, lidx);
-    IndexType lrightpre = dfg.getRightPredecessor(dim, lidx);
-    RankType leftPreRank = dfg.getNeighbor1dFromAxisIndex(dim, lleftpre);
-    RankType rightPreRank = dfg.getNeighbor1dFromAxisIndex(dim, lrightpre);
-
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << rank << " "
-                  << "coords " << coords << " "
-                  << "idx " << lidx << " "
-                  << "lvl " << llvl << " "
-                  << "leftpre " << lleftpre << " "
-                  << "rightpre " << lrightpre << " "
-                  << "rank of left pre " << leftPreRank << " "
-                  << "rank of righ pre " << rightPreRank << " " << std::endl;
-      }
-
-      MPI_Barrier(comm);
-    }
-  }
-#endif
 
   // create buffers for every rank
   std::map<RankType, std::set<IndexType>> recv1dIndices;

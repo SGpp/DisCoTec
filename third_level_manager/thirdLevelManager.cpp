@@ -39,9 +39,6 @@ int main(int argc, char* argv[])
   std::cout << hostnameInfo << std::endl;
 
   // Load config file
-#ifdef DEBUG_OUTPUT
-  std::cout << "Loading parameters" << std::endl;
-#endif
   Params params;
   if (argv[1][0] == '-') {
     params.loadFromCmd(argc, argv);
@@ -50,16 +47,10 @@ int main(int argc, char* argv[])
   }
 
   // Setup third level manager
-#ifdef DEBUG_OUTPUT
-  std::cout << "Setup third level manager" << std::endl;
-#endif
   ThirdLevelManager manager(params);
   manager.init();
 
   // Run third level manager
-#ifdef DEBUG_OUTPUT
-  std::cout << "Running third level manager" << std::endl;
-#endif
   manager.runtimeLoop();
 
   // Print statistics
@@ -96,9 +87,6 @@ void ThirdLevelManager::init()
   std::cout << "Third level manager running on port: " << port_ << std::endl;
 
   // Create abstraction for each system
-#ifdef DEBUG_OUTPUT
-  std::cout << "Creating abstraction for systems" << std::endl;
-#endif
   for (u_int i = 0; i < params_.getNumSystems(); i++) {
     std::cout << " Waiting for system (" << i+1 << "/" << params_.getNumSystems() << ")" << std::endl;
     std::shared_ptr<ClientSocket> connection = std::shared_ptr<ClientSocket>(server_.acceptClient());
@@ -127,10 +115,6 @@ void ThirdLevelManager::runtimeLoop()
         if (!success) {
           throw std::runtime_error("ThirdLevelManager::runtimeLoop(): Receiving message failed!");
         }
-#ifdef DEBUG_OUTPUT
-        std::cout << "received message from system " << std::to_string(s) << ": " << message
-                  << std::endl;
-#endif
         processMessage(message, s);
       }
     }
@@ -168,9 +152,6 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
   System& other = systems_[otherIndex];
 
   std::string message;
-#ifdef DEBUG_OUTPUT
-  std::cout << std::endl << "Processing third level combination" << std::endl;
-#endif
   initiator.sendMessage("send_first");
   other.receiveMessage(message);
   assert(message == "ready_to_combine");
@@ -192,9 +173,6 @@ void ThirdLevelManager::processCombination(size_t initiatorIndex)
   // wait for other system to finish receiving
   other.receiveMessage(message);
   assert(message == "ready");
-#ifdef DEBUG_OUTPUT
-  std::cout << "Finished combination" << std::endl;
-#endif
 }
 
 
@@ -207,9 +185,6 @@ void ThirdLevelManager::processCombinationFile(size_t initiatorIndex)
   System& other = systems_[otherIndex];
 
   std::string message;
-#ifdef DEBUG_OUTPUT
-  std::cout << std::endl << "Processing third level combination w files" << std::endl;
-#endif
   initiator.sendMessage("write_ok");
   other.receiveMessage(message);
   assert(message == "ready_to_combine_file");
@@ -219,9 +194,6 @@ void ThirdLevelManager::processCombinationFile(size_t initiatorIndex)
   assert(message == "ready");
   other.receiveMessage(message);
   assert(message == "ready");
-#ifdef DEBUG_OUTPUT
-  std::cout << "Finished combination" << std::endl;
-#endif
 }
 
 /* TODO optimization: forward both directions at the same time
@@ -235,9 +207,6 @@ void ThirdLevelManager::processUnifySubspaceSizes(size_t initiatorIndex)
   System& other = systems_[otherIndex];
 
   std::string message;
-#ifdef DEBUG_OUTPUT
-  std::cout << std::endl << "Processing unification of subspace sizes" << std::endl;
-#endif
   initiator.sendMessage("send_first" );
   other.receiveMessage( message);
   assert(message == "ready_to_unify_subspace_sizes");
@@ -261,9 +230,6 @@ void ThirdLevelManager::processUnifySubspaceSizes(size_t initiatorIndex)
   assert(message == "ready");
   other.receiveMessage(message);
   assert(message == "ready");
-#ifdef DEBUG_OUTPUT
-  std::cout << "Finished unification of subspace sizes" << std::endl;
-#endif
 }
 
 void ThirdLevelManager::processAnyData(size_t initiatorIndex) {
@@ -273,9 +239,6 @@ void ThirdLevelManager::processAnyData(size_t initiatorIndex) {
   System& other = systems_[otherIndex];
 
   std::string message;
-#ifdef DEBUG_OUTPUT
-  std::cout << std::endl << "Processing data exchange" << std::endl;
-#endif
   initiator.sendMessage("send_first");
   other.receiveMessage(message);
   assert(message == "ready_to_exchange_data");
@@ -302,9 +265,6 @@ void ThirdLevelManager::processAnyData(size_t initiatorIndex) {
   } else {
     throw std::runtime_error("Unexpected message: " + message);
   }
-#ifdef DEBUG_OUTPUT
-  std::cout << "Finished data exchange" << std::endl;
-#endif
 }
 
 /** If a system has finished the simulation, it should log off the
@@ -312,9 +272,6 @@ void ThirdLevelManager::processAnyData(size_t initiatorIndex) {
  */
 void ThirdLevelManager::processFinished(size_t sysIndex)
 {
-#ifdef DEBUG_OUTPUT
-  std::cout << "System " << systems_[sysIndex].getId() << " finished simulation" << std::endl;
-#endif
   systems_.erase(systems_.begin()+ (long)sysIndex);
 }
 
@@ -325,10 +282,6 @@ size_t ThirdLevelManager::forwardData(const System& sender, const System& receiv
 {
   size_t dataSize;
   sender.receivePosNumber(dataSize);
-#ifdef DEBUG_OUTPUT
-  std::cout << "Forwarding " << std::to_string(dataSize) << " Bytes from system "
-            << sender.getId() << " to system " << receiver.getId() << std::endl;
-#endif
   receiver.sendMessage(std::to_string(dataSize));
 
   // forward data to other system
