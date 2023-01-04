@@ -229,7 +229,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       BOOST_TEST_CHECKPOINT("wrote interpolated values per grid");
       manager.writeInterpolationCoordinates(interpolationCoords, "integration_interpolated");
       decltype(interpolationCoords) interpolationCoordsRead;
-      manager.readInterpolationCoordinates(interpolationCoordsRead, "integration_interpolated_coords.h5");
+      h5io::readH5Coordinates(interpolationCoordsRead, "integration_interpolated_coords.h5");
       BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
       for (size_t i = 0; i < interpolationCoords.size(); ++i) {
         for (size_t d = 0; d < dim; ++d) {
