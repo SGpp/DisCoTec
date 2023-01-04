@@ -21,4 +21,5 @@ add_executable(combi_example combi_example.cpp)
 target_compile_features(combi_example PRIVATE cxx_std_17)
 target_link_libraries(combi_example discotec Boost::boost HighFive HDF5::HDF5)
 
-install(TARGETS combi_example DESTINATION bin)
+install(TARGETS combi_example DESTINATION examples/combi_example)
+install(FILES ctparams DESTINATION examples/combi_example)
