@@ -41,4 +41,4 @@ foreach (test_file ${UNIT_TESTS_SRC_FILES})
     endif ()
 endforeach ()
 
-install(TARGETS test_distributedcombigrid_boost DESTINATION bin)
+install(TARGETS test_distributedcombigrid_boost DESTINATION bin/tests)
