@@ -19,3 +19,5 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(distributed_combi_example combi_example.cpp)
 target_compile_features(distributed_combi_example PRIVATE cxx_std_17)
 target_link_libraries(distributed_combi_example discotec Boost::boost)
+
+install(TARGETS distributed_combi_example DESTINATION bin)

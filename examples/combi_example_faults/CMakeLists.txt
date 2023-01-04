@@ -19,3 +19,5 @@ find_package(Boost REQUIRED)
 add_executable(combi_example_faults combi_example_faults.cpp)
 target_compile_features(combi_example_faults PRIVATE cxx_std_17)
 target_link_libraries(combi_example_faults discotec Boost::boost)
+
+install(TARGETS combi_example_faults DESTINATION bin)
