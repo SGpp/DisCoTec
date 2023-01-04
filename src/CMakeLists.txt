@@ -329,3 +329,10 @@ if (DISCOTEC_USE_VTK)
     target_compile_definitions(discotec PRIVATE USE_VTK)
     list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif ()
+install(TARGETS discotec
+        EXPORT discotecTargets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
+        )
