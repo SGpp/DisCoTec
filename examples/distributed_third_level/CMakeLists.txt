@@ -41,3 +41,6 @@ add_executable(distributed_third_level_mpimemory mpimemory.cpp)
 target_compile_features(distributed_third_level_mpimemory PRIVATE cxx_std_17)
 target_include_directories(distributed_third_level_mpimemory PRIVATE ${MPI_CXX_INCLUDE_DIRS} ../../src)
 target_link_libraries(distributed_third_level_mpimemory PRIVATE discotec Boost::boost)
+
+install(TARGETS distributed_third_level_combi_example distributed_third_level_combi_example_manager_only distributed_third_level_get_mc_variance distributed_third_level_mpimemory DESTINATION examples/distributed_third_level)
+install(FILES ctparam ctparam_tl_system0 ctparam_tl_system1 ctscheme_tl_system_0.json ctscheme_tl_system_1.json DESTINATION examples/distributed_third_level)
