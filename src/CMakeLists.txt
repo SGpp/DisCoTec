@@ -287,4 +287,10 @@ if (DISCOTEC_HDF5)
     endif ()
 endif ()
 
-install(TARGETS discotec DESTINATION lib)
+install(TARGETS discotec
+        EXPORT discotecTargets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
+        )
