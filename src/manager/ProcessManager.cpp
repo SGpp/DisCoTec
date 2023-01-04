@@ -2,16 +2,9 @@
 #include <algorithm>
 #include <iostream>
 #include "combicom/CombiCom.hpp"
+#include "io/H5InputOutput.hpp"
 #include "utils/Types.hpp"
 #include "mpi/MPIUtils.hpp"
-
-#ifdef HAVE_HIGHFIVE
-#include <chrono>
-#include <random>
-// highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi versions)
-#include <highfive/H5File.hpp>
-#endif
-
 namespace combigrid {
 
 ProcessManager::~ProcessManager() {}
@@ -518,44 +511,8 @@ void ProcessManager::writeInterpolatedValuesSingleFile(
 
 void ProcessManager::writeInterpolationCoordinates(
     const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) const {
-#ifdef HAVE_HIGHFIVE
   std::string saveFilePath = filenamePrefix + "_coords.h5";
-  // check if file already exists, if no, create
-  HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
-
-  // // generate a rank-local per-run random number
-  // // std::random_device dev;
-  // static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-  // static std::uniform_int_distribution<std::mt19937::result_type> dist(
-  //     1, std::numeric_limits<size_t>::max());
-  // static size_t rankLocalRandom = dist(rng);
-  std::string groupName = "manager";
-  HighFive::Group group = h5_file.createGroup(groupName);
-
-  std::string datasetName = "coordinates";
-  HighFive::DataSet dataset =
-      group.createDataSet<real>(datasetName, HighFive::DataSpace::From(interpolationCoords));
-  dataset.write(interpolationCoords);
-
-#else  // if not compiled with hdf5
-  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
-#endif
-}
-
-void ProcessManager::readInterpolationCoordinates(
-    std::vector<std::vector<real>>& interpolationCoords, std::string saveFilePath) const {
-#ifdef HAVE_HIGHFIVE
-  HighFive::File h5_file(saveFilePath, HighFive::File::ReadOnly);
-
-  // we get the dataset
-  std::string datasetName = "manager/coordinates";
-  auto dataset = h5_file.getDataSet(datasetName);
-
-  dataset.read(interpolationCoords);
-
-#else  // if not compiled with hdf5
-  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
-#endif
+  h5io::writeValuesToH5File(interpolationCoords, saveFilePath, "manager", "coordinates");
 }
 
 void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
