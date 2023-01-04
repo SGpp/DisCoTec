@@ -18,7 +18,6 @@
 #include "utils/Stats.hpp"
 #include "utils/Types.hpp"
 
-//#define DEBUG_OUTPUT
 
 namespace combigrid {
 
@@ -136,16 +135,6 @@ class DistributedFullGrid {
     // in contrast to serial implementation we directly create the grid
     fullgridVector_.resize(nrLocalElements_);
 
-#ifdef DEBUG_OUTPUT
-    if (rank_ == 0) {
-      for (RankType r = 0; r < size_; ++r) {
-        std::cout << "rank " << r << ": \n"
-                  << "\t lower bounds " << getLowerBounds(r)
-                  << "\t upper bounds " << getUpperBounds(r)
-                  << std::endl;
-      }
-    }
-#endif
   }
 
   // explicit DistributedFullGrid(const DistributedFullGrid& other) {
@@ -1629,20 +1618,6 @@ class DistributedFullGrid {
       recvbufferFromUp.resize(0);
     }
 
-#ifdef DEBUG_OUTPUT
-    auto comm = this->getCommunicator();
-    auto commSize = this->getCommunicatorSize();
-    auto rank = this->getRank();
-    MPI_Barrier(comm);
-
-    for (int r = 0; r < commSize; ++r) {
-      if (r == rank) {
-        std::cout << "rank " << r << " recvup " << recvbufferFromUp << "  " << higher
-                  << " recvdown " << recvbufferFromDown << "  " << lower << std::endl;
-      }
-      MPI_Barrier(comm);
-    }
-#endif // def DEBUG_OUTPUT
 
     // TODO asynchronous??
     // send lower boundary values
@@ -2006,9 +1981,6 @@ class DistributedFullGrid {
       // "Figure 3 shows the memory consumption in all these cases after 32 calls to MPI Comm dup"
       communicator_ = comm;
 
-#ifdef DEBUG_OUTPUT
-      std::cout << "DistributedFullGrid: using given cartcomm: " << communicator_ << std::endl;
-#endif
     } else {
       // important: note reverse ordering of dims!
       std::vector<int> dims(procs.size());
@@ -2024,17 +1996,11 @@ class DistributedFullGrid {
       throw std::runtime_error("Currently testing to not duplicate communicator (to save memory), \
                           if you do want to use this code please take care that \
                           MPI_Comm_free(&communicator_) will be called at some point");
-#ifdef DEBUG_OUTPUT
-      std::cout << "DistributedFullGrid: create new cartcomm" << std::endl;
-#endif
     }
     {
       if (communicator_ != cartesianUtils_.getComm()) {
         assert(uniformDecomposition);
         cartesianUtils_ = MPICartesianUtils(communicator_);
-#ifdef DEBUG_OUTPUT
-        std::cout << "set new cartesian utils "<< cartesianUtils_.getCommunicatorSize() << std::endl;
-#endif
       }
     }
   }
@@ -2104,9 +2070,6 @@ class DistributedFullGrid {
       assert(dim_ == 3);
 
 // output global z index
-#ifdef DEBUG_OUTPUT
-      std::cout << "z = " << this->getLowerBounds()[2] + k << ":" << std::endl;
-#endif
 
       IndexType offsetZ = localOffsets_[2] * k;
 

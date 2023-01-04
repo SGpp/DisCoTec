@@ -383,9 +383,6 @@ bool NetworkUtils::forward(const ClientSocket& sender,
   std::unique_ptr<char[]> buff(new char[chunksize]);
   while (totalRecvd < size)
   {
-// #ifdef DEBUG_OUTPUT
-//     std::cout << "." << std::flush;
-// #endif
     size_t remaining = size - totalRecvd;
     if (remaining < chunksize)
       recvd = recv(sendFd, buff.get(), remaining, 0);
@@ -408,9 +405,6 @@ bool NetworkUtils::forward(const ClientSocket& sender,
         }
     }
   }
-// #ifdef DEBUG_OUTPUT
-//   std::cout << std::endl;
-// #endif
   return true;
 }
 
