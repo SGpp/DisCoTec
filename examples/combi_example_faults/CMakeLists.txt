@@ -10,7 +10,7 @@ project("DisCoTec distributed combi faults example"
         DESCRIPTION "TODO")
 
 if (NOT TARGET discotec)
-    add_subdirectory(../../src/sgpp/distributedcombigrid discotec)
+    add_subdirectory(../../src discotec)
 endif ()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})

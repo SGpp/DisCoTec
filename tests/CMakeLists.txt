@@ -5,7 +5,7 @@ project("DisCoTec Tests"
         DESCRIPTION "Tests for DisCoTec")
 
 if (NOT TARGET discotec)
-    add_subdirectory(../src/sgpp/distributedcombigrid discotec)
+    add_subdirectory(../src discotec)
 endif ()
 
 include(CTest)
@@ -23,6 +23,12 @@ find_package(Boost REQUIRED COMPONENTS unit_test_framework headers serialization
 target_link_libraries(test_distributedcombigrid_boost PUBLIC discotec Boost::boost Boost::unit_test_framework Boost::serialization MPI::MPI_CXX)
 target_include_directories(test_distributedcombigrid_boost PUBLIC Boost::headers)
 set_property(TARGET test_distributedcombigrid_boost PROPERTY CROSSCOMPILING_EMULATOR '${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 9')
+
+if(DISCOTEC_USE_HIGHFIVE)
+    find_package(HighFive REQUIRED)
+    target_link_libraries(test_distributedcombigrid_boost PUBLIC HighFive)
+    target_compile_definitions(test_distributedcombigrid_boost PUBLIC HAVE_HIGHFIVE)
+endif()
 
 foreach (test_file ${UNIT_TESTS_SRC_FILES})
     get_filename_component(test_name ${test_file} NAME_WE)
