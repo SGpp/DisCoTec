@@ -18,6 +18,7 @@ set(DISCOTEC_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/LPOptimizationInterpolation.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/StaticFaults.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/WeibullFaults.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/io/H5InputOutput.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AverageOfLastNLoadModel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AveragingLoadModel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/LinearLoadModel.cpp
