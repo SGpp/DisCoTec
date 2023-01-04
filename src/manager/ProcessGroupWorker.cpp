@@ -68,11 +68,6 @@ SignalType ProcessGroupWorker::wait() {
     status_ = PROCESS_GROUP_WAIT;
   }
   if (status_ != PROCESS_GROUP_WAIT) {
-#ifdef DEBUG_OUTPUT
-    int myRank = theMPISystem()->getWorldRank();
-    std::cout << "status is " << status_ << "of rank " << myRank << "\n";
-    std::cout << "executing next task\n";
-#endif
     return RUN_NEXT;
   }
   SignalType signal = -1;
@@ -84,9 +79,6 @@ SignalType ProcessGroupWorker::wait() {
   }
   // distribute signal to other processes of pgroup
   MPI_Bcast(&signal, 1, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-#ifdef DEBUG_OUTPUT
-  std::cout << theMPISystem()->getWorldRank() << " waits for signal " << signal << " \n";
-#endif
   // process signal
   switch (signal) {
     case RUN_FIRST: {
@@ -141,7 +133,7 @@ SignalType ProcessGroupWorker::wait() {
 
       currentTask_->setFinished(true);
 
-      if (isGENE) { 
+      if (isGENE) {
         currentTask_->changeDir(theMPISystem()->getLocalComm());
       }
     } break;
@@ -345,7 +337,7 @@ SignalType ProcessGroupWorker::wait() {
         if (tasks_[i]->getID() == taskID) {
           MASTER_EXCLUSIVE_SECTION {
             // send to group master
-            Task::send(&tasks_[i], theMPISystem()->getManagerRank(), 
+            Task::send(&tasks_[i], theMPISystem()->getManagerRank(),
                        theMPISystem()->getGlobalComm());
           }
           delete(tasks_[i]);
@@ -553,12 +545,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
                                currentCombi_, combiParameters_.getLMinReductionVector(),
                                combiParameters_.getLMaxReductionVector());
 
-#ifdef DEBUG_OUTPUT
-  MASTER_EXCLUSIVE_SECTION {
-    std::cout << "lmin: " << lmin << std::endl;
-    std::cout << "lmax: " << lmax << std::endl;
-  }
-#endif
 
   Stats::startEvent("create dsgus");
   // get all subspaces in the (optimized) combischeme, create dsgs
@@ -570,12 +556,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     // // this registers all possible subspaces in the DSGU
     // // can be used to test the memory consumption of the "filled" DSGU
     // registerAllSubspacesInDSGU(*uniDSG, combiParameters_);
-#ifdef DEBUG_OUTPUT
-    MASTER_EXCLUSIVE_SECTION {
-      std::cout << "dsg size: " << uniDSG->getRawDataSize() << " * " << sizeof(CombiDataType)
-                << std::endl;
-    }
-#endif  // def DEBUG_OUTPUT
   }
   Stats::stopEvent("create dsgus");
 
@@ -583,9 +563,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   Stats::startEvent("register dsgus");
   for (size_t g = 0; g < combinedUniDSGVector_.size(); ++g) {
     for (Task* t : tasks_) {
-#ifdef DEBUG_OUTPUT
-      MASTER_EXCLUSIVE_SECTION { std::cout << "register task " << t->getID() << std::endl; }
-#endif  // def DEBUG_OUTPUT
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
       // set subspace sizes locally
       combinedUniDSGVector_[g]->registerDistributedFullGrid(dfg);
@@ -598,12 +575,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
   for (auto& uniDSG : combinedUniDSGVector_) {
     uniDSG->reduceSubspaceSizes(globalReduceComm);
-#ifdef DEBUG_OUTPUT
-    MASTER_EXCLUSIVE_SECTION {
-      std::cout << "dsg size: " << uniDSG->getRawDataSize() << " * " << sizeof(CombiDataType)
-                << std::endl;
-    }
-#endif  // def DEBUG_OUTPUT
   }
   Stats::stopEvent("reduce dsgus");
 }
@@ -645,10 +616,6 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
 
       // lokales reduce auf sg ->
       combinedUniDSGVector_[g]->addDistributedFullGrid(dfg, combiParameters_.getCoeff(t->getID()));
-#ifdef DEBUG_OUTPUT
-      std::cout << "Combination: added task " << t->getID() << " with coefficient "
-                << combiParameters_.getCoeff(t->getID()) << "\n";
-#endif
     }
   }
 }
@@ -665,9 +632,7 @@ void ProcessGroupWorker::reduceUniformSG() {
 
 
 void ProcessGroupWorker::combineLocalAndGlobal() {
-#ifdef DEBUG_OUTPUT
-  MASTER_EXCLUSIVE_SECTION { std::cout << "start combining \n"; }
-#endif
+  // assert(combinedUniDSGVector_[0]->isSubspaceDataCreated());
   Stats::startEvent("combine zeroDsgsData");
   zeroDsgsData();
   Stats::stopEvent("combine zeroDsgsData");
@@ -676,25 +641,13 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
   hierarchizeFullGrids();
   Stats::stopEvent("combine hierarchize");
 
-#ifdef DEBUG_OUTPUT
-  MASTER_EXCLUSIVE_SECTION { std::cout << "mid combining \n"; }
-#endif
-
   Stats::startEvent("combine local reduce");
   addFullGridsToUniformSG();
   Stats::stopEvent("combine local reduce");
 
-#ifdef DEBUG_OUTPUT
-  MASTER_EXCLUSIVE_SECTION { std::cout << "almost done combining \n"; }
-#endif
-
   Stats::startEvent("combine global reduce");
   reduceUniformSG();
   Stats::stopEvent("combine global reduce");
-
-#ifdef DEBUG_OUTPUT
-  MASTER_EXCLUSIVE_SECTION { std::cout << "end combining \n"; }
-#endif
 }
 
 void ProcessGroupWorker::combineUniform() {
