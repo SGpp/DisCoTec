@@ -309,11 +309,16 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE: {
       Stats::startEvent("worker interpolate values");
+      std::string filenamePrefix;
+      MASTER_EXCLUSIVE_SECTION {
+        MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
+                               theMPISystem()->getGlobalComm());
+      }
       auto values = interpolateValues();
       // write result
       MASTER_EXCLUSIVE_SECTION {
         std::string valuesWriteFilename =
-            "interpolated_values_" + std::to_string(currentCombi_) + ".h5";
+            filenamePrefix + "_values_" + std::to_string(currentCombi_) + ".h5";
         writeInterpolatedValues(values, valuesWriteFilename);
       }
       Stats::stopEvent("worker interpolate values");
@@ -322,13 +327,14 @@ SignalType ProcessGroupWorker::wait() {
                                                 // values to .h5
       Stats::startEvent("worker write interpolated values");
       writeInterpolatedValuesPerGrid();
-      Stats::stopEvent("write interpolated values");
+      Stats::stopEvent("worker write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
 
-      receiveAndInitializeTaskAndFaults(); // receive and initalize new task
-			// now the variable currentTask_ contains the newly received task
+      receiveAndInitializeTaskAndFaults();  // receive and initalize new task
+                                            // now the variable currentTask_ contains the newly
+                                            // received task
       currentTask_->setZero();
       fillDFGFromDSGU(currentTask_);
       currentTask_->setFinished(true);
@@ -994,6 +1000,8 @@ void writeValuesToH5File(const T& values, const std::string& fileName, const std
 
 void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  std::string fileNamePrefix = receiveStringFromManagerAndBroadcastToGroup();
+
   // receive coordinates and broadcast to group members
   std::vector<std::vector<real>> interpolationCoords;
   receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
@@ -1011,7 +1019,7 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
           1, std::numeric_limits<size_t>::max());
       static size_t rankLocalRandom = dist(rng);
 
-      std::string saveFilePath = "interpolated_task_" + std::to_string(tasks_[i]->getID()) + ".h5";
+      std::string saveFilePath = fileNamePrefix + "_task_" + std::to_string(tasks_[i]->getID()) + ".h5";
       std::string groupName = "run_" + std::to_string(rankLocalRandom);
       std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
       writeValuesToH5File(taskVals, saveFilePath, groupName, datasetName,

@@ -490,37 +490,36 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<s
 }
 
 void ProcessManager::writeInterpolatedValuesPerGrid(
-    const std::vector<std::vector<real>>& interpolationCoords) {
+    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) {
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->writeInterpolatedValuesPerGrid(interpolationCoordsSerial);
+    pgroups_[i]->writeInterpolatedValuesPerGrid(interpolationCoordsSerial, filenamePrefix);
   }
 }
 
 void ProcessManager::writeInterpolatedValuesSingleFile(
-    const std::vector<std::vector<real>>& interpolationCoords) {
+    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) {
   Stats::startEvent("manager write interpolated");
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
   // have the last process group write the all-reduced values
-  auto dummyValuesNotEmpty = std::vector<CombiDataType>(1, 0.0);
-  pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, dummyValuesNotEmpty);
+  auto dummyValuesEmpty = std::vector<CombiDataType>(0);
+  pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, dummyValuesEmpty,
+                                                   nullptr, filenamePrefix);
   for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
     // all other groups only communicate the interpolation values to last group
-    auto dummyValuesEmpty = std::vector<CombiDataType>(0);
     pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValuesEmpty);
   }
   Stats::stopEvent("manager write interpolated");
 }
 
 void ProcessManager::writeInterpolationCoordinates(
-    const std::vector<std::vector<real>>& interpolationCoords) const {
+    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) const {
 #ifdef HAVE_HIGHFIVE
-
-  std::string saveFilePath = "interpolation_coords.h5";
+  std::string saveFilePath = filenamePrefix + "_coords.h5";
   // check if file already exists, if no, create
   HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
 
