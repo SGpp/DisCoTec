@@ -17,6 +17,7 @@
 #include "utils/Types.hpp"
 #include "test_helper.hpp"
 #include "TaskConstParaboloid.hpp"
+#include "TaskCount.hpp"
 
 using namespace combigrid;
 
@@ -1176,6 +1177,50 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 15000);
 #endif
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_evalDFG) {
+  std::vector<int> procs = {5, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    size_t numCoordinates = 1000;
+    auto interpolationCoords = montecarlo::getRandomCoordinates(numCoordinates, dim);
+    TestFnCount<real> f;
+    LevelVector fullGridLevel = {5, 5};
+    std::vector<BoundaryType> boundary(dim, 2);
+    // create and initialize DFG
+    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, false);
+    std::vector<double> coords(dim);
+    for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+      dfg.getCoordsLocal(li, coords);
+      dfg.getData()[li] += f(coords);
+    }
+
+    // repeat 10 times to catch random stuff
+    for (size_t rep = 0; rep < 10; ++rep) {
+      BOOST_TEST_CHECKPOINT("Repetition " + std::to_string(rep));
+      // evaluate all at once
+      auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
+      for (size_t i = 0; i < numCoordinates; ++i) {
+        BOOST_CHECK_CLOSE(interpolatedValues[i], f(interpolationCoords[i]), TestHelper::tolerance);
+      }
+
+      // evaluate first and then reduce all values
+      decltype(interpolatedValues) stepWiseInterpolatedValues(numCoordinates, 0.);
+      for (size_t i = 0; i < numCoordinates; ++i) {
+        stepWiseInterpolatedValues[i] = dfg.evalLocal(interpolationCoords[i]);
+      }
+      // reduce interpolated values within DFG's processes
+      MPI_Allreduce(
+          MPI_IN_PLACE, stepWiseInterpolatedValues.data(), static_cast<int>(numCoordinates),
+          abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), MPI_SUM, comm);
+      for (size_t i = 0; i < numCoordinates; ++i) {
+        BOOST_CHECK_CLOSE(stepWiseInterpolatedValues[i], f(interpolationCoords[i]),
+                          TestHelper::tolerance);
+      }
+    }
   }
 }
 
