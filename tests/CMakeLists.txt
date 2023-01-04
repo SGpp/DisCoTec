@@ -24,6 +24,9 @@ target_link_libraries(test_distributedcombigrid_boost PUBLIC discotec Boost::boo
 target_include_directories(test_distributedcombigrid_boost PUBLIC Boost::headers)
 set_property(TARGET test_distributedcombigrid_boost PROPERTY CROSSCOMPILING_EMULATOR '${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 9')
 
+find_package(HDF5 REQUIRED)
+target_link_libraries(test_distributedcombigrid_boost PUBLIC HDF5::HDF5)
+
 if(DISCOTEC_USE_HIGHFIVE)
     find_package(HighFive REQUIRED)
     target_link_libraries(test_distributedcombigrid_boost PUBLIC HighFive)
