@@ -42,3 +42,4 @@ foreach (test_file ${UNIT_TESTS_SRC_FILES})
 endforeach ()
 
 install(TARGETS test_distributedcombigrid_boost DESTINATION tests)
+install(FILES test_scheme.json DESTINATION tests)
