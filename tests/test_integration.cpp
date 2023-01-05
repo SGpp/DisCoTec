@@ -219,7 +219,6 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
 #ifdef HAVE_HIGHFIVE
       // output files are not needed, remove them right away
       // (if this doesn't happen, there may be hdf5 errors due to duplicate task IDs)
-      sleep(1);
       auto status = system("rm integration_interpolated*.h5");
       BOOST_WARN_GE(status, 0);
       sleep(1);
@@ -230,8 +229,10 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       manager.writeInterpolationCoordinates(interpolationCoords, "integration_interpolated");
       BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
 
+      sleep(1);  // wait for filesystem to catch up
       decltype(values) valuesAllGridsRead;
-      h5io::readH5Values(valuesAllGridsRead, "integration_interpolated_values_" + std::to_string(ncombi) + ".h5");
+      h5io::readH5Values(valuesAllGridsRead,
+                         "integration_interpolated_values_" + std::to_string(ncombi) + ".h5");
       decltype(interpolationCoords) interpolationCoordsRead;
       h5io::readH5Coordinates(interpolationCoordsRead, "integration_interpolated_coords.h5");
       BOOST_TEST_CHECKPOINT("read interpolation coordinates");
