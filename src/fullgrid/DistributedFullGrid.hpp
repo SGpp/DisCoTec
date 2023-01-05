@@ -374,26 +374,29 @@ class DistributedFullGrid {
         throw std::runtime_error("localIndex[dim] > lastIndexInDim");
       }
 
-      IndexVector localIndexDimPlusOne = localIndex;
-      localIndexDimPlusOne[dim] += 1;
-      if (localIndexDimPlusOne[dim] >= 0) {
+      auto localIndexDimPlusOne = localIndex[dim] + 1;
+      if (localIndexDimPlusOne >= 0) {
         if (this->hasBoundaryPoints_[dim] == 1 &&
             this->getCartesianUtils().isOnLowerBoundaryInDimension(dim) &&
-            localIndexDimPlusOne[dim] == this->getGlobalSizes()[dim]) {
+            localIndexDimPlusOne == this->getGlobalSizes()[dim]) {
           // assume periodicity
           // if we are at the end of the dimension, wrap around
-          localIndexDimPlusOne[dim] = 0;
-          auto secondCoords = coords;
-          secondCoords[dim] -= 1.;
-          if (localIndexDimPlusOne[dim] <= lastIndexInDim) {
-            sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
+          localIndexDimPlusOne = 0;
+          if (localIndexDimPlusOne <= lastIndexInDim) {
+            auto secondCoords = coords;
+            secondCoords[dim] -= 1.;
+            // these copies are used to find all the neighbor points of the current coordinate
+            auto neighborIndex = localIndex;
+            neighborIndex[dim] = localIndexDimPlusOne;
+            sum += evalMultiindexRecursively(neighborIndex, static_cast<DimType>(dim + 1),
                                              secondCoords);
           }
-        } else {
-          if (localIndexDimPlusOne[dim] <= lastIndexInDim) {
-            sum += evalMultiindexRecursively(localIndexDimPlusOne, static_cast<DimType>(dim + 1),
-                                             coords);
-          }
+        } else if (localIndexDimPlusOne <= lastIndexInDim) {
+          // these copies are used to find all the neighbor points of the current coordinate
+          auto neighborIndex = localIndex;
+          neighborIndex[dim] = localIndexDimPlusOne;
+          sum += evalMultiindexRecursively(neighborIndex, static_cast<DimType>(dim + 1),
+                                            coords);
         }
       } else {
         throw std::runtime_error("localIndexDimPlusOne < 0");
@@ -426,10 +429,12 @@ class DistributedFullGrid {
       }
       assert(coords[d] >= 0. && coords[d] <= 1.);
 #endif  // ndef NDEBUG
-      // this gets the local index of the point that is lower than the coordinate
+
+      // this is the local index of the point that is lower than the coordinate
       // may also be negative if the coordinate is lower than this processes' coordinates
       localIndexLowerNonzeroNeighborPoint[d] =
           static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
+
       // check if we even need to recursively evaluate on this process
       if (localIndexLowerNonzeroNeighborPoint[d] < -1) {
         // index too small
