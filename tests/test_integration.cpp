@@ -228,9 +228,15 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       manager.writeInterpolatedValuesPerGrid(interpolationCoords, "integration_interpolated");
       BOOST_TEST_CHECKPOINT("wrote interpolated values per grid");
       manager.writeInterpolationCoordinates(interpolationCoords, "integration_interpolated");
+      BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
+
+      decltype(values) valuesAllGridsRead;
+      h5io::readH5Values(valuesAllGridsRead, "integration_interpolated_values_" + std::to_string(ncombi) + ".h5");
       decltype(interpolationCoords) interpolationCoordsRead;
       h5io::readH5Coordinates(interpolationCoordsRead, "integration_interpolated_coords.h5");
-      BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
+      BOOST_TEST_CHECKPOINT("read interpolation coordinates");
+      BOOST_CHECK_EQUAL_COLLECTIONS(values.begin(), values.end(), valuesAllGridsRead.begin(),
+                                    valuesAllGridsRead.end());
       for (size_t i = 0; i < interpolationCoords.size(); ++i) {
         for (size_t d = 0; d < dim; ++d) {
           BOOST_CHECK_EQUAL(interpolationCoords[i][d], interpolationCoordsRead[i][d]);
