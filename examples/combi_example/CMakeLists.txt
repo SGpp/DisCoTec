@@ -16,7 +16,7 @@ find_package(Boost REQUIRED)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(combi_example combi_example.cpp)
-target_link_libraries(combi_example discotec Boost::boost HighFive HDF5::HDF5)
+target_link_libraries(combi_example discotec Boost::boost)
 if(DISCOTEC_USE_HIGHFIVE)
     find_package(HighFive REQUIRED)
     find_package(HDF5 REQUIRED)
