@@ -608,6 +608,9 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
       // set subspace sizes locally
       combinedUniDSGVector_[g]->registerDistributedFullGrid(dfg);
     }
+    // create the kahan buffer now, so it has only the subspaces present on the grids in this
+    // process group
+    combinedUniDSGVector_[g]->createKahanBuffer();
   }
   Stats::stopEvent("register dsgus");
 
