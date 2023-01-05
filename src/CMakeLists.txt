@@ -237,7 +237,6 @@ if (DISCOTEC_HDF5)
         target_include_directories(discotec PRIVATE ${HDF5_BINARY_DIR}/src) # TODO:
 
         target_link_libraries(discotec PUBLIC hdf5-static)
-        add_library(HDF5::HDF5 ALIAS hdf5-static)
 
         if("${HDF5_LIBRARIES}" MATCHES ".*-NOTFOUND")
          set(HDF5_LIBRARIES "")
