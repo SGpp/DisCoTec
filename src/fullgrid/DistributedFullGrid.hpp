@@ -365,7 +365,7 @@ class DistributedFullGrid {
       return evalLocalIndexOn(localIndex, coords);
     } else {
       FG_ELEMENT sum = 0.;
-      auto lastIndexInDim = this->getLastGlobalIndex()[dim] - this->getFirstGlobalIndex()[dim];
+      auto lastIndexInDim = this->getLocalSizes()[dim] - 1;
       if (localIndex[dim] >= 0 && localIndex[dim] <= lastIndexInDim) {
         sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
       }
@@ -391,6 +391,8 @@ class DistributedFullGrid {
                                              coords);
           }
         }
+      } else {
+        throw std::runtime_error("localIndexDimPlusOne < 0");
       }
       return sum;
     }
@@ -424,9 +426,11 @@ class DistributedFullGrid {
       // may also be negative if the coordinate is lower than this processes' coordinates
       localIndexLowerNonzeroNeighborPoint[d] =
           static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
+      if (localIndexLowerNonzeroNeighborPoint[d] < -1) {
+        value = 0.;
+        return;
+      }
     }
-    // std::cout <<localIndexLowerNonzeroNeighborPoint << coords << lowerCoords << h << std::endl;
-
     // evaluate at those points and sum up according to the basis function
     // needs to be recursive in order to be dimensionally adaptive
     value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
@@ -451,8 +455,6 @@ class DistributedFullGrid {
    * @param globalIndex [IN] global linear index of the element i
    * @param coords [OUT] the vector must be resized already */
   inline void getCoordsGlobal(IndexType globalLinearIndex, std::vector<real>& coords) const {
-    // temporary variables
-    // int verb = 6;
     IndexType ind = 0;
     IndexType tmp_add = 0;
 
