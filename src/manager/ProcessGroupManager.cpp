@@ -305,7 +305,11 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
   MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
             abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
-  MPI_Request_free(&dummyRequest);
+  if (filenamePrefix == "") {
+    MPI_Request_free(&dummyRequest);
+  } else {
+    MPI_Wait(&dummyRequest, MPI_STATUS_IGNORE);
+  }
   if (request != nullptr) {
     MPI_Irecv(values.data(), static_cast<int>(values.size()),
               abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
@@ -319,13 +323,11 @@ void ProcessGroupManager::writeInterpolatedValuesPerGrid(
   sendSignalToProcessGroup(WRITE_INTERPOLATED_VALUES_PER_GRID);
   // send filename prefix to group
   MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
-  MPI_Request dummyRequest;
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
-  MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
-            abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
-            TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
-  MPI_Request_free(&dummyRequest);
+  MPI_Send(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
+           abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
+           TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm());
   setProcessGroupBusyAndReceive();
   assert(waitStatus() == PROCESS_GROUP_WAIT);
 }
