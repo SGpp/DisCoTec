@@ -11,33 +11,6 @@
 
 #include <boost/serialization/vector.hpp>
 
-
-/*
- * Instead of having private static functions, I put these functions in an
- * unnamed namespace. So, they are not accessible from outside the file, as well.
- * In the general case, this would have the advantage, that we can change
- * the declaration of these functions without touching the declaration of the
- * class. So we avoid recompilation of all files that use the class.
- */
-namespace {
-template <typename FG_ELEMENT>
-struct SubspaceSGU {
-  // commented most members, since they were virtually unused
-  // if needed in the future, they may be used again
-
-  // combigrid::LevelVector level_; // level of the subspace
-
-  // combigrid::IndexVector sizes_; // contains the number of points per dim of the whole ss
-
-  // size_t size_; // contains the number of Points of the whole ss
-
-  FG_ELEMENT * data_; // contains the values at the data points (Attention: Due to the decomposition, only part of the full ss may be stored)
-
-  // size_t dataSize_; // contains the number of values stored in data_ == size of the ss part.
-};
-
-}  // end anonymous namespace
-
 namespace combigrid {
 // forward declaration
 template <typename FG_ELEMENT>
@@ -175,7 +148,7 @@ class DistributedSparseGridUniform {
 
   DimType dim_;
 
-  std::vector<LevelVector> levels_; // linear access to all subspaces
+  std::vector<LevelVector> levels_; // linear access to all subspaces; may be reset to save memory
 
   CommunicatorType comm_;
 
@@ -183,9 +156,9 @@ class DistributedSparseGridUniform {
 
   int commSize_;
 
-  std::vector<SubspaceSGU<FG_ELEMENT> > subspaces_; // subspaces of the dsg
+  std::vector<FG_ELEMENT*> subspaces_;  // pointers to subspaces of the dsg
 
-  std::vector<FG_ELEMENT> subspacesData_; // allows linear access to all subspaces data
+  std::vector<FG_ELEMENT> subspacesData_;  // allows linear access to all subspaces data
 
   std::vector<size_t> subspacesDataSizes_; // allocated data sizes of all subspaces
 
@@ -251,7 +224,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
     // update pointers and sizes in subspaces
     size_t offset = 0;
     for (size_t i = 0; i < subspaces_.size(); i++) {
-      subspaces_[i].data_ = subspacesData_.data() + offset;
+      subspaces_[i] = subspacesData_.data() + offset;
       offset += subspacesDataSizes_[i];
     }
   }
@@ -267,13 +240,13 @@ void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
   // assert(false &&
   //        "due to the way that DFGs register the DSG only once (currently), you should think of a "
   //        "way to reset the localFGIndexToLocalSGPointerList_ member, since it will become "
-  //        "invalidated by the next line, or to have it use the subspaces_[*].data_ structures");
+  //        "invalidated by the next line, or to have it use the subspaces_[*] structures");
   if (isSubspaceDataCreated()) {
     subspacesData_.clear();
 
     // update pointers in subspaces
     for (auto& ss : subspaces_) {
-      ss.data_ = nullptr;
+      ss = nullptr;
     }
   }
 }
@@ -363,14 +336,14 @@ DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
 template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(SubspaceIndexType i) {
   assert(isSubspaceDataCreated());
-  return subspaces_[i].data_;
+  return subspaces_[i];
 }
 
 template <typename FG_ELEMENT>
 inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
     SubspaceIndexType i) const {
   assert(isSubspaceDataCreated());
-  return subspaces_[i].data_;
+  return subspaces_[i];
 }
 
 template <typename FG_ELEMENT>
@@ -602,11 +575,11 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
     auto maximumValue = realmin;
     if (subspacesDataSizes_[i] > 0) {
       // auto first = subspacesData_.begin();
-      auto first = subspaces_[i].data_;
+      auto first = subspaces_[i];
       auto last = first + subspacesDataSizes_[i];
       auto it = std::min_element(first, last, smaller_real);
       minimumValue = std::real(*it);
-      first = subspaces_[i].data_;
+      first = subspaces_[i];
       it = std::max_element(first, last, smaller_real);
       maximumValue = std::real(*it);
     }
