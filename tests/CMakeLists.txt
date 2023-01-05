@@ -37,3 +37,6 @@ foreach (test_file ${UNIT_TESTS_SRC_FILES})
         add_test(NAME ${test_name} COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 9 ${CMAKE_CURRENT_SOURCE_DIR}/test_distributedcombigrid_boost --run_test=${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     endif ()
 endforeach ()
+
+install(TARGETS test_distributedcombigrid_boost DESTINATION tests)
+install(FILES test_scheme.json DESTINATION tests)

@@ -99,10 +99,6 @@ option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" OFF)
 if (DISCOTEC_ENABLEFT)
     add_compile_definitions(ENABLEFT)
 endif ()
-option(DISCOTEC_DEBUG "Build with assertions and debug symbols" OFF) #TODO: Move to build type
-if (DISCOTEC_DEBUG OR CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-    target_compile_definitions(discotec PUBLIC DEBUG_OUTPUT)
-endif ()
 option(DISCOTEC_USE_LTO "Use link-time optimization" ON)
 if (DISCOTEC_USE_LTO)
     include(CheckIPOSupported)
@@ -287,3 +283,11 @@ if (DISCOTEC_HDF5)
         list(POP_BACK CMAKE_MESSAGE_INDENT)
     endif ()
 endif ()
+
+install(TARGETS discotec
+        EXPORT discotecTargets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
+        )

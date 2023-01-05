@@ -18,3 +18,6 @@ find_package(Boost REQUIRED)
 
 add_executable(combi_example_faults combi_example_faults.cpp)
 target_link_libraries(combi_example_faults discotec Boost::boost)
+
+install(TARGETS combi_example_faults DESTINATION examples/combi_example_faults)
+install(FILES ctparam run.sh DESTINATION examples/combi_example_faults)
