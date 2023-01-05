@@ -372,7 +372,6 @@ class DistributedFullGrid {
                                        const std::vector<real>& coords) const {
     assert(!(dim > this->getDimension()));
     if (dim == this->getDimension()) {
-      // std::cout << "eval " << localIndex << std::endl;
       return evalLocalIndexOn(localIndex, coords);
     } else {
       FG_ELEMENT sum = 0.;
