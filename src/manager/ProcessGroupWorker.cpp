@@ -941,16 +941,25 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
 
   // call interpolation function on tasks and reduce with combination coefficient
   std::vector<CombiDataType> values(numCoordinates, 0.);
+  std::vector<CombiDataType> kahanTrailingTerm(numCoordinates, 0.);
+
   for (Task* t : tasks_) {
-    auto coeff = this->combiParameters_.getCoeff(t->getID());
+    const auto coeff = this->combiParameters_.getCoeff(t->getID());
     for (size_t i = 0; i < numCoordinates; ++i) {
-      values[i] += t->getDistributedFullGrid().evalLocal(interpolationCoords[i]) * coeff;
+      auto localValue = t->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
+      auto summand = localValue * coeff;
+      // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+      volatile auto y = summand - kahanTrailingTerm[i];
+      volatile auto t = values[i] + y;
+      kahanTrailingTerm[i] = (t - values[i]) - y;
+      values[i] = t;
     }
   }
   // reduce interpolated values within process group
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getLocalComm());
+  //TODO is it necessary to correct for the kahan terms across process groups too?
 
   // need to reduce across process groups too
   // these do not strictly need to be allreduce (could be reduce), but it is easier to maintain that
@@ -959,6 +968,7 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getGlobalReduceComm());
 
+  // hope for RVO or change
   return values;
 }
 
