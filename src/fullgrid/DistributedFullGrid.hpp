@@ -368,6 +368,10 @@ class DistributedFullGrid {
       auto lastIndexInDim = this->getLocalSizes()[dim] - 1;
       if (localIndex[dim] >= 0 && localIndex[dim] <= lastIndexInDim) {
         sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
+      } else if (localIndex[dim] > lastIndexInDim &&
+                 !(this->hasBoundaryPoints_[dim] == 1 &&
+                   this->getCartesianUtils().isOnLowerBoundaryInDimension(d))) {
+        throw std::runtime_error("localIndex[dim] > lastIndexInDim");
       }
 
       IndexVector localIndexDimPlusOne = localIndex;
@@ -426,7 +430,18 @@ class DistributedFullGrid {
       // may also be negative if the coordinate is lower than this processes' coordinates
       localIndexLowerNonzeroNeighborPoint[d] =
           static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
+      // check if we even need to recursively evaluate on this process
       if (localIndexLowerNonzeroNeighborPoint[d] < -1) {
+        // index too small
+        value = 0.;
+        return;
+      } else if ((coords[d] >= 1.0 - h[d] && coords[d] <= 1.0) &&
+                 this->hasBoundaryPoints_[d] == 1 &&
+                 this->getCartesianUtils().isOnLowerBoundaryInDimension(d)) {
+        // if we have periodic boundary and this process is at the lower end of the dimension d
+        // we need the periodic coordinate => do nothing
+      } else if (localIndexLowerNonzeroNeighborPoint[d] > this->getLocalSizes()[d] - 1) {
+        // index too high
         value = 0.;
         return;
       }
