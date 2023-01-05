@@ -305,7 +305,7 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
   MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
             abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
-  if (filenamePrefix == "") {
+  if (!values.empty()) {
     MPI_Request_free(&dummyRequest);
   } else {
     MPI_Wait(&dummyRequest, MPI_STATUS_IGNORE);
