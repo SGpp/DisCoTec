@@ -381,7 +381,7 @@ class DistributedFullGrid {
         sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
       } else if (localIndex[dim] > lastIndexInDim &&
                  !(this->hasBoundaryPoints_[dim] == 1 &&
-                   this->getCartesianUtils().isOnLowerBoundaryInDimension(d))) {
+                   this->getCartesianUtils().isOnLowerBoundaryInDimension(dim))) {
         throw std::runtime_error("localIndex[dim] > lastIndexInDim");
       }
 
