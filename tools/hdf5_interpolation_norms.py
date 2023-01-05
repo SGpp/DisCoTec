@@ -17,6 +17,14 @@ def paraboloid_function(coords):
         result *= coord * (coord - 1.)
     return result
 
+def hyperplane_function(coords, simulation_time):
+    result = 0.
+    for d in range(len(coords)):
+        result += coords[d] * 10**d
+    # assume simulation_time combinations were performed with TaskCount
+    result *= simulation_time
+    return result
+
 
 def gaussian_function(coords, time):
     exponent = 0.
@@ -106,7 +114,8 @@ if __name__ == "__main__":
             reference_values_np = np.array(
                 [paraboloid_function(coords) for coords in coordinates_np])
         elif reference_solution[0] == 'hyperplane':
-            raise NotImplementedError("Analytical solution not implemented yet for hyperplane")
+            reference_values_np = np.array(
+                [hyperplane_function(coords, simulation_time) for coords in coordinates_np])
 
         error_np = values_np - reference_values_np
         for p in [np.inf, 1, 2]:
