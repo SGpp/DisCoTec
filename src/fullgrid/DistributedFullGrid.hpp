@@ -382,15 +382,13 @@ class DistributedFullGrid {
           // assume periodicity
           // if we are at the end of the dimension, wrap around
           localIndexDimPlusOne = 0;
-          if (localIndexDimPlusOne <= lastIndexInDim) {
-            auto secondCoords = coords;
-            secondCoords[dim] -= 1.;
-            // these copies are used to find all the neighbor points of the current coordinate
-            auto neighborIndex = localIndex;
-            neighborIndex[dim] = localIndexDimPlusOne;
-            sum += evalMultiindexRecursively(neighborIndex, static_cast<DimType>(dim + 1),
-                                             secondCoords);
-          }
+          auto secondCoords = coords;
+          secondCoords[dim] -= 1.;
+          // these copies are used to find all the neighbor points of the current coordinate
+          auto neighborIndex = localIndex;
+          neighborIndex[dim] = localIndexDimPlusOne;
+          sum +=
+              evalMultiindexRecursively(neighborIndex, static_cast<DimType>(dim + 1), secondCoords);
         } else if (localIndexDimPlusOne <= lastIndexInDim) {
           // these copies are used to find all the neighbor points of the current coordinate
           auto neighborIndex = localIndex;
