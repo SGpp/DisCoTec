@@ -233,6 +233,11 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
       subspaces_[i] = subspacesData_.data() + offset;
       offset += subspacesDataSizes_[i];
     }
+    if (kahanData_.empty()) {
+      // create kahan buffer implicitly only once,
+      // needs to be called explicitly if relevant sizes change
+      this->createKahanBuffer();
+    }
   }
 }
 
