@@ -533,10 +533,10 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
 #endif  // NDEBUG
       subspaceIndices = dfg.getFGPointsOfSubspace(level);
       for (const auto& fIndex : subspaceIndices) {
-        auto summand = coeff * dfg.getElementVector()[fIndex];
+        FG_ELEMENT summand = coeff * dfg.getElementVector()[fIndex];
         // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
-        auto y = summand - *kPointer;
-        auto t = *sPointer + y;
+        FG_ELEMENT y = summand - *kPointer;
+        FG_ELEMENT t = *sPointer + y;
         *kPointer = (t - *sPointer) - y;
         *sPointer = t;
         ++sPointer;
