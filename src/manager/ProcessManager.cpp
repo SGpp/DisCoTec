@@ -437,6 +437,21 @@ std::map<size_t, double> ProcessManager::getLpNorms(int p) {
   return norms;
 }
 
+double ProcessManager::getLpNorm(int p) {
+  std::map<size_t, double> norms = this->getLpNorms(p);
+
+  double norm = 0.0;
+  double kahanTrailingTerm = 0.0;
+  for (const auto& pair : norms) {
+    auto summand = pair.second * this->params_.getCoeff(pair.first);
+    // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+    volatile auto y = summand - kahanTrailingTerm;
+    volatile auto t = norm + y;
+    kahanTrailingTerm = (t - norm) - y;
+    norm = t;
+  }
+  return norm;
+}
 
 std::vector<double> ProcessManager::parallelEvalNorm(const LevelVector& leval, size_t groupID) {
   auto g = pgroups_[groupID];
