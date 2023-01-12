@@ -2,7 +2,6 @@
 
 TEMPLATE_DIR=./template
 NNODESSYSTEM=128
-WALLTIME="00:40:00"
 
 paramfile="ctparam"
 # allows to read the parameter file from the arguments.
