@@ -376,7 +376,6 @@ inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
 
 template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getRawData() {
-  createSubspaceData();
   return subspacesData_.data();
 }
 
