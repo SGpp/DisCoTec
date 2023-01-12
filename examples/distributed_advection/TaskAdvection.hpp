@@ -9,21 +9,20 @@ namespace combigrid {
 class TestFn {
  public:
   // function value
-  double operator()(std::vector<double>& coords, double t) const {
+  double operator()(const std::vector<double>& coords, double t) const {
     double exponent = 0;
-    const double sigma = 1./3.;
-    const double sigmaSquared = sigma * sigma;
-    const double sigmaSquaredInv = 1. / sigmaSquared;
     for (DimType d = 0; d < coords.size(); ++d) {
-      coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
-      assert(coords[d] >= 0.);
-      assert(coords[d] <= 1.);
-      exponent -= std::pow(coords[d] - 0.5, 2);
+      auto shifted_coords = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
+      assert(shifted_coords >= 0.);
+      assert(shifted_coords <= 1.);
+      exponent -= std::pow(shifted_coords - 0.5, 2);
     }
-    exponent *= sigmaSquaredInv;
+    exponent *= sigmaSquaredInv_;
     // leave out normalization, such that maximum is always 1
     return std::exp(exponent);  // / std::sqrt( std::pow(2*pi*sigmaSquared, coords.size()));
   }
+ private:
+  static constexpr double sigmaSquaredInv_ = 1. / ((1./3.)*(1./3.));
 };
 
 class TaskAdvection : public Task {
@@ -32,7 +31,8 @@ class TaskAdvection : public Task {
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
   TaskAdvection(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
-                LoadModel* loadModel, real dt, size_t nsteps, std::vector<int> p = std::vector<int>(0),
+                LoadModel* loadModel, real dt, size_t nsteps,
+                std::vector<int> p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
@@ -40,55 +40,42 @@ class TaskAdvection : public Task {
         p_(p),
         initialized_(false),
         stepsTotal_(0),
-        dfg_(NULL) {}
+        dfg_(nullptr) {
+          for (const auto& b : boundary) {
+            assert(b == 1);
+          }
+        }
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
-    double start, finish;
-    start = MPI_Wtime();
-
     auto lrank = theMPISystem()->getLocalRank();
     DimType dim = this->getDim();
     const LevelVector& l = this->getLevelVector();
 
-    finish = MPI_Wtime();
-
-    if (lrank == 0) {
-      std::cout << "init task " << this->getID() << " with l = " << this->getLevelVector()
-                << " and p = " << p_ << " took " << finish - start << std::flush;
-    }
-
-    start = MPI_Wtime();
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_);
-    phi_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_);
-    finish = MPI_Wtime();
-    if (lrank == 0) {
-      std::cout << " created dfg_ and phi_ took " << finish - start << std::flush;
+    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, false,
+                                                  decomposition);
+    if (phi_ == nullptr) {
+      phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
     }
 
-    start = MPI_Wtime();
     std::vector<double> h = dfg_->getGridSpacing();
     auto sumOneOverH = 0.;
-    for (const auto & h_x : h) {
-      sumOneOverH += 1./h_x;
+    for (const auto& h_x : h) {
+      sumOneOverH += 1. / h_x;
     }
     if (!(dt_ * sumOneOverH < 1.)) {
-      throw std::invalid_argument("CFL condition not satisfied!");
+      throw std::runtime_error("CFL condition not satisfied!");
     }
 
     TestFn f;
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-      std::vector<double> coords(this->getDim());
+      static std::vector<double> coords(this->getDim());
       dfg_->getCoordsLocal(li, coords);
       dfg_->getData()[li] = f(coords, 0.);
-    }
-    finish = MPI_Wtime();
-    if (lrank == 0) {
-      std::cout << " set values on dfg_ took " << finish - start << std::endl;
     }
 
     initialized_ = true;
@@ -103,48 +90,40 @@ class TaskAdvection : public Task {
     assert(initialized_);
     // dfg_->print(std::cout);
 
-    std::vector<CombiDataType> u(this->getDim(), 1);
-
-    // gradient of phi
-    std::vector<CombiDataType> dphi(this->getDim());
+    std::vector<CombiDataType> velocity(this->getDim(), 1);
 
     std::vector<double> h = dfg_->getGridSpacing();
-    auto fullOffsets = dfg_->getLocalOffsets();
+    const auto& fullOffsets = dfg_->getLocalOffsets();
+
+    phi_->resize(dfg_->getNrLocalElements());
+    std::fill(phi_->begin(), phi_->end(), 0.);
 
     for (size_t i = 0; i < nsteps_; ++i) {
-      phi_->getElementVector().swap(dfg_->getElementVector());
-
-      auto u_dot_dphi = std::vector<CombiDataType> (dfg_->getNrLocalElements(), 0.);
+      // compute the gradient in the original dfg_, then update into phi_ and
+      // swap at the end of each time step
+      auto& u_dot_dphi = *phi_;
 
       for (unsigned int d = 0; d < this->getDim(); ++d) {
-        // to update the values in the "lowest" layer, we need the ghost values from the lower neighbor
+        // to update the values in the "lowest" layer, we need the ghost values from the lower
+        // neighbor
         IndexVector subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
-        phi_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
+        dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
         int subarrayOffset = 1;
-	// int subarraySize = 1;
-        IndexVector subarrayOffsets (this->getDim());
+        IndexVector subarrayOffsets(this->getDim());
         for (DimType d_j = 0; d_j < dim_; ++d_j) {
           subarrayOffsets[d_j] = subarrayOffset;
           subarrayOffset *= subarrayExtents[d_j];
-	  // subarraySize *= subarrayExtents[d_j];
         }
 
         for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
           // calculate local axis index of backward neighbor
-          IndexVector locAxisIndex(this->getDim());
+          static IndexVector locAxisIndex(this->getDim());
           dfg_->getLocalVectorIndex(li, locAxisIndex);
-          //TODO can be unrolled into ghost and other part, avoiding if-statement
+          // TODO can be unrolled into ghost and other part, avoiding if-statement
           CombiDataType phi_neighbor = 0.;
           if (locAxisIndex[d] == 0){
-            // if we are in the lowest layer in d,
-            // make sure we are not on the lowest global layer
-            IndexVector globAxisIndex(this->getDim());
-            dfg_->getGlobalVectorIndex(locAxisIndex, globAxisIndex);
-            if (globAxisIndex[d] == 0){
-              assert(phi_ghost.size()==0);
-              continue;
-            }
+            assert(phi_ghost.size() > 0);
             // then use values from boundary exchange
             IndexType gli = 0;
             for (DimType d_j = 0; d_j < this->getDim(); ++d_j) {
@@ -157,21 +136,18 @@ class TaskAdvection : public Task {
             // --locAxisIndex[d];
             // IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
             // assert(lni == (li - fullOffsets[d]));
-            phi_neighbor = phi_->getElementVector()[li - fullOffsets[d]];
+            phi_neighbor = dfg_->getElementVector()[li - fullOffsets[d]];
           }
           // calculate gradient of phi with backward differential quotient
-          auto dphi = (phi_->getElementVector()[li] - phi_neighbor) / h[d];
+          auto dphi = (dfg_->getElementVector()[li] - phi_neighbor) / h[d];
 
-          u_dot_dphi[li] += u[d] * dphi;
+          u_dot_dphi[li] += velocity[d] * dphi;
         }
       }
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-        dfg_->getData()[li] = phi_->getElementVector()[li] - u_dot_dphi[li] * dt_;
+        (*phi_)[li] = dfg_->getElementVector()[li] - u_dot_dphi[li] * dt_;
       }
-      for (DimType d = 0; d < dim_; ++d) {
-        // implement periodic BC
-        dfg_->writeUpperBoundaryToLowerBoundary(d);
-      }
+      phi_->swap(dfg_->getElementVector());
     }
     stepsTotal_ += nsteps_;
 
@@ -195,12 +171,16 @@ class TaskAdvection : public Task {
 
   void setZero() {
     dfg_->setZero();
-    phi_->setZero();
+    std::fill(phi_->begin(), phi_->end(), 0.);
   }
 
   ~TaskAdvection() {
-    if (dfg_ != NULL) delete dfg_;
-    if (phi_ != NULL) delete phi_;
+    if (dfg_ != nullptr) delete dfg_;
+    if (phi_ != nullptr) delete phi_;
+  }
+
+  real getCurrentTime() const override {
+    return stepsTotal_ * dt_;
   }
 
   CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const override {
@@ -216,7 +196,7 @@ class TaskAdvection : public Task {
    * this constructor before overwriting the variables that are set by the
    * manager. here we need to set the initialized variable to make sure it is
    * set to false. */
-  TaskAdvection() : initialized_(false), stepsTotal_(0), dfg_(nullptr), phi_(nullptr) {}
+  TaskAdvection() : initialized_(false), stepsTotal_(0), dfg_(nullptr) {}
 
  private:
   friend class boost::serialization::access;
@@ -230,7 +210,7 @@ class TaskAdvection : public Task {
   bool initialized_;
   size_t stepsTotal_;
   DistributedFullGrid<CombiDataType>* dfg_;
-  DistributedFullGrid<CombiDataType>* phi_;
+  static std::vector<CombiDataType>* phi_;
 
   /**
    * The serialize function has to be extended by the new member variables.
@@ -251,5 +231,7 @@ class TaskAdvection : public Task {
     ar& p_;
   }
 };
+
+std::vector<CombiDataType>* TaskAdvection::phi_ = nullptr;
 
 }  // namespace combigrid
