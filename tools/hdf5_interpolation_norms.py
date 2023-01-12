@@ -17,6 +17,7 @@ def paraboloid_function(coords):
         result *= coord * (coord - 1.)
     return result
 
+
 def hyperplane_function(coords, simulation_time):
     result = 0.
     for d in range(len(coords)):
@@ -63,8 +64,16 @@ if __name__ == "__main__":
         type=str,
         default=None,
     )
+    parser.add_argument(
+        "--relative",
+        default=False,
+        action='store_true',
+    )
 
     args = parser.parse_args()
+    if 'relative' in vars(args) and 'solution' not in vars(args):
+        raise ValueError("Relative error norms require a reference solution")
+
     reference_solution = args.solution
     values_file = args.values_file[0]
     calculate_error_norms = reference_solution is not None
@@ -120,9 +129,14 @@ if __name__ == "__main__":
         error_np = values_np - reference_values_np
         for p in [np.inf, 1, 2]:
             p_error_norm = np.linalg.norm(error_np, ord=p)
-            if p in [1, 2]:
+            if args.relative:
+                exact_norm = np.linalg.norm(reference_values_np, ord=p)
+                # ic(exact_norm, p_error_norm)
+                p_error_norm = p_error_norm / exact_norm
+            elif p in [1, 2]:
                 p_error_norm = p_error_norm / num_samples
-            print("Monte Carlo error integral of order " + str(p) + " : " + str(p_error_norm))
+            print("Monte Carlo error integral of order " +
+                  str(p) + " : " + str(p_error_norm))
 
     else:
         # otherwise, we just compute the Monte Carlo norms of the interpolated values
