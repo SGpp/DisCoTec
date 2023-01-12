@@ -1062,7 +1062,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     DimType dim = static_cast<DimType>(procs.size());
     LevelVector lmin(dim, 1);
     LevelVector lmax(dim, 17);
-    LevelVector fullGridLevel = {18, 1, 1, 1, 1, 1};
+    LevelVector fullGridLevel = {18, 1, 1, 1, 1, 2};
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<IndexVector> decomposition = {
         {0, 49152, 98304, 163840, 212993}, {0}, {0}, {0}, {0}, {0}};
