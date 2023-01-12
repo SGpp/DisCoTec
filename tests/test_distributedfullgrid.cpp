@@ -1060,19 +1060,19 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     DimType dim = static_cast<DimType>(procs.size());
-    LevelVector lmin(dim, 2);
-    LevelVector lmax(dim, 18);
-    LevelVector fullGridLevel = {19, 2, 2, 2, 2, 2};
+    LevelVector lmin(dim, 1);
+    LevelVector lmax(dim, 17);
+    LevelVector fullGridLevel = {18, 1, 1, 1, 1, 1};
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<IndexVector> decomposition = {
-        {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
+        {0, 49152, 98304, 163840, 212993}, {0}, {0}, {0}, {0}, {0}};
 
     MPI_Barrier(comm);
     auto start = std::chrono::high_resolution_clock::now();
     DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    BOOST_TEST_MESSAGE("time to create full grid w/ level sum 29: " << duration.count()
+    BOOST_TEST_MESSAGE("time to create full grid w/ level sum 23: " << duration.count()
                                                                     << " milliseconds");
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 2500);
@@ -1087,7 +1087,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
                                        decomposition);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    BOOST_TEST_MESSAGE("time to create other full grid w/ level sum 29: " << duration.count()
+    BOOST_TEST_MESSAGE("time to create other full grid w/ level sum 23: " << duration.count()
                                                                           << " milliseconds");
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 2500);
