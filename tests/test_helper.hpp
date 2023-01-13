@@ -8,7 +8,6 @@
 #include <complex>
 #include <numeric>
 #include <vector>
-// #include <boost/test/floating_point_comparison.hpp>
 // new header for boost >= 1.59
 #include <boost/test/tools/floating_point_comparison.hpp>
 #include "utils/Stats.hpp"

@@ -3,8 +3,6 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
-#include <boost/test/floating_point_comparison.hpp>
-#include <boost/test/unit_test.hpp>
 #include <complex>
 #include <cstdarg>
 #include <iostream>

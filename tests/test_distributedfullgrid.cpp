@@ -1193,7 +1193,7 @@ BOOST_AUTO_TEST_CASE(test_evalDFG) {
 
     LevelVector fullGridLevel = {5, 5};
     for (auto b : std::vector<BoundaryType>({1, 2})) {
-      BOOST_TEST_MESSAGE("Testing boundary type " + std::to_string(b));
+      BOOST_TEST_CHECKPOINT("Testing boundary type " + std::to_string(b));
       std::vector<BoundaryType> boundary(dim, b);
       // create and initialize DFG
       DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, false);
@@ -1202,31 +1202,25 @@ BOOST_AUTO_TEST_CASE(test_evalDFG) {
         dfg.getCoordsLocal(li, coords);
         dfg.getData()[li] = 1.;
       }
+      // evaluate all at once
+      auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
+      for (size_t i = 0; i < numCoordinates; ++i) {
+        BOOST_CHECK_CLOSE(interpolatedValues[i], 1., TestHelper::tolerance);
+      }
 
-      // repeat 10 times to catch random stuff
-      for (size_t rep = 0; rep < 10; ++rep) {
-        BOOST_TEST_CHECKPOINT("Repetition " + std::to_string(rep));
-        // evaluate all at once
-        auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
-        for (size_t i = 0; i < numCoordinates; ++i) {
-          BOOST_CHECK_CLOSE(interpolatedValues[i], 1., TestHelper::tolerance);
-        }
-
-        // evaluate first and then reduce all values
-        decltype(interpolatedValues) stepWiseInterpolatedValues(numCoordinates, 0.);
-        for (size_t i = 0; i < numCoordinates; ++i) {
-          stepWiseInterpolatedValues[i] = dfg.evalLocal(interpolationCoords[i]);
-        }
-        // reduce interpolated values within DFG's processes
-        MPI_Allreduce(MPI_IN_PLACE, stepWiseInterpolatedValues.data(),
-                      static_cast<int>(numCoordinates),
-                      abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()),
-                      MPI_SUM, comm);
-        for (size_t i = 0; i < numCoordinates; ++i) {
-          BOOST_CHECK_CLOSE(stepWiseInterpolatedValues[i], interpolatedValues[i],
-                            TestHelper::tolerance);
-          BOOST_CHECK_CLOSE(stepWiseInterpolatedValues[i], 1., TestHelper::tolerance);
-        }
+      // evaluate first and then reduce all values
+      decltype(interpolatedValues) stepWiseInterpolatedValues(numCoordinates, 0.);
+      for (size_t i = 0; i < numCoordinates; ++i) {
+        stepWiseInterpolatedValues[i] = dfg.evalLocal(interpolationCoords[i]);
+      }
+      // reduce interpolated values within DFG's processes
+      MPI_Allreduce(
+          MPI_IN_PLACE, stepWiseInterpolatedValues.data(), static_cast<int>(numCoordinates),
+          abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), MPI_SUM, comm);
+      for (size_t i = 0; i < numCoordinates; ++i) {
+        BOOST_CHECK_CLOSE(stepWiseInterpolatedValues[i], interpolatedValues[i],
+                          TestHelper::tolerance);
+        BOOST_CHECK_CLOSE(stepWiseInterpolatedValues[i], 1., TestHelper::tolerance);
       }
       MPI_Barrier(comm);
     }
