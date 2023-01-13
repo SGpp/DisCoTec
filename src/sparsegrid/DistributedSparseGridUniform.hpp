@@ -631,6 +631,8 @@ void DistributedSparseGridUniform<FG_ELEMENT>::broadcastDsgSizes(CommunicatorTyp
   assert(subspacesDataSizes_.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
   MPI_Bcast(subspacesDataSizes_.data(), static_cast<int>(subspacesDataSizes_.size()), dtype,
             sendingRank, comm);
+  // assume that the sizes changed, the buffer might be the wrong size now
+  this->deleteSubspaceData();
 }
 
 template <typename FG_ELEMENT>
@@ -661,6 +663,8 @@ void DistributedSparseGridUniform<FG_ELEMENT>::receiveDsgSizesWithScatter(Commun
   // receive updated sizes from manager
   MPI_Scatterv(nullptr, 0, nullptr, dtype, subspacesDataSizes_.data(), numSubspaces, dtype,
                collectorRank, comm);
+  // assume that the sizes changed, the buffer might be the wrong size now
+  this->deleteSubspaceData();
 }
 
 template <typename FG_ELEMENT>
