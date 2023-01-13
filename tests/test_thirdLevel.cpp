@@ -269,8 +269,8 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
         std::string filenamePrefixToRead =
             "dsgu_combine_" + std::to_string((testParams.sysNum + 1) % 2);
         std::string startReadingTokenFileName = filenamePrefixToRead + "_complete.txt";
-        manager.combineThirdLevelFileBased(filenamePrefixToWrite, writeCompleteTokenFileName,
-                                           filenamePrefixToRead, startReadingTokenFileName);
+        manager.combineThirdLevelFileBasedWrite(filenamePrefixToWrite, writeCompleteTokenFileName);
+        manager.combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName);
       }
       // manager.combine();
       Stats::stopEvent("manager combine third level");
