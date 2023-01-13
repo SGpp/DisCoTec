@@ -2,7 +2,6 @@
 
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "task/Task.hpp"
-#include "mpi/MPIMemory.hpp"
 
 namespace combigrid {
 
@@ -10,21 +9,20 @@ namespace combigrid {
 class TestFn {
  public:
   // function value
-  double operator()(std::vector<double>& coords, double t) const {
+  double operator()(const std::vector<double>& coords, double t) const {
     double exponent = 0;
-    const double sigma = 1./3.;
-    const double sigmaSquared = sigma * sigma;
-    const double sigmaSquaredInv = 1. / sigmaSquared;
     for (DimType d = 0; d < coords.size(); ++d) {
-      coords[d] = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
-      assert(coords[d] >= 0.);
-      assert(coords[d] <= 1.);
-      exponent -= std::pow(coords[d] - 0.5, 2);
+      auto shifted_coords = std::fmod(1.0 + std::fmod(coords[d] - t, 1.0), 1.0);
+      assert(shifted_coords >= 0.);
+      assert(shifted_coords <= 1.);
+      exponent -= std::pow(shifted_coords - 0.5, 2);
     }
-    exponent *= sigmaSquaredInv;
+    exponent *= sigmaSquaredInv_;
     // leave out normalization, such that maximum is always 1
     return std::exp(exponent);  // / std::sqrt( std::pow(2*pi*sigmaSquared, coords.size()));
   }
+ private:
+  static constexpr double sigmaSquaredInv_ = 1. / ((1./3.)*(1./3.));
 };
 
 class TaskAdvection : public Task {
@@ -178,7 +176,13 @@ class TaskAdvection : public Task {
 
   ~TaskAdvection() {
     if (dfg_ != nullptr) delete dfg_;
+    dfg_ = nullptr;
     if (phi_ != nullptr) delete phi_;
+    phi_ = nullptr;
+  }
+
+  real getCurrentTime() const override {
+    return stepsTotal_ * dt_;
   }
 
   CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const override {
