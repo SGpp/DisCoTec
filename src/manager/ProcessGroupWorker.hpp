@@ -119,10 +119,11 @@ class ProcessGroupWorker {
    * and updates fgs. */
   void combineThirdLevel();
 
-  void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
-                                  std::string writeCompleteTokenFileName,
-                                  std::string filenamePrefixToRead,
-                                  std::string startReadingTokenFileName);
+  void combineThirdLevelFileBasedWrite();
+
+  void combineThirdLevelFileBasedReadReduce();
+
+  void combineThirdLevelFileBased();
 
   /** waits until the third level pg bcasts the combined solution and updates
    * fgs */
