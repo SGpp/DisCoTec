@@ -531,7 +531,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
       auto kPointer = kahanDataBegin_[sIndex];
 #ifndef NDEBUG
       if (sIndex < kahanDataBegin_.size() - 1) {
-        kDataSize = kahanDataBegin_[sIndex + 1] - kPointer;
+        auto kDataSize = kahanDataBegin_[sIndex + 1] - kPointer;
         assert(kDataSize == this->getDataSize(sIndex));
       }
 #endif  // NDEBUG

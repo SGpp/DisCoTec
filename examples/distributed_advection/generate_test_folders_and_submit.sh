@@ -15,7 +15,7 @@ runfile="submit.sh"
 basisfunctions=(hat biorthogonal_periodic fullweighting_periodic)
 
 for dim in {2..6}; do
-   for test_maxlevel in {4..11}; do #2..11}; do # assume that cfl condition will keep us from running any absurdly fine simulations
+   for test_maxlevel in {2..11}; do # assume that cfl condition will keep us from running any absurdly fine simulations
 	for b in "${basisfunctions[@]}"; do
 	FOLDER=advection_${b}_${dim}D_2-${test_maxlevel}
 	# copy parameter file to new directory

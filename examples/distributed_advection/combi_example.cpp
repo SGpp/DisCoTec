@@ -189,7 +189,9 @@ int main(int argc, char** argv) {
 
     // create combiparameters
     auto reduceCombinationDimsLmax = std::vector<IndexType>(dim, 0);
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
+                           std::vector<int>(), std::vector<IndexType>(0), reduceCombinationDimsLmax,
+                           false);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
 
@@ -212,17 +214,16 @@ int main(int argc, char** argv) {
 
     for (size_t i = 1; i < ncombi; ++i) {
       // start = MPI_Wtime();
-      if (tasks.size() > 1) {
-        Stats::startEvent("manager combine");
-        manager.combine();
-        // manager.waitAllFinished();
-        Stats::stopEvent("manager combine");
-      }
+      Stats::startEvent("manager combine");
+      manager.combine();
+      // manager.waitAllFinished();
+      Stats::stopEvent("manager combine");
+
       if (evalMCError && i % 1000 == 0) {
         managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt);
       }
       // write out field at middle of simulation
-      if (i == ncombi / 2 && dim < 4) {
+      if (i == ncombi / 2 && dim == 2) {
         std::string filename("out/solution_" + output_id + "_" + std::to_string(i) + ".raw");
         Stats::startEvent("manager write solution");
         manager.parallelEval(leval, filename, 0);
@@ -243,11 +244,14 @@ int main(int argc, char** argv) {
       Stats::stopEvent("manager run");
     }
 
-    if (tasks.size() > 1) {
-      Stats::startEvent("combine");
-      manager.combine();
-      Stats::stopEvent("combine");
-    }
+    Stats::startEvent("combine");
+    manager.combine();
+    Stats::stopEvent("combine");
+
+    Stats::startEvent("manager get norms");
+    std::cout << " " << static_cast<double>(ncombi * nsteps) * dt << " " << manager.getLpNorm(0) << " " << manager.getLpNorm(1)
+              << std::endl;
+    Stats::stopEvent("manager get norms");
 
     if (evalMCError) {
       managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt);
@@ -255,7 +259,7 @@ int main(int argc, char** argv) {
 
     // evaluate solution at end and
     // write solution to file
-    if (dim < 4) {
+    if (dim == 2) {
       std::string filename("out/solution_" + output_id + "_" + std::to_string(ncombi) + ".raw");
       Stats::startEvent("manager write solution");
       manager.parallelEval(leval, filename, 0);

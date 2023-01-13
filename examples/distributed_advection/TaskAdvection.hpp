@@ -176,7 +176,9 @@ class TaskAdvection : public Task {
 
   ~TaskAdvection() {
     if (dfg_ != nullptr) delete dfg_;
+    dfg_ = nullptr;
     if (phi_ != nullptr) delete phi_;
+    phi_ = nullptr;
   }
 
   real getCurrentTime() const override {
