@@ -51,14 +51,19 @@ class ProcessGroupManager {
   bool combine();
 
   // third Level stuff
-  bool combineThirdLevel(const ThirdLevelUtils& thirdLevel,
-                               CombiParameters& params,
-                               bool isSendingFirst);
+  bool combineThirdLevel(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
+                         bool isSendingFirst);
 
   bool combineThirdLevelFileBased(std::string filenamePrefixToWrite,
                                   std::string writeCompleteTokenFileName,
                                   std::string filenamePrefixToRead,
                                   std::string startReadingTokenFileName);
+
+  bool combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
+                                       std::string writeCompleteTokenFileName);
+
+  bool combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
+                                            std::string startReadingTokenFileName);
 
   bool pretendCombineThirdLevelForWorkers(CombiParameters& params);
 

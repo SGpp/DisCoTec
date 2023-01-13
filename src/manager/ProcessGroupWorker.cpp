@@ -207,30 +207,20 @@ SignalType ProcessGroupWorker::wait() {
       currentCombi_++;
       Stats::stopEvent("worker combine third level");
     } break;
+    case COMBINE_WRITE_DSGS: {
+      Stats::startEvent("worker combine third level write");
+      combineThirdLevelFileBasedWrite();
+      Stats::stopEvent("worker combine third level write");
+    } break;
+    case COMBINE_READ_DSGS_AND_REDUCE: {
+      Stats::startEvent("worker combine third level read");
+      combineThirdLevelFileBasedReadReduce();
+      currentCombi_++;
+      Stats::stopEvent("worker combine third level read");
+    } break;
     case COMBINE_THIRD_LEVEL_FILE: {
       Stats::startEvent("worker combine third level file");
-      std::string filenamePrefixToWrite, writeCompleteTokenFileName, filenamePrefixToRead,
-          startReadingTokenFileName;
-      MASTER_EXCLUSIVE_SECTION {
-        MPIUtils::receiveClass(&filenamePrefixToWrite, theMPISystem()->getManagerRank(),
-                               theMPISystem()->getGlobalComm());
-        MPIUtils::receiveClass(&writeCompleteTokenFileName, theMPISystem()->getManagerRank(),
-                               theMPISystem()->getGlobalComm());
-        MPIUtils::receiveClass(&filenamePrefixToRead, theMPISystem()->getManagerRank(),
-                               theMPISystem()->getGlobalComm());
-        MPIUtils::receiveClass(&startReadingTokenFileName, theMPISystem()->getManagerRank(),
-                               theMPISystem()->getGlobalComm());
-      }
-      MPIUtils::broadcastClass(&filenamePrefixToWrite, theMPISystem()->getMasterRank(),
-                               theMPISystem()->getLocalComm());
-      MPIUtils::broadcastClass(&writeCompleteTokenFileName, theMPISystem()->getMasterRank(),
-                               theMPISystem()->getLocalComm());
-      MPIUtils::broadcastClass(&filenamePrefixToRead, theMPISystem()->getMasterRank(),
-                               theMPISystem()->getLocalComm());
-      MPIUtils::broadcastClass(&startReadingTokenFileName, theMPISystem()->getMasterRank(),
-                               theMPISystem()->getLocalComm());
-      combineThirdLevelFileBased(filenamePrefixToWrite, writeCompleteTokenFileName,
-                                 filenamePrefixToRead, startReadingTokenFileName);
+      combineThirdLevelFileBased();
       currentCombi_++;
       Stats::stopEvent("worker combine third level file");
     } break;
@@ -1388,19 +1378,22 @@ void ProcessGroupWorker::combineThirdLevel() {
   Stats::stopEvent("worker wait for bcasts");
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
-                                                    std::string writeCompleteTokenFileName,
-                                                    std::string filenamePrefixToRead,
-                                                    std::string startReadingTokenFileName) {
+void ProcessGroupWorker::combineThirdLevelFileBasedWrite() {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
 
+  auto filenamePrefixToWrite = receiveStringFromManagerAndBroadcastToGroup();
+  auto writeCompleteTokenFileName = receiveStringFromManagerAndBroadcastToGroup();
+
   // write sparse grid and corresponding token file
   this->writeDSGsToDisk(filenamePrefixToWrite);
-  MASTER_EXCLUSIVE_SECTION {
-    std::ofstream tokenFile(writeCompleteTokenFileName);
-  }
+  MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
+}
+
+void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce() {
+  auto filenamePrefixToRead = receiveStringFromManagerAndBroadcastToGroup();
+  auto startReadingTokenFileName = receiveStringFromManagerAndBroadcastToGroup();
 
   // wait until we can start to read
   while (!std::filesystem::exists(startReadingTokenFileName)) {
@@ -1421,15 +1414,18 @@ void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixTo
   integrateCombinedSolution();
 
   // remove reading token
-  MASTER_EXCLUSIVE_SECTION {
-    std::filesystem::remove(startReadingTokenFileName);
-  }
+  MASTER_EXCLUSIVE_SECTION { std::filesystem::remove(startReadingTokenFileName); }
 
   // wait for bcasts to other pgs in globalReduceComm
   Stats::startEvent("worker wait for bcasts");
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
   Stats::stopEvent("worker wait for bcasts");
+}
+
+void ProcessGroupWorker::combineThirdLevelFileBased() {
+  this->combineThirdLevelFileBasedWrite();
+  this->combineThirdLevelFileBasedReadReduce();
 }
 
 /** Reduces subspace sizes with remote.

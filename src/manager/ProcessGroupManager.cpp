@@ -134,6 +134,30 @@ bool ProcessGroupManager::combineThirdLevelFileBased(std::string filenamePrefixT
   return this->waitStatus() == PROCESS_GROUP_WAIT;
 }
 
+bool ProcessGroupManager::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
+                                                          std::string writeCompleteTokenFileName) {
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
+  sendSignalAndReceive(COMBINE_WRITE_DSGS);
+
+  // send filenames
+  MPIUtils::sendClass(&filenamePrefixToWrite, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&writeCompleteTokenFileName, this->pgroupRootID_,
+                      theMPISystem()->getGlobalComm());
+  return this->waitStatus() == PROCESS_GROUP_WAIT;
+}
+
+bool ProcessGroupManager::combineThirdLevelFileBasedReadReduce(
+    std::string filenamePrefixToRead, std::string startReadingTokenFileName) {
+  assert(waitStatus() == PROCESS_GROUP_WAIT);
+  sendSignalAndReceive(COMBINE_READ_DSGS_AND_REDUCE);
+
+  // send filenames
+  MPIUtils::sendClass(&filenamePrefixToRead, this->pgroupRootID_, theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&startReadingTokenFileName, this->pgroupRootID_,
+                      theMPISystem()->getGlobalComm());
+  return this->waitStatus() == PROCESS_GROUP_WAIT;
+}
+
 void recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>());
   auto dsguSize = dsguData.size();
