@@ -77,10 +77,16 @@ class ProcessManager {
 
   inline void combineThirdLevel();
 
+  inline void combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
+                                              std::string writeCompleteTokenFileName);
+
+  inline void combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
+                                                   std::string startReadingTokenFileName);
+
   inline void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
-                                  std::string writeCompleteTokenFileName,
-                                  std::string filenamePrefixToRead,
-                                  std::string startReadingTokenFileName);
+                                         std::string writeCompleteTokenFileName,
+                                         std::string filenamePrefixToRead,
+                                         std::string startReadingTokenFileName);
 
   inline size_t pretendCombineThirdLevelForBroker(std::vector<long long> numDofsToCommunicate,
                                          bool checkValues);
@@ -360,6 +366,39 @@ void ProcessManager::combineThirdLevel() {
   thirdLevel_.signalReady();
 
   waitAllFinished();
+}
+
+void ProcessManager::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
+                                                          std::string writeCompleteTokenFileName) {
+  // first combine local and global
+  combineLocalAndGlobal();
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToCombineFile();
+  std::string instruction = thirdLevel_.fetchInstruction();
+  assert(instruction == "write_ok");
+
+  // combine
+  Stats::startEvent("manager combine write");
+  thirdLevelPGroup_->combineThirdLevelFileBasedWrite(filenamePrefixToWrite,
+                                                     writeCompleteTokenFileName);
+  Stats::stopEvent("manager combine write");
+  waitForPG(thirdLevelPGroup_);
+}
+
+void ProcessManager::combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
+                                                          std::string startReadingTokenFileName) {
+  // integrate the solutions
+  Stats::startEvent("manager combine read");
+  thirdLevelPGroup_->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead,
+                                                          startReadingTokenFileName);
+
+  // tell other pgroups to wait for the combination result
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
+  }
+  Stats::stopEvent("manager combine read");
+  waitForPG(thirdLevelPGroup_);
+  thirdLevel_.signalReady();
 }
 
 void ProcessManager::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
