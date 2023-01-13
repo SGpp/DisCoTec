@@ -71,7 +71,7 @@ where you can use all the parameters of the boost test suite.
 Or you can run the tests with `ctest` in the build folder.
 
 
-GENE submodules as dependencies for GENE examples
+GENE  submodules as dependencies for GENE examples
 ----------------
 _Warning: The CMake Integration is currently not adappted to use GENE and SeLaLib!_
 
@@ -109,32 +109,6 @@ On Hazel Hen
 
 Warning: outdated not testet with the new CMake build scripts!!
 
-### Prerequisites
-
-* load modules: PrgEnv-gnu, scons, python 2.7
-
-* Check loaded modules with:
-  `module list`
-
-* E.g. to change the default cray compiler to gnu:
-  `module switch PrgEnv-cray PrgEnv-gnu`
-
-* Allow dynamic linking:
-  `export CRAYPE_LINK_TYPE=dynamic`
-
-### Compilation
-
-Unfortunately, the boost module on Hazel Hen does not work with our code any
-more. Hence, you have to install boost yourself, e.g. use version >= 1.58
-(always compile boost with the intel compiler `PrgEnv-intel`, otherwise there
-will be linkage errors when compiling the examples) Do not forget to set boost
-paths, i.e. BOOST_INCLUDE_PATH, BOOST_LIBRARY_PATH.
-
-Compile by first adapting the compile.sh script to use the HLRS specific
-command.
-
-(the linking of the boost tests might fail. However this is not a problem, the
-sg++ libraries should be there)
 
 ### Execution
 

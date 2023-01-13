@@ -9,7 +9,6 @@
 #include "mpi_fault_simulator/MPI-FT.h"
 #include "task/Task.hpp"
 #include "loadmodel/LearningLoadModel.hpp"
-// #include "vtk/PlotFileWriter.hpp"
 #include "vtk/DFGPlotFileWriter.hpp"
 
 namespace combigrid {
@@ -91,11 +90,16 @@ class ProcessGroupWorker {
   /** evaluate norms of combi solution error on reference grid  */
   void evalErrorOnDFG();
 
-  /** interpolate values on all tasks' component grids and send back combined result  */
+  /** interpolate values on all tasks' component grids */
   std::vector<CombiDataType> interpolateValues();
 
   /** interpolate values on all tasks' component grids and write results to file */
   void writeInterpolatedValuesPerGrid();
+
+  /** interpolate values on all tasks' component grids, combine results, and write to a single file
+   */
+  void writeInterpolatedValues(const std::vector<CombiDataType>& values,
+                               const std::string& valuesWriteFilename);
 
   /** write extra SGs to disk (binary w/ MPI-IO) */
   void writeDSGsToDisk(std::string filenamePrefix);

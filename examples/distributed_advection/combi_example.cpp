@@ -15,13 +15,7 @@
 #include <string>
 #include <vector>
 
-// compulsory includes for basic functionality
 #include "combischeme/CombiMinMaxScheme.hpp"
-// #include "combischeme/CombiThirdLevelScheme.hpp"
-#include "fault_tolerance/FaultCriterion.hpp"
-#include "fault_tolerance/StaticFaults.hpp"
-#include "fault_tolerance/WeibullFaults.hpp"
-#include "fullgrid/FullGrid.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupManager.hpp"
@@ -55,69 +49,49 @@ namespace shellCommand {
   }
 }
 
+void managerMonteCarlo(ProcessManager& manager, DimType dim, double time) {
+  // 100000 was tested to be sufficient for the 6D Gaussian blob
+  size_t numValues = 100000;
+  Stats::startEvent("manager monte carlo");
+  // third-level monte carlo interpolation
+  static std::vector<std::vector<real>> interpolationCoords;
+  std::vector<CombiDataType> values;
+  if (interpolationCoords.empty()) {
+      interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
+      manager.writeInterpolationCoordinates(interpolationCoords, "advection");
+  }
+  values = manager.interpolateValues(interpolationCoords);
+  manager.writeInterpolatedValuesSingleFile(interpolationCoords, "advection");
+  Stats::stopEvent("manager monte carlo");
 
-void managerMonteCarlo(ProcessManager& manager, DimType dim, double time, bool hasThirdLevel) {
-      // Stats::startEvent("manager get norms");
-      // std::cout << manager.getLpNorms(0) << std::endl;
-      // std::cout << manager.getLpNorms(1) << std::endl;
-      // std::cout << manager.getLpNorms(2) << std::endl;
-      // std::cout << "eval norms " << manager.parallelEvalNorm(leval, 0) << std::endl;
+  Stats::startEvent("manager calculate errors");
+  // calculate monte carlo errors
+  TestFn initialFunction;
+  real l0Error = 0., l1Error = 0., l2Error = 0., l0Reference = 0., l1Reference = 0.,
+        l2Reference = 0.;
 
-      // auto analytical = manager.evalAnalyticalOnDFG(leval, 0);
-      // std::cout << "analytical " << analytical << std::endl;
-      // auto error = manager.evalErrorOnDFG(leval, 0);
-      // std::cout << "errors " << error << std::endl;
+  for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+    auto analyticalSln = initialFunction(interpolationCoords[i], time);
+    l0Reference = std::max(analyticalSln, l0Reference);
+    l1Reference += analyticalSln;
+    l2Reference += std::pow(analyticalSln, 2);
+    auto difference = std::abs(analyticalSln - values[i]);
+    l0Error = std::max(difference, l0Error);
+    l1Error += difference;
+    l2Error += std::pow(difference, 2);
+  }
+  std::cout << "Monte carlo errors on " << numValues << " points are \n"
+            << time << ", " << l0Error << ", " << l1Error / numValues << ", "
+            << l2Error / numValues << " " << std::endl;
 
-      // std::cout << "relative errors ";
-      // for (size_t i=0; i < 3 ; ++i){
-      //   std::cout << error[i]/analytical[i] << " ";
-      // }
-      // std::cout << std::endl;
-      // Stats::stopEvent("manager get norms");
-      
-      // 100000 was tested to be sufficient for the 6D blob,
-      // but output three times just to make sure
-      std::vector<size_t> numValuesToTry{100000};
-      for (auto& numValues : numValuesToTry) {
-        for (int i = 0; i < 3; ++i) {
-          Stats::startEvent("manager monte carlo");
-          // third-level monte carlo interpolation
-          std::vector<std::vector<real>> interpolationCoords;
-          std::vector<CombiDataType> values;
-          if (hasThirdLevel) {
-            // manager.monteCarloThirdLevel(numValues, interpolationCoords, values);
-          } else {
-            interpolationCoords = montecarlo::getRandomCoordinates(numValues, dim);
-            values = manager.interpolateValues(interpolationCoords);
-          }
-          Stats::stopEvent("manager monte carlo");
-  
-          Stats::startEvent("manager calculate errors");
-          // calculate monte carlo errors
-          TestFn initialFunction;
-          real l0Error = 0., l1Error = 0., l2Error = 0.,
-               l0Reference = 0., l1Reference = 0., l2Reference = 0.;
-          for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-            auto analyticalSln =
-                initialFunction(interpolationCoords[i], time);
-            l0Reference = std::max(analyticalSln, l0Reference);
-            l1Reference += analyticalSln;
-            l2Reference += std::pow(analyticalSln, 2);
-            auto difference = std::abs(analyticalSln - values[i]);
-            l0Error = std::max(difference, l0Error);
-            l1Error += difference;
-            l2Error += std::pow(difference, 2);
-          }
-          // make them relative errors
-          l0Error = l0Error / l0Reference;
-          l1Error = l1Error / l1Reference;
-          l2Error = std::sqrt(l2Error) / std::sqrt(l2Reference);
-          Stats::stopEvent("manager calculate errors");
-  
-          std::cout << "Monte carlo errors on " << numValues << " points are \n" << time
-		    << ", " << l0Error << ", " << l1Error << ", " << l2Error << " " << std::endl;
-        }
-      }
+  // make them relative errors
+  l0Error = l0Error / l0Reference;
+  l1Error = l1Error / l1Reference;
+  l2Error = std::sqrt(l2Error) / std::sqrt(l2Reference);
+  Stats::stopEvent("manager calculate errors");
+
+  std::cout << "Relative Monte carlo errors on " << numValues << " points are \n"
+            << time << ", " << l0Error << ", " << l1Error << ", " << l2Error << " " << std::endl;
 }
 
 int main(int argc, char** argv) {
@@ -173,7 +147,7 @@ int main(int argc, char** argv) {
                             "-" + std::to_string(lmax[0]);
 
     // todo: read in boundary vector from ctparam
-    std::vector<BoundaryType> boundary(dim, 2);
+    std::vector<BoundaryType> boundary(dim, 1);
 
     // check whether parallelization vector p agrees with nprocs
     IndexType checkProcs = 1;
@@ -190,9 +164,9 @@ int main(int argc, char** argv) {
 
     // create load model
     std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-    // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new AnisotropyLoadModel());
     // std::unique_ptr<LoadModel> loadmodel = std::unique_ptr<LoadModel>(new
-    // LearningLoadModel(levels));
+    // AnisotropyLoadModel()); std::unique_ptr<LoadModel> loadmodel =
+    // std::unique_ptr<LoadModel>(new LearningLoadModel(levels));
 
     // output combination scheme
     std::cout << "lmin = " << lmin << std::endl;
@@ -204,10 +178,8 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t =
-          new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
-      // Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel);
-      // Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
+      Task* t = new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt,
+                                  nsteps, p);
 
       static_assert(!isGENE, "isGENE");
 
@@ -217,7 +189,9 @@ int main(int argc, char** argv) {
 
     // create combiparameters
     auto reduceCombinationDimsLmax = std::vector<IndexType>(dim, 0);
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
+                           std::vector<int>(), std::vector<IndexType>(0), reduceCombinationDimsLmax,
+                           false);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
 
@@ -228,7 +202,7 @@ int main(int argc, char** argv) {
     std::cout << "set up component grids and run until first combination point" << std::endl;
 
     /* distribute task according to load model and start computation for
-     * the first time */
+      * the first time */
     Stats::startEvent("manager run first");
     manager.runfirst();
     Stats::stopEvent("manager run first");
@@ -240,75 +214,52 @@ int main(int argc, char** argv) {
 
     for (size_t i = 1; i < ncombi; ++i) {
       // start = MPI_Wtime();
-      if (tasks.size() > 1) {
-        Stats::startEvent("manager combine");
-        manager.combine();
-        // manager.waitAllFinished();
-        Stats::stopEvent("manager combine");
-      }
-      if (evalMCError && i%1000 == 0) {
-      	managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt, false);
+      Stats::startEvent("manager combine");
+      manager.combine();
+      // manager.waitAllFinished();
+      Stats::stopEvent("manager combine");
+
+      if (evalMCError && i % 1000 == 0) {
+        managerMonteCarlo(manager, dim, static_cast<double>(i * nsteps) * dt);
       }
       // write out field at middle of simulation
-      if (i == ncombi/2 && dim < 4) {
+      if (i == ncombi / 2 && dim == 2) {
         std::string filename("out/solution_" + output_id + "_" + std::to_string(i) + ".raw");
         Stats::startEvent("manager write solution");
         manager.parallelEval(leval, filename, 0);
         Stats::stopEvent("manager write solution");
       }
-      // finish = MPI_Wtime();
-      // std::cout << "combination " << i << " took: " << finish - start << " seconds" << std::endl;
-
-      // evaluate solution and
-      // // write solution to file
-      // // every ten times
-      // if (i%(ncombi/10) == 0) {
-      //   std::string filename("out/solution_" + std::to_string(i) + ".raw");
-      //   Stats::startEvent("manager write solution");
-      //   manager.parallelEval(leval, filename, 0);
-      //   Stats::stopEvent("manager write solution");
-      //   std::string filename2("out/solution_" + std::to_string(i) + ".vtk");
-      //   Stats::startEvent("manager write solution");
-      //   manager.parallelEval(leval, filename2, 0);
-      //   Stats::stopEvent("manager write solution");
-      // }
-
-      // std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
-      // auto error = manager.evalErrorOnDFG(leval, 0);
-      // std::cout << "errors " << error << std::endl;
 
       if (i % 100 == 0) {
         Stats::startEvent("manager get norms");
-        // std::cout << "Max norms " << manager.getLpNorms(0) << std::endl;
-        // std::cout << "L1 norms " << manager.getLpNorms(1) << std::endl;
-        std::cout <<  " " << i * dt << " " << manager.getLpNorms(0)[0] << " " << manager.getLpNorms(1)[0] << std::endl;
+        std::cout << " " << i * dt << " " << manager.getLpNorm(0) << " " << manager.getLpNorm(1)
+                  << std::endl;
+        // std::cout <<  " " << i * dt << " " << manager.getLpNorms(0)[0] << " " <<
+        // manager.getLpNorms(1)[0] << std::endl;
         Stats::stopEvent("manager get norms");
       }
       // run tasks for next time interval
-      // start = MPI_Wtime();
       Stats::startEvent("manager run");
       manager.runnext();
       Stats::stopEvent("manager run");
-      // finish = MPI_Wtime();
-      // std::cout << "calculation " << i << " took: " << finish - start << " seconds" << std::endl;
-
-      // run currently sets the dsgs back to zero
-      // std::cout << manager.parallelEvalNorm(leval, 0) << std::endl;
     }
 
-    if (tasks.size() > 1) {
-      Stats::startEvent("combine");
-      manager.combine();
-      Stats::stopEvent("combine");
-    }
+    Stats::startEvent("combine");
+    manager.combine();
+    Stats::stopEvent("combine");
+
+    Stats::startEvent("manager get norms");
+    std::cout << " " << static_cast<double>(ncombi * nsteps) * dt << " " << manager.getLpNorm(0) << " " << manager.getLpNorm(1)
+              << std::endl;
+    Stats::stopEvent("manager get norms");
 
     if (evalMCError) {
-      managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt, false);
+      managerMonteCarlo(manager, dim, static_cast<double>(ncombi * nsteps) * dt);
     }
 
-    // evaluate solution and
+    // evaluate solution at end and
     // write solution to file
-    if (dim < 4) {
+    if (dim == 2) {
       std::string filename("out/solution_" + output_id + "_" + std::to_string(ncombi) + ".raw");
       Stats::startEvent("manager write solution");
       manager.parallelEval(leval, filename, 0);
@@ -326,7 +277,7 @@ int main(int argc, char** argv) {
     // wait for instructions from manager
     SignalType signal = -1;
 
-    while (signal != EXIT){
+    while (signal != EXIT) {
       signal = pgroup.wait();
     }
   }

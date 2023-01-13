@@ -95,6 +95,7 @@ class TaskConstParaboloid : public combigrid::Task {
   void run(CommunicatorType lcomm) {
     // constant run method
     BOOST_CHECK(dfg_);
+    ++nsteps_;
     setFinished(true);
     MPI_Barrier(lcomm);
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid run");
@@ -108,6 +109,10 @@ class TaskConstParaboloid : public combigrid::Task {
   DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid getDFG");
     return *dfg_;
+  }
+
+  real getCurrentTime() const override {
+    return nsteps_;
   }
 
   void setZero() { BOOST_CHECK(true); }
@@ -124,11 +129,13 @@ class TaskConstParaboloid : public combigrid::Task {
   friend class boost::serialization::access;
 
   DistributedFullGrid<CombiDataType>* dfg_;
+  size_t nsteps_ = 0;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     ar& boost::serialization::base_object<Task>(*this);
     // ar& nprocs_;
+    ar& nsteps_;
   }
 };
 

@@ -1,18 +1,13 @@
 #include "manager/ProcessManager.hpp"
-#include <boost/asio.hpp>
 #include <algorithm>
 #include <iostream>
+
+#include <boost/asio.hpp>
+
 #include "combicom/CombiCom.hpp"
-#include "utils/MonteCarlo.hpp"
+#include "io/H5InputOutput.hpp"
 #include "utils/Types.hpp"
 #include "mpi/MPIUtils.hpp"
-
-#ifdef HAVE_HIGHFIVE
-#include <chrono>
-#include <random>
-// highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi versions)
-#include <highfive/H5File.hpp>
-#endif
 
 namespace combigrid {
 
@@ -454,6 +449,22 @@ std::map<size_t, double> ProcessManager::getLpNorms(int p) {
   return norms;
 }
 
+double ProcessManager::getLpNorm(int p) {
+  std::map<size_t, double> norms = this->getLpNorms(p);
+
+  double norm = 0.0;
+  double kahanTrailingTerm = 0.0;
+  for (const auto& pair : norms) {
+    auto summand = pair.second * this->params_.getCoeff(pair.first);
+    // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+    volatile auto y = summand - kahanTrailingTerm;
+    volatile auto t = norm + y;
+    kahanTrailingTerm = (t - norm) - y;
+    norm = t;
+  }
+  return norm;
+}
+
 std::vector<double> ProcessManager::parallelEvalNorm(const LevelVector& leval, size_t groupID) {
   auto g = pgroups_[groupID];
   return g->parallelEvalNorm(leval);
@@ -467,6 +478,14 @@ std::vector<double> ProcessManager::evalAnalyticalOnDFG(const LevelVector& leval
 std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, size_t groupID) {
   auto g = pgroups_[groupID];
   return g->evalErrorOnDFG(leval);
+}
+
+void ProcessManager::setupThirdLevel() {
+  Stats::startEvent("manager connect third level");
+  std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
+  std::cout << hostnameInfo << std::endl;
+  thirdLevel_.connectToThirdLevelManager(10.);
+  Stats::stopEvent("manager connect third level");
 }
 
 std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<real>>& interpolationCoords) {
@@ -500,63 +519,49 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(
 
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
-
   // have the last process group return the all-reduced values
   pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, values, &request);
   for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
-    // all other groups only communicate the interpolation coords to last group
+    // all other groups only communicate the interpolation values to last group
     auto dummyValues = std::vector<CombiDataType>(0);
     pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValues);
   }
+
   MPI_Wait(&request, MPI_STATUS_IGNORE);
   return values;
 }
 
-void ProcessManager::setupThirdLevel() {
-  Stats::startEvent("manager connect third level");
-  std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
-  std::cout << hostnameInfo << std::endl;
-  thirdLevel_.connectToThirdLevelManager(10.);
-  Stats::stopEvent("manager connect third level");
-}
-
-void ProcessManager::writeInterpolatedValues(
-    const std::vector<std::vector<real>>& interpolationCoords) {
-  Stats::startEvent("manager write interpolated");
+void ProcessManager::writeInterpolatedValuesPerGrid(
+    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) {
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->writeInterpolatedValues(interpolationCoordsSerial);
+    pgroups_[i]->writeInterpolatedValuesPerGrid(interpolationCoordsSerial, filenamePrefix);
+  }
+}
+
+void ProcessManager::writeInterpolatedValuesSingleFile(
+    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) {
+  Stats::startEvent("manager write interpolated");
+  // send interpolation coords as a single array
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
+
+  // have the last process group write the all-reduced values
+  auto dummyValuesEmpty = std::vector<CombiDataType>(0);
+  pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, dummyValuesEmpty,
+                                                   nullptr, filenamePrefix);
+  for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
+    // all other groups only communicate the interpolation values to last group
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValuesEmpty);
   }
   Stats::stopEvent("manager write interpolated");
 }
 
 void ProcessManager::writeInterpolationCoordinates(
-    const std::vector<std::vector<real>>& interpolationCoords) {
-#ifdef HAVE_HIGHFIVE
-  // generate a rank-local per-run random number
-  // std::random_device dev;
-  static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-  static std::uniform_int_distribution<std::mt19937::result_type> dist(
-      1, std::numeric_limits<size_t>::max());
-  static size_t rankLocalRandom = dist(rng);
-
-  std::string saveFilePath = "interpolation_coords.h5";
-  // check if file already exists, if no, create
-  HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
-
-  std::string groupName = "run_" + std::to_string(rankLocalRandom);
-  HighFive::Group group = h5_file.createGroup(groupName);
-
-  std::string datasetName = "coordinates";
-  HighFive::DataSet dataset =
-      group.createDataSet<real>(datasetName, HighFive::DataSpace::From(interpolationCoords));
-  dataset.write(interpolationCoords);
-
-#else  // if not compiled with hdf5
-  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
-#endif
+    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) const {
+  std::string saveFilePath = filenamePrefix + "_coords.h5";
+  h5io::writeValuesToH5File(interpolationCoords, saveFilePath, "manager", "coordinates");
 }
 
 void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values) {

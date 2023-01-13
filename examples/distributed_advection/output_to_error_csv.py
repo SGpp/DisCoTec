@@ -46,7 +46,7 @@ if __name__ == "__main__":
                     parameters.pop(2)
                 #ic(parameters)
                 ls = [parameters[1], int(parameters[2]), int(parameters[4]), int(parameters[5])]
-                ls = ls + numbers + [dof*1.0]
+                ls = ls + numbers + [dof]
                 row = pd.Series(ls, index=df.columns)
                 #ic(row)
                 df = df.append(row, ignore_index=True)

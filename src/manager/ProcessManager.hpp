@@ -127,17 +127,25 @@ class ProcessManager {
 
   std::map<size_t, double> getLpNorms(int p = 2);
 
+  double getLpNorm(int p = 2);
+
   std::vector<double> parallelEvalNorm(const LevelVector& leval, size_t groupID = 0);
 
   std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID = 0);
 
   std::vector<double> evalErrorOnDFG(const LevelVector& leval, size_t groupID = 0);
 
-  std::vector<CombiDataType> interpolateValues(const std::vector<std::vector<real>>& interpolationCoords);
+  std::vector<CombiDataType> interpolateValues(
+      const std::vector<std::vector<real>>& interpolationCoords);
 
-  void writeInterpolatedValues(const std::vector<std::vector<real>>& interpolationCoords);
+  void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords,
+                                         std::string filenamePrefix);
 
-  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords);
+  void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords,
+                                      std::string filenamePrefix);
+
+  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords,
+                                     std::string filenamePrefix) const;
 
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 

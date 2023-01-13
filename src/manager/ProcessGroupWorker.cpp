@@ -1,31 +1,39 @@
 #include "manager/ProcessGroupWorker.hpp"
 
+#include "boost/lexical_cast.hpp"
+
+#include "combicom/CombiCom.hpp"
+#include "fullgrid/FullGrid.hpp"
+#include "hierarchization/DistributedHierarchization.hpp"
+#include "manager/CombiParameters.hpp"
+#include "manager/ProcessGroupSignals.hpp"
+#include "mpi/MPIUtils.hpp"
+#include "sparsegrid/DistributedSparseGridUniform.hpp"
+#include "loadmodel/LearningLoadModel.hpp"
+#include "mpi/MPISystem.hpp"
+#include "io/H5InputOutput.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <random>
 #include <string>
 #include <thread>
-
-#include "boost/lexical_cast.hpp"
-#include "combicom/CombiCom.hpp"
-#include "fullgrid/FullGrid.hpp"
-#include "hierarchization/DistributedHierarchization.hpp"
-#include "loadmodel/LearningLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupSignals.hpp"
-#include "mpi/MPISystem.hpp"
-#include "mpi/MPIUtils.hpp"
-#include "sparsegrid/DistributedSparseGridUniform.hpp"
-#ifdef HAVE_HIGHFIVE
-#include <random>
-// highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi
-// versions)
-#include <highfive/H5File.hpp>
-#endif
 #include "mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
+
+std::string receiveStringFromManagerAndBroadcastToGroup() {
+  std::string stringToReceive;
+  MASTER_EXCLUSIVE_SECTION {
+    MPIUtils::receiveClass(&stringToReceive, theMPISystem()->getManagerRank(),
+                           theMPISystem()->getGlobalComm());
+  }
+  MPIUtils::broadcastClass(&stringToReceive, theMPISystem()->getMasterRank(),
+                           theMPISystem()->getLocalComm());
+  return stringToReceive;
+}
 
 ProcessGroupWorker::ProcessGroupWorker()
     : currentTask_(nullptr),
@@ -258,25 +266,13 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case WRITE_DSGS_TO_DISK: {
       Stats::startEvent("worker write to disk");
-      std::string filenamePrefix;
-      MASTER_EXCLUSIVE_SECTION {
-        MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
-                               theMPISystem()->getGlobalComm());
-      }
-      MPIUtils::broadcastClass(&filenamePrefix, theMPISystem()->getMasterRank(),
-                               theMPISystem()->getLocalComm());
+      std::string filenamePrefix = receiveStringFromManagerAndBroadcastToGroup();
       writeDSGsToDisk(filenamePrefix);
       Stats::stopEvent("worker write to disk");
     } break;
     case READ_DSGS_FROM_DISK: {
       Stats::startEvent("worker read from disk");
-      std::string filenamePrefix;
-      MASTER_EXCLUSIVE_SECTION {
-        MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
-                               theMPISystem()->getGlobalComm());
-      }
-      MPIUtils::broadcastClass(&filenamePrefix, theMPISystem()->getMasterRank(),
-                               theMPISystem()->getLocalComm());
+      std::string filenamePrefix = receiveStringFromManagerAndBroadcastToGroup();
       readDSGsFromDisk(filenamePrefix);
       Stats::stopEvent("worker read from disk");
     } break;
@@ -364,18 +360,36 @@ SignalType ProcessGroupWorker::wait() {
       auto values = interpolateValues();
       Stats::stopEvent("worker interpolate values");
     } break;
-    case INTERPOLATE_VALUES_AND_SEND_BACK: {  // interpolate values on given coordinates
+    case INTERPOLATE_VALUES_AND_SEND_BACK: {
       Stats::startEvent("worker interpolate values");
       auto values = interpolateValues();
       // send result
       MASTER_EXCLUSIVE_SECTION {
-        MPI_Send(values.data(), values.size(), abstraction::getMPIDatatype(
-          abstraction::getabstractionDataType<CombiDataType>()), theMPISystem()->getManagerRank(),
-          TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm());
+        MPI_Send(values.data(), values.size(),
+                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
+                 theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+                 theMPISystem()->getGlobalComm());
       }
       Stats::stopEvent("worker interpolate values");
     } break;
-    case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write values to .h5
+    case INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE: {
+      Stats::startEvent("worker interpolate values");
+      std::string filenamePrefix;
+      MASTER_EXCLUSIVE_SECTION {
+        MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
+                               theMPISystem()->getGlobalComm());
+      }
+      auto values = interpolateValues();
+      // write result
+      MASTER_EXCLUSIVE_SECTION {
+        std::string valuesWriteFilename =
+            filenamePrefix + "_values_" + std::to_string(currentCombi_) + ".h5";
+        writeInterpolatedValues(values, valuesWriteFilename);
+      }
+      Stats::stopEvent("worker interpolate values");
+    } break;
+    case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write
+                                                // values to .h5
       Stats::startEvent("worker write interpolated values");
       writeInterpolatedValuesPerGrid();
       Stats::stopEvent("worker write interpolated values");
@@ -383,8 +397,13 @@ SignalType ProcessGroupWorker::wait() {
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
 
-      receiveAndInitializeTaskAndFaults(); // receive and initalize new task
-			// now the variable currentTask_ contains the newly received task
+      receiveAndInitializeTaskAndFaults();  // receive and initalize new task
+                                            // now the variable currentTask_ contains the newly
+                                            // received task
+      // now , we may need to update the kahan summation data structures
+      for (auto& dsg : combinedUniDSGVector_) {
+        dsg->createKahanBuffer();
+      }
       currentTask_->setZero();
       fillDFGFromDSGU(currentTask_);
       currentTask_->setFinished(true);
@@ -643,6 +662,10 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     // // but only if we need no new full grids initialized from the sparse grids!
     // // ...such as for rescheduling or interpolation (parallelEval/ evalNorm / ...)
     // combinedUniDSGVector_[(size_t) g]->resetLevels();
+
+    // create the kahan buffer now, so it has only the subspaces present on the grids in this
+    // process group
+    combinedUniDSGVector_[g]->createKahanBuffer();
   }
   Stats::stopEvent("worker register dsgus");
 
@@ -688,7 +711,7 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
       // lokales reduce auf sg ->
-      combinedUniDSGVector_[g]->addDistributedFullGrid(dfg, combiParameters_.getCoeff(t->getID()));
+      combinedUniDSGVector_[g]->addDistributedFullGrid(dfg, t->getCoefficient());
     }
   }
 }
@@ -805,14 +828,7 @@ void ProcessGroupWorker::parallelEvalUniform() {
   const auto dim = static_cast<DimType>(leval.size());
 
   // receive filename and broadcast to group members
-  std::string filename;
-  MASTER_EXCLUSIVE_SECTION {
-    MPIUtils::receiveClass(&filename, theMPISystem()->getManagerRank(),
-                           theMPISystem()->getGlobalComm());
-  }
-
-  MPIUtils::broadcastClass(&filename, theMPISystem()->getMasterRank(),
-                           theMPISystem()->getLocalComm());
+  std::string filename = receiveStringFromManagerAndBroadcastToGroup();
 
   for (IndexType g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
@@ -1042,17 +1058,25 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
 
   // call interpolation function on tasks and reduce with combination coefficient
   std::vector<CombiDataType> values(numCoordinates, 0.);
+  std::vector<CombiDataType> kahanTrailingTerm(numCoordinates, 0.);
+
   for (Task* t : tasks_) {
-    auto coeff = t->getCoefficient();
+    const auto coeff = t->getCoefficient();
     for (size_t i = 0; i < numCoordinates; ++i) {
-      values[i] += t->getDistributedFullGrid().evalLocal(interpolationCoords[i]) * coeff;
+      auto localValue = t->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
+      auto summand = localValue * coeff;
+      // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+      volatile auto y = summand - kahanTrailingTerm[i];
+      volatile auto t = values[i] + y;
+      kahanTrailingTerm[i] = (t - values[i]) - y;
+      values[i] = t;
     }
   }
   // reduce interpolated values within process group
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getLocalComm());
-
+  //TODO is it necessary to correct for the kahan terms across process groups too?
   // need to reduce across process groups too
   // these do not strictly need to be allreduce (could be reduce), but it is easier to maintain that
   // way (all processes end up with valid values)
@@ -1060,12 +1084,15 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getGlobalReduceComm());
 
+  // hope for RVO or change
   return values;
 }
 
+
 void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
-#ifdef HAVE_HIGHFIVE
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  std::string fileNamePrefix = receiveStringFromManagerAndBroadcastToGroup();
+
   // receive coordinates and broadcast to group members
   std::vector<std::vector<real>> interpolationCoords;
   receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
@@ -1073,44 +1100,25 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
   // call interpolation function on tasks and write out task-wise
   for (size_t i = 0; i < tasks_.size(); ++i) {
     auto taskVals = tasks_[i]->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
+    // cycle through ranks to write
     if (i % (theMPISystem()->getNumProcs()) == theMPISystem()->getLocalRank()) {
-      // generate a rank-local per-run random number
-      // std::random_device dev;
-      static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-      static std::uniform_int_distribution<std::mt19937::result_type> dist(
-          1, std::numeric_limits<size_t>::max());
-      static size_t rankLocalRandom = dist(rng);
-
-      std::string saveFilePath = "interpolated_" + std::to_string(tasks_[i]->getID()) + ".h5";
-      // check if file already exists, if no, create
-      HighFive::File h5_file(saveFilePath,
-                             HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
-
-      // std::vector<std::string> elems = h5_file.listObjectNames();
-      // std::cout << elems << std::endl;
-
-      std::string groupName = "run_" + std::to_string(rankLocalRandom);
-      HighFive::Group group;
-      if (h5_file.exist(groupName)) {
-        group = h5_file.getGroup(groupName);
-      } else {
-        group = h5_file.createGroup(groupName);
-      }
-
+      std::string saveFilePath =
+          fileNamePrefix + "_task_" + std::to_string(tasks_[i]->getID()) + ".h5";
+      std::string groupName = "run_";
       std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
-      HighFive::DataSet dataset =
-          group.createDataSet<CombiDataType>(datasetName, HighFive::DataSpace::From(taskVals));
-
-      dataset.write(taskVals);
-
-      HighFive::Attribute a2 = dataset.createAttribute<combigrid::real>(
-          "simulation_time", HighFive::DataSpace::From(tasks_[i]->getCurrentTime()));
-      a2.write(tasks_[i]->getCurrentTime());
+      h5io::writeValuesToH5File(taskVals, saveFilePath, groupName, datasetName,
+                                tasks_[i]->getCurrentTime());
     }
   }
-#else  // if not compiled with hdf5
-  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
-#endif
+}
+
+void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType>& values,
+                                                 const std::string& valuesWriteFilename) {
+  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  std::string groupName = "all_grids";
+  std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
+  h5io::writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
+                            tasks_[0]->getCurrentTime());
 }
 
 void ProcessGroupWorker::gridEval() {  // not supported anymore

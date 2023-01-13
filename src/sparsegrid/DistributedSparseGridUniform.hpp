@@ -11,33 +11,6 @@
 
 #include <boost/serialization/vector.hpp>
 
-
-/*
- * Instead of having private static functions, I put these functions in an
- * unnamed namespace. So, they are not accessible from outside the file, as well.
- * In the general case, this would have the advantage, that we can change
- * the declaration of these functions without touching the declaration of the
- * class. So we avoid recompilation of all files that use the class.
- */
-namespace {
-template <typename FG_ELEMENT>
-struct SubspaceSGU {
-  // commented most members, since they were virtually unused
-  // if needed in the future, they may be used again
-
-  // combigrid::LevelVector level_; // level of the subspace
-
-  // combigrid::IndexVector sizes_; // contains the number of points per dim of the whole ss
-
-  // size_t size_; // contains the number of Points of the whole ss
-
-  FG_ELEMENT * data_; // contains the values at the data points (Attention: Due to the decomposition, only part of the full ss may be stored)
-
-  // size_t dataSize_; // contains the number of values stored in data_ == size of the ss part.
-};
-
-}  // end anonymous namespace
-
 namespace combigrid {
 // forward declaration
 template <typename FG_ELEMENT>
@@ -84,6 +57,9 @@ class DistributedSparseGridUniform {
 
   // allocates memory for subspace data and sets pointers to subspaces
   void createSubspaceData();
+
+  // allocates memory for kahan term data and sets pointers for it
+  void createKahanBuffer();
 
   // deletes memory for subspace data and invalids pointers to subspaces
   void deleteSubspaceData();
@@ -191,7 +167,7 @@ class DistributedSparseGridUniform {
 
   DimType dim_;
 
-  std::vector<LevelVector> levels_; // linear access to all subspaces
+  std::vector<LevelVector> levels_; // linear access to all subspaces; may be reset to save memory
 
   CommunicatorType comm_;
 
@@ -199,11 +175,15 @@ class DistributedSparseGridUniform {
 
   int commSize_;
 
-  std::vector<SubspaceSGU<FG_ELEMENT> > subspaces_; // subspaces of the dsg
+  std::vector<FG_ELEMENT*> subspaces_;  // pointers to subspaces of the dsg
 
-  std::vector<FG_ELEMENT> subspacesData_; // allows linear access to all subspaces data
+  std::vector<FG_ELEMENT> subspacesData_;  // allows linear access to all subspaces data
 
-  std::vector<size_t> subspacesDataSizes_; // allocated data sizes of all subspaces
+  std::vector<size_t> subspacesDataSizes_;  // allocated data sizes of all subspaces
+
+  std::vector<FG_ELEMENT*> kahanDataBegin_;  // pointers to Kahan summation residual terms
+
+  std::vector<FG_ELEMENT> kahanData_;  // Kahan summation residual terms
 
   friend class boost::serialization::access;
 
@@ -260,35 +240,50 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
     size_t numDataPoints = std::accumulate(subspacesDataSizes_.begin(), subspacesDataSizes_.end(),
                                            static_cast<size_t>(0));
     assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
-    subspacesData_.resize(numDataPoints);
-    std::fill(subspacesData_.begin(), subspacesData_.end(), 0.);
+    subspacesData_.resize(numDataPoints, 0.);
 
     // update pointers and sizes in subspaces
     size_t offset = 0;
     for (size_t i = 0; i < subspaces_.size(); i++) {
-      subspaces_[i].data_ = subspacesData_.data() + offset;
+      subspaces_[i] = subspacesData_.data() + offset;
       offset += subspacesDataSizes_[i];
+    }
+    if (kahanData_.empty()) {
+      // create kahan buffer implicitly only once,
+      // needs to be called explicitly if relevant sizes change
+      this->createKahanBuffer();
     }
   }
 }
 
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::createKahanBuffer() {
+  size_t numDataPoints = std::accumulate(subspacesDataSizes_.begin(), subspacesDataSizes_.end(),
+                                         static_cast<size_t>(0));
+  assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
+  kahanData_.resize(numDataPoints, 0.);
+  kahanDataBegin_.resize(subspacesDataSizes_.size());
+
+  // update pointers for begin of subspacen in kahan buffer
+  size_t offset = 0;
+  for (size_t i = 0; i < kahanDataBegin_.size(); i++) {
+    kahanDataBegin_[i] = kahanData_.data() + offset;
+    offset += subspacesDataSizes_[i];
+  }
+}
+
 /** Deallocates the dsgu data.
- *  This affects the values stored at the grid points, pointers which address
- *  the subspaces data and the subspaces data sizes. No meta data which
- *  characterizes the subspaces is affected.
+ *  This affects the values stored at the grid points and pointers which address
+ *  the subspaces data.
  */
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
-  // assert(false &&
-  //        "due to the way that DFGs register the DSG only once (currently), you should think of a "
-  //        "way to reset the localFGIndexToLocalSGPointerList_ member, since it will become "
-  //        "invalidated by the next line, or to have it use the subspaces_[*].data_ structures");
   if (isSubspaceDataCreated()) {
     subspacesData_.clear();
 
     // update pointers in subspaces
     for (auto& ss : subspaces_) {
-      ss.data_ = nullptr;
+      ss = nullptr;
     }
   }
 }
@@ -299,6 +294,12 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setZero() {
     std::fill(subspacesData_.begin(), subspacesData_.end(), 0.);
   else
     createSubspaceData();
+  std::fill(kahanData_.begin(), kahanData_.end(), 0.);
+  if (kahanData_.empty()) {
+    // create kahan buffer implicitly only once,
+    // needs to be called explicitly if relevant sizes change
+    this->createKahanBuffer();
+  }
 }
 
 template <typename FG_ELEMENT>
@@ -378,19 +379,18 @@ DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
 template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(SubspaceIndexType i) {
   assert(isSubspaceDataCreated());
-  return subspaces_[i].data_;
+  return subspaces_[i];
 }
 
 template <typename FG_ELEMENT>
 inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
     SubspaceIndexType i) const {
-  assert(isSubspaceDataCreated() && "subspace data not created");
-  return subspaces_[i].data_;
+  assert(isSubspaceDataCreated());
+  return subspaces_[i];
 }
 
 template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getRawData() {
-  createSubspaceData();
   return subspacesData_.data();
 }
 
@@ -538,6 +538,9 @@ template <typename FG_ELEMENT>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
     const DistributedFullGrid<FG_ELEMENT>& dfg, combigrid::real coeff) {
   assert(this->isSubspaceDataCreated());
+  if (kahanData_.empty() || kahanDataBegin_.empty()) {
+    throw std::runtime_error("Kahan data not initialized");
+  }
 
   bool anythingWasAdded = false;
 
@@ -551,10 +554,23 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
     sIndex = this->getIndexInRange(level, sIndex);
     if (sIndex > -1 && this->getDataSize(sIndex) > 0) {
       auto sPointer = this->getData(sIndex);
+      auto kPointer = kahanDataBegin_[sIndex];
+#ifndef NDEBUG
+      if (sIndex < kahanDataBegin_.size() - 1) {
+        auto kDataSize = kahanDataBegin_[sIndex + 1] - kPointer;
+        assert(kDataSize == this->getDataSize(sIndex));
+      }
+#endif  // NDEBUG
       subspaceIndices = dfg.getFGPointsOfSubspace(level);
       for (const auto& fIndex : subspaceIndices) {
-        *sPointer += coeff * dfg.getElementVector()[fIndex];
+        FG_ELEMENT summand = coeff * dfg.getElementVector()[fIndex];
+        // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+        FG_ELEMENT y = summand - *kPointer;
+        FG_ELEMENT t = *sPointer + y;
+        *kPointer = (t - *sPointer) - y;
+        *sPointer = t;
         ++sPointer;
+        ++kPointer;
         anythingWasAdded = true;
       }
     }
@@ -601,6 +617,8 @@ void DistributedSparseGridUniform<FG_ELEMENT>::reduceSubspaceSizes(CommunicatorT
   assert(subspacesDataSizes_.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
   MPI_Allreduce(MPI_IN_PLACE, subspacesDataSizes_.data(),
                 static_cast<int>(subspacesDataSizes_.size()), dtype, MPI_MAX, comm);
+  // assume that the sizes changed, the buffer might be the wrong size now
+  this->deleteSubspaceData();
 }
 
 template <typename FG_ELEMENT>
@@ -670,11 +688,11 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
     auto maximumValue = realmin;
     if (subspacesDataSizes_[i] > 0) {
       // auto first = subspacesData_.begin();
-      auto first = subspaces_[i].data_;
+      auto first = subspaces_[i];
       auto last = first + subspacesDataSizes_[i];
       auto it = std::min_element(first, last, smaller_real);
       minimumValue = std::real(*it);
-      first = subspaces_[i].data_;
+      first = subspaces_[i];
       it = std::max_element(first, last, smaller_real);
       maximumValue = std::real(*it);
     }

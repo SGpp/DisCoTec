@@ -9,6 +9,7 @@
 
 #include "TaskCount.hpp"
 #include "combischeme/CombiMinMaxScheme.hpp"
+#include "io/H5InputOutput.hpp"
 #include "loadmodel/LearningLoadModel.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
@@ -247,16 +248,32 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
 #ifdef HAVE_HIGHFIVE
       // output files are not needed, remove them right away
       // (if this doesn't happen, there may be hdf5 errors due to duplicate task IDs)
-      sleep(1);
-      auto status = system("rm interpolated_*.h5");
+      auto status = system("rm integration_interpolated*.h5");
       BOOST_WARN_GE(status, 0);
-      // system("rm interpolation_coords.h5");
-      remove("interpolation_coords.h5");
       sleep(1);
-      manager.writeInterpolatedValues(interpolationCoords);
-      BOOST_TEST_CHECKPOINT("wrote interpolated values");
-      manager.writeInterpolationCoordinates(interpolationCoords);
+      manager.writeInterpolatedValuesSingleFile(interpolationCoords, "integration_interpolated");
+      BOOST_TEST_CHECKPOINT("wrote interpolated values to single file");
+      manager.writeInterpolatedValuesPerGrid(interpolationCoords, "integration_interpolated");
+      BOOST_TEST_CHECKPOINT("wrote interpolated values per grid");
+      manager.writeInterpolationCoordinates(interpolationCoords, "integration_interpolated");
       BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
+
+      sleep(1);  // wait for filesystem to catch up
+      decltype(values) valuesAllGridsRead;
+      // the number of combinations that the worker counts is the number of calls to combine() and
+      // pretendCombineThirdLevelForWorkers()
+      h5io::readH5Values(valuesAllGridsRead, "integration_interpolated_values_" +
+                                                 std::to_string(ncombi + (ncombi - 1)) + ".h5");
+      decltype(interpolationCoords) interpolationCoordsRead;
+      h5io::readH5Coordinates(interpolationCoordsRead, "integration_interpolated_coords.h5");
+      BOOST_TEST_CHECKPOINT("read interpolation coordinates");
+      BOOST_CHECK_EQUAL_COLLECTIONS(values.begin(), values.end(), valuesAllGridsRead.begin(),
+                                    valuesAllGridsRead.end());
+      for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+        for (size_t d = 0; d < dim; ++d) {
+          BOOST_CHECK_EQUAL(interpolationCoords[i][d], interpolationCoordsRead[i][d]);
+        }
+      }
 #endif  // def HAVE_HIGHFIVE
     }
 

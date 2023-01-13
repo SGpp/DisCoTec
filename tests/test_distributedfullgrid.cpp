@@ -1061,19 +1061,19 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
     DimType dim = static_cast<DimType>(procs.size());
-    LevelVector lmin(dim, 2);
-    LevelVector lmax(dim, 18);
-    LevelVector fullGridLevel = {19, 2, 2, 2, 2, 2};
+    LevelVector lmin(dim, 1);
+    LevelVector lmax(dim, 17);
+    LevelVector fullGridLevel = {18, 1, 1, 1, 1, 2};
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<IndexVector> decomposition = {
-        {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
+        {0, 49152, 98304, 163840, 212993}, {0}, {0}, {0}, {0}, {0}};
 
     MPI_Barrier(comm);
     auto start = std::chrono::high_resolution_clock::now();
     DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    BOOST_TEST_MESSAGE("time to create full grid w/ level sum 29: " << duration.count()
+    BOOST_TEST_MESSAGE("time to create full grid w/ level sum 23: " << duration.count()
                                                                     << " milliseconds");
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 2500);
@@ -1088,7 +1088,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
                                        decomposition);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    BOOST_TEST_MESSAGE("time to create other full grid w/ level sum 29: " << duration.count()
+    BOOST_TEST_MESSAGE("time to create other full grid w/ level sum 23: " << duration.count()
                                                                           << " milliseconds");
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 2500);
@@ -1127,9 +1127,9 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    dsg.setZero();
     // this is not the "correct" communicator, but using it here so something is communicated
     dsg.reduceSubspaceSizes(comm);
+    dsg.setZero();
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create sparse grid data: " << duration.count() << " milliseconds");
@@ -1177,6 +1177,59 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 #ifdef NDEBUG
     BOOST_CHECK(duration.count() < 15000);
 #endif
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_evalDFG) {
+  std::vector<int> procs = {5, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    size_t numCoordinates = 1000;
+    auto interpolationCoords = montecarlo::getRandomCoordinates(numCoordinates, dim);
+    // make sure there are some corner cases
+    interpolationCoords.push_back(std::vector<double>(dim, 1e-10));
+    interpolationCoords.push_back(std::vector<double>(dim, 1. - 1e-10));
+
+    LevelVector fullGridLevel = {5, 5};
+    for (auto b : std::vector<BoundaryType>({1, 2})) {
+      BOOST_TEST_MESSAGE("Testing boundary type " + std::to_string(b));
+      std::vector<BoundaryType> boundary(dim, b);
+      // create and initialize DFG
+      DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, false);
+      std::vector<double> coords(dim);
+      for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
+        dfg.getCoordsLocal(li, coords);
+        dfg.getData()[li] = 1.;
+      }
+
+      // repeat 10 times to catch random stuff
+      for (size_t rep = 0; rep < 10; ++rep) {
+        BOOST_TEST_CHECKPOINT("Repetition " + std::to_string(rep));
+        // evaluate all at once
+        auto interpolatedValues = dfg.getInterpolatedValues(interpolationCoords);
+        for (size_t i = 0; i < numCoordinates; ++i) {
+          BOOST_CHECK_CLOSE(interpolatedValues[i], 1., TestHelper::tolerance);
+        }
+
+        // evaluate first and then reduce all values
+        decltype(interpolatedValues) stepWiseInterpolatedValues(numCoordinates, 0.);
+        for (size_t i = 0; i < numCoordinates; ++i) {
+          stepWiseInterpolatedValues[i] = dfg.evalLocal(interpolationCoords[i]);
+        }
+        // reduce interpolated values within DFG's processes
+        MPI_Allreduce(MPI_IN_PLACE, stepWiseInterpolatedValues.data(),
+                      static_cast<int>(numCoordinates),
+                      abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()),
+                      MPI_SUM, comm);
+        for (size_t i = 0; i < numCoordinates; ++i) {
+          BOOST_CHECK_CLOSE(stepWiseInterpolatedValues[i], interpolatedValues[i],
+                            TestHelper::tolerance);
+          BOOST_CHECK_CLOSE(stepWiseInterpolatedValues[i], 1., TestHelper::tolerance);
+        }
+      }
+      MPI_Barrier(comm);
+    }
   }
 }
 

@@ -72,9 +72,9 @@ bool ProcessGroupManager::runnext() {
   // and should be avoided
   assert(status_ == PROCESS_GROUP_WAIT);
 
-  sendSignalAndReceive(RUN_NEXT);
-
   if (tasks_.size() == 0) return false;
+
+  sendSignalAndReceive(RUN_NEXT);
 
   return true;
 }
@@ -645,28 +645,33 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
 
 void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                                             std::vector<CombiDataType>& values,
-                                            MPI_Request* request) {
-  assert(interpolationCoordsSerial.size() > 0);
+                                            MPI_Request* request, std::string filenamePrefix) {
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
   for (const auto& coord : interpolationCoordsSerial) {
     assert(coord >= 0.0 && coord <= 1.0);
   }
-  // assert that either no request and no values are given or both are given
-  assert((request == nullptr && values.empty()) ||
-         (request != nullptr && interpolationCoordsSerial.size() % values.size() == 0));
   // if no request was passed, assume we are not waiting for a reply from that group
-  if (request == nullptr) {
+  if (request == nullptr && values.empty() && filenamePrefix == "") {
     sendSignalToProcessGroup(INTERPOLATE_VALUES);
-  } else {
+  } else if (request != nullptr && !values.empty() && filenamePrefix == "") {
     sendSignalToProcessGroup(INTERPOLATE_VALUES_AND_SEND_BACK);
+  } else if (request == nullptr && values.empty() && filenamePrefix != "") {
+    sendSignalToProcessGroup(INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE);
+    MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
+  } else {
+    throw std::runtime_error("invalid combination of arguments");
   }
   MPI_Request dummyRequest;
-  // send interpolation coordinates to all groups
+  // send interpolation coordinates to group
   MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
             abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
             TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
-  MPI_Request_free(&dummyRequest);
+  if (!values.empty()) {
+    MPI_Request_free(&dummyRequest);
+  } else {
+    MPI_Wait(&dummyRequest, MPI_STATUS_IGNORE);
+  }
   if (request != nullptr) {
     MPI_Irecv(values.data(), static_cast<int>(values.size()),
               abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
@@ -675,15 +680,16 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
   setProcessGroupBusyAndReceive();
 }
 
-void ProcessGroupManager::writeInterpolatedValues(const std::vector<real>& interpolationCoordsSerial) {
+void ProcessGroupManager::writeInterpolatedValuesPerGrid(
+    const std::vector<real>& interpolationCoordsSerial, const std::string& filenamePrefix) {
   sendSignalToProcessGroup(WRITE_INTERPOLATED_VALUES_PER_GRID);
-  MPI_Request dummyRequest;
+  // send filename prefix to group
+  MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
-  MPI_Isend(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
-            abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
-            TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm(), &dummyRequest);
-  MPI_Request_free(&dummyRequest);
+  MPI_Send(interpolationCoordsSerial.data(), static_cast<int>(interpolationCoordsSerial.size()),
+           abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), pgroupRootID_,
+           TRANSFER_INTERPOLATION_TAG, theMPISystem()->getGlobalComm());
   setProcessGroupBusyAndReceive();
   assert(waitStatus() == PROCESS_GROUP_WAIT);
 }

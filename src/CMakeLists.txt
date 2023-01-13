@@ -12,63 +12,64 @@ project("DisCoTec"
 
 
 set(DISCOTEC_SOURCES
-        combischeme/CombiMinMaxScheme.cpp
-        combischeme/CombiThirdLevelScheme.cpp
-        fault_tolerance/FaultCriterion.cpp
-        fault_tolerance/FTUtils.cpp
-        fault_tolerance/LPOptimizationInterpolation.cpp
-        fault_tolerance/StaticFaults.cpp
-        fault_tolerance/WeibullFaults.cpp
-        loadmodel/AverageOfLastNLoadModel.cpp
-        loadmodel/AveragingLoadModel.cpp
-        loadmodel/LinearLoadModel.cpp
-        manager/ProcessGroupManager.cpp
-        manager/ProcessGroupWorker.cpp
-        manager/ProcessManager.cpp
-        mpi/MPIMemory.cpp
-        mpi/MPISystem.cpp
-        mpi_fault_simulator/MPI-FT_bitflips.cpp
-        mpi_fault_simulator/MPI-FT_ULFM.cpp
-        mpi_fault_simulator/MPI-FT.cpp
-        mpi_fault_simulator/Sim_FT_abort.cpp
-        mpi_fault_simulator/Sim_FT_allreduce.cpp
-        mpi_fault_simulator/Sim_FT_barrier.cpp
-        mpi_fault_simulator/Sim_FT_bcast.cpp
-        mpi_fault_simulator/Sim_FT_cart_coords.cpp
-        mpi_fault_simulator/Sim_FT_cart_create.cpp
-        mpi_fault_simulator/Sim_FT_cart_rank.cpp
-        mpi_fault_simulator/Sim_FT_comm_create.cpp
-        mpi_fault_simulator/Sim_FT_comm_free.cpp
-        mpi_fault_simulator/Sim_FT_comm_group.cpp
-        mpi_fault_simulator/Sim_FT_comm_rank.cpp
-        mpi_fault_simulator/Sim_FT_comm_set_errhandler.cpp
-        mpi_fault_simulator/Sim_FT_comm_size.cpp
-        mpi_fault_simulator/Sim_FT_comm_split.cpp
-        mpi_fault_simulator/Sim_FT_finalize.cpp
-        mpi_fault_simulator/Sim_FT_get_count.cpp
-        mpi_fault_simulator/Sim_FT_iallreduce.cpp
-        mpi_fault_simulator/Sim_FT_ibarrier.cpp
-        mpi_fault_simulator/Sim_FT_ibcast.cpp
-        mpi_fault_simulator/Sim_FT_init.cpp
-        mpi_fault_simulator/Sim_FT_irecv.cpp
-        mpi_fault_simulator/Sim_FT_isend.cpp
-        mpi_fault_simulator/Sim_FT_probe.cpp
-        mpi_fault_simulator/Sim_FT_recv.cpp
-        mpi_fault_simulator/Sim_FT_reduce.cpp
-        mpi_fault_simulator/Sim_FT_request_free.cpp
-        mpi_fault_simulator/Sim_FT_send.cpp
-        mpi_fault_simulator/Sim_FT_test.cpp
-        mpi_fault_simulator/Sim_FT_wait.cpp
-        mpi_fault_simulator/Sim_FT_waitall.cpp
-        rescheduler/RebalancingTaskRescheduler.cpp
-        task/Task.cpp
-        third_level/NetworkUtils.cpp
-        third_level/ThirdLevelUtils.cpp
-        utils/LevelSetUtils.cpp
-        utils/LevelVector.cpp
-        utils/MonteCarlo.cpp
-        utils/Stats.cpp
-        vtk/PlotFileWriter.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiMinMaxScheme.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiThirdLevelScheme.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FaultCriterion.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FTUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/LPOptimizationInterpolation.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/StaticFaults.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/WeibullFaults.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/io/H5InputOutput.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AverageOfLastNLoadModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AveragingLoadModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/LinearLoadModel.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessGroupManager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessGroupWorker.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessManager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPIMemory.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPISystem.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_bitflips.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_ULFM.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_abort.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_allreduce.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_barrier.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_bcast.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_coords.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_create.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_cart_rank.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_create.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_free.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_group.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_rank.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_set_errhandler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_size.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_comm_split.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_finalize.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_get_count.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_iallreduce.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_ibarrier.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_ibcast.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_init.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_irecv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_isend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_probe.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_recv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_reduce.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_request_free.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_send.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_wait.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_waitall.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/rescheduler/RebalancingTaskRescheduler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/task/Task.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_level/NetworkUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_level/ThirdLevelUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelSetUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelVector.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/MonteCarlo.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/Stats.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/vtk/PlotFileWriter.cpp
         )
 
 add_library(discotec ${DISCOTEC_SOURCES})
@@ -188,7 +189,7 @@ target_include_directories(discotec PUBLIC ${glpk_BINARY_DIR}/include)
 target_link_libraries(discotec PUBLIC ${glpk_BINARY_DIR}/lib/libglpk.a)
 
 
-if (DISCOTEC_HDF5 OR DISCOTEC_USE_VTK)
+if (DISCOTEC_HDF5)
     enable_language(C)
 
     set(HDF5_PREFER_PARALLEL ON)
