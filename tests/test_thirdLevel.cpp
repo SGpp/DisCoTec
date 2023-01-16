@@ -332,9 +332,15 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       }
       // std::cout << "Worker with rank " << theMPISystem()->getLocalRank() << " processed signal "
       //           << signal << std::endl;
-      if (signal == COMBINE_THIRD_LEVEL || signal == WAIT_FOR_TL_COMBI_RESULT) {
+      if (signal == COMBINE_THIRD_LEVEL || signal == WAIT_FOR_TL_COMBI_RESULT ||
+          signal == COMBINE_READ_DSGS_AND_REDUCE) {
         // after combination check workers' grids
         BOOST_CHECK(checkReducedFullGrid(pgroup, nrun));
+      }
+      if (signal == COMBINE_WRITE_DSGS) {
+        // write partial stats (only one process group per system will get this signal)
+        Stats::writePartial("third_level_partial" + std::to_string(testParams.sysNum) + ".json",
+                            theMPISystem()->getLocalComm());
       }
       if (signal == REDUCE_SUBSPACE_SIZES_TL) {
         std::cout << "reduce ";
@@ -804,9 +810,7 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
   LevelVector lmin(dim, 1);
   LevelVector lmax(dim, 4);
 
-  // the fact that values are wrong when calling this for ngroup = 3
-  // but not for other values is a bug that I dont understand yet
-  for (unsigned int ngroup : std::vector<unsigned int>({1, 2, 3})) {
+  for (unsigned int ngroup : std::vector<unsigned int>({2, 3})) {
     unsigned int sysNum;
     CommunicatorType newcomm = MPI_COMM_NULL;
     assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);

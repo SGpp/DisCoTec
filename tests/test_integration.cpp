@@ -310,6 +310,11 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
         if (boundaryV == 2) {
           BOOST_CHECK(checkReducedFullGridIntegration(pgroup, nrun));
         }
+        // write partial stats
+        if (theMPISystem()->getWorldRank() < nprocs) {
+          Stats::writePartial("integration_partial_timers_group.json",
+                              theMPISystem()->getLocalComm());
+        }
       }
     }
     BOOST_CHECK_EQUAL(nrun, ncombi);
