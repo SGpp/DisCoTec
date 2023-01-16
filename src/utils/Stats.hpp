@@ -105,6 +105,10 @@ class Stats {
 inline void Stats::initialize() {
   assert(!initialized_);
 
+  // clear data (in case of multiple calls to initialize, e.g. in tests)
+  event_.clear();
+  attributes_.clear();
+
   initialized_ = true;
   finalized_ = false;
   init_time_ = std::chrono::high_resolution_clock::now();
