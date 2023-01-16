@@ -39,17 +39,7 @@ class Stats {
     std::chrono::microseconds x = std::chrono::duration_cast<std::chrono::microseconds>(e.end - e.start);
     return x.count();
   }
-  // Stats(){
-  //   Stats::initialize();
-  // }
 
-  // Stats(Stats const&) = delete;
-  // Stats& operator=(Stats const&) = delete;
-
-  // ~Stats(){
-  //   Stats::finalize();
-  // }
-  
   /**
    * use at the start of the program
    */
@@ -132,9 +122,39 @@ inline void Stats::setAttribute(const std::string& name, const std::string& valu
   attributes_[name] = value;
 }
 
+inline void writeSingleFile(const std::stringstream& buffer, const std::string& path,
+                            CommunicatorType comm) {
+  int rank = getCommRank(comm);
+
+  // get offset in file
+  MPI_Offset len = buffer.str().size();
+  MPI_Offset pos = 0;
+  MPI_Scan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
+  pos -= len;
+
+  // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
+  MPI_Info info = MPI_INFO_NULL;
+
+  // open file
+  MPI_File fh;
+  int err = MPI_File_open(comm, path.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL,
+                          info, &fh);
+  if (err != MPI_SUCCESS) {
+    // file already existed, delete it and create new file
+    if (rank == 0) {
+      MPI_File_delete(path.c_str(), MPI_INFO_NULL);
+    }
+    MPI_File_open(comm, path.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY, info, &fh);
+  }
+
+  // write to single file with MPI-IO
+  MPI_File_write_at_all(fh, pos, buffer.str().c_str(), (int)len, MPI_CHAR, MPI_STATUS_IGNORE);
+  MPI_File_close(&fh);
+}
+
 inline void Stats::write(const std::string& path, CommunicatorType comm) {
   MPI_Barrier(comm);
-  assert( finalized_ );
+  assert(finalized_);
 
   using namespace std::chrono;
   // MPI_Comm worldComm = theMPISystem()->getWorldComm();
@@ -190,46 +210,9 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
   } else {
     buffer << std::endl << "}" << std::endl;
   }
-
-  // get offset in file
-  MPI_Offset len = buffer.str().size();
-  MPI_Offset pos;
-  MPI_Scan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
-  pos -= len;
-
-  // get total file length
-  // MPI_Offset file_len;
-  // MPI_Allreduce(&len, &file_len, 1, MPI_LONG, MPI_SUM, comm);
-
-  // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
-  MPI_Info info = MPI_INFO_NULL;
-  // if (file_len > 4 * 1024 * 1024 || 256 < size) {
-  //   MPI_Info_create(&info);
-  //   MPI_Info_set(info, "cb_align", "2");
-  //   MPI_Info_set(info, "cb_nodes_list", "*:*");
-  //   MPI_Info_set(info, "direct_io", "false");
-  //   MPI_Info_set(info, "romio_ds_read", "disable");
-  //   MPI_Info_set(info, "romio_ds_write", "disable");
-  //   MPI_Info_set(info, "cb_nodes", "8");
-  // }
-
-  // open file
-  MPI_File fh;
-  int err = MPI_File_open(comm, path.c_str(),
-                          MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL, info, &fh);
-  if (err != MPI_SUCCESS) {
-    // file already existed, delete it and create new file
-    if (rank == 0) {
-      MPI_File_delete(path.c_str(), MPI_INFO_NULL);
-    }
-    MPI_File_open(comm, path.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY, info,
-                  &fh);
-  }
-
-  // write to single file with MPI-IO
-  MPI_File_write_at_all(fh, pos, buffer.str().c_str(), (int)len, MPI_CHAR, MPI_STATUS_IGNORE);
-  MPI_File_close(&fh);
+  writeSingleFile(buffer, path, comm);
 }
+
 #else
 inline void Stats::initialize() {}
 inline void Stats::finalize() {}
