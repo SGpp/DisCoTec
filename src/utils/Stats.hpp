@@ -252,10 +252,14 @@ inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType 
   buffer << "}," << std::endl;
 
   buffer << "\"events\":{" << std::endl;
-  std::size_t event_count = 0;
+  std::stringstream allEventsBuffer;
+  bool anyEventFirstTime = true;
   // but filter events for finished and not yet written
   for (auto&& t = event_.begin(); t != event_.end(); ++t) {
     std::stringstream eventBuffer;
+    if (!anyEventFirstTime) {
+      eventBuffer << "," << std::endl;
+    }
     eventBuffer << "\"" << t->first << "\""
            << ":[" << std::endl;
 
@@ -264,6 +268,7 @@ inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType 
       if (e->end != e->start && e->end > partially_written_until_) {
         if (thisEventFirstTime) {
           thisEventFirstTime = false;
+        anyEventFirstTime = false;
         } else {
           eventBuffer << "," << std::endl;
         }
@@ -272,15 +277,12 @@ inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType 
       }
     }
     eventBuffer << "]";
-    if (++event_count != event_.size()) {//TODO
-      eventBuffer << "," << std::endl;
-    } else {
-      eventBuffer << std::endl;
-    }
     if (!thisEventFirstTime) {
-      buffer << eventBuffer.str();
+      allEventsBuffer << eventBuffer.str();
     }
   }
+  allEventsBuffer<< std::endl;
+  buffer << allEventsBuffer.str();
   buffer << "}" << std::endl << "}";
 
   if (rank != size - 1) {
