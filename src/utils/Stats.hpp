@@ -83,10 +83,17 @@ class Stats {
    */
   static void write(const std::string& path, CommunicatorType comm = theMPISystem()->getWorldComm());
 
+  /**
+   * write the measured times until now in json format to specified path
+   */
+  static void writePartial(const std::string& pathPrefix, CommunicatorType comm = theMPISystem()->getWorldComm());
+
  private:
   static bool initialized_;
   static bool finalized_;
   static time_point init_time_;
+  static time_point partially_written_until_;
+  static size_t numWrites_;
   static std::unordered_map<std::string, std::vector<Event>> event_;
   static std::unordered_map<std::string, std::string> attributes_;
 };
@@ -102,6 +109,8 @@ inline void Stats::initialize() {
   initialized_ = true;
   finalized_ = false;
   init_time_ = std::chrono::high_resolution_clock::now();
+  partially_written_until_ = init_time_;
+  numWrites_ = 0;
 }
 
 inline void Stats::finalize() {
@@ -213,6 +222,72 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
   writeSingleFile(buffer, path, comm);
 }
 
+inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType comm) {
+  MPI_Barrier(comm);
+
+  using namespace std::chrono;
+  int rank = getCommRank(comm);
+  int size = getCommSize(comm);
+
+  std::string path = std::to_string(numWrites_++) + "_" + pathSuffix;
+
+  std::stringstream buffer;
+
+  if (rank == 0) {
+    buffer << "{" << std::endl;
+  }
+
+  buffer << "\"rank" << rank << "\":{" << std::endl;
+  buffer << "\"attributes\":{" << std::endl;
+  std::size_t attributes_count = 0;
+  // write all attributes
+  for (auto&& it = attributes_.begin(); it != attributes_.end(); ++it) {
+    buffer << "\"" << it->first << "\":\"" << it->second << "\"";
+    if (++attributes_count != attributes_.size()) {
+      buffer << "," << std::endl;
+    } else {
+      buffer << std::endl;
+    }
+  }
+  buffer << "}," << std::endl;
+
+  buffer << "\"events\":{" << std::endl;
+  std::size_t event_count = 0;
+  // but filter events for finished and not yet written
+  for (auto&& t = event_.begin(); t != event_.end(); ++t) {
+    buffer << "\"" << t->first << "\""
+           << ":[" << std::endl;
+
+    bool thisEventFirstTime = true;
+    for (auto&& e = t->second.begin(); e != t->second.end(); ++e) {
+      if (e->end != e->start && e->end > partially_written_until_) {
+        if (thisEventFirstTime) {
+          thisEventFirstTime = false;
+        } else {
+          buffer << "," << std::endl;
+        }
+        buffer << "[" << duration_cast<microseconds>(e->start - init_time_).count() << ","
+              << duration_cast<microseconds>(e->end - init_time_).count() << "]";
+      }
+    }
+    buffer << "]";
+    if (++event_count != event_.size()) {//TODO
+      buffer << "," << std::endl;
+    } else {
+      buffer << std::endl;
+    }
+  }
+  buffer << "}" << std::endl << "}";
+
+  if (rank != size - 1) {
+    buffer << "," << std::endl;
+  } else {
+    buffer << std::endl << "}" << std::endl;
+  }
+  writeSingleFile(buffer, path, comm);
+  partially_written_until_ = std::chrono::high_resolution_clock::now();
+}
+
 #else
 inline void Stats::initialize() {}
 inline void Stats::finalize() {}
@@ -221,6 +296,7 @@ inline void Stats::startEvent(const std::string& name) {
 }
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {}
 inline void Stats::write(const std::string& path, CommunicatorType comm) {}
+inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType comm) {}
 #endif
 
 inline const Stats::Event Stats::stopEvent(const std::string& name) {
