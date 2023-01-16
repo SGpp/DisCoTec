@@ -6,6 +6,7 @@
 #include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
 #include <cstdio>
+#include <thread>
 
 #include "TaskConstParaboloid.hpp"
 #include "TaskCount.hpp"
@@ -260,19 +261,35 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       }
       // combine grids
       Stats::startEvent("manager combine third level");
-      // do two TCP-based communications and one file-based one
+      // do two TCP-based communications and one or more file-based ones
       if (i < 2) {
         BOOST_CHECK_NO_THROW(manager.combineThirdLevel());
       } else {
+        // remove previously interpolated files
+        auto status =
+            system(("rm tl_group" + std::to_string(testParams.sysNum) + "_diagonal*").c_str());
+        BOOST_WARN_GE(status, 0);
+        // write sparse grid data
         std::string filenamePrefixToWrite = "dsgu_combine_" + std::to_string(testParams.sysNum);
         std::string writeCompleteTokenFileName = filenamePrefixToWrite + "_complete.txt";
         std::string filenamePrefixToRead =
             "dsgu_combine_" + std::to_string((testParams.sysNum + 1) % 2);
         std::string startReadingTokenFileName = filenamePrefixToRead + "_complete.txt";
         manager.combineThirdLevelFileBasedWrite(filenamePrefixToWrite, writeCompleteTokenFileName);
-        manager.combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName);
+#ifdef HAVE_HIGHFIVE
+        // write interpolated values
+        std::vector<std::vector<real>> interpolationCoords = {
+            std::vector<real>(testParams.dim, 0.001), std::vector<real>(testParams.dim, 0.2),
+            std::vector<real>(testParams.dim, 0.5), std::vector<real>(testParams.dim, 0.7),
+            std::vector<real>(testParams.dim, 0.999)};
+        manager.writeInterpolatedValuesSingleFile(
+            interpolationCoords, "tl_group" + std::to_string(testParams.sysNum) + "_diagonal");
+#endif  // def HAVE_HIGHFIVE
+
+        // finish combination by reading in values from other system
+        manager.combineThirdLevelFileBasedReadReduce(filenamePrefixToRead,
+                                                     startReadingTokenFileName);
       }
-      // manager.combine();
       Stats::stopEvent("manager combine third level");
     }
 
