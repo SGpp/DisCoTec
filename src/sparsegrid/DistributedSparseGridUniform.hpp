@@ -7,6 +7,7 @@
 #include "utils/LevelSetUtils.hpp"
 #include "manager/ProcessGroupSignals.hpp"
 #include "mpi/MPITags.hpp"
+#include "io/MPIInputOutput.hpp"
 #include <numeric>
 
 #include <boost/serialization/vector.hpp>
@@ -733,62 +734,10 @@ template <typename FG_ELEMENT>
 bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fileName) const {
   auto comm = this->getCommunicator();
 
-  // get offset in file
   MPI_Offset len = this->getRawDataSize();
-  MPI_Offset pos = 0;
-  MPI_Exscan(&len, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
-             MPI_SUM, comm);
-
-  // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
-  MPI_Info info = MPI_INFO_NULL;
-  // take IO hints from environment variables for now
-  if (false) {
-    MPI_Info_create(&info);
-    // MPI_Info_set(info, "cb_align", "2");
-    // MPI_Info_set(info, "cb_nodes_list", "*:*");
-    // MPI_Info_set(info, "cb_nodes", "4");
-    // MPI_Info_set(info, "cb_buffer_size", "16777211");
-    MPI_Info_set(info, "direct_io", "false");
-    MPI_Info_set(info, "romio_ds_write", "disable");
-    MPI_Info_set(info, "romio_cb_write", "disable");
-    MPI_Info_set(info, "romio_no_indep_rw", "true");
-    // MPI_Info_set(info, "romio_filesystem_type", "Lustre");
-  }
-
-  // open file
-  MPI_File fh;
-  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY,
-                          info, &fh);
-  if (err != MPI_SUCCESS) {
-    // file already existed, delete it and create new file
-    if (this->rank_ == 0) {
-      MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
-    }
-    err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
-                        info, &fh);
-  }
-
-  if (err == MPI_SUCCESS) {
-    // write to single file with MPI-IO
-    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-    MPI_Status status;
-    err = MPI_File_write_at_all(fh, pos * sizeof(FG_ELEMENT), this->getRawData(),
-                                static_cast<int>(len), dataType, &status);
-    if (err != MPI_SUCCESS) {
-      std::cerr << err << " in MPI_File_write_at_all" << std::endl;
-    }
-#ifndef NDEBUG
-    int numWritten = 0;
-    MPI_Get_count(&status, dataType, &numWritten);
-    if (numWritten != len) {
-      std::cout << "not written enough: " << numWritten << " instead of " << len << std::endl;
-      err = ~MPI_SUCCESS;
-    }
-#endif // !NDEBUG
-  }
-
-  MPI_File_close(&fh);
-  return err == MPI_SUCCESS;
+  auto data = this->getRawData();
+  bool success = mpiio::writeValuesConsecutive<FG_ELEMENT>(data, len, fileName, comm);
+  return success;
 }
 
 template <typename FG_ELEMENT>
