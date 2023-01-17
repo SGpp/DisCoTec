@@ -1107,6 +1107,11 @@ void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   std::string groupName = "all_grids";
   std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
+  assert(tasks_.size() > 0);
+  assert(currentCombi_ >= 0);
+  assert(tasks_[0]->getCurrentTime() >= 0.0);
+  assert(values.size() > 0);
+  assert(valuesWriteFilename.size() > 0);
   h5io::writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
                             tasks_[0]->getCurrentTime());
 }
@@ -1483,6 +1488,7 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
 }
 
 void ProcessGroupWorker::waitForThirdLevelCombiResult() {
+  assert(extraUniDSGVector_.empty());
   // receive third level combi result from third level pgroup (global reduce comm)
   RankType thirdLevelPG = (RankType)combiParameters_.getThirdLevelPG();
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();

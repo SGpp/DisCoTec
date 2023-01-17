@@ -143,7 +143,9 @@ bool ProcessGroupManager::combineThirdLevelFileBasedWrite(std::string filenamePr
   MPIUtils::sendClass(&filenamePrefixToWrite, this->pgroupRootID_, theMPISystem()->getGlobalComm());
   MPIUtils::sendClass(&writeCompleteTokenFileName, this->pgroupRootID_,
                       theMPISystem()->getGlobalComm());
-  return this->waitStatus() == PROCESS_GROUP_WAIT;
+  auto waiting = this->waitStatus() == PROCESS_GROUP_WAIT;
+  assert(waiting);
+  return waiting;
 }
 
 bool ProcessGroupManager::combineThirdLevelFileBasedReadReduce(
@@ -155,7 +157,9 @@ bool ProcessGroupManager::combineThirdLevelFileBasedReadReduce(
   MPIUtils::sendClass(&filenamePrefixToRead, this->pgroupRootID_, theMPISystem()->getGlobalComm());
   MPIUtils::sendClass(&startReadingTokenFileName, this->pgroupRootID_,
                       theMPISystem()->getGlobalComm());
-  return this->waitStatus() == PROCESS_GROUP_WAIT;
+  auto waiting = this->waitStatus() == PROCESS_GROUP_WAIT;
+  assert(waiting);
+  return waiting;
 }
 
 void recvDsguFromWorker(std::vector<CombiDataType>& dsguData, RankType r, CommunicatorType comm) {
@@ -477,7 +481,7 @@ bool ProcessGroupManager::combineLocalAndGlobal() {
 
 bool ProcessGroupManager::waitForThirdLevelCombiResult() {
   // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
+  assert(this->waitStatus() == PROCESS_GROUP_WAIT);
 
   sendSignalAndReceive(WAIT_FOR_TL_COMBI_RESULT);
   return true;
