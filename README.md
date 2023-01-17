@@ -1,17 +1,15 @@
 What is this project about?
 ---------------------------
-[![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=DisCoTec-master)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/DisCoTec/job/DisCoTec-master/)
+[![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=DisCoTec-main)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/DisCoTec/job/DisCoTec-main/)
 
 This project contains __DisCoTec__, a code for running the distributed sparse grid combination technique with MPI parallelization. While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it is its own project now.
 
 Guidelines
 ---------
-* Please develop new features in a new branch and then create a merge request to
+* Please develop new features in a new branch and then create a pull request to
   notify other users about the changes. So everyone can check whether there are
   side-effects to other branches.
-* Of course, you are still very welcome to directly fix obvious bugs in the
-  master branch.
-* Before merging new features to the master branch, please make sure that they
+* Before merging new features to the main branch, please make sure that they
 are sufficiently commented and extensively tested.
 
 Requirements

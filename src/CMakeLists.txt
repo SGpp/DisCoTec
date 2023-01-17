@@ -213,7 +213,7 @@ if (DISCOTEC_HDF5)
                 QUIET
                 OVERRIDE_FIND_PACKAGE
         )
-        set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE)
+        set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE INTERNAL)
         set(HDF5_IS_PARALLEL ON CACHE BOOL "" FORCE)
         set(HDF5_EXTERNALLY_CONFIGURED ON CACHE BOOL "" FORCE)
         set(HDF5_EXTERNALLY_CONFIGURED ON CACHE BOOL "" FORCE)
@@ -238,6 +238,28 @@ if (DISCOTEC_HDF5)
             set_property(DIRECTORY ${HDF5_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
         endif ()
         list(POP_BACK CMAKE_MESSAGE_INDENT)
+
+        # get all the targets that are created by the HDF5 CMakeLists.txt and compile them in Release without compiler warnings
+        macro(get_all_targets_recursive targets dir)
+            get_property(subdirectories DIRECTORY ${dir} PROPERTY SUBDIRECTORIES)
+            foreach(subdir ${subdirectories})
+                get_all_targets_recursive(${targets} ${subdir})
+            endforeach()
+
+            get_property(current_targets DIRECTORY ${dir} PROPERTY BUILDSYSTEM_TARGETS)
+            list(APPEND ${targets} ${current_targets})
+        endmacro()
+
+        set(hdf5_targets)
+        get_all_targets_recursive(hdf5_targets ${HDF5_SOURCE_DIR})
+        foreach(target ${hdf5_targets})
+            get_target_property(target_type ${target} TYPE)
+            if(target_type STREQUAL "INTERFACE_LIBRARY" OR target_type STREQUAL "UTILITY")
+                continue()
+            else()
+                target_compile_options(${target} PRIVATE -O3 -fPIC -DNDEBUG $<$<CXX_COMPILER_ID:GNU>: -w>)
+            endif()
+        endforeach ()
 
         target_include_directories(discotec PRIVATE ${HDF5_SOURCE_DIR}/src) # TODO
         target_include_directories(discotec PRIVATE ${HDF5_BINARY_DIR}/src) # TODO:
