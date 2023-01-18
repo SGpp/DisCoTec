@@ -95,9 +95,6 @@ class DistributedSparseGridUniform {
   // return the number of subspaces
   inline SubspaceIndexType getNumSubspaces() const;
 
-  // return the sizes for each dimension for subspace i
-  inline const IndexVector& getSubspaceSizes(SubspaceIndexType i) const;
-
   // // return the number of elements of subspace i.
   // // this number is independent of whether the subspace is initialized on this
   // // process or not.
@@ -162,7 +159,10 @@ class DistributedSparseGridUniform {
 
   bool readOneFileAndReduce(std::string fileName, int numElementsToBuffer = 1024);
 
-  bool readOneFileFromDiskAndReduce(std::string fileName, int numElementsToBuffer = 1024);
+  bool writeSubspaceSizesToFile(std::string fileName) const;
+
+  template <typename ReduceFunctionType>
+  bool readReduceSubspaceSizesFromFile(std::string fileName, int numElementsToBuffer, ReduceFunctionType reduceFunction);
 
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
@@ -424,24 +424,6 @@ template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::resetLevels() {
   levels_.clear();
 }
-
-// template <typename FG_ELEMENT>
-// const IndexVector& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSizes(size_t i) const {
-//   return subspaces_[i].sizes_;
-// }
-
-// template <typename FG_ELEMENT>
-// const IndexVector& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSizes(
-//     const LevelVector& l) const {
-//   IndexType i = getIndex(l);
-
-//   if (i < 0) {
-//     std::cout << "l = " << l << " not included in distributed sparse grid" << std::endl;
-//     assert(false);
-//   }
-
-//   return subspaces_[i].sizes_;
-// }
 
 // template <typename FG_ELEMENT>
 // size_t DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceSize(size_t i) const {
@@ -764,6 +746,29 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileAndReduce(
   auto data = this->getRawData();
   bool success = mpiio::readReduceValuesConsecutive<FG_ELEMENT>(
       data, len, fileName, comm, numElementsToBuffer, std::plus<FG_ELEMENT>{});
+
+  return success;
+}
+
+template <typename FG_ELEMENT>
+bool DistributedSparseGridUniform<FG_ELEMENT>::writeSubspaceSizesToFile(
+    std::string fileName) const {
+  auto comm = this->getCommunicator();
+  MPI_Offset len = this->getNumSubspaces();
+  bool success = mpiio::writeValuesConsecutive<size_t>(this->getSubspaceDataSizes().data(), len,
+                                                       fileName, comm);
+  return success;
+}
+
+template <typename FG_ELEMENT>
+template <typename ReduceFunctionType>
+bool DistributedSparseGridUniform<FG_ELEMENT>::readReduceSubspaceSizesFromFile(
+    std::string fileName, int numElementsToBuffer, ReduceFunctionType reduceFunction) {
+  auto comm = this->getCommunicator();
+  MPI_Offset len = this->getNumSubspaces();
+
+  bool success = mpiio::readReduceValuesConsecutive<size_t>(
+      this->subspacesDataSizes_.data(), len, fileName, comm, numElementsToBuffer, reduceFunction);
 
   return success;
 }
