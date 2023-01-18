@@ -646,7 +646,56 @@ BOOST_AUTO_TEST_CASE(test_getAllKOutOfDDimensions) {
   }
 }
 
-BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
+BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
+  std::vector<int> procs = {4, 1, 2, 1, 1, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    DimType dim = static_cast<DimType>(procs.size());
+    LevelVector lmin = {2, 2, 2, 2, 2, 2};
+    LevelVector lmax = {11, 11, 11, 11, 11, 11};
+    LevelVector lfull = {12, 3, 7, 2, 2, 2};
+    std::vector<BoundaryType> boundary(dim, 1);
+    auto decomposition = combigrid::getStandardDecomposition(lmax, procs);
+    auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<combigrid::DimType>>(
+        new DistributedSparseGridUniform<combigrid::DimType>(dim, lmax, lmin, comm));
+
+    {  // register full grid
+      auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::DimType>>(
+          new DistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
+      uniDSG->registerDistributedFullGrid(*uniDFG);
+    }
+
+    auto sizesCopy = uniDSG->getSubspaceDataSizes();
+
+    // write the (smaller) subspaces sizes to disk
+    uniDSG->writeSubspaceSizesToFile("test_subspaceSizes");
+
+    {  // register reversed full grid
+      std::reverse(lfull.begin(), lfull.end());
+      auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::DimType>>(
+          new DistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
+      uniDSG->registerDistributedFullGrid(*uniDFG);
+    }
+
+    auto sizesCopyLarger = uniDSG->getSubspaceDataSizes();
+
+    // read the subspace sizes from disk and do max-reduce
+    auto maxFunctionInstantiation = [](size_t a, size_t b) { return std::max(a, b); };
+    uniDSG->readReduceSubspaceSizesFromFile("test_subspaceSizes", 2000, maxFunctionInstantiation);
+    BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopyLarger.begin(), sizesCopyLarger.end(),
+                                  uniDSG->getSubspaceDataSizes().begin(),
+                                  uniDSG->getSubspaceDataSizes().end());
+
+    // read the subspace sizes from disk and do min-reduce
+    auto minFunctionInstantiation = [](size_t a, size_t b) { return std::min(a, b); };
+    uniDSG->readReduceSubspaceSizesFromFile("test_subspaceSizes", 2000, minFunctionInstantiation);
+    BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopy.begin(), sizesCopy.end(),
+                                  uniDSG->getSubspaceDataSizes().begin(),
+                                  uniDSG->getSubspaceDataSizes().end());
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_writeOneFile) {
   std::vector<int> procs = {3, 1, 3, 1, 1, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
