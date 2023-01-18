@@ -156,9 +156,11 @@ class DistributedSparseGridUniform {
   void readFromDiskChunked(std::string filePrefix);
 
   // coordinated read/write to one single file containing the whole dsg data
-  bool writeOneFileToDisk(std::string fileName) const;
+  bool writeOneFile(std::string fileName) const;
 
-  bool readOneFileFromDisk(std::string fileName);
+  bool readOneFile(std::string fileName);
+
+  bool readOneFileAndReduce(std::string fileName, int numElementsToBuffer = 1024);
 
   bool readOneFileFromDiskAndReduce(std::string fileName, int numElementsToBuffer = 1024);
 
@@ -731,7 +733,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::readFromDiskChunked(std::string f
 }
 
 template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fileName) const {
+bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFile(std::string fileName) const {
   auto comm = this->getCommunicator();
 
   MPI_Offset len = this->getRawDataSize();
@@ -741,7 +743,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFileToDisk(std::string fi
 }
 
 template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string fileName) {
+bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFile(std::string fileName) {
   auto comm = this->getCommunicator();
 
   // get offset in file
@@ -753,7 +755,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
 }
 
 template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDiskAndReduce(
+bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileAndReduce(
     std::string fileName, int numElementsToBuffer) {
   auto comm = this->getCommunicator();
 

@@ -162,13 +162,13 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     }
     // TODO test if the values are correct
 
-    auto writeSuccess = uniDSG->writeOneFileToDisk("test_sg_all");
+    auto writeSuccess = uniDSG->writeOneFile("test_sg_all");
     BOOST_WARN(writeSuccess);
     if (writeSuccess) {
       for (size_t i = 0; i < uniDSGfromSubspaces->getRawDataSize(); ++i) {
         uniDSGfromSubspaces->getRawData()[i] = -1000.;
       }
-      auto readSuccess = uniDSGfromSubspaces->readOneFileFromDisk("test_sg_all");
+      auto readSuccess = uniDSGfromSubspaces->readOneFile("test_sg_all");
       BOOST_CHECK(readSuccess);
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare values");
@@ -177,7 +177,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
           BOOST_CHECK_EQUAL(uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
         }
       }
-      auto reduceSuccess = uniDSGfromSubspaces->readOneFileFromDiskAndReduce("test_sg_all");
+      auto reduceSuccess = uniDSGfromSubspaces->readOneFileAndReduce("test_sg_all");
       BOOST_CHECK(readSuccess);
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare double values");
@@ -676,7 +676,7 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
     MPI_Barrier(comm);
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto writeSuccess = uniDSG->writeOneFileToDisk("test_sg_timing");
+    auto writeSuccess = uniDSG->writeOneFile("test_sg_timing");
     auto end = std::chrono::high_resolution_clock::now();
     BOOST_CHECK(writeSuccess);
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -687,7 +687,7 @@ BOOST_AUTO_TEST_CASE(test_writeOneFileToDisk) {
     MPI_Barrier(comm);
 
     start = std::chrono::high_resolution_clock::now();
-    auto readSuccess = uniDSG->readOneFileFromDisk("test_sg_timing");
+    auto readSuccess = uniDSG->readOneFile("test_sg_timing");
     end = std::chrono::high_resolution_clock::now();
     BOOST_CHECK(readSuccess);
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
