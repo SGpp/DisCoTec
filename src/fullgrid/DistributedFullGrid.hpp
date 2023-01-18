@@ -149,8 +149,8 @@ class DistributedFullGrid {
   // copy construction would need to duplicate communicator_
   DistributedFullGrid(const DistributedFullGrid& other) = delete;
   DistributedFullGrid& operator=( const DistributedFullGrid & ) = delete;
-  DistributedFullGrid(DistributedFullGrid&& other) = delete;
-  DistributedFullGrid& operator=(DistributedFullGrid&& other) = delete;
+  DistributedFullGrid(DistributedFullGrid&& other) = default;
+  DistributedFullGrid& operator=(DistributedFullGrid&& other) = default;
 
   virtual ~DistributedFullGrid() {
     // MPI_Comm_free(&communicator_);
