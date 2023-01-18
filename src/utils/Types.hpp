@@ -70,7 +70,8 @@ typedef enum {
   type_float_complex,
   type_long_long,
   type_long,
-  type_size_t
+  type_size_t,
+  type_uint32_t
 } DataType;
 
 template <class T>
@@ -118,6 +119,11 @@ inline DataType getabstractionDataType<size_t>() {
   return abstraction::type_size_t;
 }
 
+template <>
+inline DataType getabstractionDataType<uint32_t>() {
+  return abstraction::type_uint32_t;
+}
+
 inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
   switch (type) {
     case abstraction::type_float:
@@ -144,11 +150,15 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
     case abstraction::type_size_t:
       return MPI_SIZE_T;
 
+    case abstraction::type_uint32_t:
+      return MPI_UINT32_T;
+
     case abstraction::type_unknown:
       throw new std::invalid_argument("Type unknown ConvertType!");
 
     default:
       assert(false && "you should never get here");
+      throw new std::invalid_argument("Type unknown ConvertType!");
   };
 
   throw new std::invalid_argument("MPI_Datatype Convert(abstraction::DataType) failed!");
