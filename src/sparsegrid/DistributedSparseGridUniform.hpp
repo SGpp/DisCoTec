@@ -746,63 +746,10 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDisk(std::string f
 
   // get offset in file
   MPI_Offset len = this->getRawDataSize();
-  MPI_Offset pos = 0;
-  MPI_Exscan(&len, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
-             MPI_SUM, comm);
+  auto data = this->getRawData();
+  bool success = mpiio::readValuesConsecutive<FG_ELEMENT>(data, len, fileName, comm);
 
-  // open file
-  MPI_File fh;
-  MPI_Info info = MPI_INFO_NULL;
-  // take IO hints from environment variables for now
-  if (false) {
-    MPI_Info_create(&info);
-    // MPI_Info_set(info, "cb_align", "2");
-    // MPI_Info_set(info, "cb_nodes_list", "*:*");
-    // MPI_Info_set(info, "cb_nodes", "8");
-    MPI_Info_set(info, "direct_io", "false");
-    MPI_Info_set(info, "romio_ds_read", "disable");
-    MPI_Info_set(info, "romio_cb_read", "disable");
-    MPI_Info_set(info, "romio_no_indep_rw", "true");
-  }
-  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
-  if (err != MPI_SUCCESS) {
-    // silent failure
-    std::cerr << err << " while reading OneFileFromDisk" << std::endl;
-    return false;
-  }
-#ifndef NDEBUG
-  MPI_Offset fileSize = 0;
-  MPI_File_get_size(fh, &fileSize);
-  if (fileSize < len * sizeof(FG_ELEMENT)) {
-    // loud failure if file is too small
-    std::cerr << fileSize << " and not " << len << std::endl;
-    throw std::runtime_error("read dsg: file size too small!");
-  }
-#endif
-
-  // read from single file with MPI-IO
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-  MPI_Status status;
-  err = MPI_File_read_at_all(fh, pos * sizeof(FG_ELEMENT), this->getRawData(),
-                             static_cast<int>(len), dataType, &status);
-  MPI_File_close(&fh);
-  if (err != MPI_SUCCESS) {
-    // silent failure
-    std::cerr << err << " in MPI_File_read_at_all" << std::endl;
-    return false;
-  }
-
-#ifndef NDEBUG
-  int readcount = 0;
-  MPI_Get_count(&status, dataType, &readcount);
-  if (readcount < len) {
-    // loud non-failure
-    std::cerr << "read dsg: " << readcount << " and not " << len << std::endl;
-    // throw std::runtime_error("read dsg: not read the right amount!");
-  }
-#endif
-
-  return true;
+  return success;
 }
 
 template <typename FG_ELEMENT>
@@ -812,45 +759,11 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileFromDiskAndReduce(
 
   // get offset in file
   MPI_Offset len = this->getRawDataSize();
-  MPI_Offset pos = 0;
-  MPI_Exscan(&len, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
-             MPI_SUM, comm);
-  // open file
-  MPI_File fh;
-  MPI_Info info = MPI_INFO_NULL;
-  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
-  if (err != MPI_SUCCESS) {
-    // silent failure
-    std::cerr << err << " while reading OneFileFromDisk" << std::endl;
-    return false;
-  }
+  auto data = this->getRawData();
+  bool success = mpiio::readReduceValuesConsecutive<FG_ELEMENT>(
+      data, len, fileName, comm, numElementsToBuffer, std::plus<FG_ELEMENT>{});
 
-  // read from single file with MPI-IO
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-  MPI_Status status;
-  int readcount = 0;
-  std::vector<FG_ELEMENT> buffer(numElementsToBuffer);
-  auto writePointer = this->subspacesData_.begin();
-  while (readcount < len) {
-    // if there is less to read than the buffer length, overwrite numElementsToBuffer
-    if (len - readcount < numElementsToBuffer) {
-      numElementsToBuffer = len - readcount;
-      buffer.resize(numElementsToBuffer);
-    }
-    err = MPI_File_read_at(fh, pos * sizeof(FG_ELEMENT), buffer.data(),
-                           static_cast<int>(numElementsToBuffer), dataType, &status);
-    int readcount_increment = 0;
-    MPI_Get_count(&status, dataType, &readcount_increment);
-    assert(readcount_increment > 0);
-    // reduce with present sparse grid data
-    std::transform(buffer.cbegin(), buffer.cend(), writePointer, writePointer,
-                   std::plus<FG_ELEMENT>{});
-    readcount += readcount_increment;
-    pos += readcount_increment;
-    std::advance(writePointer, readcount_increment);
-  }
-  MPI_File_close(&fh);
-  return true;
+  return success;
 }
 
 /**
