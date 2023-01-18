@@ -1542,7 +1542,7 @@ void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
       dsgToUse = extraUniDSGVector_[i].get();
       copyFromCombinedDSGUToExtraDSGU(*uniDsg, *dsgToUse);
     }
-    dsgToUse->writeOneFileToDisk(filenamePrefix + "_" + std::to_string(i));
+    dsgToUse->writeOneFile(filenamePrefix + "_" + std::to_string(i));
   }
 }
 
@@ -1553,7 +1553,7 @@ void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix) {
     if (extraUniDSGVector_.size() > 0) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
-    dsgToUse->readOneFileFromDisk(filenamePrefix + "_" + std::to_string(i));
+    dsgToUse->readOneFile(filenamePrefix + "_" + std::to_string(i));
     if (extraUniDSGVector_.size() > 0) {
       copyFromExtraDSGUToCombinedDSGU(*dsgToUse, *uniDsg);
     }
@@ -1567,7 +1567,7 @@ void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToR
     if (extraUniDSGVector_.size() > 0) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
-    dsgToUse->readOneFileFromDiskAndReduce(filenamePrefixToRead + "_" + std::to_string(i));
+    dsgToUse->readOneFileAndReduce(filenamePrefixToRead + "_" + std::to_string(i));
     if (extraUniDSGVector_.size() > 0) {
       copyFromExtraDSGUToCombinedDSGU(*dsgToUse, *uniDsg);
     }
