@@ -680,14 +680,14 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
     auto sizesCopyLarger = uniDSG->getSubspaceDataSizes();
 
     // read the subspace sizes from disk and do max-reduce
-    auto maxFunctionInstantiation = [](size_t a, size_t b) { return std::max(a, b); };
+    auto maxFunctionInstantiation = [](uint32_t a, uint32_t b) { return std::max(a, b); };
     uniDSG->readReduceSubspaceSizesFromFile("test_subspaceSizes", 2000, maxFunctionInstantiation);
     BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopyLarger.begin(), sizesCopyLarger.end(),
                                   uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end());
 
     // read the subspace sizes from disk and do min-reduce
-    auto minFunctionInstantiation = [](size_t a, size_t b) { return std::min(a, b); };
+    auto minFunctionInstantiation = [](uint32_t a, uint32_t b) { return std::min(a, b); };
     uniDSG->readReduceSubspaceSizesFromFile("test_subspaceSizes", 2000, minFunctionInstantiation);
     BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopy.begin(), sizesCopy.end(),
                                   uniDSG->getSubspaceDataSizes().begin(),
