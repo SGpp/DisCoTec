@@ -12,7 +12,7 @@ class CombiCom {
  private:
   template <typename FG_ELEMENT>
   static int sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                                      const std::vector<uint32_t>& subspaceSizes);
+                                      const std::vector<SubspaceSizeType>& subspaceSizes);
 
  public:
   // reduced fg will ONLY be available on r
@@ -65,13 +65,12 @@ void CombiCom::FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
   int myrank;
   MPI_Comm_rank(comm, &myrank);
 
-  MPI_Allreduce(MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()), dtype, MPI_SUM,
-                comm);
+  MPI_Allreduce(MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()), dtype, MPI_SUM, comm);
 }
 
 template <typename FG_ELEMENT>
 int CombiCom::sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                                       const std::vector<uint32_t>& subspaceSizes) {
+                                       const std::vector<SubspaceSizeType>& subspaceSizes) {
   int bsize = 0;
 
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {

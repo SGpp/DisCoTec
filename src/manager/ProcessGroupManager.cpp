@@ -415,7 +415,7 @@ bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel
 
   buffSize = std::accumulate(recvCounts.begin(), recvCounts.end(), 0U);
 
-  std::vector<size_t> mdBuff(buffSize);  // size_t is machine dependent
+  std::vector<SubspaceSizeType> mdBuff(buffSize);
   assert(buffSize < INT_MAX &&
          "bufSize is larger than what we can send in a "
          "single mpi call");
@@ -428,7 +428,7 @@ bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel
     disp += recvCounts[i];
   }
   // perform gather of subspace sizes
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
   MPI_Gatherv(&dummy, 0, dataType, mdBuff.data(), recvCounts.data(), displacements.data(), dataType,
               thirdLevelManagerRank, comm);
 
@@ -460,11 +460,11 @@ bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLe
   }
 
   // create machine dependent buffer
-  std::vector<size_t> mdBuff(buffSize);
+  std::vector<SubspaceSizeType> mdBuff(buffSize);
   mdBuff.assign(buff.begin(), buff.end());
 
   // perform scatter of subspace sizes
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
   MPI_Scatterv(mdBuff.data(), sendCounts.data(), displacements.data(), dataType, nullptr, 0,
                dataType, thirdLevelManagerRank, comm);
 
