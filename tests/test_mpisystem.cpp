@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(test_with_manager) {
     CommunicatorType comm = TestHelper::getComm(procs[0] * procs[1] + 1);
     if (comm != MPI_COMM_NULL) {
       Stats::initialize();
-      theMPISystem()->initWorldReusable(comm, procs[0], procs[1], true);
+      theMPISystem()->initWorldReusable(comm, procs[0], procs[1]);
       BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1] + 1);
       BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
 
@@ -109,7 +109,7 @@ BOOST_AUTO_TEST_CASE(test_manager_only) {
   CommunicatorType comm = TestHelper::getComm(1);
   if (comm != MPI_COMM_NULL) {
     Stats::initialize();
-    theMPISystem()->initWorldReusable(comm, procs[0], procs[1], true);
+    theMPISystem()->initWorldReusable(comm, procs[0], procs[1]);
     BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1] + 1);
     BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
 
