@@ -135,6 +135,9 @@ class DistributedSparseGridUniform {
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
 
+  // copy data from another DSGU (which has the same subspaces, but they may be less or more populated than in this DSGU)
+  void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other);
+
   void writeMinMaxCoefficents(const std::string& filename, size_t i) const;
 
   // naive read/write operations -- each rank writes their own data partition to a separate binary file
@@ -220,6 +223,17 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
 template <typename FG_ELEMENT>
 bool DistributedSparseGridUniform<FG_ELEMENT>::isSubspaceDataCreated() const {
   return subspacesData_.size() != 0;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
+    const DistributedSparseGridUniform<FG_ELEMENT>& other) {
+  assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
+  for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {
+    assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 || other.getDataSize(i) == 0);
+    auto numPointsToCopy = std::min(other.getDataSize(i), this->getDataSize(i));
+    std::copy_n(other.getData(i), numPointsToCopy, this->getData(i));
+  }
 }
 
 /** Zero initializes the dsgu data in case no data is already present.
