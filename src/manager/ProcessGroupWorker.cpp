@@ -187,7 +187,6 @@ SignalType ProcessGroupWorker::wait() {
     case COMBINE: {  // start combination
       Stats::startEvent("worker combine");
       combineUniform();
-      currentCombi_++;
       Stats::stopEvent("worker combine");
 
     } break;
@@ -200,7 +199,6 @@ SignalType ProcessGroupWorker::wait() {
     case COMBINE_THIRD_LEVEL: {
       Stats::startEvent("worker combine third level");
       combineThirdLevel();
-      currentCombi_++;
       Stats::stopEvent("worker combine third level");
     } break;
     case COMBINE_WRITE_DSGS: {
@@ -213,7 +211,6 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("worker combine third level read");
       combineThirdLevelFileBasedReadReduce(receiveStringFromManagerAndBroadcastToGroup(),
                                            receiveStringFromManagerAndBroadcastToGroup());
-      currentCombi_++;
       Stats::stopEvent("worker combine third level read");
     } break;
     case COMBINE_THIRD_LEVEL_FILE: {
@@ -222,13 +219,11 @@ SignalType ProcessGroupWorker::wait() {
                                  receiveStringFromManagerAndBroadcastToGroup(),
                                  receiveStringFromManagerAndBroadcastToGroup(),
                                  receiveStringFromManagerAndBroadcastToGroup());
-      currentCombi_++;
       Stats::stopEvent("worker combine third level file");
     } break;
     case WAIT_FOR_TL_COMBI_RESULT: {
       Stats::startEvent("worker wait third level result");
       waitForThirdLevelCombiResult();
-      currentCombi_++;
       Stats::stopEvent("worker wait third level result");
 
     } break;
@@ -273,8 +268,7 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE_FG: {
-      combineFG();
-
+      throw std::runtime_error("combine fg not supported anymore");
     } break;
     case UPDATE_COMBI_PARAMETERS: {  // update combiparameters (e.g. in case of faults -> FTCT)
 
@@ -1209,6 +1203,7 @@ void ProcessGroupWorker::updateCombiParameters() {
 
   this->setCombiParameters(combiParametersReceived);
 }
+
 void ProcessGroupWorker::integrateCombinedSolution() {
   auto numGrids = static_cast<int>(combiParameters_.getNumGrids());
   for (Task* taskToUpdate : tasks_) {
@@ -1237,6 +1232,7 @@ void ProcessGroupWorker::integrateCombinedSolution() {
     }
   }
   Stats::stopEvent("worker dehierarchize");
+  currentCombi_++;
 }
 
 void ProcessGroupWorker::combineThirdLevel() {
