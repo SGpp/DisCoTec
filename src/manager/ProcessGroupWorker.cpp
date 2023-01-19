@@ -209,18 +209,23 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case COMBINE_WRITE_DSGS: {
       Stats::startEvent("worker combine third level write");
-      combineThirdLevelFileBasedWrite();
+      combineThirdLevelFileBasedWrite(receiveStringFromManagerAndBroadcastToGroup(),
+                                      receiveStringFromManagerAndBroadcastToGroup());
       Stats::stopEvent("worker combine third level write");
     } break;
     case COMBINE_READ_DSGS_AND_REDUCE: {
       Stats::startEvent("worker combine third level read");
-      combineThirdLevelFileBasedReadReduce();
+      combineThirdLevelFileBasedReadReduce(receiveStringFromManagerAndBroadcastToGroup(),
+                                           receiveStringFromManagerAndBroadcastToGroup());
       currentCombi_++;
       Stats::stopEvent("worker combine third level read");
     } break;
     case COMBINE_THIRD_LEVEL_FILE: {
       Stats::startEvent("worker combine third level file");
-      combineThirdLevelFileBased();
+      combineThirdLevelFileBased(receiveStringFromManagerAndBroadcastToGroup(),
+                                 receiveStringFromManagerAndBroadcastToGroup(),
+                                 receiveStringFromManagerAndBroadcastToGroup(),
+                                 receiveStringFromManagerAndBroadcastToGroup());
       currentCombi_++;
       Stats::stopEvent("worker combine third level file");
     } break;
@@ -381,7 +386,7 @@ SignalType ProcessGroupWorker::wait() {
     case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write
                                                 // values to .h5
       Stats::startEvent("worker write interpolated values");
-      writeInterpolatedValuesPerGrid();
+      writeInterpolatedValuesPerGrid(receiveStringFromManagerAndBroadcastToGroup());
       Stats::stopEvent("worker write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
@@ -743,7 +748,7 @@ void ProcessGroupWorker::combineUniform() {
 
 void ProcessGroupWorker::parallelEval() {
   if(uniformDecomposition)
-    parallelEvalUniform();
+    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup());
   else
     assert(false && "not yet implemented");
 }
@@ -808,17 +813,16 @@ void ProcessGroupWorker::fillDFGFromDSGU(Task* t) {
   }
 }
 
-void ProcessGroupWorker::parallelEvalUniform() {
+void ProcessGroupWorker::parallelEvalUniform(std::string filename) {
   assert(uniformDecomposition);
 
   assert(combiParametersSet_);
-  auto numGrids = combiParameters_.getNumGrids();  // we assume here that every task has the same number of grids
+  auto numGrids =
+      combiParameters_
+          .getNumGrids();  // we assume here that every task has the same number of grids
 
   auto leval = receiveLevalAndBroadcast();
   const auto dim = static_cast<DimType>(leval.size());
-
-  // receive filename and broadcast to group members
-  std::string filename = receiveStringFromManagerAndBroadcastToGroup();
 
   for (IndexType g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
@@ -1078,10 +1082,8 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
   return values;
 }
 
-
-void ProcessGroupWorker::writeInterpolatedValuesPerGrid() {
+void ProcessGroupWorker::writeInterpolatedValuesPerGrid(std::string fileNamePrefix) {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-  std::string fileNamePrefix = receiveStringFromManagerAndBroadcastToGroup();
 
   // receive coordinates and broadcast to group members
   std::vector<std::vector<real>> interpolationCoords;
@@ -1365,23 +1367,19 @@ void ProcessGroupWorker::combineThirdLevel() {
   Stats::stopEvent("worker wait for bcasts");
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBasedWrite() {
+void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
+                                                         std::string writeCompleteTokenFileName) {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
-
-  auto filenamePrefixToWrite = receiveStringFromManagerAndBroadcastToGroup();
-  auto writeCompleteTokenFileName = receiveStringFromManagerAndBroadcastToGroup();
 
   // write sparse grid and corresponding token file
   this->writeDSGsToDisk(filenamePrefixToWrite);
   MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce() {
-  auto filenamePrefixToRead = receiveStringFromManagerAndBroadcastToGroup();
-  auto startReadingTokenFileName = receiveStringFromManagerAndBroadcastToGroup();
-
+void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
+    std::string filenamePrefixToRead, std::string startReadingTokenFileName) {
   // wait until we can start to read
   while (!std::filesystem::exists(startReadingTokenFileName)) {
     // wait for token file to appear
@@ -1410,9 +1408,12 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce() {
   Stats::stopEvent("worker wait for bcasts");
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBased() {
-  this->combineThirdLevelFileBasedWrite();
-  this->combineThirdLevelFileBasedReadReduce();
+void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                                    std::string writeCompleteTokenFileName,
+                                                    std::string filenamePrefixToRead,
+                                                    std::string startReadingTokenFileName) {
+  this->combineThirdLevelFileBasedWrite(filenamePrefixToWrite, writeCompleteTokenFileName);
+  this->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName);
 }
 
 /** Reduces subspace sizes with remote.
