@@ -10,13 +10,15 @@
 #include <random>
 #include <vector>
 
+#include "TaskConstParaboloid.hpp"
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "fullgrid/FullGrid.hpp"
+#include "hierarchization/DistributedHierarchization.hpp"
+#include "io/H5InputOutput.hpp"
 #include "mpi/MPIMemory.hpp"
+#include "test_helper.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
-#include "test_helper.hpp"
-#include "TaskConstParaboloid.hpp"
 
 using namespace combigrid;
 
@@ -574,7 +576,8 @@ BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
     const auto& oneBoundaryGridSpacing = dfgOneBoundary.getGridSpacing();
     const auto& noBoundaryGridSpacing = dfgNoBoundary.getGridSpacing();
     for (DimType d = 0; d < dim; d++) {
-      BOOST_CHECK_CLOSE(twoBoundaryGridSpacing[d], oneBoundaryGridSpacing[d], TestHelper::tolerance);
+      BOOST_CHECK_CLOSE(twoBoundaryGridSpacing[d], oneBoundaryGridSpacing[d],
+                        TestHelper::tolerance);
       BOOST_CHECK_CLOSE(twoBoundaryGridSpacing[d], noBoundaryGridSpacing[d], TestHelper::tolerance);
     }
 
@@ -672,7 +675,7 @@ BOOST_AUTO_TEST_CASE(interpolation_test) {
   }
 }
 
-#ifdef NDEBUG // speed test -> run only in release mode
+#ifdef NDEBUG  // speed test -> run only in release mode
 BOOST_AUTO_TEST_CASE(interpolation_speed_test) {
   std::vector<int> procs = {2, 2, 2, 1, 1, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
@@ -718,7 +721,7 @@ BOOST_AUTO_TEST_CASE(interpolation_speed_test) {
     BOOST_CHECK(duration.count() < 25000);
   }
 }
-# endif // NDEBUG
+#endif  // NDEBUG
 
 BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
   std::vector<int> procs = {3};
@@ -1231,13 +1234,10 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
   std::vector<int> procs = {1, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
   if (comm != MPI_COMM_NULL) {
-    // remove previously written, if any
-    auto status = system("rm sneaky_peaky_mass_loss_*.h5");
-    BOOST_WARN_GE(status, 0);
-
     DimType dim = 2;
     std::vector<BoundaryType> boundary(dim, 1);
-    // "true" solution
+    // "true" solutions
+    std::vector<std::string> fileNamePrefixes{"sneaky_peaky_mass_loss_", "too_peaky_"};
     auto sneakyPeakyMassLoss = [](const std::vector<double>& coords) {
       assert(coords.size() == 2);
       real result = 1.;
@@ -1247,6 +1247,21 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
       }
       return result;
     };
+    auto tooPeaky = [](const std::vector<double>& coords) {
+      assert(coords.size() == 2);
+      // only at some points there will be something
+      // std::vector<real> peakCoordinates {0.125, 0.375, 0.625, 0.875};
+      // std::vector<real> peakCoordinates {0., 0.25, 0.5, 0.75, 1.};
+      std::vector<real> peakCoordinates{0., 0.5, 1.};
+      for (const auto& peakCoordinate : peakCoordinates) {
+        if (std::abs(coords[0] - peakCoordinate) < 0.01) {
+          return 1.;
+        }
+      }
+      return 0.;
+    };
+    std::vector<std::function<real(const std::vector<double>&)>> trueSolutions{sneakyPeakyMassLoss,
+                                                                               tooPeaky};
     const std::vector<LevelVector> fullGridLevels = {{3, 1}, {2, 1}, {2, 2}, {1, 2}, {1, 3}};
     const std::vector<real> coefficients{1., -1., 1., -1., 1.};
     auto hat = HierarchicalHatPeriodicBasisFunction();
@@ -1254,56 +1269,63 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
     auto fullWeighting = FullWeightingPeriodicBasisFunction();
     std::vector<BasisFunctionBasis*> bases{&hat, &biorthogonal, &fullWeighting};
 
-    for (size_t b = 0; b < bases.size(); ++b) {
-      auto basisTypeVector = std::vector<BasisFunctionBasis*>(dim, bases[b]);
+    // for different scenarios
+    for (size_t s = 0; s < fileNamePrefixes.size(); ++s) {
+      // remove previously written, if any
+      auto deleteStatus = system(("rm " + fileNamePrefixes[s] + "*.h5").c_str());
+      BOOST_WARN_GE(deleteStatus, 0);
+      // for different basis functions
+      for (size_t b = 0; b < bases.size(); ++b) {
+        auto basisTypeVector = std::vector<BasisFunctionBasis*>(dim, bases[b]);
 
-      // create and initialize DFG
-      std::vector<DistributedFullGrid<real>> dfgs;
-      for (size_t i = 0; i < fullGridLevels.size(); ++i) {
-        dfgs.emplace_back(dim, fullGridLevels[i], comm, boundary, procs, false);
-        std::vector<double> coords(dim);
-        for (IndexType li = 0; li < dfgs[i].getNrLocalElements(); ++li) {
-          dfgs[i].getCoordsLocal(li, coords);
-          dfgs[i].getData()[li] = sneakyPeakyMassLoss(coords);
+        // create and initialize DFG
+        std::vector<DistributedFullGrid<real>> dfgs;
+        for (size_t i = 0; i < fullGridLevels.size(); ++i) {
+          dfgs.emplace_back(dim, fullGridLevels[i], comm, boundary, procs, false);
+          std::vector<double> coords(dim);
+          for (IndexType li = 0; li < dfgs[i].getNrLocalElements(); ++li) {
+            dfgs[i].getCoordsLocal(li, coords);
+            dfgs[i].getData()[li] = trueSolutions[s](coords);
+          }
         }
-      }
 
-      // combine onto sparse grid and re-distribute again
-      {
-        DistributedSparseGridUniform<real> dsg(dim, {3, 3}, {1, 1}, comm);
-        for (const auto& dfg : dfgs) {
-          dsg.registerDistributedFullGrid(dfg);
+        // combine onto sparse grid and re-distribute again
+        {
+          DistributedSparseGridUniform<real> dsg(dim, {3, 3}, {1, 1}, comm);
+          for (const auto& dfg : dfgs) {
+            dsg.registerDistributedFullGrid(dfg);
+          }
+          dsg.setZero();
+          for (size_t i = 0; i < dfgs.size(); ++i) {
+            DistributedHierarchization::hierarchize(dfgs[i], {true, true}, basisTypeVector);
+            dsg.addDistributedFullGrid(dfgs[i], coefficients[i]);
+          }
+          // extract from sparse grid again
+          for (size_t i = 0; i < dfgs.size(); ++i) {
+            dfgs[i].extractFromUniformSG(dsg);
+            DistributedHierarchization::dehierarchize(dfgs[i], {true, true}, basisTypeVector);
+          }
         }
-        dsg.setZero();
+
+        std::vector<real> oneDCoordinates = {0., 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875};
+        std::vector<std::vector<real>> interpolationCoords;
+        for (const auto& x : oneDCoordinates) {
+          for (const auto& y : oneDCoordinates) {
+            interpolationCoords.push_back({x, y});
+          }
+        }
+
+        // call interpolation function on tasks and write out task-wise
         for (size_t i = 0; i < dfgs.size(); ++i) {
-          DistributedHierarchization::hierarchize(dfgs[i], {true, true}, basisTypeVector);
-          dsg.addDistributedFullGrid(dfgs[i], coefficients[i]);
+          const auto dfgValues = dfgs[i].getInterpolatedValues(interpolationCoords);
+          // cycle through ranks to write
+          std::string saveFilePath =
+              fileNamePrefixes[s] + std::to_string(b) + "_task_" + std::to_string(i) + ".h5";
+          std::string groupName = "run_";
+          std::string datasetName = "interpolated_1";
+          h5io::writeValuesToH5File(dfgValues, saveFilePath, groupName, datasetName, 1.);
         }
-        // extract from sparse grid again
-        for (size_t i = 0; i < dfgs.size(); ++i) {
-          dfgs[i].extractFromUniformSG(dsg);
-          DistributedHierarchization::dehierarchize(dfgs[i], {true, true}, basisTypeVector);
-        }
-      }
-
-      std::string fileNamePrefix = "sneaky_peaky_mass_loss_" + std::to_string(b);
-
-      std::vector<real> oneDCoordinates = {0., 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875};
-      std::vector<std::vector<real>> interpolationCoords;
-      for (const auto& x : oneDCoordinates) {
-        for (const auto& y : oneDCoordinates) {
-          interpolationCoords.push_back({x, y});
-        }
-      }
-
-      // call interpolation function on tasks and write out task-wise
-      for (size_t i = 0; i < dfgs.size(); ++i) {
-        const auto dfgValues = dfgs[i].getInterpolatedValues(interpolationCoords);
-        // cycle through ranks to write
-        std::string saveFilePath = fileNamePrefix + "_task_" + std::to_string(i) + ".h5";
-        std::string groupName = "run_";
-        std::string datasetName = "interpolated_1";
-        h5io::writeValuesToH5File(dfgValues, saveFilePath, groupName, datasetName, 1.);
+        // TODO test if the values are the same, and if the mass is (not) conserved
       }
     }
   }
