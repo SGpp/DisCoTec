@@ -25,8 +25,11 @@ class ParaboloidFn {
  */
 class TaskConstParaboloid : public combigrid::Task {
  public:
-  TaskConstParaboloid(LevelVector& l, std::vector<bool>& boundary, real coeff, std::unique_ptr<LoadModel>& loadModel)
-      : Task(2, l, boundary, coeff, loadModel.get()){}
+  TaskConstParaboloid(LevelVector& l, std::vector<bool>& boundary, real coeff,
+                      std::unique_ptr<LoadModel>& loadModel)
+      : Task(l, boundary, coeff, loadModel.get()) {
+      assert(l.size() == 2);
+  }
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
     // parallelization

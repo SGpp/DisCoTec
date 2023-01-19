@@ -13,7 +13,9 @@ using namespace combigrid;
 class TaskConst : public combigrid::Task {
  public:
   TaskConst(LevelVector& l, std::vector<bool>& boundary, real coeff, LoadModel* loadModel)
-      : Task(2, l, boundary, coeff, loadModel){}
+      : Task(l, boundary, coeff, loadModel) {
+    assert(l.size() == 2);
+  }
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
     // parallelization
@@ -90,6 +92,5 @@ class TaskConst : public combigrid::Task {
     // ar& nprocs_;
   }
 };
-
 
 #endif // def TASKCONST_HPP_    BOOST_CHECK(true);
