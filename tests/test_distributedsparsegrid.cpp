@@ -160,7 +160,6 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       BOOST_TEST_CONTEXT(std::to_string(i))
       BOOST_CHECK_EQUAL(uniDSGfromSubspaces->getRawData()[i], 0.);
     }
-    // TODO test if the values are correct
 
     auto writeSuccess = uniDSG->writeOneFile("test_sg_all");
     BOOST_WARN(writeSuccess);
@@ -185,6 +184,12 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
           BOOST_TEST_CONTEXT(std::to_string(i))
           BOOST_CHECK_EQUAL(uniDSG->getRawData()[i] + uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
         }
+      }
+      uniDSGfromSubspaces->copyDataFrom(*uniDSG);
+      BOOST_TEST_CHECKPOINT("compare values after copy");
+      for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
+        BOOST_TEST_CONTEXT(std::to_string(i))
+        BOOST_CHECK_EQUAL(uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
       }
     }
 
