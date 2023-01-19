@@ -34,6 +34,10 @@ class ProcessGroupWorker {
   /** todo: maybe only needed for gene? */
   inline Task* getCurrentTask();
 
+  inline void runAllTasks();
+
+  inline void exit();
+
   // getter for tasks
   inline const TaskContainer& getTasks() const;
 

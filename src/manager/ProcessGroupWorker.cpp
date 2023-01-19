@@ -155,21 +155,7 @@ SignalType ProcessGroupWorker::wait() {
       // t.eval(x)
     } break;
     case EXIT: {
-      // write out tasks that were in use when the computation ended
-      // (i.e. after fault tolerance or rescheduling changes)
-      MASTER_EXCLUSIVE_SECTION {
-        // serialize tasks as string
-        std::stringstream tasksStream;
-        for (const auto& t : tasks_) {
-          tasksStream <<t->getID() << ": " << t->getCoefficient() << t->getLevelVector()  << "; ";
-        }
-        std::string tasksString = tasksStream.str();
-        Stats::setAttribute("tasks: levels", tasksString);
-      }
-      if (isGENE) {
-        if(chdir("../ginstance")){};
-      }
-      deleteTasks();
+      this->exit();
     } break;
     case SYNC_TASKS: {
       MASTER_EXCLUSIVE_SECTION {
@@ -542,6 +528,46 @@ void ProcessGroupWorker::ready() {
   }
 }
 
+void ProcessGroupWorker::runAllTasks() {
+  if (tasks_.size() > 0) {
+    for (auto task : tasks_) {
+      task->setFinished(false);
+    }
+    status_ = PROCESS_GROUP_BUSY;  // not sure if this does anything
+    currentTask_ = tasks_[0];
+    currentTask_->run(theMPISystem()->getLocalComm());
+  } else {
+    std::cout << "Possible error: No tasks! \n";
+  }
+  for (auto task : tasks_) {
+    if (!task->isFinished()) {
+      currentTask_ = task;
+      currentTask_->run(theMPISystem()->getLocalComm());
+    }
+  }
+  // reset current task
+  currentTask_ = nullptr;
+  assert(!ENABLE_FT);  // TODO for fault tolerance, steal from the above
+}
+
+void ProcessGroupWorker::exit() {
+  // write out tasks that were in use when the computation ended
+  // (i.e. after fault tolerance or rescheduling changes)
+  MASTER_EXCLUSIVE_SECTION {
+    // serialize tasks as string
+    std::stringstream tasksStream;
+    for (const auto& t : tasks_) {
+      tasksStream << t->getID() << ": " << t->getCoefficient() << t->getLevelVector() << "; ";
+    }
+    std::string tasksString = tasksStream.str();
+    Stats::setAttribute("tasks: levels", tasksString);
+  }
+  if (isGENE) {
+    if (chdir("../ginstance")) {
+    };
+  }
+  deleteTasks();
+}
 /**
  * This method reduces the lmax and lmin vectors of the sparse grid according to the reduction
  * specifications in ctparam. It is taken care of that lmin does not fall below 1 and lmax >= lmin.
