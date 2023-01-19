@@ -1323,7 +1323,9 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
               fileNamePrefixes[s] + std::to_string(b) + "_task_" + std::to_string(i) + ".h5";
           std::string groupName = "run_";
           std::string datasetName = "interpolated_1";
+#ifdef HAVE_HIGHFIVE
           h5io::writeValuesToH5File(dfgValues, saveFilePath, groupName, datasetName, 1.);
+#endif
         }
         // TODO test if the values are the same, and if the mass is (not) conserved
       }
