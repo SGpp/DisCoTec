@@ -88,18 +88,18 @@ class MPISystem {
   /**initializes MPI system including local, global and allreduce communicator
    * for specified number of groups and number of processors per group
    */
-  void init(size_t ngroups, size_t nprocs);
+  void init(size_t ngroups, size_t nprocs, bool withWorldManager = true);
 
   /**
    *initializes MPI system including global and allreduce communicator
    *local communicator is given here and not set by the init procedure
    */
-  void init(size_t ngroups, size_t nprocs, CommunicatorType lcomm);
+  void init(size_t ngroups, size_t nprocs, CommunicatorType lcomm, bool withWorldManager = true);
 
   /**
    * initializes MPI system including world communicator; so far only used in tests
    */
-  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs);
+  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs, bool withWorldManager = true);
 
   /**
   * returns the world communicator which contains all ranks (excluding spare ranks)
@@ -312,7 +312,8 @@ class MPISystem {
   /**
    * initializes the members ngroup_, nprocs_, worldComm_,  managerRankWorld_, managerRankFT_
    */
-  void initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm, bool reusable);
+  void initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm,
+                           bool withWorldManager = true, bool reusable = false);
 
   /**
    * sets up the local comm by splitting from worldComm and stores it
@@ -327,7 +328,7 @@ class MPISystem {
   /**
    * initializes global comm + FT version if FT_ENABLED
    */
-  void initGlobalComm();
+  void initGlobalComm(bool withWorldManager = true);
 
 
   /**
