@@ -103,14 +103,15 @@ class DistributedSparseGridUniform {
   void resetLevels();
 
   // data size of the subspace at index i
-  inline uint32_t getDataSize(SubspaceIndexType i) const;
+  inline SubspaceSizeType getDataSize(SubspaceIndexType i) const;
 
   // sets data size of subspace with index i to newSize
-  inline void setDataSize(SubspaceIndexType i, uint32_t newSize);
+  inline void setDataSize(SubspaceIndexType i, SubspaceSizeType newSize);
 
   inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg);
 
-  inline void addDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg, combigrid::real coeff);
+  inline void addDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg,
+                                     combigrid::real coeff);
 
   // returns the number of allocated grid points == size of the raw data vector
   inline size_t getRawDataSize() const;
@@ -120,7 +121,7 @@ class DistributedSparseGridUniform {
   inline int getCommunicatorSize() const;
 
   // allows linear access to the data sizes of all subspaces
-  const std::vector<uint32_t>& getSubspaceDataSizes() const;
+  const std::vector<SubspaceSizeType>& getSubspaceDataSizes() const;
 
   // reduces the data sizes (between process groups) in-place
   void reduceSubspaceSizes(CommunicatorType comm);
@@ -175,7 +176,7 @@ class DistributedSparseGridUniform {
 
   std::vector<FG_ELEMENT> subspacesData_;  // allows linear access to all subspaces data
 
-  std::vector<uint32_t> subspacesDataSizes_;  // allocated data sizes of all subspaces
+  std::vector<SubspaceSizeType> subspacesDataSizes_;  // allocated data sizes of all subspaces
 
   std::vector<FG_ELEMENT*> kahanDataBegin_;  // pointers to Kahan summation residual terms
 
@@ -248,7 +249,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
     subspacesData_.resize(numDataPoints, 0.);
 
     // update pointers and sizes in subspaces
-    uint32_t offset = 0;
+    SubspaceSizeType offset = 0;
     for (size_t i = 0; i < subspaces_.size(); i++) {
       subspaces_[i] = subspacesData_.data() + offset;
       offset += subspacesDataSizes_[i];
@@ -270,7 +271,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createKahanBuffer() {
   kahanDataBegin_.resize(subspacesDataSizes_.size());
 
   // update pointers for begin of subspacen in kahan buffer
-  uint32_t offset = 0;
+  SubspaceSizeType offset = 0;
   for (size_t i = 0; i < kahanDataBegin_.size(); i++) {
     kahanDataBegin_[i] = kahanData_.data() + offset;
     offset += subspacesDataSizes_[i];
@@ -428,7 +429,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::resetLevels() {
 }
 
 template <typename FG_ELEMENT>
-uint32_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(SubspaceIndexType i) const {
+SubspaceSizeType DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(SubspaceIndexType i) const {
 #ifndef NDEBUG
   if (i >= getNumSubspaces()) {
     std::cout << "Index too large, no subspace with this index included in distributed sparse grid"
@@ -441,7 +442,8 @@ uint32_t DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(SubspaceIndexType
 }
 
 template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(SubspaceIndexType i, uint32_t newSize) {
+void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(SubspaceIndexType i,
+                                                           SubspaceSizeType newSize) {
 #ifndef NDEBUG
   assert(subspacesDataSizes_[i] == 0 || subspacesDataSizes_[i] == newSize);
   if (i >= getNumSubspaces()) {
@@ -567,8 +569,8 @@ inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const
 }
 
 template <typename FG_ELEMENT>
-inline const std::vector<uint32_t>& DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes()
-    const {
+inline const std::vector<SubspaceSizeType>&
+DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes() const {
   return subspacesDataSizes_;
 }
 
@@ -582,10 +584,11 @@ void DistributedSparseGridUniform<FG_ELEMENT>::reduceSubspaceSizes(CommunicatorT
   assert(this->getNumSubspaces() > 0);
 
   // prepare for MPI call in globalReduceComm
-  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<uint32_t>());
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
 
   // perform allreduce
-  assert(subspacesDataSizes_.size() < static_cast<uint32_t>(std::numeric_limits<int>::max()));
+  assert(subspacesDataSizes_.size() <
+         static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
   MPI_Allreduce(MPI_IN_PLACE, subspacesDataSizes_.data(),
                 static_cast<int>(subspacesDataSizes_.size()), dtype, MPI_MAX, comm);
   // assume that the sizes changed, the buffer might be the wrong size now
@@ -596,10 +599,11 @@ template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::broadcastDsgSizes(CommunicatorType comm,
                                                                  RankType sendingRank) {
   assert(this->getNumSubspaces() > 0);
-  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<uint32_t>());
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
 
   // perform broadcast
-  assert(subspacesDataSizes_.size() < static_cast<uint32_t>(std::numeric_limits<int>::max()));
+  assert(subspacesDataSizes_.size() <
+         static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
   MPI_Bcast(subspacesDataSizes_.data(), static_cast<int>(subspacesDataSizes_.size()), dtype,
             sendingRank, comm);
   // assume that the sizes changed, the buffer might be the wrong size now
@@ -612,7 +616,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::sendDsgSizesWithGather(Communicat
   auto numSubspaces = static_cast<int>(this->getNumSubspaces());
   assert(numSubspaces > 0);
   assert(numSubspaces == subspacesDataSizes_.size());
-  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<uint32_t>());
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
 
   // perform gather (towards tl-manager)
   // send size of buffer to manager
@@ -629,7 +633,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::receiveDsgSizesWithScatter(Commun
   auto numSubspaces = static_cast<int>(this->getNumSubspaces());
   assert(numSubspaces > 0);
   assert(numSubspaces == subspacesDataSizes_.size());
-  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<uint32_t>());
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
 
   // receive updated sizes from manager
   MPI_Scatterv(nullptr, 0, nullptr, dtype, subspacesDataSizes_.data(), numSubspaces, dtype,
@@ -741,8 +745,8 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeSubspaceSizesToFile(
     std::string fileName) const {
   auto comm = this->getCommunicator();
   MPI_Offset len = this->getNumSubspaces();
-  bool success = mpiio::writeValuesConsecutive<uint32_t>(this->getSubspaceDataSizes().data(), len,
-                                                         fileName, comm);
+  bool success = mpiio::writeValuesConsecutive<SubspaceSizeType>(
+      this->getSubspaceDataSizes().data(), len, fileName, comm);
   return success;
 }
 
@@ -753,7 +757,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readReduceSubspaceSizesFromFile(
   auto comm = this->getCommunicator();
   MPI_Offset len = this->getNumSubspaces();
 
-  bool success = mpiio::readReduceValuesConsecutive<uint32_t>(
+  bool success = mpiio::readReduceValuesConsecutive<SubspaceSizeType>(
       this->subspacesDataSizes_.data(), len, fileName, comm, numElementsToBuffer, reduceFunction);
 
   return success;
