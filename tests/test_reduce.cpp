@@ -31,8 +31,9 @@ using namespace combigrid;
  */
 class TaskConst : public combigrid::Task {
  public:
-  TaskConst(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel)
-      : Task(2, l, boundary, coeff, loadModel){}
+  TaskConst(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+            LoadModel* loadModel)
+      : Task(2, l, boundary, coeff, loadModel) {}
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
     // parallelization

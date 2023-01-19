@@ -30,10 +30,11 @@ class TestFnCount {
  */
 class TaskCount : public combigrid::Task {
  public:
-  TaskCount(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel)
+  TaskCount(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary,
+            real coeff, LoadModel* loadModel)
       : Task(dim, l, boundary, coeff, loadModel), dfg_(nullptr), nrun_(0) {
-        BOOST_TEST_CHECKPOINT("TaskCount constructor");
-      }
+    BOOST_TEST_CHECKPOINT("TaskCount constructor");
+  }
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
 

@@ -71,8 +71,9 @@ class TestingTaskRescheduler : public TaskRescheduler {
  */
 class TestingTask : public combigrid::Task {
  public:
-  TestingTask(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel)
-      : Task(2, l, boundary, coeff, loadModel){}
+  TestingTask(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+              LoadModel* loadModel)
+      : Task(2, l, boundary, coeff, loadModel) {}
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
     // parallelization

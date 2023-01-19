@@ -21,8 +21,8 @@ class TaskTest : public combigrid::Task {
  public:
   int test;
 
-  TaskTest(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,  LoadModel* loadModel,
-          int t)
+  TaskTest(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+           LoadModel* loadModel, int t)
       : Task(dim, l, boundary, coeff, loadModel), test(t) {}
 
   void init(CommunicatorType lcomm,

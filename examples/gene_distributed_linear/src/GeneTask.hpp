@@ -28,13 +28,13 @@
 
 namespace combigrid {
 
-class GeneTask: public combigrid::Task {
-public:
-  GeneTask( DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
-            LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
-            real shat, real lx, int ky0_ind,
-            std::vector<int> p = std::vector<int>(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
-            IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);
+class GeneTask : public combigrid::Task {
+ public:
+  GeneTask(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+           LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
+           real shat, real lx, int ky0_ind, std::vector<int> p = std::vector<int>(0),
+           FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})),
+           IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true);
 
   GeneTask();
 
