@@ -108,6 +108,8 @@ class ProcessGroupWorker {
 
   void readDSGsFromDiskAndReduce(std::string filenamePrefixToRead);
 
+  void setCombiParameters(const CombiParameters& combiParameters);
+
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
 

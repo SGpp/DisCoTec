@@ -1227,27 +1227,19 @@ void ProcessGroupWorker::deleteTasks() {
       tasks_.clear();
 }
 
-void ProcessGroupWorker::updateCombiParameters() {
-  // local root receives combi parameters
-  MASTER_EXCLUSIVE_SECTION {
-    MPIUtils::receiveClass(&combiParameters_, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-    //std::cout << "master received combiparameters \n";
-  }
-
-  // broadcast parameters to other process of pgroup
-  MPIUtils::broadcastClass(&combiParameters_, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-  //std::cout << "worker received combiparameters \n";
-
+void ProcessGroupWorker::setCombiParameters(const CombiParameters& combiParameters) {
+  combiParameters_ = combiParameters;
   combiParametersSet_ = true;
 
   // overwrite local comm with cartesian communicator
-  if (!isGENE  && combiParameters_.isParallelizationSet()){
+  if (!isGENE && combiParameters_.isParallelizationSet()) {
     // cf. https://www.rookiehpc.com/mpi/docs/mpi_cart_create.php
     // get decompositon from combi params
     auto par = combiParameters_.getParallelization();
 
-    // important: note reverse ordering of dims! -- cf DistributedFullGrid //TODO(pollinta) remove reverse ordering
-    std::vector<int> dims (par.size());
+    // important: note reverse ordering of dims! -- cf DistributedFullGrid
+    //TODO(pollinta) remove reverse ordering
+    std::vector<int> dims(par.size());
     if (reverseOrderingDFGPartitions) {
       dims.assign(par.rbegin(), par.rend());
     } else {
@@ -1259,7 +1251,6 @@ void ProcessGroupWorker::updateCombiParameters() {
     for (const auto& b : combiParameters_.getBoundary()) {
       if (b == 1) {
         periods.push_back(1);
-
       } else {
         periods.push_back(0);
       }
@@ -1279,6 +1270,17 @@ void ProcessGroupWorker::updateCombiParameters() {
   }
 }
 
+void ProcessGroupWorker::updateCombiParameters() {
+  // local root receives combi parameters
+  CombiParameters combiParametersReceived;
+  MASTER_EXCLUSIVE_SECTION {
+    MPIUtils::receiveClass(&combiParametersReceived, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+  }
+  // broadcast parameters to other processes of pgroup
+  MPIUtils::broadcastClass(&combiParametersReceived, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+
+  this->setCombiParameters(combiParametersReceived);
+}
 void ProcessGroupWorker::integrateCombinedSolution() {
   auto numGrids = static_cast<int>(combiParameters_.getNumGrids());
   for (Task* taskToUpdate : tasks_) {
