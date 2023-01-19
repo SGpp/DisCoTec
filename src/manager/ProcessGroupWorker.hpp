@@ -73,7 +73,7 @@ class ProcessGroupWorker {
   void parallelEval();
 
   /** parallel file io of final output grid for uniform decomposition */
-  void parallelEvalUniform();
+  void parallelEvalUniform(std::string filename);
 
   // do task-specific postprocessing
   void doDiagnostics();
@@ -94,7 +94,7 @@ class ProcessGroupWorker {
   std::vector<CombiDataType> interpolateValues();
 
   /** interpolate values on all tasks' component grids and write results to file */
-  void writeInterpolatedValuesPerGrid();
+  void writeInterpolatedValuesPerGrid(std::string fileNamePrefix);
 
   /** interpolate values on all tasks' component grids, combine results, and write to a single file
    */
@@ -119,11 +119,16 @@ class ProcessGroupWorker {
    * and updates fgs. */
   void combineThirdLevel();
 
-  void combineThirdLevelFileBasedWrite();
+  void combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
+                                       std::string writeCompleteTokenFileName);
 
-  void combineThirdLevelFileBasedReadReduce();
+  void combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
+                                            std::string startReadingTokenFileName);
 
-  void combineThirdLevelFileBased();
+  void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                  std::string writeCompleteTokenFileName,
+                                  std::string filenamePrefixToRead,
+                                  std::string startReadingTokenFileName);
 
   /** waits until the third level pg bcasts the combined solution and updates
    * fgs */
