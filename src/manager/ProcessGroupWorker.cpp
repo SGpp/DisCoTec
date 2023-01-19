@@ -44,10 +44,6 @@ ProcessGroupWorker::ProcessGroupWorker()
       currentCombi_(0) {
   t_fault_ = -1;
   startTimeIteration_ = (std::chrono::high_resolution_clock::now());
-  MASTER_EXCLUSIVE_SECTION {
-    std::string fname = "out/all-betas-" + std::to_string(theMPISystem()->getGlobalRank()) + ".txt";
-    // betasFile_ = std::ofstream( fname, std::ofstream::out );
-  }
 }
 
 ProcessGroupWorker::~ProcessGroupWorker() {
@@ -272,11 +268,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("worker read from disk");
     } break;
     case GRID_EVAL: {  // not supported anymore
-
-      Stats::startEvent("worker eval");
-      gridEval();
-      Stats::stopEvent("worker eval");
-
+      throw std::runtime_error("grid eval not supported anymore");
       return signal;
 
     } break;
@@ -1118,61 +1110,6 @@ void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType
                             tasks_[0]->getCurrentTime());
 }
 
-void ProcessGroupWorker::gridEval() {  // not supported anymore
-  /* error if no tasks available
-   * todo: however, this is not a real problem, we could can create an empty
-   * grid an contribute to the reduce operation. at the moment even the dim
-   * parameter is stored in the tasks, so if no task available we have no access
-   * to this parameter.
-   */
-  assert(tasks_.size() > 0);
-
-  assert(combiParametersSet_);
-  const DimType dim = combiParameters_.getDim();
-
-  LevelVector leval(dim);
-
-  // receive leval
-  MASTER_EXCLUSIVE_SECTION {
-    // receive size of levelvector = dimensionality
-    MPI_Status status;
-    int bsize;
-    MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG, theMPISystem()->getGlobalComm(), &status);
-    MPI_Get_count(&status, MPI_INT, &bsize);
-
-    assert(bsize == static_cast<int>(dim));
-
-    std::vector<int> tmp(dim);
-    MPI_Recv(&tmp[0], bsize, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG,
-             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
-    leval = LevelVector(tmp.begin(), tmp.end());
-  }
-
-  assert(combiParametersSet_);
-  const std::vector<BoundaryType>& boundary = combiParameters_.getBoundary();
-  FullGrid<CombiDataType> fg_red(dim, leval, boundary);
-
-  // create the empty grid on only on localroot
-  MASTER_EXCLUSIVE_SECTION { fg_red.createFullGrid(); }
-
-  // collect fg on pgrouproot and reduce
-  for (size_t i = 0; i < tasks_.size(); ++i) {
-    Task* t = tasks_[i];
-
-    FullGrid<CombiDataType> fg(t->getDim(), t->getLevelVector(), boundary);
-
-    MASTER_EXCLUSIVE_SECTION { fg.createFullGrid(); }
-
-    t->getFullGrid(fg, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-
-    MASTER_EXCLUSIVE_SECTION { fg_red.add(fg, t->getCoefficient()); }
-  }
-  // global reduce of f_red
-  MASTER_EXCLUSIVE_SECTION {
-    CombiCom::FGReduce(fg_red, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-  }
-}
-
 void ProcessGroupWorker::receiveAndInitializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
   Task* t;
 
@@ -1212,19 +1149,10 @@ void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
   }
 }
 
-// todo: this is just a temporary function which will drop out some day
-// also this function requires a modified fgreduce method which uses allreduce
-// instead reduce in manger
-void ProcessGroupWorker::combineFG() {
-  // gridEval();
-
-  // TODO: Sync back to fullgrids
-}
-
 void ProcessGroupWorker::deleteTasks() {
-      // freeing tasks
-      for (auto tmp : tasks_) delete (tmp);
-      tasks_.clear();
+  // freeing tasks
+  for (auto tmp : tasks_) delete (tmp);
+  tasks_.clear();
 }
 
 void ProcessGroupWorker::setCombiParameters(const CombiParameters& combiParameters) {
