@@ -18,7 +18,6 @@ class ProcessGroupWorker {
   explicit ProcessGroupWorker();
 
   ProcessGroupWorker(ProcessGroupWorker const&) = delete;
-
   ProcessGroupWorker& operator=(ProcessGroupWorker const&) = delete;
 
   ~ProcessGroupWorker();
@@ -148,8 +147,19 @@ class ProcessGroupWorker {
     return extraUniDSGVector_;
   }
 
-  TaskContainer& getTasks(){
-    return tasks_;
+  TaskContainer& getTasks() { return tasks_; }
+
+  template <typename TaskType, typename... TaskArgs>
+  void initializeAllTasks(const std::vector<LevelVector>& levels,
+                          const std::vector<combigrid::real>& coeffs,
+                          const std::vector<size_t>& taskNumbers, TaskArgs&&... args) {
+    for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
+      assert(static_cast<DimType>(levels[taskIndex].size()) == this->getCombiParameters().getDim());
+      auto task = new TaskType(levels[taskIndex], this->getCombiParameters().getBoundary(),
+                               coeffs[taskIndex], std::forward<TaskArgs>(args)...);
+      task->setID(taskNumbers[taskIndex]);
+      this->initializeTaskAndFaults(task);
+    }
   }
 
   /**

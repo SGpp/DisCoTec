@@ -537,13 +537,8 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
         if (signal == UPDATE_COMBI_PARAMETERS) {
           BOOST_TEST_CHECKPOINT("Update for static task assignment " +
                                 std::to_string(taskNumbers.size()));
-          // initialize all "our" tasks
-          for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
-            auto task = new TaskConstParaboloid(levels[taskIndex], boundary, coeffs[taskIndex],
-                                                loadmodel.get());
-            task->setID(taskNumbers[taskIndex]);
-            pgroup.initializeTaskAndFaults(task);
-          }
+          pgroup.initializeAllTasks<TaskConstParaboloid>(levels, coeffs, taskNumbers,
+                                                         loadmodel.get());
         }
         if (signal == RUN_FIRST) {
           BOOST_CHECK(false);
