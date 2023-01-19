@@ -25,8 +25,9 @@ class Task {
  protected:
   Task();
 
-  Task(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
-       LoadModel* loadModel, FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
+  Task(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+       LoadModel* loadModel,
+       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
   // cheapest rule of 5 ever
   Task(const Task& other) = delete;

@@ -30,8 +30,8 @@ class TaskAdvection : public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskAdvection(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
-                LoadModel* loadModel, real dt, size_t nsteps,
+  TaskAdvection(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary,
+                real coeff, LoadModel* loadModel, real dt, size_t nsteps,
                 std::vector<int> p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(dim, l, boundary, coeff, loadModel, faultCrit),
@@ -41,10 +41,10 @@ class TaskAdvection : public Task {
         initialized_(false),
         stepsTotal_(0),
         dfg_(nullptr) {
-          for (const auto& b : boundary) {
-            assert(b == 1);
-          }
-        }
+    for (const auto& b : boundary) {
+      assert(b == 1);
+    }
+  }
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {

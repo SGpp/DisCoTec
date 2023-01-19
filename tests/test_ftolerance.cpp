@@ -55,8 +55,8 @@ class TestFn {
 };
 class TaskAdvFDM : public combigrid::Task {
  public:
-  TaskAdvFDM(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel, real dt,
-             size_t nsteps,
+  TaskAdvFDM(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+             LoadModel* loadModel, real dt, size_t nsteps,
              FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(2, l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),

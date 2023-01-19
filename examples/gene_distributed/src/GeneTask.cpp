@@ -22,7 +22,7 @@
 namespace combigrid
 {
 
-GeneTask::GeneTask( DimType dim, LevelVector& l,
+GeneTask::GeneTask( DimType dim, const LevelVector& l,
                     std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel,
                     std::string& path, real dt, real combitime, size_t nsteps,
                     real shat, real lx, int ky0_ind,
