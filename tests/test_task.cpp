@@ -23,7 +23,7 @@ class TaskTest : public combigrid::Task {
 
   TaskTest(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
            LoadModel* loadModel, int t)
-      : Task(dim, l, boundary, coeff, loadModel), test(t) {}
+      : Task(l, boundary, coeff, loadModel), test(t) {}
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) override {

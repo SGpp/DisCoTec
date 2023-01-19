@@ -24,7 +24,7 @@ class TaskExample: public Task {
               real coeff, LoadModel* loadModel, real dt, size_t nsteps,
               std::vector<int> p = std::vector<int>(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : Task(dim, l, boundary, coeff, loadModel, faultCrit),
+      : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
         nsteps_(nsteps),
         stepsTotal_(0),
