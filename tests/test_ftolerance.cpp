@@ -58,11 +58,13 @@ class TaskAdvFDM : public combigrid::Task {
   TaskAdvFDM(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
              LoadModel* loadModel, real dt, size_t nsteps,
              FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : Task(2, l, boundary, coeff, loadModel, faultCrit),
+      : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
         nsteps_(nsteps),
         stepsTotal_(0),
-        combiStep_(0) {}
+        combiStep_(0) {
+    assert(l.size() == 2);
+  }
 
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
@@ -83,10 +85,7 @@ class TaskAdvFDM : public combigrid::Task {
       }
       dfg_->getData()[li] = std::exp(exponent * 100.0) * 2;
     }
-
-    
   }
-
 
   void run(CommunicatorType lcomm) {
     // velocity vector
@@ -202,7 +201,6 @@ class TaskAdvFDM : public combigrid::Task {
           //simft::Sim_FT_kill_me();
     }
   }
-
 };
 
 // this is necessary for correct function of task serialization

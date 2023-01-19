@@ -22,9 +22,11 @@ Task::Task(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& b
   assert(l_.size() == dim_);
 }
 
-Task::~Task() {
-  delete faultCriterion_;
-}
+Task::Task(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+           LoadModel* loadModel, FaultCriterion* faultCrit)
+    : Task(static_cast<DimType>(l.size()), l, boundary, coeff, loadModel, faultCrit) {}
+
+Task::~Task() { delete faultCriterion_; }
 
 size_t Task::count = 0;
 

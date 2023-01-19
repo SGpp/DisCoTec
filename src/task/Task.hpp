@@ -29,6 +29,10 @@ class Task {
        LoadModel* loadModel,
        FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
+  Task(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+       LoadModel* loadModel,
+       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
+
   // cheapest rule of 5 ever
   Task(const Task& other) = delete;
   Task(Task&& other) = delete;
