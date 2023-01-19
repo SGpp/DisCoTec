@@ -245,12 +245,12 @@ void MPISystem::initGlobalComm() {
     managerRank_ = globalSize - 1;
     // std::cout << "new manager rank: " << managerRank_ << " \n";
     globalRank_ = getCommRank(globalComm_);
-  }
 
-  if (ENABLE_FT) {
-    if (globalComm_ != MPI_COMM_NULL) {
+    if (ENABLE_FT) {
       createCommFT(&globalCommFT_, globalComm_);
     }
+  } else {
+    globalRank_ = MPI_PROC_NULL;
   }
   /* mark master processes and manager process in Stats. this is necessary for postprocessing */
   Stats::setAttribute("group_manager", std::to_string(globalComm_ != MPI_COMM_NULL));
