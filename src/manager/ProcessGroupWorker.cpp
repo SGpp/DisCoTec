@@ -1307,26 +1307,6 @@ void ProcessGroupWorker::integrateCombinedSolution() {
   Stats::stopEvent("worker dehierarchize");
 }
 
-template <typename T>
-void copyFromCombinedDSGUToExtraDSGU(const DistributedSparseGridUniform<T>& combinedUniDSG,
-                                     DistributedSparseGridUniform<T>& extraUniDSG) {
-  // copy partial data from uniDSG to extraDSG
-  for (decltype(combinedUniDSG.getNumSubspaces()) i = 0; i < combinedUniDSG.getNumSubspaces(); ++i) {
-    assert(extraUniDSG.getDataSize(i) == 0 ||
-           extraUniDSG.getDataSize(i) == combinedUniDSG.getDataSize(i));
-    std::copy_n(combinedUniDSG.getData(i), extraUniDSG.getDataSize(i), extraUniDSG.getData(i));
-  }
-}
-
-template <typename T>
-void copyFromExtraDSGUToCombinedDSGU(const DistributedSparseGridUniform<T>& extraUniDSG,
-                                       DistributedSparseGridUniform<T>& combinedUniDSG) {
-  // copy partial data from extraDSG back to uniDSG
-  for (decltype(combinedUniDSG.getNumSubspaces()) i = 0; i < combinedUniDSG.getNumSubspaces(); ++i) {
-    std::copy_n(extraUniDSG.getData(i), extraUniDSG.getDataSize(i), combinedUniDSG.getData(i));
-  }
-}
-
 void ProcessGroupWorker::combineThirdLevel() {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
@@ -1344,13 +1324,14 @@ void ProcessGroupWorker::combineThirdLevel() {
     if (extraUniDSGVector_.size() > 0) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
-    assert(dsgToUse->getRawDataSize() < 2147483647 && "Dsg is larger than 2^31-1 and can not be "
-                                             "sent in a single MPI Call (not "
-                                             "supported yet) try a more coarse"
-                                             "decomposition");
+    assert(dsgToUse->getRawDataSize() < 2147483647 &&
+           "Dsg is larger than 2^31-1 and can not be "
+           "sent in a single MPI Call (not "
+           "supported yet) try a more coarse"
+           "decomposition");
     // if we have an extra dsg for third level exchange, we use it
     if (extraUniDSGVector_.size() > 0) {
-      copyFromCombinedDSGUToExtraDSGU(*uniDsg, *dsgToUse);
+      dsgToUse->copyDataFrom(*uniDsg);
     }
 
     // send dsg data to manager
@@ -1364,7 +1345,8 @@ void ProcessGroupWorker::combineThirdLevel() {
     Stats::stopEvent("worker recv dsg data");
 
     if (extraUniDSGVector_.size() > 0) {
-      copyFromExtraDSGUToCombinedDSGU(*dsgToUse, *uniDsg);
+      // copy partial data from extraDSG back to uniDSG
+      uniDsg->copyDataFrom(*dsgToUse);
     }
 
     // distribute solution in globalReduceComm to other pgs
@@ -1540,7 +1522,7 @@ void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
     auto dsgToUse = uniDsg;
     if (extraUniDSGVector_.size() > 0) {
       dsgToUse = extraUniDSGVector_[i].get();
-      copyFromCombinedDSGUToExtraDSGU(*uniDsg, *dsgToUse);
+      dsgToUse->copyDataFrom(*uniDsg);
     }
     dsgToUse->writeOneFile(filenamePrefix + "_" + std::to_string(i));
   }
@@ -1555,7 +1537,8 @@ void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix) {
     }
     dsgToUse->readOneFile(filenamePrefix + "_" + std::to_string(i));
     if (extraUniDSGVector_.size() > 0) {
-      copyFromExtraDSGUToCombinedDSGU(*dsgToUse, *uniDsg);
+      // copy partial data from extraDSG back to uniDSG
+      uniDsg->copyDataFrom(*dsgToUse);
     }
   }
 }
@@ -1569,7 +1552,8 @@ void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToR
     }
     dsgToUse->readOneFileAndReduce(filenamePrefixToRead + "_" + std::to_string(i));
     if (extraUniDSGVector_.size() > 0) {
-      copyFromExtraDSGUToCombinedDSGU(*dsgToUse, *uniDsg);
+      // copy partial data from extraDSG back to uniDSG
+      uniDsg->copyDataFrom(*dsgToUse);
     }
   }
 }
