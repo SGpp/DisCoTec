@@ -12,8 +12,7 @@ namespace combigrid {
 
 class CombiParameters {
  public:
-  CombiParameters()
-      : procsSet_(false) {}
+  CombiParameters() {}
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
@@ -31,7 +30,6 @@ class CombiParameters {
         lmin_(lmin),
         lmax_(lmax),
         boundary_(boundary),
-        procsSet_(false),
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
@@ -69,7 +67,6 @@ class CombiParameters {
         lmax_(lmax),
         boundary_(boundary),
         hierarchizationDims_(hierarchizationDims),
-        procsSet_(false),
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
@@ -235,7 +232,7 @@ class CombiParameters {
    * this function can only be used in the uniform mode
    */
   inline const std::vector<int>& getParallelization() const {
-    assert(uniformDecomposition && procsSet_);
+    assert(uniformDecomposition);
     return procs_;
   }
 
@@ -283,11 +280,10 @@ class CombiParameters {
     assert(uniformDecomposition);
 
     procs_ = p;
-    procsSet_ = true;
   }
 
   inline bool isParallelizationSet() const {
-    return procsSet_;
+    return !procs_.empty();
   }
 
   /**
@@ -343,8 +339,6 @@ class CombiParameters {
   std::vector<BasisFunctionBasis*> hierarchicalBases_;
 
   std::vector<int> procs_;
-
-  bool procsSet_;
 
   CommunicatorType applicationComm_;
 
@@ -403,7 +397,6 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& hierarchicalBases_;
   ar& procs_;
-  ar& procsSet_;
   ar& decomposition_;
   ar& forwardDecomposition_;
   ar& numberOfCombinations_;
