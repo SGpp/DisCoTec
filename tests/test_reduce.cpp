@@ -191,13 +191,14 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
       manager.combine();
     }
 
-    // evaluate solution
-    FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-    manager.gridEval(fg_eval);
+    // // evaluate solution
+    // FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
+    // manager.gridEval(fg_eval);
 
     // compare with known results:
     // point in the middle
-    CombiDataType midResult = fg_eval.getData()[fg_eval.getNrElements() / 2];
+    std::vector<std::vector<real>> midPoint = {{0.5, 0.5}};
+    auto midResult = manager.interpolateValues(midPoint)[0];
     std::cout << "midResult " << fabs(midResult) << std::endl;
     BOOST_TEST(fabs(midResult) == 1.333333333);
 
