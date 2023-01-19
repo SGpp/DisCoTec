@@ -119,7 +119,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
+      Task* t = new TaskCount(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -373,7 +373,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
+      Task* t = new TaskCount(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -535,7 +535,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
       BOOST_TEST_CHECKPOINT(std::to_string(rank) + " Last taskNo " + std::to_string(taskNo));
       if (pgNumbers[taskNo] == rank) {
         auto loadmodel = LinearLoadModel();
-        TaskCount tc(dim, levels[taskNo], boundary, coeffs[taskNo], &loadmodel);
+        TaskCount tc(levels[taskNo], boundary, coeffs[taskNo], &loadmodel);
         tc.setID(taskNo);
       }
     }
