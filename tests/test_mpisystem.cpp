@@ -129,5 +129,41 @@ BOOST_AUTO_TEST_CASE(test_manager_only) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(test_no_manager) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(6));
+  for (const auto& procs : std::vector<std::vector<int>>{{2, 3}, {3, 2}, {1, 6}, {6, 1}}) {
+    CommunicatorType comm = TestHelper::getComm(procs);
+    if (comm != MPI_COMM_NULL) {
+      Stats::initialize();
+      BOOST_TEST_CHECKPOINT("MPI init " + std::to_string(procs[0]) + " " +
+                            std::to_string(procs[1]));
+      theMPISystem()->initWorldReusable(comm, procs[0], procs[1], false);
+      BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1]);
+      BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getWorldComm()), procs[0] * procs[1]);
+      BOOST_CHECK_LT(theMPISystem()->getGlobalReduceRank(), procs[0]);
+      BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
+      BOOST_CHECK_EQUAL(theMPISystem()->getManagerRankWorld(), procs[0] * procs[1]);
+      BOOST_CHECK_EQUAL(theMPISystem()->getManagerRank(),procs[0]);
+      BOOST_CHECK_EQUAL(theMPISystem()->getMasterRank(),0);
+
+      WORLD_MANAGER_EXCLUSIVE_SECTION { BOOST_CHECK(false); }
+      BOOST_CHECK_NE(theMPISystem()->getLocalComm(), MPI_COMM_NULL);
+      BOOST_CHECK_LT(theMPISystem()->getLocalRank(), procs[1]);
+      BOOST_CHECK_NE(theMPISystem()->getGlobalReduceComm(), MPI_COMM_NULL);
+
+      BOOST_CHECK_LT(theMPISystem()->getWorldRank(), procs[0] * procs[1]);
+      MASTER_EXCLUSIVE_SECTION {
+        BOOST_CHECK_NE(theMPISystem()->getGlobalComm(), MPI_COMM_NULL);
+        BOOST_CHECK_LT(theMPISystem()->getGlobalRank(), procs[0]);
+      }
+      else {
+        BOOST_CHECK_EQUAL(theMPISystem()->getGlobalComm(), MPI_COMM_NULL);
+        BOOST_CHECK_LT(theMPISystem()->getGlobalRank(), 0);
+      }
+      Stats::finalize();
+      MPI_Barrier(comm);
+    }
+  }
+}
 
 BOOST_AUTO_TEST_SUITE_END()
