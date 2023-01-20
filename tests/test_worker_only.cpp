@@ -164,6 +164,24 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   }
   BOOST_TEST_CHECKPOINT("worker combine last time");
   worker.combineUniform();
+
+  Stats::startEvent("worker get norms");
+  // get all kinds of norms
+  worker.getLpNorms(0);
+  worker.getLpNorms(1);
+  worker.getLpNorms(2);
+  auto normsLmax = worker.parallelEvalNorm(lmax);
+  auto analyticalNorms = worker.evalAnalyticalOnDFG(lmax);
+  auto error = worker.evalErrorOnDFG(lmax);
+  if (boundaryV == 2) {
+    BOOST_CHECK_CLOSE(analyticalNorms[0], normsLmax[0], TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(analyticalNorms[1], normsLmax[1], TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(analyticalNorms[2], normsLmax[2], TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(error[0], 0., TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(error[1], 0., TestHelper::tolerance);
+    BOOST_CHECK_CLOSE(error[2], 0., TestHelper::tolerance);
+  }
+  Stats::stopEvent("worker get norms");
   BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), ncombi);
   worker.exit();
 
@@ -207,8 +225,8 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
     for (size_t ngroup : {1, 2}) {
       for (size_t nprocs : {3}) {
         if (rank == 0)
-          std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " "
-                    << nprocs << std::endl;
+          std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
+                    << std::endl;
         BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
         MPI_Barrier(MPI_COMM_WORLD);
       }
@@ -217,8 +235,8 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
       if (boundary > 0) {
         for (size_t nprocs : {4}) {
           if (rank == 0)
-            std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " "
-                      << nprocs << std::endl;
+            std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
+                      << std::endl;
           BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
           MPI_Barrier(MPI_COMM_WORLD);
         }
@@ -228,8 +246,8 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
       for (size_t nprocs : {5}) {
         if (boundary == 2) {
           if (rank == 0)
-            std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " "
-                      << nprocs << std::endl;
+            std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
+                      << std::endl;
           BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
           MPI_Barrier(MPI_COMM_WORLD);
         }

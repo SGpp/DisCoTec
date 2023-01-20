@@ -35,6 +35,17 @@ std::string receiveStringFromManagerAndBroadcastToGroup() {
   return stringToReceive;
 }
 
+void sendNormsToManager(const std::vector<double> lpnorms) {
+  // get Lp norm on every worker; reduce through dfg function
+  for (int p = 0; p < lpnorms.size(); ++p) {
+    // send from master to manager
+    MASTER_EXCLUSIVE_SECTION {
+      MPI_Send(&lpnorms[p], 1, MPI_DOUBLE, theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
+               theMPISystem()->getGlobalComm());
+    }
+  }
+}
+
 ProcessGroupWorker::ProcessGroupWorker()
     : currentTask_(nullptr),
       status_(PROCESS_GROUP_WAIT),
@@ -65,6 +76,21 @@ void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e,
 				                        theMPISystem()->getWorldRank(), static_cast<unsigned int>(numProcs)};
     MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
+}
+
+LevelVector ProcessGroupWorker::receiveLevalAndBroadcast() {
+  const auto dim = combiParameters_.getDim();
+
+  // receive leval and broadcast to group members
+  std::vector<int> tmp(dim);
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Recv(&tmp[0], static_cast<int>(dim), MPI_INT, theMPISystem()->getManagerRank(),
+             TRANSFER_LEVAL_TAG, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+  }
+
+  MPI_Bcast(&tmp[0], dim, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  LevelVector leval(tmp.begin(), tmp.end());
+  return leval;
 }
 
 SignalType ProcessGroupWorker::wait() {
@@ -294,32 +320,51 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case GET_L2_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("worker get L2 norm");
-      sendLpNorms(2);
+      auto lpnorms = getLpNorms(2);
+      // send from master to manager
+      MASTER_EXCLUSIVE_SECTION {
+        MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
+                 theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
+                 theMPISystem()->getGlobalComm());
+      }
       Stats::stopEvent("worker get L2 norm");
     } break;
     case GET_L1_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("worker get L1 norm");
-      sendLpNorms(1);
+      auto lpnorms = getLpNorms(1);
+      MASTER_EXCLUSIVE_SECTION {
+        MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
+                 theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
+                 theMPISystem()->getGlobalComm());
+      }
       Stats::stopEvent("worker get L1 norm");
     } break;
     case GET_MAX_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("worker get max norm");
-      sendLpNorms(0);
+      auto lpnorms = getLpNorms(0);
+      MASTER_EXCLUSIVE_SECTION {
+        MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
+                 theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
+                 theMPISystem()->getGlobalComm());
+      }
       Stats::stopEvent("worker get max norm");
     } break;
     case PARALLEL_EVAL_NORM: {  // evaluate norms on new dfg and send
       Stats::startEvent("worker parallel eval norm");
-      parallelEvalNorm();
+      auto lpnorm = parallelEvalNorm(receiveLevalAndBroadcast());
+      sendNormsToManager(lpnorm);
       Stats::stopEvent("worker parallel eval norm");
     } break;
     case EVAL_ANALYTICAL_NORM: {  // evaluate analytical norms on new dfg and send
       Stats::startEvent("worker eval analytical norm");
-      evalAnalyticalOnDFG();
+      auto lpnorm = evalAnalyticalOnDFG(receiveLevalAndBroadcast());
+      sendNormsToManager(lpnorm);
       Stats::stopEvent("worker eval analytical norm");
     } break;
     case EVAL_ERROR_NORM: {  // evaluate analytical norms on new dfg and send difference
       Stats::startEvent("worker eval error norm");
-      evalErrorOnDFG();
+      auto lpnorm = evalErrorOnDFG(receiveLevalAndBroadcast());
+      sendNormsToManager(lpnorm);
       Stats::stopEvent("worker eval error norm");
     } break;
     case INTERPOLATE_VALUES: {  // interpolate values on given coordinates
@@ -568,6 +613,7 @@ void ProcessGroupWorker::exit() {
   }
   deleteTasks();
 }
+
 /**
  * This method reduces the lmax and lmin vectors of the sparse grid according to the reduction
  * specifications in ctparam. It is taken care of that lmin does not fall below 1 and lmax >= lmin.
@@ -759,45 +805,30 @@ void ProcessGroupWorker::combineUniform() {
 }
 
 void ProcessGroupWorker::parallelEval() {
-  if(uniformDecomposition)
-    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup());
+  if (uniformDecomposition)
+    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(), receiveLevalAndBroadcast());
   else
     assert(false && "not yet implemented");
 }
 // cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
-static bool endsWith(const std::string& str, const std::string& suffix)
-{
-    return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+static bool endsWith(const std::string& str, const std::string& suffix) {
+  return str.size() >= suffix.size() &&
+         0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
 }
 
 // helper function to output bool vector
 inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
   os << "[";
 
-  for (size_t i = 0; i < l.size(); ++i)
-    os << l[i] << " ";
+  for (size_t i = 0; i < l.size(); ++i) os << l[i] << " ";
 
   os << "]";
 
   return os;
 }
 
-LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
-  const auto dim = combiParameters_.getDim();
-
-  // receive leval and broadcast to group members
-  std::vector<int> tmp(dim);
-  MASTER_EXCLUSIVE_SECTION {
-    MPI_Recv(&tmp[0], static_cast<int>(dim), MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG,
-             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
-  }
-
-  MPI_Bcast(&tmp[0], dim, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-  LevelVector leval(tmp.begin(), tmp.end());
-  return leval;
-}
-
-void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g) {
+void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg,
+                                         IndexType g) const {
   // fill dfg with hierarchical coefficients from distributed sparse grid
   dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
 
@@ -815,7 +846,7 @@ void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg
   }
 }
 
-void ProcessGroupWorker::fillDFGFromDSGU(Task* t) {
+void ProcessGroupWorker::fillDFGFromDSGU(Task* t) const {
   auto numGrids = static_cast<int>(
       combiParameters_
           .getNumGrids());  // we assume here that every task has the same number of grids
@@ -825,7 +856,7 @@ void ProcessGroupWorker::fillDFGFromDSGU(Task* t) {
   }
 }
 
-void ProcessGroupWorker::parallelEvalUniform(std::string filename) {
+void ProcessGroupWorker::parallelEvalUniform(std::string filename, LevelVector leval) {
   assert(uniformDecomposition);
 
   assert(combiParametersSet_);
@@ -833,28 +864,26 @@ void ProcessGroupWorker::parallelEvalUniform(std::string filename) {
       combiParameters_
           .getNumGrids();  // we assume here that every task has the same number of grids
 
-  auto leval = receiveLevalAndBroadcast();
   const auto dim = static_cast<DimType>(leval.size());
 
   for (IndexType g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
     bool forwardDecomposition = combiParameters_.getForwardDecomposition();
     auto levalDecomposition = combigrid::downsampleDecomposition(
-            combiParameters_.getDecomposition(),
-            combiParameters_.getLMax(), leval,
-            combiParameters_.getBoundary());
+        combiParameters_.getDecomposition(), combiParameters_.getLMax(), leval,
+        combiParameters_.getBoundary());
 
     DistributedFullGrid<CombiDataType> dfg(
-      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
+        dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
+        combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
     this->fillDFGFromDSGU(dfg, g);
     // save dfg to file with MPI-IO
-    if(endsWith(filename, ".vtk")){
+    if (endsWith(filename, ".vtk")) {
       dfg.writePlotFileVTK(filename.c_str());
-    }else{
+    } else {
       std::string fn = filename;
       auto pos = fn.find(".");
-      if (pos != std::string::npos){
+      if (pos != std::string::npos) {
         // if filename contains ".", insert grid number before that
         fn.insert(pos, "_" + std::to_string(g));
       }
@@ -863,43 +892,23 @@ void ProcessGroupWorker::parallelEvalUniform(std::string filename) {
   }
 }
 
-void ProcessGroupWorker::sendLpNorms(int p) {
+std::vector<double> ProcessGroupWorker::getLpNorms(int p) const {
   // get Lp norm on every worker; reduce through dfg function
   std::vector<double> lpnorms;
   lpnorms.reserve(tasks_.size());
   for (const auto& t : tasks_) {
     auto lpnorm = t->getDistributedFullGrid().getLpNorm(p);
     lpnorms.push_back(lpnorm);
-    // std::cout << t->getID() << " ";
   }
-  // send from master to manager
-  MASTER_EXCLUSIVE_SECTION {
-    MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
-             theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG, theMPISystem()->getGlobalComm());
-  }
+  return lpnorms;
 }
 
-void sendEvalNorms(const DistributedFullGrid<CombiDataType>& dfg){
-  // get Lp norm on every worker; reduce through dfg function
-  for (int p = 0; p < 3; ++p) {
-    auto lpnorm = dfg.getLpNorm(p);
-
-    // send from master to manager
-    MASTER_EXCLUSIVE_SECTION {
-      MPI_Send(&lpnorm, 1, MPI_DOUBLE,
-              theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG, theMPISystem()->getGlobalComm());
-    }
-  }
-}
-
-void ProcessGroupWorker::parallelEvalNorm() {
-  auto leval = receiveLevalAndBroadcast();
+std::vector<double> ProcessGroupWorker::parallelEvalNorm(LevelVector leval) const {
   const auto dim = static_cast<DimType>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-  auto levalDecomposition = combigrid::downsampleDecomposition(
-          combiParameters_.getDecomposition(),
-          combiParameters_.getLMax(), leval,
-          combiParameters_.getBoundary());
+  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
+                                                               combiParameters_.getLMax(), leval,
+                                                               combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
@@ -907,17 +916,19 @@ void ProcessGroupWorker::parallelEvalNorm() {
 
   this->fillDFGFromDSGU(dfg, 0);
 
-  sendEvalNorms(dfg);
+  std::vector<double> lpnorms;
+  for (int p = 0; p < 3; ++p) {
+    lpnorms.push_back(dfg.getLpNorm(p));
+  }
+  return lpnorms;
 }
 
-void ProcessGroupWorker::evalAnalyticalOnDFG() {
-  auto leval = receiveLevalAndBroadcast();
+std::vector<double> ProcessGroupWorker::evalAnalyticalOnDFG(LevelVector leval) const {
   const auto dim = static_cast<DimType>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-  auto levalDecomposition = combigrid::downsampleDecomposition(
-          combiParameters_.getDecomposition(),
-          combiParameters_.getLMax(), leval,
-          combiParameters_.getBoundary());
+  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
+                                                               combiParameters_.getLMax(), leval,
+                                                               combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
@@ -931,17 +942,19 @@ void ProcessGroupWorker::evalAnalyticalOnDFG() {
     dfg.getData()[li] = tasks_[0]->analyticalSolution(coords, 0);
   }
 
-  sendEvalNorms(dfg);
+  std::vector<double> lpnorms;
+  for (int p = 0; p < 3; ++p) {
+    lpnorms.push_back(dfg.getLpNorm(p));
+  }
+  return lpnorms;
 }
 
-void ProcessGroupWorker::evalErrorOnDFG() {
-  auto leval = receiveLevalAndBroadcast();
+std::vector<double> ProcessGroupWorker::evalErrorOnDFG(LevelVector leval) const {
   const auto dim = static_cast<DimType>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-  auto levalDecomposition = combigrid::downsampleDecomposition(
-          combiParameters_.getDecomposition(),
-          combiParameters_.getLMax(), leval,
-          combiParameters_.getBoundary());
+  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
+                                                               combiParameters_.getLMax(), leval,
+                                                               combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
@@ -956,7 +969,11 @@ void ProcessGroupWorker::evalErrorOnDFG() {
     dfg.getData()[li] -= tasks_[0]->analyticalSolution(coords, 0);
   }
 
-  sendEvalNorms(dfg);
+  std::vector<double> lpnorms;
+  for (int p = 0; p < 3; ++p) {
+    lpnorms.push_back(dfg.getLpNorm(p));
+  }
+  return lpnorms;
 }
 
 void ProcessGroupWorker::doDiagnostics() {

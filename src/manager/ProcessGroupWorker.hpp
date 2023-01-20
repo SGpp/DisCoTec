@@ -71,22 +71,22 @@ class ProcessGroupWorker {
   void parallelEval();
 
   /** parallel file io of final output grid for uniform decomposition */
-  void parallelEvalUniform(std::string filename);
+  void parallelEvalUniform(std::string filename, LevelVector leval);
 
   // do task-specific postprocessing
   void doDiagnostics();
 
-  /** send back the Lp Norm to Manager */
-  void sendLpNorms(int p);
+  /** calculate the Lp Norm for each individual task */
+  std::vector<double> getLpNorms(int p) const;
 
   /** evaluate norms on (newly created) reference grid */
-  void parallelEvalNorm();
+  std::vector<double> parallelEvalNorm(LevelVector leval) const;
 
   /** evaluate norms of Task's analytical solution on reference grid */
-  void evalAnalyticalOnDFG();
+  std::vector<double> evalAnalyticalOnDFG(LevelVector leval) const;
 
   /** evaluate norms of combi solution error on reference grid  */
-  void evalErrorOnDFG();
+  std::vector<double> evalErrorOnDFG(LevelVector leval) const;
 
   /** interpolate values on all tasks' component grids */
   std::vector<CombiDataType> interpolateValues();
@@ -236,9 +236,9 @@ class ProcessGroupWorker {
    * @param g the dimension index (in the case that there are multiple different full grids per
    * task)
    */
-  void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
+  void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0) const;
 
-  void fillDFGFromDSGU(Task* t);
+  void fillDFGFromDSGU(Task* t) const;
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() {
