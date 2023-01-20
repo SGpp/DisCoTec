@@ -231,7 +231,6 @@ void MPISystem::storeLocalComm(CommunicatorType lcomm) {
  * process groups and the manager and the master processes to each other
  */
 void MPISystem::initGlobalComm(bool withWorldManager) {
-
   MPI_Group worldGroup;
   MPI_Comm_group(worldComm_, &worldGroup);
 
@@ -266,8 +265,9 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
   MPI_Group_free(&globalGroup);
 
   if (globalComm_ != MPI_COMM_NULL) {
+    // we are either master or manager process
     if (withWorldManager) {
-      int globalSize = getCommSize( globalComm_);
+      int globalSize = getCommSize(globalComm_);
       managerRank_ = globalSize - 1;
     } else {
       managerRank_ = MPI_PROC_NULL;
@@ -279,6 +279,7 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
     }
   } else {
     globalRank_ = MPI_PROC_NULL;
+    managerRank_ = MPI_PROC_NULL;
   }
   /* mark master processes and manager process in Stats. this is necessary for postprocessing */
   Stats::setAttribute("group_manager", std::to_string(globalComm_ != MPI_COMM_NULL));
