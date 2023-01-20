@@ -280,8 +280,8 @@ class MPISystem {
   /**
    * stores local comm + FT version if FT_ENABLED
    */
-  void storeLocalComm(CommunicatorType lcomm_optional = MPI_COMM_NULL);
-  
+  void storeLocalComm(CommunicatorType lcomm);
+
  private:
   explicit MPISystem();
 

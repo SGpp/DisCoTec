@@ -190,10 +190,10 @@ void MPISystem::initLocalComm() {
   /* set group number in Stats. this is necessary for postprocessing */
   Stats::setAttribute("group", std::to_string(color));
 
-  storeLocalComm();
+  storeLocalComm(localComm_);
 }
 
-void MPISystem::storeLocalComm(CommunicatorType lcomm_optional /*= MPI_COMM_NULL*/) {
+void MPISystem::storeLocalComm(CommunicatorType lcomm) {
   /* store localComm
    * lcomm is the local communicator of its own process group for each worker process.
    * for manager, lcomm is a group which contains only manager process and can be ignored
@@ -201,11 +201,10 @@ void MPISystem::storeLocalComm(CommunicatorType lcomm_optional /*= MPI_COMM_NULL
   // manager is not supposed to have a localComm
   if (worldRank_ == managerRankWorld_) {
     localComm_ = MPI_COMM_NULL;
+    localRank_ = MPI_PROC_NULL;
   } else {
-    // duplicate to localComm_ only if lcomm_optional was given, otherwise assume already
-    // initialized
-    if (lcomm_optional != MPI_COMM_NULL) {
-      MPI_Comm_dup(lcomm_optional, &localComm_);
+    if (lcomm != MPI_COMM_NULL && lcomm != localComm_) {
+      MPI_Comm_dup(lcomm, &localComm_);
     }
     localRank_ = getCommRank(localComm_);
     // todo: think through which side effects changing the master rank would have
@@ -339,6 +338,7 @@ void MPISystem::initGlobalReduceCommm() {
     MPI_Barrier(globalReduceComm_);
   } else {
     MPI_Comm_split(worldComm_, MPI_UNDEFINED, -1, &globalReduceComm_);
+    globalReduceRank_ = MPI_PROC_NULL;
   }
 }
 
