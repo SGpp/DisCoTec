@@ -103,17 +103,21 @@ void MPISystem::init(size_t ngroup, size_t nprocs, bool withWorldManager) {
     initGlobalReduceCommm();
 
     if (withWorldManager) {
-    /*
-      * Creates multiple communicators where each contains the process manager and
-      * all workers of a group. The caller receives a list
-      * of those communicators where he participates in. Thus, the process manager
-      * receives a comm for each process group whereas the list has only one entry
-      * for workers of a process group. For all the other procs the list is empty.
-      * In each communicator the manager has rank _nprocs.
-      * The communicators are used so far for communication between the process
-      * manager and the workers during third level combine.
-      */
+      /*
+       * Creates multiple communicators where each contains the process manager and
+       * all workers of a group. The caller receives a list
+       * of those communicators where he participates in. Thus, the process manager
+       * receives a comm for each process group whereas the list has only one entry
+       * for workers of a process group. For all the other procs the list is empty.
+       * In each communicator the manager has rank _nprocs.
+       * The communicators are used so far for communication between the process
+       * manager and the workers during third level combine.
+       */
       initThirdLevelComms();
+    } else {
+      thirdLevelComms_.clear();
+      thirdLevelRank_ = MPI_UNDEFINED;
+      thirdLevelManagerRank_ = MPI_UNDEFINED;
     }
   } else {
     // make sure we really only have manager process
@@ -140,7 +144,13 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm, bool 
 
   initGlobalReduceCommm();
 
-  initThirdLevelComms();
+  if (withWorldManager) {
+    initThirdLevelComms();
+  } else {
+    thirdLevelComms_.clear();
+    thirdLevelRank_ = MPI_UNDEFINED;
+    thirdLevelManagerRank_ = MPI_UNDEFINED;
+  }
 
   initialized_ = true;
 }
@@ -162,15 +172,20 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
     initGlobalReduceCommm();
 
     /* create global communicator which contains only the manager and the master
-    * process of each process group
-    * the master processes of the process groups are the processes which have
-    * rank 0 in lcomm
-    * this communicator is used for communication between master processes of the
-    * process groups and the manager and the master processes to each other
-    */
+     * process of each process group
+     * the master processes of the process groups are the processes which have
+     * rank 0 in lcomm
+     * this communicator is used for communication between master processes of the
+     * process groups and the manager and the master processes to each other
+     */
     initGlobalComm(withWorldManager);
-
-    initThirdLevelComms();
+    if (withWorldManager) {
+      initThirdLevelComms();
+    } else {
+      thirdLevelComms_.clear();
+      thirdLevelRank_ = MPI_UNDEFINED;
+      thirdLevelManagerRank_ = MPI_UNDEFINED;
+    }
   } else {
     assert(withWorldManager);
     // make sure we really only have manager process
@@ -247,7 +262,6 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
   MPI_Comm_group(worldComm_, &worldGroup);
 
 #ifndef NDEBUG
-  // try to find why MPI_Group_incl fails
   assert(ranks.size() > 0);
   int groupRank;
   MPI_Group_rank(worldGroup, &groupRank);
@@ -264,8 +278,7 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
 #endif
 
   MPI_Group globalGroup;
-  MPI_Group_incl(worldGroup, int(ranks.size()), &ranks[0], &globalGroup);
-
+  MPI_Group_incl(worldGroup, int(ranks.size()), ranks.data(), &globalGroup);
   MPI_Comm_create(worldComm_, globalGroup, &globalComm_);
 
   MPI_Group_free(&worldGroup);
@@ -325,8 +338,11 @@ void MPISystem::initThirdLevelComms(){
       thirdLevelComms_.push_back(newComm);
       MPI_Comm_rank(newComm, &thirdLevelRank_);
     }
+  MPI_Group_free(&newGroup);
   }
-  // last member of group is tl manager rank?
+  MPI_Group_free(&worldGroup);
+  // last member of group is tl manager rank == world manager
+  assert(uniformDecomposition);
   thirdLevelManagerRank_ = int(nprocs_);
 }
 

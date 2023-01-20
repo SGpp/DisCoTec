@@ -75,7 +75,6 @@ BOOST_AUTO_TEST_CASE(test_with_manager) {
       BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1] + 1);
       BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
       BOOST_CHECK_EQUAL(theMPISystem()->getManagerRankWorld(), procs[0] * procs[1]);
-      BOOST_CHECK_EQUAL(theMPISystem()->getMasterRank(), 0);
 
       WORLD_MANAGER_EXCLUSIVE_SECTION {
         BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), procs[0] * procs[1]);
@@ -91,6 +90,7 @@ BOOST_AUTO_TEST_CASE(test_with_manager) {
         BOOST_CHECK_LT(theMPISystem()->getWorldRank(), procs[0] * procs[1]);
         BOOST_CHECK_NE(theMPISystem()->getLocalComm(), MPI_COMM_NULL);
         BOOST_CHECK_LT(theMPISystem()->getLocalRank(), procs[1]);
+        BOOST_CHECK_EQUAL(theMPISystem()->getMasterRank(), 0);
         BOOST_CHECK_NE(theMPISystem()->getGlobalReduceComm(), MPI_COMM_NULL);
         BOOST_CHECK_LT(theMPISystem()->getGlobalReduceRank(), procs[0]);
         MASTER_EXCLUSIVE_SECTION {
@@ -142,9 +142,9 @@ BOOST_AUTO_TEST_CASE(test_no_manager) {
       BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getWorldComm()), procs[0] * procs[1]);
       BOOST_CHECK_LT(theMPISystem()->getGlobalReduceRank(), procs[0]);
       BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
-      BOOST_CHECK_EQUAL(theMPISystem()->getManagerRankWorld(), procs[0] * procs[1]);
-      BOOST_CHECK_EQUAL(theMPISystem()->getManagerRank(),procs[0]);
-      BOOST_CHECK_EQUAL(theMPISystem()->getMasterRank(),0);
+      BOOST_CHECK_LT(theMPISystem()->getManagerRankWorld(), 0);
+      BOOST_CHECK_LT(theMPISystem()->getManagerRank(), 0);
+      BOOST_CHECK_EQUAL(theMPISystem()->getMasterRank(), 0);
 
       WORLD_MANAGER_EXCLUSIVE_SECTION { BOOST_CHECK(false); }
       BOOST_CHECK_NE(theMPISystem()->getLocalComm(), MPI_COMM_NULL);
