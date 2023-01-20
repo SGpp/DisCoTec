@@ -1,0 +1,248 @@
+#define BOOST_TEST_DYN_LINK
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
+#include <mpi.h>
+
+#include <boost/serialization/export.hpp>
+#include <boost/test/unit_test.hpp>
+#include <cstdio>
+
+#include "TaskCount.hpp"
+#include "combischeme/CombiMinMaxScheme.hpp"
+#include "io/H5InputOutput.hpp"
+#include "loadmodel/LearningLoadModel.hpp"
+#include "loadmodel/LinearLoadModel.hpp"
+#include "manager/CombiParameters.hpp"
+#include "manager/ProcessGroupWorker.hpp"
+#include "sparsegrid/DistributedSparseGridUniform.hpp"
+#include "stdlib.h"
+#include "task/Task.hpp"
+#include "test_helper.hpp"
+#include "utils/Config.hpp"
+#include "utils/MonteCarlo.hpp"
+#include "utils/Types.hpp"
+
+using namespace combigrid;
+
+// omitted here, because already defined in test_thirdLevel.cpp
+// BOOST_CLASS_EXPORT(TaskCount)
+
+// declare here only, because already defined in test_integration.cpp
+bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun);
+
+void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundaryV = 2,
+                     bool pretendThirdLevel = true) {
+  size_t size = ngroup * nprocs;
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
+
+  CommunicatorType comm = TestHelper::getComm(size);
+  if (comm == MPI_COMM_NULL) {
+    BOOST_TEST_CHECKPOINT("drop out of test comm");
+    return;
+  }
+  BOOST_TEST_CHECKPOINT("initialize stats");
+  combigrid::Stats::initialize();
+
+  theMPISystem()->initWorldReusable(comm, ngroup, nprocs, false);
+  // theMPISystem()->init(ngroup, nprocs, false);
+
+  DimType dim = 2;
+  LevelVector lmin(dim, 2);
+  LevelVector lmax(dim, 5);
+
+  size_t ncombi = 4;
+
+  BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), size);
+  BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getWorldComm()), size);
+  BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getGlobalReduceComm()), ngroup);
+  BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), nprocs);
+  if (nprocs == 1) {
+    BOOST_CHECK(theMPISystem()->isMaster());
+  }
+
+  WORLD_MANAGER_EXCLUSIVE_SECTION {
+    // make sure there is no manager
+    BOOST_CHECK(false);
+  }
+  auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
+
+  std::vector<BoundaryType> boundary(dim, boundaryV);
+
+  CombiMinMaxScheme combischeme(dim, lmin, lmax);
+  combischeme.createAdaptiveCombischeme();
+
+  std::vector<LevelVector> levels = combischeme.getCombiSpaces();
+  std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+
+  ProcessGroupWorker worker;
+
+  std::vector<size_t> taskIDs(levels.size());
+  std::iota(taskIDs.begin(), taskIDs.end(), 0);
+
+  // create combiparameters
+  BOOST_TEST_CHECKPOINT("create combi parameters");
+  CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
+                         {static_cast<int>(nprocs), 1}, LevelVector(0), LevelVector(0), false);
+  if (nprocs == 5 && boundaryV == 2) {
+    params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
+  } else if (nprocs == 4 && boundaryV == 2) {
+    // should be the same as default decomposition with forwardDecomposition
+    params.setDecomposition({{0, 9, 17, 25}, {0}});
+  } else if (nprocs == 3) {
+    params.setDecomposition({{0, 15, 20}, {0}});
+  }
+  worker.setCombiParameters(params);
+
+  std::vector<size_t> myTaskIDs;
+  for (size_t i = 0; i < levels.size(); ++i) {
+    // assign round-robin to process groups based on task id
+    if (i % ngroup == theMPISystem()->getProcessGroupNumber()) {
+      myTaskIDs.push_back(i);
+    }
+  }
+  std::vector<LevelVector> myLevels;
+  std::vector<real> myCoeffs;
+  for (size_t i = 0; i < levels.size(); ++i) {
+    if (std::find(myTaskIDs.begin(), myTaskIDs.end(), i) != myTaskIDs.end()) {
+      myLevels.push_back(levels[i]);
+      myCoeffs.push_back(coeffs[i]);
+    }
+  }
+  BOOST_TEST(myTaskIDs.size() > 0);
+
+  // create Tasks
+  worker.initializeAllTasks<TaskCount>(myLevels, myCoeffs, myTaskIDs, loadmodel.get());
+
+  BOOST_TEST_CHECKPOINT("initialize sparse grid");
+  worker.initCombinedUniDSGVector();
+  if (pretendThirdLevel) {
+    std::string subspaceSizeFile = "worker_only_subspace_sizes";
+    std::string subspaceSizeFileToken = "worker_only_subspace_sizes_token.txt";
+    worker.reduceSubspaceSizesFileBased(subspaceSizeFile, subspaceSizeFileToken, subspaceSizeFile,
+                                        subspaceSizeFileToken);
+  }
+  BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), 0);
+
+  BOOST_TEST_CHECKPOINT("run first");
+  auto start = std::chrono::high_resolution_clock::now();
+  worker.runAllTasks();
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  MASTER_EXCLUSIVE_SECTION {
+    BOOST_TEST_MESSAGE("worker run first solver step: " << duration.count() << " milliseconds");
+  }
+
+  for (size_t it = 0; it < ncombi - 1; ++it) {
+    BOOST_TEST_CHECKPOINT("combine");
+    start = std::chrono::high_resolution_clock::now();
+    worker.combineUniform();
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_TEST_MESSAGE("worker combine: " << duration.count() << " milliseconds");
+    }
+    BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), it + 1);
+
+    if (boundaryV == 2) {
+      // check if the values are as expected
+      BOOST_CHECK(checkReducedFullGridIntegration(worker, worker.getCurrentNumberOfCombinations()));
+    }
+
+    // first group writes partial stats
+    if (theMPISystem()->getProcessGroupNumber() == 0) {
+      Stats::writePartial("worker_partial_timers_group.json", theMPISystem()->getLocalComm());
+    }
+
+    BOOST_TEST_CHECKPOINT("run next");
+    start = std::chrono::high_resolution_clock::now();
+    worker.runAllTasks();
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_TEST_MESSAGE("worker run: " << duration.count() << " milliseconds");
+    }
+  }
+  BOOST_TEST_CHECKPOINT("worker combine last time");
+  worker.combineUniform();
+  BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), ncombi);
+  worker.exit();
+
+  // if output files are not needed, remove them right away
+  remove(("worker_" + std::to_string(ncombi) + "_0.raw").c_str());
+  remove(("worker_" + std::to_string(ncombi) + "_0.raw_header").c_str());
+
+  BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
+  BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalReduceComm()));
+  MASTER_EXCLUSIVE_SECTION {
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
+  }
+
+  combigrid::Stats::finalize();
+  Stats::write("worker_" + std::to_string(ngroup) + "_" + std::to_string(nprocs) + ".json", comm);
+
+  MPI_Barrier(comm);
+  BOOST_CHECK(!TestHelper::testStrayMessages(comm));
+}
+
+#ifndef ISGENE  // worker tests won't work with ISGENE because of worker magic
+
+#ifndef NDEBUG  // in case of a build with asserts, have longer timeout
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(380))
+#else
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(180))
+#endif  // NDEBUG
+BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
+  auto start = std::chrono::high_resolution_clock::now();
+  auto rank = TestHelper::getRank(MPI_COMM_WORLD);
+  for (BoundaryType boundary : std::vector<BoundaryType>({0, 1, 2})) {
+    for (size_t ngroup : {1, 2, 3, 4}) {
+      for (size_t nprocs : {1, 2}) {
+        if (rank == 0)
+          std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
+                    << std::endl;
+        BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
+        MPI_Barrier(MPI_COMM_WORLD);
+      }
+    }
+    for (size_t ngroup : {1, 2}) {
+      for (size_t nprocs : {3}) {
+        if (rank == 0)
+          std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " "
+                    << nprocs << std::endl;
+        BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
+        MPI_Barrier(MPI_COMM_WORLD);
+      }
+    }
+    for (size_t ngroup : {1, 2}) {
+      if (boundary > 0) {
+        for (size_t nprocs : {4}) {
+          if (rank == 0)
+            std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " "
+                      << nprocs << std::endl;
+          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
+          MPI_Barrier(MPI_COMM_WORLD);
+        }
+      }
+    }
+    for (size_t ngroup : {1}) {
+      for (size_t nprocs : {5}) {
+        if (boundary == 2) {
+          if (rank == 0)
+            std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " "
+                      << nprocs << std::endl;
+          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
+          MPI_Barrier(MPI_COMM_WORLD);
+        }
+      }
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    BOOST_CHECK(!TestHelper::testStrayMessages());
+  }
+  auto end = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE("time to run all 'worker' tests: " << duration.count() << " milliseconds");
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+#endif
