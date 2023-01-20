@@ -1422,6 +1422,37 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   }
 }
 
+void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefixToWrite,
+                                                      std::string writeCompleteTokenFileName,
+                                                      std::string filenamePrefixToRead,
+                                                      std::string startReadingTokenFileName) {
+  assert(combinedUniDSGVector_.size() == 1);
+  combinedUniDSGVector_[0]->writeSubspaceSizesToFile(filenamePrefixToWrite);
+  MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
+
+  // wait until we can start to read
+  while (!std::filesystem::exists(startReadingTokenFileName)) {
+    // wait for token file to appear
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  if (extraUniDSGVector_.empty()) {
+    // if no extra sparse grid, max-reduce the normal one
+    auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+      return std::max(a, b);
+    };
+    combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenamePrefixToRead,
+                                                              maxFunctionInstantiation);
+  } else {
+    auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+      return std::min(a, b);
+    };
+    // use extra sparse grid
+    extraUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenamePrefixToRead,
+                                                           minFunctionInstantiation);
+  }
+}
+
 void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   assert(extraUniDSGVector_.empty());
   // receive third level combi result from third level pgroup (global reduce comm)

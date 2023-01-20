@@ -137,6 +137,11 @@ class ProcessGroupWorker {
   /** computes a max reduce on the dsg's subspace sizes with the other systems */
   void reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
+  void reduceSubspaceSizesFileBased(std::string filenamePrefixToWrite,
+                                    std::string writeCompleteTokenFileName,
+                                    std::string filenamePrefixToRead,
+                                    std::string startReadingTokenFileName);
+
   /** receives reduced sizes from tl pgroup and updates the dsgs */
   void waitForThirdLevelSizeUpdate();
 
