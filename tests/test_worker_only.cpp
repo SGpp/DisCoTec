@@ -182,6 +182,26 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     BOOST_CHECK_CLOSE(error[2], 0., TestHelper::tolerance);
   }
   Stats::stopEvent("worker get norms");
+
+  BOOST_TEST_CHECKPOINT("write solution");
+  std::string filename("worker_" + std::to_string(ncombi) + ".raw");
+  BOOST_TEST_CHECKPOINT("write solution " + filename);
+  Stats::startEvent("worker write solution");
+  worker.parallelEvalUniform(filename, lmax);
+  BOOST_TEST_CHECKPOINT("write min/max coefficients");
+  worker.writeSparseGridMinMaxCoefficients("worker_" + std::to_string(boundaryV) +
+                                            "_sparse_minmax");
+  Stats::stopEvent("worker write solution");
+  BOOST_TEST_MESSAGE("worker write solution: " << Stats::getDuration("worker write solution")
+                                                << " milliseconds");
+  filename = "worker_" + std::to_string(boundaryV) + "_dsgs";
+  BOOST_TEST_CHECKPOINT("write DSGS " + filename);
+  Stats::startEvent("worker write DSG");
+  worker.writeDSGsToDisk(filename);
+  worker.readDSGsFromDisk(filename);
+  Stats::stopEvent("worker write DSG");
+  BOOST_TEST_MESSAGE("worker write/read DSG: " << Stats::getDuration("worker write DSG")
+                                                  << " milliseconds");
   BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), ncombi);
   worker.exit();
 

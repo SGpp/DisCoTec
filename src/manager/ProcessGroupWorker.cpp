@@ -452,14 +452,7 @@ SignalType ProcessGroupWorker::wait() {
       }
     } break;
     case WRITE_DSG_MINMAX_COEFFICIENTS: {
-      std::string filename;
-      MASTER_EXCLUSIVE_SECTION {
-        MPIUtils::receiveClass(&filename, theMPISystem()->getManagerRank(),
-                              theMPISystem()->getGlobalComm());
-      }
-      for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
-        combinedUniDSGVector_[i]->writeMinMaxCoefficents(filename, i);
-      }
+      writeSparseGridMinMaxCoefficients(receiveStringFromManagerAndBroadcastToGroup());
 		} break;
     default: { assert(false && "signal not implemented"); }
   }
@@ -1145,6 +1138,12 @@ void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType
   assert(valuesWriteFilename.size() > 0);
   h5io::writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
                             tasks_[0]->getCurrentTime());
+}
+
+void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const {
+  for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
+    combinedUniDSGVector_[i]->writeMinMaxCoefficents(fileNamePrefix, i);
+  }
 }
 
 void ProcessGroupWorker::receiveAndInitializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {

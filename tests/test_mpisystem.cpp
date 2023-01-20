@@ -138,6 +138,11 @@ BOOST_AUTO_TEST_CASE(test_no_manager) {
       BOOST_TEST_CHECKPOINT("MPI init " + std::to_string(procs[0]) + " " +
                             std::to_string(procs[1]));
       theMPISystem()->initWorldReusable(comm, procs[0], procs[1], false);
+
+      BOOST_CHECK_NE(theMPISystem()->getLocalComm(), theMPISystem()->getGlobalComm());
+      BOOST_CHECK_NE(theMPISystem()->getLocalComm(), theMPISystem()->getGlobalReduceComm());
+      BOOST_CHECK_NE(theMPISystem()->getGlobalComm(), theMPISystem()->getGlobalReduceComm());
+
       BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1]);
       BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getWorldComm()), procs[0] * procs[1]);
       BOOST_CHECK_LT(theMPISystem()->getGlobalReduceRank(), procs[0]);
@@ -149,6 +154,7 @@ BOOST_AUTO_TEST_CASE(test_no_manager) {
       WORLD_MANAGER_EXCLUSIVE_SECTION { BOOST_CHECK(false); }
       BOOST_CHECK_NE(theMPISystem()->getLocalComm(), MPI_COMM_NULL);
       BOOST_CHECK_LT(theMPISystem()->getLocalRank(), procs[1]);
+      BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), procs[1]);
       BOOST_CHECK_NE(theMPISystem()->getGlobalReduceComm(), MPI_COMM_NULL);
 
       BOOST_CHECK_LT(theMPISystem()->getWorldRank(), procs[0] * procs[1]);

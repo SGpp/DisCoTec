@@ -99,6 +99,9 @@ class ProcessGroupWorker {
   void writeInterpolatedValues(const std::vector<CombiDataType>& values,
                                const std::string& valuesWriteFilename);
 
+  /** write the highest and smallest sparse grid coefficient per subspace */
+  void writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const;
+
   /** write extra SGs to disk (binary w/ MPI-IO) */
   void writeDSGsToDisk(std::string filenamePrefix);
 
