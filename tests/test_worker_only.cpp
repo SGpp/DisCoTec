@@ -190,10 +190,10 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   worker.parallelEvalUniform(filename, lmax);
   BOOST_TEST_CHECKPOINT("write min/max coefficients");
   worker.writeSparseGridMinMaxCoefficients("worker_" + std::to_string(boundaryV) +
-                                            "_sparse_minmax");
+                                           "_sparse_minmax");
   Stats::stopEvent("worker write solution");
   BOOST_TEST_MESSAGE("worker write solution: " << Stats::getDuration("worker write solution")
-                                                << " milliseconds");
+                                               << " milliseconds");
   filename = "worker_" + std::to_string(boundaryV) + "_dsgs";
   BOOST_TEST_CHECKPOINT("write DSGS " + filename);
   Stats::startEvent("worker write DSG");
@@ -201,7 +201,30 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   worker.readDSGsFromDisk(filename);
   Stats::stopEvent("worker write DSG");
   BOOST_TEST_MESSAGE("worker write/read DSG: " << Stats::getDuration("worker write DSG")
-                                                  << " milliseconds");
+                                               << " milliseconds");
+#ifdef HAVE_HIGHFIVE
+  // test Monte-Carlo interpolation
+  // only if boundary values are used
+  if (boundaryV > 0) {
+    BOOST_TEST_CHECKPOINT("MC interpolation coordinates");
+    // read interpolation coordinates
+    std::string interpolationCoordsFile = "worker_coords.h5";
+    std::vector<std::vector<double>> interpolationCoords;
+    interpolationCoords.resize(100, std::vector<double>(dim, -1.));
+    // if the file does not exist, one rank creates it
+    if (!std::filesystem::exists(interpolationCoordsFile)) {
+      if (theMPISystem()->getWorldRank() == 0) {
+        interpolationCoords = montecarlo::getRandomCoordinates(100, dim);
+        h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
+                                  "only");
+      }
+    }
+    h5io::readH5Coordinates(interpolationCoords, interpolationCoordsFile);
+    BOOST_CHECK_EQUAL(interpolationCoords.size(), 100);
+  }
+
+#endif  // def HAVE_HIGHFIVE
+  BOOST_TEST_CHECKPOINT("worker exit");
   BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), ncombi);
   worker.exit();
 
