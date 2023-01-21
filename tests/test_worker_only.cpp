@@ -6,6 +6,7 @@
 #include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
 #include <cstdio>
+#include <filesystem>
 
 #include "TaskCount.hpp"
 #include "combischeme/CombiMinMaxScheme.hpp"
@@ -187,21 +188,25 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   std::string filename("worker_" + std::to_string(ncombi) + ".raw");
   BOOST_TEST_CHECKPOINT("write solution " + filename);
   Stats::startEvent("worker write solution");
-  worker.parallelEvalUniform(filename, lmax);
+  OUTPUT_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
   BOOST_TEST_CHECKPOINT("write min/max coefficients");
   worker.writeSparseGridMinMaxCoefficients("worker_" + std::to_string(boundaryV) +
                                            "_sparse_minmax");
   Stats::stopEvent("worker write solution");
-  BOOST_TEST_MESSAGE("worker write solution: " << Stats::getDuration("worker write solution")
-                                               << " milliseconds");
+  MASTER_EXCLUSIVE_SECTION {
+    BOOST_TEST_MESSAGE("worker write solution: " << Stats::getDuration("worker write solution")
+                                                 << " milliseconds");
+  }
   filename = "worker_" + std::to_string(boundaryV) + "_dsgs";
   BOOST_TEST_CHECKPOINT("write DSGS " + filename);
   Stats::startEvent("worker write DSG");
-  worker.writeDSGsToDisk(filename);
+  OUTPUT_GROUP_EXCLUSIVE_SECTION { worker.writeDSGsToDisk(filename); }
   worker.readDSGsFromDisk(filename);
   Stats::stopEvent("worker write DSG");
-  BOOST_TEST_MESSAGE("worker write/read DSG: " << Stats::getDuration("worker write DSG")
-                                               << " milliseconds");
+  MASTER_EXCLUSIVE_SECTION {
+    BOOST_TEST_MESSAGE("worker write/read DSG: " << Stats::getDuration("worker write DSG")
+                                                 << " milliseconds");
+  }
 #ifdef HAVE_HIGHFIVE
   // test Monte-Carlo interpolation
   // only if boundary values are used
@@ -221,6 +226,49 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     }
     h5io::readH5Coordinates(interpolationCoords, interpolationCoordsFile);
     BOOST_CHECK_EQUAL(interpolationCoords.size(), 100);
+
+    BOOST_TEST_CHECKPOINT("MC interpolation");
+    Stats::startEvent("worker interpolate");
+    auto values = worker.interpolateValues(interpolationCoords);
+    Stats::stopEvent("worker interpolate");
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_TEST_MESSAGE("worker interpolate: " << Stats::getDuration("worker interpolate")
+                                                << " milliseconds");
+    }
+
+    if (boundaryV > 1) {
+      TestFnCount<CombiDataType> initialFunction;
+      for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+        if (std::abs(initialFunction(interpolationCoords[i], ncombi) - values[i]) >
+            TestHelper::tolerance) {
+          std::cout << "err " << interpolationCoords.size() << interpolationCoords[i] << " " << i
+                    << std::endl;
+        }
+        auto ref = initialFunction(interpolationCoords[i], ncombi);
+        BOOST_CHECK_CLOSE(std::abs(ref), std::abs(values[i]), TestHelper::tolerance);
+        BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
+      }
+    }
+    // output files are not needed, remove previous ones
+    // (if this doesn't happen, there may be hdf5 errors due to duplicates)
+    OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      MASTER_EXCLUSIVE_SECTION {
+        auto status = system("rm worker_interpolated*.h5");
+        BOOST_WARN_GE(status, 0);
+      }
+    }
+    sleep(1);
+    worker.writeInterpolatedValuesSingleFile(interpolationCoords, "worker_interpolated");
+    BOOST_TEST_CHECKPOINT("wrote interpolated values to single file");
+    worker.writeInterpolatedValuesPerGrid(interpolationCoords, "worker_interpolated");
+    BOOST_TEST_CHECKPOINT("wrote interpolated values per grid");
+
+    sleep(1);  // wait for filesystem to catch up
+    decltype(values) valuesAllGridsRead;
+    h5io::readH5Values(valuesAllGridsRead,
+                       "worker_interpolated_values_" + std::to_string(ncombi) + ".h5");
+    BOOST_CHECK_EQUAL_COLLECTIONS(values.begin(), values.end(), valuesAllGridsRead.begin(),
+                                  valuesAllGridsRead.end());
   }
 
 #endif  // def HAVE_HIGHFIVE
@@ -248,9 +296,9 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 #ifndef ISGENE  // worker tests won't work with ISGENE because of worker magic
 
 #ifndef NDEBUG  // in case of a build with asserts, have longer timeout
-BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(380))
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1000))
 #else
-BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(180))
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(360))
 #endif  // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto start = std::chrono::high_resolution_clock::now();
