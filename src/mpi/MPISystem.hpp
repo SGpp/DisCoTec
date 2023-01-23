@@ -14,6 +14,13 @@
 
 #define MASTER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isMaster())
 
+// first group does output (in no-manager case)
+#define OUTPUT_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getProcessGroupNumber() == 0)
+
+// // alternative: last group does output (in no-manager case)
+// #define OUTPUT_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getProcessGroupNumber() ==
+// combigrid::theMPISystem()->getNumGroups() - 1)
+
 #define GLOBAL_MANAGER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isGlobalManager())
 
 #define WORLD_MANAGER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isWorldManager())
