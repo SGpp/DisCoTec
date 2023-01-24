@@ -46,6 +46,76 @@ void sendNormsToManager(const std::vector<double> lpnorms) {
   }
 }
 
+std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType dim) {
+  std::vector<std::vector<real>> interpolationCoords;
+  std::vector<real> interpolationCoordsSerial;
+  auto realType = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
+  int coordsSize = 0;
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Status status;
+    status.MPI_ERROR = MPI_SUCCESS;
+    int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+                           theMPISystem()->getGlobalComm(), &status);
+#ifndef NDEBUG
+    assert(result == MPI_SUCCESS);
+    if (status.MPI_ERROR != MPI_SUCCESS) {
+      std::string errorString;
+      errorString.resize(10000);
+      int errorStringLength;
+      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
+      errorString.resize(errorStringLength);
+      std::cout << "error probe: " << errorString << std::endl;
+    }
+#endif  // NDEBUG
+    result = MPI_Get_count(&status, realType, &coordsSize);
+    assert(result == MPI_SUCCESS);
+    assert(coordsSize > 0);
+
+    // resize buffer to appropriate size and receive
+    interpolationCoordsSerial.resize(coordsSize);
+    result = MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType,
+                      theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+                      theMPISystem()->getGlobalComm(), &status);
+#ifndef NDEBUG
+    assert(result == MPI_SUCCESS);
+    if (status.MPI_ERROR != MPI_SUCCESS) {
+      std::string errorString;
+      errorString.resize(10000);
+      int errorStringLength;
+      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
+      errorString.resize(errorStringLength);
+      std::cout << "error recv: " << errorString << std::endl;
+    }
+    assert(status.MPI_ERROR == MPI_SUCCESS);
+    for (const auto& coord : interpolationCoordsSerial) {
+      assert(coord >= 0.0 && coord <= 1.0);
+    }
+#endif  // NDEBUG
+  }
+  // broadcast size of vector, and then vector
+  MPI_Bcast(&coordsSize, 1, MPI_INT, theMPISystem()->getMasterRank(),
+            theMPISystem()->getLocalComm());
+  interpolationCoordsSerial.resize(coordsSize);
+  MPI_Bcast(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getMasterRank(),
+            theMPISystem()->getLocalComm());
+  for (const auto& coord : interpolationCoordsSerial) {
+    assert(coord >= 0.0 && coord <= 1.0);
+  }
+
+  // split vector into coordinates
+  const int dimInt = static_cast<int>(dim);
+  auto numCoordinates = coordsSize / dimInt;
+  assert(coordsSize % dimInt == 0);
+  interpolationCoords.resize(numCoordinates);
+  auto it = interpolationCoordsSerial.cbegin();
+  for (auto& coord : interpolationCoords) {
+    coord.insert(coord.end(), it, it + dimInt);
+    it += dimInt;
+  }
+  assert(it == interpolationCoordsSerial.end());
+  return interpolationCoords;
+}
+
 ProcessGroupWorker::ProcessGroupWorker()
     : currentTask_(nullptr),
       status_(PROCESS_GROUP_WAIT),
@@ -369,12 +439,14 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case INTERPOLATE_VALUES: {  // interpolate values on given coordinates
       Stats::startEvent("worker interpolate values");
-      auto values = interpolateValues();
+      auto values =
+          interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
       Stats::stopEvent("worker interpolate values");
     } break;
     case INTERPOLATE_VALUES_AND_SEND_BACK: {
       Stats::startEvent("worker interpolate values");
-      auto values = interpolateValues();
+      auto values =
+          interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
       // send result
       MASTER_EXCLUSIVE_SECTION {
         MPI_Send(values.data(), values.size(),
@@ -391,7 +463,8 @@ SignalType ProcessGroupWorker::wait() {
         MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
                                theMPISystem()->getGlobalComm());
       }
-      auto values = interpolateValues();
+      auto values =
+          interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
       // write result
       MASTER_EXCLUSIVE_SECTION {
         std::string valuesWriteFilename =
@@ -403,7 +476,9 @@ SignalType ProcessGroupWorker::wait() {
     case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write
                                                 // values to .h5
       Stats::startEvent("worker write interpolated values");
-      writeInterpolatedValuesPerGrid(receiveStringFromManagerAndBroadcastToGroup());
+      writeInterpolatedValuesPerGrid(
+          receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()),
+          receiveStringFromManagerAndBroadcastToGroup());
       Stats::stopEvent("worker write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
@@ -996,80 +1071,9 @@ void ProcessGroupWorker::doDiagnostics() {
   assert(false && "this taskID is not here");
 }
 
-void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& interpolationCoords,
-                                            DimType dim) {
-  std::vector<real> interpolationCoordsSerial;
-  auto realType = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
-  int coordsSize = 0;
-  MASTER_EXCLUSIVE_SECTION {
-    MPI_Status status;
-    status.MPI_ERROR = MPI_SUCCESS;
-    int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
-                           theMPISystem()->getGlobalComm(), &status);
-#ifndef NDEBUG
-    assert(result == MPI_SUCCESS);
-    if (status.MPI_ERROR != MPI_SUCCESS) {
-      std::string errorString;
-      errorString.resize(10000);
-      int errorStringLength;
-      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
-      errorString.resize(errorStringLength);
-      std::cout << "error probe: " << errorString << std::endl;
-    }
-#endif  // NDEBUG
-    result = MPI_Get_count(&status, realType, &coordsSize);
-    assert(result == MPI_SUCCESS);
-    assert(coordsSize > 0);
-
-    // resize buffer to appropriate size and receive
-    interpolationCoordsSerial.resize(coordsSize);
-    result = MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType,
-                      theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
-                      theMPISystem()->getGlobalComm(), &status);
-#ifndef NDEBUG
-    assert(result == MPI_SUCCESS);
-    if (status.MPI_ERROR != MPI_SUCCESS) {
-      std::string errorString;
-      errorString.resize(10000);
-      int errorStringLength;
-      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
-      errorString.resize(errorStringLength);
-      std::cout << "error recv: " << errorString << std::endl;
-    }
-    assert(status.MPI_ERROR == MPI_SUCCESS);
-    for (const auto& coord : interpolationCoordsSerial) {
-      assert(coord >= 0.0 && coord <= 1.0);
-    }
-#endif  // NDEBUG
-  }
-  // broadcast size of vector, and then vector
-  MPI_Bcast(&coordsSize, 1, MPI_INT, theMPISystem()->getMasterRank(),
-            theMPISystem()->getLocalComm());
-  interpolationCoordsSerial.resize(coordsSize);
-  MPI_Bcast(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getMasterRank(),
-            theMPISystem()->getLocalComm());
-  for (const auto& coord : interpolationCoordsSerial) {
-    assert(coord >= 0.0 && coord <= 1.0);
-  }
-
-  // split vector into coordinates
-  const int dimInt = static_cast<int>(dim);
-  auto numCoordinates = coordsSize / dimInt;
-  assert(coordsSize % dimInt == 0);
-  interpolationCoords.resize(numCoordinates);
-  auto it = interpolationCoordsSerial.cbegin();
-  for (auto& coord : interpolationCoords) {
-    coord.insert(coord.end(), it, it + dimInt);
-    it += dimInt;
-  }
-  assert(it == interpolationCoordsSerial.end());
-}
-
-std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
+std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(const
+    std::vector<std::vector<real>>& interpolationCoords) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-  // receive coordinates and broadcast to group members
-  std::vector<std::vector<real>> interpolationCoords;
-  receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
   auto numCoordinates = interpolationCoords.size();
 
   // call interpolation function on tasks and reduce with combination coefficient
@@ -1104,13 +1108,9 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
   return values;
 }
 
-void ProcessGroupWorker::writeInterpolatedValuesPerGrid(std::string fileNamePrefix) {
+void ProcessGroupWorker::writeInterpolatedValuesPerGrid(
+    const std::vector<std::vector<real>>& interpolationCoords, std::string fileNamePrefix) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-
-  // receive coordinates and broadcast to group members
-  std::vector<std::vector<real>> interpolationCoords;
-  receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
-
   // call interpolation function on tasks and write out task-wise
   for (size_t i = 0; i < tasks_.size(); ++i) {
     auto taskVals = tasks_[i]->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
@@ -1127,7 +1127,7 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid(std::string fileNamePref
 }
 
 void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType>& values,
-                                                 const std::string& valuesWriteFilename) {
+                                                 const std::string& valuesWriteFilename) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   std::string groupName = "all_grids";
   std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
@@ -1138,6 +1138,21 @@ void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType
   assert(valuesWriteFilename.size() > 0);
   h5io::writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
                             tasks_[0]->getCurrentTime());
+}
+
+void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
+    const std::vector<std::vector<real>>& interpolationCoords,
+    const std::string& filenamePrefix) const {
+  // all processes interpolate
+  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  auto values = interpolateValues(interpolationCoords);
+  // one process writes
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    MASTER_EXCLUSIVE_SECTION {
+      writeInterpolatedValues(values,
+                              filenamePrefix + +"_values_" + std::to_string(currentCombi_) + ".h5");
+    }
+  }
 }
 
 void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const {

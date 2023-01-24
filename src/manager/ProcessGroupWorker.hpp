@@ -89,15 +89,20 @@ class ProcessGroupWorker {
   std::vector<double> evalErrorOnDFG(LevelVector leval) const;
 
   /** interpolate values on all tasks' component grids */
-  std::vector<CombiDataType> interpolateValues();
+  std::vector<CombiDataType> interpolateValues(
+      const std::vector<std::vector<real>>& interpolationCoordinates) const;
 
   /** interpolate values on all tasks' component grids and write results to file */
-  void writeInterpolatedValuesPerGrid(std::string fileNamePrefix);
+  void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords,
+                                      std::string fileNamePrefix) const;
 
   /** interpolate values on all tasks' component grids, combine results, and write to a single file
    */
   void writeInterpolatedValues(const std::vector<CombiDataType>& values,
-                               const std::string& valuesWriteFilename);
+                               const std::string& valuesWriteFilename) const;
+
+  void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords,
+                                         const std::string& filenamePrefix) const;
 
   /** write the highest and smallest sparse grid coefficient per subspace */
   void writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const;
