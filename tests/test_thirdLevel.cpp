@@ -601,10 +601,9 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
   std::vector<int> parallelization(testParams.dim, 1);
   parallelization[1] = static_cast<int>(testParams.nprocs);
   // create combiparameters
-  CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
-                              coeffs, taskNumbers, testParams.ncombi, 1, parallelization,
-                              LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
-                              false);
+  CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary,
+                              testParams.ncombi, 1, parallelization, LevelVector(testParams.dim, 0),
+                              LevelVector(testParams.dim, 1), false);
   worker.setCombiParameters(combiParams);
 
   // create Tasks
