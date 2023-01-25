@@ -138,7 +138,8 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   MASTER_EXCLUSIVE_SECTION {
-    BOOST_TEST_MESSAGE("worker run first solver step: " << duration.count() << " milliseconds");
+    BOOST_TEST_MESSAGE("worker run first solver step: " << Stats::getDuration("worker run")
+                                                        << " milliseconds");
   }
 
   for (size_t it = 0; it < ncombi - 1; ++it) {
@@ -163,12 +164,9 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     }
 
     BOOST_TEST_CHECKPOINT("run next");
-    start = std::chrono::high_resolution_clock::now();
     worker.runAllTasks();
-    end = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     MASTER_EXCLUSIVE_SECTION {
-      BOOST_TEST_MESSAGE("worker run: " << duration.count() << " milliseconds");
+      BOOST_TEST_MESSAGE("worker run: " << Stats::getDuration("worker run") << " milliseconds");
     }
   }
   BOOST_TEST_CHECKPOINT("worker combine last time");

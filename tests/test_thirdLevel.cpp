@@ -714,12 +714,9 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
     BOOST_CHECK(checkReducedFullGrid(worker, worker.getCurrentNumberOfCombinations()));
 
     BOOST_TEST_CHECKPOINT("run next");
-    start = std::chrono::high_resolution_clock::now();
     worker.runAllTasks();
-    end = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     MASTER_EXCLUSIVE_SECTION {
-      BOOST_TEST_MESSAGE("worker run: " << duration.count() << " milliseconds");
+      BOOST_TEST_MESSAGE("worker run: " << Stats::getDuration("worker run") << " milliseconds");
     }
   }
   BOOST_TEST_CHECKPOINT("worker combine last time");

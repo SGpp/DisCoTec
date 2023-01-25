@@ -642,6 +642,7 @@ void ProcessGroupWorker::ready() {
 }
 
 void ProcessGroupWorker::runAllTasks() {
+  Stats::startEvent("worker run");
   if (tasks_.size() > 0) {
     for (auto task : tasks_) {
       task->setFinished(false);
@@ -661,6 +662,7 @@ void ProcessGroupWorker::runAllTasks() {
   // reset current task
   currentTask_ = nullptr;
   assert(!ENABLE_FT);  // TODO for fault tolerance, steal from the above
+  Stats::stopEvent("worker run");
 }
 
 void ProcessGroupWorker::exit() {
