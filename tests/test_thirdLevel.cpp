@@ -108,11 +108,9 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
   return any;
 }
 
-void assignProcsToSystems(unsigned int ngroup, unsigned int nprocs, unsigned int numSystems,
+void assignProcsToSystems(unsigned int procsPerSys, unsigned int numSystems,
                           unsigned int& sysNum, CommunicatorType& newcomm) {
 
-
-  int procsPerSys = ngroup * nprocs + 1;
   int totalProcs = numSystems * procsPerSys;
 
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(totalProcs));
@@ -640,7 +638,7 @@ BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)
   CommunicatorType newcomm;
 
   for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
-    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+    assignProcsToSystems(ngroup * nprocs + 1, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
@@ -665,7 +663,7 @@ BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)
   CommunicatorType newcomm;
 
   for (auto boundary : std::vector<BoundaryType>({2})) {
-    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+    assignProcsToSystems(ngroup * nprocs + 1, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
@@ -691,7 +689,7 @@ BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)
 
   for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
     for (bool extraSparseGrid : {false, true}) {
-      assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+      assignProcsToSystems(ngroup * nprocs + 1, numSystems, sysNum, newcomm);
 
       if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
@@ -717,7 +715,7 @@ BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)
   CommunicatorType newcomm;
 
   for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
-    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+    assignProcsToSystems(ngroup * nprocs + 1, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
@@ -742,7 +740,7 @@ BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance)
   CommunicatorType newcomm;
 
   for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
-    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+    assignProcsToSystems(ngroup * nprocs + 1, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
@@ -768,7 +766,7 @@ BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)
   CommunicatorType newcomm;
 
   for (auto boundary : std::vector<BoundaryType>({0, 1, 2})) {
-    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+    assignProcsToSystems(ngroup * nprocs + 1, numSystems, sysNum, newcomm);
     BOOST_TEST_CHECKPOINT("static group assignment. sysNum: " + std::to_string(sysNum));
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       BOOST_TEST_CHECKPOINT("static sysNum: " + std::to_string(sysNum));
@@ -797,7 +795,7 @@ BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance)
 
   for (auto boundary : std::vector<BoundaryType>({2})) {
     for (unsigned int nprocs : {1, 2, 3}) {
-      assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+      assignProcsToSystems(ngroup * nprocs + 1, numSystems, sysNum, newcomm);
 
       if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
@@ -825,7 +823,7 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
   for (unsigned int ngroup : std::vector<unsigned int>({2, 3})) {
     unsigned int sysNum;
     CommunicatorType newcomm = MPI_COMM_NULL;
-    assignProcsToSystems(ngroup, nprocs, numSystems, sysNum, newcomm);
+    assignProcsToSystems(ngroup * nprocs + 1, numSystems, sysNum, newcomm);
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
