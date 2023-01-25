@@ -142,6 +142,8 @@ class ProcessGroupWorker {
    * fgs */
   void waitForThirdLevelCombiResult();
 
+  void setExtraSparseGrid(bool initializeSizes = true);
+
   /** computes a max reduce on the dsg's subspace sizes with the other systems */
   void reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 

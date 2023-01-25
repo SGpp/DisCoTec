@@ -1399,6 +1399,31 @@ void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixTo
   this->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName);
 }
 
+void ProcessGroupWorker::setExtraSparseGrid(bool initializeSizes) {
+  if (combinedUniDSGVector_.size() != 1) {
+    throw std::runtime_error("combinedUniDSGVector_ is empty");
+  }
+
+  if (extraUniDSGVector_.empty()) {
+    // create new vector for extra sparse grids (that will be only on this process group)
+    extraUniDSGVector_.resize(combinedUniDSGVector_.size());
+    for (auto& extraUniDSG : extraUniDSGVector_) {
+      extraUniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+          new DistributedSparseGridUniform<CombiDataType>(
+              combinedUniDSGVector_[0]->getDim(), combinedUniDSGVector_[0]->getAllLevelVectors(),
+              theMPISystem()->getLocalComm()));
+      if (initializeSizes) {
+        for (size_t i = 0; i < extraUniDSG->getNumSubspaces(); ++i) {
+          extraUniDSG->setDataSize(i, combinedUniDSGVector_[0]->getDataSize(i));
+        }
+      }
+    }
+  } else {
+    throw std::runtime_error(
+        "extraUniDSGVector_ is not empty -- if you think this is ok, try to remove the if-else here");
+  }
+}
+
 /** Reduces subspace sizes with remote.
  */
 void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
@@ -1406,16 +1431,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
   // update either old or new sparse grids
   auto* uniDSGVectorToSet = &combinedUniDSGVector_;
   if (thirdLevelExtraSparseGrid) {
-    if (extraUniDSGVector_.empty()) {
-      // create new vector for extra sparse grids (that will be only on this process group)
-      extraUniDSGVector_.resize(combinedUniDSGVector_.size());
-      for (auto& extraUniDSG : extraUniDSGVector_) {
-        extraUniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-            new DistributedSparseGridUniform<CombiDataType>(
-                combinedUniDSGVector_[0]->getDim(), combinedUniDSGVector_[0]->getAllLevelVectors(),
-                theMPISystem()->getLocalComm()));
-      }
-    }
+    this->setExtraSparseGrid(false); // don't initialize, would be overwritten
     uniDSGVectorToSet = &extraUniDSGVector_;
   }
 
