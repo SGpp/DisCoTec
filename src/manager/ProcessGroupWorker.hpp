@@ -150,7 +150,7 @@ class ProcessGroupWorker {
   void reduceSubspaceSizesFileBased(std::string filenamePrefixToWrite,
                                     std::string writeCompleteTokenFileName,
                                     std::string filenamePrefixToRead,
-                                    std::string startReadingTokenFileName);
+                                    std::string startReadingTokenFileName, bool extraSparseGrid);
 
   /** receives reduced sizes from tl pgroup and updates the dsgs */
   void waitForThirdLevelSizeUpdate();

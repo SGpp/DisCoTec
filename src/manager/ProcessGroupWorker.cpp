@@ -1472,10 +1472,23 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
 void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefixToWrite,
                                                       std::string writeCompleteTokenFileName,
                                                       std::string filenamePrefixToRead,
-                                                      std::string startReadingTokenFileName) {
+                                                      std::string startReadingTokenFileName,
+                                                      bool extraSparseGrid) {
   assert(combinedUniDSGVector_.size() == 1);
-  combinedUniDSGVector_[0]->writeSubspaceSizesToFile(filenamePrefixToWrite);
-  MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    combinedUniDSGVector_[0]->writeSubspaceSizesToFile(filenamePrefixToWrite);
+    MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
+  }
+
+  // if extra sparse grid, we only need to do something if we are the I/O group
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    if (extraSparseGrid) {
+      this->setExtraSparseGrid(true);
+    }
+  }
+  else if (extraSparseGrid) {
+    return;
+  }
 
   // wait until we can start to read
   while (!std::filesystem::exists(startReadingTokenFileName)) {
@@ -1484,6 +1497,9 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefix
   }
 
   if (extraUniDSGVector_.empty()) {
+    if (extraSparseGrid) {
+      throw std::runtime_error("extraUniDSGVector_ is empty, but extraSparseGrid is true");
+    }
     // if no extra sparse grid, max-reduce the normal one
     auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
       return std::max(a, b);
@@ -1491,6 +1507,9 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefix
     combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenamePrefixToRead,
                                                               maxFunctionInstantiation);
   } else {
+    if (!extraSparseGrid) {
+      throw std::runtime_error("extraUniDSGVector_ not empty, but extraSparseGrid is false");
+    }
     auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
       return std::min(a, b);
     };

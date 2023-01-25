@@ -120,7 +120,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     std::string subspaceSizeFile = "worker_only_subspace_sizes";
     std::string subspaceSizeFileToken = "worker_only_subspace_sizes_token.txt";
     worker.reduceSubspaceSizesFileBased(subspaceSizeFile, subspaceSizeFileToken, subspaceSizeFile,
-                                        subspaceSizeFileToken);
+                                        subspaceSizeFileToken, false);
   }
   BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), 0);
 
