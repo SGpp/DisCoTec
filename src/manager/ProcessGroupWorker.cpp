@@ -1354,7 +1354,6 @@ void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePre
                                                          std::string writeCompleteTokenFileName) {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
-  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
 
   // write sparse grid and corresponding token file
   this->writeDSGsToDisk(filenamePrefixToWrite);
