@@ -108,9 +108,8 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
   return any;
 }
 
-void assignProcsToSystems(unsigned int procsPerSys, unsigned int numSystems,
-                          unsigned int& sysNum, CommunicatorType& newcomm) {
-
+void assignProcsToSystems(unsigned int procsPerSys, unsigned int numSystems, unsigned int& sysNum,
+                          CommunicatorType& newcomm) {
   int totalProcs = numSystems * procsPerSys;
 
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(totalProcs));
@@ -505,7 +504,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
         // exchange subspace sizes to unify the dsgs with the remote system
         Stats::startEvent("manager unify subspace sizes with remote");
         BOOST_TEST_CHECKPOINT("manager unifySubspaceSizesThirdLevel");
-        manager.unifySubspaceSizesThirdLevel(thirdLevelExtraSparseGrid),
+        manager.unifySubspaceSizesThirdLevel(thirdLevelExtraSparseGrid);
         Stats::stopEvent("manager unify subspace sizes with remote");
       } else {
         Stats::startEvent("manager run");
@@ -599,7 +598,8 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
   WORLD_MANAGER_EXCLUSIVE_SECTION { BOOST_CHECK(false); }
   ProcessGroupWorker worker;
   // parallelization needs to be the same as in TaskConstParaboloid::init()
-  std::vector<int> parallelization = {1, static_cast<int>(testParams.nprocs)};
+  std::vector<int> parallelization(testParams.dim, 1);
+  parallelization[1] = static_cast<int>(testParams.nprocs);
   // create combiparameters
   CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                               coeffs, taskNumbers, testParams.ncombi, 1, parallelization,
@@ -729,6 +729,8 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
       "worker_sg_" + std::to_string((testParams.sysNum + 1) % 2) + "_final";
   std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
   // TODO combine
+
+  // TODO monte-carlo interpolation? would need to read interpolated values from other system...
   BOOST_TEST_CHECKPOINT("worker exit");
   worker.exit();
 
@@ -1038,7 +1040,7 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
   unsigned int nprocs = 1;
   unsigned int ncombi = 10;
   DimType dim = 6;
-  BoundaryType boundary = 2;
+  BoundaryType boundary = 1;
   // LevelVector lmin(dim, 4);
   // LevelVector lmax(dim, 7);
   LevelVector lmin(dim, 1);
@@ -1053,6 +1055,30 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
       BOOST_CHECK_NO_THROW(testCombineThirdLevel(testParams, true));
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+// same as test_8 but only with workers
+BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+  unsigned int numSystems = 2;
+  unsigned int nprocs = 1;
+  unsigned int ncombi = 10;
+  DimType dim = 6;
+  BoundaryType boundary = 1;
+  LevelVector lmin(dim, 1);
+  LevelVector lmax(dim, 4);
+
+  for (unsigned int ngroup : std::vector<unsigned int>({2, 3})) {
+    unsigned int sysNum;
+    CommunicatorType newcomm = MPI_COMM_NULL;
+    assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
+
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+      BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams, true));
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
