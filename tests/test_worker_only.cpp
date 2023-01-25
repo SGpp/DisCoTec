@@ -121,9 +121,17 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     std::string subspaceSizeFileToken = "worker_only_subspace_sizes_token.txt";
     worker.reduceSubspaceSizesFileBased(subspaceSizeFile, subspaceSizeFileToken, subspaceSizeFile,
                                         subspaceSizeFileToken, false);
+    // remove subspace size files to avoid interference between multiple calls to this test function
+    MPI_Barrier(comm);
+    OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      MASTER_EXCLUSIVE_SECTION {
+        remove(subspaceSizeFile.c_str());
+        remove(subspaceSizeFileToken.c_str());
+      }
+    }
   }
-  BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), 0);
 
+  BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), 0);
   BOOST_TEST_CHECKPOINT("run first");
   auto start = std::chrono::high_resolution_clock::now();
   worker.runAllTasks();
