@@ -1149,7 +1149,7 @@ void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   auto values = interpolateValues(interpolationCoords);
   // one process writes
-  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+  OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {
       writeInterpolatedValues(values,
                               filenamePrefix + +"_values_" + std::to_string(currentCombi_) + ".h5");
@@ -1362,15 +1362,20 @@ void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePre
   MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
-    std::string filenamePrefixToRead, std::string startReadingTokenFileName) {
+void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
+                                                              std::string startReadingTokenFileName,
+                                                              bool overwrite) {
   // wait until we can start to read
   while (!std::filesystem::exists(startReadingTokenFileName)) {
     // wait for token file to appear
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
 
+  if (overwrite) {
+    this->readDSGsFromDisk(filenamePrefixToRead);
+  } else {
+    this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
+  }
   if (combinedUniDSGVector_.size() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
   }

@@ -131,7 +131,8 @@ class ProcessGroupWorker {
                                        std::string writeCompleteTokenFileName);
 
   void combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
-                                            std::string startReadingTokenFileName);
+                                            std::string startReadingTokenFileName,
+                                            bool overwrite = false);
 
   void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
                                   std::string writeCompleteTokenFileName,
