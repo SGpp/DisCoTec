@@ -56,13 +56,12 @@ int main(int argc, char** argv) {
 
   /* read other parameters from ctparam */
   DimType dim = cfg.get<DimType>("ct.dim");
-  LevelVector lmin(dim), lmax(dim), leval(dim);
+  LevelVector lmin(dim), lmax(dim);
   std::vector<int> p(dim);
   combigrid::real dt;
   size_t nsteps, ncombi;
   cfg.get<std::string>("ct.lmin") >> lmin;
   cfg.get<std::string>("ct.lmax") >> lmax;
-  cfg.get<std::string>("ct.leval") >> leval;
   cfg.get<std::string>("ct.p") >> p;
   ncombi = cfg.get<size_t>("ct.ncombi");
   std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme", "");
