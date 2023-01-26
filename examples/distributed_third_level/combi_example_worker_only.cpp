@@ -163,22 +163,24 @@ int main(int argc, char** argv) {
   interpolationCoords.resize(1e6, std::vector<double>(dim, -1.));
   std::string interpolationCoordsFile = "interpolation_coords_" + std::to_string(dim) + "D_" +
                                         std::to_string(interpolationCoords.size()) + ".h5";
-  // if the file does not exist, one rank creates it
-  // TODO disable this for final run; make sure same interpolation coords on both systems
-  if (!std::filesystem::exists(interpolationCoordsFile)) {
-    if (theMPISystem()->getWorldRank() == 0) {
-      interpolationCoords = montecarlo::getRandomCoordinates(interpolationCoords.size(), dim);
-      h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
-                                "only");
-    }
-  }
-  // TODO busy wait until exists?
+  // // if the file does not exist, one rank creates it
+  // if (!std::filesystem::exists(interpolationCoordsFile)) {
+  //   if (theMPISystem()->getWorldRank() == 0) {
+  //     interpolationCoords = montecarlo::getRandomCoordinates(interpolationCoords.size(), dim);
+  //     h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
+  //                               "only");
+  //   }
+  // }
+  // get them e.g. with `wget https://darus.uni-stuttgart.de/api/access/datafile/195524`
   h5io::readH5Coordinates(interpolationCoords, interpolationCoordsFile);
+  if (interpolationCoords.size() != 1e6) {
+    sleep(1);
+    throw std::runtime_error("not enough interpolation coordinates");
+  }
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "read interpolation coordinates" << std::endl;
 
   ProcessGroupWorker worker;
   worker.setCombiParameters(params);
-  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "worker: updated parameters" << std::endl;
 
   // create Tasks
   worker.initializeAllTasks<TaskAdvection>(levels, coeffs, taskNumbers, loadmodel.get(), dt, nsteps,
@@ -214,25 +216,34 @@ int main(int argc, char** argv) {
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "calculation " << i << " took: " << durationRun
                                                << " seconds" << std::endl;
 
+    if (evalMCError) {
+      Stats::startEvent("worker write interpolated");
+      worker.writeInterpolatedValuesSingleFile(
+          interpolationCoords, "worker_interpolated_" + std::to_string(systemNumber));
+      Stats::stopEvent("worker write interpolated");
+      OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
+        MASTER_EXCLUSIVE_SECTION {
+          std::cout << "interpolation " << i
+                    << " took: " << Stats::getDuration("worker write interpolated") / 1000.0
+                    << " seconds" << std::endl;
+        }
+      }
+    }
+
     Stats::startEvent("worker combine");
     std::string writeSparseGridFile =
         "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
+
+    worker.combineLocalAndGlobal();
+    OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
+    }
+    // everyone writes partial stats
+    Stats::writePartial("stats_worker_" + std::to_string(systemNumber) + ".json",
+                        theMPISystem()->getWorldComm());
+
     if (hasThirdLevel) {
-      worker.combineLocalAndGlobal();
-      OUTPUT_GROUP_EXCLUSIVE_SECTION {
-        worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
-      }
-      // everyone writes partial stats
-      Stats::writePartial("stats_worker_" + std::to_string(systemNumber) + ".json",
-                          theMPISystem()->getWorldComm());
-      if (evalMCError) {
-        throw std::runtime_error(
-            "problem: here would be good to write, but all grids are currently hierarchized -> "
-            "output makes no sense");
-        worker.writeInterpolatedValuesSingleFile(
-            interpolationCoords, "worker_interpolated_" + std::to_string(systemNumber));
-      }
       std::string readSparseGridFile =
           "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
       std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
@@ -243,12 +254,14 @@ int main(int argc, char** argv) {
         worker.waitForThirdLevelCombiResult();
       }
     } else {
-      worker.combineUniform();
-      worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
-      // interpolate
-      if (evalMCError) {
-        worker.writeInterpolatedValuesSingleFile(
-            interpolationCoords, "worker_interpolated_" + std::to_string(systemNumber));
+      // open question: should all groups read for themselves or one broadcasts?
+      // (currently: one group broadcasts to other groups)
+      OUTPUT_GROUP_EXCLUSIVE_SECTION {
+        worker.combineThirdLevelFileBasedReadReduce(writeSparseGridFile, writeSparseGridFileToken,
+                                                    true);
+      }
+      else {
+        worker.waitForThirdLevelCombiResult();
       }
     }
     Stats::stopEvent("worker combine");
