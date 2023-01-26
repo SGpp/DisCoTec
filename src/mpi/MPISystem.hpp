@@ -17,9 +17,15 @@
 // first group does output (in no-manager case)
 #define OUTPUT_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getProcessGroupNumber() == 0)
 
-// // alternative: last group does output (in no-manager case)
-// #define OUTPUT_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getProcessGroupNumber() ==
-// combigrid::theMPISystem()->getNumGroups() - 1)
+// last group does some other (potentially concurrent) output
+#define OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION \
+  if (combigrid::theMPISystem()->getProcessGroupNumber() == combigrid::theMPISystem()->getNumGroups() - 1)
+
+// middle process can do command line output
+#define MIDDLE_PROCESS_EXCLUSIVE_SECTION           \
+  if (combigrid::theMPISystem()->getWorldRank() == \
+      (combigrid::theMPISystem()->getNumGroups() * combigrid::theMPISystem()->getNumProcs()) / 2)
+
 
 #define GLOBAL_MANAGER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isGlobalManager())
 
