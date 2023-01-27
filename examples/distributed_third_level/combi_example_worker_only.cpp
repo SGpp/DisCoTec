@@ -195,10 +195,16 @@ int main(int argc, char** argv) {
   // read (extra) sparse grid sizes, as generated with subspace_writer
   // for target scenarios, consider `wget https://darus.uni-stuttgart.de/api/access/datafile/195543`
   // or similar
-  std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
-      ctschemeFile.substr(0, ctschemeFile.length() - std::string("split1_40groups.json").length()) +
-      "conjoint.sizes";
-  worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid);
+  std::string subspaceFileName =  // cf. subspace_writer.cpp
+      ctschemeFile.substr(0, ctschemeFile.length() - std::string(".json").length()) + ".sizes";
+  worker.reduceSubspaceSizes(subspaceFileName, false);
+  if (extraSparseGrid) {
+    std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
+        ctschemeFile.substr(0,
+                            ctschemeFile.length() - std::string("split1_40groups.json").length()) +
+        "conjoint.sizes";
+    worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid);
+  }
 
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "start simulation loop" << std::endl;
   for (size_t i = 0; i < ncombi; ++i) {
