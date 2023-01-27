@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
   cfg.get<std::string>("ct.p") >> p;
   std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme");
   std::string otherCtschemeFile = cfg.get<std::string>("subspace.otherctscheme", "");
-  auto spread = cfg.get<DimType>("subspace.spread", 1);
+  auto divide = cfg.get<DimType>("subspace.divide", 1);
 
   // periodic boundary conditions
   std::vector<BoundaryType> boundary(dim, 1);
@@ -85,7 +85,8 @@ int main(int argc, char** argv) {
   std::string firstSubspaceFileName =
       ctschemeFile.substr(0, ctschemeFile.length() - std::string(".json").length()) + ".sizes";
   std::string conjointSubspaceFileName =
-      ctschemeFile.substr(0, ctschemeFile.length() - std::string("split1_40groups.json").length()) + "conjoint.sizes";
+      ctschemeFile.substr(0, ctschemeFile.length() - std::string("split1_40groups.json").length()) +
+      "conjoint.sizes";
   {
     // read in first CT scheme
     std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
@@ -110,6 +111,10 @@ int main(int argc, char** argv) {
       // MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "registering " << l << std::endl;
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
+    auto numDOF = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
+                                  uniDSG->getSubspaceDataSizes().end(), 0);
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "sparse grid has " << numDOF << " DOF per rank"
+                                               << std::endl;
     // write the resulting sparse grid sizes to file
     uniDSG->writeSubspaceSizesToFile(firstSubspaceFileName);
   }
@@ -138,6 +143,10 @@ int main(int argc, char** argv) {
       // MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "registering " << l << std::endl;
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
+    auto numDOF = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
+                                  uniDSG->getSubspaceDataSizes().end(), 0);
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "other sparse grid has " << numDOF
+                                               << " DOF per rank" << std::endl;
     // write the resulting sparse grid sizes to file
     uniDSG->writeSubspaceSizesToFile(
         otherCtschemeFile.substr(0, otherCtschemeFile.length() - std::string(".json").length()) +
@@ -151,6 +160,10 @@ int main(int argc, char** argv) {
     // use extra sparse grid
     uniDSG->readReduceSubspaceSizesFromFile(firstSubspaceFileName, minFunctionInstantiation);
 
+    auto numDOFconjoint = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
+                                          uniDSG->getSubspaceDataSizes().end(), 0);
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "conjoint sparse grid has " << numDOFconjoint
+                                               << " DOF per rank" << std::endl;
     // write final sizes to file
     uniDSG->writeSubspaceSizesToFile(conjointSubspaceFileName);
 
