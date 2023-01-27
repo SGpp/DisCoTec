@@ -6,3 +6,5 @@ add_executable(errorCalc errorCalc.cpp)
 
 find_package(Boost REQUIRED)
 target_link_libraries(errorCalc discotec Boost::boost)
+
+add_subdirectory(subspace_writer)
