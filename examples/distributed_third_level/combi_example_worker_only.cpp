@@ -190,22 +190,14 @@ int main(int argc, char** argv) {
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "worker: initialized SG, registration was "
                                              << durationInit << " seconds" << std::endl;
 
-  // exchange subspace sizes to unify the dsgs in the third level case
   // read (extra) sparse grid sizes
-  if (hasThirdLevel) {  // todo only read (and dont write), once we have files with set sizes
-    Stats::startEvent("worker unify subspace sizes");
-    std::string writeSubspaceSizeFile = "subspace_sizes_" + std::to_string(systemNumber);
-    std::string writeSubspaceSizeFileToken = writeSubspaceSizeFile + "_token.txt";
-    std::string readSubspaceSizeFile = "subspace_sizes_" + std::to_string((systemNumber + 1) % 2);
-    std::string readSubspaceSizeFileToken = readSubspaceSizeFile + "_token.txt";
-    worker.reduceSubspaceSizesFileBased(writeSubspaceSizeFile, writeSubspaceSizeFileToken,
-                                        readSubspaceSizeFile, readSubspaceSizeFileToken,
-                                        extraSparseGrid);
-    Stats::stopEvent("worker unify subspace sizes");
-    auto durationUnify = Stats::getDuration("worker unify subspace sizes") / 1000.0;
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "worker: unified SG sizes in " << durationUnify
-                                               << " seconds" << std::endl;
-  }
+  // for target scenarios, consider `wget https://darus.uni-stuttgart.de/api/access/datafile/195543`
+  // or similar
+
+  std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
+      ctschemeFile.substr(0, ctschemeFile.length() - std::string("split1_40groups.json").length()) +
+      "conjoint.sizes";
+  worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid);
 
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "start simulation loop" << std::endl;
   for (size_t i = 0; i < ncombi; ++i) {
