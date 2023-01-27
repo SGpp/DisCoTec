@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
 
   // read interpolation coordinates
   std::vector<std::vector<double>> interpolationCoords;
-  interpolationCoords.resize(1e6, std::vector<double>(dim, -1.));
+  interpolationCoords.resize(1e5, std::vector<double>(dim, -1.));
   std::string interpolationCoordsFile = "interpolation_coords_" + std::to_string(dim) + "D_" +
                                         std::to_string(interpolationCoords.size()) + ".h5";
   // // if the file does not exist, one rank creates it
@@ -169,10 +169,12 @@ int main(int argc, char** argv) {
   //     h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
   //                               "only");
   //   }
+  //   MPI_Barrier(theMPISystem()->getWorldComm());
   // }
-  // get them e.g. with `wget https://darus.uni-stuttgart.de/api/access/datafile/195524`
+  // get them e.g. with `wget https://darus.uni-stuttgart.de/api/access/datafile/195524` (1e6)
+  // or `wget https://darus.uni-stuttgart.de/api/access/datafile/195545` (1e5)
   h5io::readH5Coordinates(interpolationCoords, interpolationCoordsFile);
-  if (interpolationCoords.size() != 1e6) {
+  if (interpolationCoords.size() != 1e5) {
     sleep(1);
     throw std::runtime_error("not enough interpolation coordinates");
   }
@@ -190,10 +192,9 @@ int main(int argc, char** argv) {
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "worker: initialized SG, registration was "
                                              << durationInit << " seconds" << std::endl;
 
-  // read (extra) sparse grid sizes
+  // read (extra) sparse grid sizes, as generated with subspace_writer
   // for target scenarios, consider `wget https://darus.uni-stuttgart.de/api/access/datafile/195543`
   // or similar
-
   std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
       ctschemeFile.substr(0, ctschemeFile.length() - std::string("split1_40groups.json").length()) +
       "conjoint.sizes";
