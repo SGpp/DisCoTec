@@ -18,7 +18,6 @@ class ProcessGroupWorker {
   explicit ProcessGroupWorker();
 
   ProcessGroupWorker(ProcessGroupWorker const&) = delete;
-
   ProcessGroupWorker& operator=(ProcessGroupWorker const&) = delete;
 
   ~ProcessGroupWorker();
@@ -34,6 +33,10 @@ class ProcessGroupWorker {
 
   /** todo: maybe only needed for gene? */
   inline Task* getCurrentTask();
+
+  void runAllTasks();
+
+  void exit();
 
   // getter for tasks
   inline const TaskContainer& getTasks() const;
@@ -62,44 +65,47 @@ class ProcessGroupWorker {
 
   void combineLocalAndGlobal();
 
-  /** outdated! */
-  void combineFG();
-
   void deleteTasks();
-
-  void gridEval();
 
   /** parallel file io of final output grid */
   void parallelEval();
 
   /** parallel file io of final output grid for uniform decomposition */
-  void parallelEvalUniform(std::string filename);
+  void parallelEvalUniform(std::string filename, LevelVector leval);
 
   // do task-specific postprocessing
   void doDiagnostics();
 
-  /** send back the Lp Norm to Manager */
-  void sendLpNorms(int p);
+  /** calculate the Lp Norm for each individual task */
+  std::vector<double> getLpNorms(int p) const;
 
   /** evaluate norms on (newly created) reference grid */
-  void parallelEvalNorm();
+  std::vector<double> parallelEvalNorm(LevelVector leval) const;
 
   /** evaluate norms of Task's analytical solution on reference grid */
-  void evalAnalyticalOnDFG();
+  std::vector<double> evalAnalyticalOnDFG(LevelVector leval) const;
 
   /** evaluate norms of combi solution error on reference grid  */
-  void evalErrorOnDFG();
+  std::vector<double> evalErrorOnDFG(LevelVector leval) const;
 
   /** interpolate values on all tasks' component grids */
-  std::vector<CombiDataType> interpolateValues();
+  std::vector<CombiDataType> interpolateValues(
+      const std::vector<std::vector<real>>& interpolationCoordinates) const;
 
   /** interpolate values on all tasks' component grids and write results to file */
-  void writeInterpolatedValuesPerGrid(std::string fileNamePrefix);
+  void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords,
+                                      std::string fileNamePrefix) const;
 
   /** interpolate values on all tasks' component grids, combine results, and write to a single file
    */
   void writeInterpolatedValues(const std::vector<CombiDataType>& values,
-                               const std::string& valuesWriteFilename);
+                               const std::string& valuesWriteFilename) const;
+
+  void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords,
+                                         const std::string& filenamePrefix) const;
+
+  /** write the highest and smallest sparse grid coefficient per subspace */
+  void writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const;
 
   /** write extra SGs to disk (binary w/ MPI-IO) */
   void writeDSGsToDisk(std::string filenamePrefix);
@@ -108,6 +114,8 @@ class ProcessGroupWorker {
   void readDSGsFromDisk(std::string filenamePrefix);
 
   void readDSGsFromDiskAndReduce(std::string filenamePrefixToRead);
+
+  void setCombiParameters(const CombiParameters& combiParameters);
 
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
@@ -123,7 +131,8 @@ class ProcessGroupWorker {
                                        std::string writeCompleteTokenFileName);
 
   void combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
-                                            std::string startReadingTokenFileName);
+                                            std::string startReadingTokenFileName,
+                                            bool overwrite = false);
 
   void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
                                   std::string writeCompleteTokenFileName,
@@ -134,8 +143,18 @@ class ProcessGroupWorker {
    * fgs */
   void waitForThirdLevelCombiResult();
 
+  void setExtraSparseGrid(bool initializeSizes = true);
+
   /** computes a max reduce on the dsg's subspace sizes with the other systems */
   void reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
+
+
+  void reduceSubspaceSizes(const std::string& filenameToRead, bool extraSparseGrid);
+
+  void reduceSubspaceSizesFileBased(std::string filenamePrefixToWrite,
+                                    std::string writeCompleteTokenFileName,
+                                    std::string filenamePrefixToRead,
+                                    std::string startReadingTokenFileName, bool extraSparseGrid);
 
   /** receives reduced sizes from tl pgroup and updates the dsgs */
   void waitForThirdLevelSizeUpdate();
@@ -148,8 +167,19 @@ class ProcessGroupWorker {
     return extraUniDSGVector_;
   }
 
-  TaskContainer& getTasks(){
-    return tasks_;
+  TaskContainer& getTasks() { return tasks_; }
+
+  template <typename TaskType, typename... TaskArgs>
+  void initializeAllTasks(const std::vector<LevelVector>& levels,
+                          const std::vector<combigrid::real>& coeffs,
+                          const std::vector<size_t>& taskNumbers, TaskArgs&&... args) {
+    for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
+      assert(static_cast<DimType>(levels[taskIndex].size()) == this->getCombiParameters().getDim());
+      auto task = new TaskType(levels[taskIndex], this->getCombiParameters().getBoundary(),
+                               coeffs[taskIndex], std::forward<TaskArgs>(args)...);
+      task->setID(taskNumbers[taskIndex]);
+      this->initializeTaskAndFaults(task);
+    }
   }
 
   /**
@@ -220,9 +250,9 @@ class ProcessGroupWorker {
    * @param g the dimension index (in the case that there are multiple different full grids per
    * task)
    */
-  void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
+  void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0) const;
 
-  void fillDFGFromDSGU(Task* t);
+  void fillDFGFromDSGU(Task* t) const;
 };
 
 inline Task* ProcessGroupWorker::getCurrentTask() {

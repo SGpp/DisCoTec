@@ -55,7 +55,7 @@ class SelalibTask : public combigrid::Task {
               real coeff, LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
               std::vector<int> p = std::vector<int>(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : Task(dim, l, boundary, coeff, loadModel, faultCrit),
+      : Task(l, boundary, coeff, loadModel, faultCrit),
         coeff_(coeff),
         path_(path),
         p_(p),

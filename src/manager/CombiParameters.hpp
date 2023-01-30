@@ -12,8 +12,7 @@ namespace combigrid {
 
 class CombiParameters {
  public:
-  CombiParameters()
-      : procsSet_(false) {}
+  CombiParameters() {}
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
@@ -31,7 +30,6 @@ class CombiParameters {
         lmin_(lmin),
         lmax_(lmax),
         boundary_(boundary),
-        procsSet_(false),
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
@@ -50,7 +48,40 @@ class CombiParameters {
       }
     }
     setLevelsCoeffs(taskIDs, levels, coeffs);
-    numTasks_ = static_cast<long>(taskIDs.size());
+    if (parallelization != std::vector<int>({0})) {
+      this->setParallelization(parallelization);
+    }
+  }
+
+  // constructor variant w/o combination scheme specified -- the workers have their partial list
+  // imlpicitly as tasks vector
+  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
+                  std::vector<BoundaryType>& boundary, IndexType numberOfCombinations,
+                  IndexType numGrids = 1, const std::vector<int> parallelization = {0},
+                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
+                  LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
+      : dim_(dim),
+        lmin_(lmin),
+        lmax_(lmax),
+        boundary_(boundary),
+        forwardDecomposition_(forwardDecomposition),
+        numberOfCombinations_(numberOfCombinations),
+        numGridsPerTask_(numGrids),
+        reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
+        reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        thirdLevelHost_(thirdLevelHost),
+        thirdLevelPort_(thirdLevelPort),
+        thirdLevelPG_(thirdLevelPG) {
+    hierarchizationDims_ = std::vector<bool>(dim_, true);
+    for (DimType d = 0; d < dim_; ++d) {
+      if (boundary_[d] == 1) {
+        hierarchicalBases_.push_back(new HierarchicalHatPeriodicBasisFunction());
+      } else {
+        hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
+      }
+    }
     if (parallelization != std::vector<int>({0})) {
       this->setParallelization(parallelization);
     }
@@ -69,7 +100,6 @@ class CombiParameters {
         lmax_(lmax),
         boundary_(boundary),
         hierarchizationDims_(hierarchizationDims),
-        procsSet_(false),
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
@@ -86,7 +116,6 @@ class CombiParameters {
       }
     }
     setLevelsCoeffs(taskIDs, levels, coeffs);
-    numTasks_ = taskIDs.size();
   }
 
   ~CombiParameters() {
@@ -188,11 +217,6 @@ class CombiParameters {
    * in case we have multiple grids in our simulation
    */
   inline IndexType getNumGrids() const { return numGridsPerTask_; }
-  /**
-   * this method returns the number of tasks also referred to as component grids (one task might
-   * contain multiple grids)
-   */
-  inline IndexType getNumTasks() const { return numTasks_; }
 
   inline const std::vector<bool>& getHierarchizationDims() const { return hierarchizationDims_; }
 
@@ -235,7 +259,7 @@ class CombiParameters {
    * this function can only be used in the uniform mode
    */
   inline const std::vector<int>& getParallelization() const {
-    assert(uniformDecomposition && procsSet_);
+    assert(uniformDecomposition);
     return procs_;
   }
 
@@ -283,11 +307,10 @@ class CombiParameters {
     assert(uniformDecomposition);
 
     procs_ = p;
-    procsSet_ = true;
   }
 
   inline bool isParallelizationSet() const {
-    return procsSet_;
+    return !procs_.empty();
   }
 
   /**
@@ -344,8 +367,6 @@ class CombiParameters {
 
   std::vector<int> procs_;
 
-  bool procsSet_;
-
   CommunicatorType applicationComm_;
 
   bool applicationCommSet_;
@@ -358,7 +379,6 @@ class CombiParameters {
   IndexType numberOfCombinations_;  // total number of combinations
   IndexType numGridsPerTask_;       // number of grids per task
 
-  IndexType numTasks_;
   /**
    * This level vector indicates which dimension of lmin should be decreased by how many levels
    * for constructing the distributed sparse grid.
@@ -403,12 +423,10 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& hierarchicalBases_;
   ar& procs_;
-  ar& procsSet_;
   ar& decomposition_;
   ar& forwardDecomposition_;
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;
-  ar& numTasks_;
   ar& reduceCombinationDimsLmin_;
   ar& reduceCombinationDimsLmax_;
   ar& thirdLevelHost_;

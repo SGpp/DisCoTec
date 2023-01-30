@@ -1,11 +1,9 @@
 #ignore defailt build folders
-build/
+build/*
 cmake-build-*/
-
 
 # allowing stuff to be in examples but nowhere else (swig)
 *.java
-
 
 #getting rid of weverything without a . in examples folder and all subfolders (executables on linux)
 */examples/*
@@ -76,6 +74,9 @@ coverage
 
 # ignoring images
 *.png
+*.svg
+*.eps
+*.jpg
 
 # ignoring hdf5 files, and selalib input and output files
 *.h5
@@ -85,3 +86,8 @@ coverage
 # ignoring SLURM output files
 *.err
 *.out
+
+# ignoring DisCoTec's own output files
+*_0
+*output
+*.sizes

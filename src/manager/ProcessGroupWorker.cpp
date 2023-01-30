@@ -35,6 +35,87 @@ std::string receiveStringFromManagerAndBroadcastToGroup() {
   return stringToReceive;
 }
 
+void sendNormsToManager(const std::vector<double> lpnorms) {
+  // get Lp norm on every worker; reduce through dfg function
+  for (int p = 0; p < lpnorms.size(); ++p) {
+    // send from master to manager
+    MASTER_EXCLUSIVE_SECTION {
+      MPI_Send(&lpnorms[p], 1, MPI_DOUBLE, theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
+               theMPISystem()->getGlobalComm());
+    }
+  }
+}
+
+std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType dim) {
+  std::vector<std::vector<real>> interpolationCoords;
+  std::vector<real> interpolationCoordsSerial;
+  auto realType = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
+  int coordsSize = 0;
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Status status;
+    status.MPI_ERROR = MPI_SUCCESS;
+    int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+                           theMPISystem()->getGlobalComm(), &status);
+#ifndef NDEBUG
+    assert(result == MPI_SUCCESS);
+    if (status.MPI_ERROR != MPI_SUCCESS) {
+      std::string errorString;
+      errorString.resize(10000);
+      int errorStringLength;
+      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
+      errorString.resize(errorStringLength);
+      std::cout << "error probe: " << errorString << std::endl;
+    }
+#endif  // NDEBUG
+    result = MPI_Get_count(&status, realType, &coordsSize);
+    assert(result == MPI_SUCCESS);
+    assert(coordsSize > 0);
+
+    // resize buffer to appropriate size and receive
+    interpolationCoordsSerial.resize(coordsSize);
+    result = MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType,
+                      theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+                      theMPISystem()->getGlobalComm(), &status);
+#ifndef NDEBUG
+    assert(result == MPI_SUCCESS);
+    if (status.MPI_ERROR != MPI_SUCCESS) {
+      std::string errorString;
+      errorString.resize(10000);
+      int errorStringLength;
+      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
+      errorString.resize(errorStringLength);
+      std::cout << "error recv: " << errorString << std::endl;
+    }
+    assert(status.MPI_ERROR == MPI_SUCCESS);
+    for (const auto& coord : interpolationCoordsSerial) {
+      assert(coord >= 0.0 && coord <= 1.0);
+    }
+#endif  // NDEBUG
+  }
+  // broadcast size of vector, and then vector
+  MPI_Bcast(&coordsSize, 1, MPI_INT, theMPISystem()->getMasterRank(),
+            theMPISystem()->getLocalComm());
+  interpolationCoordsSerial.resize(coordsSize);
+  MPI_Bcast(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getMasterRank(),
+            theMPISystem()->getLocalComm());
+  for (const auto& coord : interpolationCoordsSerial) {
+    assert(coord >= 0.0 && coord <= 1.0);
+  }
+
+  // split vector into coordinates
+  const int dimInt = static_cast<int>(dim);
+  auto numCoordinates = coordsSize / dimInt;
+  assert(coordsSize % dimInt == 0);
+  interpolationCoords.resize(numCoordinates);
+  auto it = interpolationCoordsSerial.cbegin();
+  for (auto& coord : interpolationCoords) {
+    coord.insert(coord.end(), it, it + dimInt);
+    it += dimInt;
+  }
+  assert(it == interpolationCoordsSerial.end());
+  return interpolationCoords;
+}
+
 ProcessGroupWorker::ProcessGroupWorker()
     : currentTask_(nullptr),
       status_(PROCESS_GROUP_WAIT),
@@ -44,10 +125,6 @@ ProcessGroupWorker::ProcessGroupWorker()
       currentCombi_(0) {
   t_fault_ = -1;
   startTimeIteration_ = (std::chrono::high_resolution_clock::now());
-  MASTER_EXCLUSIVE_SECTION {
-    std::string fname = "out/all-betas-" + std::to_string(theMPISystem()->getGlobalRank()) + ".txt";
-    // betasFile_ = std::ofstream( fname, std::ofstream::out );
-  }
 }
 
 ProcessGroupWorker::~ProcessGroupWorker() {
@@ -69,6 +146,21 @@ void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e,
 				                        theMPISystem()->getWorldRank(), static_cast<unsigned int>(numProcs)};
     MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
+}
+
+LevelVector ProcessGroupWorker::receiveLevalAndBroadcast() {
+  const auto dim = combiParameters_.getDim();
+
+  // receive leval and broadcast to group members
+  std::vector<int> tmp(dim);
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Recv(&tmp[0], static_cast<int>(dim), MPI_INT, theMPISystem()->getManagerRank(),
+             TRANSFER_LEVAL_TAG, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+  }
+
+  MPI_Bcast(&tmp[0], dim, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  LevelVector leval(tmp.begin(), tmp.end());
+  return leval;
 }
 
 SignalType ProcessGroupWorker::wait() {
@@ -159,21 +251,7 @@ SignalType ProcessGroupWorker::wait() {
       // t.eval(x)
     } break;
     case EXIT: {
-      // write out tasks that were in use when the computation ended
-      // (i.e. after fault tolerance or rescheduling changes)
-      MASTER_EXCLUSIVE_SECTION {
-        // serialize tasks as string
-        std::stringstream tasksStream;
-        for (const auto& t : tasks_) {
-          tasksStream <<t->getID() << ": " << t->getCoefficient() << t->getLevelVector()  << "; ";
-        }
-        std::string tasksString = tasksStream.str();
-        Stats::setAttribute("tasks: levels", tasksString);
-      }
-      if (isGENE) {
-        if(chdir("../ginstance")){};
-      }
-      deleteTasks();
+      this->exit();
     } break;
     case SYNC_TASKS: {
       MASTER_EXCLUSIVE_SECTION {
@@ -191,7 +269,6 @@ SignalType ProcessGroupWorker::wait() {
     case COMBINE: {  // start combination
       Stats::startEvent("worker combine");
       combineUniform();
-      currentCombi_++;
       Stats::stopEvent("worker combine");
 
     } break;
@@ -204,7 +281,6 @@ SignalType ProcessGroupWorker::wait() {
     case COMBINE_THIRD_LEVEL: {
       Stats::startEvent("worker combine third level");
       combineThirdLevel();
-      currentCombi_++;
       Stats::stopEvent("worker combine third level");
     } break;
     case COMBINE_WRITE_DSGS: {
@@ -217,7 +293,6 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("worker combine third level read");
       combineThirdLevelFileBasedReadReduce(receiveStringFromManagerAndBroadcastToGroup(),
                                            receiveStringFromManagerAndBroadcastToGroup());
-      currentCombi_++;
       Stats::stopEvent("worker combine third level read");
     } break;
     case COMBINE_THIRD_LEVEL_FILE: {
@@ -226,13 +301,11 @@ SignalType ProcessGroupWorker::wait() {
                                  receiveStringFromManagerAndBroadcastToGroup(),
                                  receiveStringFromManagerAndBroadcastToGroup(),
                                  receiveStringFromManagerAndBroadcastToGroup());
-      currentCombi_++;
       Stats::stopEvent("worker combine third level file");
     } break;
     case WAIT_FOR_TL_COMBI_RESULT: {
       Stats::startEvent("worker wait third level result");
       waitForThirdLevelCombiResult();
-      currentCombi_++;
       Stats::stopEvent("worker wait third level result");
 
     } break;
@@ -272,17 +345,12 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("worker read from disk");
     } break;
     case GRID_EVAL: {  // not supported anymore
-
-      Stats::startEvent("worker eval");
-      gridEval();
-      Stats::stopEvent("worker eval");
-
+      throw std::runtime_error("grid eval not supported anymore");
       return signal;
 
     } break;
     case COMBINE_FG: {
-      combineFG();
-
+      throw std::runtime_error("combine fg not supported anymore");
     } break;
     case UPDATE_COMBI_PARAMETERS: {  // update combiparameters (e.g. in case of faults -> FTCT)
 
@@ -322,42 +390,63 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case GET_L2_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("worker get L2 norm");
-      sendLpNorms(2);
+      auto lpnorms = getLpNorms(2);
+      // send from master to manager
+      MASTER_EXCLUSIVE_SECTION {
+        MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
+                 theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
+                 theMPISystem()->getGlobalComm());
+      }
       Stats::stopEvent("worker get L2 norm");
     } break;
     case GET_L1_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("worker get L1 norm");
-      sendLpNorms(1);
+      auto lpnorms = getLpNorms(1);
+      MASTER_EXCLUSIVE_SECTION {
+        MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
+                 theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
+                 theMPISystem()->getGlobalComm());
+      }
       Stats::stopEvent("worker get L1 norm");
     } break;
     case GET_MAX_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("worker get max norm");
-      sendLpNorms(0);
+      auto lpnorms = getLpNorms(0);
+      MASTER_EXCLUSIVE_SECTION {
+        MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
+                 theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
+                 theMPISystem()->getGlobalComm());
+      }
       Stats::stopEvent("worker get max norm");
     } break;
     case PARALLEL_EVAL_NORM: {  // evaluate norms on new dfg and send
       Stats::startEvent("worker parallel eval norm");
-      parallelEvalNorm();
+      auto lpnorm = parallelEvalNorm(receiveLevalAndBroadcast());
+      sendNormsToManager(lpnorm);
       Stats::stopEvent("worker parallel eval norm");
     } break;
     case EVAL_ANALYTICAL_NORM: {  // evaluate analytical norms on new dfg and send
       Stats::startEvent("worker eval analytical norm");
-      evalAnalyticalOnDFG();
+      auto lpnorm = evalAnalyticalOnDFG(receiveLevalAndBroadcast());
+      sendNormsToManager(lpnorm);
       Stats::stopEvent("worker eval analytical norm");
     } break;
     case EVAL_ERROR_NORM: {  // evaluate analytical norms on new dfg and send difference
       Stats::startEvent("worker eval error norm");
-      evalErrorOnDFG();
+      auto lpnorm = evalErrorOnDFG(receiveLevalAndBroadcast());
+      sendNormsToManager(lpnorm);
       Stats::stopEvent("worker eval error norm");
     } break;
     case INTERPOLATE_VALUES: {  // interpolate values on given coordinates
       Stats::startEvent("worker interpolate values");
-      auto values = interpolateValues();
+      auto values =
+          interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
       Stats::stopEvent("worker interpolate values");
     } break;
     case INTERPOLATE_VALUES_AND_SEND_BACK: {
       Stats::startEvent("worker interpolate values");
-      auto values = interpolateValues();
+      auto values =
+          interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
       // send result
       MASTER_EXCLUSIVE_SECTION {
         MPI_Send(values.data(), values.size(),
@@ -374,7 +463,8 @@ SignalType ProcessGroupWorker::wait() {
         MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
                                theMPISystem()->getGlobalComm());
       }
-      auto values = interpolateValues();
+      auto values =
+          interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
       // write result
       MASTER_EXCLUSIVE_SECTION {
         std::string valuesWriteFilename =
@@ -386,7 +476,9 @@ SignalType ProcessGroupWorker::wait() {
     case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write
                                                 // values to .h5
       Stats::startEvent("worker write interpolated values");
-      writeInterpolatedValuesPerGrid(receiveStringFromManagerAndBroadcastToGroup());
+      writeInterpolatedValuesPerGrid(
+          receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()),
+          receiveStringFromManagerAndBroadcastToGroup());
       Stats::stopEvent("worker write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
@@ -435,14 +527,7 @@ SignalType ProcessGroupWorker::wait() {
       }
     } break;
     case WRITE_DSG_MINMAX_COEFFICIENTS: {
-      std::string filename;
-      MASTER_EXCLUSIVE_SECTION {
-        MPIUtils::receiveClass(&filename, theMPISystem()->getManagerRank(),
-                              theMPISystem()->getGlobalComm());
-      }
-      for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
-        combinedUniDSGVector_[i]->writeMinMaxCoefficents(filename, i);
-      }
+      writeSparseGridMinMaxCoefficients(receiveStringFromManagerAndBroadcastToGroup());
 		} break;
     default: { assert(false && "signal not implemented"); }
   }
@@ -554,6 +639,49 @@ void ProcessGroupWorker::ready() {
       status_ = PROCESS_GROUP_WAIT;
     }
   }
+}
+
+void ProcessGroupWorker::runAllTasks() {
+  Stats::startEvent("worker run");
+  if (tasks_.size() > 0) {
+    for (auto task : tasks_) {
+      task->setFinished(false);
+    }
+    status_ = PROCESS_GROUP_BUSY;  // not sure if this does anything
+    currentTask_ = tasks_[0];
+    currentTask_->run(theMPISystem()->getLocalComm());
+  } else {
+    std::cout << "Possible error: No tasks! \n";
+  }
+  for (auto task : tasks_) {
+    if (!task->isFinished()) {
+      currentTask_ = task;
+      currentTask_->run(theMPISystem()->getLocalComm());
+    }
+  }
+  // reset current task
+  currentTask_ = nullptr;
+  assert(!ENABLE_FT);  // TODO for fault tolerance, steal from the above
+  Stats::stopEvent("worker run");
+}
+
+void ProcessGroupWorker::exit() {
+  // write out tasks that were in use when the computation ended
+  // (i.e. after fault tolerance or rescheduling changes)
+  MASTER_EXCLUSIVE_SECTION {
+    // serialize tasks as string
+    std::stringstream tasksStream;
+    for (const auto& t : tasks_) {
+      tasksStream << t->getID() << ": " << t->getCoefficient() << t->getLevelVector() << "; ";
+    }
+    std::string tasksString = tasksStream.str();
+    Stats::setAttribute("tasks: levels", tasksString);
+  }
+  if (isGENE) {
+    if (chdir("../ginstance")) {
+    };
+  }
+  deleteTasks();
 }
 
 /**
@@ -747,45 +875,30 @@ void ProcessGroupWorker::combineUniform() {
 }
 
 void ProcessGroupWorker::parallelEval() {
-  if(uniformDecomposition)
-    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup());
+  if (uniformDecomposition)
+    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(), receiveLevalAndBroadcast());
   else
     assert(false && "not yet implemented");
 }
 // cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
-static bool endsWith(const std::string& str, const std::string& suffix)
-{
-    return str.size() >= suffix.size() && 0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+static bool endsWith(const std::string& str, const std::string& suffix) {
+  return str.size() >= suffix.size() &&
+         0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
 }
 
 // helper function to output bool vector
 inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
   os << "[";
 
-  for (size_t i = 0; i < l.size(); ++i)
-    os << l[i] << " ";
+  for (size_t i = 0; i < l.size(); ++i) os << l[i] << " ";
 
   os << "]";
 
   return os;
 }
 
-LevelVector ProcessGroupWorker::receiveLevalAndBroadcast(){
-  const auto dim = combiParameters_.getDim();
-
-  // receive leval and broadcast to group members
-  std::vector<int> tmp(dim);
-  MASTER_EXCLUSIVE_SECTION {
-    MPI_Recv(&tmp[0], static_cast<int>(dim), MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG,
-             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
-  }
-
-  MPI_Bcast(&tmp[0], dim, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-  LevelVector leval(tmp.begin(), tmp.end());
-  return leval;
-}
-
-void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g) {
+void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg,
+                                         IndexType g) const {
   // fill dfg with hierarchical coefficients from distributed sparse grid
   dfg.extractFromUniformSG(*combinedUniDSGVector_[g]);
 
@@ -803,7 +916,7 @@ void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg
   }
 }
 
-void ProcessGroupWorker::fillDFGFromDSGU(Task* t) {
+void ProcessGroupWorker::fillDFGFromDSGU(Task* t) const {
   auto numGrids = static_cast<int>(
       combiParameters_
           .getNumGrids());  // we assume here that every task has the same number of grids
@@ -813,7 +926,7 @@ void ProcessGroupWorker::fillDFGFromDSGU(Task* t) {
   }
 }
 
-void ProcessGroupWorker::parallelEvalUniform(std::string filename) {
+void ProcessGroupWorker::parallelEvalUniform(std::string filename, LevelVector leval) {
   assert(uniformDecomposition);
 
   assert(combiParametersSet_);
@@ -821,28 +934,26 @@ void ProcessGroupWorker::parallelEvalUniform(std::string filename) {
       combiParameters_
           .getNumGrids();  // we assume here that every task has the same number of grids
 
-  auto leval = receiveLevalAndBroadcast();
   const auto dim = static_cast<DimType>(leval.size());
 
   for (IndexType g = 0; g < numGrids; g++) {  // loop over all grids and plot them
     // create dfg
     bool forwardDecomposition = combiParameters_.getForwardDecomposition();
     auto levalDecomposition = combigrid::downsampleDecomposition(
-            combiParameters_.getDecomposition(),
-            combiParameters_.getLMax(), leval,
-            combiParameters_.getBoundary());
+        combiParameters_.getDecomposition(), combiParameters_.getLMax(), leval,
+        combiParameters_.getBoundary());
 
     DistributedFullGrid<CombiDataType> dfg(
-      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
+        dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
+        combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
     this->fillDFGFromDSGU(dfg, g);
     // save dfg to file with MPI-IO
-    if(endsWith(filename, ".vtk")){
+    if (endsWith(filename, ".vtk")) {
       dfg.writePlotFileVTK(filename.c_str());
-    }else{
+    } else {
       std::string fn = filename;
       auto pos = fn.find(".");
-      if (pos != std::string::npos){
+      if (pos != std::string::npos) {
         // if filename contains ".", insert grid number before that
         fn.insert(pos, "_" + std::to_string(g));
       }
@@ -851,43 +962,23 @@ void ProcessGroupWorker::parallelEvalUniform(std::string filename) {
   }
 }
 
-void ProcessGroupWorker::sendLpNorms(int p) {
+std::vector<double> ProcessGroupWorker::getLpNorms(int p) const {
   // get Lp norm on every worker; reduce through dfg function
   std::vector<double> lpnorms;
   lpnorms.reserve(tasks_.size());
   for (const auto& t : tasks_) {
     auto lpnorm = t->getDistributedFullGrid().getLpNorm(p);
     lpnorms.push_back(lpnorm);
-    // std::cout << t->getID() << " ";
   }
-  // send from master to manager
-  MASTER_EXCLUSIVE_SECTION {
-    MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
-             theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG, theMPISystem()->getGlobalComm());
-  }
+  return lpnorms;
 }
 
-void sendEvalNorms(const DistributedFullGrid<CombiDataType>& dfg){
-  // get Lp norm on every worker; reduce through dfg function
-  for (int p = 0; p < 3; ++p) {
-    auto lpnorm = dfg.getLpNorm(p);
-
-    // send from master to manager
-    MASTER_EXCLUSIVE_SECTION {
-      MPI_Send(&lpnorm, 1, MPI_DOUBLE,
-              theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG, theMPISystem()->getGlobalComm());
-    }
-  }
-}
-
-void ProcessGroupWorker::parallelEvalNorm() {
-  auto leval = receiveLevalAndBroadcast();
+std::vector<double> ProcessGroupWorker::parallelEvalNorm(LevelVector leval) const {
   const auto dim = static_cast<DimType>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-  auto levalDecomposition = combigrid::downsampleDecomposition(
-          combiParameters_.getDecomposition(),
-          combiParameters_.getLMax(), leval,
-          combiParameters_.getBoundary());
+  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
+                                                               combiParameters_.getLMax(), leval,
+                                                               combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
@@ -895,17 +986,19 @@ void ProcessGroupWorker::parallelEvalNorm() {
 
   this->fillDFGFromDSGU(dfg, 0);
 
-  sendEvalNorms(dfg);
+  std::vector<double> lpnorms;
+  for (int p = 0; p < 3; ++p) {
+    lpnorms.push_back(dfg.getLpNorm(p));
+  }
+  return lpnorms;
 }
 
-void ProcessGroupWorker::evalAnalyticalOnDFG() {
-  auto leval = receiveLevalAndBroadcast();
+std::vector<double> ProcessGroupWorker::evalAnalyticalOnDFG(LevelVector leval) const {
   const auto dim = static_cast<DimType>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-  auto levalDecomposition = combigrid::downsampleDecomposition(
-          combiParameters_.getDecomposition(),
-          combiParameters_.getLMax(), leval,
-          combiParameters_.getBoundary());
+  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
+                                                               combiParameters_.getLMax(), leval,
+                                                               combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
@@ -919,17 +1012,19 @@ void ProcessGroupWorker::evalAnalyticalOnDFG() {
     dfg.getData()[li] = tasks_[0]->analyticalSolution(coords, 0);
   }
 
-  sendEvalNorms(dfg);
+  std::vector<double> lpnorms;
+  for (int p = 0; p < 3; ++p) {
+    lpnorms.push_back(dfg.getLpNorm(p));
+  }
+  return lpnorms;
 }
 
-void ProcessGroupWorker::evalErrorOnDFG() {
-  auto leval = receiveLevalAndBroadcast();
+std::vector<double> ProcessGroupWorker::evalErrorOnDFG(LevelVector leval) const {
   const auto dim = static_cast<DimType>(leval.size());
   bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-  auto levalDecomposition = combigrid::downsampleDecomposition(
-          combiParameters_.getDecomposition(),
-          combiParameters_.getLMax(), leval,
-          combiParameters_.getBoundary());
+  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
+                                                               combiParameters_.getLMax(), leval,
+                                                               combiParameters_.getBoundary());
 
   DistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
@@ -944,7 +1039,11 @@ void ProcessGroupWorker::evalErrorOnDFG() {
     dfg.getData()[li] -= tasks_[0]->analyticalSolution(coords, 0);
   }
 
-  sendEvalNorms(dfg);
+  std::vector<double> lpnorms;
+  for (int p = 0; p < 3; ++p) {
+    lpnorms.push_back(dfg.getLpNorm(p));
+  }
+  return lpnorms;
 }
 
 void ProcessGroupWorker::doDiagnostics() {
@@ -974,80 +1073,9 @@ void ProcessGroupWorker::doDiagnostics() {
   assert(false && "this taskID is not here");
 }
 
-void receiveAndBroadcastInterpolationCoords(std::vector<std::vector<real>>& interpolationCoords,
-                                            DimType dim) {
-  std::vector<real> interpolationCoordsSerial;
-  auto realType = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
-  int coordsSize = 0;
-  MASTER_EXCLUSIVE_SECTION {
-    MPI_Status status;
-    status.MPI_ERROR = MPI_SUCCESS;
-    int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
-                           theMPISystem()->getGlobalComm(), &status);
-#ifndef NDEBUG
-    assert(result == MPI_SUCCESS);
-    if (status.MPI_ERROR != MPI_SUCCESS) {
-      std::string errorString;
-      errorString.resize(10000);
-      int errorStringLength;
-      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
-      errorString.resize(errorStringLength);
-      std::cout << "error probe: " << errorString << std::endl;
-    }
-#endif  // NDEBUG
-    result = MPI_Get_count(&status, realType, &coordsSize);
-    assert(result == MPI_SUCCESS);
-    assert(coordsSize > 0);
-
-    // resize buffer to appropriate size and receive
-    interpolationCoordsSerial.resize(coordsSize);
-    result = MPI_Recv(interpolationCoordsSerial.data(), coordsSize, realType,
-                      theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
-                      theMPISystem()->getGlobalComm(), &status);
-#ifndef NDEBUG
-    assert(result == MPI_SUCCESS);
-    if (status.MPI_ERROR != MPI_SUCCESS) {
-      std::string errorString;
-      errorString.resize(10000);
-      int errorStringLength;
-      MPI_Error_string(status.MPI_ERROR, &errorString[0], &errorStringLength);
-      errorString.resize(errorStringLength);
-      std::cout << "error recv: " << errorString << std::endl;
-    }
-    assert(status.MPI_ERROR == MPI_SUCCESS);
-    for (const auto& coord : interpolationCoordsSerial) {
-      assert(coord >= 0.0 && coord <= 1.0);
-    }
-#endif  // NDEBUG
-  }
-  // broadcast size of vector, and then vector
-  MPI_Bcast(&coordsSize, 1, MPI_INT, theMPISystem()->getMasterRank(),
-            theMPISystem()->getLocalComm());
-  interpolationCoordsSerial.resize(coordsSize);
-  MPI_Bcast(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getMasterRank(),
-            theMPISystem()->getLocalComm());
-  for (const auto& coord : interpolationCoordsSerial) {
-    assert(coord >= 0.0 && coord <= 1.0);
-  }
-
-  // split vector into coordinates
-  const int dimInt = static_cast<int>(dim);
-  auto numCoordinates = coordsSize / dimInt;
-  assert(coordsSize % dimInt == 0);
-  interpolationCoords.resize(numCoordinates);
-  auto it = interpolationCoordsSerial.cbegin();
-  for (auto& coord : interpolationCoords) {
-    coord.insert(coord.end(), it, it + dimInt);
-    it += dimInt;
-  }
-  assert(it == interpolationCoordsSerial.end());
-}
-
-std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
+std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(const
+    std::vector<std::vector<real>>& interpolationCoords) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-  // receive coordinates and broadcast to group members
-  std::vector<std::vector<real>> interpolationCoords;
-  receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
   auto numCoordinates = interpolationCoords.size();
 
   // call interpolation function on tasks and reduce with combination coefficient
@@ -1082,13 +1110,9 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues() {
   return values;
 }
 
-void ProcessGroupWorker::writeInterpolatedValuesPerGrid(std::string fileNamePrefix) {
+void ProcessGroupWorker::writeInterpolatedValuesPerGrid(
+    const std::vector<std::vector<real>>& interpolationCoords, std::string fileNamePrefix) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-
-  // receive coordinates and broadcast to group members
-  std::vector<std::vector<real>> interpolationCoords;
-  receiveAndBroadcastInterpolationCoords(interpolationCoords, combiParameters_.getDim());
-
   // call interpolation function on tasks and write out task-wise
   for (size_t i = 0; i < tasks_.size(); ++i) {
     auto taskVals = tasks_[i]->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
@@ -1105,7 +1129,7 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid(std::string fileNamePref
 }
 
 void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType>& values,
-                                                 const std::string& valuesWriteFilename) {
+                                                 const std::string& valuesWriteFilename) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   std::string groupName = "all_grids";
   std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
@@ -1118,58 +1142,24 @@ void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType
                             tasks_[0]->getCurrentTime());
 }
 
-void ProcessGroupWorker::gridEval() {  // not supported anymore
-  /* error if no tasks available
-   * todo: however, this is not a real problem, we could can create an empty
-   * grid an contribute to the reduce operation. at the moment even the dim
-   * parameter is stored in the tasks, so if no task available we have no access
-   * to this parameter.
-   */
-  assert(tasks_.size() > 0);
-
-  assert(combiParametersSet_);
-  const DimType dim = combiParameters_.getDim();
-
-  LevelVector leval(dim);
-
-  // receive leval
-  MASTER_EXCLUSIVE_SECTION {
-    // receive size of levelvector = dimensionality
-    MPI_Status status;
-    int bsize;
-    MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG, theMPISystem()->getGlobalComm(), &status);
-    MPI_Get_count(&status, MPI_INT, &bsize);
-
-    assert(bsize == static_cast<int>(dim));
-
-    std::vector<int> tmp(dim);
-    MPI_Recv(&tmp[0], bsize, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_LEVAL_TAG,
-             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
-    leval = LevelVector(tmp.begin(), tmp.end());
+void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
+    const std::vector<std::vector<real>>& interpolationCoords,
+    const std::string& filenamePrefix) const {
+  // all processes interpolate
+  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
+  auto values = interpolateValues(interpolationCoords);
+  // one process writes
+  OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    MASTER_EXCLUSIVE_SECTION {
+      writeInterpolatedValues(values,
+                              filenamePrefix + +"_values_" + std::to_string(currentCombi_) + ".h5");
+    }
   }
+}
 
-  assert(combiParametersSet_);
-  const std::vector<BoundaryType>& boundary = combiParameters_.getBoundary();
-  FullGrid<CombiDataType> fg_red(dim, leval, boundary);
-
-  // create the empty grid on only on localroot
-  MASTER_EXCLUSIVE_SECTION { fg_red.createFullGrid(); }
-
-  // collect fg on pgrouproot and reduce
-  for (size_t i = 0; i < tasks_.size(); ++i) {
-    Task* t = tasks_[i];
-
-    FullGrid<CombiDataType> fg(t->getDim(), t->getLevelVector(), boundary);
-
-    MASTER_EXCLUSIVE_SECTION { fg.createFullGrid(); }
-
-    t->getFullGrid(fg, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-
-    MASTER_EXCLUSIVE_SECTION { fg_red.add(fg, t->getCoefficient()); }
-  }
-  // global reduce of f_red
-  MASTER_EXCLUSIVE_SECTION {
-    CombiCom::FGReduce(fg_red, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const {
+  for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
+    combinedUniDSGVector_[i]->writeMinMaxCoefficents(fileNamePrefix, i);
   }
 }
 
@@ -1212,42 +1202,25 @@ void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
   }
 }
 
-// todo: this is just a temporary function which will drop out some day
-// also this function requires a modified fgreduce method which uses allreduce
-// instead reduce in manger
-void ProcessGroupWorker::combineFG() {
-  // gridEval();
-
-  // TODO: Sync back to fullgrids
-}
-
 void ProcessGroupWorker::deleteTasks() {
-      // freeing tasks
-      for (auto tmp : tasks_) delete (tmp);
-      tasks_.clear();
+  // freeing tasks
+  for (auto tmp : tasks_) delete (tmp);
+  tasks_.clear();
 }
 
-void ProcessGroupWorker::updateCombiParameters() {
-  // local root receives combi parameters
-  MASTER_EXCLUSIVE_SECTION {
-    MPIUtils::receiveClass(&combiParameters_, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-    //std::cout << "master received combiparameters \n";
-  }
-
-  // broadcast parameters to other process of pgroup
-  MPIUtils::broadcastClass(&combiParameters_, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-  //std::cout << "worker received combiparameters \n";
-
+void ProcessGroupWorker::setCombiParameters(const CombiParameters& combiParameters) {
+  combiParameters_ = combiParameters;
   combiParametersSet_ = true;
 
   // overwrite local comm with cartesian communicator
-  if (!isGENE  && combiParameters_.isParallelizationSet()){
+  if (!isGENE && combiParameters_.isParallelizationSet()) {
     // cf. https://www.rookiehpc.com/mpi/docs/mpi_cart_create.php
     // get decompositon from combi params
     auto par = combiParameters_.getParallelization();
 
-    // important: note reverse ordering of dims! -- cf DistributedFullGrid //TODO(pollinta) remove reverse ordering
-    std::vector<int> dims (par.size());
+    // important: note reverse ordering of dims! -- cf DistributedFullGrid
+    //TODO(pollinta) remove reverse ordering
+    std::vector<int> dims(par.size());
     if (reverseOrderingDFGPartitions) {
       dims.assign(par.rbegin(), par.rend());
     } else {
@@ -1259,7 +1232,6 @@ void ProcessGroupWorker::updateCombiParameters() {
     for (const auto& b : combiParameters_.getBoundary()) {
       if (b == 1) {
         periods.push_back(1);
-
       } else {
         periods.push_back(0);
       }
@@ -1277,6 +1249,18 @@ void ProcessGroupWorker::updateCombiParameters() {
 
     theMPISystem()->storeLocalComm(new_communicator);
   }
+}
+
+void ProcessGroupWorker::updateCombiParameters() {
+  // local root receives combi parameters
+  CombiParameters combiParametersReceived;
+  MASTER_EXCLUSIVE_SECTION {
+    MPIUtils::receiveClass(&combiParametersReceived, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+  }
+  // broadcast parameters to other processes of pgroup
+  MPIUtils::broadcastClass(&combiParametersReceived, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+
+  this->setCombiParameters(combiParametersReceived);
 }
 
 void ProcessGroupWorker::integrateCombinedSolution() {
@@ -1307,6 +1291,7 @@ void ProcessGroupWorker::integrateCombinedSolution() {
     }
   }
   Stats::stopEvent("worker dehierarchize");
+  currentCombi_++;
 }
 
 void ProcessGroupWorker::combineThirdLevel() {
@@ -1371,22 +1356,26 @@ void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePre
                                                          std::string writeCompleteTokenFileName) {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
-  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
 
   // write sparse grid and corresponding token file
   this->writeDSGsToDisk(filenamePrefixToWrite);
   MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
-    std::string filenamePrefixToRead, std::string startReadingTokenFileName) {
+void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
+                                                              std::string startReadingTokenFileName,
+                                                              bool overwrite) {
   // wait until we can start to read
   while (!std::filesystem::exists(startReadingTokenFileName)) {
     // wait for token file to appear
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
-  this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
 
+  if (overwrite) {
+    this->readDSGsFromDisk(filenamePrefixToRead);
+  } else {
+    this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
+  }
   if (combinedUniDSGVector_.size() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
   }
@@ -1416,6 +1405,31 @@ void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixTo
   this->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName);
 }
 
+void ProcessGroupWorker::setExtraSparseGrid(bool initializeSizes) {
+  if (combinedUniDSGVector_.size() != 1) {
+    throw std::runtime_error("combinedUniDSGVector_ is empty");
+  }
+
+  if (extraUniDSGVector_.empty()) {
+    // create new vector for extra sparse grids (that will be only on this process group)
+    extraUniDSGVector_.resize(combinedUniDSGVector_.size());
+    for (auto& extraUniDSG : extraUniDSGVector_) {
+      extraUniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+          new DistributedSparseGridUniform<CombiDataType>(
+              combinedUniDSGVector_[0]->getDim(), combinedUniDSGVector_[0]->getAllLevelVectors(),
+              theMPISystem()->getLocalComm()));
+      if (initializeSizes) {
+        for (size_t i = 0; i < extraUniDSG->getNumSubspaces(); ++i) {
+          extraUniDSG->setDataSize(i, combinedUniDSGVector_[0]->getDataSize(i));
+        }
+      }
+    }
+  } else {
+    throw std::runtime_error(
+        "extraUniDSGVector_ is not empty -- if you think this is ok, try to remove the if-else here");
+  }
+}
+
 /** Reduces subspace sizes with remote.
  */
 void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
@@ -1423,16 +1437,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
   // update either old or new sparse grids
   auto* uniDSGVectorToSet = &combinedUniDSGVector_;
   if (thirdLevelExtraSparseGrid) {
-    if (extraUniDSGVector_.empty()) {
-      // create new vector for extra sparse grids (that will be only on this process group)
-      extraUniDSGVector_.resize(combinedUniDSGVector_.size());
-      for (auto& extraUniDSG : extraUniDSGVector_) {
-        extraUniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-            new DistributedSparseGridUniform<CombiDataType>(
-                combinedUniDSGVector_[0]->getDim(), combinedUniDSGVector_[0]->getAllLevelVectors(),
-                theMPISystem()->getLocalComm()));
-      }
-    }
+    this->setExtraSparseGrid(false); // don't initialize, would be overwritten
     uniDSGVectorToSet = &extraUniDSGVector_;
   }
 
@@ -1468,6 +1473,57 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   for (auto& dsg : combinedUniDSGVector_) {
     dsg->broadcastDsgSizes(globalReduceComm, thirdLevelPG);
   }
+}
+
+void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
+                                             bool extraSparseGrid) {
+  if (extraSparseGrid) {
+    OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      this->setExtraSparseGrid(true);
+      // use extra sparse grid
+      auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+        return std::min(a, b);
+      };
+      extraUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
+                                                             minFunctionInstantiation);
+    }
+  } else {
+    if (!extraUniDSGVector_.empty()) {
+      throw std::runtime_error("extraUniDSGVector_ not empty, but extraSparseGrid is false");
+    }
+    // if no extra sparse grid, max-reduce the normal one
+    auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+      return std::max(a, b);
+    };
+    combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
+                                                              maxFunctionInstantiation);
+  }
+}
+
+void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefixToWrite,
+                                                      std::string writeCompleteTokenFileName,
+                                                      std::string filenamePrefixToRead,
+                                                      std::string startReadingTokenFileName,
+                                                      bool extraSparseGrid) {
+  assert(combinedUniDSGVector_.size() == 1);
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    combinedUniDSGVector_[0]->writeSubspaceSizesToFile(filenamePrefixToWrite);
+    MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
+  }
+
+  // if extra sparse grid, we only need to do something if we are the I/O group
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {}
+  else if (extraSparseGrid) {
+    return;
+  }
+
+  // wait until we can start to read
+  while (!std::filesystem::exists(startReadingTokenFileName)) {
+    // wait for token file to appear
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  this->reduceSubspaceSizes(filenamePrefixToRead, extraSparseGrid);
 }
 
 void ProcessGroupWorker::waitForThirdLevelCombiResult() {

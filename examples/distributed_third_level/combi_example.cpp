@@ -298,8 +298,7 @@ int main(int argc, char** argv) {
       tasks.reserve(levels.size());
       taskIDs.reserve(levels.size());
       for (size_t i = 0; i < levels.size(); i++) {
-        Task* t =
-            new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
+        Task* t = new TaskAdvection(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
         // Task* t = new TaskConstParaboloid(levels[i], boundary, coeffs[i], loadmodel);
         // Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
 
@@ -451,7 +450,7 @@ int main(int argc, char** argv) {
         if (signal == UPDATE_COMBI_PARAMETERS) {
           // initialize all "our" tasks
           for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
-            auto task = new TaskAdvection(dim, levels[taskIndex], boundary, coeffs[taskIndex],
+            auto task = new TaskAdvection(levels[taskIndex], boundary, coeffs[taskIndex],
                                           loadmodel.get(), dt, nsteps, p);
             task->setID(taskNumbers[taskIndex]);
             pgroup.initializeTaskAndFaults(task);

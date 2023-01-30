@@ -7,103 +7,12 @@
 #include <boost/test/unit_test.hpp>
 #include <cstdio>
 
-// #include "loadmodel/LearningLoadModel.hpp"
-// #include "loadmodel/LinearLoadModel.hpp"
-// #include "manager/CombiParameters.hpp"
-// #include "manager/ProcessGroupManager.hpp"
-// #include "manager/ProcessGroupWorker.hpp"
-// #include "manager/ProcessManager.hpp"
 #include "mpi/MPIMemory.hpp"
 #include "mpi/MPISystem.hpp"
-// #include "task/Task.hpp"
-// #include "utils/Config.hpp"
-#include "utils/Stats.hpp"
 #include "test_helper.hpp"
+#include "utils/Stats.hpp"
 
 using namespace combigrid;
-
-void checkMPIRanksAndCommunication(size_t ngroup, size_t nprocs) {
-  // size_t size = ngroup * nprocs + 1;
-  // BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
-
-  // CommunicatorType comm = TestHelper::getComm(size);
-  // if (comm == MPI_COMM_NULL) {
-  //   BOOST_TEST_CHECKPOINT("drop out of test comm");
-  //   return;
-  // }
-
-  // theMPISystem()->initWorldReusable(comm, ngroup, nprocs);
-  // theMPISystem()->init(ngroup, nprocs);
-
-  // WORLD_MANAGER_EXCLUSIVE_SECTION {
-  //   // make sure the manager's ranks are set right
-  //   BOOST_CHECK_EQUAL(getCommRank(theMPISystem()->getWorldComm()), size - 1);
-  //   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getGlobalComm()), ngroup + 1);
-  //   BOOST_CHECK_EQUAL(getCommRank(theMPISystem()->getGlobalComm()), ngroup);
-
-  //   DimType dim = 6;
-  //   LevelVector lmin(dim, 2);
-  //   LevelVector lmax(dim, 3);
-
-  //   ProcessGroupManagerContainer pgroups;
-  //   for (int i = 0; i < ngroup; ++i) {
-  //     int pgroupRootID(i);
-  //     pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
-  //   }
-
-  //   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
-
-  //   std::vector<BoundaryType> boundary(dim, boundaryV);
-
-  //   CombiMinMaxScheme combischeme(dim, lmin, lmax);
-  //   combischeme.createAdaptiveCombischeme();
-
-  //   std::vector<LevelVector> levels = combischeme.getCombiSpaces();
-  //   std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
-
-  //   // create Tasks
-  //   TaskContainer tasks;
-  //   std::vector<size_t> taskIDs;
-  //   for (size_t i = 0; i < levels.size(); i++) {
-  //     Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
-  //     tasks.push_back(t);
-  //     taskIDs.push_back(t->getID());
-  //   }
-
-  //   // create combiparameters
-  //   CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi);
-  //   params.setParallelization({static_cast<int>(nprocs), 1});
-
-  //   // create abstraction for Manager
-  //   ProcessManager manager{pgroups, tasks, params, std::move(loadmodel)};
-
-  //   // the combiparameters are sent to all process groups before the
-  //   // computations start
-  //   manager.updateCombiParameters();
-
-  //   manager.exit();
-  //   TestHelper::testStrayMessages(theMPISystem()->getGlobalComm());
-  // }
-  // else {
-  //   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), nprocs);
-  //   if (nprocs == 1) {
-  //     BOOST_CHECK(theMPISystem()->isMaster());
-  //   }
-  //   BOOST_TEST_CHECKPOINT("Worker starts");
-  //   ProcessGroupWorker pgroup;
-  //   MASTER_EXCLUSIVE_SECTION { std::cout << "at worker construction " << std::flush; }
-  //   mpimemory::print_memory_usage_local();
-  //   SignalType signal = -1;
-  //   while (signal != EXIT) {
-  //     BOOST_TEST_CHECKPOINT(signal);
-  //     MASTER_EXCLUSIVE_SECTION { std::cout << "at signal " << signal << std::flush; }
-  //     mpimemory::print_memory_usage_local();
-  //     signal = pgroup.wait();
-  //   }
-  // }
-  // MPI_Barrier(comm);
-  // TestHelper::testStrayMessages(comm);
-}
 
 unsigned long checkMPIMemory(size_t ngroup, size_t nprocs) {
   size_t size = ngroup * nprocs + 1;
@@ -139,7 +48,7 @@ unsigned long checkMPIMemory(size_t ngroup, size_t nprocs) {
 BOOST_FIXTURE_TEST_SUITE(mpisystem, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(60))
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::timeout(60)) {
-  std::vector<size_t> groupSizes {1,2,4,8};
+  std::vector<size_t> groupSizes{1, 2, 4, 8};
   std::vector<long unsigned int> vmSizes(groupSizes.size());
   for (size_t i = 0; i < groupSizes.size(); ++i) {
     vmSizes[i] = checkMPIMemory(1, groupSizes[i]);
@@ -147,7 +56,8 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::timeout(60)) {
       // compare allocated memory sizes
       // check for linear scaling (grace 20%)
       if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
-        BOOST_TEST(static_cast<double>(vmSizes[i]) <= (vmSizes[0] * groupSizes[i] / groupSizes[0] * 1.2));
+        BOOST_TEST(static_cast<double>(vmSizes[i]) <=
+                   (vmSizes[0] * groupSizes[i] / groupSizes[0] * 1.2));
       }
     }
   }
@@ -155,6 +65,111 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::timeout(60)) {
   BOOST_CHECK(!TestHelper::testStrayMessages());
 }
 
-//TODO make test for checkMPIRanksAndCommunication
+BOOST_AUTO_TEST_CASE(test_with_manager) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(6));
+  for (const auto& procs : std::vector<std::vector<int>>{{2, 3}, {3, 2}, {1, 6}, {6, 1}}) {
+    CommunicatorType comm = TestHelper::getComm(procs[0] * procs[1] + 1);
+    if (comm != MPI_COMM_NULL) {
+      Stats::initialize();
+      theMPISystem()->initWorldReusable(comm, procs[0], procs[1]);
+      BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1] + 1);
+      BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
+      BOOST_CHECK_EQUAL(theMPISystem()->getManagerRankWorld(), procs[0] * procs[1]);
+
+      WORLD_MANAGER_EXCLUSIVE_SECTION {
+        BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), procs[0] * procs[1]);
+        BOOST_CHECK_EQUAL(theMPISystem()->getLocalComm(), MPI_COMM_NULL);
+        BOOST_CHECK_LT(theMPISystem()->getLocalRank(), 0);
+        BOOST_CHECK_EQUAL(theMPISystem()->getGlobalReduceComm(), MPI_COMM_NULL);
+        BOOST_CHECK_LT(theMPISystem()->getGlobalReduceRank(), 0);
+        BOOST_CHECK_NE(theMPISystem()->getGlobalComm(), MPI_COMM_NULL);
+        BOOST_CHECK_EQUAL(theMPISystem()->getGlobalRank(), procs[0]);
+        BOOST_CHECK_EQUAL(theMPISystem()->getManagerRank(), procs[0]);
+      }
+      else {
+        BOOST_CHECK_LT(theMPISystem()->getWorldRank(), procs[0] * procs[1]);
+        BOOST_CHECK_NE(theMPISystem()->getLocalComm(), MPI_COMM_NULL);
+        BOOST_CHECK_LT(theMPISystem()->getLocalRank(), procs[1]);
+        BOOST_CHECK_EQUAL(theMPISystem()->getMasterRank(), 0);
+        BOOST_CHECK_NE(theMPISystem()->getGlobalReduceComm(), MPI_COMM_NULL);
+        BOOST_CHECK_LT(theMPISystem()->getGlobalReduceRank(), procs[0]);
+        MASTER_EXCLUSIVE_SECTION {
+          BOOST_CHECK_NE(theMPISystem()->getGlobalComm(), MPI_COMM_NULL);
+          BOOST_CHECK_LT(theMPISystem()->getGlobalRank(), procs[0]);
+        }
+        else {
+          BOOST_CHECK_EQUAL(theMPISystem()->getGlobalComm(), MPI_COMM_NULL);
+          BOOST_CHECK_LT(theMPISystem()->getGlobalRank(), 0);
+        }
+      }
+      Stats::finalize();
+      MPI_Barrier(comm);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_manager_only) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(1));
+  auto procs = std::vector<int>{0, 0};
+  CommunicatorType comm = TestHelper::getComm(1);
+  if (comm != MPI_COMM_NULL) {
+    Stats::initialize();
+    theMPISystem()->initWorldReusable(comm, procs[0], procs[1]);
+    BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1] + 1);
+    BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
+
+    WORLD_MANAGER_EXCLUSIVE_SECTION {
+      BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), procs[0] * procs[1]);
+      BOOST_CHECK_EQUAL(theMPISystem()->getGlobalRank(), procs[0] * procs[1]);
+    }
+    else {
+      BOOST_CHECK(false);
+    }
+    Stats::finalize();
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_no_manager) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(6));
+  for (const auto& procs : std::vector<std::vector<int>>{{2, 3}, {3, 2}, {1, 6}, {6, 1}}) {
+    CommunicatorType comm = TestHelper::getComm(procs);
+    if (comm != MPI_COMM_NULL) {
+      Stats::initialize();
+      BOOST_TEST_CHECKPOINT("MPI init " + std::to_string(procs[0]) + " " +
+                            std::to_string(procs[1]));
+      theMPISystem()->initWorldReusable(comm, procs[0], procs[1], false);
+
+      BOOST_CHECK_NE(theMPISystem()->getLocalComm(), theMPISystem()->getGlobalComm());
+      BOOST_CHECK_NE(theMPISystem()->getLocalComm(), theMPISystem()->getGlobalReduceComm());
+      BOOST_CHECK_NE(theMPISystem()->getGlobalComm(), theMPISystem()->getGlobalReduceComm());
+
+      BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1]);
+      BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getWorldComm()), procs[0] * procs[1]);
+      BOOST_CHECK_LT(theMPISystem()->getGlobalReduceRank(), procs[0]);
+      BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
+      BOOST_CHECK_LT(theMPISystem()->getManagerRankWorld(), 0);
+      BOOST_CHECK_LT(theMPISystem()->getManagerRank(), 0);
+      BOOST_CHECK_EQUAL(theMPISystem()->getMasterRank(), 0);
+
+      WORLD_MANAGER_EXCLUSIVE_SECTION { BOOST_CHECK(false); }
+      BOOST_CHECK_NE(theMPISystem()->getLocalComm(), MPI_COMM_NULL);
+      BOOST_CHECK_LT(theMPISystem()->getLocalRank(), procs[1]);
+      BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), procs[1]);
+      BOOST_CHECK_NE(theMPISystem()->getGlobalReduceComm(), MPI_COMM_NULL);
+
+      BOOST_CHECK_LT(theMPISystem()->getWorldRank(), procs[0] * procs[1]);
+      MASTER_EXCLUSIVE_SECTION {
+        BOOST_CHECK_NE(theMPISystem()->getGlobalComm(), MPI_COMM_NULL);
+        BOOST_CHECK_LT(theMPISystem()->getGlobalRank(), procs[0]);
+      }
+      else {
+        BOOST_CHECK_EQUAL(theMPISystem()->getGlobalComm(), MPI_COMM_NULL);
+        BOOST_CHECK_LT(theMPISystem()->getGlobalRank(), 0);
+      }
+      Stats::finalize();
+      MPI_Barrier(comm);
+    }
+  }
+}
 
 BOOST_AUTO_TEST_SUITE_END()

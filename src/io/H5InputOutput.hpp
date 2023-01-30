@@ -18,9 +18,9 @@ void writeValuesToH5File(
     const std::string& dataSetName,
     combigrid::real simulationTime = std::numeric_limits<combigrid::real>::quiet_NaN()) {
 #ifdef DISCOTEC_USE_HIGHFIVE
-  // check if file already exists, if no, create
-  // TODO maybe use overwrite?
-  HighFive::File h5_file(fileName, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
+  // check if file already exists, if no, create, if yes, overwrite
+  HighFive::File h5_file(fileName, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite |
+                                       HighFive::File::Overwrite);
 
   HighFive::Group group;
   if (h5_file.exist(groupName)) {
