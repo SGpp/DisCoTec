@@ -245,7 +245,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
           BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
         }
       }
-#ifdef HAVE_HIGHFIVE
+#ifdef DISCOTEC_USE_HIGHFIVE
       // output files are not needed, remove them right away
       // (if this doesn't happen, there may be hdf5 errors due to duplicate task IDs)
       auto status = system("rm integration_interpolated*.h5");
@@ -274,7 +274,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
           BOOST_CHECK_EQUAL(interpolationCoords[i][d], interpolationCoordsRead[i][d]);
         }
       }
-#endif  // def HAVE_HIGHFIVE
+#endif  // def DISCOTEC_USE_HIGHFIVE
     }
 
     manager.exit();
