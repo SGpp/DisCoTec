@@ -12,7 +12,6 @@
 
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "combischeme/CombiThirdLevelScheme.hpp"
-#include "io/H5InputOutput.hpp"
 #include "manager/ProcessGroupWorker.hpp"
 
 using namespace combigrid;

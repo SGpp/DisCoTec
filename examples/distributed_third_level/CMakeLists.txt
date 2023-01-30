@@ -31,7 +31,7 @@ target_link_libraries(distributed_third_level_workers_only PRIVATE MPI::MPI_CXX 
 if(DISCOTEC_USE_HIGHFIVE)
     find_package(HighFive REQUIRED)
     target_link_libraries(distributed_third_level_workers_only PUBLIC HighFive)
-    target_compile_definitions(distributed_third_level_workers_only PUBLIC HAVE_HIGHFIVE)
+    target_compile_definitions(distributed_third_level_workers_only PUBLIC DISCOTEC_USE_HIGHFIVE)
 endif()
 
 add_executable(distributed_third_level_combi_example_manager_only combi_example_manager_only.cpp)
