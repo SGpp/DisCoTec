@@ -273,7 +273,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
             "dsgu_combine_" + std::to_string((testParams.sysNum + 1) % 2);
         std::string startReadingTokenFileName = filenamePrefixToRead + "_complete.txt";
         manager.combineThirdLevelFileBasedWrite(filenamePrefixToWrite, writeCompleteTokenFileName);
-#ifdef HAVE_HIGHFIVE
+#ifdef DISCOTEC_USE_HIGHFIVE
         // write interpolated values
         std::vector<std::vector<real>> interpolationCoords = {
             std::vector<real>(testParams.dim, 0.001), std::vector<real>(testParams.dim, 0.2),
@@ -281,9 +281,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
             std::vector<real>(testParams.dim, 0.999)};
         manager.writeInterpolatedValuesSingleFile(
             interpolationCoords, "tl_group" + std::to_string(testParams.sysNum) + "_diagonal");
-#endif  // def HAVE_HIGHFIVE
-
-        // finish combination by reading in values from other system
+#endif  // def DISCOTEC_USE_HIGHFIVE
         manager.combineThirdLevelFileBasedReadReduce(filenamePrefixToRead,
                                                      startReadingTokenFileName);
       }

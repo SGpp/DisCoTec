@@ -723,7 +723,6 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFile(std::string fileName)
   MPI_Offset len = this->getRawDataSize();
   auto data = this->getRawData();
   bool success = mpiio::readValuesConsecutive<FG_ELEMENT>(data, len, fileName, comm);
-
   return success;
 }
 

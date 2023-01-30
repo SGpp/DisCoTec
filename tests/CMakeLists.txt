@@ -24,11 +24,14 @@ target_link_libraries(test_distributedcombigrid_boost PUBLIC discotec Boost::boo
 target_include_directories(test_distributedcombigrid_boost PUBLIC Boost::headers)
 set_property(TARGET test_distributedcombigrid_boost PROPERTY CROSSCOMPILING_EMULATOR '${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 9')
 
-if(DISCOTEC_USE_HIGHFIVE)
-    find_package(HighFive REQUIRED)
-    target_link_libraries(test_distributedcombigrid_boost PUBLIC HighFive)
-    target_compile_definitions(test_distributedcombigrid_boost PUBLIC HAVE_HIGHFIVE)
-endif()
+if (DISCOTEC_USE_HIGHFIVE)
+    enable_language(C)
+    find_package(HDF5 REQUIRED)
+    find_package(HighFive REQUIRED)  # TODO: add minimum version and components
+    target_include_directories(discotec PRIVATE ${HighFive_INCLUDE_DIRS})
+    target_link_libraries(test_distributedcombigrid_boost PRIVATE HighFive)
+    target_compile_definitions(test_distributedcombigrid_boost PUBLIC DISCOTEC_USE_HIGHFIVE)
+endif ()
 
 foreach (test_file ${UNIT_TESTS_SRC_FILES})
     get_filename_component(test_name ${test_file} NAME_WE)
