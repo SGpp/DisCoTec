@@ -3,7 +3,7 @@
 
 #include "utils/Types.hpp"
 
-#ifdef HAVE_HIGHFIVE
+#ifdef DISCOTEC_USE_HIGHFIVE
 // highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi
 // versions)
 #include <highfive/H5File.hpp>
@@ -17,7 +17,7 @@ void writeValuesToH5File(
     const T& values, const std::string& fileName, const std::string& groupName,
     const std::string& dataSetName,
     combigrid::real simulationTime = std::numeric_limits<combigrid::real>::quiet_NaN()) {
-#ifdef HAVE_HIGHFIVE
+#ifdef DISCOTEC_USE_HIGHFIVE
   // check if file already exists, if no, create
   // TODO maybe use overwrite?
   HighFive::File h5_file(fileName, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
@@ -45,7 +45,7 @@ void writeValuesToH5File(
 
 template <typename T>
 void readValuesFromH5File(T& values, const std::string& fileName) {
-#ifdef HAVE_HIGHFIVE
+#ifdef DISCOTEC_USE_HIGHFIVE
   HighFive::File h5_file(fileName, HighFive::File::ReadOnly);
 
   // assume one group in file
