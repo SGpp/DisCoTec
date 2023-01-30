@@ -149,7 +149,7 @@ if (DISCOTEC_USE_HIGHFIVE)
     find_package(HighFive REQUIRED)  # TODO: add minimum version and components
     target_include_directories(discotec PRIVATE ${HighFive_INCLUDE_DIRS})
     target_link_libraries(discotec PRIVATE HighFive)
-    target_compile_definitions(discotec PRIVATE HAVE_HIGHFIVE)
+    target_compile_definitions(discotec PUBLIC DISCOTEC_USE_HIGHFIVE)
 
 endif ()
 
