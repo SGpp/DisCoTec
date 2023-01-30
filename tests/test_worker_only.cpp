@@ -213,7 +213,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     BOOST_TEST_MESSAGE("worker write/read DSG: " << Stats::getDuration("worker write DSG")
                                                  << " milliseconds");
   }
-#ifdef HAVE_HIGHFIVE
+#ifdef DISCOTEC_USE_HIGHFIVE
   // test Monte-Carlo interpolation
   // only if boundary values are used
   if (boundaryV > 0) {
@@ -277,7 +277,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
                                   valuesAllGridsRead.end());
   }
 
-#endif  // def HAVE_HIGHFIVE
+#endif  // def DISCOTEC_USE_HIGHFIVE
   BOOST_TEST_CHECKPOINT("worker exit");
   BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), ncombi);
   worker.exit();
