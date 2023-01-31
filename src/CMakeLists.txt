@@ -142,7 +142,7 @@ target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_optio
 
 find_package(GLPK REQUIRED)
 target_link_libraries(discotec PUBLIC ${GLPK_LIBRARIES})
-
+target_include_directories(discotec PUBLIC ${GLPK_INCLUDE_DIRS})
 
 if (DISCOTEC_USE_HIGHFIVE)
     enable_language(C)
