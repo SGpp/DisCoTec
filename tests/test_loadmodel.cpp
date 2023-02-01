@@ -60,7 +60,7 @@ void testDataSave(int size) {
 
     Stats::Event e = Stats::Event();
     e.end = e.start + std::chrono::microseconds(d);
-    DurationInformation info = {TestHelper::getRank(comm), Stats::getEventDurationInUsec(e), 12.34, 0.00001, 1234, nprocs};
+    DurationInformation info = {static_cast<size_t>(TestHelper::getRank(comm)), Stats::getEventDurationInUsec(e), 12.34, 0.00001, 1234, nprocs};
     // MPI_Request request;
     // send durationInfo to manager
     for (size_t i = 0; i < numRounds; ++i) {
