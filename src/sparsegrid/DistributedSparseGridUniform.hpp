@@ -844,7 +844,7 @@ static void reduceDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
   // prepare for MPI call in globalReduceComm
   MPI_Datatype dtype = getMPIDatatype(
                         abstraction::getabstractionDataType<size_t>());
-  const std::vector<size_t>& dsguData = dsgu->getRawData();
+  std::vector<size_t>& dsguData = dsgu->getRawData();
 
   // perform allreduce
   assert(dsguData.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
