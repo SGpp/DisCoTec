@@ -1369,7 +1369,7 @@ class DistributedFullGrid {
     }else{
       // rank 0 write dim and resolution (and data format?)
       if (rank_ == 0) {
-        MPI_File_write(fh, &dim, 1, MPI_INT, MPI_STATUS_IGNORE);
+        MPI_File_write(fh, &dim, 1, MPI_UNSIGNED_CHAR, MPI_STATUS_IGNORE);
 
         std::vector<int> res(sizes.begin(), sizes.end());
         MPI_File_write(fh, &res[0], 6, MPI_INT, MPI_STATUS_IGNORE);
@@ -1450,7 +1450,7 @@ class DistributedFullGrid {
 
     // rank 0 write header
     if (rank_ == 0) {
-      MPI_File_write(fh, header_string.c_str(), static_cast<int>(header_size), MPI_CHAR, MPI_STATUS_IGNORE);
+      MPI_File_write(fh, header_string.data(), static_cast<int>(header_size), MPI_CHAR, MPI_STATUS_IGNORE);
     }
 
     // set file view to right offset (in bytes)
