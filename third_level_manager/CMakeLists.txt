@@ -12,6 +12,9 @@ find_package(MPI REQUIRED)
 target_link_libraries(thirdLevelManager PUBLIC MPI::MPI_CXX)
 target_link_libraries(test_uftp PUBLIC MPI::MPI_CXX)
 
+target_compile_features(thirdLevelManager PRIVATE cxx_std_17)
+target_compile_features(test_uftp PRIVATE cxx_std_17)
+
 target_link_libraries(thirdLevelManager PUBLIC discotec)
 target_link_libraries(test_uftp PUBLIC discotec)
 find_package(Boost REQUIRED COMPONENTS serialization program_options)
