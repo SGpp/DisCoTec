@@ -138,7 +138,7 @@ inline void writeSingleFile(const std::stringstream& buffer, const std::string& 
   // get offset in file
   MPI_Offset len = buffer.str().size();
   MPI_Offset pos = 0;
-  MPI_Scan(&len, &pos, 1, MPI_LONG, MPI_SUM, comm);
+  MPI_Scan(&len, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
   pos -= len;
 
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
@@ -157,7 +157,7 @@ inline void writeSingleFile(const std::stringstream& buffer, const std::string& 
   }
 
   // write to single file with MPI-IO
-  MPI_File_write_at_all(fh, pos, buffer.str().c_str(), (int)len, MPI_CHAR, MPI_STATUS_IGNORE);
+  MPI_File_write_at_all(fh, pos, buffer.str().data(), (int)len, MPI_CHAR, MPI_STATUS_IGNORE);
   MPI_File_close(&fh);
 }
 
