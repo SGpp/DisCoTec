@@ -36,7 +36,7 @@ class TaskCount : public combigrid::Task {
     BOOST_TEST_CHECKPOINT("TaskCount constructor");
   }
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
+  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
 
     auto nprocs = getCommSize(lcomm);
     std::vector<int> p;
@@ -57,7 +57,7 @@ class TaskCount : public combigrid::Task {
     BOOST_TEST_CHECKPOINT("TaskCount init");
   }
 
-  void run(CommunicatorType lcomm) {
+  void run(CommunicatorType lcomm) override {
 
     // std::cout << "run " << getCommRank(lcomm) << std::endl;
 
@@ -80,14 +80,14 @@ class TaskCount : public combigrid::Task {
     BOOST_TEST_CHECKPOINT("TaskCount run");
   }
 
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) override {
     BOOST_TEST_CHECKPOINT("TaskCount getFullGrid");
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override { return *dfg_; }
 
-  void setZero() {
+  void setZero() override {
     BOOST_TEST_CHECKPOINT("TaskCount setZero");
   }
 

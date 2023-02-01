@@ -33,15 +33,15 @@ class TaskTest : public combigrid::Task {
         new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p);
   }
 
-  void run(CommunicatorType lcomm) {}
+  void run(CommunicatorType lcomm) override {}
 
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) override {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override { return *dfg_; }
 
-  void setZero() {}
+  void setZero() override {}
 
   ~TaskTest() {
     if (dfg_ != NULL) delete dfg_;
