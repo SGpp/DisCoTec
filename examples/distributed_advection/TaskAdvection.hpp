@@ -47,7 +47,7 @@ class TaskAdvection : public Task {
   }
 
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) override {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
@@ -86,7 +86,7 @@ class TaskAdvection : public Task {
    * only lcomm or a subset of it as communicator.
    * important: don't forget to set the isFinished flag at the end of the computation.
    */
-  void run(CommunicatorType lcomm) {
+  void run(CommunicatorType lcomm) override {
     assert(initialized_);
     // dfg_->print(std::cout);
 
@@ -161,15 +161,15 @@ class TaskAdvection : public Task {
    * solution on one process and then converting it to the full grid representation.
    * the DistributedFullGrid class offers a convenient function to do this.
    */
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) override {
     assert(fg.getLevels() == dfg_->getLevels());
 
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override { return *dfg_; }
 
-  void setZero() {
+  void setZero() override {
     dfg_->setZero();
     std::fill(phi_->begin(), phi_->end(), 0.);
   }

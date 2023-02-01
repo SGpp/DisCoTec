@@ -43,7 +43,7 @@ class AveragingLoadModel : public LearningLoadModel {
     }
   }
 
-  inline real eval(const LevelVector& l);
+  inline real eval(const LevelVector& l) override;
 
   ~AveragingLoadModel() {
     // upon destruction, write data gathered to file
