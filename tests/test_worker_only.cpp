@@ -269,6 +269,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     worker.writeInterpolatedValuesPerGrid(interpolationCoords, "worker_interpolated");
     BOOST_TEST_CHECKPOINT("wrote interpolated values per grid");
 
+    MPI_Barrier(comm);
     sleep(1);  // wait for filesystem to catch up
     decltype(values) valuesAllGridsRead;
     h5io::readH5Values(valuesAllGridsRead,
