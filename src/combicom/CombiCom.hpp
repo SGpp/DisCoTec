@@ -124,12 +124,14 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   MPI_Datatype dtype =
       abstraction::getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
 
-  auto maxint = std::numeric_limits<int>::max();
+  // auto chunkSize = std::numeric_limits<int>::max();
+  // allreduce up to 16MiB at a time (when using double precision)
+  auto chunkSize = 2097152;
   size_t sentRecvd = 0;
-  while ((subspacesDataSize - sentRecvd) / maxint > 0) {
-    MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd, static_cast<int>(maxint), dtype, MPI_SUM,
-                  mycomm);
-    sentRecvd += maxint;
+  while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
+    MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd, static_cast<int>(chunkSize), dtype,
+                  MPI_SUM, mycomm);
+    sentRecvd += chunkSize;
   }
   MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd,
                 static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM, mycomm);
