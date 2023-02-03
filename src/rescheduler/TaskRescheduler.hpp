@@ -32,6 +32,8 @@ class TaskRescheduler {
       const std::map<LevelVector, int>& levelVectorToProcessGroupIndex,
       const std::map<LevelVector, unsigned long>& levelVectorToTaskDuration,
       LoadModel *loadModel) = 0;
+
+  virtual ~TaskRescheduler() = default;
 };
 
 } /* namespace combigrid */
