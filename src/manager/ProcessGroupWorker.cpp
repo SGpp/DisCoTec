@@ -1480,23 +1480,58 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
   if (extraSparseGrid) {
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       this->setExtraSparseGrid(true);
+#ifndef NDEBUG
+      // duplicate subspace sizes to validate later
+      std::vector<SubspaceSizeType> subspaceSizesToValidate =
+          extraUniDSGVector_[0]->getSubspaceDataSizes();
+#endif
       // use extra sparse grid
       auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
         return std::min(a, b);
       };
       extraUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
                                                              minFunctionInstantiation);
+#ifndef NDEBUG
+      assert(subspaceSizesToValidate.size() ==
+             extraUniDSGVector_[0]->getSubspaceDataSizes().size());
+      for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
+        assert(subspaceSizesToValidate[i] == 0 ||
+               subspaceSizesToValidate[i] == extraUniDSGVector_[0]->getSubspaceDataSizes()[i]);
+      }
+      auto numDOFtoValidate =
+          std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
+      auto numDOFnow = std::accumulate(extraUniDSGVector_[0]->getSubspaceDataSizes().begin(),
+                                       extraUniDSGVector_[0]->getSubspaceDataSizes().end(), 0);
+      assert(numDOFtoValidate > numDOFnow);
+#endif
     }
   } else {
     if (!extraUniDSGVector_.empty()) {
       throw std::runtime_error("extraUniDSGVector_ not empty, but extraSparseGrid is false");
     }
+#ifndef NDEBUG
+    std::vector<SubspaceSizeType> subspaceSizesToValidate =
+        combinedUniDSGVector_[0]->getSubspaceDataSizes();
+#endif
     // if no extra sparse grid, max-reduce the normal one
     auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
       return std::max(a, b);
     };
     combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
                                                               maxFunctionInstantiation);
+#ifndef NDEBUG
+    assert(subspaceSizesToValidate.size() ==
+           combinedUniDSGVector_[0]->getSubspaceDataSizes().size());
+    for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
+      assert(subspaceSizesToValidate[i] == 0 ||
+             subspaceSizesToValidate[i] == combinedUniDSGVector_[0]->getSubspaceDataSizes()[i]);
+    }
+    auto numDOFtoValidate =
+        std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
+    auto numDOFnow = std::accumulate(combinedUniDSGVector_[0]->getSubspaceDataSizes().begin(),
+                                     combinedUniDSGVector_[0]->getSubspaceDataSizes().end(), 0);
+    assert(numDOFtoValidate <= numDOFnow);
+#endif
   }
 }
 
