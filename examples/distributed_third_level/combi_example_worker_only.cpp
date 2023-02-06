@@ -205,6 +205,8 @@ int main(int argc, char** argv) {
         "conjoint.sizes";
     worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid);
   }
+  // allocate sparse grids now
+  worker.zeroDsgsData();
 
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "start simulation loop" << std::endl;
   for (size_t i = 0; i < ncombi; ++i) {
