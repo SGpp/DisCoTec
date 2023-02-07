@@ -1495,8 +1495,8 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
       assert(subspaceSizesToValidate.size() ==
              extraUniDSGVector_[0]->getSubspaceDataSizes().size());
       for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
-        assert(subspaceSizesToValidate[i] == 0 ||
-               subspaceSizesToValidate[i] == extraUniDSGVector_[0]->getSubspaceDataSizes()[i]);
+        assert(extraUniDSGVector_[0]->getSubspaceDataSizes()[i] == 0 ||
+               extraUniDSGVector_[0]->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
       }
       auto numDOFtoValidate =
           std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
