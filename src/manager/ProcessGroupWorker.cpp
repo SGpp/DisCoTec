@@ -1423,10 +1423,13 @@ void ProcessGroupWorker::setExtraSparseGrid(bool initializeSizes) {
           extraUniDSG->setDataSize(i, combinedUniDSGVector_[0]->getDataSize(i));
         }
       }
+      // level vectors are not required; read from the initial sparse grid if needed
+      extraUniDSG->resetLevels();
     }
   } else {
     throw std::runtime_error(
-        "extraUniDSGVector_ is not empty -- if you think this is ok, try to remove the if-else here");
+        "extraUniDSGVector_ is not empty -- if you think this is ok, try to remove the if-else "
+        "here");
   }
 }
 
