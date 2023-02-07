@@ -155,6 +155,8 @@ class DistributedSparseGridUniform {
 
   bool writeSubspaceSizesToFile(std::string fileName) const;
 
+  bool readSubspaceSizesFromFile(std::string fileName);
+
   template <typename ReduceFunctionType>
   bool readReduceSubspaceSizesFromFile(std::string fileName, ReduceFunctionType reduceFunction,
                                        int numElementsToBuffer = 0);
@@ -747,6 +749,15 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeSubspaceSizesToFile(
   MPI_Offset len = this->getNumSubspaces();
   bool success = mpiio::writeValuesConsecutive<SubspaceSizeType>(
       this->getSubspaceDataSizes().data(), len, fileName, comm);
+  return success;
+}
+
+template <typename FG_ELEMENT>
+bool DistributedSparseGridUniform<FG_ELEMENT>::readSubspaceSizesFromFile(std::string fileName) {
+  auto comm = this->getCommunicator();
+  MPI_Offset len = this->getNumSubspaces();
+  bool success = mpiio::readValuesConsecutive<SubspaceSizeType>(this->subspacesDataSizes_.data(),
+                                                                len, fileName, comm);
   return success;
 }
 
