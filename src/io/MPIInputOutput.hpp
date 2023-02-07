@@ -26,7 +26,16 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
   // open file
   MPI_File fh;
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, info, &fh);
-  MPI_File_set_size(fh,0); // like O_TRUNC, cf.https://pubs.opengroup.org/onlinepubs/7908799/xsh/open.html
+  if (err != MPI_SUCCESS) {
+    // file already existed, delete it and create new file
+    int mpi_rank;
+    MPI_Comm_rank(comm, &mpi_rank);
+    if (mpi_rank == 0) {
+      MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
+    }
+    err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
+                        info, &fh);
+  }
 
   if (err == MPI_SUCCESS) {
     // write to single file with MPI-IO
