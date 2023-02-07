@@ -1476,7 +1476,7 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
 }
 
 void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
-                                             bool extraSparseGrid) {
+                                             bool extraSparseGrid, bool overwrite) {
   if (extraSparseGrid) {
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       this->setExtraSparseGrid(true);
@@ -1486,11 +1486,15 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
           extraUniDSGVector_[0]->getSubspaceDataSizes();
 #endif
       // use extra sparse grid
-      auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-        return std::min(a, b);
-      };
-      extraUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
-                                                             minFunctionInstantiation);
+      if (overwrite) {
+        extraUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead);
+      } else {
+        auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+          return std::min(a, b);
+        };
+        extraUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
+                                                               minFunctionInstantiation);
+      }
 #ifndef NDEBUG
       assert(subspaceSizesToValidate.size() ==
              extraUniDSGVector_[0]->getSubspaceDataSizes().size());
@@ -1513,12 +1517,16 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
     std::vector<SubspaceSizeType> subspaceSizesToValidate =
         combinedUniDSGVector_[0]->getSubspaceDataSizes();
 #endif
-    // if no extra sparse grid, max-reduce the normal one
-    auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-      return std::max(a, b);
-    };
-    combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
-                                                              maxFunctionInstantiation);
+    if (overwrite) {
+      combinedUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead);
+    } else {
+      // if no extra sparse grid, max-reduce the normal one
+      auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+        return std::max(a, b);
+      };
+      combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
+                                                                maxFunctionInstantiation);
+    }
 #ifndef NDEBUG
     assert(subspaceSizesToValidate.size() ==
            combinedUniDSGVector_[0]->getSubspaceDataSizes().size());
@@ -1530,19 +1538,6 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
         std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
     auto numDOFnow = std::accumulate(combinedUniDSGVector_[0]->getSubspaceDataSizes().begin(),
                                      combinedUniDSGVector_[0]->getSubspaceDataSizes().end(), 0);
-    assert(numDOFtoValidate <= numDOFnow);
-
-    // only read the file (no reduce) and make sure that sizes were not larger before
-    // (this may not always be desired, but for the current case it is)
-    combinedUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead);
-    assert(subspaceSizesToValidate.size() ==
-           combinedUniDSGVector_[0]->getSubspaceDataSizes().size());
-    for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
-      assert(subspaceSizesToValidate[i] == 0 ||
-             subspaceSizesToValidate[i] == combinedUniDSGVector_[0]->getSubspaceDataSizes()[i]);
-    }
-    numDOFnow = std::accumulate(combinedUniDSGVector_[0]->getSubspaceDataSizes().begin(),
-                                combinedUniDSGVector_[0]->getSubspaceDataSizes().end(), 0);
     assert(numDOFtoValidate <= numDOFnow);
 #endif
   }
