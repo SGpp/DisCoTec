@@ -585,9 +585,12 @@ class DistributedFullGrid {
 
     IndexType tmp = locLinIndex;
 
-    for (int i = static_cast<int>(dim_) - 1; i >= 0; i--) {
-      locAxisIndex[i] = tmp / localOffsets_[i];
-      tmp = tmp % localOffsets_[i];
+    for (int i = static_cast<int>(dim_) - 1; i >= 0; --i) {
+      const auto a = tmp / localOffsets_[i];
+      const auto t = tmp % localOffsets_[i];
+
+      locAxisIndex[i] = a;
+      tmp = t;
     }
   }
 
@@ -780,7 +783,8 @@ class DistributedFullGrid {
   /** coordinates of this process' lower bounds */
   inline std::vector<real> getLowerBoundsCoords() const {
     const auto& lowerBounds = this->getLowerBounds();
-    std::vector<real> coords(dim_);
+    static std::vector<real> coords(dim_);
+    coords.resize(dim_);
     for (DimType i = 0; i < dim_; ++i) {
       coords[i] = static_cast<double>(lowerBounds[i] + (hasBoundaryPoints_[i] > 0 ? 0 : 1)) *
                   this->getGridSpacing()[i];
