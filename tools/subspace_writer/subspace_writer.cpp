@@ -72,6 +72,9 @@ int main(int argc, char** argv) {
   params.setDecomposition(decomposition);
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "generated parameters" << std::endl;
 
+    LevelVector reducedLmax = lmax;
+    for (DimType d = 0; d < dim; ++d) reducedLmax[d] -= reduceCombinationDimsLmax[d];
+
   // make local communicator cartesian
   std::vector<int> periods(dim);
   int reorder = false;
@@ -92,8 +95,6 @@ int main(int argc, char** argv) {
     const auto& allLevels = scheme->getCombiSpaces();
 
     // generate distributed sparse grid
-    LevelVector reducedLmax = lmax;
-    for (DimType d = 0; d < dim; ++d) reducedLmax[d] -= reduceCombinationDimsLmax[d];
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
         new DistributedSparseGridUniform<CombiDataType>(dim, reducedLmax, lmin,
                                                         theMPISystem()->getLocalComm()));
@@ -131,7 +132,7 @@ int main(int argc, char** argv) {
 
     // another sparse grid
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin,
+        new DistributedSparseGridUniform<CombiDataType>(dim, reducedLmax, lmin,
                                                         theMPISystem()->getLocalComm()));
 
     // register levels from other CT scheme
