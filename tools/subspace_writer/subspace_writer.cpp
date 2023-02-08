@@ -79,8 +79,7 @@ int main(int argc, char** argv) {
   MPI_Cart_create(theMPISystem()->getLocalComm(), dim, p.data(), periods.data(), reorder,
                   &new_communicator);
   theMPISystem()->storeLocalComm(new_communicator);
-  MPI_Barrier(MPI_COMM_WORLD);
-  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "stored cartesian communicator" << std::endl;
+
   std::string firstSubspaceFileName =
       ctschemeFile.substr(0, ctschemeFile.length() - std::string(".json").length()) + ".sizes";
   std::string conjointSubspaceFileName =
@@ -93,8 +92,10 @@ int main(int argc, char** argv) {
     const auto& allLevels = scheme->getCombiSpaces();
 
     // generate distributed sparse grid
+    LevelVector reducedLmax = lmax;
+    for (DimType d = 0; d < dim; ++d) reducedLmax[d] -= reduceCombinationDimsLmax[d];
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin,
+        new DistributedSparseGridUniform<CombiDataType>(dim, reducedLmax, lmin,
                                                         theMPISystem()->getLocalComm()));
     MIDDLE_PROCESS_EXCLUSIVE_SECTION {
       std::cout << "sparse grid contains " << uniDSG->getNumSubspaces() << " subspaces."
