@@ -72,8 +72,8 @@ int main(int argc, char** argv) {
   params.setDecomposition(decomposition);
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "generated parameters" << std::endl;
 
-    LevelVector reducedLmax = lmax;
-    for (DimType d = 0; d < dim; ++d) reducedLmax[d] -= reduceCombinationDimsLmax[d];
+  LevelVector reducedLmax = lmax;
+  for (DimType d = 0; d < dim; ++d) reducedLmax[d] -= reduceCombinationDimsLmax[d];
 
   // make local communicator cartesian
   std::vector<int> periods(dim);
@@ -114,8 +114,9 @@ int main(int argc, char** argv) {
     }
     auto numDOF = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end(), 0);
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "sparse grid has " << numDOF << " DOF per rank"
-                                               << std::endl;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
+        << "sparse grid has " << numDOF << " DOF per rank, which is " << numDOF * 8. / 1e9 << " GB"
+        << std::endl;
     // write the resulting sparse grid sizes to file
     uniDSG->writeSubspaceSizesToFile(firstSubspaceFileName);
   }
@@ -147,7 +148,8 @@ int main(int argc, char** argv) {
     auto numDOF = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end(), 0);
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "other sparse grid has " << numDOF
-                                               << " DOF per rank" << std::endl;
+                                               << " DOF per rank, which is " << numDOF * 8. / 1e9
+                                               << " GB" << std::endl;
     // write the resulting sparse grid sizes to file
     uniDSG->writeSubspaceSizesToFile(
         otherCtschemeFile.substr(0, otherCtschemeFile.length() - std::string(".json").length()) +
