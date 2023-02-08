@@ -72,6 +72,9 @@ int main(int argc, char** argv) {
   params.setDecomposition(decomposition);
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "generated parameters" << std::endl;
 
+  LevelVector reducedLmax = lmax;
+  for (DimType d = 0; d < dim; ++d) reducedLmax[d] -= reduceCombinationDimsLmax[d];
+
   // make local communicator cartesian
   std::vector<int> periods(dim);
   int reorder = false;
@@ -79,8 +82,7 @@ int main(int argc, char** argv) {
   MPI_Cart_create(theMPISystem()->getLocalComm(), dim, p.data(), periods.data(), reorder,
                   &new_communicator);
   theMPISystem()->storeLocalComm(new_communicator);
-  MPI_Barrier(MPI_COMM_WORLD);
-  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "stored cartesian communicator" << std::endl;
+
   std::string firstSubspaceFileName =
       ctschemeFile.substr(0, ctschemeFile.length() - std::string(".json").length()) + ".sizes";
   std::string conjointSubspaceFileName =
@@ -94,7 +96,7 @@ int main(int argc, char** argv) {
 
     // generate distributed sparse grid
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin,
+        new DistributedSparseGridUniform<CombiDataType>(dim, reducedLmax, lmin,
                                                         theMPISystem()->getLocalComm()));
     MIDDLE_PROCESS_EXCLUSIVE_SECTION {
       std::cout << "sparse grid contains " << uniDSG->getNumSubspaces() << " subspaces."
@@ -112,8 +114,9 @@ int main(int argc, char** argv) {
     }
     auto numDOF = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end(), 0);
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "sparse grid has " << numDOF << " DOF per rank"
-                                               << std::endl;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
+        << "sparse grid has " << numDOF << " DOF per rank, which is " << numDOF * 8. / 1e9 << " GB"
+        << std::endl;
     // write the resulting sparse grid sizes to file
     uniDSG->writeSubspaceSizesToFile(firstSubspaceFileName);
   }
@@ -130,7 +133,7 @@ int main(int argc, char** argv) {
 
     // another sparse grid
     auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-        new DistributedSparseGridUniform<CombiDataType>(dim, lmax, lmin,
+        new DistributedSparseGridUniform<CombiDataType>(dim, reducedLmax, lmin,
                                                         theMPISystem()->getLocalComm()));
 
     // register levels from other CT scheme
@@ -145,7 +148,8 @@ int main(int argc, char** argv) {
     auto numDOF = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end(), 0);
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "other sparse grid has " << numDOF
-                                               << " DOF per rank" << std::endl;
+                                               << " DOF per rank, which is " << numDOF * 8. / 1e9
+                                               << " GB" << std::endl;
     // write the resulting sparse grid sizes to file
     uniDSG->writeSubspaceSizesToFile(
         otherCtschemeFile.substr(0, otherCtschemeFile.length() - std::string(".json").length()) +

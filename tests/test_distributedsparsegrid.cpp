@@ -673,7 +673,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
     auto sizesCopy = uniDSG->getSubspaceDataSizes();
 
     // write the (smaller) subspaces sizes to disk
-    uniDSG->writeSubspaceSizesToFile("test_dsg.sizes");
+    bool subspaceWriteSuccess = uniDSG->writeSubspaceSizesToFile("test_dsg.sizes");
+    BOOST_CHECK(subspaceWriteSuccess);
 
     {  // register reversed full grid
       std::reverse(lfull.begin(), lfull.end());
@@ -688,19 +689,23 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
     auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
       return std::max(a, b);
     };
-    uniDSG->readReduceSubspaceSizesFromFile("test_dsg.sizes", maxFunctionInstantiation, 2000);
+    bool subspaceReduceSuccess =
+        uniDSG->readReduceSubspaceSizesFromFile("test_dsg.sizes", maxFunctionInstantiation, 2000);
     BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopyLarger.begin(), sizesCopyLarger.end(),
                                   uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end());
+    BOOST_CHECK(subspaceReduceSuccess);
 
     // read the subspace sizes from disk and do min-reduce
     auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
       return std::min(a, b);
     };
-    uniDSG->readReduceSubspaceSizesFromFile("test_dsg.sizes", minFunctionInstantiation, 20);
+    subspaceReduceSuccess =
+        uniDSG->readReduceSubspaceSizesFromFile("test_dsg.sizes", minFunctionInstantiation, 20);
     BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopy.begin(), sizesCopy.end(),
                                   uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end());
+    BOOST_CHECK(subspaceReduceSuccess);
   }
 }
 

@@ -368,16 +368,15 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
         MPI_Aint firstBufAddr;
         MPI_Get_address(bufs[0], &firstBufAddr);
         std::vector<MPI_Aint> displacements;
-        displacements.reserve(bufs.size());
-        for (const auto& b : bufs) {
+        displacements.resize(bufs.size());
+        for (size_t bufIndex = 0; bufIndex < bufs.size(); ++bufIndex) {
           MPI_Aint addr;
-          MPI_Get_address(b, &addr);
-          auto d = MPI_Aint_diff(addr, firstBufAddr);
-          displacements.push_back(d);
+          MPI_Get_address(bufs[bufIndex], &addr);
+          displacements[bufIndex] = MPI_Aint_diff(addr, firstBufAddr);
         }
         assert(displacements[0] == 0);
-        MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), bsize, displacements.data(),
-                                       dfg.getMPIDatatype(), &myHBlock);
+        MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), bsize,
+                                       displacements.data(), dfg.getMPIDatatype(), &myHBlock);
         MPI_Type_commit(&myHBlock);
         // start recv operation, use first global index as tag
         {

@@ -148,8 +148,8 @@ class ProcessGroupWorker {
   /** computes a max reduce on the dsg's subspace sizes with the other systems */
   void reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
-
-  void reduceSubspaceSizes(const std::string& filenameToRead, bool extraSparseGrid);
+  void reduceSubspaceSizes(const std::string& filenameToRead, bool extraSparseGrid,
+                           bool overwrite = false);
 
   void reduceSubspaceSizesFileBased(std::string filenamePrefixToWrite,
                                     std::string writeCompleteTokenFileName,
@@ -189,9 +189,10 @@ class ProcessGroupWorker {
    */
   void initializeTaskAndFaults(Task* t);
 
-  IndexType getCurrentNumberOfCombinations() const {
-    return currentCombi_;
-  }
+  IndexType getCurrentNumberOfCombinations() const { return currentCombi_; }
+
+  /** sets all subspaces in all dsgs to zero and allocates them if necessary */
+  void zeroDsgsData();
 
  private:
   TaskContainer tasks_;  /// task storage
@@ -225,9 +226,6 @@ class ProcessGroupWorker {
   // std::ofstream betasFile_;
 
   void receiveAndInitializeTaskAndFaults(bool mayAlreadyExist = true);
-
-  /** sets all subspaces in all dsgs to zero and allocates them if necessary */
-  void zeroDsgsData();
 
   /** deallocates all data elements stored in the dsgs */
   void deleteDsgsData();

@@ -197,14 +197,16 @@ int main(int argc, char** argv) {
   // or similar
   std::string subspaceFileName =  // cf. subspace_writer.cpp
       ctschemeFile.substr(0, ctschemeFile.length() - std::string(".json").length()) + ".sizes";
-  worker.reduceSubspaceSizes(subspaceFileName, false);
+  worker.reduceSubspaceSizes(subspaceFileName, false, true);
   if (extraSparseGrid) {
     std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
         ctschemeFile.substr(0,
                             ctschemeFile.length() - std::string("split1_40groups.json").length()) +
         "conjoint.sizes";
-    worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid);
+    worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid, true);
   }
+  // allocate sparse grids now
+  worker.zeroDsgsData();
 
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "start simulation loop" << std::endl;
   for (size_t i = 0; i < ncombi; ++i) {

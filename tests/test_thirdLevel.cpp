@@ -281,6 +281,8 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
             std::vector<real>(testParams.dim, 0.999)};
         manager.writeInterpolatedValuesSingleFile(
             interpolationCoords, "tl_group" + std::to_string(testParams.sysNum) + "_diagonal");
+#else   // def DISCOTEC_USE_HIGHFIVE
+        sleep(1);
 #endif  // def DISCOTEC_USE_HIGHFIVE
         manager.combineThirdLevelFileBasedReadReduce(filenamePrefixToRead,
                                                      startReadingTokenFileName);
