@@ -269,7 +269,6 @@ template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::createKahanBuffer() {
   size_t numDataPoints = std::accumulate(subspacesDataSizes_.begin(), subspacesDataSizes_.end(),
                                          static_cast<size_t>(0));
-  assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
   kahanData_.resize(numDataPoints, 0.);
   kahanDataBegin_.resize(subspacesDataSizes_.size());
 

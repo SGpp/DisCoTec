@@ -1418,6 +1418,8 @@ void ProcessGroupWorker::setExtraSparseGrid(bool initializeSizes) {
           new DistributedSparseGridUniform<CombiDataType>(
               combinedUniDSGVector_[0]->getDim(), combinedUniDSGVector_[0]->getAllLevelVectors(),
               theMPISystem()->getLocalComm()));
+      // create Kahan buffer now (at zero size), because summation is not needed on this sparse grid
+      extraUniDSG->createKahanBuffer();
       if (initializeSizes) {
         for (size_t i = 0; i < extraUniDSG->getNumSubspaces(); ++i) {
           extraUniDSG->setDataSize(i, combinedUniDSGVector_[0]->getDataSize(i));
