@@ -105,6 +105,9 @@ class DistributedSparseGridUniform {
   // data size of the subspace at index i
   inline SubspaceSizeType getDataSize(SubspaceIndexType i) const;
 
+  // sum of all data sizes of all subspaces
+  inline size_t getAccumulatedDataSize() const;
+
   // sets data size of subspace with index i to newSize
   inline void setDataSize(SubspaceIndexType i, SubspaceSizeType newSize);
 
@@ -246,8 +249,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
   if (not isSubspaceDataCreated()) {
-    size_t numDataPoints = std::accumulate(subspacesDataSizes_.begin(), subspacesDataSizes_.end(),
-                                           static_cast<size_t>(0));
+    size_t numDataPoints = this->getAccumulatedDataSize();
     assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
     subspacesData_.resize(numDataPoints, 0.);
 
@@ -441,6 +443,12 @@ SubspaceSizeType DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(SubspaceI
 #endif  // NDEBUG
 
   return subspacesDataSizes_[i];
+}
+
+template <typename FG_ELEMENT>
+size_t DistributedSparseGridUniform<FG_ELEMENT>::getAccumulatedDataSize() const {
+  return std::accumulate(subspacesDataSizes_.begin(), subspacesDataSizes_.end(),
+                         static_cast<size_t>(0));
 }
 
 template <typename FG_ELEMENT>

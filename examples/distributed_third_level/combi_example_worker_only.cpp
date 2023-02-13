@@ -205,6 +205,21 @@ int main(int argc, char** argv) {
         "conjoint.sizes";
     worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid, true);
   }
+
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    MASTER_EXCLUSIVE_SECTION {
+      std::cout << "worker: read sizes, will allocate "
+                << static_cast<real>(worker.getCombinedUniDSGVector()[0]->getAccumulatedDataSize() *
+                                     sizeof(CombiDataType)) /
+                       1e6
+                << " plus "
+                << static_cast<real>(worker.getExtraUniDSGVector()[0]->getAccumulatedDataSize() *
+                                     sizeof(CombiDataType)) /
+                       1e6
+                << " MB" << std::endl;
+    }
+  }
+  MPI_Barrier(theMPISystem()->getWorldComm());
   // allocate sparse grids now
   worker.zeroDsgsData();
 
