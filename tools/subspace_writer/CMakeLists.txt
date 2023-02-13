@@ -24,4 +24,4 @@ target_include_directories(subspace_writer PRIVATE ${MPI_CXX_INCLUDE_DIRS} ../..
 target_compile_features(subspace_writer PRIVATE cxx_std_17)
 target_link_libraries(subspace_writer PRIVATE MPI::MPI_CXX discotec Boost::boost)
 
-install(TARGETS distributed_third_level_combi_example distributed_third_level_combi_example_manager_only distributed_third_level_get_mc_variance distributed_third_level_mpimemory DESTINATION examples/distributed_third_level)
+install(TARGETS subspace_writer DESTINATION tools/subspace_writer)
