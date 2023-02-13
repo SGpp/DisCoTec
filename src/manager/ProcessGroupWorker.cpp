@@ -1366,10 +1366,13 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
                                                               std::string startReadingTokenFileName,
                                                               bool overwrite) {
   // wait until we can start to read
-  while (!std::filesystem::exists(startReadingTokenFileName)) {
-    // wait for token file to appear
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  MASTER_EXCLUSIVE_SECTION {
+    while (!std::filesystem::exists(startReadingTokenFileName)) {
+      // wait for token file to appear
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
   }
+  MPI_Barrier(theMPISystem()->getLocalComm());
 
   if (overwrite) {
     this->readDSGsFromDisk(filenamePrefixToRead);
@@ -1566,10 +1569,13 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefix
   }
 
   // wait until we can start to read
-  while (!std::filesystem::exists(startReadingTokenFileName)) {
-    // wait for token file to appear
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  MASTER_EXCLUSIVE_SECTION {
+    while (!std::filesystem::exists(startReadingTokenFileName)) {
+      // wait for token file to appear
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
   }
+  MPI_Barrier(theMPISystem()->getLocalComm());
 
   this->reduceSubspaceSizes(filenamePrefixToRead, extraSparseGrid);
 }
