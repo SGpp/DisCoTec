@@ -6,6 +6,7 @@
 #include <boost/serialization/export.hpp>
 #include <boost/test/unit_test.hpp>
 #include <cstdio>
+#include <filesystem>
 #include <thread>
 
 #include "TaskConstParaboloid.hpp"
