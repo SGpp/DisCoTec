@@ -311,19 +311,27 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     Stats::stopEvent("manager interpolate");
 
     for (size_t i = 0; i < interpolationCoords.size(); ++i) {
-      // l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) - values[i], 2);
+      // l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i], testParams.ncombi) -
+      // values[i], 2);
       l2ErrorSingle += std::pow(initialFunction(interpolationCoords[i]) - values[i], 2);
     }
 
-    std::cout << "Monte carlo errors are " << l2ErrorSingle << " on this system and " <<
-      l2ErrorTwoSystems << " in total. boundary: " << boundary << std::endl;
+    std::cout << "Monte carlo errors are " << l2ErrorSingle << " on this system and "
+              << l2ErrorTwoSystems << " in total. boundary: " << boundary << std::endl;
     BOOST_CHECK_LE(l2ErrorTwoSystems, l2ErrorSingle);
 
     std::string filename("thirdLevel_" + std::to_string(testParams.ncombi) + ".raw");
     Stats::startEvent("manager write solution");
+    std::string dsgFileName = "thirdLevel_" + std::to_string(testParams.ncombi) + "_" +
+                              std::to_string(testParams.sysNum) + "_dsgs";
+    manager.writeDSGsToDisk(dsgFileName);
     manager.parallelEval(testParams.lmax, filename, 0);
-    manager.writeDSGsToDisk("thirdLevel_" + std::to_string(testParams.ncombi) + "_dsgs");
-    manager.readDSGsFromDisk("thirdLevel_" + std::to_string(testParams.ncombi) + "_dsgs");
+    manager.waitForAllGroupsToWait();
+    BOOST_TEST_CHECKPOINT("Waiting for file system...");
+    while (!std::filesystem::exists(dsgFileName + "_0")) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    manager.readDSGsFromDisk(dsgFileName);
     Stats::stopEvent("manager write solution");
 
     manager.exit();
