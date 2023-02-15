@@ -8,6 +8,7 @@
 #include <string>
 
 #include "fullgrid/FullGrid.hpp"
+#include "fullgrid/SliceIterator.hpp"
 #include "mpi/MPICartesianUtils.hpp"
 #include "mpi/MPISystem.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
@@ -17,7 +18,6 @@
 #include "utils/PowerOfTwo.hpp"
 #include "utils/Stats.hpp"
 #include "utils/Types.hpp"
-
 
 namespace combigrid {
 
@@ -134,7 +134,6 @@ class DistributedFullGrid {
 
     // in contrast to serial implementation we directly create the grid
     fullgridVector_.resize(nrLocalElements_);
-
   }
 
   // explicit DistributedFullGrid(const DistributedFullGrid& other) {
@@ -148,182 +147,59 @@ class DistributedFullGrid {
 
   // copy construction would need to duplicate communicator_
   DistributedFullGrid(const DistributedFullGrid& other) = delete;
-  DistributedFullGrid& operator=( const DistributedFullGrid & ) = delete;
+  DistributedFullGrid& operator=(const DistributedFullGrid&) = delete;
   DistributedFullGrid(DistributedFullGrid&& other) = default;
   DistributedFullGrid& operator=(DistributedFullGrid&& other) = default;
 
   virtual ~DistributedFullGrid() {
     // MPI_Comm_free(&communicator_);
-    for (size_t i = 0; i < upwardSubarrays_.size(); ++i)  {
+    for (size_t i = 0; i < upwardSubarrays_.size(); ++i) {
       MPI_Type_free(&upwardSubarrays_[i]);
     }
-    for (size_t i = 0; i < downwardSubarrays_.size(); ++i)  {
+    for (size_t i = 0; i < downwardSubarrays_.size(); ++i) {
       MPI_Type_free(&downwardSubarrays_[i]);
     }
   }
 
-  struct SubarrayIterator {
-    // cf. https://www.internalpointers.com/post/writing-custom-iterators-modern-cpp
-    using iterator_category = std::forward_iterator_tag;
-    using difference_type = std::ptrdiff_t;
-    using value_type = FG_ELEMENT;
-    using pointer = FG_ELEMENT*;
-    using reference = FG_ELEMENT&;
 
-    SubarrayIterator(const MPI_Datatype& subarrayType, DistributedFullGrid* dfgPointer) : dfgPointer_(dfgPointer){
-      // read out the subarray informaiton
-      MPI_Datatype tmp;
-      auto dim = dfgPointer_->getDimension();
-      std::vector<int> MPITypeIntegers(3 * dim + 2);
-      auto success = MPI_Type_get_contents(subarrayType, static_cast<int>(MPITypeIntegers.size()),
-                                           0, 1, MPITypeIntegers.data(), nullptr, &tmp);
-      assert(success == MPI_SUCCESS);
-      auto sizes = std::vector<int>(MPITypeIntegers.begin() + 1, MPITypeIntegers.begin() + dim + 1);
-      subsizes_ = std::vector<int>(MPITypeIntegers.begin() + dim + 1,
-                                   MPITypeIntegers.begin() + 2 * dim + 1);
-      starts_ = std::vector<int>(MPITypeIntegers.begin() + 2 * dim + 1,
-                                 MPITypeIntegers.begin() + 3 * dim + 1);
-      currentLocalIndex_ = starts_;
+class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
+ public:
+  SubarrayIterator(const MPI_Datatype& subarrayType, DistributedFullGrid& dfg) : SliceIterator<FG_ELEMENT>() {
+    this->offsets_ = dfg.getLocalOffsets();
+    this->dataPointer_ = &(dfg.getElementVector());
 
-      // check datatype
-      assert(tmp == dfgPointer_->getMPIDatatype());
-      // // check sizes
-      // std::cout << " sizes " << sizes << " subsizes " << subsizes_ << " starts " << starts_
-      //           << " end " << endIndex() << std::endl;
-      for (DimType d = 0; d < dfgPointer_->getDimension() - 1; ++d) {
-        assert(sizes[d] == static_cast<int>(dfgPointer_->getLocalSizes()[d]));
-        assert(subsizes_[d] + starts_[d] <= sizes[d]);
-      }
-      assert(std::accumulate(sizes.begin(), sizes.end(), 1,
-                                       std::multiplies<int>()) == dfgPointer_->getNrLocalElements());
-      // check order
-      assert(MPITypeIntegers.back() == MPI_ORDER_FORTRAN);
-      assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
-    }
+    // read out the subarray informaiton
+    MPI_Datatype tmp;
+    DimType dim = dfg.getDimension();
+    std::vector<int> MPITypeIntegers(3 * dim + 2);
+    auto success = MPI_Type_get_contents(subarrayType, static_cast<int>(MPITypeIntegers.size()), 0,
+                                         1, MPITypeIntegers.data(), nullptr, &tmp);
+    assert(success == MPI_SUCCESS);
+    // check datatype
+    assert(tmp == dfg.getMPIDatatype());
+    // check order
+    assert(MPITypeIntegers.back() == MPI_ORDER_FORTRAN);
 
-    SubarrayIterator(const std::vector<int>& subsizes, const std::vector<int>& starts,
-                                            DistributedFullGrid* dfgPointer)
-        : currentLocalIndex_(starts),
-          subsizes_(subsizes),
-          starts_(starts),
-          dfgPointer_(dfgPointer) {
-      assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
-    }
+    auto sizes = std::vector<int>(MPITypeIntegers.begin() + 1, MPITypeIntegers.begin() + dim + 1);
+    this->subsizes_ =
+        std::vector<int>(MPITypeIntegers.begin() + dim + 1, MPITypeIntegers.begin() + 2 * dim + 1);
+    this->starts_ = std::vector<int>(MPITypeIntegers.begin() + 2 * dim + 1,
+                                     MPITypeIntegers.begin() + 3 * dim + 1);
+    this->currentLocalIndex_ = this->starts_;
 
-    // cheap rule of 5
-    SubarrayIterator() = delete;
-    SubarrayIterator(const SubarrayIterator& other) = delete;
-    SubarrayIterator& operator=( const SubarrayIterator & ) = delete;
-    SubarrayIterator(SubarrayIterator&& other) = delete;
-    SubarrayIterator& operator=(SubarrayIterator&& other) = delete;
+    assert(dim == this->getDimension());
+    // check that sizes match
+    for (DimType d = 0; d < this->getDimension() - 1; ++d) {
+      assert(sizes[d] == static_cast<int>(dfg.getLocalSizes()[d]));
+      assert(this->subsizes_[d] + this->starts_[d] <= sizes[d]);
+    }
+    assert(std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<int>()) ==
+           this->dataPointer_->size());
 
-    reference operator*() const {
-      // make sure to only dereference when we actually have the data mapped
-#ifndef NDEBUG
-      if(linearize(currentLocalIndex_) > dfgPointer_->getNrLocalElements()) {
-        std::cout << " subsizes " << subsizes_ << " starts " << starts_
-                  << " end " << endIndex() << std::endl;
-        std::cout << " ref waah currentLocalIndex_" << currentLocalIndex_
-                  << " linearized " << linearize(currentLocalIndex_)
-                  << " numElements " << dfgPointer_->getNrLocalElements()
-                  << std::endl;
-      }
-      assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
-      assert(linearize(currentLocalIndex_) < endIndex());
-#endif // ndef NDEBUG
-      return dfgPointer_->getElementVector()[linearize(currentLocalIndex_)];
-    }
-    pointer operator->() const {
-      return &(dfgPointer_->getElementVector()[linearize(currentLocalIndex_)]);
-    }
-    pointer getPointer() const {
-      return &(dfgPointer_->getElementVector()[linearize(currentLocalIndex_)]);
-    }
-    const std::vector<int>& getVecIndex() const { return currentLocalIndex_; }
-    IndexType getIndex() const { return linearize(currentLocalIndex_); }
-    const SubarrayIterator& operator++() {
-      assert(linearize(currentLocalIndex_) <= dfgPointer_->getNrLocalElements());
-#ifndef NDEBUG
-      auto cpLocalIdx = currentLocalIndex_;
-      auto idxbefore = linearize(currentLocalIndex_);
-#endif // ndef NDEBUG
-      // increment
-      // Fortran ordering
-      currentLocalIndex_[0] += 1;
-      for (DimType d = 0; d < dfgPointer_->getDimension() - 1; ++d) {
-        // wrap around
-#ifndef NDEBUG
-        if(currentLocalIndex_[d] > starts_[d] + subsizes_[d]) {
-          std::cout << " subsizes " << subsizes_ << " starts " << starts_
-                    << " end " << endIndex() << " idxbefore " << idxbefore << std::endl;
-          std::cout << "waah currentLocalIndex_" << currentLocalIndex_ << " before " << cpLocalIdx << std::endl;
-        }
-        assert(currentLocalIndex_[d] >= starts_[d]);
-        assert(!(currentLocalIndex_[d] > starts_[d] + subsizes_[d]));
-#endif // ndef NDEBUG
-        if (currentLocalIndex_[d] == starts_[d] + subsizes_[d]) {
-          currentLocalIndex_[d] = starts_[d];
-          ++currentLocalIndex_[d + 1];
-        }
-      }
-      assert(idxbefore < linearize(currentLocalIndex_));
-      assert(linearize(currentLocalIndex_) <= endIndex());
-      return *this;
-    }
-    friend bool operator==(const SubarrayIterator& a, const SubarrayIterator& b) {
-      return a.currentLocalIndex_ == b.currentLocalIndex_;
-    };
-    friend bool operator!=(const SubarrayIterator& a, const SubarrayIterator& b) {
-      return a.currentLocalIndex_ != b.currentLocalIndex_;
-    };
-    pointer begin() { return &(dfgPointer_->getElementVector()[firstIndex()]); }
-    pointer end() { return &(dfgPointer_->getElementVector()[endIndex()]); }
-    bool isAtEnd() { return (linearize(currentLocalIndex_) == endIndex()); }
-    int size() {
-      return std::accumulate(subsizes_.begin(), subsizes_.end(), 1,
-                                       std::multiplies<int>()); }
-
-    IndexType firstIndex() const {
-      return linearize(starts_);
-    }
-    IndexType endIndex() const {
-      std::vector<int> endVectorIndex = starts_;
-      endVectorIndex[dfgPointer_->getDimension() - 1] += subsizes_[dfgPointer_->getDimension() - 1];
-      auto linEndIndex = linearize(endVectorIndex);
-      return linEndIndex;
-    }
-
-   private:
-    IndexType linearize(std::vector<int> indexVector) const {
-      auto offsets = dfgPointer_->getLocalOffsets();
-      assert(offsets[0] == 1);
-      auto dim = dfgPointer_->getDimension();
-      IndexType index = 0;
-      // Fortran ordering
-      for (DimType d = 0; d < dim; ++d) {
-        index += offsets[d] * indexVector[d];
-      }
-//       // compare to dfg
-// #ifndef NDEBUG
-//       IndexVector liv;
-//       liv.assign(indexVector.begin(), indexVector.end());
-//       auto li = dfgPointer_->getLocalLinearIndex(liv);
-//       IndexVector linv(dim);
-//       dfgPointer_->getLocalVectorIndex(index, linv);
-//       if (li != index) {
-//         std::cout << "li " << li << " " << indexVector << " vs " << index << " " << linv << std::endl;
-//       }
-//       assert(li == index);
-// #endif // ndef NDEBUG
-      return index;
-    }
-
-    std::vector<int> currentLocalIndex_;
-    std::vector<int> subsizes_;
-    std::vector<int> starts_;
-    DistributedFullGrid* dfgPointer_;
-  };
-
+    this->setEndIndex();
+    this->validateSizes();
+  }
+};
   FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex,
                               const std::vector<real>& coords) const {
     const auto& lowerBounds = this->getLowerBounds();
@@ -1066,11 +942,11 @@ class DistributedFullGrid {
         std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
         std::vector<int> cstarts(starts.begin(), starts.end());
 
-
         // create subarray view on data
         MPI_Datatype mysubarray;
         MPI_Type_create_subarray(static_cast<int>(this->getDimension()), &csizes[0], &csubsizes[0],
-                                 &cstarts[0], MPI_ORDER_FORTRAN, this->getMPIDatatype(), &mysubarray);
+                                 &cstarts[0], MPI_ORDER_FORTRAN, this->getMPIDatatype(),
+                                 &mysubarray);
         MPI_Type_commit(&mysubarray);
         subarrayTypes.push_back(mysubarray);
 
@@ -1641,7 +1517,6 @@ class DistributedFullGrid {
       recvbufferFromUp.resize(0);
     }
 
-
     // TODO asynchronous??
     // send lower boundary values
     auto success =
@@ -1733,8 +1608,8 @@ class DistributedFullGrid {
     // if both lower and higher are set, it's only me and I can just average
     // not strictly necessary but good to test the iterators
     if (recvbufferFromUp.size() > 0 && recvbufferFromDown.size() > 0) {
-      SubarrayIterator downIt(downSubarrays[d], this);
-      SubarrayIterator upIt(upSubarrays[d], this);
+      SubarrayIterator downIt(downSubarrays[d], *this);
+      SubarrayIterator upIt(upSubarrays[d], *this);
       assert(downIt.size() == upIt.size());
 #ifndef NDEBUG
       auto initialIndexDiff = upIt.getIndex() - downIt.getIndex();
@@ -1754,7 +1629,7 @@ class DistributedFullGrid {
       assert(upIt.isAtEnd());
       assert(ctr == upIt.size());
     } else if (recvbufferFromUp.size() > 0) {
-      SubarrayIterator downIt(downSubarrays[d], this);
+      SubarrayIterator downIt(downSubarrays[d], *this);
       auto upIt = recvbufferFromUp.begin();
       while (!downIt.isAtEnd()) {
         auto avg = 0.5 * ((*upIt) + (*downIt));
@@ -1764,7 +1639,7 @@ class DistributedFullGrid {
       }
       assert(upIt == recvbufferFromUp.end());
     } else if (recvbufferFromDown.size() > 0) {
-      SubarrayIterator upIt(upSubarrays[d], this);
+      SubarrayIterator upIt(upSubarrays[d], *this);
       auto downIt = recvbufferFromDown.begin();
       while (!upIt.isAtEnd()) {
         auto avg = 0.5 * ((*upIt) + (*downIt));
@@ -1783,7 +1658,6 @@ class DistributedFullGrid {
       }
     }
   }
-
 
   /**
    * @brief check if given globalLinearIndex is on the boundary of this DistributedFullGrid
@@ -2108,8 +1982,6 @@ class DistributedFullGrid {
       }
     }
   }
-
-
 };
 // end class
 
