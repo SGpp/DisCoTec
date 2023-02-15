@@ -25,7 +25,8 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
 
   // open file
   MPI_File fh;
-  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY, info, &fh);
+  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
+                          info, &fh);
   if (err != MPI_SUCCESS) {
     // file already existed, delete it and create new file
     int mpi_rank;
@@ -73,7 +74,7 @@ bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::stri
 
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
   if (err != MPI_SUCCESS) {
-    std::cerr << err << " while reading OneFileFromDisk" << std::endl;
+    std::cerr << err << " while reading OneFileFromDisk " << fileName << std::endl;
     throw std::runtime_error("read: could not open!");
   }
 #ifndef NDEBUG
@@ -124,7 +125,7 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
   if (err != MPI_SUCCESS) {
     // silent failure
-    std::cerr << err << " while reading OneFileFromDisk" << std::endl;
+    std::cerr << err << " while reducing OneFileFromDisk " << fileName << std::endl;
     throw std::runtime_error("read: could not open!");
   }
 
