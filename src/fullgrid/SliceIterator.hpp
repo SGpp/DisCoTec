@@ -104,7 +104,7 @@ class SliceIterator {
   IndexType firstIndex() const { return linearize(starts_); }
   void setEndIndex() {
     std::vector<int> endVectorIndex = this->starts_;
-    endVectorIndex[this->getDimension() - 1] += this - subsizes_[this->getDimension() - 1];
+    endVectorIndex[this->getDimension() - 1] += this->subsizes_[this->getDimension() - 1];
     linearEndIndex_ = linearize(endVectorIndex);
   }
   IndexType endIndex() const {
