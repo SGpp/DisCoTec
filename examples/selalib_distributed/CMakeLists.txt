@@ -20,6 +20,7 @@ if(NOT EXISTS ${SELALIB_DIR}/lib/libsll_m_sim_bsl_vp_3d3v_cart_dd_slim_interface
 endif()
 
 find_package(MPI REQUIRED)
+find_package(OpenMP REQUIRED)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(combine_selalib_diagnostics src/combine_selalib_diagnostics.cpp)
@@ -31,4 +32,4 @@ target_link_libraries(combine_selalib_diagnostics discotec ${Boost_LIBRARIES}  $
 
 target_compile_features(selalib_distributed PRIVATE cxx_std_17)
 set_target_properties(selalib_distributed PROPERTIES LINKER_LANGUAGE Fortran)
-target_link_libraries(selalib_distributed discotec ${Boost_LIBRARIES} ${SELALIB_LIBRARIES} ${SELALIB_DIR}/lib/libsll_m_sim_bsl_vp_3d3v_cart_dd_slim_interface.a  ${MPI_Fortran_LIBRARIES})
+target_link_libraries(selalib_distributed discotec ${Boost_LIBRARIES}  ${SELALIB_DIR}/lib/libsll_m_sim_bsl_vp_3d3v_cart_dd_slim_interface.a  ${SELALIB_LIBRARIES} ${MPI_Fortran_LIBRARIES} ${OpenMP_Fortran_LIBRARIES} ${OpenMP_CXX_LIBRARIES} ${OpenMP_C_LIBRARIES})
