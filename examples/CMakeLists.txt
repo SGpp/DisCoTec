@@ -12,4 +12,4 @@ add_subdirectory(distributed_third_level)
 #add_subdirectory(gene_distributed) # TODO: add if access to gene
 #add_subdirectory(gene_distributed_linear) # TODO: add if access to gene
 #add_subdirectory(gene_distributed_third_level) # TODO: add if access to gene
-#add_subdirectory(selalib_distributed) # TODO: add if access to selalib
+add_subdirectory(selalib_distributed)
