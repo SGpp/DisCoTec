@@ -7,6 +7,8 @@
 #include <numeric>
 #include <string>
 
+#include <boost/numeric/ublas/tensor.hpp>
+
 #include "fullgrid/FullGrid.hpp"
 #include "fullgrid/SliceIterator.hpp"
 #include "mpi/MPICartesianUtils.hpp"
@@ -81,6 +83,11 @@ static inline std::vector<IndexVector> getDefaultDecomposition(
 template <typename FG_ELEMENT>
 class DistributedFullGrid {
  public:
+  // cf. https://en.wikipedia.org/wiki/Row-_and_column-major_order#Address_calculation_in_general
+  // -> column-major order
+  using TensorType = boost::numeric::ublas::tensor<FG_ELEMENT, boost::numeric::ublas::first_order,
+                                                   std::vector<FG_ELEMENT>>;
+
   /** dimension adaptive Ctor */
   DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType comm,
                       const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
@@ -94,7 +101,7 @@ class DistributedFullGrid {
 
     InitMPI(comm, procs);  // will also check grids per dim
 
-    // set global num of elements and offsets
+    // set global num of elements and other properties, for the whole grid
     nrElements_ = 1;
     offsets_.resize(dim_);
     nrPoints_.resize(dim_);
@@ -117,23 +124,52 @@ class DistributedFullGrid {
     } else {
       setDecomposition(decomposition);
     }
+
+
+    // set local elements and properties, for our partition of the grid only
     myPartitionsLowerBounds_ = getLowerBounds(rank_);
     myPartitionsUpperBounds_ = getUpperBounds(rank_);
-
-    // set local elements and local offsets
-    nrLocalPoints_ = getUpperBounds() - getLowerBounds();
-
+    auto localExtents = myPartitionsUpperBounds_ - myPartitionsLowerBounds_;
+    std::vector<size_t> nrLocalPoints(localExtents.begin(), localExtents.end());
     nrLocalElements_ = 1;
     localOffsets_.resize(dim);
-    // cf. https://en.wikipedia.org/wiki/Row-_and_column-major_order#Address_calculation_in_general
-    // -> column-major order
     for (DimType j = 0; j < dim_; ++j) {
       localOffsets_[j] = nrLocalElements_;
-      nrLocalElements_ *= nrLocalPoints_[j];
+      nrLocalElements_ *= nrLocalPoints[j];
+    }
+    // see if we can have templated dimensions, but selected at runtime
+    if (dim_ == 1) {
+      fullgridTensor_ = TensorType{nrLocalPoints[0]};
+    } else if (dim_ == 2) {
+      fullgridTensor_ = TensorType{nrLocalPoints[0],
+                                                                   nrLocalPoints[1]};
+    } else if (dim_ == 3) {
+      fullgridTensor_ = TensorType{nrLocalPoints[0],
+                                                                   nrLocalPoints[1],
+                                                                   nrLocalPoints[2]};
+    } else if (dim_ == 4) {
+      fullgridTensor_ = TensorType{nrLocalPoints[0],
+                                                                   nrLocalPoints[1],
+                                                                   nrLocalPoints[2],
+                                                                   nrLocalPoints[3]};
+    } else if (dim_ == 5) {
+      fullgridTensor_ = TensorType{nrLocalPoints[0],
+                                                                   nrLocalPoints[1],
+                                                                   nrLocalPoints[2],
+                                                                   nrLocalPoints[3],
+                                                                   nrLocalPoints[4]};
+    } else if (dim_ == 6) {
+      fullgridTensor_ = TensorType{nrLocalPoints[0],
+                                                                   nrLocalPoints[1],
+                                                                   nrLocalPoints[2],
+                                                                   nrLocalPoints[3],
+                                                                   nrLocalPoints[4],
+                                                                   nrLocalPoints[5]};
+    } else {
+      throw std::runtime_error("DistributedFullGrid: dimension not (yet) supported, plz add");
     }
 
-    // in contrast to serial implementation we directly create the grid
-    fullgridVector_.resize(nrLocalElements_);
+    assert(fullgridTensor_.size() == nrLocalElements_);
   }
 
   // explicit DistributedFullGrid(const DistributedFullGrid& other) {
@@ -145,7 +181,7 @@ class DistributedFullGrid {
   //   }
   // }
 
-  // copy construction would need to duplicate communicator_
+  // copy construction would need to duplicate communicator_, so we delete it
   DistributedFullGrid(const DistributedFullGrid& other) = delete;
   DistributedFullGrid& operator=(const DistributedFullGrid&) = delete;
   DistributedFullGrid(DistributedFullGrid&& other) = default;
@@ -166,7 +202,8 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
  public:
   SubarrayIterator(const MPI_Datatype& subarrayType, DistributedFullGrid& dfg) : SliceIterator<FG_ELEMENT>() {
     this->offsets_ = dfg.getLocalOffsets();
-    this->dataPointer_ = &(dfg.getElementVector());
+    this->dataPointer_ = dfg.getElementVector().data();
+    this->dataSize_ = dfg.getElementVector().size();
 
     // read out the subarray informaiton
     MPI_Datatype tmp;
@@ -190,11 +227,11 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
     assert(dim == this->getDimension());
     // check that sizes match
     for (DimType d = 0; d < this->getDimension() - 1; ++d) {
-      assert(sizes[d] == static_cast<int>(dfg.getLocalSizes()[d]));
+      assert(sizes[d] == static_cast<int>(dfg.getLocalExtents()[d]));
       assert(this->subsizes_[d] + this->starts_[d] <= sizes[d]);
     }
     assert(std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<int>()) ==
-           this->dataPointer_->size());
+           this->dataSize_);
 
     this->setEndIndex();
     this->validateSizes();
@@ -252,7 +289,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
       return evalLocalIndexOn(localIndex, coords);
     } else {
       FG_ELEMENT sum = 0.;
-      auto lastIndexInDim = this->getLocalSizes()[dim] - 1;
+      auto lastIndexInDim = this->getLocalExtents()[dim] - 1;
       if (localIndex[dim] >= 0 && localIndex[dim] <= lastIndexInDim) {
         sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
       } else if (localIndex[dim] > lastIndexInDim &&
@@ -330,7 +367,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
                  this->getCartesianUtils().isOnLowerBoundaryInDimension(d)) {
         // if we have periodic boundary and this process is at the lower end of the dimension d
         // we need the periodic coordinate => do nothing
-      } else if (localIndexLowerNonzeroNeighborPoint[d] > this->getLocalSizes()[d] - 1) {
+      } else if (localIndexLowerNonzeroNeighborPoint[d] > this->getLocalExtents()[d] - 1) {
         // index too high
         value = 0.;
         return;
@@ -579,10 +616,10 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
   /** returns the dimension of the full grid */
   inline DimType getDimension() const { return dim_; }
 
-  /** the getters for the full grid vector */
-  inline std::vector<FG_ELEMENT>& getElementVector() { return fullgridVector_; }
+  /** the getters for the full grid tensor */
+  inline TensorType& getElementVector() { return fullgridTensor_; }
 
-  inline const std::vector<FG_ELEMENT>& getElementVector() const { return fullgridVector_; }
+  inline const TensorType& getElementVector() const { return fullgridTensor_; }
 
   /** return the offset in the full grid vector of the dimension */
   inline IndexType getOffset(DimType i) const { return offsets_[i]; }
@@ -620,9 +657,9 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
     std::fill(this->getElementVector().begin(), this->getElementVector().end(), 0.);
   }
 
-  inline FG_ELEMENT* getData() { return &fullgridVector_[0]; }
+  inline FG_ELEMENT* getData() { return &fullgridTensor_[0]; }
 
-  inline const FG_ELEMENT* getData() const { return &fullgridVector_[0]; }
+  inline const FG_ELEMENT* getData() const { return &fullgridTensor_[0]; }
 
   /** MPI Communicator*/
   inline CommunicatorType getCommunicator() const { return communicator_; }
@@ -904,7 +941,11 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
   }
 
   // return extents of local grid
-  inline const IndexVector& getLocalSizes() const { return nrLocalPoints_; }
+  inline IndexVector getLocalSizes() const {
+    // throw std::runtime_error("getLocalSizes() may be horribly slow if used often, use
+    // getLocalExtents() instead");
+    return IndexVector(getLocalExtents().begin(), getLocalExtents().end());
+  }
 
   // return extents of global grid
   inline const IndexVector& getGlobalSizes() const { return nrPoints_; }
@@ -1037,7 +1078,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
         auto sPointer = dsg.getData(sIndex);
         subspaceIndices = getFGPointsOfSubspace(level);
         for (const auto& fIndex : subspaceIndices) {
-          fullgridVector_[fIndex] = *sPointer;
+          fullgridTensor_[fIndex] = *sPointer;
           ++sPointer;
         }
       }
@@ -1092,9 +1133,9 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
   inline IndexType getNumPointsOnThisPartition(DimType d, IndexType localStart,
                                                IndexType strideForThisLevel) const {
     assert(d < this->getDimension());
-    return (nrLocalPoints_[d] - 1 < localStart)
+    return (getLocalExtents()[d] - 1 < localStart)
                ? 0
-               : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
+               : (getLocalExtents()[d] - 1 - localStart) / strideForThisLevel + 1;
   }
 
   inline IndexType getNumPointsOnThisPartition(LevelType l, DimType d) const {
@@ -1185,7 +1226,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
   inline real normalizelp(int p) {
     real norm = getLpNorm(p);
 
-    std::vector<FG_ELEMENT>& data = getElementVector();
+    auto& data = getElementVector();
     for (size_t i = 0; i < data.size(); ++i) data[i] = data[i] / norm;
 
     return norm;
@@ -1193,7 +1234,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
 
   // multiply with a constant
   inline void mul(real c) {
-    std::vector<FG_ELEMENT>& data = getElementVector();
+    auto& data = getElementVector();
     for (size_t i = 0; i < data.size(); ++i) data[i] *= c;
   }
 
@@ -1354,14 +1395,14 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
     // set lower bounds of subarray
     IndexVector subarrayLowerBounds = this->getLowerBounds();
     IndexVector subarrayUpperBounds = this->getUpperBounds();
-    subarrayLowerBounds[d] += this->getLocalSizes()[d] - 1;
+    subarrayLowerBounds[d] += this->getLocalExtents()[d] - 1;
 
     auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
     assert(subarrayExtents[d] == 1);
     auto subarrayStarts = subarrayLowerBounds - this->getLowerBounds();
 
     // create MPI datatype
-    std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+    std::vector<int> sizes(this->getLocalExtents().begin(), this->getLocalExtents().end());
     std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
     // the starts are local indices
     std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
@@ -1390,7 +1431,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
     // set upper bounds of subarray
     IndexVector subarrayLowerBounds = this->getLowerBounds();
     IndexVector subarrayUpperBounds = this->getUpperBounds();
-    subarrayUpperBounds[d] -= this->getLocalSizes()[d] - 1;
+    subarrayUpperBounds[d] -= this->getLocalExtents()[d] - 1;
 
     auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
     assert(subarrayExtents[d] == 1);
@@ -1398,7 +1439,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
 
     // create MPI datatype
     // also, the data dimensions are reversed
-    std::vector<int> sizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+    std::vector<int> sizes(this->getLocalExtents().begin(), this->getLocalExtents().end());
     std::vector<int> subsizes(subarrayExtents.begin(), subarrayExtents.end());
     // the starts are local indices
     std::vector<int> starts(subarrayStarts.begin(), subarrayStarts.end());
@@ -1573,7 +1614,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
 
     // create recvbuffer
     auto numElements = std::accumulate(subarrayExtents.begin(), subarrayExtents.end(), 1,
-                                       std::multiplies<IndexType>());
+                                       std::multiplies<>());
     if (lower < 0) {
       numElements = 0;
       subarrayExtents = IndexVector(this->getDimension(), 0);
@@ -1755,8 +1796,10 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
     return values;
   }
 
-  const MPICartesianUtils& getCartesianUtils() const {
-    return cartesianUtils_;
+  const MPICartesianUtils& getCartesianUtils() const { return cartesianUtils_; }
+
+  const typename TensorType::extents_type& getLocalExtents() const {
+    return fullgridTensor_.extents();
   }
 
  private:
@@ -1794,17 +1837,17 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
   IndexVector myPartitionsUpperBounds_;
 
   /** the full grid vector, this contains the elements of the full grid */
-  std::vector<FG_ELEMENT> fullgridVector_;
+  TensorType fullgridTensor_;
 
   /** Variables for the distributed Full Grid*/
   /** Cartesien MPI Communicator  */
   CommunicatorType communicator_;
 
- /**
-  * the decomposition of the full grid over processors
-  * contains (for every dimension) the grid point indices at
-  * which a process boundary is assumed
-  */
+  /**
+   * the decomposition of the full grid over processors
+   * contains (for every dimension) the grid point indices at
+   * which a process boundary is assumed
+   */
   std::vector<IndexVector> decomposition_;
 
   /** utility to get info about cartesian communicator  */
@@ -1819,9 +1862,6 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
   // the MPI Datatypes representing the boundary layers of the MPI processes' subgrid
   std::vector<MPI_Datatype> downwardSubarrays_;
   std::vector<MPI_Datatype> upwardSubarrays_;
-
-  /** number of local (in this grid cell) points per axis*/
-  IndexVector nrLocalPoints_;
 
   /**
    * @brief sets the MPI-related members rank_, size_, communicator_, and cartesianUtils_
@@ -1939,11 +1979,11 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
     assert(dim_ == 2);
 
     // loop over rows i -> dim2
-    for (IndexType i = 0; i < nrLocalPoints_[1]; ++i) {
+    for (IndexType i = 0; i < getLocalExtents()[1]; ++i) {
       IndexType offset = localOffsets_[1] * i;
 
-      for (IndexType j = 0; j < nrLocalPoints_[0]; ++j) {
-        os << fullgridVector_[offset + j] << "\t";
+      for (IndexType j = 0; j < getLocalExtents()[0]; ++j) {
+        os << fullgridTensor_[offset + j] << "\t";
       }
 
       os << std::endl;
@@ -1954,8 +1994,8 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
   void print1D(std::ostream& os) const {
     assert(dim_ == 1);
 
-    for (IndexType j = 0; j < nrLocalPoints_[0]; ++j) {
-      os << fullgridVector_[j] << "\t";
+    for (IndexType j = 0; j < getLocalExtents()[0]; ++j) {
+      os << fullgridTensor_[j] << "\t";
     }
 
     os << std::endl;
@@ -1963,7 +2003,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
 
   // n-dim output. will print 2-dimensional slices of domain
   void print3D(std::ostream& os) const {
-    for (IndexType k = 0; k < nrLocalPoints_[2]; ++k) {
+    for (IndexType k = 0; k < getLocalExtents()[2]; ++k) {
       assert(dim_ == 3);
 
 // output global z index
@@ -1971,11 +2011,11 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
       IndexType offsetZ = localOffsets_[2] * k;
 
       // loop over rows i -> dim2
-      for (IndexType i = 0; i < nrLocalPoints_[1]; ++i) {
+      for (IndexType i = 0; i < getLocalExtents()[1]; ++i) {
         IndexType offset = offsetZ + localOffsets_[1] * i;
 
-        for (IndexType j = 0; j < nrLocalPoints_[0]; ++j) {
-          os << fullgridVector_[offset + j] << "\t";
+        for (IndexType j = 0; j < getLocalExtents()[0]; ++j) {
+          os << fullgridTensor_[offset + j] << "\t";
         }
 
         os << std::endl;

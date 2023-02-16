@@ -49,7 +49,7 @@ class TaskCount : public combigrid::Task {
     }
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p, false, decomposition);
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto& elements = dfg_->getElementVector();
     for (auto& element : elements) {
       element = -0.;
     }

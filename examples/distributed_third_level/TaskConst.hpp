@@ -38,7 +38,7 @@ class TaskConst : public combigrid::Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
                                                   p, false, decomposition);
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto& elements = dfg_->getElementVector();
     for (auto& element : elements) {
       element = 10;
     }
@@ -49,7 +49,7 @@ class TaskConst : public combigrid::Task {
 
     // std::cout << "run " << getCommRank(lcomm) << std::endl;    
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto& elements = dfg_->getElementVector();
     for (auto& element : elements) {
       element = getLevelVector()[0] / (double)getLevelVector()[1];
       // std::cout << "e " << element << std::endl;

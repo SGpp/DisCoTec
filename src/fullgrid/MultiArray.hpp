@@ -16,7 +16,7 @@ using MultiArrayRef = boost::multi_array_ref<T, D>;
 template <typename T, size_t D>
 static MultiArrayRef<T, D> createMultiArrayRef(DistributedFullGrid<T>& dfg) {
   /* note that the sizes of dfg are in reverse order compared to shape */
-  std::vector<size_t> shape(dfg.getLocalSizes().rbegin(), dfg.getLocalSizes().rend());
+  std::vector<size_t> shape(dfg.getLocalExtents().rbegin(), dfg.getLocalExtents().rend());
   if (!reverseOrderingDFGPartitions) {
     assert(false && "this is not adapted to normal ordering of DFG partitions yet");
   }

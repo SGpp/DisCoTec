@@ -73,7 +73,7 @@ class TaskAdvFDM : public combigrid::Task {
 
     dfg_ =
         new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p);
-    phi_.resize(dfg_->getNrElements());
+    phi_.reshape(dfg_->getLocalExtents(), 0.);
 
     for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
       std::vector<double> coords(getDim());
@@ -102,7 +102,7 @@ class TaskAdvFDM : public combigrid::Task {
     double h1 = 1.0 / (double)l1;
 
     for (size_t i = 0; i < nsteps_; ++i) {
-      phi_.swap(dfg_->getElementVector());
+      std::swap(phi_, dfg_->getElementVector());
 
       for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
 
@@ -161,7 +161,7 @@ class TaskAdvFDM : public combigrid::Task {
   size_t stepsTotal_;
   size_t combiStep_;
   DistributedFullGrid<CombiDataType>* dfg_;
-  std::vector<CombiDataType> phi_;
+  typename DistributedFullGrid<CombiDataType>::TensorType phi_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
