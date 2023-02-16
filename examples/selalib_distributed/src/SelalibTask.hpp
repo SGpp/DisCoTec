@@ -50,12 +50,11 @@ inline std::ostream& operator<<(std::ostream& os, const SelalibTask& t);
 
 class SelalibTask : public combigrid::Task {
  public:
-  SelalibTask(DimType dim, LevelVector& l, std::vector<bool>& boundary, real coeff,
+  SelalibTask(LevelVector& l, std::vector<bool>& boundary, real coeff,
               LoadModel* loadModel, std::string& path, real dt, size_t nsteps,
               IndexVector p = IndexVector(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : Task(dim, l, boundary, coeff, loadModel, faultCrit),
-        coeff_(coeff),
+      : Task(l, boundary, coeff, loadModel, faultCrit),
         path_(path),
         p_(p),
         localSize_(),
@@ -91,14 +90,14 @@ class SelalibTask : public combigrid::Task {
   void run(CommunicatorType lcomm) {
     currentNumTimeStepsRun_ += nsteps_;
     // only run anything if the coefficient is not 0., i.e. it is not the diagnostics task
-    if (coeff_ != 0.){
+    if (coeff_ != 0.) {
       changeDir(lcomm);
       // MASTER_EXCLUSIVE_SECTION{
       //   std::cout << "run " << *this << std::endl;
       // }
       bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
       if (!haveResolution) {
-      	setLocalDistributionFromDFG();
+        setLocalDistributionFromDFG();
       }
       Stats::startEvent("BSL run");
       if (selalibSimPointer_ == nullptr) {
@@ -141,13 +140,14 @@ class SelalibTask : public combigrid::Task {
    */
   void init(CommunicatorType lcomm,
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
-    static_assert(!reverseOrderingDFGPartitions, "BSL needs this flag to be false, "
+    static_assert(!reverseOrderingDFGPartitions,
+                  "BSL needs this flag to be false, "
                   "change only if the partitioning does not match between dfg and distribution");
     assert(lcomm != MPI_COMM_NULL);
-    
+
     auto f_lComm = MPI_Comm_c2f(lcomm);
     sll_s_set_communicator_collective(&f_lComm);
-    
+
     changeDir(lcomm);
     auto paramFilePath = "./param.nml";
     sim_bsl_vp_3d3v_cart_dd_slim_init(simPtrPtr_, paramFilePath);
@@ -158,12 +158,12 @@ class SelalibTask : public combigrid::Task {
     sim_bsl_vp_3d3v_cart_dd_slim_get_distribution(simPtrPtr_, localDistribution_);
     assert(localDistribution_ != nullptr);
     changeDir(lcomm, true);
-    
+
     // if coefficient is infty, we are dealing with a single full grid, no need to copy to dfg
     bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
     if (!haveResolution) {
-      dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p_, false, decomposition); 
+      dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                    getBoundary(), p_, false, decomposition);
       setDFGfromLocalDistribution();
     }
     initialized_ = true;
@@ -242,12 +242,15 @@ class SelalibTask : public combigrid::Task {
    */
   real getCurrentTime() const override { return currentNumTimeStepsRun_ * dt_; }
 
-  void setCurrentNumTimeStepsRun(IndexType currentNumTimeStepsRun) { currentNumTimeStepsRun_ = currentNumTimeStepsRun; }
+  void setCurrentNumTimeStepsRun(IndexType currentNumTimeStepsRun) {
+    currentNumTimeStepsRun_ = currentNumTimeStepsRun;
+  }
 
   real getCurrentNumTimeStepsRun() { return currentNumTimeStepsRun_; }
 
   // do task-specific postprocessing (by default: nothing)
-  void doDiagnostics(const std::vector<DistributedSparseGridUniform<CombiDataType>*> dsgus, const std::vector<bool>& hierarchizationDims) override {
+  void doDiagnostics(const std::vector<DistributedSparseGridUniform<CombiDataType>*> dsgus,
+                     const std::vector<bool>& hierarchizationDims) override {
     assert(initialized_);
     assert(dsgus.size() == 1);
     changeDir(dfg_->getCommunicator(), false);
@@ -269,7 +272,6 @@ class SelalibTask : public combigrid::Task {
 
   // following variables are set in manager and thus need to be included in
   // serialize function
-  real coeff_; // combination technique coefficient
   std::string path_;  // directory in which task should be executed
   IndexVector p_;
 
@@ -281,8 +283,8 @@ class SelalibTask : public combigrid::Task {
   void* selalibSimPointer_;
   void** simPtrPtr_ = &selalibSimPointer_;
 
-  bool initialized_;  // indicates if SelalibTask is initialized
-  bool diagnosticsInitialized_;  // indicates if SelalibTask is initialized
+  bool initialized_;             // indicates if SelalibTask is initialized
+  bool diagnosticsInitialized_;
 
   /*
    * simulation time specific parameters
@@ -355,12 +357,12 @@ class SelalibTask : public combigrid::Task {
                 if ((localDistributionIterator - localDistribution_) >= bufferSize) {
                   std::cout << "access violation at " << coords << " dfg index " << fgIndex
                             << " BSL index " << (localDistributionIterator - localDistribution_)
-                            << " , " << localDistribution_ << " , buffer size " << bufferSize 
-                            << localDFGSize << " , offsets " << offsets
-                            << " coeff " << coeff_ << " " << (coeff_ == 0.) << std::endl;
+                            << " , " << localDistribution_ << " , buffer size " << bufferSize
+                            << localDFGSize << " , offsets " << offsets << " coeff " << coeff_
+                            << " " << (coeff_ == 0.) << std::endl;
                 }
                 assert((localDistributionIterator - localDistribution_) < bufferSize);
-#endif // ndef NDEBUG
+#endif  // ndef NDEBUG
                 dfg_->getElementVector()[fgIndex] = *(localDistributionIterator);
                 ++localDistributionIterator;
               }
@@ -376,7 +378,6 @@ class SelalibTask : public combigrid::Task {
   }
 
   void setLocalDistributionFromDFG() {
-
     // cf setDFGfromLocalDistribution
     auto& offsets = dfg_->getLocalOffsets();
     auto localDistributionIterator = localDistribution_;
@@ -413,7 +414,6 @@ class SelalibTask : public combigrid::Task {
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     ar& boost::serialization::base_object<Task>(*this);
-    ar& coeff_;
     ar& path_;
     ar& p_;
     ar& diagnosticsInitialized_;
