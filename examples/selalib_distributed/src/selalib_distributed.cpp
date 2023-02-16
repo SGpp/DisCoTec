@@ -333,8 +333,8 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < levels.size(); i++) {
       // path to task folder
       std::string path = baseFolder + std::to_string(i);
-      Task* t = new SelalibTask(dim, levels[i], boundary, coeffs[i], loadmodel.get(), path, dt,
-                                nsteps, p);
+      Task* t =
+          new SelalibTask(levels[i], boundary, coeffs[i], loadmodel.get(), path, dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -342,17 +342,18 @@ int main(int argc, char** argv) {
     if (haveDiagnosticsTask) {
       assert(reduceCombinationDimsLmax == LevelVector(dim, 0));
       // initialize diagnostics task
-      if (checkpointRestart){
+      if (checkpointRestart) {
         // change the restart parameter
         setCheckpointRestart(basename, std::vector<LevelVector>(1, leval), "_leval_");
       } else {
         // create necessary folder and files to have diagnostics task in a different folder
-        createTaskFolders(basename + "_leval_", std::vector<LevelVector>(1, leval), p, nsteps, dt, 1);
+        createTaskFolders(basename + "_leval_", std::vector<LevelVector>(1, leval), p, nsteps, dt,
+                          1);
       }
       std::string path = baseFolder + "_leval_0";
       auto levalCoefficient = 0.;
-      levalTask = new SelalibTask(dim, leval, boundary, levalCoefficient, loadmodel.get(), path, dt,
-                                  nsteps, p);
+      levalTask =
+          new SelalibTask(leval, boundary, levalCoefficient, loadmodel.get(), path, dt, nsteps, p);
       tasks.push_back(levalTask);
       taskIDs.push_back(levalTask->getID());
       levels.push_back(leval);
