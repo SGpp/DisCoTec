@@ -299,7 +299,7 @@ class SelalibTask : public combigrid::Task {
 
   void setDFGfromLocalDistribution() {
 #ifndef NDEBUG
-    auto& localDFGSize = dfg_->getLocalSizes();
+    auto& localDFGSize = dfg_->getLocalExtents();
     assert(dim_ == 6);
     // std::cout << localDFGSize << " " << std::vector<int>(localSize_.begin(), localSize_.end()) <<
     // std::endl;

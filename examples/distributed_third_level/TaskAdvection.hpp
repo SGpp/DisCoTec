@@ -1,8 +1,8 @@
 #pragma once
 
+
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "task/Task.hpp"
-
 namespace combigrid {
 
 // exact solution
@@ -21,8 +21,9 @@ class TestFn {
     // leave out normalization, such that maximum is always 1
     return std::exp(exponent);  // / std::sqrt( std::pow(2*pi*sigmaSquared, coords.size()));
   }
+
  private:
-  static constexpr double sigmaSquaredInv_ = 1. / ((1./3.)*(1./3.));
+  static constexpr double sigmaSquaredInv_ = 1. / ((1. / 3.) * (1. / 3.));
 };
 
 class TaskAdvection : public Task {
@@ -30,8 +31,8 @@ class TaskAdvection : public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskAdvection(const LevelVector& l, const std::vector<BoundaryType>& boundary,
-                real coeff, LoadModel* loadModel, real dt, size_t nsteps,
+  TaskAdvection(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+                LoadModel* loadModel, real dt, size_t nsteps,
                 std::vector<int> p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
@@ -59,7 +60,7 @@ class TaskAdvection : public Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, false,
                                                   decomposition);
     if (phi_ == nullptr) {
-      phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
+      phi_ = new DistributedFullGrid<CombiDataType>::TensorType(dfg_->getLocalExtents());
     }
 
     std::vector<double> h = dfg_->getGridSpacing();
@@ -95,8 +96,7 @@ class TaskAdvection : public Task {
     std::vector<double> h = dfg_->getGridSpacing();
     const auto& fullOffsets = dfg_->getLocalOffsets();
 
-    phi_->resize(dfg_->getNrLocalElements());
-    std::fill(phi_->begin(), phi_->end(), 0.);
+    phi_->reshape(dfg_->getLocalExtents(), 0.);
 
     for (size_t i = 0; i < nsteps_; ++i) {
       // compute the gradient in the original dfg_, then update into phi_ and
@@ -122,7 +122,7 @@ class TaskAdvection : public Task {
           dfg_->getLocalVectorIndex(li, locAxisIndex);
           // TODO can be unrolled into ghost and other part, avoiding if-statement
           CombiDataType phi_neighbor = 0.;
-          if (locAxisIndex[d] == 0){
+          if (locAxisIndex[d] == 0) {
             assert(phi_ghost.size() > 0);
             // then use values from boundary exchange
             IndexType gli = 0;
@@ -132,10 +132,7 @@ class TaskAdvection : public Task {
             assert(gli > -1);
             assert(gli < phi_ghost.size());
             phi_neighbor = phi_ghost[gli];
-          } else{
-            // --locAxisIndex[d];
-            // IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
-            // assert(lni == (li - fullOffsets[d]));
+          } else {
             phi_neighbor = dfg_->getElementVector()[li - fullOffsets[d]];
           }
           // calculate gradient of phi with backward differential quotient
@@ -144,10 +141,11 @@ class TaskAdvection : public Task {
           u_dot_dphi[li] += velocity[d] * dphi;
         }
       }
+      // update all values in phi_
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
         (*phi_)[li] = dfg_->getElementVector()[li] - u_dot_dphi[li] * dt_;
       }
-      phi_->swap(dfg_->getElementVector());
+      std::swap(*phi_, dfg_->getElementVector());
     }
     stepsTotal_ += nsteps_;
 
@@ -161,7 +159,8 @@ class TaskAdvection : public Task {
    * solution on one process and then converting it to the full grid representation.
    * the DistributedFullGrid class offers a convenient function to do this.
    */
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) override {
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm,
+                   int n = 0) override {
     assert(fg.getLevels() == dfg_->getLevels());
 
     dfg_->gatherFullGrid(fg, r);
@@ -181,15 +180,13 @@ class TaskAdvection : public Task {
     phi_ = nullptr;
   }
 
-  real getCurrentTime() const override {
-    return stepsTotal_ * dt_;
-  }
+  real getCurrentTime() const override { return stepsTotal_ * dt_; }
 
   CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const override {
     assert(n == 0);
     auto coordsCopy = coords;
     TestFn f;
-    return f(coordsCopy, stepsTotal_*dt_);
+    return f(coordsCopy, stepsTotal_ * dt_);
   }
 
  protected:
@@ -212,7 +209,7 @@ class TaskAdvection : public Task {
   bool initialized_;
   size_t stepsTotal_;
   DistributedFullGrid<CombiDataType>* dfg_;
-  static std::vector<CombiDataType>* phi_;
+  static typename DistributedFullGrid<CombiDataType>::TensorType* phi_;
 
   /**
    * The serialize function has to be extended by the new member variables.
@@ -234,6 +231,6 @@ class TaskAdvection : public Task {
   }
 };
 
-std::vector<CombiDataType>* TaskAdvection::phi_ = nullptr;
+typename DistributedFullGrid<CombiDataType>::TensorType* TaskAdvection::phi_ = nullptr;
 
 }  // namespace combigrid

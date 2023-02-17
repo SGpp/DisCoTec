@@ -86,7 +86,7 @@ class TestingTask : public combigrid::Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
                                                   p, false, decomposition);
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto& elements = dfg_->getElementVector();
     for (auto& element : elements) {
       element = 0; // default state is 0
     }
@@ -98,7 +98,7 @@ class TestingTask : public combigrid::Task {
 
     // std::cout << "run " << getCommRank(lcomm) << std::endl;
     
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto& elements = dfg_->getElementVector();
     for (auto& element : elements) {
       element = 10; // after run was executed the state is 10
     }
@@ -251,7 +251,7 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
       BOOST_REQUIRE(tasksContainSameValue(pgroup.getTasks()));
 
       for (auto& t : pgroup.getTasks()) {
-        std::vector<CombiDataType>& elements = t->getDistributedFullGrid().getElementVector();
+        auto& elements = t->getDistributedFullGrid().getElementVector();
         for (auto e : elements) {
           // Elements need to be always equal to 10 because
           // * first run: run is executed

@@ -184,7 +184,7 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
       MPI_Datatype mysubarray;
       {
         // sizes of local grid
-        std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
+        std::vector<int> sizes(dfg.getLocalExtents().begin(), dfg.getLocalExtents().end());
 
         // sizes of subarray ( full size except dimension d )
         std::vector<int> subsizes = sizes;
@@ -274,7 +274,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
   MPI_Datatype mysubarray;
   {
     // sizes of local grid
-    std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
+    std::vector<int> sizes(dfg.getLocalExtents().begin(), dfg.getLocalExtents().end());
 
     // sizes of subarray ( full size except dimension d )
     std::vector<int> subsizes = sizes;
@@ -1036,7 +1036,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   auto lmax = dfg.getLevels()[dim];
   auto size = dfg.getNrLocalElements();
   auto stride = dfg.getLocalOffsets()[dim];
-  auto ndim = dfg.getLocalSizes()[dim];
+  auto ndim = dfg.getLocalExtents()[dim];
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
@@ -1050,7 +1050,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
   tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0),
              std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
+  auto& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];
@@ -1107,7 +1107,7 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   LevelType lmax = dfg.getLevels()[dim];
   IndexType size = dfg.getNrLocalElements();
   IndexType stride = dfg.getLocalOffsets()[dim];
-  IndexType ndim = dfg.getLocalSizes()[dim];
+  IndexType ndim = dfg.getLocalExtents()[dim];
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
@@ -1115,7 +1115,7 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over poles
   std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
+  auto& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];
@@ -1190,7 +1190,7 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   const auto& lmax = dfg.getLevels()[dim];
   const auto& size = dfg.getNrLocalElements();
   const auto& stride = dfg.getLocalOffsets()[dim];
-  const auto& ndim = dfg.getLocalSizes()[dim];
+  const auto& ndim = dfg.getLocalExtents()[dim];
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
@@ -1204,7 +1204,7 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
   tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0),
              std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
+  auto& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];
@@ -1257,7 +1257,7 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   auto lmax = dfg.getLevels()[dim];
   auto size = dfg.getNrLocalElements();
   auto stride = dfg.getLocalOffsets()[dim];
-  auto ndim = dfg.getLocalSizes()[dim];
+  auto ndim = dfg.getLocalExtents()[dim];
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
@@ -1266,7 +1266,7 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   // loop over poles
   static std::vector<FG_ELEMENT> tmp;
   tmp.resize(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
+  auto& ldata = dfg.getElementVector();
   lldiv_t divresult;
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];

@@ -222,7 +222,9 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   //  mostly stolen from dfg::getCornersValues
   auto corners = dfgOne->getCornersGlobalVectorIndices();
   std::sort(corners.begin(), corners.end());
-  std::vector<FG_ELEMENT> values;
+  typename DistributedFullGrid<FG_ELEMENT>::TensorType::extents_type extents(
+      std::vector<size_t>(dfgOne->getDimension(), 2));
+  typename DistributedFullGrid<FG_ELEMENT>::TensorType values(extents);
   std::vector<IndexType> localCornerIndices;
   for (size_t cornerNo = 0; cornerNo < corners.size(); ++cornerNo) {
     if (dfgOne->isGlobalIndexHere(corners[cornerNo])) {
@@ -236,13 +238,15 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   }
   // make sure corner values are in right order
   std::sort(localCornerIndices.begin(), localCornerIndices.end());
+  size_t valuesIndex = 0;
   for (const auto& index : localCornerIndices) {
-    values.push_back(dfgOne->getElementVector()[index]);
+    values[valuesIndex] = dfgOne->getElementVector()[index];
+    ++valuesIndex;
   }
 
   auto dfgZero = std::unique_ptr<DistributedFullGrid<FG_ELEMENT>>(
       new DistributedFullGrid<FG_ELEMENT>(dim, lmin, comm, boundary, procs));
-  BOOST_CHECK(values.size() == dfgZero->getElementVector().size());
+  BOOST_CHECK(valuesIndex == dfgZero->getElementVector().size());
   dfgZero->getElementVector() = values;
 
   // no need to dehierarchize, is nodal/scaling function on coarsest grid anyways
@@ -633,7 +637,7 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
             if (procs[d] > 1) {
               // check that all indices from other ranks along the pole are present
               BOOST_CHECK_EQUAL(remoteDataAll.size(),
-                                dfg.getGlobalSizes()[d] - dfg.getLocalSizes()[d]);
+                                dfg.getGlobalSizes()[d] - dfg.getLocalExtents()[d]);
             }
             MPI_Barrier(comm);
             TestHelper::testStrayMessages(comm);

@@ -87,7 +87,7 @@ class TaskExample : public Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
     /* loop over local subgrid and set initial values */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto& elements = dfg_->getElementVector();
 
     for (size_t i = 0; i < elements.size(); ++i) {
       IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
@@ -109,7 +109,7 @@ class TaskExample : public Task {
 
     int lrank = theMPISystem()->getLocalRank();
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto& elements = dfg_->getElementVector();
     // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure
 

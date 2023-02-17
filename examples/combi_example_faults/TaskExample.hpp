@@ -91,7 +91,7 @@ class TaskExample: public Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
     /* loop over local subgrid and set initial values */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto& elements = dfg_->getElementVector();
 
     for (size_t i = 0; i < elements.size(); ++i) {
       IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
@@ -115,7 +115,7 @@ class TaskExample: public Task {
 
     /* pseudo timestepping to demonstrate the behaviour of your typical
      * time-dependent simulation problem. */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto& elements = dfg_->getElementVector();
 
     for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
       real time = (step + 1)* dt_;
