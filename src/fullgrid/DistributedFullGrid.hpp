@@ -589,14 +589,36 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
 
   inline const IndexVector& getOffsets() const { return offsets_; }
 
-  inline const IndexVector& getLocalOffsets() const { return localOffsets_; }
+  inline const IndexVector& getLocalOffsets() const {
+    assert(localOffsets_.size() == dim_);
+    assert(localOffsets_[0] == 1);
+    return localOffsets_;
+  }
 
   /** return the level vector */
   inline const LevelVector& getLevels() const { return levels_; }
 
   /** returns the grid spacing (sometimes called h) */
-  inline const std::vector<double>& getGridSpacing() const {
-    return gridSpacing_;
+  inline const std::vector<double>& getGridSpacing() const { return gridSpacing_; }
+
+  inline std::vector<double> getInverseGridSpacing() const {
+    std::vector<double> oneOverH;
+    oneOverH.resize(gridSpacing_.size());
+    // should be the same as the number of intervals (N)
+    for (DimType j = 0; j < dim_; j++) {
+      oneOverH[j] = powerOfTwo[levels_[j]];
+    }
+#ifndef NDEBUG
+    std::vector<double> oneOverHByDivision;
+    oneOverHByDivision.resize(gridSpacing_.size());
+    std::transform(gridSpacing_.begin(), gridSpacing_.end(), oneOverHByDivision.begin(),
+                   std::bind1st(std::divides<double>(), 1));
+    for (DimType j = 0; j < dim_; j++) {
+      assert(std::abs(oneOverHByDivision[j] < oneOverH[j]) < 1e-10);
+      assert(oneOverHByDivision[j] == oneOverH[j]);
+    }
+#endif
+    return oneOverH;
   }
 
   double getInnerNodalBasisFunctionIntegral() const {
