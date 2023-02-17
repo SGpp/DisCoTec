@@ -1536,9 +1536,10 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
   }
 
   // non-RVO dependent version of ghost layer exchange
-  void exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents,
+  void exchangeGhostLayerUpward(DimType d, std::vector<int>& subarrayExtents,
                                 std::vector<FG_ELEMENT>& recvbuffer) {
-    subarrayExtents = this->getLocalSizes();
+    subarrayExtents.resize(this->getDimension());
+    subarrayExtents.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
     subarrayExtents[d] = 1;
 
     // create MPI datatype
@@ -1576,7 +1577,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
                                        std::multiplies<IndexType>());
     if (lower < 0) {
       numElements = 0;
-      subarrayExtents = IndexVector(this->getDimension(), 0);
+      std::fill(subarrayExtents.begin(), subarrayExtents.end(), 0);
     }
     recvbuffer.resize(numElements);
     std::fill(recvbuffer.begin(), recvbuffer.end(), 0.);
@@ -1590,7 +1591,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
     MPI_Type_free(&subarray);
   }
 
-  std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, IndexVector& subarrayExtents) {
+  std::vector<FG_ELEMENT> exchangeGhostLayerUpward(DimType d, std::vector<int>& subarrayExtents) {
     std::vector<FG_ELEMENT> recvbuffer{};
     exchangeGhostLayerUpward(d, subarrayExtents, recvbuffer);
     return recvbuffer;

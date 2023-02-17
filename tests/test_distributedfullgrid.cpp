@@ -244,7 +244,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   BOOST_CHECK(onenorm <= maxnorm);
 
   // test ghost layer exchange
-  IndexVector subarrayExtents;
+  std::vector<int> subarrayExtents;
   for (DimType d = 0; d < dim; ++d) {
     auto ghostLayer = dfg.exchangeGhostLayerUpward(d, subarrayExtents);
     IndexVector offsets(dim);

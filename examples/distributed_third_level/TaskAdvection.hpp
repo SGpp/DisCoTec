@@ -102,11 +102,8 @@ class TaskAdvection : public Task {
       // compute the gradient in the original dfg_, then update into phi_ and
       // swap at the end of each time step
       auto& u_dot_dphi = *phi_;
-
       for (unsigned int d = 0; d < this->getDim(); ++d) {
-        // to update the values in the "lowest" layer, we need the ghost values from the lower
-        // neighbor
-        IndexVector subarrayExtents;
+        static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
         int subarrayOffset = 1;
