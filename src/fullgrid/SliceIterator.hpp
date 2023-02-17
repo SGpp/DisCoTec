@@ -84,8 +84,8 @@ class SliceIterator {
         ++currentLocalIndex_[d + 1];
       }
     }
-    assert(idxbefore < linearize(currentLocalIndex_));
-    assert(linearize(currentLocalIndex_) <= endIndex());
+    // assert(idxbefore < linearize(currentLocalIndex_));// doesn't hold for LowestSliceIterator
+    // assert(linearize(currentLocalIndex_) <= endIndex());// doesn't hold for LowestSliceIterator
     return *this;
   }
   friend bool operator==(const SliceIterator& a, const SliceIterator& b) {
@@ -102,11 +102,6 @@ class SliceIterator {
   }
 
   IndexType firstIndex() const { return linearize(starts_); }
-  void setEndIndex() {
-    std::vector<int> endVectorIndex = this->starts_;
-    endVectorIndex[this->getDimension() - 1] += this->subsizes_[this->getDimension() - 1];
-    linearEndIndex_ = linearize(endVectorIndex);
-  }
   IndexType endIndex() const {
     assert(linearEndIndex_ != -1);
     return linearEndIndex_;
@@ -116,16 +111,18 @@ class SliceIterator {
   inline DimType getDimension() const { return static_cast<DimType>(subsizes_.size()); }
 
   inline IndexType linearize(const std::vector<int>& indexVector) const {
-    IndexType index = 0;
-    // Fortran ordering
-    for (DimType d = 0; d < subsizes_.size(); ++d) {
-      index += offsets_[d] * indexVector[d];
-    }
+    IndexType index = std::inner_product(indexVector.begin(), indexVector.end(), offsets_.begin(), 0);
     return index;
   }
 
+  virtual void setEndIndex() {
+    std::vector<int> endVectorIndex = this->starts_;
+    endVectorIndex[this->getDimension() - 1] += this->subsizes_[this->getDimension() - 1];
+    linearEndIndex_ = linearize(endVectorIndex);
+  }
+
   void validateSizes() {
-    assert(offsets_[0] == 1);
+    assert(offsets_[0] == 1 || offsets_[0] == 0); // 0 is for LowestSliceIterator
     assert(std::accumulate(this->subsizes_.begin(), this->subsizes_.end(), 1,
                            std::multiplies<int>()) <= this->dataPointer_->size());
     assert(linearize(this->currentLocalIndex_) <= this->dataPointer_->size());
@@ -140,5 +137,39 @@ class SliceIterator {
   IndexVector offsets_;
   std::vector<FG_ELEMENT>* dataPointer_;
   IndexType linearEndIndex_ = -1;
+};
+
+template <typename FG_ELEMENT>
+class LowestSliceIterator : public SliceIterator<FG_ELEMENT> {
+ public:
+  LowestSliceIterator(DimType dimOfZeroIndex, const std::vector<int>& subsizes,
+                      const IndexVector& offsets, std::vector<FG_ELEMENT>* dataPointer)
+      : SliceIterator<FG_ELEMENT>() {
+    //always starts in lowest corner in all dimensions, i.e. starts_ = 0
+    DimType dim = static_cast<DimType>(offsets.size());
+    this->currentLocalIndex_ = std::vector<int>(dim, 0);
+    this->starts_ = this->currentLocalIndex_;
+    assert(subsizes.size() == dim);
+    assert(subsizes[dimOfZeroIndex] == 1);
+    for (DimType d = 0; d < dim - 1; ++d) {
+      if (d != dimOfZeroIndex) {
+        assert(subsizes[d] == offsets[d+1]/offsets[d]);
+        assert(offsets[d+1]%offsets[d] == 0);
+      }
+    }
+    this->subsizes_ = subsizes;
+    this->offsets_ = offsets;
+    if (dimOfZeroIndex != dim - 1) {
+      this->offsets_[dimOfZeroIndex + 1] *= offsets[dimOfZeroIndex];
+    }
+    this->offsets_[dimOfZeroIndex] = 0;
+
+    this->dataPointer_ = dataPointer;
+    this->validateSizes();
+  }
+ protected:
+  void setEndIndex() override {
+    throw std::runtime_error("not (correctly) implemented");
+  }
 };
 }  // namespace combigrid
