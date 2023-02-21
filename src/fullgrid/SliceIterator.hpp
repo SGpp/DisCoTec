@@ -159,9 +159,6 @@ class LowestSliceIterator : public SliceIterator<FG_ELEMENT> {
     }
     this->subsizes_ = subsizes;
     this->offsets_ = offsets;
-    if (dimOfZeroIndex != dim - 1) {
-      this->offsets_[dimOfZeroIndex + 1] *= offsets[dimOfZeroIndex];
-    }
     this->offsets_[dimOfZeroIndex] = 0;
 
     this->dataPointer_ = dataPointer;
