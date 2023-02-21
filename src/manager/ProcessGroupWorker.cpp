@@ -1337,19 +1337,20 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // distribute solution in globalReduceComm to other pgs
-    auto request = asyncBcastDsgData(uniDsg, globalReduceRank, globalReduceComm);
-    requests.push_back(request);
+    bcastDsgData(uniDsg, globalReduceRank, globalReduceComm);
+    // auto request = asyncBcastDsgData(uniDsg, globalReduceRank, globalReduceComm);
+    // requests.push_back(request);
   }
   // update fgs
   integrateCombinedSolution();
 
-  // wait for bcasts to other pgs in globalReduceComm
-  Stats::startEvent("worker wait for bcasts");
-  for (MPI_Request& request : requests) {
-    auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
-    assert(returnedValue == MPI_SUCCESS);
-  }
-  Stats::stopEvent("worker wait for bcasts");
+  // // wait for bcasts to other pgs in globalReduceComm
+  // Stats::startEvent("worker wait for bcasts");
+  // for (MPI_Request& request : requests) {
+  //   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+  //   assert(returnedValue == MPI_SUCCESS);
+  // }
+  // Stats::stopEvent("worker wait for bcasts");
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
@@ -1383,8 +1384,10 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
   }
   // distribute solution in globalReduceComm to other pgs
-  auto request =
-      asyncBcastDsgData(combinedUniDSGVector_[0].get(), theMPISystem()->getGlobalReduceRank(),
+  // auto request =
+  //     asyncBcastDsgData(combinedUniDSGVector_[0].get(), theMPISystem()->getGlobalReduceRank(),
+  //                       theMPISystem()->getGlobalReduceComm());
+  bcastDsgData(combinedUniDSGVector_[0].get(), theMPISystem()->getGlobalReduceRank(),
                         theMPISystem()->getGlobalReduceComm());
 
   // update fgs
@@ -1393,11 +1396,11 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   // remove reading token
   MASTER_EXCLUSIVE_SECTION { std::filesystem::remove(startReadingTokenFileName); }
 
-  // wait for bcasts to other pgs in globalReduceComm
-  Stats::startEvent("worker wait for bcasts");
-  auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
-  assert(returnedValue == MPI_SUCCESS);
-  Stats::stopEvent("worker wait for bcasts");
+  // // wait for bcasts to other pgs in globalReduceComm
+  // Stats::startEvent("worker wait for bcasts");
+  // auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+  // assert(returnedValue == MPI_SUCCESS);
+  // Stats::stopEvent("worker wait for bcasts");
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
@@ -1587,9 +1590,10 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   for (auto& dsg : combinedUniDSGVector_) {
-    auto request = asyncBcastDsgData(dsg.get(), thirdLevelPG, globalReduceComm);
-    auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
-    assert(returnedValue == MPI_SUCCESS);
+    bcastDsgData(dsg.get(), thirdLevelPG, globalReduceComm);
+    // auto request = asyncBcastDsgData(dsg.get(), thirdLevelPG, globalReduceComm);
+    // auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+    // assert(returnedValue == MPI_SUCCESS);
   }
 
   integrateCombinedSolution();

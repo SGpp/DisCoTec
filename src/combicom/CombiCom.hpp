@@ -178,6 +178,30 @@ static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
 }
 
 /**
+ * chunked Broadcast of the raw dsg data in the communicator comm.
+ */
+template <typename FG_ELEMENT>
+static void bcastDsgData(DistributedSparseGridUniform<FG_ELEMENT>* dsgu, RankType root,
+                         CommunicatorType comm) {
+  FG_ELEMENT* data = dsgu->getRawData();
+  int dataSize = static_cast<int>(dsgu->getRawDataSize());
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
+
+  // broadcast up to 16MiB at a time (when using double precision)
+  int chunkSize = 2097152;
+  size_t sentRecvd = 0;
+  while ((dataSize - sentRecvd) / chunkSize > 0) {
+    auto success = MPI_Bcast(data + sentRecvd, chunkSize, dataType, root, comm);
+    sentRecvd += chunkSize;
+  }
+
+  auto success =
+      MPI_Bcast(data + sentRecvd, static_cast<int>(dataSize - sentRecvd), dataType, root, comm);
+  assert(success == MPI_SUCCESS);
+  return;
+}
+
+/**
  * Asynchronous Bcast of the raw dsg data in the communicator comm.
  */
 template <typename FG_ELEMENT>
