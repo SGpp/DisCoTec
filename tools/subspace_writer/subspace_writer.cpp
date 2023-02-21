@@ -84,9 +84,11 @@ int main(int argc, char** argv) {
   theMPISystem()->storeLocalComm(new_communicator);
 
   std::string firstSubspaceFileName =
-      ctschemeFile.substr(0, ctschemeFile.length() - std::string(".json").length()) + ".sizes";
+      ctschemeFile.substr(0, ctschemeFile.length() - std::string("_00008groups.json").length()) +
+      ".sizes";
   std::string conjointSubspaceFileName =
-      ctschemeFile.substr(0, ctschemeFile.length() - std::string("split1_40groups.json").length()) +
+      ctschemeFile.substr(0,
+                          ctschemeFile.length() - std::string("_part0_00008groups.json").length()) +
       "conjoint.sizes";
   {
     // read in first CT scheme
@@ -152,7 +154,8 @@ int main(int argc, char** argv) {
                                                << " GB" << std::endl;
     // write the resulting sparse grid sizes to file
     uniDSG->writeSubspaceSizesToFile(
-        otherCtschemeFile.substr(0, otherCtschemeFile.length() - std::string(".json").length()) +
+        otherCtschemeFile.substr(
+            0, otherCtschemeFile.length() - std::string("_00008groups.json").length()) +
         ".sizes");
 
     // read written sparse grid sizes from file

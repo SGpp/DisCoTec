@@ -196,12 +196,13 @@ int main(int argc, char** argv) {
   // for target scenarios, consider `wget https://darus.uni-stuttgart.de/api/access/datafile/195543`
   // or similar
   std::string subspaceFileName =  // cf. subspace_writer.cpp
-      ctschemeFile.substr(0, ctschemeFile.length() - std::string(".json").length()) + ".sizes";
+      ctschemeFile.substr(0, ctschemeFile.length() - std::string("_00008groups.json").length()) +
+      ".sizes";
   worker.reduceSubspaceSizes(subspaceFileName, false, true);
   if (extraSparseGrid) {
     std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
-        ctschemeFile.substr(0,
-                            ctschemeFile.length() - std::string("split1_40groups.json").length()) +
+        ctschemeFile.substr(
+            0, ctschemeFile.length() - std::string("_part0_00008groups.json").length()) +
         "conjoint.sizes";
     worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid, true);
   }
