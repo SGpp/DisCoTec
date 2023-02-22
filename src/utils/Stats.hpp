@@ -6,6 +6,7 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <unistd.h>
+
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -13,10 +14,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include "mpi/MPISystem.hpp"
 
-/* comment this line to switch of timing */
-//#define TIMING
+#include "io/MPIInputOutput.hpp"
+#include "mpi/MPISystem.hpp"
 
 namespace combigrid {
 
@@ -81,12 +81,14 @@ class Stats {
    * write the measured times in json format to specified path,
    * only call this after finalize
    */
-  static void write(const std::string& path, CommunicatorType comm = theMPISystem()->getWorldComm());
+  static void write(const std::string& path,
+                    CommunicatorType comm = theMPISystem()->getWorldComm());
 
   /**
    * write the measured times until now in json format to specified path
    */
-  static void writePartial(const std::string& pathPrefix, CommunicatorType comm = theMPISystem()->getWorldComm());
+  static void writePartial(const std::string& pathPrefix,
+                           CommunicatorType comm = theMPISystem()->getWorldComm());
 
  private:
   static bool initialized_;
@@ -131,166 +133,148 @@ inline void Stats::setAttribute(const std::string& name, const std::string& valu
   attributes_[name] = value;
 }
 
-inline void writeSingleFile(const std::stringstream& buffer, const std::string& path,
-                            CommunicatorType comm) {
-  int rank = getCommRank(comm);
-
-  // get offset in file
-  MPI_Offset len = buffer.str().size();
-  MPI_Offset pos = 0;
-  MPI_Scan(&len, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
-  pos -= len;
-
-  // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
-  MPI_Info info = MPI_INFO_NULL;
-
-  // open file
-  MPI_File fh;
-  int err = MPI_File_open(comm, path.c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY | MPI_MODE_EXCL,
-                          info, &fh);
-  if (err != MPI_SUCCESS) {
-    // file already existed, delete it and create new file
-    if (rank == 0) {
-      MPI_File_delete(path.c_str(), MPI_INFO_NULL);
-    }
-    MPI_File_open(comm, path.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY, info, &fh);
-  }
-
-  // write to single file with MPI-IO
-  MPI_File_write_at_all(fh, pos, buffer.str().data(), (int)len, MPI_CHAR, MPI_STATUS_IGNORE);
-  MPI_File_close(&fh);
-}
-
 inline void Stats::write(const std::string& path, CommunicatorType comm) {
-  MPI_Barrier(comm);
-  assert(finalized_);
+  std::string myJSONpart = "";
+  {
+    MPI_Barrier(comm);
+    assert(finalized_);
 
-  using namespace std::chrono;
-  // MPI_Comm worldComm = theMPISystem()->getWorldComm();
-  int rank = getCommRank(comm);
-  int size = getCommSize(comm);
+    using namespace std::chrono;
+    // MPI_Comm worldComm = theMPISystem()->getWorldComm();
+    int rank = getCommRank(comm);
+    int size = getCommSize(comm);
 
-  std::stringstream buffer;
+    std::stringstream buffer;
 
-  if (rank == 0) {
-    buffer << "{" << std::endl;
-  }
-
-  buffer << "\"rank" << rank << "\":{" << std::endl;
-  buffer << "\"attributes\":{" << std::endl;
-  std::size_t attributes_count = 0;
-  for (auto&& it = attributes_.begin(); it != attributes_.end(); ++it) {
-    buffer << "\"" << it->first << "\":\"" << it->second << "\"";
-    if (++attributes_count != attributes_.size()) {
-      buffer << "," << std::endl;
-    } else {
-      buffer << std::endl;
+    if (rank == 0) {
+      buffer << "{" << std::endl;
     }
-  }
-  buffer << "}," << std::endl;
 
-  buffer << "\"events\":{" << std::endl;
-  std::size_t event_count = 0;
-  for (auto&& t = event_.begin(); t != event_.end(); ++t) {
-    buffer << "\"" << t->first << "\""
-           << ":[" << std::endl;
-
-    std::size_t element_count = 0;
-    for (auto&& e = t->second.begin(); e != t->second.end(); ++e) {
-      buffer << "[" << duration_cast<microseconds>(e->start - init_time_).count() << ","
-             << duration_cast<microseconds>(e->end - init_time_).count() << "]";
-      if (++element_count != t->second.size()) {
+    buffer << "\"rank" << rank << "\":{" << std::endl;
+    buffer << "\"attributes\":{" << std::endl;
+    std::size_t attributes_count = 0;
+    for (auto&& it = attributes_.begin(); it != attributes_.end(); ++it) {
+      buffer << "\"" << it->first << "\":\"" << it->second << "\"";
+      if (++attributes_count != attributes_.size()) {
         buffer << "," << std::endl;
       } else {
         buffer << std::endl;
       }
     }
-    buffer << "]";
-    if (++event_count != event_.size()) {
+    buffer << "}," << std::endl;
+
+    buffer << "\"events\":{" << std::endl;
+    std::size_t event_count = 0;
+    for (auto&& t = event_.begin(); t != event_.end(); ++t) {
+      buffer << "\"" << t->first << "\""
+             << ":[" << std::endl;
+
+      std::size_t element_count = 0;
+      for (auto&& e = t->second.begin(); e != t->second.end(); ++e) {
+        buffer << "[" << duration_cast<microseconds>(e->start - init_time_).count() << ","
+               << duration_cast<microseconds>(e->end - init_time_).count() << "]";
+        if (++element_count != t->second.size()) {
+          buffer << "," << std::endl;
+        } else {
+          buffer << std::endl;
+        }
+      }
+      buffer << "]";
+      if (++event_count != event_.size()) {
+        buffer << "," << std::endl;
+      } else {
+        buffer << std::endl;
+      }
+    }
+    buffer << "}" << std::endl << "}";
+
+    if (rank != size - 1) {
       buffer << "," << std::endl;
     } else {
-      buffer << std::endl;
+      buffer << std::endl << "}" << std::endl;
     }
+    myJSONpart = buffer.str();
   }
-  buffer << "}" << std::endl << "}";
-
-  if (rank != size - 1) {
-    buffer << "," << std::endl;
-  } else {
-    buffer << std::endl << "}" << std::endl;
-  }
-  writeSingleFile(buffer, path, comm);
+  bool success =
+      mpiio::writeValuesConsecutive<char>(myJSONpart.data(), myJSONpart.size(), path, comm);
+  assert(success);
 }
 
 inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType comm) {
-  MPI_Barrier(comm);
-
-  using namespace std::chrono;
-  int rank = getCommRank(comm);
-  int size = getCommSize(comm);
-
+  std::string myJSONpart = "";
   std::string path = std::to_string(numWrites_++) + "_" + pathSuffix;
+  {
+    MPI_Barrier(comm);
 
-  std::stringstream buffer;
+    using namespace std::chrono;
+    int rank = getCommRank(comm);
+    int size = getCommSize(comm);
 
-  if (rank == 0) {
-    buffer << "{" << std::endl;
-  }
+    std::stringstream buffer;
 
-  buffer << "\"rank" << rank << "\":{" << std::endl;
-  buffer << "\"attributes\":{" << std::endl;
-  std::size_t attributes_count = 0;
-  // write all attributes
-  for (auto&& it = attributes_.begin(); it != attributes_.end(); ++it) {
-    buffer << "\"" << it->first << "\":\"" << it->second << "\"";
-    if (++attributes_count != attributes_.size()) {
-      buffer << "," << std::endl;
-    } else {
-      buffer << std::endl;
+    if (rank == 0) {
+      buffer << "{" << std::endl;
     }
-  }
-  buffer << "}," << std::endl;
 
-  buffer << "\"events\":{" << std::endl;
-  std::stringstream allEventsBuffer;
-  bool anyEventFirstTime = true;
-  // but filter events for finished and not yet written
-  for (auto&& t = event_.begin(); t != event_.end(); ++t) {
-    std::stringstream eventBuffer;
-    if (!anyEventFirstTime) {
-      eventBuffer << "," << std::endl;
-    }
-    eventBuffer << "\"" << t->first << "\""
-           << ":[" << std::endl;
-
-    bool thisEventFirstTime = true;
-    for (auto&& e = t->second.begin(); e != t->second.end(); ++e) {
-      if (e->end != e->start && e->end > partially_written_until_) {
-        if (thisEventFirstTime) {
-          thisEventFirstTime = false;
-        anyEventFirstTime = false;
-        } else {
-          eventBuffer << "," << std::endl;
-        }
-        eventBuffer << "[" << duration_cast<microseconds>(e->start - init_time_).count() << ","
-              << duration_cast<microseconds>(e->end - init_time_).count() << "]";
+    buffer << "\"rank" << rank << "\":{" << std::endl;
+    buffer << "\"attributes\":{" << std::endl;
+    std::size_t attributes_count = 0;
+    // write all attributes
+    for (auto&& it = attributes_.begin(); it != attributes_.end(); ++it) {
+      buffer << "\"" << it->first << "\":\"" << it->second << "\"";
+      if (++attributes_count != attributes_.size()) {
+        buffer << "," << std::endl;
+      } else {
+        buffer << std::endl;
       }
     }
-    eventBuffer << "]";
-    if (!thisEventFirstTime) {
-      allEventsBuffer << eventBuffer.str();
-    }
-  }
-  allEventsBuffer<< std::endl;
-  buffer << allEventsBuffer.str();
-  buffer << "}" << std::endl << "}";
+    buffer << "}," << std::endl;
 
-  if (rank != size - 1) {
-    buffer << "," << std::endl;
-  } else {
-    buffer << std::endl << "}" << std::endl;
+    buffer << "\"events\":{" << std::endl;
+    std::stringstream allEventsBuffer;
+    bool anyEventFirstTime = true;
+    // but filter events for finished and not yet written
+    for (auto&& t = event_.begin(); t != event_.end(); ++t) {
+      std::stringstream eventBuffer;
+      if (!anyEventFirstTime) {
+        eventBuffer << "," << std::endl;
+      }
+      eventBuffer << "\"" << t->first << "\""
+                  << ":[" << std::endl;
+
+      bool thisEventFirstTime = true;
+      for (auto&& e = t->second.begin(); e != t->second.end(); ++e) {
+        if (e->end != e->start && e->end > partially_written_until_) {
+          if (thisEventFirstTime) {
+            thisEventFirstTime = false;
+            anyEventFirstTime = false;
+          } else {
+            eventBuffer << "," << std::endl;
+          }
+          eventBuffer << "[" << duration_cast<microseconds>(e->start - init_time_).count() << ","
+                      << duration_cast<microseconds>(e->end - init_time_).count() << "]";
+        }
+      }
+      eventBuffer << "]";
+      if (!thisEventFirstTime) {
+        allEventsBuffer << eventBuffer.str();
+      }
+    }
+    allEventsBuffer << std::endl;
+    buffer << allEventsBuffer.str();
+    buffer << "}" << std::endl << "}";
+
+    if (rank != size - 1) {
+      buffer << "," << std::endl;
+    } else {
+      buffer << std::endl << "}" << std::endl;
+    }
+
+    myJSONpart = buffer.str();
   }
-  writeSingleFile(buffer, path, comm);
+  bool success =
+      mpiio::writeValuesConsecutive<char>(myJSONpart.data(), myJSONpart.size(), path, comm);
+  assert(success);
   partially_written_until_ = std::chrono::high_resolution_clock::now();
 }
 

@@ -63,6 +63,7 @@ namespace abstraction {
 
 typedef enum {
   type_unknown = 0,
+  type_char,
   type_float,
   type_double,
   type_long_double,
@@ -77,6 +78,11 @@ typedef enum {
 template <class T>
 DataType getabstractionDataType() {
   throw new std::invalid_argument("Datatype is not supported!");
+}
+
+template <>
+inline DataType getabstractionDataType<char>() {
+  return abstraction::type_char;
 }
 
 template <>
@@ -126,6 +132,9 @@ inline DataType getabstractionDataType<uint32_t>() {
 
 inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
   switch (type) {
+    case abstraction::type_char:
+      return MPI_CHAR;
+
     case abstraction::type_float:
       return MPI_FLOAT;
 
