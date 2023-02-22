@@ -110,8 +110,8 @@ class SelalibTask : public combigrid::Task {
       if (!haveResolution) {
         setDFGfromLocalDistribution();
       }
-      // int32_t* iPtr = &currentNumTimeStepsRun_;
-      // sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics(simPtrPtr_, iPtr);
+      int32_t* iPtr = &currentNumTimeStepsRun_;
+      sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics(simPtrPtr_, iPtr);
       changeDir(lcomm, true);
     }
     setFinished(true);
@@ -173,18 +173,6 @@ class SelalibTask : public combigrid::Task {
     sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics_init(simPtrPtr_);
     diagnosticsInitialized_ = true;
     changeDir(lcomm, true);
-    // }
-    // MASTER_EXCLUSIVE_SECTION{
-    //   // first print task, then synchronize and print other info
-    //   std::cout << "initialized " << *this << std::endl;
-    // }
-    // for (int i=0; i < dfg_->getMpiSize(); ++i) {
-    //   MPI_Barrier(lcomm);
-    //   if (dfg_->getMpiRank() == i){
-    //     sim_bsl_vp_3d3v_cart_dd_slim_print_etas(simPtrPtr_);
-    //     std::cout << dfg_->getLowerBounds() << " to " << dfg_->getUpperBounds() << std::endl;
-    //   }
-    // }
   }
 
   /**
