@@ -363,7 +363,10 @@ class SelalibTask : public combigrid::Task {
     }
     assert((localDistributionIterator - localDistribution_) == bufferSize);
     for (DimType d = 0; d < dim_; ++d) {
-      dfg_->writeLowerBoundaryToUpperBoundary(d);
+      assert(this->getBoundary()[d] > 0);
+      if (this->getBoundary()[d] == 2) {
+        dfg_->writeLowerBoundaryToUpperBoundary(d);
+      }
     }
   }
 
