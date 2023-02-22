@@ -228,7 +228,7 @@ int main(int argc, char** argv) {
         reduceCombinationDimsLmax(dim);
     std::vector<int> p(dim), resolution(dim);
     std::vector<bool> hierarchizationDims(dim);
-    std::vector<BoundaryType> boundary(dim, 2);
+    std::vector<BoundaryType> boundary(dim, 1);
     combigrid::real dt;
     // time inteveral of 1 combination
     // only necessary if number of timesteps varies for each grid
@@ -239,13 +239,12 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.lmin") >> lmin;  // minimal level vector for each grid
     cfg.get<std::string>("ct.lmax") >> lmax;  // maximum level vector -> level vector of target grid
     cfg.get<std::string>("ct.leval") >> leval;    // level vector of final output
-    // cfg.get<std::string>("ct.leval2") >> leval2;  // level vector of second final output
     cfg.get<std::string>("ct.reduceCombinationDimsLmin") >> reduceCombinationDimsLmin;
     cfg.get<std::string>("ct.reduceCombinationDimsLmax") >> reduceCombinationDimsLmax;
     cfg.get<std::string>("ct.p") >> p;  // parallelization of domain (how many procs per dimension)
     cfg.get<std::string>("ct.hierarchization_dims") >>
         hierarchizationDims;                // which dimension should be hierarchized
-    std::string basis = cfg.get<std::string>("ct.basis", "hat");
+    std::string basis = cfg.get<std::string>("ct.basis", "hat_periodic");
     ncombi = cfg.get<size_t>("ct.ncombi");  // number of combinations
     std::string basename = cfg.get<std::string>("preproc.basename");
     dt = cfg.get<combigrid::real>(
