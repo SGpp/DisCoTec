@@ -228,7 +228,7 @@ int main(int argc, char** argv) {
         reduceCombinationDimsLmax(dim);
     std::vector<int> p(dim), resolution(dim);
     std::vector<bool> hierarchizationDims(dim);
-    std::vector<BoundaryType> boundary(dim);
+    std::vector<BoundaryType> boundary(dim, 2);
     combigrid::real dt;
     // time inteveral of 1 combination
     // only necessary if number of timesteps varies for each grid
@@ -243,7 +243,6 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.reduceCombinationDimsLmin") >> reduceCombinationDimsLmin;
     cfg.get<std::string>("ct.reduceCombinationDimsLmax") >> reduceCombinationDimsLmax;
     cfg.get<std::string>("ct.p") >> p;  // parallelization of domain (how many procs per dimension)
-    cfg.get<std::string>("ct.boundary") >> boundary;  // which dimension have boundary points
     cfg.get<std::string>("ct.hierarchization_dims") >>
         hierarchizationDims;                // which dimension should be hierarchized
     std::string basis = cfg.get<std::string>("ct.basis", "hat");
