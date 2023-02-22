@@ -30,8 +30,8 @@ class TaskAdvection : public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskAdvection(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary,
-                real coeff, LoadModel* loadModel, real dt, size_t nsteps,
+  TaskAdvection(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+                LoadModel* loadModel, real dt, size_t nsteps,
                 std::vector<int> p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
@@ -106,7 +106,7 @@ class TaskAdvection : public Task {
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         // to update the values in the "lowest" layer, we need the ghost values from the lower
         // neighbor
-        IndexVector subarrayExtents;
+        std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
         int subarrayOffset = 1;

@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskAdvection(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt,
+      Task* t = new TaskAdvection(levels[i], boundary, coeffs[i], loadmodel.get(), dt,
                                   nsteps, p);
 
       static_assert(!isGENE, "isGENE");
