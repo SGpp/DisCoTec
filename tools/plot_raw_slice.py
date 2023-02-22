@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import argparse
 import functools
 from icecream import ic
+from os.path import splitext
 
 
 def read_ndarray_from_file(filename):
@@ -55,7 +56,7 @@ if __name__ == "__main__":
 
     # for the other dimensions, we assume the last index (for now)
     # TODO should be parameterizable
-    nd_slice = [slice(-2, -1)]*dim_full
+    nd_slice = [slice(-1, None)]*dim_full
     nd_slice[longest_dim] = slice(0, nd_shape[longest_dim])
     nd_slice[second_longest_dim] = slice(0, nd_shape[second_longest_dim])
     nd_slice = tuple(nd_slice)
@@ -73,5 +74,6 @@ if __name__ == "__main__":
 
     fig = plt.figure()
     m = plt.imshow(two_d_data, extent=extent)
-    plt.colorbar(orientation='vertical', format='%.0e')
-    plt.savefig("fg_11.pdf", format="pdf", bbox_inches='tight', pad_inches=0.)
+    plt.colorbar(orientation='vertical', format='%.2e')
+    plt.savefig(splitext(filename)[0]+".pdf", format="pdf",
+                bbox_inches='tight', pad_inches=0.)
