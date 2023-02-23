@@ -83,6 +83,10 @@ class RemoteDataContainer {
 
     return &data_[idx];
   }
+
+  inline const FG_ELEMENT* getData(size_t idx) const {
+    return &data_[idx];
+  }
   /** the getters for the full grid vector */
   inline std::vector<FG_ELEMENT>& getElementVector() { return data_; }
 
@@ -1060,13 +1064,18 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     divresult = std::lldiv(nn, stride);
     start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
+#ifndef NDEBUG
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
+    for (size_t i = 0; i < remoteData.size(); ++i) {
+      assert(*remoteData[i].getData(localIndexVector) == *remoteData[i].getData(nn));
+    }
+#endif // NDEBUG
 
     // go through remote containers
     for (size_t i = 0; i < remoteData.size(); ++i) {
-      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(localIndexVector);
+      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(nn);
     }
 
     // copy local data
@@ -1214,13 +1223,18 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     divresult = std::lldiv(nn, stride);
     start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
+#ifndef NDEBUG
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
+    for (size_t i = 0; i < remoteData.size(); ++i) {
+      assert(*remoteData[i].getData(localIndexVector) == *remoteData[i].getData(nn));
+    }
+#endif // NDEBUG
 
     // go through remote containers
     for (size_t i = 0; i < remoteData.size(); ++i) {
-      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(localIndexVector);
+      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(nn);
     }
 
     // copy local data
