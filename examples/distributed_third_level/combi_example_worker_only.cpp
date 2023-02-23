@@ -256,8 +256,9 @@ int main(int argc, char** argv) {
       worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
     }
     // everyone writes partial stats
-    Stats::writePartial("stats_worker_" + std::to_string(systemNumber) + ".json",
-                        theMPISystem()->getWorldComm());
+    Stats::writePartial("stats_worker_" + std::to_string(systemNumber) + "_group" +
+                            std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
+                        theMPISystem()->getLocalComm());
 
     if (hasThirdLevel) {
       std::string readSparseGridFile =
