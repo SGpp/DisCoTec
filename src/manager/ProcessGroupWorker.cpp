@@ -186,9 +186,9 @@ SignalType ProcessGroupWorker::wait() {
       status_ = PROCESS_GROUP_BUSY;
 
       // execute task
-      Stats::startEvent("worker run first");
+      Stats::startEvent("run first");
       currentTask_->run(theMPISystem()->getLocalComm());
-      Stats::Event e = Stats::stopEvent("worker run first");
+      Stats::Event e = Stats::stopEvent("run first");
       // std::cout << "from runfirst ";
       processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
     } break;
@@ -209,7 +209,7 @@ SignalType ProcessGroupWorker::wait() {
         // run first task
         // if isGENE, this is done in GENE's worker_routines.cpp
         if (!isGENE) {
-          Stats::startEvent("worker run");
+          Stats::startEvent("run");
         }
 
         Stats::Event e = Stats::Event();
@@ -261,88 +261,88 @@ SignalType ProcessGroupWorker::wait() {
       }
     } break;
     case INIT_DSGUS: {
-      Stats::startEvent("worker initialize dsgu");
+      Stats::startEvent("initialize dsgu");
       initCombinedUniDSGVector();
-      Stats::stopEvent("worker initialize dsgu");
+      Stats::stopEvent("initialize dsgu");
 
     } break;
     case COMBINE: {  // start combination
-      Stats::startEvent("worker combine");
+      Stats::startEvent("combine");
       combineUniform();
-      Stats::stopEvent("worker combine");
+      Stats::stopEvent("combine");
 
     } break;
     case COMBINE_LOCAL_AND_GLOBAL: {
-      Stats::startEvent("worker combine local");
+      Stats::startEvent("combine local");
       combineLocalAndGlobal();
-      Stats::stopEvent("worker combine local");
+      Stats::stopEvent("combine local");
 
     } break;
     case COMBINE_THIRD_LEVEL: {
-      Stats::startEvent("worker combine third level");
+      Stats::startEvent("combine third level");
       combineThirdLevel();
-      Stats::stopEvent("worker combine third level");
+      Stats::stopEvent("combine third level");
     } break;
     case COMBINE_WRITE_DSGS: {
-      Stats::startEvent("worker combine third level write");
+      Stats::startEvent("combine third level write");
       combineThirdLevelFileBasedWrite(receiveStringFromManagerAndBroadcastToGroup(),
                                       receiveStringFromManagerAndBroadcastToGroup());
-      Stats::stopEvent("worker combine third level write");
+      Stats::stopEvent("combine third level write");
     } break;
     case COMBINE_READ_DSGS_AND_REDUCE: {
-      Stats::startEvent("worker combine third level read");
+      Stats::startEvent("combine third level read");
       combineThirdLevelFileBasedReadReduce(receiveStringFromManagerAndBroadcastToGroup(),
                                            receiveStringFromManagerAndBroadcastToGroup());
-      Stats::stopEvent("worker combine third level read");
+      Stats::stopEvent("combine third level read");
     } break;
     case COMBINE_THIRD_LEVEL_FILE: {
-      Stats::startEvent("worker combine third level file");
+      Stats::startEvent("combine third level file");
       combineThirdLevelFileBased(receiveStringFromManagerAndBroadcastToGroup(),
                                  receiveStringFromManagerAndBroadcastToGroup(),
                                  receiveStringFromManagerAndBroadcastToGroup(),
                                  receiveStringFromManagerAndBroadcastToGroup());
-      Stats::stopEvent("worker combine third level file");
+      Stats::stopEvent("combine third level file");
     } break;
     case WAIT_FOR_TL_COMBI_RESULT: {
-      Stats::startEvent("worker wait third level result");
+      Stats::startEvent("wait third level result");
       waitForThirdLevelCombiResult();
-      Stats::stopEvent("worker wait third level result");
+      Stats::stopEvent("wait third level result");
 
     } break;
     case REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG: {
-      Stats::startEvent("worker unify extra third level");
+      Stats::startEvent("unify extra third level");
       reduceSubspaceSizesThirdLevel(true);
-      Stats::stopEvent("worker unify extra third level");
+      Stats::stopEvent("unify extra third level");
 
     } break;
     case REDUCE_SUBSPACE_SIZES_TL: {
-      Stats::startEvent("worker unify sizes third level");
+      Stats::startEvent("unify sizes third level");
       reduceSubspaceSizesThirdLevel(false);
-      Stats::stopEvent("worker unify sizes third level");
+      Stats::stopEvent("unify sizes third level");
 
     } break;
     case WAIT_FOR_TL_SIZE_UPDATE: {
-      Stats::startEvent("worker wait third level size");
+      Stats::startEvent("wait third level size");
       waitForThirdLevelSizeUpdate();
-      Stats::stopEvent("worker wait third level size");
+      Stats::stopEvent("wait third level size");
 
     } break;
     case WRITE_DFGS_TO_VTK: {
-      Stats::startEvent("worker write vtk all tasks");
+      Stats::startEvent("write vtk all tasks");
       writeVTKPlotFilesOfAllTasks();
-      Stats::stopEvent("worker write vtk all tasks");
+      Stats::stopEvent("write vtk all tasks");
     } break;
     case WRITE_DSGS_TO_DISK: {
-      Stats::startEvent("worker write to disk");
+      Stats::startEvent("write to disk");
       std::string filenamePrefix = receiveStringFromManagerAndBroadcastToGroup();
       writeDSGsToDisk(filenamePrefix);
-      Stats::stopEvent("worker write to disk");
+      Stats::stopEvent("write to disk");
     } break;
     case READ_DSGS_FROM_DISK: {
-      Stats::startEvent("worker read from disk");
+      Stats::startEvent("read from disk");
       std::string filenamePrefix = receiveStringFromManagerAndBroadcastToGroup();
       readDSGsFromDisk(filenamePrefix);
-      Stats::stopEvent("worker read from disk");
+      Stats::stopEvent("read from disk");
     } break;
     case GRID_EVAL: {  // not supported anymore
       throw std::runtime_error("grid eval not supported anymore");
@@ -379,17 +379,17 @@ SignalType ProcessGroupWorker::wait() {
       return signal;
     } break;
     case PARALLEL_EVAL: {  // output final grid
-      Stats::startEvent("worker parallel eval");
+      Stats::startEvent("parallel eval");
       parallelEval();
-      Stats::stopEvent("worker parallel eval");
+      Stats::stopEvent("parallel eval");
     } break;
     case DO_DIAGNOSTICS: {  // task-specific diagnostics/post-processing
-      Stats::startEvent("worker diagnostics");
+      Stats::startEvent("diagnostics");
       doDiagnostics();
-      Stats::stopEvent("worker diagnostics");
+      Stats::stopEvent("diagnostics");
     } break;
     case GET_L2_NORM: {  // evaluate norm on dfgs and send
-      Stats::startEvent("worker get L2 norm");
+      Stats::startEvent("get L2 norm");
       auto lpnorms = getLpNorms(2);
       // send from master to manager
       MASTER_EXCLUSIVE_SECTION {
@@ -397,54 +397,54 @@ SignalType ProcessGroupWorker::wait() {
                  theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
                  theMPISystem()->getGlobalComm());
       }
-      Stats::stopEvent("worker get L2 norm");
+      Stats::stopEvent("get L2 norm");
     } break;
     case GET_L1_NORM: {  // evaluate norm on dfgs and send
-      Stats::startEvent("worker get L1 norm");
+      Stats::startEvent("get L1 norm");
       auto lpnorms = getLpNorms(1);
       MASTER_EXCLUSIVE_SECTION {
         MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
                  theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
                  theMPISystem()->getGlobalComm());
       }
-      Stats::stopEvent("worker get L1 norm");
+      Stats::stopEvent("get L1 norm");
     } break;
     case GET_MAX_NORM: {  // evaluate norm on dfgs and send
-      Stats::startEvent("worker get max norm");
+      Stats::startEvent("get max norm");
       auto lpnorms = getLpNorms(0);
       MASTER_EXCLUSIVE_SECTION {
         MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
                  theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
                  theMPISystem()->getGlobalComm());
       }
-      Stats::stopEvent("worker get max norm");
+      Stats::stopEvent("get max norm");
     } break;
     case PARALLEL_EVAL_NORM: {  // evaluate norms on new dfg and send
-      Stats::startEvent("worker parallel eval norm");
+      Stats::startEvent("parallel eval norm");
       auto lpnorm = parallelEvalNorm(receiveLevalAndBroadcast());
       sendNormsToManager(lpnorm);
-      Stats::stopEvent("worker parallel eval norm");
+      Stats::stopEvent("parallel eval norm");
     } break;
     case EVAL_ANALYTICAL_NORM: {  // evaluate analytical norms on new dfg and send
-      Stats::startEvent("worker eval analytical norm");
+      Stats::startEvent("eval analytical norm");
       auto lpnorm = evalAnalyticalOnDFG(receiveLevalAndBroadcast());
       sendNormsToManager(lpnorm);
-      Stats::stopEvent("worker eval analytical norm");
+      Stats::stopEvent("eval analytical norm");
     } break;
     case EVAL_ERROR_NORM: {  // evaluate analytical norms on new dfg and send difference
-      Stats::startEvent("worker eval error norm");
+      Stats::startEvent("eval error norm");
       auto lpnorm = evalErrorOnDFG(receiveLevalAndBroadcast());
       sendNormsToManager(lpnorm);
-      Stats::stopEvent("worker eval error norm");
+      Stats::stopEvent("eval error norm");
     } break;
     case INTERPOLATE_VALUES: {  // interpolate values on given coordinates
-      Stats::startEvent("worker interpolate values");
+      Stats::startEvent("interpolate values");
       auto values =
           interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
-      Stats::stopEvent("worker interpolate values");
+      Stats::stopEvent("interpolate values");
     } break;
     case INTERPOLATE_VALUES_AND_SEND_BACK: {
-      Stats::startEvent("worker interpolate values");
+      Stats::startEvent("interpolate values");
       auto values =
           interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
       // send result
@@ -454,10 +454,10 @@ SignalType ProcessGroupWorker::wait() {
                  theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
                  theMPISystem()->getGlobalComm());
       }
-      Stats::stopEvent("worker interpolate values");
+      Stats::stopEvent("interpolate values");
     } break;
     case INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE: {
-      Stats::startEvent("worker interpolate values");
+      Stats::startEvent("interpolate values");
       std::string filenamePrefix;
       MASTER_EXCLUSIVE_SECTION {
         MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
@@ -471,15 +471,15 @@ SignalType ProcessGroupWorker::wait() {
             filenamePrefix + "_values_" + std::to_string(currentCombi_) + ".h5";
         writeInterpolatedValues(values, valuesWriteFilename);
       }
-      Stats::stopEvent("worker interpolate values");
+      Stats::stopEvent("interpolate values");
     } break;
     case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write
                                                 // values to .h5
-      Stats::startEvent("worker write interpolated values");
+      Stats::startEvent("write interpolated values");
       writeInterpolatedValuesPerGrid(
           receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()),
           receiveStringFromManagerAndBroadcastToGroup());
-      Stats::stopEvent("worker write interpolated values");
+      Stats::stopEvent("write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
       assert(currentTask_ == nullptr);
@@ -547,7 +547,7 @@ SignalType ProcessGroupWorker::wait() {
     }
   }
   if (!isGENE && signal == RUN_NEXT) {
-    Stats::stopEvent("worker run");
+    Stats::stopEvent("run");
   }
   return signal;
 }
@@ -583,12 +583,12 @@ void ProcessGroupWorker::ready() {
         currentTask_ = tasks_[i];
         // if isGENE, this is done in GENE's worker_routines.cpp
         // if (!isGENE) {
-        //   Stats::startEvent("worker run");
+        //   Stats::startEvent("run");
         // }
         currentTask_->run(theMPISystem()->getLocalComm());
         Stats::Event e;
         // if (!isGENE) {
-        //   Stats::stopEvent("worker run");
+        //   Stats::stopEvent("run");
         // }
 
         processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
@@ -642,7 +642,7 @@ void ProcessGroupWorker::ready() {
 }
 
 void ProcessGroupWorker::runAllTasks() {
-  Stats::startEvent("worker run");
+  Stats::startEvent("run");
   if (tasks_.size() > 0) {
     for (auto task : tasks_) {
       task->setFinished(false);
@@ -662,7 +662,7 @@ void ProcessGroupWorker::runAllTasks() {
   // reset current task
   currentTask_ = nullptr;
   assert(!ENABLE_FT);  // TODO for fault tolerance, steal from the above
-  Stats::stopEvent("worker run");
+  Stats::stopEvent("run");
 }
 
 void ProcessGroupWorker::exit() {
@@ -774,7 +774,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   }
 
   // register dsgs in all dfgs
-  Stats::startEvent("worker register dsgus");
+  Stats::startEvent("register dsgus");
   for (size_t g = 0; g < combinedUniDSGVector_.size(); ++g) {
     for (Task* t : tasks_) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
@@ -790,7 +790,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
     // process group
     combinedUniDSGVector_[g]->createKahanBuffer();
   }
-  Stats::stopEvent("worker register dsgus");
+  Stats::stopEvent("register dsgus");
 
   // global reduce of subspace sizes
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
@@ -856,17 +856,17 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
 
   zeroDsgsData();
 
-  Stats::startEvent("worker hierarchize");
+  Stats::startEvent("hierarchize");
   hierarchizeFullGrids();
-  Stats::stopEvent("worker hierarchize");
+  Stats::stopEvent("hierarchize");
 
-  Stats::startEvent("worker local reduce");
+  Stats::startEvent("local reduce");
   addFullGridsToUniformSG();
-  Stats::stopEvent("worker local reduce");
+  Stats::stopEvent("local reduce");
 
-  Stats::startEvent("worker global reduce");
+  Stats::startEvent("global reduce");
   reduceUniformSG();
-  Stats::stopEvent("worker global reduce");
+  Stats::stopEvent("global reduce");
 }
 
 void ProcessGroupWorker::combineUniform() {
@@ -1276,7 +1276,7 @@ void ProcessGroupWorker::integrateCombinedSolution() {
       std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
                   [](BoundaryType b) { return b == 0; });
 
-  Stats::startEvent("worker dehierarchize");
+  Stats::startEvent("dehierarchize");
   for (Task* taskToUpdate : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       if (anyNotBoundary) {
@@ -1290,7 +1290,7 @@ void ProcessGroupWorker::integrateCombinedSolution() {
       }
     }
   }
-  Stats::stopEvent("worker dehierarchize");
+  Stats::stopEvent("dehierarchize");
   currentCombi_++;
 }
 
@@ -1322,14 +1322,14 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // send dsg data to manager
-    Stats::startEvent("worker send dsg data");
+    Stats::startEvent("send dsg data");
     sendDsgData(dsgToUse, manager, managerComm);
-    Stats::stopEvent("worker send dsg data");
+    Stats::stopEvent("send dsg data");
 
     // recv combined dsgu from manager
-    Stats::startEvent("worker recv dsg data");
+    Stats::startEvent("recv dsg data");
     recvDsgData(dsgToUse, manager, managerComm);
-    Stats::stopEvent("worker recv dsg data");
+    Stats::stopEvent("recv dsg data");
 
     if (extraUniDSGVector_.size() > 0) {
       // copy partial data from extraDSG back to uniDSG
@@ -1344,12 +1344,12 @@ void ProcessGroupWorker::combineThirdLevel() {
   integrateCombinedSolution();
 
   // wait for bcasts to other pgs in globalReduceComm
-  Stats::startEvent("worker wait for bcasts");
+  Stats::startEvent("wait for bcasts");
   for (MPI_Request& request : requests) {
     auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
     assert(returnedValue == MPI_SUCCESS);
   }
-  Stats::stopEvent("worker wait for bcasts");
+  Stats::stopEvent("wait for bcasts");
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
@@ -1394,10 +1394,10 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   MASTER_EXCLUSIVE_SECTION { std::filesystem::remove(startReadingTokenFileName); }
 
   // wait for bcasts to other pgs in globalReduceComm
-  Stats::startEvent("worker wait for bcasts");
+  Stats::startEvent("wait for bcasts");
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
-  Stats::stopEvent("worker wait for bcasts");
+  Stats::stopEvent("wait for bcasts");
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixToWrite,

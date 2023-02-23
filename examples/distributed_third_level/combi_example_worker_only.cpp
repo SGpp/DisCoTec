@@ -188,7 +188,7 @@ int main(int argc, char** argv) {
                                            p);
 
   worker.initCombinedUniDSGVector();
-  auto durationInit = Stats::getDuration("worker register dsgus") / 1000.0;
+  auto durationInit = Stats::getDuration("register dsgus") / 1000.0;
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "worker: initialized SG, registration was "
                                              << durationInit << " seconds" << std::endl;
 
@@ -228,25 +228,25 @@ int main(int argc, char** argv) {
   for (size_t i = 0; i < ncombi; ++i) {
     // run tasks for next time interval
     worker.runAllTasks();
-    auto durationRun = Stats::getDuration("worker run") / 1000.0;
+    auto durationRun = Stats::getDuration("run") / 1000.0;
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "calculation " << i << " took: " << durationRun
                                                << " seconds" << std::endl;
 
     if (evalMCError) {
-      Stats::startEvent("worker write interpolated");
+      Stats::startEvent("write interpolated");
       worker.writeInterpolatedValuesSingleFile(
           interpolationCoords, "worker_interpolated_" + std::to_string(systemNumber));
-      Stats::stopEvent("worker write interpolated");
+      Stats::stopEvent("write interpolated");
       OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
         MASTER_EXCLUSIVE_SECTION {
           std::cout << "interpolation " << i
-                    << " took: " << Stats::getDuration("worker write interpolated") / 1000.0
+                    << " took: " << Stats::getDuration("write interpolated") / 1000.0
                     << " seconds" << std::endl;
         }
       }
     }
 
-    Stats::startEvent("worker combine");
+    Stats::startEvent("combine");
     std::string writeSparseGridFile =
         "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
@@ -281,8 +281,8 @@ int main(int argc, char** argv) {
         worker.waitForThirdLevelCombiResult();
       }
     }
-    Stats::stopEvent("worker combine");
-    auto durationCombine = Stats::getDuration("worker combine") / 1000.0;
+    Stats::stopEvent("combine");
+    auto durationCombine = Stats::getDuration("combine") / 1000.0;
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
         << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
   }
