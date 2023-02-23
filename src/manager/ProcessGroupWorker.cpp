@@ -675,7 +675,7 @@ void ProcessGroupWorker::exit() {
       tasksStream << t->getID() << ": " << t->getCoefficient() << t->getLevelVector() << "; ";
     }
     std::string tasksString = tasksStream.str();
-    Stats::setAttribute("tasks: levels", tasksString);
+    // Stats::setAttribute("tasks: levels", tasksString);
   }
   if (isGENE) {
     if (chdir("../ginstance")) {
