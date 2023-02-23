@@ -1358,8 +1358,10 @@ void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePre
   assert(combiParametersSet_);
 
   // write sparse grid and corresponding token file
+  Stats::startEvent("write SG");
   this->writeDSGsToDisk(filenamePrefixToWrite);
   MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
+  Stats::stopEvent("write SG");
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
@@ -1375,9 +1377,13 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   MPI_Barrier(theMPISystem()->getLocalComm());
 
   if (overwrite) {
+    Stats::startEvent("read SG");
     this->readDSGsFromDisk(filenamePrefixToRead);
+    Stats::stopEvent("read SG");
   } else {
+    Stats::startEvent("read/reduce SG");
     this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
+    Stats::stopEvent("read/reduce SG");
   }
   if (combinedUniDSGVector_.size() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
@@ -1586,11 +1592,13 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   RankType thirdLevelPG = (RankType)combiParameters_.getThirdLevelPG();
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
+  Stats::startEvent("wait for bcasts");
   for (auto& dsg : combinedUniDSGVector_) {
     auto request = asyncBcastDsgData(dsg.get(), thirdLevelPG, globalReduceComm);
     auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
     assert(returnedValue == MPI_SUCCESS);
   }
+  Stats::stopEvent("wait for bcasts");
 
   integrateCombinedSolution();
 }
