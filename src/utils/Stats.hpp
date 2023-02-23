@@ -217,19 +217,8 @@ inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType 
     }
 
     buffer << "\"rank" << rank << "\":{" << std::endl;
-    buffer << "\"attributes\":{" << std::endl;
-    std::size_t attributes_count = 0;
-    // write all attributes
-    for (auto&& it = attributes_.begin(); it != attributes_.end(); ++it) {
-      buffer << "\"" << it->first << "\":\"" << it->second << "\"";
-      if (++attributes_count != attributes_.size()) {
-        buffer << "," << std::endl;
-      } else {
-        buffer << std::endl;
-      }
-    }
-    buffer << "}," << std::endl;
-
+    // write no attributes here
+    
     buffer << "\"events\":{" << std::endl;
     std::stringstream allEventsBuffer;
     bool anyEventFirstTime = true;
