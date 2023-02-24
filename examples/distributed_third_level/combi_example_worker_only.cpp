@@ -240,8 +240,8 @@ int main(int argc, char** argv) {
       OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
         MASTER_EXCLUSIVE_SECTION {
           std::cout << "interpolation " << i
-                    << " took: " << Stats::getDuration("write interpolated") / 1000.0
-                    << " seconds" << std::endl;
+                    << " took: " << Stats::getDuration("write interpolated") / 1000.0 << " seconds"
+                    << std::endl;
         }
       }
     }
@@ -291,7 +291,9 @@ int main(int argc, char** argv) {
   Stats::finalize();
 
   /* write stats to json file for postprocessing */
-  Stats::write("timers-" + std::to_string(systemNumber) + ".json");
+  Stats::write("timers_system" + std::to_string(systemNumber) + "_group" +
+                   std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
+               theMPISystem()->getLocalComm());
 
   MPI_Finalize();
 
