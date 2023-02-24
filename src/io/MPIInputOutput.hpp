@@ -4,6 +4,7 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
+#include <algorithm>
 #include <numeric>
 
 #include "utils/Types.hpp"
@@ -34,8 +35,10 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
     if (mpi_rank == 0) {
       MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
     }
+    MPI_Barrier(comm);
     err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
                         info, &fh);
+    assert(err == MPI_SUCCESS);
   }
 
   if (err == MPI_SUCCESS) {
