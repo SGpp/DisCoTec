@@ -1069,7 +1069,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
     for (size_t i = 0; i < remoteData.size(); ++i) {
-      assert(*remoteData[i].getData(localIndexVector) == *remoteData[i].getData(nn));
+      assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(nn));
     }
 #endif // NDEBUG
 
@@ -1134,13 +1134,18 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     divresult = std::lldiv(nn, stride);
     start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
+#ifndef NDEBUG
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
+    for (size_t i = 0; i < remoteData.size(); ++i) {
+      assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(nn));
+    }
+#endif  // NDEBUG
 
     // go through remote containers
     for (size_t i = 0; i < remoteData.size(); ++i) {
-      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(localIndexVector);
+      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(nn);
     }
 
     // copy local data
@@ -1228,7 +1233,7 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
     for (size_t i = 0; i < remoteData.size(); ++i) {
-      assert(*remoteData[i].getData(localIndexVector) == *remoteData[i].getData(nn));
+      assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(nn));
     }
 #endif // NDEBUG
 
@@ -1290,13 +1295,18 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     divresult = std::lldiv(nn, stride);
     start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
+#ifndef NDEBUG
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
+    for (size_t i = 0; i < remoteData.size(); ++i) {
+      assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(nn));
+    }
+#endif  // NDEBUG
 
     // go through remote containers
     for (size_t i = 0; i < remoteData.size(); ++i) {
-      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(localIndexVector);
+      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(nn);
     }
 
     // copy local data
