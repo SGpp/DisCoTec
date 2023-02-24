@@ -75,6 +75,7 @@ set(DISCOTEC_SOURCES
 add_library(discotec ${DISCOTEC_SOURCES})
 target_compile_features(discotec PRIVATE cxx_std_17)
 target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(discotec PUBLIC -march=native)
 
 # Defining options
 include(CMakeDependentOption)
