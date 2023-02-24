@@ -292,7 +292,8 @@ int main(int argc, char** argv) {
 
   /* write stats to json file for postprocessing */
   Stats::write("timers_system" + std::to_string(systemNumber) + "_group" +
-               std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json");
+                   std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
+               theMPISystem()->getLocalComm());
 
   MPI_Finalize();
 
