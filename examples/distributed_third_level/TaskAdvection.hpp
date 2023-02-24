@@ -105,47 +105,67 @@ class TaskAdvection : public Task {
       auto& u_dot_dphi = *phi_;
       const auto & ElementVector = dfg_->getElementVector();
       for (unsigned int d = 0; d < this->getDim(); ++d) {
-        static std::vector<int> subarrayExtents;
-        std::vector<CombiDataType> phi_ghost{};
-        dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
-        //auto ghostLayerSize = phi_ghost.size();
+          static std::vector<int> subarrayExtents;
+          std::vector<CombiDataType> phi_ghost{};
+          dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
+          //auto ghostLayerSize = phi_ghost.size();
 
-        // update all values; this will also (wrongly) update the lowest layer's values
-        for (IndexType li = 0; li < numLocalElements; ++li) {
+          // update all values; this will also (wrongly) update the lowest layer's values
+          for (IndexType li = fullOffsets[d]; li < numLocalElements; ++li) {
 #ifndef NDEBUG
-          IndexVector locAxisIndex(this->getDim());
-          dfg_->getLocalVectorIndex(li, locAxisIndex);
-          if (locAxisIndex[d] > 0) {
-            --locAxisIndex[d];
-            IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
-            assert(lni == (li - fullOffsets[d]));
-          }
+              IndexVector locAxisIndex(this->getDim());
+              dfg_->getLocalVectorIndex(li, locAxisIndex);
+              if (locAxisIndex[d] > 0) {
+                --locAxisIndex[d];
+                IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
+                assert(lni == (li - fullOffsets[d]));
+              }
 #endif  // NDEBUG
-          // ensure modulo is positive, cf. https://stackoverflow.com/a/12277233
-          const auto neighborLinearIndex = (li - fullOffsets[d] + numLocalElements) % numLocalElements;
-          assert(neighborLinearIndex >= 0);
-          assert(neighborLinearIndex < numLocalElements);
-          const CombiDataType phi_neighbor = ElementVector[neighborLinearIndex];
-          const auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
-          u_dot_dphi[li] += velocity[d] * dphi;
-        }
-        // iterate the lowest layer and update the values, compensating for the wrong update
-        // before
-        LowestSliceIterator<CombiDataType> dfgZeroIndexIterator(d, subarrayExtents, fullOffsets,
-                                                                phi_);
-        for (IndexType ghostIndex = 0; ghostIndex < phi_ghost.size(); ++ghostIndex) {
-          auto dfgLowestLayerIteratedIndex = dfgZeroIndexIterator.getIndex();
-#ifndef NDEBUG
-          assert(dfgLowestLayerIteratedIndex < numLocalElements);
-          IndexVector locAxisIndex(this->getDim());
-          dfg_->getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
-          if (locAxisIndex[d] != 0) {
-            std::cout << "lowest index = " << dfgLowestLayerIteratedIndex << std::endl;
-            std::cout << "locAxisIndex[" << d << "] = " << locAxisIndex << std::endl;
-            std::cout << "ghostIndex = " << ghostIndex << " of " << phi_ghost.size() << std::endl;
-            std::cout << "offset = " << fullOffsets << " index " << d << std::endl;
+              // ensure modulo is positive, cf. https://stackoverflow.com/a/12277233
+              const auto neighborLinearIndex = (li - fullOffsets[d]);
+              assert(neighborLinearIndex >= 0);
+              assert(neighborLinearIndex < numLocalElements);
+              const CombiDataType phi_neighbor = ElementVector[neighborLinearIndex];
+              const auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
+              u_dot_dphi[li] += velocity[d] * dphi;
           }
-          assert(locAxisIndex[d] == 0);
+
+          for (IndexType li = 0; li < fullOffsets[d]; ++li) {
+#ifndef NDEBUG
+              IndexVector locAxisIndex(this->getDim());
+              dfg_->getLocalVectorIndex(li, locAxisIndex);
+              if (locAxisIndex[d] > 0) {
+              --locAxisIndex[d];
+              IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
+              assert(lni == (li - fullOffsets[d]));
+              }
+#endif  // NDEBUG
+              // ensure modulo is positive, cf. https://stackoverflow.com/a/12277233
+              const auto neighborLinearIndex = (numLocalElements - fullOffsets[d] + li);
+              assert(neighborLinearIndex >= 0);
+              assert(neighborLinearIndex < numLocalElements);
+              const CombiDataType phi_neighbor = ElementVector[neighborLinearIndex];
+              const auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
+              u_dot_dphi[li] += velocity[d] * dphi;
+          }
+
+
+          // iterate the lowest layer and update the values, compensating for the wrong update
+          // before
+          LowestSliceIterator<CombiDataType> dfgZeroIndexIterator(d, subarrayExtents, fullOffsets, phi_);
+          for (IndexType ghostIndex = 0; ghostIndex < phi_ghost.size(); ++ghostIndex) {
+              auto dfgLowestLayerIteratedIndex = dfgZeroIndexIterator.getIndex();
+#ifndef NDEBUG
+              assert(dfgLowestLayerIteratedIndex < numLocalElements);
+              IndexVector locAxisIndex(this->getDim());
+              dfg_->getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
+              if (locAxisIndex[d] != 0) {
+                std::cout << "lowest index = " << dfgLowestLayerIteratedIndex << std::endl;
+                std::cout << "locAxisIndex[" << d << "] = " << locAxisIndex << std::endl;
+                std::cout << "ghostIndex = " << ghostIndex << " of " << phi_ghost.size() << std::endl;
+                std::cout << "offset = " << fullOffsets << " index " << d << std::endl;
+              }
+              assert(locAxisIndex[d] == 0);
 #endif  // NDEBUG
         // compute wrong term to "subtract" again
           const auto wrongNeighborLinearIndex =
