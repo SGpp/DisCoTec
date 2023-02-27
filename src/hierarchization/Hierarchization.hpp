@@ -70,7 +70,7 @@ class Hierarchization {
 
     IndexType stride = 1;
     IndexType jump;
-    lldiv_t divresult;
+//    lldiv_t divresult;
 
     //   dimension 1 separate as start of each pole is easier to calculate
     IndexType ndim = n[0];
@@ -108,8 +108,9 @@ class Hierarchization {
 
         for (IndexType nn = 0; nn < nbrOfPoles;
              nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
-          divresult = std::lldiv(nn, stride);
-          start = divresult.quot * jump + divresult.rem;
+            const auto quot = nn/stride;
+            const auto rem = nn%stride;
+            start = quot * jump + rem;  // localer lin index start of pole
           hierarchize1DUnoptimizedNoBoundary(fg, start, stride, ndim, dim);
         }
       } else {
@@ -118,8 +119,9 @@ class Hierarchization {
 
         for (IndexType nn = 0; nn < nbrOfPoles;
              nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
-          divresult = std::lldiv(nn, stride);
-          start = divresult.quot * jump + divresult.rem;
+            const auto quot = nn/stride;
+            const auto rem = nn%stride;
+            start = quot * jump + rem;  // localer lin index start of pole
           hierarchize1DUnoptimizedBoundary(fg, start, stride, ndim, dim);
         }
       }
@@ -155,7 +157,7 @@ class Hierarchization {
 
     IndexType stride = 1;
     IndexType jump;
-    lldiv_t divresult;
+//    lldiv_t divresult;
 
     //   dimension 1 separate as start of each pole is easier to calculate
     IndexType ndim = n[0];
@@ -193,8 +195,9 @@ class Hierarchization {
 
         for (IndexType nn = 0; nn < nbrOfPoles;
              nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
-          divresult = std::lldiv(nn, stride);
-          start = divresult.quot * jump + divresult.rem;
+            const auto quot = nn/stride;
+            const auto rem = nn%stride;
+            start = quot * jump + rem;  // localer lin index start of pole
           dehierarchize1DUnoptimizedNoBoundary(fg, start, stride, ndim, dim);
         }
       } else {
@@ -203,8 +206,9 @@ class Hierarchization {
 
         for (IndexType nn = 0; nn < nbrOfPoles;
              nn++) {  // integer operations form bottleneck here -- nested loops are twice as slow
-          divresult = std::lldiv(nn, stride);
-          start = divresult.quot * jump + divresult.rem;
+            const auto quot = nn/stride;
+            const auto rem = nn%stride;
+            start = quot * jump + rem;  // localer lin index start of pole
           dehierarchize1DUnoptimizedBoundary(fg, start, stride, ndim, dim);
         }
       }
