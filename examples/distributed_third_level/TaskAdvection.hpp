@@ -21,8 +21,9 @@ class TestFn {
     // leave out normalization, such that maximum is always 1
     return std::exp(exponent);  // / std::sqrt( std::pow(2*pi*sigmaSquared, coords.size()));
   }
+
  private:
-  static constexpr double sigmaSquaredInv_ = 1. / ((1./3.)*(1./3.));
+  static constexpr double sigmaSquaredInv_ = 1. / ((1. / 3.) * (1. / 3.));
 };
 
 class TaskAdvection : public Task {
@@ -30,8 +31,8 @@ class TaskAdvection : public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskAdvection(const LevelVector& l, const std::vector<BoundaryType>& boundary,
-                real coeff, LoadModel* loadModel, real dt, size_t nsteps,
+  TaskAdvection(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+                LoadModel* loadModel, real dt, size_t nsteps,
                 std::vector<int> p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
@@ -131,10 +132,12 @@ class TaskAdvection : public Task {
         }
         // iterate the lowest layer and update the values, compensating for the wrong update
         // before
-        LowestSliceIterator<CombiDataType> dfgZeroIndexIterator(d, subarrayExtents, fullOffsets,
-                                                                phi_);
+        assert(dfg_->getNrLocalElements() / dfg_->getLocalSizes()[d] == phi_ghost.size());
+        const auto& stride = dfg_->getLocalOffsets()[d];
+        const IndexType jump = stride * dfg_->getLocalSizes()[d];
         for (IndexType ghostIndex = 0; ghostIndex < phi_ghost.size(); ++ghostIndex) {
-          auto dfgLowestLayerIteratedIndex = dfgZeroIndexIterator.getIndex();
+          const lldiv_t divresult = std::lldiv(ghostIndex, stride);
+          const auto dfgLowestLayerIteratedIndex = divresult.quot * jump + divresult.rem;
 #ifndef NDEBUG
           assert(dfgLowestLayerIteratedIndex < numLocalElements);
           IndexVector locAxisIndex(this->getDim());
@@ -157,8 +160,6 @@ class TaskAdvection : public Task {
           // auto wrongDPhi = (dfg_->getElementVector()[ghostIndex] - wrongPhiNeigbor) / h[d];
           auto dphi = (wrongPhiNeighbor - phi_ghost[ghostIndex]) * oneOverH[d];
           u_dot_dphi[dfgLowestLayerIteratedIndex] += velocity[d] * dphi;
-          // increment the lowest layer's iterator
-          ++dfgZeroIndexIterator;
         }
       }
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
