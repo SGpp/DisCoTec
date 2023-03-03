@@ -201,10 +201,27 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
   }
 };
 
+inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, double coord,
+                                           DimType d) const {
+  const auto& h = getGridSpacing();
+  auto coordDistance =
+      static_cast<double>(this->getLowerBounds()[d] + (hasBoundaryPoints_[d] > 0 ? 0 : 1) +
+                          oneDimensionalLocalIndex) *
+          h[d] -
+      coord;
+#ifndef NDEBUG
+  if (std::abs(coordDistance) > h[d]) {
+    std::cout << "assert bounds " << coordDistance << coord << h << static_cast<int>(d)
+              << oneDimensionalLocalIndex << std::endl;
+    assert(false &&
+           "should only be called for coordinates within the support of this point's basis "
+           "function");
+  }
+#endif  // ndef NDEBUG
+  return std::abs(coordDistance);
+}
 
   inline FG_ELEMENT evalLocalIndexOn(IndexType localIndex, const std::vector<real>& coords) const {
-    const auto& lowerBounds = this->getLowerBounds();
-
     // get product of 1D hat functions on coords
     const auto& h = getGridSpacing();
     real phi_c = 1.;  // value of product of basis function on coords
@@ -214,21 +231,8 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
       const auto divresult = std::lldiv(localIndexRemainder, this->getLocalOffsets()[d - 1]);
       const auto localIndexInDim = divresult.quot;
       localIndexRemainder = divresult.rem;
-      auto coordDistance =
-          static_cast<double>(lowerBounds[d - 1] + (hasBoundaryPoints_[d - 1] > 0 ? 0 : 1) +
-                              localIndexInDim) *
-              h[d - 1] -
-          coords[d - 1];
-#ifndef NDEBUG
-      if (std::abs(coordDistance) > h[d - 1]) {
-        std::cout << "assert bounds " << coordDistance << coords << h << static_cast<int>(d)
-                  << localIndex << std::endl;
-        assert(false &&
-               "should only be called for coordinates within the support of this point's basis "
-               "function");
-      }
-#endif  // ndef NDEBUG
-      phi_c *= 1. - std::abs(coordDistance / h[d - 1]);
+    auto coordDistance = getPointDistanceToCoordinate(localIndexInDim, coords[d - 1], d - 1);
+      phi_c *= 1. - coordDistance / h[d - 1];
     }
     assert(phi_c >= 0.);
     return phi_c * this->getElementVector()[localIndex];
