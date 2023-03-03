@@ -200,25 +200,27 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
     this->validateSizes();
   }
 };
-  FG_ELEMENT evalLocalIndexOn(const IndexVector& localIndex,
-                              const std::vector<real>& coords) const {
+
+
+  inline FG_ELEMENT evalLocalIndexOn(IndexType localIndex, const std::vector<real>& coords) const {
     const auto& lowerBounds = this->getLowerBounds();
 
     // get product of 1D hat functions on coords
     const auto& h = getGridSpacing();
     real phi_c = 1.;  // value of product of basis function on coords
-    for (DimType d = 0; d < dim_; ++d) {
+    auto localIndexRemainder = localIndex;
+    for (DimType d = dim_; d > 0; --d) {
       // get distance between coords and point
-      // this should be the same as
-      // coordDistance = this->getCoordsLocal(localIndex) - coords;
-      // cf. getLowerBoundsCoords()
+      const auto divresult = std::lldiv(localIndexRemainder, this->getLocalOffsets()[d - 1]);
+      const auto localIndexInDim = divresult.quot;
+      localIndexRemainder = divresult.rem;
       auto coordDistance =
-          static_cast<double>(lowerBounds[d] + (hasBoundaryPoints_[d] > 0 ? 0 : 1) +
-                              localIndex[d]) *
-              h[d] -
-          coords[d];
+          static_cast<double>(lowerBounds[d - 1] + (hasBoundaryPoints_[d - 1] > 0 ? 0 : 1) +
+                              localIndexInDim) *
+              h[d - 1] -
+          coords[d - 1];
 #ifndef NDEBUG
-      if (std::abs(coordDistance) > h[d]) {
+      if (std::abs(coordDistance) > h[d - 1]) {
         std::cout << "assert bounds " << coordDistance << coords << h << static_cast<int>(d)
                   << localIndex << std::endl;
         assert(false &&
@@ -226,14 +228,10 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
                "function");
       }
 #endif  // ndef NDEBUG
-      phi_c *= 1. - std::abs(coordDistance / h[d]);
+      phi_c *= 1. - std::abs(coordDistance / h[d - 1]);
     }
-
-    auto localLinearIndex = getLocalLinearIndex(localIndex);
-    // std::cout << "coords " <<  localIndex << coords << localLinearIndex << h << std::endl;
-    // std::cout << "phi_c " << phi_c << this->getElementVector()[localLinearIndex] << std::endl;
     assert(phi_c >= 0.);
-    return phi_c * this->getElementVector()[localLinearIndex];
+    return phi_c * this->getElementVector()[localIndex];
   }
 
   /**
@@ -249,10 +247,10 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
                                        const std::vector<real>& coords) const {
     assert(!(dim > this->getDimension()));
     if (dim == this->getDimension()) {
-      return evalLocalIndexOn(localIndex, coords);
+      return evalLocalIndexOn(this->getLocalLinearIndex(localIndex), coords);
     } else {
       FG_ELEMENT sum = 0.;
-      auto lastIndexInDim = this->getLocalSizes()[dim] - 1;
+      const auto lastIndexInDim = this->getLocalSizes()[dim] - 1;
       if (localIndex[dim] >= 0 && localIndex[dim] <= lastIndexInDim) {
         sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
       } else if (localIndex[dim] > lastIndexInDim &&
