@@ -139,9 +139,9 @@ class ProcessGroupWorker {
                                   std::string filenamePrefixToRead,
                                   std::string startReadingTokenFileName);
 
-  /** waits until the third level pg bcasts the combined solution and updates
+  /** waits until the third level pg or output group bcasts the combined solution and updates
    * fgs */
-  void waitForThirdLevelCombiResult();
+  void waitForThirdLevelCombiResult(bool fromOutputGroup = false);
 
   void setExtraSparseGrid(bool initializeSizes = true);
 

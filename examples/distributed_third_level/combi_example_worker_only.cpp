@@ -268,7 +268,7 @@ int main(int argc, char** argv) {
         worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken);
       }
       else {
-        worker.waitForThirdLevelCombiResult();
+        worker.waitForThirdLevelCombiResult(true);
       }
     } else {
       // open question: should all groups read for themselves or one broadcasts?
@@ -278,7 +278,7 @@ int main(int argc, char** argv) {
                                                     true);
       }
       else {
-        worker.waitForThirdLevelCombiResult();
+        worker.waitForThirdLevelCombiResult(true);
       }
     }
     Stats::stopEvent("combine");

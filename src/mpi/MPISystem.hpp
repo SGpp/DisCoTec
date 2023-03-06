@@ -14,8 +14,11 @@
 
 #define MASTER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isMaster())
 
-// first group does output (in no-manager case)
-#define OUTPUT_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getProcessGroupNumber() == 0)
+// first group
+#define FIRST_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getProcessGroupNumber() == 0)
+
+// output group does output (in no-manager case)
+#define OUTPUT_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL)
 
 // last group does some other (potentially concurrent) output
 #define OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION \

@@ -57,6 +57,9 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getWorldComm()), size);
   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getGlobalReduceComm()), ngroup);
   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), nprocs);
+  if (theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL) {
+    BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getOutputGroupComm()), nprocs);
+  }
   if (nprocs == 1) {
     BOOST_CHECK(theMPISystem()->isMaster());
   }
@@ -138,7 +141,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   MASTER_EXCLUSIVE_SECTION {
-    BOOST_TEST_MESSAGE("worker run first solver step: " << Stats::getDuration("worker run")
+    BOOST_TEST_MESSAGE("worker run first solver step: " << Stats::getDuration("run")
                                                         << " milliseconds");
   }
 
@@ -160,7 +163,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 
     // first group writes partial stats
     if (theMPISystem()->getProcessGroupNumber() == 0) {
-      Stats::writePartial("worker_partial_timers_group.json", theMPISystem()->getLocalComm());
+      Stats::writePartial("worker_partial_timers_group_0.json", theMPISystem()->getLocalComm());
     }
 
     BOOST_TEST_CHECKPOINT("run next");
@@ -194,7 +197,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   std::string filename("worker_" + std::to_string(ncombi) + ".raw");
   BOOST_TEST_CHECKPOINT("write solution " + filename);
   Stats::startEvent("worker write solution");
-  OUTPUT_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
+  FIRST_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
   BOOST_TEST_CHECKPOINT("write min/max coefficients");
   worker.writeSparseGridMinMaxCoefficients("worker_" + std::to_string(boundaryV) +
                                            "_sparse_minmax");
@@ -206,7 +209,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   filename = "worker_" + std::to_string(boundaryV) + "_dsgs";
   BOOST_TEST_CHECKPOINT("write DSGS " + filename);
   Stats::startEvent("worker write DSG");
-  OUTPUT_GROUP_EXCLUSIVE_SECTION { worker.writeDSGsToDisk(filename); }
+  FIRST_GROUP_EXCLUSIVE_SECTION { worker.writeDSGsToDisk(filename); }
   worker.readDSGsFromDisk(filename);
   Stats::stopEvent("worker write DSG");
   MASTER_EXCLUSIVE_SECTION {
@@ -288,6 +291,9 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   remove(("worker_" + std::to_string(ncombi) + "_0.raw_header").c_str());
 
   BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
+  if (theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL) {
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getOutputGroupComm()));
+  }
   BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalReduceComm()));
   MASTER_EXCLUSIVE_SECTION {
     BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
