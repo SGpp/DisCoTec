@@ -2,6 +2,7 @@
 #define DISTRIBUTEDCOMBIFULLGRID_HPP_
 
 #include <algorithm>
+#include <bitset>
 #include <cassert>
 #include <iostream>
 #include <numeric>
@@ -238,92 +239,103 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
     return phi_c * this->getElementVector()[localIndex];
   }
 
-  /**
-   * @brief recursive call to evaluate all neighbor points' contributions to the coordinate (on this
-   * part of the grid)
-   *
-   * @param localIndex the (in-all-dimensions lower) neighbor of coords
-   * @param dim the current dimension to split on (start with 0)
-   * @param coords the coordinate to interpolate on
-   * @return FG_ELEMENT the interpolated value at coords
-   */
-  FG_ELEMENT evalMultiindexRecursively(const IndexVector& localIndex, DimType dim,
-                                       const std::vector<real>& coords) const {
-    assert(!(dim > this->getDimension()));
-    if (dim == this->getDimension()) {
-      return evalLocalIndexOn(this->getLocalLinearIndex(localIndex), coords);
-    } else {
-      FG_ELEMENT sum = 0.;
-      const auto lastIndexInDim = this->getLocalSizes()[dim] - 1;
-      if (localIndex[dim] >= 0 && localIndex[dim] <= lastIndexInDim) {
-        sum += evalMultiindexRecursively(localIndex, static_cast<DimType>(dim + 1), coords);
-      } else if (localIndex[dim] > lastIndexInDim &&
-                 !(this->hasBoundaryPoints_[dim] == 1 &&
-                   this->getCartesianUtils().isOnLowerBoundaryInDimension(dim))) {
-        throw std::runtime_error("localIndex[dim] > lastIndexInDim");
-      }
 
-      auto localIndexDimPlusOne = localIndex[dim] + 1;
-      if (localIndexDimPlusOne >= 0) {
-        if (this->hasBoundaryPoints_[dim] == 1 &&
-            this->getCartesianUtils().isOnLowerBoundaryInDimension(dim) &&
-            localIndexDimPlusOne == this->getGlobalSizes()[dim]) {
-          // assume periodicity
-          // if we are at the end of the dimension, wrap around
-          localIndexDimPlusOne = 0;
-          auto secondCoords = coords;
-          secondCoords[dim] -= 1.;
-          // these copies are used to find all the neighbor points of the current coordinate
-          auto neighborIndex = localIndex;
-          neighborIndex[dim] = localIndexDimPlusOne;
-          sum +=
-              evalMultiindexRecursively(neighborIndex, static_cast<DimType>(dim + 1), secondCoords);
-        } else if (localIndexDimPlusOne <= lastIndexInDim) {
-          // these copies are used to find all the neighbor points of the current coordinate
-          auto neighborIndex = localIndex;
-          neighborIndex[dim] = localIndexDimPlusOne;
-          sum += evalMultiindexRecursively(neighborIndex, static_cast<DimType>(dim + 1),
-                                            coords);
-        }
+inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
+                                                const std::vector<real>& coords) const {
+  std::vector<double> oneOverH = this->getInverseGridSpacing();
+  FG_ELEMENT result = 0.;
+  auto localLinearIndex = this->getLocalLinearIndex(localIndex);
+  for (size_t localIndexIterate = 0;
+       localIndexIterate < combigrid::powerOfTwoByBitshift(this->getDimension());
+       ++localIndexIterate) {
+        #ifndef NDEBUG
+    auto neighborVectorIndex = localIndex;
+        #endif
+    auto neighborIndex = localLinearIndex;
+    real phi_c = 1.;  // value of product of iterate's basis function on coords
+    for (DimType d = 0; d < dim_; ++d) {
+      const auto lastIndexInDim = this->getLocalSizes()[d] - 1;
+      bool dimIsSet = std::bitset<sizeof(int) * CHAR_BIT>(localIndexIterate).test(d);
+      auto iterateIndexInThisDimension = localIndex[d] + dimIsSet;
+      if (iterateIndexInThisDimension < 0) {
+        phi_c = 0.;
+        break;  // TODO continue outer loop
+      } else if (dimIsSet && this->hasBoundaryPoints_[d] == 1 &&
+                 //  this->getCartesianUtils().isOnLowerBoundaryInDimension(d) &&
+                 iterateIndexInThisDimension == this->getGlobalSizes()[d]) {
+        // if we have a wrap-around AND are on the lowest cartesian process in this dimension
+        // we need to set the index in this dim to 0 and shift the coordinate by 1.
+        neighborIndex -= localIndex[d] * this->getLocalOffsets()[d];
+        iterateIndexInThisDimension = 0;
+        auto coordDistance =
+            getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d] - 1.0, d);
+        phi_c *= 1. - coordDistance * oneOverH[d];
+      } else if (iterateIndexInThisDimension > lastIndexInDim) {
+        phi_c = 0.;
+        break;  // TODO continue outer loop
       } else {
-        throw std::runtime_error("localIndexDimPlusOne < 0");
+        auto coordDistance =
+            getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d], d);
+        phi_c *= 1. - coordDistance * oneOverH[d];
+        neighborIndex += dimIsSet * this->getLocalOffsets()[d];
       }
-      return sum;
+#ifndef NDEBUG
+      neighborVectorIndex[d] = iterateIndexInThisDimension;
+#endif
+    }
+    if (phi_c > 0.) {
+#ifndef NDEBUG
+      auto unlinearizedNeighborIndex = neighborVectorIndex;
+      this->getLocalVectorIndex(neighborIndex, unlinearizedNeighborIndex);
+      if (unlinearizedNeighborIndex != neighborVectorIndex) {
+        std::cerr << "expected " << unlinearizedNeighborIndex << " got " << neighborVectorIndex
+                  << std::endl;
+      }
+      if (neighborIndex < 0) {
+        std::cerr << "expected " << unlinearizedNeighborIndex << " got " << neighborVectorIndex << " or " << neighborIndex
+                  << std::endl;
+      }
+#endif
+      assert(neighborIndex > -1);
+      assert(neighborIndex < this->getElementVector().size());
+      result += phi_c * this->getElementVector()[neighborIndex];
     }
   }
+  return result;
+}
 
-  /** evaluates the full grid on the specified coordinates
-   * @param coords ND coordinates on the unit square [0,1]^D*/
-  FG_ELEMENT evalLocal(const std::vector<real>& coords) const {
-    FG_ELEMENT value;
-    evalLocal(coords, value);
-    return value;
-  }
+/** evaluates the full grid on the specified coordinates
+ * @param coords ND coordinates on the unit square [0,1]^D*/
+FG_ELEMENT evalLocal(const std::vector<real>& coords) const {
+  FG_ELEMENT value;
+  evalLocal(coords, value);
+  return value;
+}
 
-  void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
-    assert(coords.size() == this->getDimension());
+void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
+  assert(coords.size() == this->getDimension());
 
-    // get the lowest-index point of the points
-    // whose basis functions contribute to the interpolated value
-    auto lowerCoords = getLowerBoundsCoords();
-    const auto& h = getGridSpacing();
-    static IndexVector localIndexLowerNonzeroNeighborPoint;
-    localIndexLowerNonzeroNeighborPoint.resize(dim_);
-    for (DimType d = 0; d < dim_; ++d) {
+  // get the lowest-index point of the points
+  // whose basis functions contribute to the interpolated value
+  auto lowerCoords = getLowerBoundsCoords();
+  const auto& h = getGridSpacing();
+  static IndexVector localIndexLowerNonzeroNeighborPoint;
+  localIndexLowerNonzeroNeighborPoint.resize(dim_);
+  for (DimType d = 0; d < dim_; ++d) {
 #ifndef NDEBUG
       if (coords[d] < 0. || coords[d] > 1.) {
         std::cout << "coords " << coords << " out of bounds" << std::endl;
       }
       assert(coords[d] >= 0. && coords[d] <= 1.);
 #endif  // ndef NDEBUG
-
       // this is the local index of the point that is lower than the coordinate
       // may also be negative if the coordinate is lower than this processes' coordinates
-      localIndexLowerNonzeroNeighborPoint[d] =
+      IndexType localIndexLowerNonzeroNeighborIndexInThisDimension =
           static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
+      localIndexLowerNonzeroNeighborPoint[d] = localIndexLowerNonzeroNeighborIndexInThisDimension;
 
-      // check if we even need to recursively evaluate on this process
-      if (localIndexLowerNonzeroNeighborPoint[d] < -1) {
+      // check if we even need to evaluate on this process
+      if (localIndexLowerNonzeroNeighborIndexInThisDimension < -1) {
         // index too small
         value = 0.;
         return;
@@ -332,7 +344,8 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
                  this->getCartesianUtils().isOnLowerBoundaryInDimension(d)) {
         // if we have periodic boundary and this process is at the lower end of the dimension d
         // we need the periodic coordinate => do nothing
-      } else if (localIndexLowerNonzeroNeighborPoint[d] > this->getLocalSizes()[d] - 1) {
+      } else if (localIndexLowerNonzeroNeighborIndexInThisDimension >
+                 this->getLocalSizes()[d] - 1) {
         // index too high
         value = 0.;
         return;
@@ -340,7 +353,8 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
     }
     // evaluate at those points and sum up according to the basis function
     // needs to be recursive in order to be dimensionally adaptive
-    value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
+    // value = evalMultiindexRecursively(localIndexLowerNonzeroNeighborPoint, 0, coords);
+    value = evalIndexAndAllUpperNeighbors(localIndexLowerNonzeroNeighborPoint, coords);
   }
 
   /** evaluates the full grid on the specified coordinates
@@ -536,8 +550,6 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
     for (DimType i = 0; i < dim_; ++i) {
       tmp = tmp + localOffsets_[i] * locAxisIndex[i];
     }
-
-    assert(tmp < nrLocalElements_);
 
     return tmp;
   }
