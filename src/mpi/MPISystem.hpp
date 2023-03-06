@@ -147,6 +147,8 @@ class MPISystem {
    */
   inline const CommunicatorType& getGlobalReduceComm() const;
 
+  inline const CommunicatorType& getOutputGroupComm() const;
+
   inline const std::vector<CommunicatorType>& getThirdLevelComms() const;
 
   /**
@@ -194,6 +196,9 @@ class MPISystem {
 
   inline const RankType& getGlobalReduceRank() const;
 
+  inline const RankType& getOutputGroupRank() const;
+
+  inline RankType getOutputRankInGlobalReduceComm() const;
 
   /**
    * returns MPI rank number in all third level comms
@@ -317,6 +322,9 @@ class MPISystem {
    */
   void initGlobalReduceCommm();
 
+  /* let the output "group" be distributed across the actual process groups */
+  void initOuputGroupComm();
+
   /**
    * creates a FT communicator associated with comm
    */
@@ -428,6 +436,8 @@ class MPISystem {
    */
   CommunicatorType globalReduceComm_;
 
+  CommunicatorType outputGroupComm_; 
+
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
   simft::Sim_FT_MPI_Comm globalCommFT_;  // FT version of global comm
@@ -460,6 +470,8 @@ class MPISystem {
   RankType thirdLevelRank_;  // rank number in all third level comms
 
   RankType thirdLevelManagerRank_;  // rank of manager in all third level comms
+
+  RankType outputGroupRank_; 
 
   size_t ngroup_;  // number of process groups
 
@@ -523,6 +535,10 @@ inline const CommunicatorType& MPISystem::getGlobalReduceComm() const {
   return globalReduceComm_;
 }
 
+inline const CommunicatorType& MPISystem::getOutputGroupComm() const {
+  return outputGroupComm_;
+}
+
 inline const std::vector<CommunicatorType>& MPISystem::getThirdLevelComms() const{
   checkPreconditions();
 
@@ -567,6 +583,16 @@ inline const RankType& MPISystem::getWorldRank() const {
 
 inline const RankType& MPISystem::getGlobalReduceRank() const{
   return globalReduceRank_;
+}
+
+inline const RankType& MPISystem::getOutputGroupRank() const{
+  return outputGroupRank_;
+}
+
+inline RankType MPISystem::getOutputRankInGlobalReduceComm() const {
+  // my local rank gives the index of the global reduce comm,
+  // and the output rank in the global reduce comm is the index modulo the number of groups
+  return localRank_ % ngroup_;
 }
 
 inline const RankType& MPISystem::getGlobalRank() const {

@@ -135,8 +135,8 @@ BOOST_AUTO_TEST_CASE(test_no_manager) {
     CommunicatorType comm = TestHelper::getComm(procs);
     if (comm != MPI_COMM_NULL) {
       Stats::initialize();
-      BOOST_TEST_CHECKPOINT("MPI init " + std::to_string(procs[0]) + " " +
-                            std::to_string(procs[1]));
+      BOOST_TEST_CHECKPOINT("MPI init " + std::to_string(procs[0]) + " groups, and " +
+                            std::to_string(procs[1]) + " procs per group");
       theMPISystem()->initWorldReusable(comm, procs[0], procs[1], false);
 
       BOOST_CHECK_NE(theMPISystem()->getLocalComm(), theMPISystem()->getGlobalComm());
@@ -166,6 +166,24 @@ BOOST_AUTO_TEST_CASE(test_no_manager) {
         BOOST_CHECK_EQUAL(theMPISystem()->getGlobalComm(), MPI_COMM_NULL);
         BOOST_CHECK_LT(theMPISystem()->getGlobalRank(), 0);
       }
+      MPI_Barrier(comm);
+      BOOST_TEST_CHECKPOINT("test output comm");
+      int broadcastValue = 0;
+      if (theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL) {
+        MPI_Barrier(theMPISystem()->getOutputGroupComm());
+        BOOST_CHECK_NE(theMPISystem()->getOutputGroupRank(), MPI_UNDEFINED);
+        BOOST_CHECK_EQUAL(theMPISystem()->getOutputGroupRank(), theMPISystem()->getLocalRank());
+        // try to broadcast through global reduce comm
+        broadcastValue = 100;
+        MPI_Bcast(&broadcastValue, 1, MPI_INT, theMPISystem()->getGlobalReduceRank(),
+                  theMPISystem()->getGlobalReduceComm());
+      } else {
+        BOOST_CHECK_EQUAL(theMPISystem()->getOutputGroupRank(), MPI_UNDEFINED);
+        // receive Bcast from global reduce comm
+        MPI_Bcast(&broadcastValue, 1, MPI_INT, theMPISystem()->getOutputRankInGlobalReduceComm(),
+                  theMPISystem()->getGlobalReduceComm());
+      }
+      BOOST_CHECK_EQUAL(broadcastValue, 100);
       Stats::finalize();
       MPI_Barrier(comm);
     }

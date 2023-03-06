@@ -21,6 +21,7 @@ MPISystem::MPISystem()
       globalComm_(MPI_COMM_NULL),
       localComm_(MPI_COMM_NULL),
       globalReduceComm_(MPI_COMM_NULL),
+      outputGroupComm_(MPI_COMM_NULL), 
       worldCommFT_(nullptr),
       globalCommFT_(nullptr),
       spareCommFT_(nullptr),
@@ -36,6 +37,7 @@ MPISystem::MPISystem()
       masterRank_(MPI_UNDEFINED),
       thirdLevelRank_(MPI_UNDEFINED),
       thirdLevelManagerRank_(MPI_UNDEFINED),
+      outputGroupRank_(MPI_UNDEFINED),
       reusableRanks_(std::vector<RankType>(0)) {
   // check if MPI was initialized (e.g. by MPI_Init or similar)
   int mpiInitialized(0);
@@ -82,6 +84,9 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs,
   }
   // std::cout << "Global rank of root is" << worldCommFT_->Root_Rank << "\n";
   // worldCommFT_->Root_Rank = worldSize - 1;
+
+  outputGroupRank_ = MPI_UNDEFINED;
+  outputGroupComm_ = MPI_COMM_NULL;
 }
 
 void MPISystem::init(size_t ngroup, size_t nprocs, bool withWorldManager) {
@@ -105,6 +110,8 @@ void MPISystem::init(size_t ngroup, size_t nprocs, bool withWorldManager) {
     initGlobalComm(withWorldManager);
 
     initGlobalReduceCommm();
+
+    initOuputGroupComm();
 
     if (withWorldManager) {
       /*
@@ -148,6 +155,8 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm, bool 
 
   initGlobalReduceCommm();
 
+  initOuputGroupComm();
+
   if (withWorldManager) {
     initThirdLevelComms();
   } else {
@@ -174,6 +183,8 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
     initLocalComm();
 
     initGlobalReduceCommm();
+
+    initOuputGroupComm();
 
     /* create global communicator which contains only the manager and the master
      * process of each process group
@@ -368,6 +379,40 @@ void MPISystem::initGlobalReduceCommm() {
     MPI_Comm_split(worldComm_, MPI_UNDEFINED, -1, &globalReduceComm_);
     globalReduceRank_ = MPI_PROC_NULL;
   }
+}
+
+// helper function to identify "diagonal" processes for output group
+std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
+  std::vector<int> ranks;
+  ranks.reserve(nprocs);
+  for (size_t diagonal = 0; diagonal < nprocs / ngroup + 1; ++diagonal) {
+    for (size_t p = 0; p < ngroup; ++p) {
+      auto rankToAdd = static_cast<int>((nprocs + 1) * p + diagonal * ngroup);
+      ranks.push_back(rankToAdd);
+      assert(rankToAdd < nprocs * ngroup);
+      if (ranks.size() == nprocs) return ranks;
+    }
+  }
+  return ranks;
+}
+
+void MPISystem::initOuputGroupComm() {
+  MPI_Group worldGroup;
+  MPI_Comm_group(worldComm_, &worldGroup);
+  auto ranks = getDiagonalRanks(nprocs_, ngroup_);
+  assert(ranks.size() == nprocs_);
+
+  MPI_Group newGroup;
+  MPI_Group_incl(worldGroup, int(ranks.size()), ranks.data(), &newGroup);
+  CommunicatorType newComm;
+  MPI_Comm_create(worldComm_, newGroup, &newComm);
+
+  if (newComm != MPI_COMM_NULL) {
+    outputGroupComm_ = newComm;
+    MPI_Comm_rank(newComm, &outputGroupRank_);
+  }
+  MPI_Group_free(&newGroup);
+  MPI_Group_free(&worldGroup);
 }
 
 void MPISystem::createCommFT(simft::Sim_FT_MPI_Comm* commFT, CommunicatorType comm) {
@@ -766,6 +811,8 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   std::cout << "initializing global reduce comm \n";
   deleteCommFTAndCcomm(&globalReduceCommFT_, &globalReduceComm_);
   initGlobalReduceCommm();
+
+  initOuputGroupComm();
 
   // toDo return fixed process group IDs
   std::cout << "returning \n";
