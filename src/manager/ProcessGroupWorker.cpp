@@ -1298,11 +1298,10 @@ void ProcessGroupWorker::combineThirdLevel() {
   assert(combinedUniDSGVector_.size() != 0);
   assert(combiParametersSet_);
 
-  assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
-  const CommunicatorType& managerComm = theMPISystem()->getThirdLevelComms()[0];
+  const CommunicatorType& managerComm = theMPISystem()->getThirdLevelComm();
   const CommunicatorType& globalReduceComm = theMPISystem()->getGlobalReduceComm();
   const RankType& globalReduceRank = theMPISystem()->getGlobalReduceRank();
-  const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
+  auto manager = theMPISystem()->getThirdLevelManagerRank();
 
   std::vector<MPI_Request> requests;
   for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
@@ -1461,7 +1460,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
   }
 
   // prepare for MPI calls to manager
-  CommunicatorType thirdLevelComm = theMPISystem()->getThirdLevelComms()[0];
+  CommunicatorType thirdLevelComm = theMPISystem()->getThirdLevelComm();
   RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
   for (size_t i = 0; i < uniDSGVectorToSet->size(); ++i) {
     combinedUniDSGVector_[i]->sendDsgSizesWithGather(thirdLevelComm, thirdLevelManagerRank);
@@ -1481,11 +1480,11 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
 }
 
 void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
-  RankType thirdLevelPG = (RankType)combiParameters_.getThirdLevelPG();
+  RankType outputRank = theMPISystem()->getOutputRankInGlobalReduceComm();
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   for (auto& dsg : combinedUniDSGVector_) {
-    dsg->broadcastDsgSizes(globalReduceComm, thirdLevelPG);
+    dsg->broadcastDsgSizes(globalReduceComm, outputRank);
   }
 }
 
@@ -1589,12 +1588,12 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefix
 void ProcessGroupWorker::waitForThirdLevelCombiResult() {
   assert(extraUniDSGVector_.empty());
   // receive third level combi result from third level pgroup (global reduce comm)
-  RankType thirdLevelPG = (RankType)combiParameters_.getThirdLevelPG();
+  RankType outputRank = theMPISystem()->getOutputRankInGlobalReduceComm();
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   Stats::startEvent("wait for bcasts");
   for (auto& dsg : combinedUniDSGVector_) {
-    auto request = asyncBcastDsgData(dsg.get(), thirdLevelPG, globalReduceComm);
+    auto request = asyncBcastDsgData(dsg.get(), outputRank, globalReduceComm);
     auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
     assert(returnedValue == MPI_SUCCESS);
   }

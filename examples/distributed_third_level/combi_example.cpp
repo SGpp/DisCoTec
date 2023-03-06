@@ -318,7 +318,7 @@ int main(int argc, char** argv) {
     // which we don't want here because it makes the sparse grid too large
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi * 2, 1, p,
                            LevelVector(dim, 0), reduceCombinationDimsLmax, forwardDecomposition,
-                           thirdLevelHost, thirdLevelPort, 0);
+                           thirdLevelHost, thirdLevelPort);
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
       minNumPoints[d] = combigrid::getNumDofNodal(lmin[d], boundary[d]);

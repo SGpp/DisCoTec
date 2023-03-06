@@ -22,7 +22,9 @@ class ProcessGroupManager {
 
   explicit ProcessGroupManager(RankType pgroupRootID);
 
-  ProcessGroupManager(ProcessGroupManager const&) = delete;
+  static ProcessGroupManager&& createOutputProcessGroupManager();
+
+  explicit ProcessGroupManager(ProcessGroupManager const&) = default;
 
   ProcessGroupManager& operator=(ProcessGroupManager const&) = delete;
 

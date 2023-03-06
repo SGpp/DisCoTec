@@ -23,8 +23,7 @@ class CombiParameters {
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   bool forwardDecomposition = !isGENE,
                   const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelPort = 0,
-                  size_t thirdLevelPG = 0
+                  unsigned short thirdLevelPort = 0
                   )
       : dim_(dim),
         lmin_(lmin),
@@ -36,8 +35,7 @@ class CombiParameters {
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
-        thirdLevelPort_(thirdLevelPort),
-        thirdLevelPG_(thirdLevelPG)
+        thirdLevelPort_(thirdLevelPort)
   {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     for (DimType d = 0; d < dim_; ++d) {
@@ -61,7 +59,7 @@ class CombiParameters {
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
+                  unsigned short thirdLevelPort = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
@@ -72,8 +70,7 @@ class CombiParameters {
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
-        thirdLevelPort_(thirdLevelPort),
-        thirdLevelPG_(thirdLevelPG) {
+        thirdLevelPort_(thirdLevelPort) {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     for (DimType d = 0; d < dim_; ++d) {
       if (boundary_[d] == 1) {
@@ -94,7 +91,7 @@ class CombiParameters {
                   IndexType numGrids = 1, LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
+                  unsigned short thirdLevelPort = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
@@ -106,8 +103,7 @@ class CombiParameters {
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
-        thirdLevelPort_(thirdLevelPort),
-        thirdLevelPG_(thirdLevelPG) {
+        thirdLevelPort_(thirdLevelPort) {
     for (DimType d = 0; d < dim_; ++d) {
       if (boundary_[d] == 1) {
         hierarchicalBases_.push_back(new HierarchicalHatPeriodicBasisFunction());
@@ -281,10 +277,6 @@ class CombiParameters {
     return thirdLevelPort_;
   }
 
-  inline size_t getThirdLevelPG() {
-    return thirdLevelPG_;
-  }
-
   inline bool isApplicationCommSet() const {
     return false;
     // return applicationCommSet_;
@@ -405,8 +397,6 @@ class CombiParameters {
 
   unsigned short thirdLevelPort_;
 
-  size_t thirdLevelPG_;
-
   // serialize
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version);
@@ -431,7 +421,6 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& reduceCombinationDimsLmax_;
   ar& thirdLevelHost_;
   ar& thirdLevelPort_;
-  ar& thirdLevelPG_;
 }
 
 

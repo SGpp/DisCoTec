@@ -149,7 +149,7 @@ class MPISystem {
 
   inline const CommunicatorType& getOutputGroupComm() const;
 
-  inline const std::vector<CommunicatorType>& getThirdLevelComms() const;
+  inline const CommunicatorType& getThirdLevelComm() const;
 
   /**
    * returns the fault tolerant version of the world comm (excluding spare ranks)
@@ -223,7 +223,7 @@ class MPISystem {
   /**
    * returns MPI rank number of master in all third level comms
    */
-  inline const RankType& getThirdLevelManagerRank() const;
+  inline RankType getThirdLevelManagerRank() const;
 
   /**
    * returns boolean that indicates if caller is manager in world comm
@@ -438,6 +438,8 @@ class MPISystem {
 
   CommunicatorType outputGroupComm_; 
 
+  CommunicatorType thirdLevelComm_; // comm between manager and tl pgroup / the output group
+
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
   simft::Sim_FT_MPI_Comm globalCommFT_;  // FT version of global comm
@@ -448,8 +450,6 @@ class MPISystem {
   simft::Sim_FT_MPI_Comm localCommFT_;  // FT version of local comm
 
   simft::Sim_FT_MPI_Comm globalReduceCommFT_;  // FT version of global reduce comm
-
-  std::vector<CommunicatorType> thirdLevelComms_; // comm between manager and tl pgroup
 
   RankType worldRank_;  // rank number in world comm
 
@@ -467,9 +467,7 @@ class MPISystem {
 
   RankType masterRank_;  // rank number of master in local comm
 
-  RankType thirdLevelRank_;  // rank number in all third level comms
-
-  RankType thirdLevelManagerRank_;  // rank of manager in all third level comms
+  RankType thirdLevelRank_;  // rank number in third level comm
 
   RankType outputGroupRank_; 
 
@@ -539,10 +537,10 @@ inline const CommunicatorType& MPISystem::getOutputGroupComm() const {
   return outputGroupComm_;
 }
 
-inline const std::vector<CommunicatorType>& MPISystem::getThirdLevelComms() const{
+inline const CommunicatorType& MPISystem::getThirdLevelComm() const{
   checkPreconditions();
 
-  return thirdLevelComms_;
+  return thirdLevelComm_;
 }
 
 inline simft::Sim_FT_MPI_Comm MPISystem::getWorldCommFT() {
@@ -619,10 +617,10 @@ inline const RankType& MPISystem::getManagerRank() const {
   return managerRank_;
 }
 
-inline const RankType& MPISystem::getThirdLevelManagerRank() const{
+inline RankType MPISystem::getThirdLevelManagerRank() const{
   checkPreconditions();
 
-  return thirdLevelManagerRank_;
+  return RankType(nprocs_);
 }
 
 inline const RankType& MPISystem::getMasterRank() const {
@@ -638,7 +636,7 @@ inline bool MPISystem::isGlobalManager() const { return (globalRank_ == managerR
 inline bool MPISystem::isMaster() const { return (localRank_ == masterRank_); }
 
 inline bool MPISystem::isThirdLevelManager() const{
-  return ( thirdLevelRank_ == thirdLevelManagerRank_ );
+  return ( thirdLevelRank_ == this->getThirdLevelManagerRank() );
 }
 
 inline size_t MPISystem::getNumGroups() const {

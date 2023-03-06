@@ -11,6 +11,12 @@ ProcessGroupManager::ProcessGroupManager(RankType pgroupRootID)
       statusRequest_(MPI_Request()),
       statusRequestFT_(nullptr) {}
 
+// output group is a virtual group with overlaps to other groups, cf. MPISystem
+ProcessGroupManager&& ProcessGroupManager::createOutputProcessGroupManager() {
+  // create new ProcessGroupManager
+  return ProcessGroupManager(-1);
+}
+
 bool ProcessGroupManager::runfirst(Task* t) {
   return storeTaskReferenceAndSendTaskToProcessGroup(t, RUN_FIRST);
 }
@@ -49,8 +55,13 @@ void ProcessGroupManager::sendSignalAndReceive(SignalType signal) {
 }
 
 void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG,
-           theMPISystem()->getGlobalComm());
+  if (pgroupRootID_ == -1) { // if output / third level group
+    MPI_Send(&signal, 1, MPI_INT, 0, TRANSFER_SIGNAL_TAG,
+             theMPISystem()->getThirdLevelComm());
+  } else {
+    MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG,
+             theMPISystem()->getGlobalComm());
+  }
 }
 
 void ProcessGroupManager::sendSignalToProcess(
@@ -198,11 +209,7 @@ bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& pa
   assert(status_ == PROCESS_GROUP_WAIT);
 
   sendSignalAndReceive(COMBINE_THIRD_LEVEL);
-
-  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
-  assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
-         "initialisation of third level communicator failed");
-  const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
+  const CommunicatorType& comm = theMPISystem()->getThirdLevelComm();
 
   // exchange dsgus
   IndexType numGrids = params.getNumGrids();
@@ -364,10 +371,7 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
 
 void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
                                         bool isSendingFirst) {
-  const std::vector<CommunicatorType>& thirdLevelComms = theMPISystem()->getThirdLevelComms();
-  assert(theMPISystem()->getNumGroups() == thirdLevelComms.size() &&
-         "initialisation of third level communicator failed");
-  const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
+  const CommunicatorType& comm = theMPISystem()->getThirdLevelComm();
 
   // exchange dsgus
   IndexType numGrids = params.getNumGrids();
@@ -403,7 +407,7 @@ bool ProcessGroupManager::collectSubspaceSizes(const ThirdLevelUtils& thirdLevel
                                                size_t& buffSize,
                                                std::vector<int>& numSubspacesPerWorker) {
   // prepare args of MPI_Gather
-  const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[(size_t)pgroupRootID_];
+  const CommunicatorType& comm = theMPISystem()->getThirdLevelComm();
   size_t nprocs = theMPISystem()->getNumProcs();
   std::vector<int> recvCounts(nprocs + 1);  // includes master
   RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
@@ -448,7 +452,7 @@ bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLe
                                                   size_t buffSize,
                                                   const std::vector<int>& numSubspacesPerWorker) {
   // prepare args of MPI_Scatterv
-  const CommunicatorType& comm = theMPISystem()->getThirdLevelComms()[(size_t)pgroupRootID_];
+  const CommunicatorType& comm = theMPISystem()->getThirdLevelComm();
   RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
   std::vector<int> sendCounts(numSubspacesPerWorker);
   sendCounts.push_back(0);  // append manager
@@ -779,14 +783,14 @@ bool ProcessGroupManager::writeCombigridsToVTKPlotFile() {
 bool ProcessGroupManager::writeDSGsToDisk(std::string filenamePrefix) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(WRITE_DSGS_TO_DISK);
-  MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&filenamePrefix, 0, theMPISystem()->getThirdLevelComm());
   return true;
 }
 
 bool ProcessGroupManager::readDSGsFromDisk(std::string filenamePrefix) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(READ_DSGS_FROM_DISK);
-  MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
+  MPIUtils::sendClass(&filenamePrefix, 0, theMPISystem()->getThirdLevelComm());
   return true;
 }
 
