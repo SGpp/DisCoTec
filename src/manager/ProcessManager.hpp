@@ -45,7 +45,7 @@ class ProcessManager {
       loadModel_{std::move(loadModel)},
       rescheduler_{std::move(rescheduler)},
       thirdLevel_{params.getThirdLevelHost(), params.getThirdLevelPort()},
-      thirdLevelPGroup_{std::make_shared<ProcessGroupManager>(ProcessGroupManager::createOutputProcessGroupManager())}
+      thirdLevelPGroup_{pgroups_[params.getThirdLevelPG()]}
   {
      // only setup third level if explicitly desired
      if (params.getThirdLevelHost() != "")
@@ -205,7 +205,7 @@ class ProcessManager {
 
   ThirdLevelUtils thirdLevel_;
 
-  ProcessGroupManagerID thirdLevelPGroup_;
+  ProcessGroupManagerID& thirdLevelPGroup_;
 
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state

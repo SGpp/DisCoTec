@@ -21,13 +21,13 @@ MPISystem::MPISystem()
       globalComm_(MPI_COMM_NULL),
       localComm_(MPI_COMM_NULL),
       globalReduceComm_(MPI_COMM_NULL),
-      outputGroupComm_(MPI_COMM_NULL),
-      thirdLevelComm_(MPI_COMM_NULL),
+      outputGroupComm_(MPI_COMM_NULL), 
       worldCommFT_(nullptr),
       globalCommFT_(nullptr),
       spareCommFT_(nullptr),
       localCommFT_(nullptr),
       globalReduceCommFT_(nullptr),
+      thirdLevelComms_(),
       worldRank_(MPI_UNDEFINED),
       globalRank_(MPI_UNDEFINED),
       localRank_(MPI_UNDEFINED),
@@ -36,6 +36,7 @@ MPISystem::MPISystem()
       managerRankWorld_(MPI_UNDEFINED),
       masterRank_(MPI_UNDEFINED),
       thirdLevelRank_(MPI_UNDEFINED),
+      thirdLevelManagerRank_(MPI_UNDEFINED),
       outputGroupRank_(MPI_UNDEFINED),
       reusableRanks_(std::vector<RankType>(0)) {
   // check if MPI was initialized (e.g. by MPI_Init or similar)
@@ -86,9 +87,6 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs,
 
   outputGroupRank_ = MPI_UNDEFINED;
   outputGroupComm_ = MPI_COMM_NULL;
-
-  thirdLevelRank_ = MPI_UNDEFINED;
-  thirdLevelComm_ = MPI_COMM_NULL;
 }
 
 void MPISystem::init(size_t ngroup, size_t nprocs, bool withWorldManager) {
@@ -127,6 +125,10 @@ void MPISystem::init(size_t ngroup, size_t nprocs, bool withWorldManager) {
        * manager and the workers during third level combine.
        */
       initThirdLevelComms();
+    } else {
+      thirdLevelComms_.clear();
+      thirdLevelRank_ = MPI_UNDEFINED;
+      thirdLevelManagerRank_ = MPI_UNDEFINED;
     }
   } else {
     // make sure we really only have manager process
@@ -157,6 +159,10 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm, bool 
 
   if (withWorldManager) {
     initThirdLevelComms();
+  } else {
+    thirdLevelComms_.clear();
+    thirdLevelRank_ = MPI_UNDEFINED;
+    thirdLevelManagerRank_ = MPI_UNDEFINED;
   }
 
   initialized_ = true;
@@ -190,6 +196,10 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
     initGlobalComm(withWorldManager);
     if (withWorldManager) {
       initThirdLevelComms();
+    } else {
+      thirdLevelComms_.clear();
+      thirdLevelRank_ = MPI_UNDEFINED;
+      thirdLevelManagerRank_ = MPI_UNDEFINED;
     }
   } else {
     assert(withWorldManager);
@@ -310,21 +320,6 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
   Stats::setAttribute("group_manager", std::to_string(globalComm_ != MPI_COMM_NULL));
 }
 
-// helper function to identify "diagonal" processes for output group
-std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
-  std::vector<int> ranks;
-  ranks.reserve(nprocs);
-  for (size_t diagonal = 0; diagonal < nprocs / ngroup + 1; ++diagonal) {
-    for (size_t p = 0; p < ngroup; ++p) {
-      auto rankToAdd = static_cast<int>((nprocs + 1) * p + diagonal * ngroup);
-      ranks.push_back(rankToAdd);
-      assert(rankToAdd < nprocs * ngroup);
-      if (ranks.size() == nprocs) return ranks;
-    }
-  }
-  return ranks;
-}
-
 /** Communicators for exchanging dsgu between master and worker
  *
  * Creates multiple communicators where each contains the process manager and
@@ -336,27 +331,34 @@ std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
  * The communicators are used so far for communication between the process
  * manager and the workers during third level combine.
  */
-void MPISystem::initThirdLevelComms() {
-  assert(thirdLevelComm_ == MPI_COMM_NULL);
+void MPISystem::initThirdLevelComms(){
+  thirdLevelComms_.clear(); // for reusable initialization
 
   MPI_Group worldGroup;
-  MPI_Comm_group(worldComm_, &worldGroup);
-  auto ranks = getDiagonalRanks(nprocs_, ngroup_);
-  ranks.push_back(static_cast<int>(managerRankWorld_));  // rank of process manager
+  MPI_Comm_group( worldComm_, &worldGroup);
 
-  MPI_Group newGroup;
-  MPI_Group_incl(worldGroup, int(ranks.size()), ranks.data(), &newGroup);
-  CommunicatorType newComm;
-  MPI_Comm_create(worldComm_, newGroup, &newComm);
+  for (size_t g = 0; g < ngroup_; g++) {
+    std::vector<int> ranks;
+    ranks.reserve(nprocs_ + 1);
+    for (size_t p = 0; p < nprocs_; p++)
+      ranks.push_back(static_cast<int>(g * nprocs_ + p));  // ranks of workers in pg
+    ranks.push_back(static_cast<int>(managerRankWorld_));  // rank of process manager
 
-  if (newComm != MPI_COMM_NULL) {
-    thirdLevelComm_ = newComm;
-    MPI_Comm_rank(newComm, &thirdLevelRank_);
-  }
+    MPI_Group newGroup;
+    MPI_Group_incl(worldGroup, int(ranks.size()), ranks.data(), &newGroup);
+    CommunicatorType newComm;
+    MPI_Comm_create(worldComm_, newGroup, &newComm);
+
+    if (newComm != MPI_COMM_NULL) {
+      thirdLevelComms_.push_back(newComm);
+      MPI_Comm_rank(newComm, &thirdLevelRank_);
+    }
   MPI_Group_free(&newGroup);
+  }
   MPI_Group_free(&worldGroup);
   // last member of group is tl manager rank == world manager
   assert(uniformDecomposition);
+  thirdLevelManagerRank_ = int(nprocs_);
 }
 
 void MPISystem::initGlobalReduceCommm() {
@@ -377,6 +379,21 @@ void MPISystem::initGlobalReduceCommm() {
     MPI_Comm_split(worldComm_, MPI_UNDEFINED, -1, &globalReduceComm_);
     globalReduceRank_ = MPI_PROC_NULL;
   }
+}
+
+// helper function to identify "diagonal" processes for output group
+std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
+  std::vector<int> ranks;
+  ranks.reserve(nprocs);
+  for (size_t diagonal = 0; diagonal < nprocs / ngroup + 1; ++diagonal) {
+    for (size_t p = 0; p < ngroup; ++p) {
+      auto rankToAdd = static_cast<int>((nprocs + 1) * p + diagonal * ngroup);
+      ranks.push_back(rankToAdd);
+      assert(rankToAdd < nprocs * ngroup);
+      if (ranks.size() == nprocs) return ranks;
+    }
+  }
+  return ranks;
 }
 
 void MPISystem::initOuputGroupComm() {

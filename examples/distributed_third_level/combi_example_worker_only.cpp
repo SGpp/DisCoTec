@@ -141,7 +141,8 @@ int main(int argc, char** argv) {
   // lie about ncombi, because default is to not use reduced dims for last combi step,
   // which we don't want here because it makes the sparse grid too large
   CombiParameters params(dim, lmin, lmax, boundary, ncombi * 2, 1, p, LevelVector(dim, 0),
-                         reduceCombinationDimsLmax, forwardDecomposition);
+                         reduceCombinationDimsLmax, forwardDecomposition, thirdLevelHost,
+                         thirdLevelPort, 0);
   setCombiParametersHierarchicalBasesUniform(params, "hat_periodic");
   IndexVector minNumPoints(dim), maxNumPoints(dim);
   for (DimType d = 0; d < dim; ++d) {

@@ -218,7 +218,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1, parallelization,
                                 LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
-                                false, testParams.host, testParams.port);
+                                false, testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
@@ -482,7 +482,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1, parallelization,
                                 LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
-                                false, testParams.host, testParams.port);
+                                false, testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
@@ -783,7 +783,7 @@ void testPretendThirdLevel(TestParams& testParams) {
     CombiParameters combiParams(
         testParams.dim, testParams.lmin, testParams.lmax, boundary, levels, coeffs, taskIDs,
         testParams.ncombi, 1, parallelization, LevelVector(testParams.dim, 0),
-        reduceCombinationDimsLmax, true, testParams.host, testParams.port);
+        reduceCombinationDimsLmax, true, testParams.host, testParams.port, 0);
 
     auto decomposition = combigrid::getStandardDecomposition(testParams.lmax, parallelization);
     combiParams.setDecomposition(decomposition);
