@@ -1603,7 +1603,7 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
 
   Stats::startEvent("wait for bcasts");
   for (auto& dsg : combinedUniDSGVector_) {
-    auto request = asyncBcastDsgData(dsg.get(), fromOutputGroup, globalReduceComm);
+    auto request = asyncBcastDsgData(dsg.get(), broadcastSender, globalReduceComm);
     auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
     assert(returnedValue == MPI_SUCCESS);
   }
