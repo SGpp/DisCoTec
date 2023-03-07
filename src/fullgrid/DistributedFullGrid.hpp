@@ -224,7 +224,7 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
 
 inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
                                                 const std::vector<real>& coords) const {
-  std::vector<double> oneOverH = this->getInverseGridSpacing();
+  // auto oneOverH = this->getInverseGridSpacingIn; // too bad this syntax gets sooo ugly
   FG_ELEMENT result = 0.;
   auto localLinearIndex = this->getLocalLinearIndex(localIndex);
   for (size_t localIndexIterate = 0;
@@ -251,14 +251,14 @@ inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
         iterateIndexInThisDimension = 0;
         auto coordDistance =
             getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d] - 1.0, d);
-        phi_c *= 1. - coordDistance * oneOverH[d];
+        phi_c *= 1. - coordDistance * this->getInverseGridSpacingIn(d);
       } else if (iterateIndexInThisDimension > lastIndexInDim) {
         phi_c = 0.;
         break;  // TODO continue outer loop
       } else {
         auto coordDistance =
             getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d], d);
-        phi_c *= 1. - coordDistance * oneOverH[d];
+        phi_c *= 1. - coordDistance * this->getInverseGridSpacingIn(d);
         neighborIndex += dimIsSet * this->getLocalOffsets()[d];
       }
 #ifndef NDEBUG
@@ -597,12 +597,16 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
   /** returns the grid spacing (sometimes called h) */
   inline const std::vector<double>& getGridSpacing() const { return gridSpacing_; }
 
+  inline double getInverseGridSpacingIn(DimType inDimension) const {
+    return powerOfTwo[levels_[inDimension]];
+  }
+
   inline std::vector<double> getInverseGridSpacing() const {
     std::vector<double> oneOverH;
     oneOverH.resize(gridSpacing_.size());
     // should be the same as the number of intervals (N)
     for (DimType j = 0; j < dim_; j++) {
-      oneOverH[j] = powerOfTwo[levels_[j]];
+      oneOverH[j] = getInverseGridSpacingIn(j);
     }
 #ifndef NDEBUG
     std::vector<double> oneOverHByDivision;
