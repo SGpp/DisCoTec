@@ -143,11 +143,10 @@ std::vector<double> checkCoordinates(const DistributedFullGrid<T>& dfg) {
     globalIndex = dfg.getGlobalLinearIndex(i);
     dfg.getCoordsGlobal(globalIndex, coordsGlobal);
     dfg.getCoordsLocal(i, coordsGlobalAgain);
-    auto lowerBoundsCoords = dfg.getLowerBoundsCoords();
     BOOST_CHECK_EQUAL_COLLECTIONS(coordsGlobal.begin(), coordsGlobal.end(),
                                   coordsGlobalAgain.begin(), coordsGlobalAgain.end());
     for (DimType d = 0; d < dfg.getDimension(); ++d) {
-      BOOST_CHECK_GE(coordsGlobal[d], lowerBoundsCoords[d]);
+      BOOST_CHECK_GE(coordsGlobal[d], dfg.getLowerBoundsCoord(d));
     }
   }
   return coordsGlobalAgain;

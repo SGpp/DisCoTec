@@ -296,10 +296,8 @@ FG_ELEMENT evalLocal(const std::vector<real>& coords) const {
 
 void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
   assert(coords.size() == this->getDimension());
-
   // get the lowest-index point of the points
   // whose basis functions contribute to the interpolated value
-  auto lowerCoords = getLowerBoundsCoords();
   const auto& h = getGridSpacing();
   static IndexVector localIndexLowerNonzeroNeighborPoint;
   localIndexLowerNonzeroNeighborPoint.resize(dim_);
@@ -312,8 +310,8 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
 #endif  // ndef NDEBUG
       // this is the local index of the point that is lower than the coordinate
       // may also be negative if the coordinate is lower than this processes' coordinates
-      IndexType localIndexLowerNonzeroNeighborIndexInThisDimension =
-          static_cast<IndexType>(std::floor((coords[d] - lowerCoords[d]) / h[d]));
+    IndexType localIndexLowerNonzeroNeighborIndexInThisDimension = static_cast<IndexType>(
+        std::floor((coords[d] - this->getLowerBoundsCoord(d)) * this->getInverseGridSpacingIn(d)));
       localIndexLowerNonzeroNeighborPoint[d] = localIndexLowerNonzeroNeighborIndexInThisDimension;
 
       // check if we even need to evaluate on this process
@@ -321,8 +319,7 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
         // index too small
         value = 0.;
         return;
-      } else if ((coords[d] >= 1.0 - h[d] && coords[d] <= 1.0) &&
-                 this->hasBoundaryPoints_[d] == 1 &&
+    } else if ((coords[d] >= 1.0 - h[d]) && this->hasBoundaryPoints_[d] == 1 &&
                  this->getCartesianUtils().isOnLowerBoundaryInDimension(d)) {
         // if we have periodic boundary and this process is at the lower end of the dimension d
         // we need the periodic coordinate => do nothing
@@ -378,7 +375,6 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
   inline void getCoordsLocal(IndexType localLinearIndex, std::vector<real>& coords) const {
     // todo: probably very inefficient implementation, if crucial for
     // performance implement more direct way of computing the coordinates
-
     assert(localLinearIndex < getNrLocalElements());
 
     IndexType globalLinearIndex = getGlobalLinearIndex(localLinearIndex);
@@ -517,9 +513,7 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
 
     // convert to global linear index
     IndexType globLinIndex = getGlobalLinearIndex(globAxisIndex);
-
     assert(globLinIndex < nrElements_);
-
     return globLinIndex;
   }
 
@@ -673,21 +667,10 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
     return lowerBounds;
   }
 
-  inline IndexType getLowestGlobalIndexOfRank(RankType r) const {
-    auto lowestIndex = getGlobalLinearIndex(getLowerBounds(r));
-    return lowestIndex;
-  }
-
-  /** coordinates of this process' lower bounds */
-  inline std::vector<real> getLowerBoundsCoords() const {
-    const auto& lowerBounds = this->getLowerBounds();
-    static std::vector<real> coords(dim_);
-    coords.resize(dim_);
-    for (DimType i = 0; i < dim_; ++i) {
-      coords[i] = static_cast<double>(lowerBounds[i] + (hasBoundaryPoints_[i] > 0 ? 0 : 1)) *
-                  this->getGridSpacing()[i];
-    }
-    return coords;
+  /** coordinates of this process' lower bounds in some dimension*/
+  inline real getLowerBoundsCoord(DimType inDimension) const {
+    return static_cast<real>(this->getLowerBounds()[inDimension] + (hasBoundaryPoints_[inDimension] > 0 ? 0 : 1)) *
+                  this->getGridSpacing()[inDimension];
   }
 
   /** upper Bounds of this process */
