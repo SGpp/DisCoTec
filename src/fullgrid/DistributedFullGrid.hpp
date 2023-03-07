@@ -222,24 +222,6 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
   return std::abs(coordDistance);
 }
 
-  inline FG_ELEMENT evalLocalIndexOn(IndexType localIndex, const std::vector<real>& coords) const {
-    // get product of 1D hat functions on coords
-    const auto& h = getGridSpacing();
-    real phi_c = 1.;  // value of product of basis function on coords
-    auto localIndexRemainder = localIndex;
-    for (DimType d = dim_; d > 0; --d) {
-      // get distance between coords and point
-      const auto divresult = std::lldiv(localIndexRemainder, this->getLocalOffsets()[d - 1]);
-      const auto localIndexInDim = divresult.quot;
-      localIndexRemainder = divresult.rem;
-    auto coordDistance = getPointDistanceToCoordinate(localIndexInDim, coords[d - 1], d - 1);
-      phi_c *= 1. - coordDistance / h[d - 1];
-    }
-    assert(phi_c >= 0.);
-    return phi_c * this->getElementVector()[localIndex];
-  }
-
-
 inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
                                                 const std::vector<real>& coords) const {
   std::vector<double> oneOverH = this->getInverseGridSpacing();
@@ -704,15 +686,6 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
     return coords;
   }
 
-  /** coordinates of rank r's lower bounds */
-  inline std::vector<real> getLowerBoundsCoords(RankType r) const {
-    assert(r >= 0 && r < size_);
-    IndexType lbli = getLowestGlobalIndexOfRank(r);
-    std::vector<real> coords(dim_);
-    getCoordsGlobal(lbli, coords);
-    return coords;
-  }
-
   /** upper Bounds of this process */
   inline IndexVector getUpperBounds() const {
     // return getUpperBounds(rank_);
@@ -741,29 +714,6 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
       }
     }
     return upperBounds;
-  }
-
-  /** decomposition coords
-   * contains same information as lowerBoundsCoords but in different
-   * representation. here for each dim we have coordinate of the 1d lower
-   * bound
-   */
-  inline std::vector<std::vector<real>> getDecompositionCoords() const {
-    std::vector<std::vector<real>> decompositionCoords(dim_);
-    for (size_t j = 0; j < dim_; ++j)
-      decompositionCoords[j].resize(this->getCartesianUtils().getCartesianDimensions()[j]);
-    assert(false && "this is pretty much untested, please add test before using this");
-
-    for (RankType r = 0; r < size_; ++r) {
-      // get coords of r in cart comm
-      std::vector<int> coords(dim_);
-      cartesianUtils_.getPartitionCoordsOfRank(r, coords);
-
-      for (DimType i = 0; i < dim_; ++i) {
-        decompositionCoords[i][coords[i]] = getLowerBoundsCoords(r)[i];
-      }
-    }
-    return decompositionCoords;
   }
 
   /** coordinates of this process' upper bounds */
