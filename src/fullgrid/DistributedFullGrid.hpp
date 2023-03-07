@@ -520,14 +520,7 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
   /** the local linear index corresponding to the local index vector */
   inline IndexType getLocalLinearIndex(const IndexVector& locAxisIndex) const {
     assert(locAxisIndex.size() == dim_);
-
-    IndexType tmp = 0;
-
-    for (DimType i = 0; i < dim_; ++i) {
-      tmp = tmp + localOffsets_[i] * locAxisIndex[i];
-    }
-
-    return tmp;
+    return std::inner_product(locAxisIndex.begin(), locAxisIndex.end(), localOffsets_.begin(), 0);
   }
 
   /** the global linear index corresponding to the local linear index
