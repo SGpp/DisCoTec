@@ -1296,14 +1296,17 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
             dsg.registerDistributedFullGrid(dfg);
           }
           dsg.setZero();
+          LevelVector zeroLMin(dim, 0);
           for (size_t i = 0; i < dfgs.size(); ++i) {
-            DistributedHierarchization::hierarchize(dfgs[i], {true, true}, basisTypeVector);
+            DistributedHierarchization::hierarchize(dfgs[i], {true, true}, basisTypeVector,
+                                                    zeroLMin);
             dsg.addDistributedFullGrid(dfgs[i], coefficients[i]);
           }
           // extract from sparse grid again
           for (size_t i = 0; i < dfgs.size(); ++i) {
             dfgs[i].extractFromUniformSG(dsg);
-            DistributedHierarchization::dehierarchize(dfgs[i], {true, true}, basisTypeVector);
+            DistributedHierarchization::dehierarchize(dfgs[i], {true, true}, basisTypeVector,
+                                                      zeroLMin);
           }
         }
 
