@@ -111,9 +111,9 @@ class ProcessGroupWorker {
   void writeDSGsToDisk(std::string filenamePrefix);
 
   /** read extra SGs from disk (binary w/ MPI-IO) */
-  void readDSGsFromDisk(std::string filenamePrefix);
+  void readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG = false);
 
-  void readDSGsFromDiskAndReduce(std::string filenamePrefixToRead);
+  void readDSGsFromDiskAndReduce(std::string filenamePrefixToRead, bool alwaysReadFullDSG = false);
 
   void setCombiParameters(const CombiParameters& combiParameters);
 
@@ -139,9 +139,9 @@ class ProcessGroupWorker {
                                   std::string filenamePrefixToRead,
                                   std::string startReadingTokenFileName);
 
-  /** waits until the third level pg bcasts the combined solution and updates
+  /** waits until the third level pg or output group bcasts the combined solution and updates
    * fgs */
-  void waitForThirdLevelCombiResult();
+  void waitForThirdLevelCombiResult(bool fromOutputGroup = false);
 
   void setExtraSparseGrid(bool initializeSizes = true);
 

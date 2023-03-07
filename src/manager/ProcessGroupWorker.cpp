@@ -1374,7 +1374,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
       std::this_thread::sleep_for(std::chrono::seconds(1));
     }
   }
-  MPI_Barrier(theMPISystem()->getLocalComm());
+  MPI_Barrier(theMPISystem()->getOutputGroupComm());
 
   if (overwrite) {
     Stats::startEvent("read SG");
@@ -1426,7 +1426,7 @@ void ProcessGroupWorker::setExtraSparseGrid(bool initializeSizes) {
       extraUniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
           new DistributedSparseGridUniform<CombiDataType>(
               combinedUniDSGVector_[0]->getDim(), combinedUniDSGVector_[0]->getAllLevelVectors(),
-              theMPISystem()->getLocalComm()));
+              theMPISystem()->getOutputGroupComm()));
       // create Kahan buffer now (at zero size), because summation is not needed on this sparse grid
       extraUniDSG->createKahanBuffer();
       if (initializeSizes) {
@@ -1451,7 +1451,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
   // update either old or new sparse grids
   auto* uniDSGVectorToSet = &combinedUniDSGVector_;
   if (thirdLevelExtraSparseGrid) {
-    this->setExtraSparseGrid(false); // don't initialize, would be overwritten
+    this->setExtraSparseGrid(false);  // don't initialize, would be overwritten
     uniDSGVectorToSet = &extraUniDSGVector_;
   }
 
@@ -1563,7 +1563,7 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefix
                                                       std::string startReadingTokenFileName,
                                                       bool extraSparseGrid) {
   assert(combinedUniDSGVector_.size() == 1);
-  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+  FIRST_GROUP_EXCLUSIVE_SECTION {
     combinedUniDSGVector_[0]->writeSubspaceSizesToFile(filenamePrefixToWrite);
     MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
   }
@@ -1571,6 +1571,7 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefix
   // if extra sparse grid, we only need to do something if we are the I/O group
   OUTPUT_GROUP_EXCLUSIVE_SECTION {}
   else if (extraSparseGrid) {
+    // otherwise, return
     return;
   }
 
@@ -1581,20 +1582,28 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefix
       std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
   }
-  MPI_Barrier(theMPISystem()->getLocalComm());
-
+  if (extraSparseGrid) {
+    MPI_Barrier(theMPISystem()->getOutputGroupComm());
+  } else {
+    MPI_Barrier(theMPISystem()->getLocalComm());
+  }
   this->reduceSubspaceSizes(filenamePrefixToRead, extraSparseGrid);
 }
 
-void ProcessGroupWorker::waitForThirdLevelCombiResult() {
+void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   assert(extraUniDSGVector_.empty());
+  RankType broadcastSender;
+  if (fromOutputGroup) {
+    broadcastSender = theMPISystem()->getOutputRankInGlobalReduceComm();
+  } else {
   // receive third level combi result from third level pgroup (global reduce comm)
-  RankType thirdLevelPG = (RankType)combiParameters_.getThirdLevelPG();
+    broadcastSender = (RankType)combiParameters_.getThirdLevelPG();
+  }
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   Stats::startEvent("wait for bcasts");
   for (auto& dsg : combinedUniDSGVector_) {
-    auto request = asyncBcastDsgData(dsg.get(), thirdLevelPG, globalReduceComm);
+    auto request = asyncBcastDsgData(dsg.get(), broadcastSender, globalReduceComm);
     auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
     assert(returnedValue == MPI_SUCCESS);
   }
@@ -1637,21 +1646,22 @@ void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
 
 void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
   for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
+    auto filename = filenamePrefix + "_" + std::to_string(i);
     auto uniDsg = combinedUniDSGVector_[i].get();
     auto dsgToUse = uniDsg;
     if (extraUniDSGVector_.size() > 0) {
       dsgToUse = extraUniDSGVector_[i].get();
       dsgToUse->copyDataFrom(*uniDsg);
     }
-    dsgToUse->writeOneFile(filenamePrefix + "_" + std::to_string(i));
+    dsgToUse->writeOneFile(filename);
   }
 }
 
-void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix) {
+void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG) {
   for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
     auto uniDsg = combinedUniDSGVector_[i].get();
     auto dsgToUse = uniDsg;
-    if (extraUniDSGVector_.size() > 0) {
+    if (extraUniDSGVector_.size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
     dsgToUse->readOneFile(filenamePrefix + "_" + std::to_string(i));
@@ -1662,11 +1672,12 @@ void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix) {
   }
 }
 
-void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToRead) {
+void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToRead,
+                                                   bool alwaysReadFullDSG) {
   for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
     auto uniDsg = combinedUniDSGVector_[i].get();
     auto dsgToUse = uniDsg;
-    if (extraUniDSGVector_.size() > 0) {
+    if (extraUniDSGVector_.size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
     dsgToUse->readOneFileAndReduce(filenamePrefixToRead + "_" + std::to_string(i));

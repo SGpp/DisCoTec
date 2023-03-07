@@ -57,6 +57,9 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getWorldComm()), size);
   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getGlobalReduceComm()), ngroup);
   BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getLocalComm()), nprocs);
+  if (theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL) {
+    BOOST_CHECK_EQUAL(getCommSize(theMPISystem()->getOutputGroupComm()), nprocs);
+  }
   if (nprocs == 1) {
     BOOST_CHECK(theMPISystem()->isMaster());
   }
@@ -128,6 +131,8 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
         remove(subspaceSizeFile.c_str());
         remove(subspaceSizeFileToken.c_str());
       }
+      worker.setExtraSparseGrid(true);
+      worker.zeroDsgsData();
     }
   }
 
@@ -138,7 +143,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   auto end = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   MASTER_EXCLUSIVE_SECTION {
-    BOOST_TEST_MESSAGE("worker run first solver step: " << Stats::getDuration("worker run")
+    BOOST_TEST_MESSAGE("worker run first solver step: " << Stats::getDuration("run")
                                                         << " milliseconds");
   }
 
@@ -160,17 +165,36 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 
     // first group writes partial stats
     if (theMPISystem()->getProcessGroupNumber() == 0) {
-      Stats::writePartial("worker_partial_timers_group.json", theMPISystem()->getLocalComm());
+      Stats::writePartial("worker_partial_timers_group_0.json", theMPISystem()->getLocalComm());
     }
 
     BOOST_TEST_CHECKPOINT("run next");
     worker.runAllTasks();
     MASTER_EXCLUSIVE_SECTION {
-      BOOST_TEST_MESSAGE("worker run: " << Stats::getDuration("worker run") << " milliseconds");
+      BOOST_TEST_MESSAGE("worker run: " << Stats::getDuration("run") << " milliseconds");
     }
   }
   BOOST_TEST_CHECKPOINT("worker combine last time");
-  worker.combineUniform();
+  if (pretendThirdLevel) {
+    std::string writeSparseGridFile = "worker_combine_step_dsg";
+    std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
+    worker.combineLocalAndGlobal();
+    OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      BOOST_TEST_CHECKPOINT("worker write dsg");
+      worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
+      BOOST_TEST_CHECKPOINT("worker wrote dsg");
+      worker.combineThirdLevelFileBasedReadReduce(writeSparseGridFile, writeSparseGridFileToken,
+                                                  true);
+      BOOST_TEST_CHECKPOINT("worker read dsg");
+    }
+    else {
+      BOOST_TEST_CHECKPOINT("worker waiting for broadcast dsg");
+      worker.waitForThirdLevelCombiResult(true);
+      BOOST_TEST_CHECKPOINT("worker got dsg");
+    }
+  } else {
+    worker.combineUniform();
+  }
 
   Stats::startEvent("worker get norms");
   // get all kinds of norms
@@ -194,7 +218,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   std::string filename("worker_" + std::to_string(ncombi) + ".raw");
   BOOST_TEST_CHECKPOINT("write solution " + filename);
   Stats::startEvent("worker write solution");
-  OUTPUT_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
+  FIRST_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
   BOOST_TEST_CHECKPOINT("write min/max coefficients");
   worker.writeSparseGridMinMaxCoefficients("worker_" + std::to_string(boundaryV) +
                                            "_sparse_minmax");
@@ -204,10 +228,13 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
                                                  << " milliseconds");
   }
   filename = "worker_" + std::to_string(boundaryV) + "_dsgs";
-  BOOST_TEST_CHECKPOINT("write DSGS " + filename);
   Stats::startEvent("worker write DSG");
-  OUTPUT_GROUP_EXCLUSIVE_SECTION { worker.writeDSGsToDisk(filename); }
-  worker.readDSGsFromDisk(filename);
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    BOOST_TEST_CHECKPOINT("write DSGS " + filename);
+    worker.writeDSGsToDisk(filename);
+  }
+  BOOST_TEST_CHECKPOINT("read DSGS " + filename);
+  worker.readDSGsFromDisk(filename, true);
   Stats::stopEvent("worker write DSG");
   MASTER_EXCLUSIVE_SECTION {
     BOOST_TEST_MESSAGE("worker write/read DSG: " << Stats::getDuration("worker write DSG")
@@ -288,6 +315,9 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   remove(("worker_" + std::to_string(ncombi) + "_0.raw_header").c_str());
 
   BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getLocalComm()));
+  if (theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL) {
+    BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getOutputGroupComm()));
+  }
   BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalReduceComm()));
   MASTER_EXCLUSIVE_SECTION {
     BOOST_CHECK(!TestHelper::testStrayMessages(theMPISystem()->getGlobalComm()));
