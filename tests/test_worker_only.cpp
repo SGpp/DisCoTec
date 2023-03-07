@@ -131,6 +131,8 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
         remove(subspaceSizeFile.c_str());
         remove(subspaceSizeFileToken.c_str());
       }
+      worker.setExtraSparseGrid(true);
+      worker.zeroDsgsData();
     }
   }
 
@@ -169,11 +171,30 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     BOOST_TEST_CHECKPOINT("run next");
     worker.runAllTasks();
     MASTER_EXCLUSIVE_SECTION {
-      BOOST_TEST_MESSAGE("worker run: " << Stats::getDuration("worker run") << " milliseconds");
+      BOOST_TEST_MESSAGE("worker run: " << Stats::getDuration("run") << " milliseconds");
     }
   }
   BOOST_TEST_CHECKPOINT("worker combine last time");
-  worker.combineUniform();
+  if (pretendThirdLevel) {
+    std::string writeSparseGridFile = "worker_combine_step_dsg";
+    std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
+    worker.combineLocalAndGlobal();
+    OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      BOOST_TEST_CHECKPOINT("worker write dsg");
+      worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
+      BOOST_TEST_CHECKPOINT("worker wrote dsg");
+      worker.combineThirdLevelFileBasedReadReduce(writeSparseGridFile, writeSparseGridFileToken,
+                                                  true);
+      BOOST_TEST_CHECKPOINT("worker read dsg");
+    }
+    else {
+      BOOST_TEST_CHECKPOINT("worker waiting for broadcast dsg");
+      worker.waitForThirdLevelCombiResult(true);
+      BOOST_TEST_CHECKPOINT("worker got dsg");
+    }
+  } else {
+    worker.combineUniform();
+  }
 
   Stats::startEvent("worker get norms");
   // get all kinds of norms
@@ -207,10 +228,13 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
                                                  << " milliseconds");
   }
   filename = "worker_" + std::to_string(boundaryV) + "_dsgs";
-  BOOST_TEST_CHECKPOINT("write DSGS " + filename);
   Stats::startEvent("worker write DSG");
-  FIRST_GROUP_EXCLUSIVE_SECTION { worker.writeDSGsToDisk(filename); }
-  worker.readDSGsFromDisk(filename);
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    BOOST_TEST_CHECKPOINT("write DSGS " + filename);
+    worker.writeDSGsToDisk(filename);
+  }
+  BOOST_TEST_CHECKPOINT("read DSGS " + filename);
+  worker.readDSGsFromDisk(filename, true);
   Stats::stopEvent("worker write DSG");
   MASTER_EXCLUSIVE_SECTION {
     BOOST_TEST_MESSAGE("worker write/read DSG: " << Stats::getDuration("worker write DSG")

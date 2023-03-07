@@ -1657,11 +1657,11 @@ void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
   }
 }
 
-void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix) {
+void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG) {
   for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
     auto uniDsg = combinedUniDSGVector_[i].get();
     auto dsgToUse = uniDsg;
-    if (extraUniDSGVector_.size() > 0) {
+    if (extraUniDSGVector_.size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
     dsgToUse->readOneFile(filenamePrefix + "_" + std::to_string(i));
@@ -1672,11 +1672,12 @@ void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix) {
   }
 }
 
-void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToRead) {
+void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToRead,
+                                                   bool alwaysReadFullDSG) {
   for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
     auto uniDsg = combinedUniDSGVector_[i].get();
     auto dsgToUse = uniDsg;
-    if (extraUniDSGVector_.size() > 0) {
+    if (extraUniDSGVector_.size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
     dsgToUse->readOneFileAndReduce(filenamePrefixToRead + "_" + std::to_string(i));
