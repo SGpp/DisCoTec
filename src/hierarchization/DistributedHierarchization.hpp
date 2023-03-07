@@ -1342,6 +1342,7 @@ class DistributedHierarchization {
                           const LevelVector& lmin) {
     assert(dfg.getDimension() > 0);
     assert(dfg.getDimension() == dims.size());
+    assert(!lmin.empty());
     // hierarchize all dimensions, with special treatment for 0
     for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
@@ -1410,6 +1411,9 @@ class DistributedHierarchization {
   template <typename FG_ELEMENT>
   static void hierarchize(DistributedFullGrid<FG_ELEMENT>& dfg, LevelVector lmin = LevelVector(0)) {
     std::vector<bool> dims(dfg.getDimension(), true);
+    if (lmin.size() == 0) {
+      lmin = LevelVector(dfg.getDimension(), 0);
+    }
     return hierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>(dfg, dims, lmin);
   }
 
@@ -1418,6 +1422,7 @@ class DistributedHierarchization {
   static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg, const std::vector<bool>& dims,
                             const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                             const LevelVector& lmin) {
+    assert(!lmin.empty());
     assert(dfg.getDimension() > 0);
     assert(dfg.getDimension() == dims.size());
     // dehierarchize all dimensions, with special treatment for 0
@@ -1490,6 +1495,9 @@ class DistributedHierarchization {
   static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg,
                             LevelVector lmin = LevelVector(0)) {
     std::vector<bool> dims(dfg.getDimension(), true);
+    if (lmin.size() == 0) {
+      lmin = LevelVector(dfg.getDimension(), 0);
+    }
     return dehierarchizeHierachicalBasis<FG_ELEMENT, HierarchicalHatBasisFunction>(dfg, dims, lmin);
   }
 

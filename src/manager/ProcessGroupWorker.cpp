@@ -905,8 +905,9 @@ void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg
                   [](BoundaryType b) { return b == 0; });
 
   if (anyNotBoundary) {
+    LevelVector zeroLMin = LevelVector(combiParameters_.getDim(), 0);
     DistributedHierarchization::dehierarchizeDFG(dfg, combiParameters_.getHierarchizationDims(),
-                                                 combiParameters_.getHierarchicalBases());
+                                                 combiParameters_.getHierarchicalBases(), zeroLMin);
   } else {
     DistributedHierarchization::dehierarchizeDFG(dfg, combiParameters_.getHierarchizationDims(),
                                                  combiParameters_.getHierarchicalBases(),
@@ -1278,9 +1279,10 @@ void ProcessGroupWorker::integrateCombinedSolution() {
   for (Task* taskToUpdate : tasks_) {
     for (int g = 0; g < numGrids; g++) {
       if (anyNotBoundary) {
+        LevelVector zeroLMin = LevelVector(combiParameters_.getDim(), 0);
         DistributedHierarchization::dehierarchizeDFG(taskToUpdate->getDistributedFullGrid(g),
                                                      combiParameters_.getHierarchizationDims(),
-                                                     combiParameters_.getHierarchicalBases());
+                                                     combiParameters_.getHierarchicalBases(), zeroLMin);
       } else {
         DistributedHierarchization::dehierarchizeDFG(
             taskToUpdate->getDistributedFullGrid(g), combiParameters_.getHierarchizationDims(),
