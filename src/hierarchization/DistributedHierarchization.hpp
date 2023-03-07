@@ -1036,9 +1036,6 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
-  static IndexVector localIndexVector(dfg.getDimension());
-  localIndexVector.resize(dfg.getDimension());
-
   // loop over poles
   static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim],
                                      std::numeric_limits<double>::quiet_NaN());
@@ -1057,13 +1054,14 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
 #ifndef NDEBUG
+    IndexVector localIndexVector(dfg.getDimension());
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
     for (size_t i = 0; i < remoteData.size(); ++i) {
       assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(nn));
     }
-#endif // NDEBUG
+#endif  // NDEBUG
 
     // go through remote containers
     for (size_t i = 0; i < remoteData.size(); ++i) {
@@ -1112,8 +1110,6 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
-  IndexVector localIndexVector(dfg.getDimension());
-
   // loop over poles
   std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
@@ -1127,6 +1123,7 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
 #ifndef NDEBUG
+    IndexVector localIndexVector(dfg.getDimension());
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
@@ -1200,9 +1197,6 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
-  static IndexVector localIndexVector(dfg.getDimension());
-  localIndexVector.resize(dfg.getDimension());
-
   // loop over poles
   static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim],
                                      std::numeric_limits<double>::quiet_NaN());
@@ -1221,13 +1215,14 @@ void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
 #ifndef NDEBUG
+    IndexVector localIndexVector(dfg.getDimension());
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
     for (size_t i = 0; i < remoteData.size(); ++i) {
       assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(nn));
     }
-#endif // NDEBUG
+#endif  // NDEBUG
 
     // go through remote containers
     for (size_t i = 0; i < remoteData.size(); ++i) {
@@ -1272,8 +1267,6 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType jump = stride * ndim;
   IndexType nbrOfPoles = size / ndim;
 
-  IndexVector localIndexVector(dfg.getDimension());
-
   // loop over poles
   static std::vector<FG_ELEMENT> tmp;
   tmp.resize(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
@@ -1288,6 +1281,7 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
     start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
 
 #ifndef NDEBUG
+    IndexVector localIndexVector(dfg.getDimension());
     // compute global vector index of start
     dfg.getLocalVectorIndex(start, localIndexVector);
     assert(localIndexVector[dim] == 0);
