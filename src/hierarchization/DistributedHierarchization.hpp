@@ -174,15 +174,7 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
     // for each index in index list
     for (const auto& index : indices) {
       // convert global 1d index i to local 1d index
-      static IndexVector lidxvec(dfg.getDimension(), 0);
-      lidxvec.resize(dfg.getDimension());
-      {
-        static IndexVector gidxvec;
-        gidxvec = dfg.getLowerBounds();
-        gidxvec[dim] = index;
-        [[maybe_unused]] bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
-        assert(tmp && "index to be send not in local domain");
-      }
+      IndexType localOneDimensionalIndex = index - dfg.getLowerBounds()[dim];
 
       // create subarray view on the block with the local index
       MPI_Datatype mysubarray;
@@ -196,7 +188,7 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
 
         // start
         std::vector<int> starts(dfg.getDimension(), 0);
-        starts[dim] = static_cast<int>(lidxvec[dim]);
+        starts[dim] = static_cast<int>(localOneDimensionalIndex);
 
         // create subarray view on data
         MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
@@ -209,8 +201,7 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
         int dest = static_cast<int>(r);
         int tag = static_cast<int>(index);
         MPI_Isend(dfg.getData(), 1, mysubarray, dest, tag, dfg.getCommunicator(),
-                &sendRequests[sendcount + k++]);
-
+                  &sendRequests[sendcount + k++]);
       }
 
       MPI_Type_free(&mysubarray);
@@ -243,7 +234,6 @@ void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1d
 
           MPI_Irecv(buf.data(), bsize, dfg.getMPIDatatype(), src, tag, dfg.getCommunicator(),
                     &recvRequests[recvcount + k++]);
-
         }
       }
       recvcount += indices.size();
@@ -308,7 +298,9 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
       displacements.reserve(indices.size());
       for (const auto& index : indices) {
         // convert global 1d index i to local 1d index
-        IndexType localLinearIndex = 0;
+        IndexType localLinearIndex =
+            (index - dfg.getLowerBounds()[dim]) * dfg.getLocalOffsets()[dim];
+#ifndef NDEBUG
         {
           static IndexVector lidxvec(dfg.getDimension(), 0);
           lidxvec.resize(dfg.getDimension());
@@ -317,8 +309,9 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
           gidxvec[dim] = index;
           [[maybe_unused]] bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
           assert(tmp && "index to be send not in local domain");
-          localLinearIndex = dfg.getLocalLinearIndex(lidxvec);
+          assert(localLinearIndex == dfg.getLocalLinearIndex(lidxvec));
         }
+#endif
         MPI_Aint addr;
         MPI_Get_address(&(dfg.getElementVector()[localLinearIndex]), &addr);
         auto d = MPI_Aint_diff(addr, dfgStartAddr);
@@ -326,7 +319,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
       }
       // cannot use MPI_Type_create_indexed_block as subarrays may overlap
       MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), 1, displacements.data(),
-                                                   mysubarray, &myHBlock);
+                                     mysubarray, &myHBlock);
       MPI_Type_commit(&myHBlock);
 
       // send to rank r, use first global index as tag
@@ -335,7 +328,6 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
         int tag = static_cast<int>(*(indices.begin()));
         MPI_Isend(dfg.getData(), 1, myHBlock, dest, tag, dfg.getCommunicator(),
                   &sendRequests[numSend++]);
-
       }
       // MPI_Type_free(&mysubarrayBlock);
       MPI_Type_free(&myHBlock);
@@ -413,7 +405,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
 template <typename FG_ELEMENT>
 static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                               std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
-    // send every index to all neighboring ranks in dimension dim
+  // send every index to all neighboring ranks in dimension dim
   auto globalIdxMax = dfg.length(dim);
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
