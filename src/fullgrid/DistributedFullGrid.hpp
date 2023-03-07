@@ -484,17 +484,7 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
   /** returns the global linear index corresponding to the global index vector
    * @param axisIndex [IN] the vector index */
   inline IndexType getGlobalLinearIndex(const IndexVector& globAxisIndex) const {
-    assert(globAxisIndex.size() == dim_);
-
-    IndexType tmp = 0;
-
-    for (int i = static_cast<int>(dim_) - 1; i >= 0; i--) {
-      tmp = tmp + offsets_[i] * globAxisIndex[i];
-    }
-
-    assert(tmp < nrElements_);
-
-    return tmp;
+    return std::inner_product(globAxisIndex.begin(), globAxisIndex.end(), offsets_.begin(), 0);
   }
 
   // the global linear index corresponding to the local linear index
