@@ -27,7 +27,7 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
   MPI_File fh;
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
                           info, &fh);
-  if (err != MPI_SUCCESS) {
+  if (err == MPI_ERR_FILE_EXISTS) {
     // file already existed, delete it and create new file
     int mpi_rank;
     MPI_Comm_rank(comm, &mpi_rank);
@@ -37,8 +37,8 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
     MPI_Barrier(comm);
     err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
                         info, &fh);
-    assert(err == MPI_SUCCESS);
   }
+  assert(err == MPI_SUCCESS);
 
   if (err == MPI_SUCCESS) {
     // write to single file with MPI-IO
