@@ -17,8 +17,7 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
                             combigrid::CommunicatorType comm) {
   // get offset in file
   MPI_Offset pos = 0;
-  MPI_Exscan(&numValues, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
-             MPI_SUM, comm);
+  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
   // better if set externally
@@ -68,8 +67,7 @@ template <typename T>
 bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
                            combigrid::CommunicatorType comm) {
   MPI_Offset pos = 0;
-  MPI_Exscan(&numValues, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
-             MPI_SUM, comm);
+  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
   // open file
   MPI_File fh;
@@ -120,8 +118,7 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
                                  combigrid::CommunicatorType comm, int numElementsToBuffer,
                                  ReduceFunctionType reduceFunction) {
   MPI_Offset pos = 0;
-  MPI_Exscan(&numValues, &pos, 1, getMPIDatatype(abstraction::getabstractionDataType<MPI_Offset>()),
-             MPI_SUM, comm);
+  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
   // open file
   MPI_File fh;
   MPI_Info info = MPI_INFO_NULL;
