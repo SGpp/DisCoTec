@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <bitset>
 #include <cassert>
+#include <functional>
 #include <iostream>
 #include <numeric>
 #include <string>
@@ -586,7 +587,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     std::vector<double> oneOverHByDivision;
     oneOverHByDivision.resize(gridSpacing_.size());
     std::transform(gridSpacing_.begin(), gridSpacing_.end(), oneOverHByDivision.begin(),
-                   std::bind1st(std::divides<double>(), 1));
+                   std::bind(std::divides<double>(), 1, std::placeholders::_1));
     for (DimType j = 0; j < dim_; j++) {
       assert(std::abs(oneOverHByDivision[j] < oneOverH[j]) < 1e-10);
       assert(oneOverHByDivision[j] == oneOverH[j]);
