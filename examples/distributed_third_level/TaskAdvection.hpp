@@ -125,7 +125,8 @@ class TaskAdvection : public Task {
           assert(neighborLinearIndex >= 0);
           assert(neighborLinearIndex < numLocalElements);
           CombiDataType phi_neighbor = dfg_->getElementVector()[neighborLinearIndex];
-          auto dphi = (dfg_->getElementVector()[li] - phi_neighbor) * dfg_->getInverseGridSpacingIn(d);
+          auto dphi =
+              (dfg_->getElementVector()[li] - phi_neighbor) * dfg_->getInverseGridSpacingIn(d);
           u_dot_dphi[li] += velocity[d] * dphi;
         }
         // iterate the lowest layer and update the values, compensating for the wrong update
@@ -133,31 +134,37 @@ class TaskAdvection : public Task {
         assert(dfg_->getNrLocalElements() / dfg_->getLocalSizes()[d] == phi_ghost.size());
         const auto& stride = dfg_->getLocalOffsets()[d];
         const IndexType jump = stride * dfg_->getLocalSizes()[d];
-        for (IndexType ghostIndex = 0; ghostIndex < phi_ghost.size(); ++ghostIndex) {
-          const lldiv_t divresult = std::lldiv(ghostIndex, stride);
-          const auto dfgLowestLayerIteratedIndex = divresult.quot * jump + divresult.rem;
+        const IndexType numberOfPolesHigherDimensions = dfg_->getNrLocalElements() / jump;
+        IndexType dfgLowestLayerIteratedIndex;
+        IndexType ghostIndex = 0;
+        for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
+          dfgLowestLayerIteratedIndex = nHigher * jump;  // local linear index
+          for (IndexType nLower = 0; nLower < dfg_->getLocalOffsets()[d];
+               ++nLower && ++ghostIndex && ++dfgLowestLayerIteratedIndex) {
 #ifndef NDEBUG
-          assert(dfgLowestLayerIteratedIndex < numLocalElements);
-          IndexVector locAxisIndex(this->getDim());
-          dfg_->getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
-          if (locAxisIndex[d] != 0) {
-            std::cout << "lowest index = " << dfgLowestLayerIteratedIndex << std::endl;
-            std::cout << "locAxisIndex[" << d << "] = " << locAxisIndex << std::endl;
-            std::cout << "ghostIndex = " << ghostIndex << " of " << phi_ghost.size() << std::endl;
-            std::cout << "offset = " << fullOffsets << " index " << d << std::endl;
-          }
-          assert(locAxisIndex[d] == 0);
+            assert(dfgLowestLayerIteratedIndex < numLocalElements);
+            IndexVector locAxisIndex(this->getDim());
+            dfg_->getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
+            if (locAxisIndex[d] != 0) {
+              std::cout << "lowest index = " << dfgLowestLayerIteratedIndex << std::endl;
+              std::cout << "locAxisIndex[" << d << "] = " << locAxisIndex << std::endl;
+              std::cout << "ghostIndex = " << ghostIndex << " of " << phi_ghost.size() << std::endl;
+              std::cout << "offset = " << fullOffsets << " index " << d << std::endl;
+            }
+            assert(locAxisIndex[d] == 0);
 #endif  // NDEBUG
         // compute wrong term to "subtract" again
-          auto wrongNeighborLinearIndex = dfgLowestLayerIteratedIndex - fullOffsets[d];
-          wrongNeighborLinearIndex =
-              (wrongNeighborLinearIndex + numLocalElements) % numLocalElements;
-          assert(wrongNeighborLinearIndex >= 0);
-          assert(wrongNeighborLinearIndex < numLocalElements);
-          CombiDataType wrongPhiNeighbor = dfg_->getElementVector()[wrongNeighborLinearIndex];
-          // auto wrongDPhi = (dfg_->getElementVector()[ghostIndex] - wrongPhiNeigbor) / h[d];
-          auto dphi = (wrongPhiNeighbor - phi_ghost[ghostIndex]) * dfg_->getInverseGridSpacingIn(d);
-          u_dot_dphi[dfgLowestLayerIteratedIndex] += velocity[d] * dphi;
+            auto wrongNeighborLinearIndex = dfgLowestLayerIteratedIndex - fullOffsets[d];
+            wrongNeighborLinearIndex =
+                (wrongNeighborLinearIndex + numLocalElements) % numLocalElements;
+            assert(wrongNeighborLinearIndex >= 0);
+            assert(wrongNeighborLinearIndex < numLocalElements);
+            CombiDataType wrongPhiNeighbor = dfg_->getElementVector()[wrongNeighborLinearIndex];
+            // auto wrongDPhi = (dfg_->getElementVector()[ghostIndex] - wrongPhiNeigbor) / h[d];
+            auto dphi =
+                (wrongPhiNeighbor - phi_ghost[ghostIndex]) * dfg_->getInverseGridSpacingIn(d);
+            u_dot_dphi[dfgLowestLayerIteratedIndex] += velocity[d] * dphi;
+          }
         }
       }
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
