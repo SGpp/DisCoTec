@@ -1029,70 +1029,70 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                              LevelType lmin_n = 0) {
   assert(dfg.returnBoundaryFlags()[dim] > 0);
 
-  auto lmax = dfg.getLevels()[dim];
-  auto size = dfg.getNrLocalElements();
-  auto stride = dfg.getLocalOffsets()[dim];
-  auto ndim = dfg.getLocalSizes()[dim];
-  IndexType jump = stride * ndim;
-  IndexType nbrOfPoles = size / ndim;
+  const auto& lmax = dfg.getLevels()[dim];
+  const auto& numberOfPolesLowerDimensions = dfg.getLocalOffsets()[dim];
+  const IndexType jump = numberOfPolesLowerDimensions * dfg.getLocalSizes()[dim];
+  const IndexType numberOfPolesHigherDimensions = dfg.getNrLocalElements() / jump;
 
-  // loop over poles
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim],
-                                     std::numeric_limits<double>::quiet_NaN());
+  static std::vector<FG_ELEMENT> tmp;
   // if we are using periodicity, add an entry to tmp for the virtual last value
-  bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
+  const bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
   tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0),
              std::numeric_limits<double>::quiet_NaN());
   std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
-  lldiv_t divresult;
-  IndexType start;
-  IndexType gstart = dfg.getLowerBounds()[dim];
+  const IndexType& gstart = dfg.getLowerBounds()[dim];
 
-  for (IndexType nn = 0; nn < nbrOfPoles;
-       ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
-    divresult = std::lldiv(nn, stride);
-    start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
-
+  // loop over poles
+  IndexType poleNumber = 0;
+  IndexType poleStart;
+  for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
+    poleStart = nHigher * jump;  // local linear index
+    for (IndexType nLower = 0; nLower < numberOfPolesLowerDimensions;
+         ++nLower && ++poleNumber && ++poleStart) {
 #ifndef NDEBUG
-    IndexVector localIndexVector(dfg.getDimension());
-    // compute global vector index of start
-    dfg.getLocalVectorIndex(start, localIndexVector);
-    assert(localIndexVector[dim] == 0);
-    for (size_t i = 0; i < remoteData.size(); ++i) {
-      assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(nn));
-    }
+      IndexVector localIndexVector(dfg.getDimension());
+      // compute global vector index of poleStart
+      dfg.getLocalVectorIndex(poleStart, localIndexVector);
+      assert(localIndexVector[dim] == 0);
+      for (size_t i = 0; i < remoteData.size(); ++i) {
+        assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(poleNumber));
+      }
 #endif  // NDEBUG
 
-    // go through remote containers
-    for (size_t i = 0; i < remoteData.size(); ++i) {
-      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(nn);
-    }
+      // go through remote containers
+      for (size_t i = 0; i < remoteData.size(); ++i) {
+        tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(poleNumber);
+      }
 
-    // copy local data
-    for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
+      // copy local data
+      for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
+        tmp[gstart + i] = ldata[poleStart + dfg.getLocalOffsets()[dim] * i];
+      }
 
-    if (oneSidedBoundary) {
-      // assume periodicity
-      //  assert(HIERARCHIZATION_FCTN::periodic); //TODO
-      tmp[dfg.getGlobalSizes()[dim]] = tmp[0];
-      if (!remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
+      if (oneSidedBoundary) {
+        // assume periodicity
+        //  assert(HIERARCHIZATION_FCTN::periodic); //TODO
+        tmp[dfg.getGlobalSizes()[dim]] = tmp[0];
+        if (!remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
+          assert(!std::isnan(std::real(tmp[0])));
+        }
+      }
+      // hierarchize tmp array with hupp function
+      HIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_n);
+
+      if (oneSidedBoundary && !remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
         assert(!std::isnan(std::real(tmp[0])));
+        assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
+      }
+
+      // copy pole back
+      for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
+        ldata[poleStart + dfg.getLocalOffsets()[dim] * i] = tmp[gstart + i];
+        assert(!std::isnan(std::real(tmp[gstart + i])));
       }
     }
-    // hierarchize tmp array with hupp function
-    HIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_n);
-
-    if (oneSidedBoundary && !remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
-      assert(!std::isnan(std::real(tmp[0])));
-      assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
-    }
-
-    // copy pole back
-    for (IndexType i = 0; i < ndim; ++i) {
-      ldata[start + stride * i] = tmp[gstart + i];
-      assert(!std::isnan(std::real(tmp[gstart + i])));
-    }
   }
+  assert(poleNumber == numberOfPolesHigherDimensions * numberOfPolesLowerDimensions);
 }
 
 /**
@@ -1176,78 +1176,6 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
     // copy pole back
     for (IndexType i = 0; i < ndim; ++i) ldata[start + stride * i] = tmp[gstart + i];
-  }
-}
-
-/**
- * @brief inverse operation for hierarchizeWithBoundary
- */
-template <typename FG_ELEMENT,
-          void (*DEHIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int,
-                                         LevelType) = dehierarchize_hat_boundary_kernel>
-void dehierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                               std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
-                               DimType dim, LevelType lmin_n = 0) {
-  assert(dfg.returnBoundaryFlags()[dim] > 0);
-
-  const auto& lmax = dfg.getLevels()[dim];
-  const auto& size = dfg.getNrLocalElements();
-  const auto& stride = dfg.getLocalOffsets()[dim];
-  const auto& ndim = dfg.getLocalSizes()[dim];
-  IndexType jump = stride * ndim;
-  IndexType nbrOfPoles = size / ndim;
-
-  // loop over poles
-  static std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim],
-                                     std::numeric_limits<double>::quiet_NaN());
-  // if we are using periodicity, add an entry to tmp for the virtual last value
-  bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0),
-             std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
-  lldiv_t divresult;
-  IndexType start;
-  IndexType gstart = dfg.getLowerBounds()[dim];
-
-  for (IndexType nn = 0; nn < nbrOfPoles;
-       ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
-    divresult = std::lldiv(nn, stride);
-    start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
-
-#ifndef NDEBUG
-    IndexVector localIndexVector(dfg.getDimension());
-    // compute global vector index of start
-    dfg.getLocalVectorIndex(start, localIndexVector);
-    assert(localIndexVector[dim] == 0);
-    for (size_t i = 0; i < remoteData.size(); ++i) {
-      assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(nn));
-    }
-#endif  // NDEBUG
-
-    // go through remote containers
-    for (size_t i = 0; i < remoteData.size(); ++i) {
-      tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(nn);
-    }
-
-    // copy local data
-    for (IndexType i = 0; i < ndim; ++i) tmp[gstart + i] = ldata[start + stride * i];
-
-    if (oneSidedBoundary) {
-      // assume periodicity
-      tmp[dfg.getGlobalSizes()[dim]] = tmp[0];
-    }
-    // hierarchize tmp array with hupp function
-    DEHIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_n);
-
-    if (oneSidedBoundary && !remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
-      assert(tmp[dfg.getGlobalSizes()[dim]] == tmp[0]);
-    }
-
-    // copy pole back
-    for (IndexType i = 0; i < ndim; ++i) {
-      ldata[start + stride * i] = tmp[gstart + i];
-      assert(!std::isnan(std::real(tmp[gstart + i])));
-    }
   }
 }
 
@@ -1441,29 +1369,29 @@ class DistributedHierarchization {
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          dehierarchizeWithBoundary<FG_ELEMENT, dehierarchize_hat_boundary_kernel<FG_ELEMENT>>(
+          hierarchizeWithBoundary<FG_ELEMENT, dehierarchize_hat_boundary_kernel<FG_ELEMENT>>(
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          dehierarchizeWithBoundary<FG_ELEMENT,
+          hierarchizeWithBoundary<FG_ELEMENT,
                                     dehierarchize_hat_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          dehierarchizeWithBoundary<
+          hierarchizeWithBoundary<
               FG_ELEMENT, dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          dehierarchizeWithBoundary<FG_ELEMENT,
+          hierarchizeWithBoundary<FG_ELEMENT,
                                     dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          dehierarchizeWithBoundary<
+          hierarchizeWithBoundary<
               FG_ELEMENT, dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          dehierarchizeWithBoundary<FG_ELEMENT,
+          hierarchizeWithBoundary<FG_ELEMENT,
                                     dehierarchize_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
         } else {
