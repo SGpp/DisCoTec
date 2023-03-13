@@ -789,7 +789,14 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     // builtin is fast and should work with gcc and clang
     // if it is not available, use the one above (at a slight performance hit)
     // or c++20's std::countr_zero
-    LevelType l = static_cast<LevelType>(lmax - __builtin_ctzl(static_cast<unsigned long>(idx1d)));
+    LevelType l;
+    if constexpr(sizeof(IndexType) == sizeof(long)) {
+      l = static_cast<LevelType>(lmax - __builtin_ctzl(static_cast<unsigned long>(idx1d)));
+    } else if constexpr(sizeof(IndexType) == sizeof(long long)){
+      l = static_cast<LevelType>(lmax - __builtin_ctzll(static_cast<unsigned long long>(idx1d)));
+    } else {
+      l = static_cast<LevelType>(lmax - __builtin_ctz(static_cast<unsigned int>(idx1d)));
+    }
     return l;
   }
 
