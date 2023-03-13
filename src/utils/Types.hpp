@@ -33,30 +33,30 @@ namespace combigrid {
   // IndexType must be signed! because we use -1 in some functions as a return
   // value. and large enough so that all grid points can be
   // numbered. i.e levelsum (with boundary) < 30 for int32 and < 62 for int64
-  typedef int64_t IndexType;
+typedef int32_t IndexType;
 
-  typedef IndexType LevelType;
+typedef IndexType LevelType;
 
-  typedef uint8_t DimType;
+typedef uint8_t DimType;
 
-  // type used to denote how many boundary points there are in a dimension
-  // 0 -> no boundary points;
-  // 1 -> boundary point on one side (assume the "left" side with coordinate 0);
-  // 2 -> boundary points on each side
-  // may be changed to enum class if needed
-  // (eg to distinguish one-sided left and right boundaries,
-  // or to implement GENE's twisted boundary conditions into the hierarchization operator
-  // directly...)
-  typedef uint8_t BoundaryType;
+// type used to denote how many boundary points there are in a dimension
+// 0 -> no boundary points;
+// 1 -> boundary point on one side (assume the "left" side with coordinate 0);
+// 2 -> boundary points on each side
+// may be changed to enum class if needed
+// (eg to distinguish one-sided left and right boundaries,
+// or to implement GENE's twisted boundary conditions into the hierarchization operator
+// directly...)
+typedef uint8_t BoundaryType;
 
-  typedef MPI_Comm CommunicatorType;
+typedef MPI_Comm CommunicatorType;
 
-  typedef int RankType;
+typedef int RankType;
 
-  // type used for widely-distributed reduction of subspace sizes
-  // it is easily enough to fit the largest subspace (19,1,1,1,1,1) in the current scenario
-  // (= 2^19 * 3 * 3 * 3 * 3 * 3 = 2^19 * 3^5 = 127401984)
-  typedef uint32_t SubspaceSizeType;
+// type used for widely-distributed reduction of subspace sizes
+// it is easily enough to fit the largest subspace (19,1,1,1,1,1) in the current scenario
+// (= 2^19 * 3 * 3 * 3 * 3 * 3 = 2^19 * 3^5 = 127401984)
+typedef uint32_t SubspaceSizeType;
   }  // namespace combigrid
 
 namespace abstraction {
@@ -72,6 +72,8 @@ typedef enum {
   type_long_long,
   type_long,
   type_size_t,
+  type_int16_t,
+  type_int32_t,
   type_uint32_t
 } DataType;
 
@@ -130,6 +132,16 @@ inline DataType getabstractionDataType<uint32_t>() {
   return abstraction::type_uint32_t;
 }
 
+template <>
+inline DataType getabstractionDataType<int32_t>() {
+  return abstraction::type_int32_t;
+}
+
+template <>
+inline DataType getabstractionDataType<int16_t>() {
+  return abstraction::type_int16_t;
+}
+
 inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
   switch (type) {
     case abstraction::type_char:
@@ -158,6 +170,12 @@ inline MPI_Datatype getMPIDatatype(abstraction::DataType type) {
 
     case abstraction::type_size_t:
       return MPI_SIZE_T;
+
+    case abstraction::type_int16_t:
+      return MPI_INT16_T;
+
+    case abstraction::type_int32_t:
+      return MPI_INT32_T;
 
     case abstraction::type_uint32_t:
       return MPI_UINT32_T;

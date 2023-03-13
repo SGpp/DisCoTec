@@ -32,7 +32,8 @@ class ParaboloidFn {
     auto dim = static_cast<DimType>(globalIndex.size());
     FG_ELEMENT sign = -1.;
     // (dim % 2) ? sign = -1. : sign = 1.;
-    LevelVector level(dim), index(dim);
+    LevelVector level(dim);
+    IndexVector index(dim);
     BOOST_REQUIRE_NE(dfg_, nullptr);
     auto globalLinearIndex = dfg_->getGlobalLinearIndex(globalIndex);
     dfg_->getGlobalLI(globalLinearIndex, level, index);
