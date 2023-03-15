@@ -251,7 +251,7 @@ int main(int argc, char** argv) {
         "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
 
-    worker.combineLocalAndGlobal();
+    worker.combineLocalAndGlobal(theMPISystem()->getOutputRankInGlobalReduceComm());
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
     }
