@@ -572,6 +572,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** returns the grid spacing (sometimes called h) */
   inline const std::vector<double>& getGridSpacing() const { return gridSpacing_; }
 
+  inline double getInverseGridSpacingIn(DimType inDimension) const {
+    return powerOfTwo[levels_[inDimension]];
+  }
+
   inline std::vector<double> getInverseGridSpacing() const {
     std::vector<double> oneOverH;
     oneOverH.resize(gridSpacing_.size());
