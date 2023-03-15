@@ -12,6 +12,24 @@
 namespace combigrid {
 namespace mpiio {
 
+static MPI_Info getNewConsecutiveMpiInfo() {
+  // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
+  // to be modified externally e.g. via romio hints
+  MPI_Info info = MPI_INFO_NULL;
+  MPI_Info_create(&info);
+  // disable caching of file contents in kernel
+  MPI_Info_set(info, "direct_io", "true");
+  MPI_Info_set(info, "direct_read", "true");
+  MPI_Info_set(info, "direct_write", "true");
+  // disable ROMIO's data-sieving
+  MPI_Info_set(info, "romio_ds_read", "disable");
+  MPI_Info_set(info, "romio_ds_write", "disable");
+  // disable ROMIO's collective buffering //TODO test
+  MPI_Info_set(info, "romio_cb_write", "disable");
+  MPI_Info_set(info, "romio_cb_read", "disable");
+  return info;
+}
+
 template <typename T>
 bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std::string& fileName,
                             combigrid::CommunicatorType comm) {
@@ -19,9 +37,7 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
-  // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
-  // better if set externally
-  MPI_Info info = MPI_INFO_NULL;
+  MPI_Info info = getNewConsecutiveMpiInfo();
 
   // open file
   MPI_File fh;
@@ -60,6 +76,7 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
   }
 
   MPI_File_close(&fh);
+  MPI_Info_free(&info);
   return err == MPI_SUCCESS;
 }
 
@@ -69,10 +86,10 @@ bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::stri
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
+  MPI_Info info = getNewConsecutiveMpiInfo();
+
   // open file
   MPI_File fh;
-  MPI_Info info = MPI_INFO_NULL;
-
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
   if (err != MPI_SUCCESS) {
     std::cerr << err << " while reading OneFileFromDisk " << fileName << std::endl;
@@ -94,6 +111,7 @@ bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::stri
   err = MPI_File_read_at_all(fh, pos * sizeof(T), valuesStart, static_cast<int>(numValues),
                              dataType, &status);
   MPI_File_close(&fh);
+  MPI_Info_free(&info);
   if (err != MPI_SUCCESS) {
     // non-failure
     std::cerr << err << " in MPI_File_read_at_all" << std::endl;
@@ -119,9 +137,10 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
                                  ReduceFunctionType reduceFunction) {
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
+  MPI_Info info = getNewConsecutiveMpiInfo();
+
   // open file
   MPI_File fh;
-  MPI_Info info = MPI_INFO_NULL;
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
   if (err != MPI_SUCCESS) {
     // silent failure
@@ -153,6 +172,7 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
     std::advance(writePointer, readcountIncrement);
   }
   MPI_File_close(&fh);
+  MPI_Info_free(&info);
   return true;
 }
 }  // namespace mpiio
