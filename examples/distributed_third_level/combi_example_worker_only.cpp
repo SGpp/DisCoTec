@@ -288,6 +288,25 @@ int main(int argc, char** argv) {
       std::cout << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
     }
   }
+  // run tasks for last time interval
+  worker.runAllTasks();
+  auto durationRun = Stats::getDuration("run") / 1000.0;
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "last calculation " << ncombi
+                                             << " took: " << durationRun << " seconds" << std::endl;
+
+  if (evalMCError) {
+    Stats::startEvent("write interpolated");
+    worker.writeInterpolatedValuesSingleFile(interpolationCoords,
+                                             "worker_interpolated_" + std::to_string(systemNumber));
+    Stats::stopEvent("write interpolated");
+    OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      MASTER_EXCLUSIVE_SECTION {
+        std::cout << "last interpolation " << ncombi
+                  << " took: " << Stats::getDuration("write interpolated") / 1000.0 << " seconds"
+                  << std::endl;
+      }
+    }
+  }
   worker.exit();
 
   Stats::finalize();
