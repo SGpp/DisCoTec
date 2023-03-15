@@ -1368,6 +1368,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
                                                               std::string startReadingTokenFileName,
                                                               bool overwrite) {
   // wait until we can start to read
+  Stats::startEvent("wait SG");
   MASTER_EXCLUSIVE_SECTION {
     while (!std::filesystem::exists(startReadingTokenFileName)) {
       // wait for token file to appear
@@ -1375,6 +1376,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
     }
   }
   MPI_Barrier(theMPISystem()->getOutputGroupComm());
+  Stats::stopEvent("wait SG");
 
   if (overwrite) {
     Stats::startEvent("read SG");
@@ -1399,11 +1401,8 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   // remove reading token
   MASTER_EXCLUSIVE_SECTION { std::filesystem::remove(startReadingTokenFileName); }
 
-  // wait for bcasts to other pgs in globalReduceComm
-  Stats::startEvent("wait for bcasts");
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
-  Stats::stopEvent("wait for bcasts");
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
