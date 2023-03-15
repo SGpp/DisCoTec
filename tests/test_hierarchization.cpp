@@ -579,8 +579,8 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
     std::transform(lhalf.begin(), lhalf.end(), lhalf.begin(), [](int i) { return i / 2; });
     for (auto lmin : std::vector<LevelVector>{lzero, lhalf, levels}) {
       for (DimType d = 0; d < dimensionality; ++d) {
-        std::vector<std::vector<IndexType>> remoteKeysHierarchization(3);
-        std::vector<std::vector<IndexType>> remoteKeysDehierarchization(3);
+        std::vector<IndexVector> remoteKeysHierarchization(3);
+        std::vector<IndexVector> remoteKeysDehierarchization(3);
         bool isOnLowerBoundaryInD = false;
         bool isOnUpperBoundaryInD = false;
         for (BoundaryType b : std::vector<BoundaryType>({0, 2, 1})) {
