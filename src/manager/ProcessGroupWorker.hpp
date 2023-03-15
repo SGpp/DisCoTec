@@ -58,12 +58,12 @@ class ProcessGroupWorker {
   void integrateCombinedSolution();
 
   /** reduction */
-  void reduceUniformSG();
+  void reduceUniformSG(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
   /** combine on sparse grid with uniform decomposition of domain */
   void combineUniform();
 
-  void combineLocalAndGlobal();
+  void combineLocalAndGlobal(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
   void deleteTasks();
 
