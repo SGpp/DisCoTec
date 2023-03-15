@@ -246,7 +246,7 @@ int main(int argc, char** argv) {
       }
     }
 
-    Stats::startEvent("combine");
+    auto startCombine = std::chrono::high_resolution_clock::now();
     std::string writeSparseGridFile =
         "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
@@ -281,10 +281,12 @@ int main(int argc, char** argv) {
         worker.waitForThirdLevelCombiResult(true);
       }
     }
-    Stats::stopEvent("combine");
-    auto durationCombine = Stats::getDuration("combine") / 1000.0;
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-        << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      auto endCombine = std::chrono::high_resolution_clock::now();
+      auto durationCombine =
+          std::chrono::duration_cast<std::chrono::seconds>(endCombine - startCombine).count();
+      std::cout << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
+    }
   }
   worker.exit();
 
