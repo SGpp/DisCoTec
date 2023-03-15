@@ -837,19 +837,20 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
   }
 }
 
-void ProcessGroupWorker::reduceUniformSG() {
+void ProcessGroupWorker::reduceUniformSG(RankType globalReduceRankThatCollects) {
   // we assume here that every task has the same number of grids, e.g. species in GENE
   auto numGrids = combiParameters_.getNumGrids();
 
   for (IndexType g = 0; g < numGrids; g++) {
-    CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g]);
+    CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g], globalReduceRankThatCollects);
     assert(CombiCom::sumAndCheckSubspaceSizes(*combinedUniDSGVector_[g]));
   }
 }
 
-void ProcessGroupWorker::combineLocalAndGlobal() {
-  assert(combinedUniDSGVector_.size() > 0 && "Initialize dsgu first with "
-                                             "initCombinedUniDSGVector()");
+void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatCollects) {
+  assert(combinedUniDSGVector_.size() > 0 &&
+         "Initialize dsgu first with "
+         "initCombinedUniDSGVector()");
   // assert(combinedUniDSGVector_[0]->isSubspaceDataCreated());
 
   zeroDsgsData();
@@ -863,7 +864,7 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
   Stats::stopEvent("local reduce");
 
   Stats::startEvent("global reduce");
-  reduceUniformSG();
+  reduceUniformSG(globalReduceRankThatCollects);
   Stats::stopEvent("global reduce");
 }
 

@@ -24,7 +24,8 @@ class CombiCom {
   static void FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm);
 
   template <typename FG_ELEMENT>
-  static void distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg);
+  static void distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                      RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
   template <typename FG_ELEMENT>
   static bool sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg);
@@ -109,7 +110,8 @@ bool CombiCom::sumAndCheckSubspaceSizes(const DistributedSparseGridUniform<FG_EL
  * Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
  */
 template <typename FG_ELEMENT>
-void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
+void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                                       RankType globalReduceRankThatCollects) {
   // get global communicator for this operation
   MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
 
@@ -128,13 +130,37 @@ void CombiCom::distributedGlobalReduce(DistributedSparseGridUniform<FG_ELEMENT>&
   // allreduce up to 16MiB at a time (when using double precision)
   auto chunkSize = 2097152;
   size_t sentRecvd = 0;
-  while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
-    MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd, static_cast<int>(chunkSize), dtype,
-                  MPI_SUM, mycomm);
-    sentRecvd += chunkSize;
+  if (globalReduceRankThatCollects == MPI_PROC_NULL) {
+    while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
+      MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd, static_cast<int>(chunkSize), dtype,
+                    MPI_SUM, mycomm);
+      sentRecvd += chunkSize;
+    }
+    MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd,
+                  static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM, mycomm);
+  } else {
+    if (theMPISystem()->getGlobalReduceRank() == globalReduceRankThatCollects) {
+      // I am the reduce rank that collects the data
+      while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
+        MPI_Reduce(MPI_IN_PLACE, subspacesData + sentRecvd, static_cast<int>(chunkSize), dtype,
+                   MPI_SUM, globalReduceRankThatCollects, mycomm);
+        sentRecvd += chunkSize;
+      }
+      MPI_Reduce(MPI_IN_PLACE, subspacesData + sentRecvd,
+                 static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM,
+                 globalReduceRankThatCollects, mycomm);
+    } else {
+      // I only need to send
+      while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
+        MPI_Reduce(subspacesData + sentRecvd, MPI_IN_PLACE, static_cast<int>(chunkSize), dtype,
+                   MPI_SUM, globalReduceRankThatCollects, mycomm);
+        sentRecvd += chunkSize;
+      }
+      MPI_Reduce(subspacesData + sentRecvd, MPI_IN_PLACE,
+                 static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM,
+                 globalReduceRankThatCollects, mycomm);
+    }
   }
-  MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd,
-                static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM, mycomm);
 }
 
 } /* namespace combigrid */

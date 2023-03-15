@@ -138,10 +138,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 
   BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), 0);
   BOOST_TEST_CHECKPOINT("run first");
-  auto start = std::chrono::high_resolution_clock::now();
   worker.runAllTasks();
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   MASTER_EXCLUSIVE_SECTION {
     BOOST_TEST_MESSAGE("worker run first solver step: " << Stats::getDuration("run")
                                                         << " milliseconds");
@@ -149,10 +146,10 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 
   for (size_t it = 0; it < ncombi - 1; ++it) {
     BOOST_TEST_CHECKPOINT("combine");
-    start = std::chrono::high_resolution_clock::now();
+    auto start = std::chrono::high_resolution_clock::now();
     worker.combineUniform();
-    end = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     MASTER_EXCLUSIVE_SECTION {
       BOOST_TEST_MESSAGE("worker combine: " << duration.count() << " milliseconds");
     }
@@ -178,7 +175,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   if (pretendThirdLevel) {
     std::string writeSparseGridFile = "worker_combine_step_dsg";
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
-    worker.combineLocalAndGlobal();
+    worker.combineLocalAndGlobal(theMPISystem()->getOutputRankInGlobalReduceComm());
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       BOOST_TEST_CHECKPOINT("worker write dsg");
       worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
