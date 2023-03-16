@@ -224,8 +224,9 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
 }
 
 inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
-                                                const std::vector<real>& coords) const {
-  std::vector<double> oneOverH = this->getInverseGridSpacing();
+                                                const std::vector<real>& coords const std::vector<double> &oneOverH ) const {
+
+
   FG_ELEMENT result = 0.;
   auto localLinearIndex = this->getLocalLinearIndex(localIndex);
   for (size_t localIndexIterate = 0;
@@ -295,7 +296,7 @@ FG_ELEMENT evalLocal(const std::vector<real>& coords) const {
   return value;
 }
 
-void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
+void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value, const std::vector<double>& oneOverH) const {
   assert(coords.size() == this->getDimension());
   // get the lowest-index point of the points
   // whose basis functions contribute to the interpolated value
@@ -331,7 +332,7 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
     localIndexLowerNonzeroNeighborPoint[d] = localIndexLowerNonzeroNeighborIndexInThisDimension;
   }
   // evaluate at those points and sum up according to the basis function
-  value = evalIndexAndAllUpperNeighbors(localIndexLowerNonzeroNeighborPoint, coords);
+  value = evalIndexAndAllUpperNeighbors(localIndexLowerNonzeroNeighborPoint, coords, oneOverH);
 }
 
 /** evaluates the full grid on the specified coordinates
@@ -341,8 +342,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   auto numValues = interpolationCoords.size();
   std::vector<FG_ELEMENT> values;
   values.resize(numValues);
+  const std::vector<double> oneOverH = this->getInverseGridSpacing();
   for (size_t i = 0; i < numValues; ++i) {
-    this->evalLocal(interpolationCoords[i], values[i]);
+    this->evalLocal(interpolationCoords[i], values[i], oneOverH);
   }
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numValues), this->getMPIDatatype(),
                 MPI_SUM, this->getCommunicator());
