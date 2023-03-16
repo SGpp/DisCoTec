@@ -17,6 +17,8 @@ static MPI_Info getNewConsecutiveMpiInfo() {
   // to be modified externally e.g. via romio hints
   MPI_Info info = MPI_INFO_NULL;
   MPI_Info_create(&info);
+  // will not overlap read and write operations
+  MPI_Info_set(info, "romio_no_indep_rw", "true");
   // disable caching of file contents in kernel
   MPI_Info_set(info, "direct_io", "true");
   MPI_Info_set(info, "direct_read", "true");
