@@ -32,7 +32,7 @@ void testDataSave(int size) {
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     std::vector<LevelVector> lvv;
-    for (long int i = 0; i < static_cast<long int>(ngroup); ++i) {
+    for (LevelType i = 0; i < static_cast<LevelType>(ngroup); ++i) {
       lvv.push_back({i});
     }
     auto loadModel = std::unique_ptr<LoadModel>(new AveragingLoadModel(lvv));
@@ -47,7 +47,7 @@ void testDataSave(int size) {
       }
     }
     // test loadmodel
-    for (long int i = 0; i < static_cast<long int>(ngroup); ++i) {
+    for (LevelType i = 0; i < static_cast<LevelType>(ngroup); ++i) {
       // std::cout << "llm eval " << loadModel->eval({i}) << std::endl;
       BOOST_TEST(loadModel->eval({i}) == 1000000 * i);
     }
