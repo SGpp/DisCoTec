@@ -56,7 +56,7 @@ do
         uftp rm --quiet -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK "$HAWKURL:$TOKEN_TRANSFER_BACKWARD"
         endtime=`date +%s`
         echo copied "$FILEHAWK_INSTANCE" in `expr $endtime - $starttime` seconds.
-        throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime)/1000)" | bc )
+        throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime))" | bc )
         throughput_bits=$( echo "scale=4;($throughput*8)" | bc )
         echo "Average throughput: $throughput MB/s; $throughput_bits Mbit/s"
         step=$(($step+1))

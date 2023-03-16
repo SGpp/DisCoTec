@@ -49,7 +49,7 @@ do
         rm $TOKEN_TRANSFER_FORWARD
         endtime=`date +%s`
         echo copied "$FILELRZ_INSTANCE" in `expr $endtime - $starttime` seconds.
-        throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime)/1000)" | bc )
+        throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime))" | bc )
         throughput_bits=$( echo "scale=4;($throughput*8)" | bc )
         echo "Average throughput: $throughput MB/s; $throughput_bits Mbit/s"
         rm $FILELRZ_INSTANCE
