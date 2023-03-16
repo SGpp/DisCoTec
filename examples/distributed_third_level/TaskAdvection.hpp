@@ -92,7 +92,9 @@ class TaskAdvection : public Task {
     // dfg_->print(std::cout);
     const auto numLocalElements = dfg_->getNrLocalElements();
 
-    std::vector<CombiDataType> velocity(this->getDim(), 1);
+    const std::vector<CombiDataType> velocity(this->getDim(), 1);
+
+    const std::vector<double> oneOverH = dfg_->getInverseGridSpacing();
     const auto& fullOffsets = dfg_->getLocalOffsets();
 
     phi_->resize(numLocalElements);
@@ -102,11 +104,12 @@ class TaskAdvection : public Task {
       // compute the gradient in the original dfg_, then update into phi_ and
       // swap at the end of each time step
       auto& u_dot_dphi = *phi_;
+      const auto & ElementVector = dfg_->getElementVector();
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
-        auto ghostLayerSize = phi_ghost.size();
+        //auto ghostLayerSize = phi_ghost.size();
 
         // update all values; this will also (wrongly) update the lowest layer's values
         for (IndexType li = 0; li < numLocalElements; ++li) {
@@ -119,14 +122,12 @@ class TaskAdvection : public Task {
             assert(lni == (li - fullOffsets[d]));
           }
 #endif  // NDEBUG
-          auto neighborLinearIndex = li - fullOffsets[d];
           // ensure modulo is positive, cf. https://stackoverflow.com/a/12277233
-          neighborLinearIndex = (neighborLinearIndex + numLocalElements) % numLocalElements;
+          const auto neighborLinearIndex = (li - fullOffsets[d] + numLocalElements) % numLocalElements;
           assert(neighborLinearIndex >= 0);
           assert(neighborLinearIndex < numLocalElements);
-          CombiDataType phi_neighbor = dfg_->getElementVector()[neighborLinearIndex];
-          auto dphi =
-              (dfg_->getElementVector()[li] - phi_neighbor) * dfg_->getInverseGridSpacingIn(d);
+          CombiDataType phi_neighbor = ElementVector[neighborLinearIndex];
+          auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
           u_dot_dphi[li] += velocity[d] * dphi;
         }
         // iterate the lowest layer and update the values, compensating for the wrong update
@@ -154,21 +155,21 @@ class TaskAdvection : public Task {
             assert(locAxisIndex[d] == 0);
 #endif  // NDEBUG
         // compute wrong term to "subtract" again
-            auto wrongNeighborLinearIndex = dfgLowestLayerIteratedIndex - fullOffsets[d];
-            wrongNeighborLinearIndex =
-                (wrongNeighborLinearIndex + numLocalElements) % numLocalElements;
+            const auto wrongNeighborLinearIndex =
+                (dfgLowestLayerIteratedIndex - fullOffsets[d] + numLocalElements) %
+                numLocalElements;
             assert(wrongNeighborLinearIndex >= 0);
             assert(wrongNeighborLinearIndex < numLocalElements);
-            CombiDataType wrongPhiNeighbor = dfg_->getElementVector()[wrongNeighborLinearIndex];
+            const CombiDataType wrongPhiNeighbor = ElementVector[wrongNeighborLinearIndex];
             // auto wrongDPhi = (dfg_->getElementVector()[ghostIndex] - wrongPhiNeigbor) / h[d];
-            auto dphi =
-                (wrongPhiNeighbor - phi_ghost[ghostIndex]) * dfg_->getInverseGridSpacingIn(d);
+            const auto dphi =
+                (wrongPhiNeighbor - phi_ghost[ghostIndex]) * oneOverH[d];
             u_dot_dphi[dfgLowestLayerIteratedIndex] += velocity[d] * dphi;
           }
         }
       }
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-        (*phi_)[li] = dfg_->getElementVector()[li] - u_dot_dphi[li] * dt_;
+        (*phi_)[li] = ElementVector[li] - u_dot_dphi[li] * dt_;
       }
       phi_->swap(dfg_->getElementVector());
     }

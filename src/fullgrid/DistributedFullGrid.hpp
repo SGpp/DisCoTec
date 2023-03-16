@@ -225,7 +225,7 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
 
 inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
                                                 const std::vector<real>& coords) const {
-  // auto oneOverH = this->getInverseGridSpacingIn; // too bad this syntax gets sooo ugly
+  const std::vector<double> oneOverH = this->getInverseGridSpacing();
   FG_ELEMENT result = 0.;
   auto localLinearIndex = this->getLocalLinearIndex(localIndex);
   for (size_t localIndexIterate = 0;
@@ -252,14 +252,14 @@ inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
         iterateIndexInThisDimension = 0;
         auto coordDistance =
             getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d] - 1.0, d);
-        phi_c *= 1. - coordDistance * this->getInverseGridSpacingIn(d);
+        phi_c *= 1. - coordDistance * oneOverH[d];
       } else if (iterateIndexInThisDimension > lastIndexInDim) {
         phi_c = 0.;
         break;  // TODO continue outer loop
       } else {
         auto coordDistance =
             getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d], d);
-        phi_c *= 1. - coordDistance * this->getInverseGridSpacingIn(d);
+        phi_c *= 1. - coordDistance * oneOverH[d];
         neighborIndex += dimIsSet * this->getLocalOffsets()[d];
       }
 #ifndef NDEBUG
@@ -581,7 +581,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     oneOverH.resize(gridSpacing_.size());
     // should be the same as the number of intervals (N)
     for (DimType j = 0; j < dim_; j++) {
-      oneOverH[j] = getInverseGridSpacingIn(j);
+      oneOverH[j] = powerOfTwo[levels_[j]];
     }
 #ifndef NDEBUG
     std::vector<double> oneOverHByDivision;
