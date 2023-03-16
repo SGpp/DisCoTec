@@ -224,7 +224,7 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
 }
 
 inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
-                                                const std::vector<real>& coords const std::vector<double> &oneOverH ) const {
+                                                const std::vector<real>& coords, const std::vector<double> &oneOverH ) const {
 
 
   FG_ELEMENT result = 0.;
