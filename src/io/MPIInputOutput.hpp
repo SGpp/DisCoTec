@@ -18,7 +18,7 @@ static MPI_Info getNewConsecutiveMpiInfo() {
   MPI_Info info = MPI_INFO_NULL;
   MPI_Info_create(&info);
   // will not overlap read and write operations
-  MPI_Info_set(info, "romio_no_indep_rw", "true");
+//  MPI_Info_set(info, "romio_no_indep_rw", "true");
   // disable caching of file contents in kernel
   MPI_Info_set(info, "direct_io", "true");
   MPI_Info_set(info, "direct_read", "true");
@@ -27,8 +27,8 @@ static MPI_Info getNewConsecutiveMpiInfo() {
   MPI_Info_set(info, "romio_ds_read", "disable");
   MPI_Info_set(info, "romio_ds_write", "disable");
   // disable ROMIO's collective buffering //TODO test
-  MPI_Info_set(info, "romio_cb_write", "disable");
-  MPI_Info_set(info, "romio_cb_read", "disable");
+//  MPI_Info_set(info, "romio_cb_write", "disable");
+//  MPI_Info_set(info, "romio_cb_read", "disable");
   return info;
 }
 
