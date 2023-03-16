@@ -837,19 +837,20 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
   }
 }
 
-void ProcessGroupWorker::reduceUniformSG() {
+void ProcessGroupWorker::reduceUniformSG(RankType globalReduceRankThatCollects) {
   // we assume here that every task has the same number of grids, e.g. species in GENE
   auto numGrids = combiParameters_.getNumGrids();
 
   for (IndexType g = 0; g < numGrids; g++) {
-    CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g]);
+    CombiCom::distributedGlobalReduce(*combinedUniDSGVector_[g], globalReduceRankThatCollects);
     assert(CombiCom::sumAndCheckSubspaceSizes(*combinedUniDSGVector_[g]));
   }
 }
 
-void ProcessGroupWorker::combineLocalAndGlobal() {
-  assert(combinedUniDSGVector_.size() > 0 && "Initialize dsgu first with "
-                                             "initCombinedUniDSGVector()");
+void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatCollects) {
+  assert(combinedUniDSGVector_.size() > 0 &&
+         "Initialize dsgu first with "
+         "initCombinedUniDSGVector()");
   // assert(combinedUniDSGVector_[0]->isSubspaceDataCreated());
 
   zeroDsgsData();
@@ -863,7 +864,7 @@ void ProcessGroupWorker::combineLocalAndGlobal() {
   Stats::stopEvent("local reduce");
 
   Stats::startEvent("global reduce");
-  reduceUniformSG();
+  reduceUniformSG(globalReduceRankThatCollects);
   Stats::stopEvent("global reduce");
 }
 
@@ -1366,8 +1367,10 @@ void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePre
 
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
                                                               std::string startReadingTokenFileName,
-                                                              bool overwrite) {
+                                                              bool overwrite,
+                                                              bool keepSparseGridFiles) {
   // wait until we can start to read
+  Stats::startEvent("wait SG");
   MASTER_EXCLUSIVE_SECTION {
     while (!std::filesystem::exists(startReadingTokenFileName)) {
       // wait for token file to appear
@@ -1375,6 +1378,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
     }
   }
   MPI_Barrier(theMPISystem()->getOutputGroupComm());
+  Stats::stopEvent("wait SG");
 
   if (overwrite) {
     Stats::startEvent("read SG");
@@ -1397,13 +1401,16 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   integrateCombinedSolution();
 
   // remove reading token
-  MASTER_EXCLUSIVE_SECTION { std::filesystem::remove(startReadingTokenFileName); }
+  MASTER_EXCLUSIVE_SECTION {
+    std::filesystem::remove(startReadingTokenFileName);
+    // remove sparse grid file
+    if (!keepSparseGridFiles) {
+      std::filesystem::remove(filenamePrefixToRead + "_" + std::to_string(0));
+    }
+  }
 
-  // wait for bcasts to other pgs in globalReduceComm
-  Stats::startEvent("wait for bcasts");
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
-  Stats::stopEvent("wait for bcasts");
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixToWrite,

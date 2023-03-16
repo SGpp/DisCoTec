@@ -246,12 +246,12 @@ int main(int argc, char** argv) {
       }
     }
 
-    Stats::startEvent("combine");
+    auto startCombine = std::chrono::high_resolution_clock::now();
     std::string writeSparseGridFile =
         "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
 
-    worker.combineLocalAndGlobal();
+    worker.combineLocalAndGlobal(theMPISystem()->getOutputRankInGlobalReduceComm());
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
     }
@@ -265,7 +265,8 @@ int main(int argc, char** argv) {
           "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
       std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
-        worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken);
+        worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken,
+                                                    false, false);
       }
       else {
         worker.waitForThirdLevelCombiResult(true);
@@ -275,16 +276,37 @@ int main(int argc, char** argv) {
       // (currently: one group broadcasts to other groups)
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
         worker.combineThirdLevelFileBasedReadReduce(writeSparseGridFile, writeSparseGridFileToken,
-                                                    true);
+                                                    true, false);
       }
       else {
         worker.waitForThirdLevelCombiResult(true);
       }
     }
-    Stats::stopEvent("combine");
-    auto durationCombine = Stats::getDuration("combine") / 1000.0;
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-        << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      auto endCombine = std::chrono::high_resolution_clock::now();
+      auto durationCombine =
+          std::chrono::duration_cast<std::chrono::seconds>(endCombine - startCombine).count();
+      std::cout << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
+    }
+  }
+  // run tasks for last time interval
+  worker.runAllTasks();
+  auto durationRun = Stats::getDuration("run") / 1000.0;
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "last calculation " << ncombi
+                                             << " took: " << durationRun << " seconds" << std::endl;
+
+  if (evalMCError) {
+    Stats::startEvent("write interpolated");
+    worker.writeInterpolatedValuesSingleFile(interpolationCoords,
+                                             "worker_interpolated_" + std::to_string(systemNumber));
+    Stats::stopEvent("write interpolated");
+    OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      MASTER_EXCLUSIVE_SECTION {
+        std::cout << "last interpolation " << ncombi
+                  << " took: " << Stats::getDuration("write interpolated") / 1000.0 << " seconds"
+                  << std::endl;
+      }
+    }
   }
   worker.exit();
 

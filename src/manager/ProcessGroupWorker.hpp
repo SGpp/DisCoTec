@@ -58,12 +58,12 @@ class ProcessGroupWorker {
   void integrateCombinedSolution();
 
   /** reduction */
-  void reduceUniformSG();
+  void reduceUniformSG(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
   /** combine on sparse grid with uniform decomposition of domain */
   void combineUniform();
 
-  void combineLocalAndGlobal();
+  void combineLocalAndGlobal(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
   void deleteTasks();
 
@@ -132,7 +132,8 @@ class ProcessGroupWorker {
 
   void combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
                                             std::string startReadingTokenFileName,
-                                            bool overwrite = false);
+                                            bool overwrite = false,
+                                            bool keepSparseGridFiles = false);
 
   void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
                                   std::string writeCompleteTokenFileName,
