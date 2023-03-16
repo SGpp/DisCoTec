@@ -265,7 +265,8 @@ int main(int argc, char** argv) {
           "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
       std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
-        worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken);
+        worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken,
+                                                    false, false);
       }
       else {
         worker.waitForThirdLevelCombiResult(true);
@@ -275,7 +276,7 @@ int main(int argc, char** argv) {
       // (currently: one group broadcasts to other groups)
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
         worker.combineThirdLevelFileBasedReadReduce(writeSparseGridFile, writeSparseGridFileToken,
-                                                    true);
+                                                    true, false);
       }
       else {
         worker.waitForThirdLevelCombiResult(true);

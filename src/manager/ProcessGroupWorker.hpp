@@ -132,7 +132,8 @@ class ProcessGroupWorker {
 
   void combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
                                             std::string startReadingTokenFileName,
-                                            bool overwrite = false);
+                                            bool overwrite = false,
+                                            bool keepSparseGridFiles = false);
 
   void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
                                   std::string writeCompleteTokenFileName,
