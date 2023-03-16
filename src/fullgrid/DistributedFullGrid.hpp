@@ -225,7 +225,7 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
 
 inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
                                                 const std::vector<real>& coords) const {
-  std::vector<double> oneOverH = this->getInverseGridSpacing();
+  const std::vector<double> oneOverH = this->getInverseGridSpacing();
   FG_ELEMENT result = 0.;
   auto localLinearIndex = this->getLocalLinearIndex(localIndex);
   for (size_t localIndexIterate = 0;
