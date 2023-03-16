@@ -52,6 +52,7 @@ do
         throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime)/1000)" | bc )
         throughput_bits=$( echo "scale=4;($throughput*8)" | bc )
         echo "Average throughput: $throughput MB/s; $throughput_bits Mbit/s"
+        rm $FILELRZ_INSTANCE
     fi
     if test -f "$PATHLRZ/$TOKEN_STOP"; then
         break
