@@ -37,7 +37,7 @@ do
         FILEHAWK_INSTANCE=$(echo $TOKEN_TRANSFER_BACKWARD)
         FILEHAWK_INSTANCE=${FILEHAWK_INSTANCE:0:-10}_0
         echo copy $FILEHAWK_INSTANCE from hawk to NG
-        size=$(stat --printf="%s" $FILELRZ_INSTANCE)
+        size=$(stat --printf="%s" $FILEHAWK_INSTANCE)
         startblock=0
         endblock=$((size/PROCS))
         starttime=`date +%s`
@@ -60,6 +60,7 @@ do
         throughput_bits=$( echo "scale=4;($throughput*8)" | bc )
         echo "Average throughput: $throughput MB/s; $throughput_bits Mbit/s"
         step=$(($step+1))
+        rm $FILEHAWK_INSTANCE
     fi
     if test -f "$PATHLRZ/$TOKEN_STOP"; then
         break 
