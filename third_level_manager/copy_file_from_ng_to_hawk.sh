@@ -10,9 +10,9 @@ FILELRZ=${FILELRZ:=${PATHLRZ}/dsg_1_step*_0}
 HAWKURL=https://gridftp-fr1.hww.hlrs.de:9000/rest/auth/HLRS
 USERHAWK=${USERHAWK:=ipvpolli}
 
-PROCS=${PROCS:=3}
-THREADS_PER_PROC=${THREADS_PER_PROC:=16}
-STREAMS=${STREAMS:=4}
+PROCS=${PROCS:=8}
+THREADS_PER_PROC=${THREADS_PER_PROC:=8}
+STREAMS=${STREAMS:=2}
 
 
 TOKEN_TRANSFER_FORWARD=${FILELRZ:0:-2}_token.txt
@@ -36,7 +36,7 @@ do
         starttime=`date +%s`
         for ((i=1; i<=PROCS; i++)); do
           echo "Block: $startblock-$endblock of $size"
-          uftp cp -t $THREADS_PER_PROC -n $STREAMS -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $FILELRZ_INSTANCE $HAWKURL:$PATHHAWK &
+          uftp cp -t $THREADS_PER_PROC -n $STREAMS -C -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $FILELRZ_INSTANCE $HAWKURL:$PATHHAWK &
           startblock=$((endblock+1))
           if [ $i -eq $((PROCS)) ]; then
               endblock=$((size-1))
