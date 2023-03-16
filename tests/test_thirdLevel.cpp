@@ -706,7 +706,7 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
                         theMPISystem()->getWorldComm());
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       BOOST_TEST_CHECKPOINT("combine read/reduce");
-      worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken);
+      worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken, false, false);
     }
     else {
       BOOST_TEST_CHECKPOINT("combine wait");

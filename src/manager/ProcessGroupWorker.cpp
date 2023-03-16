@@ -1367,7 +1367,8 @@ void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePre
 
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
                                                               std::string startReadingTokenFileName,
-                                                              bool overwrite) {
+                                                              bool overwrite,
+                                                              bool keepSparseGridFiles) {
   // wait until we can start to read
   Stats::startEvent("wait SG");
   MASTER_EXCLUSIVE_SECTION {
@@ -1400,7 +1401,13 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   integrateCombinedSolution();
 
   // remove reading token
-  MASTER_EXCLUSIVE_SECTION { std::filesystem::remove(startReadingTokenFileName); }
+  MASTER_EXCLUSIVE_SECTION {
+    std::filesystem::remove(startReadingTokenFileName);
+    // remove sparse grid file
+    if (!keepSparseGridFiles) {
+      std::filesystem::remove(filenamePrefixToRead + "_" + std::to_string(0));
+    }
+  }
 
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
