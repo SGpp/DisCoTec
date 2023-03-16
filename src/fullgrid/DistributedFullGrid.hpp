@@ -291,8 +291,13 @@ inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
 /** evaluates the full grid on the specified coordinates
  * @param coords ND coordinates on the unit square [0,1]^D*/
 FG_ELEMENT evalLocal(const std::vector<real>& coords) const {
+  const std::vector<double> oneOverH = getInverseGridSpacing();
+  return evalLocal(coords, oneOverH);
+}
+
+FG_ELEMENT evalLocal(const std::vector<real>& coords, const std::vector<double> oneOverH ) const {
   FG_ELEMENT value;
-  evalLocal(coords, value);
+  evalLocal(coords, value, oneOverH);
   return value;
 }
 

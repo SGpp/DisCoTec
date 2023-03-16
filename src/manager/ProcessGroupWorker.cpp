@@ -1082,9 +1082,10 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(const
   std::vector<CombiDataType> kahanTrailingTerm(numCoordinates, 0.);
 
   for (Task* t : tasks_) {
+    const std::vector<double> oneOverH =  t->getDistributedFullGrid().getInverseGridSpacing();
     const auto coeff = t->getCoefficient();
     for (size_t i = 0; i < numCoordinates; ++i) {
-      auto localValue = t->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
+      auto localValue = t->getDistributedFullGrid().evalLocal(interpolationCoords[i], oneOverH);
       auto summand = localValue * coeff;
       // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
       volatile auto y = summand - kahanTrailingTerm[i];
