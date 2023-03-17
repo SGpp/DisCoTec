@@ -13,9 +13,9 @@ USERHAWK=${USERHAWK:=ipvpolli}
 TOKEN_TRANSFER_BACKWARD=${FILEHAWK:0:-2}_token.txt
 TOKEN_STOP=uftp_transfer_stop.txt
 
-PROCS=${PROCS:=8}
-THREADS_PER_PROC=${THREADS_PER_PROC:=10}
-STREAMS=${STREAMS:=2}
+PROCS=${PROCS:=4}
+THREADS_PER_PROC=${THREADS_PER_PROC:=8}
+STREAMS=${STREAMS:=3}
 
 echo "$FILEHAWK"
 echo "$TOKEN_TRANSFER_BACKWARD"
@@ -43,7 +43,7 @@ do
         starttime=`date +%s`
         for ((i=1; i<=PROCS; i++)); do
           echo "Block: $startblock-$endblock of $size"
-          uftp cp -C -t $THREADS_PER_PROC -n $STREAMS -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$FILEHAWK_INSTANCE $PATHLRZ &
+          uftp cp -t $THREADS_PER_PROC -n $STREAMS -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$FILEHAWK_INSTANCE $PATHLRZ/ &
           startblock=$((endblock+1))
           if [ $i -eq $((PROCS)) ]; then
               endblock=$((size-1))
@@ -52,7 +52,7 @@ do
           fi
         done
         wait
-        uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$TOKEN_TRANSFER_BACKWARD $PATHLRZ
+        uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$TOKEN_TRANSFER_BACKWARD $PATHLRZ/
         uftp rm --quiet -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK "$HAWKURL:$TOKEN_TRANSFER_BACKWARD"
         endtime=`date +%s`
         echo copied "$FILEHAWK_INSTANCE" in `expr $endtime - $starttime` seconds.

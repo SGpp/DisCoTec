@@ -10,9 +10,9 @@ FILELRZ=${FILELRZ:=${PATHLRZ}/dsg_1_step*_0}
 HAWKURL=https://gridftp-fr1.hww.hlrs.de:9000/rest/auth/HLRS
 USERHAWK=${USERHAWK:=ipvpolli}
 
-PROCS=${PROCS:=8}
+PROCS=${PROCS:=4}
 THREADS_PER_PROC=${THREADS_PER_PROC:=8}
-STREAMS=${STREAMS:=2}
+STREAMS=${STREAMS:=3}
 
 
 TOKEN_TRANSFER_FORWARD=${FILELRZ:0:-2}_token.txt
@@ -36,7 +36,7 @@ do
         starttime=`date +%s`
         for ((i=1; i<=PROCS; i++)); do
           echo "Block: $startblock-$endblock of $size"
-          uftp cp -t $THREADS_PER_PROC -n $STREAMS -C -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $FILELRZ_INSTANCE $HAWKURL:$PATHHAWK &
+          uftp cp -t $THREADS_PER_PROC -n $STREAMS  -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $FILELRZ_INSTANCE $HAWKURL:$PATHHAWK/ &
           startblock=$((endblock+1))
           if [ $i -eq $((PROCS)) ]; then
               endblock=$((size-1))
@@ -45,14 +45,14 @@ do
           fi
         done
         wait
-        uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $TOKEN_TRANSFER_FORWARD $HAWKURL:$PATHHAWK
+        uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $TOKEN_TRANSFER_FORWARD $HAWKURL:$PATHHAWK/
         rm $TOKEN_TRANSFER_FORWARD
         endtime=`date +%s`
         echo copied "$FILELRZ_INSTANCE" in `expr $endtime - $starttime` seconds.
         throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime))" | bc )
         throughput_bits=$( echo "scale=4;($throughput*8)" | bc )
         echo "Average throughput: $throughput MB/s; $throughput_bits Mbit/s"
-        rm $FILELRZ_INSTANCE
+#        rm $FILELRZ_INSTANCE
     fi
     if test -f "$PATHLRZ/$TOKEN_STOP"; then
         break
