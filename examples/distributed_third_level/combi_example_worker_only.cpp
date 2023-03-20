@@ -257,7 +257,7 @@ int main(int argc, char** argv) {
       }
     }
 
-    auto startCombine = std::chrono::high_resolution_clock::now();
+    auto startCombineWrite = std::chrono::high_resolution_clock::now();
     std::string writeSparseGridFile =
         "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
@@ -271,8 +271,18 @@ int main(int argc, char** argv) {
                             std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
                         theMPISystem()->getLocalComm());
 
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      auto endCombineWrite = std::chrono::high_resolution_clock::now();
+      auto durationCombineWrite =
+          std::chrono::duration_cast<std::chrono::seconds>(endCombineWrite - startCombineWrite)
+              .count();
+      std::cout << getTimeStamp() << "combination-local/write " << i
+                << " took: " << durationCombineWrite << " seconds" << std::endl;
+    }
+    auto startCombineRead = std::chrono::high_resolution_clock::now();
+    std::string readSparseGridFile;
     if (hasThirdLevel) {
-      std::string readSparseGridFile =
+      readSparseGridFile =
           "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
       std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
@@ -283,10 +293,11 @@ int main(int argc, char** argv) {
         worker.waitForThirdLevelCombiResult(true);
       }
     } else {
+      readSparseGridFile = writeSparseGridFile;
       // open question: should all groups read for themselves or one broadcasts?
       // (currently: one group broadcasts to other groups)
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
-        worker.combineThirdLevelFileBasedReadReduce(writeSparseGridFile, writeSparseGridFileToken,
+        worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, writeSparseGridFileToken,
                                                     true, false);
       }
       else {
@@ -294,11 +305,13 @@ int main(int argc, char** argv) {
       }
     }
     MIDDLE_PROCESS_EXCLUSIVE_SECTION {
-      auto endCombine = std::chrono::high_resolution_clock::now();
-      auto durationCombine =
-          std::chrono::duration_cast<std::chrono::seconds>(endCombine - startCombine).count();
-      std::cout << getTimeStamp() << "combination " << i << " took: " << durationCombine
-                << " seconds" << std::endl;
+      auto endCombineRead = std::chrono::high_resolution_clock::now();
+      auto durationCombineRead =
+          std::chrono::duration_cast<std::chrono::seconds>(endCombineRead - startCombineRead)
+              .count();
+      std::cout << getTimeStamp() << "combination-wait/read/reduce " << i
+                << " took: " << durationCombineRead << " seconds ; read " << readSparseGridFile
+                << std::endl;
     }
   }
   // run tasks for last time interval
