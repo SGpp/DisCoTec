@@ -48,6 +48,10 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
     }
   }
   computeCombiCoeffsClassical();
+
+  if (levels_.empty()) {
+    throw std::runtime_error("No combination levels!");
+  }
 }
 
 LevelVector getFurthestCorner(LevelVector& lmax, LevelVector& lmin) {
@@ -78,6 +82,9 @@ void CombiMinMaxScheme::createAdaptiveCombischeme() {
   }
 
   computeCombiCoeffsAdaptive();
+  if (levels_.empty()) {
+    throw std::runtime_error("No combination levels!");
+  }
 }
 
 /*
