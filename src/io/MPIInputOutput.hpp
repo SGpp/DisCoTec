@@ -17,8 +17,8 @@ static MPI_Info getNewConsecutiveMpiInfo() {
   // to be modified externally e.g. via romio hints
   MPI_Info info = MPI_INFO_NULL;
   MPI_Info_create(&info);
-  // will not overlap read and write operations
-//  MPI_Info_set(info, "romio_no_indep_rw", "true");
+  // do not use this -- force-enables collective buffering!!
+  // //  MPI_Info_set(info, "romio_no_indep_rw", "true");
   // disable caching of file contents in kernel
   MPI_Info_set(info, "direct_io", "true");
   MPI_Info_set(info, "direct_read", "true");
@@ -27,8 +27,8 @@ static MPI_Info getNewConsecutiveMpiInfo() {
   MPI_Info_set(info, "romio_ds_read", "disable");
   MPI_Info_set(info, "romio_ds_write", "disable");
   // disable ROMIO's collective buffering //TODO test
-//  MPI_Info_set(info, "romio_cb_write", "disable");
-//  MPI_Info_set(info, "romio_cb_read", "disable");
+  MPI_Info_set(info, "romio_cb_write", "disable");
+  MPI_Info_set(info, "romio_cb_read", "disable");
   return info;
 }
 
@@ -40,6 +40,10 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
   MPI_Info info = getNewConsecutiveMpiInfo();
+  MPI_Info_set(info, "access_style", "write_once");
+  int mpi_size;
+  MPI_Comm_size(comm, &mpi_size);
+  MPI_Info_set(info, "nb_proc", std::to_string(mpi_size).c_str());
 
   // open file
   MPI_File fh;
