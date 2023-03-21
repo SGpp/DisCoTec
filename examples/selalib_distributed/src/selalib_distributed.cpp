@@ -276,7 +276,7 @@ int main(int argc, char** argv) {
     // std::vector<int> fileTaskIDs;
 
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
-    combischeme.createAdaptiveCombischeme();
+    combischeme.createClassicalCombischeme();
     // combischeme.makeFaultTolerant();
     levels = combischeme.getCombiSpaces();
     coeffs = combischeme.getCoeffs();

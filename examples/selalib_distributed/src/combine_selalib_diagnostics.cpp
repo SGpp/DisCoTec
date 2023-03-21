@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
   std::string basename = cfg.get<std::string>("preproc.basename");
 
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
-  combischeme.createAdaptiveCombischeme();
+  combischeme.createClassicalCombischeme();
   // combischeme.makeFaultTolerant();
   auto levels = combischeme.getCombiSpaces();
   auto coeffs = combischeme.getCoeffs();
