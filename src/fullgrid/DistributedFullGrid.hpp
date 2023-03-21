@@ -1181,7 +1181,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
     // open file
     MPI_File fh;
-    MPI_File_open(getCommunicator(), filename, MPI_MODE_WRONLY + MPI_MODE_CREATE, MPI_INFO_NULL,
+    MPI_File_open(getCommunicator(), filename, MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL,
                   &fh);
 
     MPI_Offset offset = 0;
