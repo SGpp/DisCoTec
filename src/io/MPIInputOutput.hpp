@@ -34,7 +34,7 @@ static MPI_Info getNewConsecutiveMpiInfo() {
 
 template <typename T>
 bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std::string& fileName,
-                            combigrid::CommunicatorType comm) {
+                            combigrid::CommunicatorType comm, bool replaceExistingFile = false) {
   // get offset in file
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
@@ -50,17 +50,25 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
                           info, &fh);
   if (err == MPI_ERR_FILE_EXISTS) {
-    // file already existed, delete it and create new file
-    int mpi_rank;
-    MPI_Comm_rank(comm, &mpi_rank);
-    if (mpi_rank == 0) {
-      MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
+    if (replaceExistingFile) {
+      // file already existed, delete it and create new file
+      int mpi_rank;
+      MPI_Comm_rank(comm, &mpi_rank);
+      if (mpi_rank == 0) {
+        MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
+      }
+      MPI_Barrier(comm);
+      err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
+                          info, &fh);
+    } else {
+      // open file without creating it
+      err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_WRONLY, info, &fh);
     }
-    MPI_Barrier(comm);
-    err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
-                        info, &fh);
   }
-  assert(err == MPI_SUCCESS);
+  if (err != MPI_SUCCESS) {
+    std::cerr << "Open error: " + std::to_string(err) << std::endl;
+    throw std::runtime_error("MPI file open error: " + std::to_string(err));
+  }
 
   if (err == MPI_SUCCESS) {
     // write to single file with MPI-IO
