@@ -17,8 +17,8 @@ static MPI_Info getNewConsecutiveMpiInfo() {
   // to be modified externally e.g. via romio hints
   MPI_Info info = MPI_INFO_NULL;
   MPI_Info_create(&info);
-  // will not overlap read and write operations
-//  MPI_Info_set(info, "romio_no_indep_rw", "true");
+  // do not use this -- force-enables collective buffering!!
+  // //  MPI_Info_set(info, "romio_no_indep_rw", "true");
   // disable caching of file contents in kernel
   MPI_Info_set(info, "direct_io", "true");
   MPI_Info_set(info, "direct_read", "true");
@@ -27,36 +27,48 @@ static MPI_Info getNewConsecutiveMpiInfo() {
   MPI_Info_set(info, "romio_ds_read", "disable");
   MPI_Info_set(info, "romio_ds_write", "disable");
   // disable ROMIO's collective buffering //TODO test
-//  MPI_Info_set(info, "romio_cb_write", "disable");
-//  MPI_Info_set(info, "romio_cb_read", "disable");
+  MPI_Info_set(info, "romio_cb_write", "disable");
+  MPI_Info_set(info, "romio_cb_read", "disable");
   return info;
 }
 
 template <typename T>
 bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std::string& fileName,
-                            combigrid::CommunicatorType comm) {
+                            combigrid::CommunicatorType comm, bool replaceExistingFile = false) {
   // get offset in file
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
   MPI_Info info = getNewConsecutiveMpiInfo();
+  MPI_Info_set(info, "access_style", "write_once");
+  int mpi_size;
+  MPI_Comm_size(comm, &mpi_size);
+  MPI_Info_set(info, "nb_proc", std::to_string(mpi_size).c_str());
 
   // open file
   MPI_File fh;
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
                           info, &fh);
   if (err == MPI_ERR_FILE_EXISTS) {
-    // file already existed, delete it and create new file
-    int mpi_rank;
-    MPI_Comm_rank(comm, &mpi_rank);
-    if (mpi_rank == 0) {
-      MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
+    if (replaceExistingFile) {
+      // file already existed, delete it and create new file
+      int mpi_rank;
+      MPI_Comm_rank(comm, &mpi_rank);
+      if (mpi_rank == 0) {
+        MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
+      }
+      MPI_Barrier(comm);
+      err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
+                          info, &fh);
+    } else {
+      // open file without creating it
+      err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_WRONLY, info, &fh);
     }
-    MPI_Barrier(comm);
-    err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
-                        info, &fh);
   }
-  assert(err == MPI_SUCCESS);
+  if (err != MPI_SUCCESS) {
+    std::cerr << "Open error: " + std::to_string(err) << std::endl;
+    throw std::runtime_error("MPI file open error: " + std::to_string(err));
+  }
 
   if (err == MPI_SUCCESS) {
     // write to single file with MPI-IO
@@ -162,7 +174,7 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
       numElementsToBuffer = numValues - readcount;
       buffer.resize(numElementsToBuffer);
     }
-    err = MPI_File_read_at(fh, pos * sizeof(T), buffer.data(),
+    err = MPI_File_read_at_all(fh, pos * sizeof(T), buffer.data(),
                            static_cast<int>(numElementsToBuffer), dataType, &status);
     int readcountIncrement = 0;
     MPI_Get_count(&status, dataType, &readcountIncrement);

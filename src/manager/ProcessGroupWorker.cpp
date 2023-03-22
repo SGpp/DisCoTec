@@ -1687,7 +1687,17 @@ void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToR
     if (extraUniDSGVector_.size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
-    dsgToUse->readOneFileAndReduce(filenamePrefixToRead + "_" + std::to_string(i));
+    // assume that at least for four process groups, we should have enough spare RAM
+    // to read all of the sparse grid at once
+    // if fewer, chunk the read/reduce
+    int numberReduceChunks = 1;
+    if (theMPISystem()->getNumGroups() == 1) {
+      numberReduceChunks = 4;
+    } else if (theMPISystem()->getNumGroups() < 4) {
+      numberReduceChunks = 2;
+    }
+    dsgToUse->readOneFileAndReduce(filenamePrefixToRead + "_" + std::to_string(i),
+                                   numberReduceChunks);
     if (extraUniDSGVector_.size() > 0) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);

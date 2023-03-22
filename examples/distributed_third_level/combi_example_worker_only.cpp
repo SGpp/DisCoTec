@@ -3,6 +3,7 @@
 #include <mpi.h>
 
 #include <boost/asio.hpp>
+#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
@@ -34,6 +35,11 @@ using namespace combigrid;
 // this is necessary for correct function of task serialization
 #include "utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskAdvection)
+
+std::string getTimeStamp() {
+  namespace pt = boost::posix_time;
+  return "[" + pt::to_iso_string(pt::second_clock::local_time()) + "] ";
+}
 
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);
@@ -124,8 +130,8 @@ int main(int argc, char** argv) {
         }
       }
       MASTER_EXCLUSIVE_SECTION {
-        std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
-                  << pgNumbers.size() << " tasks." << std::endl;
+        std::cout << getTimeStamp() << " Process group " << pgroupNumber << " will run "
+                  << levels.size() << " of " << pgNumbers.size() << " tasks." << std::endl;
         printCombiDegreesOfFreedom(levels, boundary);
       }
     }
@@ -155,7 +161,8 @@ int main(int argc, char** argv) {
   decomposition = combigrid::getDefaultDecomposition(maxNumPoints, p, forwardDecomposition);
   // default decomposition works only for powers of 2!
   params.setDecomposition(decomposition);
-  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "generated parameters" << std::endl;
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "generated parameters"
+                                             << std::endl;
 
   // read interpolation coordinates
   std::vector<std::vector<double>> interpolationCoords;
@@ -178,7 +185,8 @@ int main(int argc, char** argv) {
     sleep(1);
     throw std::runtime_error("not enough interpolation coordinates");
   }
-  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "read interpolation coordinates" << std::endl;
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "read interpolation coordinates"
+                                             << std::endl;
 
   ProcessGroupWorker worker;
   worker.setCombiParameters(params);
@@ -189,8 +197,9 @@ int main(int argc, char** argv) {
 
   worker.initCombinedUniDSGVector();
   auto durationInit = Stats::getDuration("register dsgus") / 1000.0;
-  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "worker: initialized SG, registration was "
-                                             << durationInit << " seconds" << std::endl;
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
+      << getTimeStamp() << "worker: initialized SG, registration was " << durationInit << " seconds"
+      << std::endl;
 
   // read (extra) sparse grid sizes, as generated with subspace_writer
   // for target scenarios, consider `wget https://darus.uni-stuttgart.de/api/access/datafile/195543`
@@ -209,7 +218,7 @@ int main(int argc, char** argv) {
 
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {
-      std::cout << "worker: read sizes, will allocate "
+      std::cout << getTimeStamp() << "worker: read sizes, will allocate "
                 << static_cast<real>(worker.getCombinedUniDSGVector()[0]->getAccumulatedDataSize() *
                                      sizeof(CombiDataType)) /
                        1e6
@@ -224,13 +233,15 @@ int main(int argc, char** argv) {
   // allocate sparse grids now
   worker.zeroDsgsData();
 
-  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "start simulation loop" << std::endl;
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "start simulation loop"
+                                             << std::endl;
   for (size_t i = 0; i < ncombi; ++i) {
     // run tasks for next time interval
     worker.runAllTasks();
     auto durationRun = Stats::getDuration("run") / 1000.0;
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "calculation " << i << " took: " << durationRun
-                                               << " seconds" << std::endl;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "calculation " << i
+                                               << " took: " << durationRun << " seconds"
+                                               << std::endl;
 
     if (evalMCError) {
       Stats::startEvent("write interpolated");
@@ -239,14 +250,14 @@ int main(int argc, char** argv) {
       Stats::stopEvent("write interpolated");
       OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
         MASTER_EXCLUSIVE_SECTION {
-          std::cout << "interpolation " << i
+          std::cout << getTimeStamp() << "interpolation " << i
                     << " took: " << Stats::getDuration("write interpolated") / 1000.0 << " seconds"
                     << std::endl;
         }
       }
     }
 
-    auto startCombine = std::chrono::high_resolution_clock::now();
+    auto startCombineWrite = std::chrono::high_resolution_clock::now();
     std::string writeSparseGridFile =
         "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
@@ -260,8 +271,18 @@ int main(int argc, char** argv) {
                             std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
                         theMPISystem()->getLocalComm());
 
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      auto endCombineWrite = std::chrono::high_resolution_clock::now();
+      auto durationCombineWrite =
+          std::chrono::duration_cast<std::chrono::seconds>(endCombineWrite - startCombineWrite)
+              .count();
+      std::cout << getTimeStamp() << "combination-local/write " << i
+                << " took: " << durationCombineWrite << " seconds" << std::endl;
+    }
+    auto startCombineRead = std::chrono::high_resolution_clock::now();
+    std::string readSparseGridFile;
     if (hasThirdLevel) {
-      std::string readSparseGridFile =
+      readSparseGridFile =
           "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
       std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
@@ -272,10 +293,11 @@ int main(int argc, char** argv) {
         worker.waitForThirdLevelCombiResult(true);
       }
     } else {
+      readSparseGridFile = writeSparseGridFile;
       // open question: should all groups read for themselves or one broadcasts?
       // (currently: one group broadcasts to other groups)
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
-        worker.combineThirdLevelFileBasedReadReduce(writeSparseGridFile, writeSparseGridFileToken,
+        worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, writeSparseGridFileToken,
                                                     true, false);
       }
       else {
@@ -283,16 +305,19 @@ int main(int argc, char** argv) {
       }
     }
     MIDDLE_PROCESS_EXCLUSIVE_SECTION {
-      auto endCombine = std::chrono::high_resolution_clock::now();
-      auto durationCombine =
-          std::chrono::duration_cast<std::chrono::seconds>(endCombine - startCombine).count();
-      std::cout << "combination " << i << " took: " << durationCombine << " seconds" << std::endl;
+      auto endCombineRead = std::chrono::high_resolution_clock::now();
+      auto durationCombineRead =
+          std::chrono::duration_cast<std::chrono::seconds>(endCombineRead - startCombineRead)
+              .count();
+      std::cout << getTimeStamp() << "combination-wait/read/reduce " << i
+                << " took: " << durationCombineRead << " seconds ; read " << readSparseGridFile
+                << std::endl;
     }
   }
   // run tasks for last time interval
   worker.runAllTasks();
   auto durationRun = Stats::getDuration("run") / 1000.0;
-  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "last calculation " << ncombi
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "last calculation " << ncombi
                                              << " took: " << durationRun << " seconds" << std::endl;
 
   if (evalMCError) {
@@ -302,7 +327,7 @@ int main(int argc, char** argv) {
     Stats::stopEvent("write interpolated");
     OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
       MASTER_EXCLUSIVE_SECTION {
-        std::cout << "last interpolation " << ncombi
+        std::cout << getTimeStamp() << "last interpolation " << ncombi
                   << " took: " << Stats::getDuration("write interpolated") / 1000.0 << " seconds"
                   << std::endl;
       }

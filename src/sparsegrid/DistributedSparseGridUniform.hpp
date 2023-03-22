@@ -154,7 +154,7 @@ class DistributedSparseGridUniform {
 
   bool readOneFile(std::string fileName);
 
-  bool readOneFileAndReduce(std::string fileName, int numElementsToBuffer = 1024);
+  bool readOneFileAndReduce(std::string fileName, int numberOfChunks = 1);
 
   bool writeSubspaceSizesToFile(std::string fileName) const;
 
@@ -736,12 +736,16 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFile(std::string fileName)
 }
 
 template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileAndReduce(
-    std::string fileName, int numElementsToBuffer) {
+bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileAndReduce(std::string fileName,
+                                                                    int numberOfChunks) {
   auto comm = this->getCommunicator();
 
+  const int numElementsInChunk = this->getRawDataSize() / numberOfChunks;
+  const int remainder = this->getRawDataSize() % numberOfChunks;
+  const int numElementsToBuffer = numElementsInChunk + (remainder == 0 ? 0 : 1);
+
   // get offset in file
-  MPI_Offset len = this->getRawDataSize();
+  const MPI_Offset len = this->getRawDataSize();
   auto data = this->getRawData();
   bool success = mpiio::readReduceValuesConsecutive<FG_ELEMENT>(
       data, len, fileName, comm, numElementsToBuffer, std::plus<FG_ELEMENT>{});
@@ -845,28 +849,6 @@ static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT>* d
   auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, &request);
   assert(success == MPI_SUCCESS);
   return request;
-}
-
-/** Performs an in place allreduce on the dsgu data with all procs in
- * communicator comm.
- * This corresponds to a sparse grid reduce, cf. Heene
- */
-template <typename FG_ELEMENT>
-static void reduceDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
-                               CommunicatorType comm) {
-  assert(dsgu->getRawDataSize() < INT_MAX && "Dsg is too large and can not be "
-                                            "transferred in a single MPI Call (not "
-                                            "supported yet) try a more refined"
-                                            "decomposition");
-
-  // prepare for MPI call in globalReduceComm
-  MPI_Datatype dtype = getMPIDatatype(
-                        abstraction::getabstractionDataType<size_t>());
-  std::vector<size_t>& dsguData = dsgu->getRawData();
-
-  // perform allreduce
-  assert(dsguData.size() < static_cast<size_t>(std::numeric_limits<int>::max()));
-  MPI_Allreduce(MPI_IN_PLACE, dsguData.data(), static_cast<int>(dsguData.size()), dtype, MPI_MAX, comm);
 }
 
 /**
