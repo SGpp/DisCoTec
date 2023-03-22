@@ -50,9 +50,9 @@ do
           echo "Block: $startblock-$endblock of $size"
           uftp cp -n $STREAMS -B "${startblock}-${endblock}-p" -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$FILEHAWK_INSTANCE $PATHLRZ/ &
           pids+=($!)
-          startblock=$((endblock+1))
+          startblock=$((endblock))
           if [ $i -eq $((PROCS)) ]; then
-              endblock=$((size-1))
+              endblock=$((size))
           else
               endblock=$((endblock+size/PROCS))
           fi
