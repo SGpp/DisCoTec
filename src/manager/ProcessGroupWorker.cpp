@@ -1372,6 +1372,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   // wait until we can start to read
   Stats::startEvent("wait SG");
   MASTER_EXCLUSIVE_SECTION {
+    std::cout << "Waiting for token file " << startReadingTokenFileName << std::endl;
     while (!std::filesystem::exists(startReadingTokenFileName)) {
       // wait for token file to appear
       std::this_thread::sleep_for(std::chrono::seconds(1));
