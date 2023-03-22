@@ -56,7 +56,7 @@ do
         done
 
         uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $TOKEN_TRANSFER_FORWARD $HAWKURL:$PATHHAWK/
-        rm $TOKEN_TRANSFER_FORWARD
+        rm -f $TOKEN_TRANSFER_FORWARD
         endtime=`date +%s`
         echo copied "$FILELRZ_INSTANCE" in `expr $endtime - $starttime` seconds.
         throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime))" | bc )
