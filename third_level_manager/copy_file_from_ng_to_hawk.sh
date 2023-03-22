@@ -4,6 +4,11 @@
 
 module load uftp-client
 
+set -e
+
+# kill all processes from this script if the script is terminated
+trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+
 PATHLRZ=${PATHLRZ:=//hppfs/scratch/0F/di93yuw/discotec_widely_distributed/numerical_target_64_both/}
 PATHHAWK=${PATHHAWK:=//lustre/hpe/ws10/ws10.1/ws/ipvpolli-widely-distributed-ct/scenarios/numerical_target_64_both/}
 FILELRZ=${FILELRZ:=${PATHLRZ}/dsg_1_step*_0}
@@ -23,7 +28,6 @@ echo "$FILELRZ"
 # loop that is infinite until $TOKEN_STOP is created
 while true
 do
-    #echo "$TOKEN_TRANSFER_FORWARD"
     if test -f $TOKEN_TRANSFER_FORWARD; then
         # ./copy_sng_to_hawk.sh
         # try to copy the file
@@ -34,9 +38,11 @@ do
         startblock=0
         endblock=$((size/PROCS))
         starttime=`date +%s`
+        pids=( )
         for ((i=1; i<=PROCS; i++)); do
           echo "Block: $startblock-$endblock of $size"
           uftp cp -t $THREADS_PER_PROC -n $STREAMS -B "${startblock}-${endblock}-p" -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $FILELRZ_INSTANCE $HAWKURL:$PATHHAWK/ &
+          pids+=($!) # store background pids
           startblock=$((endblock+1))
           if [ $i -eq $((PROCS)) ]; then
               endblock=$((size-1))
@@ -44,7 +50,11 @@ do
               endblock=$((endblock+size/PROCS))
           fi
         done
-        wait
+        # wait for all pids
+        for pid in "${pids[@]}"; do
+          wait "$pid" || exit
+        done
+
         uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $TOKEN_TRANSFER_FORWARD $HAWKURL:$PATHHAWK/
         rm $TOKEN_TRANSFER_FORWARD
         endtime=`date +%s`

@@ -4,6 +4,10 @@
 
 module load uftp-client
 
+
+# kill all processes from this script if the script is terminated
+trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
+
 PATHLRZ=${PATHLRZ:=//hppfs/scratch/0F/di93yuw/discotec_widely_distributed/numerical_target_64_both/}
 PATHHAWK=${PATHHAWK:=//lustre/hpe/ws10/ws10.1/ws/ipvpolli-widely-distributed-ct/scenarios/numerical_target_64_both/}
 FILEHAWK=${FILEHAWK:=${PATHHAWK}/dsg_0_step*_0}
@@ -31,6 +35,7 @@ do
     # the part after `>` is to ignore the potential (error) output
     uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$TOKEN_TRANSFER_BACKWARD /dev/null > /dev/null 2>&1
     cp_status=$?
+    pids=( )
     if (exit $cp_status); then
         # ./copy_hawk_to_sng.sh
         # try to copy the file
@@ -44,6 +49,7 @@ do
         for ((i=1; i<=PROCS; i++)); do
           echo "Block: $startblock-$endblock of $size"
           uftp cp -t $THREADS_PER_PROC -n $STREAMS -B "${startblock}-${endblock}-p" -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$FILEHAWK_INSTANCE $PATHLRZ/ &
+          pids+=($!)
           startblock=$((endblock+1))
           if [ $i -eq $((PROCS)) ]; then
               endblock=$((size-1))
@@ -51,7 +57,10 @@ do
               endblock=$((endblock+size/PROCS))
           fi
         done
-        wait
+        # wait for all processes to finish
+        for pid in "${pids[@]}"; do
+            wait $pid || exit
+        done
         uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$TOKEN_TRANSFER_BACKWARD $PATHLRZ/
         uftp rm --quiet -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK "$HAWKURL:$TOKEN_TRANSFER_BACKWARD"
         endtime=`date +%s`
@@ -60,7 +69,7 @@ do
         throughput_bits=$( echo "scale=4;($throughput*8)" | bc )
         echo "Average throughput: $throughput MB/s; $throughput_bits Mbit/s"
         step=$(($step+1))
-        uftp rm -q -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$FILEHAWK_INSTANCE
+#        uftp rm -q -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $HAWKURL:$FILEHAWK_INSTANCE
     fi
     if test -f "$PATHLRZ/$TOKEN_STOP"; then
         break 
