@@ -174,7 +174,7 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
       numElementsToBuffer = numValues - readcount;
       buffer.resize(numElementsToBuffer);
     }
-    err = MPI_File_read_at(fh, pos * sizeof(T), buffer.data(),
+    err = MPI_File_read_at_all(fh, pos * sizeof(T), buffer.data(),
                            static_cast<int>(numElementsToBuffer), dataType, &status);
     int readcountIncrement = 0;
     MPI_Get_count(&status, dataType, &readcountIncrement);
