@@ -36,7 +36,7 @@ do
         starttime=`date +%s`
         for ((i=1; i<=PROCS; i++)); do
           echo "Block: $startblock-$endblock of $size"
-          uftp cp -t $THREADS_PER_PROC -n $STREAMS  -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $FILELRZ_INSTANCE $HAWKURL:$PATHHAWK/ &
+          uftp cp -t $THREADS_PER_PROC -n $STREAMS -B "${startblock}-${endblock}-p" -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $FILELRZ_INSTANCE $HAWKURL:$PATHHAWK/ &
           startblock=$((endblock+1))
           if [ $i -eq $((PROCS)) ]; then
               endblock=$((size-1))
