@@ -21,8 +21,9 @@ class TestFn {
     // leave out normalization, such that maximum is always 1
     return std::exp(exponent);  // / std::sqrt( std::pow(2*pi*sigmaSquared, coords.size()));
   }
+
  private:
-  static constexpr double sigmaSquaredInv_ = 1. / ((1./3.)*(1./3.));
+  static constexpr double sigmaSquaredInv_ = 1. / ((1. / 3.) * (1. / 3.));
 };
 
 class TaskAdvection : public Task {
@@ -89,63 +90,85 @@ class TaskAdvection : public Task {
   void run(CommunicatorType lcomm) override {
     assert(initialized_);
     // dfg_->print(std::cout);
+    const auto numLocalElements = dfg_->getNrLocalElements();
 
-    std::vector<CombiDataType> velocity(this->getDim(), 1);
+    const std::vector<CombiDataType> velocity(this->getDim(), 1);
 
-    std::vector<double> h = dfg_->getGridSpacing();
+    const std::vector<double> oneOverH = dfg_->getInverseGridSpacing();
     const auto& fullOffsets = dfg_->getLocalOffsets();
 
-    phi_->resize(dfg_->getNrLocalElements());
-    std::fill(phi_->begin(), phi_->end(), 0.);
+    phi_->resize(numLocalElements);
 
     for (size_t i = 0; i < nsteps_; ++i) {
+      std::fill(phi_->begin(), phi_->end(), 0.);
       // compute the gradient in the original dfg_, then update into phi_ and
       // swap at the end of each time step
       auto& u_dot_dphi = *phi_;
-
+      const auto & ElementVector = dfg_->getElementVector();
       for (unsigned int d = 0; d < this->getDim(); ++d) {
-        // to update the values in the "lowest" layer, we need the ghost values from the lower
-        // neighbor
-        std::vector<int> subarrayExtents;
+        static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
-        int subarrayOffset = 1;
-        IndexVector subarrayOffsets(this->getDim());
-        for (DimType d_j = 0; d_j < dim_; ++d_j) {
-          subarrayOffsets[d_j] = subarrayOffset;
-          subarrayOffset *= subarrayExtents[d_j];
-        }
 
-        for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-          // calculate local axis index of backward neighbor
-          static IndexVector locAxisIndex(this->getDim());
+        // update all values; this will also (wrongly) update the lowest layer's values
+        for (IndexType li = 0; li < numLocalElements; ++li) {
+#ifndef NDEBUG
+          IndexVector locAxisIndex(this->getDim());
           dfg_->getLocalVectorIndex(li, locAxisIndex);
-          // TODO can be unrolled into ghost and other part, avoiding if-statement
-          CombiDataType phi_neighbor = 0.;
-          if (locAxisIndex[d] == 0){
-            assert(phi_ghost.size() > 0);
-            // then use values from boundary exchange
-            IndexType gli = 0;
-            for (DimType d_j = 0; d_j < this->getDim(); ++d_j) {
-              gli = gli + subarrayOffsets[d_j] * locAxisIndex[d_j];
-            }
-            assert(gli > -1);
-            assert(gli < phi_ghost.size());
-            phi_neighbor = phi_ghost[gli];
-          } else{
-            // --locAxisIndex[d];
-            // IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
-            // assert(lni == (li - fullOffsets[d]));
-            phi_neighbor = dfg_->getElementVector()[li - fullOffsets[d]];
+          if (locAxisIndex[d] > 0) {
+            --locAxisIndex[d];
+            IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
+            assert(lni == (li - fullOffsets[d]));
           }
-          // calculate gradient of phi with backward differential quotient
-          auto dphi = (dfg_->getElementVector()[li] - phi_neighbor) / h[d];
-
+#endif  // NDEBUG
+          // ensure modulo is positive, cf. https://stackoverflow.com/a/12277233
+          const auto neighborLinearIndex = (li - fullOffsets[d] + numLocalElements) % numLocalElements;
+          assert(neighborLinearIndex >= 0);
+          assert(neighborLinearIndex < numLocalElements);
+          CombiDataType phi_neighbor = ElementVector[neighborLinearIndex];
+          auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
           u_dot_dphi[li] += velocity[d] * dphi;
+        }
+        // iterate the lowest layer and update the values, compensating for the wrong update
+        // before
+        assert(dfg_->getNrLocalElements() / dfg_->getLocalSizes()[d] == phi_ghost.size());
+        const auto& stride = dfg_->getLocalOffsets()[d];
+        const IndexType jump = stride * dfg_->getLocalSizes()[d];
+        const IndexType numberOfPolesHigherDimensions = dfg_->getNrLocalElements() / jump;
+        IndexType dfgLowestLayerIteratedIndex;
+        IndexType ghostIndex = 0;
+        for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
+          dfgLowestLayerIteratedIndex = nHigher * jump;  // local linear index
+          for (IndexType nLower = 0; nLower < dfg_->getLocalOffsets()[d];
+               ++nLower && ++ghostIndex && ++dfgLowestLayerIteratedIndex) {
+#ifndef NDEBUG
+            assert(dfgLowestLayerIteratedIndex < numLocalElements);
+            IndexVector locAxisIndex(this->getDim());
+            dfg_->getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
+            if (locAxisIndex[d] != 0) {
+              std::cout << "lowest index = " << dfgLowestLayerIteratedIndex << std::endl;
+              std::cout << "locAxisIndex[" << d << "] = " << locAxisIndex << std::endl;
+              std::cout << "ghostIndex = " << ghostIndex << " of " << phi_ghost.size() << std::endl;
+              std::cout << "offset = " << fullOffsets << " index " << d << std::endl;
+            }
+            assert(locAxisIndex[d] == 0);
+#endif  // NDEBUG
+        // compute wrong term to "subtract" again
+            const auto wrongNeighborLinearIndex =
+                (dfgLowestLayerIteratedIndex - fullOffsets[d] + numLocalElements) %
+                numLocalElements;
+            assert(wrongNeighborLinearIndex >= 0);
+            assert(wrongNeighborLinearIndex < numLocalElements);
+            const CombiDataType wrongPhiNeighbor = ElementVector[wrongNeighborLinearIndex];
+            // auto wrongDPhi = (dfg_->getElementVector()[ghostIndex] - wrongPhiNeigbor) / h[d];
+            const auto dphi =
+                (wrongPhiNeighbor - phi_ghost[ghostIndex]) * oneOverH[d];
+            u_dot_dphi[dfgLowestLayerIteratedIndex] += velocity[d] * dphi;
+          }
         }
       }
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-        (*phi_)[li] = dfg_->getElementVector()[li] - u_dot_dphi[li] * dt_;
+        (*phi_)[li] = ElementVector[li] - u_dot_dphi[li] * dt_;
       }
       phi_->swap(dfg_->getElementVector());
     }
@@ -154,14 +177,8 @@ class TaskAdvection : public Task {
     this->setFinished(true);
   }
 
-  /* this function evaluates the combination solution on a given full grid.
-   * here, a full grid representation of your task's solution has to be created
-   * on the process of lcomm with the rank r.
-   * typically this would require gathering your (in whatever way) distributed
-   * solution on one process and then converting it to the full grid representation.
-   * the DistributedFullGrid class offers a convenient function to do this.
-   */
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) override {
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm,
+                   int n = 0) override {
     assert(fg.getLevels() == dfg_->getLevels());
 
     dfg_->gatherFullGrid(fg, r);
@@ -181,15 +198,13 @@ class TaskAdvection : public Task {
     phi_ = nullptr;
   }
 
-  real getCurrentTime() const override {
-    return stepsTotal_ * dt_;
-  }
+  real getCurrentTime() const override { return stepsTotal_ * dt_; }
 
   CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const override {
     assert(n == 0);
     auto coordsCopy = coords;
     TestFn f;
-    return f(coordsCopy, stepsTotal_*dt_);
+    return f(coordsCopy, stepsTotal_ * dt_);
   }
 
  protected:

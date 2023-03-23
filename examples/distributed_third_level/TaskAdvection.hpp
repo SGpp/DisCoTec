@@ -98,9 +98,9 @@ class TaskAdvection : public Task {
     const auto& fullOffsets = dfg_->getLocalOffsets();
 
     phi_->resize(numLocalElements);
-    std::fill(phi_->begin(), phi_->end(), 0.);
 
     for (size_t i = 0; i < nsteps_; ++i) {
+      std::fill(phi_->begin(), phi_->end(), 0.);
       // compute the gradient in the original dfg_, then update into phi_ and
       // swap at the end of each time step
       auto& u_dot_dphi = *phi_;
@@ -109,7 +109,6 @@ class TaskAdvection : public Task {
         static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
-        //auto ghostLayerSize = phi_ghost.size();
 
         // update all values; this will also (wrongly) update the lowest layer's values
         for (IndexType li = 0; li < numLocalElements; ++li) {
