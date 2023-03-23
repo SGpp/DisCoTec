@@ -22,7 +22,7 @@ namespace combigrid {
 
 class Stats {
   typedef std::chrono::high_resolution_clock::time_point time_point;
-  
+
  public:
   struct Event {
     const time_point start;
@@ -31,12 +31,14 @@ class Stats {
     Event() : start(std::chrono::high_resolution_clock::now()) {}
   };
 
-  static long unsigned int getEventDuration(const Stats::Event e){
-    std::chrono::milliseconds x = std::chrono::duration_cast<std::chrono::milliseconds>(e.end - e.start);
+  static long unsigned int getEventDuration(const Stats::Event e) {
+    std::chrono::milliseconds x =
+        std::chrono::duration_cast<std::chrono::milliseconds>(e.end - e.start);
     return x.count();
   }
-  static long unsigned int getEventDurationInUsec(const Stats::Event e){
-    std::chrono::microseconds x = std::chrono::duration_cast<std::chrono::microseconds>(e.end - e.start);
+  static long unsigned int getEventDurationInUsec(const Stats::Event e) {
+    std::chrono::microseconds x =
+        std::chrono::duration_cast<std::chrono::microseconds>(e.end - e.start);
     return x.count();
   }
 
@@ -141,6 +143,7 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
 
     using namespace std::chrono;
     // MPI_Comm worldComm = theMPISystem()->getWorldComm();
+    int worldRank = getCommRank(MPI_COMM_WORLD);
     int rank = getCommRank(comm);
     int size = getCommSize(comm);
 
@@ -150,7 +153,7 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
       buffer << "{" << std::endl;
     }
 
-    buffer << "\"rank" << rank << "\":{" << std::endl;
+    buffer << "\"rank" << worldRank << "\":{" << std::endl;
     buffer << "\"attributes\":{" << std::endl;
     std::size_t attributes_count = 0;
     for (auto&& it = attributes_.begin(); it != attributes_.end(); ++it) {
@@ -207,6 +210,7 @@ inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType 
     MPI_Barrier(comm);
 
     using namespace std::chrono;
+    int worldRank = getCommRank(MPI_COMM_WORLD);
     int rank = getCommRank(comm);
     int size = getCommSize(comm);
 
@@ -216,7 +220,7 @@ inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType 
       buffer << "{" << std::endl;
     }
 
-    buffer << "\"rank" << rank << "\":{" << std::endl;
+    buffer << "\"rank" << worldRank << "\":{" << std::endl;
     buffer << "\"attributes\":{" << std::endl;
     std::size_t attributes_count = 0;
     // write all attributes
