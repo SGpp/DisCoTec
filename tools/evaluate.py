@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import json
 import numpy as np
@@ -30,20 +28,22 @@ for file in args.input_files:
 
     # iterate JSON object
     for rank in range(len(input_data)):
-        rank_name = "rank" + str(rank)
+        input_rank_name = "rank" + str(rank)
+        group = int(input_data[input_rank_name]["attributes"]["group"])
+        output_rank_name = "rank" + str(len(input_data) * group + rank)
 
         # collect statistics per rank
-        if rank_name not in data_per_rank:
-            data_per_rank[rank_name] = {}
+        if output_rank_name not in data_per_rank:
+            data_per_rank[output_rank_name] = {}
 
-        for event in input_data[rank_name]["events"]:
-            event_data = np.asarray(input_data[rank_name]["events"][event])
+        for event in input_data[input_rank_name]["events"]:
+            event_data = np.asarray(input_data[input_rank_name]["events"][event])
             event_data = np.apply_along_axis(lambda x: (x[1] - x[0]) * 1e-6, 1, event_data)
 
             # collect data for statistic across all ranks
-            if event not in data_per_rank[rank_name]:
-                data_per_rank[rank_name][event] = []
-            data_per_rank[rank_name][event].append(event_data)
+            if event not in data_per_rank[output_rank_name]:
+                data_per_rank[output_rank_name][event] = []
+            data_per_rank[output_rank_name][event].append(event_data)
 
 
 if not args.no_compute_per_rank_statistics:
@@ -124,7 +124,7 @@ if not args.no_compute_total_statistics:
             if col_name == "event":
                 event_name = col
             else:
-                pgf_plots_header_str += "{}_{},".format(event_name, col_name)
+                pgf_plots_header_str += "{}-{},".format(event_name, col_name)
                 pgf_plots_data_str += str(col) + ","
     print(pgf_plots_header_str[:-1].replace(" ", "").replace("/", ""))
     print(pgf_plots_data_str[:-1])
