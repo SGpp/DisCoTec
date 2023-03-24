@@ -72,8 +72,8 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
     }
   }
   if (err != MPI_SUCCESS) {
-    std::cerr << "Open error: " + std::to_string(err) << std::endl;
-    throw std::runtime_error("MPI file open error: " + getMpiErrorString(err));
+    std::cerr << "Open error " << fileName << " :" << std::to_string(err) << std::endl;
+    // throw std::runtime_error("MPI file open error: " + getMpiErrorString(err));
   }
 
   if (err == MPI_SUCCESS) {
