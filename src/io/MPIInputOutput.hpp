@@ -10,6 +10,12 @@
 #include "utils/Types.hpp"
 
 namespace combigrid {
+static inline std::string getMpiErrorString(int err) {
+  int len;
+  char errString[MPI_MAX_ERROR_STRING];
+  MPI_Error_string(err, errString, &len);
+  return std::string(errString);
+}
 namespace mpiio {
 
 static MPI_Info getNewConsecutiveMpiInfo() {
@@ -67,7 +73,7 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
   }
   if (err != MPI_SUCCESS) {
     std::cerr << "Open error: " + std::to_string(err) << std::endl;
-    throw std::runtime_error("MPI file open error: " + std::to_string(err));
+    throw std::runtime_error("MPI file open error: " + getMpiErrorString(err));
   }
 
   if (err == MPI_SUCCESS) {
@@ -107,7 +113,7 @@ bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::stri
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
   if (err != MPI_SUCCESS) {
     std::cerr << err << " while reading OneFileFromDisk " << fileName << std::endl;
-    throw std::runtime_error("read: could not open!");
+    throw std::runtime_error("read: could not open! " + fileName + ": " + getMpiErrorString(err));
   }
 #ifndef NDEBUG
   MPI_Offset fileSize = 0;
@@ -157,9 +163,8 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
   MPI_File fh;
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
   if (err != MPI_SUCCESS) {
-    // silent failure
     std::cerr << err << " while reducing OneFileFromDisk " << fileName << std::endl;
-    throw std::runtime_error("read: could not open!");
+    throw std::runtime_error("read: could not open! " + getMpiErrorString(err));
   }
 
   // read from single file with MPI-IO
@@ -175,7 +180,7 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
       buffer.resize(numElementsToBuffer);
     }
     err = MPI_File_read_at_all(fh, pos * sizeof(T), buffer.data(),
-                           static_cast<int>(numElementsToBuffer), dataType, &status);
+                               static_cast<int>(numElementsToBuffer), dataType, &status);
     int readcountIncrement = 0;
     MPI_Get_count(&status, dataType, &readcountIncrement);
     assert(readcountIncrement > 0);
