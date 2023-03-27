@@ -1539,25 +1539,16 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
     std::vector<SubspaceSizeType> subspaceSizesToValidate =
         combinedUniDSGVector_[0]->getSubspaceDataSizes();
 #endif
-    OUTPUT_GROUP_EXCLUSIVE_SECTION{
-      if (overwrite) {
-        combinedUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead);
-      } else {
-        // if no extra sparse grid, max-reduce the normal one
-        auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-          return std::max(a, b);
-        };
-        combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
-                                                                  maxFunctionInstantiation);
-      }
+    if (overwrite) {
+      combinedUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead);
+    } else {
+      // if no extra sparse grid, max-reduce the normal one
+      auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+        return std::max(a, b);
+      };
+      combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
+                                                                maxFunctionInstantiation);
     }
-    // reduce widely to all other process groups
-    CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-    RankType senderRank = theMPISystem()->getOutputRankInGlobalReduceComm();
-    for (auto& dsg : combinedUniDSGVector_) {
-      combinedUniDSGVector_[0]->broadcastDsgSizes(globalReduceComm, senderRank);
-    }
-
 #ifndef NDEBUG
     assert(subspaceSizesToValidate.size() ==
            combinedUniDSGVector_[0]->getSubspaceDataSizes().size());
