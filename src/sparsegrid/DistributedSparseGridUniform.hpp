@@ -158,11 +158,12 @@ class DistributedSparseGridUniform {
 
   bool writeSubspaceSizesToFile(std::string fileName) const;
 
-  bool readSubspaceSizesFromFile(std::string fileName);
+  bool readSubspaceSizesFromFile(std::string fileName, bool withCollectiveBuffering = true);
 
   template <typename ReduceFunctionType>
   bool readReduceSubspaceSizesFromFile(std::string fileName, ReduceFunctionType reduceFunction,
-                                       int numElementsToBuffer = 0);
+                                       int numElementsToBuffer = 0,
+                                       bool withCollectiveBuffering = true);
 
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
@@ -170,7 +171,7 @@ class DistributedSparseGridUniform {
 
   DimType dim_;
 
-  std::vector<LevelVector> levels_; // linear access to all subspaces; may be reset to save memory
+  std::vector<LevelVector> levels_;  // linear access to all subspaces; may be reset to save memory
 
   CommunicatorType comm_;
 
@@ -764,18 +765,20 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::writeSubspaceSizesToFile(
 }
 
 template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::readSubspaceSizesFromFile(std::string fileName) {
+bool DistributedSparseGridUniform<FG_ELEMENT>::readSubspaceSizesFromFile(
+    std::string fileName, bool withCollectiveBuffering) {
   auto comm = this->getCommunicator();
   MPI_Offset len = this->getNumSubspaces();
-  bool success = mpiio::readValuesConsecutive<SubspaceSizeType>(this->subspacesDataSizes_.data(),
-                                                                len, fileName, comm, true);
+  bool success = mpiio::readValuesConsecutive<SubspaceSizeType>(
+      this->subspacesDataSizes_.data(), len, fileName, comm, withCollectiveBuffering);
   return success;
 }
 
 template <typename FG_ELEMENT>
 template <typename ReduceFunctionType>
 bool DistributedSparseGridUniform<FG_ELEMENT>::readReduceSubspaceSizesFromFile(
-    std::string fileName, ReduceFunctionType reduceFunction, int numElementsToBuffer) {
+    std::string fileName, ReduceFunctionType reduceFunction, int numElementsToBuffer,
+    bool withCollectiveBuffering) {
   auto comm = this->getCommunicator();
   MPI_Offset len = this->getNumSubspaces();
   if (numElementsToBuffer == 0) {
@@ -784,7 +787,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readReduceSubspaceSizesFromFile(
 
   bool success = mpiio::readReduceValuesConsecutive<SubspaceSizeType>(
       this->subspacesDataSizes_.data(), len, fileName, comm, numElementsToBuffer, reduceFunction,
-      true);
+      withCollectiveBuffering);
 
   return success;
 }
