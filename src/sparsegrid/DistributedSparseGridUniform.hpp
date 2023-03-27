@@ -158,12 +158,12 @@ class DistributedSparseGridUniform {
 
   bool writeSubspaceSizesToFile(std::string fileName) const;
 
-  bool readSubspaceSizesFromFile(std::string fileName, bool withCollectiveBuffering = true);
+  bool readSubspaceSizesFromFile(std::string fileName, bool withCollectiveBuffering = false);
 
   template <typename ReduceFunctionType>
   bool readReduceSubspaceSizesFromFile(std::string fileName, ReduceFunctionType reduceFunction,
                                        int numElementsToBuffer = 0,
-                                       bool withCollectiveBuffering = true);
+                                       bool withCollectiveBuffering = false);
 
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
