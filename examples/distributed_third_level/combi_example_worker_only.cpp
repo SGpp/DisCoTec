@@ -47,6 +47,7 @@ int main(int argc, char** argv) {
    * initialized at the beginning of the program. (and finalized in the end)
    */
   Stats::initialize();
+  auto startInit = std::chrono::high_resolution_clock::now();
 
   // read in parameter file
   std::string paramfile = "ctparam";
@@ -232,7 +233,13 @@ int main(int argc, char** argv) {
   MPI_Barrier(theMPISystem()->getWorldComm());
   // allocate sparse grids now
   worker.zeroDsgsData();
-
+  MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+    auto endInit = std::chrono::high_resolution_clock::now();
+    auto durationInit =
+        std::chrono::duration_cast<std::chrono::seconds>(endInit - startInit).count();
+    std::cout << getTimeStamp() << "initialization took: " << durationInit << " seconds"
+              << std::endl;
+  }
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "start simulation loop"
                                              << std::endl;
   for (size_t i = 0; i < ncombi; ++i) {
