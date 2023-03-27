@@ -41,11 +41,11 @@ do
         pids=( )
         for ((i=1; i<=PROCS; i++)); do
           echo "Block: $startblock-$endblock of $size"
-          uftp cp -t $THREADS_PER_PROC -n $STREAMS -B "${startblock}-${endblock}-p" -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $FILELRZ_INSTANCE $HAWKURL:$PATHHAWK/ &
+          uftp cp -n $STREAMS -B "${startblock}-${endblock}-p" -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $FILELRZ_INSTANCE $HAWKURL:$PATHHAWK/ &
           pids+=($!) # store background pids
-          startblock=$((endblock+1))
+          startblock=$((endblock))
           if [ $i -eq $((PROCS)) ]; then
-              endblock=$((size-1))
+              endblock=$((size))
           else
               endblock=$((endblock+size/PROCS))
           fi
@@ -56,7 +56,7 @@ do
         done
 
         uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERHAWK $TOKEN_TRANSFER_FORWARD $HAWKURL:$PATHHAWK/
-        rm $TOKEN_TRANSFER_FORWARD
+        rm -f $TOKEN_TRANSFER_FORWARD
         endtime=`date +%s`
         echo copied "$FILELRZ_INSTANCE" in `expr $endtime - $starttime` seconds.
         throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime))" | bc )
