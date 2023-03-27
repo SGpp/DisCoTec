@@ -1509,13 +1509,13 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
 #endif
       // use extra sparse grid
       if (overwrite) {
-        extraUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead);
+        extraUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead, false);
       } else {
         auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
           return std::min(a, b);
         };
         extraUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
-                                                               minFunctionInstantiation);
+                                                               minFunctionInstantiation, 0, false);
       }
 #ifndef NDEBUG
       assert(subspaceSizesToValidate.size() ==
@@ -1541,14 +1541,14 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
 #endif
     FIRST_GROUP_EXCLUSIVE_SECTION {
       if (overwrite) {
-        combinedUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead);
+        combinedUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead, true);
       } else {
         // if no extra sparse grid, max-reduce the normal one
         auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
           return std::max(a, b);
         };
-        combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
-                                                                  maxFunctionInstantiation);
+        combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(
+            filenameToRead, maxFunctionInstantiation, 0, true);
       }
       if (theMPISystem()->getGlobalReduceRank() != 0) {
         throw std::runtime_error("read rank is not the global reduce rank");
