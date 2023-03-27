@@ -109,6 +109,7 @@ bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::stri
   MPI_Info info = getNewConsecutiveMpiInfo();
   if (withCollectiveBuffering) {
     // enable ROMIO's collective buffering
+    MPI_Info_set(info, "romio_no_indep_rw", "enable");
     MPI_Info_set(info, "romio_cb_write", "enable");
     MPI_Info_set(info, "romio_cb_read", "enable");
   } else {
@@ -169,6 +170,7 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
   MPI_Info info = getNewConsecutiveMpiInfo();
   if (withCollectiveBuffering) {
     // enable ROMIO's collective buffering
+    MPI_Info_set(info, "romio_no_indep_rw", "enable");
     MPI_Info_set(info, "romio_cb_write", "enable");
     MPI_Info_set(info, "romio_cb_read", "enable");
   } else {
