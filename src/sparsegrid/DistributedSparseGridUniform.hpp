@@ -768,7 +768,7 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readSubspaceSizesFromFile(std::st
   auto comm = this->getCommunicator();
   MPI_Offset len = this->getNumSubspaces();
   bool success = mpiio::readValuesConsecutive<SubspaceSizeType>(this->subspacesDataSizes_.data(),
-                                                                len, fileName, comm);
+                                                                len, fileName, comm, true);
   return success;
 }
 
@@ -783,7 +783,8 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readReduceSubspaceSizesFromFile(
   }
 
   bool success = mpiio::readReduceValuesConsecutive<SubspaceSizeType>(
-      this->subspacesDataSizes_.data(), len, fileName, comm, numElementsToBuffer, reduceFunction);
+      this->subspacesDataSizes_.data(), len, fileName, comm, numElementsToBuffer, reduceFunction,
+      true);
 
   return success;
 }

@@ -32,9 +32,6 @@ static MPI_Info getNewConsecutiveMpiInfo() {
   // disable ROMIO's data-sieving
   MPI_Info_set(info, "romio_ds_read", "disable");
   MPI_Info_set(info, "romio_ds_write", "disable");
-  // disable ROMIO's collective buffering //TODO test
-  MPI_Info_set(info, "romio_cb_write", "disable");
-  MPI_Info_set(info, "romio_cb_read", "disable");
   return info;
 }
 
@@ -50,6 +47,9 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
   int mpi_size;
   MPI_Comm_size(comm, &mpi_size);
   MPI_Info_set(info, "nb_proc", std::to_string(mpi_size).c_str());
+  // disable ROMIO's collective buffering //TODO test
+  MPI_Info_set(info, "romio_cb_write", "disable");
+  MPI_Info_set(info, "romio_cb_read", "disable");
 
   // open file
   MPI_File fh;
@@ -102,11 +102,20 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
 
 template <typename T>
 bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
-                           combigrid::CommunicatorType comm) {
+                           combigrid::CommunicatorType comm, bool withCollectiveBuffering = false) {
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
   MPI_Info info = getNewConsecutiveMpiInfo();
+  if (withCollectiveBuffering) {
+    // enable ROMIO's collective buffering
+    MPI_Info_set(info, "romio_cb_write", "enable");
+    MPI_Info_set(info, "romio_cb_read", "enable");
+  } else {
+    // disable ROMIO's collective buffering //TODO test
+    MPI_Info_set(info, "romio_cb_write", "disable");
+    MPI_Info_set(info, "romio_cb_read", "disable");
+  }
 
   // open file
   MPI_File fh;
@@ -154,10 +163,19 @@ bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::stri
 template <typename T, typename ReduceFunctionType>
 bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
                                  combigrid::CommunicatorType comm, int numElementsToBuffer,
-                                 ReduceFunctionType reduceFunction) {
+                                 ReduceFunctionType reduceFunction, bool withCollectiveBuffering = false) {
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
   MPI_Info info = getNewConsecutiveMpiInfo();
+  if (withCollectiveBuffering) {
+    // enable ROMIO's collective buffering
+    MPI_Info_set(info, "romio_cb_write", "enable");
+    MPI_Info_set(info, "romio_cb_read", "enable");
+  } else {
+    // disable ROMIO's collective buffering //TODO test
+    MPI_Info_set(info, "romio_cb_write", "disable");
+    MPI_Info_set(info, "romio_cb_read", "disable");
+  }
 
   // open file
   MPI_File fh;
