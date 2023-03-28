@@ -2,7 +2,7 @@
 
 * runs the Semi-Lagrangian BSL code
 * public part available here https://github.com/selalib/selalib
-* "our" currently used branch is https://gitlab.mpcdf.mpg.de/clapp/selalib-github/-/tree/bsl6d
+* "our" currently used branch is https://gitlab.mpcdf.mpg.de/clapp/selalib/-/tree/exahd_communicator
 
 ### Build Selalib Dependency
 * clone and check out right version (see above)
