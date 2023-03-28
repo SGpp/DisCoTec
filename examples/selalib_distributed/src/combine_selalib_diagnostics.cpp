@@ -55,6 +55,7 @@ int main(int argc, char** argv) {
   // read in all diagnostics files
   for (const auto& df : diagnosticsFiles) {
     auto combinedValues = std::vector<std::vector<double>>();
+    auto kahanValues = std::vector<std::vector<double>>();
     for (size_t i = 0; i < levels.size(); i++) {
       // path to task folder
       std::string taskFolder = baseFolder + suffix + std::to_string(i);
@@ -96,11 +97,17 @@ int main(int argc, char** argv) {
           }
           if (combinedValues.size() < column + 1) {
             combinedValues.emplace_back();
+            kahanValues.emplace_back();
           }
           if (combinedValues[column].size() < numLines) {
             combinedValues[column].push_back(parsedDouble * coeffs[i]);
+            kahanValues[column].push_back(0.);
           } else {
-            combinedValues[column][numLines - 1] += parsedDouble * coeffs[i];
+            auto summand = parsedDouble * coeffs[i];
+            auto y = summand - kahanValues[column][numLines - 1];
+            volatile auto t = combinedValues[column][numLines - 1] + y;
+            kahanValues[column][numLines - 1] = (t - combinedValues[column][numLines - 1]) - y;
+            combinedValues[column][numLines - 1] = t;
           }
           ++column;
         }
