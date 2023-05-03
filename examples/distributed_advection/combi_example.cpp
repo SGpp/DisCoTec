@@ -8,14 +8,12 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
 #include <string>
 #include <vector>
 
 #include "combischeme/CombiMinMaxScheme.hpp"
+#include "io/BroadcastParameters.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupManager.hpp"
@@ -102,11 +100,11 @@ int main(int argc, char** argv) {
    */
   Stats::initialize();
 
-  // read in parameter file
+  // only one rank reads parameter file and broadcasts to others
   std::string paramfile = "ctparam";
   if (argc > 1) paramfile = argv[1];
-  boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini(paramfile, cfg);
+  boost::property_tree::ptree cfg =
+      broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");

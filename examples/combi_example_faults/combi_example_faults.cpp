@@ -7,8 +7,6 @@
 #include "mpi.h"
 #include <vector>
 #include <set>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/ini_parser.hpp>
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
@@ -16,6 +14,7 @@
 #include "utils/Types.hpp"
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fullgrid/FullGrid.hpp"
+#include "io/BroadcastParameters.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupManager.hpp"

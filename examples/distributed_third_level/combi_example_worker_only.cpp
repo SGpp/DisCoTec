@@ -4,9 +4,6 @@
 
 #include <boost/asio.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
 #include <filesystem>
 #include <string>
@@ -17,6 +14,7 @@
 #include "fault_tolerance/FaultCriterion.hpp"
 #include "fault_tolerance/StaticFaults.hpp"
 #include "fault_tolerance/WeibullFaults.hpp"
+#include "io/BroadcastParameters.hpp"
 #include "io/H5InputOutput.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
@@ -49,11 +47,11 @@ int main(int argc, char** argv) {
   Stats::initialize();
   auto startInit = std::chrono::high_resolution_clock::now();
 
-  // read in parameter file
+  // only one rank reads inputs and broadcasts to others
   std::string paramfile = "ctparam";
   if (argc > 1) paramfile = argv[1];
-  boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini(paramfile, cfg);
+  boost::property_tree::ptree cfg =
+      broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
