@@ -65,8 +65,9 @@ void readParameterFile(const std::string &fileName, size_t &ngroup, size_t &npro
                        LevelVector &lmin, LevelVector &lmax, LevelVector &leval,
                        std::vector<int> &p, size_t &ncombi, combigrid::real &dt, size_t &nsteps,
                        FaultsInfo &faultsInfo) {
-  boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini(fileName, cfg);
+  // only one rank reads inputs and broadcasts to others
+  boost::property_tree::ptree cfg =
+      broadcastParameters::getParametersFromRankZero(fileName, MPI_COMM_WORLD);
 
   ngroup = cfg.get<size_t>("manager.ngroup");
   nprocs = cfg.get<size_t>("manager.nprocs");

@@ -2,9 +2,6 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
 #include <filesystem>
 #include <string>
@@ -12,6 +9,7 @@
 
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "combischeme/CombiThirdLevelScheme.hpp"
+#include "io/BroadcastParameters.hpp"
 #include "manager/ProcessGroupWorker.hpp"
 
 using namespace combigrid;

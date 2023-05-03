@@ -10,8 +10,6 @@
 #include <iostream>
 #include <vector>
 #include <boost/test/unit_test.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/ini_parser.hpp>
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
