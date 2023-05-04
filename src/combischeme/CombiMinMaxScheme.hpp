@@ -2,8 +2,8 @@
 #define SRC_SGPP_COMBIGRID_COMBISCHEME_COMBIMINMAXSCHEME_HPP_
 
 #include <boost/math/special_functions/binomial.hpp>
-#include <boost/property_tree/json_parser.hpp>
 #include <numeric>
+#include "io/BroadcastParameters.hpp"
 #include "utils/LevelVector.hpp"
 #include "utils/LevelSetUtils.hpp"
 #include "utils/PowerOfTwo.hpp"
@@ -141,11 +141,12 @@ inline void CombiMinMaxScheme::print(std::ostream& os) const {
 
 class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
  public:
-  CombiMinMaxSchemeFromFile(DimType dim, LevelVector& lmin, LevelVector& lmax, std::string ctschemeFile)
+  CombiMinMaxSchemeFromFile(DimType dim, LevelVector& lmin, LevelVector& lmax,
+                            std::string ctschemeFile)
       : CombiMinMaxScheme(dim, lmin, lmax) {
     // read in CT scheme, if applicable
-    boost::property_tree::ptree pScheme;
-    boost::property_tree::json_parser::read_json(ctschemeFile, pScheme);
+    boost::property_tree::ptree pScheme =
+        broadcastParameters::getJsonFromRankZero(ctschemeFile, MPI_COMM_WORLD);
     for (const auto& component : pScheme.get_child("")) {
       assert(component.first.empty());  // list elements have no names
       for (const auto& c : component.second) {

@@ -12,33 +12,48 @@
 namespace combigrid {
 namespace broadcastParameters {
 
-boost::property_tree::ptree getParametersFromRankZero(const std::string& parameterFileName,
-                                                      MPI_Comm comm) {
+inline std::string getFileContentsFromRankZero(const std::string& fileName, MPI_Comm comm) {
   // only one rank reads inputs and broadcasts to others
   auto mpiRank = getCommRank(comm);
-  std::string parameterString;
-  int parameterStringSize = 0;
+  std::string contentString;
+  int contentStringSize = 0;
   if (mpiRank == 0) {
-    // read in parameter file
-    std::ifstream ifs(parameterFileName);
-    parameterString.assign((std::istreambuf_iterator<char>(ifs)),
-                           (std::istreambuf_iterator<char>()));
-    parameterStringSize = parameterString.size();
+    // read in content file
+    std::ifstream ifs(fileName);
+    contentString.assign((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
+    contentStringSize = contentString.size();
   }
   // avoid: copies of strings in this function
-  // MPIUtils::broadcastClass<std::string>(parameterString, 0, comm);
+  // MPIUtils::broadcastClass<std::string>(contentString, 0, comm);
 
   // broadcast string size
-  MPI_Bcast(&parameterStringSize, 1, MPI_INT, 0, comm);
-  parameterString.resize(parameterStringSize);
+  MPI_Bcast(&contentStringSize, 1, MPI_INT, 0, comm);
+  contentString.resize(contentStringSize);
 
   // broadcast string
-  MPI_Bcast(&parameterString[0], parameterString.size(), MPI_CHAR, 0, comm);
+  MPI_Bcast(&contentString[0], contentString.size(), MPI_CHAR, 0, comm);
+  return contentString;
+}
 
+inline boost::property_tree::ptree getParametersFromRankZero(const std::string& parameterFileName,
+                                                             MPI_Comm comm) {
+  std::string parameterString = getFileContentsFromRankZero(parameterFileName, comm);
   boost::iostreams::stream parameterStream(
       boost::iostreams::array_source(&parameterString[0], parameterString.size()));
+
   boost::property_tree::ptree cfg;
   boost::property_tree::ini_parser::read_ini(parameterStream, cfg);
+  return cfg;
+}
+
+inline boost::property_tree::ptree getJsonFromRankZero(const std::string& jsonFileName,
+                                                       MPI_Comm comm) {
+  // beware: the json files can get some MB large
+  std::string jsonString = getFileContentsFromRankZero(jsonFileName, comm);
+  boost::iostreams::stream jsonStream(
+      boost::iostreams::array_source(&jsonString[0], jsonString.size()));
+  boost::property_tree::ptree cfg;
+  boost::property_tree::json_parser::read_json(jsonStream, cfg);
   return cfg;
 }
 
