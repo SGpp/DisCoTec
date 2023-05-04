@@ -488,29 +488,6 @@ void ProcessManager::setupThirdLevel() {
   Stats::stopEvent("manager connect third level");
 }
 
-std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<real>>& interpolationCoords) {
-  auto coordsSize = interpolationCoords.size() * interpolationCoords[0].size();
-  std::vector<real> interpolationCoordsSerial;
-  interpolationCoordsSerial.reserve(coordsSize);
-  for (const auto& coord: interpolationCoords) {
-    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
-  }
-  return interpolationCoordsSerial;
-}
-
-std::vector<std::vector<real>> deserializeInterpolationCoords(
-    const std::vector<real>& interpolationCoordsSerial, DimType numDimensions) {
-  assert(interpolationCoordsSerial.size() % numDimensions == 0);
-  auto numCoords = interpolationCoordsSerial.size() / numDimensions;
-  std::vector<std::vector<real>> interpolationCoords;
-  interpolationCoords.reserve(numCoords);
-  for (size_t i = 0; i < numCoords; ++i) {
-    interpolationCoords.emplace_back(interpolationCoordsSerial.begin() + i * numDimensions,
-                                     interpolationCoordsSerial.begin() + (i + 1) * numDimensions);
-  }
-  return interpolationCoords;
-}
-
 std::vector<CombiDataType> ProcessManager::interpolateValues(
     const std::vector<std::vector<real>>& interpolationCoords) {
   auto numValues = interpolationCoords.size();

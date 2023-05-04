@@ -12,6 +12,7 @@
 #include "loadmodel/LearningLoadModel.hpp"
 #include "mpi/MPISystem.hpp"
 #include "io/H5InputOutput.hpp"
+#include "utils/MonteCarlo.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -101,18 +102,8 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
   for (const auto& coord : interpolationCoordsSerial) {
     assert(coord >= 0.0 && coord <= 1.0);
   }
-
   // split vector into coordinates
-  const int dimInt = static_cast<int>(dim);
-  auto numCoordinates = coordsSize / dimInt;
-  assert(coordsSize % dimInt == 0);
-  interpolationCoords.resize(numCoordinates);
-  auto it = interpolationCoordsSerial.cbegin();
-  for (auto& coord : interpolationCoords) {
-    coord.insert(coord.end(), it, it + dimInt);
-    it += dimInt;
-  }
-  assert(it == interpolationCoordsSerial.end());
+  interpolationCoords = deserializeInterpolationCoords(interpolationCoordsSerial, dim);
   return interpolationCoords;
 }
 
