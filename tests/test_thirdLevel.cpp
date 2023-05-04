@@ -425,9 +425,9 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
   std::vector<size_t> taskNumbers; // only used in case of static task assignment
   bool useStaticTaskAssignment = false;
   {
-  // read in CT scheme
-    std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
-        new CombiMinMaxSchemeFromFile(testParams.dim, testParams.lmin, testParams.lmax, "test_scheme.json"));
+    // read in CT scheme
+    std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(new CombiMinMaxSchemeFromFile(
+        testParams.dim, testParams.lmin, testParams.lmax, "test_scheme.json", MPI_COMM_SELF));
     const auto& pgNumbers = scheme->getProcessGroupNumbers();
     if (pgNumbers.size() > 0) {
       useStaticTaskAssignment = true;
@@ -490,7 +490,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
     if (useStaticTaskAssignment) {
       // read in CT scheme -- again!
       std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(new CombiMinMaxSchemeFromFile(
-          testParams.dim, testParams.lmin, testParams.lmax, "test_scheme.json"));
+          testParams.dim, testParams.lmin, testParams.lmax, "test_scheme.json", MPI_COMM_SELF));
       const auto& pgNumbers = scheme->getProcessGroupNumbers();
       for (size_t taskNo = 0; taskNo < tasks.size(); ++taskNo) {
         pgroups[pgNumbers[taskNo]]->storeTaskReference(tasks[taskNo]);

@@ -142,11 +142,11 @@ inline void CombiMinMaxScheme::print(std::ostream& os) const {
 class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
  public:
   CombiMinMaxSchemeFromFile(DimType dim, LevelVector& lmin, LevelVector& lmax,
-                            std::string ctschemeFile)
+                            std::string ctschemeFile, const CommunicatorType& comm = MPI_COMM_WORLD)
       : CombiMinMaxScheme(dim, lmin, lmax) {
     // read in CT scheme, if applicable
     boost::property_tree::ptree pScheme =
-        broadcastParameters::getJsonFromRankZero(ctschemeFile, MPI_COMM_WORLD);
+        broadcastParameters::getJsonFromRankZero(ctschemeFile, comm);
     for (const auto& component : pScheme.get_child("")) {
       assert(component.first.empty());  // list elements have no names
       for (const auto& c : component.second) {
