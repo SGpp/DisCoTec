@@ -7,6 +7,33 @@
 #include "utils/MonteCarlo.hpp"
 
 namespace combigrid {
+
+std::vector<real> serializeInterpolationCoords(
+    const std::vector<std::vector<real>>& interpolationCoords) {
+  auto coordsSize = interpolationCoords.size() * interpolationCoords[0].size();
+  std::vector<real> interpolationCoordsSerial;
+  interpolationCoordsSerial.reserve(coordsSize);
+  for (const auto& coord : interpolationCoords) {
+    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
+  }
+  return interpolationCoordsSerial;
+}
+
+std::vector<std::vector<real>> deserializeInterpolationCoords(
+    const std::vector<real>& interpolationCoordsSerial, DimType numDimensions) {
+  const int dimInt = static_cast<int>(numDimensions);
+  assert(interpolationCoordsSerial.size() % dimInt == 0);
+  auto numCoords = interpolationCoordsSerial.size() / dimInt;
+  std::vector<std::vector<real>> interpolationCoords;
+  interpolationCoords.reserve(numCoords);
+  auto it = interpolationCoordsSerial.cbegin();
+  for (const auto& coord : interpolationCoords) {
+    interpolationCoords.emplace_back(it, it + dimInt);
+    std::advance(it, dimInt);
+  }
+  return interpolationCoords;
+}
+
 namespace montecarlo {
 std::vector<std::vector<real>> getRandomCoordinates(int numCoordinates, size_t dim) {
   std::vector<std::vector<real>> randomCoords (numCoordinates, std::vector<real>(dim));
@@ -41,4 +68,4 @@ real getRandomNumber(real&& a, real&& b) {
   return dist(mersenne_engine);
 }
 }
-}
+}  // namespace combigrid
