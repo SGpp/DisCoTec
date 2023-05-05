@@ -25,10 +25,12 @@ static MPI_Info getNewConsecutiveMpiInfo() {
   MPI_Info_create(&info);
   // do not use this -- force-enables collective buffering!!
   // //  MPI_Info_set(info, "romio_no_indep_rw", "true");
+
   // // disable caching of file contents in kernel
   // MPI_Info_set(info, "direct_io", "true");
   // MPI_Info_set(info, "direct_read", "true");
-  MPI_Info_set(info, "direct_write", "true");
+  // MPI_Info_set(info, "direct_write", "true");
+  
   // disable ROMIO's data-sieving
   MPI_Info_set(info, "romio_ds_read", "disable");
   MPI_Info_set(info, "romio_ds_write", "disable");
