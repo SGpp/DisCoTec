@@ -173,7 +173,9 @@ int main(int argc, char** argv) {
   // }
   // get them e.g. with `wget https://darus.uni-stuttgart.de/api/access/datafile/195524` (1e6)
   // or `wget https://darus.uni-stuttgart.de/api/access/datafile/195545` (1e5)
-  h5io::readH5Coordinates(interpolationCoords, interpolationCoordsFile);
+  interpolationCoords = broadcastParameters::getCoordinatesFromRankZero(
+      interpolationCoordsFile, theMPISystem()->getWorldComm());
+
   if (interpolationCoords.size() != 1e5) {
     sleep(1);
     throw std::runtime_error("not enough interpolation coordinates");

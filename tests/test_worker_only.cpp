@@ -245,7 +245,6 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     // read interpolation coordinates
     std::string interpolationCoordsFile = "worker_coords.h5";
     std::vector<std::vector<double>> interpolationCoords;
-    interpolationCoords.resize(100, std::vector<double>(dim, -1.));
     // if the file does not exist, one rank creates it
     if (!std::filesystem::exists(interpolationCoordsFile)) {
       if (theMPISystem()->getWorldRank() == 0) {
@@ -254,7 +253,8 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
                                   "only");
       }
     }
-    h5io::readH5Coordinates(interpolationCoords, interpolationCoordsFile);
+    interpolationCoords = broadcastParameters::getCoordinatesFromRankZero(
+        interpolationCoordsFile, theMPISystem()->getWorldComm());
     BOOST_CHECK_EQUAL(interpolationCoords.size(), 100);
 
     BOOST_TEST_CHECKPOINT("MC interpolation");
