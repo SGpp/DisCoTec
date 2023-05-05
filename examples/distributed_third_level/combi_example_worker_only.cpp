@@ -3,7 +3,6 @@
 #include <mpi.h>
 
 #include <boost/asio.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include <boost/serialization/export.hpp>
 #include <filesystem>
 #include <string>
@@ -33,11 +32,6 @@ using namespace combigrid;
 // this is necessary for correct function of task serialization
 #include "utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(TaskAdvection)
-
-std::string getTimeStamp() {
-  namespace pt = boost::posix_time;
-  return "[" + pt::to_iso_string(pt::second_clock::local_time()) + "] ";
-}
 
 int main(int argc, char** argv) {
   MPI_Init(&argc, &argv);

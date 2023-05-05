@@ -136,10 +136,10 @@ target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
 include(FetchContent)
 
-find_package(Boost REQUIRED COMPONENTS serialization headers program_options unit_test_framework system filesystem)
+find_package(Boost REQUIRED COMPONENTS serialization headers program_options unit_test_framework system filesystem date_time)
 
 target_include_directories(discotec PRIVATE Boost::headers)
-target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_options Boost::system )
+target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_options Boost::system Boost::date_time)
 
 find_package(GLPK REQUIRED)
 target_link_libraries(discotec PUBLIC ${GLPK_LIBRARIES})
