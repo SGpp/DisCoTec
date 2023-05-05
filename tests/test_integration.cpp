@@ -264,8 +264,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       // pretendCombineThirdLevelForWorkers()
       h5io::readH5Values(valuesAllGridsRead, "integration_interpolated_values_" +
                                                  std::to_string(ncombi + (ncombi - 1)) + ".h5");
-      decltype(interpolationCoords) interpolationCoordsRead;
-      h5io::readH5Coordinates(interpolationCoordsRead, "integration_interpolated_coords.h5");
+      decltype(interpolationCoords) interpolationCoordsRead =
+          broadcastParameters::getCoordinatesFromRankZero("integration_interpolated_coords.h5",
+                                                          MPI_COMM_SELF);
       BOOST_TEST_CHECKPOINT("read interpolation coordinates");
       BOOST_CHECK_EQUAL_COLLECTIONS(values.begin(), values.end(), valuesAllGridsRead.begin(),
                                     valuesAllGridsRead.end());
