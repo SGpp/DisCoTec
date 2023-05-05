@@ -1,10 +1,11 @@
+#include "utils/MonteCarlo.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <functional>
 #include <random>
 
 #include "utils/Config.hpp"
-#include "utils/MonteCarlo.hpp"
 
 namespace combigrid {
 
@@ -27,10 +28,13 @@ std::vector<std::vector<real>> deserializeInterpolationCoords(
   std::vector<std::vector<real>> interpolationCoords;
   interpolationCoords.reserve(numCoords);
   auto it = interpolationCoordsSerial.cbegin();
-  for (const auto& coord : interpolationCoords) {
+  for (size_t i = 0; i < numCoords; ++i) {
     interpolationCoords.emplace_back(it, it + dimInt);
     std::advance(it, dimInt);
   }
+  assert(interpolationCoords[0].size() == numDimensions);
+  assert(interpolationCoords[0].size() * interpolationCoords.size() ==
+         interpolationCoordsSerial.size());
   return interpolationCoords;
 }
 
@@ -67,5 +71,5 @@ real getRandomNumber(real&& a, real&& b) {
   std::uniform_real_distribution<> dist {std::forward<real>(a), std::forward<real>(b)};
   return dist(mersenne_engine);
 }
-}
+}  // namespace montecarlo
 }  // namespace combigrid
