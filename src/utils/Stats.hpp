@@ -20,9 +20,10 @@
 
 namespace combigrid {
 
+std::string getTimeStamp();
 class Stats {
   typedef std::chrono::high_resolution_clock::time_point time_point;
-  
+
  public:
   struct Event {
     const time_point start;
