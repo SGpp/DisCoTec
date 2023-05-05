@@ -84,6 +84,7 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
                                 dataType, &status);
     if (err != MPI_SUCCESS) {
       std::cerr << err << " in MPI_File_write_at_all" << std::endl;
+      std::cerr << getMpiErrorString(err) << std::endl;
     }
 #ifndef NDEBUG
     int numWritten = 0;
