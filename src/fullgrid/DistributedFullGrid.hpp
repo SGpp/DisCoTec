@@ -1539,7 +1539,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
                                        std::multiplies<IndexType>());
     if (lower < 0) {
       numElements = 0;
-      std::memset(subarrayExtents.data(), 0, subarrayExtents.size() * sizeof(FG_ELEMENT));
+      std::memset(subarrayExtents.data(), 0, subarrayExtents.size() * sizeof(int));
     }
     recvbuffer.resize(numElements);
     std::memset(recvbuffer.data(), 0, recvbuffer.size() * sizeof(FG_ELEMENT));
