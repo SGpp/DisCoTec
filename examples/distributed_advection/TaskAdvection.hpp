@@ -100,11 +100,11 @@ class TaskAdvection : public Task {
     phi_->resize(numLocalElements);
 
     for (size_t i = 0; i < nsteps_; ++i) {
-      std::memset(phi_.data(), 0, phi_.size() * sizeof(CombiDataType));
+      std::memset(phi_->data(), 0, phi_->size() * sizeof(CombiDataType));
       // compute the gradient in the original dfg_, then update into phi_ and
       // swap at the end of each time step
       auto& u_dot_dphi = *phi_;
-      const auto & ElementVector = dfg_->getElementVector();
+      const auto& ElementVector = dfg_->getElementVector();
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
@@ -188,7 +188,7 @@ class TaskAdvection : public Task {
 
   void setZero() override {
     dfg_->setZero();
-    std::memset(phi_.data(), 0, phi_.size() * sizeof(CombiDataType));
+    std::memset(phi_->data(), 0, phi_->size() * sizeof(CombiDataType));
   }
 
   ~TaskAdvection() {
