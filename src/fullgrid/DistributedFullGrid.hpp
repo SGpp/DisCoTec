@@ -614,7 +614,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline const std::vector<BoundaryType>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
 
   inline void setZero() {
-    std::fill(this->getElementVector().begin(), this->getElementVector().end(), 0.);
+    std::memset(this->getElementVector().data(), 0,
+                this->getElementVector().size() * sizeof(FG_ELEMENT));
   }
 
   inline FG_ELEMENT* getData() { return &fullgridVector_[0]; }
@@ -1538,10 +1539,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
                                        std::multiplies<IndexType>());
     if (lower < 0) {
       numElements = 0;
-      std::fill(subarrayExtents.begin(), subarrayExtents.end(), 0);
+      std::memset(subarrayExtents.data(), 0, subarrayExtents.size() * sizeof(int));
     }
     recvbuffer.resize(numElements);
-    std::fill(recvbuffer.begin(), recvbuffer.end(), 0.);
+    std::memset(recvbuffer.data(), 0, recvbuffer.size() * sizeof(FG_ELEMENT));
 
     // TODO asynchronous over d??
     auto success =

@@ -324,7 +324,7 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
   // don't send subspace sizes to remote
   // don't receive remote subspace sizes
   // instead, just return zeros to process group
-  std::fill(recvBuff.begin(), recvBuff.end(), static_cast<SubspaceSizeType>(0));
+  std::memset(recvBuff.data(), 0, recvBuff.size() * sizeof(SubspaceSizeType));
 
   // set accumulated dsgu sizes per worker
   formerDsguDataSizePerWorker_.resize(numSubspacesPerWorker.size());

@@ -188,7 +188,7 @@ class TaskAdvection : public Task {
 
   void setZero() override {
     dfg_->setZero();
-    std::fill(phi_->begin(), phi_->end(), 0.);
+    std::memset(phi_->data(), 0, phi_->size() * sizeof(CombiDataType));
   }
 
   ~TaskAdvection() {

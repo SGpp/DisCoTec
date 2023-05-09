@@ -302,10 +302,10 @@ void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::setZero() {
   if (isSubspaceDataCreated())
-    std::fill(subspacesData_.begin(), subspacesData_.end(), 0.);
+    std::memset(subspacesData_.data(), 0, subspacesData_.size() * sizeof(FG_ELEMENT));
   else
     createSubspaceData();
-  std::fill(kahanData_.begin(), kahanData_.end(), 0.);
+  std::memset(kahanData_.data(), 0, kahanData_.size() * sizeof(FG_ELEMENT));
   if (kahanData_.empty()) {
     // create kahan buffer implicitly only once,
     // needs to be called explicitly if relevant sizes change
