@@ -51,6 +51,13 @@ class MPICartesianUtils {
       periods_.clear();
       localCoords_.clear();
       partitionCoords_.clear();
+      throw std::runtime_error("MPICartesianUtils: communicator is not cartesian");
+    }
+    int size = 0;
+    MPI_Comm_size(comm, &size);
+    if (size != this->getCommunicatorSize()) {
+      throw std::runtime_error("MPICartesianUtils: communicator size does not match cartesian "
+                               "dimensions");
     }
   }
 

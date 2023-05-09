@@ -625,7 +625,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   inline RankType getRank() const { return rank_; }
 
-  inline int getCommunicatorSize() const { return size_; }
+  inline int getCommunicatorSize() const { return this->getCartesianUtils().getCommunicatorSize(); }
 
   /** lower Bounds of this process */
   inline const IndexVector& getLowerBounds() const {
@@ -635,7 +635,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** lower bounds of rank r */
   inline IndexVector getLowerBounds(RankType r) const {
-    assert(r >= 0 && r < size_);
+    assert(r >= 0 && r < this->getCommunicatorSize());
     // get coords of r in cart comm
     std::vector<int> coords(dim_);
     IndexVector lowerBounds(dim_);
@@ -661,7 +661,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** upper bounds of rank r */
   inline IndexVector getUpperBounds(RankType r) const {
-    assert(r >= 0 && r < size_);
+    assert(r >= 0 && r < this->getCommunicatorSize());
     std::vector<int> coords(dim_);
     IndexVector upperBounds(dim_);
     cartesianUtils_.getPartitionCoordsOfRank(r, coords);
@@ -688,7 +688,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** coordinates of rank r' upper bounds */
   inline std::vector<real> getUpperBoundsCoords(RankType r) const {
-    assert(r >= 0 && r < size_);
+    assert(r >= 0 && r < this->getCommunicatorSize());
 
     /* the upper bound index vector can correspond to coordinates outside of
      * the domain, thus we cannot use the getGlobalLinearIndex method here.
@@ -733,9 +733,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** MPI Rank */
   inline int getMpiRank() const { return rank_; }
-
-  /** MPI Size */
-  inline int getMpiSize() const { return size_; }
 
   /** returns the 1d global index of the first point in the local domain
    *
@@ -1769,9 +1766,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** mpi rank */
   RankType rank_;
 
-  /** mpi size */
-  int size_;
-
   // the MPI Datatypes representing the boundary layers of the MPI processes' subgrid
   std::vector<MPI_Datatype> downwardSubarrays_;
   std::vector<MPI_Datatype> upwardSubarrays_;
@@ -1780,55 +1774,23 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   IndexVector nrLocalPoints_;
 
   /**
-   * @brief sets the MPI-related members rank_, size_, and cartesianUtils_
+   * @brief sets the MPI-related members rank_ and cartesianUtils_
    *
    * @param comm the communicator to use (assumed to be cartesian)
    * @param procs the desired partition (for sanity checking)
    */
   void InitMPI(MPI_Comm comm, const std::vector<int>& procs) {
     MPI_Comm_rank(comm, &rank_);
-    MPI_Comm_size(comm, &size_);
-
-#ifndef NDEBUG
-    auto numSubgrids =
-        std::accumulate(procs.begin(), procs.end(), 1, std::multiplies<int>());
-
-    ASSERT(size_ == static_cast<int>(numSubgrids),
-           " size_: " << size_ << " numSubgrids: " << static_cast<int>(numSubgrids));
-    assert(size_ == static_cast<int>(numSubgrids));
-#endif
 
     // check if communicator is already cartesian
     int status;
     MPI_Topo_test(comm, &status);
 
     if (status == MPI_CART) {
-#ifndef NDEBUG
-      // check if process grid of comm uses the required ordering
-      auto maxdims = static_cast<int>(procs.size());
-      std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
-      MPI_Cart_get(comm, static_cast<int>(maxdims), &cartdims[0], &periods[0], &coords[0]);
-      // important: note reverse ordering of dims!
-      std::vector<int> dims(procs.size());
-      if (reverseOrderingDFGPartitions) {
-        dims.assign(procs.rbegin(), procs.rend());
-      } else {
-        dims.assign(procs.begin(), procs.end());
+      if (comm != cartesianUtils_.getComm()) {
+        assert(uniformDecomposition);
+        cartesianUtils_ = MPICartesianUtils(comm);
       }
-      ASSERT(cartdims == dims, " cartdims: " << cartdims << " dims: " << dims);
-      assert(cartdims == dims);
-      // not sure if this should be asserted -> for now, check only in exchangeGhostLayer...
-      // for (int d = 0; d < maxdims; ++d) {
-      //   if (hasBoundaryPoints_[d] == 1) {
-      //     // assert periodicity
-      //     assert(periods[d] == 1);
-      //   } else {
-      //     // assert no periodicity
-      //     assert(periods[d] == 0);
-      //   }
-      // }
-#endif
-
     } else {
     // MPI_Comm_dup(comm, &communicator_);
     // cf. https://www.researchgate.net/publication/220439585_MPI_on_millions_of_cores
@@ -1836,12 +1798,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
      throw std::runtime_error("Currently testing to not duplicate communicator (to save memory), \
                           if you do want to use this code please take care that \
                           MPI_Comm_free(&communicator_) will be called at some point");
-    }
-    {
-      if (comm != cartesianUtils_.getComm()) {
-        assert(uniformDecomposition);
-        cartesianUtils_ = MPICartesianUtils(comm);
-      }
     }
   }
 
