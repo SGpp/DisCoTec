@@ -84,7 +84,7 @@ template <typename FG_ELEMENT>
 class DistributedFullGrid {
  public:
   /** dimension adaptive Ctor */
-  DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType comm,
+  DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType const& comm,
                       const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
                       bool forwardDecomposition = true,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>(),
@@ -147,14 +147,12 @@ class DistributedFullGrid {
   //   }
   // }
 
-  // copy construction would need to duplicate communicator_
   DistributedFullGrid(const DistributedFullGrid& other) = delete;
   DistributedFullGrid& operator=(const DistributedFullGrid&) = delete;
   DistributedFullGrid(DistributedFullGrid&& other) = default;
   DistributedFullGrid& operator=(DistributedFullGrid&& other) = default;
 
   virtual ~DistributedFullGrid() {
-    // MPI_Comm_free(&communicator_);
     for (size_t i = 0; i < upwardSubarrays_.size(); ++i) {
       MPI_Type_free(&upwardSubarrays_[i]);
     }
@@ -623,7 +621,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline const FG_ELEMENT* getData() const { return &fullgridVector_[0]; }
 
   /** MPI Communicator*/
-  inline CommunicatorType getCommunicator() const { return communicator_; }
+  inline CommunicatorType getCommunicator() const { return this->getCartesianUtils().getComm(); }
 
   inline RankType getRank() const { return rank_; }
 
@@ -1758,11 +1756,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** the full grid vector, this contains the elements of the full grid */
   std::vector<FG_ELEMENT> fullgridVector_;
-
-  /** Variables for the distributed Full Grid*/
-  /** Cartesien MPI Communicator  */
-  CommunicatorType communicator_;
-
  /**
   * the decomposition of the full grid over processors
   * contains (for every dimension) the grid point indices at
@@ -1787,7 +1780,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   IndexVector nrLocalPoints_;
 
   /**
-   * @brief sets the MPI-related members rank_, size_, communicator_, and cartesianUtils_
+   * @brief sets the MPI-related members rank_, size_, and cartesianUtils_
    *
    * @param comm the communicator to use (assumed to be cartesian)
    * @param procs the desired partition (for sanity checking)
@@ -1836,31 +1829,18 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       // }
 #endif
 
-      // MPI_Comm_dup(comm, &communicator_);
-      // cf. https://www.researchgate.net/publication/220439585_MPI_on_millions_of_cores
-      // "Figure 3 shows the memory consumption in all these cases after 32 calls to MPI Comm dup"
-      communicator_ = comm;
-
     } else {
-      // important: note reverse ordering of dims!
-      std::vector<int> dims(procs.size());
-      if (reverseOrderingDFGPartitions) {
-        dims.assign(procs.rbegin(), procs.rend());
-      } else {
-        dims.assign(procs.begin(), procs.end());
-      }
-      // todo mh: think whether periodic bc will be useful
-      std::vector<int> periods(dim_, 0);
-      int reorder = 0;
-      MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0], reorder, &communicator_);
-      throw std::runtime_error("Currently testing to not duplicate communicator (to save memory), \
+    // MPI_Comm_dup(comm, &communicator_);
+    // cf. https://www.researchgate.net/publication/220439585_MPI_on_millions_of_cores
+    // "Figure 3 shows the memory consumption in all these cases after 32 calls to MPI Comm dup"
+     throw std::runtime_error("Currently testing to not duplicate communicator (to save memory), \
                           if you do want to use this code please take care that \
                           MPI_Comm_free(&communicator_) will be called at some point");
     }
     {
-      if (communicator_ != cartesianUtils_.getComm()) {
+      if (comm != cartesianUtils_.getComm()) {
         assert(uniformDecomposition);
-        cartesianUtils_ = MPICartesianUtils(communicator_);
+        cartesianUtils_ = MPICartesianUtils(comm);
       }
     }
   }
