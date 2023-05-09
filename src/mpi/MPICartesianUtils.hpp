@@ -47,17 +47,21 @@ class MPICartesianUtils {
         }
       }
     } else {
+      comm_ = MPI_COMM_NULL;
       cartdims_.clear();
       periods_.clear();
       localCoords_.clear();
       partitionCoords_.clear();
       throw std::runtime_error("MPICartesianUtils: communicator is not cartesian");
     }
+    MPI_Comm_rank(comm, &rank_);
+
     int size = 0;
     MPI_Comm_size(comm, &size);
     if (size != this->getCommunicatorSize()) {
-      throw std::runtime_error("MPICartesianUtils: communicator size does not match cartesian "
-                               "dimensions");
+      throw std::runtime_error(
+          "MPICartesianUtils: communicator size does not match cartesian "
+          "dimensions");
     }
   }
 
@@ -67,9 +71,7 @@ class MPICartesianUtils {
   MPICartesianUtils& operator=(MPICartesianUtils&& other) = default;
   virtual ~MPICartesianUtils() = default;
 
-  CommunicatorType getComm() const {
-    return comm_;
-  }
+  CommunicatorType getComm() const { return comm_; }
 
   /**
    * @brief Get the cartesian coordinates of a rank in the local cartesian communicator
@@ -146,17 +148,19 @@ class MPICartesianUtils {
     return ranks;
   }
 
-  const std::vector<int>& getCartesianDimensions() const {
-    return cartdims_;
-  }
+  const std::vector<int>& getCartesianDimensions() const { return cartdims_; }
 
   inline int getCommunicatorSize() const {
     if (cartdims_.empty()) return 0;
     return std::accumulate(cartdims_.begin(), cartdims_.end(), 1, std::multiplies<int>());
   }
 
+  inline RankType getCommunicatorRank() const { return rank_; }
+
  private:
   CommunicatorType comm_ = MPI_COMM_NULL;
+
+  RankType rank_ = MPI_UNDEFINED;
 
   DimType dim_;
 

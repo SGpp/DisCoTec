@@ -119,8 +119,8 @@ class DistributedFullGrid {
     } else {
       setDecomposition(decomposition);
     }
-    myPartitionsLowerBounds_ = getLowerBounds(rank_);
-    myPartitionsUpperBounds_ = getUpperBounds(rank_);
+    myPartitionsLowerBounds_ = getLowerBounds(this->getRank());
+    myPartitionsUpperBounds_ = getUpperBounds(this->getRank());
 
     // set local elements and local offsets
     nrLocalPoints_ = getUpperBounds() - getLowerBounds();
@@ -623,13 +623,13 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** MPI Communicator*/
   inline CommunicatorType getCommunicator() const { return this->getCartesianUtils().getComm(); }
 
-  inline RankType getRank() const { return rank_; }
+  inline RankType getRank() const { return this->getCartesianUtils().getCommunicatorRank(); }
 
   inline int getCommunicatorSize() const { return this->getCartesianUtils().getCommunicatorSize(); }
 
   /** lower Bounds of this process */
   inline const IndexVector& getLowerBounds() const {
-    // return getLowerBounds(rank_);
+    // return getLowerBounds(this->getRank());
     return myPartitionsLowerBounds_;
   }
 
@@ -649,13 +649,14 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** coordinates of this process' lower bounds in some dimension*/
   inline real getLowerBoundsCoord(DimType inDimension) const {
-    return static_cast<real>(this->getLowerBounds()[inDimension] + (hasBoundaryPoints_[inDimension] > 0 ? 0 : 1)) *
-                  this->getGridSpacing()[inDimension];
+    return static_cast<real>(this->getLowerBounds()[inDimension] +
+                             (hasBoundaryPoints_[inDimension] > 0 ? 0 : 1)) *
+           this->getGridSpacing()[inDimension];
   }
 
   /** upper Bounds of this process */
   inline IndexVector getUpperBounds() const {
-    // return getUpperBounds(rank_);
+    // return getUpperBounds(this->getRank());
     return myPartitionsUpperBounds_;
   }
 
@@ -684,7 +685,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   }
 
   /** coordinates of this process' upper bounds */
-  inline std::vector<real> getUpperBoundsCoords() const { return getUpperBoundsCoords(rank_); }
+  inline std::vector<real> getUpperBoundsCoords() const {
+    return getUpperBoundsCoords(this->getRank());
+  }
 
   /** coordinates of rank r' upper bounds */
   inline std::vector<real> getUpperBoundsCoords(RankType r) const {
@@ -730,9 +733,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline const std::vector<int>& getParallelization() const {
     return this->getCartesianUtils().getCartesianDimensions();
   }
-
-  /** MPI Rank */
-  inline int getMpiRank() const { return rank_; }
 
   /** returns the 1d global index of the first point in the local domain
    *
@@ -874,7 +874,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   // gather fullgrid on rank r
   void gatherFullGrid(FullGrid<FG_ELEMENT>& fg, RankType root) {
     int size = this->getCommunicatorSize();
-    int rank = this->getMpiRank();
+    int rank = this->getRank();
     CommunicatorType comm = this->getCommunicator();
 
     // each rank: send dfg to root
@@ -1184,9 +1184,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
     // .raw files can be read by paraview, in that case write the header separately
     std::string fn = filename;
-    if (fn.find(".raw") != std::string::npos){
+    if (fn.find(".raw") != std::string::npos) {
       // rank 0 write human-readable header
-      if (rank_ == 0) {
+      if (this->getRank() == 0) {
         auto headername = fn + "_header";
         std::ofstream ofs(headername);
 
@@ -1196,16 +1196,18 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         // grid points per dimension in the order
         // x_0, x_1, ... , x_d
         ofs << "Extents ";
-        for (auto s : sizes){ ofs << s << " ";}
+        for (auto s : sizes) {
+          ofs << s << " ";
+        }
         ofs << std::endl;
 
         // data type
         ofs << "Data type size " << sizeof(FG_ELEMENT) << std::endl;
-        //TODO (pollinta) write endianness and data spacing
+        // TODO (pollinta) write endianness and data spacing
       }
-    }else{
+    } else {
       // rank 0 write dim and resolution (and data format?)
-      if (rank_ == 0) {
+      if (this->getRank() == 0) {
         MPI_File_write(fh, &dim, 1, MPI_UNSIGNED_CHAR, MPI_STATUS_IGNORE);
 
         std::vector<int> res(sizes.begin(), sizes.end());
@@ -1286,8 +1288,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     auto header_size = header_string.size();
 
     // rank 0 write header
-    if (rank_ == 0) {
-      MPI_File_write(fh, header_string.data(), static_cast<int>(header_size), MPI_CHAR, MPI_STATUS_IGNORE);
+    if (this->getRank() == 0) {
+      MPI_File_write(fh, header_string.data(), static_cast<int>(header_size), MPI_CHAR,
+                     MPI_STATUS_IGNORE);
     }
 
     // set file view to right offset (in bytes)
@@ -1763,9 +1766,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** utility to get info about cartesian communicator  */
   static MPICartesianUtils cartesianUtils_;
 
-  /** mpi rank */
-  RankType rank_;
-
   // the MPI Datatypes representing the boundary layers of the MPI processes' subgrid
   std::vector<MPI_Datatype> downwardSubarrays_;
   std::vector<MPI_Datatype> upwardSubarrays_;
@@ -1774,14 +1774,12 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   IndexVector nrLocalPoints_;
 
   /**
-   * @brief sets the MPI-related members rank_ and cartesianUtils_
+   * @brief sets the MPI-related member cartesianUtils_
    *
    * @param comm the communicator to use (assumed to be cartesian)
    * @param procs the desired partition (for sanity checking)
    */
   void InitMPI(MPI_Comm comm, const std::vector<int>& procs) {
-    MPI_Comm_rank(comm, &rank_);
-
     // check if communicator is already cartesian
     int status;
     MPI_Topo_test(comm, &status);
@@ -1791,11 +1789,15 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         assert(uniformDecomposition);
         cartesianUtils_ = MPICartesianUtils(comm);
       }
+      if (procs != cartesianUtils_.getCartesianDimensions()) {
+        throw std::runtime_error("The given communicator is not partitioned as desired");
+      }
     } else {
-    // MPI_Comm_dup(comm, &communicator_);
-    // cf. https://www.researchgate.net/publication/220439585_MPI_on_millions_of_cores
-    // "Figure 3 shows the memory consumption in all these cases after 32 calls to MPI Comm dup"
-     throw std::runtime_error("Currently testing to not duplicate communicator (to save memory), \
+      // MPI_Comm_dup(comm, &communicator_);
+      // cf. https://www.researchgate.net/publication/220439585_MPI_on_millions_of_cores
+      // "Figure 3 shows the memory consumption in all these cases after 32 calls to MPI Comm dup"
+      throw std::runtime_error(
+          "Currently testing to not duplicate communicator (to save memory), \
                           if you do want to use this code please take care that \
                           MPI_Comm_free(&communicator_) will be called at some point");
     }
