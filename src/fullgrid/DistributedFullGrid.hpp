@@ -96,16 +96,16 @@ class DistributedFullGrid {
 
     InitMPI(comm, procs);  // will also check grids per dim
 
-    // set global num of elements and offsets
-    nrElements_ = 1;
     offsets_.resize(dim_);
     nrPoints_.resize(dim_);
     gridSpacing_.resize(dim_);
 
+    // set global num of elements and offsets
+    IndexType nrElements = 1;
     for (DimType j = 0; j < dim_; j++) {
       nrPoints_[j] = combigrid::getNumDofNodal(levels_[j], hasBoundaryPoints_[j]);
-      offsets_[j] = nrElements_;
-      nrElements_ = nrElements_ * nrPoints_[j];
+      offsets_[j] = nrElements;
+      nrElements = nrElements * nrPoints_[j];
       if (hasBoundaryPoints_[j] == 1) {
         assert(!decomposition.empty() || !forwardDecomposition);
       }
@@ -385,7 +385,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline void getGlobalLI(IndexType elementIndex, LevelVector& levels, IndexVector& indexes) const {
     IndexType startindex, tmp_val;
 
-    assert(elementIndex < nrElements_);
+    assert(elementIndex < this->getNrElements());
     levels.resize(dim_);
     indexes.resize(dim_);
 
@@ -424,7 +424,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
    * @param linIndex [IN] the linear index
    * @param axisIndex [OUT] the returned vector index */
   inline void getGlobalVectorIndex(IndexType globLinIndex, IndexVector& globAxisIndex) const {
-    assert(globLinIndex < nrElements_);
+    assert(globLinIndex < this->getNrElements());
     assert(globAxisIndex.size() == dim_);
 
     IndexType tmp = globLinIndex;
@@ -446,7 +446,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** the local vector index corresponding to a local linear index */
   inline void getLocalVectorIndex(IndexType locLinIndex, IndexVector& locAxisIndex) const {
-    assert(locLinIndex < nrElements_);
+    assert(locLinIndex < this->getNrElements());
     assert(locAxisIndex.size() == dim_);
 
     IndexType tmp = locLinIndex;
@@ -499,7 +499,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
     // convert to global linear index
     IndexType globLinIndex = getGlobalLinearIndex(globAxisIndex);
-    assert(globLinIndex < nrElements_);
+    assert(globLinIndex < this->getNrElements());
     return globLinIndex;
   }
 
@@ -512,7 +512,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** the global linear index corresponding to the local linear index
    returns negative value if element not inside local partition */
   inline IndexType getLocalLinearIndex(IndexType globLinIndex) const {
-    assert(globLinIndex < nrElements_);
+    assert(globLinIndex < this->getNrElements());
 
     // convert to global vector index
     static IndexVector globAxisIndex(dim_);
@@ -600,7 +600,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   }
 
   /** returns the number of elements in the full grid */
-  inline IndexType getNrElements() const { return nrElements_; }
+  inline IndexType getNrElements() const {
+    return std::accumulate(nrPoints_.begin(), nrPoints_.end(), 1, std::multiplies<IndexType>());
+  }
 
   /** number of elements in the local partition */
   inline IndexType getNrLocalElements() const { return nrLocalElements_; }
@@ -1723,9 +1725,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
  private:
   /** dimension of the full grid */
   DimType dim_;
-
-  /** the size of the vector, nr of total elements */
-  IndexType nrElements_;
 
   /** the size of the vector, nr of total elements */
   IndexType nrLocalElements_;
