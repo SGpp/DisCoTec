@@ -125,17 +125,17 @@ class DistributedFullGrid {
     // set local elements and local offsets
     nrLocalPoints_ = getUpperBounds() - getLowerBounds();
 
-    nrLocalElements_ = 1;
+    IndexType nrLocalElements = 1;
     localOffsets_.resize(dim);
     // cf. https://en.wikipedia.org/wiki/Row-_and_column-major_order#Address_calculation_in_general
     // -> column-major order
     for (DimType j = 0; j < dim_; ++j) {
-      localOffsets_[j] = nrLocalElements_;
-      nrLocalElements_ *= nrLocalPoints_[j];
+      localOffsets_[j] = nrLocalElements;
+      nrLocalElements *= nrLocalPoints_[j];
     }
 
     // in contrast to serial implementation we directly create the grid
-    fullgridVector_.resize(nrLocalElements_);
+    fullgridVector_.resize(nrLocalElements);
   }
 
   // explicit DistributedFullGrid(const DistributedFullGrid& other) {
@@ -485,7 +485,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   // the global linear index corresponding to the local linear index
   inline IndexType getGlobalLinearIndex(IndexType locLinIndex) const {
-    assert(locLinIndex < nrLocalElements_);
+    assert(locLinIndex < this->getNrLocalElements());
 
     // convert to local vector index
     static IndexVector locAxisIndex(dim_);
@@ -605,7 +605,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   }
 
   /** number of elements in the local partition */
-  inline IndexType getNrLocalElements() const { return nrLocalElements_; }
+  inline IndexType getNrLocalElements() const { 
+    return std::accumulate(nrLocalPoints_.begin(), nrLocalPoints_.end(), 1, std::multiplies<IndexType>());
+     }
 
   /** number of points per dimension i */
   inline IndexType length(DimType i) const { return nrPoints_[i]; }
@@ -1725,9 +1727,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
  private:
   /** dimension of the full grid */
   DimType dim_;
-
-  /** the size of the vector, nr of total elements */
-  IndexType nrLocalElements_;
 
   /** levels for each dimension */
   LevelVector levels_;
