@@ -7,7 +7,10 @@
 #include <numeric>
 #include <vector>
 
+#include <boost/preprocessor.hpp>
+
 #include "utils/Types.hpp"
+#include "utils/IndexVector.hpp"
 
 namespace combigrid {
 
@@ -15,7 +18,16 @@ template <typename Type, DimType NumDimensions>
 class BaseTensor {
  public:
   explicit BaseTensor(Type* data, std::array<IndexType, NumDimensions>&& extents)
-      : data_{data}, extents_{std::move(extents)} {}
+      : data_{data}, extents_{std::move(extents)} {
+    if (this->data_ == nullptr) {
+      throw std::runtime_error("Data pointer must not be null!");
+    }
+    IndexType nrElements = 1;
+    for (DimType j = 0; j < NumDimensions; j++) {
+      localOffsets_[j] = nrElements;
+      nrElements = nrElements * extents_[j];
+    }
+  }
 
   // delete copy and move constructors for now
   BaseTensor(BaseTensor const&) = delete;
@@ -23,8 +35,12 @@ class BaseTensor {
   BaseTensor& operator=(BaseTensor const&) = delete;
   BaseTensor& operator=(BaseTensor&&) = delete;
 
-  std::array<combigrid::IndexType, NumDimensions>& getExtents() { return this->extents_; }
-  const std::array<combigrid::IndexType, NumDimensions>& getExtents() const { return this->extents_; }
+  const std::array<combigrid::IndexType, NumDimensions>& getExtents() const {
+    return this->extents_;
+  }
+  const std::array<combigrid::IndexType, NumDimensions>& getLocalOffsets() const {
+    return this->localOffsets_;
+  }
 
   Type* getData() { return this->data_; }
   const Type* getData() const { return this->data_; }
@@ -32,75 +48,45 @@ class BaseTensor {
   Type& operator[](IndexType a) { return this->data_[a]; }
   const Type& operator[](IndexType a) const { return this->data_[a]; }
 
+  size_t size() const {
+    return std::accumulate(this->extents_.begin(), this->extents_.end(), 1U,
+                           std::multiplies<size_t>());
+  }
+
  protected:
   Type* data_;
   std::array<combigrid::IndexType, NumDimensions> extents_;
+  std::array<combigrid::IndexType, NumDimensions> localOffsets_;
 };
 
 // Implementation of a non-owning tensor
 template <typename Type, DimType NumDimensions>
-class Tensor;
-
-template <typename Type>
-class Tensor<Type,1> {
+class Tensor {
  public:
-  explicit Tensor(Type* data, std::array<IndexType, 1>&& extents)
-      : base_{BaseTensor<Type, 1>(data, std::move(extents))} {}
+  explicit Tensor(Type* data, std::array<IndexType, NumDimensions>&& extents)
+      : base_{BaseTensor<Type, NumDimensions>(data, std::move(extents))} {}
 
+  const std::array<combigrid::IndexType, NumDimensions>& getExtents() const {
+    return this->base_.getExtents();
+  }
 
-  std::array<combigrid::IndexType, 1>& getExtents() { return this->base_.getExtents(); }
-  const std::array<combigrid::IndexType, 1>& getExtents() const { return this->base_.getExtents(); }
+  //   template <DimType Dimension>
+  //   IndexType dim() const { return this->getExtents()[Dimension]; }
 
   Type& operator[](IndexType a) { return this->base_.getData()[a]; }
   Type const& operator[](IndexType a) const { return this->base_.getData()[a]; }
 
-  Type& operator()(IndexType a) { return this->operator[](a); }
-  Type const& operator()(IndexType a) const { return this->operator[](a); }
+  Type& operator()(std::array<combigrid::IndexType, NumDimensions> index) {
+    return this->operator[](
+        std::inner_product(index.begin(), index.end(), this->base_.getLocalOffsets().begin(), 0));
+  }
+  Type const& operator()(std::array<combigrid::IndexType, NumDimensions> index) const {
+    return this->operator[](
+        std::inner_product(index.begin(), index.end(), this->base_.getLocalOffsets().begin(), 0));
+  }
 
-  private:
-   BaseTensor<Type, 1> base_;
-};
-
-template <typename Type>
-class Tensor<Type,2> {
- public:
-  explicit Tensor(Type* data, std::array<IndexType, 2>&& extents)
-      : base_{BaseTensor<Type, 2>(data, std::move(extents))} {}
-
-  std::array<combigrid::IndexType, 2>& getExtents() { return this->base_.getExtents(); }
-  const std::array<combigrid::IndexType, 2>& getExtents() const { return this->base_.getExtents(); }
-
-//   template <DimType Dimension>
-//   IndexType dim() const { return this->getExtents()[Dimension]; }
-
-  Type& operator[](IndexType a) { return this->base_.getData()[a]; }
-  Type const& operator[](IndexType a) const { return this->base_.getData()[a]; }
-
-  Type& operator()(std::array<combigrid::IndexType, 2> index) { return this->operator[](index[1]*getExtents()[0]+index[0]); }
-  Type const& operator()(std::array<combigrid::IndexType, 2>index) const { return this->operator[](index[1]*getExtents()[0]+index[0]); }
-
-  private:
-   BaseTensor<Type, 2> base_;
-};
-
-
-template <typename Type>
-class Tensor<Type,3> {
- public:
-  explicit Tensor(Type* data, std::array<IndexType, 3>&& extents)
-      : base_{BaseTensor<Type, 3>(data, std::move(extents))} {}
-
-  std::array<combigrid::IndexType, 3>& getExtents() { return this->base_.getExtents(); }
-  const std::array<combigrid::IndexType, 3>& getExtents() const { return this->base_.getExtents(); }
-
-  Type& operator[](IndexType a) { return this->base_.getData()[a]; }
-  Type const& operator[](IndexType a) const { return this->base_.getData()[a]; }
-
-  Type& operator()(std::array<combigrid::IndexType, 3> index) { return this->operator[]((index[1])*getExtents()[0]+index[0]); }
-  Type const& operator()(std::array<combigrid::IndexType, 3>index) const { return this->operator[]((index[1])*getExtents()[0]+index[0]); }
-
-  private:
-   BaseTensor<Type, 3> base_;
+ private:
+  BaseTensor<Type, NumDimensions> base_;
 };
 
 template <typename Type, DimType NumDimensions>
@@ -132,6 +118,9 @@ void print(Tensor<Type, NumDimensions> const& T) {
       }
       std::cout << "]\n";
     }
+  } else {
+    static_assert(NumDimensions == 1 || NumDimensions == 2 || NumDimensions == 3,
+                  "refusing to print for dimensions > 3!");
   }
 }
 
