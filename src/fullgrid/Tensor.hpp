@@ -20,7 +20,7 @@ class TensorIndexer {
   TensorIndexer() = default;
   explicit TensorIndexer(std::array<IndexType, NumDimensions>&& extents)
       : extents_{extents.begin(), extents.end()}, localOffsets_(extents_.size()) {
-      // : extents_{std::move(extents)} {
+    // : extents_{std::move(extents)} {
     IndexType nrElements = 1;
     for (DimType j = 0; j < NumDimensions; j++) {
       localOffsets_[j] = nrElements;
@@ -29,10 +29,10 @@ class TensorIndexer {
     assert(this->size() == nrElements);
   }
 
-  // default copy and move constructors for now
-  TensorIndexer(TensorIndexer const&) = default;
+  // delete copy and move constructors for now
+  TensorIndexer(TensorIndexer const&) = delete;
   TensorIndexer(TensorIndexer&&) = default;
-  TensorIndexer& operator=(TensorIndexer const&) = default;
+  TensorIndexer& operator=(TensorIndexer const&) = delete;
   TensorIndexer& operator=(TensorIndexer&&) = default;
 
   template <DimType Dimension>
@@ -54,14 +54,14 @@ class TensorIndexer {
 
   size_t size() const {
     auto size = std::accumulate(this->extents_.begin(), this->extents_.end(), 1U,
-                           std::multiplies<size_t>());
+                                std::multiplies<size_t>());
     assert(size < std::numeric_limits<IndexType>::max());
     return size;
   }
 
   IndexType sequentialIndex(IndexArray<NumDimensions> indexArray) const {
-    return std::inner_product(indexArray.begin(), indexArray.end(), this->getOffsetsVector().begin(),
-                              0);
+    return std::inner_product(indexArray.begin(), indexArray.end(),
+                              this->getOffsetsVector().begin(), 0);
   }
 
   const IndexVector& getExtentsVector() const { return this->extents_; }
@@ -69,9 +69,9 @@ class TensorIndexer {
   const IndexVector& getOffsetsVector() const { return this->localOffsets_; }
 
  protected:
-  // IndexArray<NumDimensions> extents_{}; 
+  // IndexArray<NumDimensions> extents_{};
   // IndexArray<NumDimensions> localOffsets_{};
-  //TODO make these arrays (again)
+  // TODO make these arrays (again)
   IndexVector extents_{};
   IndexVector localOffsets_{};
 };
@@ -146,4 +146,31 @@ void print(Tensor<Type, NumDimensions> const& T) {
   }
 }
 
+using SomeTensorIndexer =
+    std::variant<TensorIndexer<0>, TensorIndexer<1>, TensorIndexer<2>, TensorIndexer<3>,
+                 TensorIndexer<4>, TensorIndexer<5>, TensorIndexer<6>>;
+
+SomeTensorIndexer makeTensorIndexer(IndexVector extents);
+
+template <typename Type>
+using SomeTensor = std::variant<Tensor<Type, 0>, Tensor<Type, 1>, Tensor<Type, 2>, Tensor<Type, 3>,
+                                Tensor<Type, 4>, Tensor<Type, 5>, Tensor<Type, 6>>;
+namespace tensor {
+
+inline size_t size(const SomeTensorIndexer& s) {
+  size_t size = 0;
+  std::visit([&](auto&& arg) { size = arg.size(); }, s);
+  assert(size > 0);
+  return size;
+}
+
+inline const IndexVector& getExtents(const SomeTensorIndexer& s) {
+  return std::visit([&](auto&& arg) -> const IndexVector& { return arg.getExtentsVector(); }, s);
+}
+
+inline const IndexVector& getOffsets(const SomeTensorIndexer& s) {
+  return std::visit([&](auto&& arg) -> const IndexVector& { return arg.getOffsetsVector(); }, s);
+}
+
+}  // namespace tensor
 }  // namespace combigrid

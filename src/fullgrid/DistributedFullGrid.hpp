@@ -11,6 +11,7 @@
 
 #include "fullgrid/FullGrid.hpp"
 #include "fullgrid/SliceIterator.hpp"
+#include "fullgrid/Tensor.hpp"
 #include "mpi/MPICartesianUtils.hpp"
 #include "mpi/MPISystem.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
@@ -96,26 +97,25 @@ class DistributedFullGrid {
 
     InitMPI(comm, procs);  // will also check grids per dim
 
-    offsets_.resize(dim_);
-    nrPoints_.resize(dim_);
+    IndexVector nrPoints(dim_);
     gridSpacing_.resize(dim_);
 
     // set global num of elements and offsets
     IndexType nrElements = 1;
     for (DimType j = 0; j < dim_; j++) {
-      nrPoints_[j] = combigrid::getNumDofNodal(levels_[j], hasBoundaryPoints_[j]);
-      offsets_[j] = nrElements;
-      nrElements = nrElements * nrPoints_[j];
+      nrPoints[j] = combigrid::getNumDofNodal(levels_[j], hasBoundaryPoints_[j]);
+      nrElements = nrElements * nrPoints[j];
       if (hasBoundaryPoints_[j] == 1) {
         assert(!decomposition.empty() || !forwardDecomposition);
       }
       assert(levels_[j] < 30);
       gridSpacing_[j] = oneOverPowOfTwo[levels_[j]];
     }
+    globalIndexer_ = makeTensorIndexer(nrPoints);
 
     if (decomposition.size() == 0) {
       decomposition_ = getDefaultDecomposition(
-          nrPoints_, this->getCartesianUtils().getCartesianDimensions(), forwardDecomposition);
+          nrPoints, this->getCartesianUtils().getCartesianDimensions(), forwardDecomposition);
     } else {
       setDecomposition(decomposition);
     }
@@ -452,8 +452,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     IndexType tmp = locLinIndex;
 
     for (int i = static_cast<int>(dim_) - 1; i >= 0; --i) {
-      const auto a = tmp / localOffsets_[i];
-      const auto t = tmp % localOffsets_[i];
+      const auto a = tmp / this->getLocalOffsets()[i];
+      const auto t = tmp % this->getLocalOffsets()[i];
 
       locAxisIndex[i] = a;
       tmp = t;
@@ -480,7 +480,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** returns the global linear index corresponding to the global index vector
    * @param axisIndex [IN] the vector index */
   inline IndexType getGlobalLinearIndex(const IndexVector& globAxisIndex) const {
-    return std::inner_product(globAxisIndex.begin(), globAxisIndex.end(), offsets_.begin(), 0);
+    return std::inner_product(globAxisIndex.begin(), globAxisIndex.end(), this->getOffsets().begin(), 0);
   }
 
   // the global linear index corresponding to the local linear index
@@ -506,7 +506,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** the local linear index corresponding to the local index vector */
   inline IndexType getLocalLinearIndex(const IndexVector& locAxisIndex) const {
     assert(locAxisIndex.size() == dim_);
-    return std::inner_product(locAxisIndex.begin(), locAxisIndex.end(), localOffsets_.begin(), 0);
+    return std::inner_product(locAxisIndex.begin(), locAxisIndex.end(), this->getLocalOffsets().begin(), 0);
   }
 
   /** the global linear index corresponding to the local linear index
@@ -554,9 +554,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline const std::vector<FG_ELEMENT>& getElementVector() const { return fullgridVector_; }
 
   /** return the offset in the full grid vector of the dimension */
-  inline IndexType getOffset(DimType i) const { return offsets_[i]; }
+  inline IndexType getOffset(DimType i) const { return this->getOffsets()[i]; }
 
-  inline const IndexVector& getOffsets() const { return offsets_; }
+  inline const IndexVector& getOffsets() const { return combigrid::tensor::getOffsets(globalIndexer_); }
 
   inline const IndexVector& getLocalOffsets() const {
     assert(localOffsets_.size() == dim_);
@@ -599,9 +599,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     return std::accumulate(h.begin(), h.end(), 1., std::multiplies<double>());
   }
 
-  /** returns the number of elements in the full grid */
+  /** returns the number of elements in the entire, global full grid */
   inline IndexType getNrElements() const {
-    return std::accumulate(nrPoints_.begin(), nrPoints_.end(), 1, std::multiplies<IndexType>());
+    return combigrid::tensor::size(globalIndexer_);
   }
 
   /** number of elements in the local partition */
@@ -868,7 +868,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline const IndexVector& getLocalSizes() const { return nrLocalPoints_; }
 
   // return extents of global grid
-  inline const IndexVector& getGlobalSizes() const { return nrPoints_; }
+  inline IndexVector getGlobalSizes() const { 
+    return combigrid::tensor::getExtents(globalIndexer_);
+  }
 
   // return MPI DataType
   inline MPI_Datatype getMPIDatatype() const {
@@ -938,7 +940,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
     for (const auto idx : oneDIndices[d]) {
       auto updatedLocalIndexSum = localLinearIndexSum;
-      updatedLocalIndexSum += localOffsets_[d] * idx;
+      updatedLocalIndexSum += this->getLocalOffsets()[d] * idx;
       if (d > 0) {
         getFGPointsOfSubspaceRecursive(static_cast<DimType>(d - 1), updatedLocalIndexSum,
                                        oneDIndices, subspaceIndices);
@@ -1053,9 +1055,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline IndexType getNumPointsOnThisPartition(DimType d, IndexType localStart,
                                                IndexType strideForThisLevel) const {
     assert(d < this->getDimension());
-    return (nrLocalPoints_[d] - 1 < localStart)
+    return (this->getLocalSizes()[d] - 1 < localStart)
                ? 0
-               : (nrLocalPoints_[d] - 1 - localStart) / strideForThisLevel + 1;
+               : (this->getLocalSizes()[d] - 1 - localStart) / strideForThisLevel + 1;
   }
 
   inline IndexType getNumPointsOnThisPartition(LevelType l, DimType d) const {
@@ -1734,14 +1736,13 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** the grid spacing h for each dimension */
   std::vector<double> gridSpacing_;
 
+  //TODO: make these normal templates, and SomeDistributedFullGrid a std::variant ?
+  /** TensorIndexer , only populated for the used dimensionality**/
   /** number of points per axis boundary included*/
-  IndexVector nrPoints_;
+  SomeTensorIndexer globalIndexer_ = std::move(TensorIndexer<0>());
 
   /** flag to show if the dimension has boundary points*/
   std::vector<BoundaryType> hasBoundaryPoints_;
-
-  /** the offsets in each direction*/
-  IndexVector offsets_;
 
   /** the local offsets in each direction */
   IndexVector localOffsets_;
@@ -1838,10 +1839,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     assert(dim_ == 2);
 
     // loop over rows i -> dim2
-    for (IndexType i = 0; i < nrLocalPoints_[1]; ++i) {
+    for (IndexType i = 0; i < this->getLocalSizes()[1]; ++i) {
       IndexType offset = localOffsets_[1] * i;
 
-      for (IndexType j = 0; j < nrLocalPoints_[0]; ++j) {
+      for (IndexType j = 0; j < this->getLocalSizes()[0]; ++j) {
         os << fullgridVector_[offset + j] << "\t";
       }
 
@@ -1853,7 +1854,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   void print1D(std::ostream& os) const {
     assert(dim_ == 1);
 
-    for (IndexType j = 0; j < nrLocalPoints_[0]; ++j) {
+    for (IndexType j = 0; j < this->getLocalSizes()[0]; ++j) {
       os << fullgridVector_[j] << "\t";
     }
 
@@ -1862,7 +1863,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   // n-dim output. will print 2-dimensional slices of domain
   void print3D(std::ostream& os) const {
-    for (IndexType k = 0; k < nrLocalPoints_[2]; ++k) {
+    for (IndexType k = 0; k < this->getLocalSizes()[2]; ++k) {
       assert(dim_ == 3);
 
 // output global z index
@@ -1870,10 +1871,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       IndexType offsetZ = localOffsets_[2] * k;
 
       // loop over rows i -> dim2
-      for (IndexType i = 0; i < nrLocalPoints_[1]; ++i) {
+      for (IndexType i = 0; i < this->getLocalSizes()[1]; ++i) {
         IndexType offset = offsetZ + localOffsets_[1] * i;
 
-        for (IndexType j = 0; j < nrLocalPoints_[0]; ++j) {
+        for (IndexType j = 0; j < this->getLocalSizes()[0]; ++j) {
           os << fullgridVector_[offset + j] << "\t";
         }
 
