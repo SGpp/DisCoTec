@@ -357,8 +357,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     coords.resize(dim_);
 
     for (DimType j = 0; j < dim_; j++) {
-      ind = globalLinearIndex % nrPoints_[j];
-      globalLinearIndex = globalLinearIndex / nrPoints_[j];
+      ind = globalLinearIndex % this->getGlobalSizes()[j];
+      globalLinearIndex = globalLinearIndex / this->getGlobalSizes()[j];
       // set the coordinate based on if we have boundary points
       tmp_add = (hasBoundaryPoints_[j] > 0) ? (0) : (1);
       coords[j] = static_cast<double>(ind + tmp_add) * getGridSpacing()[j];
@@ -394,8 +394,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     // first calculate intermediary indexes
     for (DimType k = 0; k < dim_; k++) {
       startindex = (hasBoundaryPoints_[k] > 0) ? 0 : 1;
-      indexes[k] = tmp_val % nrPoints_[k] + startindex;
-      tmp_val = tmp_val / nrPoints_[k];
+      indexes[k] = tmp_val % this->getGlobalSizes()[k] + startindex;
+      tmp_val = tmp_val / this->getGlobalSizes()[k];
     }
 
     // The level and index of the element in the hashgridstorage are computed dividing by two the
@@ -610,7 +610,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
      }
 
   /** number of points per dimension i */
-  inline IndexType length(DimType i) const { return nrPoints_[i]; }
+  inline IndexType length(DimType i) const { return this->getGlobalSizes()[i]; }
 
   /** vector of flags to show if the dimension has boundary points*/
   inline const std::vector<BoundaryType>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
@@ -682,7 +682,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         upperBounds[i] = getLowerBounds(n)[i];
       } else {
         // no neighbor in dim i -> end of domain
-        upperBounds[i] = nrPoints_[i];
+        upperBounds[i] = this->getGlobalSizes()[i];
       }
     }
     return upperBounds;
