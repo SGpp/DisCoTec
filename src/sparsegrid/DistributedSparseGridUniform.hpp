@@ -122,20 +122,10 @@ class DistributedSparseGridUniform {
 
   inline CommunicatorType getCommunicator() const;
 
-  inline int getCommunicatorSize() const;
-
   // allows linear access to the data sizes of all subspaces
   const std::vector<SubspaceSizeType>& getSubspaceDataSizes() const;
 
-  // reduces the data sizes (between process groups) in-place
-  void reduceSubspaceSizes(CommunicatorType comm);
-
-  // broadcasts subspace sizes from one rank to all others in comm
-  void broadcastDsgSizes(CommunicatorType comm, RankType sendingRank);
-
-  void sendDsgSizesWithGather(CommunicatorType comm, RankType collectorRank);
-
-  void receiveDsgSizesWithScatter(CommunicatorType comm, RankType collectorRank);
+  std::vector<SubspaceSizeType>& getSubspaceDataSizes();
 
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
@@ -226,7 +216,6 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     }
   }
   MPI_Comm_rank(comm_, &rank_);
-  MPI_Comm_size(comm_, &commSize_);
 }
 
 template <typename FG_ELEMENT>
@@ -576,82 +565,15 @@ CommunicatorType DistributedSparseGridUniform<FG_ELEMENT>::getCommunicator() con
 }
 
 template <typename FG_ELEMENT>
-inline int DistributedSparseGridUniform<FG_ELEMENT>::getCommunicatorSize() const {
-  return commSize_;
-}
-
-template <typename FG_ELEMENT>
 inline const std::vector<SubspaceSizeType>&
 DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes() const {
   return subspacesDataSizes_;
 }
 
-/** Performs a max allreduce in comm with subspace sizes of each dsg
- *
- * After calling, all workers which share the same spatial decomposition will
- * have the same subspace sizes and therefor. in the end have equally sized dsgs.
- */
 template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::reduceSubspaceSizes(CommunicatorType comm) {
-  assert(this->getNumSubspaces() > 0);
-
-  // prepare for MPI call in globalReduceComm
-  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
-
-  // perform allreduce
-  assert(subspacesDataSizes_.size() <
-         static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
-  MPI_Allreduce(MPI_IN_PLACE, subspacesDataSizes_.data(),
-                static_cast<int>(subspacesDataSizes_.size()), dtype, MPI_MAX, comm);
-  // assume that the sizes changed, the buffer might be the wrong size now
-  this->deleteSubspaceData();
-}
-
-template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::broadcastDsgSizes(CommunicatorType comm,
-                                                                 RankType sendingRank) {
-  assert(this->getNumSubspaces() > 0);
-  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
-
-  // perform broadcast
-  assert(subspacesDataSizes_.size() <
-         static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
-  MPI_Bcast(subspacesDataSizes_.data(), static_cast<int>(subspacesDataSizes_.size()), dtype,
-            sendingRank, comm);
-  // assume that the sizes changed, the buffer might be the wrong size now
-  this->deleteSubspaceData();
-}
-
-template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::sendDsgSizesWithGather(CommunicatorType comm,
-                                                                      RankType collectorRank) {
-  auto numSubspaces = static_cast<int>(this->getNumSubspaces());
-  assert(numSubspaces > 0);
-  assert(numSubspaces == subspacesDataSizes_.size());
-  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
-
-  // perform gather (towards tl-manager)
-  // send size of buffer to manager
-  MPI_Gather(&numSubspaces, 1, MPI_INT, nullptr, 0, MPI_INT, collectorRank, comm);
-
-  // send subspace sizes to manager
-  MPI_Gatherv(subspacesDataSizes_.data(), numSubspaces, dtype, nullptr, nullptr, nullptr, dtype,
-              collectorRank, comm);
-}
-
-template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::receiveDsgSizesWithScatter(CommunicatorType comm,
-                                                                          RankType collectorRank) {
-  auto numSubspaces = static_cast<int>(this->getNumSubspaces());
-  assert(numSubspaces > 0);
-  assert(numSubspaces == subspacesDataSizes_.size());
-  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
-
-  // receive updated sizes from manager
-  MPI_Scatterv(nullptr, 0, nullptr, dtype, subspacesDataSizes_.data(), numSubspaces, dtype,
-               collectorRank, comm);
-  // assume that the sizes changed, the buffer might be the wrong size now
-  this->deleteSubspaceData();
+inline std::vector<SubspaceSizeType>&
+DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes() {
+  return subspacesDataSizes_;
 }
 
 template <typename FG_ELEMENT>

@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "TaskConstParaboloid.hpp"
+#include "combicom/CombiCom.hpp"
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "fullgrid/FullGrid.hpp"
 #include "hierarchization/DistributedHierarchization.hpp"
@@ -1130,7 +1131,7 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
     // this is not the "correct" communicator, but using it here so something is communicated
-    dsg.reduceSubspaceSizes(comm);
+    CombiCom::reduceSubspaceSizes(dsg, comm);
     dsg.setZero();
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

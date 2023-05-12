@@ -783,7 +783,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   // global reduce of subspace sizes
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
   for (auto& uniDSG : combinedUniDSGVector_) {
-    uniDSG->reduceSubspaceSizes(globalReduceComm);
+    CombiCom::reduceSubspaceSizes(*uniDSG, globalReduceComm);
   }
 }
 
@@ -1462,9 +1462,9 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
   CommunicatorType thirdLevelComm = theMPISystem()->getThirdLevelComms()[0];
   RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
   for (size_t i = 0; i < uniDSGVectorToSet->size(); ++i) {
-    combinedUniDSGVector_[i]->sendDsgSizesWithGather(thirdLevelComm, thirdLevelManagerRank);
+    CombiCom::sendSubspaceSizesWithGather(*combinedUniDSGVector_[i], thirdLevelComm, thirdLevelManagerRank);
     // set updated sizes in dsgs
-    (*uniDSGVectorToSet)[i]->receiveDsgSizesWithScatter(thirdLevelComm, thirdLevelManagerRank);
+    CombiCom::receiveSubspaceSizesWithScatter(*(*uniDSGVectorToSet)[i], thirdLevelComm, thirdLevelManagerRank);
   }
 
   if (!thirdLevelExtraSparseGrid) {
@@ -1473,7 +1473,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
     CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
     RankType globalReduceRank = theMPISystem()->getGlobalReduceRank();
     for (auto& dsg : combinedUniDSGVector_) {
-      dsg->broadcastDsgSizes(globalReduceComm, globalReduceRank);
+      CombiCom::broadcastSubspaceSizes(*dsg, globalReduceComm, globalReduceRank);
     }
   }
 }
@@ -1483,7 +1483,7 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   for (auto& dsg : combinedUniDSGVector_) {
-    dsg->broadcastDsgSizes(globalReduceComm, thirdLevelPG);
+    CombiCom::broadcastSubspaceSizes(*dsg, globalReduceComm, thirdLevelPG);
   }
 }
 
@@ -1552,7 +1552,7 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
     // reduce to all other process groups
     CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
     RankType senderRank = 0;
-    combinedUniDSGVector_[0]->broadcastDsgSizes(globalReduceComm, senderRank);
+    CombiCom::broadcastSubspaceSizes(*combinedUniDSGVector_[0], globalReduceComm, senderRank);
 #ifndef NDEBUG
     assert(subspaceSizesToValidate.size() ==
            combinedUniDSGVector_[0]->getSubspaceDataSizes().size());
