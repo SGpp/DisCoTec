@@ -22,6 +22,8 @@ class TensorIndexer {
       : extents_{extents.begin(), extents.end()}, localOffsets_(extents_.size()) {
     // : extents_{std::move(extents)} {
     IndexType nrElements = 1;
+    // cf. https://en.wikipedia.org/wiki/Row-_and_column-major_order#Address_calculation_in_general
+    // -> column-major order
     for (DimType j = 0; j < NumDimensions; j++) {
       localOffsets_[j] = nrElements;
       nrElements = nrElements * extents_[j];
@@ -29,7 +31,7 @@ class TensorIndexer {
     assert(this->size() == nrElements);
   }
 
-  // delete copy and move constructors for now
+  // have only move constructors for now
   TensorIndexer(TensorIndexer const&) = delete;
   TensorIndexer(TensorIndexer&&) = default;
   TensorIndexer& operator=(TensorIndexer const&) = delete;
@@ -82,20 +84,29 @@ class Tensor : public TensorIndexer<NumDimensions> {
  public:
   Tensor() = default;
   explicit Tensor(Type* data, std::array<IndexType, NumDimensions>&& extents)
-      : data_(data), TensorIndexer<NumDimensions>(std::move(extents)) {
+      : data_(data), TensorIndexer<NumDimensions>(std::move(extents)) {}
+
+  // have only move constructors for now
+  Tensor(Tensor const&) = delete;
+  Tensor(Tensor&&) = default;
+  Tensor& operator=(Tensor const&) = delete;
+  Tensor& operator=(Tensor&&) = default;
+
+  Type* getData() {
     if (this->data_ == nullptr) {
       throw std::runtime_error("Data pointer must not be null!");
     }
+    return this->data_;
   }
 
-  // delete copy and move constructors for now
-  Tensor(Tensor const&) = delete;
-  Tensor(Tensor&&) = delete;
-  Tensor& operator=(Tensor const&) = delete;
-  Tensor& operator=(Tensor&&) = delete;
+  const Type* getData() const {
+    if (this->data_ == nullptr) {
+      throw std::runtime_error("Data pointer must not be null!");
+    }
+    return this->data_;
+  }
 
-  Type* getData() { return this->data_; }
-  const Type* getData() const { return this->data_; }
+  void setData(Type* newData) { this->data_ = newData; }
 
   Type& operator[](IndexType a) { return this->data_[a]; }
   const Type& operator[](IndexType a) const { return this->data_[a]; }
@@ -155,22 +166,81 @@ SomeTensorIndexer makeTensorIndexer(IndexVector extents);
 template <typename Type>
 using SomeTensor = std::variant<Tensor<Type, 0>, Tensor<Type, 1>, Tensor<Type, 2>, Tensor<Type, 3>,
                                 Tensor<Type, 4>, Tensor<Type, 5>, Tensor<Type, 6>>;
+
+template <typename Type>
+SomeTensor<Type> makeTensor(Type* data, IndexVector extents) {
+  SomeTensor<Type> tensor;
+  DimType dim = static_cast<DimType>(extents.size());
+  switch (dim) {
+    case 1: {
+      IndexArray<1> extentsArray;
+      std::copy_n(extents.begin(), 1, extentsArray.begin());
+      tensor = Tensor<Type, 1>(data, std::move(extentsArray));
+    } break;
+    case 2: {
+      IndexArray<2> extentsArray;
+      std::copy_n(extents.begin(), 2, extentsArray.begin());
+      tensor = Tensor<Type, 2>(data, std::move(extentsArray));
+    } break;
+    case 3: {
+      IndexArray<3> extentsArray;
+      std::copy_n(extents.begin(), 3, extentsArray.begin());
+      tensor = Tensor<Type, 3>(data, std::move(extentsArray));
+    } break;
+    case 4: {
+      IndexArray<4> extentsArray;
+      std::copy_n(extents.begin(), 4, extentsArray.begin());
+      tensor = Tensor<Type, 4>(data, std::move(extentsArray));
+    } break;
+    case 5: {
+      IndexArray<5> extentsArray;
+      std::copy_n(extents.begin(), 5, extentsArray.begin());
+      tensor = Tensor<Type, 5>(data, std::move(extentsArray));
+    } break;
+    case 6: {
+      IndexArray<6> extentsArray;
+      std::copy_n(extents.begin(), 6, extentsArray.begin());
+      tensor = Tensor<Type, 6>(data, std::move(extentsArray));
+    } break;
+    default:
+      throw std::runtime_error("makeTensor: unsupported dimensionality");
+  }
+  return tensor;
+}
+
 namespace tensor {
 
-inline size_t size(const SomeTensorIndexer& s) {
+template <typename TensorLike>
+inline size_t size(const TensorLike& s) {
   size_t size = 0;
   std::visit([&](auto&& arg) { size = arg.size(); }, s);
   assert(size > 0);
   return size;
 }
 
-inline const IndexVector& getExtents(const SomeTensorIndexer& s) {
+template <typename TensorLike>
+inline const IndexVector& getExtents(const TensorLike& s) {
   return std::visit([&](auto&& arg) -> const IndexVector& { return arg.getExtentsVector(); }, s);
 }
 
-inline const IndexVector& getOffsets(const SomeTensorIndexer& s) {
+template <typename TensorLike>
+inline const IndexVector& getOffsets(const TensorLike& s) {
   return std::visit([&](auto&& arg) -> const IndexVector& { return arg.getOffsetsVector(); }, s);
 }
 
+template <typename Type>
+Type* getData(SomeTensor<Type>& s) {
+  return std::visit([&](auto&& arg) -> Type* { return arg.getData(); }, s);
+}
+
+template <typename Type>
+const Type* getData(const SomeTensor<Type>& s) {
+  return std::visit([&](auto&& arg) -> const Type* { return arg.getData(); }, s);
+}
+
+template <typename Type>
+void setData(SomeTensor<Type>& s, Type* data) {
+  return std::visit([&](auto&& arg) -> void { return arg.setData(data); }, s);
+}
 }  // namespace tensor
 }  // namespace combigrid
