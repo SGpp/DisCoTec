@@ -608,9 +608,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     std::memset(this->getData(), 0, this->getNrLocalElements() * sizeof(FG_ELEMENT));
   }
 
-  inline FG_ELEMENT* getData() { return &fullgridVector_[0]; }
+  inline FG_ELEMENT* getData() { return tensor::getData(localTensor_); }
 
-  inline const FG_ELEMENT* getData() const { return &fullgridVector_[0]; }
+  inline const FG_ELEMENT* getData() const { return tensor::getData(localTensor_); }
 
   /** MPI Communicator*/
   inline CommunicatorType getCommunicator() const { return this->getCartesianUtils().getComm(); }
