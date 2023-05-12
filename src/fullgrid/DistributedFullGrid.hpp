@@ -10,7 +10,6 @@
 #include <string>
 
 #include "fullgrid/FullGrid.hpp"
-#include "fullgrid/SliceIterator.hpp"
 #include "fullgrid/Tensor.hpp"
 #include "mpi/MPICartesianUtils.hpp"
 #include "mpi/MPISystem.hpp"
@@ -109,15 +108,6 @@ class DistributedFullGrid {
     localTensor_ = makeTensor<FG_ELEMENT>(dataPointer, nrLocalPoints);
   }
 
-  // explicit DistributedFullGrid(const DistributedFullGrid& other) {
-  //   this = DistributedFullGrid(other.getDimension(), other.getLevels(), other.getCommunicator(),
-  //                              other.returnBoundaryFlags(), other.getParallelization(), true,
-  //                              other.getDecomposition());
-  //   for (IndexType li = 0; li < other.getNrLocalElements(); ++li) {
-  //     this->getData()[li] = other.getData()[li];
-  //   }
-  // }
-
   DistributedFullGrid(const DistributedFullGrid& other) = delete;
   DistributedFullGrid& operator=(const DistributedFullGrid&) = delete;
   DistributedFullGrid(DistributedFullGrid&& other) = default;
@@ -131,44 +121,6 @@ class DistributedFullGrid {
       MPI_Type_free(&downwardSubarrays_[i]);
     }
   }
-
-
-class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
- public:
-  SubarrayIterator(const MPI_Datatype& subarrayType, DistributedFullGrid& dfg) : SliceIterator<FG_ELEMENT>() {
-    this->offsets_ = dfg.getLocalOffsets();
-    this->dataPointer_ = dfg.getData();
-
-    // read out the subarray informaiton
-    MPI_Datatype tmp;
-    DimType dim = dfg.getDimension();
-    std::vector<int> MPITypeIntegers(3 * dim + 2);
-    auto success = MPI_Type_get_contents(subarrayType, static_cast<int>(MPITypeIntegers.size()), 0,
-                                         1, MPITypeIntegers.data(), nullptr, &tmp);
-    assert(success == MPI_SUCCESS);
-    // check datatype
-    assert(tmp == dfg.getMPIDatatype());
-    // check order
-    assert(MPITypeIntegers.back() == MPI_ORDER_FORTRAN);
-
-    auto sizes = std::vector<int>(MPITypeIntegers.begin() + 1, MPITypeIntegers.begin() + dim + 1);
-    this->subsizes_ =
-        std::vector<int>(MPITypeIntegers.begin() + dim + 1, MPITypeIntegers.begin() + 2 * dim + 1);
-    this->starts_ = std::vector<int>(MPITypeIntegers.begin() + 2 * dim + 1,
-                                     MPITypeIntegers.begin() + 3 * dim + 1);
-    this->currentLocalIndex_ = this->starts_;
-
-    assert(dim == this->getDimension());
-    // check that sizes match
-    for (DimType d = 0; d < this->getDimension() - 1; ++d) {
-      assert(sizes[d] == static_cast<int>(dfg.getLocalSizes()[d]));
-      assert(this->subsizes_[d] + this->starts_[d] <= sizes[d]);
-    }
-
-    this->setEndIndex();
-    this->validateSizes();
-  }
-};
 
 inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, double coord,
                                            DimType d) const {
@@ -474,6 +426,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** the local linear index corresponding to the local index vector */
   inline IndexType getLocalLinearIndex(const IndexVector& locAxisIndex) const {
+    // return localTensor_.sequentialIndex(locAxisIndex);
     assert(locAxisIndex.size() == dim_);
     return std::inner_product(locAxisIndex.begin(), locAxisIndex.end(), this->getLocalOffsets().begin(), 0);
   }
@@ -1146,7 +1099,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       }
 
       // set file view to right offset (in bytes)
-      // 1*int + dim*int = (1+dim)*sizeof(int)
       offset = (1 + dim) * sizeof(int);
     }
 
@@ -1488,69 +1440,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     return recvbuffer;
   }
 
-  void averageBoundaryValues(DimType d) {
-    std::vector<FG_ELEMENT> recvbufferFromUp, recvbufferFromDown;
-    // exchanges just like in the ghost layer exchange, but across boundary
-    exchangeBoundaryLayers(d, recvbufferFromUp, recvbufferFromDown);
-    MPI_Barrier(this->getCommunicator());
-    // get MPI datatypes
-    auto downSubarrays = getDownwardSubarrays();
-    auto upSubarrays = getUpwardSubarrays();
-
-    // if both lower and higher are set, it's only me and I can just average
-    // not strictly necessary but good to test the iterators
-    if (recvbufferFromUp.size() > 0 && recvbufferFromDown.size() > 0) {
-      SubarrayIterator downIt(downSubarrays[d], *this);
-      SubarrayIterator upIt(upSubarrays[d], *this);
-      assert(downIt.size() == upIt.size());
-#ifndef NDEBUG
-      auto initialIndexDiff = upIt.getIndex() - downIt.getIndex();
-      auto initialUpIndex = upIt.getIndex();
-      int ctr = 0;
-#endif  // ndef NDEBUG
-      while (!downIt.isAtEnd()) {
-        assert(initialIndexDiff == upIt.getIndex() - downIt.getIndex());
-        assert(upIt.getIndex() >= initialUpIndex);
-        auto avg = 0.5 * ((*upIt) + (*downIt));
-        *upIt = avg;
-        *downIt = avg;
-        ++downIt;
-        ++upIt;
-        assert(++ctr);
-      }
-      assert(upIt.isAtEnd());
-      assert(ctr == upIt.size());
-    } else if (recvbufferFromUp.size() > 0) {
-      SubarrayIterator downIt(downSubarrays[d], *this);
-      auto upIt = recvbufferFromUp.begin();
-      while (!downIt.isAtEnd()) {
-        auto avg = 0.5 * ((*upIt) + (*downIt));
-        *downIt = avg;
-        ++downIt;
-        ++upIt;
-      }
-      assert(upIt == recvbufferFromUp.end());
-    } else if (recvbufferFromDown.size() > 0) {
-      SubarrayIterator upIt(upSubarrays[d], *this);
-      auto downIt = recvbufferFromDown.begin();
-      while (!upIt.isAtEnd()) {
-        auto avg = 0.5 * ((*upIt) + (*downIt));
-        *upIt = avg;
-        ++downIt;
-        ++upIt;
-      }
-      assert(downIt == recvbufferFromDown.end());
-    }
-  }
-
-  void averageBoundaryValues() {
-    for (DimType d = 0; d < this->getDimension(); ++d) {
-      if (this->hasBoundaryPoints_[d] == 2) {
-        this->averageBoundaryValues(d);
-      }
-    }
-  }
-
   /**
    * @brief check if given globalLinearIndex is on the boundary of this DistributedFullGrid
    */
@@ -1795,13 +1684,13 @@ class OwningDistributedFullGrid : public DistributedFullGrid<FG_ELEMENT> {
     this->setData(ownedDataVector_.data());
   }
 
+  const std::vector<FG_ELEMENT>& getDataVector() const { return ownedDataVector_; }
+
   void setDataVector(std::vector<FG_ELEMENT>&& otherVector) {
     assert(otherVector.size() == ownedDataVector_.size());
     ownedDataVector_ = std::move(otherVector);
     this->setData(ownedDataVector_.data());
   }
-
-  const std::vector<FG_ELEMENT>& getDataVector() const { return ownedDataVector_; }
 
   void swapDataVector(std::vector<FG_ELEMENT>& otherVector) {
     assert(otherVector.size() == ownedDataVector_.size());
