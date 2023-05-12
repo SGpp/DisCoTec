@@ -81,14 +81,14 @@ class TestingTask : public combigrid::Task {
     // parallelization
     // assert(dfg_ == nullptr);
     auto nprocs = getCommSize(lcomm);
-    std::vector<int> p = {nprocs,1};
+    std::vector<int> p = {nprocs, 1};
 
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p, false, decomposition);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                        getBoundary(), p, false, decomposition);
 
     auto elements = dfg_->getData();
     for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
-      elements[i] = 0; // default state is 0
+      elements[i] = 0;  // default state is 0
     }
   }
 
@@ -129,8 +129,7 @@ class TestingTask : public combigrid::Task {
  private:
   friend class boost::serialization::access;
 
-  DistributedFullGrid<CombiDataType>* dfg_{nullptr};
-
+  OwningDistributedFullGrid<CombiDataType>* dfg_{nullptr};
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {

@@ -337,7 +337,7 @@ private:
   // following variables are only accessed in worker and do not need to be
   // serialized
   GeneLocalCheckpoint checkpoint_;
-  std::vector<DistributedFullGrid<CombiDataType> *> dfgVector_;
+  std::vector<OwningDistributedFullGrid<CombiDataType> *> dfgVector_;
   real nrg_;
 
   bool initialized_; //indicates if GeneTask is initialized

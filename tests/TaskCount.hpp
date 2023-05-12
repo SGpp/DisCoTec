@@ -37,17 +37,17 @@ class TaskCount : public combigrid::Task {
   }
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
-
     auto nprocs = getCommSize(lcomm);
     std::vector<int> p;
     if (decomposition.size() == 0) {
-      p = {nprocs,1};
+      p = {nprocs, 1};
     } else {
       for (const auto& d : decomposition) {
         p.push_back(static_cast<int>(d.size()));
       }
     }
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p, false, decomposition);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                        getBoundary(), p, false, decomposition);
 
     auto element = dfg_->getData();
     for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
@@ -112,7 +112,7 @@ class TaskCount : public combigrid::Task {
  private:
   friend class boost::serialization::access;
 
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
 
   size_t nrun_;
   combigrid::real time_ = 0.;

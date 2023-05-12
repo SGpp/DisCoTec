@@ -107,8 +107,8 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     auto dfgDecomposition =
         combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
 
-    auto uniDFG = std::unique_ptr<DistributedFullGrid<std::complex<double>>>(
-        new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
+    auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
+        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
 
     uniDSG->registerDistributedFullGrid(*uniDFG);
@@ -213,8 +213,8 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       l += 1;
     }
     dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
-    auto largeUniDFG = std::unique_ptr<DistributedFullGrid<std::complex<double>>>(
-        new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
+    auto largeUniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
+        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
 
 
@@ -665,8 +665,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
         new DistributedSparseGridUniform<combigrid::DimType>(dim, lmax, lmin, comm));
 
     {  // register full grid
-      auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::DimType>>(
-          new DistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
+      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType>>(
+          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
 
@@ -678,8 +678,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
 
     {  // register reversed full grid
       std::reverse(lfull.begin(), lfull.end());
-      auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::DimType>>(
-          new DistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
+      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType>>(
+          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
 
@@ -725,8 +725,8 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
       if (levelSum(level) == 21) {
         auto dfgDecomposition =
             combigrid::downsampleDecomposition(decomposition, lmax, level, boundary);
-        auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::real>>(
-            new DistributedFullGrid<combigrid::real>(dim, level, comm, boundary, procs, true,
+        auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::real>>(
+            new OwningDistributedFullGrid<combigrid::real>(dim, level, comm, boundary, procs, true,
                                                      dfgDecomposition));
         uniDSG->registerDistributedFullGrid(*uniDFG);
       }

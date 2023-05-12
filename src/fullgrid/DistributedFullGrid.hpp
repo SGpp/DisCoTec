@@ -59,35 +59,18 @@ static inline std::vector<IndexVector> getDefaultDecomposition(
   return decomposition;
 }
 
-/** The full grid class which is the main building block of the combi grid <br>
- *  The index of a gridpoint in the full grid is given by the formula : <br>
- *  ind = i0 + i1*N0 + i2*N0*N1 + ... + id*N0*N1*N2*...*Nd, where i0,i1,i2,... are the indexes in
- * every dimension,
- *  and Nk is the number of gridpoints in direction k. <br>
- *  For more infos you can look at the "getVectorIndex" and "getLinearIndex" functions and their
- * implementation. <br>
- *  Nk=2^level[k]+1 for every k for the directions with boundary points and Nk=2^level[k]-1 for the
- * directions without boundary. <br>
- *
- *  The layout of the process grid, i.e. the ordering of procs is the same as of
- *  levels. The same holds for every function involving partition coordinates, e.g.
- *  getRank().
- *  However, in the internal implementation, i.e. for the grid of MPI processes,
- *  an inverse ordering for the process coordinates is used. This must be kept
- *  in mind when mapping an application's data structure to the distributed
- *  full grid.
- *  In future, we plan to offer more flexiblity here. At least to cover the two
- *  most natural options to arrange processes in a grid. At the end of the day
- *  this only affects the rank in the cartesian communicator, which is assigned
- *  by MPI in fortran-typical column-major ordering.
- * */
+/**
+ * @brief DistributedFullGrid : a (non-owning) indexed full grid data structure
+ * 
+ * @tparam FG_ELEMENT 
+ */
 template <typename FG_ELEMENT>
 class DistributedFullGrid {
  public:
   /** dimension adaptive Ctor */
   DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType const& comm,
-                      const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
-                      bool forwardDecomposition = true,
+                      const std::vector<BoundaryType>& hasBdrPoints, FG_ELEMENT* dataPointer,
+                      const std::vector<int>& procs, bool forwardDecomposition = true,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>())
       : dim_(dim), levels_(levels), hasBoundaryPoints_(hasBdrPoints) {
     assert(levels_.size() == dim);
@@ -123,10 +106,7 @@ class DistributedFullGrid {
 
     // set local elements and local offsets
     auto nrLocalPoints = getUpperBounds() - getLowerBounds();
-    localTensor_ = makeTensor<FG_ELEMENT>(nullptr, nrLocalPoints);
-
-    fullgridVector_.resize(this->getNrLocalElements());
-    localTensor_ = makeTensor(fullgridVector_.data(), nrLocalPoints);
+    localTensor_ = makeTensor<FG_ELEMENT>(dataPointer, nrLocalPoints);
   }
 
   // explicit DistributedFullGrid(const DistributedFullGrid& other) {
@@ -537,10 +517,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** returns the dimension of the full grid */
   inline DimType getDimension() const { return dim_; }
 
-  /** the getters for the full grid vector */
-  inline std::vector<FG_ELEMENT>& getElementVector() { return fullgridVector_; }
+  inline SomeTensor<FG_ELEMENT>& getTensor() { return localTensor_; }
 
-  inline const std::vector<FG_ELEMENT>& getElementVector() const { return fullgridVector_; }
+  inline const SomeTensor<FG_ELEMENT>& getTensor() const { return localTensor_; }
 
   /** return the offset in the full grid vector of the dimension */
   inline IndexType getOffset(DimType i) const { return this->getOffsets()[i]; }
@@ -1681,9 +1660,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     return values;
   }
 
-  const MPICartesianUtils& getCartesianUtils() const {
-    return cartesianUtils_;
-  }
+  const MPICartesianUtils& getCartesianUtils() const { return cartesianUtils_; }
+
+ protected:
+  inline void setData(FG_ELEMENT* newData) { return tensor::setData(localTensor_, newData); }
 
  private:
   /** dimension of the full grid */
@@ -1712,8 +1692,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** my partition's upper 1D bounds */
   IndexVector myPartitionsUpperBounds_;
 
-  /** the full grid vector, this contains the elements of the full grid */
-  std::vector<FG_ELEMENT> fullgridVector_;
  /**
   * the decomposition of the full grid over processors
   * contains (for every dimension) the grid point indices at
@@ -1814,6 +1792,39 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
 
   return os;
 }
+
+template <typename FG_ELEMENT>
+class OwningDistributedFullGrid : public DistributedFullGrid<FG_ELEMENT> {
+ public:
+  OwningDistributedFullGrid() = default;
+  explicit OwningDistributedFullGrid(
+      DimType dim, const LevelVector& levels, CommunicatorType const& comm,
+      const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
+      bool forwardDecomposition = true,
+      const std::vector<IndexVector>& decomposition = std::vector<IndexVector>())
+      : DistributedFullGrid<FG_ELEMENT>(dim, levels, comm, hasBdrPoints, ownedDataVector_.data(),
+                                        procs, forwardDecomposition, decomposition) {
+    ownedDataVector_.resize(this->getNrLocalElements());
+    this->setData(ownedDataVector_.data());
+  }
+
+  void setDataVector(std::vector<FG_ELEMENT>&& otherVector) {
+    assert(otherVector.size() == ownedDataVector_.size());
+    ownedDataVector_ = std::move(otherVector);
+    this->setData(ownedDataVector_.data());
+  }
+
+  const std::vector<FG_ELEMENT>& getDataVector() const { return ownedDataVector_; }
+
+  void swapDataVector(std::vector<FG_ELEMENT>& otherVector) {
+    assert(otherVector.size() == ownedDataVector_.size());
+    ownedDataVector_.swap(otherVector);
+    this->setData(ownedDataVector_.data());
+  }
+
+ private:
+  std::vector<FG_ELEMENT> ownedDataVector_{};
+};
 
 static inline std::vector<IndexVector> downsampleDecomposition(
     const std::vector<IndexVector> decomposition, const LevelVector& referenceLevel,

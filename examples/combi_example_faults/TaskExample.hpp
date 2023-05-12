@@ -83,12 +83,12 @@ class TaskExample: public Task {
 
     if (lrank == 0) {
       std::cout << "group " << theMPISystem()->getGlobalRank() << " "
-                << "computing task " << this->getID() << " with l = "
-                << this->getLevelVector() << " and p = " << p << std::endl;
+                << "computing task " << this->getID() << " with l = " << this->getLevelVector()
+                << " and p = " << p << std::endl;
     }
 
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
     /* loop over local subgrid and set initial values */
     auto elements = dfg_->getData();
@@ -206,7 +206,7 @@ class TaskExample: public Task {
 
 
 
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
 
   /**
    * The serialize function has to be extended by the new member variables.

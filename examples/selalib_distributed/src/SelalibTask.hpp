@@ -98,18 +98,13 @@ class SelalibTask : public combigrid::Task {
       //   std::cout << "run " << *this << std::endl;
       // }
       bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
-      if (!haveResolution) {
-        setLocalDistributionFromDFG();
-      }
       Stats::startEvent("BSL run");
       if (selalibSimPointer_ == nullptr) {
         throw std::runtime_error("selalibSimPointer_ is null");
       }
       sim_bsl_vp_3d3v_cart_dd_slim_run(simPtrPtr_);
       Stats::stopEvent("BSL run");
-      if (!haveResolution) {
-        setDFGfromLocalDistribution();
-      }
+
       int32_t* iPtr = &currentNumTimeStepsRun_;
       sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics(simPtrPtr_, iPtr);
       changeDir(lcomm, true);
@@ -164,9 +159,9 @@ class SelalibTask : public combigrid::Task {
     // if coefficient is infty, we are dealing with a single full grid, no need to copy to dfg
     bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
     if (!haveResolution) {
-      dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
-                                                    getBoundary(), p_, false, decomposition);
-      setDFGfromLocalDistribution();
+      dfg_ =
+          new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
+                                                 localDistribution_, p_, false, decomposition);
     }
     initialized_ = true;
     changeDir(lcomm);
@@ -248,7 +243,6 @@ class SelalibTask : public combigrid::Task {
     // // set dfg from DSG
     // DistributedHierarchization::fillDFGFromDSGU(*dfg_, *dsgus[0], hierarchizationDims);
     // set selalib distribution from dfg
-    setLocalDistributionFromDFG();
     assert(diagnosticsInitialized_);
     int32_t* iPtr = &currentNumTimeStepsRun_;
     sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics(simPtrPtr_, iPtr);
@@ -273,7 +267,7 @@ class SelalibTask : public combigrid::Task {
   void* selalibSimPointer_;
   void** simPtrPtr_ = &selalibSimPointer_;
 
-  bool initialized_;             // indicates if SelalibTask is initialized
+  bool initialized_;  // indicates if SelalibTask is initialized
   bool diagnosticsInitialized_;
 
   /*
@@ -287,121 +281,6 @@ class SelalibTask : public combigrid::Task {
   size_t nsteps_;
 
   // std::chrono::high_resolution_clock::time_point  startTimeIteration_;
-
-  void setDFGfromLocalDistribution() {
-#ifndef NDEBUG
-    auto& localDFGSize = dfg_->getLocalSizes();
-    assert(dim_ == 6);
-    // std::cout << localDFGSize << " " << std::vector<int>(localSize_.begin(), localSize_.end()) <<
-    // std::endl;
-    auto localSizeCopy = localSize_;
-    sim_bsl_vp_3d3v_cart_dd_slim_get_local_size(simPtrPtr_, localSizeCopy.data());
-    for (DimType d = 0; d < dim_; ++d) {
-      bool isUpper = (dfg_->getUpperBoundsCoords()[d] > (1. + 1e-12));
-      // std::cout << dfg_->getRank() << " " << isUpper << " " << localDFGSizeReverted << std::endl;
-      assert((isUpper && (localDFGSize[d] == (localSize_[d] + 1))) ||
-             (!isUpper && (localDFGSize[d] == localSize_[d])));
-      assert(localSizeCopy[d] == localSize_[d]);
-    }
-#endif  // ndef NDEBUG
-
-    auto& offsets = dfg_->getLocalOffsets();
-    assert(offsets[0] == 1);
-
-    auto localDistributionIterator = localDistribution_;
-    // oh no, overflow!
-    // int32_t bufferSize =
-    //     std::accumulate(localSize_.begin(), localSize_.end(), 1, std::multiplies<int32_t>());
-    std::array<size_t, 6> localSizeLong;
-    std::copy(localSize_.begin(), localSize_.end(), localSizeLong.begin());
-    size_t bufferSize =
-        std::accumulate(localSizeLong.begin(), localSizeLong.end(), 1, std::multiplies<size_t>());
-    assert(bufferSize > 0);
-    // assignment, leaving out the uppermost layer in each dimension, if it is not part of
-    // Selalib's local distribution
-    // contiguous access by Fortran ordering
-    for (int i = 0; i < localSize_[5]; ++i) {
-      auto offset_i = i * offsets[5];
-      for (int j = 0; j < localSize_[4]; ++j) {
-        auto offset_j = offset_i + j * offsets[4];
-        for (int k = 0; k < localSize_[3]; ++k) {
-          auto offset_k = offset_j + k * offsets[3];
-          for (int l = 0; l < localSize_[2]; ++l) {
-            auto offset_l = offset_k + l * offsets[2];
-            for (int m = 0; m < localSize_[1]; ++m) {
-              auto offset_m = offset_l + m * offsets[1];
-              for (int n = 0; n < localSize_[0]; ++n) {
-                auto fgIndex = offset_m + n;
-#ifndef NDEBUG
-                std::vector<real> coords(dim_);
-                dfg_->getCoordsLocal(fgIndex, coords);
-                // check that the upper boundary is not written into
-                auto isWrittenInto =
-                    std::any_of(coords.begin(), coords.end(), [](real r) { return r == 1.; });
-                if (isWrittenInto) {
-                  std::cout << "wrote into " << coords << " dfg index " << fgIndex << " BSL index "
-                            << (localDistributionIterator - localDistribution_) << std::endl;
-                }
-                assert(!isWrittenInto);
-                // check that we are not reading beyond the selalib buffer
-                if ((localDistributionIterator - localDistribution_) >= bufferSize) {
-                  std::cout << "access violation at " << coords << " dfg index " << fgIndex
-                            << " BSL index " << (localDistributionIterator - localDistribution_)
-                            << " , " << localDistribution_ << " , buffer size " << bufferSize
-                            << localDFGSize << " , offsets " << offsets << " coeff " << coeff_
-                            << " " << (coeff_ == 0.) << std::endl;
-                }
-                assert((localDistributionIterator - localDistribution_) < bufferSize);
-#endif  // ndef NDEBUG
-                dfg_->getElementVector()[fgIndex] = *(localDistributionIterator);
-                ++localDistributionIterator;
-              }
-            }
-          }
-        }
-      }
-    }
-    assert((localDistributionIterator - localDistribution_) == bufferSize);
-    for (DimType d = 0; d < dim_; ++d) {
-      assert(this->getBoundary()[d] > 0);
-      if (this->getBoundary()[d] == 2) {
-        dfg_->writeLowerBoundaryToUpperBoundary(d);
-      }
-    }
-  }
-
-  void setLocalDistributionFromDFG() {
-    // cf setDFGfromLocalDistribution
-    auto& offsets = dfg_->getLocalOffsets();
-    auto localDistributionIterator = localDistribution_;
-    std::array<size_t, 6> localSizeLong;
-    std::copy(localSize_.begin(), localSize_.end(), localSizeLong.begin());
-    size_t bufferSize =
-        std::accumulate(localSizeLong.begin(), localSizeLong.end(), 1, std::multiplies<size_t>());
-    assert(bufferSize > 0);
-
-    for (int i = 0; i < localSize_[5]; ++i) {
-      auto offset_i = i * offsets[5];
-      for (int j = 0; j < localSize_[4]; ++j) {
-        auto offset_j = offset_i + j * offsets[4];
-        for (int k = 0; k < localSize_[3]; ++k) {
-          auto offset_k = offset_j + k * offsets[3];
-          for (int l = 0; l < localSize_[2]; ++l) {
-            auto offset_l = offset_k + l * offsets[2];
-            for (int m = 0; m < localSize_[1]; ++m) {
-              auto offset_m = offset_l + m * offsets[1];
-              for (int n = 0; n < localSize_[0]; ++n) {
-                auto fgIndex = offset_m + n;
-                *(localDistributionIterator) = dfg_->getElementVector()[fgIndex];
-                ++localDistributionIterator;
-                assert((localDistributionIterator - localDistribution_) <= bufferSize);
-              }
-            }
-          }
-        }
-      }
-    }
-  }
 
   // serialize
   template <class Archive>
