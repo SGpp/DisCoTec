@@ -86,8 +86,8 @@ class DistributedFullGrid {
  public:
   /** dimension adaptive Ctor */
   DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType const& comm,
-                      const std::vector<BoundaryType>& hasBdrPoints, FG_ELEMENT* dataPointer,
-                      const std::vector<int>& procs, bool forwardDecomposition = true,
+                      const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
+                      bool forwardDecomposition = true,
                       const std::vector<IndexVector>& decomposition = std::vector<IndexVector>())
       : dim_(dim), levels_(levels), hasBoundaryPoints_(hasBdrPoints) {
     assert(levels_.size() == dim);
