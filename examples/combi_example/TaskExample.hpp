@@ -84,7 +84,7 @@ class TaskExample : public Task {
     }
 
     // create local subgrid on each process
-    dfg_ = new OwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
+    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
     /* loop over local subgrid and set initial values */
     auto elements = dfg_->getData();
@@ -196,7 +196,7 @@ class TaskExample : public Task {
   // pure local variables that exist only on the worker processes
   bool initialized_;
   size_t stepsTotal_;
-  OwningDistributedFullGrid<CombiDataType>* dfg_;
+  DistributedFullGrid<CombiDataType>* dfg_;
 
   /**
    * The serialize function has to be extended by the new member variables.
