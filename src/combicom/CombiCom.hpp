@@ -4,7 +4,7 @@
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "fullgrid/FullGrid.hpp"
 #include "mpi/MPISystem.hpp"
-#include "utils/Stats.hpp"
+#include "sparsegrid/DistributedSparseGridUniform.hpp"
 
 namespace combigrid {
 
@@ -27,8 +27,7 @@ void FGReduce(FullGrid<FG_ELEMENT>& fg, RankType r, MPI_Comm comm) {
     MPI_Reduce(MPI_IN_PLACE, &sendbuf[0], static_cast<int>(sendbuf.size()), dtype, MPI_SUM, r,
                comm);
   } else {
-    MPI_Reduce(&sendbuf[0], &recvbuf[0], static_cast<int>(sendbuf.size()), dtype, MPI_SUM, r,
-               comm);
+    MPI_Reduce(&sendbuf[0], &recvbuf[0], static_cast<int>(sendbuf.size()), dtype, MPI_SUM, r, comm);
   }
 }
 
@@ -50,7 +49,7 @@ void FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
 
 template <typename SparseGridType>
 int sumAndCheckSubspaceSizes(const SparseGridType& dsg,
-                                       const std::vector<SubspaceSizeType>& subspaceSizes) {
+                             const std::vector<SubspaceSizeType>& subspaceSizes) {
   int bsize = 0;
 
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
@@ -89,8 +88,7 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
  * Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
  */
 template <typename SparseGridType>
-void distributedGlobalReduce(SparseGridType& dsg,
-                                       RankType globalReduceRankThatCollects) {
+void distributedGlobalReduce(SparseGridType& dsg, RankType globalReduceRankThatCollects) {
   // get global communicator for this operation
   MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
 
@@ -102,8 +100,8 @@ void distributedGlobalReduce(SparseGridType& dsg,
   size_t subspacesDataSize = dsg.getRawDataSize();
 
   // global reduce
-  MPI_Datatype dtype =
-      abstraction::getMPIDatatype(abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
+  MPI_Datatype dtype = abstraction::getMPIDatatype(
+      abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
 
   // auto chunkSize = std::numeric_limits<int>::max();
   // allreduce up to 16MiB at a time (when using double precision)
@@ -165,11 +163,11 @@ static void sendDsgData(SparseGridType& dsg, RankType dest, CommunicatorType com
  * Recvs the raw dsg data from the source process in communicator comm.
  */
 template <typename SparseGridType>
-static void recvDsgData(SparseGridType& dsg, RankType source,
-                        CommunicatorType comm) {
+static void recvDsgData(SparseGridType& dsg, RankType source, CommunicatorType comm) {
   typename SparseGridType::ElementType* data = dsg.getRawData();
   auto dataSize = dsg.getRawDataSize();
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
+  MPI_Datatype dataType =
+      getMPIDatatype(abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
 
   size_t sentRecvd = 0;
   while ((dataSize - sentRecvd) / INT_MAX > 0) {
@@ -185,8 +183,7 @@ static void recvDsgData(SparseGridType& dsg, RankType source,
  * Asynchronous Bcast of the raw dsg data in the communicator comm.
  */
 template <typename SparseGridType>
-static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root,
-                                     CommunicatorType comm) {
+static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root, CommunicatorType comm) {
   if (dsg.getRawDataSize() >= INT_MAX) {
     throw std::runtime_error(
         "asyncBcastDsgData: Dsg is too large and can not be "
@@ -197,7 +194,8 @@ static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root,
 
   typename SparseGridType::ElementType* data = dsg.getRawData();
   int dataSize = static_cast<int>(dsg.getRawDataSize());
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
+  MPI_Datatype dataType =
+      getMPIDatatype(abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
   MPI_Request request = MPI_REQUEST_NULL;
 
   auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, &request);
@@ -209,13 +207,76 @@ static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root,
  * Sends all subspace data sizes to the receiver in communicator comm.
  */
 template <typename SparseGridType>
-static void sendSubspaceDataSizes(SparseGridType& dsg, RankType dest,
-                                  CommunicatorType comm) {
+static void sendSubspaceDataSizes(SparseGridType& dsg, RankType dest, CommunicatorType comm) {
   assert(dsg.getNumSubspaces() > 0);
 
   const std::vector<int>& subspacesDataSizes = dsg.getSubspaceDataSizes();
   MPI_Send(subspacesDataSizes.data(), subspacesDataSizes.size(), MPI_INT, dest,
            TRANSFER_SUBSPACE_DATA_SIZES_TAG, comm);
+}
+
+/** Performs a max allreduce in comm with subspace sizes of each dsg
+ *
+ * After calling, all workers which share the same spatial decomposition will
+ * have the same subspace sizes and therefor. in the end have equally sized dsgs.
+ */
+template <typename SparseGridType>
+void reduceSubspaceSizes(SparseGridType& dsg, CommunicatorType comm) {
+  assert(dsg.getNumSubspaces() > 0);
+
+  // prepare for MPI call in globalReduceComm
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
+
+  // perform allreduce
+  assert(dsg.getNumSubspaces() < static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
+  MPI_Allreduce(MPI_IN_PLACE, dsg.getSubspaceDataSizes().data(),
+                static_cast<int>(dsg.getNumSubspaces()), dtype, MPI_MAX, comm);
+  // assume that the sizes changed, the buffer might be the wrong size now
+  dsg.deleteSubspaceData();
+}
+
+template <typename SparseGridType>
+void broadcastSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, RankType sendingRank) {
+  assert(dsg.getNumSubspaces() > 0);
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
+
+  // perform broadcast
+  assert(dsg.getNumSubspaces() < static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
+  MPI_Bcast(dsg.getSubspaceDataSizes().data(), static_cast<int>(dsg.getNumSubspaces()), dtype,
+            sendingRank, comm);
+  // assume that the sizes changed, the buffer might be the wrong size now
+  dsg.deleteSubspaceData();
+}
+
+template <typename SparseGridType>
+void sendSubspaceSizesWithGather(SparseGridType& dsg, CommunicatorType comm,
+                                 RankType collectorRank) {
+  auto numSubspaces = static_cast<int>(dsg.getNumSubspaces());
+  assert(numSubspaces > 0);
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
+
+  // perform gather (towards tl-manager)
+  // send size of buffer to manager
+  MPI_Gather(&numSubspaces, 1, MPI_INT, nullptr, 0, MPI_INT, collectorRank, comm);
+
+  // send subspace sizes to manager
+  MPI_Gatherv(dsg.getSubspaceDataSizes().data(), numSubspaces, dtype, nullptr, nullptr, nullptr,
+              dtype, collectorRank, comm);
+}
+
+template <typename SparseGridType>
+void receiveSubspaceSizesWithScatter(SparseGridType& dsg, CommunicatorType comm,
+                                     RankType collectorRank) {
+  auto numSubspaces = static_cast<int>(dsg.getNumSubspaces());
+  assert(numSubspaces > 0);
+  assert(numSubspaces == dsg.getSubspaceDataSizes().size());
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
+
+  // receive updated sizes from manager
+  MPI_Scatterv(nullptr, 0, nullptr, dtype, dsg.getSubspaceDataSizes().data(), numSubspaces, dtype,
+               collectorRank, comm);
+  // assume that the sizes changed, the buffer might be the wrong size now
+  dsg.deleteSubspaceData();
 }
 
 }  // namespace CombiCom
