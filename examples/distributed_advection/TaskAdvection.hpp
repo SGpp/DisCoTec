@@ -104,7 +104,7 @@ class TaskAdvection : public Task {
       // compute the gradient in the original dfg_, then update into phi_ and
       // swap at the end of each time step
       auto& u_dot_dphi = *phi_;
-      const auto& ElementVector = dfg_->getElementVector();
+      auto const ElementVector = dfg_->getData();
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};

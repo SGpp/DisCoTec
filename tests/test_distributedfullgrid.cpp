@@ -341,7 +341,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
             // check if the value is the same as on the lower boundary
             auto compareCoords = coords;
             compareCoords[d] = 0.;
-            BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(compareCoords));
+            BOOST_CHECK_EQUAL(dfg.getData()[i], f(compareCoords));
           }
         } else {
           bool otherBoundary = false;
@@ -352,7 +352,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
           }
           if (!otherBoundary) {
             // make sure all other values remained the same
-            BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(coords));
+            BOOST_CHECK_EQUAL(dfg.getData()[i], f(coords));
           }
         }
       }

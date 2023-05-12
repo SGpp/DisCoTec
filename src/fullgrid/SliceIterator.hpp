@@ -34,30 +34,17 @@ class SliceIterator {
   SliceIterator& operator=(SliceIterator&& other) = delete;
 
   reference operator*() const {
-#ifndef NDEBUG
-    // make sure to only dereference when we actually have the data mapped
-    if (linearize(currentLocalIndex_) > dataPointer_->size()) {
-      std::cout << " subsizes " << subsizes_ << " starts " << starts_ << " end " << endIndex()
-                << std::endl;
-      std::cout << " ref waah currentLocalIndex_" << currentLocalIndex_ << " linearized "
-                << linearize(currentLocalIndex_) << " numElements " << dataPointer_->size()
-                << std::endl;
-    }
-    assert(linearize(currentLocalIndex_) <= dataPointer_->size());
-    assert(linearize(currentLocalIndex_) < endIndex());
-#endif  // ndef NDEBUG
-    return (*dataPointer_)[linearize(currentLocalIndex_)];
+    return dataPointer_[linearize(currentLocalIndex_)];
   }
 
-  pointer operator->() const { return &((*dataPointer_)[linearize(currentLocalIndex_)]); }
-  pointer getPointer() const { return &((*dataPointer_)[linearize(currentLocalIndex_)]); }
+  pointer operator->() const { return &(dataPointer_[linearize(currentLocalIndex_)]); }
+  pointer getPointer() const { return &(dataPointer_[linearize(currentLocalIndex_)]); }
 
   const std::vector<int>& getVecIndex() const { return currentLocalIndex_; }
   IndexType getIndex() const { return linearize(currentLocalIndex_); }
 
   const SliceIterator& operator++() {
 #ifndef NDEBUG
-    assert(linearize(currentLocalIndex_) <= dataPointer_->size());
     auto cpLocalIdx = currentLocalIndex_;
     auto idxbefore = linearize(currentLocalIndex_);
 #endif  // ndef NDEBUG
@@ -123,9 +110,6 @@ class SliceIterator {
 
   void validateSizes() {
     assert(offsets_[0] == 1 || offsets_[0] == 0); // 0 is for LowestSliceIterator
-    assert(std::accumulate(this->subsizes_.begin(), this->subsizes_.end(), 1,
-                           std::multiplies<int>()) <= this->dataPointer_->size());
-    assert(linearize(this->currentLocalIndex_) <= this->dataPointer_->size());
     assert(currentLocalIndex_.size() == this->getDimension());
     assert(subsizes_.size() == this->getDimension());
     assert(starts_.size() == this->getDimension());
@@ -135,7 +119,7 @@ class SliceIterator {
   std::vector<int> subsizes_;
   std::vector<int> starts_;
   IndexVector offsets_;
-  std::vector<FG_ELEMENT>* dataPointer_;
+  FG_ELEMENT* dataPointer_;
   IndexType linearEndIndex_ = -1;
 };
 

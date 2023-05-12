@@ -313,7 +313,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
         }
 #endif
         MPI_Aint addr;
-        MPI_Get_address(&(dfg.getElementVector()[localLinearIndex]), &addr);
+        MPI_Get_address(&(dfg.getData()[localLinearIndex]), &addr);
         auto d = MPI_Aint_diff(addr, dfgStartAddr);
         displacements.push_back(d);
       }
@@ -1039,7 +1039,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   const bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
   tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0),
              std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
+  auto ldata = dfg.getData();
   const IndexType& gstart = dfg.getLowerBounds()[dim];
 
   // loop over poles
@@ -1112,7 +1112,7 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over poles
   std::vector<FG_ELEMENT> tmp(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
+  auto ldata = dfg.getData();
   lldiv_t divresult;
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];
@@ -1198,7 +1198,7 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   // loop over poles
   static std::vector<FG_ELEMENT> tmp;
   tmp.resize(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
-  std::vector<FG_ELEMENT>& ldata = dfg.getElementVector();
+  auto ldata = dfg.getData();
   lldiv_t divresult;
   IndexType start;
   IndexType gstart = dfg.getLowerBounds()[dim];

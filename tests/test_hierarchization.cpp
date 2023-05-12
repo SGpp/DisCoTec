@@ -242,7 +242,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   auto dfgZero = std::unique_ptr<DistributedFullGrid<FG_ELEMENT>>(
       new DistributedFullGrid<FG_ELEMENT>(dim, lmin, comm, boundary, procs));
-  BOOST_CHECK(values.size() == dfgZero->getElementVector().size());
+  BOOST_CHECK(values.size() == dfgZero->getNrLocalElements());
   dfgZero->getElementVector() = values;
 
   // no need to dehierarchize, is nodal/scaling function on coarsest grid anyways

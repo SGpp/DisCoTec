@@ -86,9 +86,9 @@ class TestingTask : public combigrid::Task {
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
                                                   p, false, decomposition);
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    for (auto& element : elements) {
-      element = 0; // default state is 0
+    auto elements = dfg_->getData();
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
+      elements[i] = 0; // default state is 0
     }
   }
 
@@ -98,9 +98,9 @@ class TestingTask : public combigrid::Task {
 
     // std::cout << "run " << getCommRank(lcomm) << std::endl;
     
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    for (auto& element : elements) {
-      element = 10; // after run was executed the state is 10
+    auto elements = dfg_->getData();
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
+      elements[i] = 10; // after run was executed the state is 10
     }
     BOOST_CHECK(dfg_);
 
@@ -251,17 +251,17 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
       BOOST_REQUIRE(tasksContainSameValue(pgroup.getTasks()));
 
       for (auto& t : pgroup.getTasks()) {
-        std::vector<CombiDataType>& elements = t->getDistributedFullGrid().getElementVector();
-        for (auto e : elements) {
+        auto elements = t->getDistributedFullGrid().getData();
+        for (size_t i = 0; i < t->getDistributedFullGrid().getNrLocalElements(); ++i) {
           // Elements need to be always equal to 10 because
           // * first run: run is executed
           // * next run: run is executed
-          // * combination: element values do not change (every element is 
+          // * combination: element values do not change (every element is
           //                equal to 10)
           // * Task was added: element values are restored
-          // * Task was removed: all remaining elements were already checked in 
+          // * Task was removed: all remaining elements were already checked in
           //                     a previous iteration
-          BOOST_REQUIRE(e == 10.);
+          BOOST_REQUIRE(elements[i] == 10.);
         }
       }
     }

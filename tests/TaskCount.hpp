@@ -49,9 +49,9 @@ class TaskCount : public combigrid::Task {
     }
     dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p, false, decomposition);
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    for (auto& element : elements) {
-      element = -0.;
+    auto element = dfg_->getData();
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
+      element[i] = -0.;
     }
     nrun_ = 0;
     BOOST_TEST_CHECKPOINT("TaskCount init");

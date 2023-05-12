@@ -86,10 +86,9 @@ class DistributedFullGrid {
  public:
   /** dimension adaptive Ctor */
   DistributedFullGrid(DimType dim, const LevelVector& levels, CommunicatorType const& comm,
-                      const std::vector<BoundaryType>& hasBdrPoints, const std::vector<int>& procs,
-                      bool forwardDecomposition = true,
-                      const std::vector<IndexVector>& decomposition = std::vector<IndexVector>(),
-                      const BasisFunctionBasis* basis = NULL)
+                      const std::vector<BoundaryType>& hasBdrPoints, FG_ELEMENT* dataPointer,
+                      const std::vector<int>& procs, bool forwardDecomposition = true,
+                      const std::vector<IndexVector>& decomposition = std::vector<IndexVector>())
       : dim_(dim), levels_(levels), hasBoundaryPoints_(hasBdrPoints) {
     assert(levels_.size() == dim);
     assert(hasBoundaryPoints_.size() == dim);
@@ -166,7 +165,7 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
  public:
   SubarrayIterator(const MPI_Datatype& subarrayType, DistributedFullGrid& dfg) : SliceIterator<FG_ELEMENT>() {
     this->offsets_ = dfg.getLocalOffsets();
-    this->dataPointer_ = &(dfg.getElementVector());
+    this->dataPointer_ = dfg.getData();
 
     // read out the subarray informaiton
     MPI_Datatype tmp;
@@ -193,8 +192,6 @@ class SubarrayIterator : public SliceIterator<FG_ELEMENT> {
       assert(sizes[d] == static_cast<int>(dfg.getLocalSizes()[d]));
       assert(this->subsizes_[d] + this->starts_[d] <= sizes[d]);
     }
-    assert(std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<int>()) ==
-           this->dataPointer_->size());
 
     this->setEndIndex();
     this->validateSizes();
@@ -278,8 +275,8 @@ inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
       }
 #endif
       assert(neighborIndex > -1);
-      assert(neighborIndex < this->getElementVector().size());
-      result += phi_c * this->getElementVector()[neighborIndex];
+      assert(neighborIndex < this->getNrLocalElements());
+      result += phi_c * this->getData()[neighborIndex];
     }
   }
   return result;
@@ -616,8 +613,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline const std::vector<BoundaryType>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
 
   inline void setZero() {
-    std::memset(this->getElementVector().data(), 0,
-                this->getElementVector().size() * sizeof(FG_ELEMENT));
+    std::memset(this->getData(), 0, this->getNrLocalElements() * sizeof(FG_ELEMENT));
   }
 
   inline FG_ELEMENT* getData() { return &fullgridVector_[0]; }
@@ -868,7 +864,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline const IndexVector& getLocalSizes() const { return nrLocalPoints_; }
 
   // return extents of global grid
-  inline IndexVector getGlobalSizes() const { 
+  inline IndexVector getGlobalSizes() const {
     return combigrid::tensor::getExtents(globalIndexer_);
   }
 
@@ -1000,7 +996,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         auto sPointer = dsg.getData(sIndex);
         subspaceIndices = getFGPointsOfSubspace(level);
         for (const auto& fIndex : subspaceIndices) {
-          fullgridVector_[fIndex] = *sPointer;
+          this->getData()[fIndex] = *sPointer;
           ++sPointer;
         }
       }
@@ -1108,10 +1104,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     MPI_Datatype dtype =
       abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
     if (p == 0) {
-      auto& data = getElementVector();
+      auto data = this->getData();
       real max = 0.0;
 
-      for (size_t i = 0; i < data.size(); ++i) {
+      for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         if (std::abs(data[i]) > max) max = std::abs(data[i]);
       }
 
@@ -1121,11 +1117,11 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       return globalMax;
     } else {
       real p_f = static_cast<real>(p);
-      auto& data = getElementVector();
+      auto data = this->getData();
       real res = 0.0;
 
       // double sumIntegral = 0;
-      for (size_t i = 0; i < data.size(); ++i) {
+      for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         auto isOnBoundary = this->isLocalLinearIndexOnBoundary(i);
         auto countBoundary = std::count(isOnBoundary.begin(), isOnBoundary.end(), true);
         double hatFcnIntegral = oneOverPowOfTwo[countBoundary];
@@ -1148,16 +1144,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline real normalizelp(int p) {
     real norm = getLpNorm(p);
 
-    std::vector<FG_ELEMENT>& data = getElementVector();
-    for (size_t i = 0; i < data.size(); ++i) data[i] = data[i] / norm;
+    auto data = this->getData();
+    for (size_t i = 0; i < this->getNrLocalElements(); ++i) data[i] = data[i] / norm;
 
     return norm;
-  }
-
-  // multiply with a constant
-  inline void mul(real c) {
-    std::vector<FG_ELEMENT>& data = getElementVector();
-    for (size_t i = 0; i < data.size(); ++i) data[i] *= c;
   }
 
   // write data to file using MPI-IO
@@ -1318,8 +1308,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   MPI_Datatype getUpwardSubarray(DimType d) {
     // do index calculations
     // set lower bounds of subarray
-    IndexVector subarrayLowerBounds = this->getLowerBounds();
-    IndexVector subarrayUpperBounds = this->getUpperBounds();
+    auto subarrayLowerBounds = this->getLowerBounds();
+    auto subarrayUpperBounds = this->getUpperBounds();
     subarrayLowerBounds[d] += this->getLocalSizes()[d] - 1;
 
     auto subarrayExtents = subarrayUpperBounds - subarrayLowerBounds;
@@ -1714,7 +1704,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         bool present = getLocalVectorIndex(corners[cornerNo], locAxisIndex);
         assert(present);
         auto index = getLocalLinearIndex(locAxisIndex);
-        values[cornerNo] = this->getElementVector()[index];
+        values[cornerNo] = this->getData()[index];
       }
     }
     MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(values.size()),
