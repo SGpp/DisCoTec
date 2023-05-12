@@ -113,8 +113,8 @@ class DistributedFullGrid {
     globalIndexer_ = makeTensorIndexer(nrPoints);
 
     if (decomposition.size() == 0) {
-      decomposition_ = getDefaultDecomposition(
-          nrPoints, this->getCartesianUtils().getCartesianDimensions(), forwardDecomposition);
+      setDecomposition(getDefaultDecomposition(
+          nrPoints, this->getCartesianUtils().getCartesianDimensions(), forwardDecomposition));
     } else {
       setDecomposition(decomposition);
     }
@@ -122,19 +122,10 @@ class DistributedFullGrid {
     myPartitionsUpperBounds_ = getUpperBounds(this->getRank());
 
     // set local elements and local offsets
-    nrLocalPoints_ = getUpperBounds() - getLowerBounds();
+    auto nrLocalPoints = getUpperBounds() - getLowerBounds();
+    localTensor_ = makeTensor(dataPointer, nrLocalPoints);
 
-    IndexType nrLocalElements = 1;
-    localOffsets_.resize(dim);
-    // cf. https://en.wikipedia.org/wiki/Row-_and_column-major_order#Address_calculation_in_general
-    // -> column-major order
-    for (DimType j = 0; j < dim_; ++j) {
-      localOffsets_[j] = nrLocalElements;
-      nrLocalElements *= nrLocalPoints_[j];
-    }
-
-    // in contrast to serial implementation we directly create the grid
-    fullgridVector_.resize(nrLocalElements);
+    fullgridVector_.resize(this->getNrLocalElements());
   }
 
   // explicit DistributedFullGrid(const DistributedFullGrid& other) {
@@ -553,12 +544,12 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** return the offset in the full grid vector of the dimension */
   inline IndexType getOffset(DimType i) const { return this->getOffsets()[i]; }
 
-  inline const IndexVector& getOffsets() const { return combigrid::tensor::getOffsets(globalIndexer_); }
+  inline const IndexVector& getOffsets() const {
+    return combigrid::tensor::getOffsets(globalIndexer_);
+  }
 
   inline const IndexVector& getLocalOffsets() const {
-    assert(localOffsets_.size() == dim_);
-    assert(localOffsets_[0] == 1);
-    return localOffsets_;
+    return combigrid::tensor::getOffsets(localTensor_);
   }
 
   /** return the level vector */
@@ -603,8 +594,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** number of elements in the local partition */
   inline IndexType getNrLocalElements() const { 
-    return std::accumulate(nrLocalPoints_.begin(), nrLocalPoints_.end(), 1, std::multiplies<IndexType>());
-     }
+    return combigrid::tensor::size(localTensor_);
+  }
 
   /** number of points per dimension i */
   inline IndexType length(DimType i) const { return this->getGlobalSizes()[i]; }
@@ -1155,9 +1146,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     auto dim = getDimension();
 
     // create subarray data type
-    IndexVector sizes = getGlobalSizes();
-    IndexVector subsizes = getUpperBounds() - getLowerBounds();
-    IndexVector starts = getLowerBounds();
+    auto sizes = getGlobalSizes();
+    auto subsizes = getUpperBounds() - getLowerBounds();
+    auto starts = getLowerBounds();
 
     // we store our data in fortran notation, with the
     // first index in indexvectors being the first dimension.
@@ -1728,14 +1719,14 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   //TODO: make these normal templates, and SomeDistributedFullGrid a std::variant ?
   /** TensorIndexer , only populated for the used dimensionality**/
-  /** number of points per axis boundary included*/
+  /** number of points per axis, boundary included*/
   SomeTensorIndexer globalIndexer_ = std::move(TensorIndexer<0>());
+
+  // /** Tensor -- only populated for the used dimensionality**/
+  SomeTensor<FG_ELEMENT> localTensor_ = std::move(Tensor<FG_ELEMENT, 0>());
 
   /** flag to show if the dimension has boundary points*/
   std::vector<BoundaryType> hasBoundaryPoints_;
-
-  /** the local offsets in each direction */
-  IndexVector localOffsets_;
 
   /** my partition's lower 1D bounds */
   IndexVector myPartitionsLowerBounds_;
@@ -1758,9 +1749,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   // the MPI Datatypes representing the boundary layers of the MPI processes' subgrid
   std::vector<MPI_Datatype> downwardSubarrays_;
   std::vector<MPI_Datatype> upwardSubarrays_;
-
-  /** number of local (in this grid cell) points per axis*/
-  IndexVector nrLocalPoints_;
 
   /**
    * @brief sets the MPI-related member cartesianUtils_
@@ -1884,7 +1872,7 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
   // os << dfg.getRank() << " " << dfg.getDimension() << " " << dfg.getLevels() << std::endl;
   // os << "bounds " << dfg.getLowerBounds() << " to " << dfg.getUpperBounds()  << " to " << dfg.getUpperBoundsCoords() << std::endl;
   // os << "offsets " << dfg.getOffsets() << " " << dfg.getLocalOffsets() << std::endl;
-  // os << "sizes " << dfg.getLocalSizes() << "; " << dfg.getElementVector().size() << " " << dfg.getNrLocalElements() << "; " << dfg.getNrElements() << std::endl;
+  // os << "sizes " << dfg.getLocalSizes() << "; " << dfg.getNrLocalElements() << " " << dfg.getNrLocalElements() << "; " << dfg.getNrElements() << std::endl;
   // std::vector<std::vector<IndexType>> decomposition = dfg.getDecomposition();
   // for (auto& dec : decomposition) {
   //   os << dec;
