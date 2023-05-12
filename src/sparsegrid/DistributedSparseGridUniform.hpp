@@ -28,6 +28,7 @@ class DistributedFullGrid;
 template <typename FG_ELEMENT>
 class DistributedSparseGridUniform {
  public:
+  using ElementType = FG_ELEMENT;  
   // type used to index the subspaces
   // should be enough for the current scenario (cf. test_createTruncatedHierarchicalLevels_large)
   using SubspaceIndexType = int32_t;
@@ -790,110 +791,6 @@ bool DistributedSparseGridUniform<FG_ELEMENT>::readReduceSubspaceSizesFromFile(
       withCollectiveBuffering);
 
   return success;
-}
-
-/**
- * Sends the raw dsg data to the destination process in communicator comm.
- */
-template <typename FG_ELEMENT>
-static void sendDsgData(DistributedSparseGridUniform<FG_ELEMENT>* dsgu, RankType dest,
-                        CommunicatorType comm) {
-  FG_ELEMENT* data = dsgu->getRawData();
-  auto dataSize = dsgu->getRawDataSize();
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-
-  size_t sentRecvd = 0;
-  while ((dataSize - sentRecvd) / INT_MAX > 0) {
-    MPI_Send(data + sentRecvd, (int)INT_MAX, dataType, dest, TRANSFER_DSGU_DATA_TAG, comm);
-    sentRecvd += INT_MAX;
-  }
-  MPI_Send(data + sentRecvd, (int)(dataSize - sentRecvd), dataType, dest, TRANSFER_DSGU_DATA_TAG,
-           comm);
-}
-
-/**
-* Recvs the raw dsg data from the source process in communicator comm.
-*/
-template <typename FG_ELEMENT>
-static void recvDsgData(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
-                          RankType source, CommunicatorType comm) {
-  FG_ELEMENT* data = dsgu->getRawData();
-  auto dataSize = dsgu->getRawDataSize();
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-
-  size_t sentRecvd = 0;
-  while ((dataSize - sentRecvd) / INT_MAX > 0) {
-    MPI_Recv(data + sentRecvd, (int)INT_MAX, dataType, source, TRANSFER_DSGU_DATA_TAG, comm,
-             MPI_STATUS_IGNORE);
-    sentRecvd += INT_MAX;
-  }
-  MPI_Recv(data + sentRecvd, (int)(dataSize - sentRecvd), dataType, source, TRANSFER_DSGU_DATA_TAG,
-           comm, MPI_STATUS_IGNORE);
-}
-
-/**
- * Asynchronous Bcast of the raw dsg data in the communicator comm.
- */
-template <typename FG_ELEMENT>
-static MPI_Request asyncBcastDsgData(DistributedSparseGridUniform<FG_ELEMENT>* dsgu, RankType root,
-                                     CommunicatorType comm) {
-  if (dsgu->getRawDataSize() >= INT_MAX) {
-    throw std::runtime_error(
-        "asyncBcastDsgData: Dsg is too large and can not be "
-        "transferred in a single MPI Call (not "
-        "supported yet) try a more refined"
-        "decomposition");
-  }
-
-  FG_ELEMENT* data = dsgu->getRawData();
-  int dataSize  = static_cast<int>(dsgu->getRawDataSize());
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>());
-  MPI_Request request = MPI_REQUEST_NULL;
-
-  auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, &request);
-  assert(success == MPI_SUCCESS);
-  return request;
-}
-
-/**
-* Sends all subspace data sizes to the receiver in communicator comm.
-*/
-template <typename FG_ELEMENT>
-static void sendSubspaceDataSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
-                          RankType dest, CommunicatorType comm) {
-  assert(dsgu->getNumSubspaces() > 0);
-
-  const std::vector<int>& subspacesDataSizes = dsgu->getSubspaceDataSizes();
-  MPI_Send(subspacesDataSizes.data(), subspacesDataSizes.size(), MPI_INT, dest, TRANSFER_SUBSPACE_DATA_SIZES_TAG, comm);
-}
-
-/**
-* Receives reduced subspace data sizes from the sender in communicator recvComm
-* and concurrently distributes them inside bcastComm.
-*/
-template <typename FG_ELEMENT>
-static MPI_Request recvAndBcastSubspaceDataSizes(DistributedSparseGridUniform<FG_ELEMENT> * dsgu,
-                                         RankType recvSrc,
-                                         CommunicatorType recvComm,
-                                         RankType bcastRoot,
-                                         CommunicatorType bcastComm) {
-  assert(dsgu->getNumSubspaces() > 0);
-  const std::vector<int>& subspacesDataSizes = dsgu->getSubspaceDataSizes();
-  std::vector<int> buf(subspacesDataSizes.size());
-
-  // receive subspace data sizes from manager
-  MPI_Status status;
-  MPI_Recv(buf.data(), buf.size(), MPI_INT, recvSrc, TRANSFER_SUBSPACE_DATA_SIZES_TAG, recvComm, &status);
-
-  // distribute subspace sizes asynchronously
-  MPI_Request request;
-  MPI_Ibcast(buf.data(), buf.size(), MPI_INT, bcastRoot, bcastComm, &request);
-
-  // update subspace data sizes of dsgu
-  for (size_t i = 0; i < subspacesDataSizes.size(); i++) {
-    dsgu->setDataSize(i, buf[i]);
-  }
-  return request;
 }
 
 } /* namespace combigrid */
