@@ -18,7 +18,7 @@ BOOST_AUTO_TEST_CASE(test_print_1d) {
   BOOST_CHECK_EQUAL(t.size(), v.size());
   BOOST_CHECK_EQUAL(t.getExtentsVector()[0], v.size());
   BOOST_TEST_CHECKPOINT("tensor constructed");
-  
+
   for (IndexType i = 0U; i < t.getExtentsVector()[0]; ++i) {
     t({i}) = static_cast<double>(i);
   }
@@ -65,8 +65,8 @@ BOOST_AUTO_TEST_CASE(test_6d) {
   IndexArray<6U> extents = {2U, 3U, 4U, 5U, 6U, 7U};
   auto extentsCopy = extents;
   Tensor<double, 6U> t(v.data(), std::move(extentsCopy));
-  BOOST_CHECK_EQUAL_COLLECTIONS(t.getExtentsVector().begin(), t.getExtentsVector().end(), extents.begin(),
-                                extents.end());
+  BOOST_CHECK_EQUAL_COLLECTIONS(t.getExtentsVector().begin(), t.getExtentsVector().end(),
+                                extents.begin(), extents.end());
   double increasingValue = 0.0;
   // make sure that Fortran ordering is the default
   for (IndexType i = 0U; i < t.getExtentsVector()[5]; ++i) {
@@ -87,6 +87,33 @@ BOOST_AUTO_TEST_CASE(test_6d) {
   std::iota(compare.begin(), compare.end(), 0.0);
   BOOST_CHECK_EQUAL_COLLECTIONS(v.begin(), v.end(), compare.begin(), compare.end());
   BOOST_CHECK_EQUAL(t.getExtentsVector()[0], t.dim<0>());
+}
+
+BOOST_AUTO_TEST_CASE(test_iterate_lower_boundaries_6d) {
+  constexpr DimType dimensionality = 6;
+  IndexArray<dimensionality> extents = {2U, 3U, 5U, 7U, 11U, 13U};
+  auto numElements = std::accumulate(extents.begin(), extents.end(), 1U, std::multiplies<>());
+  std::vector<double> v(numElements, -1.0);
+  Tensor<double, dimensionality> tensor(v.data(), std::move(extents));
+
+  if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
+    for (DimType d = 0; d < dimensionality; ++d) {
+      IndexType numberOfPointsVisited = 0;
+      const auto& strideInThisDimension = tensor.getOffsetsVector()[d];
+      const IndexType jump = strideInThisDimension * tensor.getExtentsVector()[d];
+      const IndexType numberOfPolesHigherDimensions = tensor.size() / jump;
+      IndexType tensorLowestLayerIteratedIndex = 0;
+      for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
+        tensorLowestLayerIteratedIndex = nHigher * jump;  // local linear index
+        for (IndexType nLower = 0; nLower < tensor.getOffsetsVector()[d];
+             ++nLower && ++tensorLowestLayerIteratedIndex && ++numberOfPointsVisited) {
+          auto arrayIndex = tensor.getArrayIndex(tensorLowestLayerIteratedIndex);
+          BOOST_CHECK_EQUAL(arrayIndex[d], 0);
+        }
+      }
+      BOOST_CHECK_EQUAL(numberOfPointsVisited, tensor.size() / tensor.getExtentsVector()[d]);
+    }
+  }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

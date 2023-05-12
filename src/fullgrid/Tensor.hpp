@@ -66,6 +66,19 @@ class TensorIndexer {
                               this->getOffsetsVector().begin(), 0);
   }
 
+  IndexArray<NumDimensions> getArrayIndex(IndexType index) const {
+    IndexArray<NumDimensions> indexArray;
+    for (auto j = NumDimensions; j > 0; --j) {
+      auto dim_i = static_cast<DimType>(j - 1);
+      const auto quotient = index / localOffsets_[dim_i];
+      const auto remainder = index % localOffsets_[dim_i];
+
+      indexArray[dim_i] = quotient;
+      index = remainder;
+    }
+    return indexArray;
+  }
+
   const IndexVector& getExtentsVector() const { return this->extents_; }
 
   const IndexVector& getOffsetsVector() const { return this->localOffsets_; }
