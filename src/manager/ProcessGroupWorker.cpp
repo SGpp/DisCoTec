@@ -1314,12 +1314,12 @@ void ProcessGroupWorker::combineThirdLevel() {
 
     // send dsg data to manager
     Stats::startEvent("send dsg data");
-    sendDsgData(dsgToUse, manager, managerComm);
+    CombiCom::sendDsgData(*dsgToUse, manager, managerComm);
     Stats::stopEvent("send dsg data");
 
     // recv combined dsgu from manager
     Stats::startEvent("recv dsg data");
-    recvDsgData(dsgToUse, manager, managerComm);
+    CombiCom::recvDsgData(*dsgToUse, manager, managerComm);
     Stats::stopEvent("recv dsg data");
 
     if (extraUniDSGVector_.size() > 0) {
@@ -1328,7 +1328,7 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // distribute solution in globalReduceComm to other pgs
-    auto request = asyncBcastDsgData(uniDsg, globalReduceRank, globalReduceComm);
+    auto request = CombiCom::asyncBcastDsgData(*uniDsg, globalReduceRank, globalReduceComm);
     requests.push_back(request);
   }
   // update fgs
@@ -1385,7 +1385,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   }
   // distribute solution in globalReduceComm to other pgs
   auto request =
-      asyncBcastDsgData(combinedUniDSGVector_[0].get(), theMPISystem()->getGlobalReduceRank(),
+      CombiCom::asyncBcastDsgData(*combinedUniDSGVector_[0], theMPISystem()->getGlobalReduceRank(),
                         theMPISystem()->getGlobalReduceComm());
 
   // update fgs
@@ -1615,7 +1615,7 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
 
   Stats::startEvent("wait for bcasts");
   for (auto& dsg : combinedUniDSGVector_) {
-    auto request = asyncBcastDsgData(dsg.get(), broadcastSender, globalReduceComm);
+    auto request = CombiCom::asyncBcastDsgData(*dsg, broadcastSender, globalReduceComm);
     auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
     assert(returnedValue == MPI_SUCCESS);
   }
