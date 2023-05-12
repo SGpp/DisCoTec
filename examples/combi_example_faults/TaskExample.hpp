@@ -88,12 +88,12 @@ class TaskExample: public Task {
     }
 
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
 
     /* loop over local subgrid and set initial values */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto elements = dfg_->getData();
 
-    for (size_t i = 0; i < elements.size(); ++i) {
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
       IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
       std::vector<real> globalCoords(dim);
       dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
@@ -115,12 +115,12 @@ class TaskExample: public Task {
 
     /* pseudo timestepping to demonstrate the behaviour of your typical
      * time-dependent simulation problem. */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto elements = dfg_->getData();
 
     for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
       real time = (step + 1)* dt_;
 
-      for (size_t i = 0; i < elements.size(); ++i) {
+      for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
         IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
         std::vector<real> globalCoords(this->getDim());
         dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
@@ -206,7 +206,7 @@ class TaskExample: public Task {
 
 
 
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
 
   /**
    * The serialize function has to be extended by the new member variables.
