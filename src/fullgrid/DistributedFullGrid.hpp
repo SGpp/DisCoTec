@@ -1052,16 +1052,13 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     MPI_Datatype dtype =
       abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
     if (p == 0) {
-      auto data = this->getData();
       real max = 0.0;
-
+      auto data = this->getData();
       for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
-        if (std::abs(data[i]) > max) max = std::abs(data[i]);
+        max = std::max(max, std::abs(data[i]));
       }
-
       real globalMax(-1);
       MPI_Allreduce(&max, &globalMax, 1, dtype, MPI_MAX, getCommunicator());
-
       return globalMax;
     } else {
       real p_f = static_cast<real>(p);
@@ -1086,16 +1083,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       return std::pow(globalRes * std::pow(this->getInnerNodalBasisFunctionIntegral(), p_f),
                       1.0 / p_f);
     }
-  }
-
-  // normalize with specific norm
-  inline real normalizelp(int p) {
-    real norm = getLpNorm(p);
-
-    auto data = this->getData();
-    for (size_t i = 0; i < this->getNrLocalElements(); ++i) data[i] = data[i] / norm;
-
-    return norm;
   }
 
   // write data to file using MPI-IO
