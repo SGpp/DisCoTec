@@ -123,7 +123,7 @@ class DistributedFullGrid {
 
     // set local elements and local offsets
     auto nrLocalPoints = getUpperBounds() - getLowerBounds();
-    localTensor_ = makeTensor(nullptr, nrLocalPoints);
+    localTensor_ = makeTensor<FG_ELEMENT>(nullptr, nrLocalPoints);
 
     fullgridVector_.resize(this->getNrLocalElements());
     localTensor_ = makeTensor(fullgridVector_.data(), nrLocalPoints);
