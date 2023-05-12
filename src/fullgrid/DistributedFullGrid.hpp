@@ -123,9 +123,10 @@ class DistributedFullGrid {
 
     // set local elements and local offsets
     auto nrLocalPoints = getUpperBounds() - getLowerBounds();
-    localTensor_ = makeTensor(dataPointer, nrLocalPoints);
+    localTensor_ = makeTensor(nullptr, nrLocalPoints);
 
     fullgridVector_.resize(this->getNrLocalElements());
+    localTensor_ = makeTensor(fullgridVector_.data(), nrLocalPoints);
   }
 
   // explicit DistributedFullGrid(const DistributedFullGrid& other) {
@@ -730,28 +731,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
    */
   inline IndexType getFirstGlobal1dIndex(DimType d) const { return getLowerBounds()[d]; }
 
-  IndexVector getFirstGlobalIndex() const {
-    IndexVector firstGlobalIndex(dim_);
-    for (DimType d = 0; d < dim_; ++d) {
-      firstGlobalIndex[d] = getFirstGlobal1dIndex(d);
-    }
-    return firstGlobalIndex;
-  }
-
   /** returns the 1d global index of the last point in the local domain
    *
    */
-  inline IndexType getLastGlobal1dIndex(DimType d) const {
-    return getUpperBounds()[d] - 1;
-  }
-
-  IndexVector getLastGlobalIndex() const {
-    IndexVector lastGlobalIndex(dim_);
-    for (DimType d = 0; d < dim_; ++d) {
-      lastGlobalIndex[d] = getLastGlobal1dIndex(d);
-    }
-    return lastGlobalIndex;
-  }
+  inline IndexType getLastGlobal1dIndex(DimType d) const { return getUpperBounds()[d] - 1; }
 
   // returns level of a global 1d index
   inline LevelType getLevel(DimType d, IndexType idx1d) const {
@@ -840,19 +823,14 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     }
   }
 
-  inline void print(std::ostream& os) const {
-    if (dim_ == 1)
-      print1D(os);
-    else if (dim_ == 2)
-      print2D(os);
-    else if (dim_ == 3)
-      print3D(os);
-    else
-      assert(false && "Maximum dimension for printing is 2");
+  inline void print() const {
+    std::visit([&](auto&& arg) { print(arg); }, localTensor_);
   }
 
   // return extents of local grid
-  inline const IndexVector& getLocalSizes() const { return nrLocalPoints_; }
+  inline const IndexVector& getLocalSizes() const {
+    return combigrid::tensor::getExtents(localTensor_);
+  }
 
   // return extents of global grid
   inline IndexVector getGlobalSizes() const {
@@ -1811,55 +1789,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
     decomposition_ = decomposition;
   }
-
-  // 2d output
-  void print2D(std::ostream& os) const {
-    assert(dim_ == 2);
-
-    // loop over rows i -> dim2
-    for (IndexType i = 0; i < this->getLocalSizes()[1]; ++i) {
-      IndexType offset = localOffsets_[1] * i;
-
-      for (IndexType j = 0; j < this->getLocalSizes()[0]; ++j) {
-        os << fullgridVector_[offset + j] << "\t";
-      }
-
-      os << std::endl;
-    }
-  }
-
-  // 1d output
-  void print1D(std::ostream& os) const {
-    assert(dim_ == 1);
-
-    for (IndexType j = 0; j < this->getLocalSizes()[0]; ++j) {
-      os << fullgridVector_[j] << "\t";
-    }
-
-    os << std::endl;
-  }
-
-  // n-dim output. will print 2-dimensional slices of domain
-  void print3D(std::ostream& os) const {
-    for (IndexType k = 0; k < this->getLocalSizes()[2]; ++k) {
-      assert(dim_ == 3);
-
-// output global z index
-
-      IndexType offsetZ = localOffsets_[2] * k;
-
-      // loop over rows i -> dim2
-      for (IndexType i = 0; i < this->getLocalSizes()[1]; ++i) {
-        IndexType offset = offsetZ + localOffsets_[1] * i;
-
-        for (IndexType j = 0; j < this->getLocalSizes()[0]; ++j) {
-          os << fullgridVector_[offset + j] << "\t";
-        }
-
-        os << std::endl;
-      }
-    }
-  }
 };
 // end class
 
@@ -1881,7 +1810,7 @@ inline std::ostream& operator<<(std::ostream& os, const DistributedFullGrid<FG_E
   // if(dfg.getNrLocalElements() < 30)
   //   os << "elements " << dfg.getElementVector() << std::endl;
 
-  dfg.print(os);
+  dfg.print();
 
   return os;
 }
