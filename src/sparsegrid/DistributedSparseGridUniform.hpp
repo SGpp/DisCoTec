@@ -1,13 +1,12 @@
 #ifndef SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRIDUNIFORM_HPP_
 #define SRC_SGPP_COMBIGRID_SPARSEGRID_DISTRIBUTEDSPARSEGRIDUNIFORM_HPP_
 
-#include <assert.h>
+#include <cassert>
 
 #include "utils/Types.hpp"
 #include "utils/LevelSetUtils.hpp"
 #include "manager/ProcessGroupSignals.hpp"
 #include "mpi/MPITags.hpp"
-#include "io/MPIInputOutput.hpp"
 #include <numeric>
 
 #include <boost/serialization/vector.hpp>
@@ -130,31 +129,11 @@ class DistributedSparseGridUniform {
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
 
-  // copy data from another DSGU (which has the same subspaces, but they may be less or more populated than in this DSGU)
+  // copy data from another DSGU (which has the same subspaces, but they may be less or more
+  // populated than in this DSGU)
   void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other);
 
-  void writeMinMaxCoefficents(const std::string& filename, size_t i) const;
-
-  // naive read/write operations -- each rank writes their own data partition to a separate binary file
-  void writeToDiskChunked(std::string filePrefix);
-
-  void readFromDiskChunked(std::string filePrefix);
-
-  // coordinated read/write to one single file containing the whole dsg data
-  bool writeOneFile(std::string fileName) const;
-
-  bool readOneFile(std::string fileName);
-
-  bool readOneFileAndReduce(std::string fileName, int numberOfChunks = 1);
-
-  bool writeSubspaceSizesToFile(std::string fileName) const;
-
-  bool readSubspaceSizesFromFile(std::string fileName, bool withCollectiveBuffering = false);
-
-  template <typename ReduceFunctionType>
-  bool readReduceSubspaceSizesFromFile(std::string fileName, ReduceFunctionType reduceFunction,
-                                       int numElementsToBuffer = 0,
-                                       bool withCollectiveBuffering = false);
+  inline RankType getRank() const;
 
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
@@ -228,10 +207,16 @@ void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
     const DistributedSparseGridUniform<FG_ELEMENT>& other) {
   assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
   for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {
-    assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 || other.getDataSize(i) == 0);
+    assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 ||
+           other.getDataSize(i) == 0);
     auto numPointsToCopy = std::min(other.getDataSize(i), this->getDataSize(i));
     std::copy_n(other.getData(i), numPointsToCopy, this->getData(i));
   }
+}
+
+template <typename FG_ELEMENT>
+inline RankType DistributedSparseGridUniform<FG_ELEMENT>::getRank() const {
+  return rank_;
 }
 
 /** Zero initializes the dsgu data in case no data is already present.
@@ -576,144 +561,6 @@ DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes() {
   return subspacesDataSizes_;
 }
 
-template <typename FG_ELEMENT>
-inline void DistributedSparseGridUniform<FG_ELEMENT>::writeMinMaxCoefficents(
-    const std::string& filename, size_t outputIndex) const {
-  assert(this->isSubspaceDataCreated());
-  bool writerProcess = false;
-  std::ofstream ofs;
-  if (this->rank_ == 0) {
-    writerProcess = true;
-    ofs = std::ofstream(filename + "_" + std::to_string(outputIndex) + ".txt");
-    // std::cout << *this << std::endl;
-  }
-  // iterate subspaces
-  assert(levels_.size() > 0);
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<combigrid::real>());
-  auto realmax = std::numeric_limits<combigrid::real>::max();
-  auto realmin = std::numeric_limits<combigrid::real>::min();
-  auto smaller_real = [](const FG_ELEMENT& one, const FG_ELEMENT& two) {
-    return std::real(one) < std::real(two);
-  };
-
-  for (SubspaceIndexType i = 0; i < static_cast<SubspaceIndexType>(levels_.size()); ++i) {
-    auto minimumValue = realmax;
-    auto maximumValue = realmin;
-    if (subspacesDataSizes_[i] > 0) {
-      // auto first = subspacesData_.begin();
-      auto first = subspaces_[i];
-      auto last = first + subspacesDataSizes_[i];
-      auto it = std::min_element(first, last, smaller_real);
-      minimumValue = std::real(*it);
-      first = subspaces_[i];
-      it = std::max_element(first, last, smaller_real);
-      maximumValue = std::real(*it);
-    }
-    // allreduce the minimum and maximum values
-    MPI_Allreduce(MPI_IN_PLACE, &minimumValue, 1, dataType, MPI_MIN, getCommunicator());
-    MPI_Allreduce(MPI_IN_PLACE, &maximumValue, 1, dataType, MPI_MAX, getCommunicator());
-
-    // if on zero process, write them out to file
-    if (writerProcess) {
-      const auto& level = getLevelVector(i);
-      if (minimumValue < realmax)
-        ofs << level << " : " << minimumValue << ", " << maximumValue << std::endl;
-    }
-  }
-}
-
-template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::writeToDiskChunked(std::string filePrefix) {
-  std::string myFilename = filePrefix + std::to_string(this->rank_);
-  std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
-  ofp.write(reinterpret_cast<const char*>(this->getRawData()), this->getRawDataSize() * sizeof(FG_ELEMENT));
-  ofp.close();
-}
-
-template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::readFromDiskChunked(std::string filePrefix){
-  std::string myFilename = filePrefix + std::to_string(this->rank_);
-  std::ifstream ifp(myFilename, std::ios::in | std::ios::binary);
-  ifp.read(reinterpret_cast<char*>(this->getRawData()), this->getRawDataSize() * sizeof(FG_ELEMENT));
-  ifp.close();
-}
-
-template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::writeOneFile(std::string fileName) const {
-  auto comm = this->getCommunicator();
-
-  MPI_Offset len = this->getRawDataSize();
-  auto data = this->getRawData();
-  bool success = mpiio::writeValuesConsecutive<FG_ELEMENT>(data, len, fileName, comm);
-  return success;
-}
-
-template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFile(std::string fileName) {
-  auto comm = this->getCommunicator();
-
-  // get offset in file
-  MPI_Offset len = this->getRawDataSize();
-  auto data = this->getRawData();
-  bool success = mpiio::readValuesConsecutive<FG_ELEMENT>(data, len, fileName, comm);
-  return success;
-}
-
-template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::readOneFileAndReduce(std::string fileName,
-                                                                    int numberOfChunks) {
-  auto comm = this->getCommunicator();
-
-  const int numElementsInChunk = this->getRawDataSize() / numberOfChunks;
-  const int remainder = this->getRawDataSize() % numberOfChunks;
-  const int numElementsToBuffer = numElementsInChunk + (remainder == 0 ? 0 : 1);
-
-  // get offset in file
-  const MPI_Offset len = this->getRawDataSize();
-  auto data = this->getRawData();
-  bool success = mpiio::readReduceValuesConsecutive<FG_ELEMENT>(
-      data, len, fileName, comm, numElementsToBuffer, std::plus<FG_ELEMENT>{});
-
-  return success;
-}
-
-template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::writeSubspaceSizesToFile(
-    std::string fileName) const {
-  auto comm = this->getCommunicator();
-  MPI_Offset len = this->getNumSubspaces();
-  bool success = mpiio::writeValuesConsecutive<SubspaceSizeType>(
-      this->getSubspaceDataSizes().data(), len, fileName, comm);
-  return success;
-}
-
-template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::readSubspaceSizesFromFile(
-    std::string fileName, bool withCollectiveBuffering) {
-  auto comm = this->getCommunicator();
-  MPI_Offset len = this->getNumSubspaces();
-  bool success = mpiio::readValuesConsecutive<SubspaceSizeType>(
-      this->subspacesDataSizes_.data(), len, fileName, comm, withCollectiveBuffering);
-  return success;
-}
-
-template <typename FG_ELEMENT>
-template <typename ReduceFunctionType>
-bool DistributedSparseGridUniform<FG_ELEMENT>::readReduceSubspaceSizesFromFile(
-    std::string fileName, ReduceFunctionType reduceFunction, int numElementsToBuffer,
-    bool withCollectiveBuffering) {
-  auto comm = this->getCommunicator();
-  MPI_Offset len = this->getNumSubspaces();
-  if (numElementsToBuffer == 0) {
-    numElementsToBuffer = len;
-  }
-
-  bool success = mpiio::readReduceValuesConsecutive<SubspaceSizeType>(
-      this->subspacesDataSizes_.data(), len, fileName, comm, numElementsToBuffer, reduceFunction,
-      withCollectiveBuffering);
-
-  return success;
-}
 
 } /* namespace combigrid */
 
