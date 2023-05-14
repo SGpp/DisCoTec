@@ -11,6 +11,7 @@
 #include "combischeme/CombiThirdLevelScheme.hpp"
 #include "io/BroadcastParameters.hpp"
 #include "manager/ProcessGroupWorker.hpp"
+#include "sparsegrid/DistributedSparseGridIO.hpp"
 
 using namespace combigrid;
 
@@ -118,7 +119,7 @@ int main(int argc, char** argv) {
         << "sparse grid has " << numDOF << " DOF per rank, which is " << numDOF * 8. / 1e9 << " GB"
         << std::endl;
     // write the resulting sparse grid sizes to file
-    uniDSG->writeSubspaceSizesToFile(firstSubspaceFileName);
+    DistributedSparseGridIO::writeSubspaceSizesToFile(*uniDSG, firstSubspaceFileName);
   }
   if (otherCtschemeFile == "") {
     // we are done already
@@ -151,10 +152,10 @@ int main(int argc, char** argv) {
                                                << " DOF per rank, which is " << numDOF * 8. / 1e9
                                                << " GB" << std::endl;
     // write the resulting sparse grid sizes to file
-    uniDSG->writeSubspaceSizesToFile(
-        otherCtschemeFile.substr(
-            0, otherCtschemeFile.length() - std::string("_00008groups.json").length()) +
-        ".sizes");
+    DistributedSparseGridIO::writeSubspaceSizesToFile(
+        *uniDSG, otherCtschemeFile.substr(
+                     0, otherCtschemeFile.length() - std::string("_00008groups.json").length()) +
+                     ".sizes");
 
     // read written sparse grid sizes from file
     // for extra sparse grid / conjoint subspaces, min-reduce the sizes
@@ -162,14 +163,15 @@ int main(int argc, char** argv) {
       return std::min(a, b);
     };
     // use extra sparse grid
-    uniDSG->readReduceSubspaceSizesFromFile(firstSubspaceFileName, minFunctionInstantiation);
+    DistributedSparseGridIO::readReduceSubspaceSizesFromFile(*uniDSG, firstSubspaceFileName,
+                                                             minFunctionInstantiation);
 
     auto numDOFconjoint = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
                                           uniDSG->getSubspaceDataSizes().end(), 0);
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "conjoint sparse grid has " << numDOFconjoint
                                                << " DOF per rank" << std::endl;
     // write final sizes to file
-    uniDSG->writeSubspaceSizesToFile(conjointSubspaceFileName);
+    DistributedSparseGridIO::writeSubspaceSizesToFile(*uniDSG, conjointSubspaceFileName);
 
     // output first rank's sizes
   }
