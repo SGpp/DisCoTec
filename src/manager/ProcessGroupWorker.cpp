@@ -303,11 +303,6 @@ SignalType ProcessGroupWorker::wait() {
       readDSGsFromDisk(filenamePrefix);
       Stats::stopEvent("read from disk");
     } break;
-    case GRID_EVAL: {  // not supported anymore
-      throw std::runtime_error("grid eval not supported anymore");
-      return signal;
-
-    } break;
     case UPDATE_COMBI_PARAMETERS: {  // update combiparameters (e.g. in case of faults -> FTCT)
 
       updateCombiParameters();
@@ -482,49 +477,9 @@ SignalType ProcessGroupWorker::wait() {
     case WRITE_DSG_MINMAX_COEFFICIENTS: {
       writeSparseGridMinMaxCoefficients(receiveStringFromManagerAndBroadcastToGroup());
 		} break;
-    default: { assert(false && "signal not implemented"); }
+    default: { throw std::runtime_error("signal " + std::to_string(signal) + " not implemented"); }
   }
-  if (isGENE) {
-    // special solution for GENE
-    // todo: find better solution and remove this
-    if ((signal == RUN_FIRST || signal == RUN_NEXT || signal == RECOMPUTE) &&
-        !currentTask_->isFinished() && omitReadySignal)
-      return signal;
-  }
-  // in the general case: send ready signal.
-  // if(!omitReadySignal)
-  ready();
-  if (isGENE) {
-    if (signal == ADD_TASK) {  // ready resets currentTask but needs to be set for GENE
-      currentTask_ = tasks_.back();
-    }
-  }
-  if (!isGENE && signal == RUN_NEXT) {
-    Stats::stopEvent("run");
-  }
-  return signal;
-}
-
-void ProcessGroupWorker::decideToKill() {
-  // decide if processor was killed during this iteration
-  currentTask_->decideToKill();
-}
-
-void ProcessGroupWorker::ready() {
-  if (ENABLE_FT) {
-    // with this barrier the local root but also each other process can detect
-    // whether a process in the group has failed
-    int globalRank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &globalRank);
-    // std::cout << "rank " << globalRank << " is ready \n";
-    int err = simft::Sim_FT_MPI_Barrier(theMPISystem()->getLocalCommFT());
-
-    if (err == MPI_ERR_PROC_FAILED) {
-      status_ = PROCESS_GROUP_FAIL;
-
-      std::cout << "rank " << globalRank << " fault detected" << std::endl;
-    }
-  }
+  
   if (status_ != PROCESS_GROUP_FAIL) {
     // check if there are unfinished tasks
     // all the tasks that are not the first in their process group will be run in this loop
@@ -534,32 +489,7 @@ void ProcessGroupWorker::ready() {
 
         // set currentTask
         currentTask_ = tasks_[i];
-        // if isGENE, this is done in GENE's worker_routines.cpp
-        // if (!isGENE) {
-        //   Stats::startEvent("run");
-        // }
         currentTask_->run(theMPISystem()->getLocalComm());
-        Stats::Event e;
-        // if (!isGENE) {
-        //   Stats::stopEvent("run");
-        // }
-
-        processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
-        if (ENABLE_FT) {
-          // with this barrier the local root but also each other process can detect
-          // whether a process in the group has failed
-          int err = simft::Sim_FT_MPI_Barrier(theMPISystem()->getLocalCommFT());
-
-          if (err == MPI_ERR_PROC_FAILED) {
-            status_ = PROCESS_GROUP_FAIL;
-            break;
-          }
-        }
-        // merge problem?
-        // todo: gene specific voodoo
-        if (isGENE && !currentTask_->isFinished()) {
-          return;
-        }
       }
     }
 
@@ -571,19 +501,12 @@ void ProcessGroupWorker::ready() {
 
   // send ready status to manager
   MASTER_EXCLUSIVE_SECTION {
-    StatusType status = status_;
-
-    if (ENABLE_FT) {
-      simft::Sim_FT_MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
-                             theMPISystem()->getGlobalCommFT());
-    } else {
-      MPI_Send(&status, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
+      MPI_Send(&status_, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
                theMPISystem()->getGlobalComm());
-    }
   }
 
   // reset current task
-  currentTask_ = NULL;
+  currentTask_ = nullptr;
 
   // if failed proc in this group detected the alive procs go into recovery state
   if (ENABLE_FT) {
@@ -592,6 +515,11 @@ void ProcessGroupWorker::ready() {
       status_ = PROCESS_GROUP_WAIT;
     }
   }
+  
+  if (!isGENE && signal == RUN_NEXT) {
+    Stats::stopEvent("run");
+  }
+  return signal;
 }
 
 void ProcessGroupWorker::runAllTasks() {

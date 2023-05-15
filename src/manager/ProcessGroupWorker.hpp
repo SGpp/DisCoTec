@@ -25,8 +25,6 @@ class ProcessGroupWorker {
   /** wait for command from manager */
   SignalType wait();
 
-  /** send ready signal to manager */
-  void ready();
 
   /** decides if current Task needs to be killed */
   void decideToKill();
