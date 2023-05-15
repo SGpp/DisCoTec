@@ -53,11 +53,6 @@ void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
            theMPISystem()->getGlobalComm());
 }
 
-void ProcessGroupManager::sendSignalToProcess(
-    SignalType signal, RankType rank) {  // TODO send only to process in this pgroup
-  MPI_Send(&signal, 1, MPI_INT, rank, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
-}
-
 inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
   // set status
   status_ = PROCESS_GROUP_BUSY;

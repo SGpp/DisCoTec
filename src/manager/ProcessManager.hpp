@@ -105,9 +105,6 @@ class ProcessManager {
   template <typename FG_ELEMENT>
   inline void combineFG(FullGrid<FG_ELEMENT>& fg);
 
-  template <typename FG_ELEMENT>
-  inline void gridEval(FullGrid<FG_ELEMENT>& fg);
-
   /* Generates no_faults random faults from the combischeme */
   inline void createRandomFaults(std::vector<size_t>& faultIds, int no_faults);
 
@@ -265,18 +262,6 @@ inline ProcessGroupManagerID ProcessManager::waitAvoid(
       }
     }
   }
-}
-
-template <typename FG_ELEMENT>
-inline FG_ELEMENT ProcessManager::eval(const std::vector<real>& coords) {
-  waitForAllGroupsToWait();
-
-  FG_ELEMENT res(0);
-
-  // call eval function of each process group
-  for (size_t i = 0; i < pgroups_.size(); ++i) res += pgroups_[i]->eval(coords);
-
-  return res;
 }
 
 /* This function performs the so-called recombination. First, the combination
@@ -581,44 +566,6 @@ size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
   }
 
   return dsguDataSize;
-}
-
-/** This function performs the so-called recombination. First, the combination
-* solution will be evaluated with the resolution of the given full grid.
-* Afterwards, the local component grids will be updated with the combination
-* solution. The combination solution will also be available on the manager
-* process.
-*/
-template <typename FG_ELEMENT>
-void ProcessManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
-  waitForAllGroupsToWait();
-
-  // send signal to each group
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->combineFG(fg);
-    assert(success);
-  }
-
-  CombiCom::FGAllreduce<FG_ELEMENT>(fg, theMPISystem()->getGlobalComm());
-}
-
-/** Evaluate the combination solution with the resolution of the given full grid.
-* In constrast to the combineFG function, the solution will only be available
-* on the manager. No recombination is performed, i.e. the local component grids
-* won't be updated.
-*/
-template <typename FG_ELEMENT>
-void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
-  waitForAllGroupsToWait();
-
-  // send signal to each group
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->gridEval(fg);
-    assert(success);
-  }
-
-  CombiCom::FGReduce<FG_ELEMENT>(fg, theMPISystem()->getManagerRank(),
-                                 theMPISystem()->getGlobalComm());
 }
 
 CombiParameters& ProcessManager::getCombiParameters() { return params_; }

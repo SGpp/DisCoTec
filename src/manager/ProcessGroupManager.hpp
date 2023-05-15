@@ -42,8 +42,6 @@ class ProcessGroupManager {
   /* blocks until process group finished computation */
   inline StatusType waitStatus();
 
-  inline complex eval(const std::vector<real>& coords);
-
   inline const TaskContainer& getTaskContainer() const;
 
   inline void removeTask(Task* t);
@@ -68,17 +66,6 @@ class ProcessGroupManager {
   bool pretendCombineThirdLevelForWorkers(CombiParameters& params);
 
   bool combineLocalAndGlobal();
-
-
-  bool broadcastUpdatedDSG();
-
-  template <typename FG_ELEMENT>
-  bool combineFG(FullGrid<FG_ELEMENT>& fg);
-
-  template <typename FG_ELEMENT>
-  bool gridEval(FullGrid<FG_ELEMENT>& fg);
-
-  bool gridGather(LevelVector& leval);
 
   bool updateCombiParameters(CombiParameters& params);
 
@@ -176,8 +163,6 @@ class ProcessGroupManager {
 
   void sendSignalToProcessGroup(SignalType signal);
 
-  void sendSignalToProcess(SignalType signal, RankType rank);
-
   inline void setProcessGroupBusyAndReceive();
 
   void exchangeDsgus(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
@@ -269,13 +254,6 @@ inline StatusType ProcessGroupManager::waitStatus() {
   return status_;
 }
 
-inline complex ProcessGroupManager::eval(const std::vector<real>& x) {
-  // todo: implement
-  throw std::runtime_error("Not yet implemented: " + std::string(x.begin(), x.end()) + __FILE__ +
-                           " " + std::to_string(__LINE__));
-  return complex(0.0, 0.0);
-}
-
 inline const TaskContainer& ProcessGroupManager::getTaskContainer() const { return tasks_; }
 
 inline void ProcessGroupManager::removeTask(Task* t) {
@@ -288,55 +266,6 @@ inline void ProcessGroupManager::removeTask(Task* t) {
     std::cout << "Error could not remove task" << t->getID() << " "
               << theMPISystem()->getWorldRank() << " !\n";
   }
-}
-
-template <typename FG_ELEMENT>
-bool ProcessGroupManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
-  // can only send sync signal when in wait state, so check first
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  // send signal
-  SignalType signal = GRID_EVAL;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
-
-  // send levelvector
-  std::vector<int> tmp(fg.getLevels().begin(), fg.getLevels().end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
-           theMPISystem()->getGlobalComm());
-
-  return true;
-}
-
-template <typename FG_ELEMENT>
-bool ProcessGroupManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  SignalType signal = COMBINE_FG;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
-
-  // send levelvector
-  std::vector<int>& tmp = fg.getLevels();
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
-           theMPISystem()->getGlobalComm());
-
-  return true;
-}
-
-inline bool ProcessGroupManager::gridGather(LevelVector& leval) {
-  // can only send sync signal when in wait state, so check first
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  // send signal
-  SignalType signal = GRID_GATHER;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
-
-  // send levelvector
-  std::vector<int> tmp(leval.begin(), leval.end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
-           theMPISystem()->getGlobalComm());
-
-  return true;
 }
 
 inline void ProcessGroupManager::setMasterRank(int pGroupRootID) { pgroupRootID_ = pGroupRootID; }
