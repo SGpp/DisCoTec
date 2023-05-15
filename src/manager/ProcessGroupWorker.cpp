@@ -125,20 +125,6 @@ ProcessGroupWorker::~ProcessGroupWorker() {
   }
 }
 
-// Do useful things with the info about how long a task took.
-// this gets called whenever a task was run, i.e., signals RUN_FIRST(once), RUN_NEXT(possibly multiple times),
-// RECOMPUTE(possibly multiple times), and in ready(possibly multiple times)
-void ProcessGroupWorker::processDuration(const Task& t, const Stats::Event e,
-                                         unsigned int numProcs) {
-  return;
-  MASTER_EXCLUSIVE_SECTION {
-    DurationInformation info = {t.getID(), Stats::getEventDurationInUsec(e),
-	    			                    t.getCurrentTime(), t.getCurrentTimestep(),
-				                        theMPISystem()->getWorldRank(), static_cast<unsigned int>(numProcs)};
-    MPIUtils::sendClass(&info, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-  }
-}
-
 LevelVector ProcessGroupWorker::receiveLevalAndBroadcast() {
   const auto dim = combiParameters_.getDim();
 
@@ -180,8 +166,6 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("run first");
       currentTask_->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("run first");
-      // std::cout << "from runfirst ";
-      processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
     } break;
     case RUN_NEXT: {
       assert(tasks_.size() > 0);
@@ -206,8 +190,6 @@ SignalType ProcessGroupWorker::wait() {
         Stats::Event e = Stats::Event();
         currentTask_->run(theMPISystem()->getLocalComm());
         e.end = std::chrono::high_resolution_clock::now();
-        // std::cout << "from runnext ";
-        processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
 
       } else {
         std::cout << "Possible error: No tasks! \n";
@@ -233,23 +215,9 @@ SignalType ProcessGroupWorker::wait() {
 
       deleteTasks();
       status_ = PROCESS_GROUP_BUSY;
-
-    } break;
-    case EVAL: {
-      // receive x
-
-      // loop over all tasks
-      // t.eval(x)
     } break;
     case EXIT: {
       this->exit();
-    } break;
-    case SYNC_TASKS: {
-      MASTER_EXCLUSIVE_SECTION {
-        for (size_t i = 0; i < tasks_.size(); ++i) {
-          Task::send(&tasks_[i], theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
-        }
-      }
     } break;
     case INIT_DSGUS: {
       Stats::startEvent("initialize dsgu");
@@ -340,9 +308,6 @@ SignalType ProcessGroupWorker::wait() {
       return signal;
 
     } break;
-    case COMBINE_FG: {
-      throw std::runtime_error("combine fg not supported anymore");
-    } break;
     case UPDATE_COMBI_PARAMETERS: {  // update combiparameters (e.g. in case of faults -> FTCT)
 
       updateCombiParameters();
@@ -361,9 +326,6 @@ SignalType ProcessGroupWorker::wait() {
       Stats::Event e = Stats::Event();
       currentTask_->run(theMPISystem()->getLocalComm());
       e.end = std::chrono::high_resolution_clock::now();
-      // std::cout << "from recompute ";
-      processDuration(*currentTask_, e, theMPISystem()->getNumProcs());
-
     } break;
     case RECOVER_COMM: {  // start recovery in case of faults
       theMPISystem()->recoverCommunicators(true);
