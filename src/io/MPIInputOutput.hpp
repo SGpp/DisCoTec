@@ -57,7 +57,12 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
   MPI_File fh;
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
                           info, &fh);
-  if (err == MPI_ERR_FILE_EXISTS) {
+  if (err != MPI_SUCCESS) { 
+    auto openErrorString = getMpiErrorString(err);
+    if (err != MPI_ERR_FILE_EXISTS && openErrorString.find("File exists") == std::string::npos) {
+       // there are some weird compilers that define a new error code for "file exists"...
+       std::cerr << "potential write/open error: " << std::to_string(err) << " " << openErrorString << std::endl;
+    }
     if (replaceExistingFile) {
       // file already existed, delete it and create new file
       int mpi_rank;
@@ -74,29 +79,27 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
     }
   }
   if (err != MPI_SUCCESS) {
-    std::cerr << "Open error " << fileName << " :" << std::to_string(err) << std::endl;
+    std::cerr << "Open error " << fileName << " :" << std::to_string(err) << " " << getMpiErrorString(err) << std::endl;
     // throw std::runtime_error("MPI file open error: " + getMpiErrorString(err));
   }
 
-  if (err == MPI_SUCCESS) {
-    // write to single file with MPI-IO
-    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
-    MPI_Status status;
-    err = MPI_File_write_at_all(fh, pos * sizeof(T), valuesStart, static_cast<int>(numValues),
-                                dataType, &status);
-    if (err != MPI_SUCCESS) {
-      std::cerr << err << " in MPI_File_write_at_all" << std::endl;
-      std::cerr << getMpiErrorString(err) << std::endl;
-    }
-#ifndef NDEBUG
-    int numWritten = 0;
-    MPI_Get_count(&status, dataType, &numWritten);
-    if (numWritten != numValues) {
-      std::cout << "not written enough: " << numWritten << " instead of " << numValues << std::endl;
-      err = ~MPI_SUCCESS;
-    }
-#endif  // !NDEBUG
+  // write to single file with MPI-IO
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
+  MPI_Status status;
+  err = MPI_File_write_at_all(fh, pos * sizeof(T), valuesStart, static_cast<int>(numValues),
+                              dataType, &status);
+  if (err != MPI_SUCCESS) {
+    std::cerr << err << " in MPI_File_write_at_all" << std::endl;
+    std::cerr << getMpiErrorString(err) << std::endl;
   }
+#ifndef NDEBUG
+  int numWritten = 0;
+  MPI_Get_count(&status, dataType, &numWritten);
+  if (numWritten != numValues) {
+    std::cout << "not written enough: " << numWritten << " instead of " << numValues << std::endl;
+    err = ~MPI_SUCCESS;
+  }
+#endif  // !NDEBUG
 
   MPI_File_close(&fh);
   MPI_Info_free(&info);
