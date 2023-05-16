@@ -155,7 +155,7 @@ SignalType ProcessGroupWorker::wait() {
   // process signal
   switch (signal) {
     case RUN_FIRST: {
-      receiveAndinitializeTask();
+      receiveAndInitializeTask();
       status_ = PROCESS_GROUP_BUSY;
 
       // execute task
@@ -175,7 +175,7 @@ SignalType ProcessGroupWorker::wait() {
     case ADD_TASK: {  // add a new task to the process group
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
-      receiveAndinitializeTask();
+      receiveAndInitializeTask();
 
       auto& currentTask = tasks_.back();
       currentTask->setZero();
@@ -281,7 +281,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case RECOMPUTE: {  // recompute the received task (immediately computes tasks ->
                        // difference to ADD_TASK)
-      receiveAndinitializeTask();
+      receiveAndInitializeTask();
       auto& currentTask = tasks_.back();
 
       currentTask->setZero();
@@ -401,7 +401,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
-      receiveAndinitializeTask();  // receive and initalize new task
+      receiveAndInitializeTask();  // receive and initalize new task
                                             // now the newly
                                             // received task is the last in tasks_
       // now , we may need to update the kahan summation data structures
@@ -986,7 +986,7 @@ void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNameP
   }
 }
 
-void ProcessGroupWorker::receiveAndinitializeTask() {
+void ProcessGroupWorker::receiveAndInitializeTask() {
   Task* t;
 
   // local root receives task

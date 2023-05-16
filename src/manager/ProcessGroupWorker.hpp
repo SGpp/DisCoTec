@@ -170,7 +170,7 @@ class ProcessGroupWorker {
       auto task = new TaskType(levels[taskIndex], this->getCombiParameters().getBoundary(),
                                coeffs[taskIndex], std::forward<TaskArgs>(args)...);
       task->setID(taskNumbers[taskIndex]);
-      this->initializeTaskAndFaults(task);
+      this->initializeTask(task);
     }
   }
 
@@ -179,7 +179,7 @@ class ProcessGroupWorker {
    *
    * @param t pointer to a heap-allocated task, the function takes over ownership here
    */
-  void initializeTaskAndFaults(Task* t);
+  void initializeTask(Task* t);
 
   IndexType getCurrentNumberOfCombinations() const { return currentCombi_; }
 

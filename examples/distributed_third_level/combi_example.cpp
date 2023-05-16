@@ -451,7 +451,7 @@ int main(int argc, char** argv) {
             auto task = new TaskAdvection(levels[taskIndex], boundary, coeffs[taskIndex],
                                           loadmodel.get(), dt, nsteps, p);
             task->setID(taskNumbers[taskIndex]);
-            pgroup.initializeTaskAndFaults(task);
+            pgroup.initializeTask(task);
           }
         }
         // make sure not to initialize them twice
