@@ -25,13 +25,6 @@ class ProcessGroupWorker {
   /** wait for command from manager */
   SignalType wait();
 
-
-  /** decides if current Task needs to be killed */
-  void decideToKill();
-
-  /** todo: maybe only needed for gene? */
-  inline Task* getCurrentTask();
-
   void runAllTasks();
 
   void exit();
@@ -196,8 +189,6 @@ class ProcessGroupWorker {
  private:
   TaskContainer tasks_;  /// task storage
 
-  Task* currentTask_;  /// task that is currently processed
-
   StatusType status_;  /// current status of process group (wait -> 0; busy -> 1; fail -> 2)
 
   /**
@@ -251,11 +242,6 @@ class ProcessGroupWorker {
 
   void fillDFGFromDSGU(Task* t) const;
 };
-
-inline Task* ProcessGroupWorker::getCurrentTask() {
-  assert(currentTask_ != nullptr);
-  return currentTask_;
-}
 
 inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
   assert(combiParametersSet_);

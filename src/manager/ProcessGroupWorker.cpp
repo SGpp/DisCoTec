@@ -108,8 +108,7 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
 }
 
 ProcessGroupWorker::ProcessGroupWorker()
-    : currentTask_(nullptr),
-      status_(PROCESS_GROUP_WAIT),
+    : status_(PROCESS_GROUP_WAIT),
       combinedUniDSGVector_(0),
       combiParameters_(),
       combiParametersSet_(false),
@@ -164,7 +163,8 @@ SignalType ProcessGroupWorker::wait() {
 
       // execute task
       Stats::startEvent("run first");
-      currentTask_->run(theMPISystem()->getLocalComm());
+      auto& currentTask = tasks_.back();
+      currentTask->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("run first");
     } break;
     case RUN_NEXT: {
@@ -179,16 +179,13 @@ SignalType ProcessGroupWorker::wait() {
         status_ = PROCESS_GROUP_BUSY;
 
         // set currentTask
-        currentTask_ = tasks_[0];
+        auto& currentTask = tasks_.front();
 
         // run first task
-        // if isGENE, this is done in GENE's worker_routines.cpp
-        if (!isGENE) {
-          Stats::startEvent("run");
-        }
+        Stats::startEvent("run");
 
         Stats::Event e = Stats::Event();
-        currentTask_->run(theMPISystem()->getLocalComm());
+        currentTask->run(theMPISystem()->getLocalComm());
         e.end = std::chrono::high_resolution_clock::now();
 
       } else {
@@ -202,13 +199,9 @@ SignalType ProcessGroupWorker::wait() {
       // TODO test if this signal works in case of not-GENE
       receiveAndInitializeTaskAndFaults();
 
-      currentTask_->setZero();
-
-      currentTask_->setFinished(true);
-
-      if (isGENE) {
-        currentTask_->changeDir(theMPISystem()->getLocalComm());
-      }
+      auto& currentTask = tasks_.back();
+      currentTask->setZero();
+      currentTask->setFinished(true);
     } break;
     case RESET_TASKS: {  // deleta all tasks (used in process recovery)
       std::cout << "resetting tasks" << std::endl;
@@ -311,15 +304,15 @@ SignalType ProcessGroupWorker::wait() {
     case RECOMPUTE: {  // recompute the received task (immediately computes tasks ->
                        // difference to ADD_TASK)
       receiveAndInitializeTaskAndFaults();
-      currentTask_->setZero();
+      auto& currentTask = tasks_.back();
 
+      currentTask->setZero();
       // fill task with combisolution
-      if (!isGENE) {
-        fillDFGFromDSGU(currentTask_);
-      }
+      fillDFGFromDSGU(currentTask);
+      
       // execute task
       Stats::Event e = Stats::Event();
-      currentTask_->run(theMPISystem()->getLocalComm());
+      currentTask->run(theMPISystem()->getLocalComm());
       e.end = std::chrono::high_resolution_clock::now();
     } break;
     case RECOVER_COMM: {  // start recovery in case of faults
@@ -430,23 +423,21 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
-      assert(currentTask_ == nullptr);
-
       receiveAndInitializeTaskAndFaults();  // receive and initalize new task
-                                            // now the variable currentTask_ contains the newly
-                                            // received task
+                                            // now the newly
+                                            // received task is the last in tasks_
       // now , we may need to update the kahan summation data structures
       for (auto& dsg : combinedUniDSGVector_) {
         dsg->createKahanBuffer();
       }
-      currentTask_->setZero();
-      fillDFGFromDSGU(currentTask_);
-      currentTask_->setFinished(true);
-      currentTask_ = nullptr;
+
+      auto& currentTask = tasks_.back();
+      currentTask->setZero();
+      fillDFGFromDSGU(currentTask);
+      currentTask->setFinished(true);
+      currentTask = nullptr;
     } break;
     case RESCHEDULE_REMOVE_TASK: {
-      assert(currentTask_ == nullptr);
-
       size_t taskID;
       MASTER_EXCLUSIVE_SECTION {
         MPI_Recv(
@@ -486,10 +477,7 @@ SignalType ProcessGroupWorker::wait() {
     for (size_t i = 0; i < tasks_.size(); ++i) {
       if (!tasks_[i]->isFinished()) {
         status_ = PROCESS_GROUP_BUSY;
-
-        // set currentTask
-        currentTask_ = tasks_[i];
-        currentTask_->run(theMPISystem()->getLocalComm());
+        tasks_[i]->run(theMPISystem()->getLocalComm());
       }
     }
 
@@ -504,9 +492,6 @@ SignalType ProcessGroupWorker::wait() {
       MPI_Send(&status_, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
                theMPISystem()->getGlobalComm());
   }
-
-  // reset current task
-  currentTask_ = nullptr;
 
   // if failed proc in this group detected the alive procs go into recovery state
   if (ENABLE_FT) {
@@ -524,24 +509,19 @@ SignalType ProcessGroupWorker::wait() {
 
 void ProcessGroupWorker::runAllTasks() {
   Stats::startEvent("run");
-  if (tasks_.size() > 0) {
-    for (auto task : tasks_) {
-      task->setFinished(false);
-    }
-    status_ = PROCESS_GROUP_BUSY;  // not sure if this does anything
-    currentTask_ = tasks_[0];
-    currentTask_->run(theMPISystem()->getLocalComm());
-  } else {
+  if (tasks_.empty()) {
     std::cout << "Possible error: No tasks! \n";
   }
+
+  for (auto task : tasks_) {
+    task->setFinished(false); //todo: check if this is necessary or move somewhere else
+  }
+    status_ = PROCESS_GROUP_BUSY;  // not sure if this does anything
   for (auto task : tasks_) {
     if (!task->isFinished()) {
-      currentTask_ = task;
-      currentTask_->run(theMPISystem()->getLocalComm());
+      task->run(theMPISystem()->getLocalComm());
     }
   }
-  // reset current task
-  currentTask_ = nullptr;
   assert(!ENABLE_FT);  // TODO for fault tolerance, steal from the above
   Stats::stopEvent("run");
 }
@@ -1068,18 +1048,16 @@ void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
   assert(combiParametersSet_);
   // add task to task storage
   tasks_.push_back(t);
-
-  // set currentTask
-  currentTask_ = tasks_.back();
+  auto& currentTask = tasks_.back();
 
   // initalize task
   auto taskDecomposition = combigrid::downsampleDecomposition(
           combiParameters_.getDecomposition(),
-          combiParameters_.getLMax(), currentTask_->getLevelVector(),
+          combiParameters_.getLMax(), currentTask->getLevelVector(),
           combiParameters_.getBoundary());
-  currentTask_->init(theMPISystem()->getLocalComm(), taskDecomposition);
+  currentTask->init(theMPISystem()->getLocalComm(), taskDecomposition);
   if (ENABLE_FT) {
-    t_fault_ = currentTask_->initFaults(t_fault_, startTimeIteration_);
+    t_fault_ = currentTask->initFaults(t_fault_, startTimeIteration_);
   }
 }
 
