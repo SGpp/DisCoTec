@@ -1,9 +1,6 @@
 #include "manager/ProcessGroupWorker.hpp"
 
-#include "boost/lexical_cast.hpp"
-
 #include "combicom/CombiCom.hpp"
-#include "fullgrid/FullGrid.hpp"
 #include "hierarchization/DistributedHierarchization.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupSignals.hpp"
@@ -11,8 +8,11 @@
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "loadmodel/LearningLoadModel.hpp"
 #include "mpi/MPISystem.hpp"
+#include "mpi_fault_simulator/MPI-FT.h"
 #include "io/H5InputOutput.hpp"
 #include "utils/MonteCarlo.hpp"
+
+#include "boost/lexical_cast.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -21,7 +21,6 @@
 #include <random>
 #include <string>
 #include <thread>
-#include "mpi_fault_simulator/MPI-FT.h"
 
 namespace combigrid {
 
@@ -172,31 +171,12 @@ SignalType ProcessGroupWorker::wait() {
       // // free space for computation
       // deleteDsgsData();
 
-      // reset finished status of all tasks
-      if (tasks_.size() != 0) {
-        for (size_t i = 0; i < tasks_.size(); ++i) tasks_[i]->setFinished(false);
-
-        status_ = PROCESS_GROUP_BUSY;
-
-        // set currentTask
-        auto& currentTask = tasks_.front();
-
-        // run first task
-        Stats::startEvent("run");
-
-        Stats::Event e = Stats::Event();
-        currentTask->run(theMPISystem()->getLocalComm());
-        e.end = std::chrono::high_resolution_clock::now();
-
-      } else {
-        std::cout << "Possible error: No tasks! \n";
-      }
+      this->runAllTasks();
 
     } break;
     case ADD_TASK: {  // add a new task to the process group
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
-      // TODO test if this signal works in case of not-GENE
       receiveAndInitializeTaskAndFaults();
 
       auto& currentTask = tasks_.back();
@@ -470,20 +450,9 @@ SignalType ProcessGroupWorker::wait() {
     default: { throw std::runtime_error("signal " + std::to_string(signal) + " not implemented"); }
   }
   
+  // all tasks finished -> group waiting
   if (status_ != PROCESS_GROUP_FAIL) {
-    // check if there are unfinished tasks
-    // all the tasks that are not the first in their process group will be run in this loop
-    for (size_t i = 0; i < tasks_.size(); ++i) {
-      if (!tasks_[i]->isFinished()) {
-        status_ = PROCESS_GROUP_BUSY;
-        tasks_[i]->run(theMPISystem()->getLocalComm());
-      }
-    }
-
-    // all tasks finished -> group waiting
-    if (status_ != PROCESS_GROUP_FAIL) {
-      status_ = PROCESS_GROUP_WAIT;
-    }
+    status_ = PROCESS_GROUP_WAIT;
   }
 
   // send ready status to manager
@@ -498,10 +467,6 @@ SignalType ProcessGroupWorker::wait() {
       theMPISystem()->recoverCommunicators(false);
       status_ = PROCESS_GROUP_WAIT;
     }
-  }
-  
-  if (!isGENE && signal == RUN_NEXT) {
-    Stats::stopEvent("run");
   }
   return signal;
 }
