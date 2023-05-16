@@ -112,8 +112,6 @@ ProcessGroupWorker::ProcessGroupWorker()
       combiParameters_(),
       combiParametersSet_(false),
       currentCombi_(0) {
-  t_fault_ = -1;
-  startTimeIteration_ = (std::chrono::high_resolution_clock::now());
 }
 
 ProcessGroupWorker::~ProcessGroupWorker() {
@@ -157,7 +155,7 @@ SignalType ProcessGroupWorker::wait() {
   // process signal
   switch (signal) {
     case RUN_FIRST: {
-      receiveAndInitializeTaskAndFaults();
+      receiveAndinitializeTask();
       status_ = PROCESS_GROUP_BUSY;
 
       // execute task
@@ -177,7 +175,7 @@ SignalType ProcessGroupWorker::wait() {
     case ADD_TASK: {  // add a new task to the process group
       // initalize task and set values to zero
       // the task will get the proper initial solution during the next combine
-      receiveAndInitializeTaskAndFaults();
+      receiveAndinitializeTask();
 
       auto& currentTask = tasks_.back();
       currentTask->setZero();
@@ -283,7 +281,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case RECOMPUTE: {  // recompute the received task (immediately computes tasks ->
                        // difference to ADD_TASK)
-      receiveAndInitializeTaskAndFaults();
+      receiveAndinitializeTask();
       auto& currentTask = tasks_.back();
 
       currentTask->setZero();
@@ -403,7 +401,7 @@ SignalType ProcessGroupWorker::wait() {
       Stats::stopEvent("write interpolated values");
     } break;
     case RESCHEDULE_ADD_TASK: {
-      receiveAndInitializeTaskAndFaults();  // receive and initalize new task
+      receiveAndinitializeTask();  // receive and initalize new task
                                             // now the newly
                                             // received task is the last in tasks_
       // now , we may need to update the kahan summation data structures
@@ -988,7 +986,7 @@ void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNameP
   }
 }
 
-void ProcessGroupWorker::receiveAndInitializeTaskAndFaults(bool mayAlreadyExist /*=true*/) {
+void ProcessGroupWorker::receiveAndinitializeTask() {
   Task* t;
 
   // local root receives task
@@ -999,16 +997,10 @@ void ProcessGroupWorker::receiveAndInitializeTaskAndFaults(bool mayAlreadyExist 
   // broadcast task to other process of pgroup
   Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
-  if (!mayAlreadyExist) {
-    // check if task already exists on this group
-    for (auto tmp : tasks_) assert(tmp->getID() != t->getID());
-  }
-
-  MPI_Barrier(theMPISystem()->getLocalComm());
-  initializeTaskAndFaults(t);
+  initializeTask(t);
 }
 
-void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
+void ProcessGroupWorker::initializeTask(Task* t) {
   assert(combiParametersSet_);
   // add task to task storage
   tasks_.push_back(t);
@@ -1020,9 +1012,6 @@ void ProcessGroupWorker::initializeTaskAndFaults(Task* t) {
           combiParameters_.getLMax(), currentTask->getLevelVector(),
           combiParameters_.getBoundary());
   currentTask->init(theMPISystem()->getLocalComm(), taskDecomposition);
-  if (ENABLE_FT) {
-    t_fault_ = currentTask->initFaults(t_fault_, startTimeIteration_);
-  }
 }
 
 void ProcessGroupWorker::deleteTasks() {

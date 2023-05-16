@@ -205,17 +205,9 @@ class ProcessGroupWorker {
 
   bool combiParametersSet_;  /// indicates if combi parameters variable set
 
-  // fault parameters
-  real t_fault_;  /// time to fault
-
   IndexType currentCombi_;  /// current combination; increased after every combination
 
-  std::chrono::high_resolution_clock::time_point
-      startTimeIteration_;  /// starting time of process computation
-
-  // std::ofstream betasFile_;
-
-  void receiveAndInitializeTaskAndFaults(bool mayAlreadyExist = true);
+  void receiveAndInitializeTask();
 
   /** deallocates all data elements stored in the dsgs */
   void deleteDsgsData();
