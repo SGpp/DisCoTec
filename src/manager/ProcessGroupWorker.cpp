@@ -435,7 +435,6 @@ SignalType ProcessGroupWorker::wait() {
       currentTask->setZero();
       fillDFGFromDSGU(currentTask);
       currentTask->setFinished(true);
-      currentTask = nullptr;
     } break;
     case RESCHEDULE_REMOVE_TASK: {
       size_t taskID;
