@@ -111,15 +111,9 @@ ProcessGroupWorker::ProcessGroupWorker()
       combinedUniDSGVector_(0),
       combiParameters_(),
       combiParametersSet_(false),
-      currentCombi_(0) {
-}
+      currentCombi_(0) {}
 
-ProcessGroupWorker::~ProcessGroupWorker() {
-  for (auto& task : tasks_) {
-    delete task;
-    task = nullptr;
-  }
-}
+ProcessGroupWorker::~ProcessGroupWorker() {}
 
 LevelVector ProcessGroupWorker::receiveLevalAndBroadcast() {
   const auto dim = combiParameters_.getDim();
@@ -160,12 +154,12 @@ SignalType ProcessGroupWorker::wait() {
 
       // execute task
       Stats::startEvent("run first");
-      auto& currentTask = tasks_.back();
+      auto& currentTask = this->getTaskWorker().getTasks().back();
       currentTask->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("run first");
     } break;
     case RUN_NEXT: {
-      assert(tasks_.size() > 0);
+      assert(this->getTaskWorker().getTasks().size() > 0);
       // // free space for computation
       // deleteDsgsData();
 
@@ -177,14 +171,14 @@ SignalType ProcessGroupWorker::wait() {
       // the task will get the proper initial solution during the next combine
       receiveAndInitializeTask();
 
-      auto& currentTask = tasks_.back();
+      auto& currentTask = this->getTaskWorker().getTasks().back();
       currentTask->setZero();
       currentTask->setFinished(true);
     } break;
     case RESET_TASKS: {  // deleta all tasks (used in process recovery)
       std::cout << "resetting tasks" << std::endl;
 
-      deleteTasks();
+      this->getTaskWorker().deleteTasks();
       status_ = PROCESS_GROUP_BUSY;
     } break;
     case EXIT: {
@@ -282,12 +276,12 @@ SignalType ProcessGroupWorker::wait() {
     case RECOMPUTE: {  // recompute the received task (immediately computes tasks ->
                        // difference to ADD_TASK)
       receiveAndInitializeTask();
-      auto& currentTask = tasks_.back();
+      auto& currentTask = this->getTaskWorker().getTasks().back();
 
       currentTask->setZero();
       // fill task with combisolution
       fillDFGFromDSGU(currentTask);
-      
+
       // execute task
       Stats::Event e = Stats::Event();
       currentTask->run(theMPISystem()->getLocalComm());
@@ -402,14 +396,14 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case RESCHEDULE_ADD_TASK: {
       receiveAndInitializeTask();  // receive and initalize new task
-                                            // now the newly
-                                            // received task is the last in tasks_
+                                   // now the newly
+                                   // received task is the last in this->getTaskWorker().getTasks()
       // now , we may need to update the kahan summation data structures
       for (auto& dsg : combinedUniDSGVector_) {
         dsg->createKahanBuffer();
       }
 
-      auto& currentTask = tasks_.back();
+      auto& currentTask = this->getTaskWorker().getTasks().back();
       currentTask->setZero();
       fillDFGFromDSGU(currentTask);
       currentTask->setFinished(true);
@@ -429,22 +423,21 @@ SignalType ProcessGroupWorker::wait() {
           theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
       // search for task send to group master and remove
-      for (size_t i = 0; i < tasks_.size(); ++i) {
-        if (tasks_[i]->getID() == taskID) {
+      for (size_t i = 0; i < this->getTaskWorker().getTasks().size(); ++i) {
+        if (this->getTaskWorker().getTasks()[i]->getID() == taskID) {
           MASTER_EXCLUSIVE_SECTION {
             // send to group master
-            Task::send(&tasks_[i], theMPISystem()->getManagerRank(),
+            Task::send(&(this->getTaskWorker().getTasks()[i]), theMPISystem()->getManagerRank(),
                        theMPISystem()->getGlobalComm());
           }
-          delete(tasks_[i]);
-          tasks_.erase(tasks_.begin() + i);
+          this->getTaskWorker().removeTask(i);
           break;  // only one task has the taskID
         }
       }
     } break;
     case WRITE_DSG_MINMAX_COEFFICIENTS: {
       writeSparseGridMinMaxCoefficients(receiveStringFromManagerAndBroadcastToGroup());
-		} break;
+    } break;
     default: { throw std::runtime_error("signal " + std::to_string(signal) + " not implemented"); }
   }
   
@@ -471,15 +464,15 @@ SignalType ProcessGroupWorker::wait() {
 
 void ProcessGroupWorker::runAllTasks() {
   Stats::startEvent("run");
-  if (tasks_.empty()) {
+  if (this->getTaskWorker().getTasks().empty()) {
     std::cout << "Possible error: No tasks! \n";
   }
 
-  for (auto task : tasks_) {
-    task->setFinished(false); //todo: check if this is necessary or move somewhere else
+  for (auto task : this->getTaskWorker().getTasks()) {
+    task->setFinished(false);  // todo: check if this is necessary or move somewhere else
   }
-    status_ = PROCESS_GROUP_BUSY;  // not sure if this does anything
-  for (auto task : tasks_) {
+  status_ = PROCESS_GROUP_BUSY;  // not sure if this does anything
+  for (auto task : this->getTaskWorker().getTasks()) {
     if (!task->isFinished()) {
       task->run(theMPISystem()->getLocalComm());
     }
@@ -494,7 +487,7 @@ void ProcessGroupWorker::exit() {
   MASTER_EXCLUSIVE_SECTION {
     // serialize tasks as string
     std::stringstream tasksStream;
-    for (const auto& t : tasks_) {
+    for (const auto& t : this->getTaskWorker().getTasks()) {
       tasksStream << t->getID() << ": " << t->getCoefficient() << t->getLevelVector() << "; ";
     }
     std::string tasksString = tasksStream.str();
@@ -504,7 +497,7 @@ void ProcessGroupWorker::exit() {
     if (chdir("../ginstance")) {
     };
   }
-  deleteTasks();
+  this->getTaskWorker().deleteTasks();
 }
 
 /**
@@ -568,7 +561,7 @@ void registerAllSubspacesInDSGU(DistributedSparseGridUniform<CombiDataType>& dsg
  * Attention: No data is created here, only subspace sizes are shared.
  */
 void ProcessGroupWorker::initCombinedUniDSGVector() {
-  if (tasks_.size() == 0) {
+  if (this->getTaskWorker().getTasks().size() == 0) {
     std::cout << "Possible error: task size is 0! \n";
   }
   assert(combiParametersSet_);
@@ -599,7 +592,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   // register dsgs in all dfgs
   Stats::startEvent("register dsgus");
   for (size_t g = 0; g < combinedUniDSGVector_.size(); ++g) {
-    for (Task* t : tasks_) {
+    for (Task* t : this->getTaskWorker().getTasks()) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
       // set subspace sizes locally
       combinedUniDSGVector_[g]->registerDistributedFullGrid(dfg);
@@ -626,7 +619,7 @@ void ProcessGroupWorker::hierarchizeFullGrids() {
   bool anyNotBoundary =
       std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
                   [](BoundaryType b) { return b == 0; });
-  for (Task* t : tasks_) {
+  for (Task* t : this->getTaskWorker().getTasks()) {
     for (IndexType g = 0; g < combiParameters_.getNumGrids(); g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
@@ -650,7 +643,7 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
          "Initialize dsgu first with "
          "initCombinedUniDSGVector()");
   auto numGrids = combiParameters_.getNumGrids();
-  for (Task* t : tasks_) {
+  for (Task* t : this->getTaskWorker().getTasks()) {
     for (IndexType g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
@@ -788,8 +781,8 @@ void ProcessGroupWorker::parallelEvalUniform(std::string filename, LevelVector l
 std::vector<double> ProcessGroupWorker::getLpNorms(int p) const {
   // get Lp norm on every worker; reduce through dfg function
   std::vector<double> lpnorms;
-  lpnorms.reserve(tasks_.size());
-  for (const auto& t : tasks_) {
+  lpnorms.reserve(this->getTaskWorker().getTasks().size());
+  for (const auto& t : this->getTaskWorker().getTasks()) {
     auto lpnorm = t->getDistributedFullGrid().getLpNorm(p);
     lpnorms.push_back(lpnorm);
   }
@@ -832,7 +825,7 @@ std::vector<double> ProcessGroupWorker::evalAnalyticalOnDFG(LevelVector leval) c
     std::vector<double> coords(leval.size());
     dfg.getCoordsLocal(li, coords);
 
-    dfg.getData()[li] = tasks_[0]->analyticalSolution(coords, 0);
+    dfg.getData()[li] = this->getTaskWorker().getTasks()[0]->analyticalSolution(coords, 0);
   }
 
   std::vector<double> lpnorms;
@@ -859,7 +852,7 @@ std::vector<double> ProcessGroupWorker::evalErrorOnDFG(LevelVector leval) const 
     std::vector<double> coords(leval.size());
     dfg.getCoordsLocal(li, coords);
 
-    dfg.getData()[li] -= tasks_[0]->analyticalSolution(coords, 0);
+    dfg.getData()[li] -= this->getTaskWorker().getTasks()[0]->analyticalSolution(coords, 0);
   }
 
   std::vector<double> lpnorms;
@@ -883,7 +876,7 @@ void ProcessGroupWorker::doDiagnostics() {
             theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
   // call diagnostics on that Task
-  for (auto task : tasks_) {
+  for (auto task : this->getTaskWorker().getTasks()) {
     if (task->getID() == taskID) {
       std::vector<DistributedSparseGridUniform<CombiDataType>*> dsgsToPassToTask;
       for (auto& dsgPtr : combinedUniDSGVector_) {
@@ -896,8 +889,8 @@ void ProcessGroupWorker::doDiagnostics() {
   assert(false && "this taskID is not here");
 }
 
-std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(const
-    std::vector<std::vector<real>>& interpolationCoords) const {
+std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(
+    const std::vector<std::vector<real>>& interpolationCoords) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   auto numCoordinates = interpolationCoords.size();
 
@@ -905,7 +898,7 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(const
   std::vector<CombiDataType> values(numCoordinates, 0.);
   std::vector<CombiDataType> kahanTrailingTerm(numCoordinates, 0.);
 
-  for (Task* t : tasks_) {
+  for (Task* t : this->getTaskWorker().getTasks()) {
     const auto coeff = t->getCoefficient();
     for (size_t i = 0; i < numCoordinates; ++i) {
       auto localValue = t->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
@@ -937,16 +930,19 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid(
     const std::vector<std::vector<real>>& interpolationCoords, std::string fileNamePrefix) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   // call interpolation function on tasks and write out task-wise
-  for (size_t i = 0; i < tasks_.size(); ++i) {
-    auto taskVals = tasks_[i]->getDistributedFullGrid().getInterpolatedValues(interpolationCoords);
+  for (size_t i = 0; i < this->getTaskWorker().getTasks().size(); ++i) {
+    auto taskVals =
+        this->getTaskWorker().getTasks()[i]->getDistributedFullGrid().getInterpolatedValues(
+            interpolationCoords);
     // cycle through ranks to write
     if (i % (theMPISystem()->getNumProcs()) == theMPISystem()->getLocalRank()) {
-      std::string saveFilePath =
-          fileNamePrefix + "_task_" + std::to_string(tasks_[i]->getID()) + ".h5";
+      std::string saveFilePath = fileNamePrefix + "_task_" +
+                                 std::to_string(this->getTaskWorker().getTasks()[i]->getID()) +
+                                 ".h5";
       std::string groupName = "run_";
       std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
       h5io::writeValuesToH5File(taskVals, saveFilePath, groupName, datasetName,
-                                tasks_[i]->getCurrentTime());
+                                this->getTaskWorker().getTasks()[i]->getCurrentTime());
     }
   }
 }
@@ -956,13 +952,13 @@ void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   std::string groupName = "all_grids";
   std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
-  assert(tasks_.size() > 0);
+  assert(this->getTaskWorker().getTasks().size() > 0);
   assert(currentCombi_ >= 0);
-  assert(tasks_[0]->getCurrentTime() >= 0.0);
+  assert(this->getTaskWorker().getTasks()[0]->getCurrentTime() >= 0.0);
   assert(values.size() > 0);
   assert(valuesWriteFilename.size() > 0);
   h5io::writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
-                            tasks_[0]->getCurrentTime());
+                            this->getTaskWorker().getTasks()[0]->getCurrentTime());
 }
 
 void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
@@ -997,27 +993,15 @@ void ProcessGroupWorker::receiveAndInitializeTask() {
   // broadcast task to other process of pgroup
   Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
-  initializeTask(t);
+  this->initializeTask(t);
 }
 
 void ProcessGroupWorker::initializeTask(Task* t) {
-  assert(combiParametersSet_);
-  // add task to task storage
-  tasks_.push_back(t);
-  auto& currentTask = tasks_.back();
-
-  // initalize task
   auto taskDecomposition = combigrid::downsampleDecomposition(
-          combiParameters_.getDecomposition(),
-          combiParameters_.getLMax(), currentTask->getLevelVector(),
-          combiParameters_.getBoundary());
-  currentTask->init(theMPISystem()->getLocalComm(), taskDecomposition);
-}
+      combiParameters_.getDecomposition(), combiParameters_.getLMax(), t->getLevelVector(),
+      combiParameters_.getBoundary());
 
-void ProcessGroupWorker::deleteTasks() {
-  // freeing tasks
-  for (auto tmp : tasks_) delete (tmp);
-  tasks_.clear();
+  this->getTaskWorker().initializeTask(t, taskDecomposition, theMPISystem()->getLocalComm());
 }
 
 void ProcessGroupWorker::setCombiParameters(const CombiParameters& combiParameters) {
@@ -1077,7 +1061,7 @@ void ProcessGroupWorker::updateCombiParameters() {
 
 void ProcessGroupWorker::integrateCombinedSolution() {
   auto numGrids = static_cast<int>(combiParameters_.getNumGrids());
-  for (Task* taskToUpdate : tasks_) {
+  for (Task* taskToUpdate : this->getTaskWorker().getTasks()) {
     for (int g = 0; g < numGrids; g++) {
       // fill dfg with hierarchical coefficients from distributed sparse grid
       taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(*combinedUniDSGVector_[g]);
@@ -1089,13 +1073,13 @@ void ProcessGroupWorker::integrateCombinedSolution() {
                   [](BoundaryType b) { return b == 0; });
 
   Stats::startEvent("dehierarchize");
-  for (Task* taskToUpdate : tasks_) {
+  for (Task* taskToUpdate : this->getTaskWorker().getTasks()) {
     for (int g = 0; g < numGrids; g++) {
       if (anyNotBoundary) {
         LevelVector zeroLMin = LevelVector(combiParameters_.getDim(), 0);
-        DistributedHierarchization::dehierarchizeDFG(taskToUpdate->getDistributedFullGrid(g),
-                                                     combiParameters_.getHierarchizationDims(),
-                                                     combiParameters_.getHierarchicalBases(), zeroLMin);
+        DistributedHierarchization::dehierarchizeDFG(
+            taskToUpdate->getDistributedFullGrid(g), combiParameters_.getHierarchizationDims(),
+            combiParameters_.getHierarchicalBases(), zeroLMin);
       } else {
         DistributedHierarchization::dehierarchizeDFG(
             taskToUpdate->getDistributedFullGrid(g), combiParameters_.getHierarchizationDims(),
@@ -1475,7 +1459,9 @@ void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
 }
 
 void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
-  for (Task* task : tasks_) writeVTKPlotFileOfTask(*task);
+  for (Task* task : this->getTaskWorker().getTasks()) {
+    writeVTKPlotFileOfTask(*task);
+  }
 }
 
 void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {

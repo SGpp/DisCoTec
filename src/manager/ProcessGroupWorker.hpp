@@ -1,10 +1,9 @@
 #ifndef PROCESSGROUPWORKER_HPP_
 #define PROCESSGROUPWORKER_HPP_
 
-#include <chrono>
-#include "fullgrid/FullGrid.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupSignals.hpp"
+#include "manager/TaskWorker.hpp"
 #include "mpi/MPISystem.hpp"
 #include "mpi_fault_simulator/MPI-FT.h"
 #include "task/Task.hpp"
@@ -29,7 +28,6 @@ class ProcessGroupWorker {
 
   void exit();
 
-  // getter for tasks
   inline const TaskContainer& getTasks() const;
 
   // Perform combination
@@ -55,8 +53,6 @@ class ProcessGroupWorker {
   void combineUniform();
 
   void combineLocalAndGlobal(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
-
-  void deleteTasks();
 
   /** parallel file io of final output grid */
   void parallelEval();
@@ -159,8 +155,6 @@ class ProcessGroupWorker {
     return extraUniDSGVector_;
   }
 
-  TaskContainer& getTasks() { return tasks_; }
-
   template <typename TaskType, typename... TaskArgs>
   void initializeAllTasks(const std::vector<LevelVector>& levels,
                           const std::vector<combigrid::real>& coeffs,
@@ -186,8 +180,10 @@ class ProcessGroupWorker {
   /** sets all subspaces in all dsgs to zero and allocates them if necessary */
   void zeroDsgsData();
 
+  const TaskWorker& getTaskWorker() const { return taskWorker_; }
+
  private:
-  TaskContainer tasks_;  /// task storage
+  TaskWorker taskWorker_{};  // worker that has tasks / full and sparse grids
 
   StatusType status_;  /// current status of process group (wait -> 0; busy -> 1; fail -> 2)
 
@@ -206,6 +202,8 @@ class ProcessGroupWorker {
   bool combiParametersSet_;  /// indicates if combi parameters variable set
 
   IndexType currentCombi_;  /// current combination; increased after every combination
+
+  TaskWorker& getTaskWorker() { return taskWorker_; }
 
   void receiveAndInitializeTask();
 
@@ -242,7 +240,7 @@ inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
 }
 
 inline const TaskContainer& ProcessGroupWorker::getTasks() const {
-  return tasks_;
+  return this->getTaskWorker().getTasks();
 }
 
 } /* namespace combigrid */

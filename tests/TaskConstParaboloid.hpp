@@ -112,6 +112,11 @@ class TaskConstParaboloid : public combigrid::Task {
     return *dfg_;
   }
 
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) const override {
+    BOOST_TEST_CHECKPOINT("TaskConstParaboloid getDFG const");
+    return *dfg_;
+  }
+
   real getCurrentTime() const override {
     return nsteps_;
   }
