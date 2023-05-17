@@ -41,9 +41,6 @@ class ProcessGroupWorker {
   // getter for tasks
   inline const TaskContainer& getTasks() const;
 
-  // Perform combination
-  void combine();
-
   /** initializes all subspace sizes in the dsgu according to the dfgs in the
    * global reduce comm*/
   void initCombinedUniDSGVector();

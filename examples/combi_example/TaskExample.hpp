@@ -18,8 +18,8 @@ class TaskExample : public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskExample(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary,
-              real coeff, LoadModel* loadModel, real dt, size_t nsteps,
+  TaskExample(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+              LoadModel* loadModel, real dt, size_t nsteps,
               std::vector<int> p = std::vector<int>(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
@@ -53,7 +53,7 @@ class TaskExample : public Task {
     const LevelVector& l = this->getLevelVector();
 
     if (p_.size() == 0) {
-      // compute domain decomposition
+      // compute parallelization
       IndexType prod_p(1);
 
       while (prod_p != static_cast<IndexType>(np)) {
@@ -84,7 +84,8 @@ class TaskExample : public Task {
     }
 
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
+    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p, false,
+                                                  decomposition);
 
     /* loop over local subgrid and set initial values */
     std::vector<CombiDataType>& elements = dfg_->getElementVector();
@@ -159,16 +160,6 @@ class TaskExample : public Task {
     for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(2.0 * M_PI * coords[d]);
 
     return u;
-
-    /*
-    double res = 1.0;
-    for (size_t i = 0; i < coords.size(); ++i) {
-      res *= -4.0 * coords[i] * (coords[i] - 1);
-    }
-
-
-    return res;
-    */
   }
 
   void setZero() {}

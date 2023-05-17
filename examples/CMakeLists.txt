@@ -7,6 +7,7 @@ project("DisCoTec Examples"
 
 add_subdirectory(combi_example)
 add_subdirectory(combi_example_faults)
+add_subdirectory(combi_workers_only)
 add_subdirectory(distributed_advection)
 add_subdirectory(distributed_third_level)
 #add_subdirectory(gene_distributed) # TODO: add if access to gene
