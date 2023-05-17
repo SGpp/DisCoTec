@@ -258,10 +258,7 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE: {  // start combination
-      Stats::startEvent("combine");
       combineUniform();
-      Stats::stopEvent("combine");
-
     } break;
     case COMBINE_LOCAL_AND_GLOBAL: {
       Stats::startEvent("combine local");
@@ -860,8 +857,10 @@ void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatColl
 }
 
 void ProcessGroupWorker::combineUniform() {
+  Stats::startEvent("combine");
   combineLocalAndGlobal();
   integrateCombinedSolution();
+  Stats::stopEvent("combine");
 }
 
 void ProcessGroupWorker::parallelEval() {
