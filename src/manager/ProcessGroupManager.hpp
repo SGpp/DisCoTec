@@ -90,8 +90,6 @@ class ProcessGroupManager {
 
   void getLpNorms(int p, std::map<size_t, double>& norms);
 
-  std::vector<double> parallelEvalNorm(const LevelVector& leval);
-
   std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval);
 
   std::vector<double> evalErrorOnDFG(const LevelVector& leval);

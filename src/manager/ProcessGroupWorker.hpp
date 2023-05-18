@@ -62,16 +62,7 @@ class ProcessGroupWorker {
 
   /** calculate the Lp Norm for each individual task */
   std::vector<double> getLpNorms(int p) const;
-
-  /** evaluate norms on (newly created) reference grid */
-  std::vector<double> parallelEvalNorm(LevelVector leval) const;
-
-  /** evaluate norms of Task's analytical solution on reference grid */
-  std::vector<double> evalAnalyticalOnDFG(LevelVector leval) const;
-
-  /** evaluate norms of combi solution error on reference grid  */
-  std::vector<double> evalErrorOnDFG(LevelVector leval) const;
-
+  
   /** interpolate values on all tasks' component grids */
   std::vector<CombiDataType> interpolateValues(
       const std::vector<std::vector<real>>& interpolationCoordinates) const;

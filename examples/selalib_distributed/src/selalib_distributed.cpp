@@ -414,22 +414,6 @@ int main(int argc, char** argv) {
       }
     }
 
-    // evaluate solution on the grid defined by leval
-    //(basically an interpolation of the sparse grid to fullgrid with resolution leval)
-    // Stats::startEvent("manager parallel eval");
-    // manager.parallelEval(leval, fg_file_path, 0);
-    // Stats::stopEvent("manager parallel eval");
-    // Stats::startEvent("manager parallel eval norm");
-    // auto combinedNormLeval = manager.parallelEvalNorm(leval, 0);
-    // Stats::stopEvent("manager parallel eval norm");
-
-    // std::cout << "Norm is " << combinedNormLeval << " \n";
-
-    // // evaluate solution on the grid defined by leval2
-    // Stats::startEvent("manager parallel eval 2");
-    // manager.parallelEval(leval2, fg_file_path2, 0);
-    // Stats::stopEvent("manager parallel eval 2");
-
     // std::cout << "Computation finished evaluating on target grid! \n";
 
     if(!haveResolution) {

@@ -331,24 +331,6 @@ SignalType ProcessGroupWorker::wait() {
       }
       Stats::stopEvent("get max norm");
     } break;
-    case PARALLEL_EVAL_NORM: {  // evaluate norms on new dfg and send
-      Stats::startEvent("parallel eval norm");
-      auto lpnorm = parallelEvalNorm(receiveLevalAndBroadcast());
-      sendNormsToManager(lpnorm);
-      Stats::stopEvent("parallel eval norm");
-    } break;
-    case EVAL_ANALYTICAL_NORM: {  // evaluate analytical norms on new dfg and send
-      Stats::startEvent("eval analytical norm");
-      auto lpnorm = evalAnalyticalOnDFG(receiveLevalAndBroadcast());
-      sendNormsToManager(lpnorm);
-      Stats::stopEvent("eval analytical norm");
-    } break;
-    case EVAL_ERROR_NORM: {  // evaluate analytical norms on new dfg and send difference
-      Stats::startEvent("eval error norm");
-      auto lpnorm = evalErrorOnDFG(receiveLevalAndBroadcast());
-      sendNormsToManager(lpnorm);
-      Stats::stopEvent("eval error norm");
-    } break;
     case INTERPOLATE_VALUES: {  // interpolate values on given coordinates
       Stats::startEvent("interpolate values");
       auto values =
@@ -659,7 +641,7 @@ void ProcessGroupWorker::parallelEval() {
   if (uniformDecomposition)
     parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(), receiveLevalAndBroadcast());
   else
-    assert(false && "not yet implemented");
+    throw std::runtime_error("parallelEval not implemented for non-uniform decomposition");
 }
 // cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
 static bool endsWith(const std::string& str, const std::string& suffix) {
@@ -746,79 +728,6 @@ void ProcessGroupWorker::parallelEvalUniform(std::string filename, LevelVector l
 
 std::vector<double> ProcessGroupWorker::getLpNorms(int p) const {
   return this->getTaskWorker().getLpNorms(p);
-}
-
-std::vector<double> ProcessGroupWorker::parallelEvalNorm(LevelVector leval) const {
-  const auto dim = static_cast<DimType>(leval.size());
-  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
-                                                               combiParameters_.getLMax(), leval,
-                                                               combiParameters_.getBoundary());
-
-  DistributedFullGrid<CombiDataType> dfg(
-      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
-
-  this->fillDFGFromDSGU(dfg, 0);
-
-  std::vector<double> lpnorms;
-  for (int p = 0; p < 3; ++p) {
-    lpnorms.push_back(dfg.getLpNorm(p));
-  }
-  return lpnorms;
-}
-
-std::vector<double> ProcessGroupWorker::evalAnalyticalOnDFG(LevelVector leval) const {
-  const auto dim = static_cast<DimType>(leval.size());
-  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
-                                                               combiParameters_.getLMax(), leval,
-                                                               combiParameters_.getBoundary());
-
-  DistributedFullGrid<CombiDataType> dfg(
-      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
-
-  // interpolate Task's analyticalSolution
-  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-    std::vector<double> coords(leval.size());
-    dfg.getCoordsLocal(li, coords);
-
-    dfg.getData()[li] = this->getTaskWorker().getTasks()[0]->analyticalSolution(coords, 0);
-  }
-
-  std::vector<double> lpnorms;
-  for (int p = 0; p < 3; ++p) {
-    lpnorms.push_back(dfg.getLpNorm(p));
-  }
-  return lpnorms;
-}
-
-std::vector<double> ProcessGroupWorker::evalErrorOnDFG(LevelVector leval) const {
-  const auto dim = static_cast<DimType>(leval.size());
-  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
-                                                               combiParameters_.getLMax(), leval,
-                                                               combiParameters_.getBoundary());
-
-  DistributedFullGrid<CombiDataType> dfg(
-      dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-      combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
-
-  this->fillDFGFromDSGU(dfg, 0);
-  // interpolate Task's analyticalSolution
-  for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
-    std::vector<double> coords(leval.size());
-    dfg.getCoordsLocal(li, coords);
-
-    dfg.getData()[li] -= this->getTaskWorker().getTasks()[0]->analyticalSolution(coords, 0);
-  }
-
-  std::vector<double> lpnorms;
-  for (int p = 0; p < 3; ++p) {
-    lpnorms.push_back(dfg.getLpNorm(p));
-  }
-  return lpnorms;
 }
 
 void ProcessGroupWorker::doDiagnostics() {

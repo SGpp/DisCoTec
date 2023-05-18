@@ -611,15 +611,6 @@ std::vector<double> receiveThreeNorms(RankType pgroupRootID) {
   return norms;
 }
 
-std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& leval) {
-  sendSignalToProcessGroup(PARALLEL_EVAL_NORM);
-  sendLevelVector(leval, pgroupRootID_);
-
-  auto norms = receiveThreeNorms(pgroupRootID_);
-  setProcessGroupBusyAndReceive();
-  return norms;
-}
-
 void ProcessGroupManager::getLpNorms(int p, std::map<size_t, double>& norms) {
   SignalType signal = GET_L1_NORM;
   if (p == 2) {
