@@ -37,9 +37,6 @@ class ProcessGroupWorker {
    * global reduce comm*/
   void initCombinedUniDSGVector();
 
-  /** hierarchizes all fgs */
-  void hierarchizeFullGrids();
-
   /** local reduce */
   void addFullGridsToUniformSG();
 

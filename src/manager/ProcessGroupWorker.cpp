@@ -1,7 +1,6 @@
 #include "manager/ProcessGroupWorker.hpp"
 
 #include "combicom/CombiCom.hpp"
-#include "hierarchization/DistributedHierarchization.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupSignals.hpp"
 #include "mpi/MPIUtils.hpp"
@@ -303,7 +302,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case GET_L2_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("get L2 norm");
-      auto lpnorms = getLpNorms(2);
+      auto lpnorms = this->getLpNorms(2);
       // send from master to manager
       MASTER_EXCLUSIVE_SECTION {
         MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
@@ -314,7 +313,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case GET_L1_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("get L1 norm");
-      auto lpnorms = getLpNorms(1);
+      auto lpnorms = this->getLpNorms(1);
       MASTER_EXCLUSIVE_SECTION {
         MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
                  theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
@@ -324,7 +323,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case GET_MAX_NORM: {  // evaluate norm on dfgs and send
       Stats::startEvent("get max norm");
-      auto lpnorms = getLpNorms(0);
+      auto lpnorms = this->getLpNorms(0);
       MASTER_EXCLUSIVE_SECTION {
         MPI_Send(lpnorms.data(), static_cast<int>(lpnorms.size()), MPI_DOUBLE,
                  theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
@@ -440,7 +439,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     default: { throw std::runtime_error("signal " + std::to_string(signal) + " not implemented"); }
   }
-  
+
   // all tasks finished -> group waiting
   if (status_ != PROCESS_GROUP_FAIL) {
     status_ = PROCESS_GROUP_WAIT;
@@ -464,20 +463,8 @@ SignalType ProcessGroupWorker::wait() {
 
 void ProcessGroupWorker::runAllTasks() {
   Stats::startEvent("run");
-  if (this->getTaskWorker().getTasks().empty()) {
-    std::cout << "Possible error: No tasks! \n";
-  }
-
-  for (auto task : this->getTaskWorker().getTasks()) {
-    task->setFinished(false);  // todo: check if this is necessary or move somewhere else
-  }
   status_ = PROCESS_GROUP_BUSY;  // not sure if this does anything
-  for (auto task : this->getTaskWorker().getTasks()) {
-    if (!task->isFinished()) {
-      task->run(theMPISystem()->getLocalComm());
-    }
-  }
-  assert(!ENABLE_FT);  // TODO for fault tolerance, steal from the above
+  this->getTaskWorker().runAllTasks();
   Stats::stopEvent("run");
 }
 
@@ -615,29 +602,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   }
 }
 
-void ProcessGroupWorker::hierarchizeFullGrids() {
-  bool anyNotBoundary =
-      std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
-                  [](BoundaryType b) { return b == 0; });
-  for (Task* t : this->getTaskWorker().getTasks()) {
-    for (IndexType g = 0; g < combiParameters_.getNumGrids(); g++) {
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
-
-      // hierarchize dfg
-      if (anyNotBoundary) {
-        LevelVector zeroLMin = LevelVector(combiParameters_.getDim(), 0);
-        DistributedHierarchization::hierarchize<CombiDataType>(
-            dfg, combiParameters_.getHierarchizationDims(), combiParameters_.getHierarchicalBases(),
-            zeroLMin);
-      } else {
-        DistributedHierarchization::hierarchize<CombiDataType>(
-            dfg, combiParameters_.getHierarchizationDims(), combiParameters_.getHierarchicalBases(),
-            combiParameters_.getLMin());
-      }
-    }
-  }
-}
-
 void ProcessGroupWorker::addFullGridsToUniformSG() {
   assert(combinedUniDSGVector_.size() > 0 &&
          "Initialize dsgu first with "
@@ -672,7 +636,9 @@ void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatColl
   zeroDsgsData();
 
   Stats::startEvent("hierarchize");
-  hierarchizeFullGrids();
+  this->getTaskWorker().hierarchizeFullGrids(
+      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
   Stats::stopEvent("hierarchize");
 
   Stats::startEvent("local reduce");
@@ -779,14 +745,7 @@ void ProcessGroupWorker::parallelEvalUniform(std::string filename, LevelVector l
 }
 
 std::vector<double> ProcessGroupWorker::getLpNorms(int p) const {
-  // get Lp norm on every worker; reduce through dfg function
-  std::vector<double> lpnorms;
-  lpnorms.reserve(this->getTaskWorker().getTasks().size());
-  for (const auto& t : this->getTaskWorker().getTasks()) {
-    auto lpnorm = t->getDistributedFullGrid().getLpNorm(p);
-    lpnorms.push_back(lpnorm);
-  }
-  return lpnorms;
+  return this->getTaskWorker().getLpNorms(p);
 }
 
 std::vector<double> ProcessGroupWorker::parallelEvalNorm(LevelVector leval) const {
@@ -1067,26 +1026,10 @@ void ProcessGroupWorker::integrateCombinedSolution() {
       taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(*combinedUniDSGVector_[g]);
     }
   }
-
-  bool anyNotBoundary =
-      std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
-                  [](BoundaryType b) { return b == 0; });
-
   Stats::startEvent("dehierarchize");
-  for (Task* taskToUpdate : this->getTaskWorker().getTasks()) {
-    for (int g = 0; g < numGrids; g++) {
-      if (anyNotBoundary) {
-        LevelVector zeroLMin = LevelVector(combiParameters_.getDim(), 0);
-        DistributedHierarchization::dehierarchizeDFG(
-            taskToUpdate->getDistributedFullGrid(g), combiParameters_.getHierarchizationDims(),
-            combiParameters_.getHierarchicalBases(), zeroLMin);
-      } else {
-        DistributedHierarchization::dehierarchizeDFG(
-            taskToUpdate->getDistributedFullGrid(g), combiParameters_.getHierarchizationDims(),
-            combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
-      }
-    }
-  }
+  this->getTaskWorker().dehierarchizeFullGrids(
+      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
   Stats::stopEvent("dehierarchize");
   currentCombi_++;
 }
