@@ -91,7 +91,7 @@ BOOST_AUTO_TEST_CASE(test) {
   static_cast<TaskTest*>(t)->test += TestHelper::getRank(comm);
 
   if (TestHelper::getRank(comm) != 0) {
-    Task::send(&t, 0, comm);
+    Task::send(t, 0, comm);
   } else {
     for (int i = 1; i < size; ++i) {
       Task::receive(&t, i, comm);

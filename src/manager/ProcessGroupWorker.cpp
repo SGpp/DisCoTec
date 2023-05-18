@@ -279,7 +279,7 @@ SignalType ProcessGroupWorker::wait() {
 
       currentTask->setZero();
       // fill task with combisolution
-      fillDFGFromDSGU(currentTask);
+      fillDFGFromDSGU(*currentTask);
 
       // execute task
       Stats::Event e = Stats::Event();
@@ -386,7 +386,7 @@ SignalType ProcessGroupWorker::wait() {
 
       auto& currentTask = this->getTaskWorker().getTasks().back();
       currentTask->setZero();
-      fillDFGFromDSGU(currentTask);
+      fillDFGFromDSGU(*currentTask);
       currentTask->setFinished(true);
     } break;
     case RESCHEDULE_REMOVE_TASK: {
@@ -408,7 +408,7 @@ SignalType ProcessGroupWorker::wait() {
         if (this->getTaskWorker().getTasks()[i]->getID() == taskID) {
           MASTER_EXCLUSIVE_SECTION {
             // send to group master
-            Task::send(&(this->getTaskWorker().getTasks()[i]), theMPISystem()->getManagerRank(),
+            Task::send(this->getTaskWorker().getTasks()[i].get(), theMPISystem()->getManagerRank(),
                        theMPISystem()->getGlobalComm());
           }
           this->getTaskWorker().removeTask(i);
@@ -419,7 +419,9 @@ SignalType ProcessGroupWorker::wait() {
     case WRITE_DSG_MINMAX_COEFFICIENTS: {
       writeSparseGridMinMaxCoefficients(receiveStringFromManagerAndBroadcastToGroup());
     } break;
-    default: { throw std::runtime_error("signal " + std::to_string(signal) + " not implemented"); }
+    default: {
+      throw std::runtime_error("signal " + std::to_string(signal) + " not implemented");
+    }
   }
 
   // all tasks finished -> group waiting
@@ -429,8 +431,8 @@ SignalType ProcessGroupWorker::wait() {
 
   // send ready status to manager
   MASTER_EXCLUSIVE_SECTION {
-      MPI_Send(&status_, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
-               theMPISystem()->getGlobalComm());
+    MPI_Send(&status_, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
+             theMPISystem()->getGlobalComm());
   }
 
   // if failed proc in this group detected the alive procs go into recovery state
@@ -546,7 +548,6 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
                                currentCombi_, combiParameters_.getLMinReductionVector(),
                                combiParameters_.getLMaxReductionVector());
 
-
   // get all subspaces in the (optimized) combischeme, create dsgs
   combinedUniDSGVector_.resize(static_cast<size_t>(combiParameters_.getNumGrids()));
   for (auto& uniDSG : combinedUniDSGVector_) {
@@ -561,7 +562,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   // register dsgs in all dfgs
   Stats::startEvent("register dsgus");
   for (size_t g = 0; g < combinedUniDSGVector_.size(); ++g) {
-    for (Task* t : this->getTaskWorker().getTasks()) {
+    for (const auto& t : this->getTaskWorker().getTasks()) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
       // set subspace sizes locally
       combinedUniDSGVector_[g]->registerDistributedFullGrid(dfg);
@@ -589,7 +590,7 @@ void ProcessGroupWorker::addFullGridsToUniformSG() {
          "Initialize dsgu first with "
          "initCombinedUniDSGVector()");
   auto numGrids = combiParameters_.getNumGrids();
-  for (Task* t : this->getTaskWorker().getTasks()) {
+  for (const auto& t : this->getTaskWorker().getTasks()) {
     for (IndexType g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
 
@@ -680,13 +681,13 @@ void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg
   }
 }
 
-void ProcessGroupWorker::fillDFGFromDSGU(Task* t) const {
+void ProcessGroupWorker::fillDFGFromDSGU(Task& t) const {
   auto numGrids = static_cast<int>(
       combiParameters_
           .getNumGrids());  // we assume here that every task has the same number of grids
   for (int g = 0; g < numGrids; g++) {
     assert(combinedUniDSGVector_[g] != nullptr);
-    this->fillDFGFromDSGU(t->getDistributedFullGrid(g), g);
+    this->fillDFGFromDSGU(t.getDistributedFullGrid(g), g);
   }
 }
 
@@ -744,7 +745,7 @@ void ProcessGroupWorker::doDiagnostics() {
             theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
   // call diagnostics on that Task
-  for (auto task : this->getTaskWorker().getTasks()) {
+  for (const auto& task : this->getTaskWorker().getTasks()) {
     if (task->getID() == taskID) {
       std::vector<DistributedSparseGridUniform<CombiDataType>*> dsgsToPassToTask;
       for (auto& dsgPtr : combinedUniDSGVector_) {
@@ -766,7 +767,7 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(
   std::vector<CombiDataType> values(numCoordinates, 0.);
   std::vector<CombiDataType> kahanTrailingTerm(numCoordinates, 0.);
 
-  for (Task* t : this->getTaskWorker().getTasks()) {
+  for (const auto& t : this->getTaskWorker().getTasks()) {
     const auto coeff = t->getCoefficient();
     for (size_t i = 0; i < numCoordinates; ++i) {
       auto localValue = t->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
@@ -861,15 +862,16 @@ void ProcessGroupWorker::receiveAndInitializeTask() {
   // broadcast task to other process of pgroup
   Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
-  this->initializeTask(t);
+  this->initializeTask(std::unique_ptr<Task>(t));
 }
 
-void ProcessGroupWorker::initializeTask(Task* t) {
+void ProcessGroupWorker::initializeTask(std::unique_ptr<Task> t) {
   auto taskDecomposition = combigrid::downsampleDecomposition(
       combiParameters_.getDecomposition(), combiParameters_.getLMax(), t->getLevelVector(),
       combiParameters_.getBoundary());
 
-  this->getTaskWorker().initializeTask(t, taskDecomposition, theMPISystem()->getLocalComm());
+  this->getTaskWorker().initializeTask(std::move(t), taskDecomposition,
+                                       theMPISystem()->getLocalComm());
 }
 
 void ProcessGroupWorker::setCombiParameters(const CombiParameters& combiParameters) {
@@ -929,7 +931,7 @@ void ProcessGroupWorker::updateCombiParameters() {
 
 void ProcessGroupWorker::integrateCombinedSolution() {
   auto numGrids = static_cast<int>(combiParameters_.getNumGrids());
-  for (Task* taskToUpdate : this->getTaskWorker().getTasks()) {
+  for (const auto& taskToUpdate : this->getTaskWorker().getTasks()) {
     for (int g = 0; g < numGrids; g++) {
       // fill dfg with hierarchical coefficients from distributed sparse grid
       taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(*combinedUniDSGVector_[g]);
@@ -1311,7 +1313,7 @@ void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
 }
 
 void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
-  for (Task* task : this->getTaskWorker().getTasks()) {
+  for (const auto& task : this->getTaskWorker().getTasks()) {
     writeVTKPlotFileOfTask(*task);
   }
 }

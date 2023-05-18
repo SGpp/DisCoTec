@@ -74,7 +74,7 @@ class TestParams {
  * initial function values.
  */
 bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
-  const TaskContainer& tasks = worker.getTasks();
+  const auto& tasks = worker.getTasks();
   int numGrids = (int)worker.getCombiParameters().getNumGrids();
 
   BOOST_CHECK(tasks.size() > 0);
@@ -83,7 +83,7 @@ bool checkReducedFullGrid(ProcessGroupWorker& worker, int nrun) {
   // to check if any data was actually compared
   bool any = false;
 
-  for (const Task* const t : tasks) {
+  for (const auto& t : tasks) {
     for (int g = 0; g < numGrids; g++) {
       const DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       // dfg.print(std::cout);

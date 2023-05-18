@@ -35,7 +35,7 @@ bool ProcessGroupManager::sendTaskToProcessGroup(Task* t, SignalType signal) {
   sendSignalToProcessGroup(signal);
 
   // send task
-  Task::send(&t, pgroupRootID_, theMPISystem()->getGlobalComm());
+  Task::send(t, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
 
@@ -519,7 +519,7 @@ bool ProcessGroupManager::refreshTask(Task* t) {
   sendSignalToProcessGroup(ADD_TASK);
 
   // send task
-  Task::send(&t, pgroupRootID_, theMPISystem()->getGlobalComm());
+  Task::send(t, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
 

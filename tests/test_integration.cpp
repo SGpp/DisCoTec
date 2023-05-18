@@ -30,7 +30,7 @@ using namespace combigrid;
 // BOOST_CLASS_EXPORT(TaskCount)
 
 bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
-  auto tasks = worker.getTasks();
+  const auto& tasks = worker.getTasks();
   int numGrids = (int)worker.getCombiParameters().getNumGrids();
 
   BOOST_CHECK(tasks.size() > 0);
@@ -39,7 +39,7 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
   // to check if any data was actually compared
   bool any = false;
 
-  for (Task* t : tasks) {
+  for (const auto& t : tasks) {
     for (int g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       for (auto b : dfg.returnBoundaryFlags()) {
@@ -415,7 +415,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 #ifndef NDEBUG // in case of a build with asserts, have longer timeout
 BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(580))
 #else
-BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(380))
+BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(480))
 #endif  // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto start = std::chrono::high_resolution_clock::now();

@@ -7,7 +7,6 @@
 #include "mpi/MPISystem.hpp"
 #include "mpi_fault_simulator/MPI-FT.h"
 #include "task/Task.hpp"
-#include "loadmodel/LearningLoadModel.hpp"
 #include "vtk/DFGPlotFileWriter.hpp"
 
 namespace combigrid {
@@ -28,7 +27,7 @@ class ProcessGroupWorker {
 
   void exit();
 
-  inline const TaskContainer& getTasks() const;
+  inline const std::vector<std::unique_ptr<Task>>& getTasks() const;
 
   // Perform combination
   void combine();
@@ -62,7 +61,7 @@ class ProcessGroupWorker {
 
   /** calculate the Lp Norm for each individual task */
   std::vector<double> getLpNorms(int p) const;
-  
+
   /** interpolate values on all tasks' component grids */
   std::vector<CombiDataType> interpolateValues(
       const std::vector<std::vector<real>>& interpolationCoordinates) const;
@@ -149,10 +148,11 @@ class ProcessGroupWorker {
                           const std::vector<size_t>& taskNumbers, TaskArgs&&... args) {
     for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
       assert(static_cast<DimType>(levels[taskIndex].size()) == this->getCombiParameters().getDim());
-      auto task = new TaskType(levels[taskIndex], this->getCombiParameters().getBoundary(),
-                               coeffs[taskIndex], std::forward<TaskArgs>(args)...);
+      auto task = std::unique_ptr<Task>(
+          new TaskType(levels[taskIndex], this->getCombiParameters().getBoundary(),
+                       coeffs[taskIndex], std::forward<TaskArgs>(args)...));
       task->setID(taskNumbers[taskIndex]);
-      this->initializeTask(task);
+      this->initializeTask(std::move(task));
     }
   }
 
@@ -161,7 +161,7 @@ class ProcessGroupWorker {
    *
    * @param t pointer to a heap-allocated task, the function takes over ownership here
    */
-  void initializeTask(Task* t);
+  void initializeTask(std::unique_ptr<Task> t);
 
   IndexType getCurrentNumberOfCombinations() const { return currentCombi_; }
 
@@ -204,8 +204,6 @@ class ProcessGroupWorker {
   /** the pg writes the dfg of all tasks into individual vtk files */
   void writeVTKPlotFilesOfAllTasks();
 
-  void processDuration(const Task& t, const Stats::Event e, unsigned int numProcs);
-
   /** helper functions for parallelEval and norm calculations*/
   LevelVector receiveLevalAndBroadcast();
 
@@ -218,7 +216,7 @@ class ProcessGroupWorker {
    */
   void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0) const;
 
-  void fillDFGFromDSGU(Task* t) const;
+  void fillDFGFromDSGU(Task& t) const;
 };
 
 inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
@@ -227,7 +225,7 @@ inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
   return combiParameters_;
 }
 
-inline const TaskContainer& ProcessGroupWorker::getTasks() const {
+inline const std::vector<std::unique_ptr<Task>>& ProcessGroupWorker::getTasks() const {
   return this->getTaskWorker().getTasks();
 }
 

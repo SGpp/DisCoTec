@@ -34,13 +34,13 @@ const DistributedFullGrid<CombiDataType>& Task::getDistributedFullGrid(int n) co
 
 size_t Task::count = 0;
 
-void Task::send(const Task* const* const t, RankType dst, CommunicatorType comm) {
+void Task::send(const Task* const t, RankType dst, CommunicatorType comm) {
   // save data to archive
   std::stringstream ss;
   {
     boost::archive::text_oarchive oa(ss);
     // write class instance to archive
-    oa << *t;
+    oa << t;
   }
   // create mpi buffer of archive
   std::string s = ss.str();

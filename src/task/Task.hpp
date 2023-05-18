@@ -48,7 +48,7 @@ class Task {
   static void receive(Task** t, RankType source, CommunicatorType comm);
 
   // manager send task to pgroup root
-  static void send(const Task* const* const t, RankType dest, CommunicatorType comm);
+  static void send(const Task* const t, RankType dest, CommunicatorType comm);
 
   // broadcast task
   static void broadcast(Task** t, RankType root, CommunicatorType comm);
@@ -150,7 +150,7 @@ class Task {
 
 typedef std::vector<Task*> TaskContainer;
 
-inline const LevelVector& getLevelVectorFromTaskID(TaskContainer tasks, size_t task_id){
+inline const LevelVector& getLevelVectorFromTaskID(const TaskContainer& tasks, size_t task_id){
   auto task = std::find_if(tasks.begin(), tasks.end(), 
     [task_id] (Task* t) {return t->getID() == task_id;}
   );
