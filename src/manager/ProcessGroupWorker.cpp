@@ -4,6 +4,7 @@
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupSignals.hpp"
 #include "mpi/MPIUtils.hpp"
+#include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "loadmodel/LearningLoadModel.hpp"
 #include "mpi/MPISystem.hpp"
@@ -190,10 +191,7 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE: {  // start combination
-      Stats::startEvent("combine");
       combineUniform();
-      Stats::stopEvent("combine");
-
     } break;
     case COMBINE_LOCAL_AND_GLOBAL: {
       Stats::startEvent("combine local");
@@ -581,7 +579,7 @@ void ProcessGroupWorker::initCombinedUniDSGVector() {
   // global reduce of subspace sizes
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
   for (auto& uniDSG : combinedUniDSGVector_) {
-    uniDSG->reduceSubspaceSizes(globalReduceComm);
+    CombiCom::reduceSubspaceSizes(*uniDSG, globalReduceComm);
   }
 }
 
@@ -634,8 +632,10 @@ void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatColl
 }
 
 void ProcessGroupWorker::combineUniform() {
+  Stats::startEvent("combine");
   combineLocalAndGlobal();
   integrateCombinedSolution();
+  Stats::stopEvent("combine");
 }
 
 void ProcessGroupWorker::parallelEval() {
@@ -847,7 +847,7 @@ void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
 
 void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const {
   for (size_t i = 0; i < combinedUniDSGVector_.size(); ++i) {
-    combinedUniDSGVector_[i]->writeMinMaxCoefficents(fileNamePrefix, i);
+    DistributedSparseGridIO::writeMinMaxCoefficents(*combinedUniDSGVector_[i], fileNamePrefix, i);
   }
 }
 
@@ -974,12 +974,12 @@ void ProcessGroupWorker::combineThirdLevel() {
 
     // send dsg data to manager
     Stats::startEvent("send dsg data");
-    sendDsgData(dsgToUse, manager, managerComm);
+    CombiCom::sendDsgData(*dsgToUse, manager, managerComm);
     Stats::stopEvent("send dsg data");
 
     // recv combined dsgu from manager
     Stats::startEvent("recv dsg data");
-    recvDsgData(dsgToUse, manager, managerComm);
+    CombiCom::recvDsgData(*dsgToUse, manager, managerComm);
     Stats::stopEvent("recv dsg data");
 
     if (extraUniDSGVector_.size() > 0) {
@@ -988,7 +988,7 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // distribute solution in globalReduceComm to other pgs
-    auto request = asyncBcastDsgData(uniDsg, globalReduceRank, globalReduceComm);
+    auto request = CombiCom::asyncBcastDsgData(*uniDsg, globalReduceRank, globalReduceComm);
     requests.push_back(request);
   }
   // update fgs
@@ -1045,7 +1045,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   }
   // distribute solution in globalReduceComm to other pgs
   auto request =
-      asyncBcastDsgData(combinedUniDSGVector_[0].get(), theMPISystem()->getGlobalReduceRank(),
+      CombiCom::asyncBcastDsgData(*combinedUniDSGVector_[0], theMPISystem()->getGlobalReduceRank(),
                         theMPISystem()->getGlobalReduceComm());
 
   // update fgs
@@ -1122,9 +1122,9 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
   CommunicatorType thirdLevelComm = theMPISystem()->getThirdLevelComms()[0];
   RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
   for (size_t i = 0; i < uniDSGVectorToSet->size(); ++i) {
-    combinedUniDSGVector_[i]->sendDsgSizesWithGather(thirdLevelComm, thirdLevelManagerRank);
+    CombiCom::sendSubspaceSizesWithGather(*combinedUniDSGVector_[i], thirdLevelComm, thirdLevelManagerRank);
     // set updated sizes in dsgs
-    (*uniDSGVectorToSet)[i]->receiveDsgSizesWithScatter(thirdLevelComm, thirdLevelManagerRank);
+    CombiCom::receiveSubspaceSizesWithScatter(*(*uniDSGVectorToSet)[i], thirdLevelComm, thirdLevelManagerRank);
   }
 
   if (!thirdLevelExtraSparseGrid) {
@@ -1133,7 +1133,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
     CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
     RankType globalReduceRank = theMPISystem()->getGlobalReduceRank();
     for (auto& dsg : combinedUniDSGVector_) {
-      dsg->broadcastDsgSizes(globalReduceComm, globalReduceRank);
+      CombiCom::broadcastSubspaceSizes(*dsg, globalReduceComm, globalReduceRank);
     }
   }
 }
@@ -1143,7 +1143,7 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   for (auto& dsg : combinedUniDSGVector_) {
-    dsg->broadcastDsgSizes(globalReduceComm, thirdLevelPG);
+    CombiCom::broadcastSubspaceSizes(*dsg, globalReduceComm, thirdLevelPG);
   }
 }
 
@@ -1159,13 +1159,14 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
 #endif
       // use extra sparse grid
       if (overwrite) {
-        extraUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead, false);
+        DistributedSparseGridIO::readSubspaceSizesFromFile(*extraUniDSGVector_[0], filenameToRead,
+                                                           false);
       } else {
         auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
           return std::min(a, b);
         };
-        extraUniDSGVector_[0]->readReduceSubspaceSizesFromFile(filenameToRead,
-                                                               minFunctionInstantiation, 0, false);
+        DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
+            *extraUniDSGVector_[0], filenameToRead, minFunctionInstantiation, 0, false);
       }
 #ifndef NDEBUG
       assert(subspaceSizesToValidate.size() ==
@@ -1191,14 +1192,15 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
 #endif
     FIRST_GROUP_EXCLUSIVE_SECTION {
       if (overwrite) {
-        combinedUniDSGVector_[0]->readSubspaceSizesFromFile(filenameToRead, true);
+        DistributedSparseGridIO::readSubspaceSizesFromFile(*combinedUniDSGVector_[0],
+                                                           filenameToRead, true);
       } else {
         // if no extra sparse grid, max-reduce the normal one
         auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
           return std::max(a, b);
         };
-        combinedUniDSGVector_[0]->readReduceSubspaceSizesFromFile(
-            filenameToRead, maxFunctionInstantiation, 0, true);
+        DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
+            *combinedUniDSGVector_[0], filenameToRead, maxFunctionInstantiation, 0, true);
       }
       if (theMPISystem()->getGlobalReduceRank() != 0) {
         throw std::runtime_error("read rank is not the global reduce rank");
@@ -1212,7 +1214,7 @@ void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
     // reduce to all other process groups
     CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
     RankType senderRank = 0;
-    combinedUniDSGVector_[0]->broadcastDsgSizes(globalReduceComm, senderRank);
+    CombiCom::broadcastSubspaceSizes(*combinedUniDSGVector_[0], globalReduceComm, senderRank);
 #ifndef NDEBUG
     assert(subspaceSizesToValidate.size() ==
            combinedUniDSGVector_[0]->getSubspaceDataSizes().size());
@@ -1236,7 +1238,8 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefix
                                                       bool extraSparseGrid) {
   assert(combinedUniDSGVector_.size() == 1);
   FIRST_GROUP_EXCLUSIVE_SECTION {
-    combinedUniDSGVector_[0]->writeSubspaceSizesToFile(filenamePrefixToWrite);
+    DistributedSparseGridIO::writeSubspaceSizesToFile(*combinedUniDSGVector_[0],
+                                                      filenamePrefixToWrite);
     MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
   }
 
@@ -1275,7 +1278,7 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
 
   Stats::startEvent("wait for bcasts");
   for (auto& dsg : combinedUniDSGVector_) {
-    auto request = asyncBcastDsgData(dsg.get(), broadcastSender, globalReduceComm);
+    auto request = CombiCom::asyncBcastDsgData(*dsg, broadcastSender, globalReduceComm);
     auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
     assert(returnedValue == MPI_SUCCESS);
   }
@@ -1327,7 +1330,7 @@ void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
       dsgToUse = extraUniDSGVector_[i].get();
       dsgToUse->copyDataFrom(*uniDsg);
     }
-    dsgToUse->writeOneFile(filename);
+    DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);
   }
 }
 
@@ -1338,7 +1341,7 @@ void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix, bool alway
     if (extraUniDSGVector_.size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = extraUniDSGVector_[i].get();
     }
-    dsgToUse->readOneFile(filenamePrefix + "_" + std::to_string(i));
+    DistributedSparseGridIO::readOneFile(*dsgToUse, filenamePrefix + "_" + std::to_string(i));
     if (extraUniDSGVector_.size() > 0) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);
@@ -1363,8 +1366,8 @@ void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToR
     } else if (theMPISystem()->getNumGroups() < 4) {
       numberReduceChunks = 2;
     }
-    dsgToUse->readOneFileAndReduce(filenamePrefixToRead + "_" + std::to_string(i),
-                                   numberReduceChunks);
+    DistributedSparseGridIO::readOneFileAndReduce(
+        *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), numberReduceChunks);
     if (extraUniDSGVector_.size() > 0) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);

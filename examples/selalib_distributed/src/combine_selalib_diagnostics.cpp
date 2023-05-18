@@ -1,11 +1,6 @@
-/*
- * SelalibTask.hpp
- *
- *  Created on: Nov 19, 2020
- *      Author: obersteiner
- */
-
 #include <boost/filesystem.hpp>
+#include <boost/property_tree/ini_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_match.hpp>
@@ -16,7 +11,6 @@
 #include <vector>
 
 #include "combischeme/CombiMinMaxScheme.hpp"
-#include "io/BroadcastParameters.hpp"
 #include "manager/CombiParameters.hpp"
 #include "utils/Types.hpp"
 
@@ -28,11 +22,11 @@ int main(int argc, char** argv) {
   std::chrono::high_resolution_clock::time_point init_time =
       std::chrono::high_resolution_clock::now();
 
-  // only one rank reads parameter file and broadcasts to others
+  // read in parameter file
   std::string paramfile = "ctparam";
   if (argc > 1) paramfile = argv[1];
-  boost::property_tree::ptree cfg =
-      broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
+  boost::property_tree::ptree cfg;
+  boost::property_tree::ini_parser::read_ini(paramfile, cfg);
 
   DimType dim = cfg.get<DimType>("ct.dim");
   LevelVector lmin(dim), lmax(dim);

@@ -29,9 +29,6 @@ class ProcessGroupWorker {
 
   inline const std::vector<std::unique_ptr<Task>>& getTasks() const;
 
-  // Perform combination
-  void combine();
-
   /** initializes all subspace sizes in the dsgu according to the dfgs in the
    * global reduce comm*/
   void initCombinedUniDSGVector();
