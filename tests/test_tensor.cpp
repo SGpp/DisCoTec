@@ -12,9 +12,10 @@ BOOST_FIXTURE_TEST_SUITE(tensor, TestHelper::BarrierAtEnd, *boost::unit_test::ti
 
 BOOST_AUTO_TEST_CASE(test_print_1d) {
   std::vector<double> v(10U);
-  std::array<combigrid::IndexType, 1> extents = {10};
+  IndexVector extents = {10};
 
-  Tensor<double, 1U> t(v.data(), std::move(extents));
+  BOOST_TEST_CHECKPOINT("constructing tensor");
+  Tensor<double> t(v.data(), std::move(extents));
   BOOST_CHECK_EQUAL(t.size(), v.size());
   BOOST_CHECK_EQUAL(t.getExtentsVector()[0], v.size());
   BOOST_TEST_CHECKPOINT("tensor constructed");
@@ -32,7 +33,7 @@ BOOST_AUTO_TEST_CASE(test_print_1d) {
 BOOST_AUTO_TEST_CASE(test_print_2d) {
   std::vector<double> v(50U);
 
-  Tensor<double, 2U> t(v.data(), IndexArray<2>({5U, 10U}));
+  Tensor<double> t(v.data(), IndexVector{5U, 10U});
   for (IndexType i = 0U; i < t.getExtentsVector()[0]; ++i) {
     for (IndexType j = 0U; j < t.getExtentsVector()[1]; ++j) {
       t({i, j}) = static_cast<double>(i * 10 + j);
@@ -47,7 +48,7 @@ BOOST_AUTO_TEST_CASE(test_print_2d) {
 BOOST_AUTO_TEST_CASE(test_print_3d) {
   std::vector<double> v(24U);
 
-  Tensor<double, 3U> t(v.data(), std::array<IndexType, 3>({2U, 3U, 4U}));
+  Tensor<double> t(v.data(), IndexVector{2U, 3U, 4U});
   for (IndexType i = 0U; i < t.getExtentsVector()[0]; ++i) {
     for (IndexType j = 0U; j < t.getExtentsVector()[1]; ++j) {
       for (IndexType k = 0U; k < t.getExtentsVector()[2]; ++k) {
@@ -62,9 +63,9 @@ BOOST_AUTO_TEST_CASE(test_print_3d) {
 
 BOOST_AUTO_TEST_CASE(test_6d) {
   std::vector<double> v(5040U, -1.0);
-  IndexArray<6U> extents = {2U, 3U, 4U, 5U, 6U, 7U};
+  IndexVector extents = {2U, 3U, 4U, 5U, 6U, 7U};
   auto extentsCopy = extents;
-  Tensor<double, 6U> t(v.data(), std::move(extentsCopy));
+  Tensor<double> t(v.data(), std::move(extentsCopy));
   BOOST_CHECK_EQUAL_COLLECTIONS(t.getExtentsVector().begin(), t.getExtentsVector().end(),
                                 extents.begin(), extents.end());
   double increasingValue = 0.0;
@@ -91,23 +92,26 @@ BOOST_AUTO_TEST_CASE(test_6d) {
 
 BOOST_AUTO_TEST_CASE(test_iterate_lower_boundaries_6d) {
   constexpr DimType dimensionality = 6;
-  IndexArray<dimensionality> extents = {2U, 3U, 5U, 7U, 11U, 13U};
+  IndexVector extents = {2U, 3U, 5U, 7U, 11U, 13U};
   auto numElements = std::accumulate(extents.begin(), extents.end(), 1U, std::multiplies<>());
   std::vector<double> v(numElements, -1.0);
-  Tensor<double, dimensionality> tensor(v.data(), std::move(extents));
+  Tensor<double> tensor(v.data(), std::move(extents));
 
   if (TestHelper::getRank(MPI_COMM_WORLD) == 0) {
     for (DimType d = 0; d < dimensionality; ++d) {
       IndexType numberOfPointsVisited = 0;
-      const auto& strideInThisDimension = tensor.getOffsetsVector()[d];
+      const auto strideInThisDimension = tensor.getOffsetsVector()[d];
       const IndexType jump = strideInThisDimension * tensor.getExtentsVector()[d];
       const IndexType numberOfPolesHigherDimensions = tensor.size() / jump;
       IndexType tensorLowestLayerIteratedIndex = 0;
+
+      BOOST_TEST_CHECKPOINT("iterate lowest layer of tensor");
       for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
         tensorLowestLayerIteratedIndex = nHigher * jump;  // local linear index
         for (IndexType nLower = 0; nLower < tensor.getOffsetsVector()[d];
              ++nLower && ++tensorLowestLayerIteratedIndex && ++numberOfPointsVisited) {
-          auto arrayIndex = tensor.getArrayIndex(tensorLowestLayerIteratedIndex);
+          
+          auto arrayIndex = tensor.getVectorIndex(tensorLowestLayerIteratedIndex);
           BOOST_CHECK_EQUAL(arrayIndex[d], 0);
         }
       }

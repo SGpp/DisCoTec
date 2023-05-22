@@ -92,7 +92,6 @@ class DistributedFullGrid {
       assert(levels_[j] < 30);
       gridSpacing_[j] = oneOverPowOfTwo[levels_[j]];
     }
-    globalIndexer_ = makeTensorIndexer(nrPoints);
 
     if (decomposition.size() == 0) {
       setDecomposition(getDefaultDecomposition(
@@ -100,12 +99,13 @@ class DistributedFullGrid {
     } else {
       setDecomposition(decomposition);
     }
+    globalIndexer_ = TensorIndexer(std::move(nrPoints));
     myPartitionsLowerBounds_ = getLowerBounds(this->getRank());
     myPartitionsUpperBounds_ = getUpperBounds(this->getRank());
 
     // set local elements and local offsets
     auto nrLocalPoints = getUpperBounds() - getLowerBounds();
-    localTensor_ = makeTensor<FG_ELEMENT>(dataPointer, nrLocalPoints);
+    localTensor_ = Tensor<FG_ELEMENT>(dataPointer, std::move(nrLocalPoints));
   }
 
   DistributedFullGrid(const DistributedFullGrid& other) = delete;
@@ -470,19 +470,19 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** returns the dimension of the full grid */
   inline DimType getDimension() const { return dim_; }
 
-  inline SomeTensor<FG_ELEMENT>& getTensor() { return localTensor_; }
+  inline Tensor<FG_ELEMENT>& getTensor() { return localTensor_; }
 
-  inline const SomeTensor<FG_ELEMENT>& getTensor() const { return localTensor_; }
+  inline const Tensor<FG_ELEMENT>& getTensor() const { return localTensor_; }
 
   /** return the offset in the full grid vector of the dimension */
   inline IndexType getOffset(DimType i) const { return this->getOffsets()[i]; }
 
   inline const IndexVector& getOffsets() const {
-    return combigrid::tensor::getOffsets(globalIndexer_);
+    return globalIndexer_.getOffsetsVector();
   }
 
   inline const IndexVector& getLocalOffsets() const {
-    return combigrid::tensor::getOffsets(localTensor_);
+    return localTensor_.getOffsetsVector();
   }
 
   /** return the level vector */
@@ -522,12 +522,12 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** returns the number of elements in the entire, global full grid */
   inline IndexType getNrElements() const {
-    return combigrid::tensor::size(globalIndexer_);
+    return globalIndexer_.size();
   }
 
   /** number of elements in the local partition */
   inline IndexType getNrLocalElements() const { 
-    return combigrid::tensor::size(localTensor_);
+    return localTensor_.size();
   }
 
   /** number of points per dimension i */
@@ -540,9 +540,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     std::memset(this->getData(), 0, this->getNrLocalElements() * sizeof(FG_ELEMENT));
   }
 
-  inline FG_ELEMENT* getData() { return tensor::getData(localTensor_); }
+  inline FG_ELEMENT* getData() { return localTensor_.getData(); }
 
-  inline const FG_ELEMENT* getData() const { return tensor::getData(localTensor_); }
+  inline const FG_ELEMENT* getData() const { return localTensor_.getData(); }
 
   /** MPI Communicator*/
   inline CommunicatorType getCommunicator() const { return this->getCartesianUtils().getComm(); }
@@ -761,12 +761,12 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   // return extents of local grid
   inline const IndexVector& getLocalSizes() const {
-    return combigrid::tensor::getExtents(localTensor_);
+    return localTensor_.getExtentsVector();
   }
 
   // return extents of global grid
   inline IndexVector getGlobalSizes() const {
-    return combigrid::tensor::getExtents(globalIndexer_);
+    return globalIndexer_.getExtentsVector();
   }
 
   // return MPI DataType
@@ -1539,7 +1539,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   const MPICartesianUtils& getCartesianUtils() const { return cartesianUtils_; }
 
  protected:
-  inline void setData(FG_ELEMENT* newData) { return tensor::setData(localTensor_, newData); }
+  inline void setData(FG_ELEMENT* newData) { return localTensor_.setData(newData); }
 
  private:
   /** dimension of the full grid */
@@ -1554,10 +1554,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   //TODO: make these normal templates, and SomeDistributedFullGrid a std::variant ?
   /** TensorIndexer , only populated for the used dimensionality**/
   /** number of points per axis, boundary included*/
-  SomeTensorIndexer globalIndexer_ = std::move(TensorIndexer<0>());
+  TensorIndexer globalIndexer_ {};
 
   // /** Tensor -- only populated for the used dimensionality**/
-  SomeTensor<FG_ELEMENT> localTensor_ = std::move(Tensor<FG_ELEMENT, 0>());
+  Tensor<FG_ELEMENT> localTensor_ {};
 
   /** flag to show if the dimension has boundary points*/
   std::vector<BoundaryType> hasBoundaryPoints_;
