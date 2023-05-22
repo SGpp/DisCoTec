@@ -195,9 +195,6 @@ class ProcessGroupWorker {
   /** deallocates all data elements stored in the dsgs */
   void deleteDsgsData();
 
-  /** the pg writes the dfg of the given task into a vtk file */
-  void writeVTKPlotFileOfTask(Task& task);
-
   /** the pg writes the dfg of all tasks into individual vtk files */
   void writeVTKPlotFilesOfAllTasks();
 

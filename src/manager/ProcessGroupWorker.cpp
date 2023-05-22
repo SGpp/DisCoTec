@@ -154,7 +154,7 @@ SignalType ProcessGroupWorker::wait() {
 
       // execute task
       Stats::startEvent("run first");
-      auto& currentTask = this->getTaskWorker().getTasks().back();
+      auto& currentTask = this->getTaskWorker().getLastTask();
       currentTask->run(theMPISystem()->getLocalComm());
       Stats::Event e = Stats::stopEvent("run first");
     } break;
@@ -171,7 +171,7 @@ SignalType ProcessGroupWorker::wait() {
       // the task will get the proper initial solution during the next combine
       receiveAndInitializeTask();
 
-      auto& currentTask = this->getTaskWorker().getTasks().back();
+      auto& currentTask = this->getTaskWorker().getLastTask();
       currentTask->setZero();
       currentTask->setFinished(true);
     } break;
@@ -273,7 +273,7 @@ SignalType ProcessGroupWorker::wait() {
     case RECOMPUTE: {  // recompute the received task (immediately computes tasks ->
                        // difference to ADD_TASK)
       receiveAndInitializeTask();
-      auto& currentTask = this->getTaskWorker().getTasks().back();
+      auto& currentTask = this->getTaskWorker().getLastTask();
 
       currentTask->setZero();
       // fill task with combisolution
@@ -382,7 +382,7 @@ SignalType ProcessGroupWorker::wait() {
         dsg->createKahanBuffer();
       }
 
-      auto& currentTask = this->getTaskWorker().getTasks().back();
+      auto& currentTask = this->getTaskWorker().getLastTask();
       currentTask->setZero();
       fillDFGFromDSGU(*currentTask);
       currentTask->setFinished(true);
@@ -821,13 +821,11 @@ void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   std::string groupName = "all_grids";
   std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
-  assert(this->getTaskWorker().getTasks().size() > 0);
   assert(currentCombi_ >= 0);
-  assert(this->getTaskWorker().getTasks()[0]->getCurrentTime() >= 0.0);
   assert(values.size() > 0);
   assert(valuesWriteFilename.size() > 0);
   h5io::writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
-                            this->getTaskWorker().getTasks()[0]->getCurrentTime());
+                            this->getTaskWorker().getCurrentTime());
 }
 
 void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
@@ -1296,28 +1294,23 @@ void ProcessGroupWorker::zeroDsgsData() {
 
 /** free dsgus space */
 void ProcessGroupWorker::deleteDsgsData() {
-  for (auto& dsg : combinedUniDSGVector_)
-    dsg->deleteSubspaceData();
-  for (auto& dsg : extraUniDSGVector_)
-    dsg->deleteSubspaceData();
-}
-
-void ProcessGroupWorker::writeVTKPlotFileOfTask(Task& task) {
-#ifdef USE_VTK
-  IndexType numGrids = combiParameters_.getNumGrids();
-  for (IndexType g = 0; g < numGrids; g++) {
-    DistributedFullGrid<CombiDataType>& dfg = task.getDistributedFullGrid(static_cast<int>(g));
-    DFGPlotFileWriter<CombiDataType> writer {dfg, g};
-    writer.writePlotFile();
-  }
-#else
-  std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
-#endif /* USE_VTK */
+  for (auto& dsg : combinedUniDSGVector_) dsg->deleteSubspaceData();
+  for (auto& dsg : extraUniDSGVector_) dsg->deleteSubspaceData();
 }
 
 void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
   for (const auto& task : this->getTaskWorker().getTasks()) {
-    writeVTKPlotFileOfTask(*task);
+#ifdef USE_VTK
+    IndexType numGrids = combiParameters_.getNumGrids();
+    for (IndexType g = 0; g < numGrids; g++) {
+      DistributedFullGrid<CombiDataType>& dfg = task->getDistributedFullGrid(static_cast<int>(g));
+      DFGPlotFileWriter<CombiDataType> writer{dfg, g};
+      writer.writePlotFile();
+    }
+#else
+    std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK."
+              << std::endl;
+#endif /* USE_VTK */
   }
 }
 
