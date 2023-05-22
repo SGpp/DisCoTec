@@ -129,8 +129,6 @@ class CombiParameters {
 
   inline const LevelVector& getLMax() const { return lmax_; }
 
-  inline const LevelVector& getLMinReductionVector() const { return reduceCombinationDimsLmin_; }
-
   inline const LevelVector& getLMaxReductionVector() const { return reduceCombinationDimsLmax_; }
 
   inline const std::vector<BoundaryType>& getBoundary() const { return boundary_; }

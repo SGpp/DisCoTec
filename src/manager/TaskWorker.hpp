@@ -2,6 +2,7 @@
 
 #include "hierarchization/DistributedHierarchization.hpp"
 #include "task/Task.hpp"
+#include "utils/Types.hpp"
 
 namespace combigrid {
 

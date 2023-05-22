@@ -3,6 +3,7 @@
 
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupSignals.hpp"
+#include "manager/SparseGridWorker.hpp"
 #include "manager/TaskWorker.hpp"
 #include "mpi/MPISystem.hpp"
 #include "mpi_fault_simulator/MPI-FT.h"
@@ -131,12 +132,14 @@ class ProcessGroupWorker {
   /** receives reduced sizes from tl pgroup and updates the dsgs */
   void waitForThirdLevelSizeUpdate();
 
-  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getCombinedUniDSGVector(){
-    return combinedUniDSGVector_;
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
+  getCombinedUniDSGVector() {
+    return this->getSparseGridWorker().getCombinedUniDSGVector();
   }
 
-  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> & getExtraUniDSGVector(){
-    return extraUniDSGVector_;
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
+  getExtraUniDSGVector() {
+    return this->getSparseGridWorker().getExtraUniDSGVector();
   }
 
   template <typename TaskType, typename... TaskArgs>
@@ -167,20 +170,14 @@ class ProcessGroupWorker {
 
   const TaskWorker& getTaskWorker() const { return taskWorker_; }
 
+  const SparseGridWorker& getSparseGridWorker() const { return sgWorker_; }
+
  private:
-  TaskWorker taskWorker_{};  // worker that has tasks / full and sparse grids
+  TaskWorker taskWorker_{};  // worker that has tasks / full grids
+
+  SparseGridWorker sgWorker_{taskWorker_};  // worker that has sparse grids
 
   StatusType status_;  /// current status of process group (wait -> 0; busy -> 1; fail -> 2)
-
-  /**
-   * Vector containing all distributed sparse grids
-   */
-  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> combinedUniDSGVector_;
-
-  /**
-   * Vector containing the third level extra distributed sparse grids
-   */
-  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>> extraUniDSGVector_;
 
   CombiParameters combiParameters_;
 
@@ -189,6 +186,8 @@ class ProcessGroupWorker {
   IndexType currentCombi_;  /// current combination; increased after every combination
 
   TaskWorker& getTaskWorker() { return taskWorker_; }
+
+  SparseGridWorker& getSparseGridWorker() { return sgWorker_; }
 
   void receiveAndInitializeTask();
 
@@ -208,9 +207,9 @@ class ProcessGroupWorker {
    * @param g the dimension index (in the case that there are multiple different full grids per
    * task)
    */
-  void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0) const;
+  void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
 
-  void fillDFGFromDSGU(Task& t) const;
+  void fillDFGFromDSGU(Task& t);
 };
 
 inline CombiParameters& ProcessGroupWorker::getCombiParameters() {
