@@ -76,7 +76,7 @@ class DistributedFullGrid {
     assert(hasBoundaryPoints_.size() == dim);
     assert(procs.size() == dim);
 
-    InitMPI(comm, procs);  // will also check grids per dim
+    InitMPI(comm, procs);
 
     IndexVector nrPoints(dim_);
     gridSpacing_.resize(dim_);
@@ -348,13 +348,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     assert(globLinIndex < this->getNrElements());
     assert(globAxisIndex.size() == dim_);
 
-    IndexType tmp = globLinIndex;
-
-    for (auto i_shifted = dim_; i_shifted > 0; --i_shifted) {
-      auto dim_i = static_cast<DimType>(i_shifted - 1);
-      globAxisIndex[dim_i] = tmp / (this->getOffset(dim_i));
-      tmp = tmp % this->getOffset(dim_i);
-    }
+    globAxisIndex = this->globalIndexer_.getVectorIndex(globLinIndex);
   }
 
   /** the global vector index corresponding to a local vector index */
@@ -401,7 +395,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** returns the global linear index corresponding to the global index vector
    * @param axisIndex [IN] the vector index */
   inline IndexType getGlobalLinearIndex(const IndexVector& globAxisIndex) const {
-    return std::inner_product(globAxisIndex.begin(), globAxisIndex.end(), this->getOffsets().begin(), 0);
+    return globalIndexer_.sequentialIndex(globAxisIndex);
   }
 
   // the global linear index corresponding to the local linear index
@@ -426,9 +420,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** the local linear index corresponding to the local index vector */
   inline IndexType getLocalLinearIndex(const IndexVector& locAxisIndex) const {
-    // return localTensor_.sequentialIndex(locAxisIndex);
-    assert(locAxisIndex.size() == dim_);
-    return std::inner_product(locAxisIndex.begin(), locAxisIndex.end(), this->getLocalOffsets().begin(), 0);
+    return localTensor_.sequentialIndex(locAxisIndex);
   }
 
   /** the global linear index corresponding to the local linear index
@@ -483,6 +475,14 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   inline const IndexVector& getLocalOffsets() const {
     return localTensor_.getOffsetsVector();
+  }
+
+  inline std::tuple<std::vector<int>,std::vector<int>,std::vector<int>> getSizesSubsizesStartsOfSubtensor() const {
+    std::vector<int> csizes(this->getGlobalSizes().begin(), this->getGlobalSizes().end());
+    std::vector<int> csubsizes(this->getLocalSizes().begin(), this->getLocalSizes().end());
+    std::vector<int> cstarts(this->getLowerBounds().begin(), this->getLowerBounds().end());
+
+    return std::make_tuple(csizes, csubsizes, cstarts);
   }
 
   /** return the level vector */
@@ -765,7 +765,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   }
 
   // return extents of global grid
-  inline IndexVector getGlobalSizes() const {
+  inline const IndexVector& getGlobalSizes() const {
     return globalIndexer_.getExtentsVector();
   }
 
@@ -1043,15 +1043,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     auto dim = getDimension();
 
     // create subarray data type
-    auto sizes = getGlobalSizes();
-    auto subsizes = getUpperBounds() - getLowerBounds();
-    auto starts = getLowerBounds();
-
-    // we store our data in fortran notation, with the
-    // first index in indexvectors being the first dimension.
-    std::vector<int> csizes(sizes.begin(), sizes.end());
-    std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
-    std::vector<int> cstarts(starts.begin(), starts.end());
+    auto [csizes, csubsizes, cstarts] = this->getSizesSubsizesStartsOfSubtensor();
 
     // create subarray view on data
     MPI_Datatype mysubarray;
@@ -1080,7 +1072,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         // grid points per dimension in the order
         // x_0, x_1, ... , x_d
         ofs << "Extents ";
-        for (auto s : sizes) {
+        for (auto s : csizes) {
           ofs << s << " ";
         }
         ofs << std::endl;
@@ -1094,7 +1086,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       if (this->getRank() == 0) {
         MPI_File_write(fh, &dim, 1, MPI_UNSIGNED_CHAR, MPI_STATUS_IGNORE);
 
-        std::vector<int> res(sizes.begin(), sizes.end());
+        std::vector<int> res(csizes.begin(), csizes.end());
         MPI_File_write(fh, &res[0], 6, MPI_INT, MPI_STATUS_IGNORE);
       }
 
@@ -1117,15 +1109,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     assert(dim < 4);  // vtk supports only up to 3D
 
     // create subarray data type
-    IndexVector sizes = getGlobalSizes();
-    IndexVector subsizes = getUpperBounds() - getLowerBounds();
-    IndexVector starts = getLowerBounds();
-
-    // we store our data in fortran notation, with the
-    // first index in indexvectors being the first dimension.
-    std::vector<int> csizes(sizes.begin(), sizes.end());
-    std::vector<int> csubsizes(subsizes.begin(), subsizes.end());
-    std::vector<int> cstarts(starts.begin(), starts.end());
+    auto [csizes, csubsizes, cstarts] = this->getSizesSubsizesStartsOfSubtensor();
 
     // create subarray view on data
     MPI_Datatype mysubarray;
@@ -1144,27 +1128,30 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
                << "This file contains the combination solution evaluated on a full grid\n"
                << "BINARY\n"
                << "DATASET STRUCTURED_POINTS\n";
-    if (dim == 3) { //TODO change for non-boundary grids using getGridSpacing
-      vtk_header << "DIMENSIONS " << sizes[0]  << " " << sizes[1]  << " " << sizes[2] << "\n"
+    if (dim == 3) {  // TODO change for non-boundary grids using getGridSpacing
+      vtk_header << "DIMENSIONS " << csizes[0] << " " << csizes[1] << " " << csizes[2] << "\n"
                  << "ORIGIN 0 0 0\n"
-                 << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " " << 1. / static_cast<double>(sizes[1]-1)  << " " << 1. / static_cast<double>(sizes[2]-1) << "\n";
+                 << "SPACING " << 1. / static_cast<double>(csizes[0] - 1) << " "
+                 << 1. / static_cast<double>(csizes[1] - 1) << " "
+                 << 1. / static_cast<double>(csizes[2] - 1) << "\n";
     } else if (dim == 2) {
-      vtk_header << "DIMENSIONS " << sizes[0]  << " " << sizes[1]  << " 1\n"
+      vtk_header << "DIMENSIONS " << csizes[0] << " " << csizes[1] << " 1\n"
                  << "ORIGIN 0 0 0\n"
-                 << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " " << 1. / static_cast<double>(sizes[1]-1)  << " 1\n";
+                 << "SPACING " << 1. / static_cast<double>(csizes[0] - 1) << " "
+                 << 1. / static_cast<double>(csizes[1] - 1) << " 1\n";
     } else if (dim == 1) {
-      vtk_header << "DIMENSIONS " << sizes[0]  << " 1 1\n"
+      vtk_header << "DIMENSIONS " << csizes[0] << " 1 1\n"
                  << "ORIGIN 0 0 0\n"
-                 << "SPACING " << 1. / static_cast<double>(sizes[0]-1)  << " 1 1\n";
+                 << "SPACING " << 1. / static_cast<double>(csizes[0] - 1) << " 1 1\n";
     } else {
       assert(false);
     }
     vtk_header << "POINT_DATA "
-               << std::accumulate(sizes.begin(), sizes.end(), 1, std::multiplies<IndexType>())
+               << std::accumulate(csizes.begin(), csizes.end(), 1, std::multiplies<int>())
                << "\n"
                << "SCALARS quantity double 1\n"
                << "LOOKUP_TABLE default\n";
-    //TODO set the right data type from combidatatype, for now double by default
+    // TODO set the right data type from combidatatype, for now double by default
     bool rightDataType = std::is_same<CombiDataType, double>::value;
     assert(rightDataType);
     auto header_string = vtk_header.str();
@@ -1291,26 +1278,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     }
   }
 
-  void writeUpperBoundaryToLowerBoundary(DimType d) {
-    assert(hasBoundaryPoints_[d] == 2);
-
-    // create MPI datatypes
-    auto downSubarray = getDownwardSubarray(d);
-    auto upSubarray = getUpwardSubarray(d);
-
-    // if I have the lowest neighbor (i. e. I am the highest rank), I need to send my highest layer in d to them,
-    // if I have the highest neighbor (i. e. I am the lowest rank), I can receive it
-    int lower, higher;
-    getHighestAndLowestNeighbor(d, higher, lower);
-
-    auto success =
-        MPI_Sendrecv(this->getData(), 1, upSubarray, lower, TRANSFER_GHOST_LAYER_TAG,
-                     this->getData(), 1, downSubarray, higher,
-                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
-    MPI_Type_free(&downSubarray);
-    MPI_Type_free(&upSubarray);
-  }
-
   void writeLowerBoundaryToUpperBoundary(DimType d) {
     assert(hasBoundaryPoints_[d] == 2);
 
@@ -1328,51 +1295,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         MPI_Sendrecv(this->getData(), 1, downSubarray, higher, TRANSFER_GHOST_LAYER_TAG,
                      this->getData(), 1, upSubarray, lower,
                      TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
-    assert(success == MPI_SUCCESS);
-    MPI_Type_free(&downSubarray);
-    MPI_Type_free(&upSubarray);
-  }
-
-  void exchangeBoundaryLayers(DimType d, std::vector<FG_ELEMENT>& recvbufferFromUp,
-                              std::vector<FG_ELEMENT>& recvbufferFromDown) {
-    assert(hasBoundaryPoints_[d] == 2);
-    auto subarrayExtents = this->getLocalSizes();
-    subarrayExtents[d] = 1;
-    auto numElements = std::accumulate(subarrayExtents.begin(), subarrayExtents.end(), 1,
-                                       std::multiplies<IndexType>());
-
-    // create MPI datatypes
-    auto downSubarray = getDownwardSubarray(d);
-    auto upSubarray = getUpwardSubarray(d);
-
-    // if I have the highest neighbor (i. e. I am the lowest rank), I need to send my lowest layer
-    // in d to them, if I have the lowest neighbor (i. e. I am the highest rank), I can receive it
-    int lower, higher;
-    getHighestAndLowestNeighbor(d, higher, lower);
-    if (lower != MPI_PROC_NULL) {
-      recvbufferFromDown.resize(numElements);
-    } else {
-      recvbufferFromDown.resize(0);
-    }
-    if (higher != MPI_PROC_NULL) {
-      recvbufferFromUp.resize(numElements);
-    } else {
-      recvbufferFromUp.resize(0);
-    }
-
-    // TODO asynchronous??
-    // send lower boundary values
-    auto success =
-        MPI_Sendrecv(this->getData(), 1, downSubarray, higher, TRANSFER_GHOST_LAYER_TAG,
-                     recvbufferFromDown.data(), static_cast<int>(recvbufferFromDown.size()),
-                     this->getMPIDatatype(), lower, TRANSFER_GHOST_LAYER_TAG,
-                     this->getCommunicator(), MPI_STATUS_IGNORE);
-    assert(success == MPI_SUCCESS);
-    // send upper boundary values
-    success = MPI_Sendrecv(this->getData(), 1, upSubarray, lower, TRANSFER_GHOST_LAYER_TAG,
-                           recvbufferFromUp.data(), static_cast<int>(recvbufferFromUp.size()),
-                           this->getMPIDatatype(), higher, TRANSFER_GHOST_LAYER_TAG,
-                           this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
     MPI_Type_free(&downSubarray);
     MPI_Type_free(&upSubarray);
@@ -1502,20 +1424,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         getCornersGlobalVectorIndicesRecursive(emptyVectorInVector, 0);
     assert(cornersVectors.size() == static_cast<size_t>(powerOfTwo[this->getDimension()]));
     return cornersVectors;
-  }
-
-  /**
-   * @brief get a vector containing the global linear indices of the 2^d corners of this dfg
-   *
-   */
-  std::vector<IndexType> getCornersGlobalLinearIndices() const {
-    std::vector<IndexVector> cornersVectors = getCornersGlobalVectorIndices();
-    std::vector<IndexType> corners;
-    for (const auto& corner : cornersVectors) {
-      corners.push_back(this->getGlobalLinearIndex(corner));
-    }
-    assert(corners.size() == powerOfTwo[this->getDimension()]);
-    return corners;
   }
 
   std::vector<FG_ELEMENT> getCornersValues() const {
