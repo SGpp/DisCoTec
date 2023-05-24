@@ -32,8 +32,9 @@ The file-based recombination omits the serialization and the `thirdLevelManager`
 Currently, the subspace sizes need to be precomputed so that DisCoTec knows how much data it should allocate for the sparse grid reduce mechanism in each process group, and how large the files containing the conjoint sparse grid should be. 
 To this end, use the `tools/subspace_writer` ([README here](/tools/subspace_writer/README.md)) to generate the files called `scheme_*.sizes` .
 
-//TODO details on UFTP scripts go here
-
+For UFTP based file transfers have a look at the example scripts `copy_file_from_hawk|ng_to_hawk|no_[parallel].sh` in this folder.  
+example call: `PATHLRZ=$WORK/scenarios/widely USERHAWK=ipvsavcr PATHHAWK=$WORK/widely copy_file_from_hawk_to_ng.sh`
+ 
 ## Further Reading
 For details on the widely-distributed recombination with `thirdLevelManager`, please refer to 
 

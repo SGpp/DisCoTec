@@ -1,4 +1,8 @@
 #!/bin/bash
+# variation of copy_file_from_ng_to_hawk.sh where the transfer is done in parallel over multiple nodes. Start these script on login05, login06 and login07.
+# The script will automatically determine the host and the part of the file to transfer.
+# For further dokumentation see also copy_file_from_ng_to_hawk.sh
+
 # execute this script on skx-arch.supermuc.lrz.de
 # as described on https://doku.lrz.de/display/PUBLIC/Data+Transfer+Options+on+SuperMUC-NG#DataTransferOptionsonSuperMUCNG-UNICOREFileTransfer(UFTP)
 
