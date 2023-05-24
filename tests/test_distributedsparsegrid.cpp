@@ -212,15 +212,17 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     for (auto& l : dfgLevel) {
       l += 1;
     }
-    dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
-    auto largeUniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
-        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
-                                                      dfgDecomposition));
-
 
     // test for dumping sparse grid data to disk and reading back in
     uniDSG->writeToDiskChunked("test_sg_");
     uniDSGfromSubspaces->setZero();
+
+    // have a tiny delay here, by already allocting dfg
+    dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
+    auto largeUniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
+        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
+                                                      dfgDecomposition));
+    
     uniDSGfromSubspaces->readFromDiskChunked("test_sg_");
     BOOST_TEST_CHECKPOINT("compare values chunked");
     for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
