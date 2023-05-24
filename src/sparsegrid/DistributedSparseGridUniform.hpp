@@ -5,11 +5,8 @@
 
 #include "utils/Types.hpp"
 #include "utils/LevelSetUtils.hpp"
-#include "manager/ProcessGroupSignals.hpp"
-#include "mpi/MPITags.hpp"
+#include "sparsegrid/AnyDistributedSparseGrid.hpp"
 #include <numeric>
-
-#include <boost/serialization/vector.hpp>
 
 namespace combigrid {
 // forward declaration
@@ -25,7 +22,7 @@ class DistributedFullGrid;
  * accessed. By calling deleteSubspaceData() the data can be deallocated.
  */
 template <typename FG_ELEMENT>
-class DistributedSparseGridUniform {
+class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
  public:
   using ElementType = FG_ELEMENT;  
   // type used to index the subspaces
@@ -36,16 +33,16 @@ class DistributedSparseGridUniform {
    * maximum discretization level
    * No data is allocated and the sizes of the subspace data is initialized to 0.
    */
-  DistributedSparseGridUniform(DimType dim, const LevelVector& lmax, const LevelVector& lmin,
+  explicit DistributedSparseGridUniform(DimType dim, const LevelVector& lmax, const LevelVector& lmin,
                                CommunicatorType comm);
 
   /**
    * create an empty (no data) sparse grid with given subspaces.
    */
-  DistributedSparseGridUniform(DimType dim, const std::vector<LevelVector>& subspaces,
+  explicit DistributedSparseGridUniform(DimType dim, const std::vector<LevelVector>& subspaces,
                                CommunicatorType comm);
 
-  virtual ~DistributedSparseGridUniform();
+  virtual ~DistributedSparseGridUniform() = default;
 
   // cheap rule of 5
   DistributedSparseGridUniform() = delete;
@@ -92,24 +89,10 @@ class DistributedSparseGridUniform {
 
   inline DimType getDim() const;
 
-  // return the number of subspaces
-  inline SubspaceIndexType getNumSubspaces() const;
-
-  // check if a subspace with l is contained in the sparse grid
-  // unlike getIndex this will not throw an assert in case l is not contained
-  bool isContained(const LevelVector& l) const;
-
   // clear the levels_ vector, it is only necessary for registration of full grids
   void resetLevels();
 
-  // data size of the subspace at index i
-  inline SubspaceSizeType getDataSize(SubspaceIndexType i) const;
-
-  // sum of all data sizes of all subspaces
-  inline size_t getAccumulatedDataSize() const;
-
-  // sets data size of subspace with index i to newSize
-  inline void setDataSize(SubspaceIndexType i, SubspaceSizeType newSize);
+  inline void setDataSize(SubspaceIndexType i, SubspaceSizeType newSize) override;
 
   inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg);
 
@@ -119,21 +102,12 @@ class DistributedSparseGridUniform {
   // returns the number of allocated grid points == size of the raw data vector
   inline size_t getRawDataSize() const;
 
-  inline CommunicatorType getCommunicator() const;
-
-  // allows linear access to the data sizes of all subspaces
-  const std::vector<SubspaceSizeType>& getSubspaceDataSizes() const;
-
-  std::vector<SubspaceSizeType>& getSubspaceDataSizes();
-
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
 
   // copy data from another DSGU (which has the same subspaces, but they may be less or more
   // populated than in this DSGU)
   void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other);
-
-  inline RankType getRank() const;
 
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
@@ -143,26 +117,13 @@ class DistributedSparseGridUniform {
 
   std::vector<LevelVector> levels_;  // linear access to all subspaces; may be reset to save memory
 
-  CommunicatorType comm_;
-
-  RankType rank_;
-
-  int commSize_;
-
   std::vector<FG_ELEMENT*> subspaces_;  // pointers to subspaces of the dsg
 
   std::vector<FG_ELEMENT> subspacesData_;  // allows linear access to all subspaces data
 
-  std::vector<SubspaceSizeType> subspacesDataSizes_;  // allocated data sizes of all subspaces
-
   std::vector<FG_ELEMENT*> kahanDataBegin_;  // pointers to Kahan summation residual terms
 
   std::vector<FG_ELEMENT> kahanData_;  // Kahan summation residual terms
-
-  friend class boost::serialization::access;
-
-  template <class Archive>
-  void serialize(Archive& ar, const unsigned int version);
 };
 
 }  // namespace combigrid
@@ -181,11 +142,10 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(DimType d
 template <typename FG_ELEMENT>
 DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     DimType dim, const std::vector<LevelVector>& subspaces, CommunicatorType comm)
-    : dim_(dim),
+    : AnyDistributedSparseGrid(subspaces.size(), comm),
+      dim_(dim),
       levels_(subspaces),
-      comm_(comm),
-      subspaces_(subspaces.size()),
-      subspacesDataSizes_(subspaces.size()) {
+      subspaces_(subspaces.size()) {
   assert(dim > 0);
 
   for (auto& l : subspaces) {
@@ -194,7 +154,6 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
       assert(l[i] > 0);
     }
   }
-  MPI_Comm_rank(comm_, &rank_);
 }
 
 template <typename FG_ELEMENT>
@@ -212,11 +171,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
     auto numPointsToCopy = std::min(other.getDataSize(i), this->getDataSize(i));
     std::copy_n(other.getData(i), numPointsToCopy, this->getData(i));
   }
-}
-
-template <typename FG_ELEMENT>
-inline RankType DistributedSparseGridUniform<FG_ELEMENT>::getRank() const {
-  return rank_;
 }
 
 /** Zero initializes the dsgu data in case no data is already present.
@@ -245,16 +199,15 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
 
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::createKahanBuffer() {
-  size_t numDataPoints = std::accumulate(subspacesDataSizes_.begin(), subspacesDataSizes_.end(),
-                                         static_cast<size_t>(0));
+  size_t numDataPoints = this->getAccumulatedDataSize();
   kahanData_.resize(numDataPoints, 0.);
-  kahanDataBegin_.resize(subspacesDataSizes_.size());
+  kahanDataBegin_.resize(this->subspacesDataSizes_.size());
 
   // update pointers for begin of subspacen in kahan buffer
   SubspaceSizeType offset = 0;
   for (size_t i = 0; i < kahanDataBegin_.size(); i++) {
     kahanDataBegin_[i] = kahanData_.data() + offset;
-    offset += subspacesDataSizes_[i];
+    offset += this->subspacesDataSizes_[i];
   }
 }
 
@@ -304,9 +257,6 @@ std::ostream& operator<<(std::ostream& os, const DistributedSparseGridUniform<FG
   sg.print(os);
   return os;
 }
-
-template <typename FG_ELEMENT>
-DistributedSparseGridUniform<FG_ELEMENT>::~DistributedSparseGridUniform() {}
 
 template <typename FG_ELEMENT>
 std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
@@ -392,39 +342,8 @@ inline DimType DistributedSparseGridUniform<FG_ELEMENT>::getDim() const {
 }
 
 template <typename FG_ELEMENT>
-inline typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType
-DistributedSparseGridUniform<FG_ELEMENT>::getNumSubspaces() const {
-  return static_cast<SubspaceIndexType>(subspaces_.size());
-}
-
-template <typename FG_ELEMENT>
-bool DistributedSparseGridUniform<FG_ELEMENT>::isContained(const LevelVector& l) const {
-  auto found = std::lower_bound(levels_.cbegin(), levels_.cend(), l);
-  return (found != levels_.end() && *found == l);
-}
-
-template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::resetLevels() {
   levels_.clear();
-}
-
-template <typename FG_ELEMENT>
-SubspaceSizeType DistributedSparseGridUniform<FG_ELEMENT>::getDataSize(SubspaceIndexType i) const {
-#ifndef NDEBUG
-  if (i >= getNumSubspaces()) {
-    std::cout << "Index too large, no subspace with this index included in distributed sparse grid"
-              << std::endl;
-    assert(false);
-  }
-#endif  // NDEBUG
-
-  return subspacesDataSizes_[i];
-}
-
-template <typename FG_ELEMENT>
-size_t DistributedSparseGridUniform<FG_ELEMENT>::getAccumulatedDataSize() const {
-  return std::accumulate(subspacesDataSizes_.begin(), subspacesDataSizes_.end(),
-                         static_cast<size_t>(0));
 }
 
 template <typename FG_ELEMENT>
@@ -542,23 +461,6 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
 template <typename FG_ELEMENT>
 inline size_t DistributedSparseGridUniform<FG_ELEMENT>::getRawDataSize() const {
   return subspacesData_.size();
-}
-
-template <typename FG_ELEMENT>
-CommunicatorType DistributedSparseGridUniform<FG_ELEMENT>::getCommunicator() const {
-  return comm_;
-}
-
-template <typename FG_ELEMENT>
-inline const std::vector<SubspaceSizeType>&
-DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes() const {
-  return subspacesDataSizes_;
-}
-
-template <typename FG_ELEMENT>
-inline std::vector<SubspaceSizeType>&
-DistributedSparseGridUniform<FG_ELEMENT>::getSubspaceDataSizes() {
-  return subspacesDataSizes_;
 }
 
 

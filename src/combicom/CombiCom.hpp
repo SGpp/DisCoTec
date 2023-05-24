@@ -4,6 +4,7 @@
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "fullgrid/FullGrid.hpp"
 #include "mpi/MPISystem.hpp"
+#include "mpi/MPITags.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 
 namespace combigrid {

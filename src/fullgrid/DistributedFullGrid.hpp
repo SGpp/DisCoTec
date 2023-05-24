@@ -13,6 +13,8 @@
 #include "fullgrid/SliceIterator.hpp"
 #include "mpi/MPICartesianUtils.hpp"
 #include "mpi/MPISystem.hpp"
+#include "mpi/MPITags.hpp"
+#include "sparsegrid/AnyDistributedSparseGrid.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "utils/IndexVector.hpp"
 #include "utils/LevelSetUtils.hpp"
@@ -991,7 +993,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
     // loop over all subspaces (-> somewhat linear access in the sg)
-    typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType sIndex = 0;
+    typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = 0;
     static IndexVector subspaceIndices;
     for (const auto& level : downwardClosedSet) {
       sIndex = dsg.getIndexInRange(level, sIndex);
