@@ -101,6 +101,7 @@ class DistributedFullGrid {
     }
     globalIndexer_ = TensorIndexer(std::move(nrPoints));
     myPartitionsLowerBounds_ = getLowerBounds(this->getRank());
+    myPartitionsFirstGlobalIndex_ = globalIndexer_.sequentialIndex(myPartitionsLowerBounds_);
     myPartitionsUpperBounds_ = getUpperBounds(this->getRank());
 
     // set local elements and local offsets
@@ -361,18 +362,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** the local vector index corresponding to a local linear index */
   inline void getLocalVectorIndex(IndexType locLinIndex, IndexVector& locAxisIndex) const {
-    assert(locLinIndex < this->getNrElements());
-    assert(locAxisIndex.size() == dim_);
-
-    IndexType tmp = locLinIndex;
-
-    for (int i = static_cast<int>(dim_) - 1; i >= 0; --i) {
-      const auto a = tmp / this->getLocalOffsets()[i];
-      const auto t = tmp % this->getLocalOffsets()[i];
-
-      locAxisIndex[i] = a;
-      tmp = t;
-    }
+    locAxisIndex = this->localTensor_.getVectorIndex(locLinIndex);
   }
 
   /** the local vector index corresponding to a global vector index
@@ -382,7 +372,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
                                   IndexVector& locAxisIndex) const {
     assert(globAxisIndex.size() == dim_);
 
-    if (globAxisIndex >= getLowerBounds() && globAxisIndex < getUpperBounds()) {
+    if (this->isGlobalIndexHere(globAxisIndex)) {
       locAxisIndex.assign(globAxisIndex.begin(), globAxisIndex.end());
       std::transform(locAxisIndex.begin(), locAxisIndex.end(), this->getLowerBounds().begin(),
                      locAxisIndex.begin(), std::minus<IndexType>());
@@ -407,13 +397,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     locAxisIndex.resize(dim_);
     getLocalVectorIndex(locLinIndex, locAxisIndex);
 
-    // convert to global vector index
-    static IndexVector globAxisIndex(dim_);
-    globAxisIndex.resize(dim_);
-    getGlobalVectorIndex(locAxisIndex, globAxisIndex);
-
     // convert to global linear index
-    IndexType globLinIndex = getGlobalLinearIndex(globAxisIndex);
+    IndexType globLinIndex =
+        this->myPartitionsFirstGlobalIndex_ + this->getGlobalLinearIndex(locAxisIndex);
     assert(globLinIndex < this->getNrElements());
     return globLinIndex;
   }
@@ -433,30 +419,21 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     globAxisIndex.resize(dim_);
     getGlobalVectorIndex(globLinIndex, globAxisIndex);
 
-    // convert to local vector index
-    static IndexVector locAxisIndex(dim_);
-    locAxisIndex.resize(dim_);
-
-    if (getLocalVectorIndex(globAxisIndex, locAxisIndex)) {
+    if (this->isGlobalIndexHere(globAxisIndex)) {
       // convert to local linear index
-      return getLocalLinearIndex(locAxisIndex);
+      return getLocalLinearIndex(globAxisIndex) - this->myPartitionsFirstGlobalIndex_;
     } else {
       return -1;
     }
   }
 
-  inline bool isGlobalIndexHere(IndexType globLinIndex) const {
-    return getLocalLinearIndex(globLinIndex) > -1;
+  inline bool isGlobalIndexHere(IndexVector globalVectorIndex) const {
+    return (globalVectorIndex >= this->getLowerBounds()) &&
+           (globalVectorIndex < this->getUpperBounds());
   }
 
-  inline bool isGlobalIndexHere(IndexVector globLinIndex) const {
-    for (DimType d = 0; d < this->getDimension(); ++d) {
-      if (globLinIndex[d] < this->getLowerBounds()[d] ||
-          globLinIndex[d] >= this->getUpperBounds()[d]) {
-        return false;
-      }
-    }
-    return true;
+  inline bool isGlobalIndexHere(IndexType globLinIndex) const {
+    return isGlobalIndexHere(this->globalIndexer_.getVectorIndex(globLinIndex));
   }
 
   /** returns the dimension of the full grid */
@@ -1472,6 +1449,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   /** my partition's lower 1D bounds */
   IndexVector myPartitionsLowerBounds_;
+
+  /** my partition's lower linearized bound */
+  IndexType myPartitionsFirstGlobalIndex_;
 
   /** my partition's upper 1D bounds */
   IndexVector myPartitionsUpperBounds_;
