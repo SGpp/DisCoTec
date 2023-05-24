@@ -160,7 +160,7 @@ SignalType ProcessGroupWorker::wait() {
     case RUN_NEXT: {
       assert(this->getTaskWorker().getTasks().size() > 0);
       // // free space for computation
-      // deleteDsgsData();
+      // this->getSparseGridWorker().deleteDsgsData();
 
       this->runAllTasks();
 
@@ -469,51 +469,19 @@ void ProcessGroupWorker::exit() {
 }
 
 void ProcessGroupWorker::initCombinedUniDSGVector() {
-  if (this->getTaskWorker().getTasks().size() == 0) {
-    std::cout << "Possible error: task size is 0! \n";
-  }
   assert(combiParametersSet_);
-  // we assume here that every task has the same number of grids, e.g. species in GENE
-  const auto& lmin = combiParameters_.getLMin();
-  const auto& lmax = combiParameters_.getLMax();
-
-  // todo: use a flag to switch on/off optimized combination
   this->getSparseGridWorker().initCombinedUniDSGVector(
-      lmin, lmax, combiParameters_.getLMaxReductionVector(), combiParameters_.getNumGrids());
-}
-
-void ProcessGroupWorker::addFullGridsToUniformSG() {
-  assert(this->getSparseGridWorker().getCombinedUniDSGVector().size() > 0 &&
-         "Initialize dsgu first with "
-         "initCombinedUniDSGVector()");
-  auto numGrids = combiParameters_.getNumGrids();
-  for (const auto& t : this->getTaskWorker().getTasks()) {
-    for (IndexType g = 0; g < numGrids; g++) {
-      DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
-
-      // lokales reduce auf sg ->
-      this->getSparseGridWorker().getCombinedUniDSGVector()[g]->addDistributedFullGrid(dfg, t->getCoefficient());
-    }
-  }
-}
-
-void ProcessGroupWorker::reduceUniformSG(RankType globalReduceRankThatCollects) {
-  // we assume here that every task has the same number of grids, e.g. species in GENE
-  auto numGrids = combiParameters_.getNumGrids();
-
-  for (IndexType g = 0; g < numGrids; g++) {
-    CombiCom::distributedGlobalReduce(*this->getSparseGridWorker().getCombinedUniDSGVector()[g], globalReduceRankThatCollects);
-    assert(CombiCom::sumAndCheckSubspaceSizes(*this->getSparseGridWorker().getCombinedUniDSGVector()[g]));
-  }
+      combiParameters_.getLMin(), combiParameters_.getLMax(),
+      combiParameters_.getLMaxReductionVector(), combiParameters_.getNumGrids());
 }
 
 void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatCollects) {
-  assert(this->getSparseGridWorker().getCombinedUniDSGVector().size() > 0 &&
+  assert(this->getSparseGridWorker().getNumberOfGrids() > 0 &&
          "Initialize dsgu first with "
          "initCombinedUniDSGVector()");
   // assert(this->getSparseGridWorker().getCombinedUniDSGVector()[0]->isSubspaceDataCreated());
 
-  zeroDsgsData();
+  this->getSparseGridWorker().zeroDsgsData();
 
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
@@ -522,11 +490,11 @@ void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatColl
   Stats::stopEvent("hierarchize");
 
   Stats::startEvent("local reduce");
-  addFullGridsToUniformSG();
+  this->getSparseGridWorker().addFullGridsToUniformSG();
   Stats::stopEvent("local reduce");
 
   Stats::startEvent("global reduce");
-  reduceUniformSG(globalReduceRankThatCollects);
+  this->getSparseGridWorker().reduceUniformSG(globalReduceRankThatCollects);
   Stats::stopEvent("global reduce");
 }
 
@@ -828,7 +796,8 @@ void ProcessGroupWorker::integrateCombinedSolution() {
   for (const auto& taskToUpdate : this->getTaskWorker().getTasks()) {
     for (int g = 0; g < numGrids; g++) {
       // fill dfg with hierarchical coefficients from distributed sparse grid
-      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(*this->getSparseGridWorker().getCombinedUniDSGVector()[g]);
+      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(
+          *this->getSparseGridWorker().getCombinedUniDSGVector()[g]);
     }
   }
   Stats::startEvent("dehierarchize");
@@ -840,7 +809,7 @@ void ProcessGroupWorker::integrateCombinedSolution() {
 }
 
 void ProcessGroupWorker::combineThirdLevel() {
-  assert(this->getSparseGridWorker().getCombinedUniDSGVector().size() != 0);
+  assert(this->getSparseGridWorker().getNumberOfGrids() != 0);
   assert(combiParametersSet_);
 
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
@@ -850,7 +819,7 @@ void ProcessGroupWorker::combineThirdLevel() {
   const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
 
   std::vector<MPI_Request> requests;
-  for (size_t i = 0; i < this->getSparseGridWorker().getCombinedUniDSGVector().size(); ++i) {
+  for (size_t i = 0; i < this->getSparseGridWorker().getNumberOfGrids(); ++i) {
     auto uniDsg = this->getSparseGridWorker().getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
     if (this->getSparseGridWorker().getExtraUniDSGVector().size() > 0) {
@@ -899,7 +868,7 @@ void ProcessGroupWorker::combineThirdLevel() {
 
 void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
                                                          std::string writeCompleteTokenFileName) {
-  assert(this->getSparseGridWorker().getCombinedUniDSGVector().size() != 0);
+  assert(this->getSparseGridWorker().getNumberOfGrids() > 0);
   assert(combiParametersSet_);
 
   // write sparse grid and corresponding token file
@@ -934,7 +903,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
     this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
     Stats::stopEvent("read/reduce SG");
   }
-  if (this->getSparseGridWorker().getCombinedUniDSGVector().size() != 1) {
+  if (this->getSparseGridWorker().getNumberOfGrids() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
   }
   // distribute solution in globalReduceComm to other pgs
@@ -967,33 +936,7 @@ void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixTo
 }
 
 void ProcessGroupWorker::setExtraSparseGrid(bool initializeSizes) {
-  if (this->getSparseGridWorker().getCombinedUniDSGVector().size() != 1) {
-    throw std::runtime_error("this->getSparseGridWorker().getCombinedUniDSGVector() is empty");
-  }
-
-  if (this->getSparseGridWorker().getExtraUniDSGVector().empty()) {
-    // create new vector for extra sparse grids (that will be only on this process group)
-    this->getSparseGridWorker().getExtraUniDSGVector().resize(this->getSparseGridWorker().getCombinedUniDSGVector().size());
-    for (auto& extraUniDSG : this->getSparseGridWorker().getExtraUniDSGVector()) {
-      extraUniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
-          new DistributedSparseGridUniform<CombiDataType>(
-              this->getSparseGridWorker().getCombinedUniDSGVector()[0]->getDim(), this->getSparseGridWorker().getCombinedUniDSGVector()[0]->getAllLevelVectors(),
-              theMPISystem()->getOutputGroupComm()));
-      // create Kahan buffer now (at zero size), because summation is not needed on this sparse grid
-      extraUniDSG->createKahanBuffer();
-      if (initializeSizes) {
-        for (size_t i = 0; i < extraUniDSG->getNumSubspaces(); ++i) {
-          extraUniDSG->setDataSize(i, this->getSparseGridWorker().getCombinedUniDSGVector()[0]->getDataSize(i));
-        }
-      }
-      // level vectors are not required; read from the initial sparse grid if needed
-      extraUniDSG->resetLevels();
-    }
-  } else {
-    throw std::runtime_error(
-        "this->getSparseGridWorker().getExtraUniDSGVector() is not empty -- if you think this is ok, try to remove the if-else "
-        "here");
-  }
+  return this->getSparseGridWorker().setExtraSparseGrid(initializeSizes);
 }
 
 /** Reduces subspace sizes with remote.
@@ -1130,7 +1073,7 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefix
                                                       std::string filenamePrefixToRead,
                                                       std::string startReadingTokenFileName,
                                                       bool extraSparseGrid) {
-  assert(this->getSparseGridWorker().getCombinedUniDSGVector().size() == 1);
+  assert(this->getSparseGridWorker().getNumberOfGrids() == 1);
   FIRST_GROUP_EXCLUSIVE_SECTION {
     DistributedSparseGridIO::writeSubspaceSizesToFile(*this->getSparseGridWorker().getCombinedUniDSGVector()[0],
                                                       filenamePrefixToWrite);
@@ -1182,16 +1125,7 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
 }
 
 void ProcessGroupWorker::zeroDsgsData() {
-  for (auto& dsg : this->getSparseGridWorker().getCombinedUniDSGVector())
-    dsg->setZero();
-  for (auto& dsg : this->getSparseGridWorker().getExtraUniDSGVector())
-    dsg->setZero();
-}
-
-/** free dsgus space */
-void ProcessGroupWorker::deleteDsgsData() {
-  for (auto& dsg : this->getSparseGridWorker().getCombinedUniDSGVector()) dsg->deleteSubspaceData();
-  for (auto& dsg : this->getSparseGridWorker().getExtraUniDSGVector()) dsg->deleteSubspaceData();
+  this->getSparseGridWorker().zeroDsgsData();
 }
 
 void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
@@ -1211,7 +1145,7 @@ void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
 }
 
 void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
-  for (size_t i = 0; i < this->getSparseGridWorker().getCombinedUniDSGVector().size(); ++i) {
+  for (size_t i = 0; i < this->getSparseGridWorker().getNumberOfGrids(); ++i) {
     auto filename = filenamePrefix + "_" + std::to_string(i);
     auto uniDsg = this->getSparseGridWorker().getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
@@ -1224,7 +1158,7 @@ void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
 }
 
 void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG) {
-  for (size_t i = 0; i < this->getSparseGridWorker().getCombinedUniDSGVector().size(); ++i) {
+  for (size_t i = 0; i < this->getSparseGridWorker().getNumberOfGrids(); ++i) {
     auto uniDsg = this->getSparseGridWorker().getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
     if (this->getSparseGridWorker().getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
@@ -1240,7 +1174,7 @@ void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix, bool alway
 
 void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToRead,
                                                    bool alwaysReadFullDSG) {
-  for (size_t i = 0; i < this->getSparseGridWorker().getCombinedUniDSGVector().size(); ++i) {
+  for (size_t i = 0; i < this->getSparseGridWorker().getNumberOfGrids(); ++i) {
     auto uniDsg = this->getSparseGridWorker().getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
     if (this->getSparseGridWorker().getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {

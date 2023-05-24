@@ -1,12 +1,14 @@
 #pragma once
 
 #include "combicom/CombiCom.hpp"
+#include "fullgrid/DistributedFullGrid.hpp"
 #include "manager/TaskWorker.hpp"
 #include "mpi/MPISystem.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 
 namespace combigrid {
 
+// template <typename CombiDataType, DimType NumDimensions>
 class SparseGridWorker {
  public:
   explicit SparseGridWorker(TaskWorker& taskWorkerToReference);
@@ -16,13 +18,20 @@ class SparseGridWorker {
 
   ~SparseGridWorker() = default;
 
+  /* local reduce */
+  inline void addFullGridsToUniformSG();
+
+  /* free DSG memory as intermediate step */
+  inline void deleteDsgsData();
+
   inline std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
   getCombinedUniDSGVector();
 
   inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
   getCombinedUniDSGVector() const;
 
-  inline std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& getExtraUniDSGVector();
+  inline std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
+  getExtraUniDSGVector();
 
   inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
   getExtraUniDSGVector() const;
@@ -30,8 +39,15 @@ class SparseGridWorker {
   inline int getNumberOfGrids() const;
 
   inline void initCombinedUniDSGVector(const LevelVector& lmin, LevelVector lmax,
-                                const LevelVector& reduceLmaxByVector, int numGrids,
-                                bool clearLevels = false);
+                                       const LevelVector& reduceLmaxByVector, int numGrids,
+                                       bool clearLevels = false);
+
+  /* global reduction between process groups */
+  inline void reduceUniformSG(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
+
+  inline void setExtraSparseGrid(bool initializeSizes = true);
+  
+  inline void zeroDsgsData();
 
  private:
   TaskWorker& taskWorkerRef_;
@@ -49,6 +65,27 @@ class SparseGridWorker {
 
 inline SparseGridWorker::SparseGridWorker(TaskWorker& taskWorkerToReference)
     : taskWorkerRef_(taskWorkerToReference) {}
+
+inline void SparseGridWorker::addFullGridsToUniformSG() {
+  assert(this->getNumberOfGrids() > 0 &&
+         "Initialize dsgu first with "
+         "initCombinedUniDSGVector()");
+  auto numGrids = this->getNumberOfGrids();
+  for (const auto& t : this->taskWorkerRef_.getTasks()) {
+    for (int g = 0; g < numGrids; ++g) {
+      const DistributedFullGrid<CombiDataType>& dfg =
+          t->getDistributedFullGrid(static_cast<int>(g));
+
+      // lokales reduce auf sg
+      this->getCombinedUniDSGVector()[g]->addDistributedFullGrid(dfg, t->getCoefficient());
+    }
+  }
+}
+
+inline void SparseGridWorker::deleteDsgsData() {
+  for (auto& dsg : this->getCombinedUniDSGVector()) dsg->deleteSubspaceData();
+  for (auto& dsg : this->getExtraUniDSGVector()) dsg->deleteSubspaceData();
+}
 
 inline std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
 SparseGridWorker::getCombinedUniDSGVector() {
@@ -80,8 +117,8 @@ inline int SparseGridWorker::getNumberOfGrids() const { return this->combinedUni
  * Attention: No data is created here, only subspace sizes are shared.
  */
 inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, LevelVector lmax,
-                                                const LevelVector& reduceLmaxByVector, int numGrids,
-                                                bool clearLevels) {
+                                                       const LevelVector& reduceLmaxByVector,
+                                                       int numGrids, bool clearLevels) {
   if (this->taskWorkerRef_.getTasks().size() == 0) {
     std::cout << "Possible error: task size is 0! \n";
   }
@@ -126,6 +163,51 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
   for (auto& uniDSG : combinedUniDSGVector_) {
     CombiCom::reduceSubspaceSizes(*uniDSG, globalReduceComm);
   }
+}
+
+inline void SparseGridWorker::reduceUniformSG(RankType globalReduceRankThatCollects) {
+  auto numGrids = this->getNumberOfGrids();
+  for (int g = 0; g < numGrids; ++g) {
+    CombiCom::distributedGlobalReduce(*this->getCombinedUniDSGVector()[g],
+                                      globalReduceRankThatCollects);
+    assert(CombiCom::sumAndCheckSubspaceSizes(*this->getCombinedUniDSGVector()[g]));
+  }
+}
+
+inline void SparseGridWorker::setExtraSparseGrid(bool initializeSizes) {
+  if (this->getNumberOfGrids() != 1) {
+    throw std::runtime_error("this->getCombinedUniDSGVector() is empty");
+  }
+  if (!this->getExtraUniDSGVector().empty()) {
+    throw std::runtime_error(
+        "this->getExtraUniDSGVector() is not empty-- if you think this is ok, try to remove the "
+        "if-else "
+        "here");
+  }
+
+  // create new vector for extra sparse grids (that will be only on this process group)
+  this->getExtraUniDSGVector().resize(this->getNumberOfGrids());
+  for (auto& extraUniDSG : this->getExtraUniDSGVector()) {
+    extraUniDSG = std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
+        new DistributedSparseGridUniform<CombiDataType>(
+            this->getCombinedUniDSGVector()[0]->getDim(),
+            this->getCombinedUniDSGVector()[0]->getAllLevelVectors(),
+            theMPISystem()->getOutputGroupComm()));
+    // create Kahan buffer now (at zero size), because summation is not needed on this sparse grid
+    extraUniDSG->createKahanBuffer();
+    if (initializeSizes) {
+      for (size_t i = 0; i < extraUniDSG->getNumSubspaces(); ++i) {
+        extraUniDSG->setDataSize(i, this->getCombinedUniDSGVector()[0]->getDataSize(i));
+      }
+    }
+    // level vectors are not required; read from the initial sparse grid if needed
+    extraUniDSG->resetLevels();
+  }
+}
+
+inline void SparseGridWorker::zeroDsgsData() {
+  for (auto& dsg : this->getCombinedUniDSGVector()) dsg->setZero();
+  for (auto& dsg : this->getExtraUniDSGVector()) dsg->setZero();
 }
 
 } /* namespace combigrid */

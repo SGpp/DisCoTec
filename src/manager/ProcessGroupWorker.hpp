@@ -34,14 +34,8 @@ class ProcessGroupWorker {
    * global reduce comm*/
   void initCombinedUniDSGVector();
 
-  /** local reduce */
-  void addFullGridsToUniformSG();
-
   /** extracts and dehierarchizes */
   void integrateCombinedSolution();
-
-  /** reduction */
-  void reduceUniformSG(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
   /** combine on sparse grid with uniform decomposition of domain */
   void combineUniform();
@@ -190,9 +184,6 @@ class ProcessGroupWorker {
   SparseGridWorker& getSparseGridWorker() { return sgWorker_; }
 
   void receiveAndInitializeTask();
-
-  /** deallocates all data elements stored in the dsgs */
-  void deleteDsgsData();
 
   /** the pg writes the dfg of all tasks into individual vtk files */
   void writeVTKPlotFilesOfAllTasks();
