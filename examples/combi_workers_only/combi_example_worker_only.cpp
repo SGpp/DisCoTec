@@ -185,12 +185,14 @@ int main(int argc, char** argv) {
                                              << std::endl;
   for (size_t i = 0; i < ncombi; ++i) {
     // run tasks for next time interval
+    MPI_Barrier(theMPISystem()->getWorldComm());
     worker.runAllTasks();
     auto durationRun = Stats::getDuration("run") / 1000.0;
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "calculation " << i
                                                << " took: " << durationRun << " seconds"
                                                << std::endl;
 
+    MPI_Barrier(theMPISystem()->getWorldComm());
     worker.combineUniform();
     auto durationCombine = Stats::getDuration("combine") / 1000.0;
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "combination " << i
