@@ -1,29 +1,35 @@
-What is this project about?
+# What is DisCoTec?
 ---------------------------
 [![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=DisCoTec-main-spack)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/DisCoTec/job/DisCoTec-main-spack/)
 
 This project contains __DisCoTec__, a code for running the distributed sparse grid combination technique with MPI parallelization. While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it is its own project now.
 
-Contributing
----------
-* Please develop new features in a new branch and then create a pull request to
-  notify other users about the changes. So everyone can check whether there are
-  side-effects to their work.
-* New features will only be merged to the main branch if they are sufficiently tested.
+It is designed as a framework that can run multiple instances of a (black-box) grid-based solver implementation.
+The most basic example we use is a [mass-conserving FDM/FVM constant advection upwinding solver](/examples/distributed_advection/).
+An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distributed/).
 
-Requirements
+## Contributing
+---------
+* We welcome contributions! To find a good place to start, have a look at the currently open issues
+* Please develop new features in a new branch (typically on your own fork) and then create a PR
+* New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests] .
+
+
+## Installation instructions
+--------------------------
+#### Dependencies
 --------------
 cmake >= (3.24.2),
 libmpich-dev (>= 3.2-6), or other MPI library
 
-Additional (optional) dependencies (can be obtained with cmake):
+Additional (optional) dependencies:
 - OpenMP
 - libboost-all-dev (>= 1.60)
 - HDF5
 - HighFive 
 
-Installation instructions: 
---------------------------
+For the dependencies, the DisCoTec spack package (currently under review [here](https://github.com/spack/spack/pull/35239)) could be of interest.
+
 #### Complete build:
 ```bash
 git clone https://github.com/SGpp/DisCoTec.git DisCoTec
@@ -58,6 +64,7 @@ For building only the DisCoTec library, run cmake with the `src` folder as sourc
 - `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler supports it.
 - `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI communication. This can be used to reduce the communication overhead.
 - `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - TODO: Add description
+- `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and compiles [the matching example](/examples/selalib_distributed/)
 
 
 To run the compiled tests, go to folder `tests` and run
@@ -68,9 +75,9 @@ where you can use all the parameters of the boost test suite.
 Or you can run the tests with `ctest` in the build folder.
 
 
-GENE  submodules as dependencies for GENE examples
+### GENE  submodules as dependencies for GENE examples
 ----------------
-_Warning: The CMake Integration is currently not adappted to use GENE and SeLaLib!_
+_Warning: The CMake Integration is currently not adappted to use GENE!_
 
 There are gene versions as submodules: a linear one in the gene_mgr folder, and 
 a nonlinear one in gene-non-linear. To get them, you need access to their 
@@ -82,56 +89,9 @@ git submodule update
 ```
 or use the `--recursive` flag when cloning the repo.
 and then you just hope you can `make` it by adapting the local library flags.
-and then you just hope you can `make` it by adapting the local library flags ;)
-
-Third-Level-Manager
--------------------
-The third-level-manager handles the synchronization and data transfer between
-the systems. The following steps will guide you from compilation to execution:
-
-1. To compile first navigate to third_level_manager.
-   The folder contains a Makefile.template which you can adjust to make it
-   compatible with your maschine.
-
-2. The manager takes a .ini file as an input parameter. The same folder as in 1.
-   holds the example file `example.ini` where the number of systems and the port
-   on which the manager listens can be adjusted. Currently, only 2 systems are
-   supported.
-
-3. Use the run script to execute the manager. You can pass your own parameter
-   file to the script whereas by default it reads the example.ini.
-
-On Hazel Hen
-------------
-
-Warning: outdated not testet with the new CMake build scripts!!
 
 
-### Execution
-
-Let's assume we want to run the example under
-combi/distributedcombigrid/examples/distributed_third_level/ and distribute our
-combischeme to **HLRS** and **helium**, while the third-level-manager is running
-on helium at port 9999. The following steps are necessary:
-
-1. Since data connections to the HLRS are not possible without using ssh
-   tunnels, we set them up in advance. Run `ssh -R  9998:localhost:9999
-   username@eslogin002.hww.de` from helium to log in to HLRS while creating an
-   ssh tunnel.
-
-2. Adjust the parameter files on HLRS and helium to fit the simulation. Use
-   hostname=eslogin002 on HLRS and hostname=localhost on helium. Set
-   dataport=9999 on both systems.
-
-3. Run the third-level-manger on helium.
-
-4. Connect to eslogin002 in a different terminal and run the forwarding
-   script `forward.sh 9999 9998 pipe1`. This will forward the port 9998 to 9999
-   on eslogin002. (We only need the local forwarding because the configuration
-   of the ssh server on the HLRS does not allow us to access the ssh tunnel
-   from a different host than eslogin002. Since our application runs on the
-   compute nodes (for now) this detour is necessary.)
-
-5. Start the simulation. The example directory holds a separate run file
-   `run.sh` which needs to be modified to fit HLRS and helium. Also set the
-   corresponding boost library location.
+### Further Readmes
+- [widely-distribued simulations](/third_level_manager/README.md)
+- [the subspace writer tool](/tools/subspace_writer/README.md)
+- [selalib simulations with DisCoTec](/examples/selalib_distributed/README.md)

@@ -16,6 +16,7 @@
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fullgrid/FullGrid.hpp"
 #include "manager/CombiParameters.hpp"
+#include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sparsegrid/SGrid.hpp"
 #include "utils/IndexVector.hpp"
@@ -161,13 +162,13 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       BOOST_CHECK_EQUAL(uniDSGfromSubspaces->getRawData()[i], 0.);
     }
 
-    auto writeSuccess = uniDSG->writeOneFile("test_sg_all");
+    auto writeSuccess = DistributedSparseGridIO::writeOneFile(*uniDSG, "test_sg_all");
     BOOST_WARN(writeSuccess);
     if (writeSuccess) {
       for (size_t i = 0; i < uniDSGfromSubspaces->getRawDataSize(); ++i) {
         uniDSGfromSubspaces->getRawData()[i] = -1000.;
       }
-      auto readSuccess = uniDSGfromSubspaces->readOneFile("test_sg_all");
+      auto readSuccess = DistributedSparseGridIO::readOneFile(*uniDSGfromSubspaces, "test_sg_all");
       BOOST_CHECK(readSuccess);
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare values");
@@ -176,13 +177,15 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
           BOOST_CHECK_EQUAL(uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
         }
       }
-      auto reduceSuccess = uniDSGfromSubspaces->readOneFileAndReduce("test_sg_all");
+      auto reduceSuccess =
+          DistributedSparseGridIO::readOneFileAndReduce(*uniDSGfromSubspaces, "test_sg_all");
       BOOST_CHECK(readSuccess);
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare double values");
         for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
           BOOST_TEST_CONTEXT(std::to_string(i))
-          BOOST_CHECK_EQUAL(uniDSG->getRawData()[i] + uniDSG->getRawData()[i], uniDSGfromSubspaces->getRawData()[i]);
+          BOOST_CHECK_EQUAL(uniDSG->getRawData()[i] + uniDSG->getRawData()[i],
+                            uniDSGfromSubspaces->getRawData()[i]);
         }
       }
       uniDSGfromSubspaces->copyDataFrom(*uniDSG);
@@ -195,9 +198,11 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
 
     BOOST_TEST_CHECKPOINT("write sparse min/max");
     // make sure that right min/max values are written
-    uniDSG->writeMinMaxCoefficents("sparse_paraboloid_minmax_" + std::to_string(dim) + "D_" +
-                                       std::to_string(size) + "_" + std::to_string(boundary[0]),
-                                   0);
+    DistributedSparseGridIO::writeMinMaxCoefficents(
+        *uniDSG,
+        "sparse_paraboloid_minmax_" + std::to_string(dim) + "D_" + std::to_string(size) + "_" +
+            std::to_string(boundary[0]),
+        0);
     // and remove straight away
     if (rank == 0) {
       auto status = system("rm sparse_paraboloid_minmax_*");
@@ -214,7 +219,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     }
 
     // test for dumping sparse grid data to disk and reading back in
-    uniDSG->writeToDiskChunked("test_sg_");
+    DistributedSparseGridIO::writeToDiskChunked(*uniDSG, "test_sg_");
     uniDSGfromSubspaces->setZero();
 
     // have a tiny delay here, by already allocting dfg
@@ -223,7 +228,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
     
-    uniDSGfromSubspaces->readFromDiskChunked("test_sg_");
+    DistributedSparseGridIO::readFromDiskChunked(*uniDSGfromSubspaces, "test_sg_");
     BOOST_TEST_CHECKPOINT("compare values chunked");
     for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
       BOOST_TEST_CONTEXT(std::to_string(i));
@@ -675,7 +680,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
     auto sizesCopy = uniDSG->getSubspaceDataSizes();
 
     // write the (smaller) subspaces sizes to disk
-    bool subspaceWriteSuccess = uniDSG->writeSubspaceSizesToFile("test_dsg.sizes");
+    bool subspaceWriteSuccess =
+        DistributedSparseGridIO::writeSubspaceSizesToFile(*uniDSG, "test_dsg.sizes");
     BOOST_CHECK(subspaceWriteSuccess);
 
     {  // register reversed full grid
@@ -691,8 +697,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
     auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
       return std::max(a, b);
     };
-    bool subspaceReduceSuccess =
-        uniDSG->readReduceSubspaceSizesFromFile("test_dsg.sizes", maxFunctionInstantiation, 2000);
+    bool subspaceReduceSuccess = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
+        *uniDSG, "test_dsg.sizes", maxFunctionInstantiation, 2000);
     BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopyLarger.begin(), sizesCopyLarger.end(),
                                   uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end());
@@ -702,8 +708,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
     auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
       return std::min(a, b);
     };
-    subspaceReduceSuccess =
-        uniDSG->readReduceSubspaceSizesFromFile("test_dsg.sizes", minFunctionInstantiation, 20);
+    subspaceReduceSuccess = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
+        *uniDSG, "test_dsg.sizes", minFunctionInstantiation, 20);
     BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopy.begin(), sizesCopy.end(),
                                   uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end());
@@ -741,7 +747,7 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
     MPI_Barrier(comm);
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto writeSuccess = uniDSG->writeOneFile("test_sg_timing");
+    auto writeSuccess = DistributedSparseGridIO::writeOneFile(*uniDSG, "test_sg_timing");
     auto end = std::chrono::high_resolution_clock::now();
     BOOST_CHECK(writeSuccess);
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -752,7 +758,7 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
     MPI_Barrier(comm);
 
     start = std::chrono::high_resolution_clock::now();
-    auto readSuccess = uniDSG->readOneFile("test_sg_timing");
+    auto readSuccess = DistributedSparseGridIO::readOneFile(*uniDSG, "test_sg_timing");
     end = std::chrono::high_resolution_clock::now();
     BOOST_CHECK(readSuccess);
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
