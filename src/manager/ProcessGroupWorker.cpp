@@ -646,11 +646,7 @@ void ProcessGroupWorker::doDiagnostics() {
   // call diagnostics on that Task
   for (const auto& task : this->getTaskWorker().getTasks()) {
     if (task->getID() == taskID) {
-      std::vector<DistributedSparseGridUniform<CombiDataType>*> dsgsToPassToTask;
-      for (auto& dsgPtr : this->getSparseGridWorker().getCombinedUniDSGVector()) {
-        dsgsToPassToTask.push_back(dsgPtr.get());
-      }
-      task->doDiagnostics(dsgsToPassToTask, combiParameters_.getHierarchizationDims());
+      task->doDiagnostics();
       return;
     }
   }
