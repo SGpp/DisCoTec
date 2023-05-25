@@ -95,7 +95,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   } else if (nprocs == 3) {
     params.setDecomposition({{0, 15, 20}, {0}});
   }
-  worker.setCombiParameters(params);
+  worker.setCombiParameters(std::move(params));
 
   std::vector<size_t> myTaskIDs;
   for (size_t i = 0; i < levels.size(); ++i) {

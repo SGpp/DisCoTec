@@ -613,7 +613,7 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
   CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary,
                               testParams.ncombi, 1, parallelization, LevelVector(testParams.dim, 0),
                               LevelVector(testParams.dim, 1), false);
-  worker.setCombiParameters(combiParams);
+  worker.setCombiParameters(std::move(combiParams));
 
   // create Tasks
   worker.initializeAllTasks<TaskConstParaboloid>(levels, coeffs, taskNumbers, loadmodel.get());

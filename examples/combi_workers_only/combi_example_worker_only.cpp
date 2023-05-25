@@ -145,7 +145,7 @@ int main(int argc, char** argv) {
                                              << std::endl;
 
   ProcessGroupWorker worker;
-  worker.setCombiParameters(params);
+  worker.setCombiParameters(std::move(params));
 
   // create Tasks
   worker.initializeAllTasks<TaskAdvection>(levels, coeffs, taskNumbers, loadmodel.get(), dt, nsteps,

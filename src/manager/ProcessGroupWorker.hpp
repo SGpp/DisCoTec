@@ -44,7 +44,7 @@ class ProcessGroupWorker {
   void parallelEval();
 
   /** parallel file io of final output grid for uniform decomposition */
-  void parallelEvalUniform(const std::string& filename, const LevelVector& leval) const ;
+  void parallelEvalUniform(const std::string& filename, const LevelVector& leval) const;
 
   // do task-specific postprocessing
   void doDiagnostics();
@@ -64,15 +64,15 @@ class ProcessGroupWorker {
                                          const std::string& filenamePrefix) const;
 
   /** write the highest and smallest sparse grid coefficient per subspace */
-  void writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const;
+  void writeSparseGridMinMaxCoefficients(const std::string& fileNamePrefix) const;
 
   /** write extra SGs to disk (binary w/ MPI-IO) */
-  void writeDSGsToDisk(std::string filenamePrefix);
+  void writeDSGsToDisk(const std::string& filenamePrefix);
 
   /** read extra SGs from disk (binary w/ MPI-IO) */
-  void readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG = false);
+  void readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
 
-  void setCombiParameters(const CombiParameters& combiParameters);
+  void setCombiParameters(CombiParameters&& combiParameters);
 
   /** update combination parameters (for init or after change in FTCT) */
   void updateCombiParameters();
@@ -84,18 +84,18 @@ class ProcessGroupWorker {
    * and updates fgs. */
   void combineThirdLevel();
 
-  void combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
-                                       std::string writeCompleteTokenFileName);
+  void combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
+                                       const std::string& writeCompleteTokenFileName);
 
-  void combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
-                                            std::string startReadingTokenFileName,
+  void combineThirdLevelFileBasedReadReduce(const std::string& filenamePrefixToRead,
+                                            const std::string& startReadingTokenFileName,
                                             bool overwrite = false,
                                             bool keepSparseGridFiles = false);
 
-  void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
-                                  std::string writeCompleteTokenFileName,
-                                  std::string filenamePrefixToRead,
-                                  std::string startReadingTokenFileName);
+  void combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
+                                  const std::string& writeCompleteTokenFileName,
+                                  const std::string& filenamePrefixToRead,
+                                  const std::string& startReadingTokenFileName);
 
   /** waits until the third level pg or output group bcasts the combined solution and updates
    * fgs */
@@ -112,7 +112,8 @@ class ProcessGroupWorker {
   void reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
                                     const std::string& writeCompleteTokenFileName,
                                     const std::string& filenamePrefixToRead,
-                                    const std::string& startReadingTokenFileName, bool extraSparseGrid);
+                                    const std::string& startReadingTokenFileName,
+                                    bool extraSparseGrid);
 
   /** receives reduced sizes from tl pgroup and updates the dsgs */
   void waitForThirdLevelSizeUpdate();
@@ -122,8 +123,7 @@ class ProcessGroupWorker {
     return this->getSparseGridWorker().getCombinedUniDSGVector();
   }
 
-  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
-  getExtraDSGVector() {
+  std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>& getExtraDSGVector() {
     return this->getSparseGridWorker().getExtraUniDSGVector();
   }
 
@@ -175,9 +175,6 @@ class ProcessGroupWorker {
   SparseGridWorker& getSparseGridWorker() { return sgWorker_; }
 
   void receiveAndInitializeTask();
-
-  /** the pg writes the dfg of all tasks into individual vtk files */
-  void writeVTKPlotFilesOfAllTasks();
 };
 
 inline CombiParameters& ProcessGroupWorker::getCombiParameters() {

@@ -574,7 +574,8 @@ void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
       this->getTaskWorker().getTasks(), interpolationCoords, filenamePrefix, currentCombi_);
 }
 
-void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const {
+void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(
+    const std::string& fileNamePrefix) const {
   this->getSparseGridWorker().writeMinMaxCoefficients(fileNamePrefix);
 }
 
@@ -599,8 +600,8 @@ void ProcessGroupWorker::initializeTask(std::unique_ptr<Task> t) {
                                        theMPISystem()->getLocalComm());
 }
 
-void ProcessGroupWorker::setCombiParameters(const CombiParameters& combiParameters) {
-  combiParameters_ = combiParameters;
+void ProcessGroupWorker::setCombiParameters(CombiParameters&& combiParameters) {
+  combiParameters_ = std::move(combiParameters);
   combiParametersSet_ = true;
 
   // overwrite local comm with cartesian communicator
@@ -642,7 +643,7 @@ void ProcessGroupWorker::updateCombiParameters() {
   // broadcast parameters to other processes of pgroup
   MPIUtils::broadcastClass(&combiParametersReceived, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
-  this->setCombiParameters(combiParametersReceived);
+  this->setCombiParameters(std::move(combiParametersReceived));
 }
 
 void ProcessGroupWorker::updateFullFromCombinedSparseGrids() {
@@ -712,8 +713,8 @@ void ProcessGroupWorker::combineThirdLevel() {
   Stats::stopEvent("wait for bcasts");
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
-                                                         std::string writeCompleteTokenFileName) {
+void ProcessGroupWorker::combineThirdLevelFileBasedWrite(
+    const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName) {
   assert(this->getSparseGridWorker().getNumberOfGrids() > 0);
   assert(combiParametersSet_);
 
@@ -724,10 +725,9 @@ void ProcessGroupWorker::combineThirdLevelFileBasedWrite(std::string filenamePre
   Stats::stopEvent("write SG");
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
-                                                              std::string startReadingTokenFileName,
-                                                              bool overwrite,
-                                                              bool keepSparseGridFiles) {
+void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
+    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName,
+    bool overwrite, bool keepSparseGridFiles) {
   // wait until we can start to read
   Stats::startEvent("wait SG");
   MASTER_EXCLUSIVE_SECTION {
@@ -760,10 +760,10 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   assert(returnedValue == MPI_SUCCESS);
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
-                                                    std::string writeCompleteTokenFileName,
-                                                    std::string filenamePrefixToRead,
-                                                    std::string startReadingTokenFileName) {
+void ProcessGroupWorker::combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
+                                                    const std::string& writeCompleteTokenFileName,
+                                                    const std::string& filenamePrefixToRead,
+                                                    const std::string& startReadingTokenFileName) {
   this->combineThirdLevelFileBasedWrite(filenamePrefixToWrite, writeCompleteTokenFileName);
   this->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName);
 }
@@ -867,15 +867,14 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   updateFullFromCombinedSparseGrids();
 }
 
-void ProcessGroupWorker::zeroDsgsData() {
-  this->getSparseGridWorker().zeroDsgsData();
-}
+void ProcessGroupWorker::zeroDsgsData() { this->getSparseGridWorker().zeroDsgsData(); }
 
-void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
+void ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix) {
   this->getSparseGridWorker().writeDSGsToDisk(filenamePrefix);
 }
 
-void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG) {
+void ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,
+                                          bool alwaysReadFullDSG) {
   this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, alwaysReadFullDSG);
 }
 
