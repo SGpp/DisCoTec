@@ -8,7 +8,6 @@
 #include "mpi_fault_simulator/MPI-FT.h"
 #include "io/H5InputOutput.hpp"
 #include "utils/MonteCarlo.hpp"
-#include "vtk/DFGPlotFileWriter.hpp"
 
 #include "boost/lexical_cast.hpp"
 
@@ -247,7 +246,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case WRITE_DFGS_TO_VTK: {
       Stats::startEvent("write vtk all tasks");
-      writeVTKPlotFilesOfAllTasks();
+      this->getSparseGridWorker().writeVTKPlotFilesOfAllTasks();
       Stats::stopEvent("write vtk all tasks");
     } break;
     case WRITE_DSGS_TO_DISK: {
@@ -939,22 +938,6 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
 
 void ProcessGroupWorker::zeroDsgsData() {
   this->getSparseGridWorker().zeroDsgsData();
-}
-
-void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
-  for (const auto& task : this->getTaskWorker().getTasks()) {
-#ifdef USE_VTK
-    IndexType numGrids = combiParameters_.getNumGrids();
-    for (IndexType g = 0; g < numGrids; g++) {
-      DistributedFullGrid<CombiDataType>& dfg = task->getDistributedFullGrid(static_cast<int>(g));
-      DFGPlotFileWriter<CombiDataType> writer{dfg, g};
-      writer.writePlotFile();
-    }
-#else
-    std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK."
-              << std::endl;
-#endif /* USE_VTK */
-  }
 }
 
 void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
