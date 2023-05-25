@@ -109,8 +109,8 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
 
     auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
-        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
-                                                      dfgDecomposition));
+        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs,
+                                                            true, dfgDecomposition));
 
     uniDSG->registerDistributedFullGrid(*uniDFG);
 
@@ -196,6 +196,10 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       }
     }
 
+    BOOST_TEST_CHECKPOINT("write to disk chunked");
+    // test for dumping sparse grid data to disk and reading back in later (allow time for file system)
+    DistributedSparseGridIO::writeToDiskChunked(*uniDSG, "test_sg_");
+
     BOOST_TEST_CHECKPOINT("write sparse min/max");
     // make sure that right min/max values are written
     DistributedSparseGridIO::writeMinMaxCoefficents(
@@ -218,16 +222,14 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       l += 1;
     }
 
-    // test for dumping sparse grid data to disk and reading back in
-    DistributedSparseGridIO::writeToDiskChunked(*uniDSG, "test_sg_");
-    uniDSGfromSubspaces->setZero();
-
-    // have a tiny delay here, by already allocting dfg
+    // have a tiny delay here, by already allocating dfg
     dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
     auto largeUniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
         new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
     
+    BOOST_TEST_CHECKPOINT("read from disk chunked");
+    uniDSGfromSubspaces->setZero();
     DistributedSparseGridIO::readFromDiskChunked(*uniDSGfromSubspaces, "test_sg_");
     BOOST_TEST_CHECKPOINT("compare values chunked");
     for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
@@ -236,6 +238,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     }
 
     // and remove straight away
+    MPI_Barrier(comm);
     if (rank == 0) {
       auto status = system("rm test_sg_*");
       BOOST_CHECK_GE(status, 0);
