@@ -60,11 +60,6 @@ class ProcessGroupWorker {
   void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords,
                                       std::string fileNamePrefix) const;
 
-  /** interpolate values on all tasks' component grids, combine results, and write to a single file
-   */
-  void writeInterpolatedValues(const std::vector<CombiDataType>& values,
-                               const std::string& valuesWriteFilename) const;
-
   void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords,
                                          const std::string& filenamePrefix) const;
 

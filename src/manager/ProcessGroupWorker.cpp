@@ -348,19 +348,9 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE: {
       Stats::startEvent("interpolate values");
-      std::string filenamePrefix;
-      MASTER_EXCLUSIVE_SECTION {
-        MPIUtils::receiveClass(&filenamePrefix, theMPISystem()->getManagerRank(),
-                               theMPISystem()->getGlobalComm());
-      }
-      auto values =
-          interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
-      // write result
-      MASTER_EXCLUSIVE_SECTION {
-        std::string valuesWriteFilename =
-            filenamePrefix + "_values_" + std::to_string(currentCombi_) + ".h5";
-        writeInterpolatedValues(values, valuesWriteFilename);
-      }
+      writeInterpolatedValuesSingleFile(
+          receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()),
+          receiveStringFromManagerAndBroadcastToGroup());
       Stats::stopEvent("interpolate values");
     } break;
     case WRITE_INTERPOLATED_VALUES_PER_GRID: {  // interpolate values on given coordinates and write
@@ -616,18 +606,6 @@ void ProcessGroupWorker::writeInterpolatedValuesPerGrid(
   }
 }
 
-void ProcessGroupWorker::writeInterpolatedValues(const std::vector<CombiDataType>& values,
-                                                 const std::string& valuesWriteFilename) const {
-  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-  std::string groupName = "all_grids";
-  std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
-  assert(currentCombi_ >= 0);
-  assert(values.size() > 0);
-  assert(valuesWriteFilename.size() > 0);
-  h5io::writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
-                            this->getTaskWorker().getCurrentTime());
-}
-
 void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
     const std::vector<std::vector<real>>& interpolationCoords,
     const std::string& filenamePrefix) const {
@@ -637,8 +615,14 @@ void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
   // one process writes
   OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {
-      writeInterpolatedValues(values,
-                              filenamePrefix + +"_values_" + std::to_string(currentCombi_) + ".h5");
+      std::string groupName = "all_grids";
+      std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
+      assert(currentCombi_ >= 0);
+      assert(values.size() > 0);
+      assert(valuesWriteFilename.size() > 0);
+      h5io::writeValuesToH5File(
+          values, filenamePrefix + +"_values_" + std::to_string(currentCombi_) + ".h5", groupName,
+          datasetName, this->getTaskWorker().getCurrentTime());
     }
   }
 }
