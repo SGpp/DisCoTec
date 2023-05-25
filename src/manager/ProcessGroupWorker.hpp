@@ -6,9 +6,7 @@
 #include "manager/SparseGridWorker.hpp"
 #include "manager/TaskWorker.hpp"
 #include "mpi/MPISystem.hpp"
-#include "mpi_fault_simulator/MPI-FT.h"
 #include "task/Task.hpp"
-#include "vtk/DFGPlotFileWriter.hpp"
 
 namespace combigrid {
 
@@ -46,7 +44,7 @@ class ProcessGroupWorker {
   void parallelEval();
 
   /** parallel file io of final output grid for uniform decomposition */
-  void parallelEvalUniform(std::string filename, LevelVector leval);
+  void parallelEvalUniform(const std::string& filename, const LevelVector& leval) const ;
 
   // do task-specific postprocessing
   void doDiagnostics();
@@ -185,17 +183,6 @@ class ProcessGroupWorker {
 
   /** the pg writes the dfg of all tasks into individual vtk files */
   void writeVTKPlotFilesOfAllTasks();
-
-  /**
-   * @brief copy the sparse grid data into the full grid and dehierarchize
-   *
-   * @param dfg the distributed full grid to fill
-   * @param g the dimension index (in the case that there are multiple different full grids per
-   * task)
-   */
-  void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, IndexType g = 0);
-
-  void fillDFGFromDSGU(Task& t);
 };
 
 inline CombiParameters& ProcessGroupWorker::getCombiParameters() {

@@ -117,7 +117,6 @@ class Task {
   // do manager-side task-specific postprocessing, if applicable (by default: nothing)
   virtual void receiveDiagnostics() {}
 
- protected:
   inline const std::vector<BoundaryType>& getBoundary() const;
 
  private:

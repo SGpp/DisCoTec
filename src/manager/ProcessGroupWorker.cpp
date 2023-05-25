@@ -1,15 +1,14 @@
 #include "manager/ProcessGroupWorker.hpp"
 
 #include "combicom/CombiCom.hpp"
-#include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupSignals.hpp"
 #include "mpi/MPIUtils.hpp"
-#include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "loadmodel/LearningLoadModel.hpp"
 #include "mpi/MPISystem.hpp"
 #include "mpi_fault_simulator/MPI-FT.h"
 #include "io/H5InputOutput.hpp"
 #include "utils/MonteCarlo.hpp"
+#include "vtk/DFGPlotFileWriter.hpp"
 
 #include "boost/lexical_cast.hpp"
 
@@ -275,7 +274,9 @@ SignalType ProcessGroupWorker::wait() {
 
       currentTask->setZero();
       // fill task with combisolution
-      fillDFGFromDSGU(*currentTask);
+      this->getSparseGridWorker().fillDFGFromDSGU(
+          *currentTask, combiParameters_.getHierarchizationDims(),
+          combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
 
       // execute task
       Stats::Event e = Stats::Event();
@@ -382,7 +383,9 @@ SignalType ProcessGroupWorker::wait() {
 
       auto& currentTask = this->getTaskWorker().getLastTask();
       currentTask->setZero();
-      fillDFGFromDSGU(*currentTask);
+      this->getSparseGridWorker().fillDFGFromDSGU(
+          *currentTask, combiParameters_.getHierarchizationDims(),
+          combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
       currentTask->setFinished(true);
     } break;
     case RESCHEDULE_REMOVE_TASK: {
@@ -516,76 +519,16 @@ void ProcessGroupWorker::parallelEval() {
   }
 }
 
-void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg,
-                                         IndexType g) {
-  // fill dfg with hierarchical coefficients from distributed sparse grid
-  dfg.extractFromUniformSG(*this->getSparseGridWorker().getCombinedUniDSGVector()[g]);
-
-  bool anyNotBoundary =
-      std::any_of(combiParameters_.getBoundary().begin(), combiParameters_.getBoundary().end(),
-                  [](BoundaryType b) { return b == 0; });
-
-  if (anyNotBoundary) {
-    LevelVector zeroLMin = LevelVector(combiParameters_.getDim(), 0);
-    DistributedHierarchization::dehierarchizeDFG(dfg, combiParameters_.getHierarchizationDims(),
-                                                 combiParameters_.getHierarchicalBases(), zeroLMin);
-  } else {
-    DistributedHierarchization::dehierarchizeDFG(dfg, combiParameters_.getHierarchizationDims(),
-                                                 combiParameters_.getHierarchicalBases(),
-                                                 combiParameters_.getLMin());
-  }
-}
-
-void ProcessGroupWorker::fillDFGFromDSGU(Task& t) {
-  auto numGrids = static_cast<int>(
-      combiParameters_
-          .getNumGrids());  // we assume here that every task has the same number of grids
-  for (int g = 0; g < numGrids; g++) {
-    assert(this->getSparseGridWorker().getCombinedUniDSGVector()[g] != nullptr);
-    this->fillDFGFromDSGU(t.getDistributedFullGrid(g), g);
-  }
-}
-
-// cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
-static bool endsWith(const std::string& str, const std::string& suffix) {
-  return str.size() >= suffix.size() &&
-         0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
-}
-
-void ProcessGroupWorker::parallelEvalUniform(std::string filename, LevelVector leval) {
+void ProcessGroupWorker::parallelEvalUniform(const std::string& filename,
+                                             const LevelVector& leval) const {
   assert(uniformDecomposition);
-
-  assert(combiParametersSet_);
-  auto numGrids =
-      combiParameters_
-          .getNumGrids();  // we assume here that every task has the same number of grids
-
-  const auto dim = static_cast<DimType>(leval.size());
-
-  for (IndexType g = 0; g < numGrids; g++) {  // loop over all grids and plot them
-    // create dfg
-    bool forwardDecomposition = combiParameters_.getForwardDecomposition();
-    auto levalDecomposition = combigrid::downsampleDecomposition(
-        combiParameters_.getDecomposition(), combiParameters_.getLMax(), leval,
-        combiParameters_.getBoundary());
-
-    OwningDistributedFullGrid<CombiDataType> dfg(
-        dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
-        combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
-    this->fillDFGFromDSGU(dfg, g);
-    // save dfg to file with MPI-IO
-    if (endsWith(filename, ".vtk")) {
-      dfg.writePlotFileVTK(filename.c_str());
-    } else {
-      std::string fn = filename;
-      auto pos = fn.find(".");
-      if (pos != std::string::npos) {
-        // if filename contains ".", insert grid number before that
-        fn.insert(pos, "_" + std::to_string(g));
-      }
-      dfg.writePlotFile(fn.c_str());
-    }
-  }
+  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
+  auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
+                                                               combiParameters_.getLMax(), leval,
+                                                               combiParameters_.getBoundary());
+  this->getSparseGridWorker().interpolateAndPlotOnLevel(
+      filename, leval, combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin(), levalDecomposition);
 }
 
 std::vector<double> ProcessGroupWorker::getLpNorms(int p) const {
