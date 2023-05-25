@@ -275,7 +275,7 @@ inline void SparseGridWorker::interpolateAndPlotOnLevel(
     const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
     const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin,
     const std::vector<int>& parallelization, const std::vector<IndexVector>& decomposition) const {
-  assert(levelToEvaluate.size() == decomposition.size());
+  assert(levelToEvaluate.size() == parallelization.size());
   // create dfg
   OwningDistributedFullGrid<CombiDataType> dfg(static_cast<DimType>(levelToEvaluate.size()),
                                                levelToEvaluate, theMPISystem()->getLocalComm(),
