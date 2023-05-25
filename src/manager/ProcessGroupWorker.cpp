@@ -413,7 +413,8 @@ SignalType ProcessGroupWorker::wait() {
       }
     } break;
     case WRITE_DSG_MINMAX_COEFFICIENTS: {
-      this->getSparseGridWorker().writeMinMaxCoefficients(receiveStringFromManagerAndBroadcastToGroup());
+      this->getSparseGridWorker().writeMinMaxCoefficients(
+          receiveStringFromManagerAndBroadcastToGroup());
     } break;
     default: {
       throw std::runtime_error("signal " + std::to_string(signal) + " not implemented");
@@ -875,22 +876,9 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   MPI_Barrier(theMPISystem()->getOutputGroupComm());
   Stats::stopEvent("wait SG");
 
-  if (overwrite) {
-    Stats::startEvent("read SG");
-    this->readDSGsFromDisk(filenamePrefixToRead);
-    Stats::stopEvent("read SG");
-  } else {
-    Stats::startEvent("read/reduce SG");
-    this->getSparseGridWorker().readDSGsFromDiskAndReduce(filenamePrefixToRead);
-    Stats::stopEvent("read/reduce SG");
-  }
-  if (this->getSparseGridWorker().getNumberOfGrids() != 1) {
-    throw std::runtime_error("Combining more than one DSG is not implemented yet");
-  }
-  // distribute solution in globalReduceComm to other pgs
-  auto request =
-      CombiCom::asyncBcastDsgData(*this->getSparseGridWorker().getCombinedUniDSGVector()[0], theMPISystem()->getGlobalReduceRank(),
-                        theMPISystem()->getGlobalReduceComm());
+  overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
+  auto request = this->getSparseGridWorker().readReduceStartBroadcastDSGs(filenamePrefixToRead, overwrite);
+  overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
 
   // update fgs
   integrateCombinedSolution();
@@ -924,28 +912,17 @@ void ProcessGroupWorker::setExtraSparseGrid(bool initializeSizes) {
  */
 void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
   assert(combiParametersSet_);
-  // update either old or new sparse grids
-  auto* uniDSGVectorToSet = &this->getSparseGridWorker().getCombinedUniDSGVector();
-  if (thirdLevelExtraSparseGrid) {
-    this->setExtraSparseGrid(false);  // don't initialize, would be overwritten
-    uniDSGVectorToSet = &this->getSparseGridWorker().getExtraUniDSGVector();
-  }
-
-  if (uniDSGVectorToSet->size() != 1) {
-    throw std::runtime_error(
-        "uniDSGVectorToSet.size() > 1 -- not implemented on pg manager's side");
-  }
+  // update either old or new sparse grid
+  auto& uniDSGToSet =
+      this->getSparseGridWorker().getSparseGridToUseForThirdLevel(thirdLevelExtraSparseGrid);
 
   // prepare for MPI calls to manager
   CommunicatorType thirdLevelComm = theMPISystem()->getThirdLevelComms()[0];
   RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
-  for (size_t i = 0; i < uniDSGVectorToSet->size(); ++i) {
-    CombiCom::sendSubspaceSizesWithGather(*this->getSparseGridWorker().getCombinedUniDSGVector()[i],
-                                          thirdLevelComm, thirdLevelManagerRank);
-    // set updated sizes in dsgs
-    CombiCom::receiveSubspaceSizesWithScatter(*(*uniDSGVectorToSet)[i], thirdLevelComm,
-                                              thirdLevelManagerRank);
-  }
+  CombiCom::sendSubspaceSizesWithGather(*this->getSparseGridWorker().getCombinedUniDSGVector()[0],
+                                        thirdLevelComm, thirdLevelManagerRank);
+  // set updated sizes in dsgs
+  CombiCom::receiveSubspaceSizesWithScatter(*uniDSGToSet, thirdLevelComm, thirdLevelManagerRank);
 
   if (!thirdLevelExtraSparseGrid) {
     // distribute updated sizes to workers with same decomposition (global reduce comm)
@@ -969,97 +946,16 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
 
 void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
                                              bool extraSparseGrid, bool overwrite) {
-  if (extraSparseGrid) {
-    OUTPUT_GROUP_EXCLUSIVE_SECTION {
-      this->setExtraSparseGrid(true);
-#ifndef NDEBUG
-      // duplicate subspace sizes to validate later
-      std::vector<SubspaceSizeType> subspaceSizesToValidate =
-          this->getSparseGridWorker().getExtraUniDSGVector()[0]->getSubspaceDataSizes();
-#endif
-      // use extra sparse grid
-      if (overwrite) {
-        DistributedSparseGridIO::readSubspaceSizesFromFile(*this->getSparseGridWorker().getExtraUniDSGVector()[0], filenameToRead,
-                                                           false);
-      } else {
-        auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-          return std::min(a, b);
-        };
-        DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
-            *this->getSparseGridWorker().getExtraUniDSGVector()[0], filenameToRead, minFunctionInstantiation, 0, false);
-      }
-#ifndef NDEBUG
-      assert(subspaceSizesToValidate.size() ==
-             this->getSparseGridWorker().getExtraUniDSGVector()[0]->getSubspaceDataSizes().size());
-      for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
-        assert(this->getSparseGridWorker().getExtraUniDSGVector()[0]->getSubspaceDataSizes()[i] == 0 ||
-               this->getSparseGridWorker().getExtraUniDSGVector()[0]->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
-      }
-      auto numDOFtoValidate =
-          std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
-      auto numDOFnow = std::accumulate(this->getSparseGridWorker().getExtraUniDSGVector()[0]->getSubspaceDataSizes().begin(),
-                                       this->getSparseGridWorker().getExtraUniDSGVector()[0]->getSubspaceDataSizes().end(), 0);
-      assert(numDOFtoValidate >= numDOFnow);
-#endif
-    }
-  } else {
-    if (!this->getSparseGridWorker().getExtraUniDSGVector().empty()) {
-      throw std::runtime_error("this->getSparseGridWorker().getExtraUniDSGVector() not empty, but extraSparseGrid is false");
-    }
-#ifndef NDEBUG
-    std::vector<SubspaceSizeType> subspaceSizesToValidate =
-        this->getSparseGridWorker().getCombinedUniDSGVector()[0]->getSubspaceDataSizes();
-#endif
-    FIRST_GROUP_EXCLUSIVE_SECTION {
-      if (overwrite) {
-        DistributedSparseGridIO::readSubspaceSizesFromFile(*this->getSparseGridWorker().getCombinedUniDSGVector()[0],
-                                                           filenameToRead, true);
-      } else {
-        // if no extra sparse grid, max-reduce the normal one
-        auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-          return std::max(a, b);
-        };
-        DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
-            *this->getSparseGridWorker().getCombinedUniDSGVector()[0], filenameToRead, maxFunctionInstantiation, 0, true);
-      }
-      if (theMPISystem()->getGlobalReduceRank() != 0) {
-        throw std::runtime_error("read rank is not the global reduce rank");
-      }
-    }
-    else {
-      if (theMPISystem()->getGlobalReduceRank() == 0) {
-        throw std::runtime_error("read rank IS the global reduce rank");
-      }
-    }
-    // reduce to all other process groups
-    CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-    RankType senderRank = 0;
-    CombiCom::broadcastSubspaceSizes(*this->getSparseGridWorker().getCombinedUniDSGVector()[0], globalReduceComm, senderRank);
-#ifndef NDEBUG
-    assert(subspaceSizesToValidate.size() ==
-           this->getSparseGridWorker().getCombinedUniDSGVector()[0]->getSubspaceDataSizes().size());
-    for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
-      assert(subspaceSizesToValidate[i] == 0 ||
-             subspaceSizesToValidate[i] == this->getSparseGridWorker().getCombinedUniDSGVector()[0]->getSubspaceDataSizes()[i]);
-    }
-    auto numDOFtoValidate =
-        std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
-    auto numDOFnow = std::accumulate(this->getSparseGridWorker().getCombinedUniDSGVector()[0]->getSubspaceDataSizes().begin(),
-                                     this->getSparseGridWorker().getCombinedUniDSGVector()[0]->getSubspaceDataSizes().end(), 0);
-    assert(numDOFtoValidate <= numDOFnow);
-#endif
-  }
+  this->getSparseGridWorker().reduceSubspaceSizes(filenameToRead, extraSparseGrid, overwrite);
 }
 
-void ProcessGroupWorker::reduceSubspaceSizesFileBased(std::string filenamePrefixToWrite,
-                                                      std::string writeCompleteTokenFileName,
-                                                      std::string filenamePrefixToRead,
-                                                      std::string startReadingTokenFileName,
+void ProcessGroupWorker::reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
+                                                      const std::string& writeCompleteTokenFileName,
+                                                      const std::string& filenamePrefixToRead,
+                                                      const std::string& startReadingTokenFileName,
                                                       bool extraSparseGrid) {
-  assert(this->getSparseGridWorker().getNumberOfGrids() == 1);
   FIRST_GROUP_EXCLUSIVE_SECTION {
-    DistributedSparseGridIO::writeSubspaceSizesToFile(*this->getSparseGridWorker().getCombinedUniDSGVector()[0],
-                                                      filenamePrefixToWrite);
+    this->getSparseGridWorker().writeSubspaceSizesToFile(filenamePrefixToWrite);
     MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
   }
 
@@ -1091,7 +987,7 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   if (fromOutputGroup) {
     broadcastSender = theMPISystem()->getOutputRankInGlobalReduceComm();
   } else {
-  // receive third level combi result from third level pgroup (global reduce comm)
+    // receive third level combi result from third level pgroup (global reduce comm)
     broadcastSender = (RankType)combiParameters_.getThirdLevelPG();
   }
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
