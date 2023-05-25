@@ -728,16 +728,7 @@ void ProcessGroupWorker::setCombiParameters(const CombiParameters& combiParamete
   if (!isGENE && combiParameters_.isParallelizationSet()) {
     // cf. https://www.rookiehpc.com/mpi/docs/mpi_cart_create.php
     // get decompositon from combi params
-    auto par = combiParameters_.getParallelization();
-
-    // important: note reverse ordering of dims! -- cf DistributedFullGrid
-    //TODO(pollinta) remove reverse ordering
-    std::vector<int> dims(par.size());
-    if (reverseOrderingDFGPartitions) {
-      dims.assign(par.rbegin(), par.rend());
-    } else {
-      dims.assign(par.begin(), par.end());
-    }
+    auto& dims = combiParameters_.getParallelization();
 
     std::vector<int> periods;
     // Make dimensions periodic depending on boundary parameters

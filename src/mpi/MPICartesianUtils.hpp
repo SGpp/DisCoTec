@@ -37,13 +37,7 @@ class MPICartesianUtils {
         for (int i = 0; i < this->getCommunicatorSize(); ++i) {
           std::vector<int> tmp(dim_);
           MPI_Cart_coords(comm, i, static_cast<int>(dim_), &tmp[0]);
-
-          // important: reverse ordering of partition coords!
-          if (reverseOrderingDFGPartitions) {
-            partitionCoords_[i].assign(tmp.rbegin(), tmp.rend());
-          } else {
-            partitionCoords_[i].assign(tmp.begin(), tmp.end());
-          }
+          partitionCoords_[i].assign(tmp.begin(), tmp.end());
         }
       }
     } else {

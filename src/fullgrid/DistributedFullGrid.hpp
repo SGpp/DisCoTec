@@ -1817,13 +1817,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       auto maxdims = static_cast<int>(procs.size());
       std::vector<int> cartdims(maxdims), periods(maxdims), coords(maxdims);
       MPI_Cart_get(comm, static_cast<int>(maxdims), &cartdims[0], &periods[0], &coords[0]);
-      // important: note reverse ordering of dims!
-      std::vector<int> dims(procs.size());
-      if (reverseOrderingDFGPartitions) {
-        dims.assign(procs.rbegin(), procs.rend());
-      } else {
-        dims.assign(procs.begin(), procs.end());
-      }
+      auto& dims = procs;
       ASSERT(cartdims == dims, " cartdims: " << cartdims << " dims: " << dims);
       assert(cartdims == dims);
       // not sure if this should be asserted -> for now, check only in exchangeGhostLayer...
@@ -1845,13 +1839,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
     } else {
       // important: note reverse ordering of dims!
-      std::vector<int> dims(procs.size());
-      if (reverseOrderingDFGPartitions) {
-        dims.assign(procs.rbegin(), procs.rend());
-      } else {
-        dims.assign(procs.begin(), procs.end());
-      }
-      // todo mh: think whether periodic bc will be useful
+      auto& dims = procs;
+
       std::vector<int> periods(dim_, 0);
       int reorder = 0;
       MPI_Cart_create(comm, static_cast<int>(dim_), &dims[0], &periods[0], reorder, &communicator_);
