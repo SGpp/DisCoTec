@@ -84,13 +84,13 @@ class TaskExample : public Task {
     }
 
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p, false,
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p, false,
                                                   decomposition);
 
     /* loop over local subgrid and set initial values */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto elements = dfg_->getData();
 
-    for (size_t i = 0; i < elements.size(); ++i) {
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
       IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
       std::vector<real> globalCoords(dim);
       dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
@@ -110,7 +110,7 @@ class TaskExample : public Task {
 
     int lrank = theMPISystem()->getLocalRank();
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto elements = dfg_->getData();
     // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure
 
@@ -121,7 +121,7 @@ class TaskExample : public Task {
     for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
       real time = step * dt_;
 
-      for (size_t i = 0; i < elements.size(); ++i) {
+      for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
         IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
         std::vector<real> globalCoords(this->getDim());
         dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
@@ -189,7 +189,7 @@ class TaskExample : public Task {
   // pure local variables that exist only on the worker processes
   bool initialized_;
   size_t stepsTotal_;
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
 
   /**
    * The serialize function has to be extended by the new member variables.

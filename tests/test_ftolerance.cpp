@@ -69,8 +69,8 @@ class TaskAdvFDM : public combigrid::Task {
     // only use one process per group
     std::vector<int> p(getDim(), 1);
 
-    dfg_ =
-        new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                        getBoundary(), p);
     phi_.resize(dfg_->getNrElements());
 
     for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
@@ -100,10 +100,9 @@ class TaskAdvFDM : public combigrid::Task {
     double h1 = 1.0 / (double)l1;
 
     for (size_t i = 0; i < nsteps_; ++i) {
-      phi_.swap(dfg_->getElementVector());
+      dfg_->swapDataVector(phi_);
 
       for (IndexType li = 0; li < dfg_->getNrElements(); ++li) {
-
         IndexVector ai(getDim());
         dfg_->getGlobalVectorIndex(li, ai);
 
@@ -158,7 +157,7 @@ class TaskAdvFDM : public combigrid::Task {
   size_t nsteps_;
   size_t stepsTotal_;
   size_t combiStep_;
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
   std::vector<CombiDataType> phi_;
 
   template <class Archive>

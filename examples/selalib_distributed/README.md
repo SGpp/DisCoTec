@@ -20,7 +20,7 @@ where `test_cpp_interface` can be used to test the gerenal C/Fortran interface, 
 
 
 ### Build Selalib+DisCoTec example
-* run DisCoTec's cmake with `-DENABLE_SELALIB=1 -DSELALIB_DIR=` flags (`SELALIB_DIR` should be set to selalib's `CMAKE_INSTALL_PREFIX` folder, appended with `/cmake`, or wherever you find `SELALIBConfig.cmake` accompanied by `libselalib.a` and `libsll_m_sim_bsl_vp_3d3v_cart_dd_slim_interface.a`)
+* run DisCoTec's cmake with `-DDISCOTEC_WITH_SELALIB=1 -DSELALIB_DIR=` flags (`SELALIB_DIR` should be set to selalib's `CMAKE_INSTALL_PREFIX` folder, appended with `/cmake`, or wherever you find `SELALIBConfig.cmake` accompanied by `libselalib.a` and `libsll_m_sim_bsl_vp_3d3v_cart_dd_slim_interface.a`)
 * then `make selalib_distributed`
 
 ### Run Selalib+DisCoTec example

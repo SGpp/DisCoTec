@@ -108,9 +108,9 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     auto dfgDecomposition =
         combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
 
-    auto uniDFG = std::unique_ptr<DistributedFullGrid<std::complex<double>>>(
-        new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
-                                                      dfgDecomposition));
+    auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
+        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs,
+                                                            true, dfgDecomposition));
 
     uniDSG->registerDistributedFullGrid(*uniDFG);
 
@@ -196,6 +196,10 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       }
     }
 
+    BOOST_TEST_CHECKPOINT("write to disk chunked");
+    // test for dumping sparse grid data to disk and reading back in later (allow time for file system)
+    DistributedSparseGridIO::writeToDiskChunked(*uniDSG, "test_sg_");
+
     BOOST_TEST_CHECKPOINT("write sparse min/max");
     // make sure that right min/max values are written
     DistributedSparseGridIO::writeMinMaxCoefficents(
@@ -217,14 +221,14 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     for (auto& l : dfgLevel) {
       l += 1;
     }
+
+    // have a tiny delay here, by already allocating dfg
     dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lref, dfgLevel, boundary);
-    auto largeUniDFG = std::unique_ptr<DistributedFullGrid<std::complex<double>>>(
-        new DistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
+    auto largeUniDFG = std::unique_ptr<OwningDistributedFullGrid<std::complex<double>>>(
+        new OwningDistributedFullGrid<std::complex<double>>(dim, dfgLevel, comm, boundary, procs, true,
                                                       dfgDecomposition));
-
-
-    // test for dumping sparse grid data to disk and reading back in
-    DistributedSparseGridIO::writeToDiskChunked(*uniDSG, "test_sg_");
+    
+    BOOST_TEST_CHECKPOINT("read from disk chunked");
     uniDSGfromSubspaces->setZero();
     DistributedSparseGridIO::readFromDiskChunked(*uniDSGfromSubspaces, "test_sg_");
     BOOST_TEST_CHECKPOINT("compare values chunked");
@@ -234,6 +238,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     }
 
     // and remove straight away
+    MPI_Barrier(comm);
     if (rank == 0) {
       auto status = system("rm test_sg_*");
       BOOST_CHECK_GE(status, 0);
@@ -670,8 +675,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
         new DistributedSparseGridUniform<combigrid::DimType>(dim, lmax, lmin, comm));
 
     {  // register full grid
-      auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::DimType>>(
-          new DistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
+      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType>>(
+          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
 
@@ -684,8 +689,8 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
 
     {  // register reversed full grid
       std::reverse(lfull.begin(), lfull.end());
-      auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::DimType>>(
-          new DistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
+      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType>>(
+          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
 
@@ -731,8 +736,8 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
       if (levelSum(level) == 21) {
         auto dfgDecomposition =
             combigrid::downsampleDecomposition(decomposition, lmax, level, boundary);
-        auto uniDFG = std::unique_ptr<DistributedFullGrid<combigrid::real>>(
-            new DistributedFullGrid<combigrid::real>(dim, level, comm, boundary, procs, true,
+        auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::real>>(
+            new OwningDistributedFullGrid<combigrid::real>(dim, level, comm, boundary, procs, true,
                                                      dfgDecomposition));
         uniDSG->registerDistributedFullGrid(*uniDFG);
       }

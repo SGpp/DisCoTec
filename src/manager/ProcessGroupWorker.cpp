@@ -568,7 +568,7 @@ void ProcessGroupWorker::parallelEvalUniform(std::string filename, LevelVector l
         combiParameters_.getDecomposition(), combiParameters_.getLMax(), leval,
         combiParameters_.getBoundary());
 
-    DistributedFullGrid<CombiDataType> dfg(
+    OwningDistributedFullGrid<CombiDataType> dfg(
         dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
         combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
     this->fillDFGFromDSGU(dfg, g);
@@ -639,10 +639,10 @@ std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getLocalComm());
-  //TODO is it necessary to correct for the kahan terms across process groups too?
-  // need to reduce across process groups too
-  // these do not strictly need to be allreduce (could be reduce), but it is easier to maintain that
-  // way (all processes end up with valid values)
+  // TODO is it necessary to correct for the kahan terms across process groups too?
+  //  need to reduce across process groups too
+  //  these do not strictly need to be allreduce (could be reduce), but it is easier to maintain
+  //  that way (all processes end up with valid values)
   MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
                 abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                 MPI_SUM, theMPISystem()->getGlobalReduceComm());

@@ -16,6 +16,8 @@ namespace combigrid {
 
 typedef std::vector<IndexType> IndexVector;
 
+template <DimType NumDimensions>
+using IndexArray = std::array<IndexType, NumDimensions>;
 
 // helper function to compare any vector
 template<typename T>
