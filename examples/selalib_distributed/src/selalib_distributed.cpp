@@ -50,17 +50,6 @@ inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
   return vec;
 }
 
-// helper function to output bool vector
-inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
-  os << "[";
-
-  for (size_t i = 0; i < l.size(); ++i) os << l[i] << " ";
-
-  os << "]";
-
-  return os;
-}
-
 // cf https://stackoverflow.com/questions/37931691/replace-a-word-in-text-file-using-c
 std::string getFile(std::ifstream& is) {
   std::string contents;

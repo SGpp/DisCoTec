@@ -48,19 +48,6 @@ inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
   return vec;
 }
 
-
-// helper function to output bool vector
-inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
-  os << "[";
-
-  for (size_t i = 0; i < l.size(); ++i)
-    os << l[i] << " ";
-
-  os << "]";
-
-  return os;
-}
-
 // recovery in case of faults
 void recoverPreprocessing(ProcessManager& manager, int nsteps, size_t i, bool doOnlyRecompute = false){
 

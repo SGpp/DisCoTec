@@ -142,15 +142,15 @@ inline std::vector<T>& operator>>(std::string str, std::vector<T>& ivec) {
 }
 
 // helper function to output small types (may otherwise not be printed)
-inline std::ostream &operator <<(std::ostream &os, const DimType &v) {
+inline std::ostream& operator<<(std::ostream& os, const DimType& v) {
   using namespace std;
   os << static_cast<int>(v);
   return os;
 }
 
 // helper function to output any vector
-template<typename T>
-inline std::ostream &operator <<(std::ostream &os, const std::vector<T> &v) {
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& v) {
   using namespace std;
   os << "[";
   // copy(v.begin(), v.end(), ostream_iterator<T>(os, ", "));
@@ -162,8 +162,8 @@ inline std::ostream &operator <<(std::ostream &os, const std::vector<T> &v) {
 }
 
 // helper function to output any map
-template<typename T, typename U>
-inline std::ostream &operator <<(std::ostream &os, const std::map<T, U> &m) {
+template <typename T, typename U>
+inline std::ostream& operator<<(std::ostream& os, const std::map<T, U>& m) {
   using namespace std;
   for (const auto& any : m) {
     os << "(" << any.first << ") : " << any.second << "; ";
@@ -172,8 +172,8 @@ inline std::ostream &operator <<(std::ostream &os, const std::map<T, U> &m) {
 }
 
 // helper function to output any set
-template<typename T>
-inline std::ostream &operator <<(std::ostream &os, const std::set<T> &s) {
+template <typename T>
+inline std::ostream& operator<<(std::ostream& os, const std::set<T>& s) {
   using namespace std;
   os << "[";
   for (const auto& any : s) {
@@ -184,8 +184,8 @@ inline std::ostream &operator <<(std::ostream &os, const std::set<T> &s) {
 }
 
 // helper function to output any array
-template<typename T, size_t N>
-inline std::ostream &operator <<(std::ostream &os, const std::array<T, N> &a) {
+template <typename T, size_t N>
+inline std::ostream& operator<<(std::ostream& os, const std::array<T, N>& a) {
   using namespace std;
   os << "[";
   for (const auto& any : a) {
@@ -194,7 +194,6 @@ inline std::ostream &operator <<(std::ostream &os, const std::array<T, N> &a) {
   os << "]";
   return os;
 }
-
 
 }  // namespace combigrid
 

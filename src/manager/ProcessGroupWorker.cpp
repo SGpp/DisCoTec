@@ -516,17 +516,6 @@ static bool endsWith(const std::string& str, const std::string& suffix) {
          0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
 }
 
-// helper function to output bool vector
-inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
-  os << "[";
-
-  for (size_t i = 0; i < l.size(); ++i) os << l[i] << " ";
-
-  os << "]";
-
-  return os;
-}
-
 void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg,
                                          IndexType g) {
   // fill dfg with hierarchical coefficients from distributed sparse grid
