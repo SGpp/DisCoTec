@@ -4,7 +4,6 @@
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupSignals.hpp"
 #include "mpi/MPIUtils.hpp"
-#include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "loadmodel/LearningLoadModel.hpp"
 #include "mpi/MPISystem.hpp"
@@ -414,7 +413,7 @@ SignalType ProcessGroupWorker::wait() {
       }
     } break;
     case WRITE_DSG_MINMAX_COEFFICIENTS: {
-      writeSparseGridMinMaxCoefficients(receiveStringFromManagerAndBroadcastToGroup());
+      this->getSparseGridWorker().writeMinMaxCoefficients(receiveStringFromManagerAndBroadcastToGroup());
     } break;
     default: {
       throw std::runtime_error("signal " + std::to_string(signal) + " not implemented");
@@ -707,10 +706,7 @@ void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
 }
 
 void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const {
-  for (size_t i = 0; i < this->getSparseGridWorker().getNumberOfGrids(); ++i) {
-    DistributedSparseGridIO::writeMinMaxCoefficents(
-        *this->getSparseGridWorker().getCombinedUniDSGVector()[i], fileNamePrefix, i);
-  }
+  this->getSparseGridWorker().writeMinMaxCoefficients(fileNamePrefix);
 }
 
 void ProcessGroupWorker::receiveAndInitializeTask() {
@@ -900,7 +896,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
     Stats::stopEvent("read SG");
   } else {
     Stats::startEvent("read/reduce SG");
-    this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
+    this->getSparseGridWorker().readDSGsFromDiskAndReduce(filenamePrefixToRead);
     Stats::stopEvent("read/reduce SG");
   }
   if (this->getSparseGridWorker().getNumberOfGrids() != 1) {
@@ -1145,57 +1141,11 @@ void ProcessGroupWorker::writeVTKPlotFilesOfAllTasks() {
 }
 
 void ProcessGroupWorker::writeDSGsToDisk(std::string filenamePrefix) {
-  for (size_t i = 0; i < this->getSparseGridWorker().getNumberOfGrids(); ++i) {
-    auto filename = filenamePrefix + "_" + std::to_string(i);
-    auto uniDsg = this->getSparseGridWorker().getCombinedUniDSGVector()[i].get();
-    auto dsgToUse = uniDsg;
-    if (this->getSparseGridWorker().getExtraUniDSGVector().size() > 0) {
-      dsgToUse = this->getSparseGridWorker().getExtraUniDSGVector()[i].get();
-      dsgToUse->copyDataFrom(*uniDsg);
-    }
-    DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);
-  }
+  this->getSparseGridWorker().writeDSGsToDisk(filenamePrefix);
 }
 
 void ProcessGroupWorker::readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG) {
-  for (size_t i = 0; i < this->getSparseGridWorker().getNumberOfGrids(); ++i) {
-    auto uniDsg = this->getSparseGridWorker().getCombinedUniDSGVector()[i].get();
-    auto dsgToUse = uniDsg;
-    if (this->getSparseGridWorker().getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
-      dsgToUse = this->getSparseGridWorker().getExtraUniDSGVector()[i].get();
-    }
-    DistributedSparseGridIO::readOneFile(*dsgToUse, filenamePrefix + "_" + std::to_string(i));
-    if (this->getSparseGridWorker().getExtraUniDSGVector().size() > 0) {
-      // copy partial data from extraDSG back to uniDSG
-      uniDsg->copyDataFrom(*dsgToUse);
-    }
-  }
-}
-
-void ProcessGroupWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToRead,
-                                                   bool alwaysReadFullDSG) {
-  for (size_t i = 0; i < this->getSparseGridWorker().getNumberOfGrids(); ++i) {
-    auto uniDsg = this->getSparseGridWorker().getCombinedUniDSGVector()[i].get();
-    auto dsgToUse = uniDsg;
-    if (this->getSparseGridWorker().getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
-      dsgToUse = this->getSparseGridWorker().getExtraUniDSGVector()[i].get();
-    }
-    // assume that at least for four process groups, we should have enough spare RAM
-    // to read all of the sparse grid at once
-    // if fewer, chunk the read/reduce
-    int numberReduceChunks = 1;
-    if (theMPISystem()->getNumGroups() == 1) {
-      numberReduceChunks = 4;
-    } else if (theMPISystem()->getNumGroups() < 4) {
-      numberReduceChunks = 2;
-    }
-    DistributedSparseGridIO::readOneFileAndReduce(
-        *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), numberReduceChunks);
-    if (this->getSparseGridWorker().getExtraUniDSGVector().size() > 0) {
-      // copy partial data from extraDSG back to uniDSG
-      uniDsg->copyDataFrom(*dsgToUse);
-    }
-  }
+  this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, alwaysReadFullDSG);
 }
 
 } /* namespace combigrid */

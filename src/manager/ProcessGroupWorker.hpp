@@ -79,8 +79,6 @@ class ProcessGroupWorker {
   /** read extra SGs from disk (binary w/ MPI-IO) */
   void readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG = false);
 
-  void readDSGsFromDiskAndReduce(std::string filenamePrefixToRead, bool alwaysReadFullDSG = false);
-
   void setCombiParameters(const CombiParameters& combiParameters);
 
   /** update combination parameters (for init or after change in FTCT) */

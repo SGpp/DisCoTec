@@ -4,6 +4,7 @@
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "manager/TaskWorker.hpp"
 #include "mpi/MPISystem.hpp"
+#include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 
 namespace combigrid {
@@ -46,7 +47,16 @@ class SparseGridWorker {
   inline void reduceUniformSG(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
   inline void setExtraSparseGrid(bool initializeSizes = true);
-  
+
+  inline void writeDSGsToDisk(std::string filenamePrefix);
+
+  inline void readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG = false);
+
+  inline void readDSGsFromDiskAndReduce(std::string filenamePrefixToRead,
+                                        bool alwaysReadFullDSG = false);
+
+  inline void writeMinMaxCoefficients(std::string fileNamePrefix) const;
+
   inline void zeroDsgsData();
 
  private:
@@ -205,9 +215,70 @@ inline void SparseGridWorker::setExtraSparseGrid(bool initializeSizes) {
   }
 }
 
+inline void SparseGridWorker::writeMinMaxCoefficients(std::string fileNamePrefix) const {
+  for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
+    DistributedSparseGridIO::writeMinMaxCoefficents(*(this->getCombinedUniDSGVector()[i]),
+                                                    fileNamePrefix, i);
+  }
+}
+
 inline void SparseGridWorker::zeroDsgsData() {
   for (auto& dsg : this->getCombinedUniDSGVector()) dsg->setZero();
   for (auto& dsg : this->getExtraUniDSGVector()) dsg->setZero();
+}
+
+inline void SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix) {
+  for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
+    auto filename = filenamePrefix + "_" + std::to_string(i);
+    auto uniDsg = this->getCombinedUniDSGVector()[i].get();
+    auto dsgToUse = uniDsg;
+    if (this->getExtraUniDSGVector().size() > 0) {
+      dsgToUse = this->getExtraUniDSGVector()[i].get();
+      dsgToUse->copyDataFrom(*uniDsg);
+    }
+    DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);
+  }
+}
+
+inline void SparseGridWorker::readDSGsFromDisk(std::string filenamePrefix, bool alwaysReadFullDSG) {
+  for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
+    auto uniDsg = this->getCombinedUniDSGVector()[i].get();
+    auto dsgToUse = uniDsg;
+    if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
+      dsgToUse = this->getExtraUniDSGVector()[i].get();
+    }
+    DistributedSparseGridIO::readOneFile(*dsgToUse, filenamePrefix + "_" + std::to_string(i));
+    if (this->getExtraUniDSGVector().size() > 0) {
+      // copy partial data from extraDSG back to uniDSG
+      uniDsg->copyDataFrom(*dsgToUse);
+    }
+  }
+}
+
+inline void SparseGridWorker::readDSGsFromDiskAndReduce(std::string filenamePrefixToRead,
+                                                        bool alwaysReadFullDSG) {
+  for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
+    auto uniDsg = this->getCombinedUniDSGVector()[i].get();
+    auto dsgToUse = uniDsg;
+    if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
+      dsgToUse = this->getExtraUniDSGVector()[i].get();
+    }
+    // assume that at least for four process groups, we should have enough spare RAM
+    // to read all of the sparse grid at once
+    // if fewer, chunk the read/reduce
+    int numberReduceChunks = 1;
+    if (theMPISystem()->getNumGroups() == 1) {
+      numberReduceChunks = 4;
+    } else if (theMPISystem()->getNumGroups() < 4) {
+      numberReduceChunks = 2;
+    }
+    DistributedSparseGridIO::readOneFileAndReduce(
+        *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), numberReduceChunks);
+    if (this->getExtraUniDSGVector().size() > 0) {
+      // copy partial data from extraDSG back to uniDSG
+      uniDsg->copyDataFrom(*dsgToUse);
+    }
+  }
 }
 
 } /* namespace combigrid */
