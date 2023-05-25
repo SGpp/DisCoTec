@@ -51,6 +51,10 @@ class SparseGridWorker {
                                        const LevelVector& reduceLmaxByVector, int numGrids,
                                        bool clearLevels = false);
 
+  inline void integrateCombinedSolutionToTasks(
+      const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
+      const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin);
+
   inline void interpolateAndPlotOnLevel(
       const std::string& filename, const LevelVector& levelToEvaluate,
       const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
@@ -244,6 +248,20 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
   for (auto& uniDSG : combinedUniDSGVector_) {
     CombiCom::reduceSubspaceSizes(*uniDSG, globalReduceComm);
   }
+}
+
+inline void SparseGridWorker::integrateCombinedSolutionToTasks(
+    const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
+    const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin) {
+  for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+    for (int g = 0; g < this->getNumberOfGrids(); ++g) {
+      // fill dfg with hierarchical coefficients from distributed sparse grid
+      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(
+          *this->getCombinedUniDSGVector()[g]);
+    }
+  }
+  this->taskWorkerRef_.dehierarchizeFullGrids(boundary, hierarchizationDims, hierarchicalBases,
+                                              lmin);
 }
 
 // cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c

@@ -506,7 +506,7 @@ void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatColl
 void ProcessGroupWorker::combineUniform() {
   Stats::startEvent("combine");
   combineLocalAndGlobal();
-  integrateCombinedSolution();
+  updateFullFromCombinedSparseGrids();
   Stats::stopEvent("combine");
 }
 
@@ -715,19 +715,9 @@ void ProcessGroupWorker::updateCombiParameters() {
   this->setCombiParameters(combiParametersReceived);
 }
 
-void ProcessGroupWorker::integrateCombinedSolution() {
-  auto numGrids = static_cast<int>(combiParameters_.getNumGrids());
-  Stats::startEvent("extract");
-  for (const auto& taskToUpdate : this->getTaskWorker().getTasks()) {
-    for (int g = 0; g < numGrids; g++) {
-      // fill dfg with hierarchical coefficients from distributed sparse grid
-      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(
-          *this->getSparseGridWorker().getCombinedUniDSGVector()[g]);
-    }
-  }
-  Stats::stopEvent("extract");
+void ProcessGroupWorker::updateFullFromCombinedSparseGrids() {
   Stats::startEvent("dehierarchize");
-  this->getTaskWorker().dehierarchizeFullGrids(
+  this->getSparseGridWorker().integrateCombinedSolutionToTasks(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
       combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
   Stats::stopEvent("dehierarchize");
@@ -781,7 +771,7 @@ void ProcessGroupWorker::combineThirdLevel() {
     requests.push_back(request);
   }
   // update fgs
-  integrateCombinedSolution();
+  updateFullFromCombinedSparseGrids();
 
   // wait for bcasts to other pgs in globalReduceComm
   Stats::startEvent("wait for bcasts");
@@ -825,7 +815,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(std::string filena
   overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
 
   // update fgs
-  integrateCombinedSolution();
+  updateFullFromCombinedSparseGrids();
 
   // remove reading token
   MASTER_EXCLUSIVE_SECTION {
@@ -944,7 +934,7 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   }
   Stats::stopEvent("wait for bcasts");
 
-  integrateCombinedSolution();
+  updateFullFromCombinedSparseGrids();
 }
 
 void ProcessGroupWorker::zeroDsgsData() {

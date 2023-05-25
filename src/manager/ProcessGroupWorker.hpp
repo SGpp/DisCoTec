@@ -33,7 +33,7 @@ class ProcessGroupWorker {
   void initCombinedUniDSGVector();
 
   /** extracts and dehierarchizes */
-  void integrateCombinedSolution();
+  void updateFullFromCombinedSparseGrids();
 
   /** combine on sparse grid with uniform decomposition of domain */
   void combineUniform();
