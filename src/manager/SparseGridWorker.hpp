@@ -7,7 +7,6 @@
 #include "mpi/MPISystem.hpp"
 #include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
-#include "vtk/DFGPlotFileWriter.hpp"
 
 namespace combigrid {
 
@@ -82,8 +81,6 @@ class SparseGridWorker {
   inline void writeMinMaxCoefficients(std::string fileNamePrefix) const;
 
   inline void writeSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
-
-  inline void writeVTKPlotFilesOfAllTasks() const;
 
   inline void zeroDsgsData();
 
@@ -512,21 +509,6 @@ inline void SparseGridWorker::writeSubspaceSizesToFile(
     const std::string& filenamePrefixToWrite) const {
   DistributedSparseGridIO::writeSubspaceSizesToFile(*this->getCombinedUniDSGVector()[0],
                                                     filenamePrefixToWrite);
-}
-
-inline void SparseGridWorker::writeVTKPlotFilesOfAllTasks() const {
-  for (const auto& task : this->taskWorkerRef_.getTasks()) {
-#ifdef USE_VTK
-    for (int g = 0; g < this->getNumberOfGrids(); ++g) {
-      DistributedFullGrid<CombiDataType>& dfg = task->getDistributedFullGrid(g);
-      DFGPlotFileWriter<CombiDataType> writer{dfg, g};
-      writer.writePlotFile();
-    }
-#else
-    std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK."
-              << std::endl;
-#endif /* USE_VTK */
-  }
 }
 
 inline void SparseGridWorker::zeroDsgsData() {

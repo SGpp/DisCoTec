@@ -58,7 +58,7 @@ class ProcessGroupWorker {
 
   /** interpolate values on all tasks' component grids and write results to file */
   void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords,
-                                      std::string fileNamePrefix) const;
+                                      const std::string& fileNamePrefix) const;
 
   void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords,
                                          const std::string& filenamePrefix) const;

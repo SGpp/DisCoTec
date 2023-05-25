@@ -22,8 +22,6 @@ class TaskWorker {
 
   inline void deleteTasks();
 
-  inline real getCurrentTime() const;
-
   inline std::unique_ptr<Task>& getLastTask();
 
   inline std::vector<double> getLpNorms(int p) const;
@@ -68,12 +66,6 @@ inline void TaskWorker::dehierarchizeFullGrids(
 }
 
 inline void TaskWorker::deleteTasks() { tasks_.clear(); }
-
-inline combigrid::real TaskWorker::getCurrentTime() const {
-  assert(!tasks_.empty());
-  assert(tasks_.front()->getCurrentTime() >= 0.0);
-  return tasks_.front()->getCurrentTime();
-}
 
 inline std::unique_ptr<Task>& TaskWorker::getLastTask() {
   assert(!this->tasks_.empty());

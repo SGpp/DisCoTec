@@ -1,6 +1,7 @@
 #include "manager/ProcessGroupWorker.hpp"
 
 #include "combicom/CombiCom.hpp"
+#include "manager/InterpolationWorker.hpp"
 #include "manager/ProcessGroupSignals.hpp"
 #include "mpi/MPIUtils.hpp"
 #include "loadmodel/LearningLoadModel.hpp"
@@ -246,7 +247,8 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case WRITE_DFGS_TO_VTK: {
       Stats::startEvent("write vtk all tasks");
-      this->getSparseGridWorker().writeVTKPlotFilesOfAllTasks();
+      combigrid::writeVTKPlotFilesOfAllTasks(this->getTaskWorker().getTasks(),
+                                             combiParameters_.getNumGrids());
       Stats::stopEvent("write vtk all tasks");
     } break;
     case WRITE_DSGS_TO_DISK: {
@@ -551,59 +553,16 @@ void ProcessGroupWorker::doDiagnostics() {
 std::vector<CombiDataType> ProcessGroupWorker::interpolateValues(
     const std::vector<std::vector<real>>& interpolationCoords) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-  auto numCoordinates = interpolationCoords.size();
-
-  // call interpolation function on tasks and reduce with combination coefficient
-  std::vector<CombiDataType> values(numCoordinates, 0.);
-  std::vector<CombiDataType> kahanTrailingTerm(numCoordinates, 0.);
-
-  for (const auto& t : this->getTaskWorker().getTasks()) {
-    const auto coeff = t->getCoefficient();
-    for (size_t i = 0; i < numCoordinates; ++i) {
-      auto localValue = t->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
-      auto summand = localValue * coeff;
-      // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
-      volatile auto y = summand - kahanTrailingTerm[i];
-      volatile auto t = values[i] + y;
-      kahanTrailingTerm[i] = (t - values[i]) - y;
-      values[i] = t;
-    }
-  }
-  // reduce interpolated values within process group
-  MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
-                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
-                MPI_SUM, theMPISystem()->getLocalComm());
-  // TODO is it necessary to correct for the kahan terms across process groups too?
-  //  need to reduce across process groups too
-  //  these do not strictly need to be allreduce (could be reduce), but it is easier to maintain
-  //  that way (all processes end up with valid values)
-  MPI_Allreduce(MPI_IN_PLACE, values.data(), static_cast<int>(numCoordinates),
-                abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
-                MPI_SUM, theMPISystem()->getGlobalReduceComm());
-
-  // hope for RVO or change
-  return values;
+  return combigrid::interpolateValues<CombiDataType>(this->getTaskWorker().getTasks(),
+                                                     interpolationCoords);
 }
 
 void ProcessGroupWorker::writeInterpolatedValuesPerGrid(
-    const std::vector<std::vector<real>>& interpolationCoords, std::string fileNamePrefix) const {
+    const std::vector<std::vector<real>>& interpolationCoords,
+    const std::string& fileNamePrefix) const {
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-  // call interpolation function on tasks and write out task-wise
-  for (size_t i = 0; i < this->getTaskWorker().getTasks().size(); ++i) {
-    auto taskVals =
-        this->getTaskWorker().getTasks()[i]->getDistributedFullGrid().getInterpolatedValues(
-            interpolationCoords);
-    // cycle through ranks to write
-    if (i % (theMPISystem()->getNumProcs()) == theMPISystem()->getLocalRank()) {
-      std::string saveFilePath = fileNamePrefix + "_task_" +
-                                 std::to_string(this->getTaskWorker().getTasks()[i]->getID()) +
-                                 ".h5";
-      std::string groupName = "run_";
-      std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
-      h5io::writeValuesToH5File(taskVals, saveFilePath, groupName, datasetName,
-                                this->getTaskWorker().getTasks()[i]->getCurrentTime());
-    }
-  }
+  combigrid::writeInterpolatedValuesPerGrid(this->getTaskWorker().getTasks(), interpolationCoords,
+                                            fileNamePrefix, currentCombi_);
 }
 
 void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
@@ -611,20 +570,8 @@ void ProcessGroupWorker::writeInterpolatedValuesSingleFile(
     const std::string& filenamePrefix) const {
   // all processes interpolate
   assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
-  auto values = interpolateValues(interpolationCoords);
-  // one process writes
-  OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
-    MASTER_EXCLUSIVE_SECTION {
-      std::string groupName = "all_grids";
-      std::string datasetName = "interpolated_" + std::to_string(currentCombi_);
-      assert(currentCombi_ >= 0);
-      assert(values.size() > 0);
-      assert(valuesWriteFilename.size() > 0);
-      h5io::writeValuesToH5File(
-          values, filenamePrefix + +"_values_" + std::to_string(currentCombi_) + ".h5", groupName,
-          datasetName, this->getTaskWorker().getCurrentTime());
-    }
-  }
+  combigrid::writeInterpolatedValuesSingleFile<CombiDataType>(
+      this->getTaskWorker().getTasks(), interpolationCoords, filenamePrefix, currentCombi_);
 }
 
 void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNamePrefix) const {
