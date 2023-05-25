@@ -151,7 +151,7 @@ int main(int argc, char** argv) {
   worker.initializeAllTasks<TaskAdvection>(levels, coeffs, taskNumbers, loadmodel.get(), dt, nsteps,
                                            p);
 
-  worker.initCombinedUniDSGVector();
+  worker.initCombinedDSGVector();
 
   auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {
       std::cout << getTimeStamp() << "worker: set sparse grid sizes, will allocate "
-                << static_cast<real>(worker.getCombinedUniDSGVector()[0]->getAccumulatedDataSize() *
+                << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
                                      sizeof(CombiDataType)) /
                        1e6
                 << " MB" << std::endl;

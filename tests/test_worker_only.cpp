@@ -118,7 +118,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   worker.initializeAllTasks<TaskCount>(myLevels, myCoeffs, myTaskIDs, loadmodel.get());
 
   BOOST_TEST_CHECKPOINT("initialize sparse grid");
-  worker.initCombinedUniDSGVector();
+  worker.initCombinedDSGVector();
   if (pretendThirdLevel) {
     std::string subspaceSizeFile = "worker_only_subspace_sizes";
     std::string subspaceSizeFileToken = "worker_only_subspace_sizes_token.txt";

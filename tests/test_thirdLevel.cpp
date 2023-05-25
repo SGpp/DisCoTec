@@ -367,7 +367,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       }
       if (signal == REDUCE_SUBSPACE_SIZES_TL) {
         std::cout << "reduce ";
-        for (auto& dsg : pgroup.getCombinedUniDSGVector()) {
+        for (auto& dsg : pgroup.getCombinedDSGVector()) {
           for (size_t size : dsg->getSubspaceDataSizes()) {
             std::cout << size << " ";
           }
@@ -376,7 +376,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       }
       if (signal == REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG) {
         std::cout << "reduce extra ";
-        for (auto& dsg : pgroup.getExtraUniDSGVector()) {
+        for (auto& dsg : pgroup.getExtraDSGVector()) {
           for (size_t size : dsg->getSubspaceDataSizes()) {
             std::cout << size << " ";
           }
@@ -385,7 +385,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
       }
       if(signal == INIT_DSGUS){
         std::cout << "INIT DSGUS ";
-        for (auto& dsg : pgroup.getCombinedUniDSGVector()) {
+        for (auto& dsg : pgroup.getCombinedDSGVector()) {
           for (size_t size : dsg->getSubspaceDataSizes()) {
             std::cout << size << " ";
           }
@@ -619,7 +619,7 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
   worker.initializeAllTasks<TaskConstParaboloid>(levels, coeffs, taskNumbers, loadmodel.get());
 
   BOOST_TEST_CHECKPOINT("initialize sparse grid");
-  worker.initCombinedUniDSGVector();
+  worker.initCombinedDSGVector();
   std::string writeSubspaceSizeFile = "worker_subspace_sizes_" + std::to_string(testParams.sysNum);
   std::string writeSubspaceSizeFileToken = writeSubspaceSizeFile + "_token.txt";
   std::string readSubspaceSizeFile =
@@ -641,13 +641,13 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
   // now
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     if (thirdLevelExtraSparseGrid) {
-      for (auto& dsg : worker.getExtraUniDSGVector()) {
+      for (auto& dsg : worker.getExtraDSGVector()) {
         for (size_t size : dsg->getSubspaceDataSizes()) {
           std::cout << size << " ";
         }
       }
     } else {
-      for (auto& dsg : worker.getCombinedUniDSGVector()) {
+      for (auto& dsg : worker.getCombinedDSGVector()) {
         for (size_t size : dsg->getSubspaceDataSizes()) {
           std::cout << size << " ";
         }
@@ -659,18 +659,18 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       // make sure the first few subspaces are populated
       // (minus the first three, which may be 0 depending on boundary condition and decomposition)
-      for (auto& dsg : worker.getExtraUniDSGVector()) {
+      for (auto& dsg : worker.getExtraDSGVector()) {
         for (size_t i = 3; i < 6; ++i) {
           BOOST_CHECK_GT(dsg->getSubspaceDataSizes()[i], 0);
         }
       }
     }
     else {
-      BOOST_CHECK_EQUAL(worker.getExtraUniDSGVector().size(), 0);
+      BOOST_CHECK_EQUAL(worker.getExtraDSGVector().size(), 0);
     }
   } else {
     // make sure all subspaces are populated on every rank
-    for (auto& dsg : worker.getCombinedUniDSGVector()) {
+    for (auto& dsg : worker.getCombinedDSGVector()) {
       for (size_t size : dsg->getSubspaceDataSizes()) {
         BOOST_CHECK_GT(size, 0);
       }

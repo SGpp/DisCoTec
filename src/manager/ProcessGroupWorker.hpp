@@ -30,7 +30,7 @@ class ProcessGroupWorker {
 
   /** initializes all subspace sizes in the dsgu according to the dfgs in the
    * global reduce comm*/
-  void initCombinedUniDSGVector();
+  void initCombinedDSGVector();
 
   /** extracts and dehierarchizes */
   void updateFullFromCombinedSparseGrids();
@@ -123,12 +123,12 @@ class ProcessGroupWorker {
   void waitForThirdLevelSizeUpdate();
 
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
-  getCombinedUniDSGVector() {
+  getCombinedDSGVector() {
     return this->getSparseGridWorker().getCombinedUniDSGVector();
   }
 
   std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
-  getExtraUniDSGVector() {
+  getExtraDSGVector() {
     return this->getSparseGridWorker().getExtraUniDSGVector();
   }
 

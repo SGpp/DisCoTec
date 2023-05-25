@@ -183,7 +183,7 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case INIT_DSGUS: {
       Stats::startEvent("initialize dsgu");
-      initCombinedUniDSGVector();
+      this->initCombinedDSGVector();
       Stats::stopEvent("initialize dsgu");
 
     } break;
@@ -471,7 +471,7 @@ void ProcessGroupWorker::exit() {
   this->getTaskWorker().deleteTasks();
 }
 
-void ProcessGroupWorker::initCombinedUniDSGVector() {
+void ProcessGroupWorker::initCombinedDSGVector() {
   assert(combiParametersSet_);
   Stats::startEvent("init dsgus");
   this->getSparseGridWorker().initCombinedUniDSGVector(
