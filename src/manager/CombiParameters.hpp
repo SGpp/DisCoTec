@@ -263,14 +263,6 @@ class CombiParameters {
 
   inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
 
-  inline CommunicatorType getApplicationComm() const {
-    assert(uniformDecomposition);
-    return theMPISystem()->getLocalComm();
-    // assert( uniformDecomposition && applicationCommSet_ );
-
-    // return applicationComm_;
-  }
-
   inline const std::string& getThirdLevelHost() {
     return thirdLevelHost_;
   }
@@ -281,21 +273,6 @@ class CombiParameters {
 
   inline size_t getThirdLevelPG() {
     return thirdLevelPG_;
-  }
-
-  inline bool isApplicationCommSet() const {
-    return false;
-    // return applicationCommSet_;
-  }
-
-  inline void setApplicationComm(CommunicatorType comm) {
-    assert(uniformDecomposition);
-    return;  // outdated
-    // make sure it is set only once
-    if (applicationCommSet_ == true) return;
-
-    MPI_Comm_dup(comm, &applicationComm_);
-    applicationCommSet_ = true;
   }
 
   /* set the common parallelization
@@ -364,10 +341,6 @@ class CombiParameters {
   std::vector<BasisFunctionBasis*> hierarchicalBases_;
 
   std::vector<int> procs_;
-
-  CommunicatorType applicationComm_;
-
-  bool applicationCommSet_;
 
   std::vector<IndexVector> decomposition_;
 
