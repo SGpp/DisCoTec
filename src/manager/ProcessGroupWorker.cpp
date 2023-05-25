@@ -469,9 +469,11 @@ void ProcessGroupWorker::exit() {
 
 void ProcessGroupWorker::initCombinedUniDSGVector() {
   assert(combiParametersSet_);
+  Stats::startEvent("init dsgus");
   this->getSparseGridWorker().initCombinedUniDSGVector(
       combiParameters_.getLMin(), combiParameters_.getLMax(),
       combiParameters_.getLMaxReductionVector(), combiParameters_.getNumGrids());
+  Stats::stopEvent("init dsgus");
 }
 
 void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatCollects) {

@@ -191,10 +191,10 @@ int main(int argc, char** argv) {
                                            p);
 
   worker.initCombinedUniDSGVector();
-  auto durationInit = Stats::getDuration("register dsgus") / 1000.0;
+  auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-      << getTimeStamp() << "worker: initialized SG, registration was " << durationInit << " seconds"
-      << std::endl;
+      << getTimeStamp() << "worker: initialized SG, registration was " << durationInitSG
+      << " seconds" << std::endl;
 
   // read (extra) sparse grid sizes, as generated with subspace_writer
   // for target scenarios, consider `wget https://darus.uni-stuttgart.de/api/access/datafile/195543`

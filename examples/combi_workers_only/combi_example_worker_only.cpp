@@ -153,10 +153,10 @@ int main(int argc, char** argv) {
 
   worker.initCombinedUniDSGVector();
 
-  auto durationInit = Stats::getDuration("register dsgus") / 1000.0;
+  auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-      << getTimeStamp() << "worker: initialized SG, registration was " << durationInit << " seconds"
-      << std::endl;
+      << getTimeStamp() << "worker: initialized SG, registration was " << durationInitSG
+      << " seconds" << std::endl;
 
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {

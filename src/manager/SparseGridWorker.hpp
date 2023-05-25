@@ -146,9 +146,6 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
         new DistributedSparseGridUniform<CombiDataType>(static_cast<DimType>(lmax.size()), lmax,
                                                         lmin, theMPISystem()->getLocalComm())));
   }
-
-  // register dsgs in all dfgs
-  Stats::startEvent("register dsgus");
   for (size_t g = 0; g < combinedUniDSGVector_.size(); ++g) {
     for (const auto& t : this->taskWorkerRef_.getTasks()) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(static_cast<int>(g));
@@ -166,7 +163,6 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
     // process group
     combinedUniDSGVector_[g]->createKahanBuffer();
   }
-  Stats::stopEvent("register dsgus");
 
   // global reduce of subspace sizes
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
