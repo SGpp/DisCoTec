@@ -528,7 +528,8 @@ void ProcessGroupWorker::parallelEvalUniform(const std::string& filename,
                                                                combiParameters_.getBoundary());
   this->getSparseGridWorker().interpolateAndPlotOnLevel(
       filename, leval, combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
-      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin(), levalDecomposition);
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin(),
+      combiParameters_.getParallelization(), levalDecomposition);
 }
 
 std::vector<double> ProcessGroupWorker::getLpNorms(int p) const {

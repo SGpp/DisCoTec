@@ -51,13 +51,11 @@ class SparseGridWorker {
                                        const LevelVector& reduceLmaxByVector, int numGrids,
                                        bool clearLevels = false);
 
-  inline void interpolateAndPlotOnLevel(const std::string& filename,
-                                        const LevelVector& levelToEvaluate,
-                                        const std::vector<BoundaryType>& boundary,
-                                        const std::vector<bool>& hierarchizationDims,
-                                        const std::vector<BasisFunctionBasis*>& hierarchicalBases,
-                                        const LevelVector& lmin,
-                                        const std::vector<LevelVector>& decomposition) const;
+  inline void interpolateAndPlotOnLevel(
+      const std::string& filename, const LevelVector& levelToEvaluate,
+      const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
+      const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin,
+      const std::vector<int>& parallelization, const std::vector<LevelVector>& decomposition) const;
 
   inline void readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
 
@@ -258,12 +256,8 @@ inline void SparseGridWorker::interpolateAndPlotOnLevel(
     const std::string& filename, const LevelVector& levelToEvaluate,
     const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
     const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin,
-    const std::vector<IndexVector>& decomposition) const {
+    const std::vector<int>& parallelization, const std::vector<IndexVector>& decomposition) const {
   assert(levelToEvaluate.size() == decomposition.size());
-  auto parallelization = std::vector<int>(decomposition.size());
-  for (size_t i = 0; i < decomposition.size(); ++i) {
-    parallelization[i] = static_cast<int>(decomposition[i].size());
-  }
   // create dfg
   OwningDistributedFullGrid<CombiDataType> dfg(static_cast<DimType>(levelToEvaluate.size()),
                                                levelToEvaluate, theMPISystem()->getLocalComm(),
