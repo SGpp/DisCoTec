@@ -11,7 +11,6 @@ template <typename CombinableType>
 static std::vector<CombinableType> interpolateValues(
     const std::vector<std::unique_ptr<Task>>& tasks,
     const std::vector<std::vector<real>>& interpolationCoords) {
-  assert(combiParameters_.getNumGrids() == 1 && "interpolate only implemented for 1 species!");
   auto numCoordinates = interpolationCoords.size();
 
   // call interpolation function on tasks and reduce with combination coefficient
@@ -75,14 +74,14 @@ static void writeInterpolatedValuesSingleFile(
   // one process writes
   OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {
-      std::string groupName = "all_grids";
-      std::string datasetName = "interpolated_" + std::to_string(currentCombinationStep);
       assert(currentCombinationStep >= 0);
       assert(values.size() > 0);
-      assert(valuesWriteFilename.size() > 0);
-      h5io::writeValuesToH5File(
-          values, filenamePrefix + +"_values_" + std::to_string(currentCombinationStep) + ".h5",
-          groupName, datasetName, tasks.front()->getCurrentTime());
+      std::string groupName = "all_grids";
+      std::string datasetName = "interpolated_" + std::to_string(currentCombinationStep);
+      std::string valuesWriteFilename =
+          filenamePrefix + "_values_" + std::to_string(currentCombinationStep) + ".h5";
+      h5io::writeValuesToH5File(values, valuesWriteFilename, groupName, datasetName,
+                                tasks.front()->getCurrentTime());
     }
   }
 }
