@@ -44,6 +44,19 @@ void sendNormsToManager(const std::vector<double> lpnorms) {
   }
 }
 
+SignalType receiveSignalFromManagerAndBroadcast() {
+  SignalType signal = -1;
+
+  MASTER_EXCLUSIVE_SECTION {
+    // receive signal from manager
+    MPI_Recv(&signal, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_SIGNAL_TAG,
+             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+  }
+  // distribute signal to other processes of pgroup
+  MPI_Bcast(&signal, 1, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  return signal;
+}
+
 LevelVector receiveLevalAndBroadcast(DimType dim) {
   // receive leval and broadcast to group members
   std::vector<int> tmp(dim);
@@ -129,18 +142,8 @@ SignalType ProcessGroupWorker::wait() {
   if (status_ == PROCESS_GROUP_FAIL) {  // in this case worker got reused
     status_ = PROCESS_GROUP_WAIT;
   }
-  if (status_ != PROCESS_GROUP_WAIT) {
-    return RUN_NEXT;
-  }
-  SignalType signal = -1;
 
-  MASTER_EXCLUSIVE_SECTION {
-    // receive signal from manager
-    MPI_Recv(&signal, 1, MPI_INT, theMPISystem()->getManagerRank(), TRANSFER_SIGNAL_TAG,
-             theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
-  }
-  // distribute signal to other processes of pgroup
-  MPI_Bcast(&signal, 1, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  SignalType signal = receiveSignalFromManagerAndBroadcast();
   // process signal
   switch (signal) {
     case RUN_FIRST: {
@@ -504,15 +507,12 @@ void ProcessGroupWorker::combineUniform() {
 }
 
 void ProcessGroupWorker::parallelEval() {
-  if (uniformDecomposition)
-    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(), receiveLevalAndBroadcast(combiParameters_.getDim()));
-  else
+  if (uniformDecomposition) {
+    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(),
+                        receiveLevalAndBroadcast(combiParameters_.getDim()));
+  } else {
     throw std::runtime_error("parallelEval not implemented for non-uniform decomposition");
-}
-// cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
-static bool endsWith(const std::string& str, const std::string& suffix) {
-  return str.size() >= suffix.size() &&
-         0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
+  }
 }
 
 void ProcessGroupWorker::fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg,
@@ -543,6 +543,12 @@ void ProcessGroupWorker::fillDFGFromDSGU(Task& t) {
     assert(this->getSparseGridWorker().getCombinedUniDSGVector()[g] != nullptr);
     this->fillDFGFromDSGU(t.getDistributedFullGrid(g), g);
   }
+}
+
+// cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
+static bool endsWith(const std::string& str, const std::string& suffix) {
+  return str.size() >= suffix.size() &&
+         0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
 }
 
 void ProcessGroupWorker::parallelEvalUniform(std::string filename, LevelVector leval) {
@@ -699,12 +705,10 @@ void ProcessGroupWorker::writeSparseGridMinMaxCoefficients(std::string fileNameP
 
 void ProcessGroupWorker::receiveAndInitializeTask() {
   Task* t;
-
   // local root receives task
   MASTER_EXCLUSIVE_SECTION {
     Task::receive(&t, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
   }
-
   // broadcast task to other process of pgroup
   Task::broadcast(&t, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
 
@@ -768,6 +772,7 @@ void ProcessGroupWorker::updateCombiParameters() {
 
 void ProcessGroupWorker::integrateCombinedSolution() {
   auto numGrids = static_cast<int>(combiParameters_.getNumGrids());
+  Stats::startEvent("extract");
   for (const auto& taskToUpdate : this->getTaskWorker().getTasks()) {
     for (int g = 0; g < numGrids; g++) {
       // fill dfg with hierarchical coefficients from distributed sparse grid
@@ -775,6 +780,7 @@ void ProcessGroupWorker::integrateCombinedSolution() {
           *this->getSparseGridWorker().getCombinedUniDSGVector()[g]);
     }
   }
+  Stats::stopEvent("extract");
   Stats::startEvent("dehierarchize");
   this->getTaskWorker().dehierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
@@ -934,9 +940,11 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
   CommunicatorType thirdLevelComm = theMPISystem()->getThirdLevelComms()[0];
   RankType thirdLevelManagerRank = theMPISystem()->getThirdLevelManagerRank();
   for (size_t i = 0; i < uniDSGVectorToSet->size(); ++i) {
-    CombiCom::sendSubspaceSizesWithGather(*this->getSparseGridWorker().getCombinedUniDSGVector()[i], thirdLevelComm, thirdLevelManagerRank);
+    CombiCom::sendSubspaceSizesWithGather(*this->getSparseGridWorker().getCombinedUniDSGVector()[i],
+                                          thirdLevelComm, thirdLevelManagerRank);
     // set updated sizes in dsgs
-    CombiCom::receiveSubspaceSizesWithScatter(*(*uniDSGVectorToSet)[i], thirdLevelComm, thirdLevelManagerRank);
+    CombiCom::receiveSubspaceSizesWithScatter(*(*uniDSGVectorToSet)[i], thirdLevelComm,
+                                              thirdLevelManagerRank);
   }
 
   if (!thirdLevelExtraSparseGrid) {
