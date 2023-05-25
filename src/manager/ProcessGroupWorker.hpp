@@ -186,9 +186,6 @@ class ProcessGroupWorker {
   /** the pg writes the dfg of all tasks into individual vtk files */
   void writeVTKPlotFilesOfAllTasks();
 
-  /** helper functions for parallelEval and norm calculations*/
-  LevelVector receiveLevalAndBroadcast();
-
   /**
    * @brief copy the sparse grid data into the full grid and dehierarchize
    *

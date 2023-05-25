@@ -35,7 +35,6 @@ std::string receiveStringFromManagerAndBroadcastToGroup() {
 }
 
 void sendNormsToManager(const std::vector<double> lpnorms) {
-  // get Lp norm on every worker; reduce through dfg function
   for (int p = 0; p < lpnorms.size(); ++p) {
     // send from master to manager
     MASTER_EXCLUSIVE_SECTION {
@@ -43,6 +42,19 @@ void sendNormsToManager(const std::vector<double> lpnorms) {
                theMPISystem()->getGlobalComm());
     }
   }
+}
+
+LevelVector receiveLevalAndBroadcast(DimType dim) {
+  // receive leval and broadcast to group members
+  std::vector<int> tmp(dim);
+  MASTER_EXCLUSIVE_SECTION {
+    MPI_Recv(&tmp[0], static_cast<int>(dim), MPI_INT, theMPISystem()->getManagerRank(),
+             TRANSFER_LEVAL_TAG, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
+  }
+
+  MPI_Bcast(&tmp[0], dim, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  LevelVector leval(tmp.begin(), tmp.end());
+  return leval;
 }
 
 std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType dim) {
@@ -112,21 +124,6 @@ ProcessGroupWorker::ProcessGroupWorker()
       currentCombi_(0) {}
 
 ProcessGroupWorker::~ProcessGroupWorker() {}
-
-LevelVector ProcessGroupWorker::receiveLevalAndBroadcast() {
-  const auto dim = combiParameters_.getDim();
-
-  // receive leval and broadcast to group members
-  std::vector<int> tmp(dim);
-  MASTER_EXCLUSIVE_SECTION {
-    MPI_Recv(&tmp[0], static_cast<int>(dim), MPI_INT, theMPISystem()->getManagerRank(),
-             TRANSFER_LEVAL_TAG, theMPISystem()->getGlobalComm(), MPI_STATUS_IGNORE);
-  }
-
-  MPI_Bcast(&tmp[0], dim, MPI_INT, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
-  LevelVector leval(tmp.begin(), tmp.end());
-  return leval;
-}
 
 SignalType ProcessGroupWorker::wait() {
   if (status_ == PROCESS_GROUP_FAIL) {  // in this case worker got reused
@@ -508,7 +505,7 @@ void ProcessGroupWorker::combineUniform() {
 
 void ProcessGroupWorker::parallelEval() {
   if (uniformDecomposition)
-    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(), receiveLevalAndBroadcast());
+    parallelEvalUniform(receiveStringFromManagerAndBroadcastToGroup(), receiveLevalAndBroadcast(combiParameters_.getDim()));
   else
     throw std::runtime_error("parallelEval not implemented for non-uniform decomposition");
 }
