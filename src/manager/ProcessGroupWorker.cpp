@@ -715,8 +715,8 @@ void registerAllSubspacesInDSGU(DistributedSparseGridUniform<CombiDataType>& dsg
       const auto& boundary = combiParameters.getBoundary();
       auto dfgDecomposition = combigrid::downsampleDecomposition(
           combiParameters.getDecomposition(), combiParameters.getLMax(), level, boundary);
-      auto uniDFG = std::unique_ptr<DistributedFullGrid<CombiDataType>>(
-          new DistributedFullGrid<CombiDataType>(
+      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<CombiDataType>>(
+          new OwningDistributedFullGrid<CombiDataType>(
               combiParameters.getDim(), level, dsgu.getCommunicator(), boundary,
               combiParameters.getParallelization(), false, dfgDecomposition));
       dsgu.registerDistributedFullGrid(*uniDFG);
@@ -934,7 +934,7 @@ void ProcessGroupWorker::parallelEvalUniform(std::string filename, LevelVector l
         combiParameters_.getDecomposition(), combiParameters_.getLMax(), leval,
         combiParameters_.getBoundary());
 
-    DistributedFullGrid<CombiDataType> dfg(
+    OwningDistributedFullGrid<CombiDataType> dfg(
         dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
         combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
     this->fillDFGFromDSGU(dfg, g);
@@ -971,7 +971,7 @@ std::vector<double> ProcessGroupWorker::parallelEvalNorm(LevelVector leval) cons
                                                                combiParameters_.getLMax(), leval,
                                                                combiParameters_.getBoundary());
 
-  DistributedFullGrid<CombiDataType> dfg(
+  OwningDistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
@@ -991,7 +991,7 @@ std::vector<double> ProcessGroupWorker::evalAnalyticalOnDFG(LevelVector leval) c
                                                                combiParameters_.getLMax(), leval,
                                                                combiParameters_.getBoundary());
 
-  DistributedFullGrid<CombiDataType> dfg(
+  OwningDistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 
@@ -1017,7 +1017,7 @@ std::vector<double> ProcessGroupWorker::evalErrorOnDFG(LevelVector leval) const 
                                                                combiParameters_.getLMax(), leval,
                                                                combiParameters_.getBoundary());
 
-  DistributedFullGrid<CombiDataType> dfg(
+  OwningDistributedFullGrid<CombiDataType> dfg(
       dim, leval, theMPISystem()->getLocalComm(), combiParameters_.getBoundary(),
       combiParameters_.getParallelization(), forwardDecomposition, levalDecomposition);
 

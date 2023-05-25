@@ -57,8 +57,8 @@ class TaskAdvection : public Task {
     const LevelVector& l = this->getLevelVector();
 
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_, false,
-                                                  decomposition);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p_,
+                                                        false, decomposition);
     if (phi_ == nullptr) {
       phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
     }
@@ -104,7 +104,7 @@ class TaskAdvection : public Task {
       // compute the gradient in the original dfg_, then update into phi_ and
       // swap at the end of each time step
       auto& u_dot_dphi = *phi_;
-      const auto& ElementVector = dfg_->getElementVector();
+      auto const ElementVector = dfg_->getData();
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
@@ -160,9 +160,8 @@ class TaskAdvection : public Task {
             assert(wrongNeighborLinearIndex >= 0);
             assert(wrongNeighborLinearIndex < numLocalElements);
             const CombiDataType wrongPhiNeighbor = ElementVector[wrongNeighborLinearIndex];
-            // auto wrongDPhi = (dfg_->getElementVector()[ghostIndex] - wrongPhiNeigbor) / h[d];
-            const auto dphi =
-                (wrongPhiNeighbor - phi_ghost[ghostIndex]) * oneOverH[d];
+            // auto wrongDPhi = (dfg_->getDataVector()[ghostIndex] - wrongPhiNeigbor) / h[d];
+            const auto dphi = (wrongPhiNeighbor - phi_ghost[ghostIndex]) * oneOverH[d];
             u_dot_dphi[dfgLowestLayerIteratedIndex] += velocity[d] * dphi;
           }
         }
@@ -170,7 +169,7 @@ class TaskAdvection : public Task {
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
         (*phi_)[li] = ElementVector[li] - u_dot_dphi[li] * dt_;
       }
-      phi_->swap(dfg_->getElementVector());
+      dfg_->swapDataVector(*phi_);
     }
     stepsTotal_ += nsteps_;
 
@@ -226,7 +225,7 @@ class TaskAdvection : public Task {
   // pure local variables that exist only on the worker processes
   bool initialized_;
   size_t stepsTotal_;
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_{};
   static std::vector<CombiDataType>* phi_;
 
   /**

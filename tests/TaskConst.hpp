@@ -37,24 +37,19 @@ class TaskConst : public combigrid::Task {
     //   // std::cout << decomposition[1].back() << std::endl;
     // }
 
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p, false, decomposition);
-
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    for (auto& element : elements) {
-      element = 10;
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                        getBoundary(), p, false, decomposition);
+    auto elements = dfg_->getData();
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
+      elements[i] = 10;
     }
     BOOST_CHECK(true);
   }
 
   void run(CommunicatorType lcomm) {
-
-    // std::cout << "run " << getCommRank(lcomm) << std::endl;    
-
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    for (auto& element : elements) {
-      element = getLevelVector()[0] / (double)getLevelVector()[1];
-      // std::cout << "e " << element << std::endl;
+    auto elements = dfg_->getData();
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
+      elements[i] = getLevelVector()[0] / (double)getLevelVector()[1];
     }
 
     BOOST_CHECK(dfg_);
@@ -84,7 +79,7 @@ class TaskConst : public combigrid::Task {
  private:
   friend class boost::serialization::access;
 
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
