@@ -21,6 +21,7 @@
 #include "sparsegrid/SGrid.hpp"
 #include "utils/IndexVector.hpp"
 #include "utils/LevelSetUtils.hpp"
+#include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
 #include "test_helper.hpp"
 
@@ -773,6 +774,54 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
     if (TestHelper::getRank(comm) == 0) {
       auto status = system("rm test_sg_timing");
       BOOST_CHECK_GE(status, 0);
+    }
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_anyDistributedSparseGrid) {
+  int nprocs = 9;
+  CommunicatorType comm = TestHelper::getComm(nprocs);
+  if (comm != MPI_COMM_NULL) {
+    AnyDistributedSparseGrid anyDSG(123456, MPI_COMM_SELF);
+    BOOST_CHECK_EQUAL(anyDSG.getAccumulatedDataSize(), 0);
+    BOOST_CHECK_EQUAL(anyDSG.getNumSubspaces(), 123456);
+    std::vector<real> randomNums(anyDSG.getNumSubspaces());
+    montecarlo::getNumberSequenceFromSeed(randomNums, TestHelper::getRank(comm));
+    for (size_t i = 0; i < anyDSG.getNumSubspaces(); ++i) {
+      // in 50% of cases, randomly set the data size
+      if (randomNums[i] < 0.5) {
+        anyDSG.setDataSize(i, i + 1);
+      }
+    }
+    BOOST_CHECK_GT(anyDSG.getAccumulatedDataSize(), 0);
+
+    // set the subspace map across DSGs
+    anyDSG.setSubspaceCommunicators(comm, TestHelper::getRank(comm));
+
+    const auto& subspacesByComm = anyDSG.getSubspacesByCommunicator();
+
+    BOOST_CHECK_EQUAL(subspacesByComm.size(), powerOfTwo[nprocs - 1] - 1);
+
+    // for each communicator, have an allreduce to check if the number of subspaces is the same
+    std::vector<MPI_Request> requests(subspacesByComm.size());
+    std::vector<size_t> numSubspaces{};
+    numSubspaces.reserve(subspacesByComm.size());
+    auto mapIterator = subspacesByComm.cbegin();
+    for (size_t i = 0; i < subspacesByComm.size(); ++i) {
+      auto comm = mapIterator->first;
+      numSubspaces.push_back(mapIterator->second.size());
+      MPI_Iallreduce(MPI_IN_PLACE, &numSubspaces[i], 1,
+                     abstraction::getMPIDatatype(abstraction::getabstractionDataType<size_t>()),
+                     MPI_BAND, comm, &requests[i]);
+      ++mapIterator;
+    }
+    MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+
+    // check that it is the same as before
+    mapIterator = subspacesByComm.cbegin();
+    for (size_t i = 0; i < numSubspaces.size(); ++i) {
+      BOOST_CHECK_EQUAL(numSubspaces[i], mapIterator->second.size());
+      ++mapIterator;
     }
   }
 }
