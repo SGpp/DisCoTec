@@ -111,7 +111,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
-                                        const LevelVector& lmin);
+                                        const LevelVector& lmin) const;
+  void setReductionDatatypes();
 
   DimType dim_;
 
@@ -124,6 +125,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   std::vector<FG_ELEMENT*> kahanDataBegin_;  // pointers to Kahan summation residual terms
 
   std::vector<FG_ELEMENT> kahanData_;  // Kahan summation residual terms
+
+  std::map<CommunicatorType, MPI_Datatype> datatypesByComm_;
 };
 
 }  // namespace combigrid
@@ -194,6 +197,11 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
       // needs to be called explicitly if relevant sizes change
       this->createKahanBuffer();
     }
+
+    // if the subspacesByComm_ is set, we need to set the MPI data types for reduction
+    if (!this->subspacesByComm_.empty()) {
+      this->setReductionDatatypes();
+    }
   }
 }
 
@@ -211,6 +219,38 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createKahanBuffer() {
   }
 }
 
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::setReductionDatatypes() {
+  MPI_Aint dsgStartAddr;
+  MPI_Get_address(this->getRawData(), &dsgStartAddr);
+  // iterate subspacesByComm_ and create MPI datatypes for each communicator
+  for (auto& it : this->subspacesByComm_) {
+    auto comm = it.first;
+    auto& subspaces = it.second;
+    std::vector<int> arrayOfBlocklengths;
+    arrayOfBlocklengths.reserve(subspaces.size());
+    for (const auto& ss : subspaces) {
+      arrayOfBlocklengths.push_back(this->getDataSize(ss));
+    }
+    std::vector<MPI_Aint> arrayOfDisplacements;
+    arrayOfDisplacements.reserve(subspaces.size());
+    for (const auto& ss : subspaces) {
+      MPI_Aint addr;
+      MPI_Get_address(this->getData(ss), &addr);
+      auto d = MPI_Aint_diff(addr, dsgStartAddr);
+      arrayOfDisplacements.push_back(d);
+    }
+
+    MPI_Datatype myHDatatype;
+    MPI_Type_create_hindexed(
+        static_cast<int>(subspaces.size()), arrayOfBlocklengths.data(), arrayOfDisplacements.data(),
+        getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>()), &myHDatatype);
+
+    MPI_Type_commit(&myHDatatype);
+    datatypesByComm_[comm] = myHDatatype;
+  }
+}
+
 /** Deallocates the dsgu data.
  *  This affects the values stored at the grid points and pointers which address
  *  the subspaces data.
@@ -225,6 +265,11 @@ void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
       ss = nullptr;
     }
   }
+  // free datatypes
+  for (auto& it : datatypesByComm_) {
+    MPI_Type_free(&it.second);
+  }
+  datatypesByComm_.clear();
 }
 
 template <typename FG_ELEMENT>
@@ -260,7 +305,7 @@ std::ostream& operator<<(std::ostream& os, const DistributedSparseGridUniform<FG
 
 template <typename FG_ELEMENT>
 std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
-    DimType dim, const LevelVector& nmax, const LevelVector& lmin) {
+    DimType dim, const LevelVector& nmax, const LevelVector& lmin) const {
   std::vector<LevelVector> created{};
   combigrid::createTruncatedHierarchicalLevels(nmax, lmin, created);
   // std::sort(created.begin(), created.end());
@@ -462,7 +507,6 @@ template <typename FG_ELEMENT>
 inline size_t DistributedSparseGridUniform<FG_ELEMENT>::getRawDataSize() const {
   return subspacesData_.size();
 }
-
 
 } /* namespace combigrid */
 
