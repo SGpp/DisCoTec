@@ -42,7 +42,7 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   explicit DistributedSparseGridUniform(DimType dim, const std::vector<LevelVector>& subspaces,
                                CommunicatorType comm);
 
-  virtual ~DistributedSparseGridUniform() = default;
+  virtual ~DistributedSparseGridUniform();
 
   // cheap rule of 5
   DistributedSparseGridUniform() = delete;
@@ -109,6 +109,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   // populated than in this DSGU)
   void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other);
 
+  const std::map<CommunicatorType, MPI_Datatype>& getDatatypesByComm() const;
+
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
                                         const LevelVector& lmin) const;
@@ -156,6 +158,15 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     for (size_t i = 0; i < l.size(); ++i) {
       assert(l[i] > 0);
     }
+  }
+}
+
+template <typename FG_ELEMENT>
+DistributedSparseGridUniform<FG_ELEMENT>::~DistributedSparseGridUniform() {
+  // free datatypes and comms
+  for (auto& it : datatypesByComm_) {
+    MPI_Type_free(&it.second);
+    // MPI_Comm_free(&it.first);
   }
 }
 
@@ -221,33 +232,27 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createKahanBuffer() {
 
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::setReductionDatatypes() {
-  MPI_Aint dsgStartAddr;
-  MPI_Get_address(this->getRawData(), &dsgStartAddr);
   // iterate subspacesByComm_ and create MPI datatypes for each communicator
+  FG_ELEMENT* rawDataStart = this->getRawData();
   for (auto& it : this->subspacesByComm_) {
     auto comm = it.first;
     auto& subspaces = it.second;
     std::vector<int> arrayOfBlocklengths;
     arrayOfBlocklengths.reserve(subspaces.size());
-    for (const auto& ss : subspaces) {
-      arrayOfBlocklengths.push_back(this->getDataSize(ss));
-    }
-    std::vector<MPI_Aint> arrayOfDisplacements;
+    std::vector<int> arrayOfDisplacements;
     arrayOfDisplacements.reserve(subspaces.size());
     for (const auto& ss : subspaces) {
-      MPI_Aint addr;
-      MPI_Get_address(this->getData(ss), &addr);
-      auto d = MPI_Aint_diff(addr, dsgStartAddr);
-      arrayOfDisplacements.push_back(d);
+      arrayOfBlocklengths.push_back(this->getDataSize(ss));
+      arrayOfDisplacements.push_back(this->getData(ss) - rawDataStart);
     }
 
-    MPI_Datatype myHDatatype;
-    MPI_Type_create_hindexed(
+    MPI_Datatype myIndexedDatatype;
+    MPI_Type_indexed(
         static_cast<int>(subspaces.size()), arrayOfBlocklengths.data(), arrayOfDisplacements.data(),
-        getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>()), &myHDatatype);
+        getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>()), &myIndexedDatatype);
 
-    MPI_Type_commit(&myHDatatype);
-    datatypesByComm_[comm] = myHDatatype;
+    MPI_Type_commit(&myIndexedDatatype);
+    datatypesByComm_[comm] = myIndexedDatatype;
   }
 }
 
@@ -265,9 +270,10 @@ void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
       ss = nullptr;
     }
   }
-  // free datatypes
+  // free datatypes and ops
   for (auto& it : datatypesByComm_) {
     MPI_Type_free(&it.second);
+    // MPI_Comm_free(&it.first);
   }
   datatypesByComm_.clear();
 }
@@ -368,6 +374,12 @@ inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
     SubspaceIndexType i) const {
   assert(isSubspaceDataCreated());
   return subspaces_[i];
+}
+
+template <typename FG_ELEMENT>
+const std::map<CommunicatorType, MPI_Datatype>&
+DistributedSparseGridUniform<FG_ELEMENT>::getDatatypesByComm() const {
+  return datatypesByComm_;
 }
 
 template <typename FG_ELEMENT>

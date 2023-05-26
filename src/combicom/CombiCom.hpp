@@ -140,26 +140,63 @@ void distributedGlobalSparseGridReduce(SparseGridType& dsg,
   }
 }
 
+// cf. https://stackoverflow.com/a/29286769
+template <typename FG_ELEMENT>
+void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dtype) {
+  if (*len != 1) {
+    throw std::runtime_error("addIndexedElements: len>1 not implemented.");
+  }
+  int num_integers, num_addresses, num_datatypes, combiner;
+  MPI_Type_get_envelope(*dtype, &num_integers, &num_addresses, &num_datatypes, &combiner);
+  if (combiner != MPI_COMBINER_INDEXED || num_datatypes != 1) {
+    throw std::runtime_error("addIndexedElements: do not understand datatype.");
+  }
+  if (num_addresses != 0 || num_integers % 2 != 1) {
+    throw std::runtime_error("addIndexedElements: num_addresses != 0 or num_integers%2 != 1.");
+  }
+  int arrayOfInts[num_integers];
+  MPI_Aint addresses[num_addresses];
+  MPI_Datatype types[num_datatypes];
+  MPI_Type_get_contents(*dtype, num_integers, num_addresses, num_datatypes, arrayOfInts, addresses,
+                        types);
+  if (types[0] != getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>())) {
+    throw std::runtime_error("addIndexedElements: datatype not as expected.");
+  }
+
+  int numBlocks = (num_integers - 1) / 2;
+  int* arrayOfBlocklengths = arrayOfInts + 1;
+  int* arrayOfDisplacements = arrayOfBlocklengths + numBlocks;
+  // #pragma omp parallel for schedule(guided)
+  for (int i = 0; i < numBlocks; ++i) {
+    FG_ELEMENT* inoutElements = reinterpret_cast<FG_ELEMENT*>(inoutvec) + arrayOfDisplacements[i];
+    FG_ELEMENT* inElements = reinterpret_cast<FG_ELEMENT*>(invec) + arrayOfDisplacements[i];
+    for (int j = 0; j < arrayOfBlocklengths[i]; ++j) {
+      *inoutElements += *inElements;
+      ++inoutElements;
+      ++inElements;
+    }
+  }
+}
+
 template <typename SparseGridType>
 void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   assert(globalComm != MPI_COMM_NULL);
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
 
-  MPI_Datatype dtype = abstraction::getMPIDatatype(
-      abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
+  MPI_Op indexedAdd;
+  MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
   std::vector<MPI_Request> requests;
-  requests.reserve(dsg.getNumSubspaces());
-  for (const std::pair<CommunicatorType, std::vector<typename SparseGridType::SubspaceIndexType>>& entry :
-       dsg.getSubspacesByCommunicator()) {
-    for (const auto& subspace : entry.second) {
-      requests.emplace_back();
-      MPI_Iallreduce(MPI_IN_PLACE, dsg.getData(subspace), dsg.getDataSize(subspace), dtype, MPI_SUM,
-                     entry.first, &(requests.back()));
-    }
+  requests.resize(dsg.getDatatypesByComm().size());
+  auto requestIt = requests.begin();
+  for (const std::pair<CommunicatorType, MPI_Datatype>& entry : dsg.getDatatypesByComm()) {
+    MPI_Iallreduce(MPI_IN_PLACE, dsg.getRawData(), 1, entry.second, indexedAdd, entry.first,
+                   &(*requestIt));
+    ++requestIt;
   }
 
   MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+  MPI_Op_free(&indexedAdd);
 }
 
 /**
