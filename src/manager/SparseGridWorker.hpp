@@ -448,8 +448,8 @@ inline void SparseGridWorker::reduceSubspaceSizes(const std::string& filenameToR
 inline void SparseGridWorker::reduceUniformSG(RankType globalReduceRankThatCollects) {
   auto numGrids = this->getNumberOfGrids();
   for (int g = 0; g < numGrids; ++g) {
-    CombiCom::distributedGlobalReduce(*this->getCombinedUniDSGVector()[g],
-                                      globalReduceRankThatCollects);
+    CombiCom::distributedGlobalSparseGridReduce(*this->getCombinedUniDSGVector()[g],
+                                                globalReduceRankThatCollects);
     assert(CombiCom::sumAndCheckSubspaceSizes(*this->getCombinedUniDSGVector()[g]));
   }
 }
