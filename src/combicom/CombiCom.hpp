@@ -97,6 +97,7 @@ void distributedGlobalSparseGridReduce(SparseGridType& dsg,
 
   typename SparseGridType::ElementType* subspacesData = dsg.getRawData();
   size_t subspacesDataSize = dsg.getRawDataSize();
+  assert(subspacesDataSize == dsg.getAccumulatedDataSize());
 
   // global reduce
   MPI_Datatype dtype = abstraction::getMPIDatatype(
@@ -137,6 +138,28 @@ void distributedGlobalSparseGridReduce(SparseGridType& dsg,
                  globalReduceRankThatCollects, globalComm);
     }
   }
+}
+
+template <typename SparseGridType>
+void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
+  assert(globalComm != MPI_COMM_NULL);
+  assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
+
+  MPI_Datatype dtype = abstraction::getMPIDatatype(
+      abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
+
+  std::vector<MPI_Request> requests;
+  requests.reserve(dsg.getNumSubspaces());
+  for (const std::pair<CommunicatorType, std::vector<typename SparseGridType::SubspaceIndexType>>& entry :
+       dsg.getSubspacesByCommunicator()) {
+    for (const auto& subspace : entry.second) {
+      requests.emplace_back();
+      MPI_Iallreduce(MPI_IN_PLACE, dsg.getData(subspace), dsg.getDataSize(subspace), dtype, MPI_SUM,
+                     entry.first, &(requests.back()));
+    }
+  }
+
+  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
 }
 
 /**
