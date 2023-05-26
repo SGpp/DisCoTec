@@ -465,21 +465,6 @@ double ProcessManager::getLpNorm(int p) {
   return norm;
 }
 
-std::vector<double> ProcessManager::parallelEvalNorm(const LevelVector& leval, size_t groupID) {
-  auto g = pgroups_[groupID];
-  return g->parallelEvalNorm(leval);
-}
-
-std::vector<double> ProcessManager::evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID) {
-  auto g = pgroups_[groupID];
-  return g->evalAnalyticalOnDFG(leval);
-}
-
-std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, size_t groupID) {
-  auto g = pgroups_[groupID];
-  return g->evalErrorOnDFG(leval);
-}
-
 void ProcessManager::setupThirdLevel() {
   Stats::startEvent("manager connect third level");
   std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();

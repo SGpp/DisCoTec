@@ -234,14 +234,9 @@ class SelalibTask : public combigrid::Task {
   real getCurrentNumTimeStepsRun() { return currentNumTimeStepsRun_; }
 
   // do task-specific postprocessing (by default: nothing)
-  void doDiagnostics(const std::vector<DistributedSparseGridUniform<CombiDataType>*> dsgus,
-                     const std::vector<bool>& hierarchizationDims) override {
+  void doDiagnostics() override {
     assert(initialized_);
-    assert(dsgus.size() == 1);
     changeDir(dfg_->getCommunicator(), false);
-    // these here should be done in combine step already
-    // // set dfg from DSG
-    // DistributedHierarchization::fillDFGFromDSGU(*dfg_, *dsgus[0], hierarchizationDims);
     // set selalib distribution from dfg
     assert(diagnosticsInitialized_);
     int32_t* iPtr = &currentNumTimeStepsRun_;

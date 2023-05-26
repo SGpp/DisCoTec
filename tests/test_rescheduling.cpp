@@ -140,16 +140,16 @@ class TestingTask : public combigrid::Task {
 
 BOOST_CLASS_EXPORT(TestingTask)
 
-bool tasksContainSameValue(const TaskContainer& tasks) {
+bool tasksContainSameValue(const std::vector<std::unique_ptr<Task>>& tasks) {
   // std::cout << "task size" << tasks.size() << "\n";
   if (tasks.size() <= 1) {
     return true;
   }
 
-  auto firstValue = dynamic_cast<TestingTask *>(tasks[0])->valueToPersist_;
+  auto firstValue = dynamic_cast<TestingTask *>(tasks[0].get())->valueToPersist_;
 
   for (auto i = tasks.cbegin() + 1; i < tasks.cend(); ++i) {
-    if (firstValue != dynamic_cast<TestingTask *>(*i)->valueToPersist_) {
+    if (firstValue != dynamic_cast<TestingTask *>((*i).get())->valueToPersist_) {
       return false;
     }
   }

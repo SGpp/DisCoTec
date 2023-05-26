@@ -35,7 +35,7 @@ bool ProcessGroupManager::sendTaskToProcessGroup(Task* t, SignalType signal) {
   sendSignalToProcessGroup(signal);
 
   // send task
-  Task::send(&t, pgroupRootID_, theMPISystem()->getGlobalComm());
+  Task::send(t, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
 
@@ -51,11 +51,6 @@ void ProcessGroupManager::sendSignalAndReceive(SignalType signal) {
 void ProcessGroupManager::sendSignalToProcessGroup(SignalType signal) {
   MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG,
            theMPISystem()->getGlobalComm());
-}
-
-void ProcessGroupManager::sendSignalToProcess(
-    SignalType signal, RankType rank) {  // TODO send only to process in this pgroup
-  MPI_Send(&signal, 1, MPI_INT, rank, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
 }
 
 inline void ProcessGroupManager::setProcessGroupBusyAndReceive() {
@@ -524,7 +519,7 @@ bool ProcessGroupManager::refreshTask(Task* t) {
   sendSignalToProcessGroup(ADD_TASK);
 
   // send task
-  Task::send(&t, pgroupRootID_, theMPISystem()->getGlobalComm());
+  Task::send(t, pgroupRootID_, theMPISystem()->getGlobalComm());
 
   setProcessGroupBusyAndReceive();
 
@@ -613,15 +608,6 @@ std::vector<double> receiveThreeNorms(RankType pgroupRootID) {
 
     norms.push_back(recvbuf);
   }
-  return norms;
-}
-
-std::vector<double> ProcessGroupManager::parallelEvalNorm(const LevelVector& leval) {
-  sendSignalToProcessGroup(PARALLEL_EVAL_NORM);
-  sendLevelVector(leval, pgroupRootID_);
-
-  auto norms = receiveThreeNorms(pgroupRootID_);
-  setProcessGroupBusyAndReceive();
   return norms;
 }
 

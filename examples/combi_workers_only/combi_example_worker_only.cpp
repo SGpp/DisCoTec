@@ -145,23 +145,23 @@ int main(int argc, char** argv) {
                                              << std::endl;
 
   ProcessGroupWorker worker;
-  worker.setCombiParameters(params);
+  worker.setCombiParameters(std::move(params));
 
   // create Tasks
   worker.initializeAllTasks<TaskAdvection>(levels, coeffs, taskNumbers, loadmodel.get(), dt, nsteps,
                                            p);
 
-  worker.initCombinedUniDSGVector();
+  worker.initCombinedDSGVector();
 
-  auto durationInit = Stats::getDuration("register dsgus") / 1000.0;
+  auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-      << getTimeStamp() << "worker: initialized SG, registration was " << durationInit << " seconds"
-      << std::endl;
+      << getTimeStamp() << "worker: initialized SG, registration was " << durationInitSG
+      << " seconds" << std::endl;
 
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {
       std::cout << getTimeStamp() << "worker: set sparse grid sizes, will allocate "
-                << static_cast<real>(worker.getCombinedUniDSGVector()[0]->getAccumulatedDataSize() *
+                << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
                                      sizeof(CombiDataType)) /
                        1e6
                 << " MB" << std::endl;

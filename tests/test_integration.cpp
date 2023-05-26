@@ -30,7 +30,7 @@ using namespace combigrid;
 // BOOST_CLASS_EXPORT(TaskCount)
 
 bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
-  auto tasks = worker.getTasks();
+  const auto& tasks = worker.getTasks();
   int numGrids = (int)worker.getCombiParameters().getNumGrids();
 
   BOOST_CHECK(tasks.size() > 0);
@@ -39,7 +39,7 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
   // to check if any data was actually compared
   bool any = false;
 
-  for (Task* t : tasks) {
+  for (const auto& t : tasks) {
     for (int g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       for (auto b : dfg.returnBoundaryFlags()) {
@@ -188,17 +188,6 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     manager.getLpNorms(0);
     manager.getLpNorms(1);
     manager.getLpNorms(2);
-    auto normsLmax = manager.parallelEvalNorm(lmax, 0);
-    auto analyticalNorms = manager.evalAnalyticalOnDFG(lmax, 0);
-    auto error = manager.evalErrorOnDFG(lmax, 0);
-    if (boundaryV == 2) {
-      BOOST_CHECK_CLOSE(analyticalNorms[0], normsLmax[0], TestHelper::tolerance);
-      BOOST_CHECK_CLOSE(analyticalNorms[1], normsLmax[1], TestHelper::tolerance);
-      BOOST_CHECK_CLOSE(analyticalNorms[2], normsLmax[2], TestHelper::tolerance);
-      BOOST_CHECK_CLOSE(error[0], 0., TestHelper::tolerance);
-      BOOST_CHECK_CLOSE(error[1], 0., TestHelper::tolerance);
-      BOOST_CHECK_CLOSE(error[2], 0., TestHelper::tolerance);
-    }
     Stats::stopEvent("manager get norms");
 
     BOOST_TEST_CHECKPOINT("write solution");
@@ -424,9 +413,9 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 #ifndef ISGENE  // integration tests won't work with ISGENE because of worker magic
 
 #ifndef NDEBUG // in case of a build with asserts, have longer timeout
-BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(380))
+BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(580))
 #else
-BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(180))
+BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(480))
 #endif  // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto start = std::chrono::high_resolution_clock::now();

@@ -448,10 +448,10 @@ int main(int argc, char** argv) {
         if (signal == UPDATE_COMBI_PARAMETERS) {
           // initialize all "our" tasks
           for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
-            auto task = new TaskAdvection(levels[taskIndex], boundary, coeffs[taskIndex],
-                                          loadmodel.get(), dt, nsteps, p);
+            auto task = std::unique_ptr<Task>(new TaskAdvection(
+                levels[taskIndex], boundary, coeffs[taskIndex], loadmodel.get(), dt, nsteps, p));
             task->setID(taskNumbers[taskIndex]);
-            pgroup.initializeTaskAndFaults(task);
+            pgroup.initializeTask(std::move(task));
           }
         }
         // make sure not to initialize them twice

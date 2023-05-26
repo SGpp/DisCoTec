@@ -13,6 +13,8 @@
 #include "fullgrid/Tensor.hpp"
 #include "mpi/MPICartesianUtils.hpp"
 #include "mpi/MPISystem.hpp"
+#include "mpi/MPITags.hpp"
+#include "sparsegrid/AnyDistributedSparseGrid.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "utils/IndexVector.hpp"
 #include "utils/LevelSetUtils.hpp"
@@ -866,7 +868,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
     // loop over all subspaces (-> somewhat linear access in the sg)
-    typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType sIndex = 0;
+    typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = 0;
     static IndexVector subspaceIndices;
     for (const auto& level : downwardClosedSet) {
       sIndex = dsg.getIndexInRange(level, sIndex);
@@ -1487,12 +1489,14 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         cartesianUtils_ = MPICartesianUtils(comm);
       }
       if (procs != cartesianUtils_.getCartesianDimensions()) {
+        std::cerr << "unpart" << std::endl;
         throw std::runtime_error("The given communicator is not partitioned as desired");
       }
     } else {
       // MPI_Comm_dup(comm, &communicator_);
       // cf. https://www.researchgate.net/publication/220439585_MPI_on_millions_of_cores
       // "Figure 3 shows the memory consumption in all these cases after 32 calls to MPI Comm dup"
+      std::cerr << "undup" << std::endl;
       throw std::runtime_error(
           "Currently testing to not duplicate communicator (to save memory), \
                           if you do want to use this code please take care that \

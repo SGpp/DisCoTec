@@ -28,15 +28,19 @@ Task::Task(const LevelVector& l, const std::vector<BoundaryType>& boundary, real
 
 Task::~Task() { delete faultCriterion_; }
 
+const DistributedFullGrid<CombiDataType>& Task::getDistributedFullGrid(int n) const {
+  throw std::runtime_error("const getDistributedFullGrid called but not implemented");
+}
+
 size_t Task::count = 0;
 
-void Task::send(Task** t, RankType dst, CommunicatorType comm) {
+void Task::send(const Task* const t, RankType dst, CommunicatorType comm) {
   // save data to archive
   std::stringstream ss;
   {
     boost::archive::text_oarchive oa(ss);
     // write class instance to archive
-    oa << *t;
+    oa << t;
   }
   // create mpi buffer of archive
   std::string s = ss.str();

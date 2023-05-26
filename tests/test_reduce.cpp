@@ -190,11 +190,7 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
       std::cout << "combine " << std::endl;
       manager.combine();
     }
-
-    // // evaluate solution
-    // FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-    // manager.gridEval(fg_eval);
-
+    
     // compare with known results:
     // point in the middle
     std::vector<std::vector<real>> midPoint = {{0.5, 0.5}};

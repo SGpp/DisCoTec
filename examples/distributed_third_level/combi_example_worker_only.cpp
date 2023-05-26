@@ -184,17 +184,17 @@ int main(int argc, char** argv) {
                                              << std::endl;
 
   ProcessGroupWorker worker;
-  worker.setCombiParameters(params);
+  worker.setCombiParameters(std::move(params));
 
   // create Tasks
   worker.initializeAllTasks<TaskAdvection>(levels, coeffs, taskNumbers, loadmodel.get(), dt, nsteps,
                                            p);
 
-  worker.initCombinedUniDSGVector();
-  auto durationInit = Stats::getDuration("register dsgus") / 1000.0;
+  worker.initCombinedDSGVector();
+  auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-      << getTimeStamp() << "worker: initialized SG, registration was " << durationInit << " seconds"
-      << std::endl;
+      << getTimeStamp() << "worker: initialized SG, registration was " << durationInitSG
+      << " seconds" << std::endl;
 
   // read (extra) sparse grid sizes, as generated with subspace_writer
   // for target scenarios, consider `wget https://darus.uni-stuttgart.de/api/access/datafile/195543`
@@ -214,11 +214,11 @@ int main(int argc, char** argv) {
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     MASTER_EXCLUSIVE_SECTION {
       std::cout << getTimeStamp() << "worker: read sizes, will allocate "
-                << static_cast<real>(worker.getCombinedUniDSGVector()[0]->getAccumulatedDataSize() *
+                << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
                                      sizeof(CombiDataType)) /
                        1e6
                 << " plus "
-                << static_cast<real>(worker.getExtraUniDSGVector()[0]->getAccumulatedDataSize() *
+                << static_cast<real>(worker.getExtraDSGVector()[0]->getAccumulatedDataSize() *
                                      sizeof(CombiDataType)) /
                        1e6
                 << " MB" << std::endl;
