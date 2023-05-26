@@ -826,4 +826,72 @@ BOOST_AUTO_TEST_CASE(test_anyDistributedSparseGrid) {
   }
 }
 
+BOOST_AUTO_TEST_CASE(test_sparseGridReduce) {
+  int nprocs = 9;
+  CommunicatorType fullComm = TestHelper::getComm(nprocs);
+  if (fullComm != MPI_COMM_NULL) {
+    // set up 6D Combi scheme
+    constexpr DimType dimensionality = 6;
+    LevelVector lmin{4, 4, 4, 4, 3, 3};
+    LevelVector lmax{6, 6, 6, 6, 5, 5};
+
+    std::vector<LevelVector> myLevels;
+    {
+      CombiMinMaxScheme combischeme(dimensionality, lmin, lmax);
+      combischeme.createAdaptiveCombischeme();
+      std::vector<LevelVector> levels = combischeme.getCombiSpaces();
+      // select "my" levels round-robin
+      for (size_t i = 0; i < levels.size(); ++i) {
+        if (i % nprocs == TestHelper::getRank(fullComm)) {
+          myLevels.push_back(std::move(levels[i]));
+        }
+      }
+    }
+
+    auto myOwnComm = TestHelper::getCommSelfAsCartesian(dimensionality);
+    // every rank has its "own" DSG (like a process group of 1)
+    auto uniDSG = std::unique_ptr<DistributedSparseGridUniform<combigrid::real>>(
+        new DistributedSparseGridUniform<combigrid::real>(dimensionality, lmax, lmin, myOwnComm));
+
+    auto boundary = std::vector<BoundaryType>(dimensionality, 1);
+    auto procs = std::vector<int>(dimensionality, 1);
+    // for each level, create DFG and register to set DSG's subspace sizes
+    for (size_t i = 0; i < myLevels.size(); ++i) {
+      auto dfg = std::unique_ptr<DistributedFullGrid<combigrid::real>>(
+          new DistributedFullGrid<combigrid::real>(dimensionality, myLevels[i], myOwnComm, boundary,
+                                                   nullptr, procs));
+      uniDSG->registerDistributedFullGrid(*dfg);
+    }
+    CombiCom::reduceSubspaceSizes(*uniDSG, fullComm);
+
+    BOOST_CHECK_EQUAL(uniDSG->getAccumulatedDataSize(), 142606336);
+
+    // initialize actual data containers
+    uniDSG->setZero();
+
+    // for each subspace in uniDSG, set values to the subspace index
+    for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
+      auto subspaceStart = uniDSG->getData(i);
+      for (SubspaceSizeType j = 0; j < uniDSG->getDataSize(i); ++j) {
+        subspaceStart[j] = i;
+      }
+    }
+
+    MPI_Barrier(fullComm);
+    auto start = std::chrono::high_resolution_clock::now();
+    CombiCom::distributedGlobalSparseGridReduce(*uniDSG, MPI_PROC_NULL, fullComm);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    BOOST_TEST_MESSAGE("sparse grid reduce time: " + std::to_string(duration.count()));
+
+    // check that the data is correct
+    for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
+      auto subspaceStart = uniDSG->getData(i);
+      for (SubspaceSizeType j = 0; j < uniDSG->getDataSize(i); ++j) {
+        BOOST_CHECK_EQUAL(subspaceStart[j], i * nprocs);
+      }
+    }
+  }
+}
+
 BOOST_AUTO_TEST_SUITE_END()

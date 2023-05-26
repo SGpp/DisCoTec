@@ -89,12 +89,10 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
  * Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
  */
 template <typename SparseGridType>
-void distributedGlobalReduce(SparseGridType& dsg, RankType globalReduceRankThatCollects) {
-  // get global communicator for this operation
-  MPI_Comm mycomm = theMPISystem()->getGlobalReduceComm();
-
-  assert(mycomm != MPI_COMM_NULL);
-
+void distributedGlobalSparseGridReduce(SparseGridType& dsg,
+                                       RankType globalReduceRankThatCollects = MPI_PROC_NULL,
+                                       MPI_Comm globalComm = theMPISystem()->getGlobalReduceComm()) {
+  assert(globalComm != MPI_COMM_NULL);
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
 
   typename SparseGridType::ElementType* subspacesData = dsg.getRawData();
@@ -111,32 +109,32 @@ void distributedGlobalReduce(SparseGridType& dsg, RankType globalReduceRankThatC
   if (globalReduceRankThatCollects == MPI_PROC_NULL) {
     while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
       MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd, static_cast<int>(chunkSize), dtype,
-                    MPI_SUM, mycomm);
+                    MPI_SUM, globalComm);
       sentRecvd += chunkSize;
     }
     MPI_Allreduce(MPI_IN_PLACE, subspacesData + sentRecvd,
-                  static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM, mycomm);
+                  static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM, globalComm);
   } else {
     if (theMPISystem()->getGlobalReduceRank() == globalReduceRankThatCollects) {
       // I am the reduce rank that collects the data
       while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
         MPI_Reduce(MPI_IN_PLACE, subspacesData + sentRecvd, static_cast<int>(chunkSize), dtype,
-                   MPI_SUM, globalReduceRankThatCollects, mycomm);
+                   MPI_SUM, globalReduceRankThatCollects, globalComm);
         sentRecvd += chunkSize;
       }
       MPI_Reduce(MPI_IN_PLACE, subspacesData + sentRecvd,
                  static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM,
-                 globalReduceRankThatCollects, mycomm);
+                 globalReduceRankThatCollects, globalComm);
     } else {
       // I only need to send
       while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
         MPI_Reduce(subspacesData + sentRecvd, MPI_IN_PLACE, static_cast<int>(chunkSize), dtype,
-                   MPI_SUM, globalReduceRankThatCollects, mycomm);
+                   MPI_SUM, globalReduceRankThatCollects, globalComm);
         sentRecvd += chunkSize;
       }
       MPI_Reduce(subspacesData + sentRecvd, MPI_IN_PLACE,
                  static_cast<int>(subspacesDataSize - sentRecvd), dtype, MPI_SUM,
-                 globalReduceRankThatCollects, mycomm);
+                 globalReduceRankThatCollects, globalComm);
     }
   }
 }

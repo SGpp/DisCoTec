@@ -40,6 +40,17 @@ namespace TestHelper{
     }
   }
 
+  static inline MPI_Comm getCommSelfAsCartesian(combigrid::DimType dimensionality) {
+    std::vector<int> dims(dimensionality, 1);
+    std::vector<int> periods(dimensionality, 1);
+
+    // Create a communicator given the topology.
+    MPI_Comm new_communicator;
+    MPI_Cart_create(MPI_COMM_SELF, dimensionality, dims.data(), periods.data(), false,
+                    &new_communicator);
+    return new_communicator;
+  }
+
   /**
    * @brief Get a cartesian communicator of specified extents
    *
