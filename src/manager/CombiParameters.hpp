@@ -406,6 +406,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& forwardDecomposition_;
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;
+  ar& combinationVariant_;
   ar& reduceCombinationDimsLmin_;
   ar& reduceCombinationDimsLmax_;
   ar& thirdLevelHost_;
