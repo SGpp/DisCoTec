@@ -255,8 +255,11 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
     }
   } else if (combinationVariant == CombinationVariant::subspaceReduce) {
     for (auto& uniDSG : combinedUniDSGVector_) {
-      uniDSG->setSubspaceCommunicators(globalReduceComm,
-                                                         theMPISystem()->getGlobalReduceRank());
+      uniDSG->setSubspaceCommunicators(globalReduceComm, theMPISystem()->getGlobalReduceRank());
+    }
+  } else if (combinationVariant == CombinationVariant::singleSubspaceReduce) {
+    for (auto& uniDSG : combinedUniDSGVector_) {
+      uniDSG->setSubspaceCommunicators(globalReduceComm, theMPISystem()->getGlobalReduceRank());
     }
   } else {
     throw std::runtime_error("Combination variant not implemented");
@@ -465,7 +468,8 @@ inline void SparseGridWorker::reduceUniformSG(CombinationVariant combinationVari
     if (combinationVariant == CombinationVariant::sparseGridReduce) {
       CombiCom::distributedGlobalSparseGridReduce(*this->getCombinedUniDSGVector()[g],
                                                   globalReduceRankThatCollects);
-    } else if (combinationVariant == CombinationVariant::subspaceReduce) {
+    } else if (combinationVariant == CombinationVariant::subspaceReduce ||
+               combinationVariant == CombinationVariant::singleSubspaceReduce) {
       CombiCom::distributedGlobalSubspaceReduce(*this->getCombinedUniDSGVector()[g]);
     }
     assert(CombiCom::sumAndCheckSubspaceSizes(*this->getCombinedUniDSGVector()[g]));

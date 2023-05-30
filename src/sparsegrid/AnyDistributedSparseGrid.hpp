@@ -51,6 +51,8 @@ class AnyDistributedSparseGrid {
   // sets data size of subspace with index i to newSize
   virtual void setDataSize(SubspaceIndexType i, SubspaceSizeType newSize);
 
+  void setSingleSubspaceCommunicator(CommunicatorType comm, RankType rankInComm);
+
   // sets the communicators for subspaces (required for subspace reduce)
   void setSubspaceCommunicators(CommunicatorType comm, RankType rankInComm);
 
