@@ -259,7 +259,8 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
     }
   } else if (combinationVariant == CombinationVariant::singleSubspaceReduce) {
     for (auto& uniDSG : combinedUniDSGVector_) {
-      uniDSG->setSubspaceCommunicators(globalReduceComm, theMPISystem()->getGlobalReduceRank());
+      uniDSG->setSingleSubspaceCommunicator(globalReduceComm,
+                                            theMPISystem()->getGlobalReduceRank());
     }
   } else {
     throw std::runtime_error("Combination variant not implemented");

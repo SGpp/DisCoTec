@@ -140,6 +140,19 @@ void AnyDistributedSparseGrid::setSingleSubspaceCommunicator(CommunicatorType co
                 getMPIDatatype(abstraction::getabstractionDataType<size_t>()), MPI_MAX, comm);
   assert(maxNumComms <= 1);
 #endif  // NDEBUG
+
+  // now we also need to reduce the data sizes (like for sparse grid reduce, but only for the
+  // subspaces to be exchanged)
+  std::vector<MPI_Request> requests;
+  requests.resize(subspacesByComm_[subspaceComm].size());
+  auto requestIt = requests.begin();
+  for (const auto& subspace : subspacesByComm_[subspaceComm]) {
+    MPI_Iallreduce(MPI_IN_PLACE, &this->subspacesDataSizes_[subspace], 1,
+                   getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>()), MPI_MAX,
+                   comm, &(*requestIt));
+    ++requestIt;
+  }
+  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
 }
 
 void AnyDistributedSparseGrid::setSubspaceCommunicators(CommunicatorType comm,
