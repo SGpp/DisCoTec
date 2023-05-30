@@ -869,7 +869,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
       for (size_t i = 0; i < myLevels.size(); ++i) {
         auto dfg = std::unique_ptr<DistributedFullGrid<combigrid::real>>(
             new DistributedFullGrid<combigrid::real>(dimensionality, myLevels[i], myOwnComm,
-                                                     boundary, nullptr, procs));
+                                                     boundary, nullptr, procs, false));
         uniDSG->registerDistributedFullGrid(*dfg);
       }
 
