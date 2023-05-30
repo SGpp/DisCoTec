@@ -348,7 +348,8 @@ int main(int argc, char** argv) {
 
     // create combiparamters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, hierarchizationDims, taskIDs,
-                           ncombi, 1, reduceCombinationDimsLmin, reduceCombinationDimsLmax, false);
+                           ncombi, 1, CombinationVariant::sparseGridReduce,
+                           reduceCombinationDimsLmin, reduceCombinationDimsLmax, false);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
 

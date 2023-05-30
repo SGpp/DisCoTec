@@ -56,8 +56,8 @@ int main(int argc, char** argv) {
 
   // create combiparameters
   auto reduceCombinationDimsLmax = LevelVector(dim, 1);
-  CombiParameters params(dim, lmin, lmax, boundary, 2, 1, p, LevelVector(dim, 0),
-                         reduceCombinationDimsLmax, forwardDecomposition);
+  CombiParameters params(dim, lmin, lmax, boundary, 2, 1, CombinationVariant::sparseGridReduce, p,
+                         LevelVector(dim, 0), reduceCombinationDimsLmax, forwardDecomposition);
   IndexVector minNumPoints(dim), maxNumPoints(dim);
   for (DimType d = 0; d < dim; ++d) {
     minNumPoints[d] = combigrid::getNumDofNodal(lmin[d], boundary[d]);

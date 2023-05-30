@@ -18,14 +18,12 @@ class CombiParameters {
                   std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<size_t>& taskIDs,
                   IndexType numberOfCombinations, IndexType numGrids = 1,
+                  CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   const std::vector<int> parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
-                  bool forwardDecomposition = !isGENE,
-                  const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelPort = 0,
-                  size_t thirdLevelPG = 0
-                  )
+                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
@@ -33,12 +31,12 @@ class CombiParameters {
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
+        combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
         thirdLevelPort_(thirdLevelPort),
-        thirdLevelPG_(thirdLevelPG)
-  {
+        thirdLevelPG_(thirdLevelPG) {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     for (DimType d = 0; d < dim_; ++d) {
       if (boundary_[d] == 1) {
@@ -57,7 +55,9 @@ class CombiParameters {
   // imlpicitly as tasks vector
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<BoundaryType>& boundary, IndexType numberOfCombinations,
-                  IndexType numGrids = 1, const std::vector<int> parallelization = {0},
+                  IndexType numGrids = 1,
+                  CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
+                  const std::vector<int> parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
@@ -69,6 +69,7 @@ class CombiParameters {
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
+        combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
@@ -91,7 +92,9 @@ class CombiParameters {
                   const std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<bool>& hierarchizationDims,
                   std::vector<size_t>& taskIDs, IndexType numberOfCombinations,
-                  IndexType numGrids = 1, LevelVector reduceCombinationDimsLmin = LevelVector(0),
+                  IndexType numGrids = 1,
+                  CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
+                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
@@ -103,6 +106,7 @@ class CombiParameters {
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
+        combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
         thirdLevelHost_(thirdLevelHost),
@@ -263,6 +267,8 @@ class CombiParameters {
 
   inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
 
+  inline CombinationVariant getCombinationVariant() const { return combinationVariant_; }
+
   inline const std::string& getThirdLevelHost() {
     return thirdLevelHost_;
   }
@@ -349,6 +355,8 @@ class CombiParameters {
   friend class boost::serialization::access;
   IndexType numberOfCombinations_;  // total number of combinations
   IndexType numGridsPerTask_;       // number of grids per task
+
+  CombinationVariant combinationVariant_;
 
   /**
    * This level vector indicates which dimension of lmin should be decreased by how many levels

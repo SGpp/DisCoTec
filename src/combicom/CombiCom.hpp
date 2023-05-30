@@ -180,7 +180,6 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
 
 template <typename SparseGridType>
 void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
-  assert(globalComm != MPI_COMM_NULL);
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
 
   MPI_Op indexedAdd;
