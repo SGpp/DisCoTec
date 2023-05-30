@@ -126,9 +126,13 @@ void AnyDistributedSparseGrid::setSubspaceCommunicators(CommunicatorType comm,
     }
   }
   MPI_Group_free(&wholeGroup);
+  // max-reduce the number of communicators created on each rank
+  size_t maxNumComms = subspacesByComm_.size();
+  MPI_Allreduce(MPI_IN_PLACE, &maxNumComms, 1,
+                getMPIDatatype(abstraction::getabstractionDataType<size_t>()), MPI_MAX, comm);
   if (rankInComm == 0 && this->getRank() == 0) {
     // TODO remove
-    std::cout << "Found " << subspacesByComm_.size() << " different communicators for subspaces"
+    std::cout << "Found max. " << maxNumComms << " different communicators for subspaces"
               << std::endl;
   }
 }
