@@ -185,13 +185,29 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   MPI_Op indexedAdd;
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
-  std::vector<MPI_Request> requests;
-  requests.resize(dsg.getDatatypesByComm().size());
+  std::vector<MPI_Request> requests(dsg.getDatatypesByComm().size());
+  std::vector<int> requestsCompleted(requests.size(), -1);
+  const int numberOfRequestsAtOnce = 8;
   auto requestIt = requests.begin();
   for (const std::pair<CommunicatorType, MPI_Datatype>& entry : dsg.getDatatypesByComm()) {
     MPI_Iallreduce(MPI_IN_PLACE, dsg.getRawData(), 1, entry.second, indexedAdd, entry.first,
                    &(*requestIt));
     ++requestIt;
+    // check that it's not too many requests unfinished at once
+    auto numRequests = std::distance(requests.begin(), requestIt);
+    int numCompleted = 0;
+    MPI_Testsome(static_cast<int>(numRequests), requests.data(), &numCompleted,
+                 requestsCompleted.data(), MPI_STATUSES_IGNORE);
+    if (numCompleted < (numRequests - numberOfRequestsAtOnce)) {
+      // wait for first request that is not in requestsCompleted
+      for (int i = 0; i < numRequests; ++i) {
+        if (std::find(requestsCompleted.begin(), requestsCompleted.end(), i) ==
+            requestsCompleted.end()) {
+          MPI_Wait(&requests[i], MPI_STATUS_IGNORE);
+          break;
+        }
+      }
+    }
   }
 
   MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
