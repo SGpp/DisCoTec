@@ -907,6 +907,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
 
         // set the subspace map across DSGs
         uniDSG->setSubspaceCommunicators(fullComm, TestHelper::getRank(fullComm));
+        BOOST_TEST_CHECKPOINT("subspace communicators set");
         // initialize actual data containers and MPI datatype mappings
         uniDSG->setZero();
         // for each subspace in uniDSG, set values to the subspace index

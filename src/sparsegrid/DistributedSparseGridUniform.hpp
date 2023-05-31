@@ -109,7 +109,7 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   // populated than in this DSGU)
   void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other);
 
-  const std::map<CommunicatorType, MPI_Datatype>& getDatatypesByComm() const;
+  const std::vector<std::pair<CommunicatorType, MPI_Datatype>>& getDatatypesByComm() const;
 
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
@@ -128,7 +128,7 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
   std::vector<FG_ELEMENT> kahanData_;  // Kahan summation residual terms
 
-  std::map<CommunicatorType, MPI_Datatype> datatypesByComm_;
+  std::vector<std::pair<CommunicatorType, MPI_Datatype>> datatypesByComm_;
 };
 
 }  // namespace combigrid
@@ -179,6 +179,7 @@ template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
     const DistributedSparseGridUniform<FG_ELEMENT>& other) {
   assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
+  // #pragma omp parallel for
   for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {
     assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 ||
            other.getDataSize(i) == 0);
@@ -232,27 +233,47 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createKahanBuffer() {
 
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::setReductionDatatypes() {
+  // like for sparse grid reduce, allow only up to 16MiB per reduction
+  //(when using double precision)
+  auto chunkSize = 2097152;
+
   // iterate subspacesByComm_ and create MPI datatypes for each communicator
   FG_ELEMENT* rawDataStart = this->getRawData();
   for (auto& it : this->subspacesByComm_) {
     auto comm = it.first;
-    auto& subspaces = it.second;
-    std::vector<int> arrayOfBlocklengths;
-    arrayOfBlocklengths.reserve(subspaces.size());
-    std::vector<int> arrayOfDisplacements;
-    arrayOfDisplacements.reserve(subspaces.size());
-    for (const auto& ss : subspaces) {
-      arrayOfBlocklengths.push_back(this->getDataSize(ss));
-      arrayOfDisplacements.push_back(this->getData(ss) - rawDataStart);
+    const auto& subspaces = it.second;
+    // get chunked subspaces for this data type
+    {
+      auto subspaceIt = subspaces.cbegin();
+      while (subspaceIt != subspaces.cend()) {
+        SubspaceSizeType chunkDataSize = 0;
+        std::vector<SubspaceIndexType> chunkSubspaces;
+        auto nextAddedDataSize = getDataSize(*subspaceIt);
+        do {
+          chunkDataSize += nextAddedDataSize;
+          chunkSubspaces.push_back(*subspaceIt);
+          ++subspaceIt;
+        } while (subspaceIt != subspaces.cend() && (nextAddedDataSize = getDataSize(*subspaceIt)) &&
+                 (chunkDataSize + nextAddedDataSize) < chunkSize);
+
+        // create datatype for this chunk
+        std::vector<int> arrayOfBlocklengths, arrayOfDisplacements;
+        arrayOfBlocklengths.reserve(chunkSubspaces.size());
+        arrayOfDisplacements.reserve(chunkSubspaces.size());
+        for (const auto& ss : chunkSubspaces) {
+          arrayOfBlocklengths.push_back(this->getDataSize(ss));
+          arrayOfDisplacements.push_back(this->getData(ss) - rawDataStart);
+        }
+
+        MPI_Datatype myIndexedDatatype;
+        MPI_Type_indexed(static_cast<int>(chunkSubspaces.size()), arrayOfBlocklengths.data(),
+                         arrayOfDisplacements.data(),
+                         getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>()),
+                         &myIndexedDatatype);
+        MPI_Type_commit(&myIndexedDatatype);
+        datatypesByComm_.push_back(std::make_pair(comm, myIndexedDatatype));
+      }
     }
-
-    MPI_Datatype myIndexedDatatype;
-    MPI_Type_indexed(
-        static_cast<int>(subspaces.size()), arrayOfBlocklengths.data(), arrayOfDisplacements.data(),
-        getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>()), &myIndexedDatatype);
-
-    MPI_Type_commit(&myIndexedDatatype);
-    datatypesByComm_[comm] = myIndexedDatatype;
   }
 }
 
@@ -377,7 +398,7 @@ inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
 }
 
 template <typename FG_ELEMENT>
-const std::map<CommunicatorType, MPI_Datatype>&
+const std::vector<std::pair<CommunicatorType, MPI_Datatype>>&
 DistributedSparseGridUniform<FG_ELEMENT>::getDatatypesByComm() const {
   return datatypesByComm_;
 }
