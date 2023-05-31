@@ -128,10 +128,6 @@ void AnyDistributedSparseGrid::setSingleSubspaceCommunicator(CommunicatorType co
   MPI_Comm subspaceComm;
   MPI_Comm_create(comm, subspaceGroup, &subspaceComm);
   MPI_Group_free(&subspaceGroup);
-  // if I am one of the ranks, store the subspaces and the communicator
-  if (std::find(ranks.begin(), ranks.end(), rankInComm) != ranks.end()) {
-    subspacesByComm_[subspaceComm] = std::move(subspacesForMany);
-  }
   MPI_Group_free(&wholeGroup);
 #ifndef NDEBUG
   // max-reduce the number of communicators created on each rank
@@ -143,16 +139,23 @@ void AnyDistributedSparseGrid::setSingleSubspaceCommunicator(CommunicatorType co
 
   // now we also need to reduce the data sizes (like for sparse grid reduce, but only for the
   // subspaces to be exchanged)
-  std::vector<MPI_Request> requests;
-  requests.resize(subspacesByComm_[subspaceComm].size());
-  auto requestIt = requests.begin();
-  for (const auto& subspace : subspacesByComm_[subspaceComm]) {
-    MPI_Iallreduce(MPI_IN_PLACE, &this->subspacesDataSizes_[subspace], 1,
-                   getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>()), MPI_MAX,
-                   comm, &(*requestIt));
-    ++requestIt;
+  std::vector<SubspaceSizeType> subspaceDataSizesAlmostCopy(this->subspacesDataSizes_.size(), 0);
+  for (const auto& subspace : subspacesForMany) {
+    subspaceDataSizesAlmostCopy[subspace] = this->subspacesDataSizes_[subspace];
   }
-  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
+  if (!subspacesForMany.empty()) {
+    MPI_Allreduce(MPI_IN_PLACE, subspaceDataSizesAlmostCopy.data(),
+                  subspaceDataSizesAlmostCopy.size(),
+                  getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>()), MPI_MAX,
+                  subspaceComm);
+  }
+  for (const auto& subspace : subspacesForMany) {
+    this->subspacesDataSizes_[subspace] = subspaceDataSizesAlmostCopy[subspace];
+  }
+  // if I am one of the ranks, store the subspaces and the communicator
+  if (std::find(ranks.begin(), ranks.end(), rankInComm) != ranks.end()) {
+    subspacesByComm_[subspaceComm] = std::move(subspacesForMany);
+  }
 }
 
 void AnyDistributedSparseGrid::setSubspaceCommunicators(CommunicatorType comm,
