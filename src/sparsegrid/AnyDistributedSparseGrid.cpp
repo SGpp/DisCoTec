@@ -19,6 +19,14 @@ size_t AnyDistributedSparseGrid::getAccumulatedDataSize() const {
                          static_cast<size_t>(0));
 }
 
+AnyDistributedSparseGrid::~AnyDistributedSparseGrid() {
+  // free all subspace communicators
+  while (!subspacesByComm_.empty()) {
+    auto nh = subspacesByComm_.extract(subspacesByComm_.begin());
+    MPI_Comm_free(&nh.key());
+  }
+}
+
 CommunicatorType AnyDistributedSparseGrid::getCommunicator() const { return comm_; }
 
 SubspaceSizeType AnyDistributedSparseGrid::getDataSize(SubspaceIndexType i) const {

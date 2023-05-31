@@ -18,7 +18,7 @@ class AnyDistributedSparseGrid {
 
   explicit AnyDistributedSparseGrid(size_t numSubspaces, CommunicatorType comm);
 
-  virtual ~AnyDistributedSparseGrid() = default;
+  virtual ~AnyDistributedSparseGrid();
 
   // cheap rule of 5
   AnyDistributedSparseGrid() = delete;
