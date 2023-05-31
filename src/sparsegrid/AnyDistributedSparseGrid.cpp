@@ -21,9 +21,8 @@ size_t AnyDistributedSparseGrid::getAccumulatedDataSize() const {
 
 AnyDistributedSparseGrid::~AnyDistributedSparseGrid() {
   // free all subspace communicators
-  while (!subspacesByComm_.empty()) {
-    auto nh = subspacesByComm_.extract(subspacesByComm_.begin());
-    MPI_Comm_free(&nh.key());
+  for (auto& pair : subspacesByComm_) {
+    MPI_Comm_free(&pair.first);
   }
 }
 
@@ -56,7 +55,8 @@ std::vector<SubspaceSizeType>& AnyDistributedSparseGrid::getSubspaceDataSizes() 
   return subspacesDataSizes_;
 }
 
-const std::map<CommunicatorType, std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
+const std::vector<
+    std::pair<CommunicatorType, std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>>&
 AnyDistributedSparseGrid::getSubspacesByCommunicator() const {
   return subspacesByComm_;
 }
@@ -162,7 +162,7 @@ void AnyDistributedSparseGrid::setSingleSubspaceCommunicator(CommunicatorType co
   }
   // if I am one of the ranks, store the subspaces and the communicator
   if (std::find(ranks.begin(), ranks.end(), rankInComm) != ranks.end()) {
-    subspacesByComm_[subspaceComm] = std::move(subspacesForMany);
+    subspacesByComm_.push_back(std::make_pair(subspaceComm, std::move(subspacesForMany)));
   }
 }
 
@@ -206,7 +206,7 @@ void AnyDistributedSparseGrid::setSubspaceCommunicators(CommunicatorType comm,
     MPI_Group_free(&subspaceGroup);
     // if I am one of the ranks, store the subspaces and the communicator
     if (std::find(ranks.begin(), ranks.end(), rankInComm) != ranks.end()) {
-      subspacesByComm_[subspaceComm] = std::move(kv.second);
+      subspacesByComm_.push_back(std::make_pair(subspaceComm, std::move(kv.second)));
     }
   }
   MPI_Group_free(&wholeGroup);

@@ -45,8 +45,8 @@ class AnyDistributedSparseGrid {
 
   std::vector<SubspaceSizeType>& getSubspaceDataSizes();
 
-  const std::map<CommunicatorType, std::vector<SubspaceIndexType>>& getSubspacesByCommunicator()
-      const;
+  const std::vector<std::pair<CommunicatorType, std::vector<SubspaceIndexType>>>&
+  getSubspacesByCommunicator() const;
 
   // sets data size of subspace with index i to newSize
   virtual void setDataSize(SubspaceIndexType i, SubspaceSizeType newSize);
@@ -63,7 +63,7 @@ class AnyDistributedSparseGrid {
 
   std::vector<SubspaceSizeType> subspacesDataSizes_;  // data sizes of all subspaces
 
-  std::map<CommunicatorType, std::vector<SubspaceIndexType>> subspacesByComm_;
+  std::vector<std::pair<CommunicatorType, std::vector<SubspaceIndexType>>> subspacesByComm_;
 };
 
 }  // namespace combigrid
