@@ -166,7 +166,7 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
   int numBlocks = (num_integers - 1) / 2;
   int* arrayOfBlocklengths = arrayOfInts + 1;
   int* arrayOfDisplacements = arrayOfBlocklengths + numBlocks;
-  // #pragma omp parallel for schedule(guided)
+#pragma omp parallel for
   for (int i = 0; i < numBlocks; ++i) {
     FG_ELEMENT* inoutElements = reinterpret_cast<FG_ELEMENT*>(inoutvec) + arrayOfDisplacements[i];
     FG_ELEMENT* inElements = reinterpret_cast<FG_ELEMENT*>(invec) + arrayOfDisplacements[i];
@@ -212,7 +212,7 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
     int numCompleted = 0;
     MPI_Testsome(static_cast<int>(numRequests), requests.data(), &numCompleted,
                  requestsCompleted.data(), MPI_STATUSES_IGNORE);
-    if (numCompleted < (numRequests - numberOfRequestsAtOnce)) {
+    if (numCompleted < (numRequests - numberOfRequestsAtOnce + 1)) {
       // wait for first request that is not in requestsCompleted
       for (int i = 0; i < numRequests; ++i) {
         if (std::find(requestsCompleted.begin(), requestsCompleted.end(), i) ==
