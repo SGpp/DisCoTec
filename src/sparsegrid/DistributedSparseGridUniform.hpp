@@ -238,13 +238,13 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setReductionDatatypes() {
   auto chunkSize = 2097152;
 
   // iterate subspacesByComm_ and create MPI datatypes for each communicator
-  FG_ELEMENT* rawDataStart = this->getRawData();
   for (auto& it : this->subspacesByComm_) {
     auto comm = it.first;
     const auto& subspaces = it.second;
     // get chunked subspaces for this data type
     {
       auto subspaceIt = subspaces.cbegin();
+      FG_ELEMENT* rawDataStartFirst = this->getData(*subspaceIt);
       while (subspaceIt != subspaces.cend()) {
         SubspaceSizeType chunkDataSize = 0;
         std::vector<SubspaceIndexType> chunkSubspaces;
@@ -262,7 +262,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setReductionDatatypes() {
         arrayOfDisplacements.reserve(chunkSubspaces.size());
         for (const auto& ss : chunkSubspaces) {
           arrayOfBlocklengths.push_back(this->getDataSize(ss));
-          arrayOfDisplacements.push_back(this->getData(ss) - rawDataStart);
+          arrayOfDisplacements.push_back(this->getData(ss) - rawDataStartFirst);
         }
 
         MPI_Datatype myIndexedDatatype;

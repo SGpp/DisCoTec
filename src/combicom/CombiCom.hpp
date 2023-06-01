@@ -190,7 +190,21 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   const int numberOfRequestsAtOnce = 8;
   auto requestIt = requests.begin();
   for (const std::pair<CommunicatorType, MPI_Datatype>& entry : dsg.getDatatypesByComm()) {
-    MPI_Iallreduce(MPI_IN_PLACE, dsg.getRawData(), 1, entry.second, indexedAdd, entry.first,
+    // find start index for datatype on this communicator
+    auto findIt = std::find_if(
+        dsg.getSubspacesByCommunicator().begin(), dsg.getSubspacesByCommunicator().end(),
+        [&entry](const std::pair<CommunicatorType,
+                                 std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
+                     subspacesForComm) { return subspacesForComm.first == entry.first; });
+    if (findIt == dsg.getSubspacesByCommunicator().end()) {
+      throw std::runtime_error(
+          "distributedGlobalSubspaceReduce: Could not find communicator in "
+          "subspacesByCommunicator.");
+    }
+    typename AnyDistributedSparseGrid::SubspaceIndexType startIndex =
+        static_cast<int>(findIt->second.front());
+
+    MPI_Iallreduce(MPI_IN_PLACE, dsg.getData(startIndex), 1, entry.second, indexedAdd, entry.first,
                    &(*requestIt));
     ++requestIt;
     // check that it's not too many requests unfinished at once
