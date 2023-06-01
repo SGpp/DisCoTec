@@ -1028,45 +1028,47 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                              std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData, DimType dim,
                              LevelType lmin_n = 0) {
   assert(dfg.returnBoundaryFlags()[dim] > 0);
-
   const auto& lmax = dfg.getLevels()[dim];
   const auto& numberOfPolesLowerDimensions = dfg.getLocalOffsets()[dim];
   const IndexType jump = numberOfPolesLowerDimensions * dfg.getLocalSizes()[dim];
   const IndexType numberOfPolesHigherDimensions = dfg.getNrLocalElements() / jump;
 
-  static std::vector<FG_ELEMENT> tmp;
   // if we are using periodicity, add an entry to tmp for the virtual last value
   const bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  tmp.resize(dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0),
-             std::numeric_limits<double>::quiet_NaN());
-  auto ldata = dfg.getData();
+  const IndexType poleLength = dfg.getGlobalSizes()[dim] + (oneSidedBoundary ? 1 : 0);
+  FG_ELEMENT* ldata = dfg.getData();
   const IndexType& gstart = dfg.getLowerBounds()[dim];
+  const IndexType localOffsetForThisDimension = dfg.getLocalOffsets()[dim];
 
   // loop over poles
-  IndexType poleNumber = 0;
-  IndexType poleStart;
+  static thread_local std::vector<FG_ELEMENT> tmp;
+#pragma omp parallel for collapse(2) 
   for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
-    poleStart = nHigher * jump;  // local linear index
-    for (IndexType nLower = 0; nLower < numberOfPolesLowerDimensions;
-         ++nLower && ++poleNumber && ++poleStart) {
+    for (IndexType nLower = 0; nLower < numberOfPolesLowerDimensions; ++nLower) {
+      IndexType poleStart = nHigher * jump + nLower;  // local linear index
+      IndexType poleNumber = nLower + nHigher * numberOfPolesLowerDimensions;
 #ifndef NDEBUG
       IndexVector localIndexVector(dfg.getDimension());
-      // compute global vector index of poleStart
+      // compute global vector index of poleStart, make sure 0 in this dimension
       dfg.getLocalVectorIndex(poleStart, localIndexVector);
       assert(localIndexVector[dim] == 0);
       for (size_t i = 0; i < remoteData.size(); ++i) {
         assert(remoteData[i].getData(localIndexVector) == remoteData[i].getData(poleNumber));
       }
 #endif  // NDEBUG
+      //TODO can this be done outside the loop?
+      tmp.resize(poleLength, std::numeric_limits<FG_ELEMENT>::quiet_NaN());
+      if (tmp.size() != poleLength) {
+        throw std::runtime_error("tmp.size() != poleLength");
+      }
 
-      // go through remote containers
+      // go through remote containers, copy remote data
       for (size_t i = 0; i < remoteData.size(); ++i) {
         tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(poleNumber);
       }
-
       // copy local data
       for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
-        tmp[gstart + i] = ldata[poleStart + dfg.getLocalOffsets()[dim] * i];
+        tmp[gstart + i] = ldata[poleStart + localOffsetForThisDimension * i];
       }
 
       if (oneSidedBoundary) {
@@ -1087,7 +1089,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
       // copy pole back
       for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
-        ldata[poleStart + dfg.getLocalOffsets()[dim] * i] = tmp[gstart + i];
+        ldata[poleStart + localOffsetForThisDimension * i] = tmp[gstart + i];
         assert(!std::isnan(std::real(tmp[gstart + i])));
       }
     }
