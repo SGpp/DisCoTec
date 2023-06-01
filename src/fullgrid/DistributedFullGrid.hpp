@@ -835,7 +835,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) const {
     IndexVector subspaceIndices;
     IndexType numPointsOfSubspace = 1;
-    static auto oneDIndices = std::vector<IndexVector>(dim_);
+    static thread_local std::vector<IndexVector> oneDIndices;
     oneDIndices.resize(dim_);
     for (DimType d = 0; d < dim_; ++d) {
       if (l[d] > levels_[d]) {
@@ -868,15 +868,16 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
     // loop over all subspaces (-> somewhat linear access in the sg)
-    typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = 0;
-    static IndexVector subspaceIndices;
+#pragma omp parallel for shared(dsg)  // TODO why does it segfault??
     for (const auto& level : downwardClosedSet) {
-      sIndex = dsg.getIndexInRange(level, sIndex);
+      static thread_local IndexVector subspaceIndices;
+      typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = dsg.getIndex(level);
       if (sIndex > -1 && dsg.getDataSize(sIndex) > 0) {
         auto sPointer = dsg.getData(sIndex);
-        subspaceIndices = getFGPointsOfSubspace(level);
-        for (const auto& fIndex : subspaceIndices) {
-          this->getData()[fIndex] = *sPointer;
+        subspaceIndices = this->getFGPointsOfSubspace(level);
+#pragma omp simd linear(sPointer : 1)
+        for (size_t fIndex = 0; fIndex < subspaceIndices.size(); ++fIndex) {
+          this->getData()[subspaceIndices[fIndex]] = *sPointer;
           ++sPointer;
         }
       }
