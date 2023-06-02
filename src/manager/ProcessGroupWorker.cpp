@@ -467,7 +467,8 @@ void ProcessGroupWorker::initCombinedDSGVector() {
   Stats::startEvent("init dsgus");
   this->getSparseGridWorker().initCombinedUniDSGVector(
       combiParameters_.getLMin(), combiParameters_.getLMax(),
-      combiParameters_.getLMaxReductionVector(), combiParameters_.getNumGrids());
+      combiParameters_.getLMaxReductionVector(), combiParameters_.getNumGrids(),
+      combiParameters_.getCombinationVariant());
   Stats::stopEvent("init dsgus");
 }
 
@@ -490,7 +491,8 @@ void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatColl
   Stats::stopEvent("local reduce");
 
   Stats::startEvent("global reduce");
-  this->getSparseGridWorker().reduceUniformSG(globalReduceRankThatCollects);
+  this->getSparseGridWorker().reduceUniformSG(combiParameters_.getCombinationVariant(),
+                                              globalReduceRankThatCollects);
   Stats::stopEvent("global reduce");
 }
 
