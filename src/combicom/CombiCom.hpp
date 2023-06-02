@@ -178,6 +178,66 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
   }
 }
 
+template <typename FG_ELEMENT>
+std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
+getReductionDatatypes(
+    const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+    const std::pair<CommunicatorType,
+                    std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
+        commAndItsSubspaces) {
+  // like for sparse grid reduce, allow only up to 16MiB per reduction
+  //(when using double precision)
+  auto chunkSize = 2097152;
+  std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
+      datatypesByStartIndex;
+
+  // iterate subspacesByComm_ and create MPI datatypes for this communicator
+  auto comm = commAndItsSubspaces.first;
+  const auto& subspaces = commAndItsSubspaces.second;
+  // get chunked subspaces for this data type
+  {
+    auto subspaceIt = subspaces.cbegin();
+    while (subspaceIt != subspaces.cend()) {
+      const auto subspaceItBefore = subspaceIt;
+      const FG_ELEMENT* rawDataStartFirst = dsg.getData(*subspaceItBefore);
+      SubspaceSizeType chunkDataSize = 0;
+      static thread_local std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>
+          chunkSubspaces;
+      chunkSubspaces.clear();
+      // select chunk of not more than chunkSize, but at least one index
+      auto nextAddedDataSize = dsg.getDataSize(*subspaceIt);
+      do {
+        chunkDataSize += nextAddedDataSize;
+        chunkSubspaces.push_back(*subspaceIt);
+        ++subspaceIt;
+      } while (subspaceIt != subspaces.cend() &&
+               (nextAddedDataSize = dsg.getDataSize(*subspaceIt)) &&
+               (chunkDataSize + nextAddedDataSize) < chunkSize);
+
+      // create datatype for this chunk
+      static thread_local std::vector<int> arrayOfBlocklengths, arrayOfDisplacements;
+      arrayOfBlocklengths.clear();
+      arrayOfDisplacements.clear();
+      arrayOfBlocklengths.reserve(chunkSubspaces.size());
+      arrayOfDisplacements.reserve(chunkSubspaces.size());
+      for (const auto& ss : chunkSubspaces) {
+        arrayOfBlocklengths.push_back(dsg.getDataSize(ss));
+        arrayOfDisplacements.push_back(dsg.getData(ss) - rawDataStartFirst);
+      }
+
+      MPI_Datatype myIndexedDatatype;
+      MPI_Type_indexed(static_cast<int>(chunkSubspaces.size()), arrayOfBlocklengths.data(),
+                       arrayOfDisplacements.data(),
+                       getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>()),
+                       &myIndexedDatatype);
+      MPI_Type_commit(&myIndexedDatatype);
+      datatypesByStartIndex.push_back(std::make_pair(*subspaceItBefore, myIndexedDatatype));
+    }
+  }
+  assert(!datatypesByStartIndex.empty() && "No datatypes created for this communicator");
+  return datatypesByStartIndex;
+}
+
 template <typename SparseGridType>
 void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
@@ -185,40 +245,39 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   MPI_Op indexedAdd;
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
-  std::vector<MPI_Request> requests(dsg.getDatatypesByComm().size());
-  std::vector<int> requestsCompleted(requests.size(), -1);
+  std::vector<MPI_Request> requests;
+  requests.reserve(dsg.getSubspacesByCommunicator().size());
+  std::vector<int> requestsCompleted;
+  requestsCompleted.reserve(dsg.getSubspacesByCommunicator().size());
   const int numberOfRequestsAtOnce = 8;
-  auto requestIt = requests.begin();
-  for (const std::pair<CommunicatorType, MPI_Datatype>& entry : dsg.getDatatypesByComm()) {
-    // find start index for datatype on this communicator
-    auto findIt = std::find_if(
-        dsg.getSubspacesByCommunicator().begin(), dsg.getSubspacesByCommunicator().end(),
-        [&entry](const std::pair<CommunicatorType,
-                                 std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
-                     subspacesForComm) { return subspacesForComm.first == entry.first; });
-    if (findIt == dsg.getSubspacesByCommunicator().end()) {
-      throw std::runtime_error(
-          "distributedGlobalSubspaceReduce: Could not find communicator in "
-          "subspacesByCommunicator.");
-    }
-    typename AnyDistributedSparseGrid::SubspaceIndexType startIndex =
-        static_cast<int>(findIt->second.front());
+  for (const std::pair<CommunicatorType,
+                       std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
+           commAndItsSubspaces : dsg.getSubspacesByCommunicator()) {
+    // get reduction datatypes for this communicator
+    auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces);
+    // reduce for each datatype
+    for (auto& entry : datatypesByStartIndex) {
+      requests.emplace_back();
+      MPI_Iallreduce(MPI_IN_PLACE, dsg.getData(entry.first), 1, entry.second, indexedAdd,
+                     commAndItsSubspaces.first, &(requests.back()));
+      requestsCompleted.push_back(-1);
+      // free datatype -- MPI standard says it will be kept until operation is finished
+      MPI_Type_free(&(entry.second));
 
-    MPI_Iallreduce(MPI_IN_PLACE, dsg.getData(startIndex), 1, entry.second, indexedAdd, entry.first,
-                   &(*requestIt));
-    ++requestIt;
-    // check that it's not too many requests unfinished at once
-    auto numRequests = std::distance(requests.begin(), requestIt);
-    int numCompleted = 0;
-    MPI_Testsome(static_cast<int>(numRequests), requests.data(), &numCompleted,
-                 requestsCompleted.data(), MPI_STATUSES_IGNORE);
-    if (numCompleted < (numRequests - numberOfRequestsAtOnce + 1)) {
-      // wait for first request that is not in requestsCompleted
-      for (int i = 0; i < numRequests; ++i) {
-        if (std::find(requestsCompleted.begin(), requestsCompleted.end(), i) ==
-            requestsCompleted.end()) {
-          MPI_Wait(&requests[i], MPI_STATUS_IGNORE);
-          break;
+      // check that it's not too many requests unfinished at once
+      auto numRequests = requests.size();
+      int numCompleted = 0;
+      MPI_Testsome(static_cast<int>(numRequests), requests.data(), &numCompleted,
+                   requestsCompleted.data(), MPI_STATUSES_IGNORE);
+
+      if (numCompleted < (numRequests - numberOfRequestsAtOnce + 1)) {
+        // wait for first request that is not in requestsCompleted
+        for (int i = 0; i < numRequests; ++i) {
+          if (std::find(requestsCompleted.begin(), requestsCompleted.end(), i) ==
+              requestsCompleted.end()) {
+            MPI_Wait(&requests[i], MPI_STATUS_IGNORE);
+            break;
+          }
         }
       }
     }

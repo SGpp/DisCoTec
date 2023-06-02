@@ -24,7 +24,7 @@ class DistributedFullGrid;
 template <typename FG_ELEMENT>
 class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
  public:
-  using ElementType = FG_ELEMENT;  
+  using ElementType = FG_ELEMENT;
   // type used to index the subspaces
   // should be enough for the current scenario (cf. test_createTruncatedHierarchicalLevels_large)
   using SubspaceIndexType = int32_t;
@@ -40,9 +40,9 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
    * create an empty (no data) sparse grid with given subspaces.
    */
   explicit DistributedSparseGridUniform(DimType dim, const std::vector<LevelVector>& subspaces,
-                               CommunicatorType comm);
+                                        CommunicatorType comm);
 
-  virtual ~DistributedSparseGridUniform();
+  virtual ~DistributedSparseGridUniform() = default;
 
   // cheap rule of 5
   DistributedSparseGridUniform() = delete;
@@ -109,13 +109,9 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   // populated than in this DSGU)
   void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other);
 
-  const std::vector<std::pair<CommunicatorType, MPI_Datatype>>& getDatatypesByComm() const;
-
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
                                         const LevelVector& lmin) const;
-  void setReductionDatatypes();
-
   DimType dim_;
 
   std::vector<LevelVector> levels_;  // linear access to all subspaces; may be reset to save memory
@@ -127,8 +123,6 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   std::vector<FG_ELEMENT*> kahanDataBegin_;  // pointers to Kahan summation residual terms
 
   std::vector<FG_ELEMENT> kahanData_;  // Kahan summation residual terms
-
-  std::vector<std::pair<CommunicatorType, MPI_Datatype>> datatypesByComm_;
 };
 
 }  // namespace combigrid
@@ -158,15 +152,6 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
     for (size_t i = 0; i < l.size(); ++i) {
       assert(l[i] > 0);
     }
-  }
-}
-
-template <typename FG_ELEMENT>
-DistributedSparseGridUniform<FG_ELEMENT>::~DistributedSparseGridUniform() {
-  // free datatypes and comms
-  for (auto& it : datatypesByComm_) {
-    MPI_Type_free(&it.second);
-    // MPI_Comm_free(&it.first);
   }
 }
 
@@ -209,11 +194,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createSubspaceData() {
       // needs to be called explicitly if relevant sizes change
       this->createKahanBuffer();
     }
-
-    // if the subspacesByComm_ is set, we need to set the MPI data types for reduction
-    if (!this->subspacesByComm_.empty()) {
-      this->setReductionDatatypes();
-    }
   }
 }
 
@@ -231,52 +211,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::createKahanBuffer() {
   }
 }
 
-template <typename FG_ELEMENT>
-void DistributedSparseGridUniform<FG_ELEMENT>::setReductionDatatypes() {
-  // like for sparse grid reduce, allow only up to 16MiB per reduction
-  //(when using double precision)
-  auto chunkSize = 2097152;
-
-  // iterate subspacesByComm_ and create MPI datatypes for each communicator
-  for (auto& it : this->subspacesByComm_) {
-    auto comm = it.first;
-    const auto& subspaces = it.second;
-    // get chunked subspaces for this data type
-    {
-      auto subspaceIt = subspaces.cbegin();
-      FG_ELEMENT* rawDataStartFirst = this->getData(*subspaceIt);
-      while (subspaceIt != subspaces.cend()) {
-        SubspaceSizeType chunkDataSize = 0;
-        std::vector<SubspaceIndexType> chunkSubspaces;
-        auto nextAddedDataSize = getDataSize(*subspaceIt);
-        do {
-          chunkDataSize += nextAddedDataSize;
-          chunkSubspaces.push_back(*subspaceIt);
-          ++subspaceIt;
-        } while (subspaceIt != subspaces.cend() && (nextAddedDataSize = getDataSize(*subspaceIt)) &&
-                 (chunkDataSize + nextAddedDataSize) < chunkSize);
-
-        // create datatype for this chunk
-        std::vector<int> arrayOfBlocklengths, arrayOfDisplacements;
-        arrayOfBlocklengths.reserve(chunkSubspaces.size());
-        arrayOfDisplacements.reserve(chunkSubspaces.size());
-        for (const auto& ss : chunkSubspaces) {
-          arrayOfBlocklengths.push_back(this->getDataSize(ss));
-          arrayOfDisplacements.push_back(this->getData(ss) - rawDataStartFirst);
-        }
-
-        MPI_Datatype myIndexedDatatype;
-        MPI_Type_indexed(static_cast<int>(chunkSubspaces.size()), arrayOfBlocklengths.data(),
-                         arrayOfDisplacements.data(),
-                         getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>()),
-                         &myIndexedDatatype);
-        MPI_Type_commit(&myIndexedDatatype);
-        datatypesByComm_.push_back(std::make_pair(comm, myIndexedDatatype));
-      }
-    }
-  }
-}
-
 /** Deallocates the dsgu data.
  *  This affects the values stored at the grid points and pointers which address
  *  the subspaces data.
@@ -291,12 +225,6 @@ void DistributedSparseGridUniform<FG_ELEMENT>::deleteSubspaceData() {
       ss = nullptr;
     }
   }
-  // free datatypes and ops
-  for (auto& it : datatypesByComm_) {
-    MPI_Type_free(&it.second);
-    // MPI_Comm_free(&it.first);
-  }
-  datatypesByComm_.clear();
 }
 
 template <typename FG_ELEMENT>
@@ -395,12 +323,6 @@ inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
     SubspaceIndexType i) const {
   assert(isSubspaceDataCreated());
   return subspaces_[i];
-}
-
-template <typename FG_ELEMENT>
-const std::vector<std::pair<CommunicatorType, MPI_Datatype>>&
-DistributedSparseGridUniform<FG_ELEMENT>::getDatatypesByComm() const {
-  return datatypesByComm_;
 }
 
 template <typename FG_ELEMENT>
