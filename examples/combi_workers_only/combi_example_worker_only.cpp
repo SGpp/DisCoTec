@@ -1,19 +1,22 @@
-// include user specific task. this is the interface to your application
 #include <algorithm>
 #include <boost/serialization/export.hpp>
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <vector>
 
+// include user specific task. this is the interface to your application
 #include "../distributed_advection/TaskAdvection.hpp"
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "io/BroadcastParameters.hpp"
+#include "io/H5InputOutput.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupWorker.hpp"
 #include "mpi/MPISystem.hpp"
 #include "task/Task.hpp"
+#include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
 
 using namespace combigrid;
@@ -65,6 +68,7 @@ int main(int argc, char** argv) {
     std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme");
     combigrid::real dt = cfg.get<combigrid::real>("application.dt");
     size_t nsteps = cfg.get<size_t>("application.nsteps");
+    bool evalMCError = cfg.get<bool>("application.mcerror", false);
 
     // periodic boundary conditions
     std::vector<BoundaryType> boundary(dim, 1);
@@ -144,6 +148,30 @@ int main(int argc, char** argv) {
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "generated parameters"
                                                << std::endl;
 
+    // read interpolation coordinates
+    std::vector<std::vector<double>> interpolationCoords;
+    if (evalMCError) {
+      interpolationCoords.resize(1e5, std::vector<double>(dim, -1.));
+      std::string interpolationCoordsFile = "interpolation_coords_" + std::to_string(dim) + "D_" +
+                                            std::to_string(interpolationCoords.size()) + ".h5";
+      // if the file does not exist, one rank creates it
+      if (!std::filesystem::exists(interpolationCoordsFile)) {
+        if (theMPISystem()->getWorldRank() == 0) {
+          interpolationCoords = montecarlo::getRandomCoordinates(interpolationCoords.size(), dim);
+          h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
+                                    "only");
+        }
+        MPI_Barrier(theMPISystem()->getWorldComm());
+      }
+      interpolationCoords = broadcastParameters::getCoordinatesFromRankZero(
+          interpolationCoordsFile, theMPISystem()->getWorldComm());
+
+      if (interpolationCoords.size() != 1e5) {
+        sleep(1);
+        throw std::runtime_error("not enough interpolation coordinates");
+      }
+    }
+
     ProcessGroupWorker worker;
     worker.setCombiParameters(std::move(params));
 
@@ -192,6 +220,22 @@ int main(int argc, char** argv) {
                                                  << " took: " << durationRun << " seconds"
                                                  << std::endl;
 
+      if (evalMCError) {
+        Stats::startEvent("write interpolated");
+        // evaluate these errors by calling
+        // `python3 tools/hdf5_interpolation_norms.py worker_interpolated_values_0.h5
+        // --solution=advection --coordinates=interpolation_coords_6D_100000.h5`
+        worker.writeInterpolatedValuesSingleFile(interpolationCoords, "worker_interpolated");
+        Stats::stopEvent("write interpolated");
+        OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
+          MASTER_EXCLUSIVE_SECTION {
+            std::cout << getTimeStamp() << "interpolation " << i
+                      << " took: " << Stats::getDuration("write interpolated") / 1000.0
+                      << " seconds" << std::endl;
+          }
+        }
+      }
+
       MPI_Barrier(theMPISystem()->getWorldComm());
       worker.combineUniform();
       auto durationCombine = Stats::getDuration("combine") / 1000.0;
@@ -206,8 +250,18 @@ int main(int argc, char** argv) {
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "last calculation " << ncombi
                                                << " took: " << durationRun << " seconds"
                                                << std::endl;
-
-    // numerical evaluation of Monte Carlo errors -> cf. examples/distributed_advection
+    if (evalMCError) {
+      Stats::startEvent("write interpolated");
+      worker.writeInterpolatedValuesSingleFile(interpolationCoords, "worker_interpolated");
+      Stats::stopEvent("write interpolated");
+      OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION {
+        MASTER_EXCLUSIVE_SECTION {
+          std::cout << getTimeStamp() << "last interpolation " << ncombi
+                    << " took: " << Stats::getDuration("write interpolated") / 1000.0 << " seconds"
+                    << std::endl;
+        }
+      }
+    }
 
     worker.exit();
   }
