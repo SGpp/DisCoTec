@@ -222,7 +222,7 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
   // get the lowest-index point of the points
   // whose basis functions contribute to the interpolated value
   const auto& h = getGridSpacing();
-  static IndexVector localIndexLowerNonzeroNeighborPoint;
+  static thread_local IndexVector localIndexLowerNonzeroNeighborPoint;
   localIndexLowerNonzeroNeighborPoint.resize(dim_);
   for (DimType d = 0; d < dim_; ++d) {
 #ifndef NDEBUG
@@ -395,7 +395,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     assert(locLinIndex < this->getNrLocalElements());
 
     // convert to local vector index
-    static IndexVector locAxisIndex(dim_);
+    static thread_local IndexVector locAxisIndex(dim_);
     locAxisIndex.resize(dim_);
     getLocalVectorIndex(locLinIndex, locAxisIndex);
 
@@ -417,7 +417,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     assert(globLinIndex < this->getNrElements());
 
     // convert to global vector index
-    static IndexVector globAxisIndex(dim_);
+    static thread_local IndexVector globAxisIndex(dim_);
     globAxisIndex.resize(dim_);
     getGlobalVectorIndex(globLinIndex, globAxisIndex);
 

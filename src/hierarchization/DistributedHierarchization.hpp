@@ -302,9 +302,9 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
             (index - dfg.getLowerBounds()[dim]) * dfg.getLocalOffsets()[dim];
 #ifndef NDEBUG
         {
-          static IndexVector lidxvec(dfg.getDimension(), 0);
+          static thread_local IndexVector lidxvec(dfg.getDimension(), 0);
           lidxvec.resize(dfg.getDimension());
-          static IndexVector gidxvec;
+          static thread_local IndexVector gidxvec;
           gidxvec = dfg.getLowerBounds();
           gidxvec[dim] = index;
           [[maybe_unused]] bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
@@ -1198,7 +1198,7 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   IndexType nbrOfPoles = size / ndim;
 
   // loop over poles
-  static std::vector<FG_ELEMENT> tmp;
+  static thread_local std::vector<FG_ELEMENT> tmp;
   tmp.resize(dfg.getGlobalSizes()[dim], std::numeric_limits<double>::quiet_NaN());
   auto ldata = dfg.getData();
   lldiv_t divresult;
