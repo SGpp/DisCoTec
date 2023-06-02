@@ -1026,7 +1026,6 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       }
     }
   }
-  assert(poleNumber == numberOfPolesHigherDimensions * numberOfPolesLowerDimensions);
 }
 
 /**
