@@ -63,6 +63,7 @@ set(DISCOTEC_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_wait.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_waitall.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/rescheduler/RebalancingTaskRescheduler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sparsegrid/AnyDistributedSparseGrid.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/task/Task.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/third_level/NetworkUtils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/third_level/ThirdLevelUtils.cpp

@@ -115,7 +115,8 @@ int main(int argc, char** argv) {
     }
 
     /* create combi parameters */
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
+                           CombinationVariant::sparseGridReduce, p);
 
     /* create Manager with process groups */
     ProcessManager manager( pgroups, tasks, params, std::move(loadmodel) );

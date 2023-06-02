@@ -24,7 +24,7 @@ class DistributedFullGrid;
 template <typename FG_ELEMENT>
 class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
  public:
-  using ElementType = FG_ELEMENT;  
+  using ElementType = FG_ELEMENT;
   // type used to index the subspaces
   // should be enough for the current scenario (cf. test_createTruncatedHierarchicalLevels_large)
   using SubspaceIndexType = int32_t;
@@ -40,7 +40,7 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
    * create an empty (no data) sparse grid with given subspaces.
    */
   explicit DistributedSparseGridUniform(DimType dim, const std::vector<LevelVector>& subspaces,
-                               CommunicatorType comm);
+                                        CommunicatorType comm);
 
   virtual ~DistributedSparseGridUniform() = default;
 
@@ -111,8 +111,7 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
-                                        const LevelVector& lmin);
-
+                                        const LevelVector& lmin) const;
   DimType dim_;
 
   std::vector<LevelVector> levels_;  // linear access to all subspaces; may be reset to save memory
@@ -261,7 +260,7 @@ std::ostream& operator<<(std::ostream& os, const DistributedSparseGridUniform<FG
 
 template <typename FG_ELEMENT>
 std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
-    DimType dim, const LevelVector& nmax, const LevelVector& lmin) {
+    DimType dim, const LevelVector& nmax, const LevelVector& lmin) const {
   std::vector<LevelVector> created{};
   combigrid::createTruncatedHierarchicalLevels(nmax, lmin, created);
   // std::sort(created.begin(), created.end());
@@ -463,7 +462,6 @@ template <typename FG_ELEMENT>
 inline size_t DistributedSparseGridUniform<FG_ELEMENT>::getRawDataSize() const {
   return subspacesData_.size();
 }
-
 
 } /* namespace combigrid */
 

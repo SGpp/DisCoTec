@@ -353,14 +353,15 @@ int main(int argc, char** argv) {
     // CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi*2, 1, p,
     //                        LevelVector(dim, 0), reduceCombinationDimsLmax,
     //                        forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
-    //TODO!
+    // TODO!
 
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi*2, 1, p,
-                           LevelVector(dim, 0), reduceCombinationDimsLmax,
-                           forwardDecomposition);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi * 2, 1,
+                           CombinationVariant::sparseGridReduce, p, LevelVector(dim, 0),
+                           reduceCombinationDimsLmax, forwardDecomposition);
     // auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax);
     // if(ctDOF < sgDOF) {
-    //   throw std::runtime_error("Partitions don't match " + std::to_string(ctDOF) + " " + std::to_string(sgDOF));
+    //   throw std::runtime_error("Partitions don't match " + std::to_string(ctDOF) + " " +
+    //   std::to_string(sgDOF));
     // }
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {

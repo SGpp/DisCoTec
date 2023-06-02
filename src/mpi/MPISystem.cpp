@@ -64,15 +64,21 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs,
   worldRank_ = getCommRank(worldComm_);
   int worldSize = getCommSize(worldComm_);
   if (withWorldManager) {
-    if(worldSize != static_cast<int>(ngroup_ * nprocs_ + 1)) {
-      throw std::invalid_argument("Number of MPI processes does not match number of process groups and processes per group.");
+    if (worldSize != static_cast<int>(ngroup_ * nprocs_ + 1)) {
+      throw std::invalid_argument(
+          "Number of MPI processes does not match number of process groups and processes per "
+          "group. Expected " +
+          std::to_string(ngroup_ * nprocs_ + 1) + " but got " + std::to_string(worldSize) + ".");
     }
     managerRankWorld_ = worldSize - 1;
   } else {
-    if(worldSize != static_cast<int>(ngroup_ * nprocs_)) {
-      throw std::invalid_argument("Number of MPI processes does not match number of process groups and processes per group.");
+    if (worldSize != static_cast<int>(ngroup_ * nprocs_)) {
+      throw std::invalid_argument(
+          "Number of MPI processes does not match number of process groups and processes per "
+          "group. Expected " +
+          std::to_string(ngroup_ * nprocs_) + " but got " + std::to_string(worldSize) + ".");
     }
-    managerRankWorld_ =  MPI_PROC_NULL;
+    managerRankWorld_ = MPI_PROC_NULL;
   }
   if (ENABLE_FT) {
     managerRankFT_ = managerRankWorld_;

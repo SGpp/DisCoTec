@@ -216,7 +216,8 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     std::vector<int> parallelization(testParams.dim, 1);
     parallelization[1] = static_cast<int>(testParams.nprocs);
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
-                                coeffs, taskIDs, testParams.ncombi, 1, parallelization,
+                                coeffs, taskIDs, testParams.ncombi, 1,
+                                CombinationVariant::sparseGridReduce, parallelization,
                                 LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
                                 false, testParams.host, testParams.port, 0);
 
@@ -480,7 +481,8 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
     // create combiparameters
     std::vector<int> parallelization = {static_cast<int>(testParams.nprocs), 1};
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
-                                coeffs, taskIDs, testParams.ncombi, 1, parallelization,
+                                coeffs, taskIDs, testParams.ncombi, 1,
+                                CombinationVariant::sparseGridReduce, parallelization,
                                 LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
                                 false, testParams.host, testParams.port, 0);
 
@@ -611,7 +613,8 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
   parallelization[1] = static_cast<int>(testParams.nprocs);
   // create combiparameters
   CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary,
-                              testParams.ncombi, 1, parallelization, LevelVector(testParams.dim, 0),
+                              testParams.ncombi, 1, CombinationVariant::sparseGridReduce,
+                              parallelization, LevelVector(testParams.dim, 0),
                               LevelVector(testParams.dim, 1), false);
   worker.setCombiParameters(std::move(combiParams));
 
@@ -780,10 +783,11 @@ void testPretendThirdLevel(TestParams& testParams) {
 
     // create combiparameters
     std::vector<int> parallelization = {static_cast<int>(testParams.nprocs), 1};
-    CombiParameters combiParams(
-        testParams.dim, testParams.lmin, testParams.lmax, boundary, levels, coeffs, taskIDs,
-        testParams.ncombi, 1, parallelization, LevelVector(testParams.dim, 0),
-        reduceCombinationDimsLmax, true, testParams.host, testParams.port, 0);
+    CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
+                                coeffs, taskIDs, testParams.ncombi, 1,
+                                CombinationVariant::sparseGridReduce, parallelization,
+                                LevelVector(testParams.dim, 0), reduceCombinationDimsLmax, true,
+                                testParams.host, testParams.port, 0);
 
     auto decomposition = combigrid::getStandardDecomposition(testParams.lmax, parallelization);
     combiParams.setDecomposition(decomposition);
