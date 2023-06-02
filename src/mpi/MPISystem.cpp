@@ -388,8 +388,9 @@ void MPISystem::initGlobalReduceCommm() {
 }
 
 // helper function to identify "diagonal" processes for output group
-std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
-  std::vector<int> ranks;
+std::vector<int>& getDiagonalRanks(size_t nprocs, size_t ngroup) {
+  static thread_local std::vector<int> ranks;
+  ranks.clear();
   ranks.reserve(nprocs);
   for (size_t diagonal = 0; diagonal < nprocs / ngroup + 1; ++diagonal) {
     for (size_t p = 0; p < ngroup; ++p) {
@@ -405,7 +406,7 @@ std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
 void MPISystem::initOuputGroupComm() {
   MPI_Group worldGroup;
   MPI_Comm_group(worldComm_, &worldGroup);
-  auto ranks = getDiagonalRanks(nprocs_, ngroup_);
+  auto& ranks = getDiagonalRanks(nprocs_, ngroup_);
   assert(ranks.size() == nprocs_);
 
   MPI_Group newGroup;

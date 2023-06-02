@@ -114,7 +114,8 @@ class MPICartesianUtils {
     assert(idx1d >= 0);
     assert(idx1d < this->getCartesianDimensions()[dim]);
 
-    auto neighborPartitionCoords = this->localCoords_;
+    static thread_local IndexVector neighborPartitionCoords;
+    neighborPartitionCoords = this->localCoords_;
     neighborPartitionCoords[dim] = idx1d;
     RankType r = this->getRankFromPartitionCoords(neighborPartitionCoords);
     return r;

@@ -558,7 +558,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   }
 
   /** upper Bounds of this process */
-  inline IndexVector getUpperBounds() const {
+  inline const IndexVector& getUpperBounds() const {
     // return getUpperBounds(this->getRank());
     return myPartitionsUpperBounds_;
   }
