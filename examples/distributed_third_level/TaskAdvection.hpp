@@ -38,7 +38,7 @@ class TaskAdvection : public Task {
       : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
         nsteps_(nsteps),
-        p_(p),
+        p_(std::move(p)),
         initialized_(false),
         stepsTotal_(0),
         dfg_(nullptr) {
@@ -52,7 +52,6 @@ class TaskAdvection : public Task {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
-    auto lrank = theMPISystem()->getLocalRank();
     DimType dim = this->getDim();
     const LevelVector& l = this->getLevelVector();
 
@@ -63,7 +62,7 @@ class TaskAdvection : public Task {
       phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
     }
 
-    std::vector<double> h = dfg_->getGridSpacing();
+    const auto& h = dfg_->getGridSpacing();
     auto sumOneOverH = 0.;
     for (const auto& h_x : h) {
       sumOneOverH += 1. / h_x;
@@ -73,8 +72,9 @@ class TaskAdvection : public Task {
     }
 
     TestFn f;
+#pragma omp parallel for
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-      static std::vector<double> coords(this->getDim());
+      static thread_local std::vector<double> coords(this->getDim());
       dfg_->getCoordsLocal(li, coords);
       dfg_->getData()[li] = f(coords, 0.);
     }
@@ -137,10 +137,9 @@ class TaskAdvection : public Task {
         const auto& stride = dfg_->getLocalOffsets()[d];
         const IndexType jump = stride * dfg_->getLocalSizes()[d];
         const IndexType numberOfPolesHigherDimensions = dfg_->getNrLocalElements() / jump;
-#pragma omp parallel for collapse(2) 
+#pragma omp parallel for collapse(2)
         for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
-          for (IndexType nLower = 0; nLower < dfg_->getLocalOffsets()[d];
-               ++nLower) {
+          for (IndexType nLower = 0; nLower < dfg_->getLocalOffsets()[d]; ++nLower) {
             IndexType dfgLowestLayerIteratedIndex = nHigher * jump + nLower;  // local linear index
             IndexType ghostIndex = nLower + nHigher * dfg_->getLocalOffsets()[d];
 #ifndef NDEBUG
