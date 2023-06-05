@@ -223,9 +223,19 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
   }
   if (verbose) {
     MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      // get the number of used OpenMP threads // gratefully borrowed from PLSSVM
+      int numOMPthreads = 0;
+#pragma omp parallel default(none) shared(numOMPthreads)
+      {
+#pragma omp master
+#ifdef _OPENMP
+        numOMPthreads = omp_get_num_threads();
+#endif
+      }
+
       std::cout << "MPI: " << ngroup << " groups with " << nprocs << " ranks each with "
 #ifdef _OPENMP
-                << omp_get_num_threads() << " threads each; with"
+                << numOMPthreads << " threads each; with"
 #endif
                 << (withWorldManager ? "" : "out") << " world manager" << std::endl;
     }

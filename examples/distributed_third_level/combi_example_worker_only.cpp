@@ -34,7 +34,7 @@ using namespace combigrid;
 BOOST_CLASS_EXPORT(TaskAdvection)
 
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  MpiOnOff(&argc, &argv);
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
    */
@@ -345,8 +345,6 @@ int main(int argc, char** argv) {
                      std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
                  theMPISystem()->getLocalComm());
   }
-
-  MPI_Finalize();
 
   return 0;
 }

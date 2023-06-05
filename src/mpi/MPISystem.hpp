@@ -36,6 +36,19 @@
 
 namespace combigrid {
 
+struct MpiOnOff {
+  explicit MpiOnOff(int *argc = nullptr, char ***argv = nullptr) {
+    int ignore;
+#ifdef _OPENMP
+    int threadMode = MPI_THREAD_MULTIPLE;
+#else
+    int threadMode = MPI_THREAD_SINGLE;
+#endif
+    MPI_Init_thread(argc, argv, threadMode, &ignore);
+  }
+  ~MpiOnOff() { MPI_Finalize(); }
+};
+
 class ProcessGroupManager;
 
 class MPISystem;
@@ -676,7 +689,6 @@ inline RankType MPISystem::getWorldSize() const {
 
   return worldSize;
 }
-
 
 }  // namespace combigrid
 
