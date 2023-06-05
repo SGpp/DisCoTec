@@ -225,9 +225,12 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
 
   // for each rank r in send1dIndices that has a nonempty index list
   numSend = 0;
-  for (const auto& x : send1dIndices) {
-    const auto& r = x.first;
-    const auto& indices = x.second;
+#pragma omp parallel for shared(sendRequests, numSend)
+  for (size_t x = 0; x < send1dIndices.size(); ++x) {
+    auto mapIt = send1dIndices.cbegin();
+    std::advance(mapIt, x);
+    const auto& r = mapIt->first;
+    const auto& indices = mapIt->second;
     if (!indices.empty()) {
       // make datatype hblock for all indices
       MPI_Datatype myHBlock;
@@ -263,6 +266,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
       {
         int dest = static_cast<int>(r);
         int tag = static_cast<int>(*(indices.begin()));
+#pragma omp critical 
         MPI_Isend(dfg.getData(), 1, myHBlock, dest, tag, dfg.getCommunicator(),
                   &sendRequests[numSend++]);
       }
@@ -274,9 +278,12 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
 
   // for each rank r in recv1dIndices that has a nonempty index list
   numRecv = 0;
-  for (const auto& x : recv1dIndices) {
-    const auto& r = x.first;
-    const auto& indices = x.second;
+// #pragma omp parallel for shared(recvRequests, numRecv) //segfault!
+  for (size_t x = 0; x < recv1dIndices.size(); ++x) {
+    auto mapIt = recv1dIndices.cbegin();
+    std::advance(mapIt, x);
+    const auto& r = mapIt->first;
+    const auto& indices = mapIt->second;
     if (!indices.empty()) {
       const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
 
@@ -313,7 +320,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
         {
           int src = static_cast<int>(r);
           int tag = static_cast<int>(*(indices.begin()));
-
+#pragma omp critical
           MPI_Irecv(static_cast<void*>(bufs[0]), 1, myHBlock, src, tag, dfg.getCommunicator(),
                     &recvRequests[numRecv++]);
         }
@@ -1210,7 +1217,7 @@ class DistributedHierarchization {
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
-
+#pragma omp barrier
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
@@ -1249,6 +1256,7 @@ class DistributedHierarchization {
         hierarchizeNoBoundary(dfg, remoteData, dim);
       }
     }
+#pragma omp barrier
   }
 
   template <typename FG_ELEMENT, class T = HierarchicalHatBasisFunction>
@@ -1292,6 +1300,7 @@ class DistributedHierarchization {
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
+#pragma omp barrier
 
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
@@ -1300,26 +1309,25 @@ class DistributedHierarchization {
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT,
-                                    dehierarchize_hat_boundary_kernel<FG_ELEMENT, true>>(
+          hierarchizeWithBoundary<FG_ELEMENT, dehierarchize_hat_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          hierarchizeWithBoundary<
-              FG_ELEMENT, dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+          hierarchizeWithBoundary<FG_ELEMENT,
+                                  dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
           hierarchizeWithBoundary<FG_ELEMENT,
-                                    dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
+                                  dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          hierarchizeWithBoundary<
-              FG_ELEMENT, dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+          hierarchizeWithBoundary<FG_ELEMENT,
+                                  dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
               dfg, remoteData, dim, lmin[dim]);
         } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
                    nullptr) {
           hierarchizeWithBoundary<FG_ELEMENT,
-                                    dehierarchize_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
+                                  dehierarchize_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
               dfg, remoteData, dim, lmin[dim]);
         } else {
           throw std::logic_error("Not implemented");
@@ -1332,6 +1340,7 @@ class DistributedHierarchization {
         dehierarchizeNoBoundary(dfg, remoteData, dim);
       }
     }
+#pragma omp barrier
   }
 
   template <typename FG_ELEMENT, class T = HierarchicalHatBasisFunction>
