@@ -6,10 +6,12 @@ namespace combigrid {
 void getDownSetRecursively(combigrid::LevelVector const& l, combigrid::LevelVector fixedDimensions,
                            std::vector<LevelVector>& downSet) {
   if (fixedDimensions.size() == l.size()) {
+#pragma omp critical
     downSet.push_back(std::move(fixedDimensions));
   } else {
     // for the whole range of values in dimension d
     size_t d = fixedDimensions.size();
+#pragma omp parallel for
     for (LevelType i = 1; i <= l[d]; ++i) {  // levels start at 1 here, in compliance with our
                                              // definition of DistributedSparseGrid
       auto moreDimensionsFixed = fixedDimensions;
