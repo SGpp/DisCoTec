@@ -6,7 +6,7 @@ namespace combigrid {
 void getDownSetRecursively(combigrid::LevelVector const& l, combigrid::LevelVector fixedDimensions,
                            std::vector<LevelVector>& downSet) {
   if (fixedDimensions.size() == l.size()) {
-    downSet.push_back(fixedDimensions);
+    downSet.push_back(std::move(fixedDimensions));
   } else {
     // for the whole range of values in dimension d
     size_t d = fixedDimensions.size();
@@ -21,6 +21,7 @@ void getDownSetRecursively(combigrid::LevelVector const& l, combigrid::LevelVect
 
 std::vector<LevelVector> getDownSet(combigrid::LevelVector const& l) {
   std::vector<LevelVector> downSet;
+  downSet.reserve(std::accumulate(l.begin(), l.end(), 1, std::multiplies<LevelType>()));
   getDownSetRecursively(l, LevelVector(), downSet);
   return downSet;
 }
