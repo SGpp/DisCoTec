@@ -2,6 +2,11 @@
 #include "manager/ProcessGroupManager.hpp"
 #include "utils/Stats.hpp"
 
+#ifdef _OPENMP
+// OpenMP header
+#include <omp.h>
+#endif
+
 #include <iostream>
 
 namespace combigrid {
@@ -178,7 +183,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm, bool 
  * this method can be called multiple times (needed for tests)
  */
 void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t nprocs,
-                                  bool withWorldManager) {
+                                  bool withWorldManager, bool verbose) {
   initSystemConstants(ngroup, nprocs, wcomm, withWorldManager, true);
   initialized_ = true;
   if (ngroup * nprocs > 0) {
@@ -214,6 +219,15 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
     if (worldSize > 1) {
       throw std::runtime_error(" too many MPI processes for manager-only setup: " +
                                std::to_string(worldSize));
+    }
+  }
+  if (verbose) {
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      std::cout << "MPI: " << ngroup << " groups with " << nprocs << " ranks each with "
+#ifdef _OPENMP
+                << omp_get_num_threads() << " threads each; with"
+#endif
+                << (withWorldManager ? "" : "out") << " world manager" << std::endl;
     }
   }
 }

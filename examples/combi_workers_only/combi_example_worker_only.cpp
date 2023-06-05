@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
 
     // divide the MPI processes into process group and initialize the
     // corresponding communicators
-    theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, false);
+    theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, false, true);
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "initialized communicators"
                                                << std::endl;
 

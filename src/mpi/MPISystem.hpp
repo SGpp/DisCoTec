@@ -115,11 +115,12 @@ class MPISystem {
   /**
    * initializes MPI system including world communicator; so far only used in tests
    */
-  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs, bool withWorldManager = true);
+  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs,
+                         bool withWorldManager = true, bool verbose = false);
 
   /**
-  * returns the world communicator which contains all ranks (excluding spare ranks)
-  */
+   * returns the world communicator which contains all ranks (excluding spare ranks)
+   */
   inline const CommunicatorType& getWorldComm() const;
 
   /**

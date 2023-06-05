@@ -51,7 +51,7 @@ int main(int argc, char** argv) {
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
   size_t nprocs = cfg.get<size_t>("manager.nprocs");
 
-  theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, false);
+  theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, false, true);
   {
     /* read other parameters from ctparam */
     DimType dim = cfg.get<DimType>("ct.dim");
