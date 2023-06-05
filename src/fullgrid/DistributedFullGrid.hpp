@@ -868,7 +868,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
     // loop over all subspaces (-> somewhat linear access in the sg)
-#pragma omp parallel for shared(dsg)  // TODO why does it segfault??
+#pragma omp parallel for shared(dsg)
     for (const auto& level : downwardClosedSet) {
       static thread_local IndexVector subspaceIndices;
       typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = dsg.getIndex(level);
@@ -987,6 +987,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     if (p == 0) {
       real max = 0.0;
       auto data = this->getData();
+#pragma omp parallel for reduction(max : max)
       for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         max = std::max(max, std::abs(data[i]));
       }
@@ -998,7 +999,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       auto data = this->getData();
       real res = 0.0;
 
-      // double sumIntegral = 0;
+// double sumIntegral = 0;
+#pragma omp parallel for reduction(+ : res)
       for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         auto isOnBoundary = this->isLocalLinearIndexOnBoundary(i);
         auto countBoundary = std::count(isOnBoundary.begin(), isOnBoundary.end(), true);
