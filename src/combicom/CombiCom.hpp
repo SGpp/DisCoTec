@@ -166,10 +166,11 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
   int numBlocks = (num_integers - 1) / 2;
   int* arrayOfBlocklengths = arrayOfInts + 1;
   int* arrayOfDisplacements = arrayOfBlocklengths + numBlocks;
-#pragma omp parallel for
+#pragma omp parallel for  // TODO can this be sensibly collapsed?
   for (int i = 0; i < numBlocks; ++i) {
     FG_ELEMENT* inoutElements = reinterpret_cast<FG_ELEMENT*>(inoutvec) + arrayOfDisplacements[i];
     FG_ELEMENT* inElements = reinterpret_cast<FG_ELEMENT*>(invec) + arrayOfDisplacements[i];
+#pragma omp simd linear(inoutElements, inElements : 1)
     for (int j = 0; j < arrayOfBlocklengths[i]; ++j) {
       *inoutElements += *inElements;
       ++inoutElements;
@@ -245,7 +246,6 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   MPI_Op indexedAdd;
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
-  const int numberOfRequestsAtOnce = 8;
   for (const std::pair<CommunicatorType,
                        std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
            commAndItsSubspaces : dsg.getSubspacesByCommunicator()) {
