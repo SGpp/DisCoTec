@@ -111,6 +111,7 @@ class TaskAdvection : public Task {
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
 
         // update all values; this will also (wrongly) update the lowest layer's values
+#pragma omp parallel for
         for (IndexType li = 0; li < numLocalElements; ++li) {
 #ifndef NDEBUG
           IndexVector locAxisIndex(this->getDim());
@@ -136,12 +137,12 @@ class TaskAdvection : public Task {
         const auto& stride = dfg_->getLocalOffsets()[d];
         const IndexType jump = stride * dfg_->getLocalSizes()[d];
         const IndexType numberOfPolesHigherDimensions = dfg_->getNrLocalElements() / jump;
-        IndexType dfgLowestLayerIteratedIndex;
-        IndexType ghostIndex = 0;
+#pragma omp parallel for collapse(2) 
         for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
-          dfgLowestLayerIteratedIndex = nHigher * jump;  // local linear index
           for (IndexType nLower = 0; nLower < dfg_->getLocalOffsets()[d];
-               ++nLower && ++ghostIndex && ++dfgLowestLayerIteratedIndex) {
+               ++nLower) {
+            IndexType dfgLowestLayerIteratedIndex = nHigher * jump + nLower;  // local linear index
+            IndexType ghostIndex = nLower + nHigher * dfg_->getLocalOffsets()[d];
 #ifndef NDEBUG
             assert(dfgLowestLayerIteratedIndex < numLocalElements);
             IndexVector locAxisIndex(this->getDim());
@@ -167,6 +168,7 @@ class TaskAdvection : public Task {
           }
         }
       }
+#pragma omp parallel for simd
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
         (*phi_)[li] = ElementVector[li] - u_dot_dphi[li] * dt_;
       }

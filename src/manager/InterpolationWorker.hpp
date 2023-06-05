@@ -19,6 +19,7 @@ static std::vector<CombinableType> interpolateValues(
 
   for (const auto& t : tasks) {
     const auto coeff = t->getCoefficient();
+#pragma omp parallel for simd
     for (size_t i = 0; i < numCoordinates; ++i) {
       auto localValue = t->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
       auto summand = localValue * coeff;
