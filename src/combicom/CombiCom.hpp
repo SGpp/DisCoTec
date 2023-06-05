@@ -245,10 +245,6 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   MPI_Op indexedAdd;
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
-  std::vector<MPI_Request> requests;
-  requests.reserve(dsg.getSubspacesByCommunicator().size());
-  std::vector<int> requestsCompleted;
-  requestsCompleted.reserve(dsg.getSubspacesByCommunicator().size());
   const int numberOfRequestsAtOnce = 8;
   for (const std::pair<CommunicatorType,
                        std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
@@ -257,33 +253,14 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
     auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces);
     // reduce for each datatype
     for (auto& entry : datatypesByStartIndex) {
-      requests.emplace_back();
-      MPI_Iallreduce(MPI_IN_PLACE, dsg.getData(entry.first), 1, entry.second, indexedAdd,
-                     commAndItsSubspaces.first, &(requests.back()));
-      requestsCompleted.push_back(-1);
+      MPI_Allreduce(MPI_IN_PLACE, dsg.getData(entry.first), 1, entry.second, indexedAdd,
+                    commAndItsSubspaces.first);
+
       // free datatype -- MPI standard says it will be kept until operation is finished
       MPI_Type_free(&(entry.second));
-
-      // check that it's not too many requests unfinished at once
-      auto numRequests = requests.size();
-      int numCompleted = 0;
-      MPI_Testsome(static_cast<int>(numRequests), requests.data(), &numCompleted,
-                   requestsCompleted.data(), MPI_STATUSES_IGNORE);
-
-      if (numCompleted < (numRequests - numberOfRequestsAtOnce + 1)) {
-        // wait for first request that is not in requestsCompleted
-        for (int i = 0; i < numRequests; ++i) {
-          if (std::find(requestsCompleted.begin(), requestsCompleted.end(), i) ==
-              requestsCompleted.end()) {
-            MPI_Wait(&requests[i], MPI_STATUS_IGNORE);
-            break;
-          }
-        }
-      }
     }
   }
 
-  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
   MPI_Op_free(&indexedAdd);
 }
 
