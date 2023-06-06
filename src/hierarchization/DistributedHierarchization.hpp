@@ -103,29 +103,30 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
   std::vector<MPI_Request> sendRequests(numSend);
   std::vector<MPI_Request> recvRequests(numRecv);
 
+  // create general subarray pointing to the first d-1 dimensional slice
+  MPI_Datatype mysubarray;
+  {
+    // sizes of local grid
+    std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
+    // sizes of subarray ( full size except dimension d )
+    std::vector<int> subsizes = sizes;
+    subsizes[dim] = 1;
+    // start
+    std::vector<int> starts(dfg.getDimension(), 0);
+    // create subarray view on data
+    MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
+                             &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
+    MPI_Type_commit(&mysubarray);
+  }
+  MPI_Aint dfgStartAddr;
+  MPI_Get_address(dfg.getData(), &dfgStartAddr);
+
+  // for each rank r in send1dIndices that has a nonempty index list
+  numSend = 0;
   // "send" scope
   {
-    // create general subarray pointing to the first d-1 dimensional slice
-    MPI_Datatype mysubarray;
-    {
-      // sizes of local grid
-      std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
-      // sizes of subarray ( full size except dimension d )
-      std::vector<int> subsizes = sizes;
-      subsizes[dim] = 1;
-      // start
-      std::vector<int> starts(dfg.getDimension(), 0);
-      // create subarray view on data
-      MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
-                              &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
-      MPI_Type_commit(&mysubarray);
-    }
-    MPI_Aint dfgStartAddr;
-    MPI_Get_address(dfg.getData(), &dfgStartAddr);
-
-    // for each rank r in send1dIndices that has a nonempty index list
-    numSend = 0;
-    // #pragma omp parallel for shared(sendRequests, numSend, send1dIndices, dfg, dfgStartAddr) schedule(dynamic) default(none)
+#pragma omp parallel for shared(sendRequests, numSend, send1dIndices, dfg, dfgStartAddr, \
+                                    mysubarray, dim) schedule(dynamic) default(none)
     for (size_t x = 0; x < send1dIndices.size(); ++x) {
       auto mapIt = send1dIndices.cbegin();
       std::advance(mapIt, x);
@@ -177,10 +178,9 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
     MPI_Type_free(&mysubarray);
   }
 
-  // for each rank r in recv1dIndices that has a nonempty index list
   numRecv = 0;
-  // #pragma omp parallel for shared(recvRequests, numRecv, remoteData, recv1dIndices, dfg, \
-//                                     dim) default(none)
+  #pragma omp parallel for shared(recvRequests, numRecv, remoteData, recv1dIndices, dfg, \
+                                    dim) default(none)
   for (size_t x = 0; x < recv1dIndices.size(); ++x) {
     auto mapIt = recv1dIndices.cbegin();
     std::advance(mapIt, x);
