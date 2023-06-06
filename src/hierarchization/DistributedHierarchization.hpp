@@ -53,14 +53,18 @@ class RemoteDataCollector : public std::vector<RemoteDataSlice<FG_ELEMENT>> {
     return &newest;
   }
 
-  void setRequests(std::vector<MPI_Request>&& requests) { requests_ = std::move(requests); }
+  void setRequests(std::vector<MPI_Request>&& sRequests, std::vector<MPI_Request>&& rRequests) { 
+    sendRequests_ = std::move(sRequests); 
+    recvRequests_ = std::move(rRequests);}
 
   void waitallRequests() {
-    MPI_Waitall(static_cast<int>(requests_.size()), requests_.data(), MPI_STATUSES_IGNORE);
+    MPI_Waitall(static_cast<int>(sendRequests_.size()), sendRequests_.data(), MPI_STATUSES_IGNORE);
+    MPI_Waitall(static_cast<int>(recvRequests_.size()), recvRequests_.data(), MPI_STATUSES_IGNORE);
   }
 
  private:
-  std::vector<MPI_Request> requests_;
+  std::vector<MPI_Request> sendRequests_;
+  std::vector<MPI_Request> recvRequests_;
 };
 
 template <typename FG_ELEMENT>
@@ -112,80 +116,84 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
   std::vector<MPI_Request> sendRequests(numSend);
   std::vector<MPI_Request> recvRequests(numRecv);
 
-  // create general subarray pointing to the first d-1 dimensional slice
-  MPI_Datatype mysubarray;
+  // "send" scope
   {
-    // sizes of local grid
-    std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
-    // sizes of subarray ( full size except dimension d )
-    std::vector<int> subsizes = sizes;
-    subsizes[dim] = 1;
-    // start
-    std::vector<int> starts(dfg.getDimension(), 0);
-    // create subarray view on data
-    MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
-                             &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
-    MPI_Type_commit(&mysubarray);
-  }
-
-  MPI_Aint dfgStartAddr;
-  MPI_Get_address(dfg.getData(), &dfgStartAddr);
-
-  // for each rank r in send1dIndices that has a nonempty index list
-  numSend = 0;
-#pragma omp parallel for shared(sendRequests, numSend)
-  for (size_t x = 0; x < send1dIndices.size(); ++x) {
-    auto mapIt = send1dIndices.cbegin();
-    std::advance(mapIt, x);
-    const auto& r = mapIt->first;
-    const auto& indices = mapIt->second;
-    if (!indices.empty()) {
-      // make datatype hblock for all indices
-      MPI_Datatype myHBlock;
-      std::vector<MPI_Aint> displacements;
-      displacements.reserve(indices.size());
-      for (const auto& index : indices) {
-        // convert global 1d index i to local 1d index
-        IndexType localLinearIndex =
-            (index - dfg.getLowerBounds()[dim]) * dfg.getLocalOffsets()[dim];
-#ifndef NDEBUG
-        {
-          static thread_local IndexVector lidxvec(dfg.getDimension(), 0);
-          lidxvec.resize(dfg.getDimension());
-          static thread_local IndexVector gidxvec;
-          gidxvec = dfg.getLowerBounds();
-          gidxvec[dim] = index;
-          [[maybe_unused]] bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
-          assert(tmp && "index to be send not in local domain");
-          assert(localLinearIndex == dfg.getLocalLinearIndex(lidxvec));
-        }
-#endif
-        MPI_Aint addr;
-        MPI_Get_address(&(dfg.getData()[localLinearIndex]), &addr);
-        auto d = MPI_Aint_diff(addr, dfgStartAddr);
-        displacements.push_back(d);
-      }
-      // cannot use MPI_Type_create_indexed_block as subarrays may overlap
-      MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), 1, displacements.data(),
-                                     mysubarray, &myHBlock);
-      MPI_Type_commit(&myHBlock);
-
-      // send to rank r, use first global index as tag
-      {
-        int dest = static_cast<int>(r);
-        int tag = static_cast<int>(*(indices.begin()));
-#pragma omp critical
-        MPI_Isend(dfg.getData(), 1, myHBlock, dest, tag, dfg.getCommunicator(),
-                  &sendRequests[numSend++]);
-      }
-      MPI_Type_free(&myHBlock);
+    // create general subarray pointing to the first d-1 dimensional slice
+    MPI_Datatype mysubarray;
+    {
+      // sizes of local grid
+      std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
+      // sizes of subarray ( full size except dimension d )
+      std::vector<int> subsizes = sizes;
+      subsizes[dim] = 1;
+      // start
+      std::vector<int> starts(dfg.getDimension(), 0);
+      // create subarray view on data
+      MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
+                              &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
+      MPI_Type_commit(&mysubarray);
     }
+    MPI_Aint dfgStartAddr;
+    MPI_Get_address(dfg.getData(), &dfgStartAddr);
+
+    // for each rank r in send1dIndices that has a nonempty index list
+    numSend = 0;
+    // #pragma omp parallel for shared(sendRequests, numSend, send1dIndices, dfg, dfgStartAddr) schedule(dynamic) default(none)
+    for (size_t x = 0; x < send1dIndices.size(); ++x) {
+      auto mapIt = send1dIndices.cbegin();
+      std::advance(mapIt, x);
+      const auto& r = mapIt->first;
+      const auto& indices = mapIt->second;
+      assert(!indices.empty());
+      if (!indices.empty()) {
+        // make datatype hblock for all indices
+        MPI_Datatype myHBlock;
+        std::vector<MPI_Aint> displacements;
+        displacements.reserve(indices.size());
+        for (const auto& index : indices) {
+          // convert global 1d index i to local 1d index
+          IndexType localLinearIndex =
+              (index - dfg.getLowerBounds()[dim]) * dfg.getLocalOffsets()[dim];
+  #ifndef NDEBUG
+          {
+            static thread_local IndexVector lidxvec(dfg.getDimension(), 0);
+            lidxvec.resize(dfg.getDimension());
+            static thread_local IndexVector gidxvec;
+            gidxvec = dfg.getLowerBounds();
+            gidxvec[dim] = index;
+            [[maybe_unused]] bool tmp = dfg.getLocalVectorIndex(gidxvec, lidxvec);
+            assert(tmp && "index to be send not in local domain");
+            assert(localLinearIndex == dfg.getLocalLinearIndex(lidxvec));
+          }
+  #endif
+          MPI_Aint addr;
+          MPI_Get_address(&(dfg.getData()[localLinearIndex]), &addr);
+          auto d = MPI_Aint_diff(addr, dfgStartAddr);
+          displacements.push_back(d);
+        }
+        // cannot use MPI_Type_create_indexed_block as subarrays may overlap
+        MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), 1, displacements.data(),
+                                      mysubarray, &myHBlock);
+        MPI_Type_commit(&myHBlock);
+
+        // send to rank r, use first global index as tag
+        {
+          int dest = static_cast<int>(r);
+          int tag = static_cast<int>(*(indices.begin()));
+  #pragma omp critical
+          MPI_Isend(dfg.getData(), 1, myHBlock, dest, tag, dfg.getCommunicator(),
+                    &sendRequests[numSend++]);
+        }
+        MPI_Type_free(&myHBlock);
+      }
+    }
+    MPI_Type_free(&mysubarray);
   }
-  MPI_Type_free(&mysubarray);
 
   // for each rank r in recv1dIndices that has a nonempty index list
   numRecv = 0;
-// #pragma omp parallel for shared(recvRequests, numRecv) //segfault!
+  // #pragma omp parallel for shared(recvRequests, numRecv, remoteData, recv1dIndices, dfg, \
+//                                     dim) default(none)
   for (size_t x = 0; x < recv1dIndices.size(); ++x) {
     auto mapIt = recv1dIndices.cbegin();
     std::advance(mapIt, x);
@@ -238,10 +246,10 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
   }
   assert(sendRequests.size() == numSend);
   assert(recvRequests.size() == numRecv);
-  // concatenate the request vectors and set in remoteData
-  sendRequests.insert(sendRequests.end(), recvRequests.begin(), recvRequests.end());
-  remoteData.setRequests(std::move(sendRequests));
-  remoteData.waitallRequests();
+  //TODO WHY DO I NEED THIS NEXT LINE?
+  MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
+  // set in remoteData
+  remoteData.setRequests(std::move(sendRequests), std::move(recvRequests));
 }
 
 /**
@@ -1105,19 +1113,18 @@ class DistributedHierarchization {
     assert(dfg.getDimension() > 0);
     assert(dfg.getDimension() == dims.size());
     assert(!lmin.empty());
-    // hierarchize all dimensions, with special treatment for 0
+    std::vector<RemoteDataCollector<FG_ELEMENT>> remoteDataForAllDims(dfg.getDimension());
+    // exchange data
     for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
-
-      // exchange data
-      RemoteDataCollector<FG_ELEMENT> remoteData;
+      auto& remoteData = remoteDataForAllDims[dim];
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
         exchangeData1d(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
-      // remoteData.waitallRequests(); //TODO overlap with computation
+      remoteData.waitallRequests(); //TODO overlap with computation
 
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
@@ -1189,19 +1196,17 @@ class DistributedHierarchization {
     assert(!lmin.empty());
     assert(dfg.getDimension() > 0);
     assert(dfg.getDimension() == dims.size());
-    // dehierarchize all dimensions, with special treatment for 0
+    std::vector<RemoteDataCollector<FG_ELEMENT>> remoteDataForAllDims(dfg.getDimension());
     for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
-
-      // exchange data
-      RemoteDataCollector<FG_ELEMENT> remoteData;
+      auto& remoteData = remoteDataForAllDims[dim];
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
         exchangeData1dDehierarchization(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
-      // remoteData.waitallRequests(); //TODO overlap with computation
+      remoteData.waitallRequests();
 
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
