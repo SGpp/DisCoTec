@@ -18,7 +18,7 @@
 using namespace combigrid;
 
 int main(int argc, char** argv) {
-  MpiOnOff(&argc, &argv);
+  [[maybe_unused]] auto mpiOnOff= MpiOnOff(&argc, &argv);
 
   mpimemory::print_memory_usage_world();
   /* when using timers (TIMING is defined in Stats), the Stats class must be

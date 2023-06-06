@@ -16,7 +16,7 @@
 using namespace combigrid;
 
 int main(int argc, char** argv) {
-  MpiOnOff(&argc, &argv);
+  [[maybe_unused]] auto mpiOnOff = MpiOnOff(&argc, &argv);
   combigrid::Stats::initialize();
 
   // read in parameter file -- use the same one as for the simulation, but add the other ct scheme
