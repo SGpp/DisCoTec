@@ -52,19 +52,6 @@ class RemoteDataCollector : public std::vector<RemoteDataSlice<FG_ELEMENT>> {
     auto& newest = this->emplace_back(size, keyIndex);
     return &newest;
   }
-
-  void setRequests(std::vector<MPI_Request>&& sRequests, std::vector<MPI_Request>&& rRequests) { 
-    sendRequests_ = std::move(sRequests); 
-    recvRequests_ = std::move(rRequests);}
-
-  void waitallRequests() {
-    MPI_Waitall(static_cast<int>(sendRequests_.size()), sendRequests_.data(), MPI_STATUSES_IGNORE);
-    MPI_Waitall(static_cast<int>(recvRequests_.size()), recvRequests_.data(), MPI_STATUSES_IGNORE);
-  }
-
- private:
-  std::vector<MPI_Request> sendRequests_;
-  std::vector<MPI_Request> recvRequests_;
 };
 
 template <typename FG_ELEMENT>
@@ -199,57 +186,54 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
     std::advance(mapIt, x);
     const auto& r = mapIt->first;
     const auto& indices = mapIt->second;
-    if (!indices.empty()) {
-      const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
+    assert(!indices.empty());
+    const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
 
-      std::vector<FG_ELEMENT*> bufs;
-      bufs.reserve(indices.size());
-      IndexType size = dfg.getNrLocalElements() / dfg.getLocalSizes()[dim];
-      int bsize = static_cast<int>(size);
+    std::vector<FG_ELEMENT*> bufs;
+    bufs.reserve(indices.size());
+    IndexType size = dfg.getNrLocalElements() / dfg.getLocalSizes()[dim];
+    int bsize = static_cast<int>(size);
 
-      for (const auto& index : indices) {
-        // create RemoteDataSlice to store the subarray
-        RemoteDataSlice<FG_ELEMENT>* backData = nullptr;
+    for (const auto& index : indices) {
+      // create RemoteDataSlice to store the subarray
+      RemoteDataSlice<FG_ELEMENT>* backData = nullptr;
 #pragma omp critical
-        backData = remoteData.addDataSlice(size, index);
-        auto& buf = backData->getElementVector();
-        bufs.push_back(buf.data());
-        assert(bsize == static_cast<int>(buf.size()));
+      backData = remoteData.addDataSlice(size, index);
+      auto& buf = backData->getElementVector();
+      bufs.push_back(buf.data());
+      assert(bsize == static_cast<int>(buf.size()));
+    }
+    {
+      // make datatype hblock for all indices
+      MPI_Datatype myHBlock;
+      MPI_Aint firstBufAddr;
+      MPI_Get_address(bufs[0], &firstBufAddr);
+      std::vector<MPI_Aint> displacements;
+      displacements.resize(bufs.size());
+      for (size_t bufIndex = 0; bufIndex < bufs.size(); ++bufIndex) {
+        MPI_Aint addr;
+        MPI_Get_address(bufs[bufIndex], &addr);
+        displacements[bufIndex] = MPI_Aint_diff(addr, firstBufAddr);
       }
+      assert(displacements[0] == 0);
+      MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), bsize, displacements.data(),
+                                     dfg.getMPIDatatype(), &myHBlock);
+      MPI_Type_commit(&myHBlock);
+      // start recv operation, use first global index as tag
       {
-        // make datatype hblock for all indices
-        MPI_Datatype myHBlock;
-        MPI_Aint firstBufAddr;
-        MPI_Get_address(bufs[0], &firstBufAddr);
-        std::vector<MPI_Aint> displacements;
-        displacements.resize(bufs.size());
-        for (size_t bufIndex = 0; bufIndex < bufs.size(); ++bufIndex) {
-          MPI_Aint addr;
-          MPI_Get_address(bufs[bufIndex], &addr);
-          displacements[bufIndex] = MPI_Aint_diff(addr, firstBufAddr);
-        }
-        assert(displacements[0] == 0);
-        MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), bsize,
-                                       displacements.data(), dfg.getMPIDatatype(), &myHBlock);
-        MPI_Type_commit(&myHBlock);
-        // start recv operation, use first global index as tag
-        {
-          int src = static_cast<int>(r);
-          int tag = static_cast<int>(*(indices.begin()));
+        int src = static_cast<int>(r);
+        int tag = static_cast<int>(*(indices.begin()));
 #pragma omp critical
-          MPI_Irecv(static_cast<void*>(bufs[0]), 1, myHBlock, src, tag, dfg.getCommunicator(),
-                    &recvRequests[numRecv++]);
-        }
-        MPI_Type_free(&myHBlock);
+        MPI_Irecv(static_cast<void*>(bufs[0]), 1, myHBlock, src, tag, dfg.getCommunicator(),
+                  &recvRequests[numRecv++]);
       }
+      MPI_Type_free(&myHBlock);
     }
   }
   assert(sendRequests.size() == numSend);
   assert(recvRequests.size() == numRecv);
-  //TODO WHY DO I NEED THIS NEXT LINE?
   MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
-  // set in remoteData
-  remoteData.setRequests(std::move(sendRequests), std::move(recvRequests));
+  MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
 }
 
 /**
@@ -1111,18 +1095,16 @@ class DistributedHierarchization {
     assert(dfg.getDimension() > 0);
     assert(dfg.getDimension() == dims.size());
     assert(!lmin.empty());
-    std::vector<RemoteDataCollector<FG_ELEMENT>> remoteDataForAllDims(dfg.getDimension());
     // exchange data
     for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
-      auto& remoteData = remoteDataForAllDims[dim];
+      RemoteDataCollector<FG_ELEMENT> remoteData;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
         exchangeData1d(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
-      remoteData.waitallRequests(); //TODO overlap with computation
 
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
@@ -1194,17 +1176,15 @@ class DistributedHierarchization {
     assert(!lmin.empty());
     assert(dfg.getDimension() > 0);
     assert(dfg.getDimension() == dims.size());
-    std::vector<RemoteDataCollector<FG_ELEMENT>> remoteDataForAllDims(dfg.getDimension());
     for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
-      auto& remoteData = remoteDataForAllDims[dim];
+      RemoteDataCollector<FG_ELEMENT> remoteData;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
         exchangeData1dDehierarchization(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
-      remoteData.waitallRequests();
 
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
