@@ -893,7 +893,9 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over poles
   static thread_local std::vector<FG_ELEMENT> tmp;
-#pragma omp parallel for collapse(2) 
+#pragma omp parallel shared(poleLength,ldata,gstart,localOffsetForThisDimension) default(none)
+  tmp.resize(poleLength, std::numeric_limits<FG_ELEMENT>::quiet_NaN());
+#pragma omp for collapse(2)
   for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
     for (IndexType nLower = 0; nLower < numberOfPolesLowerDimensions; ++nLower) {
       IndexType poleStart = nHigher * jump + nLower;  // local linear index
@@ -904,17 +906,12 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       dfg.getLocalVectorIndex(poleStart, localIndexVector);
       assert(localIndexVector[dim] == 0);
 #endif  // NDEBUG
-      //TODO can this be done outside the loop?
-      tmp.resize(poleLength, std::numeric_limits<FG_ELEMENT>::quiet_NaN());
-      if (tmp.size() != poleLength) {
-        throw std::runtime_error("tmp.size() != poleLength");
-      }
-
       // go through remote containers, copy remote data
       for (size_t i = 0; i < remoteData.size(); ++i) {
         tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(poleNumber);
       }
       // copy local data
+#pragma omp simd
       for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
         tmp[gstart + i] = ldata[poleStart + localOffsetForThisDimension * i];
       }
@@ -936,6 +933,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       }
 
       // copy pole back
+#pragma omp simd
       for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
         ldata[poleStart + localOffsetForThisDimension * i] = tmp[gstart + i];
         assert(!std::isnan(std::real(tmp[gstart + i])));
