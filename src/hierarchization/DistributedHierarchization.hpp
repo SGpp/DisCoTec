@@ -9,12 +9,12 @@
 
 namespace combigrid {
 
-/* The RemoteDataContainer is meant to store a (d-1)-dimensional block of a
- * d-dimensional DistributedFullGrid. The RemoteDataContainer is d-dimensional,
+/* The RemoteDataSlice is meant to store a (d-1)-dimensional block of a
+ * d-dimensional DistributedFullGrid. The RemoteDataSlice is d-dimensional,
  * but has exactly one point in (at least) one dimension.
  */
 template <typename FG_ELEMENT>
-class RemoteDataContainer {
+class RemoteDataSlice {
  public:
   /** Constructor
    *
@@ -25,14 +25,12 @@ class RemoteDataContainer {
    * \param[in] lowerBounds lower bounds of the subdomain where the remote data
    *            comes from. this is required for address calculations
    */
-  RemoteDataContainer(IndexType size, IndexType keyIndex) {
+  RemoteDataSlice(IndexType size, IndexType keyIndex) {
     index1d_ = keyIndex;
     data_.resize(size);
   }
 
-  inline const FG_ELEMENT* getData(size_t idx) const {
-    return &data_[idx];
-  }
+  inline const FG_ELEMENT* getData(size_t idx) const { return &data_[idx]; }
 
   inline std::vector<FG_ELEMENT>& getElementVector() { return data_; }
 
@@ -40,11 +38,29 @@ class RemoteDataContainer {
   inline IndexType getKeyIndex() const { return index1d_; }
 
  private:
-  // index of (d-1)-dimensional subgrid in the d-dimensional grid
+  // global index of (d-1)-dimensional subgrid in the d-dimensional grid
   IndexType index1d_;
 
   // data vector
   std::vector<FG_ELEMENT> data_;
+};
+
+template <typename FG_ELEMENT>
+class RemoteDataCollector : public std::vector<RemoteDataSlice<FG_ELEMENT>> {
+ public:
+  RemoteDataSlice<FG_ELEMENT>* addDataSlice(IndexType size, IndexType keyIndex) {
+    auto& newest = this->emplace_back(size, keyIndex);
+    return &newest;
+  }
+
+  void setRequests(std::vector<MPI_Request>&& requests) { requests_ = std::move(requests); }
+
+  void waitallRequests() {
+    MPI_Waitall(static_cast<int>(requests_.size()), requests_.data(), MPI_STATUSES_IGNORE);
+  }
+
+ private:
+  std::vector<MPI_Request> requests_;
 };
 
 template <typename FG_ELEMENT>
@@ -73,128 +89,23 @@ static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& d
                                         LevelType l);
 
 /**
- * @brief helper function for data exchange
+ * @brief helper function for data exchange, have only one MPI_Isend/Irecv per neighboring rank
  *
- * @param send1dIndices : a vector which holds (for each other rank) a set of own 1D indices to send to
- * @param recv1dIndices : a vector which holds (for each other rank) a set of 1D indices to receive from
+ * @param send1dIndices : a vector which holds (for each other rank) a set of own 1D indices to send
+ * to
+ * @param recv1dIndices : a vector which holds (for each other rank) a set of 1D indices to receive
+ * from
  * @param dfg : the DistributedFullGrid where the own values are stored
  * @param dim : the dimension in which we want to exchange
  * @param remoteData : the data structure into which the received data will be stored
  */
 template <typename FG_ELEMENT>
-void sendAndReceiveIndices(const std::map<RankType, std::set<IndexType>>& send1dIndices,
-                           const std::map<RankType, std::set<IndexType>>& recv1dIndices,
-                           const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                           std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
+static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& send1dIndices,
+                                       const std::map<RankType, std::set<IndexType>>& recv1dIndices,
+                                       const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+                                       RemoteDataCollector<FG_ELEMENT>& remoteData) {
   assert(remoteData.empty());
-
-  std::vector<MPI_Request> sendRequests;
-  std::vector<MPI_Request> recvRequests;
-  size_t sendcount = 0;
-  size_t recvcount = 0;
-  for (const auto& x : send1dIndices) {
-    sendcount += x.second.size();
-  }
-  for (const auto& x : recv1dIndices) {
-    recvcount += x.second.size();
-  }
-
-  sendRequests.resize(sendcount);
-  recvRequests.resize(recvcount);
-
-  // for each rank r in send that has a nonempty index list
-  sendcount = 0;
-  for (const auto& x : send1dIndices) {
-    const auto& r = x.first;
-    const auto& indices = x.second;
-
-    size_t k = 0;
-    // for each index in index list
-    for (const auto& index : indices) {
-      // convert global 1d index i to local 1d index
-      IndexType localOneDimensionalIndex = index - dfg.getLowerBounds()[dim];
-
-      // create subarray view on the block with the local index
-      MPI_Datatype mysubarray;
-      {
-        // sizes of local grid
-        std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
-
-        // sizes of subarray ( full size except dimension d )
-        std::vector<int> subsizes = sizes;
-        subsizes[dim] = 1;
-
-        // start
-        std::vector<int> starts(dfg.getDimension(), 0);
-        starts[dim] = static_cast<int>(localOneDimensionalIndex);
-
-        // create subarray view on data
-        MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
-                                 &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
-        MPI_Type_commit(&mysubarray);
-      }
-
-      // send to rank r, use global index as tag
-      {
-        int dest = static_cast<int>(r);
-        int tag = static_cast<int>(index);
-        MPI_Isend(dfg.getData(), 1, mysubarray, dest, tag, dfg.getCommunicator(),
-                  &sendRequests[sendcount + k++]);
-      }
-
-      MPI_Type_free(&mysubarray);
-    }
-    sendcount += indices.size();
-  }
-  recvcount = 0;
-  {
-    // for each index in recv index list
-    for (auto const& x : recv1dIndices) {
-      auto const& r = x.first;
-      // for each index i in index list
-      const auto& indices = x.second;
-      const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
-
-      size_t k = 0;
-      for (const auto& index : indices) {
-        // create RemoteDataContainer to store the subarray
-        IndexType size = dfg.getNrLocalElements() / dfg.getLocalSizes()[dim];
-        remoteData.emplace_back(size, index);
-
-        // start recv operation, use global index as tag
-        {
-          int src = static_cast<int>(r);
-          int tag = static_cast<int>(index);
-
-          auto& buf = remoteData.back().getElementVector();
-          auto bsize = static_cast<int>(buf.size());
-
-          MPI_Irecv(buf.data(), bsize, dfg.getMPIDatatype(), src, tag, dfg.getCommunicator(),
-                    &recvRequests[recvcount + k++]);
-        }
-      }
-      recvcount += indices.size();
-    }
-  }
-  // wait for finish of communication
-  MPI_Waitall(static_cast<int>(sendRequests.size()), &sendRequests.front(), MPI_STATUSES_IGNORE);
-  MPI_Waitall(static_cast<int>(recvRequests.size()), &recvRequests.front(), MPI_STATUSES_IGNORE);
-}
-
-/**
- * @brief same as sendAndReceiveIndices, but have only one MPI_Isend/Irecv per rank
- *
- * @note for small numbers of workers per grid, this seems to be less performant. may be different
- * for higher numbers.
- */
-template <typename FG_ELEMENT>
-void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& send1dIndices,
-                                const std::map<RankType, std::set<IndexType>>& recv1dIndices,
-                                const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                                std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
-  assert(remoteData.empty());
-
-  // count non-empty elements of input indices
+  // count elements of input indices
   auto numSend = send1dIndices.size();
   auto numRecv = recv1dIndices.size();
   // buffer for requests
@@ -206,14 +117,11 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
   {
     // sizes of local grid
     std::vector<int> sizes(dfg.getLocalSizes().begin(), dfg.getLocalSizes().end());
-
     // sizes of subarray ( full size except dimension d )
     std::vector<int> subsizes = sizes;
     subsizes[dim] = 1;
-
     // start
     std::vector<int> starts(dfg.getDimension(), 0);
-
     // create subarray view on data
     MPI_Type_create_subarray(static_cast<int>(dfg.getDimension()), &sizes[0], &subsizes[0],
                              &starts[0], MPI_ORDER_FORTRAN, dfg.getMPIDatatype(), &mysubarray);
@@ -266,11 +174,10 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
       {
         int dest = static_cast<int>(r);
         int tag = static_cast<int>(*(indices.begin()));
-#pragma omp critical 
+#pragma omp critical
         MPI_Isend(dfg.getData(), 1, myHBlock, dest, tag, dfg.getCommunicator(),
                   &sendRequests[numSend++]);
       }
-      // MPI_Type_free(&mysubarrayBlock);
       MPI_Type_free(&myHBlock);
     }
   }
@@ -293,10 +200,11 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
       int bsize = static_cast<int>(size);
 
       for (const auto& index : indices) {
-        // create RemoteDataContainer to store the subarray
-        remoteData.emplace_back(size, index);
-
-        auto& buf = remoteData.back().getElementVector();
+        // create RemoteDataSlice to store the subarray
+        RemoteDataSlice<FG_ELEMENT>* backData = nullptr;
+#pragma omp critical
+        backData = remoteData.addDataSlice(size, index);
+        auto& buf = backData->getElementVector();
         bufs.push_back(buf.data());
         assert(bsize == static_cast<int>(buf.size()));
       }
@@ -330,12 +238,11 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
   }
   assert(sendRequests.size() == numSend);
   assert(recvRequests.size() == numRecv);
-  // wait for finish of communication
-  MPI_Waitall(static_cast<int>(sendRequests.size()), &sendRequests.front(), MPI_STATUSES_IGNORE);
-  MPI_Waitall(static_cast<int>(recvRequests.size()), &recvRequests.front(), MPI_STATUSES_IGNORE);
+  // concatenate the request vectors and set in remoteData
+  sendRequests.insert(sendRequests.end(), recvRequests.begin(), recvRequests.end());
+  remoteData.setRequests(std::move(sendRequests));
+  remoteData.waitallRequests();
 }
-
-// exchange data in dimension dim
 
 /**
  * @brief share all data with neighboring processes in one dimension
@@ -346,7 +253,7 @@ void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& s
  */
 template <typename FG_ELEMENT>
 static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                              std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData) {
+                              RemoteDataCollector<FG_ELEMENT>& remoteData) {
   // send every index to all neighboring ranks in dimension dim
   auto globalIdxMax = dfg.length(dim);
   IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
@@ -379,8 +286,7 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
     if (r >= 0) recv1dIndices.at(r).insert(i);
   }
 
-  // sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
-  sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+  return sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
 /**
@@ -393,9 +299,7 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
  */
 template <typename FG_ELEMENT>
 static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                           std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
-                           LevelType lmin = 0) {
-
+                           RemoteDataCollector<FG_ELEMENT>& remoteData, LevelType lmin = 0) {
   // create buffers for every rank
   std::map<RankType, std::set<IndexType>> recv1dIndices;
   std::map<RankType, std::set<IndexType>> send1dIndices;
@@ -481,8 +385,7 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
     }
   }
 
-  // sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
-  sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+  return sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
 /**
@@ -494,10 +397,9 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
  * @param remoteData : the data structure into which the received data will be stored
  */
 template <typename FG_ELEMENT>
-static void exchangeData1dDehierarchization(
-    const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-    std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData, LevelType lmin = 0) {
-
+static void exchangeData1dDehierarchization(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
+                                            RemoteDataCollector<FG_ELEMENT>& remoteData,
+                                            LevelType lmin = 0) {
   // create buffers for every rank
   std::map<RankType, std::set<IndexType>> recv1dIndices;
   std::map<RankType, std::set<IndexType>> send1dIndices;
@@ -519,8 +421,7 @@ static void exchangeData1dDehierarchization(
     idx = checkPredecessors(idx, dim, dfg, recv1dIndices, lmin);
   }
 
-  // sendAndReceiveIndices(send1dIndices, recv1dIndices, dfg, dim, remoteData);
-  sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+  return sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
 }
 
 template <typename FG_ELEMENT>
@@ -967,7 +868,7 @@ template <typename FG_ELEMENT,
           void (*HIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int,
                                        LevelType) = hierarchize_hat_boundary_kernel>
 void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                             std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData, DimType dim,
+                             RemoteDataCollector<FG_ELEMENT>& remoteData, DimType dim,
                              LevelType lmin_n = 0) {
   assert(dfg.returnBoundaryFlags()[dim] > 0);
   const auto& lmax = dfg.getLevels()[dim];
@@ -1040,7 +941,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
  */
 template <typename FG_ELEMENT>
 void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                           std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData, DimType dim) {
+                           std::vector<RemoteDataSlice<FG_ELEMENT>>& remoteData, DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   LevelType lmax = dfg.getLevels()[dim];
@@ -1121,8 +1022,7 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
  */
 template <typename FG_ELEMENT>
 void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                             std::vector<RemoteDataContainer<FG_ELEMENT>>& remoteData,
-                             DimType dim) {
+                             RemoteDataCollector<FG_ELEMENT>& remoteData, DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   auto lmax = dfg.getLevels()[dim];
@@ -1210,14 +1110,15 @@ class DistributedHierarchization {
       if (!dims[dim]) continue;
 
       // exchange data
-      std::vector<RemoteDataContainer<FG_ELEMENT>> remoteData;
+      RemoteDataCollector<FG_ELEMENT> remoteData;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
         exchangeData1d(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
-#pragma omp barrier
+      // remoteData.waitallRequests(); //TODO overlap with computation
+
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
@@ -1255,8 +1156,8 @@ class DistributedHierarchization {
         assert(lmin[dim] == 0);
         hierarchizeNoBoundary(dfg, remoteData, dim);
       }
+      remoteData.clear();
     }
-#pragma omp barrier
   }
 
   template <typename FG_ELEMENT, class T = HierarchicalHatBasisFunction>
@@ -1293,14 +1194,14 @@ class DistributedHierarchization {
       if (!dims[dim]) continue;
 
       // exchange data
-      std::vector<RemoteDataContainer<FG_ELEMENT>> remoteData;
+      RemoteDataCollector<FG_ELEMENT> remoteData;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
         exchangeData1dDehierarchization(dfg, dim, remoteData, lmin[dim]);
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
-#pragma omp barrier
+      // remoteData.waitallRequests(); //TODO overlap with computation
 
       if (dfg.returnBoundaryFlags()[dim] > 0) {
         // sorry for the code duplication, could not figure out a clean way
@@ -1339,6 +1240,7 @@ class DistributedHierarchization {
         assert(lmin[dim] == 0);
         dehierarchizeNoBoundary(dfg, remoteData, dim);
       }
+      remoteData.clear();
     }
 #pragma omp barrier
   }
