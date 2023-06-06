@@ -121,12 +121,13 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
   MPI_Aint dfgStartAddr;
   MPI_Get_address(dfg.getData(), &dfgStartAddr);
 
-  // for each rank r in send1dIndices that has a nonempty index list
   numSend = 0;
-  // "send" scope
+  numRecv = 0;
+#pragma omp parallel shared(sendRequests, numSend, send1dIndices, recvRequests, numRecv,  \
+                                remoteData, recv1dIndices, dfg, dfgStartAddr, mysubarray, \
+                                dim) default(none)
   {
-#pragma omp parallel for shared(sendRequests, numSend, send1dIndices, dfg, dfgStartAddr, \
-                                    mysubarray, dim) schedule(dynamic) default(none)
+#pragma omp for schedule(static) nowait
     for (size_t x = 0; x < send1dIndices.size(); ++x) {
       auto mapIt = send1dIndices.cbegin();
       std::advance(mapIt, x);
@@ -142,7 +143,7 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
           // convert global 1d index i to local 1d index
           IndexType localLinearIndex =
               (index - dfg.getLowerBounds()[dim]) * dfg.getLocalOffsets()[dim];
-  #ifndef NDEBUG
+#ifndef NDEBUG
           {
             static thread_local IndexVector lidxvec(dfg.getDimension(), 0);
             lidxvec.resize(dfg.getDimension());
@@ -153,7 +154,7 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
             assert(tmp && "index to be send not in local domain");
             assert(localLinearIndex == dfg.getLocalLinearIndex(lidxvec));
           }
-  #endif
+#endif
           MPI_Aint addr;
           MPI_Get_address(&(dfg.getData()[localLinearIndex]), &addr);
           auto d = MPI_Aint_diff(addr, dfgStartAddr);
@@ -161,75 +162,80 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
         }
         // cannot use MPI_Type_create_indexed_block as subarrays may overlap
         MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), 1, displacements.data(),
-                                      mysubarray, &myHBlock);
+                                       mysubarray, &myHBlock);
         MPI_Type_commit(&myHBlock);
 
         // send to rank r, use first global index as tag
         {
           int dest = static_cast<int>(r);
           int tag = static_cast<int>(*(indices.begin()));
-  #pragma omp critical
+          size_t sendIndex;
+#pragma omp atomic capture
+          sendIndex = numSend++;
           MPI_Isend(dfg.getData(), 1, myHBlock, dest, tag, dfg.getCommunicator(),
-                    &sendRequests[numSend++]);
+                    &sendRequests[sendIndex]);
         }
         MPI_Type_free(&myHBlock);
       }
     }
-    MPI_Type_free(&mysubarray);
-  }
 
-  numRecv = 0;
-  #pragma omp parallel for shared(recvRequests, numRecv, remoteData, recv1dIndices, dfg, \
-                                    dim) default(none)
-  for (size_t x = 0; x < recv1dIndices.size(); ++x) {
-    auto mapIt = recv1dIndices.cbegin();
-    std::advance(mapIt, x);
-    const auto& r = mapIt->first;
-    const auto& indices = mapIt->second;
-    assert(!indices.empty());
-    const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
+#pragma omp for schedule(dynamic)
+    for (size_t x = 0; x < recv1dIndices.size(); ++x) {
+      auto mapIt = recv1dIndices.cbegin();
+      std::advance(mapIt, x);
+      const auto& r = mapIt->first;
+      const auto& indices = mapIt->second;
+      assert(!indices.empty());
+      const IndexVector& lowerBoundsNeighbor = dfg.getLowerBounds(static_cast<int>(r));
 
-    std::vector<FG_ELEMENT*> bufs;
-    bufs.reserve(indices.size());
-    IndexType size = dfg.getNrLocalElements() / dfg.getLocalSizes()[dim];
-    int bsize = static_cast<int>(size);
+      std::vector<FG_ELEMENT*> bufs;
+      bufs.reserve(indices.size());
+      IndexType size = dfg.getNrLocalElements() / dfg.getLocalSizes()[dim];
+      int bsize = static_cast<int>(size);
 
-    for (const auto& index : indices) {
-      // create RemoteDataSlice to store the subarray
-      RemoteDataSlice<FG_ELEMENT>* backData = nullptr;
+      for (const auto& index : indices) {
+        // create RemoteDataSlice to store the subarray
+        RemoteDataSlice<FG_ELEMENT>* backData = nullptr;
 #pragma omp critical
-      backData = remoteData.addDataSlice(size, index);
-      auto& buf = backData->getElementVector();
-      bufs.push_back(buf.data());
-      assert(bsize == static_cast<int>(buf.size()));
-    }
-    {
-      // make datatype hblock for all indices
-      MPI_Datatype myHBlock;
-      MPI_Aint firstBufAddr;
-      MPI_Get_address(bufs[0], &firstBufAddr);
-      std::vector<MPI_Aint> displacements;
-      displacements.resize(bufs.size());
-      for (size_t bufIndex = 0; bufIndex < bufs.size(); ++bufIndex) {
-        MPI_Aint addr;
-        MPI_Get_address(bufs[bufIndex], &addr);
-        displacements[bufIndex] = MPI_Aint_diff(addr, firstBufAddr);
+        backData = remoteData.addDataSlice(size, index);
+        auto& buf = backData->getElementVector();
+        bufs.push_back(buf.data());
+        assert(bsize == static_cast<int>(buf.size()));
       }
-      assert(displacements[0] == 0);
-      MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), bsize, displacements.data(),
-                                     dfg.getMPIDatatype(), &myHBlock);
-      MPI_Type_commit(&myHBlock);
-      // start recv operation, use first global index as tag
       {
-        int src = static_cast<int>(r);
-        int tag = static_cast<int>(*(indices.begin()));
-#pragma omp critical
-        MPI_Irecv(static_cast<void*>(bufs[0]), 1, myHBlock, src, tag, dfg.getCommunicator(),
-                  &recvRequests[numRecv++]);
+        // make datatype hblock for all indices
+        MPI_Datatype myHBlock;
+        MPI_Aint firstBufAddr;
+        MPI_Get_address(bufs[0], &firstBufAddr);
+        std::vector<MPI_Aint> displacements;
+        displacements.resize(bufs.size());
+        for (size_t bufIndex = 0; bufIndex < bufs.size(); ++bufIndex) {
+          MPI_Aint addr;
+          MPI_Get_address(bufs[bufIndex], &addr);
+          displacements[bufIndex] = MPI_Aint_diff(addr, firstBufAddr);
+        }
+        assert(displacements[0] == 0);
+        MPI_Type_create_hindexed_block(static_cast<int>(indices.size()), bsize,
+                                       displacements.data(), dfg.getMPIDatatype(), &myHBlock);
+        MPI_Type_commit(&myHBlock);
+        // start recv operation, use first global index as tag
+        {
+          int src = static_cast<int>(r);
+          int tag = static_cast<int>(*(indices.begin()));
+          size_t recvIndex;
+#pragma omp atomic capture
+          recvIndex = numRecv++;
+          MPI_Irecv(static_cast<void*>(bufs[0]), 1, myHBlock, src, tag, dfg.getCommunicator(),
+                    &recvRequests[recvIndex]);
+        }
+        MPI_Type_free(&myHBlock);
       }
-      MPI_Type_free(&myHBlock);
     }
   }
+
+  // free after parallel region
+  MPI_Type_free(&mysubarray);
+
   assert(sendRequests.size() == numSend);
   assert(recvRequests.size() == numRecv);
   MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
@@ -877,7 +883,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over poles
   static thread_local std::vector<FG_ELEMENT> tmp;
-#pragma omp parallel shared(poleLength,ldata,gstart,localOffsetForThisDimension) default(none)
+#pragma omp parallel shared(poleLength, ldata, gstart, localOffsetForThisDimension) default(none)
   tmp.resize(poleLength, std::numeric_limits<FG_ELEMENT>::quiet_NaN());
 #pragma omp for collapse(2)
   for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
