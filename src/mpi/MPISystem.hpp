@@ -37,23 +37,8 @@
 namespace combigrid {
 
 struct [[nodiscard]] MpiOnOff {
-  explicit MpiOnOff(int* argc = nullptr, char*** argv = nullptr) {
-    int provided;
-#ifdef _OPENMP
-    int threadMode = MPI_THREAD_MULTIPLE;
-#else
-    int threadMode = MPI_THREAD_SINGLE;
-#endif
-    MPI_Init_thread(argc, argv, threadMode, &provided);
-#ifdef _OPENMP
-    // make sure we get multiple thread execution
-    if (!(provided == MPI_THREAD_MULTIPLE)) {
-      throw std::runtime_error("MPI implementation does not support MPI_THREAD_MULTIPLE");
-      MPI_Abort(MPI_COMM_WORLD, 1);
-    }
-#endif
-  }
-  ~MpiOnOff() { MPI_Finalize(); }
+  explicit MpiOnOff(int* argc = nullptr, char*** argv = nullptr);
+  ~MpiOnOff();
 };
 
 class ProcessGroupManager;

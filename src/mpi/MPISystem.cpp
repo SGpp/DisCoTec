@@ -11,6 +11,24 @@
 
 namespace combigrid {
 
+MpiOnOff::MpiOnOff(int* argc, char*** argv) {
+  int provided;
+#ifdef _OPENMP
+  int threadMode = MPI_THREAD_MULTIPLE;
+#else
+  int threadMode = MPI_THREAD_SINGLE;
+#endif
+  MPI_Init_thread(argc, argv, threadMode, &provided);
+#ifdef _OPENMP
+  // make sure we get multiple thread execution
+  if (!(provided == MPI_THREAD_MULTIPLE)) {
+    throw std::runtime_error("MPI implementation does not support MPI_THREAD_MULTIPLE");
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+#endif
+}
+MpiOnOff::~MpiOnOff() { MPI_Finalize(); }
+
 /*!\brief Constructor for the MPISystem class.
  //
  // \exception std::runtime_error MPI was not initialized
@@ -18,7 +36,7 @@ namespace combigrid {
  // Constructor for the MPI System. The default global communicator and local communicator is
  MPI_COMM_WORLD.
  // The total number of MPI processes and the rank of the MPI process in is determined from
- // the communicator. 
+ // the communicator.
  */
 MPISystem::MPISystem()
     : initialized_(false),
