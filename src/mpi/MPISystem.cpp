@@ -251,9 +251,11 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
 #endif
       }
 
-      std::cout << "MPI: " << ngroup << " groups with " << nprocs << " ranks each with "
+      std::cout << "MPI: " << ngroup << " groups with " << nprocs
+                << " ranks each with"
 #ifdef _OPENMP
-                << numOMPthreads << " threads each; with"
+                << " " << numOMPthreads << " threads each and " << omp_get_max_active_levels()
+                << "-fold nested parallelism; with"
 #endif
                 << (withWorldManager ? "" : "out") << " world manager" << std::endl;
     }
