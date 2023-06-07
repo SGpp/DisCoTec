@@ -166,7 +166,8 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
   int numBlocks = (num_integers - 1) / 2;
   int* arrayOfBlocklengths = arrayOfInts + 1;
   int* arrayOfDisplacements = arrayOfBlocklengths + numBlocks;
-#pragma omp parallel for  // TODO can this be sensibly collapsed?
+#pragma omp parallel for default(none) shared(numBlocks, arrayOfDisplacements, arrayOfBlocklengths, \
+                                              invec, inoutvec)
   for (int i = 0; i < numBlocks; ++i) {
     FG_ELEMENT* inoutElements = reinterpret_cast<FG_ELEMENT*>(inoutvec) + arrayOfDisplacements[i];
     FG_ELEMENT* inElements = reinterpret_cast<FG_ELEMENT*>(invec) + arrayOfDisplacements[i];
@@ -246,18 +247,26 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   MPI_Op indexedAdd;
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
-  for (const std::pair<CommunicatorType,
-                       std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
-           commAndItsSubspaces : dsg.getSubspacesByCommunicator()) {
+#pragma omp parallel for default(none) shared(dsg, indexedAdd)
+  for (size_t commIndex = 0; commIndex < dsg.getSubspacesByCommunicator().size(); ++commIndex) {
+    const std::pair<CommunicatorType,
+                    std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
+        commAndItsSubspaces = dsg.getSubspacesByCommunicator()[commIndex];
     // get reduction datatypes for this communicator
     auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces);
     // reduce for each datatype
-    for (auto& entry : datatypesByStartIndex) {
-      MPI_Allreduce(MPI_IN_PLACE, dsg.getData(entry.first), 1, entry.second, indexedAdd,
-                    commAndItsSubspaces.first);
+    // //this would be best for single subspace reduce, but leads to MPI truncation
+    // // errors(desynchronization between MPI ranks on the same communicators probably)
+    // #pragma omp parallel for default(none) \
+//     shared(dsg, indexedAdd, datatypesByStartIndex, commAndItsSubspaces)
+    for (size_t datatypeIndex = 0; datatypeIndex < datatypesByStartIndex.size(); ++datatypeIndex) {
+      auto& subspaceStartIndex = datatypesByStartIndex[datatypeIndex].first;
+      auto& comm = commAndItsSubspaces.first;
+      auto& datatype = datatypesByStartIndex[datatypeIndex].second;
+      MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype, indexedAdd, comm);
 
       // free datatype -- MPI standard says it will be kept until operation is finished
-      MPI_Type_free(&(entry.second));
+      MPI_Type_free(&(datatype));
     }
   }
 
