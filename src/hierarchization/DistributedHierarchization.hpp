@@ -123,9 +123,10 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
 
   numSend = 0;
   numRecv = 0;
-#pragma omp parallel shared(sendRequests, numSend, send1dIndices, recvRequests, numRecv,  \
-                                remoteData, recv1dIndices, dfg, dfgStartAddr, mysubarray, \
-                                dim) default(none)
+// #pragma omp parallel shared(sendRequests, numSend, send1dIndices, recvRequests, numRecv,  \
+//                                 remoteData, recv1dIndices, dfg, dfgStartAddr, mysubarray, \
+//                                 dim) default(none)
+// no benefit from parallelization here
   {
 #pragma omp for schedule(static) nowait
     for (size_t x = 0; x < send1dIndices.size(); ++x) {
@@ -179,7 +180,7 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
       }
     }
 
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic) nowait
     for (size_t x = 0; x < recv1dIndices.size(); ++x) {
       auto mapIt = recv1dIndices.cbegin();
       std::advance(mapIt, x);
@@ -260,28 +261,42 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
   auto poleNeighbors = dfg.getCartesianUtils().getAllMyPoleNeighborRanks(dim);
 
   std::set<IndexType> allMyIndices;
-  for (IndexType i = idxMin; i <= idxMax; ++i) {
-    allMyIndices.insert(i);
-  }
   std::map<RankType, std::set<IndexType>> send1dIndices;
   std::map<RankType, std::set<IndexType>> recv1dIndices;
-
-  for (auto& r : poleNeighbors) {
-    send1dIndices[r] = allMyIndices;
-    recv1dIndices[r] = {};
-  }
-
-  // all other points that are not ours can be received from their owners
-  for (IndexType i = 0; i < idxMin; ++i) {
-    // get rank which has i and add to recv list
-    // TODO would be easier to iterate the whole range of each neighbor
-    int r = dfg.getNeighbor1dFromAxisIndex(dim, i);
-    if (r >= 0) recv1dIndices.at(r).insert(i);
-  }
-  for (IndexType i = idxMax + 1; i < globalIdxMax; ++i) {
-    // get rank which has i and add to recv list
-    int r = dfg.getNeighbor1dFromAxisIndex(dim, i);
-    if (r >= 0) recv1dIndices.at(r).insert(i);
+#pragma omp parallel default(none) shared(dfg, dim, globalIdxMax, idxMin, idxMax, poleNeighbors, \
+                                              allMyIndices, send1dIndices, recv1dIndices)
+  {
+#pragma omp for schedule(static) nowait
+    for (IndexType i = idxMin; i <= idxMax; ++i) {
+#pragma omp critical
+      allMyIndices.insert(i);
+    }
+#pragma omp for schedule(static)
+    for (auto& r : poleNeighbors) {
+#pragma omp critical
+      send1dIndices[r] = allMyIndices;
+      recv1dIndices[r] = {};
+    }
+    // all other points that are not ours can be received from their owners
+#pragma omp for schedule(static) nowait
+    for (IndexType i = 0; i < idxMin; ++i) {
+      // get rank which has i and add to recv list
+      // TODO would be easier to iterate the whole range of each neighbor
+      int r = dfg.getNeighbor1dFromAxisIndex(dim, i);
+      if (r >= 0) {
+#pragma omp critical
+        recv1dIndices.at(r).insert(i);
+      }
+    }
+#pragma omp for schedule(dynamic) nowait
+    for (IndexType i = idxMax + 1; i < globalIdxMax; ++i) {
+      // get rank which has i and add to recv list
+      int r = dfg.getNeighbor1dFromAxisIndex(dim, i);
+      if (r >= 0) {
+#pragma omp critical
+        recv1dIndices.at(r).insert(i);
+      }
+    }
   }
 
   return sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
@@ -625,7 +640,7 @@ inline void hierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, in
   for (; ll >= lmin; ll--) {
     int parOffsetStrided = parentOffset * stride;
     FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
-
+// #pragma omp simd // slowdown!!
     for (int ctr = 0; ctr < steps; ++ctr) {
       int centralIndex = start + offset * stride;
       FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
@@ -757,11 +772,11 @@ inline void dehierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, 
   int offset = (1 << (lmaxi - lmini - 1));
   int stepsize = (1 << (lmaxi - lmini));
   int parentOffset = offset;
-
   for (LevelType ll = lmin + 1; ll <= lmax; ++ll) {
     int parOffsetStrided = parentOffset * stride;
     FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
 
+// #pragma omp simd //slowdown!
     for (int ctr = 0; ctr < steps; ++ctr) {
       int centralIndex = start + offset * stride;
       FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
@@ -866,7 +881,7 @@ template <typename FG_ELEMENT,
           void (*HIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int,
                                        LevelType) = hierarchize_hat_boundary_kernel>
 void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                             RemoteDataCollector<FG_ELEMENT>& remoteData, DimType dim,
+                             const RemoteDataCollector<FG_ELEMENT>& remoteData, DimType dim,
                              LevelType lmin_n = 0) {
   assert(dfg.returnBoundaryFlags()[dim] > 0);
   const auto& lmax = dfg.getLevels()[dim];
@@ -883,9 +898,10 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over poles
   static thread_local std::vector<FG_ELEMENT> tmp;
-#pragma omp parallel shared(poleLength, ldata, gstart, localOffsetForThisDimension) default(none)
-  tmp.resize(poleLength, std::numeric_limits<FG_ELEMENT>::quiet_NaN());
-#pragma omp for collapse(2)
+#pragma omp parallel for collapse(2)                                                  \
+    shared(poleLength, ldata, gstart, localOffsetForThisDimension, lmax, lmin_n, dim, \
+               oneSidedBoundary, dfg, jump, remoteData, numberOfPolesLowerDimensions, \
+               numberOfPolesHigherDimensions) default(none)
   for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
     for (IndexType nLower = 0; nLower < numberOfPolesLowerDimensions; ++nLower) {
       IndexType poleStart = nHigher * jump + nLower;  // local linear index
@@ -896,14 +912,16 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       dfg.getLocalVectorIndex(poleStart, localIndexVector);
       assert(localIndexVector[dim] == 0);
 #endif  // NDEBUG
+      tmp.resize(poleLength, std::numeric_limits<FG_ELEMENT>::quiet_NaN());
       // go through remote containers, copy remote data
       for (size_t i = 0; i < remoteData.size(); ++i) {
         tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(poleNumber);
       }
       // copy local data
-#pragma omp simd
+#pragma omp simd // no speedup here
       for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
-        tmp[gstart + i] = ldata[poleStart + localOffsetForThisDimension * i];
+        const auto localStepped = localOffsetForThisDimension * i;
+        tmp[gstart + i] = ldata[poleStart + localStepped];
       }
 
       if (oneSidedBoundary) {
@@ -923,9 +941,10 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       }
 
       // copy pole back
-#pragma omp simd
+#pragma omp simd // no speedup here
       for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
-        ldata[poleStart + localOffsetForThisDimension * i] = tmp[gstart + i];
+        const auto localStepped = localOffsetForThisDimension * i;
+        ldata[poleStart + localStepped] = tmp[gstart + i];
         assert(!std::isnan(std::real(tmp[gstart + i])));
       }
     }
