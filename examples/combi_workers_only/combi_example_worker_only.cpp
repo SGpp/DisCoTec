@@ -7,7 +7,7 @@
 #include <vector>
 
 // include user specific task. this is the interface to your application
-#include "../distributed_advection/TaskAdvection.hpp"
+#include "../distributed_third_level/TaskAdvection.hpp"
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "io/BroadcastParameters.hpp"
 #include "io/H5InputOutput.hpp"
@@ -178,6 +178,8 @@ int main(int argc, char** argv) {
     // create Tasks
     worker.initializeAllTasks<TaskAdvection>(levels, coeffs, taskNumbers, loadmodel.get(), dt,
                                              nsteps, p);
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "worker: initialized tasks "
+                                               << std::endl;
 
     worker.initCombinedDSGVector();
 
@@ -270,8 +272,6 @@ int main(int argc, char** argv) {
 
   /* write stats to json file for postprocessing */
   Stats::write("timers.json");
-
-  MPI_Finalize(); 
 
   return 0;
 }

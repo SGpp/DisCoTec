@@ -72,7 +72,7 @@ class TaskAdvection : public Task {
     }
 
     TestFn f;
-#pragma omp parallel for
+#pragma omp parallel for schedule(simd : static)
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
       static thread_local std::vector<double> coords(this->getDim());
       dfg_->getCoordsLocal(li, coords);
@@ -167,7 +167,7 @@ class TaskAdvection : public Task {
           }
         }
       }
-#pragma omp parallel for simd
+#pragma omp parallel for simd schedule(simd : static)
       for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
         (*phi_)[li] = ElementVector[li] - u_dot_dphi[li] * dt_;
       }
