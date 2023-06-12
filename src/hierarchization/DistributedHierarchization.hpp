@@ -628,8 +628,7 @@ static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& d
 }
 
 template <typename FG_ELEMENT, bool periodic = false>
-inline void hierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                             int stride, LevelType lmin = 0) {
+inline void hierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, LevelType lmin = 0) {
   const int lmaxi = static_cast<int>(lmax);
   int ll = lmaxi - 1;
   int steps = (1 << (lmaxi - 1));
@@ -638,15 +637,14 @@ inline void hierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, in
   int parentOffset = 1;
 
   for (; ll >= lmin; ll--) {
-    int parOffsetStrided = parentOffset * stride;
-    FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
-// #pragma omp simd // slowdown!!
+    FG_ELEMENT parentL = 0.5 * data[offset - parentOffset];
+    // #pragma omp simd // slowdown!!
     for (int ctr = 0; ctr < steps; ++ctr) {
-      int centralIndex = start + offset * stride;
-      FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
-      FG_ELEMENT val1 = data[centralIndex];
-      FG_ELEMENT val2 = val1 - parentL;
-      FG_ELEMENT val3 = val2 - parentR;
+      const int centralIndex = offset;
+      const FG_ELEMENT parentR = 0.5 * data[centralIndex + parentOffset];
+      const FG_ELEMENT val1 = data[centralIndex];
+      const FG_ELEMENT val2 = val1 - parentL;
+      const FG_ELEMENT val3 = val2 - parentR;
       data[centralIndex] = val3;
       parentL = parentR;
       offset += stepsize;
@@ -674,16 +672,12 @@ inline void hierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, in
  */
 template <typename FG_ELEMENT, bool periodic = false>
 inline void hierarchize_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
-                                                            int start, int stride,
-                                                            LevelType lmin = 0) {
-  assert(start == 0); // could be used but currently is not
-  assert(stride == 1);
+                                                       LevelType lmin = 0) {
   const int lmaxi = static_cast<int>(lmax);
-  int idxmax = powerOfTwo[lmaxi];
-  // auto length = idxmax + 1;
+  const int idxmax = powerOfTwo[lmaxi];
 
-  for (LevelType ldiff = 0; ldiff < lmax-lmin; ++ldiff) {
-    int step_width = powerOfTwo[ldiff];
+  for (LevelType ldiff = 0; ldiff < lmax - lmin; ++ldiff) {
+    const int step_width = powerOfTwo[ldiff];
     // update f at even indices
     if (periodic) {
       // values at 0 and idxmax will be the same
@@ -716,16 +710,11 @@ inline void hierarchize_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelTy
  * @tparam FG_ELEMENT data type on grid
  * @param data pointer to data begin
  * @param lmax maximum level
- * @param start (unused)
- * @param stride (unused)
  * @param lmin minimum level (if > 0, hierarchization is not performed all the way down)
  */
 template <typename FG_ELEMENT, bool periodic = false>
-inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                             int stride, LevelType lmin = 0) {
-
-  assert(start == 0);
-  assert(stride == 1);
+inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
+                                                     LevelType lmin = 0) {
   const int lmaxi = static_cast<int>(lmax);
   int idxmax = powerOfTwo[lmaxi];
   // auto length = idxmax + 1;
@@ -764,8 +753,8 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
 }
 
 template <typename FG_ELEMENT, bool periodic = false>
-inline void dehierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                               int stride, LevelType lmin = 0) {
+inline void dehierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
+                                              LevelType lmin = 0) {
   const int lmaxi = static_cast<int>(lmax);
   const int lmini = static_cast<int>(lmin);
   int steps = 1 << (lmini);
@@ -773,16 +762,15 @@ inline void dehierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, 
   int stepsize = (1 << (lmaxi - lmini));
   int parentOffset = offset;
   for (LevelType ll = lmin + 1; ll <= lmax; ++ll) {
-    int parOffsetStrided = parentOffset * stride;
-    FG_ELEMENT parentL = 0.5 * data[start + offset * stride - parOffsetStrided];
+    FG_ELEMENT parentL = 0.5 * data[offset - parentOffset];
 
-// #pragma omp simd //slowdown!
+    // #pragma omp simd //slowdown!
     for (int ctr = 0; ctr < steps; ++ctr) {
-      int centralIndex = start + offset * stride;
-      FG_ELEMENT parentR = 0.5 * data[centralIndex + parOffsetStrided];
-      FG_ELEMENT val1 = data[centralIndex];
-      FG_ELEMENT val2 = val1 + parentL;
-      FG_ELEMENT val3 = val2 + parentR;
+      const int centralIndex = offset;
+      const FG_ELEMENT parentR = 0.5 * data[centralIndex + parentOffset];
+      const FG_ELEMENT val1 = data[centralIndex];
+      const FG_ELEMENT val2 = val1 + parentL;
+      const FG_ELEMENT val3 = val2 + parentR;
       data[centralIndex] = val3;
       parentL = parentR;
       offset += stepsize;
@@ -800,10 +788,9 @@ inline void dehierarchize_hat_boundary_kernel(FG_ELEMENT* data, LevelType lmax, 
  */
 template <typename FG_ELEMENT, bool periodic = false>
 inline void dehierarchize_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
-                                                          int start, int stride, LevelType lmin) {
+                                                         LevelType lmin) {
   const int lmaxi = static_cast<int>(lmax);
-  int idxmax = powerOfTwo[lmaxi];
-  // auto length = idxmax + 1;
+  const int idxmax = powerOfTwo[lmaxi];
 
   for (auto ldiff = static_cast<LevelType>(lmax - lmin - 1); ldiff >= 0; --ldiff) {
     int step_width = powerOfTwo[ldiff];
@@ -834,13 +821,10 @@ inline void dehierarchize_full_weighting_boundary_kernel(FG_ELEMENT* data, Level
  * @brief inverse operation to hierarchize_biorthogonal_boundary_kernel
  */
 template <typename FG_ELEMENT, bool periodic = false>
-inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax, int start,
-                                                        int stride, LevelType lmin) {
-  assert(start == 0);
-  assert(stride == 1);
+inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
+                                                       LevelType lmin) {
   const int lmaxi = static_cast<int>(lmax);
-  int idxmax = powerOfTwo[lmaxi];
-  // auto length = idxmax + 1;
+  const int idxmax = powerOfTwo[lmaxi];
 
   // for l_hierarchization in range(l_min, l_max, 1):
   //     step_width=2**(l_max-l_hierarchization-1)
@@ -877,9 +861,8 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
 /**
  * @brief  hierarchize a DFG with boundary points in dimension dim
  */
-template <typename FG_ELEMENT,
-          void (*HIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, int, int,
-                                       LevelType) = hierarchize_hat_boundary_kernel>
+template <typename FG_ELEMENT, void (*HIERARCHIZATION_FCTN)(FG_ELEMENT[], LevelType, LevelType) =
+                                   hierarchize_hat_boundary_kernel>
 void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                              const RemoteDataCollector<FG_ELEMENT>& remoteData, DimType dim,
                              LevelType lmin_n = 0) {
@@ -933,7 +916,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
         }
       }
       // hierarchize tmp array with hupp function
-      HIERARCHIZATION_FCTN(&tmp[0], lmax, 0, 1, lmin_n);
+      HIERARCHIZATION_FCTN(&tmp[0], lmax, lmin_n);
 
       if (oneSidedBoundary && !remoteData.empty() && remoteData[0].getKeyIndex() == 0) {
         assert(!std::isnan(std::real(tmp[0])));
