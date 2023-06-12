@@ -164,7 +164,7 @@ template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
     const DistributedSparseGridUniform<FG_ELEMENT>& other) {
   assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
-#pragma omp parallel for
+#pragma omp parallel for default(none) shared(other)
   for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {
     assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 ||
            other.getDataSize(i) == 0);
@@ -381,7 +381,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
 
   // resize all common subspaces in dsg, if necessary
-#pragma omp parallel for shared(downwardClosedSet, dfg)
+#pragma omp parallel for default(none) shared(downwardClosedSet, dfg)
   for (const auto& level : downwardClosedSet) {
     SubspaceIndexType index = this->getIndex(level);
     if (index > -1) {
@@ -423,10 +423,11 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
   // all the hierarchical subspaces contained in this full grid
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
 
+  static thread_local IndexVector subspaceIndices;
 // loop over all subspaces of the full grid
-#pragma omp parallel for reduction(|| : anythingWasAdded)
+#pragma omp parallel for default(none) reduction(|| : anythingWasAdded) \
+    shared(downwardClosedSet, dfg, coeff)
   for (const auto& level : downwardClosedSet) {
-    static thread_local IndexVector subspaceIndices;
     SubspaceIndexType sIndex = this->getIndex(level);
     if (sIndex > -1 && this->getDataSize(sIndex) > 0) {
       auto sPointer = this->getData(sIndex);

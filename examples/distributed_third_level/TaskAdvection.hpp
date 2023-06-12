@@ -72,9 +72,9 @@ class TaskAdvection : public Task {
     }
 
     TestFn f;
-#pragma omp parallel for schedule(simd : static)
+    static thread_local std::vector<double> coords(this->getDim());
+#pragma omp parallel for schedule(simd : static) default(none) shared(f)
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-      static thread_local std::vector<double> coords(this->getDim());
       dfg_->getCoordsLocal(li, coords);
       dfg_->getData()[li] = f(coords, 0.);
     }
@@ -111,8 +111,10 @@ class TaskAdvection : public Task {
         MPI_Request recvRequest;
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost, &recvRequest);
 
+#pragma omp parallel default(none) shared(ElementVector, u_dot_dphi, d, oneOverH, fullOffsets, \
+                                              numLocalElements, phi_ghost, velocity)
         // update all values; this will also (wrongly) update the lowest layer's values
-#pragma omp parallel for
+#pragma omp for nowait schedule(simd : static)
         for (IndexType li = 0; li < numLocalElements; ++li) {
 #ifndef NDEBUG
           IndexVector locAxisIndex(this->getDim());
@@ -140,7 +142,7 @@ class TaskAdvection : public Task {
         const auto& stride = dfg_->getLocalOffsets()[d];
         const IndexType jump = stride * dfg_->getLocalSizes()[d];
         const IndexType numberOfPolesHigherDimensions = dfg_->getNrLocalElements() / jump;
-#pragma omp parallel for collapse(2)
+#pragma omp for collapse(2) schedule(simd : dynamic)
         for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
           for (IndexType nLower = 0; nLower < dfg_->getLocalOffsets()[d]; ++nLower) {
             IndexType dfgLowestLayerIteratedIndex = nHigher * jump + nLower;  // local linear index
@@ -170,8 +172,9 @@ class TaskAdvection : public Task {
           }
         }
       }
-#pragma omp parallel for simd schedule(simd : static)
-      for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
+#pragma omp parallel for simd schedule(simd : static) default(none) \
+    shared(ElementVector, u_dot_dphi, dt_, numLocalElements)
+      for (IndexType li = 0; li < numLocalElements; ++li) {
         (*phi_)[li] = ElementVector[li] - u_dot_dphi[li] * dt_;
       }
       dfg_->swapDataVector(*phi_);

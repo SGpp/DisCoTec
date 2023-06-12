@@ -868,9 +868,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
     // loop over all subspaces (-> somewhat linear access in the sg)
-#pragma omp parallel for shared(dsg)
+    static thread_local IndexVector subspaceIndices;
+#pragma omp parallel for shared(dsg, downwardClosedSet) default(none)
     for (const auto& level : downwardClosedSet) {
-      static thread_local IndexVector subspaceIndices;
       typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = dsg.getIndex(level);
       if (sIndex > -1 && dsg.getDataSize(sIndex) > 0) {
         auto sPointer = dsg.getData(sIndex);
@@ -892,7 +892,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
                : combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l + 1));
   }
 
-  inline IndexType getLocalStartForThisLevel(LevelType l, DimType d, IndexType strideForThisLevel) const {
+  inline IndexType getLocalStartForThisLevel(LevelType l, DimType d,
+                                             IndexType strideForThisLevel) const {
     const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
 
     // get global offset to find indices of this level
@@ -982,12 +983,11 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   real getLpNorm(int p) const {
     assert(p >= 0);
     // special case maximum norm
-    MPI_Datatype dtype =
-      abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
+    MPI_Datatype dtype = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
     if (p == 0) {
       real max = 0.0;
       auto data = this->getData();
-#pragma omp parallel for reduction(max : max)
+#pragma omp parallel for reduction(max : max) default(none) shared(data)
       for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         max = std::max(max, std::abs(data[i]));
       }
@@ -1000,7 +1000,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       real res = 0.0;
 
 // double sumIntegral = 0;
-#pragma omp parallel for reduction(+ : res)
+#pragma omp parallel for reduction(+ : res) default(none) shared(data, oneOverPowOfTwo, p_f)
       for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         auto isOnBoundary = this->isLocalLinearIndexOnBoundary(i);
         auto countBoundary = std::count(isOnBoundary.begin(), isOnBoundary.end(), true);
