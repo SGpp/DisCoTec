@@ -254,35 +254,42 @@ template <typename FG_ELEMENT>
 static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                               RemoteDataCollector<FG_ELEMENT>& remoteData) {
   // send every index to all neighboring ranks in dimension dim
-  auto globalIdxMax = dfg.length(dim);
-  IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
-  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+  const auto globalIdxMax = dfg.length(dim);
+  const IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
+  const IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
 
-  auto poleNeighbors = dfg.getCartesianUtils().getAllMyPoleNeighborRanks(dim);
+  const auto poleNeighbors = dfg.getCartesianUtils().getAllMyPoleNeighborRanks(dim);
 
   std::set<IndexType> allMyIndices;
+  // #pragma omp parallel for shared(idxMin, idxMax, allMyIndices) default(none)
+  for (IndexType i = idxMin; i <= idxMax; ++i) {
+#pragma omp critical
+    allMyIndices.insert(i);
+  }
   std::map<RankType, std::set<IndexType>> send1dIndices;
   std::map<RankType, std::set<IndexType>> recv1dIndices;
-#pragma omp parallel default(none) shared(dfg, dim, globalIdxMax, idxMin, idxMax, poleNeighbors, \
-                                              allMyIndices, send1dIndices, recv1dIndices)
+
+  // #pragma omp parallel for schedule(static) default(none) \
+//     shared(poleNeighbors, send1dIndices, allMyIndices)
+  for (const auto& r : poleNeighbors) {
+#pragma omp critical
+    send1dIndices[r] = allMyIndices;
+  }
+  // #pragma omp parallel for schedule(static) default(none) \
+//     shared(poleNeighbors, recv1dIndices)
+  for (const auto& r : poleNeighbors) {
+#pragma omp critical
+    recv1dIndices[r] = {};
+  }
+
+#pragma omp parallel shared(dfg, dim, globalIdxMax, idxMin, idxMax, recv1dIndices)
   {
-#pragma omp for schedule(static) nowait
-    for (IndexType i = idxMin; i <= idxMax; ++i) {
-#pragma omp critical
-      allMyIndices.insert(i);
-    }
-#pragma omp for schedule(static)
-    for (auto& r : poleNeighbors) {
-#pragma omp critical
-      send1dIndices[r] = allMyIndices;
-      recv1dIndices[r] = {};
-    }
     // all other points that are not ours can be received from their owners
 #pragma omp for schedule(static) nowait
     for (IndexType i = 0; i < idxMin; ++i) {
       // get rank which has i and add to recv list
       // TODO would be easier to iterate the whole range of each neighbor
-      int r = dfg.getNeighbor1dFromAxisIndex(dim, i);
+      const int r = dfg.getNeighbor1dFromAxisIndex(dim, i);
       if (r >= 0) {
 #pragma omp critical
         recv1dIndices.at(r).insert(i);
@@ -291,7 +298,7 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
 #pragma omp for schedule(dynamic) nowait
     for (IndexType i = idxMax + 1; i < globalIdxMax; ++i) {
       // get rank which has i and add to recv list
-      int r = dfg.getNeighbor1dFromAxisIndex(dim, i);
+      const int r = dfg.getNeighbor1dFromAxisIndex(dim, i);
       if (r >= 0) {
 #pragma omp critical
         recv1dIndices.at(r).insert(i);
