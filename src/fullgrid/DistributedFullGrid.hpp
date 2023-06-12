@@ -1273,10 +1273,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     getHighestAndLowestNeighbor(d, higher, lower);
 
     // TODO asynchronous over d??
-    auto success =
-        MPI_Sendrecv(this->getData(), 1, downSubarray, higher, TRANSFER_GHOST_LAYER_TAG,
-                     this->getData(), 1, upSubarray, lower,
-                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+    auto success = MPI_Sendrecv(this->getData(), 1, downSubarray, higher, TRANSFER_GHOST_LAYER_TAG,
+                                this->getData(), 1, upSubarray, lower, TRANSFER_GHOST_LAYER_TAG,
+                                this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
     MPI_Type_free(&downSubarray);
     MPI_Type_free(&upSubarray);
@@ -1284,7 +1283,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   // non-RVO dependent version of ghost layer exchange
   void exchangeGhostLayerUpward(DimType d, std::vector<int>& subarrayExtents,
-                                std::vector<FG_ELEMENT>& recvbuffer) {
+                                std::vector<FG_ELEMENT>& recvbuffer,
+                                MPI_Request* recvRequest = nullptr) {
     subarrayExtents.resize(this->getDimension());
     subarrayExtents.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
     subarrayExtents[d] = 1;
@@ -1303,7 +1303,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     if (!reverseOrderingDFGPartitions) {
       d_reverse = d;
     }
-    MPI_Cart_shift( this->getCommunicator(), static_cast<int>(d_reverse), 1, &lower, &higher );
+    MPI_Cart_shift(this->getCommunicator(), static_cast<int>(d_reverse), 1, &lower, &higher);
 
     if (this->returnBoundaryFlags()[d] == 1) {
       // if one-sided boundary, assert that everyone has neighbors
@@ -1329,11 +1329,18 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     recvbuffer.resize(numElements);
     std::memset(recvbuffer.data(), 0, recvbuffer.size() * sizeof(FG_ELEMENT));
 
-    // TODO asynchronous over d??
-    auto success =
-        MPI_Sendrecv(this->getData(), 1, subarray, higher, TRANSFER_GHOST_LAYER_TAG,
-                     recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
-                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+    if (recvRequest != nullptr) {
+      auto success = MPI_Irecv(recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
+                               TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), recvRequest);
+      assert(success == MPI_SUCCESS);
+      success = MPI_Send(this->getData(), 1, subarray, higher, TRANSFER_GHOST_LAYER_TAG,
+                         this->getCommunicator());
+    } else {
+      auto success =
+          MPI_Sendrecv(this->getData(), 1, subarray, higher, TRANSFER_GHOST_LAYER_TAG,
+                       recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
+                       TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+    }
     assert(success == MPI_SUCCESS);
     MPI_Type_free(&subarray);
   }

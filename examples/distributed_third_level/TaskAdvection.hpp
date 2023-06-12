@@ -108,7 +108,8 @@ class TaskAdvection : public Task {
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
-        dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
+        MPI_Request recvRequest;
+        dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost, &recvRequest);
 
         // update all values; this will also (wrongly) update the lowest layer's values
 #pragma omp parallel for
@@ -131,6 +132,8 @@ class TaskAdvection : public Task {
           auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
           u_dot_dphi[li] += velocity[d] * dphi;
         }
+        // wait for received message
+        MPI_Wait(&recvRequest, MPI_STATUS_IGNORE);
         // iterate the lowest layer and update the values, compensating for the wrong update
         // before
         assert(dfg_->getNrLocalElements() / dfg_->getLocalSizes()[d] == phi_ghost.size());
