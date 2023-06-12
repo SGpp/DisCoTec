@@ -1335,13 +1335,14 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       assert(success == MPI_SUCCESS);
       success = MPI_Send(this->getData(), 1, subarray, higher, TRANSFER_GHOST_LAYER_TAG,
                          this->getCommunicator());
+      assert(success == MPI_SUCCESS);
     } else {
       auto success =
           MPI_Sendrecv(this->getData(), 1, subarray, higher, TRANSFER_GHOST_LAYER_TAG,
                        recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
                        TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+      assert(success == MPI_SUCCESS);
     }
-    assert(success == MPI_SUCCESS);
     MPI_Type_free(&subarray);
   }
 
