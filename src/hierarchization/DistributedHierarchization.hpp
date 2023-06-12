@@ -694,15 +694,19 @@ inline void hierarchize_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelTy
       data[0] = 0.5 * (data[0] + data[step_width]);
       data[idxmax] = 0.5 * (data[idxmax] + data[idxmax - step_width]);
     }
-    //todo iterate only "our" part
-    for (int i = 2*step_width; i < idxmax; i += 2*step_width) {
-      // todo reformulate more cache-efficient
-      data[i] = 0.25 * (data[i-step_width] + data[i+step_width]) + 0.5*data[i];
+    // todo iterate only "our" part
+    auto leftParent = 0.25 * data[step_width];
+    for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
+      const auto rightParent = 0.25 * data[i + step_width];
+      data[i] = leftParent + rightParent + 0.5 * data[i];
+      leftParent = rightParent;
     }
     // update alpha / hierarchical surplus at odd indices
-    for (int i = step_width; i < idxmax; i += 2*step_width) {
-      // todo reformulate more cache-efficient
-      data[i] = -0.5 * (data[i-step_width] + data[i+step_width]) + data[i];
+    leftParent = -0.5 * data[0];
+    for (int i = step_width; i < idxmax; i += 2 * step_width) {
+      const auto rightParent = -0.5 * data[i + step_width];
+      data[i] = leftParent + (rightParent + data[i]);
+      leftParent = rightParent;
     }
   }
 
@@ -723,38 +727,42 @@ template <typename FG_ELEMENT, bool periodic = false>
 inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType lmax,
                                                      LevelType lmin = 0) {
   const int lmaxi = static_cast<int>(lmax);
-  int idxmax = powerOfTwo[lmaxi];
-  // auto length = idxmax + 1;
-//     for l_hierarchization in range(l_max, l_min, -1):
-//         step_width=2**(l_max-l_hierarchization)
-//         for i in range(step_width,2**(l_max),2*step_width):
-//             y[i]= -0.5*y[i-step_width] + y[i] -0.5*y[i+step_width]
-//         y[0] = y[0] + 0.5*y[1*step_width]
-//         y[-1] = y[-1] + 0.5*y[-1-1*step_width]
-//         for i in range(2*step_width,2**(l_max),2*step_width):
-//             y[i] = 0.25*y[i-step_width] + y[i] + 0.25*y[i+step_width]
+  const int idxmax = powerOfTwo[lmaxi];
+  //     for l_hierarchization in range(l_max, l_min, -1):
+  //         step_width=2**(l_max-l_hierarchization)
+  //         for i in range(step_width,2**(l_max),2*step_width):
+  //             y[i]= -0.5*y[i-step_width] + y[i] -0.5*y[i+step_width]
+  //         y[0] = y[0] + 0.5*y[1*step_width]
+  //         y[-1] = y[-1] + 0.5*y[-1-1*step_width]
+  //         for i in range(2*step_width,2**(l_max),2*step_width):
+  //             y[i] = 0.25*y[i-step_width] + y[i] + 0.25*y[i+step_width]
 
-  for (LevelType ldiff = 0; ldiff < lmax-lmin; ++ldiff) {
-    int step_width = powerOfTwo[ldiff];
+  for (LevelType ldiff = 0; ldiff < lmax - lmin; ++ldiff) {
+    const int step_width = powerOfTwo[ldiff];
     // update alpha / hierarchical surplus at odd indices
-    for (int i = step_width; i < idxmax; i += 2*step_width) {
-      // todo reformulate more cache-efficient
-      data[i] = -0.5 * (data[i-step_width] + data[i+step_width]) + data[i];
+    auto leftParent = -0.5 * data[0];
+    for (int i = step_width; i < idxmax; i += 2 * step_width) {
+      const auto rightParent = -0.5 * data[i + step_width];
+      data[i] = leftParent + (rightParent + data[i]);
+      leftParent = rightParent;
     }
     // update f at even indices
     if (periodic) {
       // values at 0 and idxmax will be the same
-      data[0] = 0.5 * (data[0] + data[idxmax]) + 0.25 * (data[step_width] + data[idxmax - step_width]);
+      data[0] =
+          0.5 * (data[0] + data[idxmax]) + 0.25 * (data[step_width] + data[idxmax - step_width]);
       data[idxmax] = data[0];
     } else {
       // mass will build up at the boundary; corresponds to 0-neumann-condition
       data[0] = data[0] + 0.5 * data[step_width];
       data[idxmax] = data[idxmax] + 0.5 * data[idxmax - step_width];
     }
-    //todo iterate only "our" part
-    for (int i = 2*step_width; i < idxmax; i += 2*step_width) {
-      // todo reformulate more cache-efficient
-      data[i] = 0.25 * (data[i-step_width] + data[i+step_width]) + data[i];
+    // todo iterate only "our" part
+    leftParent = 0.25 * data[step_width];
+    for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
+      const auto rightParent = 0.25 * data[i + step_width];
+      data[i] = leftParent + (rightParent + data[i]);
+      leftParent = rightParent;
     }
   }
 }
@@ -802,14 +810,18 @@ inline void dehierarchize_full_weighting_boundary_kernel(FG_ELEMENT* data, Level
   for (auto ldiff = static_cast<LevelType>(lmax - lmin - 1); ldiff >= 0; --ldiff) {
     int step_width = powerOfTwo[ldiff];
     // update alpha / hierarchical surplus at odd indices
+    auto leftParent = 0.5 * data[0];
     for (int i = step_width; i < idxmax; i += 2 * step_width) {
-      // todo reformulate more cache-efficient
-      data[i] = 0.5 * (data[i - step_width] + data[i + step_width]) + data[i];
+      const auto rightParent = 0.5 * data[i + step_width];
+      data[i] = leftParent + (rightParent + data[i]);
+      leftParent = rightParent;
     }
     // update f at even indices
+    leftParent = -0.5 * data[step_width];
     for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
-      // todo reformulate more cache-efficient
-      data[i] = -0.5 * (data[i - step_width] + data[i + step_width]) + 2. * data[i];
+      const auto rightParent = -0.5 * data[i + step_width];
+      data[i] = leftParent + rightParent + 2. * data[i];
+      leftParent = rightParent;
     }
     if (periodic) {
       // values at 0 and idxmax will be the same
@@ -853,14 +865,18 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
       data[0] = data[0] - 0.5 * data[step_width];
       data[idxmax] = data[idxmax] - 0.5 * data[idxmax - step_width];
     }
+    auto leftParent = -0.25 * data[step_width];
     for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
-      // todo reformulate more cache-efficient
-      data[i] = -0.25 * (data[i - step_width] + data[i + step_width]) + data[i];
+      const auto rightParent = -0.25 * data[i + step_width];
+      data[i] = leftParent + (rightParent + data[i]);
+      leftParent = rightParent;
     }
     // update alpha / hierarchical surplus at odd indices
+    leftParent = 0.5 * data[0];
     for (int i = step_width; i < idxmax; i += 2 * step_width) {
-      // todo reformulate more cache-efficient
-      data[i] = 0.5 * (data[i - step_width] + data[i + step_width]) + data[i];
+      const auto rightParent = 0.5 * data[i + step_width];
+      data[i] = leftParent + (rightParent + data[i]);
+      leftParent = rightParent;
     }
   }
 }
@@ -908,7 +924,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
         tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(poleNumber);
       }
       // copy local data
-#pragma omp simd // no speedup here
+#pragma omp simd  // no speedup here
       for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
         const auto localStepped = localOffsetForThisDimension * i;
         tmp[gstart + i] = ldata[poleStart + localStepped];
@@ -931,7 +947,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       }
 
       // copy pole back
-#pragma omp simd // no speedup here
+#pragma omp simd  // no speedup here
       for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
         const auto localStepped = localOffsetForThisDimension * i;
         ldata[poleStart + localStepped] = tmp[gstart + i];
