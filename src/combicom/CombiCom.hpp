@@ -247,22 +247,28 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   MPI_Op indexedAdd;
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
-#pragma omp parallel for default(none) shared(dsg, indexedAdd)
+#pragma omp parallel if (dsg.getSubspacesByCommunicator().size() > 1) default(none) \
+    shared(dsg, indexedAdd)
+#pragma omp for
   for (size_t commIndex = 0; commIndex < dsg.getSubspacesByCommunicator().size(); ++commIndex) {
     const std::pair<CommunicatorType,
                     std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
         commAndItsSubspaces = dsg.getSubspacesByCommunicator()[commIndex];
     // get reduction datatypes for this communicator
     auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces);
-    // reduce for each datatype
-    // //this would be best for single subspace reduce, but leads to MPI truncation
-    // // errors(desynchronization between MPI ranks on the same communicators probably)
-    // #pragma omp parallel for default(none) \
+
+    // // this would be best for single subspace reduce, but leads to MPI truncation
+    // // errors if not ordered (desynchronization between MPI ranks on the same communicators
+    // probably)
+    // #pragma omp parallel if (dsg.getSubspacesByCommunicator().size() == 1) default(none) \
 //     shared(dsg, indexedAdd, datatypesByStartIndex, commAndItsSubspaces)
+    // #pragma omp for ordered
     for (size_t datatypeIndex = 0; datatypeIndex < datatypesByStartIndex.size(); ++datatypeIndex) {
+      // reduce for each datatype
       auto& subspaceStartIndex = datatypesByStartIndex[datatypeIndex].first;
       auto& comm = commAndItsSubspaces.first;
       auto& datatype = datatypesByStartIndex[datatypeIndex].second;
+      // #pragma omp ordered
       MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype, indexedAdd, comm);
 
       // free datatype -- MPI standard says it will be kept until operation is finished
