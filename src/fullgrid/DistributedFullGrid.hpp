@@ -989,7 +989,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     if (p == 0) {
       real max = 0.0;
       auto data = this->getData();
-#pragma omp parallel for reduction(max : max) default(none) shared(data)
+#pragma omp parallel for reduction(max : max) default(none) shared(data) schedule(static)
       for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         max = std::max(max, std::abs(data[i]));
       }
@@ -1001,8 +1001,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       auto data = this->getData();
       real res = 0.0;
 
-// double sumIntegral = 0;
-#pragma omp parallel for reduction(+ : res) default(none) shared(data, oneOverPowOfTwo, p_f)
+#pragma omp parallel for reduction(+ : res) default(none) shared(data, oneOverPowOfTwo) \
+    firstprivate(p_f) schedule(static)
       for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         auto isOnBoundary = this->isLocalLinearIndexOnBoundary(i);
         auto countBoundary = std::count(isOnBoundary.begin(), isOnBoundary.end(), true);

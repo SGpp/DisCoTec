@@ -164,7 +164,7 @@ template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
     const DistributedSparseGridUniform<FG_ELEMENT>& other) {
   assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
-#pragma omp parallel for default(none) shared(other)
+#pragma omp parallel for default(none) shared(other) schedule(guided)
   for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {
     assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 ||
            other.getDataSize(i) == 0);

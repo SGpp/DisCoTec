@@ -166,8 +166,8 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
   int numBlocks = (num_integers - 1) / 2;
   int* arrayOfBlocklengths = arrayOfInts + 1;
   int* arrayOfDisplacements = arrayOfBlocklengths + numBlocks;
-#pragma omp parallel for default(none) shared(numBlocks, arrayOfDisplacements, arrayOfBlocklengths, \
-                                              invec, inoutvec)
+#pragma omp parallel for default(none) firstprivate( \
+        numBlocks, arrayOfDisplacements, arrayOfBlocklengths, invec, inoutvec) schedule(guided)
   for (int i = 0; i < numBlocks; ++i) {
     FG_ELEMENT* inoutElements = reinterpret_cast<FG_ELEMENT*>(inoutvec) + arrayOfDisplacements[i];
     FG_ELEMENT* inElements = reinterpret_cast<FG_ELEMENT*>(invec) + arrayOfDisplacements[i];
@@ -249,7 +249,7 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
 
 #pragma omp parallel if (dsg.getSubspacesByCommunicator().size() > 1) default(none) \
     shared(dsg, indexedAdd)
-#pragma omp for
+#pragma omp for schedule(dynamic)
   for (size_t commIndex = 0; commIndex < dsg.getSubspacesByCommunicator().size(); ++commIndex) {
     const std::pair<CommunicatorType,
                     std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
@@ -259,10 +259,10 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
 
     // // this would be best for single subspace reduce, but leads to MPI truncation
     // // errors if not ordered (desynchronization between MPI ranks on the same communicators
-    // probably)
+    // // probably)
     // #pragma omp parallel if (dsg.getSubspacesByCommunicator().size() == 1) default(none) \
-//     shared(dsg, indexedAdd, datatypesByStartIndex, commAndItsSubspaces)
-    // #pragma omp for ordered
+    // shared(dsg, indexedAdd, datatypesByStartIndex, commAndItsSubspaces)
+    // #pragma omp for ordered schedule(static)
     for (size_t datatypeIndex = 0; datatypeIndex < datatypesByStartIndex.size(); ++datatypeIndex) {
       // reduce for each datatype
       auto& subspaceStartIndex = datatypesByStartIndex[datatypeIndex].first;

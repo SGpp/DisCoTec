@@ -111,8 +111,8 @@ class TaskAdvection : public Task {
         MPI_Request recvRequest;
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost, &recvRequest);
 
-#pragma omp parallel default(none) shared(ElementVector, u_dot_dphi, d, oneOverH, fullOffsets, \
-                                              numLocalElements, phi_ghost, velocity)
+#pragma omp parallel default(none) firstprivate(d, numLocalElements) \
+    shared(u_dot_dphi, ElementVector, oneOverH, fullOffsets, phi_ghost, velocity)
         // update all values; this will also (wrongly) update the lowest layer's values
 #pragma omp for nowait schedule(simd : static)
         for (IndexType li = 0; li < numLocalElements; ++li) {
@@ -173,7 +173,7 @@ class TaskAdvection : public Task {
         }
       }
 #pragma omp parallel for simd schedule(simd : static) default(none) \
-    shared(ElementVector, u_dot_dphi, dt_, numLocalElements)
+    shared(ElementVector, u_dot_dphi) firstprivate(dt_, numLocalElements)
       for (IndexType li = 0; li < numLocalElements; ++li) {
         (*phi_)[li] = ElementVector[li] - u_dot_dphi[li] * dt_;
       }

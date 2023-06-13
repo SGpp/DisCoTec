@@ -123,10 +123,10 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
 
   numSend = 0;
   numRecv = 0;
-// #pragma omp parallel shared(sendRequests, numSend, send1dIndices, recvRequests, numRecv,  \
-//                                 remoteData, recv1dIndices, dfg, dfgStartAddr, mysubarray, \
-//                                 dim) default(none)
-// no benefit from parallelization here
+// #pragma omp parallel shared(sendRequests, numSend, send1dIndices, recvRequests, numRecv, \
+//                                 remoteData, recv1dIndices, dfg, mysubarray)              \
+//     firstprivate(dfgStartAddr, dim) default(none)
+  // no benefit from parallelization here
   {
 #pragma omp for schedule(static) nowait
     for (size_t x = 0; x < send1dIndices.size(); ++x) {
@@ -282,7 +282,7 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
     recv1dIndices[r] = {};
   }
 
-#pragma omp parallel shared(dfg, dim, globalIdxMax, idxMin, idxMax, recv1dIndices)
+#pragma omp parallel shared(dfg, recv1dIndices) firstprivate(dim, globalIdxMax, idxMin, idxMax)
   {
     // all other points that are not ours can be received from their owners
 #pragma omp for schedule(static) nowait
@@ -904,10 +904,10 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
 
   // loop over poles
   static thread_local std::vector<FG_ELEMENT> tmp;
-#pragma omp parallel for collapse(2)                                                  \
-    shared(poleLength, ldata, gstart, localOffsetForThisDimension, lmax, lmin_n, dim, \
-               oneSidedBoundary, dfg, jump, remoteData, numberOfPolesLowerDimensions, \
-               numberOfPolesHigherDimensions) default(none)
+#pragma omp parallel for collapse(2) schedule(static)                                       \
+    firstprivate(poleLength, ldata, gstart, localOffsetForThisDimension, lmax, lmin_n, dim, \
+                     oneSidedBoundary, jump, numberOfPolesLowerDimensions,                  \
+                     numberOfPolesHigherDimensions) shared(dfg, remoteData) default(none)
   for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
     for (IndexType nLower = 0; nLower < numberOfPolesLowerDimensions; ++nLower) {
       IndexType poleStart = nHigher * jump + nLower;  // local linear index

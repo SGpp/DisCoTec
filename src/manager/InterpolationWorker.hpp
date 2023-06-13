@@ -17,12 +17,12 @@ static std::vector<CombinableType> interpolateValues(
   std::vector<CombinableType> values(numCoordinates, 0.);
   std::vector<CombinableType> kahanTrailingTerm(numCoordinates, 0.);
 
-  for (const auto& t : tasks) {
-    const auto coeff = t->getCoefficient();
-#pragma omp parallel for simd default(none) \
-    shared(numCoordinates, values, kahanTrailingTerm, t, coeff, interpolationCoords)
+  for (const auto& task : tasks) {
+    const auto coeff = task->getCoefficient();
+#pragma omp parallel for simd default(none) firstprivate(numCoordinates, coeff) \
+    shared(values, kahanTrailingTerm, interpolationCoords, task) schedule(static)
     for (size_t i = 0; i < numCoordinates; ++i) {
-      auto localValue = t->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
+      auto localValue = task->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
       auto summand = localValue * coeff;
       // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
       volatile auto y = summand - kahanTrailingTerm[i];
