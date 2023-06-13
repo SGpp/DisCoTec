@@ -869,9 +869,11 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
     // loop over all subspaces (-> somewhat linear access in the sg)
     static thread_local IndexVector subspaceIndices;
-#pragma omp parallel for shared(dsg, downwardClosedSet) default(none)
+    typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = 0;
+#pragma omp parallel for shared(dsg, downwardClosedSet) default(none) schedule(guided) \
+    firstprivate(sIndex)
     for (const auto& level : downwardClosedSet) {
-      typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = dsg.getIndex(level);
+      sIndex = dsg.getIndexInRange(level, sIndex);
       if (sIndex > -1 && dsg.getDataSize(sIndex) > 0) {
         auto sPointer = dsg.getData(sIndex);
         subspaceIndices = this->getFGPointsOfSubspace(level);

@@ -380,10 +380,12 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
   // all the hierarchical subspaces contained in the full grid
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
 
+  SubspaceIndexType index = 0;
   // resize all common subspaces in dsg, if necessary
-#pragma omp parallel for default(none) shared(downwardClosedSet, dfg)
+#pragma omp parallel for default(none) shared(downwardClosedSet, dfg) firstprivate(index) \
+    schedule(guided)
   for (const auto& level : downwardClosedSet) {
-    SubspaceIndexType index = this->getIndex(level);
+    index = this->getIndexInRange(level, index);
     if (index > -1) {
       IndexType numPointsOfSubspace = 1;
       for (DimType d = 0; d < dim_; ++d) {
@@ -424,11 +426,12 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
 
   static thread_local IndexVector subspaceIndices;
+  SubspaceIndexType sIndex = 0;
 // loop over all subspaces of the full grid
 #pragma omp parallel for default(none) reduction(|| : anythingWasAdded) \
-    shared(downwardClosedSet, dfg, coeff)
+    shared(downwardClosedSet, dfg) firstprivate(coeff, sIndex) schedule(guided)
   for (const auto& level : downwardClosedSet) {
-    SubspaceIndexType sIndex = this->getIndex(level);
+    sIndex = this->getIndexInRange(level, sIndex);
     if (sIndex > -1 && this->getDataSize(sIndex) > 0) {
       auto sPointer = this->getData(sIndex);
       auto kPointer = kahanDataBegin_[sIndex];
