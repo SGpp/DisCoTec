@@ -154,7 +154,7 @@ void startInfrastructure(unsigned short port = 9999) {
 void startInfrastructure(unsigned short port = 7777) {
 #endif // NDEBUG
   // give former infrastructure some time to shut down
-  sleep(3);
+  sleep(5);
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
