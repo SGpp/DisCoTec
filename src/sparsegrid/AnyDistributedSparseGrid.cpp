@@ -155,13 +155,14 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
                   subspaceDataSizesAlmostCopy.size(),
                   getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>()), MPI_MAX,
                   subspaceComm);
+    for (const auto& subspace : subspacesForMany) {
+      this->subspacesDataSizes_[subspace] = subspaceDataSizesAlmostCopy[subspace];
+    }
   }
-  for (const auto& subspace : subspacesForMany) {
-    this->subspacesDataSizes_[subspace] = subspaceDataSizesAlmostCopy[subspace];
-  }
-  // if I am one of the ranks, store the subspaces and the communicator
   if (std::find(ranks.begin(), ranks.end(), rankInComm) != ranks.end()) {
     subspacesByComm_.push_back(std::make_pair(subspaceComm, std::move(subspacesForMany)));
+  } else {
+    assert(subspacesForMany.empty());
   }
 }
 
