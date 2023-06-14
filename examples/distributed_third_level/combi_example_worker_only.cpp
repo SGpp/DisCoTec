@@ -164,13 +164,12 @@ int main(int argc, char** argv) {
     std::string interpolationCoordsFile = "interpolation_coords_" + std::to_string(dim) + "D_" +
                                           std::to_string(interpolationCoords.size()) + ".h5";
     // // if the file does not exist, one rank creates it
-    // if (!std::filesystem::exists(interpolationCoordsFile)) {
-    //   if (theMPISystem()->getWorldRank() == 0) {
+    // if (theMPISystem()->getWorldRank() == 0) {
+    //   if (!std::filesystem::exists(interpolationCoordsFile)) {
     //     interpolationCoords = montecarlo::getRandomCoordinates(interpolationCoords.size(), dim);
     //     h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
     //                               "only");
     //   }
-    //   MPI_Barrier(theMPISystem()->getWorldComm());
     // }
     // get them e.g. with `wget https://darus.uni-stuttgart.de/api/access/datafile/195524` (1e6)
     // or `wget https://darus.uni-stuttgart.de/api/access/datafile/195545` (1e5)
@@ -187,9 +186,10 @@ int main(int argc, char** argv) {
     ProcessGroupWorker worker;
     worker.setCombiParameters(std::move(params));
 
-    // create Tasks
     worker.initializeAllTasks<TaskAdvection>(levels, coeffs, taskNumbers, loadmodel.get(), dt,
                                              nsteps, p);
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "worker: initialized tasks "
+                                               << std::endl;
 
     worker.initCombinedDSGVector();
     auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
