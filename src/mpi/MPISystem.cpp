@@ -288,7 +288,7 @@ void MPISystem::storeLocalComm(CommunicatorType lcomm) {
     localRank_ = MPI_PROC_NULL;
   } else {
     if (lcomm != MPI_COMM_NULL && lcomm != localComm_) {
-      MPI_Comm_dup(lcomm, &localComm_);
+      localComm_ = lcomm;
     }
     localRank_ = getCommRank(localComm_);
     // todo: think through which side effects changing the master rank would have
