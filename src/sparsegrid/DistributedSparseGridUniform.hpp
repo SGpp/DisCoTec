@@ -382,8 +382,8 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
 
   SubspaceIndexType index = 0;
   // resize all common subspaces in dsg, if necessary
-#pragma omp parallel for default(none) shared(downwardClosedSet, dfg) firstprivate(index) \
-    schedule(guided)
+#pragma omp parallel for default(none) shared(downwardClosedSet, dfg, std::cout, std::cerr) \
+    firstprivate(index) schedule(guided)
   for (const auto& level : downwardClosedSet) {
     index = this->getIndexInRange(level, index);
     if (index > -1) {
