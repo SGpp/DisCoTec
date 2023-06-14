@@ -590,12 +590,12 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
           if (comm != MPI_COMM_NULL) {
             BOOST_TEST_CHECKPOINT("Testing dimension " << d << " with boundary " << b
                                                        << " and lmin " << lmin[d]);
-            OwningDistributedFullGrid<std::complex<double>> dfg(dimensionality, levels, comm, boundary,
-                                                          procs, false);
+            OwningDistributedFullGrid<std::complex<double>> dfg(dimensionality, levels, comm,
+                                                                boundary, procs, false);
             {
               isOnLowerBoundaryInD = dfg.getCartesianUtils().isOnLowerBoundaryInDimension(d);
-              std::vector<int> processLocation;
-              dfg.getCartesianUtils().getPartitionCoordsOfLocalRank(processLocation);
+              const std::vector<int>& processLocation =
+                  dfg.getCartesianUtils().getPartitionCoordsOfLocalRank();
               isOnUpperBoundaryInD = processLocation[d] == procs[d] - 1;
             }
             auto extents = checkExtentsOfDFG(dfg);
