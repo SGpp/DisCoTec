@@ -263,6 +263,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   auto numValues = interpolationCoords.size();
   std::vector<FG_ELEMENT> values;
   values.resize(numValues);
+#pragma omp parallel for default(none) firstprivate(numValues) shared(values, interpolationCoords) \
+    schedule(static)
   for (size_t i = 0; i < numValues; ++i) {
     this->evalLocal(interpolationCoords[i], values[i]);
   }
