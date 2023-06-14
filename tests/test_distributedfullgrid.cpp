@@ -169,7 +169,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   TestFn f;
   const auto dim = static_cast<DimType>(levels.size());
 
-  // create dfg
+  BOOST_TEST_CHECKPOINT("create dfg");
   OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
 
   // set function values

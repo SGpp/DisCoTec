@@ -52,6 +52,9 @@ class TensorIndexer {
   // }
 
   size_t size() const {
+    if (this->extents_.empty()) {
+      return 0;
+    }
     auto size = std::accumulate(this->extents_.begin(), this->extents_.end(), 1U,
                                 std::multiplies<size_t>());
     assert(size < std::numeric_limits<IndexType>::max());

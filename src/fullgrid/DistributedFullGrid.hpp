@@ -542,9 +542,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline IndexVector getLowerBounds(RankType r) const {
     assert(r >= 0 && r < this->getCommunicatorSize());
     // get coords of r in cart comm
-    std::vector<int> coords(dim_);
     IndexVector lowerBounds(dim_);
-    cartesianUtils_.getPartitionCoordsOfRank(r, coords);
+    const auto& coords = cartesianUtils_.getPartitionCoordsOfRank(r);
 
     for (DimType i = 0; i < dim_; ++i) {
       lowerBounds[i] = getDecomposition()[i][coords[i]];
@@ -568,9 +567,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   /** upper bounds of rank r */
   inline IndexVector getUpperBounds(RankType r) const {
     assert(r >= 0 && r < this->getCommunicatorSize());
-    std::vector<int> coords(dim_);
     IndexVector upperBounds(dim_);
-    cartesianUtils_.getPartitionCoordsOfRank(r, coords);
+    const auto& coords = cartesianUtils_.getPartitionCoordsOfRank(r);
 
     for (DimType i = 0; i < dim_; ++i) {
       RankType n;
