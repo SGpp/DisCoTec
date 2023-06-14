@@ -1276,7 +1276,6 @@ BOOST_AUTO_TEST_CASE(test_42) {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("hat hierarchization time: " << duration.count() << " milliseconds");
   }
-  // on ipvs-epyc2@  : 500 milliseconds w single msgs
 }
 
 BOOST_AUTO_TEST_CASE(test_43) {
@@ -1298,7 +1297,6 @@ BOOST_AUTO_TEST_CASE(test_43) {
     BOOST_TEST_MESSAGE("full weighting hierarchization time: " << duration.count()
                                                                << " milliseconds");
   }
-  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
 }
 BOOST_AUTO_TEST_CASE(test_44) {
   // large test case with timing for full weighting
@@ -1319,7 +1317,6 @@ BOOST_AUTO_TEST_CASE(test_44) {
     BOOST_TEST_MESSAGE("biorthogonal hierarchization time: " << duration.count()
                                                              << " milliseconds");
   }
-  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
 }
 
 BOOST_AUTO_TEST_CASE(test_p_42) {
@@ -1340,7 +1337,6 @@ BOOST_AUTO_TEST_CASE(test_p_42) {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("hat hierarchization time: " << duration.count() << " milliseconds");
   }
-  // on ipvs-epyc2@  : 480 milliseconds
 }
 
 BOOST_AUTO_TEST_CASE(test_p_43) {
@@ -1362,7 +1358,6 @@ BOOST_AUTO_TEST_CASE(test_p_43) {
     BOOST_TEST_MESSAGE("full weighting hierarchization time: " << duration.count()
                                                                << " milliseconds");
   }
-  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
 }
 BOOST_AUTO_TEST_CASE(test_p_44) {
   // large test case with timing for full weighting
@@ -1383,7 +1378,6 @@ BOOST_AUTO_TEST_CASE(test_p_44) {
     BOOST_TEST_MESSAGE("biorthogonal hierarchization time: " << duration.count()
                                                              << " milliseconds");
   }
-  // on ipvs-epyc2@  : 2300 milliseconds w single msgs
 }
 
 #endif  // def NDEBUG
