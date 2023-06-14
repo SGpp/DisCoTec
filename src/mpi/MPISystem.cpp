@@ -246,12 +246,12 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
 #pragma omp parallel default(none) shared(numOMPthreads)
       {
 #ifdef _OPENMP
-#pragma omp master
-        numOMPthreads = omp_get_num_threads();
         omp_set_max_active_levels(2);
         if (omp_get_max_active_levels() != 2) {
           throw std::runtime_error("Could not set nested OpenMP parallelism");
         }
+#pragma omp master
+        numOMPthreads = omp_get_num_threads();
 #endif
       }
 
