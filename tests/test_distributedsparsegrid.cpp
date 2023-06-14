@@ -845,8 +845,8 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
     const LevelVector lmax{6, 6, 6, 6, 5, 5};
 
     for (CombinationVariant variant :
-         {CombinationVariant::sparseGridReduce, CombinationVariant::subspaceReduce,
-          CombinationVariant::singleSubspaceReduce}) {
+         {CombinationVariant::subspaceReduce, CombinationVariant::outgroupSparseGridReduce,
+          CombinationVariant::sparseGridReduce}) {
       std::vector<LevelVector> myLevels;
       {
         CombiMinMaxScheme combischeme(dimensionality, lmin, lmax);
@@ -949,7 +949,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
         }
       } else {
         // set the subspace map across DSGs
-        uniDSG->setSingleSubspaceCommunicator(fullComm, TestHelper::getRank(fullComm));
+        uniDSG->setOutgroupCommunicator(fullComm, TestHelper::getRank(fullComm));
         BOOST_CHECK_EQUAL(uniDSG->getSubspacesByCommunicator().size(), 1);
         // initialize actual data containers and MPI datatype mappings
         uniDSG->setZero();
@@ -962,12 +962,12 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
         }
 
         MPI_Barrier(fullComm);
-        BOOST_TEST_CHECKPOINT("single subspace reduce");
+        BOOST_TEST_CHECKPOINT("outgroup reduce");
         auto start = std::chrono::high_resolution_clock::now();
         CombiCom::distributedGlobalSubspaceReduce(*uniDSG);
         auto end = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-        BOOST_TEST_MESSAGE("single subspace reduce time: " + std::to_string(duration.count()));
+        BOOST_TEST_MESSAGE("outgroup reduce time: " + std::to_string(duration.count()));
 
         // check that the data is correct
         const auto& subspacesByComm = uniDSG->getSubspacesByCommunicator();

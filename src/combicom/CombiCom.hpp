@@ -257,7 +257,7 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
     // get reduction datatypes for this communicator
     auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces);
 
-    // // this would be best for single subspace reduce, but leads to MPI truncation
+    // // this would be best for outgroup reduce, but leads to MPI truncation
     // // errors if not ordered (desynchronization between MPI ranks on the same communicators
     // // probably)
     // #pragma omp parallel if (dsg.getSubspacesByCommunicator().size() == 1) default(none) \

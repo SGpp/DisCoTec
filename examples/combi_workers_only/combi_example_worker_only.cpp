@@ -131,7 +131,7 @@ int main(int argc, char** argv) {
     // create combiparameters
     auto reduceCombinationDimsLmax = LevelVector(dim, 1);
     CombiParameters params(dim, lmin, lmax, boundary, ncombi, 1,
-                           CombinationVariant::sparseGridReduce, p, LevelVector(dim, 0),
+                           CombinationVariant::outgroupSparseGridReduce, p, LevelVector(dim, 0),
                            reduceCombinationDimsLmax, forwardDecomposition);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     IndexVector minNumPoints(dim), maxNumPoints(dim);
@@ -155,13 +155,12 @@ int main(int argc, char** argv) {
       std::string interpolationCoordsFile = "interpolation_coords_" + std::to_string(dim) + "D_" +
                                             std::to_string(interpolationCoords.size()) + ".h5";
       // if the file does not exist, one rank creates it
-      if (!std::filesystem::exists(interpolationCoordsFile)) {
-        if (theMPISystem()->getWorldRank() == 0) {
+      if (theMPISystem()->getWorldRank() == 0) {
+        if (!std::filesystem::exists(interpolationCoordsFile)) {
           interpolationCoords = montecarlo::getRandomCoordinates(interpolationCoords.size(), dim);
           h5io::writeValuesToH5File(interpolationCoords, interpolationCoordsFile, "worker_group",
                                     "only");
         }
-        MPI_Barrier(theMPISystem()->getWorldComm());
       }
       interpolationCoords = broadcastParameters::getCoordinatesFromRankZero(
           interpolationCoordsFile, theMPISystem()->getWorldComm());
