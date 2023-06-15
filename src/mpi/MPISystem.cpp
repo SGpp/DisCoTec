@@ -243,9 +243,10 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
 #pragma omp parallel default(none)
 #ifdef _OPENMP
   omp_set_max_active_levels(2);
-  if (omp_get_max_active_levels() != 2) {
-    throw std::runtime_error("Could not set nested OpenMP parallelism");
-  }
+  // omit for now, since it is not supported by the SuperMUC-NG standard compiler
+  // if (omp_get_max_active_levels() != 2) {
+  //   throw std::runtime_error("Could not set nested OpenMP parallelism");
+  // }
 #endif
 
   if (verbose) {
