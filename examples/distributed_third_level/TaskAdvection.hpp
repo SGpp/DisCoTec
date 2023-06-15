@@ -111,7 +111,7 @@ class TaskAdvection : public Task {
         MPI_Request recvRequest;
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost, &recvRequest);
 
-#pragma omp parallel for nowait schedule(static) default(none) firstprivate(d, numLocalElements) \
+#pragma omp parallel for schedule(static) default(none) firstprivate(d, numLocalElements) \
     shared(u_dot_dphi, ElementVector, oneOverH, fullOffsets, velocity)
         for (IndexType li = 0; li < numLocalElements; ++li) {
           // update all values; this will also (wrongly) update the lowest layer's values
@@ -141,13 +141,13 @@ class TaskAdvection : public Task {
         const IndexType numberOfPolesHigherDimensions = dfg_->getNrLocalElements() / jump;
         // wait for received message
         MPI_Wait(&recvRequest, MPI_STATUS_IGNORE);
-#pragma omp parallel for collapse(2) schedule(static) default(none) \
-    firstprivate(d, numLocalElements)                               \
+#pragma omp parallel for collapse(2) schedule(static) default(none)                \
+    firstprivate(d, numLocalElements, stride, jump, numberOfPolesHigherDimensions) \
     shared(u_dot_dphi, ElementVector, oneOverH, fullOffsets, phi_ghost, velocity)
         for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
-          for (IndexType nLower = 0; nLower < dfg_->getLocalOffsets()[d]; ++nLower) {
+          for (IndexType nLower = 0; nLower < stride; ++nLower) {
             IndexType dfgLowestLayerIteratedIndex = nHigher * jump + nLower;  // local linear index
-            IndexType ghostIndex = nLower + nHigher * dfg_->getLocalOffsets()[d];
+            IndexType ghostIndex = nLower + nHigher * stride;
 #ifndef NDEBUG
             assert(dfgLowestLayerIteratedIndex < numLocalElements);
             IndexVector locAxisIndex(this->getDim());
