@@ -87,7 +87,7 @@ static int getGlobalReduceChunkSize() {
   constexpr size_t sixteenMiBinBytes = 16777216;
   auto numOMPThreads = theMPISystem()->getNumOpenMPThreads();
   int chunkSize = static_cast<int>(sixteenMiBinBytes / sizeof(SG_ELEMENT) / numOMPThreads);
-  assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>()));
+  assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
   return chunkSize;
 }
 
