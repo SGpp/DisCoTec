@@ -80,6 +80,17 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
   return bsize == dsg.getRawDataSize();
 }
 
+template <typename SG_ELEMENT>
+static int getGlobalReduceChunkSize() {
+  // auto chunkSize = std::numeric_limits<int>::max();
+  // allreduce up to 16MiB at a time (when using double precision)
+  constexpr size_t sixteenMiBinBytes = 16777216;
+  auto numOMPThreads = theMPISystem()->getNumOpenMPThreads();
+  int chunkSize = static_cast<int>(sixteenMiBinBytes / sizeof(SG_ELEMENT) / numOMPThreads);
+  assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
+  return chunkSize;
+}
+
 /*** In this method the global reduction of the distributed sparse grid is
  * performed. The global sparse grid is decomposed geometrically according to
  * the domain decomposition (see Variant 2 in chapter 3.3.3 in marios diss). We
@@ -89,9 +100,9 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
  * Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
  */
 template <typename SparseGridType>
-void distributedGlobalSparseGridReduce(SparseGridType& dsg,
-                                       RankType globalReduceRankThatCollects = MPI_PROC_NULL,
-                                       MPI_Comm globalComm = theMPISystem()->getGlobalReduceComm()) {
+void distributedGlobalSparseGridReduce(
+    SparseGridType& dsg, RankType globalReduceRankThatCollects = MPI_PROC_NULL,
+    MPI_Comm globalComm = theMPISystem()->getGlobalReduceComm()) {
   assert(globalComm != MPI_COMM_NULL);
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
 
@@ -103,9 +114,7 @@ void distributedGlobalSparseGridReduce(SparseGridType& dsg,
   MPI_Datatype dtype = abstraction::getMPIDatatype(
       abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
 
-  // auto chunkSize = std::numeric_limits<int>::max();
-  // allreduce up to 16MiB at a time (when using double precision)
-  auto chunkSize = 2097152;
+  auto chunkSize = getGlobalReduceChunkSize<typename SparseGridType::ElementType>();
   size_t sentRecvd = 0;
   if (globalReduceRankThatCollects == MPI_PROC_NULL) {
     while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
@@ -188,8 +197,7 @@ getReductionDatatypes(
                     std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
         commAndItsSubspaces) {
   // like for sparse grid reduce, allow only up to 16MiB per reduction
-  //(when using double precision)
-  auto chunkSize = 2097152;
+  auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>();
   std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
       datatypesByStartIndex;
 

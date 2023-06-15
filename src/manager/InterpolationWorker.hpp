@@ -19,7 +19,7 @@ static std::vector<CombinableType> interpolateValues(
 
   for (const auto& task : tasks) {
     const auto coeff = task->getCoefficient();
-#pragma omp parallel for simd default(none) firstprivate(numCoordinates, coeff) \
+#pragma omp parallel for default(none) firstprivate(numCoordinates, coeff) \
     shared(values, kahanTrailingTerm, interpolationCoords, task) schedule(static)
     for (size_t i = 0; i < numCoordinates; ++i) {
       auto localValue = task->getDistributedFullGrid().evalLocal(interpolationCoords[i]);

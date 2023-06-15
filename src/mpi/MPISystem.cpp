@@ -239,27 +239,22 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
                                std::to_string(worldSize));
     }
   }
+
+#pragma omp parallel default(none)
+#ifdef _OPENMP
+  omp_set_max_active_levels(2);
+  // omit for now, since it is not supported by the SuperMUC-NG standard compiler
+  // if (omp_get_max_active_levels() != 2) {
+  //   throw std::runtime_error("Could not set nested OpenMP parallelism");
+  // }
+#endif
+
   if (verbose) {
     MIDDLE_PROCESS_EXCLUSIVE_SECTION {
-      // get the number of used OpenMP threads // gratefully borrowed from PLSSVM
-      int numOMPthreads = 0;
-#pragma omp parallel default(none) shared(numOMPthreads)
-      {
+      std::cout << "MPI: " << ngroup << " groups with " << nprocs << " ranks each with"
 #ifdef _OPENMP
-        omp_set_max_active_levels(2);
-        if (omp_get_max_active_levels() != 2) {
-          throw std::runtime_error("Could not set nested OpenMP parallelism");
-        }
-#pragma omp master
-        numOMPthreads = omp_get_num_threads();
-#endif
-      }
-
-      std::cout << "MPI: " << ngroup << " groups with " << nprocs
-                << " ranks each with"
-#ifdef _OPENMP
-                << " " << numOMPthreads << " threads each and " << omp_get_max_active_levels()
-                << "-fold nested parallelism; with"
+                << " " << getNumOpenMPThreads() << " threads each and "
+                << omp_get_max_active_levels() << "-fold nested parallelism; with"
 #endif
                 << (withWorldManager ? "" : "out") << " world manager" << std::endl;
     }
@@ -542,6 +537,19 @@ bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks,
     reusableRanks.erase(reusableRanks.begin(), reusableRanks.begin() + lastIndex);
   }
   return recoveryFailed;  // so far failing not implemented
+}
+
+int MPISystem::getNumOpenMPThreads() {
+  // get the number of used OpenMP threads // gratefully borrowed from PLSSVM
+  int numOMPthreads = 1;
+#ifdef _OPENMP
+#pragma omp parallel default(none) shared(numOMPthreads)
+  {
+#pragma omp master
+    numOMPthreads = omp_get_num_threads();
+  }
+#endif
+  return numOMPthreads;
 }
 
 void MPISystem::sendRecoveryStatus(bool failedRecovery,
