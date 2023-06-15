@@ -309,6 +309,8 @@ class MPISystem {
    */
   void storeLocalComm(CommunicatorType lcomm);
 
+  static int getNumOpenMPThreads();
+
  private:
   explicit MPISystem();
 
