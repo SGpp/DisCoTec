@@ -143,7 +143,7 @@ class TaskAdvection : public Task {
         MPI_Wait(&recvRequest, MPI_STATUS_IGNORE);
 #pragma omp parallel for collapse(2) schedule(static) default(none)                \
     firstprivate(d, numLocalElements, stride, jump, numberOfPolesHigherDimensions) \
-    shared(u_dot_dphi, ElementVector, oneOverH, fullOffsets, phi_ghost, velocity)
+    shared(u_dot_dphi, ElementVector, oneOverH, fullOffsets, phi_ghost, velocity, std::cout)
         for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
           for (IndexType nLower = 0; nLower < stride; ++nLower) {
             IndexType dfgLowestLayerIteratedIndex = nHigher * jump + nLower;  // local linear index
