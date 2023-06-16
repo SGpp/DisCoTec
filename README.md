@@ -72,7 +72,45 @@ To run the compiled tests, go to folder `tests` and run
 mpiexec -np 9 ./test_distributedcombigrid_boost
 ```
 where you can use all the parameters of the boost test suite.
+If timings matter, consider the pinning described in the respective section.
 Or you can run the tests with `ctest` in the build folder.
+
+## Executing DisCoTec Binaries / Rank and Thread Pinning
+The number and size of process groups (in MPI ranks) can be read from the `ctparam` files:
+```
+NGROUP=$(grep ngroup ctparam | awk -F"=" '{print $2}')
+NPROCS=$(grep nprocs ctparam | awk -F"=" '{print $2}')
+```
+
+Correct pinning is of utmost importance, especially if DisCoTec was compiled with OpenMP support.
+The desired pinning is the simplest one you can imagine: Each node and, within a node, each socket is filled consecutively with MPI rank numbers.
+If OpenMP is used, MPI pinning is strided by the number of threads. The threads should be placed close to their MPI rank.
+This means for all compilers, if the desired number of OpenMP threads per rank is `N`, one needs
+```
+export OMP_NUM_THREADS=$N;export OMP_PLACES=cores;export OMP_PROC_BIND=close
+```
+If OpenMP is used for compilation but should not be used for execution, `N` should be set to 1 to avoid unintended effects.
+
+#### Intel-MPI
+Intel-MPI requires some [environment variables](https://software.intel.com/content/www/us/en/develop/documentation/mpi-developer-reference-linux/top/environment-variable-reference/process-pinning/environment-variables-for-process-pinning.html), in particular [for OpenMP](https://www.intel.com/content/www/us/en/docs/mpi-library/developer-guide-linux/2021-6/running-an-mpi-openmp-program.html):
+```
+mpiexec -n $(($NGROUP*$NPROCS)) -genv I_MPI_PIN_PROCESSOR_LIST="allcores" -genv I_MPI_PIN_DOMAIN=omp $DISCOTEC_EXECUTABLE
+```
+In SLURM, it is important to set --ntasks-per-node to match the number of desired tasks ($CORES_PER_NODE/$OMP_NUM_THREADS). 
+Validate with verbose output: `export I_MPI_DEBUG=4` .
+
+#### OpenMPI
+OpenMPI uses command line arguments, pinning may clash with SLURM settings depending on the exact call.
+
+```
+mpiexec --rank-by core --map-by node:PE=${OMP_NUM_THREADS} -n $(($NGROUP*$NPROCS)) $DISCOTEC_EXECUTABLE
+```
+Validate with verbose output: `--report-bindings` .
+
+#### MPT
+```
+todo!
+```
 
 
 ### GENE  submodules as dependencies for GENE examples
