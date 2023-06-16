@@ -457,8 +457,8 @@ double ProcessManager::getLpNorm(int p) {
   for (const auto& pair : norms) {
     auto summand = pair.second * this->params_.getCoeff(pair.first);
     // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
-    volatile auto y = summand - kahanTrailingTerm;
-    volatile auto t = norm + y;
+    auto y = summand - kahanTrailingTerm;
+    auto t = norm + y;
     kahanTrailingTerm = (t - norm) - y;
     norm = t;
   }
@@ -594,16 +594,16 @@ void ProcessManager::reschedule() {
       levelVectorToProcessGroupIndex.insert({t->getLevelVector(), i});
     }
   }
-  auto tasksToMigrate = rescheduler_->eval(levelVectorToProcessGroupIndex, 
-                                           levelVectorToLastTaskDuration_, 
+  auto tasksToMigrate = rescheduler_->eval(levelVectorToProcessGroupIndex,
+                                           levelVectorToLastTaskDuration_,
                                            loadModel_.get());
   for (const auto& t : tasksToMigrate) {
     auto levelvectorToMigrate = t.first;
     auto processGroupIndexToAddTaskTo = t.second;
-    auto processGroupIndexToRemoveTaskFrom = 
+    auto processGroupIndexToRemoveTaskFrom =
       levelVectorToProcessGroupIndex.at(levelvectorToMigrate);
 
-    Task *removedTask = 
+    Task *removedTask =
       pgroups_[processGroupIndexToRemoveTaskFrom]->rescheduleRemoveTask(
           levelvectorToMigrate);
     waitAllFinished();

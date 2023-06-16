@@ -79,6 +79,8 @@ target_compile_features(discotec PRIVATE cxx_std_17)
 target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(discotec PUBLIC -march=native)
 
+target_compile_options(discotec PUBLIC $<$<CXX_COMPILER_ID:Intel>:-fp-model=precise>)
+
 # Defining options
 include(CMakeDependentOption)
 
