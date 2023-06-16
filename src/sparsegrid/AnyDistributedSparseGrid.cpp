@@ -172,6 +172,7 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
                 getMPIDatatype(abstraction::getabstractionDataType<size_t>()), MPI_MAX, comm);
   assert(maxNumComms <= 1);
 #endif  // NDEBUG
+  assert(subspacesByComm_.size() < 2);
 }
 
 void AnyDistributedSparseGrid::setSubspaceCommunicators(CommunicatorType comm,

@@ -700,7 +700,8 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // distribute solution in globalReduceComm to other pgs
-    auto request = CombiCom::asyncBcastDsgData(*uniDsg, globalReduceRank, globalReduceComm);
+    auto request =
+        this->getSparseGridWorker().startBroadcastDSGs(combiParameters_.getCombinationVariant());
     requests.push_back(request);
   }
   // update fgs
@@ -743,7 +744,8 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
   Stats::stopEvent("wait SG");
 
   overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
-  auto request = this->getSparseGridWorker().readReduceStartBroadcastDSGs(filenamePrefixToRead, overwrite);
+  auto request = this->getSparseGridWorker().readReduceStartBroadcastDSGs(
+      filenamePrefixToRead, this->combiParameters_.getCombinationVariant(), overwrite);
   overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
 
   // update fgs
@@ -812,7 +814,8 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
 
 void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
                                              bool extraSparseGrid, bool overwrite) {
-  this->getSparseGridWorker().reduceSubspaceSizes(filenameToRead, extraSparseGrid, overwrite);
+  this->getSparseGridWorker().reduceSubspaceSizes(
+      filenameToRead, this->combiParameters_.getCombinationVariant(), extraSparseGrid, overwrite);
 }
 
 void ProcessGroupWorker::reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
@@ -859,11 +862,10 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   Stats::startEvent("wait for bcasts");
-  for (auto& dsg : this->getSparseGridWorker().getCombinedUniDSGVector()) {
-    auto request = CombiCom::asyncBcastDsgData(*dsg, broadcastSender, globalReduceComm);
-    auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
-    assert(returnedValue == MPI_SUCCESS);
-  }
+  auto request =
+      this->getSparseGridWorker().startBroadcastDSGs(combiParameters_.getCombinationVariant());
+  auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+  assert(returnedValue == MPI_SUCCESS);
   Stats::stopEvent("wait for bcasts");
 
   updateFullFromCombinedSparseGrids();
