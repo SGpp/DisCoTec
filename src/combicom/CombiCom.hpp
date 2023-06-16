@@ -354,6 +354,28 @@ static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root, Communi
 }
 
 /**
+ * Asynchronous Bcast of the raw dsg data in the communicator comm.
+ */
+template <typename SparseGridType>
+static MPI_Request asyncBcastOutgroupDsgData(SparseGridType& dsg, RankType root,
+                                             CommunicatorType comm) {
+  assert(dsg.getSubspacesByCommunicator().size() < 2);
+  MPI_Request request = MPI_REQUEST_NULL;
+  if (!dsg.getSubspacesByCommunicator().empty()) {
+    const auto& commAndItsSubspaces = dsg.getSubspacesByCommunicator()[0];
+    auto datatypesByStartIndex =
+        getReductionDatatypes(dsg, commAndItsSubspaces, std::numeric_limits<size_t>::max());
+    assert(datatypesByStartIndex.size() == 1);
+
+    auto& subspaceStartIndex = datatypesByStartIndex[0].first;
+    auto& datatype = datatypesByStartIndex[0].second;
+    auto success = MPI_Ibcast(dsg.getData(subspaceStartIndex), 1, datatype, root, comm, &request);
+    assert(success == MPI_SUCCESS);
+  }
+  return request;
+}
+
+/**
  * Sends all subspace data sizes to the receiver in communicator comm.
  */
 template <typename SparseGridType>
@@ -394,6 +416,29 @@ void broadcastSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, RankType
   assert(dsg.getNumSubspaces() < static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
   MPI_Bcast(dsg.getSubspaceDataSizes().data(), static_cast<int>(dsg.getNumSubspaces()), dtype,
             sendingRank, comm);
+  // assume that the sizes changed, the buffer might be the wrong size now
+  dsg.deleteSubspaceData();
+}
+
+template <typename SparseGridType>
+void localMaxReduceSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, RankType sendingRank) {
+  assert(dsg.getNumSubspaces() > 0);
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
+
+  // make a copy of the subspace sizes
+  std::vector<SubspaceSizeType> subspaceSizes = dsg.getSubspaceDataSizes();
+
+  // perform broadcast
+  assert(dsg.getNumSubspaces() < static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
+  MPI_Bcast(subspaceSizes.data(), static_cast<int>(dsg.getNumSubspaces()), dtype, sendingRank,
+            comm);
+  assert(sumAndCheckSubspaceSizes(dsg, subspaceSizes));
+
+  // perform max reduction
+  std::transform(dsg.getSubspaceDataSizes().cbegin(), dsg.getSubspaceDataSizes().cend(),
+                 subspaceSizes.cbegin(), dsg.getSubspaceDataSizes().begin(),
+                 [](SubspaceSizeType a, SubspaceSizeType b) { return std::max(a, b); });
+
   // assume that the sizes changed, the buffer might be the wrong size now
   dsg.deleteSubspaceData();
 }
