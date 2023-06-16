@@ -10,14 +10,8 @@ namespace combigrid {
 // compute powers of two quickly by bit-shifting
 inline IndexType powerOfTwoByBitshift(LevelType x) {
   assert(static_cast<long unsigned int>(x) < sizeof(IndexType) * 8);
-  if (x == 0) {
-    return 1;
-  } else if (x > 0) {
-    return 2 << (x - 1);
-  } else if (x < 0) {
-    throw std::runtime_error("powerOfTwoByBitshift: negative argument");
-  }
-  return -1;
+  assert(x >= 0 && "powerOfTwoByBitshift: negative argument");
+  return IndexType{ 1 } << x;
 }
 
 /** vector with power two */
