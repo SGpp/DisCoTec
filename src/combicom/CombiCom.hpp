@@ -81,12 +81,12 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
 }
 
 template <typename SG_ELEMENT>
-static int getGlobalReduceChunkSize() {
+static int getGlobalReduceChunkSize(size_t maxBytesToSend = 16777216) {
   // auto chunkSize = std::numeric_limits<int>::max();
   // allreduce up to 16MiB at a time (when using double precision)
-  constexpr size_t sixteenMiBinBytes = 16777216;
+  // constexpr size_t sixteenMiBinBytes = 16777216;
   auto numOMPThreads = theMPISystem()->getNumOpenMPThreads();
-  int chunkSize = static_cast<int>(sixteenMiBinBytes / sizeof(SG_ELEMENT) / numOMPThreads);
+  int chunkSize = static_cast<int>(maxBytesToSend / sizeof(SG_ELEMENT) / numOMPThreads);
   assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
   return chunkSize;
 }
@@ -195,9 +195,10 @@ getReductionDatatypes(
     const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
     const std::pair<CommunicatorType,
                     std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
-        commAndItsSubspaces) {
+        commAndItsSubspaces,
+    size_t maxBytesToSend = 16777216) {
   // like for sparse grid reduce, allow only up to 16MiB per reduction
-  auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>();
+  auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>(maxBytesToSend);
   std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
       datatypesByStartIndex;
 
@@ -277,7 +278,9 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
       auto& comm = commAndItsSubspaces.first;
       auto& datatype = datatypesByStartIndex[datatypeIndex].second;
       // #pragma omp ordered
-      MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype, indexedAdd, comm);
+      auto success = MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype,
+                                   indexedAdd, comm);
+      assert(success == MPI_SUCCESS);
 
       // free datatype -- MPI standard says it will be kept until operation is finished
       MPI_Type_free(&(datatype));
