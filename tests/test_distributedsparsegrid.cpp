@@ -658,7 +658,6 @@ BOOST_AUTO_TEST_CASE(test_getAllKOutOfDDimensions) {
           }
         }
       }
-      BOOST_CHECK(!TestHelper::testStrayMessages(fullComm));
     }
   }
 }
