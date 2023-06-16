@@ -101,8 +101,14 @@ std::vector<unsigned long long> getSubspaceVote(
 }
 
 void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, RankType rankInComm) {
-  assert(subspacesByComm_.empty());
   assert(this->getNumSubspaces() > 0);
+  assert(this->subspacesByComm_.size() < 2);
+  // free previous communicator, if any
+  for (auto& pair : subspacesByComm_) {
+    MPI_Comm_free(&pair.first);
+  }
+  subspacesByComm_.clear();
+
   RankType maxNumRanks = sizeof(unsigned long long) * 8;
 
   std::vector<unsigned long long> subspaceVote =
@@ -129,6 +135,10 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
       ranks.push_back(r);
     }
   }
+  // assert that the given comm has the right size and all ranks are contributing
+  int commSize;
+  MPI_Comm_size(comm, &commSize);
+  assert(commSize == static_cast<int>(ranks.size()) || subspacesForMany.empty());
   // make those a group
   MPI_Group subspaceGroup;
   MPI_Group_incl(wholeGroup, int(ranks.size()), ranks.data(), &subspaceGroup);
@@ -168,7 +178,11 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
 
 void AnyDistributedSparseGrid::setSubspaceCommunicators(CommunicatorType comm,
                                                         RankType rankInComm) {
-  assert(subspacesByComm_.empty());
+  // free previous communicators, if any
+  for (auto& pair : subspacesByComm_) {
+    MPI_Comm_free(&pair.first);
+  }
+  subspacesByComm_.clear();
   assert(this->getNumSubspaces() > 0);
   RankType maxNumRanks = sizeof(unsigned long long) * 8;
 
