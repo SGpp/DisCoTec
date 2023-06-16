@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
 
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
-  theMPISystem()->init(ngroup, nprocs);
+  theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, true, true);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     Stats::startEvent("manager initialization");
