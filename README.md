@@ -103,19 +103,20 @@ Validate with verbose output: `export I_MPI_DEBUG=4` .
 OpenMPI uses command line arguments, pinning may clash with SLURM settings depending on the exact call.
 
 ```
-mpiexec --rank-by core --map-by node:PE=${OMP_NUM_THREADS} -n $(($NGROUP*$NPROCS)) $DISCOTEC_EXECUTABLE
+mpiexec.openmpi --rank-by core --map-by node:PE=${OMP_NUM_THREADS} -n $(($NGROUP*$NPROCS)) $DISCOTEC_EXECUTABLE
 ```
 Validate with verbose output: `--report-bindings` .
 
 #### MPT
+With mpt, one uses the `omplace` wrapper tool to set the correct pinning.
 ```
-todo!
+mpirun -n $(($NGROUP*$NPROCS)) omplace -v -ht spread -nt ${OMP_NUM_THREADS} -c 0-:bs=1+st=${OMP_NUM_THREADS} $DISCOTEC_EXECUTABLE
 ```
-
+Validate with very verbose output: `-vv` .
 
 ### GENE  submodules as dependencies for GENE examples
 ----------------
-_Warning: The CMake Integration is currently not adappted to use GENE!_
+_Warning: The CMake Integration is currently not adapted to use GENE!_
 
 There are gene versions as submodules: a linear one in the gene_mgr folder, and 
 a nonlinear one in gene-non-linear. To get them, you need access to their 
