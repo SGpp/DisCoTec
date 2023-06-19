@@ -110,7 +110,7 @@ Validate with verbose output: `--report-bindings` .
 #### MPT
 With mpt, one uses the `omplace` wrapper tool to set the correct pinning.
 ```
-mpirun -n $(($NGROUP*$NPROCS)) omplace -v -ht spread -nt ${OMP_NUM_THREADS} -c 0-:bs=1+st=${OMP_NUM_THREADS} $DISCOTEC_EXECUTABLE
+mpirun -n $(($NGROUP*$NPROCS)) omplace -v -nt ${OMP_NUM_THREADS} $DISCOTEC_EXECUTABLE
 ```
 Validate with very verbose output: `-vv` .
 
