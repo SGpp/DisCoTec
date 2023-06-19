@@ -187,14 +187,13 @@ int main(int argc, char** argv) {
         << getTimeStamp() << "worker: initialized SG, registration was " << durationInitSG
         << " seconds" << std::endl;
 
-    OUTPUT_GROUP_EXCLUSIVE_SECTION {
-      MASTER_EXCLUSIVE_SECTION {
-        std::cout << getTimeStamp() << "worker: set sparse grid sizes, will allocate "
-                  << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
-                                       sizeof(CombiDataType)) /
-                         1e6
-                  << " MB" << std::endl;
-      }
+    MASTER_EXCLUSIVE_SECTION {
+      std::cout << getTimeStamp() << "group " << theMPISystem()->getProcessGroupNumber()
+                << ": set sparse grid sizes, will allocate "
+                << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
+                                     sizeof(CombiDataType)) /
+                       1e6
+                << " MB" << std::endl;
     }
 
     // allocate sparse grids
