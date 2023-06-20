@@ -146,7 +146,7 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
   MPI_Comm subspaceComm = comm;
   myOwnSubspaceCommunicators_ = false;  // now we also need to reduce the data sizes (like for
                                         // sparse grid reduce, but only for the
-  // subspaces to be exchanged)
+                                        // subspaces to be exchanged)
   std::vector<SubspaceSizeType> subspaceDataSizesAlmostCopy(this->subspacesDataSizes_.size(), 0);
   for (const auto& subspace : subspacesForMany) {
     subspaceDataSizesAlmostCopy[subspace] = this->subspacesDataSizes_[subspace];
