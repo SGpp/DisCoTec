@@ -27,6 +27,8 @@ class AnyDistributedSparseGrid {
   AnyDistributedSparseGrid(AnyDistributedSparseGrid&& other) = delete;
   AnyDistributedSparseGrid& operator=(AnyDistributedSparseGrid&& other) = delete;
 
+  void clearSubspaceCommunicators();
+
   // sum of all data sizes of all subspaces
   size_t getAccumulatedDataSize() const;
 
@@ -64,6 +66,8 @@ class AnyDistributedSparseGrid {
   std::vector<SubspaceSizeType> subspacesDataSizes_;  // data sizes of all subspaces
 
   std::vector<std::pair<CommunicatorType, std::vector<SubspaceIndexType>>> subspacesByComm_;
+
+  bool myOwnSubspaceCommunicators_ = false;
 };
 
 }  // namespace combigrid

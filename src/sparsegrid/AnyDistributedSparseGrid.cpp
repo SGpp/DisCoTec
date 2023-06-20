@@ -19,11 +19,16 @@ size_t AnyDistributedSparseGrid::getAccumulatedDataSize() const {
                          static_cast<size_t>(0));
 }
 
-AnyDistributedSparseGrid::~AnyDistributedSparseGrid() {
-  // free all subspace communicators
-  for (auto& pair : subspacesByComm_) {
-    MPI_Comm_free(&pair.first);
+AnyDistributedSparseGrid::~AnyDistributedSparseGrid() { clearSubspaceCommunicators(); }
+
+void AnyDistributedSparseGrid::clearSubspaceCommunicators() {
+  if (this->myOwnSubspaceCommunicators_) {
+    // free all my subspace communicators
+    for (auto& pair : subspacesByComm_) {
+      MPI_Comm_free(&pair.first);
+    }
   }
+  subspacesByComm_.clear();
 }
 
 CommunicatorType AnyDistributedSparseGrid::getCommunicator() const { return comm_; }
@@ -104,10 +109,7 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
   assert(this->getNumSubspaces() > 0);
   assert(this->subspacesByComm_.size() < 2);
   // free previous communicator, if any
-  for (auto& pair : subspacesByComm_) {
-    MPI_Comm_free(&pair.first);
-  }
-  subspacesByComm_.clear();
+  clearSubspaceCommunicators();
 
   RankType maxNumRanks = sizeof(unsigned long long) * 8;
 
@@ -125,8 +127,6 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
     }
   }
 
-  MPI_Group wholeGroup;
-  MPI_Comm_group(comm, &wholeGroup);
   // use this data to set subspacesByComm_
   std::vector<RankType> ranks;
   // find all ranks that have voted
@@ -139,20 +139,8 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
   int commSize;
   MPI_Comm_size(comm, &commSize);
   assert(commSize == static_cast<int>(ranks.size()) || subspacesForMany.empty());
-  // make those a group
-  MPI_Group subspaceGroup;
-  MPI_Group_incl(wholeGroup, int(ranks.size()), ranks.data(), &subspaceGroup);
-  MPI_Comm subspaceComm;
-  MPI_Comm_create(comm, subspaceGroup, &subspaceComm);
-  MPI_Group_free(&subspaceGroup);
-  MPI_Group_free(&wholeGroup);
-#ifndef NDEBUG
-  // max-reduce the number of communicators created on each rank
-  size_t maxNumComms = subspacesByComm_.size();
-  MPI_Allreduce(MPI_IN_PLACE, &maxNumComms, 1,
-                getMPIDatatype(abstraction::getabstractionDataType<size_t>()), MPI_MAX, comm);
-  assert(maxNumComms <= 1);
-#endif  // NDEBUG
+  MPI_Comm subspaceComm = comm;
+  myOwnSubspaceCommunicators_ = false;
 
   // now we also need to reduce the data sizes (like for sparse grid reduce, but only for the
   // subspaces to be exchanged)
@@ -174,15 +162,18 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
   } else {
     assert(subspacesForMany.empty());
   }
+#ifndef NDEBUG
+  // max-reduce the number of communicators created on each rank
+  size_t maxNumComms = subspacesByComm_.size();
+  MPI_Allreduce(MPI_IN_PLACE, &maxNumComms, 1,
+                getMPIDatatype(abstraction::getabstractionDataType<size_t>()), MPI_MAX, comm);
+  assert(maxNumComms <= 1);
+#endif  // NDEBUG
 }
 
 void AnyDistributedSparseGrid::setSubspaceCommunicators(CommunicatorType comm,
                                                         RankType rankInComm) {
-  // free previous communicators, if any
-  for (auto& pair : subspacesByComm_) {
-    MPI_Comm_free(&pair.first);
-  }
-  subspacesByComm_.clear();
+  clearSubspaceCommunicators();
   assert(this->getNumSubspaces() > 0);
   RankType maxNumRanks = sizeof(unsigned long long) * 8;
 
@@ -223,6 +214,7 @@ void AnyDistributedSparseGrid::setSubspaceCommunicators(CommunicatorType comm,
       subspacesByComm_.push_back(std::make_pair(subspaceComm, std::move(kv.second)));
     }
   }
+  myOwnSubspaceCommunicators_ = true;
   MPI_Group_free(&wholeGroup);
   // max-reduce the number of communicators created on each rank
   size_t maxNumComms = subspacesByComm_.size();
