@@ -100,8 +100,7 @@ std::vector<unsigned long long> getSubspaceVote(
   return subspaceVote;
 }
 
-void AnyDistributedSparseGrid::setSingleSubspaceCommunicator(CommunicatorType comm,
-                                                             RankType rankInComm) {
+void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, RankType rankInComm) {
   assert(subspacesByComm_.empty());
   assert(this->getNumSubspaces() > 0);
   RankType maxNumRanks = sizeof(unsigned long long) * 8;

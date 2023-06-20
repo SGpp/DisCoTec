@@ -2,9 +2,32 @@
 #include "manager/ProcessGroupManager.hpp"
 #include "utils/Stats.hpp"
 
+#ifdef _OPENMP
+// OpenMP header
+#include <omp.h>
+#endif
+
 #include <iostream>
 
 namespace combigrid {
+
+MpiOnOff::MpiOnOff(int* argc, char*** argv) {
+  int provided;
+#ifdef _OPENMP
+  int threadMode = MPI_THREAD_MULTIPLE;
+#else
+  int threadMode = MPI_THREAD_SINGLE;
+#endif
+  MPI_Init_thread(argc, argv, threadMode, &provided);
+#ifdef _OPENMP
+  // make sure we get multiple thread execution
+  if (!(provided == MPI_THREAD_MULTIPLE)) {
+    throw std::runtime_error("MPI implementation does not support MPI_THREAD_MULTIPLE");
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+#endif
+}
+MpiOnOff::~MpiOnOff() { MPI_Finalize(); }
 
 /*!\brief Constructor for the MPISystem class.
  //
@@ -13,7 +36,7 @@ namespace combigrid {
  // Constructor for the MPI System. The default global communicator and local communicator is
  MPI_COMM_WORLD.
  // The total number of MPI processes and the rank of the MPI process in is determined from
- // the communicator. 
+ // the communicator.
  */
 MPISystem::MPISystem()
     : initialized_(false),
@@ -178,7 +201,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm, bool 
  * this method can be called multiple times (needed for tests)
  */
 void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t nprocs,
-                                  bool withWorldManager) {
+                                  bool withWorldManager, bool verbose) {
   initSystemConstants(ngroup, nprocs, wcomm, withWorldManager, true);
   initialized_ = true;
   if (ngroup * nprocs > 0) {
@@ -214,6 +237,26 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
     if (worldSize > 1) {
       throw std::runtime_error(" too many MPI processes for manager-only setup: " +
                                std::to_string(worldSize));
+    }
+  }
+
+#pragma omp parallel default(none)
+#ifdef _OPENMP
+  omp_set_max_active_levels(2);
+  // omit for now, since it is not supported by the SuperMUC-NG standard compiler
+  // if (omp_get_max_active_levels() != 2) {
+  //   throw std::runtime_error("Could not set nested OpenMP parallelism");
+  // }
+#endif
+
+  if (verbose) {
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      std::cout << "MPI: " << ngroup << " groups with " << nprocs << " ranks each with"
+#ifdef _OPENMP
+                << " " << getNumOpenMPThreads() << " threads each and "
+                << omp_get_max_active_levels() << "-fold nested parallelism; with"
+#endif
+                << (withWorldManager ? "" : "out") << " world manager" << std::endl;
     }
   }
 }
@@ -388,8 +431,9 @@ void MPISystem::initGlobalReduceCommm() {
 }
 
 // helper function to identify "diagonal" processes for output group
-std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
-  std::vector<int> ranks;
+std::vector<int>& getDiagonalRanks(size_t nprocs, size_t ngroup) {
+  static thread_local std::vector<int> ranks;
+  ranks.clear();
   ranks.reserve(nprocs);
   for (size_t diagonal = 0; diagonal < nprocs / ngroup + 1; ++diagonal) {
     for (size_t p = 0; p < ngroup; ++p) {
@@ -405,7 +449,7 @@ std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
 void MPISystem::initOuputGroupComm() {
   MPI_Group worldGroup;
   MPI_Comm_group(worldComm_, &worldGroup);
-  auto ranks = getDiagonalRanks(nprocs_, ngroup_);
+  auto& ranks = getDiagonalRanks(nprocs_, ngroup_);
   assert(ranks.size() == nprocs_);
 
   MPI_Group newGroup;
@@ -493,6 +537,19 @@ bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks,
     reusableRanks.erase(reusableRanks.begin(), reusableRanks.begin() + lastIndex);
   }
   return recoveryFailed;  // so far failing not implemented
+}
+
+int MPISystem::getNumOpenMPThreads() {
+  // get the number of used OpenMP threads // gratefully borrowed from PLSSVM
+  int numOMPthreads = 1;
+#ifdef _OPENMP
+#pragma omp parallel default(none) shared(numOMPthreads)
+  {
+#pragma omp master
+    numOMPthreads = omp_get_num_threads();
+  }
+#endif
+  return numOMPthreads;
 }
 
 void MPISystem::sendRecoveryStatus(bool failedRecovery,

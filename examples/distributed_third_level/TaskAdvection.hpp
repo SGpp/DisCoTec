@@ -38,7 +38,7 @@ class TaskAdvection : public Task {
       : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
         nsteps_(nsteps),
-        p_(p),
+        p_(std::move(p)),
         initialized_(false),
         stepsTotal_(0),
         dfg_(nullptr) {
@@ -52,7 +52,6 @@ class TaskAdvection : public Task {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
-    auto lrank = theMPISystem()->getLocalRank();
     DimType dim = this->getDim();
     const LevelVector& l = this->getLevelVector();
 
@@ -63,7 +62,7 @@ class TaskAdvection : public Task {
       phi_ = new std::vector<CombiDataType>(dfg_->getNrLocalElements());
     }
 
-    std::vector<double> h = dfg_->getGridSpacing();
+    const auto& h = dfg_->getGridSpacing();
     auto sumOneOverH = 0.;
     for (const auto& h_x : h) {
       sumOneOverH += 1. / h_x;
@@ -73,8 +72,9 @@ class TaskAdvection : public Task {
     }
 
     TestFn f;
+    static thread_local std::vector<double> coords(this->getDim());
+#pragma omp parallel for schedule(static) default(none) firstprivate(f)
     for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
-      static std::vector<double> coords(this->getDim());
       dfg_->getCoordsLocal(li, coords);
       dfg_->getData()[li] = f(coords, 0.);
     }
@@ -108,56 +108,78 @@ class TaskAdvection : public Task {
       for (unsigned int d = 0; d < this->getDim(); ++d) {
         static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
-        dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
-
-        // update all values; this will also (wrongly) update the lowest layer's values
-        for (IndexType li = 0; li < numLocalElements; ++li) {
+        MPI_Request recvRequest;
+        dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost, &recvRequest);
+        auto fullOffsetsInThisDimension = fullOffsets[d];
+        {  // split the update loop into two parts to avoid modulo in circular indexing
+#pragma omp parallel for schedule(static) default(none)           \
+    firstprivate(d, numLocalElements, fullOffsetsInThisDimension) \
+    shared(u_dot_dphi, ElementVector, oneOverH, velocity)
+          for (IndexType li = 0; li < fullOffsetsInThisDimension; ++li) {
+            // update all values; this will also (wrongly) update the lowest layer's values
 #ifndef NDEBUG
-          IndexVector locAxisIndex(this->getDim());
-          dfg_->getLocalVectorIndex(li, locAxisIndex);
-          if (locAxisIndex[d] > 0) {
-            --locAxisIndex[d];
-            IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
-            assert(lni == (li - fullOffsets[d]));
-          }
+            IndexVector locAxisIndex(this->getDim());
+            dfg_->getLocalVectorIndex(li, locAxisIndex);
+            if (locAxisIndex[d] > 0) {
+              --locAxisIndex[d];
+              IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
+              assert(lni == (li - fullOffsetsInThisDimension));
+            }
 #endif  // NDEBUG
-        // ensure modulo is positive, cf. https://stackoverflow.com/a/12277233
-          const auto neighborLinearIndex =
-              (li - fullOffsets[d] + numLocalElements) % numLocalElements;
-          assert(neighborLinearIndex >= 0);
-          assert(neighborLinearIndex < numLocalElements);
-          CombiDataType phi_neighbor = ElementVector[neighborLinearIndex];
-          auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
-          u_dot_dphi[li] += velocity[d] * dphi;
+            const auto neighborLinearIndex = (li - fullOffsetsInThisDimension + numLocalElements);
+            assert(neighborLinearIndex >= 0);
+            assert(neighborLinearIndex < numLocalElements);
+            CombiDataType phi_neighbor = ElementVector[neighborLinearIndex];
+            auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
+            u_dot_dphi[li] += velocity[d] * dphi;
+          }
+#pragma omp parallel for schedule(static) default(none)           \
+    firstprivate(d, numLocalElements, fullOffsetsInThisDimension) \
+    shared(u_dot_dphi, ElementVector, oneOverH, velocity)
+          for (IndexType li = fullOffsetsInThisDimension; li < numLocalElements; ++li) {
+            // update all values; this will also (wrongly) update the lowest layer's values
+#ifndef NDEBUG
+            IndexVector locAxisIndex(this->getDim());
+            dfg_->getLocalVectorIndex(li, locAxisIndex);
+            if (locAxisIndex[d] > 0) {
+              --locAxisIndex[d];
+              IndexType lni = dfg_->getLocalLinearIndex(locAxisIndex);
+              assert(lni == (li - fullOffsetsInThisDimension));
+            }
+#endif  // NDEBUG
+            const auto neighborLinearIndex = (li - fullOffsetsInThisDimension);
+            assert(neighborLinearIndex >= 0);
+            assert(neighborLinearIndex < numLocalElements);
+            CombiDataType phi_neighbor = ElementVector[neighborLinearIndex];
+            auto dphi = (ElementVector[li] - phi_neighbor) * oneOverH[d];
+            u_dot_dphi[li] += velocity[d] * dphi;
+          }
         }
         // iterate the lowest layer and update the values, compensating for the wrong update
         // before
-        assert(dfg_->getNrLocalElements() / dfg_->getLocalSizes()[d] == phi_ghost.size());
-        const auto& stride = dfg_->getLocalOffsets()[d];
+        assert(numLocalElements / dfg_->getLocalSizes()[d] == phi_ghost.size());
+        const auto& stride = fullOffsetsInThisDimension;
         const IndexType jump = stride * dfg_->getLocalSizes()[d];
-        const IndexType numberOfPolesHigherDimensions = dfg_->getNrLocalElements() / jump;
-        IndexType dfgLowestLayerIteratedIndex;
-        IndexType ghostIndex = 0;
-        for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
-          dfgLowestLayerIteratedIndex = nHigher * jump;  // local linear index
-          for (IndexType nLower = 0; nLower < dfg_->getLocalOffsets()[d];
-               ++nLower && ++ghostIndex && ++dfgLowestLayerIteratedIndex) {
+        const IndexType numberOfPolesHigherDimensions = numLocalElements / jump;
+        // wait for received message
+        MPI_Wait(&recvRequest, MPI_STATUS_IGNORE);
+        {  // split the ghost layer loop into two parts to avoid modulo in circular indexing
+#pragma omp parallel for schedule(static) default(none)                            \
+    firstprivate(d, numLocalElements, stride, jump, numberOfPolesHigherDimensions, \
+                     fullOffsetsInThisDimension)                                   \
+    shared(u_dot_dphi, ElementVector, oneOverH, phi_ghost, velocity, std::cout)
+          for (IndexType nLower = 0; nLower < stride; ++nLower) {
+            IndexType dfgLowestLayerIteratedIndex = nLower;  // local linear index
+            IndexType ghostIndex = nLower;
 #ifndef NDEBUG
             assert(dfgLowestLayerIteratedIndex < numLocalElements);
             IndexVector locAxisIndex(this->getDim());
             dfg_->getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
-            if (locAxisIndex[d] != 0) {
-              std::cout << "lowest index = " << dfgLowestLayerIteratedIndex << std::endl;
-              std::cout << "locAxisIndex[" << d << "] = " << locAxisIndex << std::endl;
-              std::cout << "ghostIndex = " << ghostIndex << " of " << phi_ghost.size() << std::endl;
-              std::cout << "offset = " << fullOffsets << " index " << d << std::endl;
-            }
             assert(locAxisIndex[d] == 0);
 #endif  // NDEBUG
         // compute wrong term to "subtract" again
             const auto wrongNeighborLinearIndex =
-                (dfgLowestLayerIteratedIndex - fullOffsets[d] + numLocalElements) %
-                numLocalElements;
+                (dfgLowestLayerIteratedIndex - fullOffsetsInThisDimension + numLocalElements);
             assert(wrongNeighborLinearIndex >= 0);
             assert(wrongNeighborLinearIndex < numLocalElements);
             const CombiDataType wrongPhiNeighbor = ElementVector[wrongNeighborLinearIndex];
@@ -165,9 +187,38 @@ class TaskAdvection : public Task {
             const auto dphi = (wrongPhiNeighbor - phi_ghost[ghostIndex]) * oneOverH[d];
             u_dot_dphi[dfgLowestLayerIteratedIndex] += velocity[d] * dphi;
           }
+
+#pragma omp parallel for collapse(2) schedule(static) default(none)                \
+    firstprivate(d, numLocalElements, stride, jump, numberOfPolesHigherDimensions, \
+                     fullOffsetsInThisDimension)                                   \
+    shared(u_dot_dphi, ElementVector, oneOverH, phi_ghost, velocity, std::cout)
+          for (IndexType nHigher = 1; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
+            for (IndexType nLower = 0; nLower < stride; ++nLower) {
+              IndexType dfgLowestLayerIteratedIndex =
+                  nHigher * jump + nLower;  // local linear index
+              IndexType ghostIndex = nLower + nHigher * stride;
+#ifndef NDEBUG
+              assert(dfgLowestLayerIteratedIndex < numLocalElements);
+              IndexVector locAxisIndex(this->getDim());
+              dfg_->getLocalVectorIndex(dfgLowestLayerIteratedIndex, locAxisIndex);
+              assert(locAxisIndex[d] == 0);
+#endif  // NDEBUG
+        // compute wrong term to "subtract" again
+              const auto wrongNeighborLinearIndex =
+                  (dfgLowestLayerIteratedIndex - fullOffsetsInThisDimension);
+              assert(wrongNeighborLinearIndex >= 0);
+              assert(wrongNeighborLinearIndex < numLocalElements);
+              const CombiDataType wrongPhiNeighbor = ElementVector[wrongNeighborLinearIndex];
+              // auto wrongDPhi = (dfg_->getDataVector()[ghostIndex] - wrongPhiNeigbor) / h[d];
+              const auto dphi = (wrongPhiNeighbor - phi_ghost[ghostIndex]) * oneOverH[d];
+              u_dot_dphi[dfgLowestLayerIteratedIndex] += velocity[d] * dphi;
+            }
+          }
         }
       }
-      for (IndexType li = 0; li < dfg_->getNrLocalElements(); ++li) {
+#pragma omp parallel for simd schedule(simd : static) default(none) \
+    shared(ElementVector, u_dot_dphi) firstprivate(dt_, numLocalElements)
+      for (IndexType li = 0; li < numLocalElements; ++li) {
         (*phi_)[li] = ElementVector[li] - u_dot_dphi[li] * dt_;
       }
       dfg_->swapDataVector(*phi_);

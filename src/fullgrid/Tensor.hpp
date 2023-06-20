@@ -63,8 +63,9 @@ class TensorIndexer {
                               this->getOffsetsVector().begin(), 0);
   }
 
-  IndexVector getVectorIndex(IndexType index) const {
-    IndexVector indexVector(this->extents_.size());
+  const IndexVector& getVectorIndex(IndexType index) const {
+    static thread_local IndexVector indexVector;
+    indexVector.resize(this->extents_.size());
     for (auto j = extents_.size(); j > 0; --j) {
       auto dim_i = static_cast<DimType>(j - 1);
       const auto quotient = index / localOffsets_[dim_i];

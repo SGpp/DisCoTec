@@ -222,7 +222,7 @@ void evalLocal(const std::vector<real>& coords, FG_ELEMENT& value) const {
   // get the lowest-index point of the points
   // whose basis functions contribute to the interpolated value
   const auto& h = getGridSpacing();
-  static IndexVector localIndexLowerNonzeroNeighborPoint;
+  static thread_local IndexVector localIndexLowerNonzeroNeighborPoint;
   localIndexLowerNonzeroNeighborPoint.resize(dim_);
   for (DimType d = 0; d < dim_; ++d) {
 #ifndef NDEBUG
@@ -263,6 +263,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   auto numValues = interpolationCoords.size();
   std::vector<FG_ELEMENT> values;
   values.resize(numValues);
+#pragma omp parallel for default(none) firstprivate(numValues) shared(values, interpolationCoords) \
+    schedule(static)
   for (size_t i = 0; i < numValues; ++i) {
     this->evalLocal(interpolationCoords[i], values[i]);
   }
@@ -395,7 +397,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     assert(locLinIndex < this->getNrLocalElements());
 
     // convert to local vector index
-    static IndexVector locAxisIndex(dim_);
+    static thread_local IndexVector locAxisIndex(dim_);
     locAxisIndex.resize(dim_);
     getLocalVectorIndex(locLinIndex, locAxisIndex);
 
@@ -417,7 +419,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     assert(globLinIndex < this->getNrElements());
 
     // convert to global vector index
-    static IndexVector globAxisIndex(dim_);
+    static thread_local IndexVector globAxisIndex(dim_);
     globAxisIndex.resize(dim_);
     getGlobalVectorIndex(globLinIndex, globAxisIndex);
 
@@ -558,7 +560,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   }
 
   /** upper Bounds of this process */
-  inline IndexVector getUpperBounds() const {
+  inline const IndexVector& getUpperBounds() const {
     // return getUpperBounds(this->getRank());
     return myPartitionsUpperBounds_;
   }
@@ -835,7 +837,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   inline std::vector<IndexType> getFGPointsOfSubspace(const LevelVector& l) const {
     IndexVector subspaceIndices;
     IndexType numPointsOfSubspace = 1;
-    static auto oneDIndices = std::vector<IndexVector>(dim_);
+    static thread_local std::vector<IndexVector> oneDIndices;
     oneDIndices.resize(dim_);
     for (DimType d = 0; d < dim_; ++d) {
       if (l[d] > levels_[d]) {
@@ -868,15 +870,18 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
     // loop over all subspaces (-> somewhat linear access in the sg)
+    static thread_local IndexVector subspaceIndices;
     typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = 0;
-    static IndexVector subspaceIndices;
+#pragma omp parallel for shared(dsg, downwardClosedSet) default(none) schedule(guided) \
+    firstprivate(sIndex)
     for (const auto& level : downwardClosedSet) {
       sIndex = dsg.getIndexInRange(level, sIndex);
       if (sIndex > -1 && dsg.getDataSize(sIndex) > 0) {
         auto sPointer = dsg.getData(sIndex);
-        subspaceIndices = getFGPointsOfSubspace(level);
-        for (const auto& fIndex : subspaceIndices) {
-          this->getData()[fIndex] = *sPointer;
+        subspaceIndices = this->getFGPointsOfSubspace(level);
+#pragma omp simd linear(sPointer : 1)
+        for (size_t fIndex = 0; fIndex < subspaceIndices.size(); ++fIndex) {
+          this->getData()[subspaceIndices[fIndex]] = *sPointer;
           ++sPointer;
         }
       }
@@ -891,7 +896,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
                : combigrid::powerOfTwoByBitshift(static_cast<LevelType>(levels_[d] - l + 1));
   }
 
-  inline IndexType getLocalStartForThisLevel(LevelType l, DimType d, IndexType strideForThisLevel) const {
+  inline IndexType getLocalStartForThisLevel(LevelType l, DimType d,
+                                             IndexType strideForThisLevel) const {
     const auto firstGlobal1dIdx = getFirstGlobal1dIndex(d);
 
     // get global offset to find indices of this level
@@ -981,11 +987,11 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   real getLpNorm(int p) const {
     assert(p >= 0);
     // special case maximum norm
-    MPI_Datatype dtype =
-      abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
+    MPI_Datatype dtype = abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>());
     if (p == 0) {
       real max = 0.0;
       auto data = this->getData();
+#pragma omp parallel for reduction(max : max) default(none) shared(data) schedule(static)
       for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         max = std::max(max, std::abs(data[i]));
       }
@@ -997,7 +1003,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       auto data = this->getData();
       real res = 0.0;
 
-      // double sumIntegral = 0;
+#pragma omp parallel for reduction(+ : res) default(none) shared(data, oneOverPowOfTwo) \
+    firstprivate(p_f) schedule(static)
       for (size_t i = 0; i < this->getNrLocalElements(); ++i) {
         auto isOnBoundary = this->isLocalLinearIndexOnBoundary(i);
         auto countBoundary = std::count(isOnBoundary.begin(), isOnBoundary.end(), true);
@@ -1270,10 +1277,9 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     getHighestAndLowestNeighbor(d, higher, lower);
 
     // TODO asynchronous over d??
-    auto success =
-        MPI_Sendrecv(this->getData(), 1, downSubarray, higher, TRANSFER_GHOST_LAYER_TAG,
-                     this->getData(), 1, upSubarray, lower,
-                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+    auto success = MPI_Sendrecv(this->getData(), 1, downSubarray, higher, TRANSFER_GHOST_LAYER_TAG,
+                                this->getData(), 1, upSubarray, lower, TRANSFER_GHOST_LAYER_TAG,
+                                this->getCommunicator(), MPI_STATUS_IGNORE);
     assert(success == MPI_SUCCESS);
     MPI_Type_free(&downSubarray);
     MPI_Type_free(&upSubarray);
@@ -1281,7 +1287,8 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
   // non-RVO dependent version of ghost layer exchange
   void exchangeGhostLayerUpward(DimType d, std::vector<int>& subarrayExtents,
-                                std::vector<FG_ELEMENT>& recvbuffer) {
+                                std::vector<FG_ELEMENT>& recvbuffer,
+                                MPI_Request* recvRequest = nullptr) {
     subarrayExtents.resize(this->getDimension());
     subarrayExtents.assign(this->getLocalSizes().begin(), this->getLocalSizes().end());
     subarrayExtents[d] = 1;
@@ -1300,7 +1307,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     if (!reverseOrderingDFGPartitions) {
       d_reverse = d;
     }
-    MPI_Cart_shift( this->getCommunicator(), static_cast<int>(d_reverse), 1, &lower, &higher );
+    MPI_Cart_shift(this->getCommunicator(), static_cast<int>(d_reverse), 1, &lower, &higher);
 
     if (this->returnBoundaryFlags()[d] == 1) {
       // if one-sided boundary, assert that everyone has neighbors
@@ -1326,12 +1333,20 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     recvbuffer.resize(numElements);
     std::memset(recvbuffer.data(), 0, recvbuffer.size() * sizeof(FG_ELEMENT));
 
-    // TODO asynchronous over d??
-    auto success =
-        MPI_Sendrecv(this->getData(), 1, subarray, higher, TRANSFER_GHOST_LAYER_TAG,
-                     recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
-                     TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
-    assert(success == MPI_SUCCESS);
+    if (recvRequest != nullptr) {
+      auto success = MPI_Irecv(recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
+                               TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), recvRequest);
+      assert(success == MPI_SUCCESS);
+      success = MPI_Send(this->getData(), 1, subarray, higher, TRANSFER_GHOST_LAYER_TAG,
+                         this->getCommunicator());
+      assert(success == MPI_SUCCESS);
+    } else {
+      auto success =
+          MPI_Sendrecv(this->getData(), 1, subarray, higher, TRANSFER_GHOST_LAYER_TAG,
+                       recvbuffer.data(), numElements, this->getMPIDatatype(), lower,
+                       TRANSFER_GHOST_LAYER_TAG, this->getCommunicator(), MPI_STATUS_IGNORE);
+      assert(success == MPI_SUCCESS);
+    }
     MPI_Type_free(&subarray);
   }
 

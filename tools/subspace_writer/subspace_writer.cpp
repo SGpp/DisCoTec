@@ -16,7 +16,7 @@
 using namespace combigrid;
 
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  [[maybe_unused]] auto mpiOnOff = MpiOnOff(&argc, &argv);
   combigrid::Stats::initialize();
 
   // read in parameter file -- use the same one as for the simulation, but add the other ct scheme
@@ -179,7 +179,6 @@ int main(int argc, char** argv) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   combigrid::Stats::finalize();
-  MPI_Finalize();
 
   return 0;
 }

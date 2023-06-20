@@ -188,7 +188,8 @@ class CombiParameters {
   }
 
   inline const LevelVector& getLevel(size_t taskID) const {
-    static LevelVector emptyLevelVector(0);
+    static thread_local LevelVector emptyLevelVector;
+    emptyLevelVector.clear();
     if (levels_.find(taskID) == levels_.end()) {
       return emptyLevelVector;
     } else {

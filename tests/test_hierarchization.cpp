@@ -601,9 +601,12 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
             auto extents = checkExtentsOfDFG(dfg);
 
             // exchange data
-            std::vector<RemoteDataContainer<std::complex<double>>> remoteDataHierarchization;
+            RemoteDataCollector<std::complex<double>> remoteDataHierarchization;
             BOOST_CHECK_NO_THROW(exchangeData1d(dfg, d, remoteDataHierarchization, lmin[d]));
             BOOST_CHECK((remoteDataHierarchization.size() == 0) || (procs[d] > 1));
+            std::sort(
+                remoteDataHierarchization.begin(), remoteDataHierarchization.end(),
+                [](const auto& a, const auto& b) { return a.getKeyIndex() < b.getKeyIndex(); });
             for (const auto& r : remoteDataHierarchization) {
               auto receiveKeyIndex = r.getKeyIndex();
               BOOST_CHECK_LT(receiveKeyIndex, extents[d]);
@@ -612,12 +615,15 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
             BOOST_CHECK(std::is_sorted(remoteKeysHierarchization[b].begin(),
                                        remoteKeysHierarchization[b].end()));
 
-            std::vector<RemoteDataContainer<std::complex<double>>> remoteDataDehierarchization;
+            RemoteDataCollector<std::complex<double>> remoteDataDehierarchization;
             BOOST_CHECK_NO_THROW(
                 exchangeData1dDehierarchization(dfg, d, remoteDataDehierarchization, lmin[d]));
             BOOST_CHECK((remoteDataDehierarchization.size() == 0) || (procs[d] > 1));
             // more data may need to be exchanged for dehierarchization, but never less
             BOOST_CHECK_GE(remoteDataDehierarchization.size(), remoteDataHierarchization.size());
+            std::sort(
+                remoteDataDehierarchization.begin(), remoteDataDehierarchization.end(),
+                [](const auto& a, const auto& b) { return a.getKeyIndex() < b.getKeyIndex(); });
             for (const auto& r : remoteDataDehierarchization) {
               auto receiveKeyIndex = r.getKeyIndex();
               BOOST_CHECK_LT(receiveKeyIndex, extents[d]);
@@ -626,7 +632,7 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(20)) {
             BOOST_CHECK(std::is_sorted(remoteKeysDehierarchization[b].begin(),
                                        remoteKeysDehierarchization[b].end()));
 
-            std::vector<RemoteDataContainer<std::complex<double>>> remoteDataAll;
+            RemoteDataCollector<std::complex<double>> remoteDataAll;
             BOOST_CHECK_NO_THROW(exchangeAllData1d(dfg, d, remoteDataAll));
             BOOST_CHECK((procs[d] == 1 && remoteDataAll.size() == 0) ||
                         (procs[d] > 1 && remoteDataAll.size() > 0));

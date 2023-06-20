@@ -80,6 +80,17 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
   return bsize == dsg.getRawDataSize();
 }
 
+template <typename SG_ELEMENT>
+static int getGlobalReduceChunkSize() {
+  // auto chunkSize = std::numeric_limits<int>::max();
+  // allreduce up to 16MiB at a time (when using double precision)
+  constexpr size_t sixteenMiBinBytes = 16777216;
+  auto numOMPThreads = theMPISystem()->getNumOpenMPThreads();
+  int chunkSize = static_cast<int>(sixteenMiBinBytes / sizeof(SG_ELEMENT) / numOMPThreads);
+  assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
+  return chunkSize;
+}
+
 /*** In this method the global reduction of the distributed sparse grid is
  * performed. The global sparse grid is decomposed geometrically according to
  * the domain decomposition (see Variant 2 in chapter 3.3.3 in marios diss). We
@@ -89,9 +100,9 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
  * Sparse Grid Reduce strategy from chapter 2.7.2 in marios diss.
  */
 template <typename SparseGridType>
-void distributedGlobalSparseGridReduce(SparseGridType& dsg,
-                                       RankType globalReduceRankThatCollects = MPI_PROC_NULL,
-                                       MPI_Comm globalComm = theMPISystem()->getGlobalReduceComm()) {
+void distributedGlobalSparseGridReduce(
+    SparseGridType& dsg, RankType globalReduceRankThatCollects = MPI_PROC_NULL,
+    MPI_Comm globalComm = theMPISystem()->getGlobalReduceComm()) {
   assert(globalComm != MPI_COMM_NULL);
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
 
@@ -103,9 +114,7 @@ void distributedGlobalSparseGridReduce(SparseGridType& dsg,
   MPI_Datatype dtype = abstraction::getMPIDatatype(
       abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
 
-  // auto chunkSize = std::numeric_limits<int>::max();
-  // allreduce up to 16MiB at a time (when using double precision)
-  auto chunkSize = 2097152;
+  auto chunkSize = getGlobalReduceChunkSize<typename SparseGridType::ElementType>();
   size_t sentRecvd = 0;
   if (globalReduceRankThatCollects == MPI_PROC_NULL) {
     while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
@@ -166,10 +175,12 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
   int numBlocks = (num_integers - 1) / 2;
   int* arrayOfBlocklengths = arrayOfInts + 1;
   int* arrayOfDisplacements = arrayOfBlocklengths + numBlocks;
-#pragma omp parallel for
+#pragma omp parallel for default(none) firstprivate( \
+        numBlocks, arrayOfDisplacements, arrayOfBlocklengths, invec, inoutvec) schedule(guided)
   for (int i = 0; i < numBlocks; ++i) {
     FG_ELEMENT* inoutElements = reinterpret_cast<FG_ELEMENT*>(inoutvec) + arrayOfDisplacements[i];
     FG_ELEMENT* inElements = reinterpret_cast<FG_ELEMENT*>(invec) + arrayOfDisplacements[i];
+#pragma omp simd linear(inoutElements, inElements : 1)
     for (int j = 0; j < arrayOfBlocklengths[i]; ++j) {
       *inoutElements += *inElements;
       ++inoutElements;
@@ -186,8 +197,7 @@ getReductionDatatypes(
                     std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
         commAndItsSubspaces) {
   // like for sparse grid reduce, allow only up to 16MiB per reduction
-  //(when using double precision)
-  auto chunkSize = 2097152;
+  auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>();
   std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
       datatypesByStartIndex;
 
@@ -245,19 +255,32 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
   MPI_Op indexedAdd;
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
-  const int numberOfRequestsAtOnce = 8;
-  for (const std::pair<CommunicatorType,
-                       std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
-           commAndItsSubspaces : dsg.getSubspacesByCommunicator()) {
+#pragma omp parallel if (dsg.getSubspacesByCommunicator().size() > 1) default(none) \
+    shared(dsg, indexedAdd)
+#pragma omp for schedule(dynamic)
+  for (size_t commIndex = 0; commIndex < dsg.getSubspacesByCommunicator().size(); ++commIndex) {
+    const std::pair<CommunicatorType,
+                    std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
+        commAndItsSubspaces = dsg.getSubspacesByCommunicator()[commIndex];
     // get reduction datatypes for this communicator
     auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces);
-    // reduce for each datatype
-    for (auto& entry : datatypesByStartIndex) {
-      MPI_Allreduce(MPI_IN_PLACE, dsg.getData(entry.first), 1, entry.second, indexedAdd,
-                    commAndItsSubspaces.first);
+
+    // // this would be best for outgroup reduce, but leads to MPI truncation
+    // // errors if not ordered (desynchronization between MPI ranks on the same communicators
+    // // probably)
+    // #pragma omp parallel if (dsg.getSubspacesByCommunicator().size() == 1) default(none) \
+    // shared(dsg, indexedAdd, datatypesByStartIndex, commAndItsSubspaces)
+    // #pragma omp for ordered schedule(static)
+    for (size_t datatypeIndex = 0; datatypeIndex < datatypesByStartIndex.size(); ++datatypeIndex) {
+      // reduce for each datatype
+      auto& subspaceStartIndex = datatypesByStartIndex[datatypeIndex].first;
+      auto& comm = commAndItsSubspaces.first;
+      auto& datatype = datatypesByStartIndex[datatypeIndex].second;
+      // #pragma omp ordered
+      MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype, indexedAdd, comm);
 
       // free datatype -- MPI standard says it will be kept until operation is finished
-      MPI_Type_free(&(entry.second));
+      MPI_Type_free(&(datatype));
     }
   }
 

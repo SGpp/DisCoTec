@@ -164,7 +164,7 @@ template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
     const DistributedSparseGridUniform<FG_ELEMENT>& other) {
   assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
-  // #pragma omp parallel for
+#pragma omp parallel for default(none) shared(other) schedule(guided)
   for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {
     assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 ||
            other.getDataSize(i) == 0);
@@ -381,12 +381,13 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
 
   SubspaceIndexType index = 0;
-  IndexType numPointsOfSubspace = 1;
   // resize all common subspaces in dsg, if necessary
+#pragma omp parallel for default(none) shared(downwardClosedSet, dfg, std::cout, std::cerr) \
+    firstprivate(index) schedule(guided)
   for (const auto& level : downwardClosedSet) {
     index = this->getIndexInRange(level, index);
     if (index > -1) {
-      numPointsOfSubspace = 1;
+      IndexType numPointsOfSubspace = 1;
       for (DimType d = 0; d < dim_; ++d) {
         numPointsOfSubspace *= dfg.getNumPointsOnThisPartition(level[d], d);
       }
@@ -423,10 +424,12 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
 
   // all the hierarchical subspaces contained in this full grid
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
-  static IndexVector subspaceIndices;
 
+  static thread_local IndexVector subspaceIndices;
   SubspaceIndexType sIndex = 0;
-  // loop over all subspaces of the full grid
+// loop over all subspaces of the full grid
+#pragma omp parallel for default(none) reduction(|| : anythingWasAdded) \
+    shared(downwardClosedSet, dfg) firstprivate(coeff, sIndex) schedule(guided)
   for (const auto& level : downwardClosedSet) {
     sIndex = this->getIndexInRange(level, sIndex);
     if (sIndex > -1 && this->getDataSize(sIndex) > 0) {
@@ -439,10 +442,11 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
       }
 #endif  // NDEBUG
       subspaceIndices = dfg.getFGPointsOfSubspace(level);
-      for (const auto& fIndex : subspaceIndices) {
-        FG_ELEMENT summand = coeff * dfg.getData()[fIndex];
+#pragma omp simd linear(sPointer, kPointer : 1)
+      for (size_t fIndex = 0; fIndex < subspaceIndices.size(); ++fIndex) {
+        FG_ELEMENT summand = coeff * dfg.getData()[subspaceIndices[fIndex]];
         // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
-        FG_ELEMENT y = summand - *kPointer;
+        FG_ELEMENT y = summand - *kPointer;  // TODO check if these should be volatile
         FG_ELEMENT t = *sPointer + y;
         *kPointer = (t - *sPointer) - y;
         *sPointer = t;

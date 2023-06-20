@@ -36,6 +36,11 @@
 
 namespace combigrid {
 
+struct [[nodiscard]] MpiOnOff {
+  explicit MpiOnOff(int* argc = nullptr, char*** argv = nullptr);
+  ~MpiOnOff();
+};
+
 class ProcessGroupManager;
 
 class MPISystem;
@@ -115,11 +120,12 @@ class MPISystem {
   /**
    * initializes MPI system including world communicator; so far only used in tests
    */
-  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs, bool withWorldManager = true);
+  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs,
+                         bool withWorldManager = true, bool verbose = false);
 
   /**
-  * returns the world communicator which contains all ranks (excluding spare ranks)
-  */
+   * returns the world communicator which contains all ranks (excluding spare ranks)
+   */
   inline const CommunicatorType& getWorldComm() const;
 
   /**
@@ -302,6 +308,8 @@ class MPISystem {
    * stores local comm + FT version if FT_ENABLED
    */
   void storeLocalComm(CommunicatorType lcomm);
+
+  static int getNumOpenMPThreads();
 
  private:
   explicit MPISystem();
@@ -675,7 +683,6 @@ inline RankType MPISystem::getWorldSize() const {
 
   return worldSize;
 }
-
 
 }  // namespace combigrid
 
