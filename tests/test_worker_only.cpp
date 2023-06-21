@@ -222,8 +222,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   }
   // overwrite for all--only with sparse grid reduce
   // (otherwise, would have wrong sizes for other groups)
-  if (combigrid::theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL ||
-      params.getCombinationVariant() == CombinationVariant::sparseGridReduce) {
+  if (params.getCombinationVariant() == CombinationVariant::sparseGridReduce) {
     BOOST_TEST_CHECKPOINT("read DSGS " + filename);
     worker.readDSGsFromDisk(filename, true);
   }
