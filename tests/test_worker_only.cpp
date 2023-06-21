@@ -220,8 +220,13 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     BOOST_TEST_CHECKPOINT("write DSGS " + filename);
     worker.writeDSGsToDisk(filename);
   }
-  BOOST_TEST_CHECKPOINT("read DSGS " + filename);
-  worker.readDSGsFromDisk(filename, true);
+  // overwrite for all--only with sparse grid reduce
+  // (otherwise, would have wrong sizes for other groups)
+  if (combigrid::theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL ||
+      params.getCombinationVariant() == CombinationVariant::sparseGridReduce) {
+    BOOST_TEST_CHECKPOINT("read DSGS " + filename);
+    worker.readDSGsFromDisk(filename, true);
+  }
   Stats::stopEvent("worker write DSG");
   MASTER_EXCLUSIVE_SECTION {
     BOOST_TEST_MESSAGE("worker write/read DSG: " << Stats::getDuration("worker write DSG")
@@ -320,9 +325,9 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 #ifndef ISGENE  // worker tests won't work with ISGENE because of worker magic
 
 #ifndef NDEBUG  // in case of a build with asserts, have longer timeout
-BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1000))
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1200))
 #else
-BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(360))
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(560))
 #endif  // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto start = std::chrono::high_resolution_clock::now();

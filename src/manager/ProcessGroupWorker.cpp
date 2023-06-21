@@ -700,8 +700,8 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // distribute solution in globalReduceComm to other pgs
-    auto request =
-        this->getSparseGridWorker().startBroadcastDSGs(combiParameters_.getCombinationVariant());
+    auto request = this->getSparseGridWorker().startBroadcastDSGs(
+        combiParameters_.getCombinationVariant(), theMPISystem()->getGlobalReduceRank());
     requests.push_back(request);
   }
   // update fgs
@@ -862,8 +862,8 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   Stats::startEvent("wait for bcasts");
-  auto request =
-      this->getSparseGridWorker().startBroadcastDSGs(combiParameters_.getCombinationVariant());
+  auto request = this->getSparseGridWorker().startBroadcastDSGs(
+      combiParameters_.getCombinationVariant(), broadcastSender);
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
   Stats::stopEvent("wait for bcasts");
