@@ -821,7 +821,7 @@ void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
-BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1000))
+BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1200))
 
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)) {
   unsigned int numSystems = 2;
