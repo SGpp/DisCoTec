@@ -839,6 +839,8 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
   int nprocs = 9;
   CommunicatorType fullComm = TestHelper::getComm(nprocs);
   if (fullComm != MPI_COMM_NULL) {
+    Stats::initialize();
+    theMPISystem()->initWorldReusable(fullComm, nprocs, 1, false, true);
     // set up 6D Combi scheme
     constexpr DimType dimensionality = 6;
     const LevelVector lmin{4, 4, 4, 4, 3, 3};
@@ -902,6 +904,39 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
             BOOST_CHECK_EQUAL(subspaceStart[j], i * nprocs);
           }
         }
+
+        // try again, this time with reduce+broadcast
+        // reset actual data containers and MPI datatype mappings
+        uniDSG->deleteSubspaceData();
+        uniDSG->setZero();
+        // for each subspace in uniDSG, set values to the subspace index
+        for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
+          auto subspaceStart = uniDSG->getData(i);
+          for (SubspaceSizeType j = 0; j < uniDSG->getDataSize(i); ++j) {
+            subspaceStart[j] = i;
+          }
+        }
+
+        MPI_Barrier(fullComm);
+        start = std::chrono::high_resolution_clock::now();
+        RankType globalReduceRankThatCollects = 0;
+        CombiCom::distributedGlobalSparseGridReduce(*uniDSG, globalReduceRankThatCollects);
+        auto request = CombiCom::asyncBcastDsgData(*uniDSG, globalReduceRankThatCollects,
+                                                   theMPISystem()->getGlobalReduceComm());
+        MPI_Wait(&request, MPI_STATUS_IGNORE);
+        end = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        BOOST_TEST_MESSAGE("sparse grid reduce+broadcast time: " +
+                           std::to_string(duration.count()));
+
+        // check that the data is correct
+        for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
+          auto subspaceStart = uniDSG->getData(i);
+          for (SubspaceSizeType j = 0; j < uniDSG->getDataSize(i); ++j) {
+            BOOST_CHECK_EQUAL(subspaceStart[j], i * nprocs);
+          }
+        }
+
       } else if (variant == CombinationVariant::subspaceReduce) {
         BOOST_CHECK_LT(uniDSG->getAccumulatedDataSize(), 142606336 / 2);
 
@@ -990,9 +1025,53 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
             }
           }
         }
+
+        // try again, this time with reduce+broadcast
+        // reset actual data containers and MPI datatype mappings
+        uniDSG->deleteSubspaceData();
+        uniDSG->setZero();
+        // for each subspace in uniDSG, set values to the subspace index
+        for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
+          auto subspaceStart = uniDSG->getData(i);
+          for (SubspaceSizeType j = 0; j < uniDSG->getDataSize(i); ++j) {
+            subspaceStart[j] = i;
+          }
+        }
+
+        MPI_Barrier(fullComm);
+        BOOST_TEST_CHECKPOINT("outgroup reduce + broadcast");
+        start = std::chrono::high_resolution_clock::now();
+        CombiCom::distributedGlobalSubspaceReduce(*uniDSG, 0);
+        auto request = CombiCom::asyncBcastOutgroupDsgData(*uniDSG, 0, fullComm);
+        MPI_Wait(&request, MPI_STATUS_IGNORE);
+        end = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        BOOST_TEST_MESSAGE("outgroup reduce+broadcast time: " + std::to_string(duration.count()));
+
+        // check that the data is correct
+        checkedSubspaces.clear();
+        for (const auto& subspaces : subspacesByComm) {
+          auto commSize = combigrid::getCommSize(subspaces.first);
+          for (const auto& subspace : subspaces.second) {
+            auto subspaceStart = uniDSG->getData(subspace);
+            for (SubspaceSizeType j = 0; j < uniDSG->getDataSize(subspace); ++j) {
+              // BOOST_CHECK_EQUAL(subspaceStart[j], ??);
+            }
+            checkedSubspaces.insert(subspace);
+          }
+        }
+        for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
+          if (checkedSubspaces.find(i) == checkedSubspaces.end()) {
+            auto subspaceStart = uniDSG->getData(i);
+            for (SubspaceSizeType j = 0; j < uniDSG->getDataSize(i); ++j) {
+              BOOST_CHECK_EQUAL(subspaceStart[j], i);
+            }
+          }
+        }
       }
       BOOST_CHECK(!TestHelper::testStrayMessages(fullComm));
     }
+    Stats::finalize();
   }
 }
 

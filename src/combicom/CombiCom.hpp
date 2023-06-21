@@ -250,14 +250,15 @@ getReductionDatatypes(
 }
 
 template <typename SparseGridType>
-void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
+void distributedGlobalSubspaceReduce(SparseGridType& dsg,
+                                     RankType globalReduceRankThatCollects = MPI_PROC_NULL) {
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
 
   MPI_Op indexedAdd;
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
 #pragma omp parallel if (dsg.getSubspacesByCommunicator().size() > 1) default(none) \
-    shared(dsg, indexedAdd)
+    shared(dsg, indexedAdd) firstprivate(globalReduceRankThatCollects)
 #pragma omp for schedule(dynamic)
   for (size_t commIndex = 0; commIndex < dsg.getSubspacesByCommunicator().size(); ++commIndex) {
     const std::pair<CommunicatorType,
@@ -277,11 +278,24 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
       auto& subspaceStartIndex = datatypesByStartIndex[datatypeIndex].first;
       auto& comm = commAndItsSubspaces.first;
       auto& datatype = datatypesByStartIndex[datatypeIndex].second;
-      // #pragma omp ordered
-      auto success = MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype,
-                                   indexedAdd, comm);
-      assert(success == MPI_SUCCESS);
+      if (globalReduceRankThatCollects == MPI_PROC_NULL) {
+        // #pragma omp ordered
+        auto success = MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype,
+                                     indexedAdd, comm);
+        assert(success == MPI_SUCCESS);
 
+      } else {  // reduce towards only one rank
+        assert(dsg.getSubspacesByCommunicator().size() == 1);
+        if (theMPISystem()->getGlobalReduceRank() == globalReduceRankThatCollects) {
+          // I am the reduce rank that collects the data
+          MPI_Reduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype, indexedAdd,
+                     globalReduceRankThatCollects, comm);
+        } else {
+          // I only need to send
+          MPI_Reduce(dsg.getData(subspaceStartIndex), MPI_IN_PLACE, 1, datatype, indexedAdd,
+                     globalReduceRankThatCollects, comm);
+        }
+      }
       // free datatype -- MPI standard says it will be kept until operation is finished
       MPI_Type_free(&(datatype));
     }
@@ -357,7 +371,7 @@ static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root, Communi
  * Asynchronous Bcast of the raw dsg data in the communicator comm.
  */
 template <typename SparseGridType>
-static MPI_Request asyncBcastOutgroupDsgData(SparseGridType& dsg, RankType root,
+[[nodiscard]] static MPI_Request asyncBcastOutgroupDsgData(SparseGridType& dsg, RankType root,
                                              CommunicatorType comm) {
   assert(dsg.getSubspacesByCommunicator().size() < 2);
   MPI_Request request = MPI_REQUEST_NULL;
