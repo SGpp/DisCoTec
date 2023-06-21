@@ -283,6 +283,10 @@ void MPISystem::storeLocalComm(CommunicatorType lcomm) {
     localRank_ = MPI_PROC_NULL;
   } else {
     if (lcomm != MPI_COMM_NULL && lcomm != localComm_) {
+      // free previous local communicator
+      if (localComm_ != MPI_COMM_NULL) {
+        MPI_Comm_free(&localComm_);
+      }
       localComm_ = lcomm;
     }
     localRank_ = getCommRank(localComm_);
