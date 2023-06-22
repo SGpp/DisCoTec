@@ -20,6 +20,16 @@ size_t AnyDistributedSparseGrid::getAccumulatedDataSize() const {
                          static_cast<size_t>(0));
 }
 
+size_t AnyDistributedSparseGrid::getAccumulatedDataSize(
+    const std::set<SubspaceIndexType>& subsetOfSubspaces) const {
+  // make filtered accumulation
+  size_t accumulatedDataSize = 0;
+  for (auto i : subsetOfSubspaces) {
+    accumulatedDataSize += subspacesDataSizes_[i];
+  }
+  return accumulatedDataSize;
+}
+
 AnyDistributedSparseGrid::~AnyDistributedSparseGrid() { clearSubspaceCommunicators(); }
 
 void AnyDistributedSparseGrid::clearSubspaceCommunicators() {

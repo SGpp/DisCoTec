@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <map>
+#include <set>
 #include <vector>
 
 #include "utils/Types.hpp"
@@ -31,6 +32,9 @@ class AnyDistributedSparseGrid {
 
   // sum of all data sizes of all subspaces
   size_t getAccumulatedDataSize() const;
+
+  // sum of all data sizes of passed subspaces
+  size_t getAccumulatedDataSize(const std::set<SubspaceIndexType>& subsetOfSubspaces) const;
 
   CommunicatorType getCommunicator() const;
 
