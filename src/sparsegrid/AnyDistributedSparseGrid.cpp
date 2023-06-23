@@ -56,6 +56,33 @@ SubspaceSizeType AnyDistributedSparseGrid::getDataSize(SubspaceIndexType i) cons
   return subspacesDataSizes_[i];
 }
 
+std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>&
+AnyDistributedSparseGrid::getIngroupSubspaces() const {
+  assert(this->getSubspacesByCommunicator().size() < 2);
+  static thread_local std::set<SubspaceIndexType> ingroupSubspaces{};
+  ingroupSubspaces.clear();
+  if (this->getSubspacesByCommunicator().empty()) {
+    for (SubspaceIndexType i = 0; i < this->getNumSubspaces(); ++i) {
+      // select those with a positive data size
+      if (this->getDataSize(i) > 0) {
+        ingroupSubspaces.insert(i);
+      }
+    }
+  } else {
+    for (SubspaceIndexType i = 0; i < this->getNumSubspaces(); ++i) {
+      // select those with a positive data size and that are not associated to outgroup communicator
+      bool notForOutputComm = std::find(this->getSubspacesByCommunicator()[0].second.cbegin(),
+                                        this->getSubspacesByCommunicator()[0].second.cend(),
+                                        i) == this->getSubspacesByCommunicator()[0].second.cend();
+
+      if (this->getDataSize(i) > 0 && notForOutputComm) {
+        ingroupSubspaces.insert(i);
+      }
+    }
+  }
+  return ingroupSubspaces;
+}
+
 typename AnyDistributedSparseGrid::SubspaceIndexType AnyDistributedSparseGrid::getNumSubspaces()
     const {
   return static_cast<SubspaceIndexType>(subspacesDataSizes_.size());
