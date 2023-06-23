@@ -218,11 +218,10 @@ std::vector<std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>>& get
   return subspaceIndicesChunks;
 }
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, typename SubspaceIndexContainer>
 std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
 getReductionDatatypes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                      const std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>& subspaces,
-                      size_t maxBytesToSend = 16777216) {
+                      const SubspaceIndexContainer& subspaces, size_t maxBytesToSend = 16777216) {
   // like for sparse grid reduce, allow only up to 16MiB per reduction
   auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>(maxBytesToSend);
   std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
@@ -259,7 +258,7 @@ getReductionDatatypes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
   return datatypesByStartIndex;
 }
 
-template <typename SparseGridType>
+template <typename SparseGridType, bool communicateAllAllocated = false>
 void distributedGlobalSubspaceReduce(SparseGridType& dsg,
                                      RankType globalReduceRankThatCollects = MPI_PROC_NULL) {
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
@@ -274,8 +273,15 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg,
     const std::pair<CommunicatorType,
                     std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
         commAndItsSubspaces = dsg.getSubspacesByCommunicator()[commIndex];
-    // get reduction datatypes for this communicator
-    auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces.second);
+
+    // get reduction datatypes
+    std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
+        datatypesByStartIndex;
+    if constexpr (communicateAllAllocated) {
+      datatypesByStartIndex = getReductionDatatypes(dsg, dsg.getCurrentlyAllocatedSubspaces());
+    } else {
+      datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces.second);
+    }
 
     // // this would be best for outgroup reduce, but leads to MPI truncation
     // // errors if not ordered (desynchronization between MPI ranks on the same communicators
