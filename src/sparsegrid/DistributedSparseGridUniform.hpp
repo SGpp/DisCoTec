@@ -538,8 +538,8 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
       auto sPointer = this->getData(sIndex);
       auto kPointer = this->subspacesDataContainer_.kahanDataBegin_[sIndex];
 #ifndef NDEBUG
-      if (sIndex < kahanDataBegin_.size() - 1) {
-        auto kDataSize = kahanDataBegin_[sIndex + 1] - kPointer;
+      if (sIndex < this->subspacesDataContainer_.kahanDataBegin_.size() - 1) {
+        auto kDataSize = this->subspacesDataContainer_.kahanDataBegin_[sIndex + 1] - kPointer;
         assert(kDataSize == this->getDataSize(sIndex));
       }
 #endif  // NDEBUG
