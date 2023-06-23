@@ -189,6 +189,35 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
   }
 }
 
+template <typename FG_ELEMENT, typename SubspaceIndexContainer>
+std::vector<std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>>& getChunkedSubspaces(
+    const DistributedSparseGridUniform<FG_ELEMENT>& dsg, const SubspaceIndexContainer& siContainer,
+    int maxChunkSize) {
+  static thread_local std::vector<std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>>
+      subspaceIndicesChunks;
+  subspaceIndicesChunks.clear();
+
+  auto subspaceIt = siContainer.cbegin();
+  while (subspaceIt != siContainer.cend()) {
+    static thread_local std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>
+        chunkSubspaces;
+    chunkSubspaces.clear();
+    const auto subspaceItBefore = subspaceIt;
+    SubspaceSizeType chunkDataSize = 0;
+    // select chunk of not more than chunkSize, but at least one index
+    auto nextAddedDataSize = dsg.getDataSize(*subspaceIt);
+    do {
+      chunkDataSize += nextAddedDataSize;
+      chunkSubspaces.insert(*subspaceIt);
+      ++subspaceIt;
+    } while (subspaceIt != siContainer.cend() &&
+             (nextAddedDataSize = dsg.getDataSize(*subspaceIt)) &&
+             (chunkDataSize + nextAddedDataSize) < maxChunkSize);
+    subspaceIndicesChunks.push_back(std::move(chunkSubspaces));
+  }
+  return subspaceIndicesChunks;
+}
+
 template <typename FG_ELEMENT>
 std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
 getReductionDatatypes(
@@ -207,42 +236,28 @@ getReductionDatatypes(
   const auto& subspaces = commAndItsSubspaces.second;
   // get chunked subspaces for this data type
   {
-    auto subspaceIt = subspaces.cbegin();
-    while (subspaceIt != subspaces.cend()) {
-      const auto subspaceItBefore = subspaceIt;
-      const FG_ELEMENT* rawDataStartFirst = dsg.getData(*subspaceItBefore);
-      SubspaceSizeType chunkDataSize = 0;
-      static thread_local std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>
-          chunkSubspaces;
-      chunkSubspaces.clear();
-      // select chunk of not more than chunkSize, but at least one index
-      auto nextAddedDataSize = dsg.getDataSize(*subspaceIt);
-      do {
-        chunkDataSize += nextAddedDataSize;
-        chunkSubspaces.push_back(*subspaceIt);
-        ++subspaceIt;
-      } while (subspaceIt != subspaces.cend() &&
-               (nextAddedDataSize = dsg.getDataSize(*subspaceIt)) &&
-               (chunkDataSize + nextAddedDataSize) < chunkSize);
+    auto& chunkedSubspaces = getChunkedSubspaces(dsg, subspaces, chunkSize);
+    for (auto& subspacesChunk : chunkedSubspaces) {
+      const FG_ELEMENT* rawDataStartFirst = dsg.getData(*subspacesChunk.cbegin());
 
       // create datatype for this chunk
       static thread_local std::vector<int> arrayOfBlocklengths, arrayOfDisplacements;
       arrayOfBlocklengths.clear();
       arrayOfDisplacements.clear();
-      arrayOfBlocklengths.reserve(chunkSubspaces.size());
-      arrayOfDisplacements.reserve(chunkSubspaces.size());
-      for (const auto& ss : chunkSubspaces) {
+      arrayOfBlocklengths.reserve(subspacesChunk.size());
+      arrayOfDisplacements.reserve(subspacesChunk.size());
+      for (const auto& ss : subspacesChunk) {
         arrayOfBlocklengths.push_back(dsg.getDataSize(ss));
         arrayOfDisplacements.push_back(dsg.getData(ss) - rawDataStartFirst);
       }
 
       MPI_Datatype myIndexedDatatype;
-      MPI_Type_indexed(static_cast<int>(chunkSubspaces.size()), arrayOfBlocklengths.data(),
+      MPI_Type_indexed(static_cast<int>(subspacesChunk.size()), arrayOfBlocklengths.data(),
                        arrayOfDisplacements.data(),
                        getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>()),
                        &myIndexedDatatype);
       MPI_Type_commit(&myIndexedDatatype);
-      datatypesByStartIndex.push_back(std::make_pair(*subspaceItBefore, myIndexedDatatype));
+      datatypesByStartIndex.push_back(std::make_pair(*subspacesChunk.cbegin(), myIndexedDatatype));
     }
   }
   assert(!datatypesByStartIndex.empty() && "No datatypes created for this communicator");
@@ -372,7 +387,7 @@ static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root, Communi
  */
 template <typename SparseGridType>
 [[nodiscard]] static MPI_Request asyncBcastOutgroupDsgData(SparseGridType& dsg, RankType root,
-                                             CommunicatorType comm) {
+                                                           CommunicatorType comm) {
   assert(dsg.getSubspacesByCommunicator().size() < 2);
   MPI_Request request = MPI_REQUEST_NULL;
   if (!dsg.getSubspacesByCommunicator().empty()) {
