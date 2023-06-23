@@ -204,15 +204,17 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   BOOST_TEST_CHECKPOINT("write solution");
   std::string filename("worker_" + std::to_string(ncombi) + ".raw");
   BOOST_TEST_CHECKPOINT("write solution " + filename);
-  Stats::startEvent("worker write solution");
-  FIRST_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
-  BOOST_TEST_CHECKPOINT("write min/max coefficients");
-  worker.writeSparseGridMinMaxCoefficients("worker_" + std::to_string(boundaryV) +
-                                           "_sparse_minmax");
-  Stats::stopEvent("worker write solution");
-  MASTER_EXCLUSIVE_SECTION {
-    BOOST_TEST_MESSAGE("worker write solution: " << Stats::getDuration("worker write solution")
-                                                 << " milliseconds");
+  if (params.getCombinationVariant() != CombinationVariant::chunkedOutgroupSparseGridReduce) {
+    Stats::startEvent("worker write solution");
+    FIRST_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
+    BOOST_TEST_CHECKPOINT("write min/max coefficients");
+    worker.writeSparseGridMinMaxCoefficients("worker_" + std::to_string(boundaryV) +
+                                             "_sparse_minmax");
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_TEST_MESSAGE("worker write solution: " << Stats::getDuration("worker write solution")
+                                                   << " milliseconds");
+    }
+    Stats::stopEvent("worker write solution");
   }
   filename = "worker_" + std::to_string(boundaryV) + "_dsgs";
   Stats::startEvent("worker write DSG");
