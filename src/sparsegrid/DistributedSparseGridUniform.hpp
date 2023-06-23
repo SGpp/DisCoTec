@@ -198,6 +198,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
   const std::set<SubspaceIndexType>& getCurrentlyAllocatedSubspaces() const;
 
+  bool isSubspaceCurrentlyAllocated(SubspaceIndexType subspaceIndex) const;
+
   void print(std::ostream& os) const;
 
   // allocates memory for subspace data and sets pointers to subspaces
@@ -241,8 +243,11 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
   inline void setDataSize(SubspaceIndexType i, SubspaceSizeType newSize) override;
 
+  SubspaceSizeType getAllocatedDataSize(SubspaceIndexType i) const;
+
   inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg);
 
+  template <bool sparseGridFullyAllocated = true>
   inline void addDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg,
                                      combigrid::real coeff);
 
@@ -325,7 +330,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
   for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {
     assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 ||
            other.getDataSize(i) == 0);
-    auto numPointsToCopy = std::min(other.getDataSize(i), this->getDataSize(i));
+    auto numPointsToCopy = std::min(other.getAllocatedDataSize(i), this->getAllocatedDataSize(i));
     std::copy_n(other.getData(i), numPointsToCopy, this->getData(i));
   }
 }
@@ -478,6 +483,15 @@ DistributedSparseGridUniform<FG_ELEMENT>::getCurrentlyAllocatedSubspaces() const
 }
 
 template <typename FG_ELEMENT>
+bool DistributedSparseGridUniform<FG_ELEMENT>::isSubspaceCurrentlyAllocated(
+    SubspaceIndexType subspaceIndex) const {
+  // try to find value in subspacesWithData_
+  // if it is not found, the subspace is not allocated
+  return subspacesDataContainer_.subspacesWithData_.find(subspaceIndex) !=
+         subspacesDataContainer_.subspacesWithData_.end();
+}
+
+template <typename FG_ELEMENT>
 inline DimType DistributedSparseGridUniform<FG_ELEMENT>::getDim() const {
   return dim_;
 }
@@ -503,6 +517,16 @@ void DistributedSparseGridUniform<FG_ELEMENT>::setDataSize(SubspaceIndexType i,
     this->deleteSubspaceData();
   }
   subspacesDataSizes_[i] = newSize;
+}
+
+template <typename FG_ELEMENT>
+SubspaceSizeType DistributedSparseGridUniform<FG_ELEMENT>::getAllocatedDataSize(
+    SubspaceIndexType i) const {
+  if (this->isSubspaceCurrentlyAllocated(i)) {
+    return subspacesDataSizes_[i];
+  } else {
+    return 0;
+  }
 }
 
 /**
@@ -554,6 +578,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
  * @param coeff the coefficient that gets multiplied to all entries in DFG
  */
 template <typename FG_ELEMENT>
+template <bool sparseGridFullyAllocated>
 inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
     const DistributedFullGrid<FG_ELEMENT>& dfg, combigrid::real coeff) {
   assert(this->isSubspaceDataCreated());
@@ -562,19 +587,21 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
     throw std::runtime_error("Kahan data not initialized");
   }
 
-  bool anythingWasAdded = false;
-
   // all the hierarchical subspaces contained in this full grid
   const auto downwardClosedSet = combigrid::getDownSet(dfg.getLevels());
 
   static thread_local IndexVector subspaceIndices;
   SubspaceIndexType sIndex = 0;
 // loop over all subspaces of the full grid
-#pragma omp parallel for default(none) reduction(|| : anythingWasAdded) \
-    shared(downwardClosedSet, dfg) firstprivate(coeff, sIndex) schedule(guided)
+#pragma omp parallel for default(none) shared(downwardClosedSet, dfg, std::cout) \
+    firstprivate(coeff, sIndex) schedule(guided)
   for (const auto& level : downwardClosedSet) {
     sIndex = this->getIndexInRange(level, sIndex);
-    if (sIndex > -1 && this->getDataSize(sIndex) > 0) {
+    bool shouldBeCopied = sIndex > -1 && this->getDataSize(sIndex) > 0;
+    if constexpr (!sparseGridFullyAllocated) {
+      shouldBeCopied = shouldBeCopied && this->isSubspaceCurrentlyAllocated(sIndex);
+    }
+    if (shouldBeCopied) {
       auto sPointer = this->getData(sIndex);
       auto kPointer = this->subspacesDataContainer_.kahanDataBegin_[sIndex];
 #ifndef NDEBUG
@@ -599,14 +626,9 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
         *sPointer = t;
         ++sPointer;
         ++kPointer;
-        anythingWasAdded = true;
       }
     }
   }
-
-  // make sure that anything was added -- I can only think of weird setups
-  // where that would not be the case
-  assert(anythingWasAdded);
 }
 
 template <typename FG_ELEMENT>

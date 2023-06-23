@@ -861,6 +861,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
    *
    * @param dsg the DSG to extract from
    */
+  template <bool sparseGridFullyAllocated = true>
   void extractFromUniformSG(const DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     assert(dsg.isSubspaceDataCreated());
 
@@ -874,7 +875,11 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     firstprivate(sIndex)
     for (const auto& level : downwardClosedSet) {
       sIndex = dsg.getIndexInRange(level, sIndex);
-      if (sIndex > -1 && dsg.getDataSize(sIndex) > 0) {
+      bool shouldBeCopied = sIndex > -1 && dsg.getDataSize(sIndex) > 0;
+      if constexpr (!sparseGridFullyAllocated) {
+        shouldBeCopied = shouldBeCopied && dsg.isSubspaceCurrentlyAllocated(sIndex);
+      }
+      if (shouldBeCopied) {
         auto sPointer = dsg.getData(sIndex);
         subspaceIndices = this->getFGPointsOfSubspace(level);
 #pragma omp simd linear(sPointer : 1)
