@@ -473,27 +473,16 @@ void ProcessGroupWorker::initCombinedDSGVector() {
 }
 
 void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatCollects) {
-  assert(this->getSparseGridWorker().getNumberOfGrids() > 0 &&
-         "Initialize dsgu first with "
-         "initCombinedUniDSGVector()");
-  // assert(this->getSparseGridWorker().getCombinedUniDSGVector()[0]->isSubspaceDataCreated());
-
-  this->getSparseGridWorker().zeroDsgsData();
-
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
       combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
   Stats::stopEvent("hierarchize");
 
-  Stats::startEvent("local reduce");
-  this->getSparseGridWorker().addFullGridsToUniformSG();
-  Stats::stopEvent("local reduce");
-
-  Stats::startEvent("global reduce");
-  this->getSparseGridWorker().reduceUniformSG(combiParameters_.getCombinationVariant(),
-                                              globalReduceRankThatCollects);
-  Stats::stopEvent("global reduce");
+  Stats::startEvent("reduce");
+  this->getSparseGridWorker().reduceLocalAndGlobal(combiParameters_.getCombinationVariant(),
+                                                   globalReduceRankThatCollects);
+  Stats::stopEvent("reduce");
 }
 
 void ProcessGroupWorker::combineUniform() {
@@ -649,8 +638,12 @@ void ProcessGroupWorker::updateCombiParameters() {
 }
 
 void ProcessGroupWorker::updateFullFromCombinedSparseGrids() {
+  Stats::startEvent("distribute");
+  this->getSparseGridWorker().distributeCombinedSolutionToTasks();
+  Stats::stopEvent("distribute");
+
   Stats::startEvent("dehierarchize");
-  this->getSparseGridWorker().integrateCombinedSolutionToTasks(
+  this->getTaskWorker().dehierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
       combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
   Stats::stopEvent("dehierarchize");

@@ -20,11 +20,10 @@ class SparseGridWorker {
 
   ~SparseGridWorker() = default;
 
-  /* local reduce */
-  inline void addFullGridsToUniformSG();
-
   /* free DSG memory as intermediate step */
   inline void deleteDsgsData();
+
+  inline void distributeCombinedSolutionToTasks();
 
   inline void fillDFGFromDSGU(Task& t, const std::vector<bool>& hierarchizationDims,
                               const std::vector<BasisFunctionBasis*>& hierarchicalBases,
@@ -52,10 +51,6 @@ class SparseGridWorker {
                                        CombinationVariant combinationVariant,
                                        bool clearLevels = false);
 
-  inline void integrateCombinedSolutionToTasks(
-      const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
-      const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin);
-
   inline void interpolateAndPlotOnLevel(
       const std::string& filename, const LevelVector& levelToEvaluate,
       const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
@@ -76,11 +71,11 @@ class SparseGridWorker {
   inline int reduceExtraSubspaceSizes(const std::string& filenameToRead,
                                       CombinationVariant combinationVariant, bool overwrite);
 
-  inline void reduceSubspaceSizesBetweenGroups(CombinationVariant combinationVariant);
+  /* reduction within and between process groups */
+  inline void reduceLocalAndGlobal(CombinationVariant combinationVariant,
+                                   RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
-  /* global reduction between process groups */
-  inline void reduceUniformSG(CombinationVariant combinationVariant,
-                              RankType globalReduceRankThatCollects = MPI_PROC_NULL);
+  inline void reduceSubspaceSizesBetweenGroups(CombinationVariant combinationVariant);
 
   inline void setExtraSparseGrid(bool initializeSizes = true);
 
@@ -127,25 +122,20 @@ class SparseGridWorker {
 inline SparseGridWorker::SparseGridWorker(TaskWorker& taskWorkerToReference)
     : taskWorkerRef_(taskWorkerToReference) {}
 
-inline void SparseGridWorker::addFullGridsToUniformSG() {
-  assert(this->getNumberOfGrids() > 0 &&
-         "Initialize dsgu first with "
-         "initCombinedUniDSGVector()");
-  auto numGrids = this->getNumberOfGrids();
-  for (const auto& t : this->taskWorkerRef_.getTasks()) {
-    for (int g = 0; g < numGrids; ++g) {
-      const DistributedFullGrid<CombiDataType>& dfg =
-          t->getDistributedFullGrid(static_cast<int>(g));
-
-      // lokales reduce auf sg
-      this->getCombinedUniDSGVector()[g]->addDistributedFullGrid(dfg, t->getCoefficient());
-    }
-  }
-}
 
 inline void SparseGridWorker::deleteDsgsData() {
   for (auto& dsg : this->getCombinedUniDSGVector()) dsg->deleteSubspaceData();
   for (auto& dsg : this->getExtraUniDSGVector()) dsg->deleteSubspaceData();
+}
+
+inline void SparseGridWorker::distributeCombinedSolutionToTasks() {
+  for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+    for (int g = 0; g < this->getNumberOfGrids(); ++g) {
+      // fill dfg with hierarchical coefficients from distributed sparse grid
+      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(
+          *this->getCombinedUniDSGVector()[g]);
+    }
+  }
 }
 
 inline void SparseGridWorker::fillDFGFromDSGU(
@@ -259,20 +249,6 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
   }
 
   this->reduceSubspaceSizesBetweenGroups(combinationVariant);
-}
-
-inline void SparseGridWorker::integrateCombinedSolutionToTasks(
-    const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
-    const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin) {
-  for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
-    for (int g = 0; g < this->getNumberOfGrids(); ++g) {
-      // fill dfg with hierarchical coefficients from distributed sparse grid
-      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(
-          *this->getCombinedUniDSGVector()[g]);
-    }
-  }
-  this->taskWorkerRef_.dehierarchizeFullGrids(boundary, hierarchizationDims, hierarchicalBases,
-                                              lmin);
 }
 
 // cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
@@ -445,6 +421,38 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
   return numSubspacesReduced;
 }
 
+inline void SparseGridWorker::reduceLocalAndGlobal(CombinationVariant combinationVariant,
+                                                   RankType globalReduceRankThatCollects) {
+  assert(this->getNumberOfGrids() > 0 &&
+         "Initialize dsgu first with "
+         "initCombinedUniDSGVector()");
+  auto numGrids = this->getNumberOfGrids();
+  this->zeroDsgsData();
+  // local reduce (within rank)
+  for (const auto& t : this->taskWorkerRef_.getTasks()) {
+    for (int g = 0; g < numGrids; ++g) {
+      const DistributedFullGrid<CombiDataType>& dfg =
+          t->getDistributedFullGrid(static_cast<int>(g));
+      this->getCombinedUniDSGVector()[g]->addDistributedFullGrid(dfg, t->getCoefficient());
+    }
+  }
+  // global reduce (across process groups)
+  for (int g = 0; g < numGrids; ++g) {
+    if (combinationVariant == CombinationVariant::sparseGridReduce) {
+      CombiCom::distributedGlobalSparseGridReduce(*this->getCombinedUniDSGVector()[g],
+                                                  globalReduceRankThatCollects);
+    } else if (combinationVariant == CombinationVariant::subspaceReduce ||
+               combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
+      CombiCom::distributedGlobalSubspaceReduce(*this->getCombinedUniDSGVector()[g],
+                                                globalReduceRankThatCollects);
+    } else {
+      throw std::runtime_error("Combination variant not implemented");
+    }
+    assert(CombiCom::sumAndCheckSubspaceSizes(*this->getCombinedUniDSGVector()[g]));
+  }
+}
+
+
 inline void SparseGridWorker::reduceSubspaceSizesBetweenGroups(
     CombinationVariant combinationVariant) {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
@@ -462,22 +470,6 @@ inline void SparseGridWorker::reduceSubspaceSizesBetweenGroups(
     }
   } else {
     throw std::runtime_error("Combination variant not implemented");
-  }
-}
-
-inline void SparseGridWorker::reduceUniformSG(CombinationVariant combinationVariant,
-                                              RankType globalReduceRankThatCollects) {
-  auto numGrids = this->getNumberOfGrids();
-  for (int g = 0; g < numGrids; ++g) {
-    if (combinationVariant == CombinationVariant::sparseGridReduce) {
-      CombiCom::distributedGlobalSparseGridReduce(*this->getCombinedUniDSGVector()[g],
-                                                  globalReduceRankThatCollects);
-    } else if (combinationVariant == CombinationVariant::subspaceReduce ||
-               combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
-      CombiCom::distributedGlobalSubspaceReduce(*this->getCombinedUniDSGVector()[g],
-                                                globalReduceRankThatCollects);
-    }
-    assert(CombiCom::sumAndCheckSubspaceSizes(*this->getCombinedUniDSGVector()[g]));
   }
 }
 
