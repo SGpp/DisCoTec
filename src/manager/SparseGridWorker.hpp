@@ -452,7 +452,6 @@ inline void SparseGridWorker::reduceLocalAndGlobal(CombinationVariant combinatio
   }
 }
 
-
 inline void SparseGridWorker::reduceSubspaceSizesBetweenGroups(
     CombinationVariant combinationVariant) {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
@@ -464,10 +463,12 @@ inline void SparseGridWorker::reduceSubspaceSizesBetweenGroups(
     for (auto& uniDSG : combinedUniDSGVector_) {
       uniDSG->setSubspaceCommunicators(globalReduceComm, theMPISystem()->getGlobalReduceRank());
     }
-  } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
+  } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce ||
+             combinationVariant == CombinationVariant::chunkedOutgroupSparseGridReduce) {
     for (auto& uniDSG : combinedUniDSGVector_) {
       uniDSG->setOutgroupCommunicator(globalReduceComm, theMPISystem()->getGlobalReduceRank());
     }
+    assert(this->getCombinedUniDSGVector()[0]->getSubspacesByCommunicator().size() < 2);
   } else {
     throw std::runtime_error("Combination variant not implemented");
   }
