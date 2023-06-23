@@ -100,7 +100,7 @@ class ProcessManager {
   void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates,
                             std::vector<CombiDataType>& values);
 
-  inline void combineLocalAndGlobal();
+  inline void combineSystemWide();
 
   template <typename FG_ELEMENT>
   inline void combineFG(FullGrid<FG_ELEMENT>& fg);
@@ -276,7 +276,7 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
-void ProcessManager::combineLocalAndGlobal() {
+void ProcessManager::combineSystemWide() {
   Stats::startEvent("manager combine local");
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
@@ -292,7 +292,7 @@ void ProcessManager::combineLocalAndGlobal() {
 
   // tell groups to combine local and global
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->combineLocalAndGlobal();
+    bool success = pgroups_[i]->combineSystemWide();
     assert(success);
   }
 
@@ -324,7 +324,7 @@ void ProcessManager::combineLocalAndGlobal() {
  */
 void ProcessManager::combineThirdLevel() {
   // first combine local and global
-  combineLocalAndGlobal();
+  combineSystemWide();
 
   // tell other pgroups to idle and wait for the combination result
   for (auto& pg : pgroups_) {
@@ -348,9 +348,9 @@ void ProcessManager::combineThirdLevel() {
 }
 
 void ProcessManager::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
-                                                          std::string writeCompleteTokenFileName) {
+                                                     std::string writeCompleteTokenFileName) {
   // first combine local and global
-  combineLocalAndGlobal();
+  combineSystemWide();
 
   // obtain "instructions" from third level manager
   thirdLevel_.signalReadyToCombineFile();
@@ -387,7 +387,7 @@ void ProcessManager::combineThirdLevelFileBased(std::string filenamePrefixToWrit
                                                 std::string filenamePrefixToRead,
                                                 std::string startReadingTokenFileName) {
   // first combine local and global
-  combineLocalAndGlobal();
+  combineSystemWide();
 
   // tell other pgroups to idle and wait for the combination result
   for (auto& pg : pgroups_) {
@@ -409,7 +409,7 @@ void ProcessManager::combineThirdLevelFileBased(std::string filenamePrefixToWrit
 
 void ProcessManager::pretendCombineThirdLevelForWorkers() {
   // first combine local and global
-  combineLocalAndGlobal();
+  combineSystemWide();
 
   // combine
   Stats::startEvent("manager exchange no data with remote");

@@ -36,9 +36,12 @@ class ProcessGroupWorker {
   void updateFullFromCombinedSparseGrids();
 
   /** combine on sparse grid with uniform decomposition of domain */
-  void combineUniform();
+  void combineAtOnce();
 
-  void combineLocalAndGlobal(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
+  void combineSystemWide();
+
+  void combineSystemWideAndWrite(const std::string& writeSparseGridFile,
+                                 const std::string& writeSparseGridFileToken);
 
   /** parallel file io of final output grid */
   void parallelEval();
@@ -91,6 +94,10 @@ class ProcessGroupWorker {
                                             const std::string& startReadingTokenFileName,
                                             bool overwrite = false,
                                             bool keepSparseGridFiles = false);
+
+  void combineReadDistributeSystemWide(const std::string& filenamePrefixToRead,
+                                       const std::string& startReadingTokenFileName,
+                                       bool overwrite = false, bool keepSparseGridFiles = false);
 
   void combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
                                   const std::string& writeCompleteTokenFileName,

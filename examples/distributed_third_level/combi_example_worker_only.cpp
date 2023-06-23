@@ -263,10 +263,7 @@ int main(int argc, char** argv) {
           "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
       std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
 
-      worker.combineLocalAndGlobal(theMPISystem()->getOutputRankInGlobalReduceComm());
-      OUTPUT_GROUP_EXCLUSIVE_SECTION {
-        worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
-      }
+      worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
       // everyone writes partial stats
       Stats::writePartial("stats_worker_" + std::to_string(systemNumber) + "_group" +
                               std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
@@ -286,24 +283,13 @@ int main(int argc, char** argv) {
         readSparseGridFile =
             "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
         std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
-        OUTPUT_GROUP_EXCLUSIVE_SECTION {
-          worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken,
-                                                      false, false);
-        }
-        else {
-          worker.waitForThirdLevelCombiResult(true);
-        }
+        worker.combineReadDistributeSystemWide(readSparseGridFile, readSparseGridFileToken, false,
+                                               false);
+
       } else {
         readSparseGridFile = writeSparseGridFile;
-        // open question: should all groups read for themselves or one broadcasts?
-        // (currently: one group broadcasts to other groups)
-        OUTPUT_GROUP_EXCLUSIVE_SECTION {
-          worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, writeSparseGridFileToken,
-                                                      true, false);
-        }
-        else {
-          worker.waitForThirdLevelCombiResult(true);
-        }
+        worker.combineReadDistributeSystemWide(readSparseGridFile, writeSparseGridFileToken, true,
+                                               false);
       }
       MIDDLE_PROCESS_EXCLUSIVE_SECTION {
         auto endCombineRead = std::chrono::high_resolution_clock::now();

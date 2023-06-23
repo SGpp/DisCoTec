@@ -466,7 +466,7 @@ bool ProcessGroupManager::distributeSubspaceSizes(const ThirdLevelUtils& thirdLe
   return true;
 }
 
-bool ProcessGroupManager::combineLocalAndGlobal() {
+bool ProcessGroupManager::combineSystemWide() {
   // can only send sync signal when in wait state
   assert(status_ == PROCESS_GROUP_WAIT);
 

@@ -237,8 +237,12 @@ int main(int argc, char** argv) {
       }
 
       MPI_Barrier(theMPISystem()->getWorldComm());
-      worker.combineUniform();
-      auto durationCombine = Stats::getDuration("combine") / 1000.0;
+      auto startCombine = std::chrono::high_resolution_clock::now();
+      worker.combineAtOnce();
+      auto endCombine = std::chrono::high_resolution_clock::now();
+      auto durationCombine =
+          std::chrono::duration_cast<std::chrono::milliseconds>(endCombine - startCombine).count() /
+          1000.0;
       MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "combination " << i
                                                  << " took: " << durationCombine << " seconds"
                                                  << std::endl;

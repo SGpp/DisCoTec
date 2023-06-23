@@ -188,11 +188,11 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE: {  // start combination
-      combineUniform();
+      combineAtOnce();
     } break;
     case COMBINE_LOCAL_AND_GLOBAL: {
       Stats::startEvent("combine local");
-      combineLocalAndGlobal();
+      combineSystemWide();
       Stats::stopEvent("combine local");
 
     } break;
@@ -472,7 +472,7 @@ void ProcessGroupWorker::initCombinedDSGVector() {
   Stats::stopEvent("init dsgus");
 }
 
-void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatCollects) {
+void ProcessGroupWorker::combineSystemWide() {
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
@@ -481,15 +481,48 @@ void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatColl
 
   Stats::startEvent("reduce");
   this->getSparseGridWorker().reduceLocalAndGlobal(combiParameters_.getCombinationVariant(),
-                                                   globalReduceRankThatCollects);
+                                                   MPI_PROC_NULL);
   Stats::stopEvent("reduce");
 }
 
-void ProcessGroupWorker::combineUniform() {
-  Stats::startEvent("combine");
-  combineLocalAndGlobal();
-  updateFullFromCombinedSparseGrids();
-  Stats::stopEvent("combine");
+void ProcessGroupWorker::combineSystemWideAndWrite(const std::string& writeSparseGridFile,
+                                                   const std::string& writeSparseGridFileToken) {
+  Stats::startEvent("hierarchize");
+  this->getTaskWorker().hierarchizeFullGrids(
+      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+  Stats::stopEvent("hierarchize");
+
+  Stats::startEvent("reduce");
+  this->getSparseGridWorker().reduceLocalAndGlobal(
+      combiParameters_.getCombinationVariant(), theMPISystem()->getOutputRankInGlobalReduceComm());
+  Stats::stopEvent("reduce");
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    this->combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
+  }
+}
+
+void ProcessGroupWorker::combineAtOnce() {
+  Stats::startEvent("hierarchize");
+  this->getTaskWorker().hierarchizeFullGrids(
+      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+  Stats::stopEvent("hierarchize");
+
+  Stats::startEvent("reduce");
+  this->getSparseGridWorker().reduceLocalAndGlobal(combiParameters_.getCombinationVariant(),
+                                                   MPI_PROC_NULL);
+  Stats::stopEvent("reduce");
+  Stats::startEvent("distribute");
+  this->getSparseGridWorker().distributeCombinedSolutionToTasks();
+  Stats::stopEvent("distribute");
+
+  Stats::startEvent("dehierarchize");
+  this->getTaskWorker().dehierarchizeFullGrids(
+      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+  Stats::stopEvent("dehierarchize");
+  currentCombi_++;
 }
 
 void ProcessGroupWorker::parallelEval() {
@@ -756,6 +789,18 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
 
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
+}
+
+void ProcessGroupWorker::combineReadDistributeSystemWide(
+    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName,
+    bool overwrite, bool keepSparseGridFiles) {
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    this->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName,
+                                               overwrite, keepSparseGridFiles);
+  }
+  else {
+    this->waitForThirdLevelCombiResult(true);
+  }
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
