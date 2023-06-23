@@ -327,51 +327,53 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 #ifndef ISGENE  // worker tests won't work with ISGENE because of worker magic
 
 #ifndef NDEBUG  // in case of a build with asserts, have longer timeout
-BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1200))
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(2000))
 #else
-BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(560))
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1060))
 #endif  // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto start = std::chrono::high_resolution_clock::now();
   auto rank = TestHelper::getRank(MPI_COMM_WORLD);
-  for (BoundaryType boundary : std::vector<BoundaryType>({0, 1, 2})) {
-    for (size_t ngroup : {1, 2, 3, 4}) {
-      for (size_t nprocs : {1, 2}) {
-        if (rank == 0)
-          std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
-                    << std::endl;
-        BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
-        MPI_Barrier(MPI_COMM_WORLD);
-      }
-    }
-    for (size_t ngroup : {1, 2}) {
-      for (size_t nprocs : {3}) {
-        if (rank == 0)
-          std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
-                    << std::endl;
-        BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
-        MPI_Barrier(MPI_COMM_WORLD);
-      }
-    }
-    for (size_t ngroup : {1, 2}) {
-      if (boundary > 0) {
-        for (size_t nprocs : {4}) {
+  for (bool pretendThirdLevel : {false, true}) {
+    for (BoundaryType boundary : std::vector<BoundaryType>({0, 1, 2})) {
+      for (size_t ngroup : {1, 2, 3, 4}) {
+        for (size_t nprocs : {1, 2}) {
           if (rank == 0)
             std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
                       << std::endl;
-          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
+          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel));
           MPI_Barrier(MPI_COMM_WORLD);
         }
       }
-    }
-    for (size_t ngroup : {1}) {
-      for (size_t nprocs : {5}) {
-        if (boundary == 2) {
+      for (size_t ngroup : {1, 2}) {
+        for (size_t nprocs : {3}) {
           if (rank == 0)
             std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
                       << std::endl;
-          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
+          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel));
           MPI_Barrier(MPI_COMM_WORLD);
+        }
+      }
+      for (size_t ngroup : {1, 2}) {
+        if (boundary > 0) {
+          for (size_t nprocs : {4}) {
+            if (rank == 0)
+              std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
+                        << std::endl;
+            BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel));
+            MPI_Barrier(MPI_COMM_WORLD);
+          }
+        }
+      }
+      for (size_t ngroup : {1}) {
+        for (size_t nprocs : {5}) {
+          if (boundary == 2) {
+            if (rank == 0)
+              std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
+                        << std::endl;
+            BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel));
+            MPI_Barrier(MPI_COMM_WORLD);
+          }
         }
       }
     }
