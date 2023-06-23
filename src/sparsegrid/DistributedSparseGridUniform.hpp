@@ -123,6 +123,14 @@ class DistributedSparseGridDataContainer {
     kahanData_.swap(other.kahanData_);
   }
 
+  void allocateDifferentSubspaces(std::set<SubspaceIndexType>&& subspaces) {
+    assert(subspacesWithData_.empty() && "subspaces already allocated");
+    subspacesWithData_ = std::move(subspaces);
+    subspacesData_.clear();
+    kahanData_.clear();
+    createSubspaceData();
+  }
+
  private:
   friend class DistributedSparseGridUniform<FG_ELEMENT>;
 
@@ -178,9 +186,11 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   DistributedSparseGridUniform(DistributedSparseGridUniform&& other) = delete;
   DistributedSparseGridUniform& operator=(DistributedSparseGridUniform&& other) = delete;
 
-  void swapDataContainers(DistributedSparseGridDataContainer<FG_ELEMENT>& otherContainer) {
-    subspacesDataContainer_.swap(otherContainer);
-  }
+  void swapDataContainers(DistributedSparseGridDataContainer<FG_ELEMENT>& otherContainer);
+
+  void allocateDifferentSubspaces(std::set<SubspaceIndexType>&& subspaces);
+
+  const std::set<SubspaceIndexType>& getCurrentlyAllocatedSubspaces() const;
 
   void print(std::ostream& os) const;
 
@@ -435,6 +445,24 @@ template <typename FG_ELEMENT>
 inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getRawData() const {
   assert(isSubspaceDataCreated() && "subspace data not created");
   return this->subspacesDataContainer_.subspacesData_.data();
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::swapDataContainers(
+    DistributedSparseGridDataContainer<FG_ELEMENT>& otherContainer) {
+  subspacesDataContainer_.swap(otherContainer);
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::allocateDifferentSubspaces(
+    std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>&& subspaces) {
+  subspacesDataContainer_.allocateDifferentSubspaces(std::move(subspaces));
+}
+
+template <typename FG_ELEMENT>
+const std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>&
+DistributedSparseGridUniform<FG_ELEMENT>::getCurrentlyAllocatedSubspaces() const {
+  return subspacesDataContainer_.subspacesWithData_;
 }
 
 template <typename FG_ELEMENT>
