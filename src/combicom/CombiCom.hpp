@@ -220,20 +220,15 @@ std::vector<std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>>& get
 
 template <typename FG_ELEMENT>
 std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
-getReductionDatatypes(
-    const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-    const std::pair<CommunicatorType,
-                    std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
-        commAndItsSubspaces,
-    size_t maxBytesToSend = 16777216) {
+getReductionDatatypes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                      const std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>& subspaces,
+                      size_t maxBytesToSend = 16777216) {
   // like for sparse grid reduce, allow only up to 16MiB per reduction
   auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>(maxBytesToSend);
   std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
       datatypesByStartIndex;
 
-  // iterate subspacesByComm_ and create MPI datatypes for this communicator
-  auto comm = commAndItsSubspaces.first;
-  const auto& subspaces = commAndItsSubspaces.second;
+  // iterate subspaces and create MPI datatypes
   // get chunked subspaces for this data type
   {
     auto& chunkedSubspaces = getChunkedSubspaces(dsg, subspaces, chunkSize);
@@ -260,7 +255,7 @@ getReductionDatatypes(
       datatypesByStartIndex.push_back(std::make_pair(*subspacesChunk.cbegin(), myIndexedDatatype));
     }
   }
-  assert(!datatypesByStartIndex.empty() && "No datatypes created for this communicator");
+  assert(!datatypesByStartIndex.empty() && "No datatypes created");
   return datatypesByStartIndex;
 }
 
@@ -280,7 +275,7 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg,
                     std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
         commAndItsSubspaces = dsg.getSubspacesByCommunicator()[commIndex];
     // get reduction datatypes for this communicator
-    auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces);
+    auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces.second);
 
     // // this would be best for outgroup reduce, but leads to MPI truncation
     // // errors if not ordered (desynchronization between MPI ranks on the same communicators
@@ -393,7 +388,7 @@ template <typename SparseGridType>
   if (!dsg.getSubspacesByCommunicator().empty()) {
     const auto& commAndItsSubspaces = dsg.getSubspacesByCommunicator()[0];
     auto datatypesByStartIndex =
-        getReductionDatatypes(dsg, commAndItsSubspaces, std::numeric_limits<size_t>::max());
+        getReductionDatatypes(dsg, commAndItsSubspaces.second, std::numeric_limits<size_t>::max());
     assert(datatypesByStartIndex.size() == 1);
 
     auto& subspaceStartIndex = datatypesByStartIndex[0].first;
