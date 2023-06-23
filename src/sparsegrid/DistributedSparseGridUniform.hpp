@@ -46,14 +46,19 @@ class DistributedSparseGridDataContainer {
       }
       size_t numDataPoints = dsgu_.getAccumulatedDataSize(subspacesWithData_);
       assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
-      subspacesData_.resize(numDataPoints, 0.);
+      subspacesData_.resize(numDataPoints);
+      std::memset(subspacesData_.data(), 0, subspacesData_.size() * sizeof(FG_ELEMENT));
 
       // update pointers and sizes in subspaces
       SubspaceSizeType offset = 0;
       for (size_t i = 0; i < subspaces_.size(); i++) {
         subspaces_[i] = subspacesData_.data() + offset;
-        offset += dsgu_.getSubspaceDataSizes()[i];
+        if (subspacesWithData_.find(i) != subspacesWithData_.end()) {
+          offset += dsgu_.getSubspaceDataSizes()[i];
+        }
       }
+      assert(offset <= subspacesData_.size() && "offset exceeds data size");
+      assert(std::is_sorted(std::begin(subspaces_), std::end(subspaces_)));
       if (kahanData_.empty()) {
         // create kahan buffer implicitly only once,
         // needs to be called explicitly if relevant sizes change
@@ -78,7 +83,9 @@ class DistributedSparseGridDataContainer {
     SubspaceSizeType offset = 0;
     for (size_t i = 0; i < kahanDataBegin_.size(); i++) {
       kahanDataBegin_[i] = kahanData_.data() + offset;
-      offset += dsgu_.getSubspaceDataSizes()[i];
+      if (subspacesWithData_.find(i) != subspacesWithData_.end()) {
+        offset += dsgu_.getSubspaceDataSizes()[i];
+      }
     }
   }
 
@@ -124,7 +131,6 @@ class DistributedSparseGridDataContainer {
   }
 
   void allocateDifferentSubspaces(std::set<SubspaceIndexType>&& subspaces) {
-    assert(subspacesWithData_.empty() && "subspaces already allocated");
     subspacesWithData_ = std::move(subspaces);
     subspacesData_.clear();
     kahanData_.clear();
@@ -426,6 +432,9 @@ DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
 template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(SubspaceIndexType i) {
   assert(isSubspaceDataCreated());
+  assert(i < this->subspacesDataContainer_.subspaces_.size());
+  assert(this->subspacesDataContainer_.subspaces_[i] <=
+         &this->subspacesDataContainer_.subspacesData_.back());
   return this->subspacesDataContainer_.subspaces_[i];
 }
 
@@ -433,6 +442,9 @@ template <typename FG_ELEMENT>
 inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
     SubspaceIndexType i) const {
   assert(isSubspaceDataCreated());
+  assert(i < this->subspacesDataContainer_.subspaces_.size());
+  assert(this->subspacesDataContainer_.subspaces_[i] <=
+         &this->subspacesDataContainer_.subspacesData_.back());
   return this->subspacesDataContainer_.subspaces_[i];
 }
 
@@ -566,7 +578,12 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
       auto sPointer = this->getData(sIndex);
       auto kPointer = this->subspacesDataContainer_.kahanDataBegin_[sIndex];
 #ifndef NDEBUG
-      if (sIndex < this->subspacesDataContainer_.kahanDataBegin_.size() - 1) {
+      if (sIndex < this->getNumSubspaces() - 1) {
+        auto sDataSize = this->subspacesDataContainer_.subspaces_[sIndex + 1] - sPointer;
+        assert(sDataSize == this->getDataSize(sIndex));
+        assert(sDataSize == this->getAllocatedDataSize(sIndex));
+        assert(std::distance(this->getData(0), sPointer) <
+               this->subspacesDataContainer_.subspacesData_.size());
         auto kDataSize = this->subspacesDataContainer_.kahanDataBegin_[sIndex + 1] - kPointer;
         assert(kDataSize == this->getDataSize(sIndex));
       }
