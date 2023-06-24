@@ -701,11 +701,8 @@ void testCombineThirdLevelWithoutManagers(
     std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
     BOOST_TEST_CHECKPOINT("combine system-wide");
     start = std::chrono::high_resolution_clock::now();
-    worker.combineLocalAndGlobal();
-    OUTPUT_GROUP_EXCLUSIVE_SECTION {
-      BOOST_TEST_CHECKPOINT("combine write");
-      worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
-    }
+    worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
+
     // everyone writes partial stats (to show that we can continue to do stuff while waiting)
     Stats::writePartial("stats_thirdLevel_worker_" + std::to_string(testParams.sysNum) + ".json",
                         theMPISystem()->getWorldComm());
@@ -718,6 +715,10 @@ void testCombineThirdLevelWithoutManagers(
       BOOST_TEST_CHECKPOINT("combine wait");
       worker.waitForThirdLevelCombiResult();
     }
+    BOOST_TEST_CHECKPOINT("combine read/reduce");
+    worker.combineReadDistributeSystemWide(readSparseGridFile, readSparseGridFileToken, false,
+                                           false);
+
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     MASTER_EXCLUSIVE_SECTION {

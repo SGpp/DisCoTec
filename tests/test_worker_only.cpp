@@ -148,7 +148,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   for (size_t it = 0; it < ncombi - 1; ++it) {
     BOOST_TEST_CHECKPOINT("combine");
     auto start = std::chrono::high_resolution_clock::now();
-    worker.combineUniform();
+    worker.combineAtOnce();
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     MASTER_EXCLUSIVE_SECTION {
@@ -176,22 +176,11 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   if (pretendThirdLevel) {
     std::string writeSparseGridFile = "worker_combine_step_dsg";
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
-    worker.combineLocalAndGlobal(theMPISystem()->getOutputRankInGlobalReduceComm());
-    OUTPUT_GROUP_EXCLUSIVE_SECTION {
-      BOOST_TEST_CHECKPOINT("worker write dsg");
-      worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
-      BOOST_TEST_CHECKPOINT("worker wrote dsg");
-      worker.combineThirdLevelFileBasedReadReduce(writeSparseGridFile, writeSparseGridFileToken,
-                                                  true);
-      BOOST_TEST_CHECKPOINT("worker read dsg");
-    }
-    else {
-      BOOST_TEST_CHECKPOINT("worker waiting for broadcast dsg");
-      worker.waitForThirdLevelCombiResult(true);
-      BOOST_TEST_CHECKPOINT("worker got dsg");
-    }
+    worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
+    BOOST_TEST_CHECKPOINT("worker read distribute system-wide");
+    worker.combineReadDistributeSystemWide(writeSparseGridFile, writeSparseGridFileToken, true);
   } else {
-    worker.combineUniform();
+    worker.combineAtOnce();
   }
 
   Stats::startEvent("worker get norms");
