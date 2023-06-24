@@ -509,13 +509,20 @@ void ProcessGroupWorker::combineAtOnce() {
       combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
   Stats::stopEvent("hierarchize");
 
-  Stats::startEvent("reduce");
-  this->getSparseGridWorker().reduceLocalAndGlobal(combiParameters_.getCombinationVariant(),
-                                                   MPI_PROC_NULL);
-  Stats::stopEvent("reduce");
-  Stats::startEvent("distribute");
-  this->getSparseGridWorker().distributeCombinedSolutionToTasks();
-  Stats::stopEvent("distribute");
+  if (combiParameters_.getCombinationVariant() ==
+      CombinationVariant::chunkedOutgroupSparseGridReduce) {
+    Stats::startEvent("reduce/distribute");
+    this->getSparseGridWorker().collectReduceDistribute(combiParameters_.getCombinationVariant());
+    Stats::stopEvent("reduce/distribute");
+  } else {
+    Stats::startEvent("reduce");
+    this->getSparseGridWorker().reduceLocalAndGlobal(combiParameters_.getCombinationVariant(),
+                                                     MPI_PROC_NULL);
+    Stats::stopEvent("reduce");
+    Stats::startEvent("distribute");
+    this->getSparseGridWorker().distributeCombinedSolutionToTasks();
+    Stats::stopEvent("distribute");
+  }
 
   Stats::startEvent("dehierarchize");
   this->getTaskWorker().dehierarchizeFullGrids(

@@ -20,6 +20,8 @@ class SparseGridWorker {
 
   ~SparseGridWorker() = default;
 
+  inline void collectReduceDistribute(CombinationVariant combinationVariant);
+
   /* free DSG memory as intermediate step */
   inline void deleteDsgsData();
 
@@ -122,6 +124,68 @@ class SparseGridWorker {
 inline SparseGridWorker::SparseGridWorker(TaskWorker& taskWorkerToReference)
     : taskWorkerRef_(taskWorkerToReference) {}
 
+inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combinationVariant) {
+  auto numGrids = this->getNumberOfGrids();
+  assert(combinationVariant == CombinationVariant::chunkedOutgroupSparseGridReduce);
+  assert(numGrids == 1 && "Initialize dsgu first with initCombinedUniDSGVector()");
+  assert(this->getCombinedUniDSGVector()[0]->getSubspacesByCommunicator().size() < 2 &&
+         "Initialize dsgu's outgroup communicator");
+
+  // allow only up to 16MiB per reduction
+  auto chunkSize = combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(16777216);
+
+  for (int g = 0; g < numGrids; ++g) {
+    auto& dsg = this->getCombinedUniDSGVector()[g];
+    dsg->setZero();
+    if (!dsg->getSubspacesByCommunicator().empty()) {
+      auto& chunkedSubspaces = combigrid::CombiCom::getChunkedSubspaces(
+          *dsg, dsg->getSubspacesByCommunicator()[0].second, chunkSize);
+      for (auto& subspaceChunk : chunkedSubspaces) {
+        // std::cout << "subspaceChunk.size() = " << subspaceChunk.size() << std::endl;
+        // allocate new subspace vector
+        dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
+
+        // local reduce (fg -> sg, within rank)
+        for (const auto& t : this->taskWorkerRef_.getTasks()) {
+          const DistributedFullGrid<CombiDataType>& dfg =
+              t->getDistributedFullGrid(static_cast<int>(g));
+          dsg->addDistributedFullGrid<false>(dfg, t->getCoefficient());
+        }
+        // global reduce (across process groups)
+        CombiCom::distributedGlobalSubspaceReduce<DistributedSparseGridUniform<CombiDataType>,
+                                                  true>(*dsg);
+        // assert(CombiCom::sumAndCheckSubspaceSizes(*dsg)); // todo adapt for allocated spaces
+
+        // distribute (sg -> fg, within rank)
+        for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+          // fill dfg with hierarchical coefficients from distributed sparse grid
+          taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG<false>(*dsg);
+        }
+      }
+    }
+    // update our ingroup subspaces, ie the ones that are not communicated
+    // (given by those that have a data size set but no communicator)
+    auto& chunkedSubspaces =
+        combigrid::CombiCom::getChunkedSubspaces(*dsg, dsg->getIngroupSubspaces(), chunkSize);
+    for (auto& subspaceChunk : chunkedSubspaces) {        
+      // allocate new subspace vector
+      dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
+
+      // local reduce (fg -> sg, within rank)
+      for (const auto& t : this->taskWorkerRef_.getTasks()) {
+        const DistributedFullGrid<CombiDataType>& dfg =
+            t->getDistributedFullGrid(static_cast<int>(g));
+        dsg->addDistributedFullGrid<false>(dfg, t->getCoefficient());
+      }
+
+      // distribute (sg -> fg, within rank)
+      for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+        // fill dfg with hierarchical coefficients from distributed sparse grid
+        taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG<false>(*dsg);
+      }
+    }
+  }
+}
 
 inline void SparseGridWorker::deleteDsgsData() {
   for (auto& dsg : this->getCombinedUniDSGVector()) dsg->deleteSubspaceData();
