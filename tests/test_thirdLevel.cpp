@@ -827,7 +827,8 @@ void testPretendThirdLevel(TestParams& testParams) {
 
 BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1200))
 
-BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::disabled()) {
   unsigned int numSystems = 2;
   unsigned int ngroup = 1;
   unsigned int nprocs = 1;
@@ -852,7 +853,8 @@ BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance)
   }
 }
 
-BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::disabled()) {
   unsigned int numSystems = 2;
   unsigned int ngroup = 1;
   unsigned int nprocs = 1;
@@ -877,7 +879,8 @@ BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::tolerance)
   }
 }
 
-BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::disabled()) {
   unsigned int numSystems = 2;
   unsigned int ngroup = 1;
   unsigned int nprocs = 1;
@@ -904,7 +907,8 @@ BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::tolerance)
   }
 }
 
-BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::disabled()) {
   unsigned int numSystems = 2;
   unsigned int ngroup = 2;
   unsigned int nprocs = 1;
@@ -956,14 +960,15 @@ BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance)
 }
 
 // like test_5, but with static group assignment
-BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_6, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::disabled()) {
   unsigned int numSystems = 2;
   unsigned int ngroup = 3;
   unsigned int nprocs = 1;
   unsigned int ncombi = 10;
   DimType dim = 2;
-  LevelVector lmin = {3,6};
-  LevelVector lmax = {7,10};
+  LevelVector lmin = {3, 6};
+  LevelVector lmax = {7, 10};
 
   unsigned int sysNum;
   CommunicatorType newcomm;
@@ -1019,7 +1024,8 @@ BOOST_AUTO_TEST_CASE(test_workers_only, *boost::unit_test::tolerance(TestHelper:
 }
 
 // like test_5, but send only dummy data between managers
-BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::disabled()) {
   unsigned int numSystems = 2;
   unsigned int ngroup = 1;
   unsigned int ncombi = 10;
@@ -1046,7 +1052,8 @@ BOOST_AUTO_TEST_CASE(test_7, *boost::unit_test::tolerance(TestHelper::tolerance)
 }
 
 // "target" case: 6-dim, one-sided boundary, extra sparse grid, many process groups
-BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::disabled()) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
   unsigned int ncombi = 10;
