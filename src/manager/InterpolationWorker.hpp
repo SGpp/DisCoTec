@@ -20,13 +20,13 @@ static std::vector<CombinableType> interpolateValues(
   for (const auto& task : tasks) {
     const auto coeff = task->getCoefficient();
 #pragma omp parallel for default(none) firstprivate(numCoordinates, coeff) \
-    shared(values, kahanTrailingTerm, interpolationCoords, task) schedule(static)
+    shared(values, kahanTrailingTerm, interpolationCoords, task) schedule(dynamic)
     for (size_t i = 0; i < numCoordinates; ++i) {
       auto localValue = task->getDistributedFullGrid().evalLocal(interpolationCoords[i]);
       auto summand = localValue * coeff;
       // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
-      volatile auto y = summand - kahanTrailingTerm[i];
-      volatile auto t = values[i] + y;
+      auto y = summand - kahanTrailingTerm[i];
+      auto t = values[i] + y;
       kahanTrailingTerm[i] = (t - values[i]) - y;
       values[i] = t;
     }
