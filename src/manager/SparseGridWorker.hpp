@@ -71,6 +71,8 @@ class SparseGridWorker {
                                                   CombinationVariant combinationVariant,
                                                   bool overwrite);
 
+  inline int reduceSubspaceSizesBetweenGroups(CombinationVariant combinationVariant);
+
   inline int reduceSubspaceSizes(const std::string& filenameToRead,
                                  CombinationVariant combinationVariant, bool extraSparseGrid,
                                  bool overwrite);
@@ -253,23 +255,7 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
     combinedUniDSGVector_[g]->createKahanBuffer();
   }
 
-  // global reduce of subspace sizes
-  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  if (combinationVariant == CombinationVariant::sparseGridReduce) {
-    for (auto& uniDSG : combinedUniDSGVector_) {
-      CombiCom::reduceSubspaceSizes(*uniDSG, globalReduceComm);
-    }
-  } else if (combinationVariant == CombinationVariant::subspaceReduce) {
-    for (auto& uniDSG : combinedUniDSGVector_) {
-      uniDSG->setSubspaceCommunicators(globalReduceComm, theMPISystem()->getGlobalReduceRank());
-    }
-  } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
-    for (auto& uniDSG : combinedUniDSGVector_) {
-      uniDSG->setOutgroupCommunicator(globalReduceComm, theMPISystem()->getGlobalReduceRank());
-    }
-  } else {
-    throw std::runtime_error("Combination variant not implemented");
-  }
+  this->reduceSubspaceSizesBetweenGroups(combinationVariant);
 }
 
 inline void SparseGridWorker::integrateCombinedSolutionToTasks(
@@ -379,6 +365,26 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
   }
   return this->startBroadcastDSGs(combinationVariant, theMPISystem()->getGlobalReduceRank());
+}
+
+inline int SparseGridWorker::reduceSubspaceSizesBetweenGroups(
+    CombinationVariant combinationVariant) {
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+  if (combinationVariant == CombinationVariant::sparseGridReduce) {
+    for (auto& uniDSG : combinedUniDSGVector_) {
+      CombiCom::reduceSubspaceSizes(*uniDSG, globalReduceComm);
+    }
+  } else if (combinationVariant == CombinationVariant::subspaceReduce) {
+    for (auto& uniDSG : combinedUniDSGVector_) {
+      uniDSG->setSubspaceCommunicators(globalReduceComm, theMPISystem()->getGlobalReduceRank());
+    }
+  } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
+    for (auto& uniDSG : combinedUniDSGVector_) {
+      uniDSG->setOutgroupCommunicator(globalReduceComm, theMPISystem()->getGlobalReduceRank());
+    }
+  } else {
+    throw std::runtime_error("Combination variant not implemented");
+  }
 }
 
 inline int SparseGridWorker::reduceSubspaceSizes(const std::string& filenameToRead,
