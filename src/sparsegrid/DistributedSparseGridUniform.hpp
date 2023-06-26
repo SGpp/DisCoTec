@@ -325,11 +325,15 @@ void DistributedSparseGridUniform<FG_ELEMENT>::maxReduceSubspaceSizes(
 template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
     const DistributedSparseGridUniform<FG_ELEMENT>& other) {
+  assert(this->getNumSubspaces() == other.getNumSubspaces());
   assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
+
 #pragma omp parallel for default(none) shared(other) schedule(guided)
   for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {
     assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 ||
            other.getDataSize(i) == 0);
+    assert(other.getAllocatedDataSize(i) == this->getAllocatedDataSize(i) ||
+           this->getAllocatedDataSize(i) == 0 || other.getAllocatedDataSize(i) == 0);
     auto numPointsToCopy = std::min(other.getAllocatedDataSize(i), this->getAllocatedDataSize(i));
     std::copy_n(other.getData(i), numPointsToCopy, this->getData(i));
   }
@@ -436,20 +440,32 @@ DistributedSparseGridUniform<FG_ELEMENT>::getIndex(const LevelVector& l) const {
 
 template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(SubspaceIndexType i) {
+#ifndef NDEBUG
   assert(isSubspaceDataCreated());
   assert(i < this->subspacesDataContainer_.subspaces_.size());
   assert(this->subspacesDataContainer_.subspaces_[i] <=
-         &this->subspacesDataContainer_.subspacesData_.back());
+         &(*(this->subspacesDataContainer_.subspacesData_.end())));
+  if (this->subspacesDataContainer_.subspaces_[i] ==
+      &(*(this->subspacesDataContainer_.subspacesData_.end()))) {
+    assert(this->getDataSize(i) == 0);
+  }
+#endif
   return this->subspacesDataContainer_.subspaces_[i];
 }
 
 template <typename FG_ELEMENT>
 inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
     SubspaceIndexType i) const {
+#ifndef NDEBUG
   assert(isSubspaceDataCreated());
   assert(i < this->subspacesDataContainer_.subspaces_.size());
   assert(this->subspacesDataContainer_.subspaces_[i] <=
-         &this->subspacesDataContainer_.subspacesData_.back());
+         &(*(this->subspacesDataContainer_.subspacesData_.end())));
+  if (this->subspacesDataContainer_.subspaces_[i] ==
+      &(*(this->subspacesDataContainer_.subspacesData_.end()))) {
+    assert(this->getDataSize(i) == 0);
+  }
+#endif
   return this->subspacesDataContainer_.subspaces_[i];
 }
 

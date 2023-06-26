@@ -136,6 +136,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
       }
     }
   }
+  worker.zeroDsgsData();
 
   BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), 0);
   BOOST_TEST_CHECKPOINT("run first");
