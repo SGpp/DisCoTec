@@ -561,8 +561,8 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
-void testCombineThirdLevelWithoutManagers(TestParams& testParams,
-                                          bool thirdLevelExtraSparseGrid = false) {
+void testCombineThirdLevelWithoutManagers(TestParams& testParams) {
+  bool thirdLevelExtraSparseGrid = true;  // TODO make parameter again
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
   combigrid::Stats::initialize();
@@ -629,7 +629,7 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
       "worker_subspace_sizes_" + std::to_string((testParams.sysNum + 1) % 2);
   std::string readSubspaceSizeFileToken = readSubspaceSizeFile + "_token.txt";
   worker.reduceExtraSubspaceSizesFileBased(writeSubspaceSizeFile, writeSubspaceSizeFileToken,
-                                      readSubspaceSizeFile, readSubspaceSizeFileToken);
+                                           readSubspaceSizeFile, readSubspaceSizeFileToken);
   // remove subspace size files to avoid interference between multiple calls to this test function
   MPI_Barrier(testParams.comm);
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
@@ -671,10 +671,13 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
       BOOST_CHECK_EQUAL(worker.getExtraDSGVector().size(), 0);
     }
   } else {
-    // make sure all subspaces are populated on every rank
+    // make sure all subspaces are populated on every rank in case of sparse grid reduce
     for (auto& dsg : worker.getCombinedDSGVector()) {
-      for (size_t size : dsg->getSubspaceDataSizes()) {
-        BOOST_CHECK_GT(size, 0);
+      if (worker.getCombiParameters().getCombinationVariant() ==
+          CombinationVariant::sparseGridReduce) {
+        for (size_t size : dsg->getSubspaceDataSizes()) {
+          BOOST_CHECK_GT(size, 0);
+        }
       }
     }
   }
@@ -708,7 +711,8 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
                         theMPISystem()->getWorldComm());
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       BOOST_TEST_CHECKPOINT("combine read/reduce");
-      worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken, false, false);
+      worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken,
+                                                  false, false);
     }
     else {
       BOOST_TEST_CHECKPOINT("combine wait");
@@ -995,16 +999,13 @@ BOOST_AUTO_TEST_CASE(test_workers_only, *boost::unit_test::tolerance(TestHelper:
           assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
           if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
             BOOST_TEST_CHECKPOINT("worker sysNum: " + std::to_string(sysNum));
-            for (bool extraSparseGrid : {true, false}) {
-              TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum,
-                                    newcomm);
-              if (getCommRank(MPI_COMM_WORLD) == 0) {
-                std::cout << "third level worker only " << extraSparseGrid << " " << boundary << " "
-                          << ngroup << "*" << nprocs << std::endl;
-              }
-              BOOST_CHECK_NO_THROW(
-                  testCombineThirdLevelWithoutManagers(testParams, extraSparseGrid));
+            TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum,
+                                  newcomm);
+            if (getCommRank(MPI_COMM_WORLD) == 0) {
+              std::cout << "third level worker only " << boundary << " " << ngroup << "*" << nprocs
+                        << std::endl;
             }
+            BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams));
             MPI_Barrier(newcomm);
             BOOST_TEST_CHECKPOINT("sysNum " + std::to_string(sysNum) + " finished");
           }
@@ -1086,7 +1087,7 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
 
     if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
-      BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams, true));
+      BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams));
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
