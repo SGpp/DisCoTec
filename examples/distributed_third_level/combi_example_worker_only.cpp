@@ -203,13 +203,12 @@ int main(int argc, char** argv) {
     std::string subspaceFileName =  // cf. subspace_writer.cpp
         ctschemeFile.substr(0, ctschemeFile.length() - std::string("_00008groups.json").length()) +
         ".sizes";
-    worker.reduceSubspaceSizes(subspaceFileName, false, true);
     if (extraSparseGrid) {
       std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
           ctschemeFile.substr(
               0, ctschemeFile.length() - std::string("_part0_00008groups.json").length()) +
           "conjoint.sizes";
-      worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid, true);
+      worker.reduceExtraSubspaceSizes(conjointSubspaceFileName, true);
     }
 
     OUTPUT_GROUP_EXCLUSIVE_SECTION {

@@ -71,11 +71,10 @@ class SparseGridWorker {
                                                   CombinationVariant combinationVariant,
                                                   bool overwrite);
 
-  inline int reduceSubspaceSizesBetweenGroups(CombinationVariant combinationVariant);
+  inline int reduceExtraSubspaceSizes(const std::string& filenameToRead,
+                                      CombinationVariant combinationVariant, bool overwrite);
 
-  inline int reduceSubspaceSizes(const std::string& filenameToRead,
-                                 CombinationVariant combinationVariant, bool extraSparseGrid,
-                                 bool overwrite);
+  inline void reduceSubspaceSizesBetweenGroups(CombinationVariant combinationVariant);
 
   /* global reduction between process groups */
   inline void reduceUniformSG(CombinationVariant combinationVariant,
@@ -87,6 +86,8 @@ class SparseGridWorker {
                                         RankType broadcastSender);
 
   inline int writeDSGsToDisk(std::string filenamePrefix);
+
+  inline int writeExtraSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
   inline void writeMinMaxCoefficients(std::string fileNamePrefix) const;
 
@@ -367,7 +368,63 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
   return this->startBroadcastDSGs(combinationVariant, theMPISystem()->getGlobalReduceRank());
 }
 
-inline int SparseGridWorker::reduceSubspaceSizesBetweenGroups(
+inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
+                                                      CombinationVariant combinationVariant,
+                                                      bool overwrite) {
+  int numSubspacesReduced = 0;
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    if (this->getExtraUniDSGVector().empty()) {
+      this->setExtraSparseGrid(true);
+    }
+    auto dsgToUse = this->getExtraUniDSGVector()[0].get();
+#ifndef NDEBUG
+    // duplicate subspace sizes to validate later
+    std::vector<SubspaceSizeType> subspaceSizesToValidate = dsgToUse->getSubspaceDataSizes();
+#endif
+    if (overwrite) {
+      numSubspacesReduced =
+          DistributedSparseGridIO::readSubspaceSizesFromFile(*dsgToUse, filenameToRead, false);
+    } else {
+      auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+        return std::min(a, b);
+      };
+      numSubspacesReduced = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
+          *dsgToUse, filenameToRead, minFunctionInstantiation, 0, false);
+    }
+#ifndef NDEBUG
+    assert(subspaceSizesToValidate.size() == dsgToUse->getSubspaceDataSizes().size());
+    if (overwrite) {
+      for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
+        if (!(dsgToUse->getSubspaceDataSizes()[i] == 0 || subspaceSizesToValidate[i] == 0 ||
+              dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i])) {
+          std::cout << "i " << i << " dsgToUse->getSubspaceDataSizes()[i] "
+                    << dsgToUse->getSubspaceDataSizes()[i] << " subspaceSizesToValidate[i] "
+                    << subspaceSizesToValidate[i] << std::endl;
+        }
+        assert(dsgToUse->getSubspaceDataSizes()[i] == 0 || subspaceSizesToValidate[i] == 0 ||
+               dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
+      }
+    } else {
+      for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
+        assert(dsgToUse->getSubspaceDataSizes()[i] == 0 ||
+               dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
+      }
+    }
+    auto numDOFtoValidate =
+        std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
+    auto numDOFnow = std::accumulate(dsgToUse->getSubspaceDataSizes().begin(),
+                                     dsgToUse->getSubspaceDataSizes().end(), 0);
+    assert(numDOFtoValidate >= numDOFnow);
+#endif
+    if (overwrite) {
+      // may need to re-size original spaces if sparse grid was too small
+      this->getCombinedUniDSGVector()[0]->maxReduceSubspaceSizes(*dsgToUse);
+    }
+  }
+  return numSubspacesReduced;
+}
+
+inline void SparseGridWorker::reduceSubspaceSizesBetweenGroups(
     CombinationVariant combinationVariant) {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
   if (combinationVariant == CombinationVariant::sparseGridReduce) {
@@ -385,109 +442,6 @@ inline int SparseGridWorker::reduceSubspaceSizesBetweenGroups(
   } else {
     throw std::runtime_error("Combination variant not implemented");
   }
-}
-
-inline int SparseGridWorker::reduceSubspaceSizes(const std::string& filenameToRead,
-                                                 CombinationVariant combinationVariant,
-                                                 bool extraSparseGrid, bool overwrite) {
-  int numSubspacesReduced = 0;
-  if (extraSparseGrid) {
-    OUTPUT_GROUP_EXCLUSIVE_SECTION {
-      this->setExtraSparseGrid(true);
-#ifndef NDEBUG
-      // duplicate subspace sizes to validate later
-      std::vector<SubspaceSizeType> subspaceSizesToValidate =
-          this->getExtraUniDSGVector()[0]->getSubspaceDataSizes();
-#endif
-      // use extra sparse grid
-      if (overwrite) {
-        numSubspacesReduced = DistributedSparseGridIO::readSubspaceSizesFromFile(
-            *this->getExtraUniDSGVector()[0], filenameToRead, false);
-      } else {
-        auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-          return std::min(a, b);
-        };
-        numSubspacesReduced = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
-            *this->getExtraUniDSGVector()[0], filenameToRead, minFunctionInstantiation, 0, false);
-      }
-#ifndef NDEBUG
-      assert(subspaceSizesToValidate.size() ==
-             this->getExtraUniDSGVector()[0]->getSubspaceDataSizes().size());
-      for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
-        assert(this->getExtraUniDSGVector()[0]->getSubspaceDataSizes()[i] == 0 ||
-               this->getExtraUniDSGVector()[0]->getSubspaceDataSizes()[i] ==
-                   subspaceSizesToValidate[i]);
-      }
-      auto numDOFtoValidate =
-          std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
-      auto numDOFnow =
-          std::accumulate(this->getExtraUniDSGVector()[0]->getSubspaceDataSizes().begin(),
-                          this->getExtraUniDSGVector()[0]->getSubspaceDataSizes().end(), 0);
-      assert(numDOFtoValidate >= numDOFnow);
-#endif
-    }
-  } else {
-    if (!this->getExtraUniDSGVector().empty()) {
-      throw std::runtime_error(
-          "this->getExtraUniDSGVector() not empty, but extraSparseGrid is false");
-    }
-#ifndef NDEBUG
-    std::vector<SubspaceSizeType> subspaceSizesToValidate =
-        this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes();
-#endif
-    FIRST_GROUP_EXCLUSIVE_SECTION {
-      if (overwrite) {
-        numSubspacesReduced = DistributedSparseGridIO::readSubspaceSizesFromFile(
-            *this->getCombinedUniDSGVector()[0], filenameToRead, true);
-      } else {
-        // if no extra sparse grid, max-reduce the normal one
-        auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-          return std::max(a, b);
-        };
-        numSubspacesReduced = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
-            *this->getCombinedUniDSGVector()[0], filenameToRead, maxFunctionInstantiation, 0, true);
-      }
-      if (theMPISystem()->getGlobalReduceRank() != 0) {
-        throw std::runtime_error("read rank is not the global reduce rank");
-      }
-    }
-    else {
-      if (theMPISystem()->getGlobalReduceRank() == 0) {
-        throw std::runtime_error("read rank IS the global reduce rank");
-      }
-    }
-    // reduce to all other process groups
-    CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-    RankType senderRank = 0;
-    if (combinationVariant == CombinationVariant::sparseGridReduce) {
-      CombiCom::broadcastSubspaceSizes(*this->getCombinedUniDSGVector()[0], globalReduceComm,
-                                       senderRank);
-    } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
-      CombiCom::localMaxReduceSubspaceSizes(*this->getCombinedUniDSGVector()[0], globalReduceComm,
-                                            senderRank);
-      // we may need to update the sparse grid subspaces for the reduction now
-      this->getCombinedUniDSGVector()[0]->setOutgroupCommunicator(
-          globalReduceComm, theMPISystem()->getGlobalReduceRank());  // TODO release commucator(s)
-    } else {
-      throw std::runtime_error("CombinationVariant not implemented");
-    }
-#ifndef NDEBUG
-    assert(subspaceSizesToValidate.size() ==
-           this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes().size());
-    for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
-      assert(subspaceSizesToValidate[i] == 0 ||
-             subspaceSizesToValidate[i] ==
-                 this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes()[i]);
-    }
-    auto numDOFtoValidate =
-        std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
-    auto numDOFnow =
-        std::accumulate(this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes().begin(),
-                        this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes().end(), 0);
-    assert(numDOFtoValidate <= numDOFnow);
-#endif
-  }
-  return numSubspacesReduced;
 }
 
 inline void SparseGridWorker::reduceUniformSG(CombinationVariant combinationVariant,
@@ -567,6 +521,13 @@ inline int SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix) {
     numWritten += DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);
   }
   return numWritten;
+}
+
+inline int SparseGridWorker::writeExtraSubspaceSizesToFile(
+    const std::string& filenamePrefixToWrite) const {
+  assert(this->getExtraUniDSGVector().size() == 1);
+  return DistributedSparseGridIO::writeSubspaceSizesToFile(*this->getExtraUniDSGVector()[0],
+                                                           filenamePrefixToWrite);
 }
 
 inline void SparseGridWorker::writeMinMaxCoefficients(std::string fileNamePrefix) const {

@@ -813,42 +813,44 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   }
 }
 
-int ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead, bool extraSparseGrid,
-                                            bool overwrite) {
-  return this->getSparseGridWorker().reduceSubspaceSizes(
-      filenameToRead, this->combiParameters_.getCombinationVariant(), extraSparseGrid, overwrite);
+int ProcessGroupWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
+                                                 bool overwrite) {
+  return this->getSparseGridWorker().reduceExtraSubspaceSizes(
+      filenameToRead, this->combiParameters_.getCombinationVariant(), overwrite);
 }
 
-int ProcessGroupWorker::reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
-                                                     const std::string& writeCompleteTokenFileName,
-                                                     const std::string& filenamePrefixToRead,
-                                                     const std::string& startReadingTokenFileName,
-                                                     bool extraSparseGrid) {
-  FIRST_GROUP_EXCLUSIVE_SECTION {
-    this->getSparseGridWorker().writeSubspaceSizesToFile(filenamePrefixToWrite);
-    MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
-  }
-
-  // if extra sparse grid, we only need to do something if we are the I/O group
-  OUTPUT_GROUP_EXCLUSIVE_SECTION {}
-  else if (extraSparseGrid) {
-    // otherwise, return
-    return 0;
-  }
-
-  // wait until we can start to read
-  MASTER_EXCLUSIVE_SECTION {
-    while (!std::filesystem::exists(startReadingTokenFileName)) {
-      // wait for token file to appear
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
+    const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName,
+    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName) {
+  int numSizesWritten = 0;
+  int numSizesReduced = 0;
+  // we only need to write and read something if we are the I/O group
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    if (this->getExtraDSGVector().empty()) {
+      setExtraSparseGrid(true);
     }
-  }
-  if (extraSparseGrid) {
+    numSizesWritten =
+        this->getSparseGridWorker().writeExtraSubspaceSizesToFile(filenamePrefixToWrite);
+    MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
+
+    // wait until we can start to read
+    MASTER_EXCLUSIVE_SECTION {
+      while (!std::filesystem::exists(startReadingTokenFileName)) {
+        // wait for token file to appear
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      }
+    }
     MPI_Barrier(theMPISystem()->getOutputGroupComm());
-  } else {
-    MPI_Barrier(theMPISystem()->getLocalComm());
   }
-  return this->reduceSubspaceSizes(filenamePrefixToRead, extraSparseGrid);
+  numSizesReduced = this->reduceExtraSubspaceSizes(filenamePrefixToRead);
+  OUTPUT_GROUP_EXCLUSIVE_SECTION { assert(numSizesWritten == numSizesReduced); }
+  else {
+    assert(numSizesReduced == 0);
+  }
+
+  this->getSparseGridWorker().reduceSubspaceSizesBetweenGroups(
+      this->combiParameters_.getCombinationVariant());
+  return numSizesReduced;
 }
 
 void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {

@@ -123,17 +123,17 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   if (pretendThirdLevel) {
     std::string subspaceSizeFile = "worker_only_subspace_sizes";
     std::string subspaceSizeFileToken = "worker_only_subspace_sizes_token.txt";
-    worker.reduceSubspaceSizesFileBased(subspaceSizeFile, subspaceSizeFileToken, subspaceSizeFile,
-                                        subspaceSizeFileToken, false);
+    BOOST_TEST_CHECKPOINT("reduce sparse grid sizes");
+    worker.reduceExtraSubspaceSizesFileBased(subspaceSizeFile, subspaceSizeFileToken,
+                                             subspaceSizeFile, subspaceSizeFileToken);
     // remove subspace size files to avoid interference between multiple calls to this test function
+    BOOST_TEST_CHECKPOINT("reduced sparse grid sizes");
     MPI_Barrier(comm);
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       MASTER_EXCLUSIVE_SECTION {
         remove(subspaceSizeFile.c_str());
         remove(subspaceSizeFileToken.c_str());
       }
-      worker.setExtraSparseGrid(true);
-      worker.zeroDsgsData();
     }
   }
 

@@ -628,9 +628,8 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams,
   std::string readSubspaceSizeFile =
       "worker_subspace_sizes_" + std::to_string((testParams.sysNum + 1) % 2);
   std::string readSubspaceSizeFileToken = readSubspaceSizeFile + "_token.txt";
-  worker.reduceSubspaceSizesFileBased(writeSubspaceSizeFile, writeSubspaceSizeFileToken,
-                                      readSubspaceSizeFile, readSubspaceSizeFileToken,
-                                      thirdLevelExtraSparseGrid);
+  worker.reduceExtraSubspaceSizesFileBased(writeSubspaceSizeFile, writeSubspaceSizeFileToken,
+                                      readSubspaceSizeFile, readSubspaceSizeFileToken);
   // remove subspace size files to avoid interference between multiple calls to this test function
   MPI_Barrier(testParams.comm);
   OUTPUT_GROUP_EXCLUSIVE_SECTION {

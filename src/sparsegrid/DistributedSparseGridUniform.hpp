@@ -105,6 +105,10 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   // returns true if data for the subspaces has been created
   bool isSubspaceDataCreated() const;
 
+  // max-reduce subspace sizes from another DSGU (which has the same subspaces, but they may be less
+  // or more populated than in this DSGU)
+  void maxReduceSubspaceSizes(const DistributedSparseGridUniform<FG_ELEMENT>& other);
+
   // copy data from another DSGU (which has the same subspaces, but they may be less or more
   // populated than in this DSGU)
   void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other);
@@ -158,6 +162,18 @@ DistributedSparseGridUniform<FG_ELEMENT>::DistributedSparseGridUniform(
 template <typename FG_ELEMENT>
 bool DistributedSparseGridUniform<FG_ELEMENT>::isSubspaceDataCreated() const {
   return subspacesData_.size() != 0;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::maxReduceSubspaceSizes(
+    const DistributedSparseGridUniform<FG_ELEMENT>& other) {
+  assert(this->getNumSubspaces() == other.getNumSubspaces());
+#pragma omp parallel for default(none) shared(other) schedule(static)
+  for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {
+    assert(other.getDataSize(i) == this->getDataSize(i) || this->getDataSize(i) == 0 ||
+           other.getDataSize(i) == 0);
+    this->setDataSize(i, std::max(this->getDataSize(i), other.getDataSize(i)));
+  }
 }
 
 template <typename FG_ELEMENT>
