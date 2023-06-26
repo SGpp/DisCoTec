@@ -458,6 +458,21 @@ void localMaxReduceSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, Ran
 }
 
 template <typename SparseGridType>
+void maxReduceSubspaceSizesAcrossGroups(
+    SparseGridType& dsg, RankType globalReduceRankThatCollects,
+    CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm()) {
+  auto numSubspaces = static_cast<int>(dsg.getNumSubspaces());
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
+  if (theMPISystem()->getGlobalReduceRank() == globalReduceRankThatCollects) {
+    MPI_Reduce(MPI_IN_PLACE, dsg.getSubspaceDataSizes().data(), numSubspaces, dtype, MPI_MAX,
+               globalReduceRankThatCollects, globalReduceComm);
+  } else {
+    MPI_Reduce(dsg.getSubspaceDataSizes().data(), MPI_IN_PLACE, numSubspaces, dtype, MPI_MAX,
+               globalReduceRankThatCollects, globalReduceComm);
+  }
+}
+
+template <typename SparseGridType>
 void sendSubspaceSizesWithGather(SparseGridType& dsg, CommunicatorType comm,
                                  RankType collectorRank) {
   auto numSubspaces = static_cast<int>(dsg.getNumSubspaces());

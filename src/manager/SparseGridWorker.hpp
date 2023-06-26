@@ -62,6 +62,8 @@ class SparseGridWorker {
       const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin,
       const std::vector<int>& parallelization, const std::vector<LevelVector>& decomposition) const;
 
+  inline void maxReduceSubspaceSizesInOutputGroup();
+
   inline int readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
 
   inline int readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
@@ -303,6 +305,24 @@ inline void SparseGridWorker::interpolateAndPlotOnLevel(
       }
       dfg.writePlotFile(fn.c_str());
     }
+  }
+}
+
+inline void SparseGridWorker::maxReduceSubspaceSizesInOutputGroup() {
+  RankType globalReduceRankThatCollects = theMPISystem()->getOutputRankInGlobalReduceComm();
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    auto dsgToUse = this->getCombinedUniDSGVector()[0].get();
+    if (this->getExtraUniDSGVector().empty() == false) {
+      dsgToUse = this->getExtraUniDSGVector()[0].get();
+    }
+    CombiCom::maxReduceSubspaceSizesAcrossGroups(*dsgToUse, globalReduceRankThatCollects,
+                                                 globalReduceComm);
+  }
+  else {
+    assert(this->getExtraUniDSGVector().empty());
+    CombiCom::maxReduceSubspaceSizesAcrossGroups(*this->getCombinedUniDSGVector()[0],
+                                                 globalReduceRankThatCollects, globalReduceComm);
   }
 }
 
