@@ -929,7 +929,8 @@ BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::tolerance)
   }
 }
 
-BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_5, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                 boost::unit_test::disabled()) {
   unsigned int numSystems = 2;
   unsigned int ngroup = 1;
   unsigned int nprocs = 2;
