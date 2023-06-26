@@ -212,6 +212,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   auto dfgOne = std::unique_ptr<OwningDistributedFullGrid<FG_ELEMENT>>(
       new OwningDistributedFullGrid<FG_ELEMENT>(dim, lone, comm, boundary, procs));
   uniDSG->registerDistributedFullGrid(*dfgOne);
+  uniDSG->createSubspaceData();
   uniDSG->setZero();
   BOOST_TEST_CHECKPOINT("registered sparse grid");
 

@@ -144,6 +144,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     // values for testing purposes
     BOOST_TEST_CHECKPOINT("Add to uniform SG");
     // create subspace data
+    uniDSG->createSubspaceData();
     uniDSG->setZero();
     uniDSG->addDistributedFullGrid(*uniDFG, 1.);
 
@@ -151,6 +152,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     uniDSGfromSubspaces->registerDistributedFullGrid(*uniDFG);
     BOOST_CHECK_EQUAL(0, uniDSGfromSubspaces->getRawDataSize());
     BOOST_CHECK_GT(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
+    uniDSGfromSubspaces->createSubspaceData();
     uniDSGfromSubspaces->setZero();
     uniDSGfromSubspaces->addDistributedFullGrid(*uniDFG, 0.);
     BOOST_CHECK_EQUAL(uniDSG->getRawDataSize(), uniDSGfromSubspaces->getRawDataSize());
@@ -881,6 +883,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
       if (variant == CombinationVariant::sparseGridReduce) {
         CombiCom::reduceSubspaceSizes(*uniDSG, fullComm);
         // initialize actual data containers
+        uniDSG->createSubspaceData();
         uniDSG->setZero();
 
         // for each subspace in uniDSG, set values to the subspace index
@@ -909,6 +912,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
         // try again, this time with reduce+broadcast
         // reset actual data containers and MPI datatype mappings
         uniDSG->deleteSubspaceData();
+        uniDSG->createSubspaceData();
         uniDSG->setZero();
         // for each subspace in uniDSG, set values to the subspace index
         for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
@@ -945,6 +949,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
         uniDSG->setSubspaceCommunicators(fullComm, TestHelper::getRank(fullComm));
         BOOST_TEST_CHECKPOINT("subspace communicators set");
         // initialize actual data containers and MPI datatype mappings
+        uniDSG->createSubspaceData();
         uniDSG->setZero();
         // for each subspace in uniDSG, set values to the subspace index
         for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
@@ -988,6 +993,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
         uniDSG->setOutgroupCommunicator(fullComm, TestHelper::getRank(fullComm));
         BOOST_CHECK_EQUAL(uniDSG->getSubspacesByCommunicator().size(), 1);
         // initialize actual data containers and MPI datatype mappings
+        uniDSG->createSubspaceData();
         uniDSG->setZero();
         // for each subspace in uniDSG, set values to the subspace index
         for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
@@ -1030,6 +1036,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
         // try again, this time with reduce+broadcast
         // reset actual data containers and MPI datatype mappings
         uniDSG->deleteSubspaceData();
+        uniDSG->createSubspaceData();
         uniDSG->setZero();
         // for each subspace in uniDSG, set values to the subspace index
         for (size_t i = 0; i < uniDSG->getNumSubspaces(); ++i) {
