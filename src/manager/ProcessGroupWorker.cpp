@@ -716,16 +716,17 @@ void ProcessGroupWorker::combineThirdLevel() {
   Stats::stopEvent("wait for bcasts");
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBasedWrite(
+int ProcessGroupWorker::combineThirdLevelFileBasedWrite(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName) {
   assert(this->getSparseGridWorker().getNumberOfGrids() > 0);
   assert(combiParametersSet_);
 
   // write sparse grid and corresponding token file
   Stats::startEvent("write SG");
-  this->writeDSGsToDisk(filenamePrefixToWrite);
+  int numWritten = this->writeDSGsToDisk(filenamePrefixToWrite);
   MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
   Stats::stopEvent("write SG");
+  return numWritten;
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
@@ -812,17 +813,17 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   }
 }
 
-void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
-                                             bool extraSparseGrid, bool overwrite) {
-  this->getSparseGridWorker().reduceSubspaceSizes(
+int ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead, bool extraSparseGrid,
+                                            bool overwrite) {
+  return this->getSparseGridWorker().reduceSubspaceSizes(
       filenameToRead, this->combiParameters_.getCombinationVariant(), extraSparseGrid, overwrite);
 }
 
-void ProcessGroupWorker::reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
-                                                      const std::string& writeCompleteTokenFileName,
-                                                      const std::string& filenamePrefixToRead,
-                                                      const std::string& startReadingTokenFileName,
-                                                      bool extraSparseGrid) {
+int ProcessGroupWorker::reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
+                                                     const std::string& writeCompleteTokenFileName,
+                                                     const std::string& filenamePrefixToRead,
+                                                     const std::string& startReadingTokenFileName,
+                                                     bool extraSparseGrid) {
   FIRST_GROUP_EXCLUSIVE_SECTION {
     this->getSparseGridWorker().writeSubspaceSizesToFile(filenamePrefixToWrite);
     MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
@@ -832,7 +833,7 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(const std::string& filenam
   OUTPUT_GROUP_EXCLUSIVE_SECTION {}
   else if (extraSparseGrid) {
     // otherwise, return
-    return;
+    return 0;
   }
 
   // wait until we can start to read
@@ -847,7 +848,7 @@ void ProcessGroupWorker::reduceSubspaceSizesFileBased(const std::string& filenam
   } else {
     MPI_Barrier(theMPISystem()->getLocalComm());
   }
-  this->reduceSubspaceSizes(filenamePrefixToRead, extraSparseGrid);
+  return this->reduceSubspaceSizes(filenamePrefixToRead, extraSparseGrid);
 }
 
 void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
@@ -873,13 +874,13 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
 
 void ProcessGroupWorker::zeroDsgsData() { this->getSparseGridWorker().zeroDsgsData(); }
 
-void ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix) {
-  this->getSparseGridWorker().writeDSGsToDisk(filenamePrefix);
+int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix) {
+  return this->getSparseGridWorker().writeDSGsToDisk(filenamePrefix);
 }
 
-void ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,
-                                          bool alwaysReadFullDSG) {
-  this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, alwaysReadFullDSG);
+int ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,
+                                         bool alwaysReadFullDSG) {
+  return this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, alwaysReadFullDSG);
 }
 
 } /* namespace combigrid */

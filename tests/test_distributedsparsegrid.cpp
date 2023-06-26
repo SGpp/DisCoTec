@@ -164,13 +164,13 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     }
 
     auto writeSuccess = DistributedSparseGridIO::writeOneFile(*uniDSG, "test_sg_all");
-    BOOST_WARN(writeSuccess);
+    BOOST_WARN(writeSuccess > 0);
     if (writeSuccess) {
       for (size_t i = 0; i < uniDSGfromSubspaces->getRawDataSize(); ++i) {
         uniDSGfromSubspaces->getRawData()[i] = -1000.;
       }
       auto readSuccess = DistributedSparseGridIO::readOneFile(*uniDSGfromSubspaces, "test_sg_all");
-      BOOST_CHECK(readSuccess);
+      BOOST_CHECK_EQUAL(readSuccess, writeSuccess);
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare values");
         for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
@@ -180,7 +180,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       }
       auto reduceSuccess =
           DistributedSparseGridIO::readOneFileAndReduce(*uniDSGfromSubspaces, "test_sg_all");
-      BOOST_CHECK(readSuccess);
+      BOOST_CHECK_EQUAL(readSuccess, writeSuccess);
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare double values");
         for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
@@ -684,14 +684,15 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
     auto sizesCopy = uniDSG->getSubspaceDataSizes();
 
     // write the (smaller) subspaces sizes to disk
-    bool subspaceWriteSuccess =
+    int subspaceWriteSuccess =
         DistributedSparseGridIO::writeSubspaceSizesToFile(*uniDSG, "test_dsg.sizes");
-    BOOST_CHECK(subspaceWriteSuccess);
+    BOOST_CHECK(subspaceWriteSuccess > 0);
 
     {  // register reversed full grid
       std::reverse(lfull.begin(), lfull.end());
       auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::DimType>>(
-          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs, false));
+          new OwningDistributedFullGrid<combigrid::DimType>(dim, lfull, comm, boundary, procs,
+                                                            false));
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
 
@@ -701,12 +702,12 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
     auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
       return std::max(a, b);
     };
-    bool subspaceReduceSuccess = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
+    int subspaceReduceSuccess = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
         *uniDSG, "test_dsg.sizes", maxFunctionInstantiation, 2000);
     BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopyLarger.begin(), sizesCopyLarger.end(),
                                   uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end());
-    BOOST_CHECK(subspaceReduceSuccess);
+    BOOST_CHECK_EQUAL(subspaceReduceSuccess, subspaceWriteSuccess);
 
     // read the subspace sizes from disk and do min-reduce
     auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
@@ -717,7 +718,7 @@ BOOST_AUTO_TEST_CASE(test_reduceSubspaceSizesFileBased) {
     BOOST_CHECK_EQUAL_COLLECTIONS(sizesCopy.begin(), sizesCopy.end(),
                                   uniDSG->getSubspaceDataSizes().begin(),
                                   uniDSG->getSubspaceDataSizes().end());
-    BOOST_CHECK(subspaceReduceSuccess);
+    BOOST_CHECK_EQUAL(subspaceReduceSuccess, subspaceWriteSuccess);
   }
 }
 

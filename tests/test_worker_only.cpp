@@ -216,15 +216,18 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   }
   filename = "worker_" + std::to_string(boundaryV) + "_dsgs";
   Stats::startEvent("worker write DSG");
+  int numWritten = 0;
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     BOOST_TEST_CHECKPOINT("write DSGS " + filename);
-    worker.writeDSGsToDisk(filename);
+    numWritten = worker.writeDSGsToDisk(filename);
+    BOOST_CHECK(numWritten > 0);
   }
   // overwrite for all--only with sparse grid reduce
   // (otherwise, would have wrong sizes for other groups)
   if (params.getCombinationVariant() == CombinationVariant::sparseGridReduce) {
     BOOST_TEST_CHECKPOINT("read DSGS " + filename);
-    worker.readDSGsFromDisk(filename, true);
+    int numRead = worker.readDSGsFromDisk(filename, true);
+    OUTPUT_GROUP_EXCLUSIVE_SECTION { BOOST_CHECK_EQUAL(numRead, numWritten); }
   }
   Stats::stopEvent("worker write DSG");
   MASTER_EXCLUSIVE_SECTION {

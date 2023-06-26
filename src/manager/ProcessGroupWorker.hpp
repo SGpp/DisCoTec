@@ -67,10 +67,10 @@ class ProcessGroupWorker {
   void writeSparseGridMinMaxCoefficients(const std::string& fileNamePrefix) const;
 
   /** write extra SGs to disk (binary w/ MPI-IO) */
-  void writeDSGsToDisk(const std::string& filenamePrefix);
+  int writeDSGsToDisk(const std::string& filenamePrefix);
 
   /** read extra SGs from disk (binary w/ MPI-IO) */
-  void readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
+  int readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
 
   void setCombiParameters(CombiParameters&& combiParameters);
 
@@ -84,8 +84,8 @@ class ProcessGroupWorker {
    * and updates fgs. */
   void combineThirdLevel();
 
-  void combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
-                                       const std::string& writeCompleteTokenFileName);
+  int combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
+                                      const std::string& writeCompleteTokenFileName);
 
   void combineThirdLevelFileBasedReadReduce(const std::string& filenamePrefixToRead,
                                             const std::string& startReadingTokenFileName,
@@ -106,14 +106,14 @@ class ProcessGroupWorker {
   /** computes a max reduce on the dsg's subspace sizes with the other systems */
   void reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
-  void reduceSubspaceSizes(const std::string& filenameToRead, bool extraSparseGrid,
-                           bool overwrite = false);
+  int reduceSubspaceSizes(const std::string& filenameToRead, bool extraSparseGrid,
+                          bool overwrite = false);
 
-  void reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
-                                    const std::string& writeCompleteTokenFileName,
-                                    const std::string& filenamePrefixToRead,
-                                    const std::string& startReadingTokenFileName,
-                                    bool extraSparseGrid);
+  int reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
+                                   const std::string& writeCompleteTokenFileName,
+                                   const std::string& filenamePrefixToRead,
+                                   const std::string& startReadingTokenFileName,
+                                   bool extraSparseGrid);
 
   /** receives reduced sizes from tl pgroup and updates the dsgs */
   void waitForThirdLevelSizeUpdate();
