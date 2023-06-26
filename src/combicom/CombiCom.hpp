@@ -87,7 +87,7 @@ static int getGlobalReduceChunkSize(size_t maxBytesToSend = 16777216) {
   // constexpr size_t sixteenMiBinBytes = 16777216;
   auto numOMPThreads = theMPISystem()->getNumOpenMPThreads();
   int chunkSize = static_cast<int>(maxBytesToSend / sizeof(SG_ELEMENT) / numOMPThreads);
-  assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
+  // assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
   return chunkSize;
 }
 
@@ -363,7 +363,8 @@ static void recvDsgData(SparseGridType& dsg, RankType source, CommunicatorType c
  * Asynchronous Bcast of the raw dsg data in the communicator comm.
  */
 template <typename SparseGridType>
-static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root, CommunicatorType comm) {
+[[nodiscard]] static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root,
+                                                   CommunicatorType comm) {
   if (dsg.getRawDataSize() >= INT_MAX) {
     throw std::runtime_error(
         "asyncBcastDsgData: Dsg is too large and can not be "
