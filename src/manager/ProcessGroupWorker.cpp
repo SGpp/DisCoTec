@@ -825,10 +825,9 @@ int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
   int numSizesWritten = 0;
   int numSizesReduced = 0;
   // we only need to write and read something if we are the I/O group
+  OUTPUT_GROUP_EXCLUSIVE_SECTION { setExtraSparseGrid(true); }
+  this->getSparseGridWorker().maxReduceSubspaceSizesInOutputGroup();
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
-    if (this->getExtraDSGVector().empty()) {
-      setExtraSparseGrid(true);
-    }
     numSizesWritten =
         this->getSparseGridWorker().writeExtraSubspaceSizesToFile(filenamePrefixToWrite);
     MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }

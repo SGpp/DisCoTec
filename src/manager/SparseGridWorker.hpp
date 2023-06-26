@@ -396,6 +396,9 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
     if (this->getExtraUniDSGVector().empty()) {
       this->setExtraSparseGrid(true);
     }
+  }
+  this->maxReduceSubspaceSizesInOutputGroup();
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
     auto dsgToUse = this->getExtraUniDSGVector()[0].get();
 #ifndef NDEBUG
     // duplicate subspace sizes to validate later
@@ -436,10 +439,8 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
                                      dsgToUse->getSubspaceDataSizes().end(), 0);
     assert(numDOFtoValidate >= numDOFnow);
 #endif
-    if (overwrite) {
-      // may need to re-size original spaces if sparse grid was too small
-      this->getCombinedUniDSGVector()[0]->maxReduceSubspaceSizes(*dsgToUse);
-    }
+    // may need to re-size original spaces if original sparse grid was too small
+    this->getCombinedUniDSGVector()[0]->maxReduceSubspaceSizes(*dsgToUse);
   }
   return numSubspacesReduced;
 }

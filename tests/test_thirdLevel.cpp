@@ -561,7 +561,8 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
-void testCombineThirdLevelWithoutManagers(TestParams& testParams) {
+void testCombineThirdLevelWithoutManagers(
+    TestParams& testParams, CombinationVariant variant = CombinationVariant::sparseGridReduce) {
   bool thirdLevelExtraSparseGrid = true;  // TODO make parameter again
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
@@ -612,10 +613,9 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams) {
   std::vector<int> parallelization(testParams.dim, 1);
   parallelization[1] = static_cast<int>(testParams.nprocs);
   // create combiparameters
-  CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary,
-                              testParams.ncombi, 1, CombinationVariant::sparseGridReduce,
-                              parallelization, LevelVector(testParams.dim, 0),
-                              LevelVector(testParams.dim, 1), false);
+  CombiParameters combiParams(
+      testParams.dim, testParams.lmin, testParams.lmax, boundary, testParams.ncombi, 1, variant,
+      parallelization, LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1), false);
   worker.setCombiParameters(std::move(combiParams));
 
   // create Tasks
@@ -730,7 +730,7 @@ void testCombineThirdLevelWithoutManagers(TestParams& testParams) {
     BOOST_TEST_CHECKPOINT("run next");
     worker.runAllTasks();
     MASTER_EXCLUSIVE_SECTION {
-      BOOST_TEST_MESSAGE("worker run: " << Stats::getDuration("worker run") << " milliseconds");
+      BOOST_TEST_MESSAGE("worker run: " << Stats::getDuration("run") << " milliseconds");
     }
   }
   BOOST_TEST_CHECKPOINT("worker combine last time");
@@ -1052,8 +1052,8 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
   BoundaryType boundary = 1;
   // LevelVector lmin(dim, 4);
   // LevelVector lmax(dim, 7);
-  LevelVector lmin(dim, 1);
-  LevelVector lmax(dim, 4);
+  LevelVector lmin(dim, 2);
+  LevelVector lmax(dim, 5);
 
   for (unsigned int ngroup : std::vector<unsigned int>({2, 3})) {
     unsigned int sysNum;
@@ -1077,17 +1077,19 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
   unsigned int ncombi = 10;
   DimType dim = 6;
   BoundaryType boundary = 1;
-  LevelVector lmin(dim, 1);
-  LevelVector lmax(dim, 4);
+  LevelVector lmin(dim, 2);
+  LevelVector lmax(dim, 5);
 
   for (unsigned int ngroup : std::vector<unsigned int>({2, 3})) {
     unsigned int sysNum;
     CommunicatorType newcomm = MPI_COMM_NULL;
     assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
-
-    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
-      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
-      BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams));
+    for (CombinationVariant variant :
+         {CombinationVariant::sparseGridReduce, CombinationVariant::outgroupSparseGridReduce}) {
+      if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
+        TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+        BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams, variant));
+      }
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
