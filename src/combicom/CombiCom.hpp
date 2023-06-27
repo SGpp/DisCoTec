@@ -387,15 +387,23 @@ template <typename SparseGridType>
 /**
  * Asynchronous Bcast of the raw dsg data in the communicator comm.
  */
-template <typename SparseGridType>
-[[nodiscard]] static MPI_Request asyncBcastOutgroupDsgData(SparseGridType& dsg, RankType root,
-                                                           CommunicatorType comm) {
+template <typename SparseGridType, bool communicateAllAllocated = false>
+[[nodiscard]] static MPI_Request asyncBcastOutgroupDsgData(
+    SparseGridType& dsg, RankType root,
+    CommunicatorType comm = theMPISystem()->getGlobalReduceComm()) {
   assert(dsg.getSubspacesByCommunicator().size() < 2);
   MPI_Request request = MPI_REQUEST_NULL;
   if (!dsg.getSubspacesByCommunicator().empty()) {
-    const auto& commAndItsSubspaces = dsg.getSubspacesByCommunicator()[0];
-    auto datatypesByStartIndex =
-        getReductionDatatypes(dsg, commAndItsSubspaces.second, std::numeric_limits<size_t>::max());
+    std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
+        datatypesByStartIndex;
+    if constexpr (communicateAllAllocated) {
+      datatypesByStartIndex = getReductionDatatypes(dsg, dsg.getCurrentlyAllocatedSubspaces(),
+                                                    std::numeric_limits<size_t>::max());
+    } else {
+      const auto& commAndItsSubspaces = dsg.getSubspacesByCommunicator()[0];
+      datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces.second,
+                                                    std::numeric_limits<size_t>::max());
+    }
     assert(datatypesByStartIndex.size() == 1);
 
     auto& subspaceStartIndex = datatypesByStartIndex[0].first;
