@@ -742,10 +742,11 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
             combigrid::downsampleDecomposition(decomposition, lmax, level, boundary);
         auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<combigrid::real>>(
             new OwningDistributedFullGrid<combigrid::real>(dim, level, comm, boundary, procs, true,
-                                                     dfgDecomposition));
+                                                           dfgDecomposition));
         uniDSG->registerDistributedFullGrid(*uniDFG);
       }
     }
+    uniDSG->createSubspaceData();
     uniDSG->setZero();
     size_t totalNumPoints = uniDSG->getRawDataSize();
     MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<size_t>());
