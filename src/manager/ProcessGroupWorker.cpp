@@ -518,6 +518,14 @@ void ProcessGroupWorker::combineSystemWideAndWrite(const std::string& writeSpars
     this->combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
   }
 }
+void ProcessGroupWorker::dehierarchizeAllTasks() {
+  Stats::startEvent("dehierarchize");
+  this->getTaskWorker().dehierarchizeFullGrids(
+      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+  Stats::stopEvent("dehierarchize");
+  currentCombi_++;
+}
 
 void ProcessGroupWorker::combineAtOnce() {
   Stats::startEvent("hierarchize");
@@ -541,12 +549,7 @@ void ProcessGroupWorker::combineAtOnce() {
     Stats::stopEvent("distribute");
   }
 
-  Stats::startEvent("dehierarchize");
-  this->getTaskWorker().dehierarchizeFullGrids(
-      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
-      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
-  Stats::stopEvent("dehierarchize");
-  currentCombi_++;
+  this->dehierarchizeAllTasks();
 }
 
 void ProcessGroupWorker::parallelEval() {
@@ -701,12 +704,7 @@ void ProcessGroupWorker::updateFullFromCombinedSparseGrids() {
   this->getSparseGridWorker().distributeCombinedSolutionToTasks();
   Stats::stopEvent("distribute");
 
-  Stats::startEvent("dehierarchize");
-  this->getTaskWorker().dehierarchizeFullGrids(
-      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
-      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
-  Stats::stopEvent("dehierarchize");
-  currentCombi_++;
+  this->dehierarchizeAllTasks();
 }
 
 void ProcessGroupWorker::combineThirdLevel() {

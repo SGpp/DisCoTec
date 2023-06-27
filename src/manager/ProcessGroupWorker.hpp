@@ -35,6 +35,8 @@ class ProcessGroupWorker {
   /** extracts and dehierarchizes */
   void updateFullFromCombinedSparseGrids();
 
+  void dehierarchizeAllTasks();
+
   /** combine on sparse grid with uniform decomposition of domain */
   void combineAtOnce();
 
