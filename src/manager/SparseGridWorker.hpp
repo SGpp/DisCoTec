@@ -92,7 +92,7 @@ class SparseGridWorker {
 
   inline int writeSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
-  inline void zeroDsgsData();
+  inline void zeroDsgsData(CombinationVariant combinationVariant);
 
  private:
   TaskWorker& taskWorkerRef_;
@@ -491,7 +491,7 @@ inline void SparseGridWorker::reduceLocalAndGlobal(CombinationVariant combinatio
          "Initialize dsgu first with "
          "initCombinedUniDSGVector()");
   auto numGrids = this->getNumberOfGrids();
-  this->zeroDsgsData();
+  this->zeroDsgsData(combinationVariant);
   // local reduce (within rank)
   for (const auto& t : this->taskWorkerRef_.getTasks()) {
     for (int g = 0; g < numGrids; ++g) {
@@ -596,6 +596,7 @@ inline int SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
       dsgToUse->copyDataFrom(*uniDsg);
     }
+    assert(dsgToUse->isSubspaceDataCreated());
     numWritten += DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);
   }
   return numWritten;
@@ -621,8 +622,19 @@ inline int SparseGridWorker::writeSubspaceSizesToFile(
                                                            filenamePrefixToWrite);
 }
 
-inline void SparseGridWorker::zeroDsgsData() {
-  for (auto& dsg : this->getCombinedUniDSGVector()) dsg->setZero();
-  for (auto& dsg : this->getExtraUniDSGVector()) dsg->setZero();
+inline void SparseGridWorker::zeroDsgsData(CombinationVariant combinationVariant) {
+  for (auto& dsg : this->getCombinedUniDSGVector()) {
+    if (combinationVariant != chunkedOutgroupSparseGridReduce && !dsg->isSubspaceDataCreated()) {
+      dsg->createSubspaceData();
+    }
+    dsg->setZero();
+  }
+  // always create the extra dsgs' subspaces if they don't exist yet
+  for (auto& dsg : this->getExtraUniDSGVector()) {
+    if (!dsg->isSubspaceDataCreated()) {
+      dsg->createSubspaceData();
+    }
+    dsg->setZero();
+  }
 }
 } /* namespace combigrid */

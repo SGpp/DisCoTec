@@ -37,33 +37,32 @@ class DistributedSparseGridDataContainer {
 
   // allocates memory for subspace data and sets pointers to subspaces
   void createSubspaceData() {
-    if (not isSubspaceDataCreated()) {
-      if (subspacesWithData_.empty()) {
-        // create data for all subspaces from "iota"
-        subspacesWithData_ = std::set<SubspaceIndexType>{
-            boost::counting_iterator<SubspaceIndexType>(0),
-            boost::counting_iterator<SubspaceIndexType>(dsgu_.getNumSubspaces())};
-      }
-      size_t numDataPoints = dsgu_.getAccumulatedDataSize(subspacesWithData_);
-      assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
-      subspacesData_.resize(numDataPoints);
-      std::memset(subspacesData_.data(), 0, subspacesData_.size() * sizeof(FG_ELEMENT));
+    if (subspacesWithData_.empty()) {
+      // create data for all subspaces from "iota"
+      subspacesWithData_ = std::set<SubspaceIndexType>{
+          boost::counting_iterator<SubspaceIndexType>(0),
+          boost::counting_iterator<SubspaceIndexType>(dsgu_.getNumSubspaces())};
+    }
+    size_t numDataPoints = dsgu_.getAccumulatedDataSize(subspacesWithData_);
+    assert(numDataPoints > 0 && "all subspaces in dsg have 0 size");
+    subspacesData_.resize(numDataPoints);
+    std::memset(subspacesData_.data(), 0, subspacesData_.size() * sizeof(FG_ELEMENT));
+    std::memset(subspaces_.data(), 0, subspaces_.size() * sizeof(FG_ELEMENT*));
 
-      // update pointers and sizes in subspaces
-      SubspaceSizeType offset = 0;
-      for (size_t i = 0; i < subspaces_.size(); i++) {
-        subspaces_[i] = subspacesData_.data() + offset;
-        if (subspacesWithData_.find(i) != subspacesWithData_.end()) {
-          offset += dsgu_.getSubspaceDataSizes()[i];
-        }
+    // update pointers and sizes in subspaces
+    SubspaceSizeType offset = 0;
+    for (size_t i = 0; i < subspaces_.size(); i++) {
+      subspaces_[i] = subspacesData_.data() + offset;
+      if (subspacesWithData_.find(i) != subspacesWithData_.end()) {
+        offset += dsgu_.getSubspaceDataSizes()[i];
       }
-      assert(offset <= subspacesData_.size() && "offset exceeds data size");
-      assert(std::is_sorted(std::begin(subspaces_), std::end(subspaces_)));
-      if (kahanData_.empty()) {
-        // create kahan buffer implicitly only once,
-        // needs to be called explicitly if relevant sizes change
-        this->createKahanBuffer();
-      }
+    }
+    assert(offset <= subspacesData_.size() && "offset exceeds data size");
+    assert(std::is_sorted(std::begin(subspaces_), std::end(subspaces_)));
+    if (kahanData_.empty()) {
+      // create kahan buffer implicitly only once,
+      // needs to be called explicitly if relevant sizes change
+      this->createKahanBuffer();
     }
   }
 
@@ -78,6 +77,7 @@ class DistributedSparseGridDataContainer {
     size_t numDataPoints = dsgu_.getAccumulatedDataSize(subspacesWithData_);
     kahanData_.resize(numDataPoints, 0.);
     kahanDataBegin_.resize(dsgu_.getSubspaceDataSizes().size());
+    std::memset(kahanDataBegin_.data(), 0, kahanDataBegin_.size() * sizeof(FG_ELEMENT*));
 
     // update pointers for begin of subspacen in kahan buffer
     SubspaceSizeType offset = 0;
@@ -91,28 +91,15 @@ class DistributedSparseGridDataContainer {
 
   // deletes memory for subspace data and invalidates pointers to subspaces
   void deleteSubspaceData() {
-    if (isSubspaceDataCreated()) {
-      subspacesData_.clear();
-
-      // update pointers in subspaces
-      for (auto& ss : subspaces_) {
-        ss = nullptr;
-      }
-    }
+    subspacesData_.clear();
+    // update pointers in subspaces
+    std::memset(subspaces_.data(), 0, subspaces_.size() * sizeof(FG_ELEMENT*));
   }
 
-  // creates data if necessary and sets all data elements to zero
+  // sets all data elements to zero
   void setZero() {
-    if (isSubspaceDataCreated())
-      std::memset(subspacesData_.data(), 0, subspacesData_.size() * sizeof(FG_ELEMENT));
-    else
-      createSubspaceData();
+    std::memset(subspacesData_.data(), 0, subspacesData_.size() * sizeof(FG_ELEMENT));
     std::memset(kahanData_.data(), 0, kahanData_.size() * sizeof(FG_ELEMENT));
-    if (kahanData_.empty()) {
-      // create kahan buffer implicitly only once,
-      // needs to be called explicitly if relevant sizes change
-      this->createKahanBuffer();
-    }
   }
 
   // returns the number of allocated grid points == size of the raw data vector
@@ -135,6 +122,8 @@ class DistributedSparseGridDataContainer {
     subspacesData_.clear();
     kahanData_.clear();
     createSubspaceData();
+    createKahanBuffer();
+    setZero();
   }
 
  private:

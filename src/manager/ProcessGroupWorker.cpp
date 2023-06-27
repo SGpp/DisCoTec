@@ -918,7 +918,9 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   updateFullFromCombinedSparseGrids();
 }
 
-void ProcessGroupWorker::zeroDsgsData() { this->getSparseGridWorker().zeroDsgsData(); }
+void ProcessGroupWorker::zeroDsgsData() {
+  this->getSparseGridWorker().zeroDsgsData(combiParameters_.getCombinationVariant());
+}
 
 int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix) {
   return this->getSparseGridWorker().writeDSGsToDisk(filenamePrefix);
