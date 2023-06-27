@@ -706,15 +706,6 @@ void testCombineThirdLevelWithoutManagers(
     // everyone writes partial stats (to show that we can continue to do stuff while waiting)
     Stats::writePartial("stats_thirdLevel_worker_" + std::to_string(testParams.sysNum) + ".json",
                         theMPISystem()->getWorldComm());
-    OUTPUT_GROUP_EXCLUSIVE_SECTION {
-      BOOST_TEST_CHECKPOINT("combine read/reduce");
-      worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken,
-                                                  false, false);
-    }
-    else {
-      BOOST_TEST_CHECKPOINT("combine wait");
-      worker.waitForThirdLevelCombiResult();
-    }
     BOOST_TEST_CHECKPOINT("combine read/reduce");
     worker.combineReadDistributeSystemWide(readSparseGridFile, readSparseGridFileToken, false,
                                            false);
@@ -1080,7 +1071,8 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
 }
 
 // same as test_8 but only with workers
-BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance)) {
+BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                         boost::unit_test::timeout(100)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
   unsigned int ncombi = 10;
