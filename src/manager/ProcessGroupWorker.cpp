@@ -493,10 +493,27 @@ void ProcessGroupWorker::combineSystemWideAndWrite(const std::string& writeSpars
       combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
   Stats::stopEvent("hierarchize");
 
-  Stats::startEvent("reduce");
-  this->getSparseGridWorker().reduceLocalAndGlobal(
-      combiParameters_.getCombinationVariant(), theMPISystem()->getOutputRankInGlobalReduceComm());
-  Stats::stopEvent("reduce");
+  if (combiParameters_.getCombinationVariant() ==
+      CombinationVariant::chunkedOutgroupSparseGridReduce) {
+    Stats::startEvent("reduce/distribute");
+    OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      assert(!getExtraDSGVector().empty());
+      this->getSparseGridWorker().collectReduceDistribute<true>(
+          combiParameters_.getCombinationVariant());
+    }
+    else {
+      this->getSparseGridWorker().collectReduceDistribute<false>(
+          combiParameters_.getCombinationVariant());
+    }
+    Stats::stopEvent("reduce/distribute");
+  } else {
+    Stats::startEvent("reduce");
+    this->getSparseGridWorker().reduceLocalAndGlobal(
+        combiParameters_.getCombinationVariant(),
+        theMPISystem()->getOutputRankInGlobalReduceComm());
+    Stats::stopEvent("reduce");
+  }
+
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     this->combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
   }
