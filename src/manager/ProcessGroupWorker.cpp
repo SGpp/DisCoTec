@@ -733,7 +733,7 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // distribute solution in globalReduceComm to other pgs
-    auto request = this->getSparseGridWorker().startBroadcastDSGs(
+    auto request = this->getSparseGridWorker().startSingleBroadcastDSGs(
         combiParameters_.getCombinationVariant(), theMPISystem()->getGlobalReduceRank());
     requests.push_back(request);
   }
@@ -778,8 +778,11 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
   Stats::stopEvent("wait SG");
 
   overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
-  auto request = this->getSparseGridWorker().readReduceStartBroadcastDSGs(
-      filenamePrefixToRead, this->combiParameters_.getCombinationVariant(), overwrite);
+  this->getSparseGridWorker().readReduce(filenamePrefixToRead, overwrite);
+
+  // I need to broadcast
+  auto request = std::move(this->getSparseGridWorker().startSingleBroadcastDSGs(
+      this->combiParameters_.getCombinationVariant(), theMPISystem()->getGlobalReduceRank()));
   overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
 
   // update fgs
@@ -909,7 +912,7 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   Stats::startEvent("wait for bcasts");
-  auto request = this->getSparseGridWorker().startBroadcastDSGs(
+  auto request = this->getSparseGridWorker().startSingleBroadcastDSGs(
       combiParameters_.getCombinationVariant(), broadcastSender);
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);

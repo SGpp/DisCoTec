@@ -67,9 +67,7 @@ class SparseGridWorker {
   inline int readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
                                        bool alwaysReadFullDSG = false);
 
-  inline MPI_Request readReduceStartBroadcastDSGs(const std::string& filenamePrefixToRead,
-                                                  CombinationVariant combinationVariant,
-                                                  bool overwrite);
+  inline void readReduce(const std::string& filenamePrefixToRead, bool overwrite);
 
   inline int reduceExtraSubspaceSizes(const std::string& filenameToRead,
                                       CombinationVariant combinationVariant, bool overwrite);
@@ -82,8 +80,8 @@ class SparseGridWorker {
 
   inline void setExtraSparseGrid(bool initializeSizes = true);
 
-  inline MPI_Request startBroadcastDSGs(CombinationVariant combinationVariant,
-                                        RankType broadcastSender);
+  inline MPI_Request startSingleBroadcastDSGs(CombinationVariant combinationVariant,
+                                              RankType broadcastSender);
 
   inline int writeDSGsToDisk(std::string filenamePrefix);
 
@@ -417,9 +415,7 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
   return numReduced;
 }
 
-[[nodiscard]] inline MPI_Request SparseGridWorker::readReduceStartBroadcastDSGs(
-    const std::string& filenamePrefixToRead, CombinationVariant combinationVariant,
-    bool overwrite) {
+inline void SparseGridWorker::readReduce(const std::string& filenamePrefixToRead, bool overwrite) {
   int numRead = 0;
   if (overwrite) {
     numRead = this->readDSGsFromDisk(filenamePrefixToRead);
@@ -429,7 +425,6 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
   if (this->getNumberOfGrids() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
   }
-  return this->startBroadcastDSGs(combinationVariant, theMPISystem()->getGlobalReduceRank());
 }
 
 inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
@@ -573,7 +568,7 @@ inline void SparseGridWorker::setExtraSparseGrid(bool initializeSizes) {
   }
 }
 
-[[nodiscard]] inline MPI_Request SparseGridWorker::startBroadcastDSGs(
+[[nodiscard]] inline MPI_Request SparseGridWorker::startSingleBroadcastDSGs(
     CombinationVariant combinationVariant, RankType broadcastSender) {
   if (this->getNumberOfGrids() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
