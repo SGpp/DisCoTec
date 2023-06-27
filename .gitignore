@@ -1,6 +1,8 @@
 #ignore defailt build folders
 build/*
 cmake-build-*/
+build*/
+spack-*
 
 # allowing stuff to be in examples but nowhere else (swig)
 *.java
