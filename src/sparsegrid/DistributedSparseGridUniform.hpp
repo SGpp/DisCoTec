@@ -96,7 +96,7 @@ class DistributedSparseGridDataContainer {
     std::memset(subspaces_.data(), 0, subspaces_.size() * sizeof(FG_ELEMENT*));
   }
 
-  // sets all data elements to zero
+  // sets all data elements to value zero
   void setZero() {
     std::memset(subspacesData_.data(), 0, subspacesData_.size() * sizeof(FG_ELEMENT));
     std::memset(kahanData_.data(), 0, kahanData_.size() * sizeof(FG_ELEMENT));
@@ -254,6 +254,10 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   // populated than in this DSGU)
   void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other);
 
+  template <typename SubspaceIndexContainer>
+  void copyDataFrom(const DistributedSparseGridUniform<FG_ELEMENT>& other,
+                    const SubspaceIndexContainer& subspaceIndices);
+
  private:
   std::vector<LevelVector> createLevels(DimType dim, const LevelVector& nmax,
                                         const LevelVector& lmin) const;
@@ -309,6 +313,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::maxReduceSubspaceSizes(
            other.getDataSize(i) == 0);
     this->setDataSize(i, std::max(this->getDataSize(i), other.getDataSize(i)));
   }
+  this->deleteSubspaceData();
 }
 
 template <typename FG_ELEMENT>
@@ -324,6 +329,24 @@ void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
     assert(other.getAllocatedDataSize(i) == this->getAllocatedDataSize(i) ||
            this->getAllocatedDataSize(i) == 0 || other.getAllocatedDataSize(i) == 0);
     auto numPointsToCopy = std::min(other.getAllocatedDataSize(i), this->getAllocatedDataSize(i));
+    std::copy_n(other.getData(i), numPointsToCopy, this->getData(i));
+  }
+}
+
+template <typename FG_ELEMENT>
+template <typename SubspaceIndexContainer>
+void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
+    const DistributedSparseGridUniform<FG_ELEMENT>& other, const SubspaceIndexContainer& subspaceIndices) {
+  assert(this->getNumSubspaces() == other.getNumSubspaces());
+  assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
+
+  //TODO this doesnt work with std::set
+// #pragma omp parallel for default(none) shared(other,subspaceIndices) schedule(guided)
+  // for (auto it = subspaceIndices.cbegin(); it != subspaceIndices.cend(); ++it) {
+  for (auto i: subspaceIndices) {
+    assert(other.getDataSize(i) == this->getDataSize(i));
+    assert(other.getAllocatedDataSize(i) == this->getAllocatedDataSize(i));
+    auto numPointsToCopy = std::min(other.getDataSize(i), this->getDataSize(i));
     std::copy_n(other.getData(i), numPointsToCopy, this->getData(i));
   }
 }

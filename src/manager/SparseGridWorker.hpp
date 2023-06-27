@@ -68,7 +68,7 @@ class SparseGridWorker {
   inline int readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
                                        bool alwaysReadFullDSG = false);
 
-  inline void readReduce(const std::string& filenamePrefixToRead, bool overwrite);
+  inline int readReduce(const std::string& filenamePrefixToRead, bool overwrite);
 
   inline int reduceExtraSubspaceSizes(const std::string& filenameToRead,
                                       CombinationVariant combinationVariant, bool overwrite);
@@ -141,7 +141,6 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
       auto& chunkedSubspaces = combigrid::CombiCom::getChunkedSubspaces(
           *dsg, dsg->getSubspacesByCommunicator()[0].second, chunkSize);
       for (auto& subspaceChunk : chunkedSubspaces) {
-        // std::cout << "subspaceChunk.size() = " << subspaceChunk.size() << std::endl;
         // allocate new subspace vector
         dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
 
@@ -156,7 +155,8 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
                                                   true>(*dsg);
         // assert(CombiCom::sumAndCheckSubspaceSizes(*dsg)); // todo adapt for allocated spaces
         if constexpr (keepValuesInExtraSparseGrid) {
-          this->getExtraUniDSGVector()[g]->copyDataFrom(*dsg);
+          this->getExtraUniDSGVector()[g]->copyDataFrom(*dsg,
+                                                        dsg->getCurrentlyAllocatedSubspaces());
         }
 
         // distribute (sg -> fg, within rank)
@@ -416,7 +416,7 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
   return numReduced;
 }
 
-inline void SparseGridWorker::readReduce(const std::string& filenamePrefixToRead, bool overwrite) {
+inline int SparseGridWorker::readReduce(const std::string& filenamePrefixToRead, bool overwrite) {
   int numRead = 0;
   if (overwrite) {
     numRead = this->readDSGsFromDisk(filenamePrefixToRead);
@@ -426,6 +426,7 @@ inline void SparseGridWorker::readReduce(const std::string& filenamePrefixToRead
   if (this->getNumberOfGrids() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
   }
+  return numRead;
 }
 
 inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
