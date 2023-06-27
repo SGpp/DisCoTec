@@ -5,6 +5,7 @@
 #include "hierarchization/DistributedHierarchization.hpp"
 #include "manager/TaskWorker.hpp"
 #include "mpi/MPISystem.hpp"
+#include "mpi/MPIUtils.hpp"
 #include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 
@@ -83,7 +84,7 @@ class SparseGridWorker {
   inline MPI_Request startSingleBroadcastDSGs(CombinationVariant combinationVariant,
                                               RankType broadcastSender);
 
-  inline int writeDSGsToDisk(std::string filenamePrefix);
+  inline int writeDSGsToDisk(std::string filenamePrefix, CombinationVariant combinationVariant);
 
   inline int writeExtraSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
@@ -525,11 +526,13 @@ inline void SparseGridWorker::reduceSubspaceSizesBetweenGroups(
   } else if (combinationVariant == CombinationVariant::subspaceReduce) {
     for (auto& uniDSG : combinedUniDSGVector_) {
       uniDSG->setSubspaceCommunicators(globalReduceComm, theMPISystem()->getGlobalReduceRank());
+      uniDSG->deleteSubspaceData();
     }
   } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce ||
              combinationVariant == CombinationVariant::chunkedOutgroupSparseGridReduce) {
     for (auto& uniDSG : combinedUniDSGVector_) {
       uniDSG->setOutgroupCommunicator(globalReduceComm, theMPISystem()->getGlobalReduceRank());
+      uniDSG->deleteSubspaceData();
     }
     assert(this->getCombinedUniDSGVector()[0]->getSubspacesByCommunicator().size() < 2);
   } else {
@@ -585,7 +588,8 @@ inline void SparseGridWorker::setExtraSparseGrid(bool initializeSizes) {
   }
 }
 
-inline int SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix) {
+inline int SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix,
+                                             CombinationVariant combinationVariant) {
   int numWritten = 0;
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
     auto filename = filenamePrefix + "_" + std::to_string(i);
@@ -593,7 +597,10 @@ inline int SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix) {
     auto dsgToUse = uniDsg;
     if (this->getExtraUniDSGVector().size() > 0) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
-      dsgToUse->copyDataFrom(*uniDsg);
+      if (combinationVariant == CombinationVariant::sparseGridReduce ||
+          combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
+        dsgToUse->copyDataFrom(*uniDsg);
+      }
     }
     assert(dsgToUse->isSubspaceDataCreated());
     numWritten += DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);

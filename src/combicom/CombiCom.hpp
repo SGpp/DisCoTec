@@ -495,6 +495,7 @@ void maxReduceSubspaceSizesAcrossGroups(
     MPI_Reduce(dsg.getSubspaceDataSizes().data(), MPI_IN_PLACE, numSubspaces, dtype, MPI_MAX,
                globalReduceRankThatCollects, globalReduceComm);
   }
+  dsg.deleteSubspaceData();
 }
 
 template <typename SparseGridType>

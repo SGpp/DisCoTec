@@ -686,10 +686,12 @@ void ProcessGroupWorker::updateCombiParameters() {
   // local root receives combi parameters
   CombiParameters combiParametersReceived;
   MASTER_EXCLUSIVE_SECTION {
-    MPIUtils::receiveClass(&combiParametersReceived, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+    MPIUtils::receiveClass(&combiParametersReceived, theMPISystem()->getManagerRank(),
+                           theMPISystem()->getGlobalComm());
   }
   // broadcast parameters to other processes of pgroup
-  MPIUtils::broadcastClass(&combiParametersReceived, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  MPIUtils::broadcastClass(&combiParametersReceived, theMPISystem()->getMasterRank(),
+                           theMPISystem()->getLocalComm());
 
   this->setCombiParameters(std::move(combiParametersReceived));
 }
@@ -914,6 +916,8 @@ int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
 
   this->getSparseGridWorker().reduceSubspaceSizesBetweenGroups(
       this->combiParameters_.getCombinationVariant());
+
+  this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
   return numSizesReduced;
 }
 
@@ -943,7 +947,8 @@ void ProcessGroupWorker::zeroDsgsData() {
 }
 
 int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix) {
-  return this->getSparseGridWorker().writeDSGsToDisk(filenamePrefix);
+  return this->getSparseGridWorker().writeDSGsToDisk(
+      filenamePrefix, this->getCombiParameters().getCombinationVariant());
 }
 
 int ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,
