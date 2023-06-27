@@ -20,6 +20,7 @@ class SparseGridWorker {
 
   ~SparseGridWorker() = default;
 
+  template <bool keepValuesInExtraSparseGrid = false>
   inline void collectReduceDistribute(CombinationVariant combinationVariant);
 
   /* free DSG memory as intermediate step */
@@ -124,6 +125,7 @@ class SparseGridWorker {
 inline SparseGridWorker::SparseGridWorker(TaskWorker& taskWorkerToReference)
     : taskWorkerRef_(taskWorkerToReference) {}
 
+template <bool keepValuesInExtraSparseGrid>
 inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combinationVariant) {
   auto numGrids = this->getNumberOfGrids();
   assert(combinationVariant == CombinationVariant::chunkedOutgroupSparseGridReduce);
@@ -136,7 +138,6 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
 
   for (int g = 0; g < numGrids; ++g) {
     auto& dsg = this->getCombinedUniDSGVector()[g];
-    dsg->setZero();
     if (!dsg->getSubspacesByCommunicator().empty()) {
       auto& chunkedSubspaces = combigrid::CombiCom::getChunkedSubspaces(
           *dsg, dsg->getSubspacesByCommunicator()[0].second, chunkSize);
@@ -155,6 +156,9 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
         CombiCom::distributedGlobalSubspaceReduce<DistributedSparseGridUniform<CombiDataType>,
                                                   true>(*dsg);
         // assert(CombiCom::sumAndCheckSubspaceSizes(*dsg)); // todo adapt for allocated spaces
+        if constexpr (keepValuesInExtraSparseGrid) {
+          this->getExtraUniDSGVector()[g]->copyDataFrom(*dsg);
+        }
 
         // distribute (sg -> fg, within rank)
         for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
@@ -167,7 +171,7 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
     // (given by those that have a data size set but no communicator)
     auto& chunkedSubspaces =
         combigrid::CombiCom::getChunkedSubspaces(*dsg, dsg->getIngroupSubspaces(), chunkSize);
-    for (auto& subspaceChunk : chunkedSubspaces) {        
+    for (auto& subspaceChunk : chunkedSubspaces) {
       // allocate new subspace vector
       dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
 
