@@ -131,8 +131,8 @@ int main(int argc, char** argv) {
     // create combiparameters
     auto reduceCombinationDimsLmax = LevelVector(dim, 1);
     CombiParameters params(dim, lmin, lmax, boundary, ncombi, 1,
-                           CombinationVariant::outgroupSparseGridReduce, p, LevelVector(dim, 0),
-                           reduceCombinationDimsLmax, forwardDecomposition);
+                           CombinationVariant::chunkedOutgroupSparseGridReduce, p,
+                           LevelVector(dim, 0), reduceCombinationDimsLmax, forwardDecomposition);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
