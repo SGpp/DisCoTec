@@ -312,7 +312,9 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
 
     // create the kahan buffer now, so it has only the subspaces present on the grids in this
     // process group
-    combinedUniDSGVector_[g]->createKahanBuffer();
+    if (combinationVariant != CombinationVariant::chunkedOutgroupSparseGridReduce) {
+      combinedUniDSGVector_[g]->createKahanBuffer();
+    }
   }
 
   this->reduceSubspaceSizesBetweenGroups(combinationVariant);
