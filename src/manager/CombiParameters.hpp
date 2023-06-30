@@ -22,6 +22,7 @@ class CombiParameters {
                   const std::vector<int> parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  uint32_t sizeForChunkedCommunicationInMebibyte = 64,
                   bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
@@ -34,6 +35,7 @@ class CombiParameters {
         combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        sizeForChunkedCommunicationInMebibyte_{sizeForChunkedCommunicationInMebibyte},
         thirdLevelHost_(thirdLevelHost),
         thirdLevelPort_(thirdLevelPort),
         thirdLevelPG_(thirdLevelPG) {
@@ -60,6 +62,7 @@ class CombiParameters {
                   const std::vector<int> parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  uint32_t sizeForChunkedCommunicationInMebibyte = 64,
                   bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
@@ -72,6 +75,7 @@ class CombiParameters {
         combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        sizeForChunkedCommunicationInMebibyte_{sizeForChunkedCommunicationInMebibyte},
         thirdLevelHost_(thirdLevelHost),
         thirdLevelPort_(thirdLevelPort),
         thirdLevelPG_(thirdLevelPG) {
@@ -96,8 +100,10 @@ class CombiParameters {
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
-                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
+                  bool forwardDecomposition = !isGENE,
+                  uint32_t sizeForChunkedCommunicationInMebibyte = 64,
+                  const std::string& thirdLevelHost = "", unsigned short thirdLevelPort = 0,
+                  size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
@@ -109,6 +115,7 @@ class CombiParameters {
         combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        sizeForChunkedCommunicationInMebibyte_{sizeForChunkedCommunicationInMebibyte},
         thirdLevelHost_(thirdLevelHost),
         thirdLevelPort_(thirdLevelPort),
         thirdLevelPG_(thirdLevelPG) {
@@ -270,6 +277,8 @@ class CombiParameters {
 
   inline CombinationVariant getCombinationVariant() const { return combinationVariant_; }
 
+  inline uint32_t getChunkSizeInMebibybtePerThread() const { return sizeForChunkedCommunicationInMebibyte_; }
+
   inline const std::string& getThirdLevelHost() {
     return thirdLevelHost_;
   }
@@ -359,6 +368,8 @@ class CombiParameters {
 
   CombinationVariant combinationVariant_;
 
+  uint32_t sizeForChunkedCommunicationInMebibyte_;
+
   /**
    * This level vector indicates which dimension of lmin should be decreased by how many levels
    * for constructing the distributed sparse grid.
@@ -408,6 +419,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;
   ar& combinationVariant_;
+  ar& sizeForChunkedCommunicationInMebibyte_;
   ar& reduceCombinationDimsLmin_;
   ar& reduceCombinationDimsLmax_;
   ar& thirdLevelHost_;

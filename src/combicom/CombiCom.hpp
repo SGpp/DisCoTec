@@ -52,7 +52,6 @@ template <typename SparseGridType>
 int sumAndCheckSubspaceSizes(const SparseGridType& dsg,
                              const std::vector<SubspaceSizeType>& subspaceSizes) {
   int bsize = 0;
-
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     // check for implementation errors, the reduced subspace size should not be
     // different from the size of already initialized subspaces
@@ -80,14 +79,23 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
   return bsize == dsg.getRawDataSize();
 }
 
+static size_t MiBtoBytes(uint32_t numberOfMiB) { return powerOfTwoByBitshift(20) * numberOfMiB; }
+
 template <typename SG_ELEMENT>
-static int getGlobalReduceChunkSize(size_t maxBytesToSend = 16777216) {
+static int getGlobalReduceChunkSize(uint32_t maxMiBToSendPerThread) {
+  if (maxMiBToSendPerThread > static_cast<uint32_t>(std::numeric_limits<int>::max()) ||
+      maxMiBToSendPerThread == 0) {
+    return std::numeric_limits<int>::max();
+  }
+  assert(maxMiBToSendPerThread > 0);
+  auto maxBytesToSend = CombiCom::MiBtoBytes(maxMiBToSendPerThread);
   // auto chunkSize = std::numeric_limits<int>::max();
   // allreduce up to 16MiB at a time (when using double precision)
   // constexpr size_t sixteenMiBinBytes = 16777216;
   auto numOMPThreads = theMPISystem()->getNumOpenMPThreads();
   int chunkSize = static_cast<int>(maxBytesToSend / sizeof(SG_ELEMENT) / numOMPThreads);
   // assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
+  assert(chunkSize > 0);
   return chunkSize;
 }
 
@@ -101,7 +109,8 @@ static int getGlobalReduceChunkSize(size_t maxBytesToSend = 16777216) {
  */
 template <typename SparseGridType>
 void distributedGlobalSparseGridReduce(
-    SparseGridType& dsg, RankType globalReduceRankThatCollects = MPI_PROC_NULL,
+    SparseGridType& dsg, uint32_t maxMiBToSendPerThread,
+    RankType globalReduceRankThatCollects = MPI_PROC_NULL,
     MPI_Comm globalComm = theMPISystem()->getGlobalReduceComm()) {
   assert(globalComm != MPI_COMM_NULL);
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
@@ -114,7 +123,8 @@ void distributedGlobalSparseGridReduce(
   MPI_Datatype dtype = abstraction::getMPIDatatype(
       abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
 
-  auto chunkSize = getGlobalReduceChunkSize<typename SparseGridType::ElementType>();
+  auto chunkSize =
+      getGlobalReduceChunkSize<typename SparseGridType::ElementType>(maxMiBToSendPerThread);
   size_t sentRecvd = 0;
   if (globalReduceRankThatCollects == MPI_PROC_NULL) {
     while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
@@ -221,9 +231,9 @@ std::vector<std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>>& get
 template <typename FG_ELEMENT, typename SubspaceIndexContainer>
 std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
 getReductionDatatypes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-                      const SubspaceIndexContainer& subspaces, size_t maxBytesToSend = 16777216) {
+                      const SubspaceIndexContainer& subspaces, uint32_t maxMiBToSendPerThread) {
   // like for sparse grid reduce, allow only up to 16MiB per reduction
-  auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>(maxBytesToSend);
+  auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>(maxMiBToSendPerThread);
   std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
       datatypesByStartIndex;
 
@@ -259,7 +269,7 @@ getReductionDatatypes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
 }
 
 template <typename SparseGridType, bool communicateAllAllocated = false>
-void distributedGlobalSubspaceReduce(SparseGridType& dsg,
+void distributedGlobalSubspaceReduce(SparseGridType& dsg, uint32_t maxMiBToSendPerThread,
                                      RankType globalReduceRankThatCollects = MPI_PROC_NULL) {
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
 
@@ -267,7 +277,7 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg,
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
 #pragma omp parallel if (dsg.getSubspacesByCommunicator().size() > 1) default(none) \
-    shared(dsg, indexedAdd) firstprivate(globalReduceRankThatCollects)
+    shared(dsg, indexedAdd) firstprivate(globalReduceRankThatCollects, maxMiBToSendPerThread)
 #pragma omp for schedule(dynamic)
   for (size_t commIndex = 0; commIndex < dsg.getSubspacesByCommunicator().size(); ++commIndex) {
     const std::pair<CommunicatorType,
@@ -278,9 +288,11 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg,
     std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
         datatypesByStartIndex;
     if constexpr (communicateAllAllocated) {
-      datatypesByStartIndex = getReductionDatatypes(dsg, dsg.getCurrentlyAllocatedSubspaces());
+      datatypesByStartIndex =
+          getReductionDatatypes(dsg, dsg.getCurrentlyAllocatedSubspaces(), maxMiBToSendPerThread);
     } else {
-      datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces.second);
+      datatypesByStartIndex =
+          getReductionDatatypes(dsg, commAndItsSubspaces.second, maxMiBToSendPerThread);
     }
 
     // // this would be best for outgroup reduce, but leads to MPI truncation
@@ -396,13 +408,14 @@ template <typename SparseGridType, bool communicateAllAllocated = false>
   if (!dsg.getSubspacesByCommunicator().empty()) {
     std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
         datatypesByStartIndex;
-    if constexpr (communicateAllAllocated) {
+    if constexpr (communicateAllAllocated) {  // assuming byte limit is met by selection of
+                                              // allocated spaces
       datatypesByStartIndex = getReductionDatatypes(dsg, dsg.getCurrentlyAllocatedSubspaces(),
-                                                    std::numeric_limits<size_t>::max());
+                                                    std::numeric_limits<uint32_t>::max());
     } else {
       const auto& commAndItsSubspaces = dsg.getSubspacesByCommunicator()[0];
       datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces.second,
-                                                    std::numeric_limits<size_t>::max());
+                                                    std::numeric_limits<uint32_t>::max());
     }
     assert(datatypesByStartIndex.size() == 1);
 

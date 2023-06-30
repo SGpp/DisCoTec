@@ -64,6 +64,7 @@ int main(int argc, char** argv) {
     }
 
     size_t ncombi = cfg.get<size_t>("ct.ncombi");
+    uint32_t chunkSizeInMebibyte = cfg.get<uint32_t>("ct.chunkSize", 128);
     std::string basis = cfg.get<std::string>("ct.basis", "hat_periodic");
     std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme");
     combigrid::real dt = cfg.get<combigrid::real>("application.dt");
@@ -132,7 +133,8 @@ int main(int argc, char** argv) {
     auto reduceCombinationDimsLmax = LevelVector(dim, 1);
     CombiParameters params(dim, lmin, lmax, boundary, ncombi, 1,
                            CombinationVariant::chunkedOutgroupSparseGridReduce, p,
-                           LevelVector(dim, 0), reduceCombinationDimsLmax, forwardDecomposition);
+                           LevelVector(dim, 0), reduceCombinationDimsLmax, forwardDecomposition,
+                           chunkSizeInMebibyte);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {

@@ -22,7 +22,8 @@ class SparseGridWorker {
   ~SparseGridWorker() = default;
 
   template <bool keepValuesInExtraSparseGrid = false>
-  inline void collectReduceDistribute(CombinationVariant combinationVariant);
+  inline void collectReduceDistribute(CombinationVariant combinationVariant,
+                                      uint32_t maxMiBToSendPerThread);
 
   /* free DSG memory as intermediate step */
   inline void deleteDsgsData();
@@ -75,6 +76,7 @@ class SparseGridWorker {
 
   /* reduction within and between process groups */
   inline void reduceLocalAndGlobal(CombinationVariant combinationVariant,
+                                   uint32_t maxMiBToSendPerThread,
                                    RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
   inline void reduceSubspaceSizesBetweenGroups(CombinationVariant combinationVariant);
@@ -125,15 +127,17 @@ inline SparseGridWorker::SparseGridWorker(TaskWorker& taskWorkerToReference)
     : taskWorkerRef_(taskWorkerToReference) {}
 
 template <bool keepValuesInExtraSparseGrid>
-inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combinationVariant) {
+inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combinationVariant,
+                                                      uint32_t maxMiBToSendPerThread) {
   auto numGrids = this->getNumberOfGrids();
   assert(combinationVariant == CombinationVariant::chunkedOutgroupSparseGridReduce);
   assert(numGrids == 1 && "Initialize dsgu first with initCombinedUniDSGVector()");
   assert(this->getCombinedUniDSGVector()[0]->getSubspacesByCommunicator().size() < 2 &&
          "Initialize dsgu's outgroup communicator");
 
-  // allow only up to 16MiB per reduction
-  auto chunkSize = combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(16777216);
+  // allow only up to the specified MiB per reduction
+  auto chunkSize =
+      combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(maxMiBToSendPerThread);
 
   for (int g = 0; g < numGrids; ++g) {
     auto& dsg = this->getCombinedUniDSGVector()[g];
@@ -152,7 +156,7 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
         }
         // global reduce (across process groups)
         CombiCom::distributedGlobalSubspaceReduce<DistributedSparseGridUniform<CombiDataType>,
-                                                  true>(*dsg);
+                                                  true>(*dsg, maxMiBToSendPerThread);
         // assert(CombiCom::sumAndCheckSubspaceSizes(*dsg)); // todo adapt for allocated spaces
         if constexpr (keepValuesInExtraSparseGrid) {
           this->getExtraUniDSGVector()[g]->copyDataFrom(*dsg,
@@ -489,6 +493,7 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
 }
 
 inline void SparseGridWorker::reduceLocalAndGlobal(CombinationVariant combinationVariant,
+                                                   uint32_t maxMiBToSendPerThread,
                                                    RankType globalReduceRankThatCollects) {
   assert(this->getNumberOfGrids() > 0 &&
          "Initialize dsgu first with "
@@ -506,12 +511,12 @@ inline void SparseGridWorker::reduceLocalAndGlobal(CombinationVariant combinatio
   // global reduce (across process groups)
   for (int g = 0; g < numGrids; ++g) {
     if (combinationVariant == CombinationVariant::sparseGridReduce) {
-      CombiCom::distributedGlobalSparseGridReduce(*this->getCombinedUniDSGVector()[g],
-                                                  globalReduceRankThatCollects);
+      CombiCom::distributedGlobalSparseGridReduce(
+          *this->getCombinedUniDSGVector()[g], maxMiBToSendPerThread, globalReduceRankThatCollects);
     } else if (combinationVariant == CombinationVariant::subspaceReduce ||
                combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
-      CombiCom::distributedGlobalSubspaceReduce(*this->getCombinedUniDSGVector()[g],
-                                                globalReduceRankThatCollects);
+      CombiCom::distributedGlobalSubspaceReduce(
+          *this->getCombinedUniDSGVector()[g], maxMiBToSendPerThread, globalReduceRankThatCollects);
     } else {
       throw std::runtime_error("Combination variant not implemented");
     }

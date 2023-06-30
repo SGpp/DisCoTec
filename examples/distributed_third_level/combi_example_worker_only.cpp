@@ -63,6 +63,7 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.lmax") >> lmax;
     cfg.get<std::string>("ct.p") >> p;
     ncombi = cfg.get<size_t>("ct.ncombi");
+    uint32_t chunkSizeInMebibyte = cfg.get<uint32_t>("ct.chunkSize", 64);
     std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme", "");
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
@@ -141,8 +142,8 @@ int main(int argc, char** argv) {
     // which we don't want here because it makes the sparse grid too large
     CombiParameters params(dim, lmin, lmax, boundary, ncombi * 2, 1,
                            CombinationVariant::sparseGridReduce, p, LevelVector(dim, 0),
-                           reduceCombinationDimsLmax, forwardDecomposition, thirdLevelHost,
-                           thirdLevelPort, 0);
+                           reduceCombinationDimsLmax, forwardDecomposition, chunkSizeInMebibyte,
+                           thirdLevelHost, thirdLevelPort, 0);
     setCombiParametersHierarchicalBasesUniform(params, "hat_periodic");
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {

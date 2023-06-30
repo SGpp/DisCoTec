@@ -480,8 +480,9 @@ void ProcessGroupWorker::combineSystemWide() {
   Stats::stopEvent("hierarchize");
 
   Stats::startEvent("reduce");
-  this->getSparseGridWorker().reduceLocalAndGlobal(combiParameters_.getCombinationVariant(),
-                                                   MPI_PROC_NULL);
+  this->getSparseGridWorker().reduceLocalAndGlobal(
+      combiParameters_.getCombinationVariant(), combiParameters_.getChunkSizeInMebibybtePerThread(),
+      MPI_PROC_NULL);
   Stats::stopEvent("reduce");
 }
 
@@ -499,17 +500,20 @@ void ProcessGroupWorker::combineSystemWideAndWrite(const std::string& writeSpars
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       assert(!getExtraDSGVector().empty());
       this->getSparseGridWorker().collectReduceDistribute<true>(
-          combiParameters_.getCombinationVariant());
+          combiParameters_.getCombinationVariant(),
+          combiParameters_.getChunkSizeInMebibybtePerThread());
     }
     else {
       this->getSparseGridWorker().collectReduceDistribute<false>(
-          combiParameters_.getCombinationVariant());
+          combiParameters_.getCombinationVariant(),
+          combiParameters_.getChunkSizeInMebibybtePerThread());
     }
     Stats::stopEvent("reduce/distribute");
   } else {
     Stats::startEvent("reduce");
     this->getSparseGridWorker().reduceLocalAndGlobal(
         combiParameters_.getCombinationVariant(),
+        combiParameters_.getChunkSizeInMebibybtePerThread(),
         theMPISystem()->getOutputRankInGlobalReduceComm());
     Stats::stopEvent("reduce");
   }
@@ -537,12 +541,15 @@ void ProcessGroupWorker::combineAtOnce() {
   if (combiParameters_.getCombinationVariant() ==
       CombinationVariant::chunkedOutgroupSparseGridReduce) {
     Stats::startEvent("reduce/distribute");
-    this->getSparseGridWorker().collectReduceDistribute(combiParameters_.getCombinationVariant());
+    this->getSparseGridWorker().collectReduceDistribute(
+        combiParameters_.getCombinationVariant(),
+        combiParameters_.getChunkSizeInMebibybtePerThread());
     Stats::stopEvent("reduce/distribute");
   } else {
     Stats::startEvent("reduce");
-    this->getSparseGridWorker().reduceLocalAndGlobal(combiParameters_.getCombinationVariant(),
-                                                     MPI_PROC_NULL);
+    this->getSparseGridWorker().reduceLocalAndGlobal(
+        combiParameters_.getCombinationVariant(),
+        combiParameters_.getChunkSizeInMebibybtePerThread(), MPI_PROC_NULL);
     Stats::stopEvent("reduce");
     Stats::startEvent("distribute");
     this->getSparseGridWorker().distributeCombinedSolutionToTasks();
