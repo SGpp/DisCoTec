@@ -83,8 +83,8 @@ class SparseGridWorker {
 
   inline void setExtraSparseGrid(bool initializeSizes = true);
 
-  inline MPI_Request startSingleBroadcastDSGs(CombinationVariant combinationVariant,
-                                              RankType broadcastSender);
+  inline void startSingleBroadcastDSGs(CombinationVariant combinationVariant,
+                                       RankType broadcastSender, MPI_Request* request);
 
   inline int writeDSGsToDisk(std::string filenamePrefix, CombinationVariant combinationVariant);
 
@@ -579,18 +579,19 @@ inline void SparseGridWorker::setExtraSparseGrid(bool initializeSizes) {
   }
 }
 
-[[nodiscard]] inline MPI_Request SparseGridWorker::startSingleBroadcastDSGs(
-    CombinationVariant combinationVariant, RankType broadcastSender) {
+inline void SparseGridWorker::startSingleBroadcastDSGs(CombinationVariant combinationVariant,
+                                                       RankType broadcastSender,
+                                                       MPI_Request* request) {
   if (this->getNumberOfGrids() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
   }
   if (combinationVariant == CombinationVariant::sparseGridReduce) {
     // distribute solution in globalReduceComm to other pgs
     return CombiCom::asyncBcastDsgData(*this->getCombinedUniDSGVector()[0], broadcastSender,
-                                       theMPISystem()->getGlobalReduceComm());
+                                       theMPISystem()->getGlobalReduceComm(), request);
   } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
     return CombiCom::asyncBcastOutgroupDsgData(*this->getCombinedUniDSGVector()[0], broadcastSender,
-                                               theMPISystem()->getGlobalReduceComm());
+                                               theMPISystem()->getGlobalReduceComm(), request);
   } else {
     throw std::runtime_error("Combination variant not implemented");
   }

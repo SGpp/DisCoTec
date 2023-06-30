@@ -375,8 +375,8 @@ static void recvDsgData(SparseGridType& dsg, RankType source, CommunicatorType c
  * Asynchronous Bcast of the raw dsg data in the communicator comm.
  */
 template <typename SparseGridType>
-[[nodiscard]] static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root,
-                                                   CommunicatorType comm) {
+static void asyncBcastDsgData(SparseGridType& dsg, RankType root, CommunicatorType comm,
+                              MPI_Request* request) {
   if (dsg.getRawDataSize() >= INT_MAX) {
     throw std::runtime_error(
         "asyncBcastDsgData: Dsg is too large and can not be "
@@ -389,22 +389,18 @@ template <typename SparseGridType>
   int dataSize = static_cast<int>(dsg.getRawDataSize());
   MPI_Datatype dataType =
       getMPIDatatype(abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
-  MPI_Request request = MPI_REQUEST_NULL;
 
-  auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, &request);
+  auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, request);
   assert(success == MPI_SUCCESS);
-  return request;
 }
 
 /**
  * Asynchronous Bcast of the raw dsg data in the communicator comm.
  */
 template <typename SparseGridType, bool communicateAllAllocated = false>
-[[nodiscard]] static MPI_Request asyncBcastOutgroupDsgData(
-    SparseGridType& dsg, RankType root,
-    CommunicatorType comm = theMPISystem()->getGlobalReduceComm()) {
+static void asyncBcastOutgroupDsgData(SparseGridType& dsg, RankType root, CommunicatorType comm,
+                                      MPI_Request* request) {
   assert(dsg.getSubspacesByCommunicator().size() < 2);
-  MPI_Request request = MPI_REQUEST_NULL;
   if (!dsg.getSubspacesByCommunicator().empty()) {
     std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
         datatypesByStartIndex;
@@ -421,10 +417,9 @@ template <typename SparseGridType, bool communicateAllAllocated = false>
 
     auto& subspaceStartIndex = datatypesByStartIndex[0].first;
     auto& datatype = datatypesByStartIndex[0].second;
-    auto success = MPI_Ibcast(dsg.getData(subspaceStartIndex), 1, datatype, root, comm, &request);
+    auto success = MPI_Ibcast(dsg.getData(subspaceStartIndex), 1, datatype, root, comm, request);
     assert(success == MPI_SUCCESS);
   }
-  return request;
 }
 
 /**

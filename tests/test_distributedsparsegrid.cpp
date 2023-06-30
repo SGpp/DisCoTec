@@ -929,9 +929,11 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
           MPI_Barrier(fullComm);
           start = std::chrono::high_resolution_clock::now();
           RankType globalReduceRankThatCollects = 0;
-          CombiCom::distributedGlobalSparseGridReduce(*uniDSG, chunkSizePerThreadInMiB, globalReduceRankThatCollects);
-          auto request = CombiCom::asyncBcastDsgData(*uniDSG, globalReduceRankThatCollects,
-                                                     theMPISystem()->getGlobalReduceComm());
+          CombiCom::distributedGlobalSparseGridReduce(*uniDSG, chunkSizePerThreadInMiB,
+                                                      globalReduceRankThatCollects);
+          MPI_Request request;
+          CombiCom::asyncBcastDsgData(*uniDSG, globalReduceRankThatCollects,
+                                      theMPISystem()->getGlobalReduceComm(), &request);
           MPI_Wait(&request, MPI_STATUS_IGNORE);
           end = std::chrono::high_resolution_clock::now();
           duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -1054,7 +1056,8 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
           BOOST_TEST_CHECKPOINT("outgroup reduce + broadcast");
           start = std::chrono::high_resolution_clock::now();
           CombiCom::distributedGlobalSubspaceReduce(*uniDSG, chunkSizePerThreadInMiB, 0);
-          auto request = CombiCom::asyncBcastOutgroupDsgData(*uniDSG, 0, fullComm);
+          MPI_Request request;
+          CombiCom::asyncBcastOutgroupDsgData(*uniDSG, 0, fullComm, &request);
           MPI_Wait(&request, MPI_STATUS_IGNORE);
           end = std::chrono::high_resolution_clock::now();
           duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
