@@ -25,6 +25,8 @@ class SparseGridWorker {
   inline void collectReduceDistribute(CombinationVariant combinationVariant,
                                       uint32_t maxMiBToSendPerThread);
 
+  inline void copyFromPartialDsgToExtraDSG(int gridNumber = 0);
+
   /* free DSG memory as intermediate step */
   inline void deleteDsgsData();
 
@@ -159,8 +161,7 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
                                                   true>(*dsg, maxMiBToSendPerThread);
         // assert(CombiCom::sumAndCheckSubspaceSizes(*dsg)); // todo adapt for allocated spaces
         if constexpr (keepValuesInExtraSparseGrid) {
-          this->getExtraUniDSGVector()[g]->copyDataFrom(*dsg,
-                                                        dsg->getCurrentlyAllocatedSubspaces());
+          this->copyFromPartialDsgToExtraDSG(g);
         }
 
         // distribute (sg -> fg, within rank)
@@ -184,6 +185,9 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
             t->getDistributedFullGrid(static_cast<int>(g));
         dsg->addDistributedFullGrid<false>(dfg, t->getCoefficient());
       }
+      if constexpr (keepValuesInExtraSparseGrid) {
+        this->copyFromPartialDsgToExtraDSG(g);
+      }
 
       // distribute (sg -> fg, within rank)
       for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
@@ -192,6 +196,24 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
       }
     }
   }
+}
+
+inline void SparseGridWorker::copyFromPartialDsgToExtraDSG(int gridNumber) {
+  assert(gridNumber == 0);
+  assert(this->getCombinedUniDSGVector().size() == 1);
+  assert(this->getExtraUniDSGVector().size() == 1);
+  auto& dsg = this->getCombinedUniDSGVector()[gridNumber];
+  auto& extraDSG = this->getExtraUniDSGVector()[gridNumber];
+  auto subspacesToCopy = std::vector(dsg->getCurrentlyAllocatedSubspaces().cbegin(),
+                                     dsg->getCurrentlyAllocatedSubspaces().cend());
+  subspacesToCopy.erase(
+      std::remove_if(subspacesToCopy.begin(), subspacesToCopy.end(),
+                     [&extraDSG](const auto& s) { return extraDSG->getDataSize(s) == 0; }),
+      subspacesToCopy.end());
+  for (const auto& s : subspacesToCopy) {
+    assert(extraDSG->getDataSize(s) == extraDSG->getAllocatedDataSize(s));
+  }
+  extraDSG->copyDataFrom(*dsg, subspacesToCopy);
 }
 
 inline void SparseGridWorker::deleteDsgsData() {
