@@ -795,7 +795,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     std::cout << "Waiting for token file " << startReadingTokenFileName << std::endl;
     while (!std::filesystem::exists(startReadingTokenFileName)) {
       // wait for token file to appear
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
   }
   MPI_Barrier(theMPISystem()->getOutputGroupComm());
@@ -804,17 +804,25 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
   MPI_Request request = MPI_REQUEST_NULL;
   overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
   int numRead = this->getSparseGridWorker().readReduce(filenamePrefixToRead, overwrite);
-  assert(numRead > 0);
-
-  // I need to broadcast
-  this->getSparseGridWorker().startSingleBroadcastDSGs(
-      this->combiParameters_.getCombinationVariant(), theMPISystem()->getGlobalReduceRank(),
-      &request);
   overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
 
-  // update fgs
-  updateFullFromCombinedSparseGrids();
+  if (this->combiParameters_.getCombinationVariant() ==
+      CombinationVariant::chunkedOutgroupSparseGridReduce) {
+    this->getSparseGridWorker().distributeChunkedBroadcasts(
+        combiParameters_.getChunkSizeInMebibybtePerThread());
 
+    this->dehierarchizeAllTasks();
+  } else {
+    assert(numRead > 0);
+
+    // I need to broadcast
+    this->getSparseGridWorker().startSingleBroadcastDSGs(
+        this->combiParameters_.getCombinationVariant(), theMPISystem()->getGlobalReduceRank(),
+        &request);
+
+    // update fgs
+    updateFullFromCombinedSparseGrids();
+  }
   // remove reading token
   MASTER_EXCLUSIVE_SECTION {
     std::filesystem::remove(startReadingTokenFileName);
@@ -836,7 +844,15 @@ void ProcessGroupWorker::combineReadDistributeSystemWide(
                                                overwrite, keepSparseGridFiles);
   }
   else {
-    this->waitForThirdLevelCombiResult(true);
+    if (combiParameters_.getCombinationVariant() == chunkedOutgroupSparseGridReduce) {
+      Stats::startEvent("distribute bcast");
+      this->getSparseGridWorker().distributeChunkedBroadcasts(
+          combiParameters_.getChunkSizeInMebibybtePerThread());
+      Stats::stopEvent("distribute bcast");
+      this->dehierarchizeAllTasks();
+    } else {
+      this->waitForThirdLevelCombiResult(true);
+    }
   }
 }
 
