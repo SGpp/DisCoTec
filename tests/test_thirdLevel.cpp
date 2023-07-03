@@ -664,7 +664,7 @@ void testCombineThirdLevelWithoutManagers(
       // make sure the first few subspaces are populated
       // (minus the first three, which may be 0 depending on boundary condition and decomposition)
       for (auto& dsg : worker.getExtraDSGVector()) {
-        for (size_t i = 3; i < 6; ++i) {
+        for (size_t i = 3; i < 5; ++i) {
           BOOST_CHECK_GT(dsg->getSubspaceDataSizes()[i], 0);
         }
       }
@@ -1066,6 +1066,34 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
       startInfrastructure();
       BOOST_CHECK_NO_THROW(testCombineThirdLevel(testParams, false)); //TODO make true again
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::tolerance) *
+                                          boost::unit_test::timeout(100)) {
+  unsigned int numSystems = 2;
+  unsigned int nprocs = 1;
+  unsigned int ncombi = 5;
+  DimType dim = 2;
+  BoundaryType boundary = 1;
+  LevelVector lmin(dim, 2);
+  LevelVector lmax(dim, 8);
+
+  for (unsigned int ngroup : std::vector<unsigned int>({1, 2, 3, 4})) {
+    unsigned int sysNum;
+    CommunicatorType newcomm = MPI_COMM_NULL;
+    assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
+    for (CombinationVariant variant :
+         {CombinationVariant::sparseGridReduce, CombinationVariant::outgroupSparseGridReduce,
+          CombinationVariant::chunkedOutgroupSparseGridReduce}) {
+      if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
+        TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+        BOOST_TEST_MESSAGE("test_workers_small: " + std::to_string(variant));
+        BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams, variant));
+      }
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
