@@ -862,17 +862,18 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
    * @param dsg the DSG to extract from
    */
   template <bool sparseGridFullyAllocated = true>
-  void extractFromUniformSG(const DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
+  size_t extractFromUniformSG(const DistributedSparseGridUniform<FG_ELEMENT>& dsg) {
     assert(dsg.isSubspaceDataCreated());
 
     // all the hierarchical subspaces contained in this full grid
     const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
     // loop over all subspaces (-> somewhat linear access in the sg)
+    size_t numCopied = 0;
     static thread_local IndexVector subspaceIndices;
     typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = 0;
 #pragma omp parallel for shared(dsg, downwardClosedSet) default(none) schedule(guided) \
-    firstprivate(sIndex)
+    firstprivate(sIndex) reduction(+ : numCopied)
     for (const auto& level : downwardClosedSet) {
       sIndex = dsg.getIndexInRange(level, sIndex);
       bool shouldBeCopied = sIndex > -1 && dsg.getDataSize(sIndex) > 0;
@@ -887,8 +888,11 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
           this->getData()[subspaceIndices[fIndex]] = *sPointer;
           ++sPointer;
         }
+        assert(dsg.getDataSize(sIndex) == subspaceIndices.size());
+        numCopied += subspaceIndices.size();
       }
     }
+    return numCopied;
   }
 
   inline IndexType getStrideForThisLevel(LevelType l, DimType d) const {
