@@ -336,14 +336,15 @@ void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
 template <typename FG_ELEMENT>
 template <typename SubspaceIndexContainer>
 void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
-    const DistributedSparseGridUniform<FG_ELEMENT>& other, const SubspaceIndexContainer& subspaceIndices) {
+    const DistributedSparseGridUniform<FG_ELEMENT>& other,
+    const SubspaceIndexContainer& subspaceIndices) {
   assert(this->getNumSubspaces() == other.getNumSubspaces());
   assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
 
-  //TODO this doesnt work with std::set
-// #pragma omp parallel for default(none) shared(other,subspaceIndices) schedule(guided)
+  // TODO this doesnt work with std::set
+  // #pragma omp parallel for default(none) shared(other,subspaceIndices) schedule(guided)
   // for (auto it = subspaceIndices.cbegin(); it != subspaceIndices.cend(); ++it) {
-  for (auto i: subspaceIndices) {
+  for (auto i : subspaceIndices) {
     assert(other.getDataSize(i) == this->getDataSize(i));
     assert(other.getAllocatedDataSize(i) == this->getAllocatedDataSize(i));
     auto numPointsToCopy = std::min(other.getDataSize(i), this->getDataSize(i));
@@ -457,10 +458,10 @@ inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(SubspaceInd
   assert(i < this->subspacesDataContainer_.subspaces_.size());
   assert(this->subspacesDataContainer_.subspaces_[i] <=
          &(*(this->subspacesDataContainer_.subspacesData_.end())));
-  if (this->subspacesDataContainer_.subspaces_[i] ==
-      &(*(this->subspacesDataContainer_.subspacesData_.end()))) {
-    assert(this->getDataSize(i) == 0);
-  }
+  // if (this->subspacesDataContainer_.subspaces_[i] ==
+  //     &(*(this->subspacesDataContainer_.subspacesData_.end()))) {
+  //   assert(this->getDataSize(i) == 0);
+  // }
 #endif
   return this->subspacesDataContainer_.subspaces_[i];
 }
