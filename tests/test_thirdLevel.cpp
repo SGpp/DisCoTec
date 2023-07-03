@@ -1074,7 +1074,7 @@ BOOST_AUTO_TEST_CASE(test_8, *boost::unit_test::tolerance(TestHelper::tolerance)
 
 // same as test_8 but only with workers
 BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                         boost::unit_test::timeout(100)) {
+                                         boost::unit_test::timeout(150)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
   unsigned int ncombi = 10;
@@ -1088,9 +1088,11 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
     CommunicatorType newcomm = MPI_COMM_NULL;
     assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
     for (CombinationVariant variant :
-         {CombinationVariant::sparseGridReduce, CombinationVariant::outgroupSparseGridReduce}) {
+         {CombinationVariant::sparseGridReduce, CombinationVariant::outgroupSparseGridReduce,
+          CombinationVariant::chunkedOutgroupSparseGridReduce}) {
       if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
+        BOOST_TEST_MESSAGE("test_8_workers: " + std::to_string(variant));
         BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams, variant));
       }
     }
