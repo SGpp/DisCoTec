@@ -193,8 +193,8 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 
   BOOST_TEST_CHECKPOINT("write solution");
   std::string filename("worker_" + std::to_string(ncombi) + ".raw");
-  BOOST_TEST_CHECKPOINT("write solution " + filename);
-  if (params.getCombinationVariant() != CombinationVariant::chunkedOutgroupSparseGridReduce) {
+  if (params.getCombinationVariant() == CombinationVariant::sparseGridReduce) {
+    BOOST_TEST_CHECKPOINT("write solution " + filename);
     Stats::startEvent("worker write solution");
     FIRST_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
     BOOST_TEST_CHECKPOINT("write min/max coefficients");
