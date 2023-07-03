@@ -86,7 +86,8 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   // create combiparameters
   BOOST_TEST_CHECKPOINT("create combi parameters");
   CombiParameters params(dim, lmin, lmax, boundary, ncombi, 1,
-                         CombinationVariant::outgroupSparseGridReduce,
+                         pretendThirdLevel ? CombinationVariant::chunkedOutgroupSparseGridReduce
+                                           : CombinationVariant::outgroupSparseGridReduce,
                          {static_cast<int>(nprocs), 1}, LevelVector(0), LevelVector(0), false);
   if (nprocs == 5 && boundaryV == 2) {
     params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
