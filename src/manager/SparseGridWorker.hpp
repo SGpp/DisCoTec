@@ -25,10 +25,14 @@ class SparseGridWorker {
   inline void collectReduceDistribute(CombinationVariant combinationVariant,
                                       uint32_t maxMiBToSendPerThread);
 
+  inline void copyFromExtraDsgToPartialDSG(int gridNumber = 0);
+
   inline void copyFromPartialDsgToExtraDSG(int gridNumber = 0);
 
   /* free DSG memory as intermediate step */
   inline void deleteDsgsData();
+
+  inline void distributeChunkedBroadcasts(uint32_t maxMiBToSendPerThread);
 
   inline void distributeCombinedSolutionToTasks();
 
@@ -212,13 +216,144 @@ inline void SparseGridWorker::copyFromPartialDsgToExtraDSG(int gridNumber) {
       subspacesToCopy.end());
   for (const auto& s : subspacesToCopy) {
     assert(extraDSG->getDataSize(s) == extraDSG->getAllocatedDataSize(s));
+    assert(dsg->getDataSize(s) == dsg->getAllocatedDataSize(s));
   }
   extraDSG->copyDataFrom(*dsg, subspacesToCopy);
+}
+
+inline void SparseGridWorker::copyFromExtraDsgToPartialDSG(int gridNumber) {
+  assert(gridNumber == 0);
+  assert(this->getCombinedUniDSGVector().size() == 1);
+  assert(this->getExtraUniDSGVector().size() == 1);
+  auto& dsg = this->getCombinedUniDSGVector()[gridNumber];
+  auto& extraDSG = this->getExtraUniDSGVector()[gridNumber];
+  auto subspacesToCopy = std::vector(dsg->getCurrentlyAllocatedSubspaces().cbegin(),
+                                     dsg->getCurrentlyAllocatedSubspaces().cend());
+  subspacesToCopy.erase(
+      std::remove_if(subspacesToCopy.begin(), subspacesToCopy.end(),
+                     [&extraDSG](const auto& s) { return extraDSG->getDataSize(s) == 0; }),
+      subspacesToCopy.end());
+  for (const auto& s : subspacesToCopy) {
+    assert(extraDSG->getDataSize(s) == extraDSG->getAllocatedDataSize(s));
+    assert(dsg->getDataSize(s) == dsg->getAllocatedDataSize(s));
+  }
+  dsg->copyDataFrom(*extraDSG, subspacesToCopy);
 }
 
 inline void SparseGridWorker::deleteDsgsData() {
   for (auto& dsg : this->getCombinedUniDSGVector()) dsg->deleteSubspaceData();
   for (auto& dsg : this->getExtraUniDSGVector()) dsg->deleteSubspaceData();
+}
+
+inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendPerThread) {
+  RankType broadcastSender = theMPISystem()->getOutputRankInGlobalReduceComm();
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+
+  // communicate the subspaces that will be broadcast
+  std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType> subspaces;
+  assert(this->getCombinedUniDSGVector().size() == 1);
+  auto& uniDSG = this->getCombinedUniDSGVector()[0];
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    assert(broadcastSender == theMPISystem()->getGlobalReduceRank());
+    auto& extraDSG = this->getExtraUniDSGVector()[0];
+    subspaces.reserve(extraDSG->getNumSubspaces());
+    std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType> emptySubspaces = {};
+    const auto* pointerToCandidateSubspaces = &emptySubspaces;
+    if (!uniDSG->getSubspacesByCommunicator().empty()) {
+      pointerToCandidateSubspaces = &uniDSG->getSubspacesByCommunicator()[0].second;
+      assert(uniDSG->getSubspacesByCommunicator().size() == 1);
+    }
+    for (typename AnyDistributedSparseGrid::SubspaceIndexType i = 0;
+         i < extraDSG->getNumSubspaces(); ++i) {
+      if (extraDSG->getDataSize(i) > 0 &&  // TODO find something smarter than this
+          std::find(pointerToCandidateSubspaces->cbegin(), pointerToCandidateSubspaces->cend(),
+                    i) != pointerToCandidateSubspaces->cend()) {
+        subspaces.push_back(i);
+      }
+    }
+  }
+  else {
+    assert(this->getExtraUniDSGVector().empty());
+  }
+  MPIUtils::broadcastContainer(subspaces, broadcastSender, globalReduceComm);
+
+  auto chunkSize =
+      combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(maxMiBToSendPerThread);
+  assert(this->getCombinedUniDSGVector().size() == 1);
+  for (auto& dsg : this->getCombinedUniDSGVector()) {
+    // make sure data sizes are set
+    for (auto& subspace : subspaces) {
+      assert(dsg->getDataSize(subspace) > 0);
+    }
+
+    auto& chunkedSubspaces = combigrid::CombiCom::getChunkedSubspaces(*dsg, subspaces, chunkSize);
+    size_t roundNumber = 0;
+    for (auto& subspaceChunk : chunkedSubspaces) {
+      dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
+
+      OUTPUT_GROUP_EXCLUSIVE_SECTION {
+        // I need to initialize my dsg from the extra dsg
+        this->copyFromExtraDsgToPartialDSG(0);
+      }
+
+      MPI_Request request;
+      CombiCom::asyncBcastOutgroupDsgData<decltype(*dsg), true>(*dsg, broadcastSender,
+                                                                globalReduceComm, &request);
+
+      OUTPUT_GROUP_EXCLUSIVE_SECTION{} {
+        // non-output ranks need to wait before they can extract
+        if (roundNumber == 0) Stats::startEvent("wait 1st bcast");
+        auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+        if (roundNumber == 0) Stats::stopEvent("wait 1st bcast");
+        assert(returnedValue == MPI_SUCCESS);
+      }
+      // distribute (sg -> fg, within rank)
+      for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+        // fill dfg with hierarchical coefficients from distributed sparse grid
+        taskToUpdate->getDistributedFullGrid(0).extractFromUniformSG<false>(*dsg);
+      }
+      OUTPUT_GROUP_EXCLUSIVE_SECTION {
+        // output ranks can wait later
+        auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+        assert(returnedValue == MPI_SUCCESS);
+      }
+      ++roundNumber;
+    }
+  }
+  subspaces.clear();
+
+  // and the output group may also need to update the subspaces from extra dsg that it has alone
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    auto& extraDSG = this->getExtraUniDSGVector()[0];
+    const auto& ingroupSubpspaces = uniDSG->getIngroupSubspaces();
+    for (typename AnyDistributedSparseGrid::SubspaceIndexType i = 0; i < uniDSG->getNumSubspaces();
+         ++i) {
+      if (ingroupSubpspaces.find(i) != ingroupSubpspaces.end() && extraDSG->getDataSize(i) > 0) {
+        subspaces.push_back(i);
+      }
+    }
+    for (auto& dsg : this->getCombinedUniDSGVector()) {
+      // make sure data sizes are set
+      for (auto& subspace : subspaces) {
+        assert(dsg->getDataSize(subspace) > 0);
+      }
+
+      auto& chunkedSubspaces = combigrid::CombiCom::getChunkedSubspaces(*dsg, subspaces, chunkSize);
+      size_t roundNumber = 0;
+      for (auto& subspaceChunk : chunkedSubspaces) {
+        dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
+        this->copyFromExtraDsgToPartialDSG(0);
+        // distribute (sg -> fg, within rank)
+        size_t totalNumCopied = 0;
+        for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+          totalNumCopied +=
+              taskToUpdate->getDistributedFullGrid(0).extractFromUniformSG<false>(*dsg);
+        }
+        assert(totalNumCopied > 0);
+        ++roundNumber;
+      }
+    }
+  }
 }
 
 inline void SparseGridWorker::distributeCombinedSolutionToTasks() {
