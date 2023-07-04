@@ -1131,8 +1131,11 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
+#ifdef NDEBUG
     // this is not the "correct" communicator, but using it here so something is communicated
+    // throws assert because of wrong sizes
     CombiCom::reduceSubspaceSizes(dsg, comm);
+#endif
     dsg.createSubspaceData();
     dsg.setZero();
     end = std::chrono::high_resolution_clock::now();

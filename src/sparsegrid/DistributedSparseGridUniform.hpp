@@ -644,7 +644,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
         assert(kDataSize == this->getDataSize(sIndex));
       }
 #endif  // NDEBUG
-      subspaceIndices = dfg.getFGPointsOfSubspace(level);
+      subspaceIndices = std::move(dfg.getFGPointsOfSubspace(level));
 #pragma omp simd linear(sPointer, kPointer : 1)
       for (size_t fIndex = 0; fIndex < subspaceIndices.size(); ++fIndex) {
         FG_ELEMENT summand = coeff * dfg.getData()[subspaceIndices[fIndex]];
@@ -656,6 +656,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
         ++sPointer;
         ++kPointer;
       }
+      assert(this->getDataSize(sIndex) == subspaceIndices.size());
     }
   }
 }

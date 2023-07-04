@@ -882,7 +882,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
       }
       if (shouldBeCopied) {
         auto sPointer = dsg.getData(sIndex);
-        subspaceIndices = this->getFGPointsOfSubspace(level);
+        subspaceIndices = std::move(this->getFGPointsOfSubspace(level));
 #pragma omp simd linear(sPointer : 1)
         for (size_t fIndex = 0; fIndex < subspaceIndices.size(); ++fIndex) {
           this->getData()[subspaceIndices[fIndex]] = *sPointer;
