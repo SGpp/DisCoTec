@@ -539,7 +539,7 @@ void ProcessGroupWorker::combineAtOnce() {
   if (combiParameters_.getCombinationVariant() ==
       CombinationVariant::chunkedOutgroupSparseGridReduce) {
     Stats::startEvent("reduce/distribute");
-    this->getSparseGridWorker().collectReduceDistribute(
+    this->getSparseGridWorker().collectReduceDistribute<false>(
         combiParameters_.getCombinationVariant(),
         combiParameters_.getChunkSizeInMebibybtePerThread());
     Stats::stopEvent("reduce/distribute");

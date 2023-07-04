@@ -141,9 +141,9 @@ int main(int argc, char** argv) {
     // lie about ncombi, because default is to not use reduced dims for last combi step,
     // which we don't want here because it makes the sparse grid too large
     CombiParameters params(dim, lmin, lmax, boundary, ncombi * 2, 1,
-                           CombinationVariant::sparseGridReduce, p, LevelVector(dim, 0),
-                           reduceCombinationDimsLmax, forwardDecomposition, chunkSizeInMebibyte,
-                           thirdLevelHost, thirdLevelPort, 0);
+                           CombinationVariant::chunkedOutgroupSparseGridReduce, p,
+                           LevelVector(dim, 0), reduceCombinationDimsLmax, chunkSizeInMebibyte,
+                           forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
     setCombiParametersHierarchicalBasesUniform(params, "hat_periodic");
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
@@ -193,17 +193,12 @@ int main(int argc, char** argv) {
                                                << std::endl;
 
     worker.initCombinedDSGVector();
-    auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-        << getTimeStamp() << "worker: initialized SG, registration was " << durationInitSG
-        << " seconds" << std::endl;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "worker: initialized SG"
+                                               << std::endl;
 
     // read (extra) sparse grid sizes, as generated with subspace_writer
     // for target scenarios, consider `wget
     // https://darus.uni-stuttgart.de/api/access/datafile/195543` or similar
-    std::string subspaceFileName =  // cf. subspace_writer.cpp
-        ctschemeFile.substr(0, ctschemeFile.length() - std::string("_00008groups.json").length()) +
-        ".sizes";
     if (extraSparseGrid) {
       std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
           ctschemeFile.substr(
@@ -218,6 +213,12 @@ int main(int argc, char** argv) {
                   << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
                                        sizeof(CombiDataType)) /
                          1e6
+                  << " (but only "
+                  << static_cast<real>(combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(
+                                           chunkSizeInMebibyte) *
+                                       sizeof(CombiDataType)) /
+                         1e6
+                  << " MB at once)"
                   << " plus "
                   << static_cast<real>(worker.getExtraDSGVector()[0]->getAccumulatedDataSize() *
                                        sizeof(CombiDataType)) /

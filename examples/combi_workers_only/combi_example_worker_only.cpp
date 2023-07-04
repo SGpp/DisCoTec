@@ -133,8 +133,8 @@ int main(int argc, char** argv) {
     auto reduceCombinationDimsLmax = LevelVector(dim, 1);
     CombiParameters params(dim, lmin, lmax, boundary, ncombi, 1,
                            CombinationVariant::chunkedOutgroupSparseGridReduce, p,
-                           LevelVector(dim, 0), reduceCombinationDimsLmax, forwardDecomposition,
-                           chunkSizeInMebibyte);
+                           LevelVector(dim, 0), reduceCombinationDimsLmax, chunkSizeInMebibyte,
+                           forwardDecomposition);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
@@ -183,11 +183,8 @@ int main(int argc, char** argv) {
                                                << std::endl;
 
     worker.initCombinedDSGVector();
-
-    auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-        << getTimeStamp() << "worker: initialized SG, registration was " << durationInitSG
-        << " seconds" << std::endl;
+        << getTimeStamp() << "worker: initialized SG" << std::endl;
 
     MASTER_EXCLUSIVE_SECTION {
       std::cout << getTimeStamp() << "group " << theMPISystem()->getProcessGroupNumber()
@@ -195,7 +192,12 @@ int main(int argc, char** argv) {
                 << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
                                      sizeof(CombiDataType)) /
                        1e6
-                << " MB" << std::endl;
+                << " MB (but only "
+                << static_cast<real>(combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(
+                                         chunkSizeInMebibyte) *
+                                     sizeof(CombiDataType)) /
+                       1e6
+                << " MB at once)" << std::endl;
     }
 
     // allocate sparse grids

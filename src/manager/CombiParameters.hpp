@@ -100,8 +100,8 @@ class CombiParameters {
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
-                  bool forwardDecomposition = !isGENE,
                   uint32_t sizeForChunkedCommunicationInMebibyte = 64,
+                  bool forwardDecomposition = !isGENE,
                   const std::string& thirdLevelHost = "", unsigned short thirdLevelPort = 0,
                   size_t thirdLevelPG = 0)
       : dim_(dim),
@@ -206,15 +206,6 @@ class CombiParameters {
 
   inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
 
-  inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) const {
-    taskIDs.reserve(levels_.size());
-    levels.reserve(levels_.size());
-    for (auto it : levels_) {
-      taskIDs.push_back(it.first);
-      levels.push_back(it.second);
-    }
-  }
-
   inline std::map<size_t, LevelVector>& getLevelsDict() { return levels_; }
 
   inline std::map<LevelVector, real>& getCombiDict() { return combiDictionary_; }
@@ -277,11 +268,14 @@ class CombiParameters {
 
   inline CombinationVariant getCombinationVariant() const { return combinationVariant_; }
 
-  inline uint32_t getChunkSizeInMebibybtePerThread() const { return sizeForChunkedCommunicationInMebibyte_; }
-
-  inline const std::string& getThirdLevelHost() {
-    return thirdLevelHost_;
+  inline uint32_t getChunkSizeInMebibybtePerThread() const {
+    if (sizeForChunkedCommunicationInMebibyte_ == 0) {
+      throw std::runtime_error("chunkSizeInMebibytePerThread_ is not set");
+    }
+    return sizeForChunkedCommunicationInMebibyte_;
   }
+
+  inline const std::string& getThirdLevelHost() { return thirdLevelHost_; }
 
   inline unsigned short getThirdLevelPort() {
     return thirdLevelPort_;

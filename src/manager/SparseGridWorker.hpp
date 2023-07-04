@@ -153,6 +153,7 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
       for (auto& subspaceChunk : chunkedSubspaces) {
         // allocate new subspace vector
         dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
+        assert(dsg->getRawDataSize() <= chunkSize);
 
         // local reduce (fg -> sg, within rank)
         for (const auto& t : this->taskWorkerRef_.getTasks()) {

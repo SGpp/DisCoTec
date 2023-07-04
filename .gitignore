@@ -93,3 +93,7 @@ coverage
 *_0
 *output
 *.sizes
+*.csv
+
+# ignoring heaptrack output files
+heaptrack.*

@@ -79,7 +79,9 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
   return bsize == dsg.getRawDataSize();
 }
 
-static size_t MiBtoBytes(uint32_t numberOfMiB) { return powerOfTwoByBitshift(20) * numberOfMiB; }
+static size_t MiBtoBytes(uint32_t numberOfMiB) {
+  return powerOfTwoByBitshift(20) * static_cast<size_t>(numberOfMiB);
+}
 
 template <typename SG_ELEMENT>
 static int getGlobalReduceChunkSize(uint32_t maxMiBToSendPerThread) {
@@ -93,7 +95,7 @@ static int getGlobalReduceChunkSize(uint32_t maxMiBToSendPerThread) {
   // allreduce up to 16MiB at a time (when using double precision)
   // constexpr size_t sixteenMiBinBytes = 16777216;
   auto numOMPThreads = theMPISystem()->getNumOpenMPThreads();
-  int chunkSize = static_cast<int>(maxBytesToSend / sizeof(SG_ELEMENT) / numOMPThreads);
+  int chunkSize = static_cast<int>(maxBytesToSend / sizeof(SG_ELEMENT) * numOMPThreads);
   // assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
   assert(chunkSize > 0);
   return chunkSize;
