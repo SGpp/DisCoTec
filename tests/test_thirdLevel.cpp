@@ -425,7 +425,7 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
 
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
-  std::vector<size_t> taskNumbers; // only used in case of static task assignment
+  std::vector<size_t> taskNumbers;  // only used in case of static task assignment
   bool useStaticTaskAssignment = false;
   {
     // read in CT scheme
@@ -434,19 +434,10 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
     const auto& pgNumbers = scheme->getProcessGroupNumbers();
     if (pgNumbers.size() > 0) {
       useStaticTaskAssignment = true;
-      const auto& allCoeffs = scheme->getCoeffs();
-      const auto& allLevels = scheme->getCombiSpaces();
-      const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
-      assert(*itMin == 0);  // make sure it starts with 0
-      // filter out only those tasks that belong to "our" process group
-      const auto& pgroupNumber = theMPISystem()->getProcessGroupNumber();
-      for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
-        if (pgNumbers[taskNo] == pgroupNumber) {
-          taskNumbers.push_back(taskNo);
-          coeffs.push_back(allCoeffs[taskNo]);
-          levels.push_back(allLevels[taskNo]);
-        }
-      }
+      auto pgroupNumber = theMPISystem()->getProcessGroupNumber();
+      size_t totalNumTasks =
+          combigrid::getAssignedLevels(*scheme, pgroupNumber, levels, coeffs, taskNumbers);
+      BOOST_CHECK_EQUAL(totalNumTasks, pgNumbers.size());
       MASTER_EXCLUSIVE_SECTION {
         std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
                   << pgNumbers.size() << " tasks." << std::endl;

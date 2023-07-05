@@ -75,13 +75,13 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createAdaptiveCombischeme();
 
-  std::vector<LevelVector> levels = combischeme.getCombiSpaces();
-  std::vector<combigrid::real> coeffs = combischeme.getCoeffs();
+  std::vector<size_t> myTaskIDs;
+  std::vector<LevelVector> myLevels;
+  std::vector<real> myCoeffs;
+  combigrid::getRoundRobinLevels(combischeme, theMPISystem()->getProcessGroupNumber(), ngroup,
+                                 myLevels, myCoeffs, myTaskIDs);
 
   ProcessGroupWorker worker;
-
-  std::vector<size_t> taskIDs(levels.size());
-  std::iota(taskIDs.begin(), taskIDs.end(), 0);
 
   // create combiparameters
   BOOST_TEST_CHECKPOINT("create combi parameters");
@@ -99,21 +99,6 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   }
   worker.setCombiParameters(std::move(params));
 
-  std::vector<size_t> myTaskIDs;
-  for (size_t i = 0; i < levels.size(); ++i) {
-    // assign round-robin to process groups based on task id
-    if (i % ngroup == theMPISystem()->getProcessGroupNumber()) {
-      myTaskIDs.push_back(i);
-    }
-  }
-  std::vector<LevelVector> myLevels;
-  std::vector<real> myCoeffs;
-  for (size_t i = 0; i < levels.size(); ++i) {
-    if (std::find(myTaskIDs.begin(), myTaskIDs.end(), i) != myTaskIDs.end()) {
-      myLevels.push_back(levels[i]);
-      myCoeffs.push_back(coeffs[i]);
-    }
-  }
   BOOST_TEST(myTaskIDs.size() > 0);
 
   // create Tasks
@@ -337,7 +322,13 @@ BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTole
           if (rank == 0)
             std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
                       << std::endl;
-          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel));
+          BOOST_CHECK_NO_THROW(
+              try {
+                checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel);
+              } catch (const std::exception& e) {
+                std::cout << "exception: " << e.what() << std::endl;
+                throw;
+              });
           MPI_Barrier(MPI_COMM_WORLD);
         }
       }
