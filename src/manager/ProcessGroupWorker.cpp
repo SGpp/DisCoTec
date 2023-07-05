@@ -803,7 +803,8 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
 
   MPI_Request request = MPI_REQUEST_NULL;
   overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
-  int numRead = this->getSparseGridWorker().readReduce(filenamePrefixToRead, overwrite);
+  int numRead = this->getSparseGridWorker().readReduce(
+      filenamePrefixToRead, this->combiParameters_.getChunkSizeInMebibybtePerThread(), overwrite);
   overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
 
   if (this->combiParameters_.getCombinationVariant() ==

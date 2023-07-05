@@ -76,13 +76,14 @@ void readFromDiskChunked(SparseGridType& dsg, std::string filePrefix) {
 }
 
 template <typename SparseGridType>
-int writeOneFile(const SparseGridType& dsg, const std::string& fileName) {
+int writeOneFile(const SparseGridType& dsg, const std::string& fileName,
+                 bool deleteExistingFile = false) {
   auto comm = dsg.getCommunicator();
 
   MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
   int numWritten = mpiio::writeValuesConsecutive<typename SparseGridType::ElementType>(
-      data, len, fileName, comm);
+      data, len, fileName, comm, deleteExistingFile);
   return numWritten;
 }
 
@@ -99,12 +100,13 @@ int readOneFile(SparseGridType& dsg, const std::string& fileName) {
 }
 
 template <typename SparseGridType>
-int readOneFileAndReduce(SparseGridType& dsg, const std::string& fileName, int numberOfChunks = 1) {
+int readOneFileAndReduce(SparseGridType& dsg, const std::string& fileName,
+                         uint32_t maxMiBToReadPerThread) {
   auto comm = dsg.getCommunicator();
 
-  const int numElementsInChunk = dsg.getRawDataSize() / numberOfChunks;
-  const int remainder = dsg.getRawDataSize() % numberOfChunks;
-  const int numElementsToBuffer = numElementsInChunk + (remainder == 0 ? 0 : 1);
+  const int numElementsToBuffer =
+      CombiCom::getGlobalReduceChunkSize<typename SparseGridType::ElementType>(
+          maxMiBToReadPerThread);
 
   // get offset in file
   const MPI_Offset len = dsg.getRawDataSize();
