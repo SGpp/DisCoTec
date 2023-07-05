@@ -194,23 +194,22 @@ int main(int argc, char** argv) {
     }
 
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
-      MASTER_EXCLUSIVE_SECTION {
-        std::cout << getTimeStamp() << "worker: read sizes, will allocate "
-                  << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
-                                       sizeof(CombiDataType)) /
-                         1e6
-                  << " (but only "
-                  << static_cast<real>(combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(
-                                           chunkSizeInMebibyte) *
-                                       sizeof(CombiDataType)) /
-                         1e6
-                  << " MB at once)"
-                  << " plus "
-                  << static_cast<real>(worker.getExtraDSGVector()[0]->getAccumulatedDataSize() *
-                                       sizeof(CombiDataType)) /
-                         1e6
-                  << " MB" << std::endl;
-      }
+      std::cout << getTimeStamp() << "group " << theMPISystem()->getProcessGroupNumber()
+                << " sparse grid: , will allocate "
+                << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
+                                     sizeof(CombiDataType)) /
+                       1e6
+                << " (but only "
+                << static_cast<real>(combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(
+                                         chunkSizeInMebibyte) *
+                                     sizeof(CombiDataType)) /
+                       1e6
+                << " MB at once)"
+                << " plus "
+                << static_cast<real>(worker.getExtraDSGVector()[0]->getAccumulatedDataSize() *
+                                     sizeof(CombiDataType)) /
+                       1e6
+                << " MB" << std::endl;
     }
     MPI_Barrier(theMPISystem()->getWorldComm());
     // allocate sparse grids now

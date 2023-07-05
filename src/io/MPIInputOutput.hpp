@@ -109,12 +109,33 @@ int writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std
 }
 
 template <typename T>
+bool checkFileSizeConsecutive(MPI_File fileHandle, MPI_Offset myNumValues, CommunicatorType comm) {
+  // get total number of values
+  MPI_Offset totalNumValues;
+  MPI_Allreduce(&myNumValues, &totalNumValues, 1, MPI_OFFSET, MPI_SUM, comm);
+
+  // if (rankInComm == 0) { // TODO is it important that only rank 0 checks the file size?
+  // get file size
+  MPI_Offset fileSize;
+  MPI_File_get_size(fileHandle, &fileSize);
+
+  // check whether file size is correct
+  if (fileSize != totalNumValues * sizeof(T)) {
+    throw std::runtime_error("file size does not match number of values; should be " +
+                             std::to_string(totalNumValues * sizeof(T)) + " but is " +
+                             std::to_string(fileSize) + " bytes");
+  }
+  return true;
+}
+
+template <typename T>
 int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
                           combigrid::CommunicatorType comm, bool withCollectiveBuffering = false) {
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
   MPI_Info info = getNewConsecutiveMpiInfo();
+  MPI_Info_set(info, "access_style", "read_once");
   if (withCollectiveBuffering) {
     // enable ROMIO's collective buffering
     MPI_Info_set(info, "romio_no_indep_rw", "enable");
@@ -133,15 +154,7 @@ int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::strin
     std::cerr << err << " while reading OneFileFromDisk " << fileName << std::endl;
     throw std::runtime_error("read: could not open! " + fileName + ": " + getMpiErrorString(err));
   }
-#ifndef NDEBUG
-  MPI_Offset fileSize = 0;
-  MPI_File_get_size(fh, &fileSize);
-  if (fileSize < numValues * sizeof(T)) {
-    // loud failure if file is too small
-    std::cerr << fileSize << " and not " << numValues << std::endl;
-    throw std::runtime_error("read: file size too small!");
-  }
-#endif
+  checkFileSizeConsecutive<T>(fh, numValues, comm);
 
   // read from single file with MPI-IO
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
@@ -177,6 +190,7 @@ int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std:
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
   MPI_Info info = getNewConsecutiveMpiInfo();
+  MPI_Info_set(info, "access_style", "read_once");
   if (withCollectiveBuffering) {
     // enable ROMIO's collective buffering
     MPI_Info_set(info, "romio_no_indep_rw", "enable");
@@ -195,6 +209,7 @@ int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std:
     std::cerr << err << " while reducing OneFileFromDisk " << fileName << std::endl;
     throw std::runtime_error("read: could not open! " + getMpiErrorString(err));
   }
+  checkFileSizeConsecutive<T>(fh, numValues, comm);
 
   // read from single file with MPI-IO
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());

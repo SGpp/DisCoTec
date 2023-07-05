@@ -165,7 +165,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       BOOST_CHECK_EQUAL(uniDSGfromSubspaces->getRawData()[i], 0.);
     }
 
-    auto writeSuccess = DistributedSparseGridIO::writeOneFile(*uniDSG, "test_sg_all");
+    auto writeSuccess = DistributedSparseGridIO::writeOneFile(*uniDSG, "test_sg_all", true);
     BOOST_WARN(writeSuccess > 0);
     if (writeSuccess) {
       for (size_t i = 0; i < uniDSGfromSubspaces->getRawDataSize(); ++i) {
@@ -181,7 +181,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         }
       }
       auto reduceSuccess =
-          DistributedSparseGridIO::readOneFileAndReduce(*uniDSGfromSubspaces, "test_sg_all");
+          DistributedSparseGridIO::readOneFileAndReduce(*uniDSGfromSubspaces, "test_sg_all", 1);
       BOOST_CHECK_EQUAL(readSuccess, writeSuccess);
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare double values");
@@ -755,7 +755,7 @@ BOOST_AUTO_TEST_CASE(test_writeOneFile) {
     MPI_Barrier(comm);
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto writeSuccess = DistributedSparseGridIO::writeOneFile(*uniDSG, "test_sg_timing");
+    auto writeSuccess = DistributedSparseGridIO::writeOneFile(*uniDSG, "test_sg_timing", true);
     auto end = std::chrono::high_resolution_clock::now();
     BOOST_CHECK(writeSuccess);
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);

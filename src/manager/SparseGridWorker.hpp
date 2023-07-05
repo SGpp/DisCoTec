@@ -73,9 +73,11 @@ class SparseGridWorker {
   inline int readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
 
   inline int readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
+                                       uint32_t maxMiBToReadPerThread,
                                        bool alwaysReadFullDSG = false);
 
-  inline int readReduce(const std::string& filenamePrefixToRead, bool overwrite);
+  inline int readReduce(const std::string& filenamePrefixToRead, uint32_t maxMiBToReadPerThread,
+                        bool overwrite);
 
   inline int reduceExtraSubspaceSizes(const std::string& filenameToRead,
                                       CombinationVariant combinationVariant, bool overwrite);
@@ -556,6 +558,7 @@ inline int SparseGridWorker::readDSGsFromDisk(const std::string& filenamePrefix,
 }
 
 inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
+                                                       uint32_t maxMiBToReadPerThread,
                                                        bool alwaysReadFullDSG) {
   int numReduced = 0;
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
@@ -564,17 +567,8 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
     if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
     }
-    // assume that at least for four process groups, we should have enough spare RAM
-    // to read all of the sparse grid at once
-    // if fewer, chunk the read/reduce
-    int numberReduceChunks = 1;
-    if (theMPISystem()->getNumGroups() == 1) {
-      numberReduceChunks = 4;
-    } else if (theMPISystem()->getNumGroups() < 4) {
-      numberReduceChunks = 2;
-    }
     numReduced += DistributedSparseGridIO::readOneFileAndReduce(
-        *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), numberReduceChunks);
+        *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), maxMiBToReadPerThread);
     if (this->getExtraUniDSGVector().size() > 0) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);
@@ -583,12 +577,13 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
   return numReduced;
 }
 
-inline int SparseGridWorker::readReduce(const std::string& filenamePrefixToRead, bool overwrite) {
+inline int SparseGridWorker::readReduce(const std::string& filenamePrefixToRead,
+                                        uint32_t maxMiBToReadPerThread, bool overwrite) {
   int numRead = 0;
   if (overwrite) {
     numRead = this->readDSGsFromDisk(filenamePrefixToRead);
   } else {
-    numRead = this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
+    numRead = this->readDSGsFromDiskAndReduce(filenamePrefixToRead, maxMiBToReadPerThread);
   }
   if (this->getNumberOfGrids() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
