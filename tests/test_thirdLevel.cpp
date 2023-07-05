@@ -337,9 +337,11 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     manager.readDSGsFromDisk(dsgFileName);
     Stats::stopEvent("manager write solution");
 
+    manager.waitForAllGroupsToWait();
     manager.exit();
 
     // if output files are not needed, remove them right away
+    remove((dsgFileName + "_0").c_str());
     remove(("thirdLevel_" + std::to_string(testParams.ncombi) + "_0.raw").c_str());
     remove(("thirdLevel_" + std::to_string(testParams.ncombi) + "_0.raw_header").c_str());
   }
@@ -351,7 +353,12 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     int nrun = 1;
     while (signal != EXIT) {
       BOOST_TEST_CHECKPOINT("Last Successful Worker Signal " + std::to_string(signal));
-      BOOST_REQUIRE_NO_THROW(signal = pgroup.wait());
+      BOOST_REQUIRE_NO_THROW(
+          try { signal = pgroup.wait(); } catch (std::exception& e) {
+            std::cout << "Exception in worker wait after " << std::to_string(signal) << ": "
+                      << e.what() << std::endl;
+            throw e;
+          });
       if (signal == RUN_NEXT) {
         ++nrun;
       }
