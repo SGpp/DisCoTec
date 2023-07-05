@@ -189,7 +189,7 @@ int main(int argc, char** argv) {
     auto reduceCombinationDimsLmax = std::vector<IndexType>(dim, 0);
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
                            CombinationVariant::sparseGridReduce, std::vector<int>(),
-                           std::vector<IndexType>(0), reduceCombinationDimsLmax, false);
+                           std::vector<IndexType>(0), reduceCombinationDimsLmax, 64, false);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
 

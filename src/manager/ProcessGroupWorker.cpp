@@ -188,11 +188,11 @@ SignalType ProcessGroupWorker::wait() {
 
     } break;
     case COMBINE: {  // start combination
-      combineUniform();
+      combineAtOnce();
     } break;
     case COMBINE_LOCAL_AND_GLOBAL: {
       Stats::startEvent("combine local");
-      combineLocalAndGlobal();
+      combineSystemWide();
       Stats::stopEvent("combine local");
 
     } break;
@@ -464,43 +464,97 @@ void ProcessGroupWorker::exit() {
 
 void ProcessGroupWorker::initCombinedDSGVector() {
   assert(combiParametersSet_);
-  Stats::startEvent("init dsgus");
   this->getSparseGridWorker().initCombinedUniDSGVector(
       combiParameters_.getLMin(), combiParameters_.getLMax(),
       combiParameters_.getLMaxReductionVector(), combiParameters_.getNumGrids(),
       combiParameters_.getCombinationVariant());
-  Stats::stopEvent("init dsgus");
 }
 
-void ProcessGroupWorker::combineLocalAndGlobal(RankType globalReduceRankThatCollects) {
-  assert(this->getSparseGridWorker().getNumberOfGrids() > 0 &&
-         "Initialize dsgu first with "
-         "initCombinedUniDSGVector()");
-  // assert(this->getSparseGridWorker().getCombinedUniDSGVector()[0]->isSubspaceDataCreated());
-
-  this->getSparseGridWorker().zeroDsgsData();
-
+void ProcessGroupWorker::combineSystemWide() {
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
       combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
   Stats::stopEvent("hierarchize");
 
-  Stats::startEvent("local reduce");
-  this->getSparseGridWorker().addFullGridsToUniformSG();
-  Stats::stopEvent("local reduce");
-
-  Stats::startEvent("global reduce");
-  this->getSparseGridWorker().reduceUniformSG(combiParameters_.getCombinationVariant(),
-                                              globalReduceRankThatCollects);
-  Stats::stopEvent("global reduce");
+  Stats::startEvent("reduce");
+  this->getSparseGridWorker().reduceLocalAndGlobal(
+      combiParameters_.getCombinationVariant(), combiParameters_.getChunkSizeInMebibybtePerThread(),
+      MPI_PROC_NULL);
+  Stats::stopEvent("reduce");
 }
 
-void ProcessGroupWorker::combineUniform() {
-  Stats::startEvent("combine");
-  combineLocalAndGlobal();
-  updateFullFromCombinedSparseGrids();
-  Stats::stopEvent("combine");
+void ProcessGroupWorker::combineSystemWideAndWrite(const std::string& writeSparseGridFile,
+                                                   const std::string& writeSparseGridFileToken) {
+  Stats::startEvent("hierarchize");
+  this->getTaskWorker().hierarchizeFullGrids(
+      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+  Stats::stopEvent("hierarchize");
+
+  if (combiParameters_.getCombinationVariant() ==
+      CombinationVariant::chunkedOutgroupSparseGridReduce) {
+    Stats::startEvent("reduce/distribute");
+    OUTPUT_GROUP_EXCLUSIVE_SECTION {
+      assert(!getExtraDSGVector().empty());
+      this->getSparseGridWorker().collectReduceDistribute<true>(
+          combiParameters_.getCombinationVariant(),
+          combiParameters_.getChunkSizeInMebibybtePerThread());
+    }
+    else {
+      this->getSparseGridWorker().collectReduceDistribute<false>(
+          combiParameters_.getCombinationVariant(),
+          combiParameters_.getChunkSizeInMebibybtePerThread());
+    }
+    Stats::stopEvent("reduce/distribute");
+  } else {
+    Stats::startEvent("reduce");
+    this->getSparseGridWorker().reduceLocalAndGlobal(
+        combiParameters_.getCombinationVariant(),
+        combiParameters_.getChunkSizeInMebibybtePerThread(),
+        theMPISystem()->getOutputRankInGlobalReduceComm());
+    Stats::stopEvent("reduce");
+  }
+
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    this->combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
+  }
+}
+void ProcessGroupWorker::dehierarchizeAllTasks() {
+  Stats::startEvent("dehierarchize");
+  this->getTaskWorker().dehierarchizeFullGrids(
+      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+  Stats::stopEvent("dehierarchize");
+  currentCombi_++;
+}
+
+void ProcessGroupWorker::combineAtOnce() {
+  Stats::startEvent("hierarchize");
+  this->getTaskWorker().hierarchizeFullGrids(
+      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
+      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
+  Stats::stopEvent("hierarchize");
+
+  if (combiParameters_.getCombinationVariant() ==
+      CombinationVariant::chunkedOutgroupSparseGridReduce) {
+    Stats::startEvent("reduce/distribute");
+    this->getSparseGridWorker().collectReduceDistribute<false>(
+        combiParameters_.getCombinationVariant(),
+        combiParameters_.getChunkSizeInMebibybtePerThread());
+    Stats::stopEvent("reduce/distribute");
+  } else {
+    Stats::startEvent("reduce");
+    this->getSparseGridWorker().reduceLocalAndGlobal(
+        combiParameters_.getCombinationVariant(),
+        combiParameters_.getChunkSizeInMebibybtePerThread(), MPI_PROC_NULL);
+    Stats::stopEvent("reduce");
+    Stats::startEvent("distribute");
+    this->getSparseGridWorker().distributeCombinedSolutionToTasks();
+    Stats::stopEvent("distribute");
+  }
+
+  this->dehierarchizeAllTasks();
 }
 
 void ProcessGroupWorker::parallelEval() {
@@ -640,21 +694,22 @@ void ProcessGroupWorker::updateCombiParameters() {
   // local root receives combi parameters
   CombiParameters combiParametersReceived;
   MASTER_EXCLUSIVE_SECTION {
-    MPIUtils::receiveClass(&combiParametersReceived, theMPISystem()->getManagerRank(), theMPISystem()->getGlobalComm());
+    MPIUtils::receiveClass(&combiParametersReceived, theMPISystem()->getManagerRank(),
+                           theMPISystem()->getGlobalComm());
   }
   // broadcast parameters to other processes of pgroup
-  MPIUtils::broadcastClass(&combiParametersReceived, theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  MPIUtils::broadcastClass(&combiParametersReceived, theMPISystem()->getMasterRank(),
+                           theMPISystem()->getLocalComm());
 
   this->setCombiParameters(std::move(combiParametersReceived));
 }
 
 void ProcessGroupWorker::updateFullFromCombinedSparseGrids() {
-  Stats::startEvent("dehierarchize");
-  this->getSparseGridWorker().integrateCombinedSolutionToTasks(
-      combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
-      combiParameters_.getHierarchicalBases(), combiParameters_.getLMin());
-  Stats::stopEvent("dehierarchize");
-  currentCombi_++;
+  Stats::startEvent("distribute");
+  this->getSparseGridWorker().distributeCombinedSolutionToTasks();
+  Stats::stopEvent("distribute");
+
+  this->dehierarchizeAllTasks();
 }
 
 void ProcessGroupWorker::combineThirdLevel() {
@@ -668,6 +723,7 @@ void ProcessGroupWorker::combineThirdLevel() {
   const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
 
   std::vector<MPI_Request> requests;
+  requests.reserve(this->getSparseGridWorker().getNumberOfGrids());
   for (size_t i = 0; i < this->getSparseGridWorker().getNumberOfGrids(); ++i) {
     auto uniDsg = this->getSparseGridWorker().getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
@@ -700,8 +756,10 @@ void ProcessGroupWorker::combineThirdLevel() {
     }
 
     // distribute solution in globalReduceComm to other pgs
-    auto request = CombiCom::asyncBcastDsgData(*uniDsg, globalReduceRank, globalReduceComm);
-    requests.push_back(request);
+    requests.push_back(MPI_REQUEST_NULL);
+    this->getSparseGridWorker().startSingleBroadcastDSGs(combiParameters_.getCombinationVariant(),
+                                                         theMPISystem()->getGlobalReduceRank(),
+                                                         &(requests.back()));
   }
   // update fgs
   updateFullFromCombinedSparseGrids();
@@ -715,16 +773,17 @@ void ProcessGroupWorker::combineThirdLevel() {
   Stats::stopEvent("wait for bcasts");
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBasedWrite(
+int ProcessGroupWorker::combineThirdLevelFileBasedWrite(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName) {
   assert(this->getSparseGridWorker().getNumberOfGrids() > 0);
   assert(combiParametersSet_);
 
   // write sparse grid and corresponding token file
   Stats::startEvent("write SG");
-  this->writeDSGsToDisk(filenamePrefixToWrite);
+  int numWritten = this->writeDSGsToDisk(filenamePrefixToWrite);
   MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
   Stats::stopEvent("write SG");
+  return numWritten;
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
@@ -736,19 +795,34 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     std::cout << "Waiting for token file " << startReadingTokenFileName << std::endl;
     while (!std::filesystem::exists(startReadingTokenFileName)) {
       // wait for token file to appear
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
   }
   MPI_Barrier(theMPISystem()->getOutputGroupComm());
   Stats::stopEvent("wait SG");
 
+  MPI_Request request = MPI_REQUEST_NULL;
   overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
-  auto request = this->getSparseGridWorker().readReduceStartBroadcastDSGs(filenamePrefixToRead, overwrite);
+  int numRead = this->getSparseGridWorker().readReduce(filenamePrefixToRead, overwrite);
   overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
 
-  // update fgs
-  updateFullFromCombinedSparseGrids();
+  if (this->combiParameters_.getCombinationVariant() ==
+      CombinationVariant::chunkedOutgroupSparseGridReduce) {
+    this->getSparseGridWorker().distributeChunkedBroadcasts(
+        combiParameters_.getChunkSizeInMebibybtePerThread());
 
+    this->dehierarchizeAllTasks();
+  } else {
+    assert(numRead > 0);
+
+    // I need to broadcast
+    this->getSparseGridWorker().startSingleBroadcastDSGs(
+        this->combiParameters_.getCombinationVariant(), theMPISystem()->getGlobalReduceRank(),
+        &request);
+
+    // update fgs
+    updateFullFromCombinedSparseGrids();
+  }
   // remove reading token
   MASTER_EXCLUSIVE_SECTION {
     std::filesystem::remove(startReadingTokenFileName);
@@ -760,6 +834,26 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
 
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
+}
+
+void ProcessGroupWorker::combineReadDistributeSystemWide(
+    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName,
+    bool overwrite, bool keepSparseGridFiles) {
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    this->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName,
+                                               overwrite, keepSparseGridFiles);
+  }
+  else {
+    if (combiParameters_.getCombinationVariant() == chunkedOutgroupSparseGridReduce) {
+      Stats::startEvent("distribute bcast");
+      this->getSparseGridWorker().distributeChunkedBroadcasts(
+          combiParameters_.getChunkSizeInMebibybtePerThread());
+      Stats::stopEvent("distribute bcast");
+      this->dehierarchizeAllTasks();
+    } else {
+      this->waitForThirdLevelCombiResult(true);
+    }
+  }
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
@@ -799,6 +893,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
       CombiCom::broadcastSubspaceSizes(*dsg, globalReduceComm, globalReduceRank);
     }
   }
+  this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
 }
 
 void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
@@ -808,43 +903,49 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   for (auto& dsg : this->getSparseGridWorker().getCombinedUniDSGVector()) {
     CombiCom::broadcastSubspaceSizes(*dsg, globalReduceComm, thirdLevelPG);
   }
+  this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
 }
 
-void ProcessGroupWorker::reduceSubspaceSizes(const std::string& filenameToRead,
-                                             bool extraSparseGrid, bool overwrite) {
-  this->getSparseGridWorker().reduceSubspaceSizes(filenameToRead, extraSparseGrid, overwrite);
+int ProcessGroupWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
+                                                 bool overwrite) {
+  return this->getSparseGridWorker().reduceExtraSubspaceSizes(
+      filenameToRead, this->combiParameters_.getCombinationVariant(), overwrite);
+  this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
 }
 
-void ProcessGroupWorker::reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
-                                                      const std::string& writeCompleteTokenFileName,
-                                                      const std::string& filenamePrefixToRead,
-                                                      const std::string& startReadingTokenFileName,
-                                                      bool extraSparseGrid) {
-  FIRST_GROUP_EXCLUSIVE_SECTION {
-    this->getSparseGridWorker().writeSubspaceSizesToFile(filenamePrefixToWrite);
+int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
+    const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName,
+    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName) {
+  int numSizesWritten = 0;
+  int numSizesReduced = 0;
+  // we only need to write and read something if we are the I/O group
+  OUTPUT_GROUP_EXCLUSIVE_SECTION { setExtraSparseGrid(true); }
+  this->getSparseGridWorker().maxReduceSubspaceSizesInOutputGroup();
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    numSizesWritten =
+        this->getSparseGridWorker().writeExtraSubspaceSizesToFile(filenamePrefixToWrite);
     MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
-  }
 
-  // if extra sparse grid, we only need to do something if we are the I/O group
-  OUTPUT_GROUP_EXCLUSIVE_SECTION {}
-  else if (extraSparseGrid) {
-    // otherwise, return
-    return;
-  }
-
-  // wait until we can start to read
-  MASTER_EXCLUSIVE_SECTION {
-    while (!std::filesystem::exists(startReadingTokenFileName)) {
-      // wait for token file to appear
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // wait until we can start to read
+    MASTER_EXCLUSIVE_SECTION {
+      while (!std::filesystem::exists(startReadingTokenFileName)) {
+        // wait for token file to appear
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+      }
     }
-  }
-  if (extraSparseGrid) {
     MPI_Barrier(theMPISystem()->getOutputGroupComm());
-  } else {
-    MPI_Barrier(theMPISystem()->getLocalComm());
   }
-  this->reduceSubspaceSizes(filenamePrefixToRead, extraSparseGrid);
+  numSizesReduced = this->reduceExtraSubspaceSizes(filenamePrefixToRead);
+  OUTPUT_GROUP_EXCLUSIVE_SECTION { assert(numSizesWritten == numSizesReduced); }
+  else {
+    assert(numSizesReduced == 0);
+  }
+
+  this->getSparseGridWorker().reduceSubspaceSizesBetweenGroups(
+      this->combiParameters_.getCombinationVariant());
+
+  this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
+  return numSizesReduced;
 }
 
 void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
@@ -859,25 +960,28 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   Stats::startEvent("wait for bcasts");
-  for (auto& dsg : this->getSparseGridWorker().getCombinedUniDSGVector()) {
-    auto request = CombiCom::asyncBcastDsgData(*dsg, broadcastSender, globalReduceComm);
-    auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
-    assert(returnedValue == MPI_SUCCESS);
-  }
+  MPI_Request request;
+  this->getSparseGridWorker().startSingleBroadcastDSGs(combiParameters_.getCombinationVariant(),
+                                                       broadcastSender, &request);
+  auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+  assert(returnedValue == MPI_SUCCESS);
   Stats::stopEvent("wait for bcasts");
 
   updateFullFromCombinedSparseGrids();
 }
 
-void ProcessGroupWorker::zeroDsgsData() { this->getSparseGridWorker().zeroDsgsData(); }
-
-void ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix) {
-  this->getSparseGridWorker().writeDSGsToDisk(filenamePrefix);
+void ProcessGroupWorker::zeroDsgsData() {
+  this->getSparseGridWorker().zeroDsgsData(combiParameters_.getCombinationVariant());
 }
 
-void ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,
-                                          bool alwaysReadFullDSG) {
-  this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, alwaysReadFullDSG);
+int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix) {
+  return this->getSparseGridWorker().writeDSGsToDisk(
+      filenamePrefix, this->getCombiParameters().getCombinationVariant());
+}
+
+int ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,
+                                         bool alwaysReadFullDSG) {
+  return this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, alwaysReadFullDSG);
 }
 
 } /* namespace combigrid */

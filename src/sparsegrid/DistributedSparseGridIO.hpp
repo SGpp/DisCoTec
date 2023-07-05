@@ -76,31 +76,30 @@ void readFromDiskChunked(SparseGridType& dsg, std::string filePrefix) {
 }
 
 template <typename SparseGridType>
-bool writeOneFile(const SparseGridType& dsg, const std::string& fileName) {
+int writeOneFile(const SparseGridType& dsg, const std::string& fileName) {
   auto comm = dsg.getCommunicator();
 
   MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
-  bool success = mpiio::writeValuesConsecutive<typename SparseGridType::ElementType>(
+  int numWritten = mpiio::writeValuesConsecutive<typename SparseGridType::ElementType>(
       data, len, fileName, comm);
-  return success;
+  return numWritten;
 }
 
 template <typename SparseGridType>
-bool readOneFile(SparseGridType& dsg, const std::string& fileName) {
+int readOneFile(SparseGridType& dsg, const std::string& fileName) {
   auto comm = dsg.getCommunicator();
 
   // get offset in file
   MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
-  bool success =
+  int numRead =
       mpiio::readValuesConsecutive<typename SparseGridType::ElementType>(data, len, fileName, comm);
-  return success;
+  return numRead;
 }
 
 template <typename SparseGridType>
-bool readOneFileAndReduce(SparseGridType& dsg, const std::string& fileName,
-                          int numberOfChunks = 1) {
+int readOneFileAndReduce(SparseGridType& dsg, const std::string& fileName, int numberOfChunks = 1) {
   auto comm = dsg.getCommunicator();
 
   const int numElementsInChunk = dsg.getRawDataSize() / numberOfChunks;
@@ -110,47 +109,47 @@ bool readOneFileAndReduce(SparseGridType& dsg, const std::string& fileName,
   // get offset in file
   const MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
-  bool success = mpiio::readReduceValuesConsecutive<typename SparseGridType::ElementType>(
+  int numReduced = mpiio::readReduceValuesConsecutive<typename SparseGridType::ElementType>(
       data, len, fileName, comm, numElementsToBuffer,
       std::plus<typename SparseGridType::ElementType>{});
 
-  return success;
+  return numReduced;
 }
 
 template <typename SparseGridType>
-bool writeSubspaceSizesToFile(const SparseGridType& dsg, const std::string& fileName) {
+int writeSubspaceSizesToFile(const SparseGridType& dsg, const std::string& fileName) {
   auto comm = dsg.getCommunicator();
   MPI_Offset len = dsg.getNumSubspaces();
-  bool success = mpiio::writeValuesConsecutive<SubspaceSizeType>(dsg.getSubspaceDataSizes().data(),
-                                                                 len, fileName, comm);
-  return success;
+  int numWritten = mpiio::writeValuesConsecutive<SubspaceSizeType>(
+      dsg.getSubspaceDataSizes().data(), len, fileName, comm);
+  return numWritten;
 }
 
 template <typename SparseGridType>
-bool readSubspaceSizesFromFile(SparseGridType& dsg, const std::string& fileName,
-                               bool withCollectiveBuffering = false) {
+int readSubspaceSizesFromFile(SparseGridType& dsg, const std::string& fileName,
+                              bool withCollectiveBuffering = false) {
   auto comm = dsg.getCommunicator();
   MPI_Offset len = dsg.getNumSubspaces();
-  bool success = mpiio::readValuesConsecutive<SubspaceSizeType>(
+  int numRead = mpiio::readValuesConsecutive<SubspaceSizeType>(
       dsg.getSubspaceDataSizes().data(), len, fileName, comm, withCollectiveBuffering);
-  return success;
+  return numRead;
 }
 
 template <typename SparseGridType, typename ReduceFunctionType>
-bool readReduceSubspaceSizesFromFile(SparseGridType& dsg, const std::string& fileName,
-                                     ReduceFunctionType reduceFunction, int numElementsToBuffer = 0,
-                                     bool withCollectiveBuffering = false) {
+int readReduceSubspaceSizesFromFile(SparseGridType& dsg, const std::string& fileName,
+                                    ReduceFunctionType reduceFunction, int numElementsToBuffer = 0,
+                                    bool withCollectiveBuffering = false) {
   auto comm = dsg.getCommunicator();
   MPI_Offset len = dsg.getNumSubspaces();
   if (numElementsToBuffer == 0) {
     numElementsToBuffer = len;
   }
 
-  bool success = mpiio::readReduceValuesConsecutive<SubspaceSizeType>(
+  int numReduced = mpiio::readReduceValuesConsecutive<SubspaceSizeType>(
       dsg.getSubspaceDataSizes().data(), len, fileName, comm, numElementsToBuffer, reduceFunction,
       withCollectiveBuffering);
 
-  return success;
+  return numReduced;
 }
 }  // namespace DistributedSparseGridIO
 }  // namespace combigrid

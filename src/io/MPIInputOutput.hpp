@@ -33,9 +33,9 @@ static MPI_Info getNewConsecutiveMpiInfo() {
 }
 
 template <typename T>
-bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std::string& fileName,
-                            combigrid::CommunicatorType comm, bool replaceExistingFile = false,
-                            bool withCollectiveBuffering = false) {
+int writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std::string& fileName,
+                           combigrid::CommunicatorType comm, bool replaceExistingFile = false,
+                           bool withCollectiveBuffering = false) {
   // get offset in file
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
@@ -105,12 +105,12 @@ bool writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const st
 
   MPI_File_close(&fh);
   MPI_Info_free(&info);
-  return err == MPI_SUCCESS;
+  return (err == MPI_SUCCESS) ? numValues : 0;
 }
 
 template <typename T>
-bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
-                           combigrid::CommunicatorType comm, bool withCollectiveBuffering = false) {
+int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
+                          combigrid::CommunicatorType comm, bool withCollectiveBuffering = false) {
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
@@ -153,7 +153,7 @@ bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::stri
   if (err != MPI_SUCCESS) {
     // non-failure
     std::cerr << err << " in MPI_File_read_at_all" << std::endl;
-    return false;
+    return 0;
   }
 
 #ifndef NDEBUG
@@ -166,14 +166,14 @@ bool readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::stri
   }
 #endif
 
-  return true;
+  return numValues;
 }
 
 template <typename T, typename ReduceFunctionType>
-bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
-                                 combigrid::CommunicatorType comm, int numElementsToBuffer,
-                                 ReduceFunctionType reduceFunction,
-                                 bool withCollectiveBuffering = false) {
+int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
+                                combigrid::CommunicatorType comm, int numElementsToBuffer,
+                                ReduceFunctionType reduceFunction,
+                                bool withCollectiveBuffering = false) {
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
   MPI_Info info = getNewConsecutiveMpiInfo();
@@ -221,7 +221,7 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
   }
   MPI_File_close(&fh);
   MPI_Info_free(&info);
-  return true;
+  return readcount;
 }
 }  // namespace mpiio
 }  // namespace combigrid

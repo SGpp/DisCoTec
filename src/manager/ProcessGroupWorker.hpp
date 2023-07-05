@@ -35,10 +35,15 @@ class ProcessGroupWorker {
   /** extracts and dehierarchizes */
   void updateFullFromCombinedSparseGrids();
 
-  /** combine on sparse grid with uniform decomposition of domain */
-  void combineUniform();
+  void dehierarchizeAllTasks();
 
-  void combineLocalAndGlobal(RankType globalReduceRankThatCollects = MPI_PROC_NULL);
+  /** combine on sparse grid with uniform decomposition of domain */
+  void combineAtOnce();
+
+  void combineSystemWide();
+
+  void combineSystemWideAndWrite(const std::string& writeSparseGridFile,
+                                 const std::string& writeSparseGridFileToken);
 
   /** parallel file io of final output grid */
   void parallelEval();
@@ -67,10 +72,10 @@ class ProcessGroupWorker {
   void writeSparseGridMinMaxCoefficients(const std::string& fileNamePrefix) const;
 
   /** write extra SGs to disk (binary w/ MPI-IO) */
-  void writeDSGsToDisk(const std::string& filenamePrefix);
+  int writeDSGsToDisk(const std::string& filenamePrefix);
 
   /** read extra SGs from disk (binary w/ MPI-IO) */
-  void readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
+  int readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
 
   void setCombiParameters(CombiParameters&& combiParameters);
 
@@ -84,13 +89,17 @@ class ProcessGroupWorker {
    * and updates fgs. */
   void combineThirdLevel();
 
-  void combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
-                                       const std::string& writeCompleteTokenFileName);
+  int combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
+                                      const std::string& writeCompleteTokenFileName);
 
   void combineThirdLevelFileBasedReadReduce(const std::string& filenamePrefixToRead,
                                             const std::string& startReadingTokenFileName,
                                             bool overwrite = false,
                                             bool keepSparseGridFiles = false);
+
+  void combineReadDistributeSystemWide(const std::string& filenamePrefixToRead,
+                                       const std::string& startReadingTokenFileName,
+                                       bool overwrite = false, bool keepSparseGridFiles = false);
 
   void combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
                                   const std::string& writeCompleteTokenFileName,
@@ -106,14 +115,12 @@ class ProcessGroupWorker {
   /** computes a max reduce on the dsg's subspace sizes with the other systems */
   void reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
 
-  void reduceSubspaceSizes(const std::string& filenameToRead, bool extraSparseGrid,
-                           bool overwrite = false);
+  int reduceExtraSubspaceSizes(const std::string& filenameToRead, bool overwrite = false);
 
-  void reduceSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
-                                    const std::string& writeCompleteTokenFileName,
-                                    const std::string& filenamePrefixToRead,
-                                    const std::string& startReadingTokenFileName,
-                                    bool extraSparseGrid);
+  int reduceExtraSubspaceSizesFileBased(const std::string& filenamePrefixToWrite,
+                                   const std::string& writeCompleteTokenFileName,
+                                   const std::string& filenamePrefixToRead,
+                                   const std::string& startReadingTokenFileName);
 
   /** receives reduced sizes from tl pgroup and updates the dsgs */
   void waitForThirdLevelSizeUpdate();

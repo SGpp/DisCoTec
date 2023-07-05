@@ -7,7 +7,6 @@
 #include "mpi/MPISystem.hpp"
 #include "third_level/NetworkUtils.hpp"
 #include "fullgrid/FullGrid.hpp"
-#include "manager/CombiParameters.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 
 namespace combigrid {

@@ -20,6 +20,16 @@ size_t AnyDistributedSparseGrid::getAccumulatedDataSize() const {
                          static_cast<size_t>(0));
 }
 
+size_t AnyDistributedSparseGrid::getAccumulatedDataSize(
+    const std::set<SubspaceIndexType>& subsetOfSubspaces) const {
+  // make filtered accumulation
+  size_t accumulatedDataSize = 0;
+  for (auto i : subsetOfSubspaces) {
+    accumulatedDataSize += subspacesDataSizes_[i];
+  }
+  return accumulatedDataSize;
+}
+
 AnyDistributedSparseGrid::~AnyDistributedSparseGrid() { clearSubspaceCommunicators(); }
 
 void AnyDistributedSparseGrid::clearSubspaceCommunicators() {
@@ -44,6 +54,33 @@ SubspaceSizeType AnyDistributedSparseGrid::getDataSize(SubspaceIndexType i) cons
 #endif  // NDEBUG
 
   return subspacesDataSizes_[i];
+}
+
+std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>&
+AnyDistributedSparseGrid::getIngroupSubspaces() const {
+  assert(this->getSubspacesByCommunicator().size() < 2);
+  static thread_local std::set<SubspaceIndexType> ingroupSubspaces{};
+  ingroupSubspaces.clear();
+  if (this->getSubspacesByCommunicator().empty()) {
+    for (SubspaceIndexType i = 0; i < this->getNumSubspaces(); ++i) {
+      // select those with a positive data size
+      if (this->getDataSize(i) > 0) {
+        ingroupSubspaces.insert(i);
+      }
+    }
+  } else {
+    for (SubspaceIndexType i = 0; i < this->getNumSubspaces(); ++i) {
+      // select those with a positive data size and that are not associated to outgroup communicator
+      bool notForOutputComm = std::find(this->getSubspacesByCommunicator()[0].second.cbegin(),
+                                        this->getSubspacesByCommunicator()[0].second.cend(),
+                                        i) == this->getSubspacesByCommunicator()[0].second.cend();
+
+      if (this->getDataSize(i) > 0 && notForOutputComm) {
+        ingroupSubspaces.insert(i);
+      }
+    }
+  }
+  return ingroupSubspaces;
 }
 
 typename AnyDistributedSparseGrid::SubspaceIndexType AnyDistributedSparseGrid::getNumSubspaces()
@@ -138,15 +175,15 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
       ranks.push_back(r);
     }
   }
+
   // assert that the given comm has the right size and all ranks are contributing
   int commSize;
   MPI_Comm_size(comm, &commSize);
   assert(commSize == static_cast<int>(ranks.size()) || subspacesForMany.empty());
   MPI_Comm subspaceComm = comm;
-  myOwnSubspaceCommunicators_ = false;
-
-  // now we also need to reduce the data sizes (like for sparse grid reduce, but only for the
-  // subspaces to be exchanged)
+  myOwnSubspaceCommunicators_ = false;  // now we also need to reduce the data sizes (like for
+                                        // sparse grid reduce, but only for the
+                                        // subspaces to be exchanged)
   std::vector<SubspaceSizeType> subspaceDataSizesAlmostCopy(this->subspacesDataSizes_.size(), 0);
   for (const auto& subspace : subspacesForMany) {
     subspaceDataSizesAlmostCopy[subspace] = this->subspacesDataSizes_[subspace];
@@ -172,6 +209,7 @@ void AnyDistributedSparseGrid::setOutgroupCommunicator(CommunicatorType comm, Ra
                 getMPIDatatype(abstraction::getabstractionDataType<size_t>()), MPI_MAX, comm);
   assert(maxNumComms <= 1);
 #endif  // NDEBUG
+  assert(subspacesByComm_.size() < 2);
 }
 
 void AnyDistributedSparseGrid::setSubspaceCommunicators(CommunicatorType comm,

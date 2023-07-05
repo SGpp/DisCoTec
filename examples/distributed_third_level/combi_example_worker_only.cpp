@@ -63,6 +63,7 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.lmax") >> lmax;
     cfg.get<std::string>("ct.p") >> p;
     ncombi = cfg.get<size_t>("ct.ncombi");
+    uint32_t chunkSizeInMebibyte = cfg.get<uint32_t>("ct.chunkSize", 64);
     std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme", "");
     dt = cfg.get<combigrid::real>("application.dt");
     nsteps = cfg.get<size_t>("application.nsteps");
@@ -140,9 +141,9 @@ int main(int argc, char** argv) {
     // lie about ncombi, because default is to not use reduced dims for last combi step,
     // which we don't want here because it makes the sparse grid too large
     CombiParameters params(dim, lmin, lmax, boundary, ncombi * 2, 1,
-                           CombinationVariant::sparseGridReduce, p, LevelVector(dim, 0),
-                           reduceCombinationDimsLmax, forwardDecomposition, thirdLevelHost,
-                           thirdLevelPort, 0);
+                           CombinationVariant::chunkedOutgroupSparseGridReduce, p,
+                           LevelVector(dim, 0), reduceCombinationDimsLmax, chunkSizeInMebibyte,
+                           forwardDecomposition, thirdLevelHost, thirdLevelPort, 0);
     setCombiParametersHierarchicalBasesUniform(params, "hat_periodic");
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
@@ -192,24 +193,18 @@ int main(int argc, char** argv) {
                                                << std::endl;
 
     worker.initCombinedDSGVector();
-    auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-        << getTimeStamp() << "worker: initialized SG, registration was " << durationInitSG
-        << " seconds" << std::endl;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "worker: initialized SG"
+                                               << std::endl;
 
     // read (extra) sparse grid sizes, as generated with subspace_writer
     // for target scenarios, consider `wget
     // https://darus.uni-stuttgart.de/api/access/datafile/195543` or similar
-    std::string subspaceFileName =  // cf. subspace_writer.cpp
-        ctschemeFile.substr(0, ctschemeFile.length() - std::string("_00008groups.json").length()) +
-        ".sizes";
-    worker.reduceSubspaceSizes(subspaceFileName, false, true);
     if (extraSparseGrid) {
       std::string conjointSubspaceFileName =  // cf. subspace_writer.cpp
           ctschemeFile.substr(
               0, ctschemeFile.length() - std::string("_part0_00008groups.json").length()) +
           "conjoint.sizes";
-      worker.reduceSubspaceSizes(conjointSubspaceFileName, extraSparseGrid, true);
+      worker.reduceExtraSubspaceSizes(conjointSubspaceFileName, true);
     }
 
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
@@ -218,6 +213,12 @@ int main(int argc, char** argv) {
                   << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
                                        sizeof(CombiDataType)) /
                          1e6
+                  << " (but only "
+                  << static_cast<real>(combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(
+                                           chunkSizeInMebibyte) *
+                                       sizeof(CombiDataType)) /
+                         1e6
+                  << " MB at once)"
                   << " plus "
                   << static_cast<real>(worker.getExtraDSGVector()[0]->getAccumulatedDataSize() *
                                        sizeof(CombiDataType)) /
@@ -264,10 +265,7 @@ int main(int argc, char** argv) {
           "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
       std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
 
-      worker.combineLocalAndGlobal(theMPISystem()->getOutputRankInGlobalReduceComm());
-      OUTPUT_GROUP_EXCLUSIVE_SECTION {
-        worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
-      }
+      worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
       // everyone writes partial stats
       Stats::writePartial("stats_worker_" + std::to_string(systemNumber) + "_group" +
                               std::to_string(theMPISystem()->getProcessGroupNumber()) + ".json",
@@ -287,24 +285,13 @@ int main(int argc, char** argv) {
         readSparseGridFile =
             "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
         std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
-        OUTPUT_GROUP_EXCLUSIVE_SECTION {
-          worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, readSparseGridFileToken,
-                                                      false, false);
-        }
-        else {
-          worker.waitForThirdLevelCombiResult(true);
-        }
+        worker.combineReadDistributeSystemWide(readSparseGridFile, readSparseGridFileToken, false,
+                                               false);
+
       } else {
         readSparseGridFile = writeSparseGridFile;
-        // open question: should all groups read for themselves or one broadcasts?
-        // (currently: one group broadcasts to other groups)
-        OUTPUT_GROUP_EXCLUSIVE_SECTION {
-          worker.combineThirdLevelFileBasedReadReduce(readSparseGridFile, writeSparseGridFileToken,
-                                                      true, false);
-        }
-        else {
-          worker.waitForThirdLevelCombiResult(true);
-        }
+        worker.combineReadDistributeSystemWide(readSparseGridFile, writeSparseGridFileToken, true,
+                                               false);
       }
       MIDDLE_PROCESS_EXCLUSIVE_SECTION {
         auto endCombineRead = std::chrono::high_resolution_clock::now();

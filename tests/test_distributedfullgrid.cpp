@@ -191,6 +191,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   BOOST_TEST_CHECKPOINT("register uniform sg");
   OwningDistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
   dsg.registerDistributedFullGrid(dfg2);
+  dsg.createSubspaceData();
   dsg.setZero();
   dsg.addDistributedFullGrid(dfg, 2.1);
   BOOST_TEST_CHECKPOINT("add to uniform sg");
@@ -1130,8 +1131,12 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
+#ifdef NDEBUG
     // this is not the "correct" communicator, but using it here so something is communicated
+    // throws assert because of wrong sizes
     CombiCom::reduceSubspaceSizes(dsg, comm);
+#endif
+    dsg.createSubspaceData();
     dsg.setZero();
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -1295,6 +1300,7 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
           for (const auto& dfg : dfgs) {
             dsg.registerDistributedFullGrid(dfg);
           }
+          dsg.createSubspaceData();
           dsg.setZero();
           LevelVector zeroLMin(dim, 0);
           for (size_t i = 0; i < dfgs.size(); ++i) {

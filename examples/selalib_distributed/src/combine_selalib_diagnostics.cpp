@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "combischeme/CombiMinMaxScheme.hpp"
-#include "manager/CombiParameters.hpp"
 #include "utils/Types.hpp"
 
 using namespace combigrid;

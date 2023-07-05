@@ -1,6 +1,8 @@
 #ignore defailt build folders
 build/*
 cmake-build-*/
+build*/
+spack-*
 
 # allowing stuff to be in examples but nowhere else (swig)
 *.java
@@ -91,3 +93,7 @@ coverage
 *_0
 *output
 *.sizes
+*.csv
+
+# ignoring heaptrack output files
+heaptrack.*

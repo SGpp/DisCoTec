@@ -64,6 +64,7 @@ int main(int argc, char** argv) {
     }
 
     size_t ncombi = cfg.get<size_t>("ct.ncombi");
+    uint32_t chunkSizeInMebibyte = cfg.get<uint32_t>("ct.chunkSize", 128);
     std::string basis = cfg.get<std::string>("ct.basis", "hat_periodic");
     std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme");
     combigrid::real dt = cfg.get<combigrid::real>("application.dt");
@@ -131,8 +132,9 @@ int main(int argc, char** argv) {
     // create combiparameters
     auto reduceCombinationDimsLmax = LevelVector(dim, 1);
     CombiParameters params(dim, lmin, lmax, boundary, ncombi, 1,
-                           CombinationVariant::outgroupSparseGridReduce, p, LevelVector(dim, 0),
-                           reduceCombinationDimsLmax, forwardDecomposition);
+                           CombinationVariant::chunkedOutgroupSparseGridReduce, p,
+                           LevelVector(dim, 0), reduceCombinationDimsLmax, chunkSizeInMebibyte,
+                           forwardDecomposition);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
@@ -181,11 +183,8 @@ int main(int argc, char** argv) {
                                                << std::endl;
 
     worker.initCombinedDSGVector();
-
-    auto durationInitSG = Stats::getDuration("init dsgus") / 1000.0;
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-        << getTimeStamp() << "worker: initialized SG, registration was " << durationInitSG
-        << " seconds" << std::endl;
+        << getTimeStamp() << "worker: initialized SG" << std::endl;
 
     MASTER_EXCLUSIVE_SECTION {
       std::cout << getTimeStamp() << "group " << theMPISystem()->getProcessGroupNumber()
@@ -193,7 +192,12 @@ int main(int argc, char** argv) {
                 << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
                                      sizeof(CombiDataType)) /
                        1e6
-                << " MB" << std::endl;
+                << " MB (but only "
+                << static_cast<real>(combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(
+                                         chunkSizeInMebibyte) *
+                                     sizeof(CombiDataType)) /
+                       1e6
+                << " MB at once)" << std::endl;
     }
 
     // allocate sparse grids
@@ -237,8 +241,12 @@ int main(int argc, char** argv) {
       }
 
       MPI_Barrier(theMPISystem()->getWorldComm());
-      worker.combineUniform();
-      auto durationCombine = Stats::getDuration("combine") / 1000.0;
+      auto startCombine = std::chrono::high_resolution_clock::now();
+      worker.combineAtOnce();
+      auto endCombine = std::chrono::high_resolution_clock::now();
+      auto durationCombine =
+          std::chrono::duration_cast<std::chrono::milliseconds>(endCombine - startCombine).count() /
+          1000.0;
       MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "combination " << i
                                                  << " took: " << durationCombine << " seconds"
                                                  << std::endl;

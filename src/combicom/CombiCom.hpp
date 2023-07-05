@@ -52,7 +52,6 @@ template <typename SparseGridType>
 int sumAndCheckSubspaceSizes(const SparseGridType& dsg,
                              const std::vector<SubspaceSizeType>& subspaceSizes) {
   int bsize = 0;
-
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     // check for implementation errors, the reduced subspace size should not be
     // different from the size of already initialized subspaces
@@ -80,14 +79,25 @@ bool sumAndCheckSubspaceSizes(const SparseGridType& dsg) {
   return bsize == dsg.getRawDataSize();
 }
 
+static size_t MiBtoBytes(uint32_t numberOfMiB) {
+  return powerOfTwoByBitshift(20) * static_cast<size_t>(numberOfMiB);
+}
+
 template <typename SG_ELEMENT>
-static int getGlobalReduceChunkSize() {
+static int getGlobalReduceChunkSize(uint32_t maxMiBToSendPerThread) {
+  if (maxMiBToSendPerThread > static_cast<uint32_t>(std::numeric_limits<int>::max()) ||
+      maxMiBToSendPerThread == 0) {
+    return std::numeric_limits<int>::max();
+  }
+  assert(maxMiBToSendPerThread > 0);
+  auto maxBytesToSend = CombiCom::MiBtoBytes(maxMiBToSendPerThread);
   // auto chunkSize = std::numeric_limits<int>::max();
   // allreduce up to 16MiB at a time (when using double precision)
-  constexpr size_t sixteenMiBinBytes = 16777216;
+  // constexpr size_t sixteenMiBinBytes = 16777216;
   auto numOMPThreads = theMPISystem()->getNumOpenMPThreads();
-  int chunkSize = static_cast<int>(sixteenMiBinBytes / sizeof(SG_ELEMENT) / numOMPThreads);
-  assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
+  int chunkSize = static_cast<int>(maxBytesToSend / sizeof(SG_ELEMENT) * numOMPThreads);
+  // assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
+  assert(chunkSize > 0);
   return chunkSize;
 }
 
@@ -101,7 +111,8 @@ static int getGlobalReduceChunkSize() {
  */
 template <typename SparseGridType>
 void distributedGlobalSparseGridReduce(
-    SparseGridType& dsg, RankType globalReduceRankThatCollects = MPI_PROC_NULL,
+    SparseGridType& dsg, uint32_t maxMiBToSendPerThread,
+    RankType globalReduceRankThatCollects = MPI_PROC_NULL,
     MPI_Comm globalComm = theMPISystem()->getGlobalReduceComm()) {
   assert(globalComm != MPI_COMM_NULL);
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
@@ -114,7 +125,8 @@ void distributedGlobalSparseGridReduce(
   MPI_Datatype dtype = abstraction::getMPIDatatype(
       abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
 
-  auto chunkSize = getGlobalReduceChunkSize<typename SparseGridType::ElementType>();
+  auto chunkSize =
+      getGlobalReduceChunkSize<typename SparseGridType::ElementType>(maxMiBToSendPerThread);
   size_t sentRecvd = 0;
   if (globalReduceRankThatCollects == MPI_PROC_NULL) {
     while ((subspacesDataSize - sentRecvd) / chunkSize > 0) {
@@ -189,81 +201,101 @@ void addIndexedElements(void* invec, void* inoutvec, int* len, MPI_Datatype* dty
   }
 }
 
-template <typename FG_ELEMENT>
+template <typename FG_ELEMENT, typename SubspaceIndexContainer>
+std::vector<std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>>& getChunkedSubspaces(
+    const DistributedSparseGridUniform<FG_ELEMENT>& dsg, const SubspaceIndexContainer& siContainer,
+    int maxChunkSize) {
+  static thread_local std::vector<std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>>
+      subspaceIndicesChunks;
+  subspaceIndicesChunks.clear();
+
+  auto subspaceIt = siContainer.cbegin();
+  while (subspaceIt != siContainer.cend()) {
+    static thread_local std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>
+        chunkSubspaces;
+    chunkSubspaces.clear();
+    const auto subspaceItBefore = subspaceIt;
+    SubspaceSizeType chunkDataSize = 0;
+    // select chunk of not more than chunkSize, but at least one index
+    auto nextAddedDataSize = dsg.getDataSize(*subspaceIt);
+    do {
+      chunkDataSize += nextAddedDataSize;
+      chunkSubspaces.insert(*subspaceIt);
+      ++subspaceIt;
+    } while (subspaceIt != siContainer.cend() &&
+             (nextAddedDataSize = dsg.getDataSize(*subspaceIt)) &&
+             (chunkDataSize + nextAddedDataSize) < maxChunkSize);
+    subspaceIndicesChunks.push_back(std::move(chunkSubspaces));
+  }
+  return subspaceIndicesChunks;
+}
+
+template <typename FG_ELEMENT, typename SubspaceIndexContainer>
 std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
-getReductionDatatypes(
-    const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
-    const std::pair<CommunicatorType,
-                    std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
-        commAndItsSubspaces) {
+getReductionDatatypes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
+                      const SubspaceIndexContainer& subspaces, uint32_t maxMiBToSendPerThread) {
   // like for sparse grid reduce, allow only up to 16MiB per reduction
-  auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>();
+  auto chunkSize = getGlobalReduceChunkSize<FG_ELEMENT>(maxMiBToSendPerThread);
   std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
       datatypesByStartIndex;
 
-  // iterate subspacesByComm_ and create MPI datatypes for this communicator
-  auto comm = commAndItsSubspaces.first;
-  const auto& subspaces = commAndItsSubspaces.second;
+  // iterate subspaces and create MPI datatypes
   // get chunked subspaces for this data type
   {
-    auto subspaceIt = subspaces.cbegin();
-    while (subspaceIt != subspaces.cend()) {
-      const auto subspaceItBefore = subspaceIt;
-      const FG_ELEMENT* rawDataStartFirst = dsg.getData(*subspaceItBefore);
-      SubspaceSizeType chunkDataSize = 0;
-      static thread_local std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>
-          chunkSubspaces;
-      chunkSubspaces.clear();
-      // select chunk of not more than chunkSize, but at least one index
-      auto nextAddedDataSize = dsg.getDataSize(*subspaceIt);
-      do {
-        chunkDataSize += nextAddedDataSize;
-        chunkSubspaces.push_back(*subspaceIt);
-        ++subspaceIt;
-      } while (subspaceIt != subspaces.cend() &&
-               (nextAddedDataSize = dsg.getDataSize(*subspaceIt)) &&
-               (chunkDataSize + nextAddedDataSize) < chunkSize);
+    auto& chunkedSubspaces = getChunkedSubspaces(dsg, subspaces, chunkSize);
+    for (auto& subspacesChunk : chunkedSubspaces) {
+      const FG_ELEMENT* rawDataStartFirst = dsg.getData(*subspacesChunk.cbegin());
 
       // create datatype for this chunk
       static thread_local std::vector<int> arrayOfBlocklengths, arrayOfDisplacements;
       arrayOfBlocklengths.clear();
       arrayOfDisplacements.clear();
-      arrayOfBlocklengths.reserve(chunkSubspaces.size());
-      arrayOfDisplacements.reserve(chunkSubspaces.size());
-      for (const auto& ss : chunkSubspaces) {
+      arrayOfBlocklengths.reserve(subspacesChunk.size());
+      arrayOfDisplacements.reserve(subspacesChunk.size());
+      for (const auto& ss : subspacesChunk) {
         arrayOfBlocklengths.push_back(dsg.getDataSize(ss));
         arrayOfDisplacements.push_back(dsg.getData(ss) - rawDataStartFirst);
       }
 
       MPI_Datatype myIndexedDatatype;
-      MPI_Type_indexed(static_cast<int>(chunkSubspaces.size()), arrayOfBlocklengths.data(),
+      MPI_Type_indexed(static_cast<int>(subspacesChunk.size()), arrayOfBlocklengths.data(),
                        arrayOfDisplacements.data(),
                        getMPIDatatype(abstraction::getabstractionDataType<FG_ELEMENT>()),
                        &myIndexedDatatype);
       MPI_Type_commit(&myIndexedDatatype);
-      datatypesByStartIndex.push_back(std::make_pair(*subspaceItBefore, myIndexedDatatype));
+      datatypesByStartIndex.push_back(std::make_pair(*subspacesChunk.cbegin(), myIndexedDatatype));
     }
   }
-  assert(!datatypesByStartIndex.empty() && "No datatypes created for this communicator");
+  assert(!datatypesByStartIndex.empty() && "No datatypes created");
   return datatypesByStartIndex;
 }
 
-template <typename SparseGridType>
-void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
+template <typename SparseGridType, bool communicateAllAllocated = false>
+void distributedGlobalSubspaceReduce(SparseGridType& dsg, uint32_t maxMiBToSendPerThread,
+                                     RankType globalReduceRankThatCollects = MPI_PROC_NULL) {
   assert(dsg.isSubspaceDataCreated() && "Only perform reduce with allocated data");
 
   MPI_Op indexedAdd;
   MPI_Op_create(addIndexedElements<typename SparseGridType::ElementType>, true, &indexedAdd);
 
 #pragma omp parallel if (dsg.getSubspacesByCommunicator().size() > 1) default(none) \
-    shared(dsg, indexedAdd)
+    shared(dsg, indexedAdd) firstprivate(globalReduceRankThatCollects, maxMiBToSendPerThread)
 #pragma omp for schedule(dynamic)
   for (size_t commIndex = 0; commIndex < dsg.getSubspacesByCommunicator().size(); ++commIndex) {
     const std::pair<CommunicatorType,
                     std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType>>&
         commAndItsSubspaces = dsg.getSubspacesByCommunicator()[commIndex];
-    // get reduction datatypes for this communicator
-    auto datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces);
+
+    // get reduction datatypes
+    std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
+        datatypesByStartIndex;
+    if constexpr (communicateAllAllocated) {
+      datatypesByStartIndex =
+          getReductionDatatypes(dsg, dsg.getCurrentlyAllocatedSubspaces(), maxMiBToSendPerThread);
+    } else {
+      datatypesByStartIndex =
+          getReductionDatatypes(dsg, commAndItsSubspaces.second, maxMiBToSendPerThread);
+    }
 
     // // this would be best for outgroup reduce, but leads to MPI truncation
     // // errors if not ordered (desynchronization between MPI ranks on the same communicators
@@ -276,9 +308,24 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg) {
       auto& subspaceStartIndex = datatypesByStartIndex[datatypeIndex].first;
       auto& comm = commAndItsSubspaces.first;
       auto& datatype = datatypesByStartIndex[datatypeIndex].second;
-      // #pragma omp ordered
-      MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype, indexedAdd, comm);
+      if (globalReduceRankThatCollects == MPI_PROC_NULL) {
+        // #pragma omp ordered
+        auto success = MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype,
+                                     indexedAdd, comm);
+        assert(success == MPI_SUCCESS);
 
+      } else {  // reduce towards only one rank
+        assert(dsg.getSubspacesByCommunicator().size() == 1);
+        if (theMPISystem()->getGlobalReduceRank() == globalReduceRankThatCollects) {
+          // I am the reduce rank that collects the data
+          MPI_Reduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype, indexedAdd,
+                     globalReduceRankThatCollects, comm);
+        } else {
+          // I only need to send
+          MPI_Reduce(dsg.getData(subspaceStartIndex), MPI_IN_PLACE, 1, datatype, indexedAdd,
+                     globalReduceRankThatCollects, comm);
+        }
+      }
       // free datatype -- MPI standard says it will be kept until operation is finished
       MPI_Type_free(&(datatype));
     }
@@ -330,7 +377,8 @@ static void recvDsgData(SparseGridType& dsg, RankType source, CommunicatorType c
  * Asynchronous Bcast of the raw dsg data in the communicator comm.
  */
 template <typename SparseGridType>
-static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root, CommunicatorType comm) {
+static void asyncBcastDsgData(SparseGridType& dsg, RankType root, CommunicatorType comm,
+                              MPI_Request* request) {
   if (dsg.getRawDataSize() >= INT_MAX) {
     throw std::runtime_error(
         "asyncBcastDsgData: Dsg is too large and can not be "
@@ -343,11 +391,37 @@ static MPI_Request asyncBcastDsgData(SparseGridType& dsg, RankType root, Communi
   int dataSize = static_cast<int>(dsg.getRawDataSize());
   MPI_Datatype dataType =
       getMPIDatatype(abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
-  MPI_Request request = MPI_REQUEST_NULL;
 
-  auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, &request);
+  auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, request);
   assert(success == MPI_SUCCESS);
-  return request;
+}
+
+/**
+ * Asynchronous Bcast of the raw dsg data in the communicator comm.
+ */
+template <typename SparseGridType, bool communicateAllAllocated = false>
+static void asyncBcastOutgroupDsgData(SparseGridType& dsg, RankType root, CommunicatorType comm,
+                                      MPI_Request* request) {
+  assert(dsg.getSubspacesByCommunicator().size() < 2);
+  if (!dsg.getSubspacesByCommunicator().empty()) {
+    std::vector<std::pair<typename AnyDistributedSparseGrid::SubspaceIndexType, MPI_Datatype>>
+        datatypesByStartIndex;
+    if constexpr (communicateAllAllocated) {  // assuming byte limit is met by selection of
+                                              // allocated spaces
+      datatypesByStartIndex = getReductionDatatypes(dsg, dsg.getCurrentlyAllocatedSubspaces(),
+                                                    std::numeric_limits<uint32_t>::max());
+    } else {
+      const auto& commAndItsSubspaces = dsg.getSubspacesByCommunicator()[0];
+      datatypesByStartIndex = getReductionDatatypes(dsg, commAndItsSubspaces.second,
+                                                    std::numeric_limits<uint32_t>::max());
+    }
+    assert(datatypesByStartIndex.size() == 1);
+
+    auto& subspaceStartIndex = datatypesByStartIndex[0].first;
+    auto& datatype = datatypesByStartIndex[0].second;
+    auto success = MPI_Ibcast(dsg.getData(subspaceStartIndex), 1, datatype, root, comm, request);
+    assert(success == MPI_SUCCESS);
+  }
 }
 
 /**
@@ -392,6 +466,45 @@ void broadcastSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, RankType
   MPI_Bcast(dsg.getSubspaceDataSizes().data(), static_cast<int>(dsg.getNumSubspaces()), dtype,
             sendingRank, comm);
   // assume that the sizes changed, the buffer might be the wrong size now
+  dsg.deleteSubspaceData();
+}
+
+template <typename SparseGridType>
+void localMaxReduceSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, RankType sendingRank) {
+  assert(dsg.getNumSubspaces() > 0);
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
+
+  // make a copy of the subspace sizes
+  std::vector<SubspaceSizeType> subspaceSizes = dsg.getSubspaceDataSizes();
+
+  // perform broadcast
+  assert(dsg.getNumSubspaces() < static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
+  MPI_Bcast(subspaceSizes.data(), static_cast<int>(dsg.getNumSubspaces()), dtype, sendingRank,
+            comm);
+  assert(sumAndCheckSubspaceSizes(dsg, subspaceSizes));
+
+  // perform max reduction
+  std::transform(dsg.getSubspaceDataSizes().cbegin(), dsg.getSubspaceDataSizes().cend(),
+                 subspaceSizes.cbegin(), dsg.getSubspaceDataSizes().begin(),
+                 [](SubspaceSizeType a, SubspaceSizeType b) { return std::max(a, b); });
+
+  // assume that the sizes changed, the buffer might be the wrong size now
+  dsg.deleteSubspaceData();
+}
+
+template <typename SparseGridType>
+void maxReduceSubspaceSizesAcrossGroups(
+    SparseGridType& dsg, RankType globalReduceRankThatCollects,
+    CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm()) {
+  auto numSubspaces = static_cast<int>(dsg.getNumSubspaces());
+  MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
+  if (theMPISystem()->getGlobalReduceRank() == globalReduceRankThatCollects) {
+    MPI_Reduce(MPI_IN_PLACE, dsg.getSubspaceDataSizes().data(), numSubspaces, dtype, MPI_MAX,
+               globalReduceRankThatCollects, globalReduceComm);
+  } else {
+    MPI_Reduce(dsg.getSubspaceDataSizes().data(), MPI_IN_PLACE, numSubspaces, dtype, MPI_MAX,
+               globalReduceRankThatCollects, globalReduceComm);
+  }
   dsg.deleteSubspaceData();
 }
 

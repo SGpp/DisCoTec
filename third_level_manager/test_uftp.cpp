@@ -357,7 +357,7 @@ int main(int argc, char** argv) {
 
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi * 2, 1,
                            CombinationVariant::sparseGridReduce, p, LevelVector(dim, 0),
-                           reduceCombinationDimsLmax, forwardDecomposition);
+                           reduceCombinationDimsLmax, 16, forwardDecomposition);
     // auto sgDOF = printSGDegreesOfFreedomAdaptive(lmin, lmax-reduceCombinationDimsLmax);
     // if(ctDOF < sgDOF) {
     //   throw std::runtime_error("Partitions don't match " + std::to_string(ctDOF) + " " +

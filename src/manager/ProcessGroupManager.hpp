@@ -65,7 +65,7 @@ class ProcessGroupManager {
 
   bool pretendCombineThirdLevelForWorkers(CombiParameters& params);
 
-  bool combineLocalAndGlobal();
+  bool combineSystemWide();
 
   bool updateCombiParameters(CombiParameters& params);
 

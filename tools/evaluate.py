@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 import json
 import numpy as np
@@ -14,6 +16,7 @@ parser.add_argument("--no_compute_per_rank_statistics", help="compute the per ra
 parser.add_argument("--no_compute_per_step_statistics", help="compute the per step statistics", action="store_true", default=False)
 parser.add_argument("--no_compute_total_statistics", help="compute the total statistics", action="store_true", default=False)
 parser.add_argument("--io_only", help="only output IO ranks; a rank is an IO rank if it has the event \"{}\"".format(io_only_event), action="store_true", default=False)
+parser.add_argument("--no_tqdm",help="display no progress bars", action="store_true", default=False)
 
 args = parser.parse_args()
 
@@ -51,7 +54,7 @@ if not args.no_compute_per_rank_statistics:
 
     processed_data_per_rank = pd.DataFrame(columns=["rank", "event", "min", "max", "mean", "median", "std", "sum"])
 
-    for rank in tqdm(data_per_rank):
+    for rank in tqdm(data_per_rank, disable=args.no_tqdm):
         if args.io_only and io_only_event not in data_per_rank[rank]:
             continue
 
@@ -74,7 +77,7 @@ if not args.no_compute_per_step_statistics:
             max_number_of_timesteps = max(max_number_of_timesteps, len(data_per_rank[rank][event]))
     print("max. number of time steps: {}".format(max_number_of_timesteps))
 
-    for step in tqdm(range(max_number_of_timesteps)):
+    for step in tqdm(range(max_number_of_timesteps), disable=args.no_tqdm):
         data = {}
         for rank in data_per_rank:
             if args.io_only and io_only_event not in data_per_rank[rank]:
@@ -100,7 +103,7 @@ if not args.no_compute_total_statistics:
     processed_data_total = pd.DataFrame(columns=["event", "min", "max", "mean", "median", "std", "sum"])
 
     data_per_event = {}
-    for rank in tqdm(data_per_rank):
+    for rank in tqdm(data_per_rank, disable=args.no_tqdm):
         if args.io_only and io_only_event not in data_per_rank[rank]:
             continue
 
@@ -109,7 +112,7 @@ if not args.no_compute_total_statistics:
                 data_per_event[event] = np.array([])
             data_per_event[event] = np.append(data_per_event[event], np.vstack(data_per_rank[rank][event]))
 
-    for event in tqdm(data_per_event):
+    for event in tqdm(data_per_event, disable=args.no_tqdm):
         processed_data_total.loc[len(processed_data_total.index)] = \
             [event, np.min(data_per_event[event]), np.max(data_per_event[event]), np.mean(data_per_event[event]),
              np.median(data_per_event[event]), np.std(data_per_event[event]), np.sum(data_per_event[event])]

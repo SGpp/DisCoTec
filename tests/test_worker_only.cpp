@@ -86,8 +86,9 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   // create combiparameters
   BOOST_TEST_CHECKPOINT("create combi parameters");
   CombiParameters params(dim, lmin, lmax, boundary, ncombi, 1,
-                         CombinationVariant::outgroupSparseGridReduce,
-                         {static_cast<int>(nprocs), 1}, LevelVector(0), LevelVector(0), false);
+                         pretendThirdLevel ? CombinationVariant::chunkedOutgroupSparseGridReduce
+                                           : CombinationVariant::outgroupSparseGridReduce,
+                         {static_cast<int>(nprocs), 1}, LevelVector(0), LevelVector(0), 16, false);
   if (nprocs == 5 && boundaryV == 2) {
     params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
   } else if (nprocs == 4 && boundaryV == 2) {
@@ -123,19 +124,20 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   if (pretendThirdLevel) {
     std::string subspaceSizeFile = "worker_only_subspace_sizes";
     std::string subspaceSizeFileToken = "worker_only_subspace_sizes_token.txt";
-    worker.reduceSubspaceSizesFileBased(subspaceSizeFile, subspaceSizeFileToken, subspaceSizeFile,
-                                        subspaceSizeFileToken, false);
+    BOOST_TEST_CHECKPOINT("reduce sparse grid sizes");
+    worker.reduceExtraSubspaceSizesFileBased(subspaceSizeFile, subspaceSizeFileToken,
+                                             subspaceSizeFile, subspaceSizeFileToken);
     // remove subspace size files to avoid interference between multiple calls to this test function
+    BOOST_TEST_CHECKPOINT("reduced sparse grid sizes");
     MPI_Barrier(comm);
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       MASTER_EXCLUSIVE_SECTION {
         remove(subspaceSizeFile.c_str());
         remove(subspaceSizeFileToken.c_str());
       }
-      worker.setExtraSparseGrid(true);
-      worker.zeroDsgsData();
     }
   }
+  worker.zeroDsgsData();
 
   BOOST_CHECK_EQUAL(worker.getCurrentNumberOfCombinations(), 0);
   BOOST_TEST_CHECKPOINT("run first");
@@ -148,7 +150,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   for (size_t it = 0; it < ncombi - 1; ++it) {
     BOOST_TEST_CHECKPOINT("combine");
     auto start = std::chrono::high_resolution_clock::now();
-    worker.combineUniform();
+    worker.combineAtOnce();
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     MASTER_EXCLUSIVE_SECTION {
@@ -176,22 +178,11 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
   if (pretendThirdLevel) {
     std::string writeSparseGridFile = "worker_combine_step_dsg";
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
-    worker.combineLocalAndGlobal(theMPISystem()->getOutputRankInGlobalReduceComm());
-    OUTPUT_GROUP_EXCLUSIVE_SECTION {
-      BOOST_TEST_CHECKPOINT("worker write dsg");
-      worker.combineThirdLevelFileBasedWrite(writeSparseGridFile, writeSparseGridFileToken);
-      BOOST_TEST_CHECKPOINT("worker wrote dsg");
-      worker.combineThirdLevelFileBasedReadReduce(writeSparseGridFile, writeSparseGridFileToken,
-                                                  true);
-      BOOST_TEST_CHECKPOINT("worker read dsg");
-    }
-    else {
-      BOOST_TEST_CHECKPOINT("worker waiting for broadcast dsg");
-      worker.waitForThirdLevelCombiResult(true);
-      BOOST_TEST_CHECKPOINT("worker got dsg");
-    }
+    worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
+    BOOST_TEST_CHECKPOINT("worker read distribute system-wide");
+    worker.combineReadDistributeSystemWide(writeSparseGridFile, writeSparseGridFileToken, true);
   } else {
-    worker.combineUniform();
+    worker.combineAtOnce();
   }
 
   Stats::startEvent("worker get norms");
@@ -203,25 +194,37 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 
   BOOST_TEST_CHECKPOINT("write solution");
   std::string filename("worker_" + std::to_string(ncombi) + ".raw");
-  BOOST_TEST_CHECKPOINT("write solution " + filename);
-  Stats::startEvent("worker write solution");
-  FIRST_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
-  BOOST_TEST_CHECKPOINT("write min/max coefficients");
-  worker.writeSparseGridMinMaxCoefficients("worker_" + std::to_string(boundaryV) +
-                                           "_sparse_minmax");
-  Stats::stopEvent("worker write solution");
-  MASTER_EXCLUSIVE_SECTION {
-    BOOST_TEST_MESSAGE("worker write solution: " << Stats::getDuration("worker write solution")
-                                                 << " milliseconds");
+  if (params.getCombinationVariant() == CombinationVariant::sparseGridReduce) {
+    BOOST_TEST_CHECKPOINT("write solution " + filename);
+    Stats::startEvent("worker write solution");
+    FIRST_GROUP_EXCLUSIVE_SECTION { worker.parallelEvalUniform(filename, lmax); }
+    BOOST_TEST_CHECKPOINT("write min/max coefficients");
+    worker.writeSparseGridMinMaxCoefficients("worker_" + std::to_string(boundaryV) +
+                                             "_sparse_minmax");
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_TEST_MESSAGE("worker write solution: " << Stats::getDuration("worker write solution")
+                                                   << " milliseconds");
+    }
+    Stats::stopEvent("worker write solution");
   }
   filename = "worker_" + std::to_string(boundaryV) + "_dsgs";
   Stats::startEvent("worker write DSG");
+  int numWritten = 0;
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
-    BOOST_TEST_CHECKPOINT("write DSGS " + filename);
-    worker.writeDSGsToDisk(filename);
+    if (pretendThirdLevel ||
+        params.getCombinationVariant() == CombinationVariant::sparseGridReduce) {
+      BOOST_TEST_CHECKPOINT("write DSGS " + filename);
+      numWritten = worker.writeDSGsToDisk(filename);
+      BOOST_CHECK(numWritten > 0);
+    }
   }
-  BOOST_TEST_CHECKPOINT("read DSGS " + filename);
-  worker.readDSGsFromDisk(filename, true);
+  // overwrite for all--only with sparse grid reduce
+  // (otherwise, would have wrong sizes for other groups)
+  if (params.getCombinationVariant() == CombinationVariant::sparseGridReduce) {
+    BOOST_TEST_CHECKPOINT("read DSGS " + filename);
+    int numRead = worker.readDSGsFromDisk(filename, true);
+    OUTPUT_GROUP_EXCLUSIVE_SECTION { BOOST_CHECK_EQUAL(numRead, numWritten); }
+  }
   Stats::stopEvent("worker write DSG");
   MASTER_EXCLUSIVE_SECTION {
     BOOST_TEST_MESSAGE("worker write/read DSG: " << Stats::getDuration("worker write DSG")
@@ -320,51 +323,53 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
 #ifndef ISGENE  // worker tests won't work with ISGENE because of worker magic
 
 #ifndef NDEBUG  // in case of a build with asserts, have longer timeout
-BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1000))
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(2000))
 #else
-BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(360))
+BOOST_FIXTURE_TEST_SUITE(worker, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1060))
 #endif  // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto start = std::chrono::high_resolution_clock::now();
   auto rank = TestHelper::getRank(MPI_COMM_WORLD);
-  for (BoundaryType boundary : std::vector<BoundaryType>({0, 1, 2})) {
-    for (size_t ngroup : {1, 2, 3, 4}) {
-      for (size_t nprocs : {1, 2}) {
-        if (rank == 0)
-          std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
-                    << std::endl;
-        BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
-        MPI_Barrier(MPI_COMM_WORLD);
-      }
-    }
-    for (size_t ngroup : {1, 2}) {
-      for (size_t nprocs : {3}) {
-        if (rank == 0)
-          std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
-                    << std::endl;
-        BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
-        MPI_Barrier(MPI_COMM_WORLD);
-      }
-    }
-    for (size_t ngroup : {1, 2}) {
-      if (boundary > 0) {
-        for (size_t nprocs : {4}) {
+  for (bool pretendThirdLevel : {false, true}) {
+    for (BoundaryType boundary : std::vector<BoundaryType>({0, 1, 2})) {
+      for (size_t ngroup : {1, 2, 3, 4}) {
+        for (size_t nprocs : {1, 2}) {
           if (rank == 0)
             std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
                       << std::endl;
-          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
+          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel));
           MPI_Barrier(MPI_COMM_WORLD);
         }
       }
-    }
-    for (size_t ngroup : {1}) {
-      for (size_t nprocs : {5}) {
-        if (boundary == 2) {
+      for (size_t ngroup : {1, 2}) {
+        for (size_t nprocs : {3}) {
           if (rank == 0)
             std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
                       << std::endl;
-          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary));
+          BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel));
           MPI_Barrier(MPI_COMM_WORLD);
+        }
+      }
+      for (size_t ngroup : {1, 2}) {
+        if (boundary > 0) {
+          for (size_t nprocs : {4}) {
+            if (rank == 0)
+              std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
+                        << std::endl;
+            BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel));
+            MPI_Barrier(MPI_COMM_WORLD);
+          }
+        }
+      }
+      for (size_t ngroup : {1}) {
+        for (size_t nprocs : {5}) {
+          if (boundary == 2) {
+            if (rank == 0)
+              std::cout << "worker " << static_cast<int>(boundary) << " " << ngroup << " " << nprocs
+                        << std::endl;
+            BOOST_CHECK_NO_THROW(checkWorkerOnly(ngroup, nprocs, boundary, pretendThirdLevel));
+            MPI_Barrier(MPI_COMM_WORLD);
+          }
         }
       }
     }

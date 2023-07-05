@@ -5,6 +5,7 @@
 #include "hierarchization/DistributedHierarchization.hpp"
 #include "manager/TaskWorker.hpp"
 #include "mpi/MPISystem.hpp"
+#include "mpi/MPIUtils.hpp"
 #include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 
@@ -20,11 +21,20 @@ class SparseGridWorker {
 
   ~SparseGridWorker() = default;
 
-  /* local reduce */
-  inline void addFullGridsToUniformSG();
+  template <bool keepValuesInExtraSparseGrid = false>
+  inline void collectReduceDistribute(CombinationVariant combinationVariant,
+                                      uint32_t maxMiBToSendPerThread);
+
+  inline void copyFromExtraDsgToPartialDSG(int gridNumber = 0);
+
+  inline void copyFromPartialDsgToExtraDSG(int gridNumber = 0);
 
   /* free DSG memory as intermediate step */
   inline void deleteDsgsData();
+
+  inline void distributeChunkedBroadcasts(uint32_t maxMiBToSendPerThread);
+
+  inline void distributeCombinedSolutionToTasks();
 
   inline void fillDFGFromDSGU(Task& t, const std::vector<bool>& hierarchizationDims,
                               const std::vector<BasisFunctionBasis*>& hierarchicalBases,
@@ -52,39 +62,45 @@ class SparseGridWorker {
                                        CombinationVariant combinationVariant,
                                        bool clearLevels = false);
 
-  inline void integrateCombinedSolutionToTasks(
-      const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
-      const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin);
-
   inline void interpolateAndPlotOnLevel(
       const std::string& filename, const LevelVector& levelToEvaluate,
       const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
       const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin,
       const std::vector<int>& parallelization, const std::vector<LevelVector>& decomposition) const;
 
-  inline void readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
+  inline void maxReduceSubspaceSizesInOutputGroup();
 
-  inline void readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
-                                        bool alwaysReadFullDSG = false);
+  inline int readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
 
-  inline MPI_Request readReduceStartBroadcastDSGs(const std::string& filenamePrefixToRead,
-                                                  bool overwrite);
+  inline int readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
+                                       bool alwaysReadFullDSG = false);
 
-  inline void reduceSubspaceSizes(const std::string& filenameToRead, bool extraSparseGrid,
-                                  bool overwrite);
-  /* global reduction between process groups */
-  inline void reduceUniformSG(CombinationVariant combinationVariant,
-                              RankType globalReduceRankThatCollects = MPI_PROC_NULL);
+  inline int readReduce(const std::string& filenamePrefixToRead, bool overwrite);
+
+  inline int reduceExtraSubspaceSizes(const std::string& filenameToRead,
+                                      CombinationVariant combinationVariant, bool overwrite);
+
+  /* reduction within and between process groups */
+  inline void reduceLocalAndGlobal(CombinationVariant combinationVariant,
+                                   uint32_t maxMiBToSendPerThread,
+                                   RankType globalReduceRankThatCollects = MPI_PROC_NULL);
+
+  inline void reduceSubspaceSizesBetweenGroups(CombinationVariant combinationVariant);
 
   inline void setExtraSparseGrid(bool initializeSizes = true);
 
-  inline void writeDSGsToDisk(std::string filenamePrefix);
+  inline void startSingleBroadcastDSGs(CombinationVariant combinationVariant,
+                                       RankType broadcastSender, MPI_Request* request);
+
+  inline int writeDSGsToDisk(std::string filenamePrefix, CombinationVariant combinationVariant);
+
+  inline int writeExtraSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
   inline void writeMinMaxCoefficients(std::string fileNamePrefix) const;
 
-  inline void writeSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
+  inline int writeSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
-  inline void zeroDsgsData();
+  inline void zeroDsgsData(CombinationVariant combinationVariant);
 
  private:
   TaskWorker& taskWorkerRef_;
@@ -116,25 +132,242 @@ class SparseGridWorker {
 inline SparseGridWorker::SparseGridWorker(TaskWorker& taskWorkerToReference)
     : taskWorkerRef_(taskWorkerToReference) {}
 
-inline void SparseGridWorker::addFullGridsToUniformSG() {
-  assert(this->getNumberOfGrids() > 0 &&
-         "Initialize dsgu first with "
-         "initCombinedUniDSGVector()");
+template <bool keepValuesInExtraSparseGrid>
+inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combinationVariant,
+                                                      uint32_t maxMiBToSendPerThread) {
   auto numGrids = this->getNumberOfGrids();
-  for (const auto& t : this->taskWorkerRef_.getTasks()) {
-    for (int g = 0; g < numGrids; ++g) {
-      const DistributedFullGrid<CombiDataType>& dfg =
-          t->getDistributedFullGrid(static_cast<int>(g));
+  assert(combinationVariant == CombinationVariant::chunkedOutgroupSparseGridReduce);
+  assert(numGrids == 1 && "Initialize dsgu first with initCombinedUniDSGVector()");
+  assert(this->getCombinedUniDSGVector()[0]->getSubspacesByCommunicator().size() < 2 &&
+         "Initialize dsgu's outgroup communicator");
 
-      // lokales reduce auf sg
-      this->getCombinedUniDSGVector()[g]->addDistributedFullGrid(dfg, t->getCoefficient());
+  // allow only up to the specified MiB per reduction
+  auto chunkSize =
+      combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(maxMiBToSendPerThread);
+
+  for (int g = 0; g < numGrids; ++g) {
+    auto& dsg = this->getCombinedUniDSGVector()[g];
+    if (!dsg->getSubspacesByCommunicator().empty()) {
+      auto& chunkedSubspaces = combigrid::CombiCom::getChunkedSubspaces(
+          *dsg, dsg->getSubspacesByCommunicator()[0].second, chunkSize);
+      for (auto& subspaceChunk : chunkedSubspaces) {
+        // allocate new subspace vector
+        dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
+        assert(dsg->getRawDataSize() <= chunkSize);
+
+        // local reduce (fg -> sg, within rank)
+        for (const auto& t : this->taskWorkerRef_.getTasks()) {
+          const DistributedFullGrid<CombiDataType>& dfg =
+              t->getDistributedFullGrid(static_cast<int>(g));
+          dsg->addDistributedFullGrid<false>(dfg, t->getCoefficient());
+        }
+        // global reduce (across process groups)
+        CombiCom::distributedGlobalSubspaceReduce<DistributedSparseGridUniform<CombiDataType>,
+                                                  true>(*dsg, maxMiBToSendPerThread);
+        // assert(CombiCom::sumAndCheckSubspaceSizes(*dsg)); // todo adapt for allocated spaces
+        if constexpr (keepValuesInExtraSparseGrid) {
+          this->copyFromPartialDsgToExtraDSG(g);
+        }
+
+        // distribute (sg -> fg, within rank)
+        for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+          // fill dfg with hierarchical coefficients from distributed sparse grid
+          taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG<false>(*dsg);
+        }
+      }
+    }
+    // update our ingroup subspaces, ie the ones that are not communicated
+    // (given by those that have a data size set but no communicator)
+    auto& chunkedSubspaces =
+        combigrid::CombiCom::getChunkedSubspaces(*dsg, dsg->getIngroupSubspaces(), chunkSize);
+    for (auto& subspaceChunk : chunkedSubspaces) {
+      // allocate new subspace vector
+      dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
+
+      // local reduce (fg -> sg, within rank)
+      for (const auto& t : this->taskWorkerRef_.getTasks()) {
+        const DistributedFullGrid<CombiDataType>& dfg =
+            t->getDistributedFullGrid(static_cast<int>(g));
+        dsg->addDistributedFullGrid<false>(dfg, t->getCoefficient());
+      }
+      if constexpr (keepValuesInExtraSparseGrid) {
+        this->copyFromPartialDsgToExtraDSG(g);
+      }
+
+      // distribute (sg -> fg, within rank)
+      for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+        // fill dfg with hierarchical coefficients from distributed sparse grid
+        taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG<false>(*dsg);
+      }
     }
   }
+}
+
+inline void SparseGridWorker::copyFromPartialDsgToExtraDSG(int gridNumber) {
+  assert(gridNumber == 0);
+  assert(this->getCombinedUniDSGVector().size() == 1);
+  assert(this->getExtraUniDSGVector().size() == 1);
+  if (this->getExtraUniDSGVector()[0]->getRawDataSize() == 0) {
+    throw std::runtime_error("Extra DSG is not initialized");
+  }
+  auto& dsg = this->getCombinedUniDSGVector()[gridNumber];
+  auto& extraDSG = this->getExtraUniDSGVector()[gridNumber];
+  auto subspacesToCopy = std::vector(dsg->getCurrentlyAllocatedSubspaces().cbegin(),
+                                     dsg->getCurrentlyAllocatedSubspaces().cend());
+  subspacesToCopy.erase(
+      std::remove_if(subspacesToCopy.begin(), subspacesToCopy.end(),
+                     [&extraDSG](const auto& s) { return extraDSG->getDataSize(s) == 0; }),
+      subspacesToCopy.end());
+  for (const auto& s : subspacesToCopy) {
+    assert(extraDSG->getDataSize(s) == extraDSG->getAllocatedDataSize(s));
+    assert(dsg->getDataSize(s) == dsg->getAllocatedDataSize(s));
+  }
+  extraDSG->copyDataFrom(*dsg, subspacesToCopy);
+}
+
+inline void SparseGridWorker::copyFromExtraDsgToPartialDSG(int gridNumber) {
+  assert(gridNumber == 0);
+  assert(this->getCombinedUniDSGVector().size() == 1);
+  assert(this->getExtraUniDSGVector().size() == 1);
+  auto& dsg = this->getCombinedUniDSGVector()[gridNumber];
+  auto& extraDSG = this->getExtraUniDSGVector()[gridNumber];
+  auto subspacesToCopy = std::vector(dsg->getCurrentlyAllocatedSubspaces().cbegin(),
+                                     dsg->getCurrentlyAllocatedSubspaces().cend());
+  subspacesToCopy.erase(
+      std::remove_if(subspacesToCopy.begin(), subspacesToCopy.end(),
+                     [&extraDSG](const auto& s) { return extraDSG->getDataSize(s) == 0; }),
+      subspacesToCopy.end());
+  for (const auto& s : subspacesToCopy) {
+    assert(extraDSG->getDataSize(s) == extraDSG->getAllocatedDataSize(s));
+    assert(dsg->getDataSize(s) == dsg->getAllocatedDataSize(s));
+  }
+  dsg->copyDataFrom(*extraDSG, subspacesToCopy);
 }
 
 inline void SparseGridWorker::deleteDsgsData() {
   for (auto& dsg : this->getCombinedUniDSGVector()) dsg->deleteSubspaceData();
   for (auto& dsg : this->getExtraUniDSGVector()) dsg->deleteSubspaceData();
+}
+
+inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendPerThread) {
+  RankType broadcastSender = theMPISystem()->getOutputRankInGlobalReduceComm();
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+
+  // communicate the subspaces that will be broadcast
+  std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType> subspaces;
+  assert(this->getCombinedUniDSGVector().size() == 1);
+  auto& uniDSG = this->getCombinedUniDSGVector()[0];
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    assert(broadcastSender == theMPISystem()->getGlobalReduceRank());
+    auto& extraDSG = this->getExtraUniDSGVector()[0];
+    subspaces.reserve(extraDSG->getNumSubspaces());
+    std::vector<typename AnyDistributedSparseGrid::SubspaceIndexType> emptySubspaces = {};
+    const auto* pointerToCandidateSubspaces = &emptySubspaces;
+    if (!uniDSG->getSubspacesByCommunicator().empty()) {
+      pointerToCandidateSubspaces = &uniDSG->getSubspacesByCommunicator()[0].second;
+      assert(uniDSG->getSubspacesByCommunicator().size() == 1);
+    }
+    for (typename AnyDistributedSparseGrid::SubspaceIndexType i = 0;
+         i < extraDSG->getNumSubspaces(); ++i) {
+      if (extraDSG->getDataSize(i) > 0 &&  // TODO find something smarter than this
+          std::find(pointerToCandidateSubspaces->cbegin(), pointerToCandidateSubspaces->cend(),
+                    i) != pointerToCandidateSubspaces->cend()) {
+        subspaces.push_back(i);
+      }
+    }
+  }
+  else {
+    assert(this->getExtraUniDSGVector().empty());
+  }
+  MPIUtils::broadcastContainer(subspaces, broadcastSender, globalReduceComm);
+
+  auto chunkSize =
+      combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(maxMiBToSendPerThread);
+  assert(this->getCombinedUniDSGVector().size() == 1);
+  for (auto& dsg : this->getCombinedUniDSGVector()) {
+    // make sure data sizes are set
+    for (auto& subspace : subspaces) {
+      assert(dsg->getDataSize(subspace) > 0);
+    }
+
+    auto& chunkedSubspaces = combigrid::CombiCom::getChunkedSubspaces(*dsg, subspaces, chunkSize);
+    size_t roundNumber = 0;
+    for (auto& subspaceChunk : chunkedSubspaces) {
+      dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
+
+      OUTPUT_GROUP_EXCLUSIVE_SECTION {
+        // I need to initialize my dsg from the extra dsg
+        this->copyFromExtraDsgToPartialDSG(0);
+      }
+
+      MPI_Request request;
+      CombiCom::asyncBcastOutgroupDsgData<decltype(*dsg), true>(*dsg, broadcastSender,
+                                                                globalReduceComm, &request);
+
+      OUTPUT_GROUP_EXCLUSIVE_SECTION{} {
+        // non-output ranks need to wait before they can extract
+        if (roundNumber == 0) Stats::startEvent("wait 1st bcast");
+        auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+        if (roundNumber == 0) Stats::stopEvent("wait 1st bcast");
+        assert(returnedValue == MPI_SUCCESS);
+      }
+      // distribute (sg -> fg, within rank)
+      for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+        // fill dfg with hierarchical coefficients from distributed sparse grid
+        taskToUpdate->getDistributedFullGrid(0).extractFromUniformSG<false>(*dsg);
+      }
+      OUTPUT_GROUP_EXCLUSIVE_SECTION {
+        // output ranks can wait later
+        auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+        assert(returnedValue == MPI_SUCCESS);
+      }
+      ++roundNumber;
+    }
+  }
+  subspaces.clear();
+
+  // and the output group may also need to update the subspaces from extra dsg that it has alone
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    auto& extraDSG = this->getExtraUniDSGVector()[0];
+    const auto& ingroupSubpspaces = uniDSG->getIngroupSubspaces();
+    for (typename AnyDistributedSparseGrid::SubspaceIndexType i = 0; i < uniDSG->getNumSubspaces();
+         ++i) {
+      if (ingroupSubpspaces.find(i) != ingroupSubpspaces.end() && extraDSG->getDataSize(i) > 0) {
+        subspaces.push_back(i);
+      }
+    }
+    for (auto& dsg : this->getCombinedUniDSGVector()) {
+      // make sure data sizes are set
+      for (auto& subspace : subspaces) {
+        assert(dsg->getDataSize(subspace) > 0);
+      }
+
+      auto& chunkedSubspaces = combigrid::CombiCom::getChunkedSubspaces(*dsg, subspaces, chunkSize);
+      size_t roundNumber = 0;
+      for (auto& subspaceChunk : chunkedSubspaces) {
+        dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
+        this->copyFromExtraDsgToPartialDSG(0);
+        // distribute (sg -> fg, within rank)
+        size_t totalNumCopied = 0;
+        for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+          totalNumCopied +=
+              taskToUpdate->getDistributedFullGrid(0).extractFromUniformSG<false>(*dsg);
+        }
+        assert(totalNumCopied > 0);
+        ++roundNumber;
+      }
+    }
+  }
+}
+
+inline void SparseGridWorker::distributeCombinedSolutionToTasks() {
+  for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
+    for (int g = 0; g < this->getNumberOfGrids(); ++g) {
+      // fill dfg with hierarchical coefficients from distributed sparse grid
+      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(
+          *this->getCombinedUniDSGVector()[g]);
+    }
+  }
 }
 
 inline void SparseGridWorker::fillDFGFromDSGU(
@@ -244,40 +477,12 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
 
     // create the kahan buffer now, so it has only the subspaces present on the grids in this
     // process group
-    combinedUniDSGVector_[g]->createKahanBuffer();
+    if (combinationVariant != CombinationVariant::chunkedOutgroupSparseGridReduce) {
+      combinedUniDSGVector_[g]->createKahanBuffer();
+    }
   }
 
-  // global reduce of subspace sizes
-  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  if (combinationVariant == CombinationVariant::sparseGridReduce) {
-    for (auto& uniDSG : combinedUniDSGVector_) {
-      CombiCom::reduceSubspaceSizes(*uniDSG, globalReduceComm);
-    }
-  } else if (combinationVariant == CombinationVariant::subspaceReduce) {
-    for (auto& uniDSG : combinedUniDSGVector_) {
-      uniDSG->setSubspaceCommunicators(globalReduceComm, theMPISystem()->getGlobalReduceRank());
-    }
-  } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
-    for (auto& uniDSG : combinedUniDSGVector_) {
-      uniDSG->setOutgroupCommunicator(globalReduceComm, theMPISystem()->getGlobalReduceRank());
-    }
-  } else {
-    throw std::runtime_error("Combination variant not implemented");
-  }
-}
-
-inline void SparseGridWorker::integrateCombinedSolutionToTasks(
-    const std::vector<BoundaryType>& boundary, const std::vector<bool>& hierarchizationDims,
-    const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin) {
-  for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
-    for (int g = 0; g < this->getNumberOfGrids(); ++g) {
-      // fill dfg with hierarchical coefficients from distributed sparse grid
-      taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(
-          *this->getCombinedUniDSGVector()[g]);
-    }
-  }
-  this->taskWorkerRef_.dehierarchizeFullGrids(boundary, hierarchizationDims, hierarchicalBases,
-                                              lmin);
+  this->reduceSubspaceSizesBetweenGroups(combinationVariant);
 }
 
 // cf https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
@@ -313,24 +518,46 @@ inline void SparseGridWorker::interpolateAndPlotOnLevel(
   }
 }
 
-inline void SparseGridWorker::readDSGsFromDisk(const std::string& filenamePrefix,
-                                               bool alwaysReadFullDSG) {
+inline void SparseGridWorker::maxReduceSubspaceSizesInOutputGroup() {
+  RankType globalReduceRankThatCollects = theMPISystem()->getOutputRankInGlobalReduceComm();
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    auto dsgToUse = this->getCombinedUniDSGVector()[0].get();
+    if (this->getExtraUniDSGVector().empty() == false) {
+      dsgToUse = this->getExtraUniDSGVector()[0].get();
+    }
+    CombiCom::maxReduceSubspaceSizesAcrossGroups(*dsgToUse, globalReduceRankThatCollects,
+                                                 globalReduceComm);
+  }
+  else {
+    assert(this->getExtraUniDSGVector().empty());
+    CombiCom::maxReduceSubspaceSizesAcrossGroups(*this->getCombinedUniDSGVector()[0],
+                                                 globalReduceRankThatCollects, globalReduceComm);
+  }
+}
+
+inline int SparseGridWorker::readDSGsFromDisk(const std::string& filenamePrefix,
+                                              bool alwaysReadFullDSG) {
+  int numRead = 0;
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
     auto uniDsg = this->getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
     if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
     }
-    DistributedSparseGridIO::readOneFile(*dsgToUse, filenamePrefix + "_" + std::to_string(i));
+    numRead +=
+        DistributedSparseGridIO::readOneFile(*dsgToUse, filenamePrefix + "_" + std::to_string(i));
     if (this->getExtraUniDSGVector().size() > 0) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);
     }
   }
+  return numRead;
 }
 
-inline void SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
-                                                        bool alwaysReadFullDSG) {
+inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
+                                                       bool alwaysReadFullDSG) {
+  int numReduced = 0;
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
     auto uniDsg = this->getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
@@ -346,133 +573,139 @@ inline void SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filen
     } else if (theMPISystem()->getNumGroups() < 4) {
       numberReduceChunks = 2;
     }
-    DistributedSparseGridIO::readOneFileAndReduce(
+    numReduced += DistributedSparseGridIO::readOneFileAndReduce(
         *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), numberReduceChunks);
     if (this->getExtraUniDSGVector().size() > 0) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);
     }
   }
+  return numReduced;
 }
 
-inline MPI_Request SparseGridWorker::readReduceStartBroadcastDSGs(
-    const std::string& filenamePrefixToRead, bool overwrite) {
+inline int SparseGridWorker::readReduce(const std::string& filenamePrefixToRead, bool overwrite) {
+  int numRead = 0;
   if (overwrite) {
-    this->readDSGsFromDisk(filenamePrefixToRead);
+    numRead = this->readDSGsFromDisk(filenamePrefixToRead);
   } else {
-    this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
+    numRead = this->readDSGsFromDiskAndReduce(filenamePrefixToRead);
   }
   if (this->getNumberOfGrids() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
   }
-  // distribute solution in globalReduceComm to other pgs
-  return CombiCom::asyncBcastDsgData(*this->getCombinedUniDSGVector()[0],
-                                     theMPISystem()->getGlobalReduceRank(),
-                                     theMPISystem()->getGlobalReduceComm());
+  return numRead;
 }
 
-inline void SparseGridWorker::reduceSubspaceSizes(const std::string& filenameToRead,
-                                                  bool extraSparseGrid, bool overwrite) {
-  if (extraSparseGrid) {
-    OUTPUT_GROUP_EXCLUSIVE_SECTION {
+inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
+                                                      CombinationVariant combinationVariant,
+                                                      bool overwrite) {
+  int numSubspacesReduced = 0;
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    if (this->getExtraUniDSGVector().empty()) {
       this->setExtraSparseGrid(true);
+    }
+  }
+  this->maxReduceSubspaceSizesInOutputGroup();
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    auto dsgToUse = this->getExtraUniDSGVector()[0].get();
 #ifndef NDEBUG
-      // duplicate subspace sizes to validate later
-      std::vector<SubspaceSizeType> subspaceSizesToValidate =
-          this->getExtraUniDSGVector()[0]->getSubspaceDataSizes();
+    // duplicate subspace sizes to validate later
+    std::vector<SubspaceSizeType> subspaceSizesToValidate = dsgToUse->getSubspaceDataSizes();
 #endif
-      // use extra sparse grid
-      if (overwrite) {
-        DistributedSparseGridIO::readSubspaceSizesFromFile(*this->getExtraUniDSGVector()[0],
-                                                           filenameToRead, false);
-      } else {
-        auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-          return std::min(a, b);
-        };
-        DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
-            *this->getExtraUniDSGVector()[0], filenameToRead, minFunctionInstantiation, 0, false);
-      }
+    if (overwrite) {
+      numSubspacesReduced =
+          DistributedSparseGridIO::readSubspaceSizesFromFile(*dsgToUse, filenameToRead, false);
+    } else {
+      auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+        return std::min(a, b);
+      };
+      numSubspacesReduced = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
+          *dsgToUse, filenameToRead, minFunctionInstantiation, 0, false);
+    }
 #ifndef NDEBUG
-      assert(subspaceSizesToValidate.size() ==
-             this->getExtraUniDSGVector()[0]->getSubspaceDataSizes().size());
+    assert(subspaceSizesToValidate.size() == dsgToUse->getSubspaceDataSizes().size());
+    if (overwrite) {
       for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
-        assert(this->getExtraUniDSGVector()[0]->getSubspaceDataSizes()[i] == 0 ||
-               this->getExtraUniDSGVector()[0]->getSubspaceDataSizes()[i] ==
-                   subspaceSizesToValidate[i]);
+        if (!(dsgToUse->getSubspaceDataSizes()[i] == 0 || subspaceSizesToValidate[i] == 0 ||
+              dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i])) {
+          std::cout << "i " << i << " dsgToUse->getSubspaceDataSizes()[i] "
+                    << dsgToUse->getSubspaceDataSizes()[i] << " subspaceSizesToValidate[i] "
+                    << subspaceSizesToValidate[i] << std::endl;
+        }
+        assert(dsgToUse->getSubspaceDataSizes()[i] == 0 || subspaceSizesToValidate[i] == 0 ||
+               dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
       }
-      auto numDOFtoValidate =
-          std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
-      auto numDOFnow =
-          std::accumulate(this->getExtraUniDSGVector()[0]->getSubspaceDataSizes().begin(),
-                          this->getExtraUniDSGVector()[0]->getSubspaceDataSizes().end(), 0);
-      assert(numDOFtoValidate >= numDOFnow);
-#endif
-    }
-  } else {
-    if (!this->getExtraUniDSGVector().empty()) {
-      throw std::runtime_error(
-          "this->getExtraUniDSGVector() not empty, but extraSparseGrid is false");
-    }
-#ifndef NDEBUG
-    std::vector<SubspaceSizeType> subspaceSizesToValidate =
-        this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes();
-#endif
-    FIRST_GROUP_EXCLUSIVE_SECTION {
-      if (overwrite) {
-        DistributedSparseGridIO::readSubspaceSizesFromFile(*this->getCombinedUniDSGVector()[0],
-                                                           filenameToRead, true);
-      } else {
-        // if no extra sparse grid, max-reduce the normal one
-        auto maxFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-          return std::max(a, b);
-        };
-        DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
-            *this->getCombinedUniDSGVector()[0], filenameToRead, maxFunctionInstantiation, 0, true);
+    } else {
+      for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
+        assert(dsgToUse->getSubspaceDataSizes()[i] == 0 ||
+               dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
       }
-      if (theMPISystem()->getGlobalReduceRank() != 0) {
-        throw std::runtime_error("read rank is not the global reduce rank");
-      }
-    }
-    else {
-      if (theMPISystem()->getGlobalReduceRank() == 0) {
-        throw std::runtime_error("read rank IS the global reduce rank");
-      }
-    }
-    // reduce to all other process groups
-    CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
-    RankType senderRank = 0;
-    CombiCom::broadcastSubspaceSizes(*this->getCombinedUniDSGVector()[0], globalReduceComm,
-                                     senderRank);
-#ifndef NDEBUG
-    assert(subspaceSizesToValidate.size() ==
-           this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes().size());
-    for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
-      assert(subspaceSizesToValidate[i] == 0 ||
-             subspaceSizesToValidate[i] ==
-                 this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes()[i]);
     }
     auto numDOFtoValidate =
         std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
-    auto numDOFnow =
-        std::accumulate(this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes().begin(),
-                        this->getCombinedUniDSGVector()[0]->getSubspaceDataSizes().end(), 0);
-    assert(numDOFtoValidate <= numDOFnow);
+    auto numDOFnow = std::accumulate(dsgToUse->getSubspaceDataSizes().begin(),
+                                     dsgToUse->getSubspaceDataSizes().end(), 0);
+    assert(numDOFtoValidate >= numDOFnow);
 #endif
+    // may need to re-size original spaces if original sparse grid was too small
+    this->getCombinedUniDSGVector()[0]->maxReduceSubspaceSizes(*dsgToUse);
+  }
+  return numSubspacesReduced;
+}
+
+inline void SparseGridWorker::reduceLocalAndGlobal(CombinationVariant combinationVariant,
+                                                   uint32_t maxMiBToSendPerThread,
+                                                   RankType globalReduceRankThatCollects) {
+  assert(this->getNumberOfGrids() > 0 &&
+         "Initialize dsgu first with "
+         "initCombinedUniDSGVector()");
+  auto numGrids = this->getNumberOfGrids();
+  this->zeroDsgsData(combinationVariant);
+  // local reduce (within rank)
+  for (const auto& t : this->taskWorkerRef_.getTasks()) {
+    for (int g = 0; g < numGrids; ++g) {
+      const DistributedFullGrid<CombiDataType>& dfg =
+          t->getDistributedFullGrid(static_cast<int>(g));
+      this->getCombinedUniDSGVector()[g]->addDistributedFullGrid(dfg, t->getCoefficient());
+    }
+  }
+  // global reduce (across process groups)
+  for (int g = 0; g < numGrids; ++g) {
+    if (combinationVariant == CombinationVariant::sparseGridReduce) {
+      CombiCom::distributedGlobalSparseGridReduce(
+          *this->getCombinedUniDSGVector()[g], maxMiBToSendPerThread, globalReduceRankThatCollects);
+    } else if (combinationVariant == CombinationVariant::subspaceReduce ||
+               combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
+      CombiCom::distributedGlobalSubspaceReduce(
+          *this->getCombinedUniDSGVector()[g], maxMiBToSendPerThread, globalReduceRankThatCollects);
+    } else {
+      throw std::runtime_error("Combination variant not implemented");
+    }
+    assert(CombiCom::sumAndCheckSubspaceSizes(*this->getCombinedUniDSGVector()[g]));
   }
 }
 
-inline void SparseGridWorker::reduceUniformSG(CombinationVariant combinationVariant,
-                                              RankType globalReduceRankThatCollects) {
-  auto numGrids = this->getNumberOfGrids();
-  for (int g = 0; g < numGrids; ++g) {
-    if (combinationVariant == CombinationVariant::sparseGridReduce) {
-      CombiCom::distributedGlobalSparseGridReduce(*this->getCombinedUniDSGVector()[g],
-                                                  globalReduceRankThatCollects);
-    } else if (combinationVariant == CombinationVariant::subspaceReduce ||
-               combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
-      CombiCom::distributedGlobalSubspaceReduce(*this->getCombinedUniDSGVector()[g]);
+inline void SparseGridWorker::reduceSubspaceSizesBetweenGroups(
+    CombinationVariant combinationVariant) {
+  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
+  if (combinationVariant == CombinationVariant::sparseGridReduce) {
+    for (auto& uniDSG : combinedUniDSGVector_) {
+      CombiCom::reduceSubspaceSizes(*uniDSG, globalReduceComm);
     }
-    assert(CombiCom::sumAndCheckSubspaceSizes(*this->getCombinedUniDSGVector()[g]));
+  } else if (combinationVariant == CombinationVariant::subspaceReduce) {
+    for (auto& uniDSG : combinedUniDSGVector_) {
+      uniDSG->setSubspaceCommunicators(globalReduceComm, theMPISystem()->getGlobalReduceRank());
+      uniDSG->deleteSubspaceData();
+    }
+  } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce ||
+             combinationVariant == CombinationVariant::chunkedOutgroupSparseGridReduce) {
+    for (auto& uniDSG : combinedUniDSGVector_) {
+      uniDSG->setOutgroupCommunicator(globalReduceComm, theMPISystem()->getGlobalReduceRank());
+      uniDSG->deleteSubspaceData();
+    }
+    assert(this->getCombinedUniDSGVector()[0]->getSubspacesByCommunicator().size() < 2);
+  } else {
+    throw std::runtime_error("Combination variant not implemented");
   }
 }
 
@@ -507,17 +740,49 @@ inline void SparseGridWorker::setExtraSparseGrid(bool initializeSizes) {
   }
 }
 
-inline void SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix) {
+inline void SparseGridWorker::startSingleBroadcastDSGs(CombinationVariant combinationVariant,
+                                                       RankType broadcastSender,
+                                                       MPI_Request* request) {
+  if (this->getNumberOfGrids() != 1) {
+    throw std::runtime_error("Combining more than one DSG is not implemented yet");
+  }
+  if (combinationVariant == CombinationVariant::sparseGridReduce) {
+    // distribute solution in globalReduceComm to other pgs
+    return CombiCom::asyncBcastDsgData(*this->getCombinedUniDSGVector()[0], broadcastSender,
+                                       theMPISystem()->getGlobalReduceComm(), request);
+  } else if (combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
+    return CombiCom::asyncBcastOutgroupDsgData(*this->getCombinedUniDSGVector()[0], broadcastSender,
+                                               theMPISystem()->getGlobalReduceComm(), request);
+  } else {
+    throw std::runtime_error("Combination variant not implemented");
+  }
+}
+
+inline int SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix,
+                                             CombinationVariant combinationVariant) {
+  int numWritten = 0;
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
     auto filename = filenamePrefix + "_" + std::to_string(i);
     auto uniDsg = this->getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
     if (this->getExtraUniDSGVector().size() > 0) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
-      dsgToUse->copyDataFrom(*uniDsg);
+      if (combinationVariant == CombinationVariant::sparseGridReduce ||
+          combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
+        dsgToUse->copyDataFrom(*uniDsg);
+      }
     }
-    DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);
+    assert(dsgToUse->isSubspaceDataCreated());
+    numWritten += DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);
   }
+  return numWritten;
+}
+
+inline int SparseGridWorker::writeExtraSubspaceSizesToFile(
+    const std::string& filenamePrefixToWrite) const {
+  assert(this->getExtraUniDSGVector().size() == 1);
+  return DistributedSparseGridIO::writeSubspaceSizesToFile(*this->getExtraUniDSGVector()[0],
+                                                           filenamePrefixToWrite);
 }
 
 inline void SparseGridWorker::writeMinMaxCoefficients(std::string fileNamePrefix) const {
@@ -527,14 +792,25 @@ inline void SparseGridWorker::writeMinMaxCoefficients(std::string fileNamePrefix
   }
 }
 
-inline void SparseGridWorker::writeSubspaceSizesToFile(
+inline int SparseGridWorker::writeSubspaceSizesToFile(
     const std::string& filenamePrefixToWrite) const {
-  DistributedSparseGridIO::writeSubspaceSizesToFile(*this->getCombinedUniDSGVector()[0],
-                                                    filenamePrefixToWrite);
+  return DistributedSparseGridIO::writeSubspaceSizesToFile(*this->getCombinedUniDSGVector()[0],
+                                                           filenamePrefixToWrite);
 }
 
-inline void SparseGridWorker::zeroDsgsData() {
-  for (auto& dsg : this->getCombinedUniDSGVector()) dsg->setZero();
-  for (auto& dsg : this->getExtraUniDSGVector()) dsg->setZero();
+inline void SparseGridWorker::zeroDsgsData(CombinationVariant combinationVariant) {
+  for (auto& dsg : this->getCombinedUniDSGVector()) {
+    if (combinationVariant != chunkedOutgroupSparseGridReduce && !dsg->isSubspaceDataCreated()) {
+      dsg->createSubspaceData();
+    }
+    dsg->setZero();
+  }
+  // always create the extra dsgs' subspaces if they don't exist yet
+  for (auto& dsg : this->getExtraUniDSGVector()) {
+    if (!dsg->isSubspaceDataCreated()) {
+      dsg->createSubspaceData();
+    }
+    dsg->setZero();
+  }
 }
 } /* namespace combigrid */
