@@ -207,6 +207,9 @@ inline void SparseGridWorker::copyFromPartialDsgToExtraDSG(int gridNumber) {
   assert(gridNumber == 0);
   assert(this->getCombinedUniDSGVector().size() == 1);
   assert(this->getExtraUniDSGVector().size() == 1);
+  if (this->getExtraUniDSGVector()[0]->getRawDataSize() == 0) {
+    throw std::runtime_error("Extra DSG is not initialized");
+  }
   auto& dsg = this->getCombinedUniDSGVector()[gridNumber];
   auto& extraDSG = this->getExtraUniDSGVector()[gridNumber];
   auto subspacesToCopy = std::vector(dsg->getCurrentlyAllocatedSubspaces().cbegin(),

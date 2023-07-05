@@ -893,6 +893,7 @@ void ProcessGroupWorker::reduceSubspaceSizesThirdLevel(bool thirdLevelExtraSpars
       CombiCom::broadcastSubspaceSizes(*dsg, globalReduceComm, globalReduceRank);
     }
   }
+  this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
 }
 
 void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
@@ -902,12 +903,14 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   for (auto& dsg : this->getSparseGridWorker().getCombinedUniDSGVector()) {
     CombiCom::broadcastSubspaceSizes(*dsg, globalReduceComm, thirdLevelPG);
   }
+  this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
 }
 
 int ProcessGroupWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
                                                  bool overwrite) {
   return this->getSparseGridWorker().reduceExtraSubspaceSizes(
       filenameToRead, this->combiParameters_.getCombinationVariant(), overwrite);
+  this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
 }
 
 int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
