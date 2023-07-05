@@ -122,8 +122,6 @@ class ProcessManager {
   void getGroupFaultIDs(std::vector<size_t>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);
 
-  inline CombiParameters& getCombiParameters();
-
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
 
   void doDiagnostics(size_t taskID);
@@ -562,7 +560,6 @@ size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
   return dsguDataSize;
 }
 
-CombiParameters& ProcessManager::getCombiParameters() { return params_; }
 
 /**
  * Create a certain given number of random faults, considering that the faulty processes

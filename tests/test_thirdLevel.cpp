@@ -219,8 +219,8 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1,
                                 CombinationVariant::sparseGridReduce, parallelization,
-                                LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
-                                false, 32, testParams.host, testParams.port, 0);
+                                LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1), 32,
+                                false, testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
@@ -248,7 +248,7 @@ void testCombineThirdLevel(TestParams& testParams, bool thirdLevelExtraSparseGri
           combigrid::createTruncatedHierarchicalLevels(lmaxReduced, testParams.lmin, created);
           auto numDofSG = combigrid::getNumDofHierarchical(created, boundary);
           if (thirdLevelExtraSparseGrid) {
-            //TODO more accurate check
+            // TODO more accurate check
             BOOST_CHECK_LT(newSGsize, numDofSG);
           } else {
             BOOST_CHECK_EQUAL(newSGsize, numDofSG);
@@ -485,8 +485,8 @@ void testCombineThirdLevelStaticTaskAssignment(TestParams& testParams, bool thir
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1,
                                 CombinationVariant::sparseGridReduce, parallelization,
-                                LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1),
-                                false, 32, testParams.host, testParams.port, 0);
+                                LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1), 32,
+                                false, testParams.host, testParams.port, 0);
 
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, combiParams, std::move(loadmodel));
@@ -617,7 +617,7 @@ void testCombineThirdLevelWithoutManagers(
   // create combiparameters
   CombiParameters combiParams(
       testParams.dim, testParams.lmin, testParams.lmax, boundary, testParams.ncombi, 1, variant,
-      parallelization, LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1), false);
+      parallelization, LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1), 32, false);
   worker.setCombiParameters(std::move(combiParams));
 
   // create Tasks
@@ -783,7 +783,7 @@ void testPretendThirdLevel(TestParams& testParams) {
     CombiParameters combiParams(testParams.dim, testParams.lmin, testParams.lmax, boundary, levels,
                                 coeffs, taskIDs, testParams.ncombi, 1,
                                 CombinationVariant::sparseGridReduce, parallelization,
-                                LevelVector(testParams.dim, 0), reduceCombinationDimsLmax, true, 32,
+                                LevelVector(testParams.dim, 0), reduceCombinationDimsLmax, 32, true,
                                 testParams.host, testParams.port, 0);
 
     auto decomposition = combigrid::getStandardDecomposition(testParams.lmax, parallelization);
