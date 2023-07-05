@@ -18,17 +18,28 @@ static inline std::string getMpiErrorString(int err) {
 }
 namespace mpiio {
 
-static MPI_Info getNewConsecutiveMpiInfo() {
+static MPI_Info getNewConsecutiveMpiInfo(bool withCollectiveBuffering) {
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
   // to be modified externally e.g. via romio hints
   MPI_Info info = MPI_INFO_NULL;
   MPI_Info_create(&info);
-  // do not use this -- force-enables collective buffering!!
-  // //  MPI_Info_set(info, "romio_no_indep_rw", "true");
 
   // disable ROMIO's data-sieving
   MPI_Info_set(info, "romio_ds_read", "disable");
   MPI_Info_set(info, "romio_ds_write", "disable");
+
+  if (withCollectiveBuffering) {
+    // enable ROMIO's collective buffering
+    MPI_Info_set(info, "collective_buffering", "true");
+    MPI_Info_set(info, "romio_no_indep_rw", "enable");
+    MPI_Info_set(info, "romio_cb_write", "enable");
+    MPI_Info_set(info, "romio_cb_read", "enable");
+  } else {
+    // disable ROMIO's collective buffering
+    MPI_Info_set(info, "collective_buffering", "false");
+    MPI_Info_set(info, "romio_cb_write", "disable");
+    MPI_Info_set(info, "romio_cb_read", "disable");
+  }
   return info;
 }
 
@@ -40,18 +51,12 @@ int writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
-  MPI_Info info = getNewConsecutiveMpiInfo();
-  MPI_Info_set(info, "access_style", "write_once");
-  if (withCollectiveBuffering) {
-    // enable ROMIO's collective buffering
-    MPI_Info_set(info, "romio_no_indep_rw", "enable");
-    MPI_Info_set(info, "romio_cb_write", "enable");
-    MPI_Info_set(info, "romio_cb_read", "enable");
-  } else {
-    // disable ROMIO's collective buffering //TODO test
-    MPI_Info_set(info, "romio_cb_write", "disable");
-    MPI_Info_set(info, "romio_cb_read", "disable");
-  }
+  MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
+  MPI_Info_set(info, "access_style", "write_once,sequential");
+  int commSize;
+  MPI_Comm_size(comm, &commSize);
+  std::string commSizeStr = std::to_string(commSize);
+  MPI_Info_set(info, "nb_procs", commSizeStr.c_str());
 
   // open file
   MPI_File fh;
@@ -134,18 +139,8 @@ int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::strin
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
 
-  MPI_Info info = getNewConsecutiveMpiInfo();
-  MPI_Info_set(info, "access_style", "read_once");
-  if (withCollectiveBuffering) {
-    // enable ROMIO's collective buffering
-    MPI_Info_set(info, "romio_no_indep_rw", "enable");
-    MPI_Info_set(info, "romio_cb_write", "enable");
-    MPI_Info_set(info, "romio_cb_read", "enable");
-  } else {
-    // disable ROMIO's collective buffering //TODO test
-    MPI_Info_set(info, "romio_cb_write", "disable");
-    MPI_Info_set(info, "romio_cb_read", "disable");
-  }
+  MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
+  MPI_Info_set(info, "access_style", "read_once,sequential");
 
   // open file
   MPI_File fh;
@@ -189,18 +184,8 @@ int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std:
                                 bool withCollectiveBuffering = false) {
   MPI_Offset pos = 0;
   MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
-  MPI_Info info = getNewConsecutiveMpiInfo();
-  MPI_Info_set(info, "access_style", "read_once");
-  if (withCollectiveBuffering) {
-    // enable ROMIO's collective buffering
-    MPI_Info_set(info, "romio_no_indep_rw", "enable");
-    MPI_Info_set(info, "romio_cb_write", "enable");
-    MPI_Info_set(info, "romio_cb_read", "enable");
-  } else {
-    // disable ROMIO's collective buffering //TODO test
-    MPI_Info_set(info, "romio_cb_write", "disable");
-    MPI_Info_set(info, "romio_cb_read", "disable");
-  }
+  MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
+  MPI_Info_set(info, "access_style", "sequential");
 
   // open file
   MPI_File fh;
