@@ -91,37 +91,22 @@ int main(int argc, char** argv) {
     {
       std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
           new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
-      const auto& pgNumbers = scheme->getProcessGroupNumbers();
-      const auto& allCoeffs = scheme->getCoeffs();
-      const auto& allLevels = scheme->getCombiSpaces();
-      assert(allLevels.size() == allCoeffs.size());
-      if (pgNumbers.size() > 0) {
-        const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
-        assert(*itMin == 0);  // make sure it starts with 0
-        // filter out only those tasks that belong to "our" process group
-        for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
-          if (pgNumbers[taskNo] == pgroupNumber) {
-            taskNumbers.push_back(taskNo);
-            coeffs.push_back(allCoeffs[taskNo]);
-            levels.push_back(allLevels[taskNo]);
-          }
-        }
+      size_t totalNumTasks = 0;
+      if (scheme->getProcessGroupNumbers().size() > 0) {
+        totalNumTasks =
+            combigrid::getAssignedLevels(*scheme, pgroupNumber, levels, coeffs, taskNumbers);
       } else {
-        // assume tasks are distributed round-robin (no load balancing!)
-        assert(allLevels.size() >= theMPISystem()->getNumGroups());
-        for (size_t taskNo = pgroupNumber; taskNo < allLevels.size();
-             taskNo += theMPISystem()->getNumGroups()) {
-          taskNumbers.push_back(taskNo);
-          coeffs.push_back(allCoeffs[taskNo]);
-          levels.push_back(allLevels[taskNo]);
-        }
+        totalNumTasks =
+            combigrid::getLoadBalancedLevels(*scheme, pgroupNumber, theMPISystem()->getNumGroups(),
+                                             boundary, levels, coeffs, taskNumbers);
       }
       assert(!levels.empty());
       assert(levels.size() == coeffs.size());
+      assert(levels.size() == taskNumbers.size());
 
       MASTER_EXCLUSIVE_SECTION {
         std::cout << getTimeStamp() << " Process group " << pgroupNumber << " will run "
-                  << levels.size() << " of " << allLevels.size() << " tasks." << std::endl;
+                  << levels.size() << " of " << totalNumTasks << " tasks." << std::endl;
         printCombiDegreesOfFreedom(levels, boundary);
       }
     }
@@ -183,8 +168,8 @@ int main(int argc, char** argv) {
                                                << std::endl;
 
     worker.initCombinedDSGVector();
-    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout
-        << getTimeStamp() << "worker: initialized SG" << std::endl;
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << getTimeStamp() << "worker: initialized SG"
+                                               << std::endl;
 
     MASTER_EXCLUSIVE_SECTION {
       std::cout << getTimeStamp() << "group " << theMPISystem()->getProcessGroupNumber()

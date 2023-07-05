@@ -232,23 +232,12 @@ int main(int argc, char** argv) {
     const auto& pgNumbers = scheme->getProcessGroupNumbers();
     if (pgNumbers.size() > 0) {
       useStaticTaskAssignment = true;
-      const auto& allCoeffs = scheme->getCoeffs();
-      const auto& allLevels = scheme->getCombiSpaces();
-      const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
-      assert(*itMin == 0);  // make sure it starts with 0
-      // assert(*itMax == ngroup - 1); // and goes up to the maximum group //TODO
-      // filter out only those tasks that belong to "our" process group
       const auto& pgroupNumber = theMPISystem()->getProcessGroupNumber();
-      for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
-        if (pgNumbers[taskNo] == pgroupNumber) {
-          taskNumbers.push_back(taskNo);
-          coeffs.push_back(allCoeffs[taskNo]);
-          levels.push_back(allLevels[taskNo]);
-        }
-      }
+      size_t totalNumTasks = combigrid::getAssignedLevels(
+          *scheme, theMPISystem()->getProcessGroupNumber(), levels, coeffs, taskNumbers);
       MASTER_EXCLUSIVE_SECTION {
         std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
-                  << pgNumbers.size() << " tasks." << std::endl;
+                  << totalNumTasks << " tasks." << std::endl;
         printCombiDegreesOfFreedom(levels, boundary);
       }
     } else {
