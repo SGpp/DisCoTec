@@ -595,7 +595,10 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
                                                       CombinationVariant combinationVariant,
                                                       bool overwrite) {
   int numSubspacesReduced = 0;
-  this->maxReduceSubspaceSizesInOutputGroup();
+  if (!overwrite) {
+    // make output group's dsg "larger" to be able to reduce
+    this->maxReduceSubspaceSizesInOutputGroup();
+  }
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     if (this->getExtraUniDSGVector().empty()) {
       this->setExtraSparseGrid(true);
