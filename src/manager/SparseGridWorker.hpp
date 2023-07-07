@@ -595,12 +595,12 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
                                                       CombinationVariant combinationVariant,
                                                       bool overwrite) {
   int numSubspacesReduced = 0;
+  this->maxReduceSubspaceSizesInOutputGroup();
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     if (this->getExtraUniDSGVector().empty()) {
       this->setExtraSparseGrid(true);
     }
   }
-  this->maxReduceSubspaceSizesInOutputGroup();
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     auto dsgToUse = this->getExtraUniDSGVector()[0].get();
 #ifndef NDEBUG
@@ -635,12 +635,12 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
         assert(dsgToUse->getSubspaceDataSizes()[i] == 0 ||
                dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
       }
+      auto numDOFtoValidate =
+          std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
+      auto numDOFnow = std::accumulate(dsgToUse->getSubspaceDataSizes().begin(),
+                                       dsgToUse->getSubspaceDataSizes().end(), 0);
+      assert(numDOFtoValidate >= numDOFnow);
     }
-    auto numDOFtoValidate =
-        std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
-    auto numDOFnow = std::accumulate(dsgToUse->getSubspaceDataSizes().begin(),
-                                     dsgToUse->getSubspaceDataSizes().end(), 0);
-    assert(numDOFtoValidate >= numDOFnow);
 #endif
     // may need to re-size original spaces if original sparse grid was too small
     this->getCombinedUniDSGVector()[0]->maxReduceSubspaceSizes(*dsgToUse);
