@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
 
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       std::cout << getTimeStamp() << "group " << theMPISystem()->getProcessGroupNumber()
-                << " sparse grid: , will allocate "
+                << " sparse grid, will allocate "
                 << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
                                      sizeof(CombiDataType)) /
                        1e6
@@ -244,7 +244,7 @@ int main(int argc, char** argv) {
           }
         }
       }
-
+      Stats::startEvent("combine");
       auto startCombineWrite = std::chrono::high_resolution_clock::now();
       std::string writeSparseGridFile =
           "dsg_" + std::to_string(systemNumber) + "_step" + std::to_string(i);
@@ -287,6 +287,7 @@ int main(int argc, char** argv) {
                   << " took: " << durationCombineRead << " seconds ; read " << readSparseGridFile
                   << std::endl;
       }
+      Stats::stopEvent("combine");
     }
     // run tasks for last time interval
     worker.runAllTasks();
