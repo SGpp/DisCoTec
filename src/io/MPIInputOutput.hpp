@@ -31,7 +31,7 @@ static MPI_Info getNewConsecutiveMpiInfo(bool withCollectiveBuffering) {
   if (withCollectiveBuffering) {
     // enable ROMIO's collective buffering
     MPI_Info_set(info, "collective_buffering", "true");
-    MPI_Info_set(info, "romio_no_indep_rw", "enable");
+    MPI_Info_set(info, "romio_no_indep_rw", "true");
     MPI_Info_set(info, "romio_cb_write", "enable");
     MPI_Info_set(info, "romio_cb_read", "enable");
   } else {
