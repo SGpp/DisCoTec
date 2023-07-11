@@ -92,8 +92,10 @@ class DistributedSparseGridDataContainer {
   // deletes memory for subspace data and invalidates pointers to subspaces
   void deleteSubspaceData() {
     subspacesData_.clear();
+    kahanData_.clear();
     // update pointers in subspaces
     std::memset(subspaces_.data(), 0, subspaces_.size() * sizeof(FG_ELEMENT*));
+    std::memset(kahanDataBegin_.data(), 0, kahanDataBegin_.size() * sizeof(FG_ELEMENT*));
   }
 
   // sets all data elements to value zero
@@ -320,7 +322,8 @@ template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::copyDataFrom(
     const DistributedSparseGridUniform<FG_ELEMENT>& other) {
   assert(this->getNumSubspaces() == other.getNumSubspaces());
-  assert(this->isSubspaceDataCreated() && other.isSubspaceDataCreated());
+  assert(this->isSubspaceDataCreated());
+  assert(other.isSubspaceDataCreated());
 
 #pragma omp parallel for default(none) shared(other) schedule(guided)
   for (decltype(this->getNumSubspaces()) i = 0; i < this->getNumSubspaces(); ++i) {

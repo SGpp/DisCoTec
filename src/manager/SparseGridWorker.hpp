@@ -202,6 +202,7 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
         taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG<false>(*dsg);
       }
     }
+    dsg->deleteSubspaceData();
   }
 }
 
