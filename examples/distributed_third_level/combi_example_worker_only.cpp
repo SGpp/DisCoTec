@@ -244,6 +244,7 @@ int main(int argc, char** argv) {
           }
         }
       }
+      MPI_Barrier(theMPISystem()->getWorldComm());
       Stats::startEvent("combine");
       auto startCombineWrite = std::chrono::high_resolution_clock::now();
       std::string writeSparseGridFile =
