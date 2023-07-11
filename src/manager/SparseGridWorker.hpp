@@ -550,10 +550,10 @@ inline int SparseGridWorker::readDSGsFromDisk(const std::string& filenamePrefix,
     }
     numRead +=
         DistributedSparseGridIO::readOneFile(*dsgToUse, filenamePrefix + "_" + std::to_string(i));
-    if (this->getExtraUniDSGVector().size() > 0) {
+    if (this->getExtraUniDSGVector().size() > 0 && uniDsg->isSubspaceDataCreated()) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);
-    }
+    }  // else: assert this only happens for chunkedOutgroupSparseGridReduce //TODO
   }
   return numRead;
 }
@@ -570,7 +570,7 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
     }
     numReduced += DistributedSparseGridIO::readOneFileAndReduce(
         *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), maxMiBToReadPerThread);
-    if (this->getExtraUniDSGVector().size() > 0) {
+    if (this->getExtraUniDSGVector().size() > 0 && uniDsg->isSubspaceDataCreated()) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);
     }
