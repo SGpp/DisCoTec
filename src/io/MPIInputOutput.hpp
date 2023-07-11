@@ -20,11 +20,11 @@ namespace mpiio {
 
 static MPI_Info getNewConsecutiveMpiInfo(bool withCollectiveBuffering) {
   // see: https://wickie.hlrs.de/platforms/index.php/MPI-IO
-  // to be modified externally e.g. via romio hints
+  // to be further modified externally e.g. via romio hints
   MPI_Info info = MPI_INFO_NULL;
   MPI_Info_create(&info);
 
-  // disable ROMIO's data-sieving
+  // always disable ROMIO's data-sieving
   MPI_Info_set(info, "romio_ds_read", "disable");
   MPI_Info_set(info, "romio_ds_write", "disable");
 
@@ -37,6 +37,7 @@ static MPI_Info getNewConsecutiveMpiInfo(bool withCollectiveBuffering) {
   } else {
     // disable ROMIO's collective buffering
     MPI_Info_set(info, "collective_buffering", "false");
+    MPI_Info_set(info, "romio_no_indep_rw", "false");
     MPI_Info_set(info, "romio_cb_write", "disable");
     MPI_Info_set(info, "romio_cb_read", "disable");
   }
