@@ -286,22 +286,24 @@ int main(int argc, char** argv) {
       }
     }
   }
-  if (checkpointRestart) {
-    // change the restart parameter in all existing parameter files in the folders to true
-    setCheckpointRestart(basename, levels);
-  } else {
-    // using a very high diagnostics interval -> write no diagnostics in the component grids
-    size_t veryHighNumber = 2147483647;  // =2^31-1
-    size_t sometimes = 100;
-    size_t always = 1;
-    // create necessary folders and files to run each task in a separate folder
-    createTaskFolders(basename, levels, taskNumbers, p, nsteps, dt, always);
-    if (haveResolution) {
-      assert(levels.size() == 1);
-      assert(!haveDiagnosticsTask);
-      adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, always);
-      // if haveResolution: set infty coefficient, does not need to be combined anyways
-      coeffs[0] = std::numeric_limits<combigrid::real>::max();
+  MASTER_EXCLUSIVE_SECTION {
+    if (checkpointRestart) {
+      // change the restart parameter in all existing parameter files in the folders to true
+      setCheckpointRestart(basename, levels);
+    } else {
+      // using a very high diagnostics interval -> write no diagnostics in the component grids
+      size_t veryHighNumber = 2147483647;  // =2^31-1
+      size_t sometimes = 100;
+      size_t always = 1;
+      // create necessary folders and files to run each task in a separate folder
+      createTaskFolders(basename, levels, taskNumbers, p, nsteps, dt, always);
+      if (haveResolution) {
+        assert(levels.size() == 1);
+        assert(!haveDiagnosticsTask);
+        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, always);
+        // if haveResolution: set infty coefficient, does not need to be combined anyways
+        coeffs[0] = std::numeric_limits<combigrid::real>::max();
+      }
     }
   }
   {
