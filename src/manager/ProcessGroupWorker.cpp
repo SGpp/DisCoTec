@@ -595,7 +595,10 @@ void ProcessGroupWorker::doDiagnostics() {
   MPI_Bcast(&taskID, 1,
             abstraction::getMPIDatatype(abstraction::getabstractionDataType<decltype(taskID)>()),
             theMPISystem()->getMasterRank(), theMPISystem()->getLocalComm());
+  this->doDiagnostics(taskID);
+}
 
+void ProcessGroupWorker::doDiagnostics(size_t taskID) {
   // call diagnostics on that Task
   for (const auto& task : this->getTaskWorker().getTasks()) {
     if (task->getID() == taskID) {

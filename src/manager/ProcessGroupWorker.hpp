@@ -53,6 +53,7 @@ class ProcessGroupWorker {
 
   // do task-specific postprocessing
   void doDiagnostics();
+  void doDiagnostics(size_t taskID);
 
   /** calculate the Lp Norm for each individual task */
   std::vector<double> getLpNorms(int p) const;
