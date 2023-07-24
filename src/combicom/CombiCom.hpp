@@ -292,6 +292,7 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg, uint32_t maxMiBToSendP
     if constexpr (communicateAllAllocated) {
       datatypesByStartIndex =
           getReductionDatatypes(dsg, dsg.getCurrentlyAllocatedSubspaces(), maxMiBToSendPerThread);
+      assert(datatypesByStartIndex.size() == 1);
     } else {
       datatypesByStartIndex =
           getReductionDatatypes(dsg, commAndItsSubspaces.second, maxMiBToSendPerThread);
