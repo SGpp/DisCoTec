@@ -319,7 +319,8 @@ inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendP
       CombiCom::asyncBcastOutgroupDsgData<decltype(*dsg), true>(*dsg, broadcastSender,
                                                                 globalReduceComm, &request);
 
-      OUTPUT_GROUP_EXCLUSIVE_SECTION{} {
+      OUTPUT_GROUP_EXCLUSIVE_SECTION {}
+      else {
         // non-output ranks need to wait before they can extract
         if (roundNumber == 0) Stats::startEvent("wait 1st bcast");
         auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
