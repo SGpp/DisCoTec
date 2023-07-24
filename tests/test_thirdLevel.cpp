@@ -567,7 +567,8 @@ void testCombineThirdLevelWithoutManagers(
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
   combigrid::Stats::initialize();
-  theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs, false);
+  theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs, false,
+                                    true);
 
   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
   std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
@@ -627,6 +628,7 @@ void testCombineThirdLevelWithoutManagers(
       testParams.dim, testParams.lmin, testParams.lmax, boundary, testParams.ncombi, 1, variant,
       parallelization, LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1), 32, false);
   worker.setCombiParameters(std::move(combiParams));
+  BOOST_CHECK_EQUAL(worker.getCombiParameters().getChunkSizeInMebibybtePerThread(), 32);
 
   // create Tasks
   worker.initializeAllTasks<TaskConstParaboloid>(levels, coeffs, taskNumbers, loadmodel.get());
@@ -826,7 +828,7 @@ void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
-BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1200))
+BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1500))
 
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::disabled()) {
@@ -1110,16 +1112,21 @@ BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::t
 
 // same as test_8 but only with workers
 BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                         boost::unit_test::timeout(150)) {
+                                         boost::unit_test::timeout(550)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
-  unsigned int ncombi = 10;
+  unsigned int ncombi = 3;
   DimType dim = 6;
   BoundaryType boundary = 1;
   LevelVector lmin(dim, 2);
+#ifdef NDEBUG
+  LevelVector lmax(dim, 9);
+#else
   LevelVector lmax(dim, 5);
+#endif
 
-  for (unsigned int ngroup : std::vector<unsigned int>({2, 3})) {
+  for (unsigned int ngroup : std::vector<unsigned int>({2, 3, 4})) {
+    BOOST_TEST_MESSAGE("num groups: " + std::to_string(ngroup));
     unsigned int sysNum;
     CommunicatorType newcomm = MPI_COMM_NULL;
     assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
