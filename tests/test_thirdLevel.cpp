@@ -576,33 +576,43 @@ void testCombineThirdLevelWithoutManagers(
   std::vector<combigrid::real> coeffs;
   std::vector<size_t> taskNumbers;  // only used in case of static task assignment
   {  // this is scoped so that anything created in here frees up memory for computation
+    std::vector<LevelVector> systemLevels;
+    std::vector<combigrid::real> systemCoeffs;
     CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
-    combischeme.createClassicalCombischeme();
+    combischeme.createAdaptiveCombischeme();
     // get full scheme first
     std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      BOOST_TEST_MESSAGE("total: " + std::to_string(fullLevels.size()) + " tasks");
+    }
 
     // split scheme and assign each half to a system
     CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, testParams.sysNum, 2,
-                                                  levels, coeffs);
+                                                  systemLevels, systemCoeffs);
 
-    BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
-    for (size_t i = 0; i < levels.size(); ++i) {
+    BOOST_REQUIRE_EQUAL(systemLevels.size(), systemCoeffs.size());
+
+    for (size_t i = 0; i < systemLevels.size(); ++i) {
       // assign round-robin to process groups
       if (i % theMPISystem()->getNumGroups() == theMPISystem()->getProcessGroupNumber()) {
         // find index in full list
-        auto position = std::find(fullLevels.begin(), fullLevels.end(), levels[i]);
-        BOOST_REQUIRE(position != fullLevels.end());
-        taskNumbers.push_back(std::distance(fullLevels.begin(), position));
+        auto position = std::find(systemLevels.begin(), systemLevels.end(), systemLevels[i]);
+        BOOST_REQUIRE(position != systemLevels.end());
+        taskNumbers.push_back(std::distance(systemLevels.begin(), position));
       }
     }
-    levels.clear();
-    coeffs.clear();
-    for (size_t i = 0; i < fullLevels.size(); ++i) {
+    for (size_t i = 0; i < systemLevels.size(); ++i) {
       if (std::find(taskNumbers.begin(), taskNumbers.end(), i) != taskNumbers.end()) {
-        levels.push_back(fullLevels[i]);
-        coeffs.push_back(fullCoeffs[i]);
+        levels.push_back(systemLevels[i]);
+        coeffs.push_back(systemCoeffs[i]);
       }
+    }
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_TEST_MESSAGE("group " + std::to_string(theMPISystem()->getProcessGroupNumber()) +
+                         " on system " + std::to_string(testParams.sysNum) + " will run " +
+                         std::to_string(levels.size()) + " of " +
+                         std::to_string(systemLevels.size()) + " tasks.");
     }
   }
   BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
