@@ -14,10 +14,10 @@ set -e
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
 ID=${ID:=0}
-PATHLRZ=${PATHLRZ:=//hppfs/work/pn36xu/di93yuw/uftp}
-PATHJUDAC=${PATHJUDAC:=/lustre/hpe/ws10/ws10.3/ws/ipvsavcr-discotec/wd_alex/scaled_down_target_to_try_64/}
+PATHLRZ=${PATHLRZ:=/hppfs/scratch/0F/di93yuw/}
+PATHJUDAC=${PATHJUDAC:=/p/scratch/widediscotecjsc/uftp/}
 FILELRZ=${FILELRZ:=${PATHLRZ}/dsg_${ID}_step*_0}
-JUDACURL=https://gridftp-fr1.hww.hlrs.de:9000/rest/auth/HLRS
+JUDACURL=https://uftp.fz-juelich.de:9112/UFTP_Auth/rest/auth/JUDAC
 USERJUDAC=${USERJUDAC:=vancraen1}
 JUDAC_ID=${JUDAC_ID:=~/.uftp/id_uftp_to_jsc}
 num_hosts=3
@@ -26,8 +26,8 @@ num_hosts=3
 TOKEN_TRANSFER_FORWARD=${FILELRZ:0:-2}_token.txt
 TOKEN_STOP=uftp_transfer_stop.txt
 
-PROCS=${PROCS:=16}
-THREADS_PER_PROC=${THREADS_PER_PROC:=8}
+PROCS=${PROCS:=4}
+THREADS_PER_PROC=${THREADS_PER_PROC:=12}
 STREAMS=${STREAMS:=3}
 
 echo "$FILELRZ"
@@ -102,7 +102,7 @@ do
             throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime))" | bc )
             throughput_bits=$( echo "scale=4;($throughput*8)" | bc )
             echo "Approx total average throughput: $throughput MB/s; $throughput_bits Mbit/s"
-            rm -f $FILELRZ_INSTANCE
+            # rm -f $FILELRZ_INSTANCE
         fi
         date
         step=$((step+1))

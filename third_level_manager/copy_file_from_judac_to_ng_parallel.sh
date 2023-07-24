@@ -12,9 +12,9 @@ module load uftp-client
 # kill all processes from this script if the script is terminated
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
-ID=${ID:=0}
+ID=${ID:=1}
 PATHLRZ=${PATHLRZ:=//hppfs/work/pn36xu/di93yuw/uftp}
-PATHJUDAC=${PATHJUDAC:=/lustre/hpe/ws10/ws10.3/ws/ipvsavcr-discotec/wd_alex/scaled_down_target_to_try_64/}
+PATHJUDAC=${PATHJUDAC:=/p/scratch/widediscotecjsc/uftp/}
 FILEJUDAC=${FILEJUDAC:=${PATHJUDAC}/dsg_${ID}_step*_0}
 JUDAC=https://uftp.fz-juelich.de:9112/UFTP_Auth/rest/auth/JUDAC
 USERJUDAC=${USERJUDAC:=vancraen1}
@@ -24,8 +24,8 @@ num_hosts=3
 TOKEN_TRANSFER_BACKWARD=${FILEJUDAC:0:-2}_token.txt
 TOKEN_STOP=uftp_transfer_stop.txt
 
-PROCS=${PROCS:=16}
-THREADS_PER_PROC=${THREADS_PER_PROC:=8}
+PROCS=${PROCS:=2}
+THREADS_PER_PROC=${THREADS_PER_PROC:=12}
 STREAMS=${STREAMS:=3}
 
 echo "$FILEJUDAC"
@@ -40,7 +40,7 @@ do
     TOKEN_TRANSFER_BACKWARD=${FILEJUDAC:0:-2}_token.txt
     # test if the file is there by trying to copy it (maybe there is a better way?)
     # the part after `>` is to ignore the potential (error) output
-    uftp cp -i ~/.uftp/id_uftp_to_hlrs -u $USERJUDAC $JUDAC:$TOKEN_TRANSFER_BACKWARD /dev/null > /dev/null 2>&1
+    uftp cp -i $JUDAC_ID -u $USERJUDAC $JUDAC:$TOKEN_TRANSFER_BACKWARD /dev/null > /dev/null 2>&1
     cp_status=$?
     pids=( )
     if (exit $cp_status); then
@@ -108,7 +108,7 @@ do
         step=$((step+1))
     fi
     if test -f "$PATHLRZ/$TOKEN_STOP"; then
-        break 
+        break
     fi
     sleep 1
 done
