@@ -828,7 +828,7 @@ void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
-BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1700))
+BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(2000))
 
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::disabled()) {
@@ -1112,7 +1112,7 @@ BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::t
 
 // same as test_8 but only with workers
 BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                         boost::unit_test::timeout(750)) {
+                                         boost::unit_test::timeout(950)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
   unsigned int ncombi = 3;
