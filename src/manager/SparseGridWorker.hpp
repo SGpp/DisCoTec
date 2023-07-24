@@ -661,6 +661,7 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
     // may need to re-size original spaces if original sparse grid was too small
     this->getCombinedUniDSGVector()[0]->maxReduceSubspaceSizes(*dsgToUse);
   }
+  this->reduceSubspaceSizesBetweenGroups(combinationVariant);
   return numSubspacesReduced;
 }
 
