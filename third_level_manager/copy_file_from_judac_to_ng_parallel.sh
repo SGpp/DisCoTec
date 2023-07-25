@@ -13,18 +13,18 @@ module load uftp-client
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
 ID=${ID:=1}
-PATHLRZ=${PATHLRZ:=//hppfs/work/pn36xu/di93yuw/uftp}
-PATHJUDAC=${PATHJUDAC:=/p/scratch/widediscotecjsc/uftp/}
+PATHLRZ=${PATHLRZ:=//hppfs/work/pn36xu/di39qun2/widely/widely_measurements/widely_10x512/}
+PATHJUDAC=${PATHJUDAC:=/p/scratch/widediscotecjsc/widely/widely_measurements/widely_1x512/}
 FILEJUDAC=${FILEJUDAC:=${PATHJUDAC}/dsg_${ID}_step*_0}
 JUDAC=https://uftp.fz-juelich.de:9112/UFTP_Auth/rest/auth/JUDAC
-USERJUDAC=${USERJUDAC:=vancraen1}
+USERJUDAC=${USERJUDAC:=pollinger2}
 JUDAC_ID=${JUDAC_ID:=~/.uftp/id_uftp_to_jsc}
 num_hosts=3
 
 TOKEN_TRANSFER_BACKWARD=${FILEJUDAC:0:-2}_token.txt
 TOKEN_STOP=uftp_transfer_stop.txt
 
-PROCS=${PROCS:=2}
+PROCS=${PROCS:=4}
 THREADS_PER_PROC=${THREADS_PER_PROC:=12}
 STREAMS=${STREAMS:=3}
 

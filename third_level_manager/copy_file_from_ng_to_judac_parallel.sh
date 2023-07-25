@@ -14,11 +14,11 @@ set -e
 trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
 ID=${ID:=0}
-PATHLRZ=${PATHLRZ:=/hppfs/scratch/0F/di93yuw/}
-PATHJUDAC=${PATHJUDAC:=/p/scratch/widediscotecjsc/uftp/}
+PATHLRZ=${PATHLRZ:=/hppfs/work/pn36xu/di39qun2/widely/widely_measurements/widely_10x512/}
+PATHJUDAC=${PATHJUDAC:=/p/scratch/widediscotecjsc/widely/widely_measurements/widely_1x512/}
 FILELRZ=${FILELRZ:=${PATHLRZ}/dsg_${ID}_step*_0}
 JUDACURL=https://uftp.fz-juelich.de:9112/UFTP_Auth/rest/auth/JUDAC
-USERJUDAC=${USERJUDAC:=vancraen1}
+USERJUDAC=${USERJUDAC:=pollinger2}
 JUDAC_ID=${JUDAC_ID:=~/.uftp/id_uftp_to_jsc}
 num_hosts=3
 
@@ -102,7 +102,7 @@ do
             throughput=$( echo "scale=4;($size/1024/1024)/(($endtime-$starttime))" | bc )
             throughput_bits=$( echo "scale=4;($throughput*8)" | bc )
             echo "Approx total average throughput: $throughput MB/s; $throughput_bits Mbit/s"
-            # rm -f $FILELRZ_INSTANCE
+            rm -f $FILELRZ_INSTANCE
         fi
         date
         step=$((step+1))
