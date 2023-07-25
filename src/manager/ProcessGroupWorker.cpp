@@ -909,9 +909,10 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
 
 int ProcessGroupWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
                                                  bool overwrite) {
-  return this->getSparseGridWorker().reduceExtraSubspaceSizes(
+  auto numReducedSizes = this->getSparseGridWorker().reduceExtraSubspaceSizes(
       filenameToRead, this->combiParameters_.getCombinationVariant(), overwrite);
   this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
+  return numReducedSizes;
 }
 
 int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(

@@ -156,6 +156,18 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
         // allocate new subspace vector
         dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
         assert(dsg->getRawDataSize() <= chunkSize);
+#ifndef NDEBUG
+        auto myRawDataSize = dsg->getRawDataSize();
+        decltype(myRawDataSize) maxRawDataSize = 0;
+        MPI_Allreduce(&myRawDataSize, &maxRawDataSize, 1,
+                      getMPIDatatype(abstraction::getabstractionDataType<size_t>()), MPI_MAX,
+                      theMPISystem()->getGlobalReduceComm());
+        if (myRawDataSize != maxRawDataSize) {
+          throw std::runtime_error(
+              "collectReduceDistribute: Raw data size is not the same across all ranks; my size: " +
+              std::to_string(myRawDataSize) + ", max size: " + std::to_string(maxRawDataSize));
+        }
+#endif
 
         // local reduce (fg -> sg, within rank)
         for (const auto& t : this->taskWorkerRef_.getTasks()) {
@@ -307,7 +319,8 @@ inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendP
       CombiCom::asyncBcastOutgroupDsgData<decltype(*dsg), true>(*dsg, broadcastSender,
                                                                 globalReduceComm, &request);
 
-      OUTPUT_GROUP_EXCLUSIVE_SECTION{} {
+      OUTPUT_GROUP_EXCLUSIVE_SECTION {}
+      else {
         // non-output ranks need to wait before they can extract
         if (roundNumber == 0) Stats::startEvent("wait 1st bcast");
         auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
@@ -649,6 +662,7 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
     // may need to re-size original spaces if original sparse grid was too small
     this->getCombinedUniDSGVector()[0]->maxReduceSubspaceSizes(*dsgToUse);
   }
+  this->reduceSubspaceSizesBetweenGroups(combinationVariant);
   return numSubspacesReduced;
 }
 

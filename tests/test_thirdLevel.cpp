@@ -567,7 +567,8 @@ void testCombineThirdLevelWithoutManagers(
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
   combigrid::Stats::initialize();
-  theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs, false);
+  theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs, false,
+                                    true);
 
   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
   std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
@@ -576,33 +577,43 @@ void testCombineThirdLevelWithoutManagers(
   std::vector<combigrid::real> coeffs;
   std::vector<size_t> taskNumbers;  // only used in case of static task assignment
   {  // this is scoped so that anything created in here frees up memory for computation
+    std::vector<LevelVector> systemLevels;
+    std::vector<combigrid::real> systemCoeffs;
     CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
-    combischeme.createClassicalCombischeme();
+    combischeme.createAdaptiveCombischeme();
     // get full scheme first
     std::vector<LevelVector> fullLevels = combischeme.getCombiSpaces();
     std::vector<combigrid::real> fullCoeffs = combischeme.getCoeffs();
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      BOOST_TEST_MESSAGE("total: " + std::to_string(fullLevels.size()) + " tasks");
+    }
 
     // split scheme and assign each half to a system
     CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, testParams.sysNum, 2,
-                                                  levels, coeffs);
+                                                  systemLevels, systemCoeffs);
 
-    BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
-    for (size_t i = 0; i < levels.size(); ++i) {
+    BOOST_REQUIRE_EQUAL(systemLevels.size(), systemCoeffs.size());
+
+    for (size_t i = 0; i < systemLevels.size(); ++i) {
       // assign round-robin to process groups
       if (i % theMPISystem()->getNumGroups() == theMPISystem()->getProcessGroupNumber()) {
         // find index in full list
-        auto position = std::find(fullLevels.begin(), fullLevels.end(), levels[i]);
-        BOOST_REQUIRE(position != fullLevels.end());
-        taskNumbers.push_back(std::distance(fullLevels.begin(), position));
+        auto position = std::find(systemLevels.begin(), systemLevels.end(), systemLevels[i]);
+        BOOST_REQUIRE(position != systemLevels.end());
+        taskNumbers.push_back(std::distance(systemLevels.begin(), position));
       }
     }
-    levels.clear();
-    coeffs.clear();
-    for (size_t i = 0; i < fullLevels.size(); ++i) {
+    for (size_t i = 0; i < systemLevels.size(); ++i) {
       if (std::find(taskNumbers.begin(), taskNumbers.end(), i) != taskNumbers.end()) {
-        levels.push_back(fullLevels[i]);
-        coeffs.push_back(fullCoeffs[i]);
+        levels.push_back(systemLevels[i]);
+        coeffs.push_back(systemCoeffs[i]);
       }
+    }
+    MASTER_EXCLUSIVE_SECTION {
+      BOOST_TEST_MESSAGE("group " + std::to_string(theMPISystem()->getProcessGroupNumber()) +
+                         " on system " + std::to_string(testParams.sysNum) + " will run " +
+                         std::to_string(levels.size()) + " of " +
+                         std::to_string(systemLevels.size()) + " tasks.");
     }
   }
   BOOST_REQUIRE_EQUAL(levels.size(), coeffs.size());
@@ -617,6 +628,7 @@ void testCombineThirdLevelWithoutManagers(
       testParams.dim, testParams.lmin, testParams.lmax, boundary, testParams.ncombi, 1, variant,
       parallelization, LevelVector(testParams.dim, 0), LevelVector(testParams.dim, 1), 32, false);
   worker.setCombiParameters(std::move(combiParams));
+  BOOST_CHECK_EQUAL(worker.getCombiParameters().getChunkSizeInMebibybtePerThread(), 32);
 
   // create Tasks
   worker.initializeAllTasks<TaskConstParaboloid>(levels, coeffs, taskNumbers, loadmodel.get());
@@ -816,7 +828,7 @@ void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
-BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(1200))
+BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(2000))
 
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::disabled()) {
@@ -1100,16 +1112,21 @@ BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::t
 
 // same as test_8 but only with workers
 BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                         boost::unit_test::timeout(150)) {
+                                         boost::unit_test::timeout(950)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
-  unsigned int ncombi = 10;
+  unsigned int ncombi = 3;
   DimType dim = 6;
   BoundaryType boundary = 1;
   LevelVector lmin(dim, 2);
+#ifdef NDEBUG
+  LevelVector lmax(dim, 9);
+#else
   LevelVector lmax(dim, 5);
+#endif
 
-  for (unsigned int ngroup : std::vector<unsigned int>({2, 3})) {
+  for (unsigned int ngroup : std::vector<unsigned int>({2, 3, 4})) {
+    BOOST_TEST_MESSAGE("num groups: " + std::to_string(ngroup));
     unsigned int sysNum;
     CommunicatorType newcomm = MPI_COMM_NULL;
     assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
