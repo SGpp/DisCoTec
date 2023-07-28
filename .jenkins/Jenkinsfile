@@ -190,11 +190,11 @@ pipeline {
         }
     }
     post {
-        success {
+        // success {
 	    // script {
 	        // buildbadge.setStatus('success')
 	    // }
-        }
+        // }
         failure {
 	    // script {
 	        // buildbadge.setStatus('failing')
