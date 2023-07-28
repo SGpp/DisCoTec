@@ -191,22 +191,22 @@ pipeline {
     }
     post {
         success {
-	    script {
+	    // script {
 	        // buildbadge.setStatus('success')
-	    }
+	    // }
         }
         failure {
-	    script {
+	    // script {
 	        // buildbadge.setStatus('failing')
-	    }
+	    // }
             sh '''
                 echo "Build failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins DisCoTec: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
             '''
         }
         aborted {
-	    script {
+	    // script {
 	        // buildbadge.setStatus('aborted')
-	    }
+	    // }
             sh '''
                 echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins DisCoTec: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
             '''
