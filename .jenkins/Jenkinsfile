@@ -28,7 +28,7 @@ pipeline {
                 // }
                 dir('discotec-spack') {
                     sh '''
-                        git pull || git clone git@github.com:freifrauvonbleifrei/spack.git .
+                        git -C spack pull || git clone git@github.com:freifrauvonbleifrei/spack.git 
                     '''
                     checkout scm
 
