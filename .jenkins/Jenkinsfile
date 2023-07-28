@@ -35,7 +35,7 @@ pipeline {
                         rm -f ~/.spack/linux/compilers.yaml 
                         rm -f ~/.spack/packages.yaml
                         # clean build caches
-                        source ./share/spack/setup-env.sh
+                        . ./share/spack/setup-env.sh
                         spack clean -ab
                         spack clean -fmps
                     '''
@@ -86,7 +86,7 @@ pipeline {
                         steps {
                             dir('discotec-spack/spack') {
                                 sh '''
-                                source ./share/spack/setup-env.sh
+                                . ./share/spack/setup-env.sh
                                 spack external find
                                 spack compiler find  
 
@@ -99,7 +99,7 @@ pipeline {
                         steps {
                             dir('discotec-spack/spack') {
                                 sh '''
-                                source ./share/spack/setup-env.sh
+                                . ./share/spack/setup-env.sh
                                 '''
                             }
                             dir('DisCoTec') {
