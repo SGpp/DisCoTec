@@ -1,0 +1,215 @@
+#!groovy
+
+def buildbadge = addEmbeddableBadgeConfiguration(id: "allbuilds", subject: "boost test", status: "skipped")
+
+pipeline {
+    // agent { label 'pcsgs05' }
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
+            )
+        )
+        disableConcurrentBuilds()
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_DISCOTEC')
+        MAINTAINER_MAIL = credentials('DISCOTEC_MAINTAINER_EMAIL')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+                scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
+                script {
+		    buildbadge.setStatus('running')
+                }
+                dir('discotec-spack') {
+                    sh '''
+                        git clone git@github.com:freifrauvonbleifrei/spack.git .
+                    '''
+                    checkout scm
+
+                    sh '''
+                        # reset compilers and external packages due to possible different systems
+                        rm -f ~/.spack/bootstrap/config/packages.yaml
+                        rm -f ~/.spack/linux/compilers.yaml 
+                        rm -f ~/.spack/packages.yaml
+                        # clean build caches
+                        spack clean -ab
+                        spack clean -fmps
+                    '''
+                }
+                dir('DisCoTec') {
+                    checkout scm
+                    sh '''
+                        git clean -fdx
+                        rm -rf build*
+                    '''
+                }
+            }
+        }
+        stage('build-and-test') {
+            matrix {
+                axes {
+                    axis {
+                        name 'build_type'
+                        values 'Release', 'Debug'
+                    }
+                    axis {
+                        name 'compiler'
+                        values 'gcc', 'clang'
+                    }
+                }
+                stages {
+                    stage('init') {
+                        steps {
+                            dir('DisCoTec') {
+                                sh '''
+                                    github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                                    curl --verbose\
+                                        --request POST \
+                                        --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                        --header "Content-Type: application/json" \
+                                        --header "authorization: Bearer ${github_token}" \
+                                        --data "{
+                                            \\"state\\": \\"pending\\",
+                                            \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
+                                            \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
+                                            \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/jenkins/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                                    }"
+                                '''
+                            }
+                        }
+                    }
+                    stage('build dependencies w/ spack') {
+                        steps {
+                            dir('discotec-spack') {
+                                sh '''
+                                source ./share/spack/setup-env.sh
+                                spack external find
+                                spack compiler find  
+
+                                spack install -y discotec@main%gcc@9.4.0 -lto
+                                '''
+                            }
+                        }
+                    }
+                    stage('build DisCoTec') {
+                        steps {
+                            dir('DisCoTec') {
+                                sh '''
+                                    spack load --only dependencies --first discotec@main%gcc@9.4.0 -lto
+                                    mkdir -p build/${compiler}-${build_type}
+                                    cd build/${compiler}-${build_type}
+                                    cmake -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_CXX_COMPILER=${compiler} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_USE_LTO=0 ..
+                                    make -j8
+                                '''
+                            }
+                        }
+                    }
+                    stage('run tests') {
+                        steps {
+                            dir('DisCoTec') {
+                                sh '''
+                                    cd tests/                                    
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=fullgrid
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=loadmodel
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=reduce
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=rescheduling
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=task
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=distributedfullgrid --log_level=message
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=integration
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=stats
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_create* --log_level=message
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_write* --log_level=message
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=worker
+                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=thirdLevel # random port errors
+                                    #mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=ftolerance # cf https://github.com/SGpp/DisCoTec/issues
+                                '''
+                            }
+                        }
+                    }
+                }
+                post {
+                    success {
+                        sh '''
+                            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                            curl --verbose\
+                                --request POST \
+                                --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                --header "Content-Type: application/json" \
+                                --header "authorization: Bearer ${github_token}" \
+                                --data "{
+                                    \\"state\\": \\"success\\",
+                                    \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
+                                    \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
+                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/jenkins/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                            }"
+                        '''
+                    }
+                    failure {
+                        sh '''
+                            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                            curl --verbose\
+                                --request POST \
+                                --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                --header "Content-Type: application/json" \
+                                --header "authorization: Bearer ${github_token}" \
+                                --data "{
+                                    \\"state\\": \\"failure\\",
+                                    \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
+                                    \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
+                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/jenkins/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                            }"
+                        '''
+                    }
+                    aborted {
+                        sh '''
+                            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                            curl --verbose\
+                                --request POST \
+                                --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                --header "Content-Type: application/json" \
+                                --header "authorization: Bearer ${github_token}" \
+                                --data "{
+                                    \\"state\\": \\"error\\",
+                                    \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
+                                    \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
+                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/jenkins/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                            }"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+	    script {
+	        buildbadge.setStatus('success')
+	    }
+        }
+        failure {
+	    script {
+	        buildbadge.setStatus('failing')
+	    }
+            sh '''
+                echo "Build failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins DisCoTec: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            '''
+        }
+        aborted {
+	    script {
+	        buildbadge.setStatus('aborted')
+	    }
+            sh '''
+                echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins DisCoTec: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            '''
+        }
+    }
+}
