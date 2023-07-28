@@ -38,6 +38,7 @@ pipeline {
                         rm -f ~/.spack/linux/compilers.yaml 
                         rm -f ~/.spack/packages.yaml
                         # clean build caches
+                        source ./share/spack/setup-env.sh
                         spack clean -ab
                         spack clean -fmps
                     '''
@@ -99,6 +100,11 @@ pipeline {
                     }
                     stage('build DisCoTec') {
                         steps {
+                            dir('discotec-spack') {
+                                sh '''
+                                source ./share/spack/setup-env.sh
+                                '''
+                            }
                             dir('DisCoTec') {
                                 sh '''
                                     spack load --only dependencies --first discotec@main%gcc@9.4.0 -lto
