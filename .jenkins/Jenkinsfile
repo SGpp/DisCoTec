@@ -90,7 +90,7 @@ pipeline {
                                 spack external find
                                 spack compiler find  
 
-                                spack install -y --only-dependencies discotec@main -lto +selalib
+                                spack install -y --only dependencies discotec@main -lto +selalib
                                 '''
                             }
                         }
