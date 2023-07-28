@@ -1,6 +1,6 @@
 #!groovy
 
-def buildbadge = addEmbeddableBadgeConfiguration(id: "allbuilds", subject: "boost test", status: "skipped")
+// def buildbadge = addEmbeddableBadgeConfiguration(id: "allbuilds", subject: "boost test", status: "skipped")
 
 pipeline {
     agent any
@@ -24,7 +24,7 @@ pipeline {
             steps {
                 scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
                 script {
-		    buildbadge.setStatus('running')
+		    // buildbadge.setStatus('running')
                 }
                 dir('discotec-spack') {
                     sh '''
@@ -92,7 +92,7 @@ pipeline {
                                 spack external find
                                 spack compiler find  
 
-                                spack install -y discotec@main%gcc@9.4.0 -lto
+                                spack install -y --only-dependencies discotec@main -lto +selalib
                                 '''
                             }
                         }
@@ -192,12 +192,12 @@ pipeline {
     post {
         success {
 	    script {
-	        buildbadge.setStatus('success')
+	        // buildbadge.setStatus('success')
 	    }
         }
         failure {
 	    script {
-	        buildbadge.setStatus('failing')
+	        // buildbadge.setStatus('failing')
 	    }
             sh '''
                 echo "Build failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins DisCoTec: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
@@ -205,7 +205,7 @@ pipeline {
         }
         aborted {
 	    script {
-	        buildbadge.setStatus('aborted')
+	        // buildbadge.setStatus('aborted')
 	    }
             sh '''
                 echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins DisCoTec: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
