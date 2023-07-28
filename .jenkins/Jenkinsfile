@@ -22,7 +22,7 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
+                // scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
                 // script {
 		    // buildbadge.setStatus('running')
                 // }
