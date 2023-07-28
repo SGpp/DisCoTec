@@ -23,9 +23,9 @@ pipeline {
         stage('checkout') {
             steps {
                 scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
-                script {
+                // script {
 		    // buildbadge.setStatus('running')
-                }
+                // }
                 dir('discotec-spack') {
                     sh '''
                         git clone git@github.com:freifrauvonbleifrei/spack.git .
