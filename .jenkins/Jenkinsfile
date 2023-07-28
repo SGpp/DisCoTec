@@ -29,10 +29,7 @@ pipeline {
                 dir('discotec-spack') {
                     sh '''
                         git -C spack pull || git clone git@github.com:freifrauvonbleifrei/spack.git 
-                    '''
-                    checkout scm
-
-                    sh '''
+                        cd spack
                         # reset compilers and external packages due to possible different systems
                         rm -f ~/.spack/bootstrap/config/packages.yaml
                         rm -f ~/.spack/linux/compilers.yaml 
@@ -87,7 +84,7 @@ pipeline {
                     }
                     stage('build dependencies w/ spack') {
                         steps {
-                            dir('discotec-spack') {
+                            dir('discotec-spack/spack') {
                                 sh '''
                                 source ./share/spack/setup-env.sh
                                 spack external find
@@ -100,7 +97,7 @@ pipeline {
                     }
                     stage('build DisCoTec') {
                         steps {
-                            dir('discotec-spack') {
+                            dir('discotec-spack/spack') {
                                 sh '''
                                 source ./share/spack/setup-env.sh
                                 '''
