@@ -3,7 +3,7 @@
 def buildbadge = addEmbeddableBadgeConfiguration(id: "allbuilds", subject: "boost test", status: "skipped")
 
 pipeline {
-    // agent { label 'pcsgs05' }
+    agent any
     options {
         buildDiscarder(
             logRotator(
