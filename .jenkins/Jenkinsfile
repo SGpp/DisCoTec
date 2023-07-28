@@ -90,7 +90,7 @@ pipeline {
                                 spack external find
                                 spack compiler find  
 
-                                spack install -y --only dependencies discotec@main%gcc>=9.4.0 -lto +selalib
+                                spack install -y --only dependencies discotec@main%gcc@9.4.0 -lto +selalib
                                 '''
                             }
                         }
@@ -104,7 +104,7 @@ pipeline {
                             }
                             dir('DisCoTec') {
                                 sh '''
-                                    spack load --only dependencies --first discotec@main%gcc>=9.4.0 -lto +selalib
+                                    spack load --only dependencies --first discotec@main%gcc@9.4.0 -lto +selalib
                                     mkdir -p build/${compiler}-${build_type}
                                     cd build/${compiler}-${build_type}
                                     cmake -DCMAKE_BUILD_TYPE=${build_type} -DCMAKE_CXX_COMPILER=${compiler} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_USE_LTO=0 ..
