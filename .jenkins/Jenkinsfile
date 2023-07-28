@@ -22,7 +22,6 @@ pipeline {
     stages {
         stage('checkout') {
             steps {
-                // scmSkip(deleteBuild: false, skipPattern:'.*\\[ci skip\\].*')
                 // script {
 		    // buildbadge.setStatus('running')
                 // }
@@ -97,13 +96,9 @@ pipeline {
                     }
                     stage('build DisCoTec') {
                         steps {
-                            dir('discotec-spack/spack') {
-                                sh '''
-                                . ./share/spack/setup-env.sh
-                                '''
-                            }
                             dir('DisCoTec') {
                                 sh '''
+                                    . ../discotec-spack/spack/share/spack/setup-env.sh
                                     spack load --only dependencies --first discotec@main%gcc@9.4.0 -lto +selalib
                                     mkdir -p build/${compiler}-${build_type}
                                     cd build/${compiler}-${build_type}
