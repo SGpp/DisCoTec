@@ -37,6 +37,7 @@ pipeline {
                         . ./share/spack/setup-env.sh
                         spack clean -ab
                         spack clean -fmps
+                        spack bootstrap now
                     '''
                 }
                 dir('DisCoTec') {
