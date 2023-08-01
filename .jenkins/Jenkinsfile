@@ -53,6 +53,12 @@ pipeline {
                         values 'gcc'//, 'clang'
                     }
                 }
+                axes {
+                    axis {
+                        name 'mpi-impl'
+                        values 'openmpi', 'mpich'
+                    }
+                }
                 stages{
                     stage('build dependencies w/ spack') {
                         steps {
@@ -61,7 +67,7 @@ pipeline {
                                 . ./share/spack/setup-env.sh
                                 spack external find
                                 spack compiler find  
-                                spack install -y discotec@main%${compiler} -lto #+selalib # --only dependencies # actually build discotec, such that load command will work
+                                spack install -y discotec@main%${compiler} ^${mpi-impl} -lto #+selalib # --only dependencies # actually build discotec, such that load command will work
                                 '''
                             }
                         }
