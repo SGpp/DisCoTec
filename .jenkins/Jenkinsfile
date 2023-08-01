@@ -37,6 +37,9 @@ pipeline {
                         . ./share/spack/setup-env.sh
                         spack clean -ab
                         spack clean -fmps
+
+                        spack bootstrap root $(pwd)/bootstrap
+                        spack bootstrap disable spack-install
                         spack bootstrap now
                     '''
                 }
