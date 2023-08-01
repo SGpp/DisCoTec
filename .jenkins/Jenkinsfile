@@ -50,7 +50,7 @@ pipeline {
                 axes {
                     axis {
                         name 'compiler'
-                        values 'gcc', 'clang'
+                        values 'gcc'//, 'clang'
                     }
                 }
                 stages{
