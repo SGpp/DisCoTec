@@ -52,6 +52,19 @@ pipeline {
                 }
             }
         }
+        stage('build dependencies w/ spack') {
+            steps {
+                dir('discotec-spack/spack') {
+                    sh '''
+                    . ./share/spack/setup-env.sh
+                    spack external find
+                    spack compiler find  
+
+                    spack install -y discotec@main%gcc@9.4.0 -lto +selalib # --only dependencies # actually build discotec, such that load command will work
+                    '''
+                }
+            }
+        }
         stage('build-and-test') {
             matrix {
                 axes {
@@ -81,19 +94,6 @@ pipeline {
                                             \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
                                             \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/jenkins/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                                     }"
-                                '''
-                            }
-                        }
-                    }
-                    stage('build dependencies w/ spack') {
-                        steps {
-                            dir('discotec-spack/spack') {
-                                sh '''
-                                . ./share/spack/setup-env.sh
-                                spack external find
-                                spack compiler find  
-
-                                spack install -y discotec@main%gcc@9.4.0 -lto +selalib # --only dependencies # actually build discotec, such that load command will work
                                 '''
                             }
                         }
