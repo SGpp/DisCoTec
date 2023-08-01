@@ -52,8 +52,6 @@ pipeline {
                         name 'compiler'
                         values 'gcc'//, 'clang'
                     }
-                }
-                axes {
                     axis {
                         name 'mpi-impl'
                         values 'openmpi', 'mpich'
