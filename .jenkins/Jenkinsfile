@@ -84,6 +84,10 @@ pipeline {
                         name 'compiler'
                         values 'gcc'//, 'clang' // omit clang for now, because it is weird w/ openmpi
                     }
+                    axis {
+                        name 'mpiimpl'
+                        values 'openmpi', 'mpich'
+                    }
                 }
                 stages {
                     stage('init') {
@@ -118,7 +122,7 @@ pipeline {
                             dir('DisCoTec-${compiler}-${build_type}') {
                                 sh '''
                                     . ../discotec-spack/spack/share/spack/setup-env.sh
-                                    spack load --only dependencies --first discotec@main%${compiler} -lto #+selalib
+                                    spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
                                     mkdir -p build/${compiler}-${build_type}
                                     cd build/${compiler}-${build_type}
                                     cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_USE_LTO=0 ../..
@@ -146,9 +150,14 @@ pipeline {
                                     mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_write* --log_level=message
                                     mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
                                     mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=worker
-                                    mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=thirdLevel # random port errors
                                     #mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=ftolerance # cf https://github.com/SGpp/DisCoTec/issues
                                 '''
+
+                                if (compiler == 'gcc' && mpiimpl == 'openmpi') { // execute third-level test only for one compiler set
+                                    sh '''
+                                        mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=thirdLevel # random port errors
+                                    '''
+                                }
                             }
                         }
                     }
