@@ -78,7 +78,7 @@ pipeline {
                     }
                     axis {
                         name 'compiler'
-                        values 'gcc', 'clang'
+                        values 'gcc'//, 'clang' // omit clang for now, because it is weird w/ openmpi
                     }
                 }
                 stages {
