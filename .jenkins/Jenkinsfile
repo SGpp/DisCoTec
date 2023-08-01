@@ -43,12 +43,29 @@ pipeline {
                         spack bootstrap now
                     '''
                 }
-                dir('DisCoTec') {
-                    checkout scm
-                    sh '''
-                        git clean -fdx
-                        rm -rf build*
-                    '''
+            }
+        }
+        stage('build-dependencies') {
+            matrix {
+                axes {
+                    axis {
+                        name 'compiler'
+                        values 'gcc', 'clang'
+                    }
+                }
+                stages{
+                    stage('build dependencies w/ spack') {
+                        steps {
+                            dir('discotec-spack/spack') {
+                                sh '''
+                                . ./share/spack/setup-env.sh
+                                spack external find
+                                spack compiler find  
+                                spack install -y discotec@main%${compiler} -lto #+selalib # --only dependencies # actually build discotec, such that load command will work
+                                '''
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -67,7 +84,14 @@ pipeline {
                 stages {
                     stage('init') {
                         steps {
-                            dir('DisCoTec') {
+                            dir('DisCoTec-${compiler}-${build_type}') {
+                                checkout scm
+                                sh '''
+                                    git clean -fdx
+                                    rm -rf build*
+                                '''
+                            }
+                            dir('DisCoTec-${compiler}-${build_type}') {
                                 sh '''
                                     github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
                                     curl --verbose\
@@ -85,22 +109,9 @@ pipeline {
                             }
                         }
                     }
-                    stage('build dependencies w/ spack') {
-                        steps {
-                            dir('discotec-spack/spack') {
-                                sh '''
-                                . ./share/spack/setup-env.sh
-                                spack external find
-                                spack compiler find  
-
-                                spack install -y discotec@main%${compiler} -lto #+selalib # --only dependencies # actually build discotec, such that load command will work
-                                '''
-                            }
-                        }
-                    }
                     stage('build DisCoTec') {
                         steps {
-                            dir('DisCoTec') {
+                            dir('DisCoTec-${compiler}-${build_type}') {
                                 sh '''
                                     . ../discotec-spack/spack/share/spack/setup-env.sh
                                     spack load --only dependencies --first discotec@main%${compiler} -lto #+selalib
@@ -114,7 +125,7 @@ pipeline {
                     }
                     stage('run tests') {
                         steps {
-                            dir('DisCoTec') {
+                            dir('DisCoTec-${compiler}-${build_type}') {
                                 sh '''
                                     cd tests/                                    
                                     mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=fullgrid
