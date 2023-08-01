@@ -154,10 +154,12 @@ pipeline {
                                 '''
                             }
                             dir('DisCoTec-${compiler}-${mpiimpl}-${build_type}') {
-                                if (compiler == 'gcc' && mpiimpl == 'openmpi') { // execute third-level test only for one compiler set
-                                    sh '''
-                                        mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=thirdLevel # random port errors
-                                    '''
+                                script{
+                                    if (compiler == 'gcc' && mpiimpl == 'openmpi') { // execute third-level test only for one compiler set
+                                        sh '''
+                                            mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=thirdLevel # random port errors
+                                        '''
+                                    }
                                 }
                             }
                         }
