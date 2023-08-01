@@ -86,7 +86,7 @@ pipeline {
                     }
                     axis {
                         name 'mpiimpl'
-                        values 'openmpi', 'mpich'
+                        values 'openmpi'//, 'mpich' // omit mpich for now due to glibc linker errors
                     }
                 }
                 stages {
@@ -125,7 +125,7 @@ pipeline {
                                     spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
                                     mkdir -p build/${compiler}-${build_type}
                                     cd build/${compiler}-${build_type}
-                                    cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_USE_LTO=0 ../..
+                                    cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_OPENMP=1 -DDISCOTEC_USE_LTO=0 ../..
                                     make -j8
                                 '''
                             }
@@ -135,6 +135,7 @@ pipeline {
                         steps {
                             dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
                                 sh '''
+                                    export OMP_NUM_THREADS=4
                                     cd tests/                                    
                                     mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=fullgrid
                                     mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
@@ -157,6 +158,7 @@ pipeline {
                                 script{
                                     if (compiler == 'gcc' && mpiimpl == 'openmpi') { // execute third-level test only for one compiler set
                                         sh '''
+                                            export OMP_NUM_THREADS=4
                                             mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=thirdLevel # random port errors
                                         '''
                                     }
