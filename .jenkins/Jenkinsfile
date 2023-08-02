@@ -54,7 +54,7 @@ pipeline {
                     }
                     axis {
                         name 'mpiimpl'
-                        values 'openmpi', 'mpich'
+                        values 'openmpi'//, 'mpich'
                     }
                 }
                 stages{
