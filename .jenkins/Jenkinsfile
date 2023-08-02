@@ -66,7 +66,10 @@ pipeline {
                                 . ./share/spack/setup-env.sh
                                 spack external find
                                 spack compiler find  
-                                spack install -y discotec@main -lto %${compiler}@9.4.0 ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
+                                # remove compilers with stl/linker/fortran issues
+                                spack compiler remove gcc@10.2.1
+                                spack compiler remove gcc@10.3.0
+                                spack install -y discotec@main -lto %${compiler} ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
                                 '''
                             }
                         }
@@ -123,7 +126,7 @@ pipeline {
                             dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
                                 sh '''
                                     . ../discotec-spack/spack/share/spack/setup-env.sh
-                                    spack load --only dependencies --first discotec@main -lto %${compiler}@9.4.0 ^${mpiimpl} #+selalib
+                                    spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
                                     mkdir -p build/${compiler}-${build_type}
                                     cd build/${compiler}-${build_type}
                                     cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_OPENMP=1 -DDISCOTEC_USE_LTO=0 ../..
