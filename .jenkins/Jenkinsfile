@@ -13,6 +13,7 @@ pipeline {
                 artifactNumToKeepStr: "100"
             )
         )
+        timeout(time: 3, unit: 'HOURS') 
         disableConcurrentBuilds()
     }
     environment {
@@ -59,16 +60,14 @@ pipeline {
                 }
                 stages{
                     stage('build dependencies w/ spack') {
-                        timeout(120) {
-                            steps {
-                                dir('discotec-spack/spack') {
-                                    sh '''
-                                    . ./share/spack/setup-env.sh
-                                    spack external find
-                                    spack compiler find  
-                                    spack install -y discotec@main -lto %${compiler}<10.0.0 ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
-                                    '''
-                                }
+                        steps {
+                            dir('discotec-spack/spack') {
+                                sh '''
+                                . ./share/spack/setup-env.sh
+                                spack external find
+                                spack compiler find  
+                                spack install -y discotec@main -lto %${compiler}<10.0.0 ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
+                                '''
                             }
                         }
                     }
