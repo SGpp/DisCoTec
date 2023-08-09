@@ -25,16 +25,21 @@ if args.no_compute_per_rank_statistics and args.no_compute_per_step_statistics a
     raise ValueError("Not all of \"--no_compute_per_rank_statistics\", \"--no_compute_per_step_statistics\", and \"--no_compute_total_statistics\" must be set!")
 
 data_per_rank = {}
+group_size = None
 
 for file in args.input_files:
     print("Reading data from file: \"{}\"".format(file))
     input_data = json.load(open(file))
+    if group_size is not None:
+        assert(group_size == len(input_data))
+    group_size = len(input_data)
 
     # iterate JSON object
     for rank in range(len(input_data)):
         input_rank_name = "rank" + str(rank)
         group = int(input_data[input_rank_name]["attributes"]["group"])
-        output_rank_name = "rank" + str(len(input_data) * group + rank)
+        output_rank = len(input_data) * group + rank
+        output_rank_name = "rank" + f'{output_rank:06}'
 
         # collect statistics per rank
         if output_rank_name not in data_per_rank:
@@ -55,7 +60,7 @@ if not args.no_compute_per_rank_statistics:
 
     processed_data_per_rank = pd.DataFrame(columns=["rank", "event", "min", "max", "mean", "median", "std", "sum"])
 
-    for rank in tqdm(data_per_rank, disable=args.no_tqdm):
+    for rank in tqdm(sorted(data_per_rank.keys()), disable=args.no_tqdm):
         if args.io_only and io_only_event not in data_per_rank[rank]:
             continue
 
@@ -72,6 +77,8 @@ if not args.no_compute_per_rank_statistics:
 
     if solver_event is not None:
         solver_load_imbalance = np.max(solver_measurements) / np.mean(solver_measurements)
+        max_solver_rank = np.argmax(solver_measurements)
+        print("imbalance of " + str(solver_load_imbalance) + " introduced by rank " + str(max_solver_rank) + " in group " + str(max_solver_rank//group_size))
 
     processed_data_per_rank.to_csv("processed_data_per_rank{}.csv".format("_io_only" if args.io_only else ""), index=False)
 
