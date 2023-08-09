@@ -17,6 +17,7 @@ parser.add_argument("--no_compute_per_step_statistics", help="compute the per st
 parser.add_argument("--no_compute_total_statistics", help="compute the total statistics", action="store_true", default=False)
 parser.add_argument("--io_only", help="only output IO ranks; a rank is an IO rank if it has the event \"{}\"".format(io_only_event), action="store_true", default=False)
 parser.add_argument("--no_tqdm",help="display no progress bars", action="store_true", default=False)
+#parser.add_argument("--groups_from_path",help="infer groups from json file name instead of file content", action="store_true", default=False)
 
 args = parser.parse_args()
 
@@ -48,7 +49,7 @@ for file in args.input_files:
                 data_per_rank[output_rank_name][event] = []
             data_per_rank[output_rank_name][event].append(event_data)
 
-
+solver_event = None
 if not args.no_compute_per_rank_statistics:
     print("Computing statistics per rank:")
 
@@ -62,6 +63,15 @@ if not args.no_compute_per_rank_statistics:
             data = np.vstack(data_per_rank[rank][event])
             processed_data_per_rank.loc[len(processed_data_per_rank.index)] = \
                 [rank, event, np.min(data), np.max(data), np.mean(data), np.median(data), np.std(data), np.sum(data)]
+            if "run" in event:
+                if solver_event is None:
+                    solver_event = event
+                    solver_measurements = []
+                assert(solver_event == event)
+                solver_measurements.append(np.mean(data))
+
+    if solver_event is not None:
+        solver_load_imbalance = np.max(solver_measurements) / np.mean(solver_measurements)
 
     processed_data_per_rank.to_csv("processed_data_per_rank{}.csv".format("_io_only" if args.io_only else ""), index=False)
 
@@ -116,6 +126,9 @@ if not args.no_compute_total_statistics:
         processed_data_total.loc[len(processed_data_total.index)] = \
             [event, np.min(data_per_event[event]), np.max(data_per_event[event]), np.mean(data_per_event[event]),
              np.median(data_per_event[event]), np.std(data_per_event[event]), np.sum(data_per_event[event])]
+#        if "run" in event:
+#            solver_event = event
+#            solver_load_imbalance = np.max(data_per_event[event]) / np.mean(data_per_event[event])
 
     processed_data_total.to_csv("processed_data_per_total{}.csv".format("_io_only" if args.io_only else ""), index=False)
     # output data in PGF plots format
@@ -129,5 +142,8 @@ if not args.no_compute_total_statistics:
             else:
                 pgf_plots_header_str += "{}-{},".format(event_name, col_name)
                 pgf_plots_data_str += str(col) + ","
+    if solver_event is not None:
+        pgf_plots_header_str += "{}-loadImbalance,".format(solver_event)
+        pgf_plots_data_str += str(solver_load_imbalance) + ","
     print(pgf_plots_header_str[:-1].replace(" ", "").replace("/", ""))
     print(pgf_plots_data_str[:-1])
