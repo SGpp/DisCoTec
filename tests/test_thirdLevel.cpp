@@ -570,6 +570,9 @@ void testCombineThirdLevelWithoutManagers(
   theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs, false,
                                     true);
 
+  if (testParams.nprocs > 1 && thirdLevelExtraSparseGrid) {
+    theMPISystem()->initOuputGroupComm(testParams.nprocs / 2);
+  }
   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
   std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
 
@@ -1015,7 +1018,14 @@ BOOST_AUTO_TEST_CASE(test_workers_only, *boost::unit_test::tolerance(TestHelper:
               std::cout << "third level worker only " << boundary << " " << ngroup << "*" << nprocs
                         << std::endl;
             }
-            BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams));
+            BOOST_CHECK_NO_THROW(
+                try {
+                  testCombineThirdLevelWithoutManagers(testParams);
+                } catch (std::exception& e) {
+                  std::cout << "exception: " << e.what() << std::endl;
+                  throw e;
+                }
+            );
             MPI_Barrier(newcomm);
             BOOST_TEST_CHECKPOINT("sysNum " + std::to_string(sysNum) + " finished");
           }

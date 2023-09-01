@@ -832,7 +832,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     std::filesystem::remove(startReadingTokenFileName);
     // remove sparse grid file
     if (!keepSparseGridFiles) {
-      std::filesystem::remove(filenamePrefixToRead + "_" + std::to_string(0));
+      std::filesystem::remove(filenamePrefixToRead + "_" + std::to_string(0) + "*");
     }
   }
 
