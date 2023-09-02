@@ -480,8 +480,9 @@ void MPISystem::initOuputGroupComm(uint16_t numFileParts) {
     if (numFileParts == 1) {
       outputComm_ = outputGroupComm_;
     } else {
-      MPI_Comm_split(outputGroupComm_, outputGroupRank_ / numFileParts,
-                     outputGroupRank_ % numFileParts, &outputComm_);
+      auto outputCommSize = nprocs_ / numFileParts;
+      MPI_Comm_split(outputGroupComm_, static_cast<int>(outputGroupRank_ / outputCommSize),
+                     static_cast<int>(outputGroupRank_ % outputCommSize), &outputComm_);
     }
   }
   MPI_Group_free(&newGroup);
