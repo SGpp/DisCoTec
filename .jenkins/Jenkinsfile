@@ -141,7 +141,7 @@ pipeline {
                                 sh '''
                                     export OMP_NUM_THREADS=4
                                     cd tests/
-                                    mpiexec.mpich -np 9 .tests/test_distributedcombigrid_boost --run_test=mpisystem                      
+                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem                      
                                     mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
                                     mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
                                     mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=loadmodel
