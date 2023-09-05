@@ -163,6 +163,7 @@ pipeline {
                                     if (compiler == 'gcc' && mpiimpl == 'openmpi') { // execute third-level test only for one compiler set
                                         sh '''
                                             export OMP_NUM_THREADS=4
+                                            cd tests/                   
                                             mpiexec -np 9 ./test_distributedcombigrid_boost --run_test=thirdLevel # random port errors
                                         '''
                                     }
