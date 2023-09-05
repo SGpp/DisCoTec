@@ -86,7 +86,7 @@ pipeline {
                     }
                     axis {
                         name 'compiler'
-                        values 'gcc',// 'clang' // omit clang for now, mpi can't find fortran with it
+                        values 'gcc'//, 'clang' // omit clang for now, mpi can't find fortran with it
                     }
                     axis {
                         name 'mpiimpl'
