@@ -67,8 +67,8 @@ pipeline {
                                 spack external find
                                 spack compiler find  
                                 # remove compilers with stl/linker/fortran issues
-                                spack compiler remove gcc@10.2.1
-                                spack compiler remove gcc@10.3.0
+                                spack compiler remove -a gcc@10.2.1 || true # ignore if this compiler was not found
+                                spack compiler remove -a gcc@10.3.0 || true
                                 spack install -y discotec@main -lto %${compiler} ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
                                 '''
                             }
