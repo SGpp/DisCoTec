@@ -51,11 +51,11 @@ pipeline {
                 axes {
                     axis {
                         name 'compiler'
-                        values 'gcc'//, 'clang'
+                        values 'gcc', 'clang'
                     }
                     axis {
                         name 'mpiimpl'
-                        values 'openmpi'//, 'mpich'
+                        values 'openmpi', 'mpich'
                     }
                 }
                 stages{
@@ -86,11 +86,11 @@ pipeline {
                     }
                     axis {
                         name 'compiler'
-                        values 'gcc'//, 'clang' // omit clang for now, because it is weird w/ openmpi
+                        values 'gcc', 'clang' // omit clang for now, because it is weird w/ openmpi
                     }
                     axis {
                         name 'mpiimpl'
-                        values 'openmpi'//, 'mpich' // omit mpich for now due to glibc linker errors
+                        values 'openmpi', 'mpich' // omit mpich for now due to glibc linker errors
                     }
                 }
                 stages {
