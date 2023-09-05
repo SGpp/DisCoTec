@@ -139,33 +139,37 @@ pipeline {
                         steps {
                             dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
                                 sh '''
+                                    . ../discotec-spack/spack/share/spack/setup-env.sh
+                                    spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
                                     export OMP_NUM_THREADS=4
                                     cd tests/
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem                      
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=loadmodel
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=reduce
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=rescheduling
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=task
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=distributedfullgrid --log_level=message
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=integration
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=stats
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_create* --log_level=message
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_write* --log_level=message
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
-                                    mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=worker
-                                    #mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=ftolerance # cf https://github.com/SGpp/DisCoTec/issues
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem                      
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=loadmodel
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=reduce
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=rescheduling
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=task
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=distributedfullgrid --log_level=message
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=integration
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=stats
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_create* --log_level=message
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_write* --log_level=message
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=worker
+                                    #mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=ftolerance # cf https://github.com/SGpp/DisCoTec/issues
                                 '''
                             }
                             dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
                                 script{
                                     if (compiler == 'gcc' && mpiimpl == 'openmpi') { // execute third-level test only for one compiler set
                                         sh '''
+                                            . ../discotec-spack/spack/share/spack/setup-env.sh
+                                            spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
                                             export OMP_NUM_THREADS=4
                                             cd tests/                   
-                                            mpiexec -n 9 ./test_distributedcombigrid_boost --run_test=thirdLevel # random port errors
+                                            mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=thirdLevel # random port errors
                                         '''
                                     }
                                 }
