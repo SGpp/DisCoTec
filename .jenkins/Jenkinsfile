@@ -113,8 +113,8 @@ pipeline {
                                         --header "authorization: Bearer ${github_token}" \
                                         --data "{
                                             \\"state\\": \\"pending\\",
-                                            \\"context\\": \\"DisCoTec-${compiler}-${build_type}\\",
-                                            \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${build_type}\\",
+                                            \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                            \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
                                             \\"target_url\\": \\"${BUILD_URL}/console\\"
                                     }"
                                 '''
@@ -127,8 +127,8 @@ pipeline {
                                 sh '''
                                     . ../discotec-spack/spack/share/spack/setup-env.sh
                                     spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
-                                    mkdir -p build/${compiler}-${build_type}
-                                    cd build/${compiler}-${build_type}
+                                    mkdir -p build/${compiler}-${mpiimpl}-${build_type}
+                                    cd build/${compiler}-${mpiimpl}-${build_type}
                                     cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_OPENMP=1 -DDISCOTEC_USE_LTO=0 ../..
                                     make -j8
                                 '''
@@ -190,8 +190,8 @@ pipeline {
                                 --header "authorization: Bearer ${github_token}" \
                                 --data "{
                                     \\"state\\": \\"success\\",
-                                    \\"context\\": \\"DisCoTec-${compiler}-${build_type}\\",
-                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${build_type}\\",
+                                    \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
                                     \\"target_url\\": \\"${BUILD_URL}/console\\"
                             }"
                         '''
@@ -206,8 +206,8 @@ pipeline {
                                 --header "authorization: Bearer ${github_token}" \
                                 --data "{
                                     \\"state\\": \\"failure\\",
-                                    \\"context\\": \\"DisCoTec-${compiler}-${build_type}\\",
-                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${build_type}\\",
+                                    \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
                                     \\"target_url\\": \\"${BUILD_URL}/console\\"
                             }"
                         '''
@@ -222,8 +222,8 @@ pipeline {
                                 --header "authorization: Bearer ${github_token}" \
                                 --data "{
                                     \\"state\\": \\"error\\",
-                                    \\"context\\": \\"DisCoTec-${compiler}-${build_type}\\",
-                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${build_type}\\",
+                                    \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
                                     \\"target_url\\": \\"${BUILD_URL}/console\\"
                             }"
                         '''
