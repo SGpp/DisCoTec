@@ -113,9 +113,9 @@ pipeline {
                                         --header "authorization: Bearer ${github_token}" \
                                         --data "{
                                             \\"state\\": \\"pending\\",
-                                            \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
-                                            \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
-                                            \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/jenkins/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                                            \\"context\\": \\"DisCoTec-${compiler}-${build_type}\\",
+                                            \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${build_type}\\",
+                                            \\"target_url\\": \\"${BUILD_URL}/console\\"
                                     }"
                                 '''
                             }
@@ -190,9 +190,9 @@ pipeline {
                                 --header "authorization: Bearer ${github_token}" \
                                 --data "{
                                     \\"state\\": \\"success\\",
-                                    \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
-                                    \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
-                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                                    \\"context\\": \\"DisCoTec-${compiler}-${build_type}\\",
+                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${build_type}\\",
+                                    \\"target_url\\": \\"${BUILD_URL}/console\\"
                             }"
                         '''
                     }
@@ -206,9 +206,9 @@ pipeline {
                                 --header "authorization: Bearer ${github_token}" \
                                 --data "{
                                     \\"state\\": \\"failure\\",
-                                    \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
-                                    \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
-                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                                    \\"context\\": \\"DisCoTec-${compiler}-${build_type}\\",
+                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${build_type}\\",
+                                    \\"target_url\\": \\"${BUILD_URL}/console\\"
                             }"
                         '''
                     }
@@ -222,9 +222,9 @@ pipeline {
                                 --header "authorization: Bearer ${github_token}" \
                                 --data "{
                                     \\"state\\": \\"error\\",
-                                    \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
-                                    \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
-                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                                    \\"context\\": \\"DisCoTec-${compiler}-${build_type}\\",
+                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${build_type}\\",
+                                    \\"target_url\\": \\"${BUILD_URL}/console\\"
                             }"
                         '''
                     }
