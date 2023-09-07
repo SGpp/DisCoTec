@@ -192,7 +192,7 @@ pipeline {
                                     \\"state\\": \\"success\\",
                                     \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
                                     \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
-                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/jenkins/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                             }"
                         '''
                     }
@@ -208,7 +208,7 @@ pipeline {
                                     \\"state\\": \\"failure\\",
                                     \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
                                     \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
-                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/jenkins/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                             }"
                         '''
                     }
@@ -224,7 +224,7 @@ pipeline {
                                     \\"state\\": \\"error\\",
                                     \\"context\\": \\"jenkins-${compiler}-${build_type}-ctest\\",
                                     \\"description\\": \\"Jenkins CI Job: jenkins-${compiler}-${build_type}-ctest\\",
-                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/jenkins/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
+                                    \\"target_url\\": \\"https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/${JOB_BASE_NAME}/${BUILD_NUMBER}/console\\"
                             }"
                         '''
                     }
