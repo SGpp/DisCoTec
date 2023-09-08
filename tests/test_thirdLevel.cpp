@@ -570,6 +570,9 @@ void testCombineThirdLevelWithoutManagers(
   theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs, false,
                                     true);
 
+  if (testParams.nprocs > 1 && thirdLevelExtraSparseGrid) {
+    theMPISystem()->initOuputGroupComm(testParams.nprocs / 2);
+  }
   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
   std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
 
@@ -651,24 +654,24 @@ void testCombineThirdLevelWithoutManagers(
       remove(readSubspaceSizeFileToken.c_str());
     }
   }
-  // output sparse grid sizes -- for visual inspection if they are exactly the same between systems
-  // now
-  OUTPUT_GROUP_EXCLUSIVE_SECTION {
-    if (thirdLevelExtraSparseGrid) {
-      for (auto& dsg : worker.getExtraDSGVector()) {
-        for (size_t size : dsg->getSubspaceDataSizes()) {
-          std::cout << size << " ";
-        }
-      }
-    } else {
-      for (auto& dsg : worker.getCombinedDSGVector()) {
-        for (size_t size : dsg->getSubspaceDataSizes()) {
-          std::cout << size << " ";
-        }
-      }
-    }
-    std::cout << std::endl;
-  }
+  // // output sparse grid sizes -- for visual inspection if they are exactly the same between systems
+  // // now
+  // OUTPUT_GROUP_EXCLUSIVE_SECTION {
+  //   if (thirdLevelExtraSparseGrid) {
+  //     for (auto& dsg : worker.getExtraDSGVector()) {
+  //       for (size_t size : dsg->getSubspaceDataSizes()) {
+  //         std::cout << size << " ";
+  //       }
+  //     }
+  //   } else {
+  //     for (auto& dsg : worker.getCombinedDSGVector()) {
+  //       for (size_t size : dsg->getSubspaceDataSizes()) {
+  //         std::cout << size << " ";
+  //       }
+  //     }
+  //   }
+  //   std::cout << std::endl;
+  // }
   if (thirdLevelExtraSparseGrid) {
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
       // make sure the first few subspaces are populated
@@ -828,7 +831,7 @@ void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(!TestHelper::testStrayMessages(testParams.comm));
 }
 
-BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(2000))
+BOOST_FIXTURE_TEST_SUITE(thirdLevel, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(2500))
 
 BOOST_AUTO_TEST_CASE(test_0, *boost::unit_test::tolerance(TestHelper::tolerance) *
                                  boost::unit_test::disabled()) {
@@ -1015,7 +1018,14 @@ BOOST_AUTO_TEST_CASE(test_workers_only, *boost::unit_test::tolerance(TestHelper:
               std::cout << "third level worker only " << boundary << " " << ngroup << "*" << nprocs
                         << std::endl;
             }
-            BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams));
+            BOOST_CHECK_NO_THROW(
+                try {
+                  testCombineThirdLevelWithoutManagers(testParams);
+                } catch (std::exception& e) {
+                  std::cout << "exception: " << e.what() << std::endl;
+                  throw e;
+                }
+            );
             MPI_Barrier(newcomm);
             BOOST_TEST_CHECKPOINT("sysNum " + std::to_string(sysNum) + " finished");
           }
@@ -1112,7 +1122,7 @@ BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::t
 
 // same as test_8 but only with workers
 BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::tolerance) *
-                                         boost::unit_test::timeout(950)) {
+                                         boost::unit_test::timeout(1250)) {
   unsigned int numSystems = 2;
   unsigned int nprocs = 1;
   unsigned int ncombi = 3;

@@ -45,6 +45,7 @@ MPISystem::MPISystem()
       localComm_(MPI_COMM_NULL),
       globalReduceComm_(MPI_COMM_NULL),
       outputGroupComm_(MPI_COMM_NULL), 
+      outputComm_(MPI_COMM_NULL), 
       worldCommFT_(nullptr),
       globalCommFT_(nullptr),
       spareCommFT_(nullptr),
@@ -116,6 +117,7 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs,
 
   outputGroupRank_ = MPI_UNDEFINED;
   outputGroupComm_ = MPI_COMM_NULL;
+  outputComm_ = MPI_COMM_NULL;
 }
 
 void MPISystem::init(size_t ngroup, size_t nprocs, bool withWorldManager) {
@@ -450,7 +452,18 @@ std::vector<int>& getDiagonalRanks(size_t nprocs, size_t ngroup) {
   return ranks;
 }
 
-void MPISystem::initOuputGroupComm() {
+void MPISystem::initOuputGroupComm(uint16_t numFileParts) {
+  assert(numFileParts > 0);
+  if (outputComm_ != MPI_COMM_NULL && outputComm_ != outputGroupComm_) {
+    MPI_Comm_free(&outputComm_);
+    outputComm_ = MPI_COMM_NULL;
+  }
+  if (outputGroupComm_ != MPI_COMM_NULL) {
+    MPI_Comm_free(&outputGroupComm_);
+    outputGroupComm_ = MPI_COMM_NULL;
+    outputComm_ = MPI_COMM_NULL;
+  }
+
   MPI_Group worldGroup;
   MPI_Comm_group(worldComm_, &worldGroup);
   auto& ranks = getDiagonalRanks(nprocs_, ngroup_);
@@ -464,6 +477,13 @@ void MPISystem::initOuputGroupComm() {
   if (newComm != MPI_COMM_NULL) {
     outputGroupComm_ = newComm;
     MPI_Comm_rank(newComm, &outputGroupRank_);
+    if (numFileParts == 1) {
+      outputComm_ = outputGroupComm_;
+    } else {
+      auto outputCommSize = nprocs_ / numFileParts;
+      MPI_Comm_split(outputGroupComm_, static_cast<int>(outputGroupRank_ / outputCommSize),
+                     static_cast<int>(outputGroupRank_ % outputCommSize), &outputComm_);
+    }
   }
   MPI_Group_free(&newGroup);
   MPI_Group_free(&worldGroup);

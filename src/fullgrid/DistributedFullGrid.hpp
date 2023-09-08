@@ -489,7 +489,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     std::transform(gridSpacing_.begin(), gridSpacing_.end(), oneOverHByDivision.begin(),
                    std::bind(std::divides<double>(), 1, std::placeholders::_1));
     for (DimType j = 0; j < dim_; j++) {
-      assert(std::abs(oneOverHByDivision[j] < oneOverH[j]) < 1e-10);
+      assert(std::abs(oneOverHByDivision[j] - oneOverH[j]) < 1e-10);
       assert(oneOverHByDivision[j] == oneOverH[j]);
     }
 #endif

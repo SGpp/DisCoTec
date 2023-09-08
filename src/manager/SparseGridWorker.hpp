@@ -560,9 +560,12 @@ inline int SparseGridWorker::readDSGsFromDisk(const std::string& filenamePrefix,
     auto dsgToUse = uniDsg;
     if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
+      numRead += DistributedSparseGridIO::readSomeFiles(*dsgToUse,
+                                                        filenamePrefix + "_" + std::to_string(i));
+    } else {
+      numRead +=
+          DistributedSparseGridIO::readOneFile(*dsgToUse, filenamePrefix + "_" + std::to_string(i));
     }
-    numRead +=
-        DistributedSparseGridIO::readOneFile(*dsgToUse, filenamePrefix + "_" + std::to_string(i));
     if (this->getExtraUniDSGVector().size() > 0 && uniDsg->isSubspaceDataCreated()) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);
@@ -580,9 +583,12 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
     auto dsgToUse = uniDsg;
     if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
+      numReduced += DistributedSparseGridIO::readSomeFilesAndReduce(
+          *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), maxMiBToReadPerThread);
+    } else {
+      numReduced += DistributedSparseGridIO::readOneFileAndReduce(
+          *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), maxMiBToReadPerThread);
     }
-    numReduced += DistributedSparseGridIO::readOneFileAndReduce(
-        *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), maxMiBToReadPerThread);
     if (this->getExtraUniDSGVector().size() > 0 && uniDsg->isSubspaceDataCreated()) {
       // copy partial data from extraDSG back to uniDSG
       uniDsg->copyDataFrom(*dsgToUse);
@@ -784,9 +790,13 @@ inline int SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix,
           combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
         dsgToUse->copyDataFrom(*uniDsg);
       }
+      assert(dsgToUse->isSubspaceDataCreated());
+      numWritten += DistributedSparseGridIO::writeSomeFiles(*dsgToUse, filename);
+
+    } else {
+      assert(dsgToUse->isSubspaceDataCreated());
+      numWritten += DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);
     }
-    assert(dsgToUse->isSubspaceDataCreated());
-    numWritten += DistributedSparseGridIO::writeOneFile(*dsgToUse, filename);
   }
   return numWritten;
 }
