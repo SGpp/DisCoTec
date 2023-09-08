@@ -116,7 +116,7 @@ void AnyDistributedSparseGrid::setDataSize(SubspaceIndexType i, SubspaceSizeType
   subspacesDataSizes_[i] = newSize;
 }
 
-using UIntForGroupReductionType = boost::multiprecision::uint512_t;
+using UIntForGroupReductionType = boost::multiprecision::uint256_t;
 
 std::vector<UIntForGroupReductionType> getSubspaceVote(
     CommunicatorType comm, RankType rankInComm,
