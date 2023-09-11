@@ -788,20 +788,51 @@ int ProcessGroupWorker::combineThirdLevelFileBasedWrite(
   return numWritten;
 }
 
+void ProcessGroupWorker::removeReadingFiles(const std::string& filenamePrefixToRead, 
+		const std::string& startReadingTokenFileName, bool keepSparseGridFiles) const {
+  OUTPUT_GROUP_EXCLUSIVE_SECTION{
+    MASTER_EXCLUSIVE_SECTION {
+      // remove reading token
+      std::filesystem::remove(startReadingTokenFileName);
+      // remove sparse grid file(s)
+      if (!keepSparseGridFiles) {
+        std::filesystem::remove(filenamePrefixToRead + "_" + std::to_string(0));
+        for (const auto& entry : std::filesystem::directory_iterator(".")) {
+          if (entry.path().string().find(filenamePrefixToRead + "_" + std::to_string(0) + ".part") !=
+                std::string::npos) {
+            assert(entry.is_regular_file());
+            std::filesystem::remove(entry.path());
+          }
+        }
+      }
+    }
+  } else {
+    throw std::runtime_error("should only be called from output group");
+  }
+}
+
+void ProcessGroupWorker::waitForTokenFile(const std::string& startReadingTokenFileName) const {
+  OUTPUT_GROUP_EXCLUSIVE_SECTION{
+    Stats::startEvent("wait SG");
+    MASTER_EXCLUSIVE_SECTION {
+      std::cout << "Waiting for token file " << startReadingTokenFileName << std::endl;
+      while (!std::filesystem::exists(startReadingTokenFileName)) {
+        // wait for token file to appear
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      }
+    }
+    MPI_Barrier(theMPISystem()->getOutputGroupComm());
+    Stats::stopEvent("wait SG");
+  } else {
+    throw std::runtime_error("should only be called from output group");
+  }
+}
+
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName,
     bool overwrite, bool keepSparseGridFiles) {
   // wait until we can start to read
-  Stats::startEvent("wait SG");
-  MASTER_EXCLUSIVE_SECTION {
-    std::cout << "Waiting for token file " << startReadingTokenFileName << std::endl;
-    while (!std::filesystem::exists(startReadingTokenFileName)) {
-      // wait for token file to appear
-      std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
-  }
-  MPI_Barrier(theMPISystem()->getOutputGroupComm());
-  Stats::stopEvent("wait SG");
+  this->waitForTokenFile(startReadingTokenFileName);
 
   MPI_Request request = MPI_REQUEST_NULL;
   overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
@@ -826,21 +857,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     // update fgs
     updateFullFromCombinedSparseGrids();
   }
-  // remove reading token
-  MASTER_EXCLUSIVE_SECTION {
-    std::filesystem::remove(startReadingTokenFileName);
-    // remove sparse grid file
-    if (!keepSparseGridFiles) {
-      std::filesystem::remove(filenamePrefixToRead + "_" + std::to_string(0));
-      for (const auto& entry : std::filesystem::directory_iterator(".")) {
-        if (entry.path().string().find(filenamePrefixToRead + "_" + std::to_string(0) + ".part") !=
-            std::string::npos) {
-          assert(entry.is_regular_file());
-          std::filesystem::remove(entry.path());
-        }
-      }
-    }
-  }
+  this->removeReadingFiles(filenamePrefixToRead, startReadingTokenFileName, keepSparseGridFiles);
 
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);

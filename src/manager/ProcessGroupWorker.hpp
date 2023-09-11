@@ -92,6 +92,10 @@ class ProcessGroupWorker {
 
   int combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
                                       const std::string& writeCompleteTokenFileName);
+  void waitForTokenFile(const std::string& startReadingTokenFileName) const;
+
+  void removeReadingFiles(const std::string& filenamePrefixToRead,
+              const std::string& startReadingTokenFileName, bool keepSparseGridFiles) const;
 
   void combineThirdLevelFileBasedReadReduce(const std::string& filenamePrefixToRead,
                                             const std::string& startReadingTokenFileName,
