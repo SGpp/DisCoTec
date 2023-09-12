@@ -28,7 +28,7 @@ pipeline {
                 }
                 dir('discotec-spack') {
                     sh '''
-                        git -C spack pull || git clone git@github.com:freifrauvonbleifrei/spack.git 
+                        git -C spack pull || git clone git@github.com:spack/spack.git 
                         cd spack
                         # reset compilers and external packages due to possible different systems
                         rm -f ~/.spack/bootstrap/config/packages.yaml
