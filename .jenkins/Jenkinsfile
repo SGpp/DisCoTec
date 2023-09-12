@@ -20,8 +20,8 @@ pipeline {
         GITHUB_TOKEN = credentials('GITHUB_TOKEN_DISCOTEC')
         MAINTAINER_MAIL = credentials('DISCOTEC_MAINTAINER_EMAIL')
     }
-    stages {
-        withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {
+    withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {
+        stages {
             stage('checkout') {
                 steps {
                     script {
