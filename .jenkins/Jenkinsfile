@@ -49,10 +49,10 @@ pipeline {
                     }
                 }
             }
-        }
-        post {
-            failure{
-                sleep 100
+            post {
+                failure{
+                    sleep 100
+                }
             }
         }
         stage('build-dependencies') {
@@ -211,10 +211,10 @@ pipeline {
                                 }
                             }
                         }
-                    }
-                    post {
-                        failure{
-                            sleep 30
+                        post {
+                            failure{
+                                sleep 30
+                            }
                         }
                     }
                 }
