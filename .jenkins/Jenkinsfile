@@ -222,55 +222,55 @@ pipeline {
                             }
                         }
                     }
-                }
-                post {
-                    success {
-                        sh '''
-                            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                            curl --verbose\
-                                --request POST \
-                                --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
-                                --header "Content-Type: application/json" \
-                                --header "authorization: Bearer ${github_token}" \
-                                --data "{
-                                    \\"state\\": \\"success\\",
-                                    \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
-                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
-                                    \\"target_url\\": \\"${BUILD_URL}/console\\"
-                            }"
-                        '''
-                    }
-                    failure {
-                        sh '''
-                            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                            curl --verbose\
-                                --request POST \
-                                --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
-                                --header "Content-Type: application/json" \
-                                --header "authorization: Bearer ${github_token}" \
-                                --data "{
-                                    \\"state\\": \\"failure\\",
-                                    \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
-                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
-                                    \\"target_url\\": \\"${BUILD_URL}/console\\"
-                            }"
-                        '''
-                    }
-                    aborted {
-                        sh '''
-                            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
-                            curl --verbose\
-                                --request POST \
-                                --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
-                                --header "Content-Type: application/json" \
-                                --header "authorization: Bearer ${github_token}" \
-                                --data "{
-                                    \\"state\\": \\"error\\",
-                                    \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
-                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
-                                    \\"target_url\\": \\"${BUILD_URL}/console\\"
-                            }"
-                        '''
+                    post {
+                        success {
+                            sh '''
+                                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                                curl --verbose\
+                                    --request POST \
+                                    --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                    --header "Content-Type: application/json" \
+                                    --header "authorization: Bearer ${github_token}" \
+                                    --data "{
+                                        \\"state\\": \\"success\\",
+                                        \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                        \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                        \\"target_url\\": \\"${BUILD_URL}/console\\"
+                                }"
+                            '''
+                        }
+                        failure {
+                            sh '''
+                                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                                curl --verbose\
+                                    --request POST \
+                                    --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                    --header "Content-Type: application/json" \
+                                    --header "authorization: Bearer ${github_token}" \
+                                    --data "{
+                                        \\"state\\": \\"failure\\",
+                                        \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                        \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                        \\"target_url\\": \\"${BUILD_URL}/console\\"
+                                }"
+                            '''
+                        }
+                        aborted {
+                            sh '''
+                                github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                                curl --verbose\
+                                    --request POST \
+                                    --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                    --header "Content-Type: application/json" \
+                                    --header "authorization: Bearer ${github_token}" \
+                                    --data "{
+                                        \\"state\\": \\"error\\",
+                                        \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                        \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                        \\"target_url\\": \\"${BUILD_URL}/console\\"
+                                }"
+                            '''
+                        }
                     }
                 }
             }
