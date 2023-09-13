@@ -84,12 +84,12 @@ pipeline {
                                         spack install -y discotec@main -lto %${compiler} ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
                                         '''
                                     }
-                                    post {
-                                        failure{
-                                            sleep 60
-                                        }
-                                    }
                                 }
+                            }
+                        }
+                        post {
+                            failure{
+                                sleep 60
                             }
                         }
                     }
