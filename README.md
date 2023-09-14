@@ -1,5 +1,6 @@
 # What is DisCoTec?
 ---------------------------
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/f30529e005bd4713b80e9301bd877de1)](https://app.codacy.com/gh/SGpp/DisCoTec?utm_source=github.com&utm_medium=referral&utm_content=SGpp/DisCoTec&utm_campaign=Badge_Grade)
 [![Build Status](https://jenkins-sim.informatik.uni-stuttgart.de/buildStatus/icon?job=DisCoTec%2Fmain)](https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/main/)
 [![DOI](https://zenodo.org/badge/226341053.svg)](https://zenodo.org/badge/latestdoi/226341053)
 
