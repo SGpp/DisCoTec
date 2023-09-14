@@ -76,7 +76,7 @@ pipeline {
                                     dir('discotec-spack/spack') {
                                         sh '''
                                         . ./share/spack/setup-env.sh
-                                        spack external find
+                                        spack external find --exclude curl # curl may be missing dev-libs which causes cmake install to fail
                                         spack compiler find  
                                         # remove compilers with stl/linker/fortran issues
                                         spack compiler remove -a gcc@10.1.0: || true # ignore if this compiler was not found
