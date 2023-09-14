@@ -2,6 +2,7 @@
 [![Build Status](https://jenkins-sim.informatik.uni-stuttgart.de/buildStatus/icon?job=DisCoTec%2Fmain)](https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/main/)
 [![Zenodo DOI](https://zenodo.org/badge/226341053.svg)](https://zenodo.org/badge/latestdoi/226341053)
 [![Latest spack version](https://img.shields.io/spack/v/discotec)](https://spack.readthedocs.io/en/latest/package_list.html#discotec)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/cac5bc0841784657b2bb75ea46e7cf01)](https://app.codacy.com/gh/SGpp/DisCoTec/dashboard)
 
 # What is DisCoTec?
 ---------------------------
