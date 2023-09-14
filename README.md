@@ -1,19 +1,24 @@
-# What is DisCoTec?
----------------------------
+
 [![Build Status](https://jenkins-sim.informatik.uni-stuttgart.de/buildStatus/icon?job=DisCoTec%2Fmain)](https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/main/)
-[![DOI](https://zenodo.org/badge/226341053.svg)](https://zenodo.org/badge/latestdoi/226341053)
+[![Zenodo DOI](https://zenodo.org/badge/226341053.svg)](https://zenodo.org/badge/latestdoi/226341053)
 [![Latest spack version](https://img.shields.io/spack/v/discotec)](https://spack.readthedocs.io/en/latest/package_list.html#discotec)
 
-This project contains __DisCoTec__, a code for running the distributed sparse grid combination technique with MPI parallelization. While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it is its own project now.
+# What is DisCoTec?
+---------------------------
 
-It is designed as a framework that can run multiple instances of a (black-box) grid-based solver implementation.
+This project contains __DisCoTec__, a code for running the *dis*tributed sparse grid *co*mbination *tec*hnique with MPI parallelization. 
+While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it has become its own project.
+
+DisCoTec is designed as a framework that can run multiple instances of a (black-box) grid-based solver implementation.
 The most basic example we use is a [mass-conserving FDM/FVM constant advection upwinding solver](/examples/distributed_advection/).
 An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distributed/).
 
+
 ## Contributing
 ---------
-* We welcome contributions! To find a good place to start, have a look at the currently open issues.
-* Please develop new features in a new branch (typically on your own fork) and then create a PR.
+* We welcome contributions! To find a good place to start coding, have a look at the currently open issues.
+* Please describe issues in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
+* Please develop new features in a new branch (typically on your own fork) and then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
 * New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests] .
 
 
@@ -143,14 +148,13 @@ _Warning: The CMake Integration is currently not adapted to use GENE!_
 
 There are gene versions as submodules: a linear one in the gene_mgr folder, and 
 a nonlinear one in gene-non-linear. To get them, you need access to their 
-respective repos. Then go into the folder and
+respective repos at MPCDF. Then go into the folder and
 
 ``` bash
 git submodule init
 git submodule update
 ```
 or use the `--recursive` flag when cloning the repo.
-and then you just hope you can `make` it by adapting the local library flags.
 
 
 ### Further Readmes
