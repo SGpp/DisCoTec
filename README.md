@@ -15,15 +15,15 @@ An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distribu
 
 
 ## Contributing
----------
-* We welcome contributions! To find a good place to start coding, have a look at the currently open issues.
-* Please describe issues in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
-* Please develop new features in a new branch (typically on your own fork) and then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
-* New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests] .
+---------------------------
+*  We welcome contributions! To find a good place to start coding, have a look at the currently open issues.
+*  Please describe issues in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
+*  Please develop new features in a new branch (typically on your own fork) and then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
+*  New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests] .
 
 
 ## Installation instructions: spack
---------------------------
+---------------------------
 
 DisCoTec can be installed via Spack, which handles all dependencies.
 If you want to develop DisCoTec code or examples, the `spack dev-build` workflow is recommended.
@@ -44,9 +44,9 @@ This will build DisCoTec inside the cloned folder, and the executables are place
 
 
 ## Installation instructions: CMake
---------------------------
+---------------------------
 #### Dependencies
---------------
+---------------------------
 cmake >= (3.24.2),
 libmpich-dev (>= 3.2-6), or other MPI library
 libboost-all-dev (>= 1.60)
@@ -143,8 +143,8 @@ mpirun -n $(($NGROUP*$NPROCS)) omplace -v -nt ${OMP_NUM_THREADS} $DISCOTEC_EXECU
 Validate with very verbose output: `-vv` .
 
 ### GENE  submodules as dependencies for GENE examples
-----------------
-_Warning: The CMake Integration is currently not adapted to use GENE!_
+---------------------------
+*Warning: The CMake Integration is currently not adapted to use GENE!*
 
 There are gene versions as submodules: a linear one in the gene_mgr folder, and 
 a nonlinear one in gene-non-linear. To get them, you need access to their 
