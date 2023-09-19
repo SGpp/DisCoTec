@@ -209,7 +209,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         *uniDSG,
         "sparse_paraboloid_minmax_" + std::to_string(dim) + "D_" + std::to_string(size) + "_" +
             std::to_string(boundary[0]),
-        0);
+        0, uniDSG->getCommunicator());
     // and remove straight away
     if (rank == 0) {
       auto status = system("rm sparse_paraboloid_minmax_*");
@@ -249,11 +249,6 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
 
     BOOST_TEST_CHECKPOINT("Register to uniform SG");
     uniDSG->registerDistributedFullGrid(*largeUniDFG);//TODO create levels and actually test something
-
-    // // make sure that right min/max values are written %TODO remove file
-    // BOOST_TEST_CHECKPOINT("write min/max coefficients");
-    // uniDSG->writeMinMaxCoefficents(
-    //     "sparse_paraboloid_minmax_large_" + std::to_string(dim) + "D_" + std::to_string(size), 0);
 
     // check if the sizes set are actually the ones we calculate with CombiMinMaxScheme
     BOOST_TEST_CHECKPOINT("check subspace sizes");

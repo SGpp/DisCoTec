@@ -9,52 +9,69 @@
 namespace combigrid {
 
 namespace DistributedSparseGridIO {
+
+// helper functions to reduce a vector across a communicator
+template <typename T>
+void reduceVectorTowardsMe(std::vector<T>& vectorToReduce, MPI_Comm comm, MPI_Op operation) {
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
+  MPI_Reduce(MPI_IN_PLACE, vectorToReduce.data(), vectorToReduce.size(), dataType, operation, 0,
+             comm);
+}
+
+template <typename T>
+void reduceVectorTowardsThem(std::vector<T>& vectorToReduce, MPI_Comm comm, MPI_Op operation) {
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
+  MPI_Reduce(vectorToReduce.data(), MPI_IN_PLACE, vectorToReduce.size(), dataType, operation, 0,
+             comm);
+}
+
 template <typename SparseGridType>
-inline void writeMinMaxCoefficents(const SparseGridType& dsg, const std::string& filename,
-                                   size_t outputIndex) {
-  assert(dsg.isSubspaceDataCreated());
+inline void writeMinMaxCoefficents(SparseGridType& dsg, const std::string& filename,
+                                   size_t outputIndex, MPI_Comm firstCommToReduceAcross = MPI_COMM_SELF, MPI_Comm secondCommToReduceAcross = MPI_COMM_SELF) {
   bool writerProcess = false;
   std::ofstream ofs;
-  if (dsg.getRank() == 0) {
-    writerProcess = true;
-    ofs = std::ofstream(filename + "_" + std::to_string(outputIndex) + ".txt");
+  if (dsg.getMaxCoefficientsPerSubspace().empty()) {
+    dsg.accumulateMinMaxCoefficients();
   }
-  // iterate subspaces
-  assert(dsg.getAllLevelVectors().size() > 0);
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<combigrid::real>());
-  auto realmax = std::numeric_limits<combigrid::real>::max();
-  auto realmin = std::numeric_limits<combigrid::real>::min();
-  auto smaller_real = [](const typename SparseGridType::ElementType& one,
-                         const typename SparseGridType::ElementType& two) {
-    return std::real(one) < std::real(two);
-  };
 
-  for (typename SparseGridType::SubspaceIndexType i = 0;
-       i < static_cast<typename SparseGridType::SubspaceIndexType>(dsg.getAllLevelVectors().size());
-       ++i) {
-    auto minimumValue = realmax;
-    auto maximumValue = realmin;
-    if (dsg.getSubspaceDataSizes()[i] > 0) {
-      // auto first = subspacesData_.begin();
-      auto first = dsg.getData(i);
-      auto last = first + dsg.getSubspaceDataSizes()[i];
-      auto it = std::min_element(first, last, smaller_real);
-      minimumValue = std::real(*it);
-      first = dsg.getData(i);
-      it = std::max_element(first, last, smaller_real);
-      maximumValue = std::real(*it);
-    }
-    // allreduce the minimum and maximum values
-    MPI_Allreduce(MPI_IN_PLACE, &minimumValue, 1, dataType, MPI_MIN, dsg.getCommunicator());
-    MPI_Allreduce(MPI_IN_PLACE, &maximumValue, 1, dataType, MPI_MAX, dsg.getCommunicator());
+  // reduce the minimum and maximum values towards zero process
+  // first, reduce within process groups
+  if (getCommRank(firstCommToReduceAcross) == 0) {
+    reduceVectorTowardsMe(dsg.getMinCoefficientsPerSubspace(), firstCommToReduceAcross,
+                          MPI_MIN);
+    reduceVectorTowardsMe(dsg.getMaxCoefficientsPerSubspace(), firstCommToReduceAcross,
+                          MPI_MAX);
+    //  then, reduce across process groups (only required on zeroth rank of each process group)
+    if (getCommRank(secondCommToReduceAcross) == 0) {
+      reduceVectorTowardsMe(dsg.getMinCoefficientsPerSubspace(),
+                            secondCommToReduceAcross, MPI_MIN);
+      reduceVectorTowardsMe(dsg.getMaxCoefficientsPerSubspace(),
+                            secondCommToReduceAcross, MPI_MAX);
 
-    // if on zero process, write them out to file
-    if (writerProcess) {
-      const auto& level = dsg.getLevelVector(i);
-      if (minimumValue < realmax)
-        ofs << level << " : " << minimumValue << ", " << maximumValue << std::endl;
+      // if on zero process, write them out to file
+      ofs = std::ofstream(filename + "_" + std::to_string(outputIndex) + ".txt");
+      for (typename SparseGridType::SubspaceIndexType i = 0;
+          i <
+          static_cast<typename SparseGridType::SubspaceIndexType>(dsg.getAllLevelVectors().size());
+          ++i) {
+        const auto& level = dsg.getLevelVector(i);
+        if (dsg.getMinCoefficientsPerSubspace()[i] < std::numeric_limits<combigrid::real>::max())
+          ofs << level << " : " << dsg.getMinCoefficientsPerSubspace()[i] << ", "
+              << dsg.getMaxCoefficientsPerSubspace()[i] << std::endl;
+      }
+    } else {
+      reduceVectorTowardsThem(dsg.getMinCoefficientsPerSubspace(),
+                              secondCommToReduceAcross, MPI_MIN);
+      reduceVectorTowardsThem(dsg.getMaxCoefficientsPerSubspace(),
+                              secondCommToReduceAcross, MPI_MAX);
     }
+  } else {
+    reduceVectorTowardsThem(dsg.getMinCoefficientsPerSubspace(), firstCommToReduceAcross,
+                            MPI_MIN);
+    reduceVectorTowardsThem(dsg.getMaxCoefficientsPerSubspace(), firstCommToReduceAcross,
+                            MPI_MAX);
   }
+  dsg.clearMinMaxCoefficientsPerSubspace();
 }
 
 template <typename SparseGridType>
