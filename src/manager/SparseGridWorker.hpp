@@ -23,7 +23,8 @@ class SparseGridWorker {
 
   template <bool keepValuesInExtraSparseGrid = false>
   inline void collectReduceDistribute(CombinationVariant combinationVariant,
-                                      uint32_t maxMiBToSendPerThread);
+                                      uint32_t maxMiBToSendPerThread,
+                                      bool collectMinMaxCoefficients = false);
 
   inline void copyFromExtraDsgToPartialDSG(int gridNumber = 0);
 
@@ -136,7 +137,8 @@ inline SparseGridWorker::SparseGridWorker(TaskWorker& taskWorkerToReference)
 
 template <bool keepValuesInExtraSparseGrid>
 inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combinationVariant,
-                                                      uint32_t maxMiBToSendPerThread) {
+                                                      uint32_t maxMiBToSendPerThread,
+                                                      bool collectMinMaxCoefficients) {
   auto numGrids = this->getNumberOfGrids();
   assert(combinationVariant == CombinationVariant::chunkedOutgroupSparseGridReduce);
   assert(numGrids == 1 && "Initialize dsgu first with initCombinedUniDSGVector()");
@@ -181,6 +183,9 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
         // assert(CombiCom::sumAndCheckSubspaceSizes(*dsg)); // todo adapt for allocated spaces
         if constexpr (keepValuesInExtraSparseGrid) {
           this->copyFromPartialDsgToExtraDSG(g);
+        }
+        if (collectMinMaxCoefficients) {
+          dsg->accumulateMinMaxCoefficients();
         }
 
         // distribute (sg -> fg, within rank)
@@ -811,7 +816,9 @@ inline int SparseGridWorker::writeExtraSubspaceSizesToFile(
 inline void SparseGridWorker::writeMinMaxCoefficients(std::string fileNamePrefix) const {
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
     DistributedSparseGridIO::writeMinMaxCoefficents(*(this->getCombinedUniDSGVector()[i]),
-                                                    fileNamePrefix, i);
+                                                    fileNamePrefix, i, 
+                                                    theMPISystem()->getLocalComm(), 
+                                                    theMPISystem()->getGlobalReduceComm());
   }
 }
 

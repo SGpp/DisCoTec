@@ -200,7 +200,7 @@ int main(int argc, char** argv) {
   theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, false, true);
 
   DimType dim = cfg.get<DimType>("ct.dim");
-  LevelVector lmin(dim), lmax(dim), leval(dim), leval2(dim), reduceCombinationDimsLmin(dim),
+  LevelVector lmin(dim), lmax(dim), reduceCombinationDimsLmin(dim),
       reduceCombinationDimsLmax(dim);
   std::vector<int> p(dim), resolution(dim);
   std::vector<bool> hierarchizationDims(dim);
@@ -214,7 +214,6 @@ int main(int argc, char** argv) {
   size_t nsteps, ncombi;
   cfg.get<std::string>("ct.lmin") >> lmin;    // minimal level vector for each grid
   cfg.get<std::string>("ct.lmax") >> lmax;    // maximum level vector -> level vector of target grid
-  cfg.get<std::string>("ct.leval") >> leval;  // level vector of final output
   cfg.get<std::string>("ct.reduceCombinationDimsLmin") >> reduceCombinationDimsLmin;
   cfg.get<std::string>("ct.reduceCombinationDimsLmax") >> reduceCombinationDimsLmax;
   cfg.get<std::string>("ct.p") >> p;  // parallelization of domain (how many procs per dimension)
@@ -311,7 +310,7 @@ int main(int argc, char** argv) {
 
     // create combiparamters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, hierarchizationDims,
-                           taskNumbers, ncombi, 1, CombinationVariant::sparseGridReduce,
+                           taskNumbers, ncombi, 1, CombinationVariant::chunkedOutgroupSparseGridReduce,
                            reduceCombinationDimsLmin, reduceCombinationDimsLmax, 128, false);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
@@ -361,7 +360,7 @@ int main(int argc, char** argv) {
       if (!haveResolution) {
         // combine grids
         Stats::startEvent("worker combine");
-        worker.combineAtOnce();
+        worker.combineAtOnce(true);
         Stats::stopEvent("worker combine");
         MPI_Barrier(theMPISystem()->getWorldComm());
         MIDDLE_PROCESS_EXCLUSIVE_SECTION

@@ -38,7 +38,7 @@ class ProcessGroupWorker {
   void dehierarchizeAllTasks();
 
   /** combine on sparse grid with uniform decomposition of domain */
-  void combineAtOnce();
+  void combineAtOnce(bool collectMinMaxCoefficients = false);
 
   void combineSystemWide();
 
