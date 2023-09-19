@@ -212,6 +212,9 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
       if constexpr (keepValuesInExtraSparseGrid) {
         this->copyFromPartialDsgToExtraDSG(g);
       }
+      if (collectMinMaxCoefficients) {
+        dsg->accumulateMinMaxCoefficients();
+      }
 
       // distribute (sg -> fg, within rank)
       for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {

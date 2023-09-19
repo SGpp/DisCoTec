@@ -27,9 +27,8 @@ void reduceVectorTowardsThem(std::vector<T>& vectorToReduce, MPI_Comm comm, MPI_
 
 template <typename SparseGridType>
 inline void writeMinMaxCoefficents(SparseGridType& dsg, const std::string& filename,
-                                   size_t outputIndex, MPI_Comm firstCommToReduceAcross = MPI_COMM_SELF, MPI_Comm secondCommToReduceAcross = MPI_COMM_SELF) {
-  bool writerProcess = false;
-  std::ofstream ofs;
+                                   size_t outputIndex, MPI_Comm firstCommToReduceAcross = MPI_COMM_SELF,
+                                   MPI_Comm secondCommToReduceAcross = MPI_COMM_SELF) {
   if (dsg.getMaxCoefficientsPerSubspace().empty()) {
     dsg.accumulateMinMaxCoefficients();
   }
@@ -49,7 +48,7 @@ inline void writeMinMaxCoefficents(SparseGridType& dsg, const std::string& filen
                             secondCommToReduceAcross, MPI_MAX);
 
       // if on zero process, write them out to file
-      ofs = std::ofstream(filename + "_" + std::to_string(outputIndex) + ".txt");
+      std::ofstream ofs = std::ofstream(filename + "_" + std::to_string(outputIndex) + ".txt");
       for (typename SparseGridType::SubspaceIndexType i = 0;
           i <
           static_cast<typename SparseGridType::SubspaceIndexType>(dsg.getAllLevelVectors().size());

@@ -601,10 +601,12 @@ void DistributedSparseGridUniform<FG_ELEMENT>::accumulateMinMaxCoefficients() {
     return std::real(one) < std::real(two);
   };
 
-#pragma omp parallel for default(none) schedule(guided)
-  for (SubspaceIndexType i = 0; i < static_cast<SubspaceIndexType>(this->getNumSubspaces()); ++i) {
+  auto currentlyAllocatedSubspaceIndices = std::vector(this->getCurrentlyAllocatedSubspaces().cbegin(),
+                                     this->getCurrentlyAllocatedSubspaces().cend());
+#pragma omp parallel for default(none) schedule(guided) shared(currentlyAllocatedSubspaceIndices, smaller_real)
+  for (SubspaceIndexType iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size(); ++iAllocated) {
+    SubspaceIndexType i = currentlyAllocatedSubspaceIndices[iAllocated];
     if (this->getSubspaceDataSizes()[i] > 0) {
-      // auto first = subspacesData_.begin();
       auto first = this->getData(i);
       auto last = first + this->getSubspaceDataSizes()[i];
       auto it = std::min_element(first, last, smaller_real);
