@@ -236,6 +236,14 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
   SubspaceSizeType getAllocatedDataSize(SubspaceIndexType i) const;
 
+  std::vector<combigrid::real>& getMinCoefficientsPerSubspace() ; 
+  
+  std::vector<combigrid::real>& getMaxCoefficientsPerSubspace() ;
+  
+  void clearMinMaxCoefficientsPerSubspace();
+
+  void accumulateMinMaxCoefficients();
+
   inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg);
 
   template <bool sparseGridFullyAllocated = true>
@@ -268,6 +276,10 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   std::vector<LevelVector> levels_;  // linear access to all subspaces; may be reset to save memory
 
   DistributedSparseGridDataContainer<FG_ELEMENT> subspacesDataContainer_;
+
+  std::vector<combigrid::real> maxCoefficientPerSubspace_;
+
+  std::vector<combigrid::real> minCoefficientPerSubspace_;
 };
 
 }  // namespace combigrid
@@ -558,6 +570,49 @@ SubspaceSizeType DistributedSparseGridUniform<FG_ELEMENT>::getAllocatedDataSize(
     return subspacesDataSizes_[i];
   } else {
     return 0;
+  }
+}
+
+template <typename FG_ELEMENT>
+std::vector<combigrid::real>& DistributedSparseGridUniform<FG_ELEMENT>::getMinCoefficientsPerSubspace() {
+  return minCoefficientPerSubspace_;
+}
+
+template <typename FG_ELEMENT>
+std::vector<combigrid::real>& DistributedSparseGridUniform<FG_ELEMENT>::getMaxCoefficientsPerSubspace() {
+  return maxCoefficientPerSubspace_;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::clearMinMaxCoefficientsPerSubspace() {
+  maxCoefficientPerSubspace_.clear();
+  minCoefficientPerSubspace_.clear();
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::accumulateMinMaxCoefficients() {
+  if (maxCoefficientPerSubspace_.empty()) {
+    maxCoefficientPerSubspace_.resize(this->getNumSubspaces(),
+                                      std::numeric_limits<combigrid::real>::min());
+    minCoefficientPerSubspace_.resize(this->getNumSubspaces(),
+                                      std::numeric_limits<combigrid::real>::max());
+  }
+  auto smaller_real = [](const FG_ELEMENT& one, const FG_ELEMENT& two) {
+    return std::real(one) < std::real(two);
+  };
+
+#pragma omp parallel for default(none) schedule(guided)
+  for (SubspaceIndexType i = 0; i < static_cast<SubspaceIndexType>(this->getNumSubspaces()); ++i) {
+    if (this->getSubspaceDataSizes()[i] > 0) {
+      // auto first = subspacesData_.begin();
+      auto first = this->getData(i);
+      auto last = first + this->getSubspaceDataSizes()[i];
+      auto it = std::min_element(first, last, smaller_real);
+      minCoefficientPerSubspace_[i] = std::min(minCoefficientPerSubspace_[i], std::real(*it));
+      first = this->getData(i);
+      it = std::max_element(first, last, smaller_real);
+      maxCoefficientPerSubspace_[i] = std::max(maxCoefficientPerSubspace_[i], std::real(*it));
+    }
   }
 }
 
