@@ -370,6 +370,7 @@ int main(int argc, char** argv) {
         if (i % 100 == 0) {
           worker.writeSparseGridMinMaxCoefficients(fg_file_path + "_selalib_sg_" +
                                                    std::to_string(i));
+          Stats::writePartial("stats_worker.json");
           MPI_Barrier(theMPISystem()->getWorldComm());
         }
       }
