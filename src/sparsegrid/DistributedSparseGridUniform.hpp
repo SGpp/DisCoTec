@@ -121,9 +121,12 @@ class DistributedSparseGridDataContainer {
   }
 
   void allocateDifferentSubspaces(std::set<SubspaceIndexType>&& subspaces) {
-    subspacesWithData_ = std::move(subspaces);
-    createSubspaceData();
-    createKahanBuffer();
+#pragma omp single
+    {
+      subspacesWithData_ = std::move(subspaces);
+      createSubspaceData();
+      createKahanBuffer();
+    }
   }
 
  private:
@@ -234,10 +237,10 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
   SubspaceSizeType getAllocatedDataSize(SubspaceIndexType i) const;
 
-  std::vector<combigrid::real>& getMinCoefficientsPerSubspace() ; 
-  
-  std::vector<combigrid::real>& getMaxCoefficientsPerSubspace() ;
-  
+  std::vector<combigrid::real>& getMinCoefficientsPerSubspace();
+
+  std::vector<combigrid::real>& getMaxCoefficientsPerSubspace();
+
   void clearMinMaxCoefficientsPerSubspace();
 
   void accumulateMinMaxCoefficients();
@@ -572,12 +575,14 @@ SubspaceSizeType DistributedSparseGridUniform<FG_ELEMENT>::getAllocatedDataSize(
 }
 
 template <typename FG_ELEMENT>
-std::vector<combigrid::real>& DistributedSparseGridUniform<FG_ELEMENT>::getMinCoefficientsPerSubspace() {
+std::vector<combigrid::real>&
+DistributedSparseGridUniform<FG_ELEMENT>::getMinCoefficientsPerSubspace() {
   return minCoefficientPerSubspace_;
 }
 
 template <typename FG_ELEMENT>
-std::vector<combigrid::real>& DistributedSparseGridUniform<FG_ELEMENT>::getMaxCoefficientsPerSubspace() {
+std::vector<combigrid::real>&
+DistributedSparseGridUniform<FG_ELEMENT>::getMaxCoefficientsPerSubspace() {
   return maxCoefficientPerSubspace_;
 }
 
@@ -599,10 +604,13 @@ void DistributedSparseGridUniform<FG_ELEMENT>::accumulateMinMaxCoefficients() {
     return std::real(one) < std::real(two);
   };
 
-  auto currentlyAllocatedSubspaceIndices = std::vector(this->getCurrentlyAllocatedSubspaces().cbegin(),
-                                     this->getCurrentlyAllocatedSubspaces().cend());
-#pragma omp parallel for default(none) schedule(guided) shared(currentlyAllocatedSubspaceIndices, smaller_real)
-  for (SubspaceIndexType iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size(); ++iAllocated) {
+  auto currentlyAllocatedSubspaceIndices =
+      std::vector(this->getCurrentlyAllocatedSubspaces().cbegin(),
+                  this->getCurrentlyAllocatedSubspaces().cend());
+#pragma omp parallel for default(none) schedule(guided) \
+    shared(currentlyAllocatedSubspaceIndices, smaller_real)
+  for (SubspaceIndexType iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size();
+       ++iAllocated) {
     SubspaceIndexType i = currentlyAllocatedSubspaceIndices[iAllocated];
     if (this->getSubspaceDataSizes()[i] > 0) {
       auto first = this->getData(i);
