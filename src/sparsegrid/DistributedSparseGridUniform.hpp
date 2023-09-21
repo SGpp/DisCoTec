@@ -77,6 +77,7 @@ class DistributedSparseGridDataContainer {
     size_t numDataPoints = dsgu_.getAccumulatedDataSize(subspacesWithData_);
     kahanData_.resize(numDataPoints, 0.);
     kahanDataBegin_.resize(dsgu_.getSubspaceDataSizes().size());
+    std::memset(kahanData_.data(), 0, kahanData_.size() * sizeof(FG_ELEMENT*));
     std::memset(kahanDataBegin_.data(), 0, kahanDataBegin_.size() * sizeof(FG_ELEMENT*));
 
     // update pointers for begin of subspacen in kahan buffer
@@ -121,11 +122,8 @@ class DistributedSparseGridDataContainer {
 
   void allocateDifferentSubspaces(std::set<SubspaceIndexType>&& subspaces) {
     subspacesWithData_ = std::move(subspaces);
-    subspacesData_.clear();
-    kahanData_.clear();
     createSubspaceData();
     createKahanBuffer();
-    setZero();
   }
 
  private:
