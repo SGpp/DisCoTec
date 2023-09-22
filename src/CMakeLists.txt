@@ -29,6 +29,7 @@ set(DISCOTEC_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessManager.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPIMemory.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPISystem.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi/OpenMPUtils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_bitflips.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_ULFM.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT.cpp

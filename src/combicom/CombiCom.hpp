@@ -5,6 +5,7 @@
 #include "fullgrid/FullGrid.hpp"
 #include "mpi/MPISystem.hpp"
 #include "mpi/MPITags.hpp"
+#include "mpi/OpenMPUtils.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 
 namespace combigrid {
@@ -94,7 +95,7 @@ static int getGlobalReduceChunkSize(uint32_t maxMiBToSendPerThread) {
   // auto chunkSize = std::numeric_limits<int>::max();
   // allreduce up to 16MiB at a time (when using double precision)
   // constexpr size_t sixteenMiBinBytes = 16777216;
-  auto numOMPThreads = theMPISystem()->getNumOpenMPThreads();
+  auto numOMPThreads = OpenMPUtils::getNumThreads();
   int chunkSize = static_cast<int>(maxBytesToSend / sizeof(SG_ELEMENT) * numOMPThreads);
   // assert(chunkSize == 2097152 || (numOMPThreads > 1) || (!std::is_same_v<SG_ELEMENT, double>));
   assert(chunkSize > 0);

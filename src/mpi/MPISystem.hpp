@@ -311,8 +311,6 @@ class MPISystem {
    */
   void storeLocalComm(CommunicatorType lcomm);
 
-  static int getNumOpenMPThreads();
-
   /* let the output "group" be distributed across the actual process groups */
   void initOuputGroupComm(uint16_t numFileParts = 1);
 
