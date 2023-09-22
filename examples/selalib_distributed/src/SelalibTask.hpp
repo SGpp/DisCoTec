@@ -117,7 +117,6 @@ class SelalibTask : public combigrid::Task {
    * lcomm is the local communicator of the process group.
    */
   void changeDir(CommunicatorType lcomm, bool backToBaseFolder = false) {
-    Stats::startEvent("BSL change directory");
     if (!backToBaseFolder && chdir(path_.c_str())) {
       printf("could not change to directory %s \n", path_.c_str());
       MPI_Abort(MPI_COMM_WORLD, 1);
@@ -127,7 +126,6 @@ class SelalibTask : public combigrid::Task {
     }
     // it is safer to wait here until all procs are in the right directory
     MPI_Barrier(lcomm);
-    Stats::stopEvent("BSL change directory");
   }
 
   /**

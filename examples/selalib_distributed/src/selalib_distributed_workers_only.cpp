@@ -295,11 +295,11 @@ int main(int argc, char** argv) {
       size_t sometimes = 100;
       size_t always = 1;
       // create necessary folders and files to run each task in a separate folder
-      createTaskFolders(basename, levels, taskNumbers, p, nsteps, dt, always);
+      createTaskFolders(basename, levels, taskNumbers, p, nsteps, dt, veryHighNumber);
       if (haveResolution) {
         assert(levels.size() == 1);
         assert(!haveDiagnosticsTask);
-        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, always);
+        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, veryHighNumber);
         // if haveResolution: set infty coefficient, does not need to be combined anyways
         coeffs[0] = std::numeric_limits<combigrid::real>::max();
       }
@@ -349,12 +349,10 @@ int main(int argc, char** argv) {
     // fixed stepsize or simulation time between each combination
     for (size_t i = 0; i < ncombi; ++i) {
       // run tasks for next time interval
-      Stats::startEvent("worker run");
       worker.runAllTasks();
-      Stats::stopEvent("worker run");
       MPI_Barrier(theMPISystem()->getWorldComm());
       MIDDLE_PROCESS_EXCLUSIVE_SECTION
-      std::cout << getTimeStamp() << "run took " << Stats::getDuration("worker run") / 1000.0
+      std::cout << getTimeStamp() << "run took " << Stats::getDuration("run") / 1000.0
                 << "seconds " << std::endl;
       static_assert(!ENABLE_FT);
       if (!haveResolution) {
