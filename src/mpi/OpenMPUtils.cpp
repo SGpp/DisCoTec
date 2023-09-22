@@ -1,5 +1,7 @@
 #include "mpi/OpenMPUtils.hpp"
 
+#include <cassert>
+
 #ifdef _OPENMP
 // OpenMP header
 #include <omp.h>
