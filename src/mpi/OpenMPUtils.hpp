@@ -12,6 +12,10 @@ int getMaximumActiveLevels();
 
 [[nodiscard]] bool setMaximumActiveLevels(int numberOfLevels);
 
+int getNumberOfTeams(int numberOfTeamsToTry);
+
+int getTeamNumber();
+
 }  // namespace OpenMPUtils
 
 }  // namespace combigrid

@@ -49,4 +49,24 @@ bool OpenMPUtils::setMaximumActiveLevels(int numberOfLevels) {
   return setSuccessfully;
 }
 
+int OpenMPUtils::getNumberOfTeams(int numberOfTeamsToTry) {
+  int numTeams = 1;
+#ifdef _OPENMP
+// this will always be one team prior to OpenMP 5.0
+#pragma omp teams num_teams(numberOfTeamsToTry) default(none) shared(numTeams)
+   numTeams = omp_get_num_teams(); 
+#endif
+  assert(numTeams == 1 && "if this works it's time to further work on the ticket lock algorithm");
+  return numTeams;
+}
+
+// to be called from within a teams block
+int OpenMPUtils::getTeamNumber() {
+  int myTeamNumber = 0;
+#ifdef _OPENMP
+  myTeamNumber = omp_get_team_num();
+#endif
+  return myTeamNumber;
+}
+
 }  // namespace combigrid
