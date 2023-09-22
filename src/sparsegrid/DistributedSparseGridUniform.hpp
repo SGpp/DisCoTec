@@ -184,6 +184,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   DistributedSparseGridUniform(DistributedSparseGridUniform&& other) = delete;
   DistributedSparseGridUniform& operator=(DistributedSparseGridUniform&& other) = delete;
 
+  DistributedSparseGridDataContainer<FG_ELEMENT>& getDataContainer();
+
   void swapDataContainers(DistributedSparseGridDataContainer<FG_ELEMENT>& otherContainer);
 
   void allocateDifferentSubspaces(std::set<SubspaceIndexType>&& subspaces);
@@ -507,6 +509,12 @@ template <typename FG_ELEMENT>
 inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getRawData() const {
   assert(isSubspaceDataCreated() && "subspace data not created");
   return this->subspacesDataContainer_.subspacesData_.data();
+}
+
+template <typename FG_ELEMENT>
+DistributedSparseGridDataContainer<FG_ELEMENT>&
+DistributedSparseGridUniform<FG_ELEMENT>::getDataContainer() {
+  return subspacesDataContainer_;
 }
 
 template <typename FG_ELEMENT>
