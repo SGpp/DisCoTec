@@ -94,13 +94,14 @@ void setCheckpointRestart(std::string basename, std::vector<LevelVector> levels,
 
 bool adaptParameterFile(std::string infilename, std::string outfilename,
                         std::vector<int> resolution, std::vector<int> p, size_t nsteps, double dt,
-                        size_t n_diagnostics) {
+                        size_t n_diagnostics, const std::string& name_diagnostics) {
   assert(resolution.size() == p.size());
   std::ifstream inputFileStream(infilename, std::ifstream::in);
   auto contents = getFile(inputFileStream);
   contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
   contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
   contents = replaceFirstOccurrence(contents, "$n_diagnostics", std::to_string(n_diagnostics));
+  contents = replaceFirstOccurrence(contents, "$name_diagnostics", name_diagnostics);
   for (DimType d = 0; d < resolution.size(); ++d) {
     contents = replaceFirstOccurrence(contents, "$nx" + std::to_string(d + 1),
                                       std::to_string(resolution[d]));
@@ -113,20 +114,22 @@ bool adaptParameterFile(std::string infilename, std::string outfilename,
 
 bool adaptParameterFileFirstFolder(std::string basename, std::vector<int> resolution,
                                    std::vector<int> p, size_t nsteps, double dt,
-                                   size_t n_diagnostics, std::string suffix = "") {
+                                   size_t n_diagnostics, const std::string& name_diagnostics,
+                                   std::string suffix = "") {
   std::string baseFolder = "./" + basename;
   std::string taskFolder = baseFolder + suffix + std::to_string(0);
   std::string templateFolder = "./template";
 
   bool yes = adaptParameterFile(templateFolder + "/param.nml", taskFolder + "/param.nml",
-                                resolution, p, nsteps, dt, n_diagnostics);
+                                resolution, p, nsteps, dt, n_diagnostics, name_diagnostics);
   assert(yes);
   return yes;
 }
 
 bool createTaskFolders(const std::string& basename, const std::vector<LevelVector>& levels,
                        const std::vector<size_t>& taskNumbers, std::vector<int> p, size_t nsteps,
-                       double dt, size_t n_diagnostics, std::string suffix = "") {
+                       double dt, size_t n_diagnostics, const std::string& name_diagnostics,
+                       std::string suffix = "") {
   assert(levels.size() == taskNumbers.size());
   std::string baseFolder = "./" + basename;
   std::string templateFolder = "./template";
@@ -145,7 +148,7 @@ bool createTaskFolders(const std::string& basename, const std::vector<LevelVecto
       resolutions.push_back(static_cast<IndexType>(std::pow(2, levels[i][d])));
     }
     yes = adaptParameterFile(templateFolder + "/param.nml", taskFolder + "/param.nml", resolutions,
-                             p, nsteps, dt, n_diagnostics);
+                             p, nsteps, dt, n_diagnostics, name_diagnostics);
     assert(yes);
     // copy all other files
     for (const auto& dirEnt : std::filesystem::recursive_directory_iterator{templateFolder}) {
@@ -226,6 +229,7 @@ int main(int argc, char** argv) {
   nsteps = cfg.get<size_t>("application.nsteps");   // number of timesteps between combinations
   bool haveDiagnosticsTask = cfg.get<bool>("application.haveDiagnosticsTask", false);
   bool checkpointRestart = cfg.get<bool>("application.checkpoint_restart", false);
+  std::string nameDiagnostics = cfg.get<std::string>("application.name_diagnostics", "vp_B2_3d3v");
   bool haveResolution = static_cast<bool>(cfg.get_child_optional("ct.resolution"));
   if (haveResolution) {
     cfg.get<std::string>("ct.resolution") >>
@@ -295,11 +299,13 @@ int main(int argc, char** argv) {
       size_t sometimes = 100;
       size_t always = 1;
       // create necessary folders and files to run each task in a separate folder
-      createTaskFolders(basename, levels, taskNumbers, p, nsteps, dt, veryHighNumber);
+      createTaskFolders(basename, levels, taskNumbers, p, nsteps, dt, veryHighNumber,
+                        nameDiagnostics);
       if (haveResolution) {
         assert(levels.size() == 1);
         assert(!haveDiagnosticsTask);
-        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, veryHighNumber);
+        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, veryHighNumber,
+                                      nameDiagnostics);
         // if haveResolution: set infty coefficient, does not need to be combined anyways
         coeffs[0] = std::numeric_limits<combigrid::real>::max();
       }
@@ -350,7 +356,6 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < ncombi; ++i) {
       // run tasks for next time interval
       worker.runAllTasks();
-      MPI_Barrier(theMPISystem()->getWorldComm());
       MIDDLE_PROCESS_EXCLUSIVE_SECTION
       std::cout << getTimeStamp() << "run took " << Stats::getDuration("run") / 1000.0
                 << "seconds " << std::endl;
@@ -360,7 +365,6 @@ int main(int argc, char** argv) {
         Stats::startEvent("worker combine");
         worker.combineAtOnce(true);
         Stats::stopEvent("worker combine");
-        MPI_Barrier(theMPISystem()->getWorldComm());
         MIDDLE_PROCESS_EXCLUSIVE_SECTION
         std::cout << getTimeStamp() << "worker combine took "
                   << Stats::getDuration("worker combine") / 1000.0 << "seconds " << std::endl;
@@ -369,7 +373,6 @@ int main(int argc, char** argv) {
           worker.writeSparseGridMinMaxCoefficients(fg_file_path + "_selalib_sg_" +
                                                    std::to_string(i));
           Stats::writePartial("stats_worker.json");
-          MPI_Barrier(theMPISystem()->getWorldComm());
         }
       }
     }

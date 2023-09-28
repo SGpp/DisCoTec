@@ -91,14 +91,16 @@ void setCheckpointRestart(std::string basename, std::vector<LevelVector> levels,
   }
 }
 
-bool adaptParameterFile(std::string infilename, std::string outfilename, std::vector<int> resolution,
-                        std::vector<int> p, size_t nsteps, double dt, size_t n_diagnostics) {
+bool adaptParameterFile(std::string infilename, std::string outfilename,
+                        std::vector<int> resolution, std::vector<int> p, size_t nsteps, double dt,
+                        size_t n_diagnostics, const std::string& name_diagnostics) {
   assert(resolution.size() == p.size());
   std::ifstream inputFileStream(infilename, std::ifstream::in);
   auto contents = getFile(inputFileStream);
   contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
   contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
   contents = replaceFirstOccurrence(contents, "$n_diagnostics", std::to_string(n_diagnostics));
+  contents = replaceFirstOccurrence(contents, "$name_diagnostics", name_diagnostics);
   for (DimType d = 0; d < resolution.size(); ++d) {
     contents = replaceFirstOccurrence(contents, "$nx" + std::to_string(d + 1),
                                       std::to_string(resolution[d]));
@@ -110,20 +112,22 @@ bool adaptParameterFile(std::string infilename, std::string outfilename, std::ve
 }
 
 bool adaptParameterFileFirstFolder(std::string basename, std::vector<int> resolution,
-                                   std::vector<int> p, size_t nsteps, double dt, size_t n_diagnostics,
+                                   std::vector<int> p, size_t nsteps, double dt,
+                                   size_t n_diagnostics, const std::string& name_diagnostics,
                                    std::string suffix = "") {
   std::string baseFolder = "./" + basename;
   std::string taskFolder = baseFolder + suffix + std::to_string(0);
   std::string templateFolder = "./template";
 
   bool yes = adaptParameterFile(templateFolder + "/param.nml", taskFolder + "/param.nml",
-                                resolution, p, nsteps, dt, n_diagnostics);
+                                resolution, p, nsteps, dt, n_diagnostics, name_diagnostics);
   assert(yes);
   return yes;
 }
 
 bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, std::vector<int> p,
-                       size_t nsteps, double dt, size_t n_diagnostics, std::string suffix = "") {
+                       size_t nsteps, double dt, size_t n_diagnostics,
+                       const std::string& name_diagnostics, std::string suffix = "") {
   std::string baseFolder = "./" + basename;
   std::string templateFolder = "./template";
   bool yes = fs::exists(templateFolder);
@@ -141,7 +145,7 @@ bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, st
       resolutions.push_back(static_cast<IndexType>(std::pow(2, levels[i][d])));
     }
     yes = adaptParameterFile(templateFolder + "/param.nml", taskFolder + "/param.nml", resolutions,
-                             p, nsteps, dt, n_diagnostics);
+                             p, nsteps, dt, n_diagnostics, name_diagnostics);
     assert(yes);
     // copy all other files
     for (const auto& dirEnt : std::filesystem::recursive_directory_iterator{templateFolder}) {
@@ -240,6 +244,7 @@ int main(int argc, char** argv) {
     nsteps = cfg.get<size_t>("application.nsteps");  // number of timesteps between combinations
     bool haveDiagnosticsTask = cfg.get<bool>("application.haveDiagnosticsTask", false);
     bool checkpointRestart = cfg.get<bool>("application.checkpoint_restart", false);
+    std::string nameDiagnostics = cfg.get<std::string>("application.name_diagnostics" ,"vp_B2_3d3v");
     bool haveResolution = static_cast<bool>(cfg.get_child_optional("ct.resolution"));
     if (haveResolution) {
       cfg.get<std::string>("ct.resolution") >> resolution; // resolution of single grid in the full grid case
@@ -300,11 +305,11 @@ int main(int argc, char** argv) {
       size_t sometimes = 100;
       size_t always = 1;
       // create necessary folders and files to run each task in a separate folder
-      createTaskFolders(basename, levels, p, nsteps, dt, always);
+      createTaskFolders(basename, levels, p, nsteps, dt, always, nameDiagnostics);
       if (haveResolution) {
         assert(levels.size() == 1);
         assert(!haveDiagnosticsTask);
-        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, always);
+        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, always, nameDiagnostics);
         // if haveResolution: set infty coefficient, does not need to be combined anyways
         coeffs[0] = std::numeric_limits<combigrid::real>::max();
       }
@@ -334,7 +339,7 @@ int main(int argc, char** argv) {
       } else {
         // create necessary folder and files to have diagnostics task in a different folder
         createTaskFolders(basename + "_leval_", std::vector<LevelVector>(1, leval), p, nsteps, dt,
-                          1);
+                          1, nameDiagnostics);
       }
       std::string path = baseFolder + "_leval_0";
       auto levalCoefficient = 0.;

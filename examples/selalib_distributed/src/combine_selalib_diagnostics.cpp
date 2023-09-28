@@ -32,6 +32,7 @@ int main(int argc, char** argv) {
   cfg.get<std::string>("ct.lmin") >> lmin;  // minimal level vector for each grid
   cfg.get<std::string>("ct.lmax") >> lmax;  // maximum level vector -> level vector of target grid
   std::string basename = cfg.get<std::string>("preproc.basename");
+  std::string nameDiagnostics = cfg.get<std::string>("application.name_diagnostics", "vp_B2_3d3v");
 
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createClassicalCombischeme();
@@ -39,7 +40,8 @@ int main(int argc, char** argv) {
   auto levels = combischeme.getCombiSpaces();
   auto coeffs = combischeme.getCoeffs();
 
-  std::vector<std::string> diagnosticsFiles{"vp_B2_3d3v.dat"};  //"vp_B2_3d3vadd.dat"};
+  std::vector<std::string> diagnosticsFiles{nameDiagnostics +
+                                            ".dat"};  // or nameDiagnostics + "add.dat"};
 
   std::string suffix = "";
   std::string baseFolder = "./" + basename;
