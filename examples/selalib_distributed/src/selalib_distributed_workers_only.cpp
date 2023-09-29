@@ -316,7 +316,7 @@ int main(int argc, char** argv) {
 
     // create combiparamters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, hierarchizationDims,
-                           taskNumbers, ncombi, 1, CombinationVariant::chunkedOutgroupSparseGridReduce,
+                           taskNumbers, ncombi, 1, CombinationVariant::subspaceReduce,
                            reduceCombinationDimsLmin, reduceCombinationDimsLmax, 128, false);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
@@ -341,6 +341,14 @@ int main(int argc, char** argv) {
     worker.initCombinedDSGVector();
     worker.zeroDsgsData();
 
+    MASTER_EXCLUSIVE_SECTION {
+      std::cout << getTimeStamp() << "group " << theMPISystem()->getProcessGroupNumber()
+                << " sparse grid, will allocate "
+                << static_cast<real>(worker.getCombinedDSGVector()[0]->getAccumulatedDataSize() *
+                                     sizeof(CombiDataType)) /
+                       1e6
+                << " MB" << std::endl;
+    }
     MPI_Barrier(theMPISystem()->getWorldComm());
     std::chrono::high_resolution_clock::time_point after_init_time =
         std::chrono::high_resolution_clock::now();
