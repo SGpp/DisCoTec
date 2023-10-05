@@ -9,6 +9,8 @@
 
 #include "utils/Types.hpp"
 
+#include <sys/stat.h>
+
 namespace combigrid {
 static inline std::string getMpiErrorString(int err) {
   int len;
@@ -219,6 +221,63 @@ bool readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std
   MPI_File_close(&fh);
   MPI_Info_free(&info);
   return true;
+}
+
+inline bool file_exists(const std::string& path){
+  struct stat buffer;
+  return(stat (path.c_str(), &buffer) == 0);
+}
+
+template <typename T>
+void writeStatsJSONfileRootOnly(const T* data, int sizeOfData, const std::string& path, MPI_Comm comm, bool replaceExistingFile = false) {
+
+    int mpi_size;
+    int mpi_rank;
+    MPI_Comm_rank(comm, &mpi_rank);
+    MPI_Comm_size(comm, &mpi_size);
+
+    std::vector<int> recvCounts;
+    std::vector<int> displacement;
+
+    if (mpi_rank == 0) {
+      recvCounts.resize(mpi_size);
+    }
+
+    MPI_Gather(&sizeOfData, 1, MPI_INT, recvCounts.data(), 1, MPI_INT, 0, comm);
+
+    std::string recvBuffer;
+
+    MPI_Barrier(comm);
+
+    int totLen=0;
+
+    if (mpi_rank == 0) {
+      displacement.resize(mpi_size);
+      displacement[0] = 0;
+
+      totLen += recvCounts[0];
+      for(int i=1; i<mpi_size; i++) {
+        totLen += recvCounts[i];
+        displacement[i] = displacement[i-1] + recvCounts[i-1];
+
+      }
+      recvBuffer.resize(std::accumulate(recvCounts.begin(),recvCounts.end(), 0));
+    }
+
+    MPI_Gatherv(data, sizeOfData, MPI_CHAR, &recvBuffer[0], recvCounts.data(), displacement.data(), MPI_CHAR, 0, comm);
+
+    bool fileExist;
+    if (mpi_rank == 0) {
+      if(replaceExistingFile == true){
+        fileExist = file_exists(path);
+        if(fileExist == true){
+          std::remove(path.c_str());
+        }
+      }
+      std::ofstream out(path.c_str());
+      out << recvBuffer;
+      out.close();
+    }
 }
 }  // namespace mpiio
 }  // namespace combigrid

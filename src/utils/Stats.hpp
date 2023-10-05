@@ -195,10 +195,9 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
       buffer << std::endl << "}" << std::endl;
     }
     myJSONpart = buffer.str();
+
   }
-  bool success =
-      mpiio::writeValuesConsecutive<char>(myJSONpart.data(), myJSONpart.size(), path, comm, true);
-  assert(success);
+  mpiio::writeStatsJSONfileRootOnly<char>(myJSONpart.data(), myJSONpart.size(), path, comm, true);
 }
 
 inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType comm) {
@@ -271,11 +270,9 @@ inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType 
     }
 
     myJSONpart = buffer.str();
+
   }
-  bool success =
-      mpiio::writeValuesConsecutive<char>(myJSONpart.data(), myJSONpart.size(), path, comm, true);
-  assert(success);
-  partially_written_until_ = std::chrono::high_resolution_clock::now();
+  mpiio::writeStatsJSONfileRootOnly<char>(myJSONpart.data(), myJSONpart.size(), path, comm, true);
 }
 
 #else
