@@ -1,9 +1,6 @@
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
-#include <boost/spirit/include/qi.hpp>
-#include <boost/spirit/include/qi_match.hpp>
-#include <boost/tokenizer.hpp>
 #include <chrono>
 #include <filesystem>
 #include <iomanip>  // std::setprecision()
@@ -15,7 +12,6 @@
 #include "utils/Types.hpp"
 
 using namespace combigrid;
-namespace qi = boost::spirit::qi;  // for parsing
 
 int main(int argc, char** argv) {
   std::chrono::high_resolution_clock::time_point init_time =
