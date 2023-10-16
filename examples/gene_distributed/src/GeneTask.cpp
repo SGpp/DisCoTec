@@ -165,7 +165,7 @@ void GeneTask::decideToKill(){ //toDo check if combiStep should be included in t
  */
 void GeneTask::init(CommunicatorType lcomm, std::vector<IndexVector> decomposition){
 //  if( dfg_ == NULL ){
-//      dfg_ = new DistributedFullGrid<CombiDataType>( dim_, l_, lcomm,
+//      dfg_ = new OwningDistributedFullGrid<CombiDataType>( dim_, l_, lcomm,
 //          this->getBoundary(), p_, false);
 //  }
   initialized_ = true;
@@ -479,7 +479,7 @@ cpFile.close();
 void GeneTask::setZero(){
   if(dfgVector_.size() != 0){
     for(int i=0; i< dfgVector_.size(); i++){
-      std::vector<CombiDataType>& data = dfgVector_[i]->getElementVector();
+      std::vector<CombiDataType>& data = dfgVector_[i]-> getDataVector();
 
       for( size_t i=0; i<data.size(); ++i ){
         data[i] = complex(0.0);
@@ -501,7 +501,7 @@ void GeneTask::initDFG( CommunicatorType comm,
   if( dfgVector_.size() == 0 ){
     dfgVector_.resize(nspecies_,NULL);
     for(int i=0; i<nspecies_; i++){
-      dfgVector_[i] = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
+      dfgVector_[i] = new OwningDistributedFullGrid<CombiDataType>( dim_, l_, comm,
           this->getBoundary(), p_, false, decomposition );
     }
     setZero();
@@ -528,7 +528,7 @@ void GeneTask::initDFG2( CommunicatorType comm,
     if(dfgVector_[i] != NULL ){
       delete dfgVector_[i];
     }
-    dfgVector_[i] = new DistributedFullGrid<CombiDataType>( dim_, l_, comm,
+    dfgVector_[i] = new OwningDistributedFullGrid<CombiDataType>( dim_, l_, comm,
         this->getBoundary(), p_, false, decomposition );
   }
   setZero();
@@ -992,7 +992,7 @@ void GeneTask::normalizeDFG(int species){
   if( normalizePhase ){
     // compute local mean value of dfg
     CombiDataType localMean(0.0);
-    std::vector<CombiDataType>& data = dfgVector_[species]->getElementVector();
+    std::vector<CombiDataType>& data = dfgVector_[species]-> getDataVector();
     for( size_t i=0; i<data.size(); ++i )
       localMean += data[i];
 
@@ -1027,7 +1027,7 @@ void GeneTask::normalizeDFG(int species){
                theMPISystem()->getLocalComm() );
 
     // divide values of dfg
-    std::vector<CombiDataType>& data = dfgVector_[species]->getElementVector();
+    std::vector<CombiDataType>& data = dfgVector_[species]-> getDataVector();
     for( size_t i=0; i<data.size(); ++i )
       data[i] *= factor;
   }

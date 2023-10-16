@@ -49,6 +49,13 @@ typedef uint8_t DimType;
 // directly...)
 typedef uint8_t BoundaryType;
 
+enum CombinationVariant : uint8_t {
+  sparseGridReduce,
+  subspaceReduce,
+  outgroupSparseGridReduce,
+  chunkedOutgroupSparseGridReduce
+};
+
 typedef MPI_Comm CommunicatorType;
 
 typedef int RankType;

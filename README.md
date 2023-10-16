@@ -1,29 +1,63 @@
-What is this project about?
+
+[![Build Status](https://jenkins-sim.informatik.uni-stuttgart.de/buildStatus/icon?job=DisCoTec%2Fmain)](https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/main/)
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL_v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![Zenodo DOI](https://zenodo.org/badge/226341053.svg)](https://zenodo.org/badge/latestdoi/226341053)
+[![Latest spack version](https://img.shields.io/spack/v/discotec)](https://spack.readthedocs.io/en/latest/package_list.html#discotec)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/cac5bc0841784657b2bb75ea46e7cf01)](https://app.codacy.com/gh/SGpp/DisCoTec/dashboard)
+
+# What is DisCoTec?
 ---------------------------
-[![Build Status](https://simsgs.informatik.uni-stuttgart.de/jenkins/buildStatus/icon?job=DisCoTec-main-spack)](https://simsgs.informatik.uni-stuttgart.de/jenkins/view/DisCoTec/job/DisCoTec-main-spack/)
 
-This project contains __DisCoTec__, a code for running the distributed sparse grid combination technique with MPI parallelization. While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it is its own project now.
+This project contains __DisCoTec__, a code for running the *dis*tributed sparse grid *co*mbination *tec*hnique with MPI parallelization. 
+While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it has become its own project.
 
-Contributing
----------
-* Please develop new features in a new branch and then create a pull request to
-  notify other users about the changes. So everyone can check whether there are
-  side-effects to their work.
-* New features will only be merged to the main branch if they are sufficiently tested.
+DisCoTec is designed as a framework that can run multiple instances of a (black-box) grid-based solver implementation.
+The most basic example we use is a [mass-conserving FDM/FVM constant advection upwinding solver](/examples/distributed_advection/).
+An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distributed/).
 
-Requirements
---------------
+
+## Contributing
+---------------------------
+*   We welcome contributions! To find a good place to start coding, have a look at the currently open issues.
+*   Please describe issues in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
+*   Please develop new features in a new branch (typically on your own fork) and then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
+*   New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests](/tests).
+
+
+## Installation instructions: spack
+---------------------------
+
+DisCoTec can be installed via Spack, which handles all dependencies.
+If you want to develop DisCoTec code or examples, the `spack dev-build` workflow is recommended.
+
+Clone both `spack` and `DisCoTec` to find or build the dependencies and then compile DisCoTec:
+```bash
+git clone git@github.com:spack/spack.git  # use https if your ssh is not set up on github
+./spack/bin/spack external find  # find already-installed packages
+./spack/bin/spack compiler find  # find compilers present on system
+./spack/bin/spack info discotec@main  # shows DisCoTec's variants 
+./spack/bin/spack spec discotec@main  # shows DisCoTec's dependency tree and which parts are already found
+
+git clone git@github.com:SGpp/DisCoTec.git
+cd DisCoTec
+../spack/bin/spack dev-build -b install discotec@main
+```
+This will build DisCoTec inside the cloned folder, and the executables are placed in the respective `example` and `test` folders.
+
+
+## Installation instructions: CMake
+---------------------------
+#### Dependencies
+---------------------------
 cmake >= (3.24.2),
 libmpich-dev (>= 3.2-6), or other MPI library
+libboost-all-dev (>= 1.60)
 
-Additional (optional) dependencies (can be obtained with cmake):
-- OpenMP
-- libboost-all-dev (>= 1.60)
-- HDF5
-- HighFive 
+Additional (optional) dependencies:
+-   OpenMP
+-   HDF5
+-   HighFive 
 
-Installation instructions: 
---------------------------
 #### Complete build:
 ```bash
 git clone https://github.com/SGpp/DisCoTec.git DisCoTec
@@ -33,7 +67,9 @@ cmake --build DisCoTec/build -j
 
 #### Advanced build:
 
-All examples and the tools can be build on their own. To build a specific example, run the specific cmake command in the example folder. For example, run the following commands
+All examples and the tools can be built on their own. 
+To build a specific example, run the specific cmake command in the example folder. 
+For example, run the following commands
 ```bash
 git clone https://github.com/SGpp/DisCoTec.git DisCoTec
 cd DisCoTec/examples/combi_example
@@ -46,18 +82,19 @@ to build the combi_example.
 For building only the DisCoTec library, run cmake with the `src` folder as source folder.
 
 #### Optional CMake Options
-- `DISCOTEC_TEST=**ON**|OFF` - Build tests if you build the complete project.
-- `DISCOTEC_BUILD_MISSING_DEPS=**ON**|OFF`- First order dependencies that are not found are built automatically (glpk is always built).
-- `DISCOTEC_TIMING=**ON**|OFF` - Enables internal timing
-- `DISCOTEC_USE_HDF5=**ON**|OFF`
-- `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive. If `DISCOTEC_USE_HIGHFIVE=ON`, `DISCOTEC_USE_HDF5` has also to be `ON`.
-- `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform decomposition of the grid.
-- `DISCOTEC_GENE=ON|**OFF**` - Currently GEne is not supported with CMake!
-- `DISCOTEC_OPENMP=ON|**OFF**` - Enables OpenMP support.
-- `DISCOTEC_ENABLEFT=ON|**OFF**` - Enables the use of the FT library.
-- `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler supports it.
-- `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI communication. This can be used to reduce the communication overhead.
-- `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - TODO: Add description
+-   `DISCOTEC_TEST=**ON**|OFF` - Build tests if you build the complete project.
+-   `DISCOTEC_BUILD_MISSING_DEPS=**ON**|OFF`- First order dependencies that are not found are built automatically (glpk is always built).
+-   `DISCOTEC_TIMING=**ON**|OFF` - Enables internal timing
+-   `DISCOTEC_USE_HDF5=**ON**|OFF`
+-   `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive. If `DISCOTEC_USE_HIGHFIVE=ON`, `DISCOTEC_USE_HDF5` has also to be `ON`.
+-   `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform decomposition of the grid.
+-   `DISCOTEC_GENE=ON|**OFF**` - Currently GEne is not supported with CMake!
+-   `DISCOTEC_OPENMP=ON|**OFF**` - Enables OpenMP support.
+-   `DISCOTEC_ENABLEFT=ON|**OFF**` - Enables the use of the FT library.
+-   `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler supports it.
+-   `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI communication. This can be used to reduce the communication overhead.
+-   `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - TODO: Add description
+-   `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and compiles [the matching example](/examples/selalib_distributed/)
 
 
 To run the compiled tests, go to folder `tests` and run
@@ -65,73 +102,64 @@ To run the compiled tests, go to folder `tests` and run
 mpiexec -np 9 ./test_distributedcombigrid_boost
 ```
 where you can use all the parameters of the boost test suite.
+If timings matter, consider the pinning described in the respective section.
 Or you can run the tests with `ctest` in the build folder.
 
+## Executing DisCoTec Binaries / Rank and Thread Pinning
+The number and size of process groups (in MPI ranks) can be read from the `ctparam` files:
+```
+NGROUP=$(grep ngroup ctparam | awk -F"=" '{print $2}')
+NPROCS=$(grep nprocs ctparam | awk -F"=" '{print $2}')
+```
 
-GENE  submodules as dependencies for GENE examples
-----------------
-_Warning: The CMake Integration is currently not adappted to use GENE and SeLaLib!_
+Correct pinning is of utmost importance, especially if DisCoTec was compiled with OpenMP support.
+The desired pinning is the simplest one you can imagine: Each node and, within a node, each socket is filled consecutively with MPI rank numbers.
+If OpenMP is used, MPI pinning is strided by the number of threads. The threads should be placed close to their MPI rank.
+This means for all compilers, if the desired number of OpenMP threads per rank is `N`, one needs
+```
+export OMP_NUM_THREADS=$N;export OMP_PLACES=cores;export OMP_PROC_BIND=close
+```
+If OpenMP is used for compilation but should not be used for execution, `N` should be set to 1 to avoid unintended effects.
+
+#### Intel-MPI
+Intel-MPI requires some [environment variables](https://software.intel.com/content/www/us/en/develop/documentation/mpi-developer-reference-linux/top/environment-variable-reference/process-pinning/environment-variables-for-process-pinning.html), in particular [for OpenMP](https://www.intel.com/content/www/us/en/docs/mpi-library/developer-guide-linux/2021-6/running-an-mpi-openmp-program.html):
+```
+mpiexec -n $(($NGROUP*$NPROCS)) -genv I_MPI_PIN_PROCESSOR_LIST="allcores" -genv I_MPI_PIN_DOMAIN=omp $DISCOTEC_EXECUTABLE
+```
+In SLURM, it is important to set --ntasks-per-node to match the number of desired tasks ($CORES_PER_NODE/$OMP_NUM_THREADS). 
+Validate with verbose output: `export I_MPI_DEBUG=4` .
+
+#### OpenMPI
+OpenMPI uses command line arguments, pinning may clash with SLURM settings depending on the exact call.
+
+```
+mpiexec.openmpi --rank-by core --map-by node:PE=${OMP_NUM_THREADS} -n $(($NGROUP*$NPROCS)) $DISCOTEC_EXECUTABLE
+```
+Validate with verbose output: `--report-bindings` .
+
+#### MPT
+With mpt, one uses the `omplace` wrapper tool to set the correct pinning.
+```
+mpirun -n $(($NGROUP*$NPROCS)) omplace -v -nt ${OMP_NUM_THREADS} $DISCOTEC_EXECUTABLE
+```
+Validate with very verbose output: `-vv` .
+
+### GENE  submodules as dependencies for GENE examples
+---------------------------
+*Warning: The CMake Integration is currently not adapted to use GENE!*
 
 There are gene versions as submodules: a linear one in the gene_mgr folder, and 
 a nonlinear one in gene-non-linear. To get them, you need access to their 
-respective repos. Then go into the folder and
+respective repos at MPCDF. Then go into the folder and
 
 ``` bash
 git submodule init
 git submodule update
 ```
 or use the `--recursive` flag when cloning the repo.
-and then you just hope you can `make` it by adapting the local library flags.
-and then you just hope you can `make` it by adapting the local library flags ;)
-
-Third-Level-Manager
--------------------
-The third-level-manager handles the synchronization and data transfer between
-the systems. The following steps will guide you from compilation to execution:
-
-1. To compile first navigate to third_level_manager.
-   The folder contains a Makefile.template which you can adjust to make it
-   compatible with your maschine.
-
-2. The manager takes a .ini file as an input parameter. The same folder as in 1.
-   holds the example file `example.ini` where the number of systems and the port
-   on which the manager listens can be adjusted. Currently, only 2 systems are
-   supported.
-
-3. Use the run script to execute the manager. You can pass your own parameter
-   file to the script whereas by default it reads the example.ini.
-
-On Hazel Hen
-------------
-
-Warning: outdated not testet with the new CMake build scripts!!
 
 
-### Execution
-
-Let's assume we want to run the example under
-combi/distributedcombigrid/examples/distributed_third_level/ and distribute our
-combischeme to **HLRS** and **helium**, while the third-level-manager is running
-on helium at port 9999. The following steps are necessary:
-
-1. Since data connections to the HLRS are not possible without using ssh
-   tunnels, we set them up in advance. Run `ssh -R  9998:localhost:9999
-   username@eslogin002.hww.de` from helium to log in to HLRS while creating an
-   ssh tunnel.
-
-2. Adjust the parameter files on HLRS and helium to fit the simulation. Use
-   hostname=eslogin002 on HLRS and hostname=localhost on helium. Set
-   dataport=9999 on both systems.
-
-3. Run the third-level-manger on helium.
-
-4. Connect to eslogin002 in a different terminal and run the forwarding
-   script `forward.sh 9999 9998 pipe1`. This will forward the port 9998 to 9999
-   on eslogin002. (We only need the local forwarding because the configuration
-   of the ssh server on the HLRS does not allow us to access the ssh tunnel
-   from a different host than eslogin002. Since our application runs on the
-   compute nodes (for now) this detour is necessary.)
-
-5. Start the simulation. The example directory holds a separate run file
-   `run.sh` which needs to be modified to fit HLRS and helium. Also set the
-   corresponding boost library location.
+### Further Readmes
+- [widely-distribued simulations](/third_level_manager/README.md)
+- [the subspace writer tool](/tools/subspace_writer/README.md)
+- [selalib simulations with DisCoTec](/examples/selalib_distributed/README.md)

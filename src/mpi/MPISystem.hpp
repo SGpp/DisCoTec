@@ -36,6 +36,11 @@
 
 namespace combigrid {
 
+struct [[nodiscard]] MpiOnOff {
+  explicit MpiOnOff(int* argc = nullptr, char*** argv = nullptr);
+  ~MpiOnOff();
+};
+
 class ProcessGroupManager;
 
 class MPISystem;
@@ -115,11 +120,12 @@ class MPISystem {
   /**
    * initializes MPI system including world communicator; so far only used in tests
    */
-  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs, bool withWorldManager = true);
+  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs,
+                         bool withWorldManager = true, bool verbose = false);
 
   /**
-  * returns the world communicator which contains all ranks (excluding spare ranks)
-  */
+   * returns the world communicator which contains all ranks (excluding spare ranks)
+   */
   inline const CommunicatorType& getWorldComm() const;
 
   /**
@@ -140,7 +146,7 @@ class MPISystem {
     if (worldRank_ == managerRankWorld_)
       return -1;
     else
-      return  worldRank_ / int(nprocs_);
+      return worldRank_ / int(nprocs_);
   }
 
   /**
@@ -151,6 +157,8 @@ class MPISystem {
   inline const CommunicatorType& getGlobalReduceComm() const;
 
   inline const CommunicatorType& getOutputGroupComm() const;
+
+  inline const CommunicatorType& getOutputComm() const;
 
   inline const std::vector<CommunicatorType>& getThirdLevelComms() const;
 
@@ -303,6 +311,11 @@ class MPISystem {
    */
   void storeLocalComm(CommunicatorType lcomm);
 
+  static int getNumOpenMPThreads();
+
+  /* let the output "group" be distributed across the actual process groups */
+  void initOuputGroupComm(uint16_t numFileParts = 1);
+
  private:
   explicit MPISystem();
 
@@ -324,9 +337,6 @@ class MPISystem {
    * of subspaces to processes in each pgroup
    */
   void initGlobalReduceCommm();
-
-  /* let the output "group" be distributed across the actual process groups */
-  void initOuputGroupComm();
 
   /**
    * creates a FT communicator associated with comm
@@ -441,6 +451,8 @@ class MPISystem {
 
   CommunicatorType outputGroupComm_; 
 
+  CommunicatorType outputComm_; 
+
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
   simft::Sim_FT_MPI_Comm globalCommFT_;  // FT version of global comm
@@ -540,6 +552,14 @@ inline const CommunicatorType& MPISystem::getGlobalReduceComm() const {
 
 inline const CommunicatorType& MPISystem::getOutputGroupComm() const {
   return outputGroupComm_;
+}
+
+inline const CommunicatorType& MPISystem::getOutputComm() const {
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    return outputComm_;
+  } else {
+    throw std::runtime_error("Called from outside output group!");
+  }
 }
 
 inline const std::vector<CommunicatorType>& MPISystem::getThirdLevelComms() const{
@@ -675,7 +695,6 @@ inline RankType MPISystem::getWorldSize() const {
 
   return worldSize;
 }
-
 
 }  // namespace combigrid
 

@@ -93,7 +93,7 @@ void managerMonteCarlo(ProcessManager& manager, DimType dim, double time) {
 }
 
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  [[maybe_unused]] auto mpiOnOff = MpiOnOff(&argc, &argv);
 
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
@@ -188,8 +188,8 @@ int main(int argc, char** argv) {
     // create combiparameters
     auto reduceCombinationDimsLmax = std::vector<IndexType>(dim, 0);
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
-                           std::vector<int>(), std::vector<IndexType>(0), reduceCombinationDimsLmax,
-                           false);
+                           CombinationVariant::sparseGridReduce, std::vector<int>(),
+                           std::vector<IndexType>(0), reduceCombinationDimsLmax, 64, false);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
 
@@ -284,8 +284,6 @@ int main(int argc, char** argv) {
 
   /* write stats to json file for postprocessing */
   Stats::write("timers.json");
-
-  MPI_Finalize();
 
   return 0;
 }

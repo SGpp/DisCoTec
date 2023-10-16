@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(test_with_manager) {
     CommunicatorType comm = TestHelper::getComm(procs[0] * procs[1] + 1);
     if (comm != MPI_COMM_NULL) {
       Stats::initialize();
-      theMPISystem()->initWorldReusable(comm, procs[0], procs[1]);
+      theMPISystem()->initWorldReusable(comm, procs[0], procs[1], true, true);
       BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1] + 1);
       BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
       BOOST_CHECK_EQUAL(theMPISystem()->getManagerRankWorld(), procs[0] * procs[1]);
@@ -114,7 +114,7 @@ BOOST_AUTO_TEST_CASE(test_manager_only) {
   CommunicatorType comm = TestHelper::getComm(1);
   if (comm != MPI_COMM_NULL) {
     Stats::initialize();
-    theMPISystem()->initWorldReusable(comm, procs[0], procs[1]);
+    theMPISystem()->initWorldReusable(comm, procs[0], procs[1], true);
     BOOST_CHECK_EQUAL(theMPISystem()->getWorldSize(), procs[0] * procs[1] + 1);
     BOOST_CHECK_EQUAL(theMPISystem()->getWorldRank(), getCommRank(comm));
 
@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(test_no_manager) {
       Stats::initialize();
       BOOST_TEST_CHECKPOINT("MPI init " + std::to_string(procs[0]) + " groups, and " +
                             std::to_string(procs[1]) + " procs per group");
-      theMPISystem()->initWorldReusable(comm, procs[0], procs[1], false);
+      theMPISystem()->initWorldReusable(comm, procs[0], procs[1], false, true);
 
       BOOST_CHECK_NE(theMPISystem()->getLocalComm(), theMPISystem()->getGlobalComm());
       BOOST_CHECK_NE(theMPISystem()->getLocalComm(), theMPISystem()->getGlobalReduceComm());

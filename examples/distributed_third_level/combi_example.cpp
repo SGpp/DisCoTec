@@ -101,7 +101,7 @@ void managerMonteCarlo(ProcessManager& manager, DimType dim, double time, bool h
 }
 
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  [[maybe_unused]] auto mpiOnOff = MpiOnOff(&argc, &argv);
 
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
@@ -129,6 +129,7 @@ int main(int argc, char** argv) {
   cfg.get<std::string>("ct.leval") >> leval;
   cfg.get<std::string>("ct.p") >> p;
   ncombi = cfg.get<size_t>("ct.ncombi");
+  uint32_t chunkSizeInMebibyte = cfg.get<uint32_t>("ct.chunkSize", 64);
   std::string ctschemeFile = cfg.get<std::string>("ct.ctscheme", "");
   dt = cfg.get<combigrid::real>("application.dt");
   nsteps = cfg.get<size_t>("application.nsteps");
@@ -231,23 +232,12 @@ int main(int argc, char** argv) {
     const auto& pgNumbers = scheme->getProcessGroupNumbers();
     if (pgNumbers.size() > 0) {
       useStaticTaskAssignment = true;
-      const auto& allCoeffs = scheme->getCoeffs();
-      const auto& allLevels = scheme->getCombiSpaces();
-      const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
-      assert(*itMin == 0);  // make sure it starts with 0
-      // assert(*itMax == ngroup - 1); // and goes up to the maximum group //TODO
-      // filter out only those tasks that belong to "our" process group
       const auto& pgroupNumber = theMPISystem()->getProcessGroupNumber();
-      for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
-        if (pgNumbers[taskNo] == pgroupNumber) {
-          taskNumbers.push_back(taskNo);
-          coeffs.push_back(allCoeffs[taskNo]);
-          levels.push_back(allLevels[taskNo]);
-        }
-      }
+      size_t totalNumTasks = combigrid::getAssignedLevels(
+          *scheme, theMPISystem()->getProcessGroupNumber(), levels, coeffs, taskNumbers);
       MASTER_EXCLUSIVE_SECTION {
         std::cout << " Process group " << pgroupNumber << " will run " << levels.size() << " of "
-                  << pgNumbers.size() << " tasks." << std::endl;
+                  << totalNumTasks << " tasks." << std::endl;
         printCombiDegreesOfFreedom(levels, boundary);
       }
     } else {
@@ -314,8 +304,9 @@ int main(int argc, char** argv) {
     auto reduceCombinationDimsLmax = LevelVector(dim, 1);
     // lie about ncombi, because default is to not use reduced dims for last combi step,
     // which we don't want here because it makes the sparse grid too large
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi * 2, 1, p,
-                           LevelVector(dim, 0), reduceCombinationDimsLmax, forwardDecomposition,
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi * 2, 1,
+                           CombinationVariant::sparseGridReduce, p, LevelVector(dim, 0),
+                           reduceCombinationDimsLmax, chunkSizeInMebibyte, forwardDecomposition,
                            thirdLevelHost, thirdLevelPort, 0);
     IndexVector minNumPoints(dim), maxNumPoints(dim);
     for (DimType d = 0; d < dim; ++d) {
@@ -448,10 +439,10 @@ int main(int argc, char** argv) {
         if (signal == UPDATE_COMBI_PARAMETERS) {
           // initialize all "our" tasks
           for (size_t taskIndex = 0; taskIndex < taskNumbers.size(); ++taskIndex) {
-            auto task = new TaskAdvection(levels[taskIndex], boundary, coeffs[taskIndex],
-                                          loadmodel.get(), dt, nsteps, p);
+            auto task = std::unique_ptr<Task>(new TaskAdvection(
+                levels[taskIndex], boundary, coeffs[taskIndex], loadmodel.get(), dt, nsteps, p));
             task->setID(taskNumbers[taskIndex]);
-            pgroup.initializeTaskAndFaults(task);
+            pgroup.initializeTask(std::move(task));
           }
         }
         // make sure not to initialize them twice
@@ -467,8 +458,6 @@ int main(int argc, char** argv) {
 
   /* write stats to json file for postprocessing */
   Stats::write("timers-" + std::to_string(systemNumber) + ".json");
-
-  MPI_Finalize();
 
   return 0;
 }

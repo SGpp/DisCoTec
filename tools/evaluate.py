@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import argparse
 import json
 import numpy as np
@@ -14,6 +16,8 @@ parser.add_argument("--no_compute_per_rank_statistics", help="compute the per ra
 parser.add_argument("--no_compute_per_step_statistics", help="compute the per step statistics", action="store_true", default=False)
 parser.add_argument("--no_compute_total_statistics", help="compute the total statistics", action="store_true", default=False)
 parser.add_argument("--io_only", help="only output IO ranks; a rank is an IO rank if it has the event \"{}\"".format(io_only_event), action="store_true", default=False)
+parser.add_argument("--no_tqdm",help="display no progress bars", action="store_true", default=False)
+#parser.add_argument("--groups_from_path",help="infer groups from json file name instead of file content", action="store_true", default=False)
 
 args = parser.parse_args()
 
@@ -21,16 +25,21 @@ if args.no_compute_per_rank_statistics and args.no_compute_per_step_statistics a
     raise ValueError("Not all of \"--no_compute_per_rank_statistics\", \"--no_compute_per_step_statistics\", and \"--no_compute_total_statistics\" must be set!")
 
 data_per_rank = {}
+group_size = None
 
 for file in args.input_files:
     print("Reading data from file: \"{}\"".format(file))
     input_data = json.load(open(file))
+    if group_size is not None:
+        assert(group_size == len(input_data))
+    group_size = len(input_data)
 
     # iterate JSON object
     for rank in range(len(input_data)):
         input_rank_name = "rank" + str(rank)
         group = int(input_data[input_rank_name]["attributes"]["group"])
-        output_rank_name = "rank" + str(len(input_data) * group + rank)
+        output_rank = len(input_data) * group + rank
+        output_rank_name = "rank" + f'{output_rank:06}'
 
         # collect statistics per rank
         if output_rank_name not in data_per_rank:
@@ -45,13 +54,13 @@ for file in args.input_files:
                 data_per_rank[output_rank_name][event] = []
             data_per_rank[output_rank_name][event].append(event_data)
 
-
+solver_event = None
 if not args.no_compute_per_rank_statistics:
     print("Computing statistics per rank:")
 
     processed_data_per_rank = pd.DataFrame(columns=["rank", "event", "min", "max", "mean", "median", "std", "sum"])
 
-    for rank in tqdm(data_per_rank):
+    for rank in tqdm(sorted(data_per_rank.keys()), disable=args.no_tqdm):
         if args.io_only and io_only_event not in data_per_rank[rank]:
             continue
 
@@ -59,6 +68,17 @@ if not args.no_compute_per_rank_statistics:
             data = np.vstack(data_per_rank[rank][event])
             processed_data_per_rank.loc[len(processed_data_per_rank.index)] = \
                 [rank, event, np.min(data), np.max(data), np.mean(data), np.median(data), np.std(data), np.sum(data)]
+            if "run" in event:
+                if solver_event is None:
+                    solver_event = event
+                    solver_measurements = []
+                assert(solver_event == event)
+                solver_measurements.append(np.mean(data))
+
+    if solver_event is not None:
+        solver_load_imbalance = np.max(solver_measurements) / np.mean(solver_measurements)
+        max_solver_rank = np.argmax(solver_measurements)
+        print("imbalance of " + str(solver_load_imbalance) + " introduced by rank " + str(max_solver_rank) + " in group " + str(max_solver_rank//group_size))
 
     processed_data_per_rank.to_csv("processed_data_per_rank{}.csv".format("_io_only" if args.io_only else ""), index=False)
 
@@ -74,7 +94,7 @@ if not args.no_compute_per_step_statistics:
             max_number_of_timesteps = max(max_number_of_timesteps, len(data_per_rank[rank][event]))
     print("max. number of time steps: {}".format(max_number_of_timesteps))
 
-    for step in tqdm(range(max_number_of_timesteps)):
+    for step in tqdm(range(max_number_of_timesteps), disable=args.no_tqdm):
         data = {}
         for rank in data_per_rank:
             if args.io_only and io_only_event not in data_per_rank[rank]:
@@ -100,7 +120,7 @@ if not args.no_compute_total_statistics:
     processed_data_total = pd.DataFrame(columns=["event", "min", "max", "mean", "median", "std", "sum"])
 
     data_per_event = {}
-    for rank in tqdm(data_per_rank):
+    for rank in tqdm(data_per_rank, disable=args.no_tqdm):
         if args.io_only and io_only_event not in data_per_rank[rank]:
             continue
 
@@ -109,10 +129,13 @@ if not args.no_compute_total_statistics:
                 data_per_event[event] = np.array([])
             data_per_event[event] = np.append(data_per_event[event], np.vstack(data_per_rank[rank][event]))
 
-    for event in tqdm(data_per_event):
+    for event in tqdm(data_per_event, disable=args.no_tqdm):
         processed_data_total.loc[len(processed_data_total.index)] = \
             [event, np.min(data_per_event[event]), np.max(data_per_event[event]), np.mean(data_per_event[event]),
              np.median(data_per_event[event]), np.std(data_per_event[event]), np.sum(data_per_event[event])]
+#        if "run" in event:
+#            solver_event = event
+#            solver_load_imbalance = np.max(data_per_event[event]) / np.mean(data_per_event[event])
 
     processed_data_total.to_csv("processed_data_per_total{}.csv".format("_io_only" if args.io_only else ""), index=False)
     # output data in PGF plots format
@@ -126,5 +149,8 @@ if not args.no_compute_total_statistics:
             else:
                 pgf_plots_header_str += "{}-{},".format(event_name, col_name)
                 pgf_plots_data_str += str(col) + ","
+    if solver_event is not None:
+        pgf_plots_header_str += "{}-loadImbalance,".format(solver_event)
+        pgf_plots_data_str += str(solver_load_imbalance) + ","
     print(pgf_plots_header_str[:-1].replace(" ", "").replace("/", ""))
     print(pgf_plots_data_str[:-1])

@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "combischeme/CombiMinMaxScheme.hpp"
-#include "manager/CombiParameters.hpp"
 #include "utils/Types.hpp"
 
 using namespace combigrid;
@@ -97,7 +96,7 @@ int main(int argc, char** argv) {
           } else {
             auto summand = parsedDouble * coeffs[i];
             auto y = summand - kahanValues[column][numLines - 1];
-            volatile auto t = combinedValues[column][numLines - 1] + y;
+            auto t = combinedValues[column][numLines - 1] + y;
             kahanValues[column][numLines - 1] = (t - combinedValues[column][numLines - 1]) - y;
             combinedValues[column][numLines - 1] = t;
           }

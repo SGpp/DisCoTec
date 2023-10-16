@@ -18,14 +18,13 @@ class CombiParameters {
                   std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<size_t>& taskIDs,
                   IndexType numberOfCombinations, IndexType numGrids = 1,
+                  CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   const std::vector<int> parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
-                  bool forwardDecomposition = !isGENE,
-                  const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelPort = 0,
-                  size_t thirdLevelPG = 0
-                  )
+                  uint32_t sizeForChunkedCommunicationInMebibyte = 64,
+                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
@@ -33,12 +32,13 @@ class CombiParameters {
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
+        combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        sizeForChunkedCommunicationInMebibyte_{sizeForChunkedCommunicationInMebibyte},
         thirdLevelHost_(thirdLevelHost),
         thirdLevelPort_(thirdLevelPort),
-        thirdLevelPG_(thirdLevelPG)
-  {
+        thirdLevelPG_(thirdLevelPG) {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     for (DimType d = 0; d < dim_; ++d) {
       if (boundary_[d] == 1) {
@@ -57,9 +57,12 @@ class CombiParameters {
   // imlpicitly as tasks vector
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<BoundaryType>& boundary, IndexType numberOfCombinations,
-                  IndexType numGrids = 1, const std::vector<int> parallelization = {0},
+                  IndexType numGrids = 1,
+                  CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
+                  const std::vector<int> parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  uint32_t sizeForChunkedCommunicationInMebibyte = 64,
                   bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
@@ -69,8 +72,10 @@ class CombiParameters {
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
+        combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        sizeForChunkedCommunicationInMebibyte_{sizeForChunkedCommunicationInMebibyte},
         thirdLevelHost_(thirdLevelHost),
         thirdLevelPort_(thirdLevelPort),
         thirdLevelPG_(thirdLevelPG) {
@@ -91,10 +96,14 @@ class CombiParameters {
                   const std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<bool>& hierarchizationDims,
                   std::vector<size_t>& taskIDs, IndexType numberOfCombinations,
-                  IndexType numGrids = 1, LevelVector reduceCombinationDimsLmin = LevelVector(0),
+                  IndexType numGrids = 1,
+                  CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
+                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
-                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
-                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
+                  uint32_t sizeForChunkedCommunicationInMebibyte = 64,
+                  bool forwardDecomposition = !isGENE,
+                  const std::string& thirdLevelHost = "", unsigned short thirdLevelPort = 0,
+                  size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
@@ -103,8 +112,10 @@ class CombiParameters {
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
+        combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
         reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        sizeForChunkedCommunicationInMebibyte_{sizeForChunkedCommunicationInMebibyte},
         thirdLevelHost_(thirdLevelHost),
         thirdLevelPort_(thirdLevelPort),
         thirdLevelPG_(thirdLevelPG) {
@@ -128,8 +139,6 @@ class CombiParameters {
   inline const LevelVector& getLMin() const { return lmin_; }
 
   inline const LevelVector& getLMax() const { return lmax_; }
-
-  inline const LevelVector& getLMinReductionVector() const { return reduceCombinationDimsLmin_; }
 
   inline const LevelVector& getLMaxReductionVector() const { return reduceCombinationDimsLmax_; }
 
@@ -186,7 +195,8 @@ class CombiParameters {
   }
 
   inline const LevelVector& getLevel(size_t taskID) const {
-    static LevelVector emptyLevelVector(0);
+    static thread_local LevelVector emptyLevelVector;
+    emptyLevelVector.clear();
     if (levels_.find(taskID) == levels_.end()) {
       return emptyLevelVector;
     } else {
@@ -195,15 +205,6 @@ class CombiParameters {
   }
 
   inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
-
-  inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) const {
-    taskIDs.reserve(levels_.size());
-    levels.reserve(levels_.size());
-    for (auto it : levels_) {
-      taskIDs.push_back(it.first);
-      levels.push_back(it.second);
-    }
-  }
 
   inline std::map<size_t, LevelVector>& getLevelsDict() { return levels_; }
 
@@ -265,17 +266,16 @@ class CombiParameters {
 
   inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
 
-  inline CommunicatorType getApplicationComm() const {
-    assert(uniformDecomposition);
-    return theMPISystem()->getLocalComm();
-    // assert( uniformDecomposition && applicationCommSet_ );
+  inline CombinationVariant getCombinationVariant() const { return combinationVariant_; }
 
-    // return applicationComm_;
+  inline uint32_t getChunkSizeInMebibybtePerThread() const {
+    if (sizeForChunkedCommunicationInMebibyte_ == 0) {
+      throw std::runtime_error("chunkSizeInMebibytePerThread_ is not set");
+    }
+    return sizeForChunkedCommunicationInMebibyte_;
   }
 
-  inline const std::string& getThirdLevelHost() {
-    return thirdLevelHost_;
-  }
+  inline const std::string& getThirdLevelHost() { return thirdLevelHost_; }
 
   inline unsigned short getThirdLevelPort() {
     return thirdLevelPort_;
@@ -283,21 +283,6 @@ class CombiParameters {
 
   inline size_t getThirdLevelPG() {
     return thirdLevelPG_;
-  }
-
-  inline bool isApplicationCommSet() const {
-    return false;
-    // return applicationCommSet_;
-  }
-
-  inline void setApplicationComm(CommunicatorType comm) {
-    assert(uniformDecomposition);
-    return;  // outdated
-    // make sure it is set only once
-    if (applicationCommSet_ == true) return;
-
-    MPI_Comm_dup(comm, &applicationComm_);
-    applicationCommSet_ = true;
   }
 
   /* set the common parallelization
@@ -367,10 +352,6 @@ class CombiParameters {
 
   std::vector<int> procs_;
 
-  CommunicatorType applicationComm_;
-
-  bool applicationCommSet_;
-
   std::vector<IndexVector> decomposition_;
 
   bool forwardDecomposition_;
@@ -378,6 +359,10 @@ class CombiParameters {
   friend class boost::serialization::access;
   IndexType numberOfCombinations_;  // total number of combinations
   IndexType numGridsPerTask_;       // number of grids per task
+
+  CombinationVariant combinationVariant_;
+
+  uint32_t sizeForChunkedCommunicationInMebibyte_;
 
   /**
    * This level vector indicates which dimension of lmin should be decreased by how many levels
@@ -427,6 +412,8 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& forwardDecomposition_;
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;
+  ar& combinationVariant_;
+  ar& sizeForChunkedCommunicationInMebibyte_;
   ar& reduceCombinationDimsLmin_;
   ar& reduceCombinationDimsLmax_;
   ar& thirdLevelHost_;

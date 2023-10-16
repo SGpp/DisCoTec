@@ -2,9 +2,32 @@
 #include "manager/ProcessGroupManager.hpp"
 #include "utils/Stats.hpp"
 
+#ifdef _OPENMP
+// OpenMP header
+#include <omp.h>
+#endif
+
 #include <iostream>
 
 namespace combigrid {
+
+MpiOnOff::MpiOnOff(int* argc, char*** argv) {
+  int provided;
+#ifdef _OPENMP
+  int threadMode = MPI_THREAD_MULTIPLE;
+#else
+  int threadMode = MPI_THREAD_SINGLE;
+#endif
+  MPI_Init_thread(argc, argv, threadMode, &provided);
+#ifdef _OPENMP
+  // make sure we get multiple thread execution
+  if (!(provided == MPI_THREAD_MULTIPLE)) {
+    throw std::runtime_error("MPI implementation does not support MPI_THREAD_MULTIPLE");
+    MPI_Abort(MPI_COMM_WORLD, 1);
+  }
+#endif
+}
+MpiOnOff::~MpiOnOff() { MPI_Finalize(); }
 
 /*!\brief Constructor for the MPISystem class.
  //
@@ -13,7 +36,7 @@ namespace combigrid {
  // Constructor for the MPI System. The default global communicator and local communicator is
  MPI_COMM_WORLD.
  // The total number of MPI processes and the rank of the MPI process in is determined from
- // the communicator. 
+ // the communicator.
  */
 MPISystem::MPISystem()
     : initialized_(false),
@@ -22,6 +45,7 @@ MPISystem::MPISystem()
       localComm_(MPI_COMM_NULL),
       globalReduceComm_(MPI_COMM_NULL),
       outputGroupComm_(MPI_COMM_NULL), 
+      outputComm_(MPI_COMM_NULL), 
       worldCommFT_(nullptr),
       globalCommFT_(nullptr),
       spareCommFT_(nullptr),
@@ -64,15 +88,21 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs,
   worldRank_ = getCommRank(worldComm_);
   int worldSize = getCommSize(worldComm_);
   if (withWorldManager) {
-    if(worldSize != static_cast<int>(ngroup_ * nprocs_ + 1)) {
-      throw std::invalid_argument("Number of MPI processes does not match number of process groups and processes per group.");
+    if (worldSize != static_cast<int>(ngroup_ * nprocs_ + 1)) {
+      throw std::invalid_argument(
+          "Number of MPI processes does not match number of process groups and processes per "
+          "group. Expected " +
+          std::to_string(ngroup_ * nprocs_ + 1) + " but got " + std::to_string(worldSize) + ".");
     }
     managerRankWorld_ = worldSize - 1;
   } else {
-    if(worldSize != static_cast<int>(ngroup_ * nprocs_)) {
-      throw std::invalid_argument("Number of MPI processes does not match number of process groups and processes per group.");
+    if (worldSize != static_cast<int>(ngroup_ * nprocs_)) {
+      throw std::invalid_argument(
+          "Number of MPI processes does not match number of process groups and processes per "
+          "group. Expected " +
+          std::to_string(ngroup_ * nprocs_) + " but got " + std::to_string(worldSize) + ".");
     }
-    managerRankWorld_ =  MPI_PROC_NULL;
+    managerRankWorld_ = MPI_PROC_NULL;
   }
   if (ENABLE_FT) {
     managerRankFT_ = managerRankWorld_;
@@ -87,6 +117,7 @@ void MPISystem::initSystemConstants(size_t ngroup, size_t nprocs,
 
   outputGroupRank_ = MPI_UNDEFINED;
   outputGroupComm_ = MPI_COMM_NULL;
+  outputComm_ = MPI_COMM_NULL;
 }
 
 void MPISystem::init(size_t ngroup, size_t nprocs, bool withWorldManager) {
@@ -172,7 +203,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm, bool 
  * this method can be called multiple times (needed for tests)
  */
 void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t nprocs,
-                                  bool withWorldManager) {
+                                  bool withWorldManager, bool verbose) {
   initSystemConstants(ngroup, nprocs, wcomm, withWorldManager, true);
   initialized_ = true;
   if (ngroup * nprocs > 0) {
@@ -210,6 +241,26 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
                                std::to_string(worldSize));
     }
   }
+
+#pragma omp parallel default(none)
+#ifdef _OPENMP
+  omp_set_max_active_levels(1);
+  // omit for now, since it is not supported by the SuperMUC-NG standard compiler
+  // if (omp_get_max_active_levels() != 1) {
+  //   throw std::runtime_error("Could not set nested OpenMP parallelism");
+  // }
+#endif
+
+  if (verbose) {
+    MIDDLE_PROCESS_EXCLUSIVE_SECTION {
+      std::cout << "MPI: " << ngroup << " groups with " << nprocs << " ranks each with"
+#ifdef _OPENMP
+                << " " << getNumOpenMPThreads() << " threads each and "
+                << omp_get_max_active_levels() << "-fold nested parallelism; with"
+#endif
+                << (withWorldManager ? "" : "out") << " world manager" << std::endl;
+    }
+  }
 }
 
 void MPISystem::initLocalComm() {
@@ -234,7 +285,11 @@ void MPISystem::storeLocalComm(CommunicatorType lcomm) {
     localRank_ = MPI_PROC_NULL;
   } else {
     if (lcomm != MPI_COMM_NULL && lcomm != localComm_) {
-      MPI_Comm_dup(lcomm, &localComm_);
+      // free previous local communicator
+      if (localComm_ != MPI_COMM_NULL) {
+        MPI_Comm_free(&localComm_);
+      }
+      localComm_ = lcomm;
     }
     localRank_ = getCommRank(localComm_);
     // todo: think through which side effects changing the master rank would have
@@ -382,8 +437,9 @@ void MPISystem::initGlobalReduceCommm() {
 }
 
 // helper function to identify "diagonal" processes for output group
-std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
-  std::vector<int> ranks;
+std::vector<int>& getDiagonalRanks(size_t nprocs, size_t ngroup) {
+  static thread_local std::vector<int> ranks;
+  ranks.clear();
   ranks.reserve(nprocs);
   for (size_t diagonal = 0; diagonal < nprocs / ngroup + 1; ++diagonal) {
     for (size_t p = 0; p < ngroup; ++p) {
@@ -396,10 +452,21 @@ std::vector<int> getDiagonalRanks(size_t nprocs, size_t ngroup) {
   return ranks;
 }
 
-void MPISystem::initOuputGroupComm() {
+void MPISystem::initOuputGroupComm(uint16_t numFileParts) {
+  assert(numFileParts > 0);
+  if (outputComm_ != MPI_COMM_NULL && outputComm_ != outputGroupComm_) {
+    MPI_Comm_free(&outputComm_);
+    outputComm_ = MPI_COMM_NULL;
+  }
+  if (outputGroupComm_ != MPI_COMM_NULL) {
+    MPI_Comm_free(&outputGroupComm_);
+    outputGroupComm_ = MPI_COMM_NULL;
+    outputComm_ = MPI_COMM_NULL;
+  }
+
   MPI_Group worldGroup;
   MPI_Comm_group(worldComm_, &worldGroup);
-  auto ranks = getDiagonalRanks(nprocs_, ngroup_);
+  auto& ranks = getDiagonalRanks(nprocs_, ngroup_);
   assert(ranks.size() == nprocs_);
 
   MPI_Group newGroup;
@@ -410,6 +477,13 @@ void MPISystem::initOuputGroupComm() {
   if (newComm != MPI_COMM_NULL) {
     outputGroupComm_ = newComm;
     MPI_Comm_rank(newComm, &outputGroupRank_);
+    if (numFileParts == 1) {
+      outputComm_ = outputGroupComm_;
+    } else {
+      auto outputCommSize = nprocs_ / numFileParts;
+      MPI_Comm_split(outputGroupComm_, static_cast<int>(outputGroupRank_ / outputCommSize),
+                     static_cast<int>(outputGroupRank_ % outputCommSize), &outputComm_);
+    }
   }
   MPI_Group_free(&newGroup);
   MPI_Group_free(&worldGroup);
@@ -487,6 +561,19 @@ bool MPISystem::sendRankIds(std::vector<RankType>& failedRanks,
     reusableRanks.erase(reusableRanks.begin(), reusableRanks.begin() + lastIndex);
   }
   return recoveryFailed;  // so far failing not implemented
+}
+
+int MPISystem::getNumOpenMPThreads() {
+  // get the number of used OpenMP threads // gratefully borrowed from PLSSVM
+  int numOMPthreads = 1;
+#ifdef _OPENMP
+#pragma omp parallel default(none) shared(numOMPthreads)
+  {
+#pragma omp master
+    numOMPthreads = omp_get_num_threads();
+  }
+#endif
+  return numOMPthreads;
 }
 
 void MPISystem::sendRecoveryStatus(bool failedRecovery,

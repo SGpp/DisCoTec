@@ -100,13 +100,10 @@ class ProcessManager {
   void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates,
                             std::vector<CombiDataType>& values);
 
-  inline void combineLocalAndGlobal();
+  inline void combineSystemWide();
 
   template <typename FG_ELEMENT>
   inline void combineFG(FullGrid<FG_ELEMENT>& fg);
-
-  template <typename FG_ELEMENT>
-  inline void gridEval(FullGrid<FG_ELEMENT>& fg);
 
   /* Generates no_faults random faults from the combischeme */
   inline void createRandomFaults(std::vector<size_t>& faultIds, int no_faults);
@@ -125,8 +122,6 @@ class ProcessManager {
   void getGroupFaultIDs(std::vector<size_t>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);
 
-  inline CombiParameters& getCombiParameters();
-
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
 
   void doDiagnostics(size_t taskID);
@@ -134,12 +129,6 @@ class ProcessManager {
   std::map<size_t, double> getLpNorms(int p = 2);
 
   double getLpNorm(int p = 2);
-
-  std::vector<double> parallelEvalNorm(const LevelVector& leval, size_t groupID = 0);
-
-  std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID = 0);
-
-  std::vector<double> evalErrorOnDFG(const LevelVector& leval, size_t groupID = 0);
 
   std::vector<CombiDataType> interpolateValues(
       const std::vector<std::vector<real>>& interpolationCoords);
@@ -267,18 +256,6 @@ inline ProcessGroupManagerID ProcessManager::waitAvoid(
   }
 }
 
-template <typename FG_ELEMENT>
-inline FG_ELEMENT ProcessManager::eval(const std::vector<real>& coords) {
-  waitForAllGroupsToWait();
-
-  FG_ELEMENT res(0);
-
-  // call eval function of each process group
-  for (size_t i = 0; i < pgroups_.size(); ++i) res += pgroups_[i]->eval(coords);
-
-  return res;
-}
-
 /* This function performs the so-called recombination. First, the combination
  * solution will be evaluated in the given sparse grid space.
  * Also, the local component grids will be updated with the combination
@@ -297,7 +274,7 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
-void ProcessManager::combineLocalAndGlobal() {
+void ProcessManager::combineSystemWide() {
   Stats::startEvent("manager combine local");
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
@@ -313,7 +290,7 @@ void ProcessManager::combineLocalAndGlobal() {
 
   // tell groups to combine local and global
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->combineLocalAndGlobal();
+    bool success = pgroups_[i]->combineSystemWide();
     assert(success);
   }
 
@@ -345,7 +322,7 @@ void ProcessManager::combineLocalAndGlobal() {
  */
 void ProcessManager::combineThirdLevel() {
   // first combine local and global
-  combineLocalAndGlobal();
+  combineSystemWide();
 
   // tell other pgroups to idle and wait for the combination result
   for (auto& pg : pgroups_) {
@@ -369,9 +346,9 @@ void ProcessManager::combineThirdLevel() {
 }
 
 void ProcessManager::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
-                                                          std::string writeCompleteTokenFileName) {
+                                                     std::string writeCompleteTokenFileName) {
   // first combine local and global
-  combineLocalAndGlobal();
+  combineSystemWide();
 
   // obtain "instructions" from third level manager
   thirdLevel_.signalReadyToCombineFile();
@@ -408,7 +385,7 @@ void ProcessManager::combineThirdLevelFileBased(std::string filenamePrefixToWrit
                                                 std::string filenamePrefixToRead,
                                                 std::string startReadingTokenFileName) {
   // first combine local and global
-  combineLocalAndGlobal();
+  combineSystemWide();
 
   // tell other pgroups to idle and wait for the combination result
   for (auto& pg : pgroups_) {
@@ -430,7 +407,7 @@ void ProcessManager::combineThirdLevelFileBased(std::string filenamePrefixToWrit
 
 void ProcessManager::pretendCombineThirdLevelForWorkers() {
   // first combine local and global
-  combineLocalAndGlobal();
+  combineSystemWide();
 
   // combine
   Stats::startEvent("manager exchange no data with remote");
@@ -583,45 +560,6 @@ size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
   return dsguDataSize;
 }
 
-/** This function performs the so-called recombination. First, the combination
-* solution will be evaluated with the resolution of the given full grid.
-* Afterwards, the local component grids will be updated with the combination
-* solution. The combination solution will also be available on the manager
-* process.
-*/
-template <typename FG_ELEMENT>
-void ProcessManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
-  waitForAllGroupsToWait();
-
-  // send signal to each group
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->combineFG(fg);
-    assert(success);
-  }
-
-  CombiCom::FGAllreduce<FG_ELEMENT>(fg, theMPISystem()->getGlobalComm());
-}
-
-/** Evaluate the combination solution with the resolution of the given full grid.
-* In constrast to the combineFG function, the solution will only be available
-* on the manager. No recombination is performed, i.e. the local component grids
-* won't be updated.
-*/
-template <typename FG_ELEMENT>
-void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
-  waitForAllGroupsToWait();
-
-  // send signal to each group
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->gridEval(fg);
-    assert(success);
-  }
-
-  CombiCom::FGReduce<FG_ELEMENT>(fg, theMPISystem()->getManagerRank(),
-                                 theMPISystem()->getGlobalComm());
-}
-
-CombiParameters& ProcessManager::getCombiParameters() { return params_; }
 
 /**
  * Create a certain given number of random faults, considering that the faulty processes

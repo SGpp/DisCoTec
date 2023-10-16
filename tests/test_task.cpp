@@ -29,8 +29,8 @@ class TaskTest : public combigrid::Task {
             std::vector<IndexVector> decomposition = std::vector<IndexVector>()) override {
     // create dummy dfg
     std::vector<int> p(getDim(), 1);
-    dfg_ =
-        new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(), p);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                        getBoundary(), p);
   }
 
   void run(CommunicatorType lcomm) override {}
@@ -53,7 +53,7 @@ class TaskTest : public combigrid::Task {
  private:
   friend class boost::serialization::access;
 
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
@@ -91,7 +91,7 @@ BOOST_AUTO_TEST_CASE(test) {
   static_cast<TaskTest*>(t)->test += TestHelper::getRank(comm);
 
   if (TestHelper::getRank(comm) != 0) {
-    Task::send(&t, 0, comm);
+    Task::send(t, 0, comm);
   } else {
     for (int i = 1; i < size; ++i) {
       Task::receive(&t, i, comm);

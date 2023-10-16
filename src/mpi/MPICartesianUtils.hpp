@@ -9,6 +9,7 @@
 #include <numeric>
 #include <vector>
 
+#include "fullgrid/Tensor.hpp"
 #include "utils/Types.hpp"
 
 namespace combigrid {
@@ -21,36 +22,44 @@ class MPICartesianUtils {
     // check if communicator is cartesian
     int status;
     MPI_Topo_test(comm, &status);
-
+    std::vector<int> cartdims;
     if (status == MPI_CART) {
       int ndims = 0;
       MPI_Cartdim_get(comm, &ndims);
       dim_ = static_cast<DimType>(ndims);
-      cartdims_.resize(dim_);
+      cartdims.resize(dim_);
       periods_.resize(dim_);
       localCoords_.resize(dim_);
-      MPI_Cart_get(comm, dim_, &cartdims_[0], &periods_[0], &localCoords_[0]);
+      MPI_Cart_get(comm, dim_, &cartdims[0], &periods_[0], &localCoords_[0]);
       // fill the partitionCoords_
       {
-        partitionCoords_.resize(this->getCommunicatorSize());
+        partitionCoords_.resize(std::accumulate(cartdims.begin(), cartdims.end(), 1,
+                                                std::multiplies<int>()));
+        partitionCoordsTensor_ = Tensor(partitionCoords_.data(), std::move(cartdims));
         // fill partition coords vector, only once
         for (int i = 0; i < this->getCommunicatorSize(); ++i) {
           std::vector<int> tmp(dim_);
           MPI_Cart_coords(comm, i, static_cast<int>(dim_), &tmp[0]);
-
-          // important: reverse ordering of partition coords!
-          if (reverseOrderingDFGPartitions) {
-            partitionCoords_[i].assign(tmp.rbegin(), tmp.rend());
-          } else {
-            partitionCoords_[i].assign(tmp.begin(), tmp.end());
-          }
+          auto sequentialIndex = partitionCoordsTensor_.sequentialIndex(tmp);
+          partitionCoords_[sequentialIndex] = i;
         }
       }
     } else {
-      cartdims_.clear();
+      comm_ = MPI_COMM_NULL;
       periods_.clear();
       localCoords_.clear();
       partitionCoords_.clear();
+      partitionCoordsTensor_ = Tensor(partitionCoords_.data(), std::move(cartdims));
+      throw std::runtime_error("MPICartesianUtils: communicator is not cartesian");
+    }
+    MPI_Comm_rank(comm, &rank_);
+
+    int size = 0;
+    MPI_Comm_size(comm, &size);
+    if (size != this->getCommunicatorSize()) {
+      throw std::runtime_error(
+          "MPICartesianUtils: communicator size does not match cartesian "
+          "dimensions");
     }
   }
 
@@ -60,9 +69,7 @@ class MPICartesianUtils {
   MPICartesianUtils& operator=(MPICartesianUtils&& other) = default;
   virtual ~MPICartesianUtils() = default;
 
-  CommunicatorType getComm() const {
-    return comm_;
-  }
+  CommunicatorType getComm() const { return comm_; }
 
   /**
    * @brief Get the cartesian coordinates of a rank in the local cartesian communicator
@@ -70,48 +77,43 @@ class MPICartesianUtils {
    * @param r         local rank
    * @param coords    out: coordinates in the cartesian grid of processes in local comm
    */
-  inline void getPartitionCoordsOfRank(RankType r, std::vector<int>& coords) const {
+  inline const IndexVector& getPartitionCoordsOfRank(RankType r) const {
     assert(r >= 0 && r < getCommunicatorSize());
     assert(!partitionCoords_.empty());
-    coords.assign(partitionCoords_[r].begin(), partitionCoords_[r].end());
+    // find rank r in partitionCoords_
+    auto findIt = std::find(partitionCoords_.begin(), partitionCoords_.end(), r);
+    IndexType rIndex = std::distance(partitionCoords_.begin(), findIt);
+    return partitionCoordsTensor_.getVectorIndex(rIndex);
   }
 
-  inline void getPartitionCoordsOfLocalRank(std::vector<int>& coords) const {
+  inline const IndexVector& getPartitionCoordsOfLocalRank() const {
     assert(!localCoords_.empty());
-    coords = localCoords_;
+    return localCoords_;
   }
 
   inline bool isOnLowerBoundaryInDimension(DimType d) const { return localCoords_[d] == 0; }
 
   inline bool isOnUpperBoundaryInDimension(DimType d) const {
-    return localCoords_[d] + 1 == cartdims_[d];
+    return localCoords_[d] + 1 == this->getCartesianDimensions()[d];
   }
 
   inline RankType getRankFromPartitionCoords(const std::vector<int>& partitionCoordsInt) const {
     // check wheter the partition coords are valid
     assert(partitionCoordsInt.size() == dim_);
 
-    for (DimType d = 0; d < dim_; ++d) assert(partitionCoordsInt[d] < cartdims_[d]);
+    for (DimType d = 0; d < dim_; ++d)
+      assert(partitionCoordsInt[d] < this->getCartesianDimensions()[d]);
 
     assert(!partitionCoords_.empty());
-    auto dim = dim_;
-    auto it = std::find_if(partitionCoords_.begin(), partitionCoords_.end(),
-                           [&partitionCoordsInt, &dim](const std::vector<int>& pcoord) {
-                             return (pcoord == partitionCoordsInt);
-                           });
-    // check if found
-    assert(it != partitionCoords_.end());
-
-    RankType rank = static_cast<RankType>(it - partitionCoords_.begin());
-
-    return rank;
+    return partitionCoords_[partitionCoordsTensor_.sequentialIndex(partitionCoordsInt)];
   }
 
   RankType getNeighbor1dFromPartitionIndex(DimType dim, int idx1d) const {
     assert(idx1d >= 0);
     assert(idx1d < this->getCartesianDimensions()[dim]);
 
-    auto neighborPartitionCoords = this->localCoords_;
+    static thread_local IndexVector neighborPartitionCoords;
+    neighborPartitionCoords = this->localCoords_;
     neighborPartitionCoords[dim] = idx1d;
     RankType r = this->getRankFromPartitionCoords(neighborPartitionCoords);
     return r;
@@ -123,15 +125,14 @@ class MPICartesianUtils {
    */
   inline std::vector<RankType> getAllMyPoleNeighborRanks(DimType dim) const {
     auto ranks = std::vector<RankType>();
-    ranks.reserve(cartdims_[dim] - 1);
-    auto myPartitionCoords = std::vector<int>();
-    this->getPartitionCoordsOfLocalRank(myPartitionCoords);
+    ranks.reserve(this->getCartesianDimensions()[dim] - 1);
+    const auto& myPartitionCoords = this->getPartitionCoordsOfLocalRank();
     for (int i = 0; i < myPartitionCoords[dim]; ++i) {
       auto neighborPartitionCoords = myPartitionCoords;
       neighborPartitionCoords[dim] = i;
       ranks.push_back(getRankFromPartitionCoords(neighborPartitionCoords));
     }
-    for (int i = myPartitionCoords[dim] + 1; i < cartdims_[dim]; ++i) {
+    for (int i = myPartitionCoords[dim] + 1; i < this->getCartesianDimensions()[dim]; ++i) {
       auto neighborPartitionCoords = myPartitionCoords;
       neighborPartitionCoords[dim] = i;
       ranks.push_back(getRankFromPartitionCoords(neighborPartitionCoords));
@@ -140,21 +141,21 @@ class MPICartesianUtils {
   }
 
   const std::vector<int>& getCartesianDimensions() const {
-    return cartdims_;
+    return partitionCoordsTensor_.getExtentsVector();
   }
 
   inline int getCommunicatorSize() const {
-    if (cartdims_.empty()) return 0;
-    return std::accumulate(cartdims_.begin(), cartdims_.end(), 1, std::multiplies<int>());
+    return partitionCoords_.size();
   }
+
+  inline RankType getCommunicatorRank() const { return rank_; }
 
  private:
   CommunicatorType comm_ = MPI_COMM_NULL;
 
-  DimType dim_;
+  RankType rank_ = MPI_UNDEFINED;
 
-  /** the extents of the cartesian communicator (how many ranks in each dimension) */
-  std::vector<int> cartdims_;
+  DimType dim_;
 
   /** the periodicity of the cartesian communicator (periodic in each dimension) */
   std::vector<int> periods_;
@@ -163,7 +164,10 @@ class MPICartesianUtils {
   std::vector<int> localCoords_;
 
   /** the coordinates of each rank on the cartesian communicator*/
-  std::vector<std::vector<int>> partitionCoords_;
+  std::vector<int> partitionCoords_;
+
+  /** multi-dim indexing for partitionCoords_ */
+  Tensor<int> partitionCoordsTensor_;
 };
 
 }  // namespace combigrid

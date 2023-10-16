@@ -8,6 +8,7 @@
 
 #include "io/H5InputOutput.hpp"
 #include "mpi/MPISystem.hpp"
+#include "mpi/MPIUtils.hpp"
 #include "utils/MonteCarlo.hpp"
 
 namespace combigrid {
@@ -23,15 +24,7 @@ std::string getFileContentsFromRankZero(const std::string& fileName, const MPI_C
     contentString.assign((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
     contentStringSize = contentString.size();
   }
-  // avoid: copies of strings in this function
-  // MPIUtils::broadcastClass<std::string>(contentString, 0, comm);
-
-  // broadcast string size
-  MPI_Bcast(&contentStringSize, 1, MPI_INT, 0, comm);
-  contentString.resize(contentStringSize);
-
-  // broadcast string
-  MPI_Bcast(&contentString[0], contentString.size(), MPI_CHAR, 0, comm);
+  MPIUtils::broadcastContainer(contentString, 0, comm);
   return contentString;
 }
 

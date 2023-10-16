@@ -21,7 +21,6 @@
 #include "fullgrid/FullGrid.hpp"
 #include "io/BroadcastParameters.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupManager.hpp"
 #include "manager/ProcessGroupWorker.hpp"
 #include "manager/ProcessManager.hpp"

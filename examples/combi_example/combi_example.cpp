@@ -35,7 +35,7 @@ using namespace combigrid;
 BOOST_CLASS_EXPORT(TaskExample)
 
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  [[maybe_unused]] auto mpiOnOff = MpiOnOff(&argc, &argv);
 
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
@@ -112,14 +112,15 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
+      Task* t = new TaskExample(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1, p);
-    
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
+                           CombinationVariant::sparseGridReduce, p);
+
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
@@ -183,8 +184,6 @@ int main(int argc, char** argv) {
 
   /* write stats to json file for postprocessing */
   Stats::write("timers.json");
-
-  MPI_Finalize();
 
   return 0;
 }

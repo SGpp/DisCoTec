@@ -1,0 +1,297 @@
+#!groovy
+
+def buildbadge = addEmbeddableBadgeConfiguration(id: "allbuilds", subject: "boost test", status: "skipped")
+
+pipeline {
+    agent { label('pcsgs02 || pcsgs03 || pcsgs04 || pcsgs05 || ppcsgs09 || pcsgs11') }
+    options {
+        buildDiscarder(
+            logRotator(
+                daysToKeepStr: "28",
+                numToKeepStr: "100",
+                artifactDaysToKeepStr: "28",
+                artifactNumToKeepStr: "100"
+            )
+        )
+        timeout(time: 3, unit: 'HOURS') 
+        disableConcurrentBuilds()
+    }
+    environment {
+        GITHUB_TOKEN = credentials('GITHUB_TOKEN_DISCOTEC')
+        MAINTAINER_MAIL = credentials('DISCOTEC_MAINTAINER_EMAIL')
+    }
+    stages {
+        stage('checkout') {
+            steps {
+                script {
+                    buildbadge.setStatus('running')
+                }
+                withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {
+                    retry(count: 2) {
+                        dir('discotec-spack') {
+                            sh '''
+                                git -C spack pull || git clone git@github.com:spack/spack.git 
+                                cd spack
+                                # reset compilers and external packages due to possible different systems
+                                rm -f ~/.spack/bootstrap/config/packages.yaml
+                                rm -f ~/.spack/linux/compilers.yaml 
+                                rm -f ~/.spack/packages.yaml
+                                # clean build caches
+                                . ./share/spack/setup-env.sh
+                                spack clean -ab
+                                spack clean -fmps
+
+                                spack bootstrap root $(pwd)/bootstrap
+                                spack bootstrap disable spack-install
+                                spack bootstrap now
+                            '''
+                        }
+                    }
+                }
+            }
+            post {
+                failure{
+                    sleep 100
+                }
+            }
+        }
+        stage('build-dependencies') {
+            matrix {
+                axes {
+                    axis {
+                        name 'compiler'
+                        values 'gcc'//, 'clang'
+                    }
+                    axis {
+                        name 'mpiimpl'
+                        values 'openmpi', 'mpich'
+                    }
+                }
+                stages{
+                    stage('build dependencies w/ spack') {
+                        steps {
+                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {
+
+                                retry(count: 2) {
+                                    dir('discotec-spack/spack') {
+                                        sh '''
+                                        . ./share/spack/setup-env.sh
+                                        spack external find --exclude curl # curl may be missing dev-libs which causes cmake install to fail
+                                        spack compiler find  
+                                        # remove compilers with stl/linker/fortran issues
+                                        spack compiler remove -a gcc@10.1.0: || true # ignore if this compiler was not found
+                                        spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
+                                        spack install -y discotec@main -lto %${compiler} ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
+                                        '''
+                                    }
+                                }
+                            }
+                        }
+                        post {
+                            failure{
+                                sleep 60
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        stage('build-and-test') {
+            matrix {
+                axes {
+                    axis {
+                        name 'build_type'
+                        values 'Release', 'Debug'
+                    }
+                    axis {
+                        name 'compiler'
+                        values 'gcc'//, 'clang' // omit clang for now, mpi can't find fortran with it
+                    }
+                    axis {
+                        name 'mpiimpl'
+                        values 'openmpi', 'mpich'
+                    }
+                }
+                stages {
+                    stage('init') {
+                        steps {
+                            dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
+                                checkout scm
+                                sh '''
+                                    git clean -fdx
+                                    rm -rf build*
+                                '''
+                            }
+                            dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
+                                sh '''
+                                    github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                                    curl --verbose\
+                                        --request POST \
+                                        --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                        --header "Content-Type: application/json" \
+                                        --header "authorization: Bearer ${github_token}" \
+                                        --data "{
+                                            \\"state\\": \\"pending\\",
+                                            \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                            \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                            \\"target_url\\": \\"${BUILD_URL}/console\\"
+                                    }"
+                                '''
+                            }
+                        }
+                    }
+                    stage('build DisCoTec') {
+                        steps {
+                            withEnv(['SPACK_USER_CACHE_PATH=$TMP/spack/','SPACK_DISABLE_LOCAL_CONFIG=true']) {                             
+                                retry(count: 2) {
+                                    dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
+                                        sh '''
+                                            . ../discotec-spack/spack/share/spack/setup-env.sh
+                                            spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
+                                            mkdir -p build/${compiler}-${mpiimpl}-${build_type}
+                                            cd build/${compiler}-${mpiimpl}-${build_type}
+                                            cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_OPENMP=1 -DDISCOTEC_USE_LTO=0 ../..
+                                            make -j8
+                                        '''
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    stage('run tests') {
+                        steps {
+                            dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
+                                sh '''
+                                    . ../discotec-spack/spack/share/spack/setup-env.sh
+                                    spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
+                                    export OMP_NUM_THREADS=4
+                                    cd tests/
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem                      
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=loadmodel
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=reduce
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=rescheduling
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=task
+                                '''
+                            }
+                            retry(count: 2) {
+                                dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
+                                    sh '''
+                                        . ../discotec-spack/spack/share/spack/setup-env.sh
+                                        spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
+                                        export OMP_NUM_THREADS=4
+                                        cd tests/
+                                        mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=integration
+                                        mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=stats
+                                        mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid
+                                        mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_create* --log_level=message
+                                        mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_write* --log_level=message
+                                        mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=distributedsparsegrid/test_sparse* --log_level=message
+                                        mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=worker
+                                        #mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=ftolerance # cf https://github.com/SGpp/DisCoTec/issues
+                                    '''
+                                }
+                            }
+                            retry(count: 3) {
+                                dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
+                                    script{
+                                        if (compiler == 'gcc' && mpiimpl == 'openmpi') { // execute third-level test only for one compiler set
+                                            sh '''
+                                                . ../discotec-spack/spack/share/spack/setup-env.sh
+                                                spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
+                                                export OMP_NUM_THREADS=4
+                                                cd tests/                   
+                                                mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=thirdLevel/test_workers_only,test_workers_2d,test_8_workers  # file-based exchange needs to execute correctly
+                                                sleep 5
+                                                mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=thirdLevel/test_0,test_2,test_3,test_4,test_5,test_6,test_7,test_8 || true # TCP exchange may have random port errors
+                                            '''
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        post {
+                            failure{
+                                sleep 30
+                            }
+                        }
+                    }
+                }
+                post {
+                    success {
+                        sh '''
+                            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                            curl --verbose\
+                                --request POST \
+                                --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                --header "Content-Type: application/json" \
+                                --header "authorization: Bearer ${github_token}" \
+                                --data "{
+                                    \\"state\\": \\"success\\",
+                                    \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                    \\"target_url\\": \\"${BUILD_URL}/console\\"
+                            }"
+                        '''
+                    }
+                    failure {
+                        sh '''
+                            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                            curl --verbose\
+                                --request POST \
+                                --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                --header "Content-Type: application/json" \
+                                --header "authorization: Bearer ${github_token}" \
+                                --data "{
+                                    \\"state\\": \\"failure\\",
+                                    \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                    \\"target_url\\": \\"${BUILD_URL}/console\\"
+                            }"
+                        '''
+                    }
+                    aborted {
+                        sh '''
+                            github_token=$(echo ${GITHUB_TOKEN} | cut -f2 -d':')
+                            curl --verbose\
+                                --request POST \
+                                --url "https://api.github.com/repos/SGpp/DisCoTec/statuses/$GIT_COMMIT" \
+                                --header "Content-Type: application/json" \
+                                --header "authorization: Bearer ${github_token}" \
+                                --data "{
+                                    \\"state\\": \\"error\\",
+                                    \\"context\\": \\"DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                    \\"description\\": \\"Jenkins CI Job: DisCoTec-${compiler}-${mpiimpl}-${build_type}\\",
+                                    \\"target_url\\": \\"${BUILD_URL}/console\\"
+                            }"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            script {
+                buildbadge.setStatus('success')
+            }
+        }
+        failure {
+            script {
+                buildbadge.setStatus('failing')
+            }
+            sh '''
+                echo "Build failed! Pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins DisCoTec: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} failed" "${MAINTAINER_MAIL}"
+            '''
+        }
+        aborted {
+            script {
+                buildbadge.setStatus('aborted')
+            }
+            sh '''
+                echo "Build aborted on pipeline ${JOB_BASE_NAME} with build ID ${BUILD_NUMBER} using GIT commit ${GIT_COMMIT}" | mail -s "Jenkins DisCoTec: Build ${JOB_BASE_NAME}/${BUILD_NUMBER} aborted" "${MAINTAINER_MAIL}"
+            '''
+        }
+    }
+}

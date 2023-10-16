@@ -11,11 +11,12 @@
 #include "combischeme/CombiThirdLevelScheme.hpp"
 #include "io/BroadcastParameters.hpp"
 #include "manager/ProcessGroupWorker.hpp"
+#include "sparsegrid/DistributedSparseGridIO.hpp"
 
 using namespace combigrid;
 
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  [[maybe_unused]] auto mpiOnOff = MpiOnOff(&argc, &argv);
   combigrid::Stats::initialize();
 
   // read in parameter file -- use the same one as for the simulation, but add the other ct scheme
@@ -55,8 +56,8 @@ int main(int argc, char** argv) {
 
   // create combiparameters
   auto reduceCombinationDimsLmax = LevelVector(dim, 1);
-  CombiParameters params(dim, lmin, lmax, boundary, 2, 1, p, LevelVector(dim, 0),
-                         reduceCombinationDimsLmax, forwardDecomposition);
+  CombiParameters params(dim, lmin, lmax, boundary, 2, 1, CombinationVariant::sparseGridReduce, p,
+                         LevelVector(dim, 0), reduceCombinationDimsLmax, 1, forwardDecomposition);
   IndexVector minNumPoints(dim), maxNumPoints(dim);
   for (DimType d = 0; d < dim; ++d) {
     minNumPoints[d] = combigrid::getNumDofNodal(lmin[d], boundary[d]);
@@ -104,11 +105,12 @@ int main(int argc, char** argv) {
     }
 
     // register all component grid levels in this sparse grid
+    CombiDataType fakeData;
     for (const auto& l : allLevels) {
       auto dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lmax, l, boundary);
       auto uniDFG = std::unique_ptr<DistributedFullGrid<CombiDataType>>(
           new DistributedFullGrid<CombiDataType>(dim, l, theMPISystem()->getLocalComm(), boundary,
-                                                 p, false, dfgDecomposition));
+                                                 &fakeData, p, false, dfgDecomposition));
       // MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "registering " << l << std::endl;
       uniDSG->registerDistributedFullGrid(*uniDFG);
     }
@@ -118,7 +120,7 @@ int main(int argc, char** argv) {
         << "sparse grid has " << numDOF << " DOF per rank, which is " << numDOF * 8. / 1e9 << " GB"
         << std::endl;
     // write the resulting sparse grid sizes to file
-    uniDSG->writeSubspaceSizesToFile(firstSubspaceFileName);
+    DistributedSparseGridIO::writeSubspaceSizesToFile(*uniDSG, firstSubspaceFileName);
   }
   if (otherCtschemeFile == "") {
     // we are done already
@@ -139,8 +141,8 @@ int main(int argc, char** argv) {
     // register levels from other CT scheme
     for (const auto& l : allLevels) {
       auto dfgDecomposition = combigrid::downsampleDecomposition(decomposition, lmax, l, boundary);
-      auto uniDFG = std::unique_ptr<DistributedFullGrid<CombiDataType>>(
-          new DistributedFullGrid<CombiDataType>(dim, l, theMPISystem()->getLocalComm(), boundary,
+      auto uniDFG = std::unique_ptr<OwningDistributedFullGrid<CombiDataType>>(
+          new OwningDistributedFullGrid<CombiDataType>(dim, l, theMPISystem()->getLocalComm(), boundary,
                                                  p, false, dfgDecomposition));
       // MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "registering " << l << std::endl;
       uniDSG->registerDistributedFullGrid(*uniDFG);
@@ -151,10 +153,10 @@ int main(int argc, char** argv) {
                                                << " DOF per rank, which is " << numDOF * 8. / 1e9
                                                << " GB" << std::endl;
     // write the resulting sparse grid sizes to file
-    uniDSG->writeSubspaceSizesToFile(
-        otherCtschemeFile.substr(
-            0, otherCtschemeFile.length() - std::string("_00008groups.json").length()) +
-        ".sizes");
+    DistributedSparseGridIO::writeSubspaceSizesToFile(
+        *uniDSG, otherCtschemeFile.substr(
+                     0, otherCtschemeFile.length() - std::string("_00008groups.json").length()) +
+                     ".sizes");
 
     // read written sparse grid sizes from file
     // for extra sparse grid / conjoint subspaces, min-reduce the sizes
@@ -162,14 +164,15 @@ int main(int argc, char** argv) {
       return std::min(a, b);
     };
     // use extra sparse grid
-    uniDSG->readReduceSubspaceSizesFromFile(firstSubspaceFileName, minFunctionInstantiation);
+    DistributedSparseGridIO::readReduceSubspaceSizesFromFile(*uniDSG, firstSubspaceFileName,
+                                                             minFunctionInstantiation);
 
     auto numDOFconjoint = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
                                           uniDSG->getSubspaceDataSizes().end(), 0);
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "conjoint sparse grid has " << numDOFconjoint
                                                << " DOF per rank" << std::endl;
     // write final sizes to file
-    uniDSG->writeSubspaceSizesToFile(conjointSubspaceFileName);
+    DistributedSparseGridIO::writeSubspaceSizesToFile(*uniDSG, conjointSubspaceFileName);
 
     // output first rank's sizes
   }
@@ -177,7 +180,6 @@ int main(int argc, char** argv) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   combigrid::Stats::finalize();
-  MPI_Finalize();
 
   return 0;
 }

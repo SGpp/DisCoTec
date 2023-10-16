@@ -87,15 +87,12 @@ typedef std::complex<real> complex;
 	typedef complex CombiDataType;
 	// this switch seems to make not much of a difference after all ;)
 	constexpr bool reverseOrderingDFGPartitions = true;
+	static_assert(false, "removed reverseOrderingDFGPartitions, but this is untested for GENE");
 #else
 	typedef real CombiDataType;
 	constexpr bool reverseOrderingDFGPartitions = false;
 #endif
 
-// const bool GENE_Global = true;
-// const bool GENE_Linear = true;
-
-static_assert(!(isGENE) || reverseOrderingDFGPartitions, "GENE example needs the reverse ordering of DFG partitions");
 }
 
 #endif /* DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_UTILS_CONFIG_HPP_ */

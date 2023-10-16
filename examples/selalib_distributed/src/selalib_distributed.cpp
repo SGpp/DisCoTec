@@ -50,17 +50,6 @@ inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
   return vec;
 }
 
-// helper function to output bool vector
-inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
-  os << "[";
-
-  for (size_t i = 0; i < l.size(); ++i) os << l[i] << " ";
-
-  os << "]";
-
-  return os;
-}
-
 // cf https://stackoverflow.com/questions/37931691/replace-a-word-in-text-file-using-c
 std::string getFile(std::ifstream& is) {
   std::string contents;
@@ -203,7 +192,7 @@ int main(int argc, char** argv) {
 
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
-  theMPISystem()->init(ngroup, nprocs);
+  theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, true, true);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     Stats::startEvent("manager initialization");
@@ -359,7 +348,8 @@ int main(int argc, char** argv) {
 
     // create combiparamters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, hierarchizationDims, taskIDs,
-                           ncombi, 1, reduceCombinationDimsLmin, reduceCombinationDimsLmax, false);
+                           ncombi, 1, CombinationVariant::sparseGridReduce,
+                           reduceCombinationDimsLmin, reduceCombinationDimsLmax, 64, false);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
 
@@ -413,22 +403,6 @@ int main(int argc, char** argv) {
         }
       }
     }
-
-    // evaluate solution on the grid defined by leval
-    //(basically an interpolation of the sparse grid to fullgrid with resolution leval)
-    // Stats::startEvent("manager parallel eval");
-    // manager.parallelEval(leval, fg_file_path, 0);
-    // Stats::stopEvent("manager parallel eval");
-    // Stats::startEvent("manager parallel eval norm");
-    // auto combinedNormLeval = manager.parallelEvalNorm(leval, 0);
-    // Stats::stopEvent("manager parallel eval norm");
-
-    // std::cout << "Norm is " << combinedNormLeval << " \n";
-
-    // // evaluate solution on the grid defined by leval2
-    // Stats::startEvent("manager parallel eval 2");
-    // manager.parallelEval(leval2, fg_file_path2, 0);
-    // Stats::stopEvent("manager parallel eval 2");
 
     // std::cout << "Computation finished evaluating on target grid! \n";
 

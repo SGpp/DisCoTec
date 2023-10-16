@@ -444,10 +444,110 @@ inline long long int getNumDOFSGConjoint(
 // for widely-distributed simulations, get the number of DOF that absolutely needs
 // to be exchanged with the other system -- partitioned
 inline std::vector<long long int> getPartitionedNumDOFSGConjoint(
-    const CombiMinMaxScheme& combischeme, const LevelVector& lmin, const LevelVector& referenceLevel,
-    const std::vector<IndexVector> decomposition) {
+    const CombiMinMaxScheme& combischeme, const LevelVector& lmin,
+    const LevelVector& referenceLevel, const std::vector<IndexVector> decomposition) {
   auto conjointSet = getConjointSet(combischeme, lmin);
   return getPartitionedNumDOFSG(conjointSet, referenceLevel, decomposition);
+}
+
+inline size_t getAssignedLevels(const CombiMinMaxSchemeFromFile& combischeme,
+                                RankType myProcessGroupNumber, std::vector<LevelVector>& levels,
+                                std::vector<combigrid::real>& coeffs,
+                                std::vector<size_t>& taskNumbers) {
+  assert(levels.empty());
+  assert(levels.size() == coeffs.size());
+  assert(levels.size() == taskNumbers.size());
+
+  const auto& pgNumbers = combischeme.getProcessGroupNumbers();
+  const auto& allCoeffs = combischeme.getCoeffs();
+  const auto& allLevels = combischeme.getCombiSpaces();
+  assert(allLevels.size() == allCoeffs.size());
+  assert(pgNumbers.size() == allCoeffs.size());
+  if (pgNumbers.empty() || pgNumbers.size() != allCoeffs.size() ||
+      pgNumbers.size() != allLevels.size()) {
+    throw std::runtime_error(
+        "CombiSchemeFromFile::getAssignedLevels : inconsistent scheme from file");
+  }
+  const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+  assert(*itMin == 0);  // make sure it starts with 0
+  // filter out only those tasks that belong to "our" process group
+  for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
+    if (pgNumbers[taskNo] == myProcessGroupNumber) {
+      taskNumbers.push_back(taskNo);
+      coeffs.push_back(allCoeffs[taskNo]);
+      levels.push_back(allLevels[taskNo]);
+    }
+  }
+  return allLevels.size();
+}
+
+inline size_t getRoundRobinLevels(const CombiMinMaxScheme& combischeme,
+                                  RankType myProcessGroupNumber, size_t totalNumGroups,
+                                  std::vector<LevelVector>& levels,
+                                  std::vector<combigrid::real>& coeffs,
+                                  std::vector<size_t>& taskNumbers) {
+  assert(levels.empty());
+  assert(levels.size() == coeffs.size());
+  assert(levels.size() == taskNumbers.size());
+
+  const auto& allCoeffs = combischeme.getCoeffs();
+  const auto& allLevels = combischeme.getCombiSpaces();
+  assert(allLevels.size() == allCoeffs.size());
+  // make sure its enough tasks
+  assert(allLevels.size() >= totalNumGroups);
+
+  for (size_t taskNo = myProcessGroupNumber; taskNo < allLevels.size(); taskNo += totalNumGroups) {
+    taskNumbers.push_back(taskNo);
+    coeffs.push_back(allCoeffs[taskNo]);
+    levels.push_back(allLevels[taskNo]);
+  }
+  return allLevels.size();
+}
+
+inline size_t getLoadBalancedLevels(const CombiMinMaxScheme& combischeme,
+                                    RankType myProcessGroupNumber, size_t totalNumGroups,
+                                    const std::vector<BoundaryType>& boundary,
+                                    std::vector<LevelVector>& levels,
+                                    std::vector<combigrid::real>& coeffs,
+                                    std::vector<size_t>& taskNumbers) {
+  assert(levels.empty());
+  assert(levels.size() == coeffs.size());
+  assert(levels.size() == taskNumbers.size());
+
+  const auto& allCoeffs = combischeme.getCoeffs();
+  const auto& allLevels = combischeme.getCombiSpaces();
+  std::vector<size_t> allTaskIDs(allLevels.size());
+  std::iota(allTaskIDs.begin(), allTaskIDs.end(), 0);
+  assert(allLevels.size() == allCoeffs.size());
+  // make sure its enough tasks
+  assert(allLevels.size() >= totalNumGroups);
+
+  // sort the tasks by their load
+  // TODO use LoadModel class in this function
+  std::sort(allTaskIDs.begin(), allTaskIDs.end(), [&allLevels, &boundary](size_t i1, size_t i2) {
+    return getCombiDegreesOfFreedom(allLevels[i1], boundary) >
+           getCombiDegreesOfFreedom(allLevels[i2], boundary);
+  });
+
+  std::map<RankType, long long> loadAssignedToGroup;
+  for (size_t taskNo : allTaskIDs) {
+    // find the group with the lowest load
+    RankType minGroup = 0;
+    long long minLoad = std::numeric_limits<long long>::max();
+    for (RankType group = 0; group < totalNumGroups; ++group) {
+      if (loadAssignedToGroup[group] < minLoad) {
+        minGroup = group;
+        minLoad = loadAssignedToGroup[group];
+      }
+    }
+    loadAssignedToGroup[minGroup] += getCombiDegreesOfFreedom(allLevels[taskNo], boundary);
+    if (minGroup == myProcessGroupNumber) {
+      taskNumbers.push_back(taskNo);
+      coeffs.push_back(allCoeffs[taskNo]);
+      levels.push_back(allLevels[taskNo]);
+    }
+  }
+  return allLevels.size();
 }
 
 }  // namespace combigrid

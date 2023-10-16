@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "TaskConstParaboloid.hpp"
+#include "combicom/CombiCom.hpp"
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "fullgrid/FullGrid.hpp"
 #include "hierarchization/DistributedHierarchization.hpp"
@@ -80,7 +81,7 @@ void checkDistributedFullgridMemory(LevelVector& levels, bool forward = false) {
       }
       {
         // create dfg and get same footprint
-        DistributedFullGrid<double> dfg(dim, levels, comm, boundary, procs, forward);
+        OwningDistributedFullGrid<double> dfg(dim, levels, comm, boundary, procs, forward);
         mpimemory::get_all_memory_usage_kb(&vmRSS, &vmSize, comm);
 
         // check that the local number of points is what we expect
@@ -168,8 +169,8 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   TestFn f;
   const auto dim = static_cast<DimType>(levels.size());
 
-  // create dfg
-  DistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
+  BOOST_TEST_CHECKPOINT("create dfg");
+  OwningDistributedFullGrid<std::complex<double>> dfg(dim, levels, comm, boundary, procs, forward);
 
   // set function values
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
@@ -188,8 +189,9 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   DistributedSparseGridUniform<std::complex<double>> dsg(dim, lmax, lmin, comm);
   dsg.registerDistributedFullGrid(dfg);
   BOOST_TEST_CHECKPOINT("register uniform sg");
-  DistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
+  OwningDistributedFullGrid<std::complex<double>> dfg2(dim, levels, comm, boundary, procs, forward);
   dsg.registerDistributedFullGrid(dfg2);
+  dsg.createSubspaceData();
   dsg.setZero();
   dsg.addDistributedFullGrid(dfg, 2.1);
   BOOST_TEST_CHECKPOINT("add to uniform sg");
@@ -296,28 +298,13 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
   // dfg.writePlotFileVTK(ss.str().c_str());
 
   // create distributed fg and copy values
-  DistributedFullGrid<std::complex<double>> dfgCopy(
+  OwningDistributedFullGrid<std::complex<double>> dfgCopy(
       dim, dfg.getLevels(), dfg.getCommunicator(), dfg.returnBoundaryFlags(),
       dfg.getParallelization(), true, dfg.getDecomposition());
   for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
     dfgCopy.getData()[li] = dfg.getData()[li];
   }
   BOOST_TEST_CHECKPOINT("copied to dfgCopy");
-
-  auto formerCorners = dfg.getCornersValues();
-  auto formerBoundaryAvgValue =
-      std::accumulate(formerCorners.begin(), formerCorners.end(),
-                      static_cast<std::complex<double>>(0.), std::plus<std::complex<double>>()) /
-      static_cast<double>(formerCorners.size());
-  // test averageBoundaryValues
-  dfgCopy.averageBoundaryValues();
-  if (std::all_of(boundary.begin(), boundary.end(), [](BoundaryType b) { return b == 2; })) {
-    // assert that all the corners values are the same now
-    auto cornersValues = dfgCopy.getCornersValues();
-    for (const auto& cornerValue : cornersValues) {
-      BOOST_TEST(cornerValue == formerBoundaryAvgValue);
-    }
-  }
 
   // test lower to upper exchange
   for (DimType d = 0; d < dim; ++d) {
@@ -341,7 +328,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
             // check if the value is the same as on the lower boundary
             auto compareCoords = coords;
             compareCoords[d] = 0.;
-            BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(compareCoords));
+            BOOST_CHECK_EQUAL(dfg.getData()[i], f(compareCoords));
           }
         } else {
           bool otherBoundary = false;
@@ -352,7 +339,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
           }
           if (!otherBoundary) {
             // make sure all other values remained the same
-            BOOST_CHECK_EQUAL(dfg.getElementVector()[i], f(coords));
+            BOOST_CHECK_EQUAL(dfg.getData()[i], f(coords));
           }
         }
       }
@@ -561,9 +548,12 @@ BOOST_AUTO_TEST_CASE(compare_coordinates_by_boundary) {
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<BoundaryType> oneboundary(dim, 1);
     std::vector<BoundaryType> noboundary(dim, 0);
-    DistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs, false);
-    DistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs, false);
-    DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, false);
+    OwningDistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs,
+                                                   false);
+    OwningDistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
+                                                   false);
+    OwningDistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
+                                                  false);
 
     auto twoBoundaryIntegral = checkInnerBasisFunctionIntegral(dfgTwoBoundary);
     auto oneBoundaryIntegral = checkInnerBasisFunctionIntegral(dfgOneBoundary);
@@ -632,9 +622,12 @@ BOOST_AUTO_TEST_CASE(interpolation_test) {
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<BoundaryType> oneboundary(dim, 1);
     std::vector<BoundaryType> noboundary(dim, 0);
-    DistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs, false);
-    DistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs, false);
-    DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, false);
+    OwningDistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs,
+                                                   false);
+    OwningDistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
+                                                   false);
+    OwningDistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
+                                                  false);
 
     // set function values on dfgs
     // choose function that will be 0 on boundary
@@ -684,9 +677,12 @@ BOOST_AUTO_TEST_CASE(interpolation_speed_test) {
     std::vector<BoundaryType> boundary(dim, 2);
     std::vector<BoundaryType> oneboundary(dim, 1);
     std::vector<BoundaryType> noboundary(dim, 0);
-    DistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs, false);
-    DistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs, false);
-    DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, false);
+    OwningDistributedFullGrid<real> dfgTwoBoundary(dim, fullGridLevel, comm, boundary, procs,
+                                                   false);
+    OwningDistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
+                                                   false);
+    OwningDistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs,
+                                                  false);
 
     auto numMCCoordinates = 1e6;
     std::vector<std::vector<double>> interpolationCoords =
@@ -732,11 +728,12 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal) {
     std::vector<BoundaryType> noboundary(dim, 0);
     LevelVector fullGridLevel = {3};
     std::vector<IndexVector> decomposition = {{0, 4, 6}};
-    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
-    DistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs, true,
-                                             decomposition);
-    DistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, true,
-                                            decomposition);
+    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                        decomposition);
+    OwningDistributedFullGrid<real> dfgOneBoundary(dim, fullGridLevel, comm, oneboundary, procs,
+                                                   true, decomposition);
+    OwningDistributedFullGrid<real> dfgNoBoundary(dim, fullGridLevel, comm, noboundary, procs, true,
+                                                  decomposition);
 
     IndexVector indices;
     IndexVector expected;
@@ -839,7 +836,8 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_boundary_firstdim) {
         {0, 98304, 196609, 327680, 425985}, {0}, {0}, {0}, {0}, {0}};
     std::vector<BoundaryType> boundary(dim, 2);
 
-    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                        decomposition);
 
     LevelVector level = {6, 5, 4, 3, 2, 1};  //{18, 1, 2, 3, 4, 5},
     for (DimType d = 0; d < dim; ++d) {
@@ -891,7 +889,8 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_boundary_threedim) {
 
     std::vector<BoundaryType> boundary(dim, 2);
 
-    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                        decomposition);
 
     LevelVector level = {5, 3, 4, 5, 2, 5};  //{18, 1, 2, 3, 4, 5},
     for (DimType d = 0; d < dim; ++d) {
@@ -954,7 +953,8 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_noboundary_firstdim) {
 
     std::vector<BoundaryType> boundary(dim, 0);
 
-    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                        decomposition);
 
     LevelVector level = {6, 5, 4, 3, 2, 1};
     for (DimType d = 0; d < dim; ++d) {
@@ -1006,7 +1006,8 @@ BOOST_AUTO_TEST_CASE(test_get1dIndicesLocal_noboundary_threedim) {
 
     std::vector<BoundaryType> boundary(dim, 0);
 
-    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                        decomposition);
 
     LevelVector level = {5, 3, 4, 5, 2, 5};  //{18, 1, 2, 3, 4, 5},
     for (DimType d = 0; d < dim; ++d) {
@@ -1072,7 +1073,8 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     auto start = std::chrono::high_resolution_clock::now();
-    DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true, decomposition);
+    OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                        decomposition);
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create full grid w/ level sum 23: " << duration.count()
@@ -1086,8 +1088,8 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
     decomposition[0] = {0, 1, 2, 3, 4};
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
-    DistributedFullGrid<real> otherDfg(dim, fullGridLevel, comm, boundary, procs, true,
-                                       decomposition);
+    OwningDistributedFullGrid<real> otherDfg(dim, fullGridLevel, comm, boundary, procs, true,
+                                             decomposition);
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("time to create other full grid w/ level sum 23: " << duration.count()
@@ -1129,8 +1131,12 @@ BOOST_AUTO_TEST_CASE(test_registerUniformSG) {
 
     MPI_Barrier(comm);
     start = std::chrono::high_resolution_clock::now();
+#ifdef NDEBUG
     // this is not the "correct" communicator, but using it here so something is communicated
-    dsg.reduceSubspaceSizes(comm);
+    // throws assert because of wrong sizes
+    CombiCom::reduceSubspaceSizes(dsg, comm);
+#endif
+    dsg.createSubspaceData();
     dsg.setZero();
     end = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
@@ -1198,7 +1204,7 @@ BOOST_AUTO_TEST_CASE(test_evalDFG) {
       BOOST_TEST_CHECKPOINT("Testing boundary type " + std::to_string(b));
       std::vector<BoundaryType> boundary(dim, b);
       // create and initialize DFG
-      DistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, false);
+      OwningDistributedFullGrid<real> dfg(dim, fullGridLevel, comm, boundary, procs, false);
       std::vector<double> coords(dim);
       for (IndexType li = 0; li < dfg.getNrLocalElements(); ++li) {
         dfg.getCoordsLocal(li, coords);
@@ -1278,7 +1284,7 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
         auto basisTypeVector = std::vector<BasisFunctionBasis*>(dim, bases[b]);
 
         // create and initialize DFG
-        std::vector<DistributedFullGrid<real>> dfgs;
+        std::vector<OwningDistributedFullGrid<real>> dfgs;
         for (size_t i = 0; i < fullGridLevels.size(); ++i) {
           dfgs.emplace_back(dim, fullGridLevels[i], comm, boundary, procs, false);
           std::vector<double> coords(dim);
@@ -1294,6 +1300,7 @@ BOOST_AUTO_TEST_CASE(test_massLoss2D) {
           for (const auto& dfg : dfgs) {
             dsg.registerDistributedFullGrid(dfg);
           }
+          dsg.createSubspaceData();
           dsg.setZero();
           LevelVector zeroLMin(dim, 0);
           for (size_t i = 0; i < dfgs.size(); ++i) {

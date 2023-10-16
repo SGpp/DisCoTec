@@ -55,12 +55,24 @@ class MPIUtils {
   }
 
   template <typename T>
+  static void broadcastContainer(T& v, RankType root, CommunicatorType comm) {
+    // root broadcasts object size
+    int bsize = static_cast<int>(v.size());
+    MPI_Bcast(&bsize, 1, MPI_INT, root, comm);
+    // non-root procs resize buffer to large enough
+    v.resize(bsize);
+
+    // broadcast of buffer
+    MPI_Bcast(
+        v.data(), bsize,
+        abstraction::getMPIDatatype(abstraction::getabstractionDataType<typename T::value_type>()),
+        root, comm);
+  }
+
+  template <typename T>
   static void broadcastClass(T* t, RankType root, CommunicatorType comm) {
     RankType myID;
     MPI_Comm_rank(comm, &myID);
-
-    char* buf = NULL;
-    int bsize;
 
     // root writes object data into buffer
     std::string s;
@@ -75,27 +87,14 @@ class MPIUtils {
       }
       // create mpi buffer of archive
       s = ss.str();
-      bsize = static_cast<int>(s.size());
-      buf = const_cast<char*>(s.c_str());
     }
 
     // root broadcasts object size
-    MPI_Bcast(&bsize, 1, MPI_INT, root, comm);
-
-    // non-root procs create buffer which is large enough
-    std::vector<char> tmp(bsize);
-
-    if (myID != root) {
-      buf = &tmp[0];
-    }
-
-    // broadcast of buffer
-    MPI_Bcast(buf, bsize, MPI_CHAR, root, comm);
+    broadcastContainer(s, root, comm);
 
     // non-root procs write buffer to object
     if (myID != root) {
       // create and open an archive for input
-      std::string s(buf, bsize);
       std::stringstream ss(s);
       {
         boost::archive::text_iarchive ia(ss);
@@ -105,6 +104,6 @@ class MPIUtils {
     }
   }
 };
-}
+}  // namespace combigrid
 
 #endif /* SRC_SGPP_COMBIGRID_MPI_MPIUTILS_HPP_ */
