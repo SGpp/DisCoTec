@@ -1,35 +1,61 @@
+
+[![Build Status](https://jenkins-sim.informatik.uni-stuttgart.de/buildStatus/icon?job=DisCoTec%2Fmain)](https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/main/)
+[![Zenodo DOI](https://zenodo.org/badge/226341053.svg)](https://zenodo.org/badge/latestdoi/226341053)
+[![Latest spack version](https://img.shields.io/spack/v/discotec)](https://spack.readthedocs.io/en/latest/package_list.html#discotec)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/cac5bc0841784657b2bb75ea46e7cf01)](https://app.codacy.com/gh/SGpp/DisCoTec/dashboard)
+
 # What is DisCoTec?
 ---------------------------
-[![Build Status](https://jenkins-sim.informatik.uni-stuttgart.de/buildStatus/icon?job=DisCoTec%2Fmain)](https://jenkins-sim.informatik.uni-stuttgart.de/job/DisCoTec/job/main/)
-[![DOI](https://zenodo.org/badge/226341053.svg)](https://zenodo.org/badge/latestdoi/226341053)
 
-This project contains __DisCoTec__, a code for running the distributed sparse grid combination technique with MPI parallelization. While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it is its own project now.
+This project contains __DisCoTec__, a code for running the *dis*tributed sparse grid *co*mbination *tec*hnique with MPI parallelization. 
+While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it has become its own project.
 
-It is designed as a framework that can run multiple instances of a (black-box) grid-based solver implementation.
+DisCoTec is designed as a framework that can run multiple instances of a (black-box) grid-based solver implementation.
 The most basic example we use is a [mass-conserving FDM/FVM constant advection upwinding solver](/examples/distributed_advection/).
 An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distributed/).
 
+
 ## Contributing
----------
-* We welcome contributions! To find a good place to start, have a look at the currently open issues
-* Please develop new features in a new branch (typically on your own fork) and then create a PR
-* New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests] .
+---------------------------
+*   We welcome contributions! To find a good place to start coding, have a look at the currently open issues.
+*   Please describe issues in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
+*   Please develop new features in a new branch (typically on your own fork) and then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
+*   New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests] .
 
 
-## Installation instructions
---------------------------
+## Installation instructions: spack
+---------------------------
+
+DisCoTec can be installed via Spack, which handles all dependencies.
+If you want to develop DisCoTec code or examples, the `spack dev-build` workflow is recommended.
+
+Clone both `spack` and `DisCoTec` to find or build the dependencies and then compile DisCoTec:
+```bash
+git clone git@github.com:spack/spack.git  # use https if your ssh is not set up on github
+./spack/bin/spack external find  # find already-installed packages
+./spack/bin/spack compiler find  # find compilers present on system
+./spack/bin/spack info discotec@main  # shows DisCoTec's variants 
+./spack/bin/spack spec discotec@main  # shows DisCoTec's dependency tree and which parts are already found
+
+git clone git@github.com:SGpp/DisCoTec.git
+cd DisCoTec
+../spack/bin/spack dev-build -b install discotec@main
+```
+This will build DisCoTec inside the cloned folder, and the executables are placed in the respective `example` and `test` folders.
+
+
+## Installation instructions: CMake
+---------------------------
 #### Dependencies
---------------
+---------------------------
 cmake >= (3.24.2),
 libmpich-dev (>= 3.2-6), or other MPI library
+libboost-all-dev (>= 1.60)
 
 Additional (optional) dependencies:
 - OpenMP
-- libboost-all-dev (>= 1.60)
 - HDF5
 - HighFive 
-
-For the dependencies, the DisCoTec spack package (currently under review [here](https://github.com/spack/spack/pull/35239)) could be of interest.
 
 #### Complete build:
 ```bash
@@ -40,7 +66,9 @@ cmake --build DisCoTec/build -j
 
 #### Advanced build:
 
-All examples and the tools can be build on their own. To build a specific example, run the specific cmake command in the example folder. For example, run the following commands
+All examples and the tools can be built on their own. 
+To build a specific example, run the specific cmake command in the example folder. 
+For example, run the following commands
 ```bash
 git clone https://github.com/SGpp/DisCoTec.git DisCoTec
 cd DisCoTec/examples/combi_example
@@ -116,19 +144,18 @@ mpirun -n $(($NGROUP*$NPROCS)) omplace -v -nt ${OMP_NUM_THREADS} $DISCOTEC_EXECU
 Validate with very verbose output: `-vv` .
 
 ### GENE  submodules as dependencies for GENE examples
-----------------
-_Warning: The CMake Integration is currently not adapted to use GENE!_
+---------------------------
+*Warning: The CMake Integration is currently not adapted to use GENE!*
 
 There are gene versions as submodules: a linear one in the gene_mgr folder, and 
 a nonlinear one in gene-non-linear. To get them, you need access to their 
-respective repos. Then go into the folder and
+respective repos at MPCDF. Then go into the folder and
 
 ``` bash
 git submodule init
 git submodule update
 ```
 or use the `--recursive` flag when cloning the repo.
-and then you just hope you can `make` it by adapting the local library flags.
 
 
 ### Further Readmes
