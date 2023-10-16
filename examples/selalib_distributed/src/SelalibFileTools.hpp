@@ -8,7 +8,7 @@
 #include "utils/Types.hpp"
 
 // helper funtion to read a bool vector from string
-inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
+inline std::vector<bool>& operator>>(const std::string& str, std::vector<bool>& vec) {
   std::vector<std::string> strs;
   boost::split(strs, str, boost::is_any_of(" "));
 
@@ -34,8 +34,9 @@ std::string replaceFirstOccurrence(std::string& s, const std::string& toReplace,
   return s.replace(pos, toReplace.length(), replaceWith);
 }
 
-void setCheckpointRestart(std::string basename, std::vector<combigrid::LevelVector> levels,
-                          std::string suffix = "") {
+void setCheckpointRestart(const std::string& basename,
+                          const std::vector<combigrid::LevelVector>& levels,
+                          const std::string& suffix = "") {
   std::string baseFolder = "./" + basename;
   for (size_t i = 0; i < levels.size(); i++) {
     // path to task folder
@@ -59,9 +60,10 @@ void setCheckpointRestart(std::string basename, std::vector<combigrid::LevelVect
   }
 }
 
-bool adaptParameterFile(std::string infilename, std::string outfilename,
-                        std::vector<int> resolution, std::vector<int> p, size_t nsteps, double dt,
-                        size_t n_diagnostics, const std::string& name_diagnostics) {
+bool adaptParameterFile(const std::string& infilename, const std::string& outfilename,
+                        const std::vector<int>& resolution, const std::vector<int>& p,
+                        size_t nsteps, double dt, size_t n_diagnostics,
+                        const std::string& name_diagnostics) {
   assert(resolution.size() == p.size());
   std::ifstream inputFileStream(infilename, std::ifstream::in);
   auto contents = getFile(inputFileStream);
@@ -79,10 +81,10 @@ bool adaptParameterFile(std::string infilename, std::string outfilename,
   return true;
 }
 
-bool adaptParameterFileFirstFolder(std::string basename, std::vector<int> resolution,
-                                   std::vector<int> p, size_t nsteps, double dt,
+bool adaptParameterFileFirstFolder(const std::string& basename, const std::vector<int>& resolution,
+                                   const std::vector<int>& p, size_t nsteps, double dt,
                                    size_t n_diagnostics, const std::string& name_diagnostics,
-                                   std::string suffix = "") {
+                                   const std::string& suffix = "") {
   std::string baseFolder = "./" + basename;
   std::string taskFolder = baseFolder + suffix + std::to_string(0);
   std::string templateFolder = "./template";
@@ -93,10 +95,11 @@ bool adaptParameterFileFirstFolder(std::string basename, std::vector<int> resolu
   return yes;
 }
 
-bool createTaskFolders(const std::string& basename, const std::vector<combigrid::LevelVector>& levels,
-                       const std::vector<size_t>& taskNumbers, std::vector<int> p, size_t nsteps,
-                       double dt, size_t n_diagnostics, const std::string& name_diagnostics,
-                       std::string suffix = "") {
+bool createTaskFolders(const std::string& basename,
+                       const std::vector<combigrid::LevelVector>& levels,
+                       const std::vector<size_t>& taskNumbers, const std::vector<int>& p,
+                       size_t nsteps, double dt, size_t n_diagnostics,
+                       const std::string& name_diagnostics, const std::string& suffix = "") {
   assert(levels.size() == taskNumbers.size());
   std::string baseFolder = "./" + basename;
   std::string templateFolder = "./template";
