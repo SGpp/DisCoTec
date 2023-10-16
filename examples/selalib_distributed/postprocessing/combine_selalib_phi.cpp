@@ -1,13 +1,12 @@
 #include <boost/filesystem.hpp>
-#include <boost/property_tree/ini_parser.hpp>
 #include <boost/multi_array.hpp>
+#include <boost/property_tree/ini_parser.hpp>
 #include <filesystem>
+#include <highfive/H5File.hpp>
 #include <iomanip>  // std::setprecision()
 #include <iostream>
 #include <string>
 #include <vector>
-
-#include <highfive/H5File.hpp>
 
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fullgrid/DistributedFullGrid.hpp"
@@ -29,7 +28,7 @@ int main(int argc, char** argv) {
   boost::property_tree::ini_parser::read_ini(paramfile, cfg);
 
   DimType dim = cfg.get<DimType>("ct.dim");
-  DimType dim_x = dim/2;
+  DimType dim_x = dim / 2;
   assert(dim_x == 3);
   LevelVector lmin(dim), lmax(dim);
   cfg.get<std::string>("ct.lmin") >> lmin;  // minimal level vector for each grid
@@ -37,7 +36,8 @@ int main(int argc, char** argv) {
   // for some reason, the coordinates are reversed in selalib's h5 files
   LevelVector lmax_x = {lmax[2], lmax[1], lmax[0]};
   std::string basename = cfg.get<std::string>("preproc.basename");
-  std::string nameDiagnostics = cfg.get<std::string>("application.name_diagnostics_phi", "diagnostics3d_add-");
+  std::string nameDiagnostics =
+      cfg.get<std::string>("application.name_diagnostics_phi", "diagnostics3d_add-");
 
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createClassicalCombischeme();
@@ -56,13 +56,29 @@ int main(int argc, char** argv) {
   }
 
   MPI_Comm commSelfPeriodic;
-  MPI_Cart_create(MPI_COMM_SELF, 3, new int[3]{1,1,1}, new int[3]{1,1,1}, 1, &commSelfPeriodic);
+  MPI_Cart_create(MPI_COMM_SELF, 3, new int[3]{1, 1, 1}, new int[3]{1, 1, 1}, 1, &commSelfPeriodic);
+
+  // pre-allocate interpolation coordinates of lmax
+  std::vector<std::vector<real>> coordinates;
+  std::vector<real> coordinates_j = {0., 0., 0.};
+
+  // three-fold loop, increase coordinate by grid spacing
+  for (coordinates_j[2] = 0.; coordinates_j[2] < 1.; coordinates_j[2] += 1. / (1 << lmax_x[2])) {
+    for (coordinates_j[1] = 0.; coordinates_j[1] < 1.; coordinates_j[1] += 1. / (1 << lmax_x[1])) {
+      for (coordinates_j[0] = 0.; coordinates_j[0] < 1.;
+           coordinates_j[0] += 1. / (1 << lmax_x[0])) {
+        coordinates.push_back(coordinates_j);
+      }
+    }
+  }
 
   for (const auto& df : diagnosticsFiles) {
-    auto combinedValues = combigrid::OwningDistributedFullGrid<double>(dim_x, lmax_x, commSelfPeriodic, {1,1,1}, {1,1,1}, false );
-    auto kahanValues = combigrid::OwningDistributedFullGrid<double>(dim_x, lmax_x, commSelfPeriodic, {1,1,1}, {1,1,1}, false );
+    auto combinedValues = combigrid::OwningDistributedFullGrid<double>(
+        dim_x, lmax_x, commSelfPeriodic, {1, 1, 1}, {1, 1, 1}, false);
+    auto kahanValues = combigrid::OwningDistributedFullGrid<double>(dim_x, lmax_x, commSelfPeriodic,
+                                                                    {1, 1, 1}, {1, 1, 1}, false);
     for (size_t i = 0; i < levels.size(); i++) {
-      IndexVector level_reversed {levels[i][2], levels[i][1], levels[i][0]};
+      IndexVector level_reversed{levels[i][2], levels[i][1], levels[i][0]};
       // path to task folder
       std::string taskFolder = basename + std::to_string(i);
       // assert that diagnostics are there
@@ -73,9 +89,10 @@ int main(int argc, char** argv) {
       std::cout << " processing " << fullPathString << std::endl;
       std::ifstream inputFileStream(fullPathString, std::ifstream::in);
       // read values as h5 with highfive
-      IndexVector extents {1<<level_reversed[0], 1<<level_reversed[1], 1<<level_reversed[2]};
-      std::cout << "level " << level_reversed[0] << " " << level_reversed[1] << " " << level_reversed[2] << std::endl;
-      boost::multi_array<double, 3> values{ extents, boost::fortran_storage_order()};
+      IndexVector extents{1 << level_reversed[0], 1 << level_reversed[1], 1 << level_reversed[2]};
+      std::cout << "level " << level_reversed[0] << " " << level_reversed[1] << " "
+                << level_reversed[2] << std::endl;
+      boost::multi_array<double, 3> values{extents, boost::fortran_storage_order()};
       HighFive::File h5_file(fullPathString, HighFive::File::ReadOnly);
       // assume one group in file
       HighFive::Group group = h5_file.getGroup("/");
@@ -86,12 +103,19 @@ int main(int argc, char** argv) {
       }
 
       // pass values to DistributedFullGrid
-      auto componentGrid = combigrid::DistributedFullGrid<double>(dim_x, level_reversed, commSelfPeriodic, {1,1,1}, values.data(), {1,1,1}, false);
+      auto componentGrid = combigrid::DistributedFullGrid<double>(
+          dim_x, level_reversed, commSelfPeriodic, {1, 1, 1}, values.data(), {1, 1, 1}, false);
       if (i == 0) {
         std::cout << "corner values " << fullPathString << std::endl;
-        std::cout << values.shape()[0] << " " << values.shape()[1] << " " << values.shape()[2] << " " << std::endl;
-        std::cout << values[0][0][0] << " " << values[0][0][extents[2]-1] << " " << values[0][extents[1]-1][0] << " " << values[0][extents[1]-1][extents[2]-1] << std::endl;
-        std::cout << values[extents[0]-1][0][0] << " " << values[extents[0]-1][0][extents[2]-1] << " " << values[extents[0]-1][extents[1]-1][0] << " " << values[extents[0]-1][extents[1]-1][extents[2]-1] << std::endl;
+        std::cout << values.shape()[0] << " " << values.shape()[1] << " " << values.shape()[2]
+                  << " " << std::endl;
+        std::cout << values[0][0][0] << " " << values[0][0][extents[2] - 1] << " "
+                  << values[0][extents[1] - 1][0] << " "
+                  << values[0][extents[1] - 1][extents[2] - 1] << std::endl;
+        std::cout << values[extents[0] - 1][0][0] << " "
+                  << values[extents[0] - 1][0][extents[2] - 1] << " "
+                  << values[extents[0] - 1][extents[1] - 1][0] << " "
+                  << values[extents[0] - 1][extents[1] - 1][extents[2] - 1] << std::endl;
       }
       {
         assert(values.shape()[0] == extents[0]);
@@ -101,36 +125,34 @@ int main(int argc, char** argv) {
         assert(values[1][0][0] == componentGrid.getData()[1]);
         assert(values[2][0][0] == componentGrid.getData()[2]);
         assert(values[3][0][0] == componentGrid.getData()[3]);
-        assert(values[extents[0]-1][0][0] == componentGrid.getData()[extents[0]-1]);
+        assert(values[extents[0] - 1][0][0] == componentGrid.getData()[extents[0] - 1]);
         assert(level_reversed[0] <= lmax_x[0]);
         assert(level_reversed[1] <= lmax_x[1]);
         assert(level_reversed[2] <= lmax_x[2]);
       }
 
       // interpolate on all points of combinedValues
-      std::vector<real> coordinates_j = {0., 0., 0.};
-      size_t j = 0;
-      //three-fold loop, increase coordinate by grid spacing
-      for (coordinates_j[2] = 0.; coordinates_j[2] < 1.; coordinates_j[2] += 1. / (1 << lmax_x[2])) {
-        for (coordinates_j[1] = 0.; coordinates_j[1] < 1.; coordinates_j[1] += 1. / (1 << lmax_x[1])) {
-          for (coordinates_j[0] = 0.; coordinates_j[0] < 1.; coordinates_j[0] += 1. / (1 << lmax_x[0])) {
-            double summand = 0.;
-            componentGrid.evalLocal(coordinates_j, summand);
-            summand *= coeffs[i];
-            auto y = summand - kahanValues.getData()[j];
-            auto t = combinedValues.getData()[j] + y;
-            kahanValues.getData()[j] = (t - combinedValues.getData()[j]) - y;
-            combinedValues.getData()[j] = t;
-            ++j;
-          }
-        }
+      auto valuesInterpolatedOnComponentGrid = componentGrid.getInterpolatedValues(coordinates);
+      assert(valuesInterpolatedOnComponentGrid.size() == combinedValues.getNrElements());
+      auto combinationCoeff = coeffs[i];
+#pragma omp parallel for default(none) shared(combinationCoeff, valuesInterpolatedOnComponentGrid, \
+                                                  kahanValues, combinedValues) schedule(static)
+      for (size_t j = 0; j < valuesInterpolatedOnComponentGrid.size(); j++) {
+        auto summand = combinationCoeff * valuesInterpolatedOnComponentGrid[j];
+        auto y = summand - kahanValues.getData()[j];
+        auto t = combinedValues.getData()[j] + y;
+        kahanValues.getData()[j] = (t - combinedValues.getData()[j]) - y;
+        combinedValues.getData()[j] = t;
       }
     }
     // output interpolated values to h5 file
     std::string outputFileName = "combined_phi_" + df;
-    HighFive::File outputFile(outputFileName, HighFive::File::ReadWrite | HighFive::File::Create | HighFive::File::Truncate);
+    HighFive::File outputFile(outputFileName, HighFive::File::ReadWrite | HighFive::File::Create |
+                                                  HighFive::File::Truncate);
     HighFive::Group group = outputFile.createGroup("/");
-    std::vector<size_t> extentsMax {static_cast<size_t>(1<<lmax_x[0]), static_cast<size_t>(1<<lmax_x[1]), static_cast<size_t>(1<<lmax_x[2])};
+    std::vector<size_t> extentsMax{static_cast<size_t>(1 << lmax_x[0]),
+                                   static_cast<size_t>(1 << lmax_x[1]),
+                                   static_cast<size_t>(1 << lmax_x[2])};
     HighFive::DataSet dataset = group.createDataSet<double>("phi", HighFive::DataSpace(extentsMax));
     dataset.write(combinedValues.getData());
     outputFile.flush();
