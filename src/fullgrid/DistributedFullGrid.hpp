@@ -147,7 +147,6 @@ inline double getPointDistanceToCoordinate(IndexType oneDimensionalLocalIndex, d
 
 inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
                                                 const std::vector<real>& coords) const {
-  const std::vector<double> oneOverH = this->getInverseGridSpacing();
   FG_ELEMENT result = 0.;
   auto localLinearIndex = this->getLocalLinearIndex(localIndex);
   for (size_t localIndexIterate = 0;
@@ -160,12 +159,12 @@ inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
     real phi_c = 1.;  // value of product of iterate's basis function on coords
     for (DimType d = 0; d < dim_; ++d) {
       const auto lastIndexInDim = this->getLocalSizes()[d] - 1;
-      bool dimIsSet = std::bitset<sizeof(int) * CHAR_BIT>(localIndexIterate).test(d);
-      auto iterateIndexInThisDimension = localIndex[d] + dimIsSet;
+      bool isUpperInDim = std::bitset<sizeof(int) * CHAR_BIT>(localIndexIterate).test(d);
+      auto iterateIndexInThisDimension = localIndex[d] + isUpperInDim;
       if (iterateIndexInThisDimension < 0) {
         phi_c = 0.;
-        break;  // TODO continue outer loop
-      } else if (dimIsSet && this->hasBoundaryPoints_[d] == 1 &&
+        break;
+      } else if (isUpperInDim && this->hasBoundaryPoints_[d] == 1 &&
                  //  this->getCartesianUtils().isOnLowerBoundaryInDimension(d) &&
                  iterateIndexInThisDimension == this->getGlobalSizes()[d]) {
         // if we have a wrap-around AND are on the lowest cartesian process in this dimension
@@ -174,15 +173,17 @@ inline FG_ELEMENT evalIndexAndAllUpperNeighbors(const IndexVector& localIndex,
         iterateIndexInThisDimension = 0;
         auto coordDistance =
             getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d] - 1.0, d);
-        phi_c *= 1. - coordDistance * oneOverH[d];
+        auto oneOverHinD = powerOfTwo[levels_[d]];
+        phi_c *= 1. - coordDistance * oneOverHinD;
       } else if (iterateIndexInThisDimension > lastIndexInDim) {
         phi_c = 0.;
-        break;  // TODO continue outer loop
+        break;
       } else {
         auto coordDistance =
             getPointDistanceToCoordinate(iterateIndexInThisDimension, coords[d], d);
-        phi_c *= 1. - coordDistance * oneOverH[d];
-        neighborIndex += dimIsSet * this->getLocalOffsets()[d];
+        auto oneOverHinD = powerOfTwo[levels_[d]];
+        phi_c *= 1. - coordDistance * oneOverHinD;
+        neighborIndex += isUpperInDim * this->getLocalOffsets()[d];
       }
 #ifndef NDEBUG
       neighborVectorIndex[d] = iterateIndexInThisDimension;
@@ -1452,10 +1453,10 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
 
  private:
   /** dimension of the full grid */
-  DimType dim_;
+  const DimType dim_;
 
   /** levels for each dimension */
-  LevelVector levels_;
+  const LevelVector levels_;
 
   /** the grid spacing h for each dimension */
   std::vector<double> gridSpacing_;
@@ -1469,7 +1470,7 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
   Tensor<FG_ELEMENT> localTensor_ {};
 
   /** flag to show if the dimension has boundary points*/
-  std::vector<BoundaryType> hasBoundaryPoints_;
+  const std::vector<BoundaryType> hasBoundaryPoints_;
 
   /** my partition's lower 1D bounds */
   IndexVector myPartitionsLowerBounds_;
