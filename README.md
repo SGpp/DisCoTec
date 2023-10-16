@@ -21,7 +21,7 @@ An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distribu
 *   We welcome contributions! To find a good place to start coding, have a look at the currently open issues.
 *   Please describe issues in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
 *   Please develop new features in a new branch (typically on your own fork) and then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
-*   New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests] .
+*   New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests](/tests).
 
 
 ## Installation instructions: spack
@@ -54,9 +54,9 @@ libmpich-dev (>= 3.2-6), or other MPI library
 libboost-all-dev (>= 1.60)
 
 Additional (optional) dependencies:
-- OpenMP
-- HDF5
-- HighFive 
+-   OpenMP
+-   HDF5
+-   HighFive 
 
 #### Complete build:
 ```bash
@@ -82,19 +82,19 @@ to build the combi_example.
 For building only the DisCoTec library, run cmake with the `src` folder as source folder.
 
 #### Optional CMake Options
-- `DISCOTEC_TEST=**ON**|OFF` - Build tests if you build the complete project.
-- `DISCOTEC_BUILD_MISSING_DEPS=**ON**|OFF`- First order dependencies that are not found are built automatically (glpk is always built).
-- `DISCOTEC_TIMING=**ON**|OFF` - Enables internal timing
-- `DISCOTEC_USE_HDF5=**ON**|OFF`
-- `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive. If `DISCOTEC_USE_HIGHFIVE=ON`, `DISCOTEC_USE_HDF5` has also to be `ON`.
-- `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform decomposition of the grid.
-- `DISCOTEC_GENE=ON|**OFF**` - Currently GEne is not supported with CMake!
-- `DISCOTEC_OPENMP=ON|**OFF**` - Enables OpenMP support.
-- `DISCOTEC_ENABLEFT=ON|**OFF**` - Enables the use of the FT library.
-- `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler supports it.
-- `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI communication. This can be used to reduce the communication overhead.
-- `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - TODO: Add description
-- `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and compiles [the matching example](/examples/selalib_distributed/)
+-   `DISCOTEC_TEST=**ON**|OFF` - Build tests if you build the complete project.
+-   `DISCOTEC_BUILD_MISSING_DEPS=**ON**|OFF`- First order dependencies that are not found are built automatically (glpk is always built).
+-   `DISCOTEC_TIMING=**ON**|OFF` - Enables internal timing
+-   `DISCOTEC_USE_HDF5=**ON**|OFF`
+-   `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive. If `DISCOTEC_USE_HIGHFIVE=ON`, `DISCOTEC_USE_HDF5` has also to be `ON`.
+-   `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform decomposition of the grid.
+-   `DISCOTEC_GENE=ON|**OFF**` - Currently GEne is not supported with CMake!
+-   `DISCOTEC_OPENMP=ON|**OFF**` - Enables OpenMP support.
+-   `DISCOTEC_ENABLEFT=ON|**OFF**` - Enables the use of the FT library.
+-   `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler supports it.
+-   `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI communication. This can be used to reduce the communication overhead.
+-   `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - TODO: Add description
+-   `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and compiles [the matching example](/examples/selalib_distributed/)
 
 
 To run the compiled tests, go to folder `tests` and run
