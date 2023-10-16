@@ -87,6 +87,8 @@ int main(int argc, char** argv) {
         throw std::runtime_error("Not found: " + fullPathString);
       }
       std::cout << " processing " << fullPathString << std::endl;
+
+      Stats::startEvent("read file");
       std::ifstream inputFileStream(fullPathString, std::ifstream::in);
       // read values as h5 with highfive
       IndexVector extents{1 << level_reversed[0], 1 << level_reversed[1], 1 << level_reversed[2]};
@@ -101,6 +103,9 @@ int main(int argc, char** argv) {
       if (!(values.storage_order() == boost::fortran_storage_order())) {
         throw std::runtime_error("storage order not fortran");
       }
+      Stats::stopEvent("read file");
+      auto durationRead = Stats::getDuration("read file");
+      std::cout << "read file in " << durationRead << " milliseconds" << std::endl;
 
       // pass values to DistributedFullGrid
       auto componentGrid = combigrid::DistributedFullGrid<double>(
@@ -132,9 +137,14 @@ int main(int argc, char** argv) {
       }
 
       // interpolate on all points of combinedValues
+      Stats::startEvent("interpolate");
       auto valuesInterpolatedOnComponentGrid = componentGrid.getInterpolatedValues(coordinates);
+      Stats::stopEvent("interpolate");
+      auto durationInterpolate = Stats::getDuration("interpolate") / 1000.0;
+      std::cout << "interpolated in " << durationInterpolate << " seconds" << std::endl;
       assert(valuesInterpolatedOnComponentGrid.size() == combinedValues.getNrElements());
       auto combinationCoeff = coeffs[i];
+      Stats::startEvent("kahan sum");
 #pragma omp parallel for default(none) shared(combinationCoeff, valuesInterpolatedOnComponentGrid, \
                                                   kahanValues, combinedValues) schedule(static)
       for (size_t j = 0; j < valuesInterpolatedOnComponentGrid.size(); j++) {
@@ -144,6 +154,9 @@ int main(int argc, char** argv) {
         kahanValues.getData()[j] = (t - combinedValues.getData()[j]) - y;
         combinedValues.getData()[j] = t;
       }
+      Stats::stopEvent("kahan sum");
+      auto durationSum = Stats::getDuration("kahan sum");
+      std::cout << "summed in " << durationSum << " milliseconds" << std::endl;
     }
     // output interpolated values to h5 file
     std::string outputFileName = "combined_phi_" + df;
