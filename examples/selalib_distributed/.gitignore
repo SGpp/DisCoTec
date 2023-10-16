@@ -6,4 +6,4 @@ Makefile
 
 #executables
 selalib_distributed*
-combine_selalib_diagnostics
+combine_selalib_*

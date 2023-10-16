@@ -25,7 +25,7 @@ find_package(MPI REQUIRED)
 find_package(OpenMP REQUIRED)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
-add_executable(combine_selalib_diagnostics src/combine_selalib_diagnostics.cpp)
+add_executable(combine_selalib_diagnostics postprocessing/combine_selalib_diagnostics.cpp)
 add_executable(selalib_distributed src/selalib_distributed.cpp)
 add_executable(selalib_distributed_workers_only src/selalib_distributed_workers_only.cpp)
 
@@ -33,7 +33,17 @@ set( HDF5_USE_STATIC_LIBRARIES ON )
 find_package( HDF5 COMPONENTS C Fortran REQUIRED )
 
 target_compile_features(combine_selalib_diagnostics PRIVATE cxx_std_17)
-target_link_libraries(combine_selalib_diagnostics discotec ${Boost_LIBRARIES}  ${SELALIB_DIR}/lib/${SELALIB_INTERFACE_LIBRARY_NAME}.a)
+target_link_libraries(combine_selalib_diagnostics discotec ${Boost_LIBRARIES} )
+
+if(DISCOTEC_USE_HIGHFIVE)
+    add_executable(combine_selalib_phi postprocessing/combine_selalib_phi.cpp)
+    enable_language(C)
+    find_package(HDF5 REQUIRED)
+    find_package(HighFive REQUIRED)
+    target_include_directories(combine_selalib_phi PRIVATE ${HighFive_INCLUDE_DIRS})
+    target_compile_features(combine_selalib_phi PRIVATE cxx_std_17)
+    target_link_libraries(combine_selalib_phi discotec HighFive ${Boost_LIBRARIES} )
+endif()
 
 target_compile_features(selalib_distributed PRIVATE cxx_std_17)
 set_target_properties(selalib_distributed PROPERTIES LINKER_LANGUAGE Fortran)
