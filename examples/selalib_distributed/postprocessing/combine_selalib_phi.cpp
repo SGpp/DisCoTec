@@ -1,9 +1,7 @@
-#include <boost/filesystem.hpp>
 #include <boost/multi_array.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <filesystem>
 #include <highfive/H5File.hpp>
-#include <iomanip>  // std::setprecision()
 #include <iostream>
 #include <string>
 #include <vector>
@@ -12,11 +10,10 @@
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "hierarchization/DistributedHierarchization.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
+#include "utils/Stats.hpp"
 #include "utils/Types.hpp"
 
 using namespace combigrid;
-namespace fs = boost::filesystem;  // for file operations
-
 int main(int argc, char** argv) {
   [[maybe_unused]] auto mpiOnOff = MpiOnOff(&argc, &argv);
 
@@ -52,7 +49,7 @@ int main(int argc, char** argv) {
   std::string firstTaskFolder = basename + std::to_string(0);
   std::vector<std::string> diagnosticsFiles;
   // iterate files in folder starting with nameDiagnostics
-  for (const auto& entry : fs::directory_iterator(firstTaskFolder)) {
+  for (const auto& entry : std::filesystem::directory_iterator(firstTaskFolder)) {
     if (entry.path().filename().string().find(nameDiagnostics) == 0) {
       diagnosticsFiles.push_back(entry.path().filename().string());
     }
@@ -62,10 +59,8 @@ int main(int argc, char** argv) {
   MPI_Cart_create(MPI_COMM_SELF, 3, new int[3]{1, 1, 1}, new int[3]{1, 1, 1}, 1, &commSelfPeriodic);
 
   for (const auto& df : diagnosticsFiles) {
-    auto combinedFullGrid = combigrid::OwningDistributedFullGrid<double>(
-        dim_x, lmax_x, commSelfPeriodic, {1, 1, 1}, {1, 1, 1}, false);
-    auto combinedSparseGrid =
-        combigrid::DistributedSparseGridUniform<double>(dim_x, lmax_x, lmin_x, commSelfPeriodic);
+    combigrid::OwningDistributedFullGrid<double> combinedFullGrid(dim_x, lmax_x, commSelfPeriodic, {1, 1, 1}, {1, 1, 1}, false);
+    combigrid::DistributedSparseGridUniform<double> combinedSparseGrid(dim_x, lmax_x, lmin_x, commSelfPeriodic);
     combinedSparseGrid.registerDistributedFullGrid(combinedFullGrid);
     combinedSparseGrid.createSubspaceData();
 
@@ -75,7 +70,7 @@ int main(int argc, char** argv) {
       std::string taskFolder = basename + std::to_string(i);
       // assert that diagnostics are there
       std::string fullPathString = taskFolder + "/" + df;
-      if (!fs::exists(fullPathString)) {
+      if (!std::filesystem::exists(fullPathString)) {
         throw std::runtime_error("Not found: " + fullPathString);
       }
       std::cout << " processing " << fullPathString << std::endl;

@@ -1,10 +1,11 @@
-#include <boost/filesystem.hpp>
 #include <boost/property_tree/ini_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
 #include <boost/spirit/include/qi.hpp>
 #include <boost/spirit/include/qi_match.hpp>
 #include <boost/tokenizer.hpp>
+#include <chrono>
+#include <filesystem>
 #include <iomanip>  // std::setprecision()
 #include <iostream>
 #include <string>
@@ -14,7 +15,6 @@
 #include "utils/Types.hpp"
 
 using namespace combigrid;
-namespace fs = boost::filesystem;  // for file operations
 namespace qi = boost::spirit::qi;  // for parsing
 
 int main(int argc, char** argv) {
@@ -36,7 +36,6 @@ int main(int argc, char** argv) {
 
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
   combischeme.createClassicalCombischeme();
-  // combischeme.makeFaultTolerant();
   auto levels = combischeme.getCombiSpaces();
   auto coeffs = combischeme.getCoeffs();
 
@@ -54,24 +53,10 @@ int main(int argc, char** argv) {
       std::string taskFolder = baseFolder + suffix + std::to_string(i);
       // assert that diagnostics are there
       std::string fullPathString = taskFolder + "/" + df;
-      if (!fs::exists(fullPathString)) {
+      if (!std::filesystem::exists(fullPathString)) {
         throw std::runtime_error("Not found: " + fullPathString);
       }
       std::ifstream inputFileStream(fullPathString, std::ifstream::in);
-      // auto contents = getFile(inputFileStream);
-      // // boost tokenizer
-      // boost::tokenizer<boost::char_separator<char> > tokenizer(contents);
-      // for (auto it = tokenizer.begin(); it != tokenizer.end(); ++it){
-      //   std::cout << *it << " "<< std::endl;
-      // }
-      // // cf. https://stackoverflow.com/questions/29832534/boost-tokenizer-but-keeping-delimiter
-      //       std::vector<double> values;
-      // std::cin >> std::noskipws >> qi::phrase_match(*('"'>*qi::double_>'"'), qi::space, values);
-
-      // for (auto d : values)
-      //     std::cout << d << "\n";
-      // std::string myText("some-text-to-tokenize");
-      // std::istringstream iss(myText);
       std::string line;
       size_t numLines = 0;
       while (std::getline(inputFileStream, line)) {
