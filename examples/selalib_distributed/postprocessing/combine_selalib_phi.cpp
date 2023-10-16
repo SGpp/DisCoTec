@@ -10,6 +10,8 @@
 
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fullgrid/DistributedFullGrid.hpp"
+#include "hierarchization/DistributedHierarchization.hpp"
+#include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "utils/Types.hpp"
 
 using namespace combigrid;
@@ -35,6 +37,7 @@ int main(int argc, char** argv) {
   cfg.get<std::string>("ct.lmax") >> lmax;  // maximum level vector -> level vector of target grid
   // for some reason, the coordinates are reversed in selalib's h5 files
   LevelVector lmax_x = {lmax[2], lmax[1], lmax[0]};
+  LevelVector lmin_x = {lmin[2], lmin[1], lmin[0]};
   std::string basename = cfg.get<std::string>("preproc.basename");
   std::string nameDiagnostics =
       cfg.get<std::string>("application.name_diagnostics_phi", "diagnostics3d_add-");
@@ -58,25 +61,14 @@ int main(int argc, char** argv) {
   MPI_Comm commSelfPeriodic;
   MPI_Cart_create(MPI_COMM_SELF, 3, new int[3]{1, 1, 1}, new int[3]{1, 1, 1}, 1, &commSelfPeriodic);
 
-  // pre-allocate interpolation coordinates of lmax
-  std::vector<std::vector<real>> coordinates;
-  std::vector<real> coordinates_j = {0., 0., 0.};
-
-  // three-fold loop, increase coordinate by grid spacing
-  for (coordinates_j[2] = 0.; coordinates_j[2] < 1.; coordinates_j[2] += 1. / (1 << lmax_x[2])) {
-    for (coordinates_j[1] = 0.; coordinates_j[1] < 1.; coordinates_j[1] += 1. / (1 << lmax_x[1])) {
-      for (coordinates_j[0] = 0.; coordinates_j[0] < 1.;
-           coordinates_j[0] += 1. / (1 << lmax_x[0])) {
-        coordinates.push_back(coordinates_j);
-      }
-    }
-  }
-
   for (const auto& df : diagnosticsFiles) {
-    auto combinedValues = combigrid::OwningDistributedFullGrid<double>(
+    auto combinedFullGrid = combigrid::OwningDistributedFullGrid<double>(
         dim_x, lmax_x, commSelfPeriodic, {1, 1, 1}, {1, 1, 1}, false);
-    auto kahanValues = combigrid::OwningDistributedFullGrid<double>(dim_x, lmax_x, commSelfPeriodic,
-                                                                    {1, 1, 1}, {1, 1, 1}, false);
+    auto combinedSparseGrid =
+        combigrid::DistributedSparseGridUniform<double>(dim_x, lmax_x, lmin_x, commSelfPeriodic);
+    combinedSparseGrid.registerDistributedFullGrid(combinedFullGrid);
+    combinedSparseGrid.createSubspaceData();
+
     for (size_t i = 0; i < levels.size(); i++) {
       IndexVector level_reversed{levels[i][2], levels[i][1], levels[i][0]};
       // path to task folder
@@ -136,38 +128,48 @@ int main(int argc, char** argv) {
         assert(level_reversed[2] <= lmax_x[2]);
       }
 
-      // interpolate on all points of combinedValues
-      Stats::startEvent("interpolate");
-      auto valuesInterpolatedOnComponentGrid = componentGrid.getInterpolatedValues(coordinates);
-      Stats::stopEvent("interpolate");
-      auto durationInterpolate = Stats::getDuration("interpolate") / 1000.0;
-      std::cout << "interpolated in " << durationInterpolate << " seconds" << std::endl;
-      assert(valuesInterpolatedOnComponentGrid.size() == combinedValues.getNrElements());
-      auto combinationCoeff = coeffs[i];
+      Stats::startEvent("hierarchize");
+      DistributedHierarchization::hierarchizeHierarchicalHat<double>(componentGrid,
+                                                                     {true, true, true}, lmin_x);
+      Stats::stopEvent("hierarchize");
+      auto durationHierarchize = Stats::getDuration("hierarchize");
+      std::cout << "hierarchized in " << durationHierarchize << " milliseconds" << std::endl;
+
       Stats::startEvent("kahan sum");
-#pragma omp parallel for default(none) shared(combinationCoeff, valuesInterpolatedOnComponentGrid, \
-                                                  kahanValues, combinedValues) schedule(static)
-      for (size_t j = 0; j < valuesInterpolatedOnComponentGrid.size(); j++) {
-        auto summand = combinationCoeff * valuesInterpolatedOnComponentGrid[j];
-        auto y = summand - kahanValues.getData()[j];
-        auto t = combinedValues.getData()[j] + y;
-        kahanValues.getData()[j] = (t - combinedValues.getData()[j]) - y;
-        combinedValues.getData()[j] = t;
-      }
+      combinedSparseGrid.addDistributedFullGrid(componentGrid, coeffs[i]);
       Stats::stopEvent("kahan sum");
       auto durationSum = Stats::getDuration("kahan sum");
       std::cout << "summed in " << durationSum << " milliseconds" << std::endl;
     }
+    // scatter values to target grid
+    Stats::startEvent("scatter");
+    combinedFullGrid.extractFromUniformSG(combinedSparseGrid);
+    Stats::stopEvent("scatter");
+    Stats::startEvent("dehierarchize");
+    DistributedHierarchization::dehierarchizeHierarchicalHat<double>(combinedFullGrid,
+                                                                     {true, true, true}, lmin_x);
+    Stats::stopEvent("dehierarchize");
+    std::cout << "scattered in " << Stats::getDuration("scatter") << " and dehierarchized in "
+              << Stats::getDuration("dehierarchize") << " milliseconds" << std::endl;
+
+    boost::const_multi_array_ref<double, 3> combinedValues =
+        combinedFullGrid.getTensor().getAsConstMultiArrayRef<3>();
+    boost::multi_array<double, 3> combinedValuesCopy = combinedValues;
+
     // output interpolated values to h5 file
     std::string outputFileName = "combined_phi_" + df;
-    HighFive::File outputFile(outputFileName, HighFive::File::ReadWrite | HighFive::File::Create |
+    HighFive::File outputFile(outputFileName, HighFive::File::ReadWrite |
+                                                  HighFive::File::OpenOrCreate |
                                                   HighFive::File::Truncate);
-    HighFive::Group group = outputFile.createGroup("/");
-    std::vector<size_t> extentsMax{static_cast<size_t>(1 << lmax_x[0]),
-                                   static_cast<size_t>(1 << lmax_x[1]),
-                                   static_cast<size_t>(1 << lmax_x[2])};
-    HighFive::DataSet dataset = group.createDataSet<double>("phi", HighFive::DataSpace(extentsMax));
-    dataset.write(combinedValues.getData());
+    HighFive::Group group;
+    if (outputFile.exist("/")) {
+      group = outputFile.getGroup("/");
+    } else {
+      group = outputFile.createGroup("/");
+    }
+    HighFive::DataSet dataset =
+        group.createDataSet<double>("phi", HighFive::DataSpace::From(combinedValuesCopy));
+    dataset.write(combinedValuesCopy);
     outputFile.flush();
   }
 
