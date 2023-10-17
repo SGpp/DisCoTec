@@ -92,7 +92,7 @@ class HypercubeDownSetGenerator {
   HypercubeDownSetGenerator(const LevelVector& levelUpTo)
       : levelUpTo_(levelUpTo), currentLevel_(levelUpTo.size(), 1) {
     assert(levelUpTo_ > LevelVector(levelUpTo_.size(), 0));
-    currentLevel_[0] = 0;
+    currentLevel_[levelUpTo_.size() - 1] = 0;
   }
 
   // rule of 5
@@ -116,7 +116,7 @@ class HypercubeDownSetGenerator {
     {
       if (!this->isFinished()) {
         // find first dimension that can be increased
-        for (size_t i = 0; i < levelUpTo_.size(); ++i) {
+        for (int i = (levelUpTo_.size() - 1); i > -1; --i) {
           if (currentLevel_[i] < levelUpTo_[i]) {
             ++currentLevel_[i];
             break;
