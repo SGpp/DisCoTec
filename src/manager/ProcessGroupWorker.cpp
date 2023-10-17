@@ -829,18 +829,22 @@ void ProcessGroupWorker::waitForTokenFile(const std::string& startReadingTokenFi
   }
 }
 
+int ProcessGroupWorker::readReduce(const std::string& filenamePrefixToRead, bool overwrite) {
+  return getSparseGridWorker().readReduce(filenamePrefixToRead,
+               this->combiParameters_.getChunkSizeInMebibybtePerThread(), overwrite);
+}
+
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName,
     bool overwrite, bool keepSparseGridFiles) {
   // wait until we can start to read
   this->waitForTokenFile(startReadingTokenFileName);
 
-  MPI_Request request = MPI_REQUEST_NULL;
   overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
-  int numRead = this->getSparseGridWorker().readReduce(
-      filenamePrefixToRead, this->combiParameters_.getChunkSizeInMebibybtePerThread(), overwrite);
+  int numRead = this->readReduce(filenamePrefixToRead, overwrite);
   overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
 
+  MPI_Request request = MPI_REQUEST_NULL;
   if (this->combiParameters_.getCombinationVariant() ==
       CombinationVariant::chunkedOutgroupSparseGridReduce) {
     this->getSparseGridWorker().distributeChunkedBroadcasts(

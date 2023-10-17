@@ -97,6 +97,8 @@ class ProcessGroupWorker {
   void removeReadingFiles(const std::string& filenamePrefixToRead,
               const std::string& startReadingTokenFileName, bool keepSparseGridFiles) const;
 
+  int readReduce(const std::string& filenamePrefixToRead, bool overwrite);
+
   void combineThirdLevelFileBasedReadReduce(const std::string& filenamePrefixToRead,
                                             const std::string& startReadingTokenFileName,
                                             bool overwrite = false,
