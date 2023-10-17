@@ -719,7 +719,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
       }
 #endif  // NDEBUG
       subspaceIndices = std::move(dfg.getFGPointsOfSubspace(level));
-#pragma omp simd linear(sPointer, kPointer : 1)
+// #pragma omp simd linear(sPointer, kPointer : 1)
       for (size_t fIndex = 0; fIndex < subspaceIndices.size(); ++fIndex) {
         FG_ELEMENT summand = coeff * dfg.getData()[subspaceIndices[fIndex]];
         // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
