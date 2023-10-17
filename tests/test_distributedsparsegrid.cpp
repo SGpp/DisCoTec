@@ -643,13 +643,13 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
   
   start = std::chrono::high_resolution_clock::now();
   auto downSetGenerator = HypercubeDownSetGenerator(lmax);
-  auto previousFind = downSet.begin();
+  auto previousFind = downSet.end();
   static thread_local LevelVector level;
   for (LevelType i = 0; i < downSetGenerator.getTotalNumberOfLevels(); ++i) {
 #pragma omp critical
     level = downSetGenerator.getNextLevel();
     BOOST_CHECK(level.size() == lmin.size());
-    auto found = std::find(previousFind, downSet.end(), level);
+    auto found = std::find(downSet.begin(), previousFind, level);
     BOOST_REQUIRE(found != downSet.end());
     previousFind = found;
   }
