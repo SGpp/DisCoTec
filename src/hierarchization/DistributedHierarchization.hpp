@@ -25,8 +25,7 @@ class RemoteDataSlice {
    * \param[in] lowerBounds lower bounds of the subdomain where the remote data
    *            comes from. this is required for address calculations
    */
-  RemoteDataSlice(IndexType size, IndexType keyIndex) {
-    index1d_ = keyIndex;
+  RemoteDataSlice(IndexType size, IndexType keyIndex) : index1d_(keyIndex) {
     data_.resize(size);
   }
 
@@ -1129,6 +1128,8 @@ class DistributedHierarchization {
     // exchange data
     for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
+      if (lmin[dim] >= dfg.getLevels()[dim]) continue;
+
       RemoteDataCollector<FG_ELEMENT> remoteData;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
@@ -1209,6 +1210,8 @@ class DistributedHierarchization {
     assert(dfg.getDimension() == dims.size());
     for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
+      if (lmin[dim] >= dfg.getLevels()[dim]) continue;
+
       RemoteDataCollector<FG_ELEMENT> remoteData;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
