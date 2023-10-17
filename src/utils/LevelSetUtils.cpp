@@ -52,10 +52,8 @@ std::vector<std::vector<DimType>> getAllKOutOfDDimensions(DimType k, DimType d) 
 
 const std::vector<std::vector<DimType>>& AllKOutOfDDimensions::get(DimType k, DimType d) {
   auto key = std::make_pair(k, d);
-  if (cache_.find(key) == cache_.end()) {
-    cache_[key] = getAllKOutOfDDimensions(k, d);
-  }
-  return cache_[key];
+  auto [it, inserted] = cache_.insert(std::make_pair(key, getAllKOutOfDDimensions(k, d)));
+  return it->second;
 }
 std::map<std::pair<DimType, DimType>, std::vector<std::vector<DimType>>>
     AllKOutOfDDimensions::cache_;

@@ -569,7 +569,6 @@ void ProcessGroupWorker::parallelEval() {
 void ProcessGroupWorker::parallelEvalUniform(const std::string& filename,
                                              const LevelVector& leval) const {
   assert(uniformDecomposition);
-  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
   auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
                                                                combiParameters_.getLMax(), leval,
                                                                combiParameters_.getBoundary());
