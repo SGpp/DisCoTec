@@ -640,6 +640,24 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
   }
   BOOST_CHECK(std::is_sorted(downSet.begin(), downSet.end()));
   BOOST_CHECK(std::is_sorted(created.begin(), created.end()));
+  
+  start = std::chrono::high_resolution_clock::now();
+  auto downSetGenerator = HypercubeDownSetGenerator(lmax);
+  auto previousFind = downSet.begin();
+  static thread_local LevelVector level;
+  for (LevelType i = 0; i < downSetGenerator.getTotalNumberOfLevels(); ++i) {
+#pragma omp critical
+    level = downSetGenerator.getNextLevel();
+    BOOST_CHECK(level.size() == lmin.size());
+    auto found = std::find(previousFind, downSet.end(), level);
+    BOOST_REQUIRE(found != downSet.end());
+    previousFind = found;
+  }
+  end = std::chrono::high_resolution_clock::now();
+  duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE("time to generate and iterate downward closed set: " << duration.count()
+                                                                          << " milliseconds");
+  BOOST_CHECK_EQUAL(downSetGenerator.getTotalNumberOfLevels(), downSet.size());
 }
 
 BOOST_AUTO_TEST_CASE(test_getAllKOutOfDDimensions) {
