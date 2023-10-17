@@ -867,18 +867,15 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
     assert(dsg.isSubspaceDataCreated());
 
     // all the hierarchical subspaces contained in this full grid
-    auto downSetGenerator = HypercubeDownSetGenerator(levels_);
+    const auto downwardClosedSet = combigrid::getDownSet(levels_);
 
     // loop over all subspaces (-> somewhat linear access in the sg)
     size_t numCopied = 0;
     static thread_local IndexVector subspaceIndices;
-    static thread_local LevelVector level;
     typename AnyDistributedSparseGrid::SubspaceIndexType sIndex = 0;
-#pragma omp parallel for shared(dsg, downSetGenerator) default(none) schedule(guided) \
+#pragma omp parallel for shared(dsg, downwardClosedSet) default(none) schedule(guided) \
     firstprivate(sIndex) reduction(+ : numCopied)
-    for (LevelType i = 0; i < downSetGenerator.getTotalNumberOfLevels(); ++i) {
-#pragma omp critical
-      level = downSetGenerator.getNextLevel();
+    for (const auto& level : downwardClosedSet) {
       sIndex = dsg.getIndexInRange(level, sIndex);
       bool shouldBeCopied = sIndex > -1 && dsg.getDataSize(sIndex) > 0;
       if constexpr (!sparseGridFullyAllocated) {
@@ -896,7 +893,6 @@ std::vector<FG_ELEMENT> getInterpolatedValues(
         numCopied += subspaceIndices.size();
       }
     }
-    assert(downSetGenerator.isFinished());
     return numCopied;
   }
 
