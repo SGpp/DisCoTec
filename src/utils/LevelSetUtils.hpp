@@ -89,7 +89,7 @@ struct AllKOutOfDDimensions {
 
 class HypercubeDownSetGenerator {
  public:
-  HypercubeDownSetGenerator(const LevelVector& levelUpTo)
+  explicit HypercubeDownSetGenerator(const LevelVector& levelUpTo)
       : levelUpTo_(levelUpTo), currentLevel_(levelUpTo.size(), 1) {
     assert(levelUpTo_ > LevelVector(levelUpTo_.size(), 0));
     currentLevel_[levelUpTo_.size() - 1] = 0;
