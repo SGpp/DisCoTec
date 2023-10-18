@@ -23,7 +23,8 @@ class SparseGridWorker {
 
   template <bool keepValuesInExtraSparseGrid = false>
   inline void collectReduceDistribute(CombinationVariant combinationVariant,
-                                      uint32_t maxMiBToSendPerThread);
+                                      uint32_t maxMiBToSendPerThread,
+                                      bool collectMinMaxCoefficients = false);
 
   inline void copyFromExtraDsgToPartialDSG(int gridNumber = 0);
 
@@ -94,11 +95,12 @@ class SparseGridWorker {
   inline void startSingleBroadcastDSGs(CombinationVariant combinationVariant,
                                        RankType broadcastSender, MPI_Request* request);
 
-  inline int writeDSGsToDisk(std::string filenamePrefix, CombinationVariant combinationVariant);
+  inline int writeDSGsToDisk(const std::string& filenamePrefix,
+                             CombinationVariant combinationVariant);
 
   inline int writeExtraSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
-  inline void writeMinMaxCoefficients(std::string fileNamePrefix) const;
+  inline void writeMinMaxCoefficients(const std::string& fileNamePrefix) const;
 
   inline int writeSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
@@ -136,7 +138,8 @@ inline SparseGridWorker::SparseGridWorker(TaskWorker& taskWorkerToReference)
 
 template <bool keepValuesInExtraSparseGrid>
 inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combinationVariant,
-                                                      uint32_t maxMiBToSendPerThread) {
+                                                      uint32_t maxMiBToSendPerThread,
+                                                      bool collectMinMaxCoefficients) {
   auto numGrids = this->getNumberOfGrids();
   assert(combinationVariant == CombinationVariant::chunkedOutgroupSparseGridReduce);
   assert(numGrids == 1 && "Initialize dsgu first with initCombinedUniDSGVector()");
@@ -182,6 +185,9 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
         if constexpr (keepValuesInExtraSparseGrid) {
           this->copyFromPartialDsgToExtraDSG(g);
         }
+        if (collectMinMaxCoefficients) {
+          dsg->accumulateMinMaxCoefficients();
+        }
 
         // distribute (sg -> fg, within rank)
         for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
@@ -206,6 +212,9 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
       }
       if constexpr (keepValuesInExtraSparseGrid) {
         this->copyFromPartialDsgToExtraDSG(g);
+      }
+      if (collectMinMaxCoefficients) {
+        dsg->accumulateMinMaxCoefficients();
       }
 
       // distribute (sg -> fg, within rank)
@@ -377,6 +386,8 @@ inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendP
 }
 
 inline void SparseGridWorker::distributeCombinedSolutionToTasks() {
+  // not better than the parallel loop within extractFromUniformSG
+  // #pragma omp parallel for collapse(2) default(none) schedule(static)
   for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
     for (int g = 0; g < this->getNumberOfGrids(); ++g) {
       // fill dfg with hierarchical coefficients from distributed sparse grid
@@ -777,7 +788,7 @@ inline void SparseGridWorker::startSingleBroadcastDSGs(CombinationVariant combin
   }
 }
 
-inline int SparseGridWorker::writeDSGsToDisk(std::string filenamePrefix,
+inline int SparseGridWorker::writeDSGsToDisk(const std::string& filenamePrefix,
                                              CombinationVariant combinationVariant) {
   int numWritten = 0;
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
@@ -808,10 +819,11 @@ inline int SparseGridWorker::writeExtraSubspaceSizesToFile(
                                                            filenamePrefixToWrite);
 }
 
-inline void SparseGridWorker::writeMinMaxCoefficients(std::string fileNamePrefix) const {
+inline void SparseGridWorker::writeMinMaxCoefficients(const std::string& fileNamePrefix) const {
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
-    DistributedSparseGridIO::writeMinMaxCoefficents(*(this->getCombinedUniDSGVector()[i]),
-                                                    fileNamePrefix, i);
+    DistributedSparseGridIO::writeMinMaxCoefficents(
+        *(this->getCombinedUniDSGVector()[i]), fileNamePrefix, i, theMPISystem()->getLocalComm(),
+        theMPISystem()->getGlobalReduceComm());
   }
 }
 

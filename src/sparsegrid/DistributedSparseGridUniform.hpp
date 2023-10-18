@@ -77,6 +77,7 @@ class DistributedSparseGridDataContainer {
     size_t numDataPoints = dsgu_.getAccumulatedDataSize(subspacesWithData_);
     kahanData_.resize(numDataPoints, 0.);
     kahanDataBegin_.resize(dsgu_.getSubspaceDataSizes().size());
+    std::memset(kahanData_.data(), 0, kahanData_.size() * sizeof(FG_ELEMENT*));
     std::memset(kahanDataBegin_.data(), 0, kahanDataBegin_.size() * sizeof(FG_ELEMENT*));
 
     // update pointers for begin of subspacen in kahan buffer
@@ -120,12 +121,12 @@ class DistributedSparseGridDataContainer {
   }
 
   void allocateDifferentSubspaces(std::set<SubspaceIndexType>&& subspaces) {
-    subspacesWithData_ = std::move(subspaces);
-    subspacesData_.clear();
-    kahanData_.clear();
-    createSubspaceData();
-    createKahanBuffer();
-    setZero();
+#pragma omp single
+    {
+      subspacesWithData_ = std::move(subspaces);
+      createSubspaceData();
+      createKahanBuffer();
+    }
   }
 
  private:
@@ -183,6 +184,8 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   DistributedSparseGridUniform(DistributedSparseGridUniform&& other) = delete;
   DistributedSparseGridUniform& operator=(DistributedSparseGridUniform&& other) = delete;
 
+  DistributedSparseGridDataContainer<FG_ELEMENT>& getDataContainer();
+
   void swapDataContainers(DistributedSparseGridDataContainer<FG_ELEMENT>& otherContainer);
 
   void allocateDifferentSubspaces(std::set<SubspaceIndexType>&& subspaces);
@@ -236,6 +239,14 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
   SubspaceSizeType getAllocatedDataSize(SubspaceIndexType i) const;
 
+  std::vector<combigrid::real>& getMinCoefficientsPerSubspace();
+
+  std::vector<combigrid::real>& getMaxCoefficientsPerSubspace();
+
+  void clearMinMaxCoefficientsPerSubspace();
+
+  void accumulateMinMaxCoefficients();
+
   inline void registerDistributedFullGrid(const DistributedFullGrid<FG_ELEMENT>& dfg);
 
   template <bool sparseGridFullyAllocated = true>
@@ -268,6 +279,10 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
   std::vector<LevelVector> levels_;  // linear access to all subspaces; may be reset to save memory
 
   DistributedSparseGridDataContainer<FG_ELEMENT> subspacesDataContainer_;
+
+  std::vector<combigrid::real> maxCoefficientPerSubspace_;
+
+  std::vector<combigrid::real> minCoefficientPerSubspace_;
 };
 
 }  // namespace combigrid
@@ -497,6 +512,12 @@ inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getRawData() 
 }
 
 template <typename FG_ELEMENT>
+DistributedSparseGridDataContainer<FG_ELEMENT>&
+DistributedSparseGridUniform<FG_ELEMENT>::getDataContainer() {
+  return subspacesDataContainer_;
+}
+
+template <typename FG_ELEMENT>
 void DistributedSparseGridUniform<FG_ELEMENT>::swapDataContainers(
     DistributedSparseGridDataContainer<FG_ELEMENT>& otherContainer) {
   subspacesDataContainer_.swap(otherContainer);
@@ -558,6 +579,56 @@ SubspaceSizeType DistributedSparseGridUniform<FG_ELEMENT>::getAllocatedDataSize(
     return subspacesDataSizes_[i];
   } else {
     return 0;
+  }
+}
+
+template <typename FG_ELEMENT>
+std::vector<combigrid::real>&
+DistributedSparseGridUniform<FG_ELEMENT>::getMinCoefficientsPerSubspace() {
+  return minCoefficientPerSubspace_;
+}
+
+template <typename FG_ELEMENT>
+std::vector<combigrid::real>&
+DistributedSparseGridUniform<FG_ELEMENT>::getMaxCoefficientsPerSubspace() {
+  return maxCoefficientPerSubspace_;
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::clearMinMaxCoefficientsPerSubspace() {
+  maxCoefficientPerSubspace_.clear();
+  minCoefficientPerSubspace_.clear();
+}
+
+template <typename FG_ELEMENT>
+void DistributedSparseGridUniform<FG_ELEMENT>::accumulateMinMaxCoefficients() {
+  if (maxCoefficientPerSubspace_.empty()) {
+    maxCoefficientPerSubspace_.resize(this->getNumSubspaces(),
+                                      std::numeric_limits<combigrid::real>::min());
+    minCoefficientPerSubspace_.resize(this->getNumSubspaces(),
+                                      std::numeric_limits<combigrid::real>::max());
+  }
+  auto smaller_real = [](const FG_ELEMENT& one, const FG_ELEMENT& two) {
+    return std::real(one) < std::real(two);
+  };
+
+  auto currentlyAllocatedSubspaceIndices =
+      std::vector(this->getCurrentlyAllocatedSubspaces().cbegin(),
+                  this->getCurrentlyAllocatedSubspaces().cend());
+#pragma omp parallel for default(none) schedule(guided) \
+    shared(currentlyAllocatedSubspaceIndices, smaller_real)
+  for (SubspaceIndexType iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size();
+       ++iAllocated) {
+    SubspaceIndexType i = currentlyAllocatedSubspaceIndices[iAllocated];
+    if (this->getSubspaceDataSizes()[i] > 0) {
+      auto first = this->getData(i);
+      auto last = first + this->getSubspaceDataSizes()[i];
+      auto it = std::min_element(first, last, smaller_real);
+      minCoefficientPerSubspace_[i] = std::min(minCoefficientPerSubspace_[i], std::real(*it));
+      first = this->getData(i);
+      it = std::max_element(first, last, smaller_real);
+      maxCoefficientPerSubspace_[i] = std::max(maxCoefficientPerSubspace_[i], std::real(*it));
+    }
   }
 }
 
@@ -648,7 +719,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
       }
 #endif  // NDEBUG
       subspaceIndices = std::move(dfg.getFGPointsOfSubspace(level));
-#pragma omp simd linear(sPointer, kPointer : 1)
+// #pragma omp simd linear(sPointer, kPointer : 1)
       for (size_t fIndex = 0; fIndex < subspaceIndices.size(); ++fIndex) {
         FG_ELEMENT summand = coeff * dfg.getData()[subspaceIndices[fIndex]];
         // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm

@@ -25,8 +25,7 @@ class RemoteDataSlice {
    * \param[in] lowerBounds lower bounds of the subdomain where the remote data
    *            comes from. this is required for address calculations
    */
-  RemoteDataSlice(IndexType size, IndexType keyIndex) {
-    index1d_ = keyIndex;
+  RemoteDataSlice(IndexType size, IndexType keyIndex) : index1d_(keyIndex) {
     data_.resize(size);
   }
 
@@ -73,7 +72,8 @@ static IndexType checkPredecessors(IndexType idx, const DimType& dim,
                                    const LevelType& lmin);
 
 template <typename FG_ELEMENT>
-static IndexType getNextIndex1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d, IndexType idx1d);
+static IndexType getNextIndex1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
+                                IndexType idx1d);
 
 template <typename FG_ELEMENT>
 static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
@@ -123,7 +123,7 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
 
   numSend = 0;
   numRecv = 0;
-// #pragma omp parallel shared(sendRequests, numSend, send1dIndices, recvRequests, numRecv, \
+  // #pragma omp parallel shared(sendRequests, numSend, send1dIndices, recvRequests, numRecv, \
 //                                 remoteData, recv1dIndices, dfg, mysubarray)              \
 //     firstprivate(dfgStartAddr, dim) default(none)
   // no benefit from parallelization here
@@ -694,7 +694,7 @@ inline void hierarchize_full_weighting_boundary_kernel(FG_ELEMENT* data, LevelTy
       data[0] = 0.5 * (data[0] + data[step_width]);
       data[idxmax] = 0.5 * (data[idxmax] + data[idxmax - step_width]);
     }
-    // todo iterate only "our" part
+    // todo interleave with lower loop for better cache blocking
     auto leftParent = 0.25 * data[step_width];
     for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
       const auto rightParent = 0.25 * data[i + step_width];
@@ -757,7 +757,7 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
       data[0] = data[0] + 0.5 * data[step_width];
       data[idxmax] = data[idxmax] + 0.5 * data[idxmax - step_width];
     }
-    // todo iterate only "our" part
+    // todo interleave with upper loop for better cache blocking
     leftParent = 0.25 * data[step_width];
     for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
       const auto rightParent = 0.25 * data[i + step_width];
@@ -910,8 +910,8 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                      numberOfPolesHigherDimensions) shared(dfg, remoteData) default(none)
   for (IndexType nHigher = 0; nHigher < numberOfPolesHigherDimensions; ++nHigher) {
     for (IndexType nLower = 0; nLower < numberOfPolesLowerDimensions; ++nLower) {
-      IndexType poleStart = nHigher * jump + nLower;  // local linear index
-      IndexType poleNumber = nLower + nHigher * numberOfPolesLowerDimensions;
+      const IndexType poleStart = nHigher * jump + nLower;  // local linear index
+      const IndexType poleNumber = nLower + nHigher * numberOfPolesLowerDimensions;
 #ifndef NDEBUG
       IndexVector localIndexVector(dfg.getDimension());
       // compute global vector index of poleStart, make sure 0 in this dimension
@@ -924,10 +924,10 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
         tmp[remoteData[i].getKeyIndex()] = *remoteData[i].getData(poleNumber);
       }
       // copy local data
-#pragma omp simd  // no speedup here
+      size_t localDataIndex = static_cast<size_t>(poleStart);
       for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
-        const auto localStepped = localOffsetForThisDimension * i;
-        tmp[gstart + i] = ldata[poleStart + localStepped];
+        tmp[gstart + i] = ldata[localDataIndex];
+        localDataIndex += localOffsetForThisDimension;
       }
 
       if (oneSidedBoundary) {
@@ -947,10 +947,9 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
       }
 
       // copy pole back
-#pragma omp simd  // no speedup here
-      for (IndexType i = 0; i < dfg.getLocalSizes()[dim]; ++i) {
-        const auto localStepped = localOffsetForThisDimension * i;
-        ldata[poleStart + localStepped] = tmp[gstart + i];
+      for (IndexType i = dfg.getLocalSizes()[dim] - 1; i > -1; --i) {
+        localDataIndex -= localOffsetForThisDimension;
+        ldata[localDataIndex] = tmp[gstart + i];
         assert(!std::isnan(std::real(tmp[gstart + i])));
       }
     }
@@ -1129,6 +1128,8 @@ class DistributedHierarchization {
     // exchange data
     for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
+      if (lmin[dim] >= dfg.getLevels()[dim]) continue;
+
       RemoteDataCollector<FG_ELEMENT> remoteData;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
@@ -1209,6 +1210,8 @@ class DistributedHierarchization {
     assert(dfg.getDimension() == dims.size());
     for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
       if (!dims[dim]) continue;
+      if (lmin[dim] >= dfg.getLevels()[dim]) continue;
+
       RemoteDataCollector<FG_ELEMENT> remoteData;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {

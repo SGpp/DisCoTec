@@ -43,7 +43,7 @@
 /
 
 &output
-       file_prefix = "vp_B2_3d3v"
+       file_prefix = $name_diagnostics
        time_in_phase = .true. ! get solution at final time exactly (perform half advection step)
 /
 

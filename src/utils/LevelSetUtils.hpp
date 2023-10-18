@@ -49,7 +49,8 @@ inline IndexType getNumDofHierarchical(const LevelType& l_i, const BoundaryType&
   }
 }
 
-inline IndexType getNumDofHierarchical(const LevelVector& l, const std::vector<BoundaryType>& boundary) {
+inline IndexType getNumDofHierarchical(const LevelVector& l,
+                                       const std::vector<BoundaryType>& boundary) {
   assert(l.size() == boundary.size());
   auto b = boundary.cbegin();
   IndexType numDofPerSubspace = 1;
@@ -84,6 +85,53 @@ struct AllKOutOfDDimensions {
   static const std::vector<std::vector<DimType>>& get(DimType k, DimType d);
 
   static std::map<std::pair<DimType, DimType>, std::vector<std::vector<DimType>>> cache_;
+};
+
+class HypercubeDownSetGenerator {
+ public:
+  explicit HypercubeDownSetGenerator(const LevelVector& levelUpTo)
+      : levelUpTo_(levelUpTo), currentLevel_(levelUpTo.size(), 1) {
+    assert(levelUpTo_ > LevelVector(levelUpTo_.size(), 0));
+    currentLevel_[levelUpTo_.size() - 1] = 0;
+  }
+
+  // rule of 5
+  HypercubeDownSetGenerator() = delete;
+  HypercubeDownSetGenerator(const HypercubeDownSetGenerator& other) = default;
+  HypercubeDownSetGenerator(HypercubeDownSetGenerator&& other) = default;
+  HypercubeDownSetGenerator& operator=(const HypercubeDownSetGenerator& other) = default;
+  HypercubeDownSetGenerator& operator=(HypercubeDownSetGenerator&& other) = default;
+  ~HypercubeDownSetGenerator() = default;
+
+  LevelType getTotalNumberOfLevels() {
+    return std::accumulate(levelUpTo_.begin(), levelUpTo_.end(), 1, std::multiplies<LevelType>());
+  }
+
+  bool isFinished() {
+    return std::all_of(currentLevel_.begin(), currentLevel_.end(),
+                       [this](const LevelType& l) { return l == levelUpTo_[0]; });
+  }
+
+  LevelVector getNextLevel() {
+    {
+      if (!this->isFinished()) {
+        // find first dimension that can be increased
+        for (int i = (levelUpTo_.size() - 1); i > -1; --i) {
+          if (currentLevel_[i] < levelUpTo_[i]) {
+            ++currentLevel_[i];
+            break;
+          } else {
+            currentLevel_[i] = 1;
+          }
+        }
+      }
+    }
+    return currentLevel_;
+  }
+
+ private:
+  const LevelVector levelUpTo_;
+  LevelVector currentLevel_;
 };
 
 /**

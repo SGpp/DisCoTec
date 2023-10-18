@@ -1,6 +1,7 @@
 // Initial draft by Klaus Iglberger -- thank you!
 #pragma once
 
+#include <boost/multi_array.hpp>
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
@@ -128,6 +129,24 @@ class Tensor : public TensorIndexer {
   Type& operator()(IndexVector index) { return this->operator[](this->sequentialIndex(index)); }
   Type const& operator()(IndexVector index) const {
     return this->operator[](this->sequentialIndex(index));
+  }
+
+  template <std::size_t NumDims>
+  inline boost::multi_array_ref<Type, NumDims> getAsMultiArrayRef() {
+    if (NumDims != this->getExtentsVector().size()) {
+      throw std::invalid_argument("getDataAsMultiArray: NumDims != dimension");
+    }
+    return boost::multi_array_ref<Type, NumDims>(this->getData(), this->getExtentsVector(),
+                                                 boost::fortran_storage_order());
+  }
+
+  template <std::size_t NumDims>
+  inline boost::const_multi_array_ref<Type, NumDims> getAsConstMultiArrayRef() const {
+    if (NumDims != this->getExtentsVector().size()) {
+      throw std::invalid_argument("getDataAsMultiArray: NumDims != dimension");
+    }
+    return boost::const_multi_array_ref<Type, NumDims>(this->getData(), this->getExtentsVector(),
+                                                       boost::fortran_storage_order());
   }
 
  private:

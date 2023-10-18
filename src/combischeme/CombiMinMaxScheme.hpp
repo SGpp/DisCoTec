@@ -366,7 +366,7 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
 
 inline std::vector<long long int> getPartitionedNumDOFSGAdaptive(
     LevelVector lmin, LevelVector lmax, const LevelVector& referenceLevel,
-    const std::vector<IndexVector> decomposition) {
+    const std::vector<IndexVector>& decomposition) {
   assert((lmin.size() == lmax.size()) == (referenceLevel.size() == decomposition.size()));
   auto dim = static_cast<DimType>(lmin.size());
   CombiMinMaxScheme combischeme(dim, lmin, lmax);
@@ -445,7 +445,7 @@ inline long long int getNumDOFSGConjoint(
 // to be exchanged with the other system -- partitioned
 inline std::vector<long long int> getPartitionedNumDOFSGConjoint(
     const CombiMinMaxScheme& combischeme, const LevelVector& lmin,
-    const LevelVector& referenceLevel, const std::vector<IndexVector> decomposition) {
+    const LevelVector& referenceLevel, const std::vector<IndexVector>& decomposition) {
   auto conjointSet = getConjointSet(combischeme, lmin);
   return getPartitionedNumDOFSG(conjointSet, referenceLevel, decomposition);
 }

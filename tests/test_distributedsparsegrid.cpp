@@ -209,7 +209,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
         *uniDSG,
         "sparse_paraboloid_minmax_" + std::to_string(dim) + "D_" + std::to_string(size) + "_" +
             std::to_string(boundary[0]),
-        0);
+        0, uniDSG->getCommunicator());
     // and remove straight away
     if (rank == 0) {
       auto status = system("rm sparse_paraboloid_minmax_*");
@@ -249,11 +249,6 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
 
     BOOST_TEST_CHECKPOINT("Register to uniform SG");
     uniDSG->registerDistributedFullGrid(*largeUniDFG);//TODO create levels and actually test something
-
-    // // make sure that right min/max values are written %TODO remove file
-    // BOOST_TEST_CHECKPOINT("write min/max coefficients");
-    // uniDSG->writeMinMaxCoefficents(
-    //     "sparse_paraboloid_minmax_large_" + std::to_string(dim) + "D_" + std::to_string(size), 0);
 
     // check if the sizes set are actually the ones we calculate with CombiMinMaxScheme
     BOOST_TEST_CHECKPOINT("check subspace sizes");
@@ -645,6 +640,24 @@ BOOST_AUTO_TEST_CASE(test_createSubspacesSingleLevel_large) {
   }
   BOOST_CHECK(std::is_sorted(downSet.begin(), downSet.end()));
   BOOST_CHECK(std::is_sorted(created.begin(), created.end()));
+  
+  start = std::chrono::high_resolution_clock::now();
+  auto downSetGenerator = HypercubeDownSetGenerator(lmax);
+  auto previousFind = downSet.begin();
+  static thread_local LevelVector level;
+  for (LevelType i = 0; i < downSetGenerator.getTotalNumberOfLevels(); ++i) {
+#pragma omp critical
+    level = downSetGenerator.getNextLevel();
+    BOOST_CHECK(level.size() == lmin.size());
+    auto found = std::find(previousFind, downSet.end(), level);
+    BOOST_REQUIRE(found != downSet.end());
+    previousFind = found;
+  }
+  end = std::chrono::high_resolution_clock::now();
+  duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  BOOST_TEST_MESSAGE("time to generate and iterate downward closed set: " << duration.count()
+                                                                          << " milliseconds");
+  BOOST_CHECK_EQUAL(downSetGenerator.getTotalNumberOfLevels(), downSet.size());
 }
 
 BOOST_AUTO_TEST_CASE(test_getAllKOutOfDDimensions) {

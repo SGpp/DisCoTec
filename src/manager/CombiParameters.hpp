@@ -19,7 +19,7 @@ class CombiParameters {
                   std::vector<real>& coeffs, std::vector<size_t>& taskIDs,
                   IndexType numberOfCombinations, IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
-                  const std::vector<int> parallelization = {0},
+                  const std::vector<int>& parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   uint32_t sizeForChunkedCommunicationInMebibyte = 64,
@@ -59,7 +59,7 @@ class CombiParameters {
                   std::vector<BoundaryType>& boundary, IndexType numberOfCombinations,
                   IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
-                  const std::vector<int> parallelization = {0},
+                  const std::vector<int>& parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
                   uint32_t sizeForChunkedCommunicationInMebibyte = 64,
@@ -433,7 +433,7 @@ static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiPar
 }
 
 inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters,
-                                                std::string basisName) {
+                                                              const std::string& basisName) {
   if (basisName == "hat") {
     setCombiParametersHierarchicalBasesUniform<HierarchicalHatBasisFunction>(combiParameters);
   } else if (basisName == "hat_periodic") {

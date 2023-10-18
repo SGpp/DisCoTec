@@ -529,7 +529,7 @@ void ProcessGroupWorker::dehierarchizeAllTasks() {
   currentCombi_++;
 }
 
-void ProcessGroupWorker::combineAtOnce() {
+void ProcessGroupWorker::combineAtOnce(bool collectMinMaxCoefficients) {
   Stats::startEvent("hierarchize");
   this->getTaskWorker().hierarchizeFullGrids(
       combiParameters_.getBoundary(), combiParameters_.getHierarchizationDims(),
@@ -541,7 +541,7 @@ void ProcessGroupWorker::combineAtOnce() {
     Stats::startEvent("reduce/distribute");
     this->getSparseGridWorker().collectReduceDistribute<false>(
         combiParameters_.getCombinationVariant(),
-        combiParameters_.getChunkSizeInMebibybtePerThread());
+        combiParameters_.getChunkSizeInMebibybtePerThread(), collectMinMaxCoefficients);
     Stats::stopEvent("reduce/distribute");
   } else {
     Stats::startEvent("reduce");
@@ -569,7 +569,6 @@ void ProcessGroupWorker::parallelEval() {
 void ProcessGroupWorker::parallelEvalUniform(const std::string& filename,
                                              const LevelVector& leval) const {
   assert(uniformDecomposition);
-  bool forwardDecomposition = combiParameters_.getForwardDecomposition();
   auto levalDecomposition = combigrid::downsampleDecomposition(combiParameters_.getDecomposition(),
                                                                combiParameters_.getLMax(), leval,
                                                                combiParameters_.getBoundary());
