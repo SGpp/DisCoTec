@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "io/FileInputOutput.hpp"
 #include "io/MPIInputOutput.hpp"
 #include "mpi/MPISystem.hpp"
 
@@ -195,10 +196,9 @@ inline void Stats::write(const std::string& path, CommunicatorType comm) {
       buffer << std::endl << "}" << std::endl;
     }
     myJSONpart = buffer.str();
+
   }
-  bool success = mpiio::writeValuesConsecutive<char>(myJSONpart.data(), myJSONpart.size(), path,
-                                                     comm, true, false);
-  assert(success);
+  combigrid::writeConcatenatedFileRootOnly(myJSONpart.data(), myJSONpart.size(), path, comm, true);
 }
 
 inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType comm) {
@@ -272,18 +272,15 @@ inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType 
 
     myJSONpart = buffer.str();
   }
-  bool success = mpiio::writeValuesConsecutive<char>(myJSONpart.data(), myJSONpart.size(), path,
-                                                     comm, true, false);
-  assert(success);
+  combigrid::writeConcatenatedFileRootOnly(myJSONpart.data(), myJSONpart.size(), path, comm, true);
+
   partially_written_until_ = std::chrono::high_resolution_clock::now();
 }
 
 #else
 inline void Stats::initialize() {}
 inline void Stats::finalize() {}
-inline void Stats::startEvent(const std::string& name) {
-  event_[name].emplace_back();
-}
+inline void Stats::startEvent(const std::string& name) { event_[name].emplace_back(); }
 inline void Stats::setAttribute(const std::string& name, const std::string& value) {}
 inline void Stats::write(const std::string& path, CommunicatorType comm) {}
 inline void Stats::writePartial(const std::string& pathSuffix, CommunicatorType comm) {}
@@ -296,9 +293,9 @@ inline const Stats::Event Stats::stopEvent(const std::string& name) {
   event_[name].back().end = std::chrono::high_resolution_clock::now();
   Event e(event_[name].back());
 #ifndef TIMING
-  //prevent map from growing if TIMING is off
+  // prevent map from growing if TIMING is off
   event_.erase(name);
-#endif // def TIMING
+#endif  // def TIMING
   return e;
 }
 

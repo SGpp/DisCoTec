@@ -224,5 +224,6 @@ int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std:
   MPI_Info_free(&info);
   return readcount;
 }
+
 }  // namespace mpiio
 }  // namespace combigrid
