@@ -54,5 +54,49 @@ void compressBufferToLZ4String(const T* buffer, MPI_Offset numValues,
 #endif
 }
 
+template <typename T>
+void decompressLZ4StringToBuffer(const std::vector<char>& compressedString, MPI_Comm comm,
+                                 std::vector<T>& decompressedValues) {
+  size_t compressedEmptySize = 0;
+  size_t compressedSkippableSize = 0;
+#ifdef DISCOTEC_USE_LZ4
+
+  LZ4F_decompressOptions_t opts;
+  memset(&opts, 0, sizeof(opts));
+  opts.skipChecksums = 1;
+
+  LZ4F_dctx* dctx;
+  if (LZ4F_isError(LZ4F_createDecompressionContext(&dctx, LZ4F_VERSION))) {
+    throw std::runtime_error("LZ4 decompression failed ");
+  }
+
+  size_t decompressedByNow = 0;
+  T* decompressValuesStart = decompressedValues.data();
+  size_t readCompressedByNow = 0;
+  const char* readValuesStart = compressedString.data();
+  size_t decompressedSize = 0;
+  do {
+    decompressedSize = decompressedValues.size() * sizeof(T) - decompressedByNow;
+    auto sourceSize = compressedString.size() - readCompressedByNow;
+    [[maybe_unused]] auto hintNextBufferSize =
+        LZ4F_decompress(dctx, decompressedValues.data(), &decompressedSize, compressedString.data(),
+                        &sourceSize, &opts);
+    if (LZ4F_isError(decompressedSize)) {
+      throw std::runtime_error("LZ4 decompression failed: " +
+                               std::string(LZ4F_getErrorName(decompressedSize)));
+    }
+    decompressedByNow += decompressedSize;
+    decompressValuesStart += decompressedSize;
+    readCompressedByNow += sourceSize;
+    readValuesStart += sourceSize;
+  } while (decompressedSize > 0);
+
+  assert(decompressedByNow == decompressedValues.size());
+  assert(readCompressedByNow == compressedString.size());
+  [[maybe_unused]] auto freeResult = LZ4F_freeDecompressionContext(dctx);
+  assert(freeResult == 0);
+#endif
+}
+
 }  // namespace mpiio
 }  // namespace combigrid

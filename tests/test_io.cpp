@@ -25,17 +25,24 @@ void checkCompression() {
   auto localComm = theMPISystem()->getLocalComm();
 
   // generate random vector of doubles
-  size_t numValues = 1000000 + static_cast<size_t>(montecarlo::getRandomNumber(-rank, rank));
+  size_t numValues =
+      1000000 + static_cast<size_t>(montecarlo::getRandomNumber(-rank - 100, rank + 1));
   const std::vector<double> originalValues =
       std::move(montecarlo::getRandomCoordinates(1, numValues)[0]);
 
   std::vector<char> compressedString;
   mpiio::compressBufferToLZ4String(originalValues.data(), numValues, localComm, compressedString);
 
-  std::cout << "rank " << rank << " compressed from " << numValues * sizeof(double) << " bytes to "
-            << compressedString.size() << " bytes" << std::endl;
+  // assume size increase for non-compressible, random data
+  BOOST_CHECK_GT(compressedString.size(), numValues * sizeof(double));
 
-  decltype(originalValues) decompressedValues;
+  std::vector<double> decompressedValues(originalValues.size());
+
+  mpiio::decompressLZ4StringToBuffer(std::move(compressedString), localComm, decompressedValues);
+
+  BOOST_CHECK_EQUAL(originalValues.size(), decompressedValues.size());
+  BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
+                                decompressedValues.begin(), decompressedValues.end());
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
