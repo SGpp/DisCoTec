@@ -18,7 +18,7 @@ class CombiThirdLevelScheme {
    * Each part can be assigned to a system in the third level reduce.
    */
   static void decomposeScheme(const std::vector<LevelVector>& fullScheme,
-                              const std::vector<real> fullSchemeCoeffs,
+                              const std::vector<real>& fullSchemeCoeffs,
                               std::vector<std::vector<LevelVector>>& decomposedScheme,
                               std::vector<std::vector<real>>& decomposedCoeffs,
                               size_t numSystems = 2,

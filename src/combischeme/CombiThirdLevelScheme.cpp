@@ -29,7 +29,7 @@ void CombiThirdLevelScheme::createThirdLevelScheme(
 }
 
 void CombiThirdLevelScheme::decomposeScheme(const std::vector<LevelVector>& fullScheme,
-                                            const std::vector<real> fullSchemeCoeffs,
+                                            const std::vector<real>& fullSchemeCoeffs,
                                             std::vector<std::vector<LevelVector>>& decomposedScheme,
                                             std::vector<std::vector<real>>& decomposedCoeffs,
                                             size_t numSystems,
@@ -54,7 +54,7 @@ void CombiThirdLevelScheme::decomposeScheme(const std::vector<LevelVector>& full
     beginNextL = endIntervalL;
     beginNextC = endIntervalC;
   }
-  
+
   // assert that all are assigned
   assert(std::accumulate(decomposedScheme.begin(), decomposedScheme.end(), 0,
                          [](size_t a, const std::vector<LevelVector>& l) {
