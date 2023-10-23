@@ -111,7 +111,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     std::string subspaceSizeFileToken = "worker_only_subspace_sizes_token.txt";
     BOOST_TEST_CHECKPOINT("reduce sparse grid sizes");
     worker.reduceExtraSubspaceSizesFileBased(subspaceSizeFile, subspaceSizeFileToken,
-                                             subspaceSizeFile, subspaceSizeFileToken);
+                                             {subspaceSizeFile}, {subspaceSizeFileToken});
     // remove subspace size files to avoid interference between multiple calls to this test function
     BOOST_TEST_CHECKPOINT("reduced sparse grid sizes");
     MPI_Barrier(comm);
