@@ -716,9 +716,16 @@ void testCombineThirdLevelWithoutManagers(
     std::string writeSparseGridFile =
         "worker_sg_" + std::to_string(testParams.sysNum) + "_step_" + std::to_string(it);
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
-    std::string readSparseGridFile =
-        "worker_sg_" + std::to_string((testParams.sysNum + 1) % 2) + "_step_" + std::to_string(it);
-    std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
+    std::vector<std::string> readSparseGridFiles;
+    std::vector<std::string> readSparseGridFileTokens;
+
+    for (size_t i = 0; i < testParams.numSystems; ++i) {
+      if (i != testParams.sysNum) {
+        readSparseGridFiles.push_back("worker_sg_" + std::to_string(i) + "_step_" +
+                                      std::to_string(it));
+        readSparseGridFileTokens.push_back(readSparseGridFiles.back() + "_token.txt");
+      }
+    }
     BOOST_TEST_CHECKPOINT("combine system-wide");
     start = std::chrono::high_resolution_clock::now();
     worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
@@ -727,7 +734,7 @@ void testCombineThirdLevelWithoutManagers(
     Stats::writePartial("stats_thirdLevel_worker_" + std::to_string(testParams.sysNum) + ".json",
                         theMPISystem()->getWorldComm());
     BOOST_TEST_CHECKPOINT("combine read/reduce");
-    worker.combineReadDistributeSystemWide(readSparseGridFile, readSparseGridFileToken, false,
+    worker.combineReadDistributeSystemWide(readSparseGridFiles, readSparseGridFileTokens, false,
                                            false);
 
     end = std::chrono::high_resolution_clock::now();

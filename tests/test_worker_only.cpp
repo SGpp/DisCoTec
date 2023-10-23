@@ -165,7 +165,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
     worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
     BOOST_TEST_CHECKPOINT("worker read distribute system-wide");
-    worker.combineReadDistributeSystemWide(writeSparseGridFile, writeSparseGridFileToken, true);
+    worker.combineReadDistributeSystemWide({writeSparseGridFile}, {writeSparseGridFileToken}, true);
   } else {
     worker.combineAtOnce();
   }

@@ -209,16 +209,16 @@ SignalType ProcessGroupWorker::wait() {
     } break;
     case COMBINE_READ_DSGS_AND_REDUCE: {
       Stats::startEvent("combine third level read");
-      combineThirdLevelFileBasedReadReduce(receiveStringFromManagerAndBroadcastToGroup(),
-                                           receiveStringFromManagerAndBroadcastToGroup());
+      combineThirdLevelFileBasedReadReduce({receiveStringFromManagerAndBroadcastToGroup()},
+                                           {receiveStringFromManagerAndBroadcastToGroup()});
       Stats::stopEvent("combine third level read");
     } break;
     case COMBINE_THIRD_LEVEL_FILE: {
       Stats::startEvent("combine third level file");
       combineThirdLevelFileBased(receiveStringFromManagerAndBroadcastToGroup(),
                                  receiveStringFromManagerAndBroadcastToGroup(),
-                                 receiveStringFromManagerAndBroadcastToGroup(),
-                                 receiveStringFromManagerAndBroadcastToGroup());
+                                 {receiveStringFromManagerAndBroadcastToGroup()},
+                                 {receiveStringFromManagerAndBroadcastToGroup()});
       Stats::stopEvent("combine third level file");
     } break;
     case WAIT_FOR_TL_COMBI_RESULT: {
@@ -812,7 +812,7 @@ void ProcessGroupWorker::removeReadingFiles(const std::string& filenamePrefixToR
 }
 
 void ProcessGroupWorker::waitForTokenFile(const std::string& startReadingTokenFileName) const {
-  OUTPUT_GROUP_EXCLUSIVE_SECTION{
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
     Stats::startEvent("wait SG");
     MASTER_EXCLUSIVE_SECTION {
       std::cout << "Waiting for token file " << startReadingTokenFileName << std::endl;
@@ -829,19 +829,35 @@ void ProcessGroupWorker::waitForTokenFile(const std::string& startReadingTokenFi
 }
 
 int ProcessGroupWorker::readReduce(const std::string& filenamePrefixToRead, bool overwrite) {
-  return getSparseGridWorker().readReduce(filenamePrefixToRead,
-               this->combiParameters_.getChunkSizeInMebibybtePerThread(), overwrite);
+  return getSparseGridWorker().readReduce(
+      filenamePrefixToRead, this->combiParameters_.getChunkSizeInMebibybtePerThread(), overwrite);
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
-    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName,
-    bool overwrite, bool keepSparseGridFiles) {
-  // wait until we can start to read
-  this->waitForTokenFile(startReadingTokenFileName);
-
-  overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
-  int numRead = this->readReduce(filenamePrefixToRead, overwrite);
-  overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
+    const std::vector<std::string>& filenamePrefixesToRead,
+    const std::vector<std::string>& startReadingTokenFileNames, bool overwrite,
+    bool keepSparseGridFiles) {
+  // wait until we can start to read any of the files
+  std::set<size_t> indicesStillToReadReduce;
+  for (size_t i = 0; i < filenamePrefixesToRead.size(); ++i) {
+    indicesStillToReadReduce.insert(i);
+  }
+  while (!indicesStillToReadReduce.empty()) {
+    for (auto it = indicesStillToReadReduce.begin(); it != indicesStillToReadReduce.end(); ++it) {
+      if (combigrid::getFileExistsRootOnly(startReadingTokenFileNames[*it],
+                                           theMPISystem()->getOutputGroupComm(),
+                                           theMPISystem()->getOutputGroupRank())) {
+        overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
+        int numRead = this->readReduce(filenamePrefixesToRead[*it], overwrite);
+        assert(numRead > 0);
+        overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
+        indicesStillToReadReduce.erase(it);
+        break;  // because iterators may be invalidated
+      }
+    }
+    // wait for 200ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  }
 
   MPI_Request request = MPI_REQUEST_NULL;
   if (this->combiParameters_.getCombinationVariant() ==
@@ -851,8 +867,6 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
 
     this->dehierarchizeAllTasks();
   } else {
-    assert(numRead > 0);
-
     // I need to broadcast
     this->getSparseGridWorker().startSingleBroadcastDSGs(
         this->combiParameters_.getCombinationVariant(), theMPISystem()->getGlobalReduceRank(),
@@ -861,17 +875,22 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     // update fgs
     updateFullFromCombinedSparseGrids();
   }
-  this->removeReadingFiles(filenamePrefixToRead, startReadingTokenFileName, keepSparseGridFiles);
+  for (size_t i = 0; i < filenamePrefixesToRead.size(); ++i) {
+    // remove reading token and sparse grid file(s)
+    this->removeReadingFiles(filenamePrefixesToRead[i], startReadingTokenFileNames[i],
+                             keepSparseGridFiles);
+  }
 
   auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
 }
 
 void ProcessGroupWorker::combineReadDistributeSystemWide(
-    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName,
-    bool overwrite, bool keepSparseGridFiles) {
+    const std::vector<std::string>& filenamePrefixesToRead,
+    const std::vector<std::string>& startReadingTokenFileNames, bool overwrite,
+    bool keepSparseGridFiles) {
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
-    this->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName,
+    this->combineThirdLevelFileBasedReadReduce(filenamePrefixesToRead, startReadingTokenFileNames,
                                                overwrite, keepSparseGridFiles);
   }
   else {
@@ -887,12 +906,12 @@ void ProcessGroupWorker::combineReadDistributeSystemWide(
   }
 }
 
-void ProcessGroupWorker::combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
-                                                    const std::string& writeCompleteTokenFileName,
-                                                    const std::string& filenamePrefixToRead,
-                                                    const std::string& startReadingTokenFileName) {
+void ProcessGroupWorker::combineThirdLevelFileBased(
+    const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName,
+    const std::vector<std::string>& filenamePrefixesToRead,
+    const std::vector<std::string>& startReadingTokenFileNames) {
   this->combineThirdLevelFileBasedWrite(filenamePrefixToWrite, writeCompleteTokenFileName);
-  this->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead, startReadingTokenFileName);
+  this->combineThirdLevelFileBasedReadReduce(filenamePrefixesToRead, startReadingTokenFileNames);
 }
 
 void ProcessGroupWorker::setExtraSparseGrid(bool initializeSizes) {

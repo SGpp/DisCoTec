@@ -92,26 +92,28 @@ class ProcessGroupWorker {
 
   int combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
                                       const std::string& writeCompleteTokenFileName);
+
   void waitForTokenFile(const std::string& startReadingTokenFileName) const;
 
   void removeReadingFiles(const std::string& filenamePrefixToRead,
-              const std::string& startReadingTokenFileName, bool keepSparseGridFiles) const;
+                          const std::string& startReadingTokenFileName,
+                          bool keepSparseGridFiles) const;
 
   int readReduce(const std::string& filenamePrefixToRead, bool overwrite);
 
-  void combineThirdLevelFileBasedReadReduce(const std::string& filenamePrefixToRead,
-                                            const std::string& startReadingTokenFileName,
-                                            bool overwrite = false,
-                                            bool keepSparseGridFiles = false);
+  void combineThirdLevelFileBasedReadReduce(
+      const std::vector<std::string>& filenamePrefixesToRead,
+      const std::vector<std::string>& startReadingTokenFileNames, bool overwrite = false,
+      bool keepSparseGridFiles = false);
 
-  void combineReadDistributeSystemWide(const std::string& filenamePrefixToRead,
-                                       const std::string& startReadingTokenFileName,
+  void combineReadDistributeSystemWide(const std::vector<std::string>& filenamePrefixesToRead,
+                                       const std::vector<std::string>& startReadingTokenFileNames,
                                        bool overwrite = false, bool keepSparseGridFiles = false);
 
   void combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
                                   const std::string& writeCompleteTokenFileName,
-                                  const std::string& filenamePrefixToRead,
-                                  const std::string& startReadingTokenFileName);
+                                  const std::vector<std::string>& filenamePrefixToRead,
+                                  const std::vector<std::string>& startReadingTokenFileName);
 
   /** waits until the third level pg or output group bcasts the combined solution and updates
    * fgs */

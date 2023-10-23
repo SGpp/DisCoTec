@@ -274,12 +274,12 @@ int main(int argc, char** argv) {
         readSparseGridFile =
             "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
         std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
-        worker.combineReadDistributeSystemWide(readSparseGridFile, readSparseGridFileToken, false,
+        worker.combineReadDistributeSystemWide({readSparseGridFile}, {readSparseGridFileToken}, false,
                                                false);
 
       } else {
         readSparseGridFile = writeSparseGridFile;
-        worker.combineReadDistributeSystemWide(readSparseGridFile, writeSparseGridFileToken, true,
+        worker.combineReadDistributeSystemWide({readSparseGridFile}, {writeSparseGridFileToken}, true,
                                                false);
       }
       MIDDLE_PROCESS_EXCLUSIVE_SECTION {
