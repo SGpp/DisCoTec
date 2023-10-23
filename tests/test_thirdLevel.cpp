@@ -42,13 +42,15 @@ class TestParams {
   unsigned int nprocs = 1;
   unsigned int ncombi = 1;
   unsigned int sysNum = 0;
+  unsigned int numSystems = 2;
   const CommunicatorType& comm;
   std::string host = "localhost";
   unsigned short port = 9999;
 
-  TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax, BoundaryType boundary, unsigned int ngroup,
-             unsigned int nprocs, unsigned int ncombi, unsigned int sysNum,
-             const CommunicatorType& comm, const std::string& host = "localhost",
+  TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax, BoundaryType boundary,
+             unsigned int ngroup, unsigned int nprocs, unsigned int ncombi, unsigned int sysNum,
+             const CommunicatorType& comm, unsigned int numSystems = 2,
+             const std::string& host = "localhost",
 #ifdef NDEBUG
              unsigned short dataPort = 9999)
 #else
@@ -62,6 +64,7 @@ class TestParams {
         nprocs(nprocs),
         ncombi(ncombi),
         sysNum(sysNum),
+        numSystems(numSystems),
         comm(comm),
         host(host),
         port(dataPort) {
