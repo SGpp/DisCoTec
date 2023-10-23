@@ -1,5 +1,4 @@
 #include "io/FileInputOutput.hpp"
-
 #include <filesystem>
 #include <fstream>
 #include <numeric>
@@ -41,5 +40,15 @@ void writeConcatenatedFileRootOnly(const char* data, int sizeOfData, const std::
       out << recvBuffer;
       out.close();
     }
+}
+
+bool getFileExistsRootOnly(const std::string& fileName, CommunicatorType comm, RankType myRank,
+                           RankType rootRank) {
+  bool doesItExist = false;
+  if (myRank == rootRank) {
+    doesItExist = std::filesystem::exists(fileName);
+  }
+  MPI_Bcast(&doesItExist, 1, MPI_C_BOOL, rootRank, comm);
+  return doesItExist;
 }
 }  // namespace combigrid
