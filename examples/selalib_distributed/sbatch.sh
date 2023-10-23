@@ -12,11 +12,13 @@
 
 #SBATCH --ntasks=9
 
-export LD_LIBRARY_PATH=$(pwd)/../../../lib/sgpp:$(pwd)/../../../glpk/lib:$LD_LIBRARY_PATH
-export OMP_NUM_THREADS=1
+NGROUP=$(grep ngroup ctparam | awk -F"=" '{print $2}')
+NPROCS=$(grep nprocs ctparam | awk -F"=" '{print $2}')
 
-. ~/spack/share/spack/setup-env.sh
-spack load boost@1.74.0
-spack load hdf5@1.10.5
+export OMP_NUM_THREADS=1;export OMP_PLACES=cores;export OMP_PROC_BIND=close
 
-mpiexec.openmpi -n $SLURM_NTASKS ./selalib_distributed
+. ~/epyc/spack-newpackage/share/spack/setup-env.sh
+spack load hdf5 /3f3o2w6
+
+mpiexec.openmpi --rank-by core --map-by node:PE=${OMP_NUM_THREADS} -n $(($NGROUP*$NPROCS)) ./selalib_distributed_workers_only
+#mpiexec.openmpi --rank-by core --map-by node:PE=${OMP_NUM_THREADS} -n $(($NGROUP*$NPROCS+1)) ./selalib_distributed

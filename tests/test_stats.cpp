@@ -22,7 +22,7 @@ void checkStats(int size){
 
     int globalID;
     MPI_Comm_rank(MPI_COMM_WORLD, &globalID);
-    
+
     combigrid::Stats::initialize();
     BOOST_TEST_CHECKPOINT("stats setAttribute");
     combigrid::Stats::setAttribute("group", std::to_string(globalID));
@@ -30,8 +30,18 @@ void checkStats(int size){
     BOOST_TEST_CHECKPOINT("stats wait start");
     combigrid::Stats::startEvent("wait 5 seconds");
     std::this_thread::sleep_for(std::chrono::microseconds{5000});
-    BOOST_TEST_CHECKPOINT("stats wait stop");
     combigrid::Stats::stopEvent("wait 5 seconds");
+    combigrid::Stats::startEvent("wait 5 seconds");
+    std::this_thread::sleep_for(std::chrono::microseconds{5000});
+    combigrid::Stats::stopEvent("wait 5 seconds");
+
+    BOOST_TEST_CHECKPOINT("stats partial");
+    combigrid::Stats::startEvent("write partial twice");
+    combigrid::Stats::writePartial("test_stats_output", comm);
+    combigrid::Stats::writePartial("test_stats_output", comm);
+    combigrid::Stats::stopEvent("write partial twice");
+    BOOST_TEST_CHECKPOINT("stats partial again");
+    combigrid::Stats::writePartial("test_stats_output", comm);
 
     BOOST_TEST_CHECKPOINT("stats finalize");
     combigrid::Stats::finalize();

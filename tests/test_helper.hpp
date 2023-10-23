@@ -8,9 +8,8 @@
 #include <complex>
 #include <numeric>
 #include <vector>
-// #include <boost/test/floating_point_comparison.hpp>
-// new header for boost >= 1.59
-#include <boost/test/tools/floating_point_comparison.hpp>
+#include <boost/test/tools/floating_point_comparison.hpp> // new header for boost >= 1.59
+#include <boost/test/unit_test.hpp>
 #include "utils/Stats.hpp"
 
 namespace TestHelper{
@@ -39,6 +38,17 @@ namespace TestHelper{
     } else {
       return MPI_COMM_NULL;
     }
+  }
+
+  static inline MPI_Comm getCommSelfAsCartesian(combigrid::DimType dimensionality) {
+    std::vector<int> dims(dimensionality, 1);
+    std::vector<int> periods(dimensionality, 1);
+
+    // Create a communicator given the topology.
+    MPI_Comm new_communicator;
+    MPI_Cart_create(MPI_COMM_SELF, dimensionality, dims.data(), periods.data(), false,
+                    &new_communicator);
+    return new_communicator;
   }
 
   /**

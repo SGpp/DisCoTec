@@ -8,11 +8,12 @@ namespace combigrid {
 
 Task::Task() : isFinished_(false) {}
 
-Task::Task(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, 
-    LoadModel* loadModel, FaultCriterion* faultCrit)
+Task::Task(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+           LoadModel* loadModel, FaultCriterion* faultCrit)
     : faultCriterion_(faultCrit),
       dim_(dim),
       l_(l),
+      coeff_(coeff),
       boundary_(boundary),
       id_(count++),
       loadModel_(loadModel),
@@ -21,19 +22,25 @@ Task::Task(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, rea
   assert(l_.size() == dim_);
 }
 
-Task::~Task() {
-  delete faultCriterion_;
+Task::Task(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+           LoadModel* loadModel, FaultCriterion* faultCrit)
+    : Task(static_cast<DimType>(l.size()), l, boundary, coeff, loadModel, faultCrit) {}
+
+Task::~Task() { delete faultCriterion_; }
+
+const DistributedFullGrid<CombiDataType>& Task::getDistributedFullGrid(int n) const {
+  throw std::runtime_error("const getDistributedFullGrid called but not implemented");
 }
 
 size_t Task::count = 0;
 
-void Task::send(Task** t, RankType dst, CommunicatorType comm) {
+void Task::send(const Task* const t, RankType dst, CommunicatorType comm) {
   // save data to archive
   std::stringstream ss;
   {
     boost::archive::text_oarchive oa(ss);
     // write class instance to archive
-    oa << *t;
+    oa << t;
   }
   // create mpi buffer of archive
   std::string s = ss.str();

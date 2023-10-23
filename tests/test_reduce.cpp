@@ -31,8 +31,11 @@ using namespace combigrid;
  */
 class TaskConst : public combigrid::Task {
  public:
-  TaskConst(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel)
-      : Task(2, l, boundary, coeff, loadModel){}
+  TaskConst(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+            LoadModel* loadModel)
+      : Task(l, boundary, coeff, loadModel) {
+    assert(l.size() == 2);
+  }
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
     // parallelization
@@ -54,12 +57,12 @@ class TaskConst : public combigrid::Task {
     //   // std::cout << decomposition[1].back() << std::endl;
     // }
 
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p, false, decomposition);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                        getBoundary(), p, false, decomposition);
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    for (auto& element : elements) {
-      element = 10;
+    auto elements = dfg_->getData();
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
+      elements[i] = 10;
     }
   }
 
@@ -67,10 +70,10 @@ class TaskConst : public combigrid::Task {
 
     std::cout << "run " << getCommRank(lcomm) << std::endl;
     
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    for (auto& element : elements) {
+    auto elements = dfg_->getData();
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
       // BOOST_CHECK(abs(dfg_->getData()[li]));
-      element = static_cast<double>(getLevelVector()[0]) / getLevelVector()[1];
+      elements[i] = static_cast<double>(getLevelVector()[0]) / getLevelVector()[1];
     }
     BOOST_CHECK(dfg_);
 
@@ -98,7 +101,7 @@ class TaskConst : public combigrid::Task {
  private:
   friend class boost::serialization::access;
 
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
@@ -184,22 +187,14 @@ void checkCombine(size_t ngroup = 1, size_t nprocs = 1) {
     manager.runfirst();
 
     for (size_t it = 0; it < ncombi; ++it) {
-      // manager.combine();
-
-      // std::cout << "run next " << std::endl;
-      // manager.runnext();
       std::cout << "combine " << std::endl;
       manager.combine();
     }
-
-    // evaluate solution
-    FullGrid<CombiDataType> fg_eval(dim, leval, boundary);
-    manager.gridEval(fg_eval);
-    // std::cout << "fg_eval "<< fg_eval << std::endl;
-
+    
     // compare with known results:
     // point in the middle
-    CombiDataType midResult = fg_eval.getData()[fg_eval.getNrElements() / 2];
+    std::vector<std::vector<real>> midPoint = {{0.5, 0.5}};
+    auto midResult = manager.interpolateValues(midPoint)[0];
     std::cout << "midResult " << fabs(midResult) << std::endl;
     BOOST_TEST(fabs(midResult) == 1.333333333);
 
@@ -231,6 +226,18 @@ BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::higherTole
                                  boost::unit_test::timeout(60)) {
   std::cout << "reduce/test_2"<< std::endl;
   checkCombine(1,2);
+}
+
+BOOST_AUTO_TEST_CASE(test_3, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
+                                 boost::unit_test::timeout(60)) {
+  std::cout << "reduce/test_3"<< std::endl;
+  checkCombine(2,2);
+}
+
+BOOST_AUTO_TEST_CASE(test_4, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
+                                 boost::unit_test::timeout(60)) {
+  std::cout << "reduce/test_4"<< std::endl;
+  checkCombine(2,4);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

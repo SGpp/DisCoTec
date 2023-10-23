@@ -85,7 +85,7 @@ def createExperiment( dirname, lmin, lmax, leval, leval2, \
         call( ["./run.sh"] )
     
     # leave dir
-    os.chdir( '..' )
+    os.chdir('..')
 
 
 if __name__ == "__main__":

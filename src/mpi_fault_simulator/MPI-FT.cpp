@@ -565,7 +565,7 @@ void simft::Sim_FT_Perform_nb_operations(std::vector<simft::Sim_FT_Istats> *NB_o
             MPI_Iallreduce(&(*NB_ops_to_perform)[i].BuffChar.front(),
                            &(*NB_ops_to_perform)[i].BuffChar2.front(),
                            (*NB_ops_to_perform)[i].count, MPI_CHAR,
-                           (MPI_Op)(*NB_ops_to_perform)[i].op, f_comm->c_comm,
+                           simft::Op_to_MOp((*NB_ops_to_perform)[i].op), f_comm->c_comm,
                            &(*NB_ops_to_perform)[i].request->c_request);
 
           } else if ((*NB_ops_to_perform)[i].Datatype == 1) {  // MPI_INT
@@ -576,7 +576,7 @@ void simft::Sim_FT_Perform_nb_operations(std::vector<simft::Sim_FT_Istats> *NB_o
             // begin Iallreduce with dummy Array to free other nodes with active Iallreduces
             MPI_Iallreduce(&(*NB_ops_to_perform)[i].BuffInt.front(),
                            &(*NB_ops_to_perform)[i].BuffInt2.front(), (*NB_ops_to_perform)[i].count,
-                           MPI_INT, (MPI_Op)(*NB_ops_to_perform)[i].op, f_comm->c_comm,
+                           MPI_INT, simft::Op_to_MOp((*NB_ops_to_perform)[i].op), f_comm->c_comm,
                            &(*NB_ops_to_perform)[i].request->c_request);
 
           } else if ((*NB_ops_to_perform)[i].Datatype == 2) {  // MPI_DOUBLE
@@ -588,7 +588,7 @@ void simft::Sim_FT_Perform_nb_operations(std::vector<simft::Sim_FT_Istats> *NB_o
             MPI_Iallreduce(&(*NB_ops_to_perform)[i].BuffDouble.front(),
                            &(*NB_ops_to_perform)[i].BuffDouble2.front(),
                            (*NB_ops_to_perform)[i].count, MPI_DOUBLE,
-                           (MPI_Op)(*NB_ops_to_perform)[i].op, f_comm->c_comm,
+                           simft::Op_to_MOp((*NB_ops_to_perform)[i].op), f_comm->c_comm,
                            &(*NB_ops_to_perform)[i].request->c_request);
 
           } else {

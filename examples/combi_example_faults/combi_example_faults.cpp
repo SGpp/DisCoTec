@@ -7,8 +7,6 @@
 #include "mpi.h"
 #include <vector>
 #include <set>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/ini_parser.hpp>
 #include <boost/serialization/export.hpp>
 
 // compulsory includes for basic functionality
@@ -16,6 +14,7 @@
 #include "utils/Types.hpp"
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fullgrid/FullGrid.hpp"
+#include "io/BroadcastParameters.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupManager.hpp"
@@ -116,14 +115,11 @@ int main(int argc, char** argv) {
     }
 
     /* create combi parameters */
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
-    params.setParallelization(p);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
+                           CombinationVariant::sparseGridReduce, p);
 
     /* create Manager with process groups */
     ProcessManager manager( pgroups, tasks, params, std::move(loadmodel) );
-
-    /* send combi parameters to workers */
-    manager.updateCombiParameters();
 
     /* distribute task according to load model and start computation for
      * the first time */
@@ -191,7 +187,6 @@ int main(int argc, char** argv) {
         /* restore combischeme to its original state
          * and send new combiParameters to all surviving groups */
         manager.restoreCombischeme();
-        manager.updateCombiParameters();
       }
 
       /* run tasks for next time interval */

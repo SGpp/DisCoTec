@@ -1,0 +1,31 @@
+CC=$(CC)
+CFLAGS=-std=c++11 -DNDEBUG -march=native -O3 -fopenmp -Wno-deprecated-declarations -Wno-unused-local-typedefs -Wno-deprecated -Wno-uninitialized -Wall -DTIMING
+#-DTIMING
+
+SGPP_DIR=../../../
+GLPK_DIR=$(SGPP_DIR)/glpk/
+BOOST_ROOT=/opt/hlrs/spack/rev-004_2020-06-17/boost/1.70.0-gcc-9.2.0-ohuvjbhm
+
+LD_SGPP=-L$(SGPP_DIR)/lib/sgpp
+INC_SGPP=-I$(SGPP_DIR)/distributedcombigrid/src/
+LD_GLPK=-L$(GLPK_DIR)/lib
+INC_GLPK=-I$(GLPK_DIR)/include
+LD_BOOST=-L$(BOOST_ROOT)/lib
+INC_BOOST=-I$(BOOST_ROOT)/include
+
+LDIR=$(LD_SGPP) $(LD_GLPK) $(LD_BOOST)
+INC=$(INC_SGPP) $(INC_GLPK) $(INC_BOOST)
+
+LIBS=-lsgppdistributedcombigrid -lboost_serialization -lglpk
+#LIBS=-lsgppdistributedcombigridstatic -lboost_serialization -lglpk
+
+all: combi_example manager_only
+
+combi_example: combi_example.cpp TaskAdvection.hpp
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o combi_example combi_example.cpp $(LIBS) -DUNIFORMDECOMPOSITION 
+
+manager_only: combi_example_manager_only.cpp
+	$(CC) $(CFLAGS) $(LDIR) $(INC) -o manager_only combi_example_manager_only.cpp $(LIBS) -DUNIFORMDECOMPOSITION -DTIMING
+
+clean:
+	rm -f *.o out/* combi_example manager_only

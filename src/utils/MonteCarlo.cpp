@@ -1,12 +1,43 @@
+#include "utils/MonteCarlo.hpp"
+
 #include <algorithm>
 #include <cassert>
 #include <functional>
 #include <random>
 
 #include "utils/Config.hpp"
-#include "utils/MonteCarlo.hpp"
 
 namespace combigrid {
+
+std::vector<real> serializeInterpolationCoords(
+    const std::vector<std::vector<real>>& interpolationCoords) {
+  auto coordsSize = interpolationCoords.size() * interpolationCoords[0].size();
+  std::vector<real> interpolationCoordsSerial;
+  interpolationCoordsSerial.reserve(coordsSize);
+  for (const auto& coord : interpolationCoords) {
+    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
+  }
+  return interpolationCoordsSerial;
+}
+
+std::vector<std::vector<real>> deserializeInterpolationCoords(
+    const std::vector<real>& interpolationCoordsSerial, DimType numDimensions) {
+  const int dimInt = static_cast<int>(numDimensions);
+  assert(interpolationCoordsSerial.size() % dimInt == 0);
+  auto numCoords = interpolationCoordsSerial.size() / dimInt;
+  std::vector<std::vector<real>> interpolationCoords;
+  interpolationCoords.reserve(numCoords);
+  auto it = interpolationCoordsSerial.cbegin();
+  for (size_t i = 0; i < numCoords; ++i) {
+    interpolationCoords.emplace_back(it, it + dimInt);
+    std::advance(it, dimInt);
+  }
+  assert(interpolationCoords[0].size() == numDimensions);
+  assert(interpolationCoords[0].size() * interpolationCoords.size() ==
+         interpolationCoordsSerial.size());
+  return interpolationCoords;
+}
+
 namespace montecarlo {
 std::vector<std::vector<real>> getRandomCoordinates(int numCoordinates, size_t dim) {
   std::vector<std::vector<real>> randomCoords (numCoordinates, std::vector<real>(dim));
@@ -27,8 +58,6 @@ std::vector<std::vector<real>> getRandomCoordinates(int numCoordinates, size_t d
 }
 
 void getNumberSequenceFromSeed(std::vector<real>& randomNumsToBeSet, size_t seed) {
-  static_assert(std::is_same<CombiDataType,real>::value, "when using this, implement for other CombiDataType");
-
   std::mt19937 mersenne_engine {seed};
   std::uniform_real_distribution<> dist {0., 1.};
   auto gen = [&](){
@@ -42,5 +71,5 @@ real getRandomNumber(real&& a, real&& b) {
   std::uniform_real_distribution<> dist {std::forward<real>(a), std::forward<real>(b)};
   return dist(mersenne_engine);
 }
-}
-}
+}  // namespace montecarlo
+}  // namespace combigrid

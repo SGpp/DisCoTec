@@ -50,17 +50,18 @@ int get_memory_usage_kb(unsigned long* vmrss_kb, unsigned long* vmsize_kb) {
 }
 
 int get_all_memory_usage_kb(unsigned long* vmrss, unsigned long* vmsize, CommunicatorType comm) {
-
-  unsigned long vmrss_kb, vmsize_kb;
-  int ret_code = get_memory_usage_kb(&vmrss_kb, &vmsize_kb);
+  MPI_Barrier(comm);
+  unsigned long vmbuf[2]; /* vmrss_kb, vmsize_kb */
+  int ret_code = get_memory_usage_kb(&vmbuf[0], &vmbuf[1]);
   if (ret_code != 0) {
     printf("Could not gather memory usage!\n");
     return ret_code;
   }
 
-  MPI_Allreduce(&vmrss_kb, vmrss, 1, MPI_UNSIGNED_LONG, MPI_SUM, comm);
+  MPI_Allreduce(MPI_IN_PLACE, vmbuf, 2, MPI_UNSIGNED_LONG, MPI_SUM, comm);
 
-  MPI_Allreduce(&vmsize_kb, vmsize, 1, MPI_UNSIGNED_LONG, MPI_SUM, comm);
+  *vmrss = vmbuf[0];
+  *vmsize = vmbuf[1];
   return 0;
 }
 

@@ -1,0 +1,20 @@
+[ct]
+dim = 2
+lmin = 1 1
+lmax = 7 7
+p = 1 1
+ncombi = 2
+ctscheme = scheme_2D_7-7_split2_00001groups.json
+
+[application]
+dt = 1e-3
+nsteps = 1
+mcerror = 1
+
+[manager]
+ngroup = 1
+nprocs = 1
+
+[thirdLevel]
+systemNumber = 1
+numSystems = 2

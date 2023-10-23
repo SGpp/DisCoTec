@@ -3,6 +3,11 @@
 namespace combigrid {
 
 void CombiMinMaxScheme::createClassicalCombischeme() {
+  assert(levels_.empty());
+  assert(coefficients_.empty());
+  if (lmin_.empty() || lmax_.empty() || lmin_.size() != lmax_.size()) {
+    throw std::runtime_error("lmin and/or lmax have bad size");
+  }
   // Remove dummy dimensions (e.g. if lmin = (2,2,2) and lmax = (4,4,2), dimension 3 is dummy
   // and effDim_ = 2)
   LevelVector lmaxtmp = lmax_;
@@ -15,7 +20,12 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
       dummyDims.push_back(i);
     }
   }
-
+  if (lmintmp.empty()) {
+    assert(lmin_ == lmax_);
+    levels_.push_back(lmin_);
+    coefficients_.push_back(1.0);
+    return;
+  }
   // compute c which fulfills lmax - c*1  >= lmin
   LevelType c(0);
   LevelVector cv = lmaxtmp - lmintmp;
@@ -29,7 +39,6 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
   for (DimType i = 0; i < static_cast<DimType>(lmin_.size()); ++i) {
     lmin_[i] = static_cast<LevelType>(lmax_[i] - c);
   }
-
   combigrid::createTruncatedHierarchicalLevels(lmaxtmp, lmintmp, levels_);
 
   // re-insert dummy dimensions left out
@@ -48,6 +57,10 @@ void CombiMinMaxScheme::createClassicalCombischeme() {
     }
   }
   computeCombiCoeffsClassical();
+
+  if (levels_.empty()) {
+    throw std::runtime_error("No combination levels!");
+  }
 }
 
 LevelVector getFurthestCorner(LevelVector& lmax, LevelVector& lmin) {
@@ -78,6 +91,9 @@ void CombiMinMaxScheme::createAdaptiveCombischeme() {
   }
 
   computeCombiCoeffsAdaptive();
+  if (levels_.empty()) {
+    throw std::runtime_error("No combination levels!");
+  }
 }
 
 /*

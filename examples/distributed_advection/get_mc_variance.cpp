@@ -8,9 +8,6 @@
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/json_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
 #include <string>
 #include <vector>
@@ -22,8 +19,8 @@
 #include "fault_tolerance/StaticFaults.hpp"
 #include "fault_tolerance/WeibullFaults.hpp"
 #include "fullgrid/FullGrid.hpp"
+#include "io/BroadcastParameters.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
-#include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupManager.hpp"
 #include "manager/ProcessGroupWorker.hpp"
 #include "manager/ProcessManager.hpp"
@@ -46,11 +43,11 @@ BOOST_CLASS_EXPORT(TaskAdvection)
 
 int main(int argc, char** argv) {
   
-// read in parameter file
+  // only one rank reads parameter file and broadcasts to others
   std::string paramfile = "ctparam";
   if (argc > 1) paramfile = argv[1];
-  boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini(paramfile, cfg);
+  boost::property_tree::ptree cfg =
+      broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
 
   Stats::initialize();
 

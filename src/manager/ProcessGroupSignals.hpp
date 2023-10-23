@@ -12,10 +12,10 @@ const SignalType GRID_EVAL = 3;
 const SignalType COMBINE = 4;
 const SignalType EXIT = 5;
 const SignalType SYNC_TASKS = 6;
-const SignalType TEST_CONVERSION = 7;
+// const SignalType TEST_CONVERSION = 7;
 const SignalType COMBINE_FG = 8;
-const SignalType EV_CALC_FG = 9;
-const SignalType EV_CALC_FG_INIT = 10;
+// const SignalType EV_CALC_FG = 9;
+// const SignalType EV_CALC_FG_INIT = 10;
 const SignalType GRID_GATHER = 11;
 const SignalType UPDATE_COMBI_PARAMETERS = 12;
 const SignalType ADD_TASK = 13;
@@ -23,7 +23,7 @@ const SignalType RECOMPUTE = 14;
 const SignalType CHECK_DEAD_PROCS = 15;  // check for dead workers
 const SignalType RECOVER_COMM = 16;
 const SignalType PARALLEL_EVAL = 17;
-const SignalType DO_NOTHING = 18;
+// const SignalType DO_NOTHING = 18;
 const SignalType RESET_TASKS = 19;
 
 /** Signal for initializing the subspaces of the dsgs.
@@ -48,6 +48,16 @@ const SignalType RESCHEDULE_ADD_TASK = 21;
  */
 const SignalType RESCHEDULE_REMOVE_TASK = 22;
 
+
+/** Third level specific signals */
+const SignalType COMBINE_LOCAL_AND_GLOBAL = 23;
+const SignalType COMBINE_THIRD_LEVEL = 24;
+const SignalType WAIT_FOR_TL_COMBI_RESULT = 25;
+const SignalType REDUCE_SUBSPACE_SIZES_TL = 26;
+const SignalType WAIT_FOR_TL_SIZE_UPDATE = 27;
+
+const SignalType WRITE_DFGS_TO_VTK = 28;
+
 const SignalType RUN_FIRST = 29;
 
 const SignalType GET_L2_NORM = 30;
@@ -61,8 +71,17 @@ const SignalType DO_DIAGNOSTICS = 37;
 const SignalType WRITE_DSG_MINMAX_COEFFICIENTS = 38;
 const SignalType WRITE_INTERPOLATED_VALUES_PER_GRID = 39;
 
+const SignalType REDUCE_SUBSPACE_SIZES_TL_AND_ALLOCATE_EXTRA_SG = 40;
+
 const SignalType WRITE_DSGS_TO_DISK = 41;
 const SignalType READ_DSGS_FROM_DISK = 42;
+
+const SignalType COMBINE_THIRD_LEVEL_FILE = 43;
+const SignalType COMBINE_WRITE_DSGS = 44;
+const SignalType COMBINE_READ_DSGS_AND_REDUCE = 45;
+
+const SignalType INTERPOLATE_VALUES_AND_SEND_BACK = 46;
+const SignalType INTERPOLATE_VALUES_AND_WRITE_SINGLE_FILE = 47;
 
 typedef int NormalizationType;
 const NormalizationType NO_NORMALIZATION = 0;

@@ -5,7 +5,7 @@ standard_library.install_aliases()
 from builtins import str
 from builtins import range
 from sys import path
-path.append('./gene_python_interface')
+path.append('gene_python_interface')
 
 from configparser import SafeConfigParser
 import collections

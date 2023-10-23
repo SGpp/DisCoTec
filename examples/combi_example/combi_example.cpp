@@ -4,9 +4,9 @@
  *  Created on: Sep 23, 2015
  *      Author: heenemo
  */
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
 #include <string>
 #include <vector>
@@ -17,6 +17,7 @@
 #include "fault_tolerance/StaticFaults.hpp"
 #include "fault_tolerance/WeibullFaults.hpp"
 #include "fullgrid/FullGrid.hpp"
+#include "io/BroadcastParameters.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupManager.hpp"
@@ -34,16 +35,18 @@ using namespace combigrid;
 BOOST_CLASS_EXPORT(TaskExample)
 
 int main(int argc, char** argv) {
-  MPI_Init(&argc, &argv);
+  [[maybe_unused]] auto mpiOnOff = MpiOnOff(&argc, &argv);
 
   /* when using timers (TIMING is defined in Stats), the Stats class must be
    * initialized at the beginning of the program. (and finalized in the end)
    */
   Stats::initialize();
 
-  // read in parameter file
-  boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini("ctparam", cfg);
+  // only one rank reads inputs and broadcasts to others
+  std::string paramfile = "ctparam";
+  if (argc > 1) paramfile = argv[1];
+  boost::property_tree::ptree cfg =
+      broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
@@ -109,20 +112,17 @@ int main(int argc, char** argv) {
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskExample(dim, levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
+      Task* t = new TaskExample(levels[i], boundary, coeffs[i], loadmodel.get(), dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
 
     // create combiparameters
-    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1);
-    params.setParallelization(p);
+    CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
+                           CombinationVariant::sparseGridReduce, p);
+
     // create abstraction for Manager
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
-
-    // the combiparameters are sent to all process groups before the
-    // computations start
-    manager.updateCombiParameters();
 
     std::cout << "set up component grids and run until first combination point" << std::endl;
 
@@ -133,13 +133,18 @@ int main(int argc, char** argv) {
     Stats::stopEvent("manager run first");
 
     for (size_t i = 0; i < ncombi; ++i) {
+
+      // start = MPI_Wtime();
+
       Stats::startEvent("combine");
       manager.combine();
       Stats::stopEvent("combine");
+      // finish = MPI_Wtime();
+      // std::cout << "combination " << i << " took: " << finish-start << " seconds" << std::endl;
 
       // evaluate solution and
       // write solution to file
-      std::string filename("out/solution_" + std::to_string(ncombi) + ".dat");
+      std::string filename("out/solution_" + std::to_string(i) + ".out");
       Stats::startEvent("manager write solution");
       manager.parallelEval(leval, filename, 0);
       Stats::stopEvent("manager write solution");
@@ -147,10 +152,18 @@ int main(int argc, char** argv) {
       std::cout << "run until combination point " << i + 1 << std::endl;
 
       // run tasks for next time interval
+      // start = MPI_Wtime();
       Stats::startEvent("manager run");
       manager.runnext();
       Stats::stopEvent("manager run");
+      // finish = MPI_Wtime();
+      // std::cout << "calculation " << i << " took: " << finish-start << " seconds" << std::endl;
     }
+
+    Stats::startEvent("manager write vtk");
+    for (auto group : pgroups)
+      manager.writeCombigridsToVTKPlotFile(group);
+    Stats::stopEvent("manager write vtk");
 
     // send exit signal to workers in order to enable a clean program termination
     manager.exit();
@@ -171,8 +184,6 @@ int main(int argc, char** argv) {
 
   /* write stats to json file for postprocessing */
   Stats::write("timers.json");
-
-  MPI_Finalize();
 
   return 0;
 }

@@ -6,6 +6,7 @@ project("DisCoTec main project"
 
 add_subdirectory(src)
 add_subdirectory(examples)
+add_subdirectory(third_level_manager)
 add_subdirectory(tools)
 
 option(DISCOTEC_TEST "Build with Boost tests" ON) #TODO: more sensible description

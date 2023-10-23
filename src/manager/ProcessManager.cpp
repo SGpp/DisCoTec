@@ -1,16 +1,13 @@
 #include "manager/ProcessManager.hpp"
 #include <algorithm>
 #include <iostream>
+
+#include <boost/asio.hpp>
+
 #include "combicom/CombiCom.hpp"
+#include "io/H5InputOutput.hpp"
 #include "utils/Types.hpp"
 #include "mpi/MPIUtils.hpp"
-
-#ifdef HAVE_HIGHFIVE
-#include <chrono>
-#include <random>
-// highfive is a C++ hdf5 wrapper, available in spack (-> configure with right boost and mpi versions)
-#include <highfive/H5File.hpp>
-#endif
 
 namespace combigrid {
 
@@ -19,7 +16,7 @@ ProcessManager::~ProcessManager() {}
 void ProcessManager::sortTasks(){
   LoadModel* lm = loadModel_.get();
   assert(lm);
-  std::sort(tasks_.begin(), tasks_.end(), 
+  std::sort(tasks_.begin(), tasks_.end(),
             [lm](const Task* instance1, const Task* instance2){
                 assert(instance1);
                 return (lm->eval(instance1->getLevelVector()) > lm->eval(instance2->getLevelVector()));
@@ -83,7 +80,6 @@ bool ProcessManager::runnext() {
   }
 
   group_failed = waitAllFinished();
-  
   //size_t numDurationsToReceive = tasks_.size(); //TODO make work for failure
   // if(!group_failed) {
     // receiveDurationsOfTasksFromGroupMasters(0);
@@ -101,7 +97,8 @@ void ProcessManager::exit() {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
+        ++numWaiting;
     }
   }
 
@@ -113,6 +110,7 @@ void ProcessManager::exit() {
 }
 
 void ProcessManager::initDsgus() {
+  Stats::startEvent("manager init dsgus");
   // wait until all process groups are in wait state
   // after sending the exit signal checking the status might not be possible
   size_t numWaiting = 0;
@@ -121,8 +119,7 @@ void ProcessManager::initDsgus() {
     numWaiting = 0;
 
     for (size_t i = 0; i < pgroups_.size(); ++i) {
-      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT)
-        ++numWaiting;
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
     }
   }
 
@@ -133,9 +130,11 @@ void ProcessManager::initDsgus() {
   }
 
   waitAllFinished();
+  Stats::stopEvent("manager init dsgus");
 }
 
 void ProcessManager::updateCombiParameters() {
+  Stats::startEvent("manager update parameters");
   {
     bool fail = waitAllFinished();
     assert(!fail && "should not fail here");
@@ -146,10 +145,12 @@ void ProcessManager::updateCombiParameters() {
     bool fail = waitAllFinished();
     assert(!fail && "should not fail here");
   }
+  Stats::stopEvent("manager update parameters");
 }
 
 /*
- * Compute the group faults that occured at this combination step using the fault simulator
+ * Compute the group faults that occured at this combination step using the
+ * fault simulator
  */
 void ProcessManager::getGroupFaultIDs(std::vector<size_t>& faultsID,
                                       std::vector<ProcessGroupManagerID>& groupFaults) {
@@ -357,7 +358,7 @@ void ProcessManager::recover(int i, int nsteps) {  // outdated
   }
   std::cout << "updateing Combination Parameters \n";
   // needs to be after reInitialization!
-  updateCombiParameters();
+  this->updateCombiParameters();
   /* redistribute failed tasks to living groups */
   // redistribute(faultsID);
 }
@@ -374,21 +375,25 @@ void ProcessManager::restoreCombischeme() {
   for (size_t i = 0; i < levels.size(); ++i) {
     params_.setCoeff(params_.getID(levels[i]), coeffs[i]);
   }
+
+  this->updateCombiParameters();
 }
 
 bool ProcessManager::waitAllFinished() {
   bool group_failed = false;
   for (auto p : pgroups_) {
-    StatusType status = p->waitStatus();
-    if (status == PROCESS_GROUP_FAIL) {
+    if (waitForPG(p))
       group_failed = true;
-    }
   }
-
   return group_failed;
 }
 
-
+bool ProcessManager::waitForPG(ProcessGroupManagerID pg) {
+  StatusType status = pg->waitStatus();
+  if (status == PROCESS_GROUP_FAIL)
+    return true;
+  return false;
+}
 
 void ProcessManager::waitForAllGroupsToWait() const {
 // wait until all process groups are in wait state
@@ -444,89 +449,138 @@ std::map<size_t, double> ProcessManager::getLpNorms(int p) {
   return norms;
 }
 
+double ProcessManager::getLpNorm(int p) {
+  std::map<size_t, double> norms = this->getLpNorms(p);
 
-std::vector<double> ProcessManager::parallelEvalNorm(const LevelVector& leval, size_t groupID) {
-  auto g = pgroups_[groupID];
-  return g->parallelEvalNorm(leval);
-}
-
-std::vector<double> ProcessManager::evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID) {
-  auto g = pgroups_[groupID];
-  return g->evalAnalyticalOnDFG(leval);
-}
-
-std::vector<double> ProcessManager::evalErrorOnDFG(const LevelVector& leval, size_t groupID) {
-  auto g = pgroups_[groupID];
-  return g->evalErrorOnDFG(leval);
-}
-
-std::vector<real> serializeInterpolationCoords (const std::vector<std::vector<real>>& interpolationCoords) {
-  auto coordsSize = interpolationCoords.size() * interpolationCoords[0].size();
-  std::vector<real> interpolationCoordsSerial;
-  interpolationCoordsSerial.reserve(coordsSize);
-  for (const auto& coord: interpolationCoords) {
-    interpolationCoordsSerial.insert(interpolationCoordsSerial.end(), coord.begin(), coord.end());
+  double norm = 0.0;
+  double kahanTrailingTerm = 0.0;
+  for (const auto& pair : norms) {
+    auto summand = pair.second * this->params_.getCoeff(pair.first);
+    // cf. https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+    auto y = summand - kahanTrailingTerm;
+    auto t = norm + y;
+    kahanTrailingTerm = (t - norm) - y;
+    norm = t;
   }
-  return interpolationCoordsSerial;
+  return norm;
 }
 
-std::vector<CombiDataType> ProcessManager::interpolateValues(const std::vector<std::vector<real>>& interpolationCoords) {
-  auto numValues = interpolationCoords.size();
-  std::vector<std::vector<CombiDataType>> values (pgroups_.size(), std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN()));
-  std::vector<MPI_Request> requests(pgroups_.size());
-
-  // send interpolation coords as a single array
-  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
-
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->interpolateValues(interpolationCoordsSerial, values[i], requests[i]);
-  }
-  MPI_Waitall(static_cast<int>(requests.size()), requests.data(), MPI_STATUSES_IGNORE);
-
-  std::vector<CombiDataType> reducedValues(numValues);
-  for (const auto& v : values){
-    for (size_t i = 0; i < numValues; ++i) {
-      reducedValues[i] += v[i];
-    }
-  }
-  return reducedValues;
+void ProcessManager::setupThirdLevel() {
+  Stats::startEvent("manager connect third level");
+  std::string hostnameInfo = "manager = " + boost::asio::ip::host_name();
+  std::cout << hostnameInfo << std::endl;
+  thirdLevel_.connectToThirdLevelManager(10.);
+  Stats::stopEvent("manager connect third level");
 }
 
-void ProcessManager::writeInterpolatedValues(
+std::vector<CombiDataType> ProcessManager::interpolateValues(
     const std::vector<std::vector<real>>& interpolationCoords) {
+  auto numValues = interpolationCoords.size();
+  auto values = std::vector<CombiDataType>(numValues, std::numeric_limits<double>::quiet_NaN());
+  MPI_Request request = MPI_REQUEST_NULL;
+
+  // send interpolation coords as a single array
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
+  // have the last process group return the all-reduced values
+  pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, values, &request);
+  for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
+    // all other groups only communicate the interpolation values to last group
+    auto dummyValues = std::vector<CombiDataType>(0);
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValues);
+  }
+
+  MPI_Wait(&request, MPI_STATUS_IGNORE);
+  return values;
+}
+
+void ProcessManager::writeInterpolatedValuesPerGrid(
+    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) {
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    pgroups_[i]->writeInterpolatedValues(interpolationCoordsSerial);
+    pgroups_[i]->writeInterpolatedValuesPerGrid(interpolationCoordsSerial, filenamePrefix);
   }
+}
+
+void ProcessManager::writeInterpolatedValuesSingleFile(
+    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) {
+  Stats::startEvent("manager write interpolated");
+  // send interpolation coords as a single array
+  std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
+
+  // have the last process group write the all-reduced values
+  auto dummyValuesEmpty = std::vector<CombiDataType>(0);
+  pgroups_[pgroups_.size() - 1]->interpolateValues(interpolationCoordsSerial, dummyValuesEmpty,
+                                                   nullptr, filenamePrefix);
+  for (size_t i = 0; i < pgroups_.size() - 1; ++i) {
+    // all other groups only communicate the interpolation values to last group
+    pgroups_[i]->interpolateValues(interpolationCoordsSerial, dummyValuesEmpty);
+  }
+  Stats::stopEvent("manager write interpolated");
 }
 
 void ProcessManager::writeInterpolationCoordinates(
-    const std::vector<std::vector<real>>& interpolationCoords) {
-#ifdef HAVE_HIGHFIVE
-  // generate a rank-local per-run random number
-  // std::random_device dev;
-  static std::mt19937 rng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
-  static std::uniform_int_distribution<std::mt19937::result_type> dist(
-      1, std::numeric_limits<size_t>::max());
-  static size_t rankLocalRandom = dist(rng);
+    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) const {
+  std::string saveFilePath = filenamePrefix + "_coords.h5";
+  h5io::writeValuesToH5File(interpolationCoords, saveFilePath, "manager", "coordinates");
+}
 
-  std::string saveFilePath = "interpolation_coords.h5";
-  // check if file already exists, if no, create
-  HighFive::File h5_file(saveFilePath, HighFive::File::OpenOrCreate | HighFive::File::ReadWrite);
+void ProcessManager::monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates, std::vector<CombiDataType>& values) {
+  Stats::startEvent("manager MC third level");
+  coordinates = montecarlo::getRandomCoordinates(numPoints, params_.getDim());
+  auto ourCoordinatesSerial = serializeInterpolationCoords(coordinates);
 
-  std::string groupName = "run_" + std::to_string(rankLocalRandom);
-  HighFive::Group group = h5_file.createGroup(groupName);
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToExchangeData();
+  std::string instruction = thirdLevel_.fetchInstruction();
 
-  std::string datasetName = "coordinates";
-  HighFive::DataSet dataset =
-      group.createDataSet<real>(datasetName, HighFive::DataSpace::From(interpolationCoords));
-  dataset.write(interpolationCoords);
+  // exchange coordinates with remote
+  if (instruction == "send_first") {
+    thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+#ifndef NDEBUG
+    // this part is redundant but also doesn't hurt (?)
+    auto theirCoordinates = ourCoordinatesSerial; // to reserve the size
+    thirdLevel_.recvData(theirCoordinates.data(), theirCoordinates.size());
+    for (size_t i = 0; i < theirCoordinates.size(); ++i) {
+      assert(ourCoordinatesSerial[i] == theirCoordinates[i]);
+    }
+#endif // !NDEBUG
+  } else if (instruction == "recv_first") {
+    thirdLevel_.recvData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+#ifndef NDEBUG
+    thirdLevel_.sendData(ourCoordinatesSerial.data(), ourCoordinatesSerial.size());
+#endif // !NDEBUG
+    coordinates = deserializeInterpolationCoords(ourCoordinatesSerial, params_.getDim());
+  } else {
+    throw std::runtime_error("unknown instruction: " + instruction);
+  }
+  thirdLevel_.signalReady();
 
-#else  // if not compiled with hdf5
-  throw std::runtime_error("requesting hdf5 write but built without hdf5 support");
-#endif
+  // interpolate locally
+  values = this->interpolateValues(coordinates);
+
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToExchangeData();
+  instruction = thirdLevel_.fetchInstruction();
+
+  // exchange values with remote
+  auto buffSize = numPoints;
+  std::vector<CombiDataType> remoteValues(buffSize);
+  if (instruction == "send_first") {
+    thirdLevel_.sendData(values.data(), buffSize);
+    thirdLevel_.recvData(remoteValues.data(), buffSize);
+  } else if (instruction == "recv_first") {
+    thirdLevel_.recvData(remoteValues.data(), buffSize);
+    thirdLevel_.sendData(values.data(), buffSize);
+  }
+  thirdLevel_.signalReady();
+
+  // add them up
+  for (size_t i = 0; i < numPoints; ++i){
+    values[i] += remoteValues[i];
+  }
+  Stats::stopEvent("manager MC third level");
 }
 
 void ProcessManager::writeSparseGridMinMaxCoefficients(const std::string& filename) {
@@ -540,16 +594,16 @@ void ProcessManager::reschedule() {
       levelVectorToProcessGroupIndex.insert({t->getLevelVector(), i});
     }
   }
-  auto tasksToMigrate = rescheduler_->eval(levelVectorToProcessGroupIndex, 
-                                           levelVectorToLastTaskDuration_, 
+  auto tasksToMigrate = rescheduler_->eval(levelVectorToProcessGroupIndex,
+                                           levelVectorToLastTaskDuration_,
                                            loadModel_.get());
   for (const auto& t : tasksToMigrate) {
     auto levelvectorToMigrate = t.first;
     auto processGroupIndexToAddTaskTo = t.second;
-    auto processGroupIndexToRemoveTaskFrom = 
+    auto processGroupIndexToRemoveTaskFrom =
       levelVectorToProcessGroupIndex.at(levelvectorToMigrate);
 
-    Task *removedTask = 
+    Task *removedTask =
       pgroups_[processGroupIndexToRemoveTaskFrom]->rescheduleRemoveTask(
           levelvectorToMigrate);
     waitAllFinished();
@@ -567,14 +621,23 @@ void ProcessManager::reschedule() {
   }
 }
 
+void ProcessManager::writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg) {
+#if defined(USE_VTK)
+  pg->writeCombigridsToVTKPlotFile();
+  waitForPG(pg);
+#else
+  std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
+#endif /* defined(USE_VTK) */
+}
+
 void ProcessManager::writeDSGsToDisk(std::string filenamePrefix) {
-  pgroups_.back()->writeDSGsToDisk(filenamePrefix);
-  waitAllFinished();
+  thirdLevelPGroup_->writeDSGsToDisk(filenamePrefix);
+  waitForPG(thirdLevelPGroup_);
 }
 
 void ProcessManager::readDSGsFromDisk(std::string filenamePrefix) {
-  pgroups_.back()->readDSGsFromDisk(filenamePrefix);
-  waitAllFinished();
+  thirdLevelPGroup_->readDSGsFromDisk(filenamePrefix);
+  waitForPG(thirdLevelPGroup_);
 }
 
 } /* namespace combigrid */

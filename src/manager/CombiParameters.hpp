@@ -12,27 +12,33 @@ namespace combigrid {
 
 class CombiParameters {
  public:
-  CombiParameters()
-      : procsSet_(false) {}
+  CombiParameters() {}
 
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<size_t>& taskIDs,
                   IndexType numberOfCombinations, IndexType numGrids = 1,
-                  const std::vector<int> parallelization = {0},
+                  CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
+                  const std::vector<int>& parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
                   LevelVector reduceCombinationDimsLmax = LevelVector(0),
-                  bool forwardDecomposition = !isGENE)
+                  uint32_t sizeForChunkedCommunicationInMebibyte = 64,
+                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
         boundary_(boundary),
-        procsSet_(false),
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
+        combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
-        reduceCombinationDimsLmax_(reduceCombinationDimsLmax) {
+        reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        sizeForChunkedCommunicationInMebibyte_{sizeForChunkedCommunicationInMebibyte},
+        thirdLevelHost_(thirdLevelHost),
+        thirdLevelPort_(thirdLevelPort),
+        thirdLevelPG_(thirdLevelPG) {
     hierarchizationDims_ = std::vector<bool>(dim_, true);
     for (DimType d = 0; d < dim_; ++d) {
       if (boundary_[d] == 1) {
@@ -42,30 +48,77 @@ class CombiParameters {
       }
     }
     setLevelsCoeffs(taskIDs, levels, coeffs);
-    numTasks_ = static_cast<long>(taskIDs.size());
     if (parallelization != std::vector<int>({0})) {
       this->setParallelization(parallelization);
     }
   }
 
-  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax, std::vector<BoundaryType>& boundary,
-                  std::vector<LevelVector>& levels, std::vector<real>& coeffs,
-                  std::vector<bool>& hierarchizationDims, std::vector<size_t>& taskIDs,
-                  IndexType numberOfCombinations, IndexType numGrids = 1,
-                  LevelVector reduceCombinationDimsLmin = std::vector<IndexType>(0),
-                  LevelVector reduceCombinationDimsLmax = std::vector<IndexType>(0),
-                  bool forwardDecomposition = !isGENE)
+  // constructor variant w/o combination scheme specified -- the workers have their partial list
+  // imlpicitly as tasks vector
+  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
+                  std::vector<BoundaryType>& boundary, IndexType numberOfCombinations,
+                  IndexType numGrids = 1,
+                  CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
+                  const std::vector<int>& parallelization = {0},
+                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
+                  LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  uint32_t sizeForChunkedCommunicationInMebibyte = 64,
+                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
+      : dim_(dim),
+        lmin_(lmin),
+        lmax_(lmax),
+        boundary_(boundary),
+        forwardDecomposition_(forwardDecomposition),
+        numberOfCombinations_(numberOfCombinations),
+        numGridsPerTask_(numGrids),
+        combinationVariant_{combinationVariant},
+        reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
+        reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        sizeForChunkedCommunicationInMebibyte_{sizeForChunkedCommunicationInMebibyte},
+        thirdLevelHost_(thirdLevelHost),
+        thirdLevelPort_(thirdLevelPort),
+        thirdLevelPG_(thirdLevelPG) {
+    hierarchizationDims_ = std::vector<bool>(dim_, true);
+    for (DimType d = 0; d < dim_; ++d) {
+      if (boundary_[d] == 1) {
+        hierarchicalBases_.push_back(new HierarchicalHatPeriodicBasisFunction());
+      } else {
+        hierarchicalBases_.push_back(new HierarchicalHatBasisFunction());
+      }
+    }
+    if (parallelization != std::vector<int>({0})) {
+      this->setParallelization(parallelization);
+    }
+  }
+
+  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
+                  const std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
+                  std::vector<real>& coeffs, std::vector<bool>& hierarchizationDims,
+                  std::vector<size_t>& taskIDs, IndexType numberOfCombinations,
+                  IndexType numGrids = 1,
+                  CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
+                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
+                  LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  uint32_t sizeForChunkedCommunicationInMebibyte = 64,
+                  bool forwardDecomposition = !isGENE,
+                  const std::string& thirdLevelHost = "", unsigned short thirdLevelPort = 0,
+                  size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
         boundary_(boundary),
         hierarchizationDims_(hierarchizationDims),
-        procsSet_(false),
         forwardDecomposition_(forwardDecomposition),
         numberOfCombinations_(numberOfCombinations),
         numGridsPerTask_(numGrids),
+        combinationVariant_{combinationVariant},
         reduceCombinationDimsLmin_(reduceCombinationDimsLmin),
-        reduceCombinationDimsLmax_(reduceCombinationDimsLmax) {
+        reduceCombinationDimsLmax_(reduceCombinationDimsLmax),
+        sizeForChunkedCommunicationInMebibyte_{sizeForChunkedCommunicationInMebibyte},
+        thirdLevelHost_(thirdLevelHost),
+        thirdLevelPort_(thirdLevelPort),
+        thirdLevelPG_(thirdLevelPG) {
     for (DimType d = 0; d < dim_; ++d) {
       if (boundary_[d] == 1) {
         hierarchicalBases_.push_back(new HierarchicalHatPeriodicBasisFunction());
@@ -74,7 +127,6 @@ class CombiParameters {
       }
     }
     setLevelsCoeffs(taskIDs, levels, coeffs);
-    numTasks_ = taskIDs.size();
   }
 
   ~CombiParameters() {
@@ -87,8 +139,6 @@ class CombiParameters {
   inline const LevelVector& getLMin() const { return lmin_; }
 
   inline const LevelVector& getLMax() const { return lmax_; }
-
-  inline const LevelVector& getLMinReductionVector() const { return reduceCombinationDimsLmin_; }
 
   inline const LevelVector& getLMaxReductionVector() const { return reduceCombinationDimsLmax_; }
 
@@ -109,30 +159,44 @@ class CombiParameters {
     }
   }
 
-  inline std::map<size_t, real>& getCoeffsDict() { return coeffs_; }
-
   inline std::map<LevelVector, size_t>& getLevelsToIDs() { return levelsToIDs_; }
 
   inline void setCoeff(size_t taskID, real coeff) {
+    assert(coeffs_.find(taskID) != coeffs_.end());
     coeffs_[taskID] = coeff;
     combiDictionary_[levels_[taskID]] = coeff;
   }
 
   inline void setLevelsCoeffs(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels,
                               std::vector<real>& coeffs) {
-    assert(taskIDs.size() == coeffs.size());
-    assert(taskIDs.size() == levels.size());
+    if (taskIDs.empty() && ENABLE_FT) {
+      throw std::runtime_error(
+          "CombiParameters::setLevelsCoeffs: taskIDs is empty. Not sure if this should be possible "
+          "but this is an error for now so I can see where it happens.");
+    }
+#ifndef NDEBUG
+    assert(taskIDs.size() == coeffs.size() || taskIDs.empty());
+    auto sorted = taskIDs;
+    std::sort(sorted.begin(), sorted.end());
+    assert(std::unique(sorted.begin(), sorted.end()) == sorted.end());
+    assert(coeffs.size() == levels.size());
+#endif  // NDEBUG
 
-    for (size_t i = 0; i < taskIDs.size(); ++i) {
-      coeffs_[taskIDs[i]] = coeffs[i];
-      levels_[taskIDs[i]] = levels[i];
-      levelsToIDs_[levels[i]] = taskIDs[i];
-      combiDictionary_[levels[i]] = coeffs[i];
+    if (taskIDs.empty()) {
+      //not sure what to do then; testing...
+    } else {
+      for (size_t i = 0; i < taskIDs.size(); ++i) {
+        coeffs_[taskIDs[i]] = coeffs[i];
+        levels_[taskIDs[i]] = levels[i];
+        levelsToIDs_[levels[i]] = taskIDs[i];
+        combiDictionary_[levels[i]] = coeffs[i];
+      }
     }
   }
 
   inline const LevelVector& getLevel(size_t taskID) const {
-    static LevelVector emptyLevelVector(0);
+    static thread_local LevelVector emptyLevelVector;
+    emptyLevelVector.clear();
     if (levels_.find(taskID) == levels_.end()) {
       return emptyLevelVector;
     } else {
@@ -141,15 +205,6 @@ class CombiParameters {
   }
 
   inline size_t getID(LevelVector level) { return getLevelsToIDs()[level]; }
-
-  inline void getLevels(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels) const {
-    taskIDs.reserve(levels_.size());
-    levels.reserve(levels_.size());
-    for (auto it : levels_) {
-      taskIDs.push_back(it.first);
-      levels.push_back(it.second);
-    }
-  }
 
   inline std::map<size_t, LevelVector>& getLevelsDict() { return levels_; }
 
@@ -162,12 +217,7 @@ class CombiParameters {
    * this method returns the number of grids a task contains
    * in case we have multiple grids in our simulation
    */
-  inline IndexType getNumGrids() { return numGridsPerTask_; }
-  /**
-   * this method returns the number of tasks also referred to as component grids (one task might
-   * contain multiple grids)
-   */
-  inline IndexType getNumTasks() const { return numTasks_; }
+  inline IndexType getNumGrids() const { return numGridsPerTask_; }
 
   inline const std::vector<bool>& getHierarchizationDims() const { return hierarchizationDims_; }
 
@@ -210,11 +260,30 @@ class CombiParameters {
    * this function can only be used in the uniform mode
    */
   inline const std::vector<int>& getParallelization() const {
-    assert(uniformDecomposition && procsSet_);
+    assert(uniformDecomposition);
     return procs_;
   }
 
   inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
+
+  inline CombinationVariant getCombinationVariant() const { return combinationVariant_; }
+
+  inline uint32_t getChunkSizeInMebibybtePerThread() const {
+    if (sizeForChunkedCommunicationInMebibyte_ == 0) {
+      throw std::runtime_error("chunkSizeInMebibytePerThread_ is not set");
+    }
+    return sizeForChunkedCommunicationInMebibyte_;
+  }
+
+  inline const std::string& getThirdLevelHost() { return thirdLevelHost_; }
+
+  inline unsigned short getThirdLevelPort() {
+    return thirdLevelPort_;
+  }
+
+  inline size_t getThirdLevelPG() {
+    return thirdLevelPG_;
+  }
 
   /* set the common parallelization
    * this function can only be used in the uniform mode
@@ -223,11 +292,10 @@ class CombiParameters {
     assert(uniformDecomposition);
 
     procs_ = p;
-    procsSet_ = true;
   }
 
   inline bool isParallelizationSet() const {
-    return procsSet_;
+    return !procs_.empty();
   }
 
   /**
@@ -243,7 +311,7 @@ class CombiParameters {
     assert(uniformDecomposition);
     for (DimType d = 0; d < dim_; ++d) {
       assert(decomposition[d][0] == 0);
-      auto numPoints = powerOfTwo[lmax_[d]] + (boundary_[d] ? 1 : -1);
+      auto numPoints = combigrid::getNumDofNodal(lmax_[d], boundary_[d]);
       assert(decomposition[d].back() < numPoints);
       assert(procs_[d] == decomposition[d].size());
     }
@@ -284,8 +352,6 @@ class CombiParameters {
 
   std::vector<int> procs_;
 
-  bool procsSet_;
-
   std::vector<IndexVector> decomposition_;
 
   bool forwardDecomposition_;
@@ -294,7 +360,10 @@ class CombiParameters {
   IndexType numberOfCombinations_;  // total number of combinations
   IndexType numGridsPerTask_;       // number of grids per task
 
-  IndexType numTasks_;
+  CombinationVariant combinationVariant_;
+
+  uint32_t sizeForChunkedCommunicationInMebibyte_;
+
   /**
    * This level vector indicates which dimension of lmin should be decreased by how many levels
    * for constructing the distributed sparse grid.
@@ -315,6 +384,14 @@ class CombiParameters {
     * It is ensured that lmax >= lmin
     */
   LevelVector reduceCombinationDimsLmax_;
+
+
+  std::string thirdLevelHost_;
+
+  unsigned short thirdLevelPort_;
+
+  size_t thirdLevelPG_;
+
   // serialize
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version);
@@ -331,14 +408,17 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& hierarchizationDims_;
   ar& hierarchicalBases_;
   ar& procs_;
-  ar& procsSet_;
   ar& decomposition_;
   ar& forwardDecomposition_;
   ar& numberOfCombinations_;
   ar& numGridsPerTask_;
-  ar& numTasks_;
+  ar& combinationVariant_;
+  ar& sizeForChunkedCommunicationInMebibyte_;
   ar& reduceCombinationDimsLmin_;
   ar& reduceCombinationDimsLmax_;
+  ar& thirdLevelHost_;
+  ar& thirdLevelPort_;
+  ar& thirdLevelPG_;
 }
 
 
@@ -353,7 +433,7 @@ static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiPar
 }
 
 inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters,
-                                                std::string basisName) {
+                                                              const std::string& basisName) {
   if (basisName == "hat") {
     setCombiParametersHierarchicalBasesUniform<HierarchicalHatBasisFunction>(combiParameters);
   } else if (basisName == "hat_periodic") {

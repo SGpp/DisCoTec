@@ -25,8 +25,13 @@ class Task {
  protected:
   Task();
 
-  Task(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
-       LoadModel* loadModel, FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
+  Task(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+       LoadModel* loadModel,
+       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
+
+  Task(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+       LoadModel* loadModel,
+       FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})));
 
   // cheapest rule of 5 ever
   Task(const Task& other) = delete;
@@ -43,7 +48,7 @@ class Task {
   static void receive(Task** t, RankType source, CommunicatorType comm);
 
   // manager send task to pgroup root
-  static void send(Task** t, RankType dest, CommunicatorType comm);
+  static void send(const Task* const t, RankType dest, CommunicatorType comm);
 
   // broadcast task
   static void broadcast(Task** t, RankType root, CommunicatorType comm);
@@ -52,9 +57,9 @@ class Task {
 
   inline const LevelVector& getLevelVector() const;
 
-  inline const std::vector<BoundaryType>& getBoundary() const;
-
   inline size_t getID() const;
+
+  inline real getCoefficient() const;
 
   /**
    * @brief explicitly set a new ID for the task;
@@ -83,8 +88,11 @@ class Task {
   // returns the -th fullgrid gathered from all processors
   virtual void getFullGrid(FullGrid<CombiDataType>& fg, RankType lroot, CommunicatorType lcomm,
                            int n = 0) = 0;
+
   // This method returns the local part of the n-th distributedFullGrid
   virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) = 0;
+
+  virtual const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n) const;
 
   virtual void setZero() = 0;
 
@@ -93,8 +101,6 @@ class Task {
 
   // override to really get the current time in the solver
   virtual real getCurrentTime() const {return 0.;}
-
-  virtual void decideToKill() { std::cout << "Kill function not implemented for this task! \n"; }
 
   virtual CombiDataType analyticalSolution(const std::vector<real>& coords, int n = 0) const {
     std::cout << "No analytical solution for this task! \n";
@@ -105,17 +111,13 @@ class Task {
 
   inline virtual bool isInitialized();
 
-  real initFaults(real t_fault, std::chrono::high_resolution_clock::time_point startTimeIteration) {
-    return faultCriterion_->init(startTimeIteration, t_fault);
-  }
-
   // do task-specific postprocessing (by default: nothing)
-  virtual void doDiagnostics(const std::vector<DistributedSparseGridUniform<CombiDataType>*>, const std::vector<bool>& hierarchizationDims) {
-    std::cout << "doDiagnostics called but not implemented";
-  }
+  virtual void doDiagnostics() { std::cout << "doDiagnostics called but not implemented"; }
 
   // do manager-side task-specific postprocessing, if applicable (by default: nothing)
   virtual void receiveDiagnostics() {}
+
+  inline const std::vector<BoundaryType>& getBoundary() const;
 
  private:
   friend class boost::serialization::access;
@@ -128,6 +130,8 @@ class Task {
   DimType dim_;
 
   LevelVector l_;  // levelvector of partial solution
+
+  real coeff_;  // coefficient of partial solution
 
   std::vector<BoundaryType> boundary_;
 
@@ -142,7 +146,7 @@ class Task {
 
 typedef std::vector<Task*> TaskContainer;
 
-inline const LevelVector& getLevelVectorFromTaskID(TaskContainer tasks, size_t task_id){
+inline const LevelVector& getLevelVectorFromTaskID(const TaskContainer& tasks, size_t task_id){
   auto task = std::find_if(tasks.begin(), tasks.end(), 
     [task_id] (Task* t) {return t->getID() == task_id;}
   );
@@ -156,6 +160,7 @@ void Task::serialize(Archive& ar, const unsigned int version) {
   ar& dim_;
   ar& id_;
   ar& l_;
+  ar& coeff_;
   ar& boundary_;
   ar& isFinished_;
 }
@@ -167,6 +172,8 @@ inline const LevelVector& Task::getLevelVector() const { return l_; }
 inline const std::vector<BoundaryType>& Task::getBoundary() const { return boundary_; }
 
 inline size_t Task::getID() const { return id_; }
+
+inline real Task::getCoefficient() const { return coeff_; }
 
 inline void Task::setID(size_t id) { id_ = id; }
 

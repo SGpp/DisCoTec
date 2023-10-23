@@ -9,6 +9,7 @@
 
 #include "TaskCount.hpp"
 #include "combischeme/CombiMinMaxScheme.hpp"
+#include "io/H5InputOutput.hpp"
 #include "loadmodel/LearningLoadModel.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
@@ -25,10 +26,11 @@
 
 using namespace combigrid;
 
-BOOST_CLASS_EXPORT(TaskCount)
+// omitted here, because already defined in test_thirdLevel.cpp
+// BOOST_CLASS_EXPORT(TaskCount)
 
 bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
-  auto tasks = worker.getTasks();
+  const auto& tasks = worker.getTasks();
   int numGrids = (int)worker.getCombiParameters().getNumGrids();
 
   BOOST_CHECK(tasks.size() > 0);
@@ -37,7 +39,7 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
   // to check if any data was actually compared
   bool any = false;
 
-  for (Task* t : tasks) {
+  for (const auto& t : tasks) {
     for (int g = 0; g < numGrids; g++) {
       DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
       for (auto b : dfg.returnBoundaryFlags()) {
@@ -62,11 +64,12 @@ bool checkReducedFullGridIntegration(ProcessGroupWorker& worker, int nrun) {
       }
     }
   }
-  BOOST_CHECK(any);
+  BOOST_REQUIRE(any);
   return any;
 }
 
-void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundaryV = 2) {
+void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundaryV = 2,
+                      bool pretendThirdLevel = true) {
   size_t size = ngroup * nprocs + 1;
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(size));
 
@@ -116,7 +119,7 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
+      Task* t = new TaskCount(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -128,7 +131,8 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     // create combiparameters
     BOOST_TEST_CHECKPOINT("manager create combi parameters");
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, taskIDs, ncombi, 1,
-                           {static_cast<int>(nprocs), 1}, LevelVector(0), LevelVector(0), false);
+                           CombinationVariant::sparseGridReduce, {static_cast<int>(nprocs), 1},
+                           LevelVector(0), LevelVector(0), 16, false);
     if (nprocs == 5 && boundaryV == 2) {
       params.setDecomposition({{0, 6, 13, 20, 27}, {0}});
     } else if (nprocs == 4 && boundaryV == 2) {
@@ -150,7 +154,12 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
      * the first time */
     BOOST_TEST_CHECKPOINT("run first");
     auto start = std::chrono::high_resolution_clock::now();
-    manager.runfirst();
+    if (pretendThirdLevel) {
+      manager.runfirst(true);
+      manager.pretendUnifySubspaceSizesThirdLevel();
+    } else {
+      manager.runfirst();
+    }
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
     BOOST_TEST_MESSAGE("manager run first solver step: " << duration.count() << " milliseconds");
@@ -159,6 +168,9 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
       BOOST_TEST_CHECKPOINT("combine");
       start = std::chrono::high_resolution_clock::now();
       manager.combine();
+      if (pretendThirdLevel) {
+        manager.pretendCombineThirdLevelForWorkers();
+      }
       end = std::chrono::high_resolution_clock::now();
       duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
       BOOST_TEST_MESSAGE("manager combine: " << duration.count() << " milliseconds");
@@ -172,6 +184,14 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
     }
     manager.combine();
 
+    Stats::startEvent("manager get norms");
+    // get all kinds of norms
+    manager.getLpNorms(0);
+    manager.getLpNorms(1);
+    manager.getLpNorms(2);
+    Stats::stopEvent("manager get norms");
+
+    BOOST_TEST_CHECKPOINT("write solution");
     std::string filename("integration_" + std::to_string(ncombi) + ".raw");
     BOOST_TEST_CHECKPOINT("write solution " + filename);
     Stats::startEvent("manager write solution");
@@ -215,20 +235,37 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
           BOOST_CHECK_CLOSE(std::real(ref), std::real(values[i]), TestHelper::tolerance);
         }
       }
-#ifdef HAVE_HIGHFIVE
+#ifdef DISCOTEC_USE_HIGHFIVE
       // output files are not needed, remove them right away
       // (if this doesn't happen, there may be hdf5 errors due to duplicate task IDs)
-      sleep(1);
-      auto status = system("rm interpolated_*.h5");
+      auto status = system("rm integration_interpolated*.h5");
       BOOST_WARN_GE(status, 0);
-      // system("rm interpolation_coords.h5");
-      remove("interpolation_coords.h5");
       sleep(1);
-      manager.writeInterpolatedValues(interpolationCoords);
-      BOOST_TEST_CHECKPOINT("wrote interpolated values");
-      manager.writeInterpolationCoordinates(interpolationCoords);
+      manager.writeInterpolatedValuesSingleFile(interpolationCoords, "integration_interpolated");
+      BOOST_TEST_CHECKPOINT("wrote interpolated values to single file");
+      manager.writeInterpolatedValuesPerGrid(interpolationCoords, "integration_interpolated");
+      BOOST_TEST_CHECKPOINT("wrote interpolated values per grid");
+      manager.writeInterpolationCoordinates(interpolationCoords, "integration_interpolated");
       BOOST_TEST_CHECKPOINT("wrote interpolation coordinates");
-#endif  // def HAVE_HIGHFIVE
+
+      sleep(1);  // wait for filesystem to catch up
+      decltype(values) valuesAllGridsRead;
+      // the number of combinations that the worker counts is the number of calls to combine() and
+      // pretendCombineThirdLevelForWorkers()
+      h5io::readH5Values(valuesAllGridsRead, "integration_interpolated_values_" +
+                                                 std::to_string(ncombi + (ncombi - 1)) + ".h5");
+      decltype(interpolationCoords) interpolationCoordsRead =
+          broadcastParameters::getCoordinatesFromRankZero("integration_interpolated_coords.h5",
+                                                          MPI_COMM_SELF);
+      BOOST_TEST_CHECKPOINT("read interpolation coordinates");
+      BOOST_CHECK_EQUAL_COLLECTIONS(values.begin(), values.end(), valuesAllGridsRead.begin(),
+                                    valuesAllGridsRead.end());
+      for (size_t i = 0; i < interpolationCoords.size(); ++i) {
+        for (size_t d = 0; d < dim; ++d) {
+          BOOST_CHECK_EQUAL(interpolationCoords[i][d], interpolationCoordsRead[i][d]);
+        }
+      }
+#endif  // def DISCOTEC_USE_HIGHFIVE
     }
 
     manager.exit();
@@ -263,6 +300,11 @@ void checkIntegration(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundar
         // only if boundary values are used
         if (boundaryV == 2) {
           BOOST_CHECK(checkReducedFullGridIntegration(pgroup, nrun));
+        }
+        // write partial stats
+        if (theMPISystem()->getWorldRank() < nprocs) {
+          Stats::writePartial("integration_partial_timers_group.json",
+                              theMPISystem()->getLocalComm());
         }
       }
     }
@@ -322,7 +364,7 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
     TaskContainer tasks;
     std::vector<size_t> taskIDs;
     for (size_t i = 0; i < levels.size(); i++) {
-      Task* t = new TaskCount(dim, levels[i], boundary, coeffs[i], loadmodel.get());
+      Task* t = new TaskCount(levels[i], boundary, coeffs[i], loadmodel.get());
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -372,9 +414,9 @@ void checkPassingHierarchicalBases(size_t ngroup = 1, size_t nprocs = 1) {
 #ifndef ISGENE  // integration tests won't work with ISGENE because of worker magic
 
 #ifndef NDEBUG // in case of a build with asserts, have longer timeout
-BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(380))
+BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(580))
 #else
-BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(180))
+BOOST_FIXTURE_TEST_SUITE(integration, TestHelper::BarrierAtEnd, *boost::unit_test::timeout(480))
 #endif  // NDEBUG
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance)) {
   auto start = std::chrono::high_resolution_clock::now();
@@ -484,7 +526,7 @@ BOOST_AUTO_TEST_CASE(test_8) {
       BOOST_TEST_CHECKPOINT(std::to_string(rank) + " Last taskNo " + std::to_string(taskNo));
       if (pgNumbers[taskNo] == rank) {
         auto loadmodel = LinearLoadModel();
-        TaskCount tc(dim, levels[taskNo], boundary, coeffs[taskNo], &loadmodel);
+        TaskCount tc(levels[taskNo], boundary, coeffs[taskNo], &loadmodel);
         tc.setID(taskNo);
       }
     }

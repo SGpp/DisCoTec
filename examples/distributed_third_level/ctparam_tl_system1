@@ -1,0 +1,25 @@
+[ct]
+dim = 2
+lmin = 3 3
+lmax = 10 10
+leval = 5 5
+p = 1 1
+ncombi = 10
+ctscheme = ./ctscheme_tl_system_1.json
+
+[application]
+dt = 1e-3
+nsteps = 100
+mcerror = 0
+
+[manager]
+ngroup = 1
+nprocs = 1
+
+[thirdLevel]
+host = localhost
+port = 9999
+# counting has to start at 0
+systemNumber = 1
+numSystems = 2
+brokerOnSameSystem = 1

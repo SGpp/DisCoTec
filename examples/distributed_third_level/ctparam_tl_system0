@@ -1,0 +1,28 @@
+[ct]
+dim = 2
+lmin = 3 3
+lmax = 10 10
+leval = 5 5
+p = 1 1
+ncombi = 100
+ctscheme = ./ctscheme_tl_system_0.json
+
+[application]
+dt = 1e-4
+nsteps = 100
+mcerror = 0
+
+[manager]
+ngroup = 1
+nprocs = 1
+
+[thirdLevel]
+host = localhost
+#host = 129.69.213.171
+port = 9999
+# counting has to start at 0, needed only for distribution of combischeme
+systemNumber = 0
+numSystems = 2
+sshCommand = ssh -L 9999:129.69.213.171:9999 pollinta@ipvslogin.informatik.uni-stuttgart.de -nNT &
+### this command can be used to daisy-chain-tunnel from compute node to login node to gateway to neon
+# sshCommand = ssh -L localhost:9999:hawk-login03:9999 -L  hawk-login03:9999:129.69.213.171:9999 pollinta@ipvslogin.informatik.uni-stuttgart.de -nNT &

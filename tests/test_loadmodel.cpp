@@ -32,7 +32,7 @@ void testDataSave(int size) {
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     std::vector<LevelVector> lvv;
-    for (long int i = 0; i < static_cast<long int>(ngroup); ++i) {
+    for (LevelType i = 0; i < static_cast<LevelType>(ngroup); ++i) {
       lvv.push_back({i});
     }
     auto loadModel = std::unique_ptr<LoadModel>(new AveragingLoadModel(lvv));
@@ -47,7 +47,7 @@ void testDataSave(int size) {
       }
     }
     // test loadmodel
-    for (long int i = 0; i < static_cast<long int>(ngroup); ++i) {
+    for (LevelType i = 0; i < static_cast<LevelType>(ngroup); ++i) {
       // std::cout << "llm eval " << loadModel->eval({i}) << std::endl;
       BOOST_TEST(loadModel->eval({i}) == 1000000 * i);
     }
@@ -60,7 +60,7 @@ void testDataSave(int size) {
 
     Stats::Event e = Stats::Event();
     e.end = e.start + std::chrono::microseconds(d);
-    DurationInformation info = {TestHelper::getRank(comm), Stats::getEventDurationInUsec(e), 12.34, 0.00001, 1234, nprocs};
+    DurationInformation info = {static_cast<size_t>(TestHelper::getRank(comm)), Stats::getEventDurationInUsec(e), 12.34, 0.00001, 1234, nprocs};
     // MPI_Request request;
     // send durationInfo to manager
     for (size_t i = 0; i < numRounds; ++i) {

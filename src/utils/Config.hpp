@@ -4,11 +4,13 @@
 #include <complex>
 
 #ifndef NDEBUG
+#include <boost/assert.hpp>
 #define ASSERT(cond, msg) {\
     if(!(cond))\
     {\
         std::stringstream str;\
         str << msg;\
+        std::cout << msg;\
         std::cerr << msg;\
         BOOST_ASSERT_MSG(cond, str.str().c_str());\
     }\
@@ -70,7 +72,8 @@ typedef std::complex<real> complex;
 #endif
 #ifdef ISGENE
 	constexpr bool isGENE = true;    //TODO move this switch to a more sensible place
-	// todo static assert complex is combidatatype
+	// running gene requires complex numbers for combination
+	static_assert(std::is_same<CombiDataType, complex>::value);
 #else
 	constexpr bool isGENE = false;
 #endif
@@ -84,15 +87,12 @@ typedef std::complex<real> complex;
 	typedef complex CombiDataType;
 	// this switch seems to make not much of a difference after all ;)
 	constexpr bool reverseOrderingDFGPartitions = true;
+	static_assert(false, "removed reverseOrderingDFGPartitions, but this is untested for GENE");
 #else
 	typedef real CombiDataType;
 	constexpr bool reverseOrderingDFGPartitions = false;
 #endif
 
-// const bool GENE_Global = true;
-// const bool GENE_Linear = true;
-
-static_assert(!(isGENE) || reverseOrderingDFGPartitions, "GENE example needs the reverse ordering of DFG partitions");
 }
 
 #endif /* DISTRIBUTEDCOMBIGRID_SRC_SGPP_DISTRIBUTEDCOMBIGRID_UTILS_CONFIG_HPP_ */

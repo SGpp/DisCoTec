@@ -27,13 +27,14 @@
 
 namespace combigrid {
 
-class GeneTask: public combigrid::Task {
-public:
-  GeneTask( DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
-            LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
-            real shat, real lx, int ky0_ind,
-            std::vector<int> p = std::vector<int>(0), FaultCriterion *faultCrit = (new StaticFaults({0,IndexVector(0),IndexVector(0)})),
-            IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true, size_t checkpointFrequency = 1, size_t offsetForDiagnostics = 0);
+class GeneTask : public combigrid::Task {
+ public:
+  GeneTask(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+           LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
+           real shat, real lx, int ky0_ind, std::vector<int> p = std::vector<int>(0),
+           FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})),
+           IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true,
+           size_t checkpointFrequency = 1, size_t offsetForDiagnostics = 0);
 
   GeneTask();
 
@@ -336,7 +337,7 @@ private:
   // following variables are only accessed in worker and do not need to be
   // serialized
   GeneLocalCheckpoint checkpoint_;
-  std::vector<DistributedFullGrid<CombiDataType> *> dfgVector_;
+  std::vector<OwningDistributedFullGrid<CombiDataType> *> dfgVector_;
   real nrg_;
 
   bool initialized_; //indicates if GeneTask is initialized

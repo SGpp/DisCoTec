@@ -14,11 +14,32 @@
 
 #define MASTER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isMaster())
 
+// first group
+#define FIRST_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getProcessGroupNumber() == 0)
+
+// output group does output (in no-manager case)
+#define OUTPUT_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL)
+
+// last group does some other (potentially concurrent) output
+#define OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION \
+  if (combigrid::theMPISystem()->getProcessGroupNumber() == combigrid::theMPISystem()->getNumGroups() - 1)
+
+// middle process can do command line output
+#define MIDDLE_PROCESS_EXCLUSIVE_SECTION           \
+  if (combigrid::theMPISystem()->getWorldRank() == \
+      (combigrid::theMPISystem()->getNumGroups() * combigrid::theMPISystem()->getNumProcs()) / 2)
+
+
 #define GLOBAL_MANAGER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isGlobalManager())
 
 #define WORLD_MANAGER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isWorldManager())
 
 namespace combigrid {
+
+struct [[nodiscard]] MpiOnOff {
+  explicit MpiOnOff(int* argc = nullptr, char*** argv = nullptr);
+  ~MpiOnOff();
+};
 
 class ProcessGroupManager;
 
@@ -49,12 +70,18 @@ typedef std::shared_ptr<MPISystem> MPISystemID;
  * this communicator contains all processes which have the same rank in
  * LocalComm. it is MPI_COMM_NULL on the manager.
  *
+ * ThirdLevelComms: list of communicators for the thirdLevelCombination. Each
+ * communicator connects all workers of a pg to
+ * the process manager. The list differs for each caller and contains only the
+ * comms where he participates: The process manager gets all comms whereas each
+ * worker has a single entry.
+ *
  * getXXXCommFT returns the fault tolerant equivalent of Communicator XXX
  *
  * getXXXRank return the rank of the process in the Communicator XXX. If the
  * process is not part of Communicator XXX it returns MPI_UNDEFINED.
  *
- * * getManagerRankWorld returns the rank of the manager process in the
+ * getManagerRankWorld returns the rank of the manager process in the
  * WorldComm.
  *
  * getManagerRank returns the rank of the manager process in the Communicator
@@ -67,6 +94,8 @@ typedef std::shared_ptr<MPISystem> MPISystemID;
  *
  * isLocalMaster returns true if the calling process is the master process of
  * its process group
+ *
+ * isThirdLevelManager returns true if the process is the manager process.
  */
 
 class MPISystem {
@@ -80,22 +109,23 @@ class MPISystem {
   /**initializes MPI system including local, global and allreduce communicator
    * for specified number of groups and number of processors per group
    */
-  void init(size_t ngroups, size_t nprocs);
+  void init(size_t ngroups, size_t nprocs, bool withWorldManager = true);
 
   /**
    *initializes MPI system including global and allreduce communicator
    *local communicator is given here and not set by the init procedure
    */
-  void init(size_t ngroups, size_t nprocs, CommunicatorType lcomm);
+  void init(size_t ngroups, size_t nprocs, CommunicatorType lcomm, bool withWorldManager = true);
 
   /**
    * initializes MPI system including world communicator; so far only used in tests
    */
-  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs);
+  void initWorldReusable(CommunicatorType wcomm, size_t ngroups, size_t nprocs,
+                         bool withWorldManager = true, bool verbose = false);
 
   /**
-  * returns the world communicator which contains all ranks (excluding spare ranks)
-  */
+   * returns the world communicator which contains all ranks (excluding spare ranks)
+   */
   inline const CommunicatorType& getWorldComm() const;
 
   /**
@@ -116,7 +146,7 @@ class MPISystem {
     if (worldRank_ == managerRankWorld_)
       return -1;
     else
-      return  worldRank_ / int(nprocs_);
+      return worldRank_ / int(nprocs_);
   }
 
   /**
@@ -125,6 +155,12 @@ class MPISystem {
    * All of these ranks are responsible for the same area in the domain
    */
   inline const CommunicatorType& getGlobalReduceComm() const;
+
+  inline const CommunicatorType& getOutputGroupComm() const;
+
+  inline const CommunicatorType& getOutputComm() const;
+
+  inline const std::vector<CommunicatorType>& getThirdLevelComms() const;
 
   /**
    * returns the fault tolerant version of the world comm (excluding spare ranks)
@@ -168,6 +204,18 @@ class MPISystem {
    */
   inline const RankType& getLocalRank() const;
 
+
+  inline const RankType& getGlobalReduceRank() const;
+
+  inline const RankType& getOutputGroupRank() const;
+
+  inline RankType getOutputRankInGlobalReduceComm() const;
+
+  /**
+   * returns MPI rank number in all third level comms
+   */
+  inline const RankType& getThirdLevelRank() const;
+
   /**
    * returns MPI rank number of manager in world comm
    */
@@ -184,6 +232,11 @@ class MPISystem {
   inline const RankType& getMasterRank() const;
 
   /**
+   * returns MPI rank number of master in all third level comms
+   */
+  inline const RankType& getThirdLevelManagerRank() const;
+
+  /**
    * returns boolean that indicates if caller is manager in world comm
    */
   inline bool isWorldManager() const;
@@ -192,6 +245,11 @@ class MPISystem {
    * returns boolean that indicates if caller is manager in global comm
    */
   inline bool isGlobalManager() const;
+
+  /**
+   * returns boolean that indicates if caller is manager in all third level comms
+   */
+  inline bool isThirdLevelManager() const;
 
   /**
    * returns boolean that indicates if caller is master in local comm
@@ -251,8 +309,11 @@ class MPISystem {
   /**
    * stores local comm + FT version if FT_ENABLED
    */
-  void storeLocalComm(CommunicatorType lcomm_optional = MPI_COMM_NULL);
-  
+  void storeLocalComm(CommunicatorType lcomm);
+
+  /* let the output "group" be distributed across the actual process groups */
+  void initOuputGroupComm(uint16_t numFileParts = 1);
+
  private:
   explicit MPISystem();
 
@@ -283,7 +344,8 @@ class MPISystem {
   /**
    * initializes the members ngroup_, nprocs_, worldComm_,  managerRankWorld_, managerRankFT_
    */
-  void initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm, bool reusable);
+  void initSystemConstants(size_t ngroup, size_t nprocs, CommunicatorType comm,
+                           bool withWorldManager = true, bool reusable = false);
 
   /**
    * sets up the local comm by splitting from worldComm and stores it
@@ -298,7 +360,13 @@ class MPISystem {
   /**
    * initializes global comm + FT version if FT_ENABLED
    */
-  void initGlobalComm();
+  void initGlobalComm(bool withWorldManager = true);
+
+
+  /**
+   * initializes third level comms
+   */
+  void initThirdLevelComms();
 
   /**
    * Send signal to manager that this rank is reusable -> becomes spare process
@@ -379,6 +447,10 @@ class MPISystem {
    */
   CommunicatorType globalReduceComm_;
 
+  CommunicatorType outputGroupComm_; 
+
+  CommunicatorType outputComm_; 
+
   simft::Sim_FT_MPI_Comm worldCommFT_;  // FT version of world comm
 
   simft::Sim_FT_MPI_Comm globalCommFT_;  // FT version of global comm
@@ -389,6 +461,8 @@ class MPISystem {
   simft::Sim_FT_MPI_Comm localCommFT_;  // FT version of local comm
 
   simft::Sim_FT_MPI_Comm globalReduceCommFT_;  // FT version of global reduce comm
+
+  std::vector<CommunicatorType> thirdLevelComms_; // comm between manager and tl pgroup
 
   RankType worldRank_;  // rank number in world comm
 
@@ -405,6 +479,12 @@ class MPISystem {
   RankType managerRankFT_;  // rank number of manager in spare comm
 
   RankType masterRank_;  // rank number of master in local comm
+
+  RankType thirdLevelRank_;  // rank number in all third level comms
+
+  RankType thirdLevelManagerRank_;  // rank of manager in all third level comms
+
+  RankType outputGroupRank_; 
 
   size_t ngroup_;  // number of process groups
 
@@ -468,6 +548,24 @@ inline const CommunicatorType& MPISystem::getGlobalReduceComm() const {
   return globalReduceComm_;
 }
 
+inline const CommunicatorType& MPISystem::getOutputGroupComm() const {
+  return outputGroupComm_;
+}
+
+inline const CommunicatorType& MPISystem::getOutputComm() const {
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    return outputComm_;
+  } else {
+    throw std::runtime_error("Called from outside output group!");
+  }
+}
+
+inline const std::vector<CommunicatorType>& MPISystem::getThirdLevelComms() const{
+  checkPreconditions();
+
+  return thirdLevelComms_;
+}
+
 inline simft::Sim_FT_MPI_Comm MPISystem::getWorldCommFT() {
   checkPreconditionsFT();
 
@@ -504,6 +602,20 @@ inline const RankType& MPISystem::getWorldRank() const {
   return worldRank_;
 }
 
+inline const RankType& MPISystem::getGlobalReduceRank() const{
+  return globalReduceRank_;
+}
+
+inline const RankType& MPISystem::getOutputGroupRank() const{
+  return outputGroupRank_;
+}
+
+inline RankType MPISystem::getOutputRankInGlobalReduceComm() const {
+  // my local rank gives the index of the global reduce comm,
+  // and the output rank in the global reduce comm is the index modulo the number of groups
+  return localRank_ % ngroup_;
+}
+
 inline const RankType& MPISystem::getGlobalRank() const {
   checkPreconditions();
 
@@ -528,6 +640,12 @@ inline const RankType& MPISystem::getManagerRank() const {
   return managerRank_;
 }
 
+inline const RankType& MPISystem::getThirdLevelManagerRank() const{
+  checkPreconditions();
+
+  return thirdLevelManagerRank_;
+}
+
 inline const RankType& MPISystem::getMasterRank() const {
   checkPreconditions();
 
@@ -539,6 +657,10 @@ inline bool MPISystem::isWorldManager() const { return (worldRank_ == managerRan
 inline bool MPISystem::isGlobalManager() const { return (globalRank_ == managerRank_); }
 
 inline bool MPISystem::isMaster() const { return (localRank_ == masterRank_); }
+
+inline bool MPISystem::isThirdLevelManager() const{
+  return ( thirdLevelRank_ == thirdLevelManagerRank_ );
+}
 
 inline size_t MPISystem::getNumGroups() const {
   checkPreconditions();
@@ -571,7 +693,6 @@ inline RankType MPISystem::getWorldSize() const {
 
   return worldSize;
 }
-
 
 }  // namespace combigrid
 

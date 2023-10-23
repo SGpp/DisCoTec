@@ -7,11 +7,7 @@
 
 #include <mpi.h>
 
-#include <boost/filesystem.hpp>
-#include <boost/property_tree/ini_parser.hpp>
-#include <boost/property_tree/ptree.hpp>
 #include <boost/serialization/export.hpp>
-#include <filesystem>
 #include <vector>
 
 // compulsory includes for basic functionality
@@ -20,6 +16,7 @@
 #include "fault_tolerance/StaticFaults.hpp"
 #include "fault_tolerance/WeibullFaults.hpp"
 #include "fullgrid/FullGrid.hpp"
+#include "io/BroadcastParameters.hpp"
 #include "loadmodel/LinearLoadModel.hpp"
 #include "manager/CombiParameters.hpp"
 #include "manager/ProcessGroupManager.hpp"
@@ -30,143 +27,14 @@
 #include "utils/Types.hpp"
 
 // include user specific task. this is the interface to your application
+#include "SelalibFileTools.hpp"
 #include "SelalibTask.hpp"
 
 using namespace combigrid;
-namespace fs = boost::filesystem;  // for file operations
 
 // this is necessary for correct function of task serialization
 #include "utils/BoostExports.hpp"
 BOOST_CLASS_EXPORT(SelalibTask)
-
-// helper funtion to read a bool vector from string
-inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
-  std::vector<std::string> strs;
-  boost::split(strs, str, boost::is_any_of(" "));
-
-  assert(vec.size() == strs.size());
-
-  for (size_t i = 0; i < strs.size(); ++i) vec[i] = boost::lexical_cast<bool>(strs[i]);
-
-  return vec;
-}
-
-// helper function to output bool vector
-inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
-  os << "[";
-
-  for (size_t i = 0; i < l.size(); ++i) os << l[i] << " ";
-
-  os << "]";
-
-  return os;
-}
-
-// cf https://stackoverflow.com/questions/37931691/replace-a-word-in-text-file-using-c
-std::string getFile(std::ifstream& is) {
-  std::string contents;
-  // Here is one way to read the whole file
-  for (char ch; is.get(ch); contents.push_back(ch)) {
-  }
-  return contents;
-}
-
-// cf https://stackoverflow.com/questions/5878775/how-to-find-and-replace-string/5878802
-std::string replaceFirstOccurrence(std::string& s, const std::string& toReplace,
-                                   const std::string& replaceWith) {
-  std::size_t pos = s.find(toReplace);
-  if (pos == std::string::npos) return s;
-  return s.replace(pos, toReplace.length(), replaceWith);
-}
-
-
-void setCheckpointRestart(std::string basename, std::vector<LevelVector> levels, std::string suffix = "") {
-  std::string baseFolder = "./" + basename;
-  for (size_t i = 0; i < levels.size(); i++) {
-    // path to task folder
-    std::string taskFolder = baseFolder + suffix + std::to_string(i);
-    // assert that checkpoint is there
-    std::string checkpointString = taskFolder + "/distribution_end-0000.h5";
-    if (!fs::exists(checkpointString)) {
-      throw std::runtime_error("No checkpoint to re-start from " + checkpointString);
-    }
-    {
-      // adapt each parameter file
-      std::ifstream inputFileStream(taskFolder + "/param.nml", std::ifstream::in);
-      auto contents = getFile(inputFileStream);
-      std::string newRestartInfo = "restart = .true.\n        restart_filename = \"distribution_end-0000.h5\"";
-      contents = replaceFirstOccurrence(contents, "restart = .false.", newRestartInfo);
-      std::ofstream outputFileStream(taskFolder + "/param_new.nml");
-      outputFileStream << contents;
-    }
-    std::rename((taskFolder + "/param_new.nml").c_str(), (taskFolder + "/param.nml").c_str());
-  }
-}
-
-bool adaptParameterFile(std::string infilename, std::string outfilename, std::vector<int> resolution,
-                        std::vector<int> p, size_t nsteps, double dt, size_t n_diagnostics) {
-  assert(resolution.size() == p.size());
-  std::ifstream inputFileStream(infilename, std::ifstream::in);
-  auto contents = getFile(inputFileStream);
-  contents = replaceFirstOccurrence(contents, "$nsteps", std::to_string(nsteps));
-  contents = replaceFirstOccurrence(contents, "$dt", std::to_string(dt));
-  contents = replaceFirstOccurrence(contents, "$n_diagnostics", std::to_string(n_diagnostics));
-  for (DimType d = 0; d < resolution.size(); ++d) {
-    contents = replaceFirstOccurrence(contents, "$nx" + std::to_string(d + 1),
-                                      std::to_string(resolution[d]));
-    contents = replaceFirstOccurrence(contents, "$p" + std::to_string(d + 1), std::to_string(p[d]));
-  }
-  std::ofstream outputFileStream(outfilename);
-  outputFileStream << contents;
-  return true;
-}
-
-bool adaptParameterFileFirstFolder(std::string basename, std::vector<int> resolution,
-                                   std::vector<int> p, size_t nsteps, double dt, size_t n_diagnostics,
-                                   std::string suffix = "") {
-  std::string baseFolder = "./" + basename;
-  std::string taskFolder = baseFolder + suffix + std::to_string(0);
-  std::string templateFolder = "./template";
-
-  bool yes = adaptParameterFile(templateFolder + "/param.nml", taskFolder + "/param.nml",
-                                resolution, p, nsteps, dt, n_diagnostics);
-  assert(yes);
-  return yes;
-}
-
-bool createTaskFolders(std::string basename, std::vector<LevelVector> levels, std::vector<int> p,
-                       size_t nsteps, double dt, size_t n_diagnostics, std::string suffix = "") {
-  std::string baseFolder = "./" + basename;
-  std::string templateFolder = "./template";
-  bool yes = fs::exists(templateFolder);
-  assert(yes);
-  for (size_t i = 0; i < levels.size(); i++) {
-    // path to task folder
-    std::string taskFolder = baseFolder + suffix + std::to_string(i);
-    // copy template directory
-    if (!fs::exists(taskFolder) && !fs::create_directory(taskFolder)) {
-      throw std::runtime_error("Cannot create destination directory " + taskFolder);
-    }
-    // adapt each parameter file
-    std::vector<int> resolutions;
-    for (DimType d = 0; d < levels[0].size(); ++d) {
-      resolutions.push_back(static_cast<IndexType>(std::pow(2, levels[i][d])));
-    }
-    yes = adaptParameterFile(templateFolder + "/param.nml", taskFolder + "/param.nml", resolutions,
-                             p, nsteps, dt, n_diagnostics);
-    assert(yes);
-    // copy all other files
-    for (const auto& dirEnt : std::filesystem::recursive_directory_iterator{templateFolder}) {
-      const auto& path = dirEnt.path();
-      const auto relativePathStr = std::filesystem::relative(path, templateFolder);
-
-      //auto relativePathStr = path.string();
-      //boost::replace_first(relativePathStr, templateFolder, "");
-      std::filesystem::copy(path, taskFolder / relativePathStr, std::filesystem::copy_options::skip_existing);
-    }
-  }
-  return yes;
-}
 
 void initMpiSelalibStyle(int argc, char** argv) {
   sll_s_allocate_collective();
@@ -192,11 +60,11 @@ int main(int argc, char** argv) {
     initMpiSelalibStyle(argc, argv);
   }
 
-  // read in parameter file
+  // only one rank reads parameter file and broadcasts to others
   std::string paramfile = "ctparam";
   if (argc > 1) paramfile = argv[1];
-  boost::property_tree::ptree cfg;
-  boost::property_tree::ini_parser::read_ini(paramfile, cfg);
+  boost::property_tree::ptree cfg =
+      broadcastParameters::getParametersFromRankZero(paramfile, MPI_COMM_WORLD);
 
   // number of process groups and number of processes per group
   size_t ngroup = cfg.get<size_t>("manager.ngroup");
@@ -204,7 +72,7 @@ int main(int argc, char** argv) {
 
   // divide the MPI processes into process group and initialize the
   // corresponding communicators
-  theMPISystem()->init(ngroup, nprocs);
+  theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, true, true);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     Stats::startEvent("manager initialization");
@@ -228,7 +96,7 @@ int main(int argc, char** argv) {
         reduceCombinationDimsLmax(dim);
     std::vector<int> p(dim), resolution(dim);
     std::vector<bool> hierarchizationDims(dim);
-    std::vector<BoundaryType> boundary(dim);
+    std::vector<BoundaryType> boundary(dim, 1);
     combigrid::real dt;
     // time inteveral of 1 combination
     // only necessary if number of timesteps varies for each grid
@@ -239,14 +107,12 @@ int main(int argc, char** argv) {
     cfg.get<std::string>("ct.lmin") >> lmin;  // minimal level vector for each grid
     cfg.get<std::string>("ct.lmax") >> lmax;  // maximum level vector -> level vector of target grid
     cfg.get<std::string>("ct.leval") >> leval;    // level vector of final output
-    // cfg.get<std::string>("ct.leval2") >> leval2;  // level vector of second final output
     cfg.get<std::string>("ct.reduceCombinationDimsLmin") >> reduceCombinationDimsLmin;
     cfg.get<std::string>("ct.reduceCombinationDimsLmax") >> reduceCombinationDimsLmax;
     cfg.get<std::string>("ct.p") >> p;  // parallelization of domain (how many procs per dimension)
-    cfg.get<std::string>("ct.boundary") >> boundary;  // which dimension have boundary points
     cfg.get<std::string>("ct.hierarchization_dims") >>
         hierarchizationDims;                // which dimension should be hierarchized
-    std::string basis = cfg.get<std::string>("ct.basis", "hat");
+    std::string basis = cfg.get<std::string>("ct.basis", "hat_periodic");
     ncombi = cfg.get<size_t>("ct.ncombi");  // number of combinations
     std::string basename = cfg.get<std::string>("preproc.basename");
     dt = cfg.get<combigrid::real>(
@@ -254,6 +120,7 @@ int main(int argc, char** argv) {
     nsteps = cfg.get<size_t>("application.nsteps");  // number of timesteps between combinations
     bool haveDiagnosticsTask = cfg.get<bool>("application.haveDiagnosticsTask", false);
     bool checkpointRestart = cfg.get<bool>("application.checkpoint_restart", false);
+    std::string nameDiagnostics = cfg.get<std::string>("application.name_diagnostics" ,"vp_B2_3d3v");
     bool haveResolution = static_cast<bool>(cfg.get_child_optional("ct.resolution"));
     if (haveResolution) {
       cfg.get<std::string>("ct.resolution") >> resolution; // resolution of single grid in the full grid case
@@ -278,7 +145,7 @@ int main(int argc, char** argv) {
     // std::vector<int> fileTaskIDs;
 
     CombiMinMaxScheme combischeme(dim, lmin, lmax);
-    combischeme.createAdaptiveCombischeme();
+    combischeme.createClassicalCombischeme();
     // combischeme.makeFaultTolerant();
     levels = combischeme.getCombiSpaces();
     coeffs = combischeme.getCoeffs();
@@ -314,11 +181,14 @@ int main(int argc, char** argv) {
       size_t sometimes = 100;
       size_t always = 1;
       // create necessary folders and files to run each task in a separate folder
-      createTaskFolders(basename, levels, p, nsteps, dt, always);
+
+      std::vector<size_t> taskNumbers(levels.size());  // only necessary in case of static task assignment
+      std::iota(taskNumbers.begin(), taskNumbers.end(), 0);
+      createTaskFolders(basename, levels, taskNumbers, p, nsteps, dt, always, nameDiagnostics);
       if (haveResolution) {
         assert(levels.size() == 1);
         assert(!haveDiagnosticsTask);
-        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, always);
+        adaptParameterFileFirstFolder(basename, resolution, p, nsteps, dt, always, nameDiagnostics);
         // if haveResolution: set infty coefficient, does not need to be combined anyways
         coeffs[0] = std::numeric_limits<combigrid::real>::max();
       }
@@ -333,8 +203,8 @@ int main(int argc, char** argv) {
     for (size_t i = 0; i < levels.size(); i++) {
       // path to task folder
       std::string path = baseFolder + std::to_string(i);
-      Task* t = new SelalibTask(dim, levels[i], boundary, coeffs[i], loadmodel.get(), path, dt,
-                                nsteps, p);
+      Task* t =
+          new SelalibTask(levels[i], boundary, coeffs[i], loadmodel.get(), path, dt, nsteps, p);
       tasks.push_back(t);
       taskIDs.push_back(t->getID());
     }
@@ -342,17 +212,19 @@ int main(int argc, char** argv) {
     if (haveDiagnosticsTask) {
       assert(reduceCombinationDimsLmax == LevelVector(dim, 0));
       // initialize diagnostics task
-      if (checkpointRestart){
+      if (checkpointRestart) {
         // change the restart parameter
         setCheckpointRestart(basename, std::vector<LevelVector>(1, leval), "_leval_");
       } else {
         // create necessary folder and files to have diagnostics task in a different folder
-        createTaskFolders(basename + "_leval_", std::vector<LevelVector>(1, leval), p, nsteps, dt, 1);
+        std::vector<size_t> taskNumbers(1, 0); 
+        createTaskFolders(basename + "_leval_", std::vector<LevelVector>(1, leval), taskNumbers, p, nsteps, dt,
+                          1, nameDiagnostics);
       }
       std::string path = baseFolder + "_leval_0";
       auto levalCoefficient = 0.;
-      levalTask = new SelalibTask(dim, leval, boundary, levalCoefficient, loadmodel.get(), path, dt,
-                                  nsteps, p);
+      levalTask =
+          new SelalibTask(leval, boundary, levalCoefficient, loadmodel.get(), path, dt, nsteps, p);
       tasks.push_back(levalTask);
       taskIDs.push_back(levalTask->getID());
       levels.push_back(leval);
@@ -361,7 +233,8 @@ int main(int argc, char** argv) {
 
     // create combiparamters
     CombiParameters params(dim, lmin, lmax, boundary, levels, coeffs, hierarchizationDims, taskIDs,
-                           ncombi, 1, reduceCombinationDimsLmin, reduceCombinationDimsLmax, false);
+                           ncombi, 1, CombinationVariant::sparseGridReduce,
+                           reduceCombinationDimsLmin, reduceCombinationDimsLmax, 64, false);
     setCombiParametersHierarchicalBasesUniform(params, basis);
     params.setParallelization(p);
 
@@ -415,22 +288,6 @@ int main(int argc, char** argv) {
         }
       }
     }
-
-    // evaluate solution on the grid defined by leval
-    //(basically an interpolation of the sparse grid to fullgrid with resolution leval)
-    // Stats::startEvent("manager parallel eval");
-    // manager.parallelEval(leval, fg_file_path, 0);
-    // Stats::stopEvent("manager parallel eval");
-    // Stats::startEvent("manager parallel eval norm");
-    // auto combinedNormLeval = manager.parallelEvalNorm(leval, 0);
-    // Stats::stopEvent("manager parallel eval norm");
-
-    // std::cout << "Norm is " << combinedNormLeval << " \n";
-
-    // // evaluate solution on the grid defined by leval2
-    // Stats::startEvent("manager parallel eval 2");
-    // manager.parallelEval(leval2, fg_file_path2, 0);
-    // Stats::stopEvent("manager parallel eval 2");
 
     // std::cout << "Computation finished evaluating on target grid! \n";
 

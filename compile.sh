@@ -1,3 +1,5 @@
+#!/bin/bash
+
 cmake -S . -B build
 cmake --build build
 
@@ -13,3 +15,4 @@ mpiexec.mpich -np 9 .tests/test_distributedcombigrid_boost --run_test=distribute
 mpiexec.mpich -np 9 .tests/test_distributedcombigrid_boost --run_test=integration
 mpiexec.mpich -np 9 .tests/test_distributedcombigrid_boost --run_test=distributedsparsegrid
 mpiexec.mpich -np 9 .tests/test_distributedcombigrid_boost --run_test=mpisystem
+mpiexec.mpich -np 9 .tests/test_distributedcombigrid_boost --run_test=thirdLevel

@@ -8,13 +8,10 @@
 #SBATCH -D ./
 #Notification and type
 #SBATCH --mail-type=END
-#SBATCH --mail-user=pollinta@ipvs.uni-stuttgart.de
 # Wall clock limit:
 #SBATCH --time=72:00:00
 #SBATCH --no-requeue
 
 #SBATCH --ntasks=9
 
-. ./setenv.sh
-
-mpiexec.openmpi -n $SLURM_NTASKS ./combi_example
+mpiexec.openmpi -n $SLURM_NTASKS ./distributed_combi_example

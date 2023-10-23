@@ -23,7 +23,7 @@
 namespace combigrid
 {
 
-GeneTask::GeneTask( DimType dim, LevelVector& l,
+GeneTask::GeneTask( DimType dim, const LevelVector& l,
                     std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel,
                     std::string& path, real dt, real combitime, size_t nsteps,
                     real shat, real lx, int ky0_ind,
@@ -511,7 +511,7 @@ cpFile.close();
 void GeneTask::setZero(){
   if(dfgVector_.size() != 0){
     for(int i=0; i< dfgVector_.size(); i++){
-      std::vector<CombiDataType>& data = dfgVector_[i]->getElementVector();
+      std::vector<CombiDataType>& data = dfgVector_[i]->getDataVector();
 
       for( size_t i=0; i<data.size(); ++i ){
         data[i] = complex(0.0);
@@ -1182,7 +1182,7 @@ void GeneTask::normalizeDFG(int species){
   if( normalizePhase ){
     // compute local mean value of dfg
     CombiDataType localMean(0.0);
-    std::vector<CombiDataType>& data = dfgVector_[species]->getElementVector();
+    std::vector<CombiDataType>& data = dfgVector_[species]->getDataVector();
     for( size_t i=0; i<data.size(); ++i )
       localMean += data[i];
 
@@ -1217,7 +1217,7 @@ void GeneTask::normalizeDFG(int species){
                theMPISystem()->getLocalComm() );
 
     // divide values of dfg
-    std::vector<CombiDataType>& data = dfgVector_[species]->getElementVector();
+    std::vector<CombiDataType>& data = dfgVector_[species]->getDataVector();
     for( size_t i=0; i<data.size(); ++i )
       data[i] *= factor;
   }
@@ -1232,16 +1232,10 @@ void GeneTask::write_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
   memcpy (gyromatrix_buffer_, sparse_gyromatrix_buffer, size * sizeof(GeneComplex) );
   gyromatrix_buffered_ = true;
   gyromatrix_buffer_size_ = size;
-#ifdef DEBUG_OUTPUT
-  std::cout << "Writing gyromatrix of size: " << size << "\n";
-#endif
 }
 
 void GeneTask::load_gyromatrix(GeneComplex* sparse_gyromatrix_buffer,
     int size){
-#ifdef DEBUG_OUTPUT
-  std::cout << "Loading gyromatrix of size: " << size << "\n";
-#endif
   assert(gyromatrix_buffered_ == true);
   assert(size == gyromatrix_buffer_size_);
 

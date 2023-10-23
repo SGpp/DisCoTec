@@ -32,7 +32,8 @@ class ParaboloidFn {
     auto dim = static_cast<DimType>(globalIndex.size());
     FG_ELEMENT sign = -1.;
     // (dim % 2) ? sign = -1. : sign = 1.;
-    LevelVector level(dim), index(dim);
+    LevelVector level(dim);
+    IndexVector index(dim);
     BOOST_REQUIRE_NE(dfg_, nullptr);
     auto globalLinearIndex = dfg_->getGlobalLinearIndex(globalIndex);
     dfg_->getGlobalLI(globalLinearIndex, level, index);
@@ -52,13 +53,13 @@ class ParaboloidFn {
  */
 class TaskConstParaboloid : public combigrid::Task {
  public:
-  TaskConstParaboloid(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
+  TaskConstParaboloid(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
                       LoadModel* loadModel)
-      : Task(static_cast<DimType>(l.size()), l, boundary, coeff, loadModel), dfg_(nullptr) {
+      : Task(l, boundary, coeff, loadModel), dfg_(nullptr) {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid constructor");
   }
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
+  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
     // parallelization
     // assert(dfg_ == nullptr);
     auto nprocs = getCommSize(lcomm);
@@ -79,8 +80,8 @@ class TaskConstParaboloid : public combigrid::Task {
     //   // std::cout << decomposition[1].back() << std::endl;
     // }
 
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p, false, decomposition);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                        getBoundary(), p, false, decomposition);
 
     // set paraboloid function values
     ParaboloidFn<CombiDataType> f;
@@ -92,25 +93,35 @@ class TaskConstParaboloid : public combigrid::Task {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid init");
   }
 
-  void run(CommunicatorType lcomm) {
+  void run(CommunicatorType lcomm) override {
     // constant run method
     BOOST_CHECK(dfg_);
+    ++nsteps_;
     setFinished(true);
     MPI_Barrier(lcomm);
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid run");
   }
 
-  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) {
+  void getFullGrid(FullGrid<CombiDataType>& fg, RankType r, CommunicatorType lcomm, int n = 0) override {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid getFullGrid");
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) {
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid getDFG");
     return *dfg_;
   }
 
-  void setZero() { BOOST_CHECK(true); }
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) const override {
+    BOOST_TEST_CHECKPOINT("TaskConstParaboloid getDFG const");
+    return *dfg_;
+  }
+
+  real getCurrentTime() const override {
+    return nsteps_;
+  }
+
+  void setZero() override { BOOST_CHECK(true); }
 
   ~TaskConstParaboloid() {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid destructor");
@@ -123,12 +134,14 @@ class TaskConstParaboloid : public combigrid::Task {
  private:
   friend class boost::serialization::access;
 
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
+  size_t nsteps_ = 0;
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
     ar& boost::serialization::base_object<Task>(*this);
     // ar& nprocs_;
+    ar& nsteps_;
   }
 };
 

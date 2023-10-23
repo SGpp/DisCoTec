@@ -13,11 +13,15 @@ project("DisCoTec"
 
 set(DISCOTEC_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiMinMaxScheme.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/combischeme/CombiThirdLevelScheme.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FaultCriterion.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/FTUtils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/LPOptimizationInterpolation.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/StaticFaults.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/WeibullFaults.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/io/FileInputOutput.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/io/H5InputOutput.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/io/BroadcastParameters.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AverageOfLastNLoadModel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AveragingLoadModel.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/LinearLoadModel.cpp
@@ -26,6 +30,7 @@ set(DISCOTEC_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/manager/ProcessManager.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPIMemory.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi/MPISystem.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/mpi/OpenMPUtils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_bitflips.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT_ULFM.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/MPI-FT.cpp
@@ -60,16 +65,23 @@ set(DISCOTEC_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_wait.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/mpi_fault_simulator/Sim_FT_waitall.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/rescheduler/RebalancingTaskRescheduler.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/sparsegrid/AnyDistributedSparseGrid.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/task/Task.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_level/NetworkUtils.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_level/ThirdLevelUtils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelSetUtils.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/LevelVector.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/MonteCarlo.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/Stats.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/vtk/PlotFileWriter.cpp
         )
 
 add_library(discotec ${DISCOTEC_SOURCES})
 target_compile_features(discotec PRIVATE cxx_std_17)
 target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_options(discotec PUBLIC -march=native)
+
+target_compile_options(discotec PUBLIC $<$<CXX_COMPILER_ID:Intel>:-fp-model=precise>)
 
 # Defining options
 include(CMakeDependentOption)
@@ -79,8 +91,8 @@ option(DISCOTEC_TIMING "Build with high-resolution timing" ON)
 if (DISCOTEC_TIMING)
     target_compile_definitions(discotec PUBLIC TIMING)
 endif ()
-option(DISCOTEC_HDF5 "Interpolation output with HDF5" ON) # ON
-cmake_dependent_option(DISCOTEC_USE_HIGHFIVE "Use HighFive for HDF5" ON DISCOTEC_HDF5 OFF)
+
+option(DISCOTEC_USE_HIGHFIVE "Interpolation output with HighFive/HDF5" ON)
 option(DISCOTEC_UNIFORMDECOMPOSITION "Use uniform decomposition" ON) # TODO: @polinta: does not compile if off
 if (DISCOTEC_UNIFORMDECOMPOSITION)
     target_compile_definitions(discotec PUBLIC UNIFORMDECOMPOSITION) # has to be PUBLIC for tests, rename to DISCOTEC_UNIFORMDECOMPOSITION?
@@ -98,10 +110,7 @@ option(DISCOTEC_ENABLEFT "DisCoTec with algorithm-based fault tolerance" OFF)
 if (DISCOTEC_ENABLEFT)
     add_compile_definitions(ENABLEFT)
 endif ()
-option(DISCOTEC_DEBUG "Build with assertions and debug symbols" OFF) #TODO: Move to build type
-if (DISCOTEC_DEBUG OR CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-    target_compile_definitions(discotec PUBLIC DEBUG_OUTPUT)
-endif ()
+option(DISCOTEC_USE_VTK "Use VTK for visualization" OFF)
 option(DISCOTEC_USE_LTO "Use link-time optimization" ON)
 if (DISCOTEC_USE_LTO)
     include(CheckIPOSupported)
@@ -127,163 +136,40 @@ endif ()
 #ISGENE #TODO: handle if access to GENE
 
 # Handle dependencies
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/../CMakeModules)
 find_package(MPI REQUIRED)
 target_link_libraries(discotec PUBLIC MPI::MPI_CXX)
 
 include(FetchContent)
 
-find_package(Boost QUIET COMPONENTS serialization headers program_options unit_test_framework system filesystem)
-if (Boost_FOUND)
-    message(STATUS "Boost found")
-else ()
-    if (NOT DISCOTEC_BUILD_MISSING_DEPS)
-        message(FATAL_ERROR "Boost not found")
+find_package(Boost REQUIRED COMPONENTS serialization headers program_options unit_test_framework system filesystem date_time)
+
+target_include_directories(discotec PRIVATE Boost::headers)
+target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_options Boost::system Boost::date_time)
+
+find_package(GLPK REQUIRED)
+target_link_libraries(discotec PUBLIC ${GLPK_LIBRARIES})
+target_include_directories(discotec PUBLIC ${GLPK_INCLUDE_DIRS})
+
+if (DISCOTEC_USE_HIGHFIVE)
+    enable_language(C)
+    find_package(HighFive REQUIRED)  # TODO: add minimum version and components
+    if (IS_DIRECTORY "${HighFive_SOURCE_DIR}")
+        set_property(DIRECTORY ${HighFive_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
     endif ()
-    message(WARNING "Boost not found. Building own Boost!")
-    list(APPEND CMAKE_MESSAGE_INDENT "Boost: ")
-    set(Boost_VERSION 1.80.0 CACHE STRING "Boost version to build")
-    set(Boost_URL https://boostorg.jfrog.io/artifactory/main/release/${Boost_VERSION}/source/boost_${Boost_VERSION//./_}.tar.gz)
-    FetchContent_Declare(
-            Boost_binaries
-            URL ${Boost_URL}
-            OVERRIDE_FIND_PACKAGE
-            )
-    FetchContent_MakeAvailable(Boost_binaries)
-    message(STATUS "Cloning Boost")
-    FetchContent_GetProperties(Boost_binaries)
-    message(STATUS "Bootstraping Boost")
-    execute_process(COMMAND ./bootstrap.sh --prefix=${boost_binaries_BINARY_DIR} --with-libraries=serialization,program_options,system,math,test,headers WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR}  OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
-    message(STATUS "Building Boost")
-    execute_process(COMMAND ./b2 WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
-    execute_process(COMMAND ./b2 headers WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
-    execute_process(COMMAND ./b2 install WORKING_DIRECTORY  ${boost_binaries_SOURCE_DIR} OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
-
-
-    set(BOOST_ROOT ${boost_binaries_BINARY_DIR})
-    set(Boost_NO_SYSTEM_PATHS ON)
-    find_package(Boost ${Boost_VERSION} REQUIRED COMPONENTS serialization program_options system unit_test_framework)
-
+    target_include_directories(discotec PRIVATE ${HighFive_INCLUDE_DIRS})
+    target_link_libraries(discotec PRIVATE HighFive)
+    target_compile_definitions(discotec PUBLIC DISCOTEC_USE_HIGHFIVE)
     list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif ()
 
-target_include_directories(discotec PRIVATE Boost::headers)
-target_link_libraries(discotec PRIVATE Boost::serialization Boost::program_options Boost::system )
-
-message(STATUS "Fetching glpk")
-FetchContent_Declare(
-        glpk
-        URL http://ftp.gnu.org/gnu/glpk/glpk-4.55.tar.gz # TODO: use newer and not hardcoded Version
-        QUIET
-)
-FetchContent_MakeAvailable(glpk)
-message(STATUS "GLPK: configure ...")
-execute_process(COMMAND ${glpk_SOURCE_DIR}/configure --prefix=${glpk_BINARY_DIR} OUTPUT_QUIET ERROR_QUIET COMMAND_ERROR_IS_FATAL ANY)
-message(STATUS "GLPK: build ...")
-execute_process(COMMAND make -j ${nproc} OUTPUT_QUIET ERROR_QUIET COMMAND_ERROR_IS_FATAL ANY)
-message(STATUS "GLPK: install ...")
-execute_process(COMMAND make install OUTPUT_QUIET COMMAND_ERROR_IS_FATAL ANY)
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${glpk_BINARY_DIR})
-target_include_directories(discotec PUBLIC ${glpk_BINARY_DIR}/include)
-target_link_libraries(discotec PUBLIC ${glpk_BINARY_DIR}/lib/libglpk.a)
-
-
-if (DISCOTEC_HDF5)
+if (DISCOTEC_USE_VTK)
     enable_language(C)
+    find_package(VTK REQUIRED) # TODO: add minimum version and components
 
-    set(HDF5_PREFER_PARALLEL ON)
-    find_package(HDF5) # TODO: add minimum version and components
-
-
-    if (HDF5_FOUND AND HDF5_IS_PARALLEL)
-        message(STATUS "Found HDF5")
-    else ()
-        if (NOT DISCOTEC_BUILD_MISSING_DEPS)
-            message(FATAL_ERROR "HDF5 not found")
-        endif ()
-        list(APPEND CMAKE_MESSAGE_INDENT "HDF5: ")
-
-        message(WARNING "Parallel HDF5 not found, building own HDF5!")
-        FetchContent_Declare(
-                HDF5
-                GIT_REPOSITORY git@github.com:HDFGroup/hdf5.git
-                GIT_TAG hdf5-1_13_0
-                GIT_SHALLOW TRUE
-                QUIET
-                OVERRIDE_FIND_PACKAGE
-        )
-        set(HDF5_ENABLE_PARALLEL ON CACHE BOOL "" FORCE)
-        set(HDF5_IS_PARALLEL ON CACHE BOOL "" FORCE)
-        set(HDF5_EXTERNALLY_CONFIGURED ON CACHE BOOL "" FORCE)
-        set(HDF5_EXTERNALLY_CONFIGURED ON CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_PARALLEL_TOOLS OFF CACHE BOOL "" FORCE)
-        set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_FRAMEWORKS OFF CACHE BOOL "" FORCE)
-        set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
-        set(TEST_SHELL_SCRIPTS OFF CACHE BOOL "" FORCE)
-        set(HDF5_TEST_TOOLS OFF CACHE BOOL "" FORCE)
-        set(HDF5_TEST_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(HDF5_TEST_SWMR OFF CACHE BOOL "" FORCE)
-        set(HDF5_TESTS_PARALLEL OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_CPP_LIB OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_FORTRAN OFF CACHE BOOL "" FORCE) # TODO: enable fortran when using selalib
-        set(HDF5_ENABLE_THREADSAFE OFF CACHE BOOL "" FORCE)
-        set(HDF5_BUILD_JAVA OFF CACHE BOOL "" FORCE)
-        FetchContent_MakeAvailable(HDF5)
-
-        if (IS_DIRECTORY "${HDF5_SOURCE_DIR}")
-            set_property(DIRECTORY ${HDF5_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
-        endif ()
-        list(POP_BACK CMAKE_MESSAGE_INDENT)
-
-        target_include_directories(discotec PRIVATE ${HDF5_SOURCE_DIR}/src) # TODO
-        target_include_directories(discotec PRIVATE ${HDF5_BINARY_DIR}/src) # TODO:
-
-        target_link_libraries(discotec PUBLIC hdf5-static)
-
-        if("${HDF5_LIBRARIES}" MATCHES ".*-NOTFOUND")
-         set(HDF5_LIBRARIES "")
-        endif()
-        if ("${HDF5_INCLUDE_DIRS}" MATCHES ".*-NOTFOUND")
-         set(HDF5_INCLUDE_DIRS "")
-        endif()
-    endif ()
-
-
-    if (DISCOTEC_USE_HIGHFIVE)
-        find_package(HighFive QUIET)  # TODO: add minimum version and components
-        if (HighFive_FOUND)
-            message(STATUS "Found HighFive: ${HighFive_INCLUDE_DIRS}")
-        else ()
-            if (NOT DISCOTEC_BUILD_MISSING_DEPS)
-                message(FATAL_ERROR "HighFive not found")
-            endif ()
-            message(WARNING "HighFive not found, building own HighFive!")
-            list(APPEND CMAKE_MESSAGE_INDENT "HighFive: ")
-            FetchContent_Declare(
-                    HighFive
-                    GIT_REPOSITORY git@github.com:BlueBrain/HighFive.git
-                    GIT_TAG v2.6.2
-                    GIT_SHALLOW TRUE
-                    QUIET
-            )
-            set(HIGHFIVE_EXAMPLES OFF CACHE BOOL "" FORCE)
-            set(HIGHFIVE_PARALLEL_HDF5 ON CACHE BOOL "" FORCE)
-            set(HIGHFIVE_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-            set(HIGHFIVE_UNIT_TESTS OFF CACHE BOOL "" FORCE)
-            set(HIGHFIVE_USE_BOOST OFF CACHE BOOL "" FORCE)
-
-            FetchContent_MakeAvailable(HighFive)
-            if (IS_DIRECTORY "${HighFive_SOURCE_DIR}")
-                set_property(DIRECTORY ${HighFive_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
-            endif ()
-        endif ()
-        target_include_directories(discotec PRIVATE ${HighFive_INCLUDE_DIRS})
-        target_link_libraries(discotec PRIVATE HighFive)
-        target_compile_definitions(discotec PRIVATE HAVE_HIGHFIVE)
-        list(POP_BACK CMAKE_MESSAGE_INDENT)
-    endif ()
+    target_link_libraries(discotec PRIVATE  VTK::CommonCore VTK::CommonDataModel VTK::IOParallelXML)
+    target_include_directories(discotec PRIVATE ${VTK_INCLUDE_DIRS})
+    target_compile_definitions(discotec PRIVATE USE_VTK)
 endif ()
 
 # Compiler flags
@@ -339,3 +225,11 @@ endif()
 if(COMPILER_SUPPORTS_MMIC)
     target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mmic>)
 endif()
+
+install(TARGETS discotec
+        EXPORT discotecTargets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
+        )

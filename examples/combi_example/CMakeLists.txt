@@ -10,7 +10,7 @@ project("DisCoTec distributed combi example"
         DESCRIPTION "TODO")
 
 if (NOT TARGET discotec)
-    add_subdirectory(../../src/sgpp/distributedcombigrid discotec)
+    add_subdirectory(../../src discotec)
 endif ()
 find_package(Boost REQUIRED)
 
@@ -18,3 +18,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(combi_example combi_example.cpp)
 target_compile_features(combi_example PUBLIC cxx_std_17)
 target_link_libraries(combi_example discotec Boost::boost)
+
+install(TARGETS combi_example DESTINATION examples/combi_example)
+install(FILES ctparam run.sh DESTINATION examples/combi_example)

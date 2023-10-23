@@ -4,6 +4,8 @@
  *  Created on: Sep 23, 2015
  *      Author: heenemo
  */
+// to resolve https://github.com/open-mpi/ompi/issues/5157
+#define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
 #include <vector>
 #include <boost/property_tree/ptree.hpp>
@@ -44,19 +46,6 @@ inline std::vector<bool>& operator>>(std::string str, std::vector<bool>& vec) {
     vec[i] = boost::lexical_cast<bool>(strs[i]);
 
   return vec;
-}
-
-
-// helper function to output bool vector
-inline std::ostream& operator<<(std::ostream& os, const std::vector<bool>& l) {
-  os << "[";
-
-  for (size_t i = 0; i < l.size(); ++i)
-    os << l[i] << " ";
-
-  os << "]";
-
-  return os;
 }
 
 /**
@@ -280,16 +269,11 @@ int main(int argc, char** argv) {
     }
     // create combiparamters
     CombiParameters params( dim, lmin, lmax, boundary, levels,
-                            coeffs, hierarchizationDims, taskIDs, ncombi, numGrids, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
-    params.setParallelization(p);
+                            coeffs, hierarchizationDims, taskIDs, ncombi, numGrids, p, reduceCombinationDimsLmin, reduceCombinationDimsLmax);
 
     // create Manager with process groups
     ProcessManager manager(pgroups, tasks, params, std::move(loadmodel));
 
-    // combiparameters need to be set before starting the computation
-    Stats::startEvent("update combi parameters");
-    manager.updateCombiParameters();
-    Stats::stopEvent("update combi parameters");
     bool success = true; //indicates if computation was sucessfull -> false means fault occured
     //start computation
     //we perform ncombi many combinations with
@@ -391,7 +375,6 @@ int main(int argc, char** argv) {
         /* restore combischeme to its original state
          * and send new combiParameters to all surviving groups */
         manager.restoreCombischeme();
-        manager.updateCombiParameters();
         Stats::stopEvent("manager recover postprocessing");
 
       }

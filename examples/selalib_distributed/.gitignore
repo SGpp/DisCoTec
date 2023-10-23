@@ -3,3 +3,7 @@
 */seladisco*/*
 *.pdf
 Makefile
+
+#executables
+selalib_distributed*
+combine_selalib_*

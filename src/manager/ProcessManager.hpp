@@ -2,6 +2,7 @@
 #define PROCESSMANAGER_HPP_
 
 #include <vector>
+#include <numeric>
 
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "fault_tolerance/LPOptimizationInterpolation.hpp"
@@ -13,6 +14,10 @@
 #include "rescheduler/StaticTaskRescheduler.hpp"
 #include "mpi/MPISystem.hpp"
 #include "task/Task.hpp"
+#include "manager/ProcessGroupManager.hpp"
+#include "combischeme/CombiMinMaxScheme.hpp"
+#include "third_level/ThirdLevelUtils.hpp"
+#include "utils/MonteCarlo.hpp"
 
 namespace combigrid {
 
@@ -34,12 +39,18 @@ class ProcessManager {
   ProcessManager(ProcessGroupManagerContainer& pgroups, TaskContainer& instances,
                  CombiParameters& params, std::unique_ptr<LoadModel> loadModel, 
                  std::unique_ptr<TaskRescheduler> rescheduler = std::unique_ptr<TaskRescheduler>(new StaticTaskRescheduler{}))
-    : pgroups_{pgroups}, 
-      tasks_{instances}, 
-      params_{params}, 
+    : pgroups_{pgroups},
+      tasks_{instances},
+      params_{params},
       loadModel_{std::move(loadModel)},
-      rescheduler_{std::move(rescheduler)}
-  { }
+      rescheduler_{std::move(rescheduler)},
+      thirdLevel_{params.getThirdLevelHost(), params.getThirdLevelPort()},
+      thirdLevelPGroup_{pgroups_[params.getThirdLevelPG()]}
+  {
+     // only setup third level if explicitly desired
+     if (params.getThirdLevelHost() != "")
+       setupThirdLevel();
+  }
 
   inline void removeGroups(std::vector<int> removeIndices);
 
@@ -64,11 +75,35 @@ class ProcessManager {
 
   inline void combine();
 
-  template <typename FG_ELEMENT>
-  inline void combineFG(FullGrid<FG_ELEMENT>& fg);
+  inline void combineThirdLevel();
+
+  inline void combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
+                                              std::string writeCompleteTokenFileName);
+
+  inline void combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
+                                                   std::string startReadingTokenFileName);
+
+  inline void combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                         std::string writeCompleteTokenFileName,
+                                         std::string filenamePrefixToRead,
+                                         std::string startReadingTokenFileName);
+
+  inline size_t pretendCombineThirdLevelForBroker(std::vector<long long> numDofsToCommunicate,
+                                         bool checkValues);
+
+  inline void pretendCombineThirdLevelForWorkers();
+
+  inline size_t unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid);
+
+  inline size_t pretendUnifySubspaceSizesThirdLevel();
+
+  void monteCarloThirdLevel(size_t numPoints, std::vector<std::vector<real>>& coordinates,
+                            std::vector<CombiDataType>& values);
+
+  inline void combineSystemWide();
 
   template <typename FG_ELEMENT>
-  inline void gridEval(FullGrid<FG_ELEMENT>& fg);
+  inline void combineFG(FullGrid<FG_ELEMENT>& fg);
 
   /* Generates no_faults random faults from the combischeme */
   inline void createRandomFaults(std::vector<size_t>& faultIds, int no_faults);
@@ -81,11 +116,11 @@ class ProcessManager {
 
   void updateCombiParameters();
 
+  void getDSGFromProcessGroup();
+
   /* Computes group faults in current combi scheme step */
   void getGroupFaultIDs(std::vector<size_t>& faultsID,
                         std::vector<ProcessGroupManagerID>& groupFaults);
-
-  inline CombiParameters& getCombiParameters();
 
   void parallelEval(const LevelVector& leval, std::string& filename, size_t groupID);
 
@@ -93,17 +128,19 @@ class ProcessManager {
 
   std::map<size_t, double> getLpNorms(int p = 2);
 
-  std::vector<double> parallelEvalNorm(const LevelVector& leval, size_t groupID = 0);
+  double getLpNorm(int p = 2);
 
-  std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval, size_t groupID = 0);
+  std::vector<CombiDataType> interpolateValues(
+      const std::vector<std::vector<real>>& interpolationCoords);
 
-  std::vector<double> evalErrorOnDFG(const LevelVector& leval, size_t groupID = 0);
+  void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords,
+                                         std::string filenamePrefix);
 
-  std::vector<CombiDataType> interpolateValues(const std::vector<std::vector<real>>& interpolationCoords);
+  void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords,
+                                      std::string filenamePrefix);
 
-  void writeInterpolatedValues(const std::vector<std::vector<real>>& interpolationCoords);
-
-  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords);
+  void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords,
+                                     std::string filenamePrefix) const;
 
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 
@@ -122,6 +159,8 @@ class ProcessManager {
    * to the original combination technique*/
   void restoreCombischeme();
 
+  void setupThirdLevel();
+
   /**
    * Call to perform a rescheduling using the given rescheduler and load model.
    *
@@ -133,6 +172,8 @@ class ProcessManager {
    * - Accuracy of calculated values is lost if leval is not equal to 0.
    */
   void reschedule();
+
+  void writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg);
 
   void writeDSGsToDisk(std::string filenamePrefix);
 
@@ -151,11 +192,16 @@ class ProcessManager {
 
   std::map<LevelVector, unsigned long> levelVectorToLastTaskDuration_ = {};
 
+  ThirdLevelUtils thirdLevel_;
+
+  ProcessGroupManagerID& thirdLevelPGroup_;
+
   // periodically checks status of all process groups. returns until at least
   // one group is in WAIT state
   inline ProcessGroupManagerID wait();
   inline ProcessGroupManagerID waitAvoid(std::vector<ProcessGroupManagerID>& avoidGroups);
   bool waitAllFinished();
+  bool waitForPG(ProcessGroupManagerID pg);
 
   void receiveDurationsOfTasksFromGroupMasters(size_t numDurationsToReceive);
 
@@ -210,18 +256,6 @@ inline ProcessGroupManagerID ProcessManager::waitAvoid(
   }
 }
 
-template <typename FG_ELEMENT>
-inline FG_ELEMENT ProcessManager::eval(const std::vector<real>& coords) {
-  waitForAllGroupsToWait();
-
-  FG_ELEMENT res(0);
-
-  // call eval function of each process group
-  for (size_t i = 0; i < pgroups_.size(); ++i) res += pgroups_[i]->eval(coords);
-
-  return res;
-}
-
 /* This function performs the so-called recombination. First, the combination
  * solution will be evaluated in the given sparse grid space.
  * Also, the local component grids will be updated with the combination
@@ -240,47 +274,294 @@ void ProcessManager::combine() {
   waitAllFinished();
 }
 
-/* This function performs the so-called recombination. First, the combination
- * solution will be evaluated with the resolution of the given full grid.
- * Afterwards, the local component grids will be updated with the combination
- * solution. The combination solution will also be available on the manager
- * process.
- */
-template <typename FG_ELEMENT>
-void ProcessManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
-  waitForAllGroupsToWait();
+void ProcessManager::combineSystemWide() {
+  Stats::startEvent("manager combine local");
+  // wait until all process groups are in wait state
+  // after sending the exit signal checking the status might not be possible
+  size_t numWaiting = 0;
 
-  // send signal to each group
+  while (numWaiting != pgroups_.size()) {
+    numWaiting = 0;
+
+    for (size_t i = 0; i < pgroups_.size(); ++i) {
+      if (pgroups_[i]->getStatus() == PROCESS_GROUP_WAIT) ++numWaiting;
+    }
+  }
+
+  // tell groups to combine local and global
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->combineFG(fg);
+    bool success = pgroups_[i]->combineSystemWide();
     assert(success);
   }
 
-  CombiCom::FGAllreduce<FG_ELEMENT>(fg, theMPISystem()->getGlobalComm());
+  waitAllFinished();
+  Stats::stopEvent("manager combine local");
 }
 
-/* Evaluate the combination solution with the resolution of the given full grid.
- * In constrast to the combineFG function, the solution will only be available
- * on the manager. No recombination is performed, i.e. the local component grids
- * won't be updated.
+/** Combination with third level parallelism e.g. between two HPC systems
+ *
+ * The process manager induces a local and global combination first.
+ * Then he signals ready to the third level manager who decides which system
+ * sends and receives first. All pgs which do not participate in the third level
+ * combination directly idle in a broadcast function and wait for their update
+ * from the third level pg.
+ *
+ * Different roles of the manager:
+ *
+ * Senders role:
+ * The processGroupManager transfers the dsgus from the workers of the third
+ * level pg to the third level manager, who further forwards them to the remote
+ * system. After sending, he receives the remotely reduced data and sends it back
+ * to the third level pg.
+ *
+ * Receivers role:
+ * In the role of the receiver, the ProcessGroupManager receives the remote dsgus
+ * and reduces it with the local solution.
+ * Afterwards, he sends the solution back to the remote system and to the local
+ * workers.
  */
-template <typename FG_ELEMENT>
-void ProcessManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
-  waitForAllGroupsToWait();
+void ProcessManager::combineThirdLevel() {
+  // first combine local and global
+  combineSystemWide();
 
-  // send signal to each group
-  for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->gridEval(fg);
-    assert(success);
+  // tell other pgroups to idle and wait for the combination result
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
+  }
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToCombine();
+  std::string instruction = thirdLevel_.fetchInstruction();
+
+  // combine
+  Stats::startEvent("manager exchange data with remote");
+  if (instruction == "send_first") {
+    thirdLevelPGroup_->combineThirdLevel(thirdLevel_, params_, true);
+  } else if (instruction == "recv_first") {
+    thirdLevelPGroup_->combineThirdLevel(thirdLevel_, params_, false);
+  }
+  Stats::stopEvent("manager exchange data with remote");
+  thirdLevel_.signalReady();
+
+  waitAllFinished();
+}
+
+void ProcessManager::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
+                                                     std::string writeCompleteTokenFileName) {
+  // first combine local and global
+  combineSystemWide();
+
+  // obtain "instructions" from third level manager
+  thirdLevel_.signalReadyToCombineFile();
+  std::string instruction = thirdLevel_.fetchInstruction();
+  assert(instruction == "write_ok");
+
+  // combine
+  Stats::startEvent("manager combine write");
+  thirdLevelPGroup_->combineThirdLevelFileBasedWrite(filenamePrefixToWrite,
+                                                     writeCompleteTokenFileName);
+  Stats::stopEvent("manager combine write");
+  waitForPG(thirdLevelPGroup_);
+}
+
+void ProcessManager::combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
+                                                          std::string startReadingTokenFileName) {
+  // integrate the solutions
+  Stats::startEvent("manager combine read");
+  // tell other pgroups to wait for the combination result
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
   }
 
-  CombiCom::FGReduce<FG_ELEMENT>(fg, theMPISystem()->getManagerRank(),
-                                 theMPISystem()->getGlobalComm());
+  thirdLevelPGroup_->combineThirdLevelFileBasedReadReduce(filenamePrefixToRead,
+                                                          startReadingTokenFileName);
+
+  thirdLevel_.signalReady();
+  waitAllFinished();
+  Stats::stopEvent("manager combine read");
 }
 
-CombiParameters& ProcessManager::getCombiParameters() { return params_; }
+void ProcessManager::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                                std::string writeCompleteTokenFileName,
+                                                std::string filenamePrefixToRead,
+                                                std::string startReadingTokenFileName) {
+  // first combine local and global
+  combineSystemWide();
 
-/*
+  // tell other pgroups to idle and wait for the combination result
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
+  }
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToCombineFile();
+  std::string instruction = thirdLevel_.fetchInstruction();
+  assert(instruction == "write_ok");
+
+  // combine
+  Stats::startEvent("manager combine file");
+  thirdLevelPGroup_->combineThirdLevelFileBased(filenamePrefixToWrite, writeCompleteTokenFileName,
+                                                filenamePrefixToRead, startReadingTokenFileName);
+  Stats::stopEvent("manager combine file");
+  waitForPG(thirdLevelPGroup_);
+  thirdLevel_.signalReady();
+}
+
+void ProcessManager::pretendCombineThirdLevelForWorkers() {
+  // first combine local and global
+  combineSystemWide();
+
+  // combine
+  Stats::startEvent("manager exchange no data with remote");
+  // tell other pgroups to idle and wait for the combination result
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelCombiResult();
+  }
+  thirdLevelPGroup_->pretendCombineThirdLevelForWorkers(params_);
+  waitAllFinished();
+  Stats::stopEvent("manager exchange no data with remote");
+}
+
+/**
+ * @brief like combineThirdLevel, but without involving any process groups
+ * -- sending dummy data instead
+ *
+ */
+size_t ProcessManager::pretendCombineThirdLevelForBroker(
+    std::vector<long long> numDofsToCommunicate, bool checkValues) {
+  size_t numWrongValues = 0;
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToCombine();
+  std::string instruction = thirdLevel_.fetchInstruction();
+
+  std::cout << " pretend " << instruction << std::endl;
+
+  Stats::startEvent("manager exchange data with remote");
+  for (const auto& dsguSize : numDofsToCommunicate) {
+    std::vector<CombiDataType> dsguData(dsguSize, 0.);
+    // combine
+    if (instruction == "send_first") {
+      // if sending first, initialize with random
+      auto initialData = montecarlo::getRandomCoordinates(1, dsguSize)[0];
+      dsguData.assign(initialData.begin(), initialData.end());
+      // send dsgu to remote
+      thirdLevel_.sendData(dsguData.data(), dsguSize);
+      // recv combined dsgu from remote
+      thirdLevel_.recvData(dsguData.data(), dsguSize);
+      if (checkValues) {
+        for (long long j = 0; j < dsguSize; ++j) {
+          if (dsguData[j] != initialData[j]) {
+            ++numWrongValues;
+          }
+        }
+        assert(numWrongValues == 0);
+      }
+    } else if (instruction == "recv_first") {
+      // recv and combine dsgu from remote
+      thirdLevel_.recvAndAddToData(dsguData.data(), dsguSize);
+      // send combined solution to remote
+      thirdLevel_.sendData(dsguData.data(), dsguSize);
+    }
+  }
+  Stats::stopEvent("manager exchange data with remote");
+  thirdLevel_.signalReady();
+  return numWrongValues;
+}
+
+/** Unifys the subspace sizes of all dsgus which are collectively combined
+ * during third level reduce
+ *
+ * First, the processGroupManager collects the subspace sizes from all workers
+ * dsgus. This is achieved in a single MPI_Gatherv call. The sizes of the send
+ * buffers are gathered beforehand. Afterwards, the process manager signals
+ * ready to the third level manager who then decides which system sends and
+ * receives first.
+ *
+ * Senders role: The processGroupManager sends and receives data from the third
+ * level manager.
+ *
+ * Receivers role: The ProcessGroupManager receives and sends data to the third
+ * level manager.
+ *
+ * In both roles the manager locally reduces the data and scatters the updated
+ * sizes back to the workers of the third level pg who will then distribute it
+ * to the other pgs.
+ */
+ size_t ProcessManager::unifySubspaceSizesThirdLevel(bool thirdLevelExtraSparseGrid) {
+  if (!thirdLevelExtraSparseGrid) {
+    // tell other pgroups to idle and wait for update
+    for (auto& pg : pgroups_) {
+      if (pg != thirdLevelPGroup_)
+        pg->waitForThirdLevelSizeUpdate();
+    }
+  }
+
+  // obtain instructions from third level manager
+  thirdLevel_.signalReadyToUnifySubspaceSizes();
+  std::string instruction = thirdLevel_.fetchInstruction();
+
+  // exchange sizes with remote
+  if (instruction == "send_first") {
+    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, true,
+                                                         thirdLevelExtraSparseGrid);
+  } else if (instruction == "recv_first") {
+    thirdLevelPGroup_->reduceLocalAndRemoteSubspaceSizes(thirdLevel_, false,
+                                                         thirdLevelExtraSparseGrid);
+  }
+  thirdLevel_.signalReady();
+
+  waitAllFinished();
+
+  const auto& formerDsguDataSizePerWorker = thirdLevelPGroup_->getFormerDsguDataSizePerWorker();
+  const auto& dsguDataSizePerWorker = thirdLevelPGroup_->getDsguDataSizePerWorker();
+
+  auto formerDsguDataSize =
+      std::accumulate(formerDsguDataSizePerWorker.begin(), formerDsguDataSizePerWorker.end(), 0);
+  auto dsguDataSize =
+      std::accumulate(dsguDataSizePerWorker.begin(), dsguDataSizePerWorker.end(), 0);
+  Stats::setAttribute("formerDsguDataSize", std::to_string(formerDsguDataSize));
+  Stats::setAttribute("dsguDataSize", std::to_string(dsguDataSize));
+
+  if (thirdLevelExtraSparseGrid && dsguDataSize > formerDsguDataSize) {
+    throw std::runtime_error("why is it larger???");
+  } else if (!thirdLevelExtraSparseGrid && dsguDataSize < formerDsguDataSize) {
+    throw std::runtime_error("why is it smaller???");
+  }
+
+  return dsguDataSize;
+}
+
+// like unifySubspaceSizesThirdLevel, but without sending any data widely
+// instead, the manager sends only zeros to the third level group, so it will keep its own sparse
+// grid sizes
+size_t ProcessManager::pretendUnifySubspaceSizesThirdLevel() {
+  // tell other pgroups to idle and wait for update
+  for (auto& pg : pgroups_) {
+    if (pg != thirdLevelPGroup_) pg->waitForThirdLevelSizeUpdate();
+  }
+
+  // exchange sizes with remote
+  thirdLevelPGroup_->pretendReduceLocalAndRemoteSubspaceSizes(thirdLevel_);
+
+  waitAllFinished();
+
+  const auto& formerDsguDataSizePerWorker = thirdLevelPGroup_->getFormerDsguDataSizePerWorker();
+  const auto& dsguDataSizePerWorker = thirdLevelPGroup_->getDsguDataSizePerWorker();
+
+  auto formerDsguDataSize =
+      std::accumulate(formerDsguDataSizePerWorker.begin(), formerDsguDataSizePerWorker.end(), 0);
+  auto dsguDataSize =
+      std::accumulate(dsguDataSizePerWorker.begin(), dsguDataSizePerWorker.end(), 0);
+  Stats::setAttribute("formerDsguDataSize", std::to_string(formerDsguDataSize));
+  Stats::setAttribute("dsguDataSize", std::to_string(dsguDataSize));
+
+  if (dsguDataSize != formerDsguDataSize) {
+    throw std::runtime_error("wrong number of dofs pretending unifying dsgu sizes");
+  }
+
+  return dsguDataSize;
+}
+
+
+/**
  * Create a certain given number of random faults, considering that the faulty processes
  * simply cannot give the evaluation results, but they are still available in the MPI
  * communication scheme (the nodes are not dead)
@@ -299,7 +580,7 @@ inline void ProcessManager::createRandomFaults(std::vector<size_t>& faultIds, in
   }
 }
 
-/*
+/**
  * Recompute coefficients for the combination technique based on given grid faults using
  * an optimization scheme
  */
@@ -374,6 +655,5 @@ inline Task* ProcessManager::getTask(size_t taskID) {
   }
   return nullptr;
 }
-
 } /* namespace combigrid */
 #endif /* PROCESSMANAGER_HPP_ */

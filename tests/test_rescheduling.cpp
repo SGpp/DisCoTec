@@ -71,21 +71,24 @@ class TestingTaskRescheduler : public TaskRescheduler {
  */
 class TestingTask : public combigrid::Task {
  public:
-  TestingTask(LevelVector& l, std::vector<BoundaryType>& boundary, real coeff, LoadModel* loadModel)
-      : Task(2, l, boundary, coeff, loadModel){}
+  TestingTask(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
+              LoadModel* loadModel)
+      : Task(l, boundary, coeff, loadModel) {
+    assert(l.size() == 2);
+  }
 
   void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
     // parallelization
     // assert(dfg_ == nullptr);
     auto nprocs = getCommSize(lcomm);
-    std::vector<int> p = {nprocs,1};
+    std::vector<int> p = {nprocs, 1};
 
-    dfg_ = new DistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm, getBoundary(),
-                                                  p, false, decomposition);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,
+                                                        getBoundary(), p, false, decomposition);
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    for (auto& element : elements) {
-      element = 0; // default state is 0
+    auto elements = dfg_->getData();
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
+      elements[i] = 0;  // default state is 0
     }
   }
 
@@ -95,9 +98,9 @@ class TestingTask : public combigrid::Task {
 
     // std::cout << "run " << getCommRank(lcomm) << std::endl;
     
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
-    for (auto& element : elements) {
-      element = 10; // after run was executed the state is 10
+    auto elements = dfg_->getData();
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
+      elements[i] = 10; // after run was executed the state is 10
     }
     BOOST_CHECK(dfg_);
 
@@ -126,8 +129,7 @@ class TestingTask : public combigrid::Task {
  private:
   friend class boost::serialization::access;
 
-  DistributedFullGrid<CombiDataType>* dfg_{nullptr};
-
+  OwningDistributedFullGrid<CombiDataType>* dfg_{nullptr};
 
   template <class Archive>
   void serialize(Archive& ar, const unsigned int version) {
@@ -138,16 +140,16 @@ class TestingTask : public combigrid::Task {
 
 BOOST_CLASS_EXPORT(TestingTask)
 
-bool tasksContainSameValue(const TaskContainer& tasks) {
+bool tasksContainSameValue(const std::vector<std::unique_ptr<Task>>& tasks) {
   // std::cout << "task size" << tasks.size() << "\n";
   if (tasks.size() <= 1) {
     return true;
   }
 
-  auto firstValue = dynamic_cast<TestingTask *>(tasks[0])->valueToPersist_;
+  auto firstValue = dynamic_cast<TestingTask *>(tasks[0].get())->valueToPersist_;
 
   for (auto i = tasks.cbegin() + 1; i < tasks.cend(); ++i) {
-    if (firstValue != dynamic_cast<TestingTask *>(*i)->valueToPersist_) {
+    if (firstValue != dynamic_cast<TestingTask *>((*i).get())->valueToPersist_) {
       return false;
     }
   }
@@ -248,17 +250,17 @@ void checkRescheduling(size_t ngroup = 1, size_t nprocs = 1) {
       BOOST_REQUIRE(tasksContainSameValue(pgroup.getTasks()));
 
       for (auto& t : pgroup.getTasks()) {
-        std::vector<CombiDataType>& elements = t->getDistributedFullGrid().getElementVector();
-        for (auto e : elements) {
+        auto elements = t->getDistributedFullGrid().getData();
+        for (size_t i = 0; i < t->getDistributedFullGrid().getNrLocalElements(); ++i) {
           // Elements need to be always equal to 10 because
           // * first run: run is executed
           // * next run: run is executed
-          // * combination: element values do not change (every element is 
+          // * combination: element values do not change (every element is
           //                equal to 10)
           // * Task was added: element values are restored
-          // * Task was removed: all remaining elements were already checked in 
+          // * Task was removed: all remaining elements were already checked in
           //                     a previous iteration
-          BOOST_REQUIRE(e == 10.);
+          BOOST_REQUIRE(elements[i] == 10.);
         }
       }
     }
@@ -273,13 +275,13 @@ BOOST_FIXTURE_TEST_SUITE(rescheduling, TestHelper::BarrierAtEnd, *boost::unit_te
 
 BOOST_AUTO_TEST_CASE(test_1, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "rescheduling/test_serialization_1"<< std::endl;
+  std::cout << "rescheduling/test_1"<< std::endl;
   checkRescheduling(3,1);
 }
 
 BOOST_AUTO_TEST_CASE(test_2, *boost::unit_test::tolerance(TestHelper::higherTolerance) *
                                  boost::unit_test::timeout(60)) {
-  std::cout << "rescheduling/test_serialization_2"<< std::endl;
+  std::cout << "rescheduling/test_2"<< std::endl;
   checkRescheduling(3,2);
 }
 

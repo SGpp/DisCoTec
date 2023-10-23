@@ -18,11 +18,11 @@ class TaskExample : public Task {
   /* if the constructor of the base task class is not sufficient we can provide an
    * own implementation. here, we add dt, nsteps, and p as a new parameters.
    */
-  TaskExample(DimType dim, LevelVector& l, std::vector<BoundaryType>& boundary, real coeff,
+  TaskExample(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
               LoadModel* loadModel, real dt, size_t nsteps,
               std::vector<int> p = std::vector<int>(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
-      : Task(dim, l, boundary, coeff, loadModel, faultCrit),
+      : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
         nsteps_(nsteps),
         p_(p),
@@ -53,7 +53,7 @@ class TaskExample : public Task {
     const LevelVector& l = this->getLevelVector();
 
     if (p_.size() == 0) {
-      // compute domain decomposition
+      // compute parallelization
       IndexType prod_p(1);
 
       while (prod_p != static_cast<IndexType>(np)) {
@@ -84,12 +84,13 @@ class TaskExample : public Task {
     }
 
     // create local subgrid on each process
-    dfg_ = new DistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p);
+    dfg_ = new OwningDistributedFullGrid<CombiDataType>(dim, l, lcomm, this->getBoundary(), p, false,
+                                                  decomposition);
 
     /* loop over local subgrid and set initial values */
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto elements = dfg_->getData();
 
-    for (size_t i = 0; i < elements.size(); ++i) {
+    for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
       IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
       std::vector<real> globalCoords(dim);
       dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
@@ -109,7 +110,7 @@ class TaskExample : public Task {
 
     int lrank = theMPISystem()->getLocalRank();
 
-    std::vector<CombiDataType>& elements = dfg_->getElementVector();
+    auto elements = dfg_->getData();
     // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure
 
@@ -120,7 +121,7 @@ class TaskExample : public Task {
     for (size_t step = stepsTotal_; step < stepsTotal_ + nsteps_; ++step) {
       real time = step * dt_;
 
-      for (size_t i = 0; i < elements.size(); ++i) {
+      for (size_t i = 0; i < dfg_->getNrLocalElements(); ++i) {
         IndexType globalLinearIndex = dfg_->getGlobalLinearIndex(i);
         std::vector<real> globalCoords(this->getDim());
         dfg_->getCoordsGlobal(globalLinearIndex, globalCoords);
@@ -151,7 +152,9 @@ class TaskExample : public Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override { return *dfg_; }
+
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) const override { return *dfg_; }
 
   static real myfunction(std::vector<real>& coords, real t) {
     real u = std::cos(M_PI * t);
@@ -159,16 +162,6 @@ class TaskExample : public Task {
     for (size_t d = 0; d < coords.size(); ++d) u *= std::cos(2.0 * M_PI * coords[d]);
 
     return u;
-
-    /*
-    double res = 1.0;
-    for (size_t i = 0; i < coords.size(); ++i) {
-      res *= -4.0 * coords[i] * (coords[i] - 1);
-    }
-
-
-    return res;
-    */
   }
 
   void setZero() {}
@@ -196,7 +189,7 @@ class TaskExample : public Task {
   // pure local variables that exist only on the worker processes
   bool initialized_;
   size_t stepsTotal_;
-  DistributedFullGrid<CombiDataType>* dfg_;
+  OwningDistributedFullGrid<CombiDataType>* dfg_;
 
   /**
    * The serialize function has to be extended by the new member variables.

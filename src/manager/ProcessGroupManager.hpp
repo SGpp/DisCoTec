@@ -12,6 +12,8 @@
 #include "mpi/MPISystem.hpp"
 #include "mpi_fault_simulator/MPI-FT.h"
 #include "task/Task.hpp"
+#include "third_level/ThirdLevelUtils.hpp"
+#include "utils/Types.hpp"
 
 namespace combigrid {
 class ProcessGroupManager {
@@ -40,21 +42,30 @@ class ProcessGroupManager {
   /* blocks until process group finished computation */
   inline StatusType waitStatus();
 
-  inline complex eval(const std::vector<real>& coords);
-
   inline const TaskContainer& getTaskContainer() const;
 
   inline void removeTask(Task* t);
 
   bool combine();
 
-  template <typename FG_ELEMENT>
-  bool combineFG(FullGrid<FG_ELEMENT>& fg);
+  // third Level stuff
+  bool combineThirdLevel(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
+                         bool isSendingFirst);
 
-  template <typename FG_ELEMENT>
-  bool gridEval(FullGrid<FG_ELEMENT>& fg);
+  bool combineThirdLevelFileBased(std::string filenamePrefixToWrite,
+                                  std::string writeCompleteTokenFileName,
+                                  std::string filenamePrefixToRead,
+                                  std::string startReadingTokenFileName);
 
-  bool gridGather(LevelVector& leval);
+  bool combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
+                                       std::string writeCompleteTokenFileName);
+
+  bool combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
+                                            std::string startReadingTokenFileName);
+
+  bool pretendCombineThirdLevelForWorkers(CombiParameters& params);
+
+  bool combineSystemWide();
 
   bool updateCombiParameters(CombiParameters& params);
 
@@ -79,17 +90,16 @@ class ProcessGroupManager {
 
   void getLpNorms(int p, std::map<size_t, double>& norms);
 
-  std::vector<double> parallelEvalNorm(const LevelVector& leval);
-
   std::vector<double> evalAnalyticalOnDFG(const LevelVector& leval);
 
   std::vector<double> evalErrorOnDFG(const LevelVector& leval);
 
   void interpolateValues(const std::vector<real>& interpolationCoordsSerial,
-                                              std::vector<CombiDataType>& values,
-                                              MPI_Request& request);
+                         std::vector<CombiDataType>& values, MPI_Request* request = nullptr,
+                         std::string filenamePrefix = "");
 
-  void writeInterpolatedValues(const std::vector<real>& interpolationCoordsSerial);
+  void writeInterpolatedValuesPerGrid(const std::vector<real>& interpolationCoordsSerial,
+                                      const std::string& filenamePrefix);
 
   /**
    * Adds a task to the process group. To be used for rescheduling.
@@ -136,7 +146,9 @@ class ProcessGroupManager {
 
   simft::Sim_FT_MPI_Request statusRequestFT_;
 
-  std::vector<CombiDataType> allBetas_;
+  // stores the accumulated dsgu sizes per worker
+  std::vector<size_t> formerDsguDataSizePerWorker_;
+  std::vector<size_t> dsguDataSizePerWorker_;
 
   void recvStatus();
 
@@ -149,9 +161,32 @@ class ProcessGroupManager {
 
   void sendSignalToProcessGroup(SignalType signal);
 
-  void sendSignalToProcess(SignalType signal, RankType rank);
-
   inline void setProcessGroupBusyAndReceive();
+
+  void exchangeDsgus(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
+                     bool isSendingFirst);
+
+  bool collectSubspaceSizes(const ThirdLevelUtils& thirdLevel, std::vector<SubspaceSizeType>& buff,
+                            size_t& buffSize, std::vector<int>& numSubspacesPerWorker);
+
+  bool distributeSubspaceSizes(const ThirdLevelUtils& thirdLevel,
+                               const std::vector<SubspaceSizeType>& buff, size_t buffSize,
+                               const std::vector<int>& numSubspacesPerWorker);
+
+  bool reduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel, bool isSendingFirst,
+                                         bool thirdLevelExtraSparseGrid);
+
+  bool pretendReduceLocalAndRemoteSubspaceSizes(const ThirdLevelUtils& thirdLevel);
+
+  const std::vector<size_t>& getFormerDsguDataSizePerWorker() {
+    return formerDsguDataSizePerWorker_;
+  }
+
+  const std::vector<size_t>& getDsguDataSizePerWorker() { return dsguDataSizePerWorker_; }
+
+  bool waitForThirdLevelSizeUpdate();
+
+  bool waitForThirdLevelCombiResult();
 
   /* sets the rank of the process group's master in global comm. should only
    * be called by ProcessManager.
@@ -217,13 +252,6 @@ inline StatusType ProcessGroupManager::waitStatus() {
   return status_;
 }
 
-inline complex ProcessGroupManager::eval(const std::vector<real>& x) {
-  // todo: implement
-  throw std::runtime_error("Not yet implemented: " + std::string(x.begin(), x.end()) + __FILE__ +
-                           " " + std::to_string(__LINE__));
-  return complex(0.0, 0.0);
-}
-
 inline const TaskContainer& ProcessGroupManager::getTaskContainer() const { return tasks_; }
 
 inline void ProcessGroupManager::removeTask(Task* t) {
@@ -236,55 +264,6 @@ inline void ProcessGroupManager::removeTask(Task* t) {
     std::cout << "Error could not remove task" << t->getID() << " "
               << theMPISystem()->getWorldRank() << " !\n";
   }
-}
-
-template <typename FG_ELEMENT>
-bool ProcessGroupManager::gridEval(FullGrid<FG_ELEMENT>& fg) {
-  // can only send sync signal when in wait state, so check first
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  // send signal
-  SignalType signal = GRID_EVAL;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
-
-  // send levelvector
-  std::vector<int> tmp(fg.getLevels().begin(), fg.getLevels().end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, TRANSFER_LEVAL_TAG,
-           theMPISystem()->getGlobalComm());
-
-  return true;
-}
-
-template <typename FG_ELEMENT>
-bool ProcessGroupManager::combineFG(FullGrid<FG_ELEMENT>& fg) {
-  // can only send sync signal when in wait state
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  SignalType signal = COMBINE_FG;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
-
-  // send levelvector
-  std::vector<int>& tmp = fg.getLevels();
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
-           theMPISystem()->getGlobalComm());
-
-  return true;
-}
-
-inline bool ProcessGroupManager::gridGather(LevelVector& leval) {
-  // can only send sync signal when in wait state, so check first
-  assert(status_ == PROCESS_GROUP_WAIT);
-
-  // send signal
-  SignalType signal = GRID_GATHER;
-  MPI_Send(&signal, 1, MPI_INT, pgroupRootID_, TRANSFER_SIGNAL_TAG, theMPISystem()->getGlobalComm());
-
-  // send levelvector
-  std::vector<int> tmp(leval.begin(), leval.end());
-  MPI_Send(&tmp[0], static_cast<int>(tmp.size()), MPI_INT, pgroupRootID_, 0,
-           theMPISystem()->getGlobalComm());
-
-  return true;
 }
 
 inline void ProcessGroupManager::setMasterRank(int pGroupRootID) { pgroupRootID_ = pGroupRootID; }

@@ -5,7 +5,7 @@ project("DisCoTec Tests"
         DESCRIPTION "Tests for DisCoTec")
 
 if (NOT TARGET discotec)
-    add_subdirectory(../src/sgpp/distributedcombigrid discotec)
+    add_subdirectory(../src discotec)
 endif ()
 
 include(CTest)
@@ -25,6 +25,15 @@ target_link_libraries(test_distributedcombigrid_boost PUBLIC discotec Boost::boo
 target_include_directories(test_distributedcombigrid_boost PUBLIC Boost::headers)
 set_property(TARGET test_distributedcombigrid_boost PROPERTY CROSSCOMPILING_EMULATOR '${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 9')
 
+if (DISCOTEC_USE_HIGHFIVE)
+    enable_language(C)
+    find_package(HDF5 REQUIRED)
+    find_package(HighFive REQUIRED)  # TODO: add minimum version and components
+    target_include_directories(discotec PRIVATE ${HighFive_INCLUDE_DIRS})
+    target_link_libraries(test_distributedcombigrid_boost PRIVATE HighFive)
+    target_compile_definitions(test_distributedcombigrid_boost PUBLIC DISCOTEC_USE_HIGHFIVE)
+endif ()
+
 foreach (test_file ${UNIT_TESTS_SRC_FILES})
     get_filename_component(test_name ${test_file} NAME_WE)
     string(REPLACE "test_" "" test_name ${test_name})
@@ -32,3 +41,6 @@ foreach (test_file ${UNIT_TESTS_SRC_FILES})
         add_test(NAME ${test_name} COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 9 ${CMAKE_CURRENT_SOURCE_DIR}/test_distributedcombigrid_boost --run_test=${test_name} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     endif ()
 endforeach ()
+
+install(TARGETS test_distributedcombigrid_boost DESTINATION tests)
+install(FILES test_scheme.json DESTINATION tests)
