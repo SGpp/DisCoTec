@@ -937,17 +937,18 @@ void ProcessGroupWorker::waitForThirdLevelSizeUpdate() {
   this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
 }
 
-int ProcessGroupWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
+int ProcessGroupWorker::reduceExtraSubspaceSizes(const std::vector<std::string>& filenamesToRead,
                                                  bool overwrite) {
   auto numReducedSizes = this->getSparseGridWorker().reduceExtraSubspaceSizes(
-      filenameToRead, this->combiParameters_.getCombinationVariant(), overwrite);
+      filenamesToRead, this->combiParameters_.getCombinationVariant(), overwrite);
   this->getSparseGridWorker().zeroDsgsData(this->combiParameters_.getCombinationVariant());
   return numReducedSizes;
 }
 
 int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName,
-    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName) {
+    const std::vector<std::string>& filenamePrefixesToRead,
+    const std::vector<std::string>& startReadingTokenFileNames) {
   int numSizesWritten = 0;
   int numSizesReduced = 0;
   // we only need to write and read something if we are the I/O group
@@ -960,14 +961,20 @@ int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
 
     // wait until we can start to read
     MASTER_EXCLUSIVE_SECTION {
-      while (!std::filesystem::exists(startReadingTokenFileName)) {
-        // wait for token file to appear
+      auto allTokensExist = [&startReadingTokenFileNames]() {
+        return std::all_of(startReadingTokenFileNames.begin(), startReadingTokenFileNames.end(),
+                           [](const std::string& tokenFileName) {
+                             return std::filesystem::exists(tokenFileName);
+                           });
+      };
+      while (!allTokensExist()) {
+        // wait for token files to appear
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
       }
     }
     MPI_Barrier(theMPISystem()->getOutputGroupComm());
   }
-  numSizesReduced = this->reduceExtraSubspaceSizes(filenamePrefixToRead);
+  numSizesReduced = this->reduceExtraSubspaceSizes(filenamePrefixesToRead);
   OUTPUT_GROUP_EXCLUSIVE_SECTION { assert(numSizesWritten == numSizesReduced); }
   else {
     assert(numSizesReduced == 0);

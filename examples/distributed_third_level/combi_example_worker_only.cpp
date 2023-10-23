@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
           ctschemeFile.substr(
               0, ctschemeFile.length() - std::string("_part0_00008groups.json").length()) +
           "conjoint.sizes";
-      worker.reduceExtraSubspaceSizes(conjointSubspaceFileName, true);
+      worker.reduceExtraSubspaceSizes({conjointSubspaceFileName}, true);
     }
 
     OUTPUT_GROUP_EXCLUSIVE_SECTION {

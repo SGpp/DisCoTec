@@ -221,5 +221,22 @@ int readReduceSubspaceSizesFromFile(SparseGridType& dsg, const std::string& file
 
   return numReduced;
 }
+
+template <typename SparseGridType, typename ReduceFunctionType>
+int readReduceSubspaceSizesFromFiles(SparseGridType& dsg, const std::vector<std::string>& fileNames,
+                                     ReduceFunctionType reduceFunction, int numElementsToBuffer = 0,
+                                     bool withCollectiveBuffering = false) {
+  auto comm = dsg.getCommunicator();
+  MPI_Offset len = dsg.getNumSubspaces();
+  if (numElementsToBuffer == 0) {
+    numElementsToBuffer = len;
+  }
+
+  int numReduced = mpiio::readMultipleReduceValuesConsecutive<SubspaceSizeType>(
+      dsg.getSubspaceDataSizes().data(), len, fileNames, comm, numElementsToBuffer, reduceFunction,
+      withCollectiveBuffering);
+
+  return numReduced;
+}
 }  // namespace DistributedSparseGridIO
 }  // namespace combigrid

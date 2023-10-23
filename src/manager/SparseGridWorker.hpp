@@ -80,7 +80,7 @@ class SparseGridWorker {
   inline int readReduce(const std::string& filenamePrefixToRead, uint32_t maxMiBToReadPerThread,
                         bool overwrite);
 
-  inline int reduceExtraSubspaceSizes(const std::string& filenameToRead,
+  inline int reduceExtraSubspaceSizes(const std::vector<std::string>& filenamesToRead,
                                       CombinationVariant combinationVariant, bool overwrite);
 
   /* reduction within and between process groups */
@@ -622,9 +622,9 @@ inline int SparseGridWorker::readReduce(const std::string& filenamePrefixToRead,
   return numRead;
 }
 
-inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenameToRead,
-                                                      CombinationVariant combinationVariant,
-                                                      bool overwrite) {
+inline int SparseGridWorker::reduceExtraSubspaceSizes(
+    const std::vector<std::string>& filenamesToRead, CombinationVariant combinationVariant,
+    bool overwrite) {
   int numSubspacesReduced = 0;
   if (!overwrite) {
     // make output group's dsg "larger" to be able to reduce
@@ -642,18 +642,10 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
     std::vector<SubspaceSizeType> subspaceSizesToValidate = dsgToUse->getSubspaceDataSizes();
 #endif
     if (overwrite) {
+      assert(filenamesToRead.size() == 1);
       numSubspacesReduced =
-          DistributedSparseGridIO::readSubspaceSizesFromFile(*dsgToUse, filenameToRead, false);
-    } else {
-      auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
-        return std::min(a, b);
-      };
-      numSubspacesReduced = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
-          *dsgToUse, filenameToRead, minFunctionInstantiation, 0, false);
-    }
+          DistributedSparseGridIO::readSubspaceSizesFromFile(*dsgToUse, filenamesToRead[0], false);
 #ifndef NDEBUG
-    assert(subspaceSizesToValidate.size() == dsgToUse->getSubspaceDataSizes().size());
-    if (overwrite) {
       for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
         if (!(dsgToUse->getSubspaceDataSizes()[i] == 0 || subspaceSizesToValidate[i] == 0 ||
               dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i])) {
@@ -664,17 +656,45 @@ inline int SparseGridWorker::reduceExtraSubspaceSizes(const std::string& filenam
         assert(dsgToUse->getSubspaceDataSizes()[i] == 0 || subspaceSizesToValidate[i] == 0 ||
                dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
       }
+#endif
     } else {
-      for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
-        assert(dsgToUse->getSubspaceDataSizes()[i] == 0 ||
-               dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
+      if (filenamesToRead.size() == 1) {
+        auto minFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b) {
+          return std::min(a, b);
+        };
+        numSubspacesReduced = DistributedSparseGridIO::readReduceSubspaceSizesFromFile(
+            *dsgToUse, filenamesToRead[0], minFunctionInstantiation, 0, false);
+#ifndef NDEBUG
+        for (size_t i = 0; i < subspaceSizesToValidate.size(); ++i) {
+          if (!(dsgToUse->getSubspaceDataSizes()[i] == 0 ||
+                dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i])) {
+            std::cout << "i " << i << " dsgToUse->getSubspaceDataSizes()[i] "
+                      << dsgToUse->getSubspaceDataSizes()[i] << " subspaceSizesToValidate[i] "
+                      << subspaceSizesToValidate[i] << std::endl;
+          }
+          assert(dsgToUse->getSubspaceDataSizes()[i] == 0 ||
+                 dsgToUse->getSubspaceDataSizes()[i] == subspaceSizesToValidate[i]);
+        }
+#endif
+      } else if (filenamesToRead.size() == 2) {
+        auto moreThanOneFunctionInstantiation = [](SubspaceSizeType a, SubspaceSizeType b,
+                                                   SubspaceSizeType c) {
+          auto maxValue = std::max(a, std::max(b, c));
+          return ((a + b + c) > maxValue ? maxValue : 0);
+        };
+        numSubspacesReduced = DistributedSparseGridIO::readReduceSubspaceSizesFromFiles(
+            *dsgToUse, filenamesToRead, moreThanOneFunctionInstantiation, 0, false);
+      } else {
+        throw std::runtime_error("More than 3 systems not implemented yet");
       }
-      auto numDOFtoValidate =
-          std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
-      auto numDOFnow = std::accumulate(dsgToUse->getSubspaceDataSizes().begin(),
-                                       dsgToUse->getSubspaceDataSizes().end(), 0);
-      assert(numDOFtoValidate >= numDOFnow);
     }
+#ifndef NDEBUG
+    assert(subspaceSizesToValidate.size() == dsgToUse->getSubspaceDataSizes().size());
+    auto numDOFtoValidate =
+        std::accumulate(subspaceSizesToValidate.begin(), subspaceSizesToValidate.end(), 0);
+    auto numDOFnow = std::accumulate(dsgToUse->getSubspaceDataSizes().begin(),
+                                     dsgToUse->getSubspaceDataSizes().end(), 0);
+    assert(numDOFtoValidate >= numDOFnow || filenamesToRead.size() > 1);
 #endif
     // may need to re-size original spaces if original sparse grid was too small
     this->getCombinedUniDSGVector()[0]->maxReduceSubspaceSizes(*dsgToUse);

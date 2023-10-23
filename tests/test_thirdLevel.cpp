@@ -583,8 +583,6 @@ void testCombineThirdLevelWithoutManagers(
   std::vector<combigrid::real> coeffs;
   std::vector<size_t> taskNumbers;  // only used in case of static task assignment
   {  // this is scoped so that anything created in here frees up memory for computation
-    std::vector<LevelVector> systemLevels;
-    std::vector<combigrid::real> systemCoeffs;
     CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
     combischeme.createAdaptiveCombischeme();
     // get full scheme first
@@ -594,9 +592,14 @@ void testCombineThirdLevelWithoutManagers(
       BOOST_TEST_MESSAGE("total: " + std::to_string(fullLevels.size()) + " tasks");
     }
 
-    // split scheme and assign each half to a system
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, testParams.sysNum, 2,
-                                                  systemLevels, systemCoeffs);
+    // split scheme and assign each part to a system
+    std::vector<LevelVector> systemLevels;
+    std::vector<combigrid::real> systemCoeffs;
+    std::vector<combigrid::real> fractions(testParams.numSystems,
+                                           (1. / static_cast<double>(testParams.numSystems)));
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, testParams.sysNum,
+                                                  testParams.numSystems, systemLevels, systemCoeffs,
+                                                  fractions);
 
     BOOST_REQUIRE_EQUAL(systemLevels.size(), systemCoeffs.size());
 
@@ -643,21 +646,20 @@ void testCombineThirdLevelWithoutManagers(
   worker.initCombinedDSGVector();
   std::string writeSubspaceSizeFile = "worker_subspace_sizes_" + std::to_string(testParams.sysNum);
   std::string writeSubspaceSizeFileToken = writeSubspaceSizeFile + "_token.txt";
-  std::string readSubspaceSizeFile =
-      "worker_subspace_sizes_" + std::to_string((testParams.sysNum + 1) % 2);
-  std::string readSubspaceSizeFileToken = readSubspaceSizeFile + "_token.txt";
-  worker.reduceExtraSubspaceSizesFileBased(writeSubspaceSizeFile, writeSubspaceSizeFileToken,
-                                           readSubspaceSizeFile, readSubspaceSizeFileToken);
-  // remove subspace size files to avoid interference between multiple calls to this test function
-  MPI_Barrier(testParams.comm);
-  OUTPUT_GROUP_EXCLUSIVE_SECTION {
-    MASTER_EXCLUSIVE_SECTION {
-      // remove the files we just read on this "system"
-      remove(readSubspaceSizeFile.c_str());
-      remove(readSubspaceSizeFileToken.c_str());
+  std::vector<std::string> readSubspaceSizeFiles;
+  std::vector<std::string> readSubspaceSizeFileTokens;
+  for (size_t i = 0; i < testParams.numSystems; ++i) {
+    if (i != testParams.sysNum) {
+      readSubspaceSizeFiles.push_back("worker_subspace_sizes_" + std::to_string(i));
+      readSubspaceSizeFileTokens.push_back(readSubspaceSizeFiles.back() + "_token.txt");
     }
   }
-  // // output sparse grid sizes -- for visual inspection if they are exactly the same between systems
+  worker.reduceExtraSubspaceSizesFileBased(writeSubspaceSizeFile, writeSubspaceSizeFileToken,
+                                           readSubspaceSizeFiles, readSubspaceSizeFileTokens);
+  // remove subspace size files to avoid interference between multiple calls to this test function
+  MPI_Barrier(testParams.comm);
+  // // output sparse grid sizes -- for visual inspection if they are exactly the same between
+  // systems
   // // now
   // OUTPUT_GROUP_EXCLUSIVE_SECTION {
   //   if (thirdLevelExtraSparseGrid) {
@@ -750,6 +752,15 @@ void testCombineThirdLevelWithoutManagers(
       "worker_sg_" + std::to_string((testParams.sysNum + 1) % 2) + "_final";
   std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
   // TODO combine
+
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    MASTER_EXCLUSIVE_SECTION {
+      // remove some files we just read on this "system"
+      int indexToDelete = (testParams.sysNum + 1) % testParams.numSystems;
+      remove(("worker_subspace_sizes_" + std::to_string(indexToDelete)).c_str());
+      remove(("worker_subspace_sizes_" + std::to_string(indexToDelete) + "_token.txt").c_str());
+    }
+  }
 
   // TODO monte-carlo interpolation? would need to read interpolated values from other system...
   BOOST_TEST_CHECKPOINT("worker exit");
