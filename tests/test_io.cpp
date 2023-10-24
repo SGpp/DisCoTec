@@ -4,6 +4,7 @@
 #include <boost/test/unit_test.hpp>
 
 #include "io/MPICompression.hpp"
+#include "io/MPIInputOutput.hpp"
 #include "mpi/MPISystem.hpp"
 #include "test_helper.hpp"
 #include "utils/MonteCarlo.hpp"
@@ -74,6 +75,9 @@ void checkCompressionWithHeader(size_t numValues = 1000000) {
 
   // assume size increase for non-compressible, random data
   BOOST_CHECK_GT(compressedString.size(), numValues * sizeof(double));
+
+  std::string filename = "compression_testfile_" + std::to_string(theMPISystem()->getProcessGroupNumber());
+  mpiio::writeValuesConsecutive(compressedString.data(), compressedString.size(), filename, localComm, true, false);
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
