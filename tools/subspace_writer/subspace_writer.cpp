@@ -119,9 +119,6 @@ int main(int argc, char** argv) {
                   &new_communicator);
   theMPISystem()->storeLocalComm(new_communicator);
 
-  std::string firstSubspaceFileName =
-      ctschemeFile.substr(0, ctschemeFile.length() - std::string("_00008groups.json").length()) +
-      ".sizes";
   std::string conjointSubspaceFileName =
       ctschemeFile.substr(0,
                           ctschemeFile.length() - std::string("_part0_00008groups.json").length()) +
@@ -171,7 +168,7 @@ int main(int argc, char** argv) {
       int numUniDSGsWithSubspaceSet = 0;
       for (const auto& uniDSG : uniDSGs) {
         auto thisUniDSGsSize = uniDSG->getSubspaceDataSizes()[i];
-        assert(thisUniDSGsSize == 0 || thisUniDSGsSize == 8);
+        assert(thisUniDSGsSize == 0 || size == 0 || thisUniDSGsSize == size);
         if (thisUniDSGsSize > 0) {
           ++numUniDSGsWithSubspaceSet;
           size = thisUniDSGsSize;
