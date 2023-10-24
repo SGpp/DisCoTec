@@ -1133,11 +1133,16 @@ BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::t
       if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
         BOOST_TEST_MESSAGE("test_workers_small: " + std::to_string(variant));
-        BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams, variant));
+        BOOST_CHECK_NO_THROW(
+            try {
+              testCombineThirdLevelWithoutManagers(testParams, variant);
+            } catch (std::exception& e) {
+              std::cout << "exception: " << e.what() << std::endl;
+              throw e;
+            });
       }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
   }
 }
 
@@ -1175,9 +1180,8 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
               throw e;
             });
       }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
   }
 }
 

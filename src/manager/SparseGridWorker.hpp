@@ -373,12 +373,9 @@ inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendP
         dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
         this->copyFromExtraDsgToPartialDSG(0);
         // distribute (sg -> fg, within rank)
-        size_t totalNumCopied = 0;
         for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
-          totalNumCopied +=
-              taskToUpdate->getDistributedFullGrid(0).extractFromUniformSG<false>(*dsg);
+          taskToUpdate->getDistributedFullGrid(0).extractFromUniformSG<false>(*dsg);
         }
-        assert(totalNumCopied > 0);
         ++roundNumber;
       }
     }
