@@ -44,13 +44,18 @@ static MPI_Info getNewConsecutiveMpiInfo(bool withCollectiveBuffering) {
   return info;
 }
 
+inline MPI_Offset getPositionFromNumValues(MPI_Offset numValues, combigrid::CommunicatorType comm) {
+  MPI_Offset pos = 0;
+  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
+  return pos;
+}
+
 template <typename T>
 int writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std::string& fileName,
                            combigrid::CommunicatorType comm, bool replaceExistingFile = false,
                            bool withCollectiveBuffering = false) {
   // get offset in file
-  MPI_Offset pos = 0;
-  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
+  MPI_Offset pos = getPositionFromNumValues(numValues, comm);
 
   MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
   MPI_Info_set(info, "access_style", "write_once,sequential");
@@ -134,13 +139,8 @@ bool checkFileSizeConsecutive(MPI_File fileHandle, MPI_Offset myNumValues, Commu
   return true;
 }
 
-template <typename T>
-int readValuesAtPosition(MPI_Offset position, T* valuesStart, MPI_Offset numValues,
-                         const std::string& fileName, combigrid::CommunicatorType comm,
-                         bool withCollectiveBuffering = false) {
-  MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
-  MPI_Info_set(info, "access_style", "read_once,sequential");
-
+inline MPI_File openFileReadOnly(const std::string& fileName, combigrid::CommunicatorType comm,
+                                 MPI_Info& info) {
   // open file
   MPI_File fh;
   int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
@@ -148,20 +148,26 @@ int readValuesAtPosition(MPI_Offset position, T* valuesStart, MPI_Offset numValu
     std::cerr << err << " while reading OneFileFromDisk " << fileName << std::endl;
     throw std::runtime_error("read: could not open! " + fileName + ": " + getMpiErrorString(err));
   }
+  return fh;
+}
+
+template <typename T>
+int readValuesAtPosition(MPI_Offset position, T* valuesStart, MPI_Offset numValues,
+                         const std::string& fileName, combigrid::CommunicatorType comm,
+                         bool withCollectiveBuffering = false) {
+  MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
+  MPI_Info_set(info, "access_style", "read_once,sequential");
+
+  auto fh = openFileReadOnly(fileName, comm, info);
   checkFileSizeConsecutive<T>(fh, numValues, comm);
 
   // read from single file with MPI-IO
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
   MPI_Status status;
-  err = MPI_File_read_at_all(fh, position * sizeof(T), valuesStart, static_cast<int>(numValues),
-                             dataType, &status);
+  auto err = MPI_File_read_at_all(fh, position * sizeof(T), valuesStart,
+                                  static_cast<int>(numValues), dataType, &status);
   MPI_File_close(&fh);
   MPI_Info_free(&info);
-  if (err != MPI_SUCCESS) {
-    // non-failure
-    std::cerr << err << " in MPI_File_read_at_all" << std::endl;
-    return 0;
-  }
 
 #ifndef NDEBUG
   int readcount = 0;
@@ -172,6 +178,11 @@ int readValuesAtPosition(MPI_Offset position, T* valuesStart, MPI_Offset numValu
     throw std::runtime_error("read: not enough data read!");
   }
 #endif
+  if (err != MPI_SUCCESS) {
+    // non-failure
+    std::cerr << err << " in MPI_File_read_at_all" << std::endl;
+    return 0;
+  }
 
   return numValues;
 }
@@ -179,8 +190,7 @@ int readValuesAtPosition(MPI_Offset position, T* valuesStart, MPI_Offset numValu
 template <typename T>
 int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
                           combigrid::CommunicatorType comm, bool withCollectiveBuffering = false) {
-  MPI_Offset pos = 0;
-  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
+  MPI_Offset pos = getPositionFromNumValues(numValues, comm);
 
   return readValuesAtPosition(pos, valuesStart, numValues, fileName, comm, withCollectiveBuffering);
 }
@@ -190,18 +200,11 @@ int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std:
                                 combigrid::CommunicatorType comm, int numElementsToBuffer,
                                 ReduceFunctionType reduceFunction,
                                 bool withCollectiveBuffering = false) {
-  MPI_Offset pos = 0;
-  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
+  MPI_Offset pos = getPositionFromNumValues(numValues, comm);
   MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
   MPI_Info_set(info, "access_style", "sequential");
 
-  // open file
-  MPI_File fh;
-  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &fh);
-  if (err != MPI_SUCCESS) {
-    std::cerr << err << " while reducing OneFileFromDisk " << fileName << std::endl;
-    throw std::runtime_error("read: could not open! " + getMpiErrorString(err));
-  }
+  auto fh = openFileReadOnly(fileName, comm, info);
   checkFileSizeConsecutive<T>(fh, numValues, comm);
 
   // read from single file with MPI-IO
@@ -216,8 +219,8 @@ int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std:
       numElementsToBuffer = numValues - readcount;
       buffer.resize(numElementsToBuffer);
     }
-    err = MPI_File_read_at_all(fh, pos * sizeof(T), buffer.data(),
-                               static_cast<int>(numElementsToBuffer), dataType, &status);
+    auto err = MPI_File_read_at_all(fh, pos * sizeof(T), buffer.data(),
+                                    static_cast<int>(numElementsToBuffer), dataType, &status);
     int readcountIncrement = 0;
     MPI_Get_count(&status, dataType, &readcountIncrement);
     assert(readcountIncrement > 0);
