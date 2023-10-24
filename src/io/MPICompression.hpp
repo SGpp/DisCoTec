@@ -99,5 +99,83 @@ void decompressLZ4FrameToBuffer(const std::vector<char>& compressedString, MPI_C
 #endif
 }
 
+template <typename T>
+void compressBufferToLZ4FrameAndGatherHeader(const T* buffer, MPI_Offset numValues,
+                                             combigrid::CommunicatorType comm,
+                                             std::vector<char>& compressedString) {
+  size_t compressedEmptySize = 0;
+  size_t compressedSkippableSize = 0;
+  auto commSize = getCommSize(comm);
+  auto commRank = getCommRank(comm);
+
+#ifdef DISCOTEC_USE_LZ4
+  LZ4F_preferences_t lz4PreferencesEmpty = lz4Preferences;
+  lz4PreferencesEmpty.frameInfo.contentSize = 0;
+  LZ4F_preferences_t lz4PreferencesSkippable = lz4Preferences;
+  lz4PreferencesSkippable.frameInfo.frameType = LZ4F_skippableFrame;
+  size_t locationInfoSize = commSize * sizeof(MPI_Offset);
+  lz4PreferencesSkippable.frameInfo.contentSize = locationInfoSize;
+  lz4PreferencesSkippable.compressionLevel = -65535; // no compression?
+  auto skippableFrameBound = LZ4F_compressFrameBound(locationInfoSize, &lz4PreferencesSkippable);
+
+  compressedString.clear();
+  // if I am the root rank
+  if (commRank == 0) {
+    // add an empty frame first
+    auto emptyFrameBound = LZ4F_compressFrameBound(0, &lz4PreferencesEmpty);
+    compressedString.resize(emptyFrameBound);
+    compressedEmptySize = LZ4F_compressFrame(compressedString.data(), compressedString.size(),
+                                             nullptr, 0, &lz4PreferencesEmpty);
+    if (LZ4F_isError(compressedEmptySize)) {
+      throw std::runtime_error("LZ4 compression failed: " +
+                               std::string(LZ4F_getErrorName(compressedEmptySize)));
+    }
+
+    // then add a skippable frame that contains numRanks * the location of the frame beginnings
+    // (we don't yet know them, so make them placeholders)
+    compressedString.resize(compressedEmptySize + skippableFrameBound);
+    auto compressedStringStart = static_cast<void*>(compressedString.data() + compressedEmptySize);
+    compressedSkippableSize =  // will be overwritten later
+        LZ4F_compressFrame(compressedStringStart, skippableFrameBound, buffer, locationInfoSize,
+                           &lz4PreferencesSkippable);
+    if (LZ4F_isError(compressedSkippableSize)) {
+      throw std::runtime_error("LZ4 compression failed: " +
+                               std::string(LZ4F_getErrorName(compressedSkippableSize)));
+    }
+    assert(compressedSkippableSize > 0);
+    compressedString.resize(compressedEmptySize + compressedSkippableSize);
+  }
+
+  compressBufferToLZ4Frame(buffer, numValues, comm, compressedString);
+
+  // now the root rank collects the sizes of these frame strings
+  auto compressedSize = compressedString.size();
+  if (commRank == 0) {
+    // gather the frame sizes of all ranks
+    std::vector<MPI_Offset> frameSizes(commSize);
+    MPI_Gather(&compressedSize, 1, MPI_OFFSET, frameSizes.data(), 1, MPI_OFFSET, 0, comm);
+
+    // now overwrite the skippable frame with the actual frame sizes
+    // auto compressedSkippableSize = LZ4F_compressFrameBound(locationInfoSize, &lz4Preferences);
+    auto compressedSkippableStart =
+        static_cast<void*>(compressedString.data() + compressedEmptySize);
+    size_t newCompressedSkippableSize =
+        LZ4F_compressFrame(compressedSkippableStart, skippableFrameBound, frameSizes.data(),
+                           locationInfoSize, &lz4PreferencesSkippable);
+    if (LZ4F_isError(newCompressedSkippableSize)) {
+      throw std::runtime_error("LZ4 compression failed: " +
+                               std::string(LZ4F_getErrorName(newCompressedSkippableSize)));
+    }
+    assert(newCompressedSkippableSize > 0);
+    assert(newCompressedSkippableSize == compressedSkippableSize);
+  } else {
+    // send the frame sizes to the root rank
+    MPI_Gather(&compressedSize, 1, MPI_OFFSET, nullptr, 0, MPI_OFFSET, 0, comm);
+  }
+#else
+  throw std::runtime_error("LZ4 compression not available");
+#endif
+}
+
 }  // namespace mpiio
 }  // namespace combigrid
