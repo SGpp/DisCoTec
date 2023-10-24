@@ -32,6 +32,13 @@ using namespace combigrid;
 BOOST_CLASS_EXPORT(TaskConstParaboloid)
 BOOST_CLASS_EXPORT(TaskCount)
 
+#define CHECK_NO_THROW_LOUD(statement)                \
+  BOOST_CHECK_NO_THROW(                               \
+      try { statement; } catch (std::exception & e) { \
+        std::cout << e.what() << std::endl;           \
+        throw e;                                      \
+      })
+
 class TestParams {
  public:
   DimType dim = 2;
@@ -1040,14 +1047,7 @@ BOOST_AUTO_TEST_CASE(test_workers_only, *boost::unit_test::tolerance(TestHelper:
               std::cout << "third level worker only " << boundary << " " << ngroup << "*" << nprocs
                         << std::endl;
             }
-            BOOST_CHECK_NO_THROW(
-                try {
-                  testCombineThirdLevelWithoutManagers(testParams);
-                } catch (std::exception& e) {
-                  std::cout << "exception: " << e.what() << std::endl;
-                  throw e;
-                }
-            );
+            CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams));
             MPI_Barrier(newcomm);
             BOOST_TEST_CHECKPOINT("sysNum " + std::to_string(sysNum) + " finished");
           }
@@ -1134,13 +1134,7 @@ BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::t
       if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
         BOOST_TEST_MESSAGE("test_workers_small: " + std::to_string(variant));
-        BOOST_CHECK_NO_THROW(
-            try {
-              testCombineThirdLevelWithoutManagers(testParams, variant);
-            } catch (std::exception& e) {
-              std::cout << "exception: " << e.what() << std::endl;
-              throw e;
-            });
+        CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams, variant));
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -1173,13 +1167,7 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
       if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
         BOOST_TEST_MESSAGE("test_8_workers: " + std::to_string(variant));
-        BOOST_CHECK_NO_THROW(
-            try {
-              testCombineThirdLevelWithoutManagers(testParams, variant);
-            } catch (std::exception& e) {
-              std::cout << "exception: " << e.what() << std::endl;
-              throw e;
-            });
+        CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams, variant));
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -1206,13 +1194,7 @@ BOOST_AUTO_TEST_CASE(test_workers_three_systems_2d,
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm,
                             numSystems);
       BOOST_TEST_MESSAGE("test_workers_three_systems: " + std::to_string(variant));
-      BOOST_CHECK_NO_THROW(
-          try {
-            testCombineThirdLevelWithoutManagers(testParams, variant);
-          } catch (std::exception& e) {
-            std::cout << "exception: " << e.what() << std::endl;
-            throw e;
-          });
+      CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams, variant));
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
@@ -1238,13 +1220,7 @@ BOOST_AUTO_TEST_CASE(test_workers_three_systems_6d,
       TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm,
                             numSystems);
       BOOST_TEST_MESSAGE("test_workers_three_systems: " + std::to_string(variant));
-      BOOST_CHECK_NO_THROW(
-          try {
-            testCombineThirdLevelWithoutManagers(testParams, variant);
-          } catch (std::exception& e) {
-            std::cout << "exception: " << e.what() << std::endl;
-            throw e;
-          });
+      CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams, variant));
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
