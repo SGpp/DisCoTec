@@ -18,49 +18,50 @@
 namespace combigrid {
 
 namespace mpiio {
-template <typename T>
-void compressBufferToLZ4String(const T* buffer, MPI_Offset numValues,
-                               combigrid::CommunicatorType comm,
-                               std::vector<char>& compressedString) {
-  size_t compressedEmptySize = 0;
-  size_t compressedSkippableSize = 0;
+
 #ifdef DISCOTEC_USE_LZ4
-  compressedString.clear();
+constexpr LZ4F_preferences_t lz4Preferences = {
+    {LZ4F_max4MB, LZ4F_blockLinked, LZ4F_noContentChecksum, LZ4F_frame, 0, 0U,
+     LZ4F_noBlockChecksum},
+    0,   // fast mode
+    0u,  // don't flush
+    0u,  // unused
+    {0u, 0u, 0u}};
+#endif
+
+template <typename T>
+void compressBufferToLZ4Frame(const T* buffer, MPI_Offset numValues,
+                              combigrid::CommunicatorType comm,
+                              std::vector<char>& compressedString) {
+  size_t compressedStringInitialSize = compressedString.size();
+#ifdef DISCOTEC_USE_LZ4
   size_t rawDataSize = numValues * sizeof(T);
-  LZ4F_preferences_t lz4Preferences = {{LZ4F_max4MB, LZ4F_blockLinked, LZ4F_noContentChecksum,
-                                        LZ4F_frame, rawDataSize, 0U, LZ4F_noBlockChecksum},
-                                       0,   // fast mode
-                                       0u,  // don't flush
-                                       0u,  // unused
-                                       {0u, 0u, 0u}};
+  auto fullFramePreferences = lz4Preferences;
+  fullFramePreferences.frameInfo.contentSize = rawDataSize;
   auto dataBound = LZ4_compressBound(rawDataSize);
-  auto frameBound = LZ4F_compressFrameBound(dataBound, &lz4Preferences);
-  compressedString.reserve(frameBound);
-  auto compressedStringStart = static_cast<void*>(compressedString.data());
-  
-  compressedString.resize(compressedString.size() + frameBound);
+  auto frameBound = LZ4F_compressFrameBound(dataBound, &fullFramePreferences);
+  compressedString.reserve(compressedStringInitialSize + frameBound);
+  auto compressedStringStart =
+      static_cast<void*>(compressedString.data() + compressedString.size());
+  compressedString.resize(compressedStringInitialSize + frameBound);
   auto compressedSize =
-      LZ4F_compressFrame(compressedStringStart, compressedString.size(),
-                         static_cast<const void*>(buffer), rawDataSize, &lz4Preferences);
+      LZ4F_compressFrame(compressedStringStart, frameBound, static_cast<const void*>(buffer),
+                         rawDataSize, &fullFramePreferences);
   if (LZ4F_isError(compressedSize)) {
     throw std::runtime_error("LZ4 compression failed: " +
                              std::string(LZ4F_getErrorName(compressedSize)));
   }
   assert(compressedSize > 0);
-  assert(compressedSize <= rawDataSize);
-  compressedString.resize(compressedEmptySize + compressedSkippableSize + compressedSize);
+  compressedString.resize(compressedStringInitialSize + compressedSize);
 #else
   throw std::runtime_error("LZ4 compression not available");
 #endif
 }
 
 template <typename T>
-void decompressLZ4StringToBuffer(const std::vector<char>& compressedString, MPI_Comm comm,
-                                 std::vector<T>& decompressedValues) {
-  size_t compressedEmptySize = 0;
-  size_t compressedSkippableSize = 0;
+void decompressLZ4FrameToBuffer(const std::vector<char>& compressedString, MPI_Comm comm,
+                                std::vector<T>& decompressedValues) {
 #ifdef DISCOTEC_USE_LZ4
-
   LZ4F_decompressOptions_t opts;
   memset(&opts, 0, sizeof(opts));
   opts.skipChecksums = 1;
@@ -91,7 +92,7 @@ void decompressLZ4StringToBuffer(const std::vector<char>& compressedString, MPI_
     readValuesStart += sourceSize;
   } while (decompressedSize > 0);
 
-  assert(decompressedByNow == decompressedValues.size());
+  assert(decompressedByNow == decompressedValues.size() * sizeof(T));
   assert(readCompressedByNow == compressedString.size());
   [[maybe_unused]] auto freeResult = LZ4F_freeDecompressionContext(dctx);
   assert(freeResult == 0);

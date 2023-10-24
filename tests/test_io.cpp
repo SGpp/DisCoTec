@@ -31,14 +31,14 @@ void checkCompression() {
       std::move(montecarlo::getRandomCoordinates(1, numValues)[0]);
 
   std::vector<char> compressedString;
-  mpiio::compressBufferToLZ4String(originalValues.data(), numValues, localComm, compressedString);
+  mpiio::compressBufferToLZ4Frame(originalValues.data(), numValues, localComm, compressedString);
 
   // assume size increase for non-compressible, random data
   BOOST_CHECK_GT(compressedString.size(), numValues * sizeof(double));
 
   std::vector<double> decompressedValues(originalValues.size());
 
-  mpiio::decompressLZ4StringToBuffer(std::move(compressedString), localComm, decompressedValues);
+  mpiio::decompressLZ4FrameToBuffer(std::move(compressedString), localComm, decompressedValues);
 
   BOOST_CHECK_EQUAL(originalValues.size(), decompressedValues.size());
   BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
