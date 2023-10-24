@@ -135,11 +135,9 @@ bool checkFileSizeConsecutive(MPI_File fileHandle, MPI_Offset myNumValues, Commu
 }
 
 template <typename T>
-int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
-                          combigrid::CommunicatorType comm, bool withCollectiveBuffering = false) {
-  MPI_Offset pos = 0;
-  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
-
+int readValuesAtPosition(MPI_Offset position, T* valuesStart, MPI_Offset numValues,
+                         const std::string& fileName, combigrid::CommunicatorType comm,
+                         bool withCollectiveBuffering = false) {
   MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
   MPI_Info_set(info, "access_style", "read_once,sequential");
 
@@ -155,7 +153,7 @@ int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::strin
   // read from single file with MPI-IO
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
   MPI_Status status;
-  err = MPI_File_read_at_all(fh, pos * sizeof(T), valuesStart, static_cast<int>(numValues),
+  err = MPI_File_read_at_all(fh, position * sizeof(T), valuesStart, static_cast<int>(numValues),
                              dataType, &status);
   MPI_File_close(&fh);
   MPI_Info_free(&info);
@@ -176,6 +174,15 @@ int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::strin
 #endif
 
   return numValues;
+}
+
+template <typename T>
+int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
+                          combigrid::CommunicatorType comm, bool withCollectiveBuffering = false) {
+  MPI_Offset pos = 0;
+  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
+
+  return readValuesAtPosition(pos, valuesStart, numValues, fileName, comm, withCollectiveBuffering);
 }
 
 template <typename T, typename ReduceFunctionType>
