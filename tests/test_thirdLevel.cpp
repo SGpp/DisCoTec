@@ -1186,7 +1186,7 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
   }
 }
 
-BOOST_AUTO_TEST_CASE(test_workers_three_systems,
+BOOST_AUTO_TEST_CASE(test_workers_three_systems_2d,
                      *boost::unit_test::tolerance(TestHelper::tolerance) *
                          boost::unit_test::timeout(250)) {
   unsigned int numSystems = 3;
@@ -1195,6 +1195,38 @@ BOOST_AUTO_TEST_CASE(test_workers_three_systems,
   BoundaryType boundary = 1;
   LevelVector lmin(dim, 2);
   LevelVector lmax(dim, 9);
+
+  for (unsigned int ngroup : std::vector<unsigned int>({1, 2})) {
+    unsigned int nprocs = 2 / ngroup;
+    unsigned int sysNum;
+    CommunicatorType newcomm = MPI_COMM_NULL;
+    assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
+    auto variant = CombinationVariant::chunkedOutgroupSparseGridReduce;
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm,
+                            numSystems);
+      BOOST_TEST_MESSAGE("test_workers_three_systems: " + std::to_string(variant));
+      BOOST_CHECK_NO_THROW(
+          try {
+            testCombineThirdLevelWithoutManagers(testParams, variant);
+          } catch (std::exception& e) {
+            std::cout << "exception: " << e.what() << std::endl;
+            throw e;
+          });
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_workers_three_systems_6d,
+                     *boost::unit_test::tolerance(TestHelper::tolerance) *
+                         boost::unit_test::timeout(550)) {
+  unsigned int numSystems = 3;
+  unsigned int ncombi = 3;
+  DimType dim = 6;
+  BoundaryType boundary = 1;
+  LevelVector lmin(dim, 2);
+  LevelVector lmax(dim, 5);
 
   for (unsigned int ngroup : std::vector<unsigned int>({1, 2})) {
     unsigned int nprocs = 2 / ngroup;
