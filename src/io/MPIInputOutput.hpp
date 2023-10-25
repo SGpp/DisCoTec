@@ -51,72 +51,96 @@ inline MPI_Offset getPositionFromNumValues(MPI_Offset numValues, combigrid::Comm
 }
 
 template <typename T>
+class [[nodiscard]] MPIFileConsecutive {
+ public:
+  // no copy and move
+  MPIFileConsecutive(const MPIFileConsecutive&) = delete;
+  MPIFileConsecutive& operator=(const MPIFileConsecutive&) = delete;
+  MPIFileConsecutive(MPIFileConsecutive&&) = delete;
+  MPIFileConsecutive& operator=(MPIFileConsecutive&&) = delete;
+
+  ~MPIFileConsecutive() {
+    MPI_File_close(&file_);
+    MPI_Info_free(&info_);
+  }
+  static MPIFileConsecutive getFileToWrite(const std::string& fileName,
+                                           combigrid::CommunicatorType comm,
+                                           bool replaceExistingFile, bool withCollectiveBuffering) {
+    MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
+    MPI_Info_set(info, "access_style", "write_once,sequential");
+    int commSize;
+    MPI_Comm_size(comm, &commSize);
+    std::string commSizeStr = std::to_string(commSize);
+    MPI_Info_set(info, "nb_procs", commSizeStr.c_str());
+    MPI_File file;
+
+    int err = MPI_File_open(comm, fileName.c_str(),
+                            MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY, info, &file);
+    if (err != MPI_SUCCESS) {
+      auto openErrorString = getMpiErrorString(err);
+      if (err != MPI_ERR_FILE_EXISTS && openErrorString.find("File exists") == std::string::npos) {
+        // there are some weird MPI-IO implementations that define a new error code for "file
+        // exists"...
+        std::cerr << "potential write/open error: " << std::to_string(err) << " " << openErrorString
+                  << std::endl;
+      }
+      if (replaceExistingFile) {
+        // file already existed, delete it and create new file
+        int mpi_rank;
+        MPI_Comm_rank(comm, &mpi_rank);
+        if (mpi_rank == 0) {
+          MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
+        }
+        MPI_Barrier(comm);
+        err = MPI_File_open(comm, fileName.c_str(),
+                            MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY, info, &file);
+      } else {
+        // open file without creating it
+        err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_WRONLY, info, &file);
+      }
+    }
+    if (err != MPI_SUCCESS) {
+      std::cerr << "Open error " << fileName << " :" << std::to_string(err) << " "
+                << getMpiErrorString(err) << std::endl;
+    }
+    return MPIFileConsecutive(info, file);
+  }
+
+  int writeValuesToFileAtPosition(const T* valuesStart, MPI_Offset numValues, MPI_Offset pos = -1) {
+    // write to single file with MPI-IO
+    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
+    MPI_Status status;
+    int err = MPI_File_write_at_all(file_, pos * sizeof(T), valuesStart,
+                                    static_cast<int>(numValues), dataType, &status);
+    if (err != MPI_SUCCESS) {
+      std::cerr << err << " in MPI_File_write_at_all" << std::endl;
+      std::cerr << getMpiErrorString(err) << std::endl;
+    }
+#ifndef NDEBUG
+    int numWritten = 0;
+    MPI_Get_count(&status, dataType, &numWritten);
+    if (numWritten != numValues) {
+      std::cout << "not written enough: " << numWritten << " instead of " << numValues << std::endl;
+      err = ~MPI_SUCCESS;
+    }
+#endif  // !NDEBUG
+    return (err == MPI_SUCCESS) ? numValues : 0;
+  }
+
+ private:
+  explicit MPIFileConsecutive(MPI_Info info, MPI_File file) : info_(info), file_(file) {}
+  MPI_Info info_;
+  MPI_File file_;
+};
+
+template <typename T>
 int writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std::string& fileName,
                            combigrid::CommunicatorType comm, bool replaceExistingFile = false,
                            bool withCollectiveBuffering = false) {
-  // get offset in file
-  MPI_Offset pos = getPositionFromNumValues(numValues, comm);
-
-  MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
-  MPI_Info_set(info, "access_style", "write_once,sequential");
-  int commSize;
-  MPI_Comm_size(comm, &commSize);
-  std::string commSizeStr = std::to_string(commSize);
-  MPI_Info_set(info, "nb_procs", commSizeStr.c_str());
-
-  // open file
-  MPI_File fh;
-  int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
-                          info, &fh);
-  if (err != MPI_SUCCESS) {
-    auto openErrorString = getMpiErrorString(err);
-    if (err != MPI_ERR_FILE_EXISTS && openErrorString.find("File exists") == std::string::npos) {
-      // there are some weird MPI-IO implementations that define a new error code for "file
-      // exists"...
-      std::cerr << "potential write/open error: " << std::to_string(err) << " " << openErrorString
-                << std::endl;
-    }
-    if (replaceExistingFile) {
-      // file already existed, delete it and create new file
-      int mpi_rank;
-      MPI_Comm_rank(comm, &mpi_rank);
-      if (mpi_rank == 0) {
-        MPI_File_delete(fileName.c_str(), MPI_INFO_NULL);
-      }
-      MPI_Barrier(comm);
-      err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_CREATE | MPI_MODE_EXCL | MPI_MODE_WRONLY,
-                          info, &fh);
-    } else {
-      // open file without creating it
-      err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_WRONLY, info, &fh);
-    }
-  }
-  if (err != MPI_SUCCESS) {
-    std::cerr << "Open error " << fileName << " :" << std::to_string(err) << " "
-              << getMpiErrorString(err) << std::endl;
-  }
-
-  // write to single file with MPI-IO
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
-  MPI_Status status;
-  err = MPI_File_write_at_all(fh, pos * sizeof(T), valuesStart, static_cast<int>(numValues),
-                              dataType, &status);
-  if (err != MPI_SUCCESS) {
-    std::cerr << err << " in MPI_File_write_at_all" << std::endl;
-    std::cerr << getMpiErrorString(err) << std::endl;
-  }
-#ifndef NDEBUG
-  int numWritten = 0;
-  MPI_Get_count(&status, dataType, &numWritten);
-  if (numWritten != numValues) {
-    std::cout << "not written enough: " << numWritten << " instead of " << numValues << std::endl;
-    err = ~MPI_SUCCESS;
-  }
-#endif  // !NDEBUG
-
-  MPI_File_close(&fh);
-  MPI_Info_free(&info);
-  return (err == MPI_SUCCESS) ? numValues : 0;
+  auto file = MPIFileConsecutive<T>::getFileToWrite(fileName, comm, replaceExistingFile,
+                                                    withCollectiveBuffering);
+  auto pos = getPositionFromNumValues(numValues, comm);
+  return file.writeValuesToFileAtPosition(valuesStart, numValues, pos);
 }
 
 template <typename T>
