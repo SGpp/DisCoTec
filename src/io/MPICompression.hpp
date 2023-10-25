@@ -121,6 +121,8 @@ size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
     decompressedByNow += decompressedSize;
   } while (decompressedSize > 0);
   assert(numValues == 0);
+
+  // https://github.com/lz4/lz4/blob/dev/examples/frameCompress.c //TODO make streaming
 #else
   throw std::runtime_error("LZ4 compression not available");
 #endif
@@ -228,6 +230,7 @@ void getFrameSizeAndPosFromHeader(const MPIFileConsecutive<char>& file, MPI_Offs
     auto numCharsInFirstFrame = decompressLZ4FrameToBuffer(headerFrame, frameSizes);
     MPI_Scatter(frameSizes.data(), 1, MPI_OFFSET, &frameSize, 1, MPI_OFFSET, 0, comm);
     assert(frameSize >= numCharsRead);
+    file.checkFileSizeConsecutive(frameSize, comm);
     position = mpiio::getPositionFromNumValues(frameSize, comm);
     assert(position == 0);
 
@@ -236,6 +239,7 @@ void getFrameSizeAndPosFromHeader(const MPIFileConsecutive<char>& file, MPI_Offs
     position += compressedHeaderSize;
   } else {
     MPI_Scatter(nullptr, 0, MPI_OFFSET, &frameSize, 1, MPI_OFFSET, 0, comm);
+    file.checkFileSizeConsecutive(frameSize, comm);
     position = mpiio::getPositionFromNumValues(frameSize, comm);
   }
 }

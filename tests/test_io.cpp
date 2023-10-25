@@ -25,25 +25,35 @@ void checkCompressionFrame(size_t numValues = 1000000) {
   auto rank = theMPISystem()->getLocalRank();
   auto localComm = theMPISystem()->getLocalComm();
 
-  // generate random vector of doubles
-  numValues = numValues + static_cast<size_t>(montecarlo::getRandomNumber(-rank - 100, rank + 1));
-  const std::vector<double> originalValues =
-      std::move(montecarlo::getRandomCoordinates(1, numValues)[0]);
+  for (bool randomValues : std::vector<bool>({false, true})) {
+    numValues = numValues + static_cast<size_t>(montecarlo::getRandomNumber(-rank - 100, rank + 1));
+    std::vector<double> originalValues;
+    if (randomValues) {
+      // generate random vector of doubles
+      originalValues = std::move(montecarlo::getRandomCoordinates(1, numValues)[0]);
+    } else {
+      originalValues.resize(numValues, 1234.56);
+    }
 
-  std::vector<char> compressedString;
-  mpiio::compressBufferToLZ4Frame(originalValues.data(), numValues, compressedString);
+    std::vector<char> compressedString;
+    mpiio::compressBufferToLZ4Frame(originalValues.data(), numValues, compressedString);
 
-  // assume size increase for non-compressible, random data
-  BOOST_CHECK_GT(compressedString.size(), numValues * sizeof(double));
+    if (randomValues) {
+      // assume size increase for non-compressible, random data
+      BOOST_CHECK_GT(compressedString.size(), numValues * sizeof(double));
+    } else {
+      // assume size decrease for compressible, same-value data
+      BOOST_CHECK_LT(compressedString.size(), numValues * sizeof(double));
+    }
 
-  std::vector<double> decompressedValues(originalValues.size());
+    std::vector<double> decompressedValues(originalValues.size());
 
-  mpiio::decompressLZ4FrameToBuffer(std::move(compressedString), decompressedValues);
+    mpiio::decompressLZ4FrameToBuffer(std::move(compressedString), decompressedValues);
 
-  BOOST_CHECK_EQUAL(originalValues.size(), decompressedValues.size());
-  BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
-                                decompressedValues.begin(), decompressedValues.end());
-
+    BOOST_CHECK_EQUAL(originalValues.size(), decompressedValues.size());
+    BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
+                                  decompressedValues.begin(), decompressedValues.end());
+  }
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
   BOOST_CHECK(!TestHelper::testStrayMessages(localComm));
@@ -64,43 +74,54 @@ void checkCompressionWithHeader(size_t numValues = 1000000) {
   auto rank = theMPISystem()->getLocalRank();
   auto localComm = theMPISystem()->getLocalComm();
 
-  // generate random vector of doubles
-  numValues = numValues + static_cast<size_t>(montecarlo::getRandomNumber(-rank - 100, rank + 1));
-  std::vector<double> originalValues = std::move(montecarlo::getRandomCoordinates(1, numValues)[0]);
+  for (bool randomValues : std::vector<bool>({false, true})) {
+    numValues = numValues + static_cast<size_t>(montecarlo::getRandomNumber(-rank - 100, rank + 1));
+    std::vector<double> originalValues;
+    if (randomValues) {
+      // generate random vector of doubles
+      originalValues = std::move(montecarlo::getRandomCoordinates(1, numValues)[0]);
+    } else {
+      originalValues.resize(numValues, 1234.56);
+    }
 
-  std::vector<char> compressedString;
-  mpiio::compressBufferToLZ4FrameAndGatherHeader(originalValues.data(), numValues, localComm,
-                                                 compressedString);
+    std::vector<char> compressedString;
+    mpiio::compressBufferToLZ4FrameAndGatherHeader(originalValues.data(), numValues, localComm,
+                                                   compressedString);
 
-  // assume size increase for non-compressible, random data
-  BOOST_CHECK_GT(compressedString.size(), numValues * sizeof(double));
+    if (randomValues) {
+      // assume size increase for non-compressible, random data
+      BOOST_CHECK_GT(compressedString.size(), numValues * sizeof(double));
+    } else {
+      // assume size decrease for compressible, same-value data
+      BOOST_CHECK_LT(compressedString.size(), numValues * sizeof(double));
+    }
 
-  std::string filename =
-      "compression_testfile_" + std::to_string(theMPISystem()->getProcessGroupNumber());
-  mpiio::writeValuesConsecutive(compressedString.data(), compressedString.size(), filename,
-                                localComm, true, false);
+    std::string filename =
+        "compression_testfile_" + std::to_string(theMPISystem()->getProcessGroupNumber());
+    mpiio::writeValuesConsecutive(compressedString.data(), compressedString.size(), filename,
+                                  localComm, true, false);
 
-  std::vector<double> decompressedValues(originalValues.size());
+    std::vector<double> decompressedValues(originalValues.size());
 
-  auto numValuesObtained = mpiio::readCompressedValuesConsecutive(
-      decompressedValues.data(), decompressedValues.size(), filename, localComm);
+    auto numValuesObtained = mpiio::readCompressedValuesConsecutive(
+        decompressedValues.data(), decompressedValues.size(), filename, localComm);
 
-  BOOST_CHECK_EQUAL(originalValues.size(), numValuesObtained);
-  BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
-                                decompressedValues.begin(), decompressedValues.end());
+    BOOST_CHECK_EQUAL(originalValues.size(), numValuesObtained);
+    BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
+                                  decompressedValues.begin(), decompressedValues.end());
 
-  numValuesObtained = mpiio::readReduceCompressedValuesConsecutive(
-      decompressedValues.data(), decompressedValues.size(), filename, localComm,
-      std::plus<double>{});
+    numValuesObtained = mpiio::readReduceCompressedValuesConsecutive(
+        decompressedValues.data(), decompressedValues.size(), filename, localComm,
+        std::plus<double>{});
 
-  // double the original values for comparison
-  for (auto& val : originalValues) {
-    val *= 2.0;
+    // double the original values for comparison
+    for (auto& val : originalValues) {
+      val *= 2.0;
+    }
+    BOOST_CHECK_EQUAL(originalValues.size(), numValuesObtained);
+    BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
+                                  decompressedValues.begin(), decompressedValues.end());
   }
-  BOOST_CHECK_EQUAL(originalValues.size(), numValuesObtained);
-  BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
-                                decompressedValues.begin(), decompressedValues.end());
-
   combigrid::Stats::finalize();
   MPI_Barrier(comm);
   BOOST_CHECK(!TestHelper::testStrayMessages(localComm));

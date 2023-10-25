@@ -187,7 +187,7 @@ class [[nodiscard]] MPIFileConsecutive {
     return readcountIncrement;
   }
 
-  bool checkFileSizeConsecutive(MPI_Offset myNumValues, CommunicatorType comm) {
+  bool checkFileSizeConsecutive(MPI_Offset myNumValues, CommunicatorType comm) const {
     // get total number of values
     MPI_Offset totalNumValues;
     MPI_Allreduce(&myNumValues, &totalNumValues, 1, MPI_OFFSET, MPI_SUM, comm);
