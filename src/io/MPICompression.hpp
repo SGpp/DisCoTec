@@ -59,47 +59,72 @@ void compressBufferToLZ4Frame(const T* buffer, MPI_Offset numValues,
 }
 
 template <typename T>
+class [[nodiscard]] FrameDecompressor {
+ public:
+  explicit FrameDecompressor(const std::vector<char>& compressedString, T* decompressValuesStart)
+      : compressedString_(compressedString), decompressValuesStart_(decompressValuesStart) {
+    memset(&opts_, 0, sizeof(opts_));
+    opts_.skipChecksums = 1;
+    if (LZ4F_isError(LZ4F_createDecompressionContext(&dctx_, LZ4F_VERSION))) {
+      throw std::runtime_error("LZ4 decompression failed ");
+    }
+  }
+
+  // no copy or move
+  FrameDecompressor(const FrameDecompressor&) = delete;
+  FrameDecompressor(FrameDecompressor&&) = delete;
+  FrameDecompressor& operator=(const FrameDecompressor&) = delete;
+  FrameDecompressor& operator=(FrameDecompressor&&) = delete;
+
+  ~FrameDecompressor() {
+    // assert that everything has been read by now
+    assert(readCompressedByNow_ == compressedString_.size());
+    [[maybe_unused]] auto freeResult = LZ4F_freeDecompressionContext(dctx_);
+    assert(freeResult == 0);
+  }
+
+  size_t decompressNextBlocks(size_t numValues) {
+    size_t decompressedSize = numValues * sizeof(T);
+    auto sourceSize = compressedString_.size() - readCompressedByNow_;
+    [[maybe_unused]] auto hintNextBufferSize =
+        LZ4F_decompress(dctx_, decompressValuesStart_, &decompressedSize, compressedString_.data(),
+                        &sourceSize, &opts_);
+    if (LZ4F_isError(decompressedSize)) {
+      throw std::runtime_error("LZ4 decompression failed: " +
+                               std::string(LZ4F_getErrorName(decompressedSize)));
+    }
+    decompressedByNow_ += decompressedSize;
+    decompressValuesStart_ += decompressedSize;
+    readCompressedByNow_ += sourceSize;
+    return decompressedSize / sizeof(T);
+  }
+
+ private:
+  const std::vector<char>& compressedString_;
+  T* decompressValuesStart_;
+  LZ4F_decompressOptions_t opts_;
+  LZ4F_dctx* dctx_;
+  size_t decompressedByNow_ = 0;
+  size_t readCompressedByNow_ = 0;
+};
+
+template <typename T>
 size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
                                   T* decompressValuesStart, size_t numValues) {
   size_t decompressedSize = 0;
   size_t decompressedByNow = 0;
 #ifdef DISCOTEC_USE_LZ4
-  LZ4F_decompressOptions_t opts;
-  memset(&opts, 0, sizeof(opts));
-  opts.skipChecksums = 1;
-
-  LZ4F_dctx* dctx;
-  if (LZ4F_isError(LZ4F_createDecompressionContext(&dctx, LZ4F_VERSION))) {
-    throw std::runtime_error("LZ4 decompression failed ");
-  }
-
-  decompressedByNow = 0;
-  size_t readCompressedByNow = 0;
-  const char* readValuesStart = compressedString.data();
+  auto decompressor = FrameDecompressor(compressedString, decompressValuesStart);
   do {
-    decompressedSize = numValues * sizeof(T) - decompressedByNow;
-    auto sourceSize = compressedString.size() - readCompressedByNow;
-    [[maybe_unused]] auto hintNextBufferSize =
-        LZ4F_decompress(dctx, decompressValuesStart, &decompressedSize, compressedString.data(),
-                        &sourceSize, &opts);
-    if (LZ4F_isError(decompressedSize)) {
-      throw std::runtime_error("LZ4 decompression failed: " +
-                               std::string(LZ4F_getErrorName(decompressedSize)));
-    }
+    decompressedSize = decompressor.decompressNextBlocks(numValues);
+    numValues -= decompressedSize;
     decompressedByNow += decompressedSize;
-    decompressValuesStart += decompressedSize;
-    readCompressedByNow += sourceSize;
-    readValuesStart += sourceSize;
   } while (decompressedSize > 0);
-
-  assert(decompressedByNow == numValues * sizeof(T));
-  assert(readCompressedByNow == compressedString.size());
-  [[maybe_unused]] auto freeResult = LZ4F_freeDecompressionContext(dctx);
-  assert(freeResult == 0);
+  assert(numValues == 0);
 #else
   throw std::runtime_error("LZ4 compression not available");
 #endif
-  return decompressedByNow / sizeof(T);
+  return decompressedByNow;
 }
 
 template <typename T>
