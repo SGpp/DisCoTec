@@ -76,8 +76,19 @@ void checkCompressionWithHeader(size_t numValues = 1000000) {
   // assume size increase for non-compressible, random data
   BOOST_CHECK_GT(compressedString.size(), numValues * sizeof(double));
 
-  std::string filename = "compression_testfile_" + std::to_string(theMPISystem()->getProcessGroupNumber());
-  mpiio::writeValuesConsecutive(compressedString.data(), compressedString.size(), filename, localComm, true, false);
+  std::string filename =
+      "compression_testfile_" + std::to_string(theMPISystem()->getProcessGroupNumber());
+  mpiio::writeValuesConsecutive(compressedString.data(), compressedString.size(), filename,
+                                localComm, true, false);
+
+  std::vector<double> decompressedValues(originalValues.size());
+
+  auto numValuesObtained = mpiio::readCompressedValuesConsecutive(
+      decompressedValues.data(), decompressedValues.size(), filename, localComm);
+
+  BOOST_CHECK_EQUAL(originalValues.size(), numValuesObtained);
+  BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
+                                decompressedValues.begin(), decompressedValues.end());
 
   combigrid::Stats::finalize();
   MPI_Barrier(comm);

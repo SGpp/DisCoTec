@@ -12,6 +12,7 @@
 #include "lz4frame.h"
 #endif
 
+#include "io/MPIInputOutput.hpp"
 #include "mpi/MPISystem.hpp"
 #include "utils/Types.hpp"
 
@@ -109,35 +110,46 @@ size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
   return decompressedSize;
 }
 
+#ifdef DISCOTEC_USE_LZ4
+size_t getSizeOfHeaderFrame(int commSize, size_t& headerFrameBound,
+                            LZ4F_preferences_t& lz4PreferencesHeader) {
+  lz4PreferencesHeader = lz4Preferences;
+  size_t locationInfoSize = commSize * sizeof(MPI_Offset);
+  lz4PreferencesHeader.frameInfo.contentSize = locationInfoSize;
+  lz4PreferencesHeader.compressionLevel = -65535;  // no compression?
+  headerFrameBound = LZ4F_compressFrameBound(locationInfoSize, &lz4PreferencesHeader);
+  // initialize w/ random values
+  std::vector<char> compressedDummyString(headerFrameBound);
+
+  size_t compressedHeaderSize =  // will be overwritten later
+      LZ4F_compressFrame(compressedDummyString.data(), headerFrameBound,
+                         compressedDummyString.data(), locationInfoSize, &lz4PreferencesHeader);
+  if (LZ4F_isError(compressedHeaderSize)) {
+    throw std::runtime_error("LZ4 dummy compression failed: " +
+                             std::string(LZ4F_getErrorName(compressedHeaderSize)));
+  }
+  assert(compressedHeaderSize > 0);
+  return compressedHeaderSize;
+}
+#endif
+
 template <typename T>
 void compressBufferToLZ4FrameAndGatherHeader(const T* buffer, MPI_Offset numValues,
                                              combigrid::CommunicatorType comm,
                                              std::vector<char>& compressedString) {
-  size_t compressedHeaderSize = 0;
   auto commSize = getCommSize(comm);
   auto commRank = getCommRank(comm);
 
 #ifdef DISCOTEC_USE_LZ4
-  LZ4F_preferences_t lz4PreferencesHeader = lz4Preferences;
-  size_t locationInfoSize = commSize * sizeof(MPI_Offset);
-  lz4PreferencesHeader.frameInfo.contentSize = locationInfoSize;
-  lz4PreferencesHeader.compressionLevel = -65535;  // no compression?
-  auto headerFrameBound = LZ4F_compressFrameBound(locationInfoSize, &lz4PreferencesHeader);
-
+  LZ4F_preferences_t lz4PreferencesHeader;
+  size_t headerFrameBound;
+  auto compressedHeaderSize =
+      getSizeOfHeaderFrame(commSize, headerFrameBound, lz4PreferencesHeader);
   compressedString.clear();
   // if I am the root rank
   if (commRank == 0) {
     // add a header frame that contains numRanks * the location of the frame beginnings
     // (we don't yet know them, so make them placeholders)
-    compressedString.resize(headerFrameBound);
-    compressedHeaderSize =  // will be overwritten later
-        LZ4F_compressFrame(compressedString.data(), headerFrameBound, buffer, locationInfoSize,
-                           &lz4PreferencesHeader);
-    if (LZ4F_isError(compressedHeaderSize)) {
-      throw std::runtime_error("LZ4 compression failed: " +
-                               std::string(LZ4F_getErrorName(compressedHeaderSize)));
-    }
-    assert(compressedHeaderSize > 0);
     compressedString.resize(compressedHeaderSize);
   }
 
@@ -153,7 +165,7 @@ void compressBufferToLZ4FrameAndGatherHeader(const T* buffer, MPI_Offset numValu
     // now overwrite the header frame with the actual frame sizes
     size_t newCompressedHeaderSize =
         LZ4F_compressFrame(compressedString.data(), headerFrameBound, frameSizes.data(),
-                           locationInfoSize, &lz4PreferencesHeader);
+                           commSize * sizeof(MPI_Offset), &lz4PreferencesHeader);
     if (LZ4F_isError(newCompressedHeaderSize)) {
       throw std::runtime_error("LZ4 compression failed: " +
                                std::string(LZ4F_getErrorName(newCompressedHeaderSize)));
@@ -167,6 +179,52 @@ void compressBufferToLZ4FrameAndGatherHeader(const T* buffer, MPI_Offset numValu
 #else
   throw std::runtime_error("LZ4 compression not available");
 #endif
+}
+
+// cf. readValuesConsecutive
+template <typename T>
+int readCompressedValuesConsecutive(T* valuesStart, MPI_Offset numValues,
+                                    const std::string& fileName, combigrid::CommunicatorType comm) {
+  auto rank = getCommRank(comm);
+  auto file = MPIFileConsecutive<char>::getFileToRead(fileName, comm, false, false);
+  MPI_Offset position = 0;
+  MPI_Offset frameSize = 0;
+  // rank 0 scatters positions read from header frame
+  if (rank == 0) {
+    auto commSize = getCommSize(comm);
+    LZ4F_preferences_t lz4PreferencesHeader = lz4Preferences;
+    size_t headerFrameBound;
+    auto compressedHeaderSize =
+        getSizeOfHeaderFrame(commSize, headerFrameBound, lz4PreferencesHeader);
+
+    std::vector<char> headerFrame(compressedHeaderSize);
+    auto numCharsRead =
+        file.readValuesFromFileAtPositionSingleRank(headerFrame.data(), headerFrame.size(), 0);
+    assert(numCharsRead == compressedHeaderSize);
+    headerFrame.resize(numCharsRead);
+
+    std::vector<MPI_Offset> frameSizes(commSize);
+    auto numCharsInFirstFrame = decompressLZ4FrameToBuffer(headerFrame, frameSizes);
+    MPI_Scatter(frameSizes.data(), 1, MPI_OFFSET, &frameSize, 1, MPI_OFFSET, 0, comm);
+    assert(frameSize >= numCharsRead);
+    position = mpiio::getPositionFromNumValues(frameSize, comm);
+    assert(position == 0);
+    frameSize -= numCharsRead;
+    position += compressedHeaderSize;
+  } else {
+    MPI_Scatter(nullptr, 0, MPI_OFFSET, &frameSize, 1, MPI_OFFSET, 0, comm);
+    position = mpiio::getPositionFromNumValues(frameSize, comm);
+  }
+
+  std::vector<char> frameString(frameSize);
+  auto numCharsRead = file.readValuesFromFileAtPosition(frameString.data(), frameSize, position);
+  assert(numCharsRead == frameSize);
+  frameString.resize(numCharsRead);
+
+  auto numValuesDecompressed =
+      mpiio::decompressLZ4FrameToBuffer(std::move(frameString), valuesStart, numValues);
+  assert(numValuesDecompressed == numValues);
+  return numValuesDecompressed;
 }
 
 }  // namespace mpiio
