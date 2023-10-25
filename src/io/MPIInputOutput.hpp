@@ -225,5 +225,77 @@ int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std:
   return readcount;
 }
 
+// n-ary std::transform https://stackoverflow.com/a/21768697
+template <class Functor, class OutputIterator, class Input1, class... Inputs>
+OutputIterator transformN(Functor f, OutputIterator out, Input1 first1, Input1 last1,
+                          Inputs... inputs) {
+  while (first1 != last1) *out++ = f(*first1++, *inputs++...);
+  return out;
+}
+
+template <typename T, typename ReduceFunctionType>
+int readMultipleReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues,
+                                        const std::vector<std::string>& fileNames,
+                                        combigrid::CommunicatorType comm, int numElementsToBuffer,
+                                        ReduceFunctionType reduceFunction,
+                                        bool withCollectiveBuffering = false) {
+  MPI_Offset pos = 0;
+  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
+  MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
+  MPI_Info_set(info, "access_style", "sequential");
+
+  // open multiple files
+  std::vector<MPI_File> fh;
+  fh.resize(fileNames.size());
+  for (size_t i = 0; i < fileNames.size(); ++i) {
+    int err = MPI_File_open(comm, fileNames[i].c_str(), MPI_MODE_RDONLY, info, &fh[i]);
+    if (err != MPI_SUCCESS) {
+      std::cerr << err << " while reducing " << fileNames[i] << std::endl;
+      throw std::runtime_error("read: could not open! " + getMpiErrorString(err));
+    }
+    checkFileSizeConsecutive<T>(fh[i], numValues, comm);
+  }
+
+  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
+  MPI_Status status;
+
+  // read from files with MPI-IO
+  int readcount = 0;
+  std::vector<std::vector<T>> buffers(fileNames.size(), std::vector<T>(numElementsToBuffer));
+  auto writePointer = valuesStart;
+  while (readcount < numValues) {
+    // if there is less to read than the buffer length, overwrite numElementsToBuffer
+    if (numValues - readcount < numElementsToBuffer) {
+      numElementsToBuffer = numValues - readcount;
+      for (auto& buffer : buffers) {
+        buffer.resize(numElementsToBuffer);
+      }
+    }
+    int readcountIncrement = 0;
+    for (size_t i = 0; i < buffers.size(); ++i) {
+      int err = MPI_File_read_at_all(fh[i], pos * sizeof(T), buffers[i].data(),
+                                     static_cast<int>(numElementsToBuffer), dataType, &status);
+      if (err != MPI_SUCCESS) {
+        std::cerr << err << " while reducing " << fileNames[i] << std::endl;
+        throw std::runtime_error("read: could not read! " + getMpiErrorString(err));
+      }
+      MPI_Get_count(&status, dataType, &readcountIncrement);
+      assert(readcountIncrement > 0);
+    }
+    // reduce with present sparse grid data
+    // todo is there a variadic way of doing this?
+    transformN(reduceFunction, writePointer, buffers[0].cbegin(), buffers[0].cend(), writePointer,
+               buffers[1].cbegin());
+    readcount += readcountIncrement;
+    pos += readcountIncrement;
+    std::advance(writePointer, readcountIncrement);
+  }
+  for (auto& file_handle : fh) {
+    MPI_File_close(&file_handle);
+  }
+  MPI_Info_free(&info);
+  return readcount;
+}
+
 }  // namespace mpiio
 }  // namespace combigrid

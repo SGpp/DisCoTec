@@ -112,10 +112,10 @@ bool ProcessGroupManager::combineThirdLevel(const ThirdLevelUtils& thirdLevel,
   return true;
 }
 
-bool ProcessGroupManager::combineThirdLevelFileBased(std::string filenamePrefixToWrite,
-                                                     std::string writeCompleteTokenFileName,
-                                                     std::string filenamePrefixToRead,
-                                                     std::string startReadingTokenFileName) {
+bool ProcessGroupManager::combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
+                                                     const std::string& writeCompleteTokenFileName,
+                                                     const std::string& filenamePrefixToRead,
+                                                     const std::string& startReadingTokenFileName) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(COMBINE_THIRD_LEVEL_FILE);
 
@@ -129,8 +129,8 @@ bool ProcessGroupManager::combineThirdLevelFileBased(std::string filenamePrefixT
   return this->waitStatus() == PROCESS_GROUP_WAIT;
 }
 
-bool ProcessGroupManager::combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
-                                                          std::string writeCompleteTokenFileName) {
+bool ProcessGroupManager::combineThirdLevelFileBasedWrite(
+    const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(COMBINE_WRITE_DSGS);
 
@@ -144,7 +144,7 @@ bool ProcessGroupManager::combineThirdLevelFileBasedWrite(std::string filenamePr
 }
 
 bool ProcessGroupManager::combineThirdLevelFileBasedReadReduce(
-    std::string filenamePrefixToRead, std::string startReadingTokenFileName) {
+    const std::string& filenamePrefixToRead, const std::string& startReadingTokenFileName) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(COMBINE_READ_DSGS_AND_REDUCE);
 
@@ -557,7 +557,7 @@ void sendLevelVector(const LevelVector& leval, RankType pgroupRootID) {
            theMPISystem()->getGlobalComm());
 }
 
-bool ProcessGroupManager::parallelEval(const LevelVector& leval, std::string& filename) {
+bool ProcessGroupManager::parallelEval(const LevelVector& leval, const std::string& filename) {
   // can only send sync signal when in wait state, so check first
   assert(status_ == PROCESS_GROUP_WAIT);
 
@@ -762,14 +762,14 @@ bool ProcessGroupManager::writeCombigridsToVTKPlotFile() {
   return true;
 }
 
-bool ProcessGroupManager::writeDSGsToDisk(std::string filenamePrefix) {
+bool ProcessGroupManager::writeDSGsToDisk(const std::string& filenamePrefix) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(WRITE_DSGS_TO_DISK);
   MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
   return true;
 }
 
-bool ProcessGroupManager::readDSGsFromDisk(std::string filenamePrefix) {
+bool ProcessGroupManager::readDSGsFromDisk(const std::string& filenamePrefix) {
   assert(waitStatus() == PROCESS_GROUP_WAIT);
   sendSignalAndReceive(READ_DSGS_FROM_DISK);
   MPIUtils::sendClass(&filenamePrefix, pgroupRootID_, theMPISystem()->getGlobalComm());
