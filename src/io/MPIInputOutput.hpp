@@ -153,15 +153,6 @@ class [[nodiscard]] MPIFileConsecutive {
     MPI_Status status;
     auto err = MPI_File_read_at_all(file_, position * sizeof(T), valuesStart,
                                     static_cast<int>(numValues), dataType, &status);
-#ifndef NDEBUG
-    int readcount = 0;
-    MPI_Get_count(&status, dataType, &readcount);
-    if (readcount < numValues) {
-      // loud failure
-      std::cerr << "read " << readcount << " and not " << numValues << std::endl;
-      throw std::runtime_error("read: not enough data read!");
-    }
-#endif
     if (err != MPI_SUCCESS) {
       // non-failure
       std::cerr << err << " in MPI_File_read_at_all" << std::endl;
@@ -169,6 +160,30 @@ class [[nodiscard]] MPIFileConsecutive {
     }
     int readcountIncrement = 0;
     MPI_Get_count(&status, dataType, &readcountIncrement);
+    if (readcountIncrement < numValues) {
+      // non-failure
+      std::cerr << "read " << readcountIncrement << " and not " << numValues << std::endl;
+    }
+    return readcountIncrement;
+  }
+
+  int readValuesFromFileAtPositionSingleRank(T* valuesStart, MPI_Offset numValues,
+                                             MPI_Offset position) {
+    MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
+    MPI_Status status;
+    auto err = MPI_File_read_at(file_, position * sizeof(T), valuesStart,
+                                static_cast<int>(numValues), dataType, &status);
+    if (err != MPI_SUCCESS) {
+      // non-failure
+      std::cerr << err << " in MPI_File_read_at_all" << std::endl;
+      return 0;
+    }
+    int readcountIncrement = 0;
+    MPI_Get_count(&status, dataType, &readcountIncrement);
+    if (readcountIncrement < numValues) {
+      // non-failure
+      std::cerr << "read " << readcountIncrement << " and not " << numValues << std::endl;
+    }
     return readcountIncrement;
   }
 
