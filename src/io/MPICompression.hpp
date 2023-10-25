@@ -62,6 +62,7 @@ template <typename T>
 size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
                                   T* decompressValuesStart, size_t numValues) {
   size_t decompressedSize = 0;
+  size_t decompressedByNow = 0;
 #ifdef DISCOTEC_USE_LZ4
   LZ4F_decompressOptions_t opts;
   memset(&opts, 0, sizeof(opts));
@@ -209,7 +210,9 @@ int readCompressedValuesConsecutive(T* valuesStart, MPI_Offset numValues,
     assert(frameSize >= numCharsRead);
     position = mpiio::getPositionFromNumValues(frameSize, comm);
     assert(position == 0);
-    frameSize -= numCharsRead;
+
+    // the content frame for rank 0 starts after the header frame
+    frameSize -= compressedHeaderSize;
     position += compressedHeaderSize;
   } else {
     MPI_Scatter(nullptr, 0, MPI_OFFSET, &frameSize, 1, MPI_OFFSET, 0, comm);
