@@ -153,7 +153,7 @@ pipeline {
                                             spack load --first lz4 %${compiler}
                                             mkdir -p build/${compiler}-${mpiimpl}-${build_type}
                                             cd build/${compiler}-${mpiimpl}-${build_type}
-                                            cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_OPENMP=1 -DDISCOTEC_USE_LTO=0 -DDISCOTEC_WITH_COMPRESSION ../..
+                                            cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_OPENMP=1 -DDISCOTEC_USE_LTO=0 -DDISCOTEC_WITH_COMPRESSION=1 ../..
                                             make -j8
                                         '''
                                     }
