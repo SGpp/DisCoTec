@@ -73,7 +73,7 @@ size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
     throw std::runtime_error("LZ4 decompression failed ");
   }
 
-  size_t decompressedByNow = 0;
+  decompressedByNow = 0;
   size_t readCompressedByNow = 0;
   const char* readValuesStart = compressedString.data();
   do {
