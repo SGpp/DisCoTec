@@ -58,6 +58,7 @@ void compressBufferToLZ4Frame(const T* buffer, MPI_Offset numValues,
 #endif
 }
 
+#ifdef DISCOTEC_USE_LZ4
 template <typename T>
 class [[nodiscard]] FrameDecompressor {
  public:
@@ -107,6 +108,7 @@ class [[nodiscard]] FrameDecompressor {
   size_t decompressedByNow_ = 0;
   size_t readCompressedByNow_ = 0;
 };
+#endif
 
 template <typename T>
 size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
@@ -220,6 +222,7 @@ int writeCompressedValuesConsecutive(const T* valuesStart, MPI_Offset numValues,
                                              fileName, comm, true, false);
 }
 
+#ifdef DISCOTEC_USE_LZ4
 inline void getFrameSizeAndPosFromHeader(const MPIFileConsecutive<char>& file,
                                          MPI_Offset& frameSize, MPI_Offset& position,
                                          combigrid::CommunicatorType comm) {
@@ -255,6 +258,7 @@ inline void getFrameSizeAndPosFromHeader(const MPIFileConsecutive<char>& file,
     position = mpiio::getPositionFromNumValues(frameSize, comm);
   }
 }
+#endif
 
 // cf. readValuesConsecutive
 template <typename T>
