@@ -207,14 +207,9 @@ void compressBufferToLZ4FrameAndGatherHeader(const T* buffer, MPI_Offset numValu
 #endif
 }
 
-// cf. readValuesConsecutive
-template <typename T>
-int readCompressedValuesConsecutive(T* valuesStart, MPI_Offset numValues,
-                                    const std::string& fileName, combigrid::CommunicatorType comm) {
+void getFrameSizeAndPosFromHeader(const MPIFileConsecutive<char>& file, MPI_Offset& frameSize,
+                                  MPI_Offset& position, combigrid::CommunicatorType comm) {
   auto rank = getCommRank(comm);
-  auto file = MPIFileConsecutive<char>::getFileToRead(fileName, comm, false, false);
-  MPI_Offset position = 0;
-  MPI_Offset frameSize = 0;
   // rank 0 scatters positions read from header frame
   if (rank == 0) {
     auto commSize = getCommSize(comm);
@@ -243,6 +238,16 @@ int readCompressedValuesConsecutive(T* valuesStart, MPI_Offset numValues,
     MPI_Scatter(nullptr, 0, MPI_OFFSET, &frameSize, 1, MPI_OFFSET, 0, comm);
     position = mpiio::getPositionFromNumValues(frameSize, comm);
   }
+}
+
+// cf. readValuesConsecutive
+template <typename T>
+int readCompressedValuesConsecutive(T* valuesStart, MPI_Offset numValues,
+                                    const std::string& fileName, combigrid::CommunicatorType comm) {
+  auto file = MPIFileConsecutive<char>::getFileToRead(fileName, comm, false, false);
+  MPI_Offset position = 0;
+  MPI_Offset frameSize = 0;
+  getFrameSizeAndPosFromHeader(file, frameSize, position, comm);
 
   std::vector<char> frameString(frameSize);
   auto numCharsRead = file.readValuesFromFileAtPosition(frameString.data(), frameSize, position);
@@ -252,6 +257,42 @@ int readCompressedValuesConsecutive(T* valuesStart, MPI_Offset numValues,
   auto numValuesDecompressed =
       mpiio::decompressLZ4FrameToBuffer(std::move(frameString), valuesStart, numValues);
   assert(numValuesDecompressed == numValues);
+  return numValuesDecompressed;
+}
+
+template <typename T, typename ReduceFunctionType>
+int readReduceCompressedValuesConsecutive(
+    T* valuesStart, MPI_Offset numValues, const std::string& fileName,
+    combigrid::CommunicatorType comm,  // int numElementsToBuffer,
+    ReduceFunctionType reduceFunction) {
+  size_t decompressedByNow = 0;
+#ifdef DISCOTEC_USE_LZ4
+  // // numElementsToBuffer must be at least lz4 block size
+  // assert(numElementsToBuffer >= (1 << 20) * 4);
+  auto file = MPIFileConsecutive<char>::getFileToRead(fileName, comm, false, false);
+  MPI_Offset position = 0;
+  MPI_Offset frameSize = 0;
+  getFrameSizeAndPosFromHeader(file, frameSize, position, comm);
+
+  std::vector<char> frameString(frameSize);
+  auto numCharsRead = file.readValuesFromFileAtPosition(frameString.data(), frameSize, position);
+  assert(numCharsRead == frameSize);
+  frameString.resize(numCharsRead);
+
+  int reduceCount = 0;
+  auto remainingValues = numValues;
+  size_t decompressedSize = 0;
+  std::vector<T> buffer(numValues);
+
+  auto numValuesDecompressed =
+      mpiio::decompressLZ4FrameToBuffer(std::move(frameString), buffer.data(), numValues);
+  assert(numValuesDecompressed == numValues);
+
+  std::transform(buffer.cbegin(), buffer.cend(), valuesStart, valuesStart, reduceFunction);
+
+#else
+  throw std::runtime_error("LZ4 compression not available");
+#endif
   return numValuesDecompressed;
 }
 

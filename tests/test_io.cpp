@@ -66,8 +66,7 @@ void checkCompressionWithHeader(size_t numValues = 1000000) {
 
   // generate random vector of doubles
   numValues = numValues + static_cast<size_t>(montecarlo::getRandomNumber(-rank - 100, rank + 1));
-  const std::vector<double> originalValues =
-      std::move(montecarlo::getRandomCoordinates(1, numValues)[0]);
+  std::vector<double> originalValues = std::move(montecarlo::getRandomCoordinates(1, numValues)[0]);
 
   std::vector<char> compressedString;
   mpiio::compressBufferToLZ4FrameAndGatherHeader(originalValues.data(), numValues, localComm,
@@ -86,6 +85,18 @@ void checkCompressionWithHeader(size_t numValues = 1000000) {
   auto numValuesObtained = mpiio::readCompressedValuesConsecutive(
       decompressedValues.data(), decompressedValues.size(), filename, localComm);
 
+  BOOST_CHECK_EQUAL(originalValues.size(), numValuesObtained);
+  BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
+                                decompressedValues.begin(), decompressedValues.end());
+
+  numValuesObtained = mpiio::readReduceCompressedValuesConsecutive(
+      decompressedValues.data(), decompressedValues.size(), filename, localComm,
+      std::plus<double>{});
+
+  // double the original values for comparison
+  for (auto& val : originalValues) {
+    val *= 2.0;
+  }
   BOOST_CHECK_EQUAL(originalValues.size(), numValuesObtained);
   BOOST_CHECK_EQUAL_COLLECTIONS(originalValues.begin(), originalValues.end(),
                                 decompressedValues.begin(), decompressedValues.end());

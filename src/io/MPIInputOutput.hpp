@@ -168,7 +168,7 @@ class [[nodiscard]] MPIFileConsecutive {
   }
 
   int readValuesFromFileAtPositionSingleRank(T* valuesStart, MPI_Offset numValues,
-                                             MPI_Offset position) {
+                                             MPI_Offset position) const {
     MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
     MPI_Status status;
     auto err = MPI_File_read_at(file_, position * sizeof(T), valuesStart,
