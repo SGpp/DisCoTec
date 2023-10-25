@@ -124,16 +124,15 @@ endif ()
 
 option(DISCOTEC_WITH_COMPRESSION "Enable Compressed output with LZ4" OFF)
 if(DISCOTEC_WITH_COMPRESSION)
+    find_path(LZ4_INCLUDE_DIR NAMES "lz4.h")
     target_include_directories(discotec PUBLIC ${LZ4_INCLUDE_DIR})
     if(NOT EXISTS ${LZ4_INCLUDE_DIR}/lz4.h)
         message(FATAL_ERROR "LZ4: ${LZ4_INCLUDE_DIR}/lz4.h not found")
     endif()
-    find_library(
-        LZ4_LIBRARIES
-        NAMES "lz4"
-        PATHS ${LZ4_LIBRARY_DIR}
-      NO_DEFAULT_PATH)
-    # target_link_directories(discotec PUBLIC ${LZ4_LIBRARY_DIR})
+    find_library(LZ4_LIBRARIES NAMES "lz4" )
+    if(NOT EXISTS ${LZ4_LIBRARIES})
+        message(FATAL_ERROR "LZ4: ${LZ4_LIBRARIES} not found")
+    endif()
     target_link_libraries(discotec PUBLIC ${LZ4_LIBRARIES})
     target_compile_definitions(discotec PUBLIC DISCOTEC_USE_LZ4)
 endif()
