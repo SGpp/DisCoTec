@@ -59,15 +59,15 @@ class [[nodiscard]] MPIFileConsecutive {
   MPIFileConsecutive(MPIFileConsecutive&&) = delete;
   MPIFileConsecutive& operator=(MPIFileConsecutive&&) = delete;
 
-  ~MPIFileConsecutive() {
-    MPI_File_close(&file_);
-    MPI_Info_free(&info_);
-  }
+  ~MPIFileConsecutive() { MPI_File_close(&file_); }
   static MPIFileConsecutive getFileToWrite(const std::string& fileName,
                                            combigrid::CommunicatorType comm,
-                                           bool replaceExistingFile, bool withCollectiveBuffering) {
+                                           bool replaceExistingFile, bool withCollectiveBuffering,
+                                           bool writeOnce = true) {
     MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
-    MPI_Info_set(info, "access_style", "write_once,sequential");
+    if (writeOnce) {
+      MPI_Info_set(info, "access_style", "write_once");
+    }
     int commSize;
     MPI_Comm_size(comm, &commSize);
     std::string commSizeStr = std::to_string(commSize);
@@ -103,17 +103,16 @@ class [[nodiscard]] MPIFileConsecutive {
       std::cerr << "Open error " << fileName << " :" << std::to_string(err) << " "
                 << getMpiErrorString(err) << std::endl;
     }
-    return MPIFileConsecutive(info, file);
+    MPI_Info_free(&info);
+    return MPIFileConsecutive(file);
   }
 
   static MPIFileConsecutive getFileToRead(const std::string& fileName,
-                                          combigrid::CommunicatorType comm, bool readOnce,
-                                          bool withCollectiveBuffering) {
+                                          combigrid::CommunicatorType comm,
+                                          bool withCollectiveBuffering, bool readOnce) {
     MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
     if (readOnce) {
-      MPI_Info_set(info, "access_style", "read_once,sequential");
-    } else {
-      MPI_Info_set(info, "access_style", "sequential");
+      MPI_Info_set(info, "access_style", "read_once");
     }
 
     // open file
@@ -207,8 +206,7 @@ class [[nodiscard]] MPIFileConsecutive {
   }
 
  private:
-  explicit MPIFileConsecutive(MPI_Info info, MPI_File file) : info_(info), file_(file) {}
-  MPI_Info info_;
+  explicit MPIFileConsecutive(MPI_File file) : file_(file) {}
   MPI_File file_;
 };
 
@@ -225,7 +223,7 @@ int writeValuesConsecutive(const T* valuesStart, MPI_Offset numValues, const std
 template <typename T>
 int readValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std::string& fileName,
                           combigrid::CommunicatorType comm, bool withCollectiveBuffering = false) {
-  auto file = MPIFileConsecutive<T>::getFileToRead(fileName, comm, true, withCollectiveBuffering);
+  auto file = MPIFileConsecutive<T>::getFileToRead(fileName, comm, withCollectiveBuffering, true);
   file.checkFileSizeConsecutive(numValues, comm);
 
   auto position = getPositionFromNumValues(numValues, comm);
@@ -237,7 +235,7 @@ int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std:
                                 combigrid::CommunicatorType comm, int numElementsToBuffer,
                                 ReduceFunctionType reduceFunction,
                                 bool withCollectiveBuffering = false) {
-  auto file = MPIFileConsecutive<T>::getFileToRead(fileName, comm, false, withCollectiveBuffering);
+  auto file = MPIFileConsecutive<T>::getFileToRead(fileName, comm, withCollectiveBuffering, false);
   file.checkFileSizeConsecutive(numValues, comm);
 
   MPI_Offset position = getPositionFromNumValues(numValues, comm);
