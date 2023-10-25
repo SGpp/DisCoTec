@@ -31,7 +31,6 @@ constexpr LZ4F_preferences_t lz4Preferences = {
 
 template <typename T>
 void compressBufferToLZ4Frame(const T* buffer, MPI_Offset numValues,
-                              combigrid::CommunicatorType comm,
                               std::vector<char>& compressedString) {
   size_t compressedStringInitialSize = compressedString.size();
 #ifdef DISCOTEC_USE_LZ4
@@ -59,8 +58,9 @@ void compressBufferToLZ4Frame(const T* buffer, MPI_Offset numValues,
 }
 
 template <typename T>
-void decompressLZ4FrameToBuffer(const std::vector<char>& compressedString, MPI_Comm comm,
-                                std::vector<T>& decompressedValues) {
+size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
+                                  T* decompressValuesStart, size_t numValues) {
+  size_t decompressedSize = 0;
 #ifdef DISCOTEC_USE_LZ4
   LZ4F_decompressOptions_t opts;
   memset(&opts, 0, sizeof(opts));
@@ -72,15 +72,13 @@ void decompressLZ4FrameToBuffer(const std::vector<char>& compressedString, MPI_C
   }
 
   size_t decompressedByNow = 0;
-  T* decompressValuesStart = decompressedValues.data();
   size_t readCompressedByNow = 0;
   const char* readValuesStart = compressedString.data();
-  size_t decompressedSize = 0;
   do {
-    decompressedSize = decompressedValues.size() * sizeof(T) - decompressedByNow;
+    decompressedSize = numValues * sizeof(T) - decompressedByNow;
     auto sourceSize = compressedString.size() - readCompressedByNow;
     [[maybe_unused]] auto hintNextBufferSize =
-        LZ4F_decompress(dctx, decompressedValues.data(), &decompressedSize, compressedString.data(),
+        LZ4F_decompress(dctx, decompressValuesStart, &decompressedSize, compressedString.data(),
                         &sourceSize, &opts);
     if (LZ4F_isError(decompressedSize)) {
       throw std::runtime_error("LZ4 decompression failed: " +
@@ -92,11 +90,23 @@ void decompressLZ4FrameToBuffer(const std::vector<char>& compressedString, MPI_C
     readValuesStart += sourceSize;
   } while (decompressedSize > 0);
 
-  assert(decompressedByNow == decompressedValues.size() * sizeof(T));
+  assert(decompressedByNow == numValues * sizeof(T));
   assert(readCompressedByNow == compressedString.size());
   [[maybe_unused]] auto freeResult = LZ4F_freeDecompressionContext(dctx);
   assert(freeResult == 0);
+#else
+  throw std::runtime_error("LZ4 compression not available");
 #endif
+  return decompressedByNow / sizeof(T);
+}
+
+template <typename T>
+size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
+                                  std::vector<T>& decompressedValues) {
+  auto decompressedSize = decompressLZ4FrameToBuffer(compressedString, decompressedValues.data(),
+                                                     decompressedValues.size());
+  assert(decompressedSize == decompressedValues.size());
+  return decompressedSize;
 }
 
 template <typename T>
@@ -131,7 +141,7 @@ void compressBufferToLZ4FrameAndGatherHeader(const T* buffer, MPI_Offset numValu
     compressedString.resize(compressedHeaderSize);
   }
 
-  compressBufferToLZ4Frame(buffer, numValues, comm, compressedString);
+  compressBufferToLZ4Frame(buffer, numValues, compressedString);
 
   // now the root rank collects the sizes of these frame strings
   auto compressedSize = compressedString.size();
