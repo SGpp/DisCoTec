@@ -139,8 +139,8 @@ size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
 }
 
 #ifdef DISCOTEC_USE_LZ4
-size_t getSizeOfHeaderFrame(int commSize, size_t& headerFrameBound,
-                            LZ4F_preferences_t& lz4PreferencesHeader) {
+inline size_t getSizeOfHeaderFrame(int commSize, size_t& headerFrameBound,
+                                   LZ4F_preferences_t& lz4PreferencesHeader) {
   lz4PreferencesHeader = lz4Preferences;
   size_t locationInfoSize = commSize * sizeof(MPI_Offset);
   lz4PreferencesHeader.frameInfo.contentSize = locationInfoSize;
@@ -209,8 +209,20 @@ void compressBufferToLZ4FrameAndGatherHeader(const T* buffer, MPI_Offset numValu
 #endif
 }
 
-void getFrameSizeAndPosFromHeader(const MPIFileConsecutive<char>& file, MPI_Offset& frameSize,
-                                  MPI_Offset& position, combigrid::CommunicatorType comm) {
+template <typename T>
+int writeCompressedValuesConsecutive(const T* valuesStart, MPI_Offset numValues,
+                                     const std::string& fileName, combigrid::CommunicatorType comm,
+                                     bool replaceExistingFile = false,
+                                     bool withCollectiveBuffering = false) {
+  std::vector<char> compressedString;
+  mpiio::compressBufferToLZ4FrameAndGatherHeader(valuesStart, numValues, comm, compressedString);
+  return mpiio::writeValuesConsecutive<char>(compressedString.data(), compressedString.size(),
+                                             fileName, comm, true, false);
+}
+
+inline void getFrameSizeAndPosFromHeader(const MPIFileConsecutive<char>& file,
+                                         MPI_Offset& frameSize, MPI_Offset& position,
+                                         combigrid::CommunicatorType comm) {
   auto rank = getCommRank(comm);
   // rank 0 scatters positions read from header frame
   if (rank == 0) {
