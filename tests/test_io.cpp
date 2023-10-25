@@ -84,22 +84,10 @@ void checkCompressionWithHeader(size_t numValues = 1000000) {
       originalValues.resize(numValues, 1234.56);
     }
 
-    std::vector<char> compressedString;
-    mpiio::compressBufferToLZ4FrameAndGatherHeader(originalValues.data(), numValues, localComm,
-                                                   compressedString);
-
-    if (randomValues) {
-      // assume size increase for non-compressible, random data
-      BOOST_CHECK_GT(compressedString.size(), numValues * sizeof(double));
-    } else {
-      // assume size decrease for compressible, same-value data
-      BOOST_CHECK_LT(compressedString.size(), numValues * sizeof(double));
-    }
-
     std::string filename =
         "compression_testfile_" + std::to_string(theMPISystem()->getProcessGroupNumber());
-    mpiio::writeValuesConsecutive(compressedString.data(), compressedString.size(), filename,
-                                  localComm, true, false);
+    auto numBytesWritten = mpiio::writeCompressedValuesConsecutive(
+        originalValues.data(), originalValues.size(), filename, localComm);
 
     std::vector<double> decompressedValues(originalValues.size());
 
