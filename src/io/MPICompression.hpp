@@ -362,8 +362,6 @@ int readReduceCompressedValuesConsecutive(
     ReduceFunctionType reduceFunction) {
   int numValuesDecompressed = 0;
 #ifdef DISCOTEC_USE_LZ4
-  // // numElementsToBuffer must be at least lz4 block size
-  // assert(numElementsToBuffer >= (1 << 20) * 4);
   auto file = MPIFileConsecutive<char>::getFileToRead(fileName, comm, false, false);
   MPI_Offset position = 0;
   MPI_Offset frameSize = 0;
@@ -375,12 +373,14 @@ int readReduceCompressedValuesConsecutive(
   frameString.resize(numCharsRead);
 
   size_t decompressedSize = 0;
+  size_t bufferRemainderToRemember = 0;
   auto writePointer = valuesStart;
   std::vector<char> decompressedString;
   VectorStream buffer(decompressedString);
   auto decompressor = StreamingFrameDecompressor(frameString, buffer);
   do {
     decompressedSize = decompressor.decompressNextBlock();
+    decompressedSize += bufferRemainderToRemember;
     const auto fullNumValues = decompressedSize / sizeof(T);
     const auto bufferRemainder = decompressedSize % sizeof(T);
 
@@ -395,7 +395,7 @@ int readReduceCompressedValuesConsecutive(
               decompressedString.data() + fullNumValues * sizeof(T) + bufferRemainder,
               decompressedString.data());
     buffer.reset(bufferRemainder);
-
+    bufferRemainderToRemember = bufferRemainder;
   } while (!decompressor.isFinished());
   assert(numValuesDecompressed == numValues);
 
