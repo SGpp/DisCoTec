@@ -38,8 +38,9 @@ DistributedSparseGridUniform<CombiDataType>* schemeFileToSparseGridAndSizesFile(
     // MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "registering " << l << std::endl;
     uniDSG->registerDistributedFullGrid(*uniDFG);
   }
-  auto numDOF = std::accumulate(uniDSG->getSubspaceDataSizes().begin(),
-                                uniDSG->getSubspaceDataSizes().end(), 0);
+  auto numDOF =
+      std::accumulate(uniDSG->getSubspaceDataSizes().begin(), uniDSG->getSubspaceDataSizes().end(),
+                      static_cast<size_t>(0), std::plus<size_t>());
   MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "other sparse grid has " << numDOF
                                              << " DOF per rank, which is " << numDOF * 8. / 1e9
                                              << " GB" << std::endl;
@@ -180,7 +181,8 @@ int main(int argc, char** argv) {
     }
 
     auto numDOFconjoint = std::accumulate(conjointDSG->getSubspaceDataSizes().begin(),
-                                          conjointDSG->getSubspaceDataSizes().end(), 0);
+                                          conjointDSG->getSubspaceDataSizes().end(),
+                                          static_cast<size_t>(0), std::plus<size_t>());
     MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "conjoint sparse grid has " << numDOFconjoint
                                                << " DOF per rank" << std::endl;
     // write final sizes to file
