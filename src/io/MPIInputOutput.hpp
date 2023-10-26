@@ -53,11 +53,11 @@ inline MPI_Offset getPositionFromNumValues(MPI_Offset numValues, combigrid::Comm
 template <typename T>
 class [[nodiscard]] MPIFileConsecutive {
  public:
-  // no copy and move
+  // move but no copy
   MPIFileConsecutive(const MPIFileConsecutive&) = delete;
   MPIFileConsecutive& operator=(const MPIFileConsecutive&) = delete;
-  MPIFileConsecutive(MPIFileConsecutive&&) = delete;
-  MPIFileConsecutive& operator=(MPIFileConsecutive&&) = delete;
+  MPIFileConsecutive(MPIFileConsecutive&&) = default;
+  MPIFileConsecutive& operator=(MPIFileConsecutive&&) = default;
 
   ~MPIFileConsecutive() { MPI_File_close(&file_); }
   static MPIFileConsecutive getFileToWrite(const std::string& fileName,
@@ -143,7 +143,7 @@ class [[nodiscard]] MPIFileConsecutive {
       err = ~MPI_SUCCESS;
     }
 #endif  // !NDEBUG
-    return (err == MPI_SUCCESS) ? numValues : 0;
+    return (err == MPI_SUCCESS) ? static_cast<int>(numValues) : 0;
   }
 
   int readValuesFromFileAtPosition(T* valuesStart, MPI_Offset numValues, MPI_Offset position) {
@@ -197,7 +197,7 @@ class [[nodiscard]] MPIFileConsecutive {
     MPI_File_get_size(file_, &fileSize);
 
     // check whether file size is correct
-    if (fileSize != totalNumValues * sizeof(T)) {
+    if (fileSize != static_cast<MPI_Offset>(totalNumValues * sizeof(T))) {
       throw std::runtime_error("file size does not match number of values; should be " +
                                std::to_string(totalNumValues * sizeof(T)) + " but is " +
                                std::to_string(fileSize) + " bytes");
@@ -245,7 +245,7 @@ int readReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues, const std:
   while (readcount < numValues) {
     // if there is less to read than the buffer length, overwrite numElementsToBuffer
     if (numValues - readcount < numElementsToBuffer) {
-      numElementsToBuffer = numValues - readcount;
+      numElementsToBuffer = static_cast<int>(numValues - readcount);
       buffer.resize(numElementsToBuffer);
     }
     auto readcountIncrement =
@@ -274,47 +274,32 @@ int readMultipleReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues,
                                         combigrid::CommunicatorType comm, int numElementsToBuffer,
                                         ReduceFunctionType reduceFunction,
                                         bool withCollectiveBuffering = false) {
-  MPI_Offset pos = 0;
-  MPI_Exscan(&numValues, &pos, 1, MPI_OFFSET, MPI_SUM, comm);
-  MPI_Info info = getNewConsecutiveMpiInfo(withCollectiveBuffering);
-  MPI_Info_set(info, "access_style", "sequential");
-
   // open multiple files
-  std::vector<MPI_File> fh;
-  fh.resize(fileNames.size());
+  std::vector<MPIFileConsecutive<T>> files;
+  files.reserve(fileNames.size());
   for (size_t i = 0; i < fileNames.size(); ++i) {
-    int err = MPI_File_open(comm, fileNames[i].c_str(), MPI_MODE_RDONLY, info, &fh[i]);
-    if (err != MPI_SUCCESS) {
-      std::cerr << err << " while reducing " << fileNames[i] << std::endl;
-      throw std::runtime_error("read: could not open! " + getMpiErrorString(err));
-    }
-    checkFileSizeConsecutive<T>(fh[i], numValues, comm);
+    files.push_back(std::move(
+        MPIFileConsecutive<T>::getFileToRead(fileNames[i], comm, withCollectiveBuffering, false)));
+    files.back().checkFileSizeConsecutive(numValues, comm);
   }
-
-  MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
-  MPI_Status status;
 
   // read from files with MPI-IO
   int readcount = 0;
+  MPI_Offset position = getPositionFromNumValues(numValues, comm);
   std::vector<std::vector<T>> buffers(fileNames.size(), std::vector<T>(numElementsToBuffer));
   auto writePointer = valuesStart;
   while (readcount < numValues) {
     // if there is less to read than the buffer length, overwrite numElementsToBuffer
     if (numValues - readcount < numElementsToBuffer) {
-      numElementsToBuffer = numValues - readcount;
+      numElementsToBuffer = static_cast<int>(numValues - readcount);
       for (auto& buffer : buffers) {
         buffer.resize(numElementsToBuffer);
       }
     }
     int readcountIncrement = 0;
     for (size_t i = 0; i < buffers.size(); ++i) {
-      int err = MPI_File_read_at_all(fh[i], pos * sizeof(T), buffers[i].data(),
-                                     static_cast<int>(numElementsToBuffer), dataType, &status);
-      if (err != MPI_SUCCESS) {
-        std::cerr << err << " while reducing " << fileNames[i] << std::endl;
-        throw std::runtime_error("read: could not read! " + getMpiErrorString(err));
-      }
-      MPI_Get_count(&status, dataType, &readcountIncrement);
+      readcountIncrement =
+          files[i].readValuesFromFileAtPosition(buffers[i].data(), numElementsToBuffer, position);
       assert(readcountIncrement > 0);
     }
     // reduce with present sparse grid data
@@ -322,13 +307,10 @@ int readMultipleReduceValuesConsecutive(T* valuesStart, MPI_Offset numValues,
     transformN(reduceFunction, writePointer, buffers[0].cbegin(), buffers[0].cend(), writePointer,
                buffers[1].cbegin());
     readcount += readcountIncrement;
-    pos += readcountIncrement;
+    position += readcountIncrement;
     std::advance(writePointer, readcountIncrement);
   }
-  for (auto& file_handle : fh) {
-    MPI_File_close(&file_handle);
-  }
-  MPI_Info_free(&info);
+
   return readcount;
 }
 
