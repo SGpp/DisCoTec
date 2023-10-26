@@ -32,6 +32,13 @@ using namespace combigrid;
 BOOST_CLASS_EXPORT(TaskConstParaboloid)
 BOOST_CLASS_EXPORT(TaskCount)
 
+#define CHECK_NO_THROW_LOUD(statement)                \
+  BOOST_CHECK_NO_THROW(                               \
+      try { statement; } catch (std::exception & e) { \
+        std::cout << e.what() << std::endl;           \
+        throw e;                                      \
+      })
+
 class TestParams {
  public:
   DimType dim = 2;
@@ -42,13 +49,15 @@ class TestParams {
   unsigned int nprocs = 1;
   unsigned int ncombi = 1;
   unsigned int sysNum = 0;
+  unsigned int numSystems = 2;
   const CommunicatorType& comm;
   std::string host = "localhost";
   unsigned short port = 9999;
 
-  TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax, BoundaryType boundary, unsigned int ngroup,
-             unsigned int nprocs, unsigned int ncombi, unsigned int sysNum,
-             const CommunicatorType& comm, const std::string& host = "localhost",
+  TestParams(DimType dim, LevelVector& lmin, LevelVector& lmax, BoundaryType boundary,
+             unsigned int ngroup, unsigned int nprocs, unsigned int ncombi, unsigned int sysNum,
+             const CommunicatorType& comm, unsigned int numSystems = 2,
+             const std::string& host = "localhost",
 #ifdef NDEBUG
              unsigned short dataPort = 9999)
 #else
@@ -62,6 +71,7 @@ class TestParams {
         nprocs(nprocs),
         ncombi(ncombi),
         sysNum(sysNum),
+        numSystems(numSystems),
         comm(comm),
         host(host),
         port(dataPort) {
@@ -580,8 +590,6 @@ void testCombineThirdLevelWithoutManagers(
   std::vector<combigrid::real> coeffs;
   std::vector<size_t> taskNumbers;  // only used in case of static task assignment
   {  // this is scoped so that anything created in here frees up memory for computation
-    std::vector<LevelVector> systemLevels;
-    std::vector<combigrid::real> systemCoeffs;
     CombiMinMaxScheme combischeme(testParams.dim, testParams.lmin, testParams.lmax);
     combischeme.createAdaptiveCombischeme();
     // get full scheme first
@@ -591,9 +599,14 @@ void testCombineThirdLevelWithoutManagers(
       BOOST_TEST_MESSAGE("total: " + std::to_string(fullLevels.size()) + " tasks");
     }
 
-    // split scheme and assign each half to a system
-    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, testParams.sysNum, 2,
-                                                  systemLevels, systemCoeffs);
+    // split scheme and assign each part to a system
+    std::vector<LevelVector> systemLevels;
+    std::vector<combigrid::real> systemCoeffs;
+    std::vector<combigrid::real> fractions(testParams.numSystems,
+                                           (1. / static_cast<double>(testParams.numSystems)));
+    CombiThirdLevelScheme::createThirdLevelScheme(fullLevels, fullCoeffs, testParams.sysNum,
+                                                  testParams.numSystems, systemLevels, systemCoeffs,
+                                                  fractions);
 
     BOOST_REQUIRE_EQUAL(systemLevels.size(), systemCoeffs.size());
 
@@ -640,21 +653,20 @@ void testCombineThirdLevelWithoutManagers(
   worker.initCombinedDSGVector();
   std::string writeSubspaceSizeFile = "worker_subspace_sizes_" + std::to_string(testParams.sysNum);
   std::string writeSubspaceSizeFileToken = writeSubspaceSizeFile + "_token.txt";
-  std::string readSubspaceSizeFile =
-      "worker_subspace_sizes_" + std::to_string((testParams.sysNum + 1) % 2);
-  std::string readSubspaceSizeFileToken = readSubspaceSizeFile + "_token.txt";
-  worker.reduceExtraSubspaceSizesFileBased(writeSubspaceSizeFile, writeSubspaceSizeFileToken,
-                                           readSubspaceSizeFile, readSubspaceSizeFileToken);
-  // remove subspace size files to avoid interference between multiple calls to this test function
-  MPI_Barrier(testParams.comm);
-  OUTPUT_GROUP_EXCLUSIVE_SECTION {
-    MASTER_EXCLUSIVE_SECTION {
-      // remove the files we just read on this "system"
-      remove(readSubspaceSizeFile.c_str());
-      remove(readSubspaceSizeFileToken.c_str());
+  std::vector<std::string> readSubspaceSizeFiles;
+  std::vector<std::string> readSubspaceSizeFileTokens;
+  for (size_t i = 0; i < testParams.numSystems; ++i) {
+    if (i != testParams.sysNum) {
+      readSubspaceSizeFiles.push_back("worker_subspace_sizes_" + std::to_string(i));
+      readSubspaceSizeFileTokens.push_back(readSubspaceSizeFiles.back() + "_token.txt");
     }
   }
-  // // output sparse grid sizes -- for visual inspection if they are exactly the same between systems
+  worker.reduceExtraSubspaceSizesFileBased(writeSubspaceSizeFile, writeSubspaceSizeFileToken,
+                                           readSubspaceSizeFiles, readSubspaceSizeFileTokens);
+  // remove subspace size files to avoid interference between multiple calls to this test function
+  MPI_Barrier(testParams.comm);
+  // // output sparse grid sizes -- for visual inspection if they are exactly the same between
+  // systems
   // // now
   // OUTPUT_GROUP_EXCLUSIVE_SECTION {
   //   if (thirdLevelExtraSparseGrid) {
@@ -711,9 +723,16 @@ void testCombineThirdLevelWithoutManagers(
     std::string writeSparseGridFile =
         "worker_sg_" + std::to_string(testParams.sysNum) + "_step_" + std::to_string(it);
     std::string writeSparseGridFileToken = writeSparseGridFile + "_token.txt";
-    std::string readSparseGridFile =
-        "worker_sg_" + std::to_string((testParams.sysNum + 1) % 2) + "_step_" + std::to_string(it);
-    std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
+    std::vector<std::string> readSparseGridFiles;
+    std::vector<std::string> readSparseGridFileTokens;
+
+    for (size_t i = 0; i < testParams.numSystems; ++i) {
+      if (i != testParams.sysNum) {
+        readSparseGridFiles.push_back("worker_sg_" + std::to_string(i) + "_step_" +
+                                      std::to_string(it));
+        readSparseGridFileTokens.push_back(readSparseGridFiles.back() + "_token.txt");
+      }
+    }
     BOOST_TEST_CHECKPOINT("combine system-wide");
     start = std::chrono::high_resolution_clock::now();
     worker.combineSystemWideAndWrite(writeSparseGridFile, writeSparseGridFileToken);
@@ -722,7 +741,8 @@ void testCombineThirdLevelWithoutManagers(
     Stats::writePartial("stats_thirdLevel_worker_" + std::to_string(testParams.sysNum) + ".json",
                         theMPISystem()->getWorldComm());
     BOOST_TEST_CHECKPOINT("combine read/reduce");
-    worker.combineReadDistributeSystemWide(readSparseGridFile, readSparseGridFileToken, false,
+    std::cout << readSparseGridFiles << std::endl;
+    worker.combineReadDistributeSystemWide(readSparseGridFiles, readSparseGridFileTokens, false,
                                            false);
 
     end = std::chrono::high_resolution_clock::now();
@@ -747,6 +767,15 @@ void testCombineThirdLevelWithoutManagers(
       "worker_sg_" + std::to_string((testParams.sysNum + 1) % 2) + "_final";
   std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
   // TODO combine
+
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    MASTER_EXCLUSIVE_SECTION {
+      // remove some files we just read on this "system"
+      int indexToDelete = (testParams.sysNum + 1) % testParams.numSystems;
+      remove(("worker_subspace_sizes_" + std::to_string(indexToDelete)).c_str());
+      remove(("worker_subspace_sizes_" + std::to_string(indexToDelete) + "_token.txt").c_str());
+    }
+  }
 
   // TODO monte-carlo interpolation? would need to read interpolated values from other system...
   BOOST_TEST_CHECKPOINT("worker exit");
@@ -1018,14 +1047,7 @@ BOOST_AUTO_TEST_CASE(test_workers_only, *boost::unit_test::tolerance(TestHelper:
               std::cout << "third level worker only " << boundary << " " << ngroup << "*" << nprocs
                         << std::endl;
             }
-            BOOST_CHECK_NO_THROW(
-                try {
-                  testCombineThirdLevelWithoutManagers(testParams);
-                } catch (std::exception& e) {
-                  std::cout << "exception: " << e.what() << std::endl;
-                  throw e;
-                }
-            );
+            CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams));
             MPI_Barrier(newcomm);
             BOOST_TEST_CHECKPOINT("sysNum " + std::to_string(sysNum) + " finished");
           }
@@ -1112,11 +1134,10 @@ BOOST_AUTO_TEST_CASE(test_workers_2d, *boost::unit_test::tolerance(TestHelper::t
       if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
         BOOST_TEST_MESSAGE("test_workers_small: " + std::to_string(variant));
-        BOOST_CHECK_NO_THROW(testCombineThirdLevelWithoutManagers(testParams, variant));
+        CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams, variant));
       }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
   }
 }
 
@@ -1146,16 +1167,61 @@ BOOST_AUTO_TEST_CASE(test_8_workers, *boost::unit_test::tolerance(TestHelper::to
       if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
         TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm);
         BOOST_TEST_MESSAGE("test_8_workers: " + std::to_string(variant));
-        BOOST_CHECK_NO_THROW(
-            try {
-              testCombineThirdLevelWithoutManagers(testParams, variant);
-            } catch (std::exception& e) {
-              std::cout << "exception: " << e.what() << std::endl;
-              throw e;
-            });
+        CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams, variant));
       }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
+  }
+}
 
+BOOST_AUTO_TEST_CASE(test_workers_three_systems_2d,
+                     *boost::unit_test::tolerance(TestHelper::tolerance) *
+                         boost::unit_test::timeout(250)) {
+  unsigned int numSystems = 3;
+  unsigned int ncombi = 3;
+  DimType dim = 2;
+  BoundaryType boundary = 1;
+  LevelVector lmin(dim, 2);
+  LevelVector lmax(dim, 9);
+
+  for (unsigned int ngroup : std::vector<unsigned int>({1, 2})) {
+    unsigned int nprocs = 2 / ngroup;
+    unsigned int sysNum;
+    CommunicatorType newcomm = MPI_COMM_NULL;
+    assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
+    auto variant = CombinationVariant::chunkedOutgroupSparseGridReduce;
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm,
+                            numSystems);
+      BOOST_TEST_MESSAGE("test_workers_three_systems: " + std::to_string(variant));
+      CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams, variant));
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+BOOST_AUTO_TEST_CASE(test_workers_three_systems_6d,
+                     *boost::unit_test::tolerance(TestHelper::tolerance) *
+                         boost::unit_test::timeout(550)) {
+  unsigned int numSystems = 3;
+  unsigned int ncombi = 3;
+  DimType dim = 6;
+  BoundaryType boundary = 1;
+  LevelVector lmin(dim, 2);
+  LevelVector lmax(dim, 5);
+
+  for (unsigned int ngroup : std::vector<unsigned int>({1, 2})) {
+    unsigned int nprocs = 2 / ngroup;
+    unsigned int sysNum;
+    CommunicatorType newcomm = MPI_COMM_NULL;
+    assignProcsToSystems(ngroup * nprocs, numSystems, sysNum, newcomm);
+    auto variant = CombinationVariant::chunkedOutgroupSparseGridReduce;
+    if (newcomm != MPI_COMM_NULL) {  // remove unnecessary procs
+      TestParams testParams(dim, lmin, lmax, boundary, ngroup, nprocs, ncombi, sysNum, newcomm,
+                            numSystems);
+      BOOST_TEST_MESSAGE("test_workers_three_systems: " + std::to_string(variant));
+      CHECK_NO_THROW_LOUD(testCombineThirdLevelWithoutManagers(testParams, variant));
+    }
     MPI_Barrier(MPI_COMM_WORLD);
   }
 }

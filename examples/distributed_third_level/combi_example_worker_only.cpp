@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
     if (hasThirdLevel) {
       systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
       numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
-      assert(numSystems == 2);
+      assert(numSystems > 1);
       assert(systemNumber < numSystems);
       extraSparseGrid = cfg.get<bool>("thirdLevel.extraSparseGrid", true);
       MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "running in file-based third level mode"
@@ -193,7 +193,7 @@ int main(int argc, char** argv) {
           ctschemeFile.substr(
               0, ctschemeFile.length() - std::string("_part0_00008groups.json").length()) +
           "conjoint.sizes";
-      worker.reduceExtraSubspaceSizes(conjointSubspaceFileName, true);
+      worker.reduceExtraSubspaceSizes({conjointSubspaceFileName}, true);
     }
 
     OUTPUT_GROUP_EXCLUSIVE_SECTION {
@@ -269,18 +269,24 @@ int main(int argc, char** argv) {
                   << " took: " << durationCombineWrite << " seconds" << std::endl;
       }
       auto startCombineRead = std::chrono::high_resolution_clock::now();
-      std::string readSparseGridFile;
+      std::vector<std::string> readSparseGridFiles;
+      std::vector<std::string> readSparseGridFileTokens;
       if (hasThirdLevel) {
-        readSparseGridFile =
-            "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
-        std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
-        worker.combineReadDistributeSystemWide(readSparseGridFile, readSparseGridFileToken, false,
+        for (unsigned int otherSystemNumber = 0; otherSystemNumber < numSystems;
+             ++otherSystemNumber) {
+          if (otherSystemNumber != systemNumber) {
+            readSparseGridFiles.emplace_back("dsg_" + std::to_string(otherSystemNumber) + "_step" +
+                                             std::to_string(i));
+            readSparseGridFileTokens.emplace_back(readSparseGridFiles.back() + "_token.txt");
+          }
+        }
+        worker.combineReadDistributeSystemWide(readSparseGridFiles, readSparseGridFileTokens, false,
                                                false);
 
       } else {
-        readSparseGridFile = writeSparseGridFile;
-        worker.combineReadDistributeSystemWide(readSparseGridFile, writeSparseGridFileToken, true,
-                                               false);
+        readSparseGridFiles.emplace_back(writeSparseGridFile);
+        worker.combineReadDistributeSystemWide(readSparseGridFiles, {writeSparseGridFileToken},
+                                               true, false);
       }
       MIDDLE_PROCESS_EXCLUSIVE_SECTION {
         auto endCombineRead = std::chrono::high_resolution_clock::now();
@@ -288,7 +294,7 @@ int main(int argc, char** argv) {
             std::chrono::duration_cast<std::chrono::seconds>(endCombineRead - startCombineRead)
                 .count();
         std::cout << getTimeStamp() << "combination-wait/read/reduce " << i
-                  << " took: " << durationCombineRead << " seconds ; read " << readSparseGridFile
+                  << " took: " << durationCombineRead << " seconds ; read " << readSparseGridFiles
                   << std::endl;
       }
       Stats::stopEvent("combine");

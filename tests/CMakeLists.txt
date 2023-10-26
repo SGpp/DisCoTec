@@ -18,6 +18,7 @@ file(GLOB UNIT_TESTS_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 add_executable(test_distributedcombigrid_boost ${UNIT_TESTS_SRC_FILES})
 target_compile_features(test_distributedcombigrid_boost PRIVATE cxx_std_17)
+
 find_package(Boost REQUIRED COMPONENTS unit_test_framework headers serialization)
 
 target_link_libraries(test_distributedcombigrid_boost PUBLIC discotec Boost::boost Boost::unit_test_framework Boost::serialization MPI::MPI_CXX)

@@ -141,7 +141,7 @@ inline void CombiMinMaxScheme::print(std::ostream& os) const {
 
 class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
  public:
-  CombiMinMaxSchemeFromFile(DimType dim, LevelVector& lmin, LevelVector& lmax,
+  CombiMinMaxSchemeFromFile(DimType dim, const LevelVector& lmin, const LevelVector& lmax,
                             std::string ctschemeFile, const CommunicatorType& comm = MPI_COMM_WORLD)
       : CombiMinMaxScheme(dim, lmin, lmax) {
     // read in CT scheme, if applicable

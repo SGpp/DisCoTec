@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+#include <fstream>
 #include <string>
 
 #include "io/MPICompression.hpp"
@@ -70,7 +72,7 @@ inline void writeMinMaxCoefficents(SparseGridType& dsg, const std::string& filen
 }
 
 template <typename SparseGridType>
-void writeToDiskChunked(const SparseGridType& dsg, std::string filePrefix) {
+void writeToDiskChunked(const SparseGridType& dsg, const std::string& filePrefix) {
   std::string myFilename = filePrefix + std::to_string(dsg.getRank());
   std::ofstream ofp(myFilename, std::ios::out | std::ios::binary);
   ofp.write(reinterpret_cast<const char*>(dsg.getRawData()),
@@ -79,8 +81,11 @@ void writeToDiskChunked(const SparseGridType& dsg, std::string filePrefix) {
 }
 
 template <typename SparseGridType>
-void readFromDiskChunked(SparseGridType& dsg, std::string filePrefix) {
+void readFromDiskChunked(SparseGridType& dsg, const std::string& filePrefix) {
   std::string myFilename = filePrefix + std::to_string(dsg.getRank());
+  // assert that file is large enough
+  [[maybe_unused]] size_t fileSize = std::filesystem::file_size(myFilename);
+  assert(fileSize == dsg.getRawDataSize() * sizeof(typename SparseGridType::ElementType));
   std::ifstream ifp(myFilename, std::ios::in | std::ios::binary);
   ifp.read(reinterpret_cast<char*>(dsg.getRawData()),
            dsg.getRawDataSize() * sizeof(typename SparseGridType::ElementType));
@@ -246,6 +251,23 @@ int readReduceSubspaceSizesFromFile(SparseGridType& dsg, const std::string& file
 
   int numReduced = mpiio::readReduceValuesConsecutive<SubspaceSizeType>(
       dsg.getSubspaceDataSizes().data(), len, fileName, comm, numElementsToBuffer, reduceFunction,
+      withCollectiveBuffering);
+
+  return numReduced;
+}
+
+template <typename SparseGridType, typename ReduceFunctionType>
+int readReduceSubspaceSizesFromFiles(SparseGridType& dsg, const std::vector<std::string>& fileNames,
+                                     ReduceFunctionType reduceFunction, int numElementsToBuffer = 0,
+                                     bool withCollectiveBuffering = false) {
+  auto comm = dsg.getCommunicator();
+  MPI_Offset len = dsg.getNumSubspaces();
+  if (numElementsToBuffer == 0) {
+    numElementsToBuffer = len;
+  }
+
+  int numReduced = mpiio::readMultipleReduceValuesConsecutive<SubspaceSizeType>(
+      dsg.getSubspaceDataSizes().data(), len, fileNames, comm, numElementsToBuffer, reduceFunction,
       withCollectiveBuffering);
 
   return numReduced;
