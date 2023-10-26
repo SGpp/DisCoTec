@@ -61,6 +61,78 @@ void compressBufferToLZ4Frame(const T* buffer, MPI_Offset numValues,
 }
 
 #ifdef DISCOTEC_USE_LZ4
+class VectorStream : public std::basic_streambuf<char, std::char_traits<char>> {
+ public:
+  explicit VectorStream(std::vector<char>& vec) : vec_(vec) {
+    auto dataBound = LZ4_compressBound(static_cast<int>((1 << 20) * 4));
+    vec_.resize(dataBound + sizeof(size_t));
+    this->reset();
+  }
+  void reset(size_t afterNumChars = 0) {
+    setg(vec_.data(), vec_.data() + afterNumChars, vec_.data() + vec_.size());
+  }
+  size_t size() const { return vec_.size(); }
+
+  char* front() { return gptr(); }
+
+ private:
+  std::vector<char>& vec_;
+};
+
+class [[nodiscard]] StreamingFrameDecompressor {
+ public:
+  explicit StreamingFrameDecompressor(const std::vector<char>& compressedString,
+                                      VectorStream& stream)
+      : compressedString_(compressedString), sink_(stream) {
+    memset(&opts_, 0, sizeof(opts_));
+    opts_.skipChecksums = 1;
+    if (LZ4F_isError(LZ4F_createDecompressionContext(&dctx_, LZ4F_VERSION))) {
+      throw std::runtime_error("LZ4 decompression failed ");
+    }
+  }
+
+  // no copy or move
+  StreamingFrameDecompressor(const StreamingFrameDecompressor&) = delete;
+  StreamingFrameDecompressor(StreamingFrameDecompressor&&) = delete;
+  StreamingFrameDecompressor& operator=(const StreamingFrameDecompressor&) = delete;
+  StreamingFrameDecompressor& operator=(StreamingFrameDecompressor&&) = delete;
+
+  ~StreamingFrameDecompressor() {
+    // assert that everything has been read by now
+    assert(readCompressedByNow_ == compressedString_.size());
+    [[maybe_unused]] auto freeResult = LZ4F_freeDecompressionContext(dctx_);
+    assert(freeResult == 0);
+  }
+
+  size_t decompressNextBlock() {
+    size_t decompressedSize = sink_.size();
+    auto sourceSize = compressedString_.size() - readCompressedByNow_;
+    [[maybe_unused]] auto hintNextBufferSize =
+        LZ4F_decompress(dctx_, sink_.front(), &decompressedSize,
+                        compressedString_.data() + readCompressedByNow_, &sourceSize, &opts_);
+    if (LZ4F_isError(decompressedSize)) {
+      throw std::runtime_error("LZ4 decompression failed: " +
+                               std::string(LZ4F_getErrorName(decompressedSize)));
+    }
+    decompressedByNow_ += decompressedSize;
+    readCompressedByNow_ += sourceSize;
+    return decompressedSize;
+  }
+
+  bool isFinished() { return readCompressedByNow_ == compressedString_.size(); }
+
+ private:
+  const std::vector<char>& compressedString_;
+  // T* decompressValuesStart_;
+  VectorStream& sink_;
+  LZ4F_decompressOptions_t opts_;
+  LZ4F_dctx* dctx_;
+  size_t decompressedByNow_ = 0;
+  size_t readCompressedByNow_ = 0;
+};
+#endif
+
+#ifdef DISCOTEC_USE_LZ4
 template <typename T>
 class [[nodiscard]] FrameDecompressor {
  public:
@@ -302,16 +374,30 @@ int readReduceCompressedValuesConsecutive(
   assert(numCharsRead == frameSize);
   frameString.resize(numCharsRead);
 
-  int reduceCount = 0;
-  auto remainingValues = numValues;
   size_t decompressedSize = 0;
-  std::vector<T> buffer(numValues);
+  auto writePointer = valuesStart;
+  std::vector<char> decompressedString;
+  VectorStream buffer(decompressedString);
+  auto decompressor = StreamingFrameDecompressor(frameString, buffer);
+  do {
+    decompressedSize = decompressor.decompressNextBlock();
+    const auto fullNumValues = decompressedSize / sizeof(T);
+    const auto bufferRemainder = decompressedSize % sizeof(T);
 
-  numValuesDecompressed = static_cast<int>(
-      mpiio::decompressLZ4FrameToBuffer(std::move(frameString), buffer.data(), numValues));
-  assert(static_cast<MPI_Offset>(numValuesDecompressed) == numValues);
+    auto bufferBeginAsTPointer = reinterpret_cast<const T*>(decompressedString.data());
+    std::transform(bufferBeginAsTPointer, bufferBeginAsTPointer + fullNumValues, writePointer,
+                   writePointer, reduceFunction);
+    numValuesDecompressed += static_cast<int>(fullNumValues);
+    std::advance(writePointer, fullNumValues);
 
-  std::transform(buffer.cbegin(), buffer.cend(), valuesStart, valuesStart, reduceFunction);
+    // now copy the buffer remainder values to beginning of the buffer and reset the stream
+    std::copy(decompressedString.data() + fullNumValues * sizeof(T),
+              decompressedString.data() + fullNumValues * sizeof(T) + bufferRemainder,
+              decompressedString.data());
+    buffer.reset(bufferRemainder);
+
+  } while (!decompressor.isFinished());
+  assert(numValuesDecompressed == numValues);
 
 #else
   throw std::runtime_error("LZ4 compression not available");
