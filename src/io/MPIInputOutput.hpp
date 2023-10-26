@@ -122,7 +122,7 @@ class [[nodiscard]] MPIFileConsecutive {
       std::cerr << err << " while reading OneFileFromDisk " << fileName << std::endl;
       throw std::runtime_error("read: could not open! " + fileName + ": " + getMpiErrorString(err));
     }
-    return MPIFileConsecutive(info, file);
+    return MPIFileConsecutive(file);
   }
 
   int writeValuesToFileAtPosition(const T* valuesStart, MPI_Offset numValues, MPI_Offset position) {
