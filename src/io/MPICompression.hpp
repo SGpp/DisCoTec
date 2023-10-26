@@ -22,7 +22,9 @@ namespace mpiio {
 
 #ifdef DISCOTEC_USE_LZ4
 constexpr LZ4F_preferences_t lz4Preferences = {
-    {LZ4F_max4MB, LZ4F_blockLinked, LZ4F_noContentChecksum, LZ4F_frame, 0, 0U,
+    {LZ4F_max4MB, LZ4F_blockLinked, LZ4F_noContentChecksum, LZ4F_frame,
+     0,   // unknown content size
+     0U,  // no dictID
      LZ4F_noBlockChecksum},
     0,   // fast mode
     0u,  // don't flush
@@ -38,7 +40,7 @@ void compressBufferToLZ4Frame(const T* buffer, MPI_Offset numValues,
   size_t rawDataSize = numValues * sizeof(T);
   auto fullFramePreferences = lz4Preferences;
   fullFramePreferences.frameInfo.contentSize = rawDataSize;
-  auto dataBound = LZ4_compressBound(rawDataSize);
+  auto dataBound = LZ4_compressBound(static_cast<int>(rawDataSize));
   auto frameBound = LZ4F_compressFrameBound(dataBound, &fullFramePreferences);
   compressedString.reserve(compressedStringInitialSize + frameBound);
   auto compressedStringStart =
@@ -238,11 +240,12 @@ inline void getFrameSizeAndPosFromHeader(const MPIFileConsecutive<char>& file,
     std::vector<char> headerFrame(compressedHeaderSize);
     auto numCharsRead =
         file.readValuesFromFileAtPositionSingleRank(headerFrame.data(), headerFrame.size(), 0);
-    assert(numCharsRead == compressedHeaderSize);
+    assert(numCharsRead == static_cast<int>(compressedHeaderSize));
     headerFrame.resize(numCharsRead);
 
     std::vector<MPI_Offset> frameSizes(commSize);
-    auto numCharsInFirstFrame = decompressLZ4FrameToBuffer(headerFrame, frameSizes);
+    [[maybe_unused]] auto numCharsInFirstFrame =
+        decompressLZ4FrameToBuffer(headerFrame, frameSizes);
     MPI_Scatter(frameSizes.data(), 1, MPI_OFFSET, &frameSize, 1, MPI_OFFSET, 0, comm);
     assert(frameSize >= numCharsRead);
     file.checkFileSizeConsecutive(frameSize, comm);
@@ -274,9 +277,9 @@ int readCompressedValuesConsecutive(T* valuesStart, MPI_Offset numValues,
   assert(numCharsRead == frameSize);
   frameString.resize(numCharsRead);
 
-  auto numValuesDecompressed =
-      mpiio::decompressLZ4FrameToBuffer(std::move(frameString), valuesStart, numValues);
-  assert(numValuesDecompressed == numValues);
+  auto numValuesDecompressed = static_cast<int>(
+      mpiio::decompressLZ4FrameToBuffer(std::move(frameString), valuesStart, numValues));
+  assert(static_cast<MPI_Offset>(numValuesDecompressed) == numValues);
   return numValuesDecompressed;
 }
 
@@ -285,7 +288,7 @@ int readReduceCompressedValuesConsecutive(
     T* valuesStart, MPI_Offset numValues, const std::string& fileName,
     combigrid::CommunicatorType comm,  // int numElementsToBuffer,
     ReduceFunctionType reduceFunction) {
-  size_t decompressedByNow = 0;
+  int numValuesDecompressed = 0;
 #ifdef DISCOTEC_USE_LZ4
   // // numElementsToBuffer must be at least lz4 block size
   // assert(numElementsToBuffer >= (1 << 20) * 4);
@@ -304,9 +307,9 @@ int readReduceCompressedValuesConsecutive(
   size_t decompressedSize = 0;
   std::vector<T> buffer(numValues);
 
-  auto numValuesDecompressed =
-      mpiio::decompressLZ4FrameToBuffer(std::move(frameString), buffer.data(), numValues);
-  assert(numValuesDecompressed == numValues);
+  numValuesDecompressed = static_cast<int>(
+      mpiio::decompressLZ4FrameToBuffer(std::move(frameString), buffer.data(), numValues));
+  assert(static_cast<MPI_Offset>(numValuesDecompressed) == numValues);
 
   std::transform(buffer.cbegin(), buffer.cend(), valuesStart, valuesStart, reduceFunction);
 
