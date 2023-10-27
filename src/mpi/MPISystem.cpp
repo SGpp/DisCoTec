@@ -291,7 +291,7 @@ void MPISystem::storeLocalComm(CommunicatorType lcomm) {
     // in principle this does not have to be 0
     masterRank_ = 0;
 
-    int localSize = getCommSize(localComm_);
+    [[maybe_unused]] int localSize = getCommSize(localComm_);
     assert(masterRank_ < localSize);
   }
 

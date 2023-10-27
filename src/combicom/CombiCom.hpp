@@ -215,7 +215,6 @@ std::vector<std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>>& get
     static thread_local std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>
         chunkSubspaces;
     chunkSubspaces.clear();
-    const auto subspaceItBefore = subspaceIt;
     SubspaceSizeType chunkDataSize = 0;
     // select chunk of not more than chunkSize, but at least one index
     auto nextAddedDataSize = dsg.getDataSize(*subspaceIt);
@@ -312,7 +311,7 @@ void distributedGlobalSubspaceReduce(SparseGridType& dsg, uint32_t maxMiBToSendP
       auto& datatype = datatypesByStartIndex[datatypeIndex].second;
       if (globalReduceRankThatCollects == MPI_PROC_NULL) {
         // #pragma omp ordered
-        auto success = MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype,
+        [[maybe_unused]] auto success = MPI_Allreduce(MPI_IN_PLACE, dsg.getData(subspaceStartIndex), 1, datatype,
                                      indexedAdd, comm);
         assert(success == MPI_SUCCESS);
 
@@ -394,7 +393,7 @@ static void asyncBcastDsgData(SparseGridType& dsg, RankType root, CommunicatorTy
   MPI_Datatype dataType =
       getMPIDatatype(abstraction::getabstractionDataType<typename SparseGridType::ElementType>());
 
-  auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, request);
+  [[maybe_unused]] auto success = MPI_Ibcast(data, dataSize, dataType, root, comm, request);
   assert(success == MPI_SUCCESS);
 }
 
@@ -421,7 +420,7 @@ static void asyncBcastOutgroupDsgData(SparseGridType& dsg, RankType root, Commun
 
     auto& subspaceStartIndex = datatypesByStartIndex[0].first;
     auto& datatype = datatypesByStartIndex[0].second;
-    auto success = MPI_Ibcast(dsg.getData(subspaceStartIndex), 1, datatype, root, comm, request);
+    [[maybe_unused]] auto success = MPI_Ibcast(dsg.getData(subspaceStartIndex), 1, datatype, root, comm, request);
     assert(success == MPI_SUCCESS);
   }
 }

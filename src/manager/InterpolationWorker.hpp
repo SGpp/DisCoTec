@@ -90,17 +90,16 @@ static void writeInterpolatedValuesSingleFile(
 
 static void writeVTKPlotFilesOfAllTasks(const std::vector<std::unique_ptr<Task>>& tasks,
                                         int numberOfGrids) {
-  for (const auto& task : tasks) {
 #ifdef USE_VTK
+  for (const auto& task : tasks) {
     for (int g = 0; g < numberOfGrids; ++g) {
       DistributedFullGrid<CombiDataType>& dfg = task->getDistributedFullGrid(g);
       DFGPlotFileWriter<CombiDataType> writer{dfg, g};
       writer.writePlotFile();
     }
-#else
-    std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK."
-              << std::endl;
-#endif /* USE_VTK */
   }
+#else
+  std::cout << "Warning: no vtk output produced as DisCoTec was compiled without VTK." << std::endl;
+#endif /* USE_VTK */
 }
 } /* namespace combigrid */

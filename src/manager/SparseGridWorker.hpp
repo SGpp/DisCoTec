@@ -242,7 +242,7 @@ inline void SparseGridWorker::copyFromPartialDsgToExtraDSG(int gridNumber) {
       std::remove_if(subspacesToCopy.begin(), subspacesToCopy.end(),
                      [&extraDSG](const auto& s) { return extraDSG->getDataSize(s) == 0; }),
       subspacesToCopy.end());
-  for (const auto& s : subspacesToCopy) {
+  for ([[maybe_unused]] const auto& s : subspacesToCopy) {
     assert(extraDSG->getDataSize(s) == extraDSG->getAllocatedDataSize(s));
     assert(dsg->getDataSize(s) == dsg->getAllocatedDataSize(s));
   }
@@ -261,7 +261,7 @@ inline void SparseGridWorker::copyFromExtraDsgToPartialDSG(int gridNumber) {
       std::remove_if(subspacesToCopy.begin(), subspacesToCopy.end(),
                      [&extraDSG](const auto& s) { return extraDSG->getDataSize(s) == 0; }),
       subspacesToCopy.end());
-  for (const auto& s : subspacesToCopy) {
+  for ([[maybe_unused]] const auto& s : subspacesToCopy) {
     assert(extraDSG->getDataSize(s) == extraDSG->getAllocatedDataSize(s));
     assert(dsg->getDataSize(s) == dsg->getAllocatedDataSize(s));
   }
@@ -310,7 +310,7 @@ inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendP
   assert(this->getCombinedUniDSGVector().size() == 1);
   for (auto& dsg : this->getCombinedUniDSGVector()) {
     // make sure data sizes are set
-    for (auto& subspace : subspaces) {
+    for ([[maybe_unused]] auto& subspace : subspaces) {
       assert(dsg->getDataSize(subspace) > 0);
     }
 
@@ -363,7 +363,7 @@ inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendP
     }
     for (auto& dsg : this->getCombinedUniDSGVector()) {
       // make sure data sizes are set
-      for (auto& subspace : subspaces) {
+      for ([[maybe_unused]] auto& subspace : subspaces) {
         assert(dsg->getDataSize(subspace) > 0);
       }
 

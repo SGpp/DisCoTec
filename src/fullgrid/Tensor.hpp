@@ -99,7 +99,7 @@ class Tensor : public TensorIndexer {
  public:
   Tensor() = default;
   explicit Tensor(Type* data, IndexVector&& extents)
-      : data_(data), TensorIndexer(std::move(extents)) {}
+      : TensorIndexer(std::move(extents)), data_(data) {}
 
   // have only move constructors for now
   Tensor(Tensor const&) = delete;

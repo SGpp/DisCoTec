@@ -332,7 +332,7 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
     from = to;
   }
   assert(to == sendBuff.end());
-  for (const auto& dataSize : formerDsguDataSizePerWorker_) {
+  for ([[maybe_unused]] const auto& dataSize : formerDsguDataSizePerWorker_) {
     assert(dataSize > 0);
   }
 
@@ -583,7 +583,7 @@ void ProcessGroupManager::writeSparseGridMinMaxCoefficients(const std::string& f
 }
 
 void ProcessGroupManager::doDiagnostics(size_t taskID) {
-  auto status = waitStatus();
+  [[maybe_unused]] auto status = waitStatus();
   assert(status == PROCESS_GROUP_WAIT);
   for (auto task : tasks_) {
     if (task->getID() == taskID) {
@@ -662,7 +662,7 @@ void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolati
                                             MPI_Request* request, std::string filenamePrefix) {
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
-  for (const auto& coord : interpolationCoordsSerial) {
+  for ([[maybe_unused]] const auto& coord : interpolationCoordsSerial) {
     assert(coord >= 0.0 && coord <= 1.0);
   }
   // if no request was passed, assume we are not waiting for a reply from that group

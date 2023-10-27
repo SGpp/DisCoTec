@@ -422,7 +422,7 @@ std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
   combigrid::createTruncatedHierarchicalLevels(nmax, lmin, created);
   // std::sort(created.begin(), created.end());
   assert(std::is_sorted(created.begin(), created.end()));
-  if (created.size() > std::numeric_limits<SubspaceIndexType>::max()) {
+  if (created.size() > static_cast<size_t>(std::numeric_limits<SubspaceIndexType>::max())) {
     throw std::runtime_error("number of subspaces exceeds the maximum value of SubspaceIndexType");
   }
   return created;

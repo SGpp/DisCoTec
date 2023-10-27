@@ -110,7 +110,7 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
       std::cout << "error recv: " << errorString << std::endl;
     }
     assert(status.MPI_ERROR == MPI_SUCCESS);
-    for (const auto& coord : interpolationCoordsSerial) {
+    for ([[maybe_unused]] const auto& coord : interpolationCoordsSerial) {
       assert(coord >= 0.0 && coord <= 1.0);
     }
 #endif  // NDEBUG
@@ -121,7 +121,7 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
   interpolationCoordsSerial.resize(coordsSize);
   MPI_Bcast(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getMasterRank(),
             theMPISystem()->getLocalComm());
-  for (const auto& coord : interpolationCoordsSerial) {
+  for ([[maybe_unused]] const auto& coord : interpolationCoordsSerial) {
     assert(coord >= 0.0 && coord <= 1.0);
   }
   // split vector into coordinates
@@ -720,8 +720,6 @@ void ProcessGroupWorker::combineThirdLevel() {
 
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
   const CommunicatorType& managerComm = theMPISystem()->getThirdLevelComms()[0];
-  const CommunicatorType& globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  const RankType& globalReduceRank = theMPISystem()->getGlobalReduceRank();
   const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
 
   std::vector<MPI_Request> requests;
@@ -769,7 +767,7 @@ void ProcessGroupWorker::combineThirdLevel() {
   // wait for bcasts to other pgs in globalReduceComm
   Stats::startEvent("wait for bcasts");
   for (MPI_Request& request : requests) {
-    auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+    [[maybe_unused]] auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
     assert(returnedValue == MPI_SUCCESS);
   }
   Stats::stopEvent("wait for bcasts");
@@ -848,7 +846,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
                                            theMPISystem()->getOutputGroupComm(),
                                            theMPISystem()->getOutputGroupRank())) {
         overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
-        int numRead = this->readReduce(filenamePrefixesToRead[*it], overwrite);
+        [[maybe_unused]] int numRead = this->readReduce(filenamePrefixesToRead[*it], overwrite);
         assert(numRead > 0);
         overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
         indicesStillToReadReduce.erase(it);
@@ -881,7 +879,7 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
                              keepSparseGridFiles);
   }
 
-  auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+  [[maybe_unused]] auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
 }
 
@@ -968,7 +966,7 @@ int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName,
     const std::vector<std::string>& filenamePrefixesToRead,
     const std::vector<std::string>& startReadingTokenFileNames) {
-  int numSizesWritten = 0;
+  [[maybe_unused]] int numSizesWritten = 0;
   int numSizesReduced = 0;
   // we only need to write and read something if we are the I/O group
   OUTPUT_GROUP_EXCLUSIVE_SECTION { setExtraSparseGrid(true); }
@@ -1021,7 +1019,7 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
   MPI_Request request;
   this->getSparseGridWorker().startSingleBroadcastDSGs(combiParameters_.getCombinationVariant(),
                                                        broadcastSender, &request);
-  auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+  [[maybe_unused]] auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
   Stats::stopEvent("wait for bcasts");
 
