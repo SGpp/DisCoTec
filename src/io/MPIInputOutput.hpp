@@ -56,8 +56,12 @@ class [[nodiscard]] MPIFileConsecutive {
   // move but no copy
   MPIFileConsecutive(const MPIFileConsecutive&) = delete;
   MPIFileConsecutive& operator=(const MPIFileConsecutive&) = delete;
-  MPIFileConsecutive(MPIFileConsecutive&&) = default;
-  MPIFileConsecutive& operator=(MPIFileConsecutive&&) = default;
+  MPIFileConsecutive(MPIFileConsecutive&& other) { *this = std::move(other); }
+  MPIFileConsecutive& operator=(MPIFileConsecutive&& other) {
+    file_ = other.file_;
+    other.file_ = MPI_FILE_NULL;
+    return *this;
+  };
 
   ~MPIFileConsecutive() { MPI_File_close(&file_); }
   static MPIFileConsecutive getFileToWrite(const std::string& fileName,
@@ -115,7 +119,6 @@ class [[nodiscard]] MPIFileConsecutive {
       MPI_Info_set(info, "access_style", "read_once");
     }
 
-    // open file
     MPI_File file;
     int err = MPI_File_open(comm, fileName.c_str(), MPI_MODE_RDONLY, info, &file);
     if (err != MPI_SUCCESS) {
