@@ -26,7 +26,7 @@ constexpr LZ4F_preferences_t lz4Preferences = {
      0,   // unknown content size
      0U,  // no dictID
      LZ4F_noBlockChecksum},
-    0,   // fast mode
+    10,  // 0 = fast mode, 12 = max compression
     0u,  // don't flush
     0u,  // unused
     {0u, 0u, 0u}};
