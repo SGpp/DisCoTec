@@ -35,8 +35,8 @@ constexpr LZ4F_preferences_t lz4Preferences = {
 template <typename T>
 void compressBufferToLZ4Frame(const T* buffer, MPI_Offset numValues,
                               std::vector<char>& compressedString) {
-  size_t compressedStringInitialSize = compressedString.size();
 #ifdef DISCOTEC_USE_LZ4
+  size_t compressedStringInitialSize = compressedString.size();
   size_t rawDataSize = numValues * sizeof(T);
   auto fullFramePreferences = lz4Preferences;
   fullFramePreferences.frameInfo.contentSize = rawDataSize;
@@ -187,18 +187,21 @@ class [[nodiscard]] FrameDecompressor {
 template <typename T>
 size_t decompressLZ4FrameToBuffer(const std::vector<char>& compressedString,
                                   T* decompressValuesStart, size_t numValues) {
-  size_t decompressedSize = 0;
   size_t decompressedByNow = 0;
 #ifdef DISCOTEC_USE_LZ4
   auto decompressor = FrameDecompressor(compressedString, decompressValuesStart);
+  size_t decompressedSize = 0;
+  int numRounds = 0;
   do {
     decompressedSize = decompressor.decompressNextBlocks(numValues);
     numValues -= decompressedSize;
     decompressedByNow += decompressedSize;
+    ++numRounds;
   } while (decompressedSize > 0);
   assert(numValues == 0);
-
-  // https://github.com/lz4/lz4/blob/dev/examples/frameCompress.c //TODO make streaming
+  if (numRounds != 2) {
+    throw std::runtime_error("LZ4 decompression failed: " + std::to_string(numRounds) + " rounds");
+  }
 #else
   throw std::runtime_error("LZ4 compression not available");
 #endif
@@ -360,7 +363,6 @@ int readReduceCompressedValuesConsecutive(
     T* valuesStart, MPI_Offset numValues, const std::string& fileName,
     combigrid::CommunicatorType comm,  // int numElementsToBuffer,
     ReduceFunctionType reduceFunction) {
-  int numValuesDecompressed = 0;
 #ifdef DISCOTEC_USE_LZ4
   auto file = MPIFileConsecutive<char>::getFileToRead(fileName, comm, false, false);
   MPI_Offset position = 0;
@@ -372,14 +374,14 @@ int readReduceCompressedValuesConsecutive(
   assert(numCharsRead == frameSize);
   frameString.resize(numCharsRead);
 
-  size_t decompressedSize = 0;
   size_t bufferRemainderToRemember = 0;
   auto writePointer = valuesStart;
   std::vector<char> decompressedString;
   VectorStream buffer(decompressedString);
   auto decompressor = StreamingFrameDecompressor(frameString, buffer);
+  int numValuesDecompressed = 0;
   do {
-    decompressedSize = decompressor.decompressNextBlock();
+    size_t decompressedSize = decompressor.decompressNextBlock();
     decompressedSize += bufferRemainderToRemember;
     const auto fullNumValues = decompressedSize / sizeof(T);
     const auto bufferRemainder = decompressedSize % sizeof(T);
@@ -399,10 +401,10 @@ int readReduceCompressedValuesConsecutive(
   } while (!decompressor.isFinished());
   assert(numValuesDecompressed == numValues);
 
+  return numValuesDecompressed;
 #else
   throw std::runtime_error("LZ4 compression not available");
 #endif
-  return numValuesDecompressed;
 }
 
 }  // namespace mpiio
