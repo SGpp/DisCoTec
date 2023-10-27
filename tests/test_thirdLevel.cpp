@@ -22,6 +22,7 @@
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "task/Task.hpp"
 #include "utils/Config.hpp"
+#include "utils/DecompositionUtils.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
 #include "stdlib.h"

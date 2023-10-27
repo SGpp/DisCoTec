@@ -19,6 +19,7 @@
 #include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sparsegrid/SGrid.hpp"
+#include "utils/DecompositionUtils.hpp"
 #include "utils/IndexVector.hpp"
 #include "utils/LevelSetUtils.hpp"
 #include "utils/MonteCarlo.hpp"

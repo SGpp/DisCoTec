@@ -451,29 +451,6 @@ inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& c
   }
 }
 
-inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref,
-                                                                std::vector<int> procsRef) {
-  assert(lref.size() == procsRef.size());
-  std::vector<IndexVector> decomposition;
-  for (DimType d = 0; d < static_cast<DimType>(lref.size()); ++d) {
-    IndexVector di;
-    if (procsRef[d] == 1) {
-      di = {0};
-    } else if (procsRef[d] == 2) {
-      di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1};
-    } else if (procsRef[d] == 3) {
-      di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1, 2 * powerOfTwo[lref[d]] / procsRef[d] + 1};
-    } else if (procsRef[d] == 4) {
-      di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1, 2 * powerOfTwo[lref[d]] / procsRef[d] + 1,
-            3 * powerOfTwo[lref[d]] / procsRef[d] + 1};
-    } else {
-      throw std::runtime_error("please implement a test decomposition matching procs and lref");
-    }
-    decomposition.push_back(di);
-  }
-  return decomposition;
-}
-
 }  // namespace combigrid
 
 #endif /* SRC_SGPP_COMBIGRID_MANAGER_COMBIPARAMETERS_HPP_ */
