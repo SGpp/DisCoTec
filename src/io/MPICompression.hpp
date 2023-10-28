@@ -14,6 +14,7 @@
 
 #include "io/MPIInputOutput.hpp"
 #include "mpi/MPISystem.hpp"
+#include "utils/Stats.hpp"
 #include "utils/Types.hpp"
 
 namespace combigrid {
@@ -26,7 +27,7 @@ constexpr LZ4F_preferences_t lz4Preferences = {
      0,   // unknown content size
      0U,  // no dictID
      LZ4F_noBlockChecksum},
-    5,  // 0 = fast mode, 12 = max compression
+    5,   // 0 = fast mode, 12 = max compression
     0u,  // don't flush
     0u,  // unused
     {0u, 0u, 0u}};
@@ -293,8 +294,10 @@ int writeCompressedValuesConsecutive(const T* valuesStart, MPI_Offset numValues,
                                      const std::string& fileName, combigrid::CommunicatorType comm,
                                      bool replaceExistingFile = false,
                                      bool withCollectiveBuffering = false) {
+  Stats::startEvent("compress");
   std::vector<char> compressedString;
   mpiio::compressBufferToLZ4FrameAndGatherHeader(valuesStart, numValues, comm, compressedString);
+  Stats::stopEvent("compress");
   return mpiio::writeValuesConsecutive<char>(compressedString.data(), compressedString.size(),
                                              fileName, comm, true, false);
 }
