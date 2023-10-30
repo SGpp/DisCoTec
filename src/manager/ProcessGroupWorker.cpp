@@ -153,7 +153,8 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("run first");
       auto& currentTask = this->getTaskWorker().getLastTask();
       currentTask->run(theMPISystem()->getLocalComm());
-      Stats::Event e = Stats::stopEvent("run first");
+      // Stats::Event e = Stats::stopEvent("run first");
+      Stats::stopEvent("run first");
     } break;
     case RUN_NEXT: {
       assert(this->getTaskWorker().getTasks().size() > 0);
@@ -1013,7 +1014,6 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
     // receive third level combi result from third level pgroup (global reduce comm)
     broadcastSender = (RankType)combiParameters_.getThirdLevelPG();
   }
-  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   Stats::startEvent("wait for bcasts");
   MPI_Request request;

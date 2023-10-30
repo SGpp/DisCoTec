@@ -53,7 +53,7 @@ void writeRandomDataToDisk(std::string filePrefix,
     auto sum = std::accumulate(actualPartitionSizes.begin(), actualPartitionSizes.end(), 0);
     actualPartitionSizes.back() += (dsgPartitionSizes[0] - sum);
   }
-  auto sumDOF = std::accumulate(actualPartitionSizes.begin(), actualPartitionSizes.end(), 0);
+  // [[maybe_unused]] auto sumDOF = std::accumulate(actualPartitionSizes.begin(), actualPartitionSizes.end(), 0);
   std::string myFilename = filePrefix + std::to_string(0);
   // cf. https://stackoverflow.com/a/47742514
   {
@@ -224,7 +224,6 @@ int main(int argc, char** argv) {
   // read in third level parameters if available
   std::string thirdLevelHost, thirdLevelSSHCommand = "";
   unsigned int systemNumber = 0, numSystems = 1;
-  unsigned short thirdLevelPort = 0;
   bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
   std::vector<real> fractionsOfScheme;
   if (hasThirdLevel) {
@@ -232,7 +231,6 @@ int main(int argc, char** argv) {
     thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
     systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
     numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
-    thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
     thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand", "");
     bool hasFractions = static_cast<bool>(cfg.get_child_optional("thirdLevel.fractionsOfScheme"));
     if (hasFractions) {
@@ -261,8 +259,7 @@ int main(int argc, char** argv) {
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
   std::vector<size_t> taskNumbers; // only used in case of static task assignment
-  bool useStaticTaskAssignment = false;
-  long long int ctDOF = 0;
+  [[maybe_unused]] long long int ctDOF = 0;
   if (ctschemeFile == "") {
     /* generate a list of levelvectors and coefficients
      * CombiMinMaxScheme will create a classical combination scheme.
@@ -288,7 +285,7 @@ int main(int argc, char** argv) {
         new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
     const auto& pgNumbers = scheme->getProcessGroupNumbers();
     if (pgNumbers.size() > 0) {
-      useStaticTaskAssignment = true;
+      // useStaticTaskAssignment = true;
       const auto& allCoeffs = scheme->getCoeffs();
       const auto& allLevels = scheme->getCombiSpaces();
       const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());

@@ -52,7 +52,6 @@ class TaskAdvection : public Task {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
-    auto lrank = theMPISystem()->getLocalRank();
     DimType dim = this->getDim();
     const LevelVector& l = this->getLevelVector();
 

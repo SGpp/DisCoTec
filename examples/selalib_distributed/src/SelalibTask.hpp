@@ -97,7 +97,7 @@ class SelalibTask : public combigrid::Task {
       // MASTER_EXCLUSIVE_SECTION{
       //   std::cout << "run " << *this << std::endl;
       // }
-      bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
+      // bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
       Stats::startEvent("BSL run");
       if (selalibSimPointer_ == nullptr) {
         throw std::runtime_error("selalibSimPointer_ is null");

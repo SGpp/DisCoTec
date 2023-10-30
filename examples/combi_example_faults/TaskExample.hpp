@@ -110,9 +110,6 @@ class TaskExample: public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
 
-    int globalRank = theMPISystem()->getGlobalRank();
-    int lrank = theMPISystem()->getLocalRank();
-
     /* pseudo timestepping to demonstrate the behaviour of your typical
      * time-dependent simulation problem. */
     auto elements = dfg_->getData();

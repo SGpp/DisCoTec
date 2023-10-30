@@ -57,7 +57,7 @@ void ProcessManager::receiveDurationsOfTasksFromGroupMasters(size_t numDurations
   }
   for (size_t i = 0; i < numDurationsToReceive; ++i) {
     DurationInformation recvbuf;
-    for(const auto& t : pgroups_[i]->getTaskContainer()){
+    for([[maybe_unused]] const auto& t : pgroups_[i]->getTaskContainer()){
       // this assumes that the manager rank is the highest in globalComm
       MPIUtils::receiveClass(&recvbuf, i, theMPISystem()->getGlobalComm());
 

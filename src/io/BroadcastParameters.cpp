@@ -18,11 +18,9 @@ std::string getFileContentsFromRankZero(const std::string& fileName, const MPI_C
   // only one rank reads inputs and broadcasts to others
   auto mpiRank = getCommRank(comm);
   std::string contentString;
-  int contentStringSize = 0;
   if (mpiRank == 0) {
     std::ifstream ifs(fileName);
     contentString.assign((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
-    contentStringSize = contentString.size();
   }
   MPIUtils::broadcastContainer(contentString, 0, comm);
   return contentString;

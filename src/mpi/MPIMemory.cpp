@@ -2,6 +2,8 @@
 
 #include "mpi/MPISystem.hpp"
 
+#include <vector>
+
 namespace combigrid {
 namespace mpimemory {
 /*
@@ -18,8 +20,8 @@ int get_memory_usage_kb(unsigned long* vmrss_kb, unsigned long* vmsize_kb) {
   FILE* procfile = fopen("/proc/self/status", "r");
 
   long to_read = 8192;
-  char buffer[to_read];
-  fread(buffer, sizeof(char), to_read, procfile);
+  std::vector<char> buffer(to_read);
+  fread(buffer.data(), sizeof(char), to_read, procfile);
   fclose(procfile);
 
   short found_vmrss = 0;
@@ -28,7 +30,7 @@ int get_memory_usage_kb(unsigned long* vmrss_kb, unsigned long* vmsize_kb) {
 
   /* Look through proc status contents line by line */
   char delims[] = "\n";
-  char* line = strtok(buffer, delims);
+  char* line = strtok(buffer.data(), delims);
 
   while (line != NULL && (found_vmrss == 0 || found_vmsize == 0)) {
     search_result = strstr(line, "VmRSS:");

@@ -108,8 +108,6 @@ class TaskExample : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
 
-    int lrank = theMPISystem()->getLocalRank();
-
     auto elements = dfg_->getData();
     // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure

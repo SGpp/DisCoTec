@@ -130,7 +130,6 @@ int main(int argc, char** argv) {
     // read in first CT scheme
     std::unique_ptr<CombiMinMaxSchemeFromFile> scheme(
         new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
-    const auto& allLevels = scheme->getCombiSpaces();
 
     // generate distributed sparse grid
     uniDSGs.emplace_back(schemeFileToSparseGridAndSizesFile(

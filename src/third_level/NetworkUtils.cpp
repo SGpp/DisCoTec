@@ -94,7 +94,6 @@ bool ClientSocket::recvall(std::string& mesg, size_t len, int flags) const {
   assert(isInitialized() && "Client Socket not initialized");
   assert(len > 0);
   //std::cout << "Trying to receive " << len << "Bytes" << std::endl;
-  ssize_t recvd = -1;
   std::unique_ptr<char[]> buff(new char[len]);
   auto ret = this->recvall(buff.get(), len, flags);
   mesg = std::string(buff.get(), len);

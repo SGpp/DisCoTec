@@ -189,7 +189,7 @@ class TaskAdvFDM : public combigrid::Task {
     //real t = dt_ * nsteps_ * combiStep_;
     if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, -1.0, globalRank)){
           std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
-          StatusType status=PROCESS_GROUP_FAIL;/*
+          [[maybe_unused]] StatusType status=PROCESS_GROUP_FAIL;/*
           MASTER_EXCLUSIVE_SECTION{
             simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
                               theMPISystem()->getGlobalCommFT() );

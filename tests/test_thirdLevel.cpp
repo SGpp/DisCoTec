@@ -791,9 +791,7 @@ void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
   combigrid::Stats::initialize();
-
-  size_t procsPerSys = testParams.ngroup * testParams.nprocs + 1;
-
+  // size_t procsPerSys = testParams.ngroup * testParams.nprocs + 1;
   theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {
