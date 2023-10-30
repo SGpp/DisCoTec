@@ -30,7 +30,7 @@ void writeConcatenatedFileRootOnly(const char* data, size_t sizeOfData, const st
     recvBuffer.resize(std::accumulate(recvCounts.begin(), recvCounts.end(), 0));
   }
 
-  MPI_Gatherv(data, sizeOfData, MPI_CHAR, &recvBuffer[0], recvCounts.data(), displacement.data(),
+  MPI_Gatherv(data, sizeAsInt, MPI_CHAR, &recvBuffer[0], recvCounts.data(), displacement.data(),
               MPI_CHAR, 0, comm);
 
   if (mpi_rank == 0) {

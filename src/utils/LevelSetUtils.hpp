@@ -116,7 +116,7 @@ class HypercubeDownSetGenerator {
     {
       if (!this->isFinished()) {
         // find first dimension that can be increased
-        for (int i = (levelUpTo_.size() - 1); i > -1; --i) {
+        for (auto i = static_cast<int>(levelUpTo_.size() - 1); i > -1; --i) {
           if (currentLevel_[i] < levelUpTo_[i]) {
             ++currentLevel_[i];
             break;

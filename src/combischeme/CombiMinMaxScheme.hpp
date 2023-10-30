@@ -300,7 +300,7 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
   IndexType multiplier = 1;
   for (const auto& d : decomposition) {
     decompositionOffsets.push_back(multiplier);
-    multiplier *= d.size();
+    multiplier *= static_cast<IndexType>(d.size());
   }
   auto numProcsPerGroup = multiplier;
   std::vector<long long int> numDOF(numProcsPerGroup, 0);

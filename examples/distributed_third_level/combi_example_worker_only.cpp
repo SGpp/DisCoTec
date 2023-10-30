@@ -166,7 +166,7 @@ int main(int argc, char** argv) {
     interpolationCoords = broadcastParameters::getCoordinatesFromRankZero(
         interpolationCoordsFile, theMPISystem()->getWorldComm());
 
-    if (interpolationCoords.size() != 1e5) {
+    if (interpolationCoords.size() != static_cast<size_t>(1e5)) {
       sleep(1);
       throw std::runtime_error("not enough interpolation coordinates");
     }

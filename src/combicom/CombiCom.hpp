@@ -224,7 +224,7 @@ std::vector<std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>>& get
       ++subspaceIt;
     } while (subspaceIt != siContainer.cend() &&
              (nextAddedDataSize = dsg.getDataSize(*subspaceIt)) &&
-             (chunkDataSize + nextAddedDataSize) < maxChunkSize);
+             (chunkDataSize + nextAddedDataSize) < static_cast<size_t>(maxChunkSize));
     subspaceIndicesChunks.push_back(std::move(chunkSubspaces));
   }
   return subspaceIndicesChunks;

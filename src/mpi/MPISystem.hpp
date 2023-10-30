@@ -27,7 +27,7 @@
 // middle process can do command line output
 #define MIDDLE_PROCESS_EXCLUSIVE_SECTION           \
   if (combigrid::theMPISystem()->getWorldRank() == \
-      (combigrid::theMPISystem()->getNumGroups() * combigrid::theMPISystem()->getNumProcs()) / 2)
+      static_cast<RankType>((combigrid::theMPISystem()->getNumGroups() * combigrid::theMPISystem()->getNumProcs()) / 2))
 
 
 #define GLOBAL_MANAGER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isGlobalManager())
@@ -613,7 +613,7 @@ inline const RankType& MPISystem::getOutputGroupRank() const{
 inline RankType MPISystem::getOutputRankInGlobalReduceComm() const {
   // my local rank gives the index of the global reduce comm,
   // and the output rank in the global reduce comm is the index modulo the number of groups
-  return localRank_ % ngroup_;
+  return static_cast<RankType>(localRank_ % ngroup_);
 }
 
 inline const RankType& MPISystem::getGlobalRank() const {
