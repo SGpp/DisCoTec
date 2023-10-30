@@ -123,10 +123,12 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
 
   numSend = 0;
   numRecv = 0;
+  /*
   // #pragma omp parallel shared(sendRequests, numSend, send1dIndices, recvRequests, numRecv, \
 //                                 remoteData, recv1dIndices, dfg, mysubarray)              \
 //     firstprivate(dfgStartAddr, dim) default(none)
   // no benefit from parallelization here
+  */
   {
 #pragma omp for schedule(static) nowait
     for (size_t x = 0; x < send1dIndices.size(); ++x) {
@@ -268,15 +270,18 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
   }
   std::map<RankType, std::set<IndexType>> send1dIndices;
   std::map<RankType, std::set<IndexType>> recv1dIndices;
-
+  /*
   // #pragma omp parallel for schedule(static) default(none) \
-//     shared(poleNeighbors, send1dIndices, allMyIndices)
+  //   shared(poleNeighbors, send1dIndices, allMyIndices)
+  */
   for (const auto& r : poleNeighbors) {
 #pragma omp critical
     send1dIndices[r] = allMyIndices;
   }
+  /*
   // #pragma omp parallel for schedule(static) default(none) \
-//     shared(poleNeighbors, recv1dIndices)
+  //     shared(poleNeighbors, recv1dIndices)
+  */
   for (const auto& r : poleNeighbors) {
 #pragma omp critical
     recv1dIndices[r] = {};
