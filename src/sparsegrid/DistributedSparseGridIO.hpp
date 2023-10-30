@@ -4,6 +4,7 @@
 #include <fstream>
 #include <string>
 
+#include "io/MPICompression.hpp"
 #include "io/MPIInputOutput.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "utils/Types.hpp"
@@ -29,7 +30,8 @@ void reduceVectorTowardsThem(std::vector<T>& vectorToReduce, MPI_Comm comm, MPI_
 
 template <typename SparseGridType>
 inline void writeMinMaxCoefficents(SparseGridType& dsg, const std::string& filename,
-                                   size_t outputIndex, MPI_Comm firstCommToReduceAcross = MPI_COMM_SELF,
+                                   size_t outputIndex,
+                                   MPI_Comm firstCommToReduceAcross = MPI_COMM_SELF,
                                    MPI_Comm secondCommToReduceAcross = MPI_COMM_SELF) {
   if (dsg.getMaxCoefficientsPerSubspace().empty()) {
     dsg.accumulateMinMaxCoefficients();
@@ -38,39 +40,33 @@ inline void writeMinMaxCoefficents(SparseGridType& dsg, const std::string& filen
   // reduce the minimum and maximum values towards zero process
   // first, reduce within process groups
   if (getCommRank(firstCommToReduceAcross) == 0) {
-    reduceVectorTowardsMe(dsg.getMinCoefficientsPerSubspace(), firstCommToReduceAcross,
-                          MPI_MIN);
-    reduceVectorTowardsMe(dsg.getMaxCoefficientsPerSubspace(), firstCommToReduceAcross,
-                          MPI_MAX);
+    reduceVectorTowardsMe(dsg.getMinCoefficientsPerSubspace(), firstCommToReduceAcross, MPI_MIN);
+    reduceVectorTowardsMe(dsg.getMaxCoefficientsPerSubspace(), firstCommToReduceAcross, MPI_MAX);
     //  then, reduce across process groups (only required on zeroth rank of each process group)
     if (getCommRank(secondCommToReduceAcross) == 0) {
-      reduceVectorTowardsMe(dsg.getMinCoefficientsPerSubspace(),
-                            secondCommToReduceAcross, MPI_MIN);
-      reduceVectorTowardsMe(dsg.getMaxCoefficientsPerSubspace(),
-                            secondCommToReduceAcross, MPI_MAX);
+      reduceVectorTowardsMe(dsg.getMinCoefficientsPerSubspace(), secondCommToReduceAcross, MPI_MIN);
+      reduceVectorTowardsMe(dsg.getMaxCoefficientsPerSubspace(), secondCommToReduceAcross, MPI_MAX);
 
       // if on zero process, write them out to file
       std::ofstream ofs = std::ofstream(filename + "_" + std::to_string(outputIndex) + ".txt");
       for (typename SparseGridType::SubspaceIndexType i = 0;
-          i <
-          static_cast<typename SparseGridType::SubspaceIndexType>(dsg.getAllLevelVectors().size());
-          ++i) {
+           i <
+           static_cast<typename SparseGridType::SubspaceIndexType>(dsg.getAllLevelVectors().size());
+           ++i) {
         const auto& level = dsg.getLevelVector(i);
         if (dsg.getMinCoefficientsPerSubspace()[i] < std::numeric_limits<combigrid::real>::max())
           ofs << level << " : " << dsg.getMinCoefficientsPerSubspace()[i] << ", "
               << dsg.getMaxCoefficientsPerSubspace()[i] << std::endl;
       }
     } else {
-      reduceVectorTowardsThem(dsg.getMinCoefficientsPerSubspace(),
-                              secondCommToReduceAcross, MPI_MIN);
-      reduceVectorTowardsThem(dsg.getMaxCoefficientsPerSubspace(),
-                              secondCommToReduceAcross, MPI_MAX);
+      reduceVectorTowardsThem(dsg.getMinCoefficientsPerSubspace(), secondCommToReduceAcross,
+                              MPI_MIN);
+      reduceVectorTowardsThem(dsg.getMaxCoefficientsPerSubspace(), secondCommToReduceAcross,
+                              MPI_MAX);
     }
   } else {
-    reduceVectorTowardsThem(dsg.getMinCoefficientsPerSubspace(), firstCommToReduceAcross,
-                            MPI_MIN);
-    reduceVectorTowardsThem(dsg.getMaxCoefficientsPerSubspace(), firstCommToReduceAcross,
-                            MPI_MAX);
+    reduceVectorTowardsThem(dsg.getMinCoefficientsPerSubspace(), firstCommToReduceAcross, MPI_MIN);
+    reduceVectorTowardsThem(dsg.getMaxCoefficientsPerSubspace(), firstCommToReduceAcross, MPI_MAX);
   }
   dsg.clearMinMaxCoefficientsPerSubspace();
 }
@@ -103,8 +99,13 @@ int writeOneFile(const SparseGridType& dsg, const std::string& fileName,
 
   MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
+#ifdef DISCOTEC_USE_LZ4
+  int numWritten = mpiio::writeCompressedValuesConsecutive<typename SparseGridType::ElementType>(
+      data, len, fileName, comm, deleteExistingFile);
+#else
   int numWritten = mpiio::writeValuesConsecutive<typename SparseGridType::ElementType>(
       data, len, fileName, comm, deleteExistingFile);
+#endif
   return numWritten;
 }
 
@@ -115,8 +116,13 @@ int readOneFile(SparseGridType& dsg, const std::string& fileName) {
   // get offset in file
   MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
+#ifdef DISCOTEC_USE_LZ4
+  int numRead = mpiio::readCompressedValuesConsecutive<typename SparseGridType::ElementType>(
+      data, len, fileName, comm);
+#else
   int numRead =
       mpiio::readValuesConsecutive<typename SparseGridType::ElementType>(data, len, fileName, comm);
+#endif
   return numRead;
 }
 
@@ -132,9 +138,15 @@ int readOneFileAndReduce(SparseGridType& dsg, const std::string& fileName,
   // get offset in file
   const MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
+#ifdef DISCOTEC_USE_LZ4
+  int numReduced = mpiio::readReduceCompressedValuesConsecutive<typename SparseGridType::ElementType>(
+      data, len, fileName, comm, //numElementsToBuffer,
+      std::plus<typename SparseGridType::ElementType>{});
+#else
   int numReduced = mpiio::readReduceValuesConsecutive<typename SparseGridType::ElementType>(
       data, len, fileName, comm, numElementsToBuffer,
       std::plus<typename SparseGridType::ElementType>{});
+#endif
 
   return numReduced;
 }
@@ -149,8 +161,13 @@ int writeSomeFiles(const SparseGridType& dsg, const std::string& fileName,
 
   MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
+#ifdef DISCOTEC_USE_LZ4
+  int numWritten = mpiio::writeCompressedValuesConsecutive<typename SparseGridType::ElementType>(
+      data, len, filePartName, comm, deleteExistingFile);
+#else
   int numWritten = mpiio::writeValuesConsecutive<typename SparseGridType::ElementType>(
       data, len, filePartName, comm, deleteExistingFile);
+#endif
   return numWritten;
 }
 
@@ -164,8 +181,13 @@ int readSomeFiles(SparseGridType& dsg, const std::string& fileName) {
   // get offset in file
   MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
+#ifdef DISCOTEC_USE_LZ4
+  int numRead = mpiio::readCompressedValuesConsecutive<typename SparseGridType::ElementType>(
+      data, len, filePartName, comm);
+#else
   int numRead = mpiio::readValuesConsecutive<typename SparseGridType::ElementType>(
       data, len, filePartName, comm);
+#endif
   return numRead;
 }
 
@@ -184,9 +206,16 @@ int readSomeFilesAndReduce(SparseGridType& dsg, const std::string& fileName,
   // get offset in file
   const MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
+
+#ifdef DISCOTEC_USE_LZ4
+  int numReduced = mpiio::readReduceCompressedValuesConsecutive<typename SparseGridType::ElementType>(
+      data, len, filePartName, comm, //numElementsToBuffer,
+      std::plus<typename SparseGridType::ElementType>{});
+#else
   int numReduced = mpiio::readReduceValuesConsecutive<typename SparseGridType::ElementType>(
       data, len, filePartName, comm, numElementsToBuffer,
       std::plus<typename SparseGridType::ElementType>{});
+#endif
 
   return numReduced;
 }

@@ -121,6 +121,22 @@ if (DISCOTEC_USE_LTO)
         message(FATAL "IPO is not supported: ${output}")
     endif ()
 endif ()
+
+option(DISCOTEC_WITH_COMPRESSION "Enable Compressed output with LZ4" OFF)
+if(DISCOTEC_WITH_COMPRESSION)
+    find_path(LZ4_INCLUDE_DIR NAMES "lz4.h")
+    target_include_directories(discotec PUBLIC ${LZ4_INCLUDE_DIR})
+    if(NOT EXISTS ${LZ4_INCLUDE_DIR}/lz4.h)
+        message(FATAL_ERROR "LZ4: ${LZ4_INCLUDE_DIR}/lz4.h not found")
+    endif()
+    find_library(LZ4_LIBRARIES NAMES "lz4" )
+    if(NOT EXISTS ${LZ4_LIBRARIES})
+        message(FATAL_ERROR "LZ4: ${LZ4_LIBRARIES} not found")
+    endif()
+    target_link_libraries(discotec PUBLIC ${LZ4_LIBRARIES})
+    target_compile_definitions(discotec PUBLIC DISCOTEC_USE_LZ4)
+endif()
+
 #TODO: find or fetch GENE if enabled
 
 option(DISCOTEC_OMITREADYSIGNAL "Omit ready signal" OFF)

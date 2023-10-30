@@ -742,7 +742,6 @@ void testCombineThirdLevelWithoutManagers(
     Stats::writePartial("stats_thirdLevel_worker_" + std::to_string(testParams.sysNum) + ".json",
                         theMPISystem()->getWorldComm());
     BOOST_TEST_CHECKPOINT("combine read/reduce");
-    std::cout << readSparseGridFiles << std::endl;
     worker.combineReadDistributeSystemWide(readSparseGridFiles, readSparseGridFileTokens, false,
                                            false);
 
