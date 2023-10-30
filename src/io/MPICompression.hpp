@@ -294,10 +294,14 @@ int writeCompressedValuesConsecutive(const T* valuesStart, MPI_Offset numValues,
                                      const std::string& fileName, combigrid::CommunicatorType comm,
                                      bool replaceExistingFile = false,
                                      bool withCollectiveBuffering = false) {
-  Stats::startEvent("compress");
+  if (Stats::isInitialized()) {
+    Stats::startEvent("compress");
+  }
   std::vector<char> compressedString;
   mpiio::compressBufferToLZ4FrameAndGatherHeader(valuesStart, numValues, comm, compressedString);
-  Stats::stopEvent("compress");
+  if (Stats::isInitialized()) {
+    Stats::stopEvent("compress");
+  }
   return mpiio::writeValuesConsecutive<char>(compressedString.data(), compressedString.size(),
                                              fileName, comm, true, false);
 }
