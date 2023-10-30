@@ -168,11 +168,14 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
     auto writeSuccess = DistributedSparseGridIO::writeOneFile(*uniDSG, "test_sg_all", true);
     BOOST_WARN(writeSuccess > 0);
     if (writeSuccess) {
+#ifndef DISCOTEC_USE_LZ4
+      BOOST_CHECK_EQUAL(writeSuccess, uniDSGfromSubspaces->getRawDataSize());
+#endif  // not defined DISCOTEC_USE_LZ4
       for (size_t i = 0; i < uniDSGfromSubspaces->getRawDataSize(); ++i) {
         uniDSGfromSubspaces->getRawData()[i] = -1000.;
       }
       auto readSuccess = DistributedSparseGridIO::readOneFile(*uniDSGfromSubspaces, "test_sg_all");
-      BOOST_CHECK_EQUAL(readSuccess, writeSuccess);
+      BOOST_CHECK_EQUAL(readSuccess, uniDSGfromSubspaces->getRawDataSize());
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare values");
         for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
@@ -182,7 +185,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       }
       auto reduceSuccess =
           DistributedSparseGridIO::readOneFileAndReduce(*uniDSGfromSubspaces, "test_sg_all", 1);
-      BOOST_CHECK_EQUAL(readSuccess, writeSuccess);
+      BOOST_CHECK_EQUAL(readSuccess, uniDSGfromSubspaces->getRawDataSize());
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare double values");
         for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
