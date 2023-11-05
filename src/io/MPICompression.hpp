@@ -349,6 +349,7 @@ inline void getFrameSizeAndPosFromHeader(const MPIFileConsecutive<char>& file,
 template <typename T>
 int readCompressedValuesConsecutive(T* valuesStart, MPI_Offset numValues,
                                     const std::string& fileName, combigrid::CommunicatorType comm) {
+#ifdef DISCOTEC_USE_LZ4
   auto file = MPIFileConsecutive<char>::getFileToRead(fileName, comm, false, false);
   MPI_Offset position = 0;
   MPI_Offset frameSize = 0;
@@ -363,6 +364,9 @@ int readCompressedValuesConsecutive(T* valuesStart, MPI_Offset numValues,
       mpiio::decompressLZ4FrameToBuffer(std::move(frameString), valuesStart, numValues));
   assert(static_cast<MPI_Offset>(numValuesDecompressed) == numValues);
   return numValuesDecompressed;
+#else
+  throw std::runtime_error("LZ4 compression not available");
+#endif
 }
 
 template <typename T, typename ReduceFunctionType>
