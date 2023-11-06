@@ -292,7 +292,7 @@ size_t ThirdLevelManager::forwardData(const System& sender, const System& receiv
   return dataSize;
 }
 
-void ThirdLevelManager::writeStatistics(std::string filename)
+void ThirdLevelManager::writeStatistics(const std::string& filename)
 {
   size_t walltime = stats_.getWallTime();
   size_t numCombinations = stats_.getNumCombinations();

@@ -65,7 +65,7 @@ class TaskAdvFDM : public combigrid::Task {
   }
 
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) override {
     // only use one process per group
     std::vector<int> p(getDim(), 1);
 

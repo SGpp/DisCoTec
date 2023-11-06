@@ -59,7 +59,7 @@ class TaskConstParaboloid : public combigrid::Task {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid constructor");
   }
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
+  void init(CommunicatorType lcomm, const std::vector<IndexVector>& decomposition) override {
     // parallelization
     // assert(dfg_ == nullptr);
     auto nprocs = getCommSize(lcomm);

@@ -77,7 +77,7 @@ class TestingTask : public combigrid::Task {
     assert(l.size() == 2);
   }
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
+  void init(CommunicatorType lcomm, const std::vector<IndexVector>& decomposition) override {
     // parallelization
     // assert(dfg_ == nullptr);
     auto nprocs = getCommSize(lcomm);

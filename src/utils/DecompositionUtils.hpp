@@ -40,7 +40,7 @@ static inline std::vector<IndexVector> getDefaultDecomposition(
 }
 
 inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref,
-                                                                std::vector<int> procsRef) {
+                                                                std::vector<int>& procsRef) {
   assert(lref.size() == procsRef.size());
   std::vector<IndexVector> decomposition;
   for (DimType d = 0; d < static_cast<DimType>(lref.size()); ++d) {
@@ -63,7 +63,7 @@ inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref
 }
 
 static inline std::vector<IndexVector> downsampleDecomposition(
-    const std::vector<IndexVector> decomposition, const LevelVector& referenceLevel,
+    const std::vector<IndexVector>& decomposition, const LevelVector& referenceLevel,
     const LevelVector& newLevel, const std::vector<BoundaryType>& boundary) {
   auto newDecomposition = decomposition;
   if (decomposition.size() > 0) {

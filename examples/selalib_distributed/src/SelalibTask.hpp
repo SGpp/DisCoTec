@@ -135,7 +135,7 @@ class SelalibTask : public combigrid::Task {
    * decomposition is the spatial decomposition of the component grid
    */
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
     static_assert(!reverseOrderingDFGPartitions,
                   "BSL needs this flag to be false, "
                   "change only if the partitioning does not match between dfg and distribution");

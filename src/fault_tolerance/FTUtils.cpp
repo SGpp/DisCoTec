@@ -116,7 +116,7 @@ matrix get_inv_M(const CombigridDict& aux_downset, const int& dim) {
   return M_inv;
 }
 
-CombigridDict set_entire_downset_dict(const LevelVectorList levels,
+CombigridDict set_entire_downset_dict(const LevelVectorList& levels,
                                       const CombigridDict& received_dict, const int& dim) {
   LevelVector level_min = levels.front();
   LevelVector level_max = levels.back();

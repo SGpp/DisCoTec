@@ -29,7 +29,7 @@ CombigridDict get_python_data(const std::string& script_run, const int& dim);
 matrix get_inv_M(const CombigridDict& aux_downset, const int& dim);
 
 /* used to create the inverse of M matrix for the interpolation based problem */
-CombigridDict set_entire_downset_dict(const LevelVectorList levels,
+CombigridDict set_entire_downset_dict(const LevelVectorList& levels,
                                       const CombigridDict& received_dict, const int& dim);
 
 /* used to get a vector of the entire downset indices */

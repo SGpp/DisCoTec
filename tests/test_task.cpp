@@ -26,7 +26,7 @@ class TaskTest : public combigrid::Task {
       : Task(l, boundary, coeff, loadModel), test(t) {}
 
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) override {
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) override {
     // create dummy dfg
     std::vector<int> p(getDim(), 1);
     dfg_ = new OwningDistributedFullGrid<CombiDataType>(getDim(), getLevelVector(), lcomm,

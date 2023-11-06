@@ -36,7 +36,7 @@ class TaskCount : public combigrid::Task {
     BOOST_TEST_CHECKPOINT("TaskCount constructor");
   }
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
+  void init(CommunicatorType lcomm, const std::vector<IndexVector>& decomposition) override {
     auto nprocs = getCommSize(lcomm);
     std::vector<int> p;
     if (decomposition.size() == 0) {

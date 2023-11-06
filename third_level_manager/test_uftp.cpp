@@ -24,7 +24,7 @@
 
 using namespace combigrid;
 
-void mockUpDSGWriteToDisk(std::string filePrefix,
+void mockUpDSGWriteToDisk(const std::string& filePrefix,
                           const std::vector<long long int>& dsgPartitionSizes) {
   for (size_t partitionIndex = 0; partitionIndex < dsgPartitionSizes.size(); ++partitionIndex) {
     std::string myFilename = filePrefix + std::to_string(partitionIndex);
@@ -42,7 +42,7 @@ void mockUpDSGWriteToDisk(std::string filePrefix,
   }
 }
 
-void writeRandomDataToDisk(std::string filePrefix,
+void writeRandomDataToDisk(const std::string& filePrefix,
                          const std::vector<long long int>& dsgPartitionSizes) {
   Stats::startEvent("uftp write");
   auto actualPartitionSizes = dsgPartitionSizes;
@@ -75,7 +75,7 @@ void writeRandomDataToDisk(std::string filePrefix,
   Stats::stopEvent("uftp write");
 }
 
-void createLargeFile(std::string filePrefix, const std::vector<long long int>& dsgPartitionSizes) {
+void createLargeFile(const std::string& filePrefix, const std::vector<long long int>& dsgPartitionSizes) {
   Stats::startEvent("uftp create file");
   // cf. https://stackoverflow.com/a/47742514
   {
@@ -90,7 +90,7 @@ void createLargeFile(std::string filePrefix, const std::vector<long long int>& d
   Stats::stopEvent("uftp create file");
 }
 
-void validateExchangedData(std::string filePrefix, std::string tokenToWaitFor,
+void validateExchangedData(const std::string& filePrefix, std::string tokenToWaitFor,
                            const std::vector<long long int>& dsgPartitionSizes) {
   // generate data on heap
   std::unique_ptr<std::vector<real>> mockUpData(new std::vector<real>(dsgPartitionSizes[0]));
@@ -118,7 +118,7 @@ void validateExchangedData(std::string filePrefix, std::string tokenToWaitFor,
   }
 }
 
-void checkSizeOfFile(std::string filePrefix, std::string tokenToWaitFor,
+void checkSizeOfFile(const std::string& filePrefix, std::string tokenToWaitFor,
                            const std::vector<long long int>& dsgPartitionSizes) {
   Stats::startEvent("uftp wait check size");
   Stats::startEvent("uftp wait");
@@ -146,7 +146,7 @@ void checkSizeOfFile(std::string filePrefix, std::string tokenToWaitFor,
   Stats::stopEvent("uftp wait check size");
 }
 
-void readAndInvertDSGFromDisk(std::string filePrefixIn, std::string filePrefixOut,
+void readAndInvertDSGFromDisk(const std::string& filePrefixIn, std::string filePrefixOut,
                               std::string tokenToWaitFor,
                               const std::vector<long long int>& dsgPartitionSizes) {
   std::unique_ptr<std::vector<real>> readData(new std::vector<real>(dsgPartitionSizes[0]));

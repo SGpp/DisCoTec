@@ -33,7 +33,7 @@ class TaskAdvection : public Task {
    */
   TaskAdvection(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
                 LoadModel* loadModel, real dt, size_t nsteps,
-                std::vector<int> p = std::vector<int>(0),
+                const std::vector<int>& p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
@@ -48,7 +48,7 @@ class TaskAdvection : public Task {
   }
 
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) override {
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) override {
     assert(!initialized_);
     assert(dfg_ == NULL);
 

@@ -77,7 +77,7 @@ class Task {
   }
 
   virtual void init(CommunicatorType lcomm,
-                    std::vector<IndexVector> decomposition = std::vector<IndexVector>()) = 0;
+                    const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) = 0;
 
   // inline real estimateRuntime() const;
 
