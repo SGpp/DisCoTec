@@ -58,8 +58,8 @@ int main(int argc, char** argv) {
   real tmp1 = 1.0 / l2norm1;
     real tmp2 = 1.0 / l2norm2;
   if (mode[0] == 'n') {
-    for (auto i = 0; i < data1.size(); ++i) data1[i] *= tmp1;
-    for (auto i = 0; i < data2.size(); ++i) data2[i] *= tmp2;
+    for (size_t i = 0; i < data1.size(); ++i) data1[i] *= tmp1;
+    for (size_t i = 0; i < data2.size(); ++i) data2[i] *= tmp2;
   } else if (mode[0] == 'a') {
     ;
   } else {

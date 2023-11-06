@@ -319,7 +319,7 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
   }
   if (withWorldManager) {
     assert(managerRankWorld_ >= 0);
-    assert(managerRankWorld_ < nprocs_ * ngroup_ + 1);
+    assert(managerRankWorld_ < static_cast<RankType>(nprocs_ * ngroup_ + 1));
     ranks.push_back(managerRankWorld_);
   }
 
@@ -334,7 +334,7 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
 
   int worldSize = 0;
   MPI_Group_size(worldGroup, &worldSize);
-  assert(worldSize == nprocs_ * ngroup_ + (withWorldManager ? 1 : 0));
+  assert(worldSize == static_cast<int>(nprocs_ * ngroup_ + (withWorldManager ? 1 : 0)));
   for (const auto& r : ranks) {
     assert(r >= 0);
     assert(r < worldSize);

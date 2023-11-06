@@ -161,13 +161,13 @@ class DistributedFullGrid {
   double getInnerNodalBasisFunctionIntegral() const;
 
   /** returns the number of elements in the entire, global full grid */
-  inline IndexType getNrElements() const { return globalIndexer_.size(); }
+  inline IndexType getNrElements() const { return static_cast<IndexType>(globalIndexer_.size()); }
 
   /** number of elements in the local partition */
-  inline IndexType getNrLocalElements() const { return localTensor_.size(); }
+  inline IndexType getNrLocalElements() const { return static_cast<IndexType>(localTensor_.size()); }
 
   /** number of points per dimension i */
-  inline IndexType length(DimType i) const { return this->getGlobalSizes()[i]; }
+  inline IndexType globalNumPointsInDimension(DimType i) const { return this->getGlobalSizes()[i]; }
 
   /** vector of flags to show if the dimension has boundary points*/
   inline const std::vector<BoundaryType>& returnBoundaryFlags() const { return hasBoundaryPoints_; }
@@ -1675,7 +1675,8 @@ std::vector<bool> DistributedFullGrid<FG_ELEMENT>::isGlobalLinearIndexOnBoundary
   getGlobalVectorIndex(globalLinearIndex, globalAxisIndex);
   for (DimType d = 0; d < this->getDimension(); ++d) {
     if (this->returnBoundaryFlags()[d] == 2) {
-      if (globalAxisIndex[d] == 0 || globalAxisIndex[d] == this->length(d) - 1) {
+      if (globalAxisIndex[d] == 0 ||
+          globalAxisIndex[d] == this->globalNumPointsInDimension(d) - 1) {
         isOnBoundary[d] = true;
       }
     }
@@ -1697,7 +1698,7 @@ std::vector<IndexVector> DistributedFullGrid<FG_ELEMENT>::getCornersGlobalVector
       newIndicesSoFar.push_back(indexVec);
       newIndicesSoFar.back().push_back(0);
       newIndicesSoFar.push_back(indexVec);
-      newIndicesSoFar.back().push_back(this->length(dim) - 1);
+      newIndicesSoFar.back().push_back(this->globalNumPointsInDimension(dim) - 1);
     }
     assert(newIndicesSoFar.size() == 2 * indicesSoFar.size());
     return getCornersGlobalVectorIndicesRecursive(newIndicesSoFar, static_cast<DimType>(dim + 1));

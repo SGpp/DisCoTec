@@ -350,8 +350,8 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
       size_t numDOFtoAdd = 1;
       // iterate the vector index entries belonging to linear index i
       auto tmp = i;
-      for (int d = dim - 1; d >= 0; --d) {
-        assert(d < subspaceExtentsPerProcessPerDimension.size());
+      for (DimType d = dim - 1; d >= 0; --d) {
+        assert(static_cast<size_t>(d) < subspaceExtentsPerProcessPerDimension.size());
         auto decompositionIndexInDimD = tmp / decompositionOffsets[d];
         assert(decompositionIndexInDimD < subspaceExtentsPerProcessPerDimension[d].size());
         numDOFtoAdd *= subspaceExtentsPerProcessPerDimension[d][decompositionIndexInDimD];

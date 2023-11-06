@@ -664,7 +664,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
       if (subSgDataSize == 0) {
         this->setDataSize(index, numPointsOfSubspace);
       } else {
-        ASSERT(subSgDataSize == numPointsOfSubspace,
+        ASSERT(static_cast<IndexType>(subSgDataSize) == numPointsOfSubspace,
                "subSgDataSize: " << subSgDataSize
                                  << ", numPointsOfSubspace: " << numPointsOfSubspace << " , level "
                                  << level << " , rank " << this->rank_ << std::endl);
@@ -713,7 +713,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
         assert(sDataSize == this->getDataSize(sIndex));
         assert(sDataSize == this->getAllocatedDataSize(sIndex));
         assert(std::distance(this->getData(0), sPointer) <
-               this->subspacesDataContainer_.subspacesData_.size());
+               static_cast<long int>(this->subspacesDataContainer_.subspacesData_.size()));
         auto kDataSize = this->subspacesDataContainer_.kahanDataBegin_[sIndex + 1] - kPointer;
         assert(kDataSize == this->getDataSize(sIndex));
       }

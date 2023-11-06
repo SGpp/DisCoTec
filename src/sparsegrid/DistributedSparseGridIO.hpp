@@ -246,7 +246,7 @@ int readReduceSubspaceSizesFromFile(SparseGridType& dsg, const std::string& file
   auto comm = dsg.getCommunicator();
   MPI_Offset len = dsg.getNumSubspaces();
   if (numElementsToBuffer == 0) {
-    numElementsToBuffer = len;
+    numElementsToBuffer = static_cast<int>(len);
   }
 
   int numReduced = mpiio::readReduceValuesConsecutive<SubspaceSizeType>(
@@ -263,7 +263,7 @@ int readReduceSubspaceSizesFromFiles(SparseGridType& dsg, const std::vector<std:
   auto comm = dsg.getCommunicator();
   MPI_Offset len = dsg.getNumSubspaces();
   if (numElementsToBuffer == 0) {
-    numElementsToBuffer = len;
+    numElementsToBuffer = static_cast<int>(len);
   }
 
   int numReduced = mpiio::readMultipleReduceValuesConsecutive<SubspaceSizeType>(

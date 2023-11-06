@@ -94,8 +94,8 @@ class TaskAdvFDM : public combigrid::Task {
     // gradient of phi
     std::vector<CombiDataType> dphi(getDim());
 
-    IndexType l0 = dfg_->length(0);
-    IndexType l1 = dfg_->length(1);
+    IndexType l0 = dfg_->globalNumPointsInDimension(0);
+    IndexType l1 = dfg_->globalNumPointsInDimension(1);
     double h0 = 1.0 / (double)l0;
     double h1 = 1.0 / (double)l1;
 

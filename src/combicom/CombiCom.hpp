@@ -451,7 +451,8 @@ void reduceSubspaceSizes(SparseGridType& dsg, CommunicatorType comm) {
   MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
 
   // perform allreduce
-  assert(dsg.getNumSubspaces() < static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
+  assert(dsg.getNumSubspaces() <
+         static_cast<AnyDistributedSparseGrid::SubspaceIndexType>(std::numeric_limits<int>::max()));
   MPI_Allreduce(MPI_IN_PLACE, dsg.getSubspaceDataSizes().data(),
                 static_cast<int>(dsg.getNumSubspaces()), dtype, MPI_MAX, comm);
   // assume that the sizes changed, the buffer might be the wrong size now
@@ -464,7 +465,8 @@ void broadcastSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, RankType
   MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
 
   // perform broadcast
-  assert(dsg.getNumSubspaces() < static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
+  assert(dsg.getNumSubspaces() <
+         static_cast<AnyDistributedSparseGrid::SubspaceIndexType>(std::numeric_limits<int>::max()));
   MPI_Bcast(dsg.getSubspaceDataSizes().data(), static_cast<int>(dsg.getNumSubspaces()), dtype,
             sendingRank, comm);
   // assume that the sizes changed, the buffer might be the wrong size now
@@ -480,7 +482,8 @@ void localMaxReduceSubspaceSizes(SparseGridType& dsg, CommunicatorType comm, Ran
   std::vector<SubspaceSizeType> subspaceSizes = dsg.getSubspaceDataSizes();
 
   // perform broadcast
-  assert(dsg.getNumSubspaces() < static_cast<SubspaceSizeType>(std::numeric_limits<int>::max()));
+  assert(dsg.getNumSubspaces() <
+         static_cast<AnyDistributedSparseGrid::SubspaceIndexType>(std::numeric_limits<int>::max()));
   MPI_Bcast(subspaceSizes.data(), static_cast<int>(dsg.getNumSubspaces()), dtype, sendingRank,
             comm);
   assert(sumAndCheckSubspaceSizes(dsg, subspaceSizes));

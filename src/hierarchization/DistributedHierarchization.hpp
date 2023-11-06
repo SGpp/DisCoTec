@@ -256,7 +256,7 @@ template <typename FG_ELEMENT>
 static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                               RemoteDataCollector<FG_ELEMENT>& remoteData) {
   // send every index to all neighboring ranks in dimension dim
-  const auto globalIdxMax = dfg.length(dim);
+  const auto globalIdxMax = dfg.globalNumPointsInDimension(dim);
   const IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
   const IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
 
@@ -330,11 +330,11 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
   std::map<RankType, std::set<IndexType>> send1dIndices;
 
   // main loop
-  IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
-  IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
-  bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
-  auto globalIdxMax = dfg.length(dim);
-  LevelType lmax = dfg.getLevels()[dim];
+  const IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
+  const IndexType idxMax = dfg.getLastGlobal1dIndex(dim);
+  const bool oneSidedBoundary = dfg.returnBoundaryFlags()[dim] == 1;
+  const auto globalIdxMax = dfg.globalNumPointsInDimension(dim);
+  const LevelType lmax = dfg.getLevels()[dim];
 
   IndexType idx = idxMin;
 

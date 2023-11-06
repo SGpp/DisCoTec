@@ -313,7 +313,7 @@ class CombiParameters {
       assert(decomposition[d][0] == 0);
       auto numPoints = combigrid::getNumDofNodal(lmax_[d], boundary_[d]);
       assert(decomposition[d].back() < numPoints);
-      assert(procs_[d] == decomposition[d].size());
+      assert(static_cast<size_t>(procs_[d]) == decomposition[d].size());
     }
 #endif // not def NDEBUG
   }
@@ -362,8 +362,6 @@ class CombiParameters {
 
   CombinationVariant combinationVariant_;
 
-  uint32_t sizeForChunkedCommunicationInMebibyte_;
-
   /**
    * This level vector indicates which dimension of lmin should be decreased by how many levels
    * for constructing the distributed sparse grid.
@@ -385,6 +383,7 @@ class CombiParameters {
     */
   LevelVector reduceCombinationDimsLmax_;
 
+  uint32_t sizeForChunkedCommunicationInMebibyte_;
 
   std::string thirdLevelHost_;
 

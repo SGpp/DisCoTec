@@ -827,36 +827,19 @@ void ProcessGroupWorker::waitForTokenFile(const std::string& startReadingTokenFi
   }
 }
 
-int ProcessGroupWorker::readReduce(const std::string& filenamePrefixToRead, bool overwrite) {
-  return getSparseGridWorker().readReduce(
-      filenamePrefixToRead, this->combiParameters_.getChunkSizeInMebibybtePerThread(), overwrite);
+int ProcessGroupWorker::readReduce(const std::vector<std::string>& filenamePrefixesToRead,
+                                   const std::vector<std::string>& startReadingTokenFileNames,
+                                   bool overwrite) {
+  return getSparseGridWorker().readReduce(filenamePrefixesToRead, startReadingTokenFileNames,
+                                          this->combiParameters_.getChunkSizeInMebibybtePerThread(),
+                                          overwrite);
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     const std::vector<std::string>& filenamePrefixesToRead,
     const std::vector<std::string>& startReadingTokenFileNames, bool overwrite,
     bool keepSparseGridFiles) {
-  // wait until we can start to read any of the files
-  std::set<size_t> indicesStillToReadReduce;
-  for (size_t i = 0; i < filenamePrefixesToRead.size(); ++i) {
-    indicesStillToReadReduce.insert(i);
-  }
-  while (!indicesStillToReadReduce.empty()) {
-    for (auto it = indicesStillToReadReduce.begin(); it != indicesStillToReadReduce.end(); ++it) {
-      if (combigrid::getFileExistsRootOnly(startReadingTokenFileNames[*it],
-                                           theMPISystem()->getOutputGroupComm(),
-                                           theMPISystem()->getOutputGroupRank())) {
-        overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
-        [[maybe_unused]] int numRead = this->readReduce(filenamePrefixesToRead[*it], overwrite);
-        assert(numRead > 0);
-        overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
-        indicesStillToReadReduce.erase(it);
-        break;  // because iterators may be invalidated
-      }
-    }
-    // wait for 200ms
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-  }
+  this->readReduce(filenamePrefixesToRead, startReadingTokenFileNames, overwrite);
 
   MPI_Request request = MPI_REQUEST_NULL;
   if (this->combiParameters_.getCombinationVariant() ==

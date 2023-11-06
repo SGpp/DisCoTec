@@ -86,8 +86,7 @@ int main(int argc, char** argv) {
       MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "running in file-based third level mode"
                                                  << std::endl;
     } else {
-      MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "running in file-based local mode"
-                                                 << std::endl;
+      MIDDLE_PROCESS_EXCLUSIVE_SECTION std::cout << "running in file-based local mode" << std::endl;
     }
 
     // periodic boundary conditions
@@ -239,13 +238,12 @@ int main(int argc, char** argv) {
         readSparseGridFile =
             "dsg_" + std::to_string((systemNumber + 1) % 2) + "_step" + std::to_string(i);
         std::string readSparseGridFileToken = readSparseGridFile + "_token.txt";
-        OUTPUT_GROUP_EXCLUSIVE_SECTION {
-        }
+        OUTPUT_GROUP_EXCLUSIVE_SECTION {}
 
       } else {
         readSparseGridFile = writeSparseGridFile;
-	OUTPUT_GROUP_EXCLUSIVE_SECTION {
-	  worker.waitForTokenFile(writeSparseGridFileToken);
+        OUTPUT_GROUP_EXCLUSIVE_SECTION {
+          worker.waitForTokenFile(writeSparseGridFileToken);
           Stats::startEvent("read SG");
           int numRead = worker.readReduce(readSparseGridFile, true);
           Stats::stopEvent("read SG");
