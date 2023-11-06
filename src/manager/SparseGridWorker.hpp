@@ -72,10 +72,12 @@ class SparseGridWorker {
 
   inline void maxReduceSubspaceSizesInOutputGroup();
 
-  inline int readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
+  inline int readDSGsFromDisk(const std::string& filenamePrefixToRead,
+                              bool addSpeciesNumberToFileName, bool alwaysReadFullDSG = false);
 
   inline int readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
                                        uint32_t maxMiBToReadPerThread,
+                                       bool addSpeciesNumberToFileName,
                                        bool alwaysReadFullDSG = false);
 
   inline int readReduce(const std::vector<std::string>& filenamePrefixesToRead,
@@ -569,20 +571,22 @@ inline void SparseGridWorker::maxReduceSubspaceSizesInOutputGroup() {
   }
 }
 
-inline int SparseGridWorker::readDSGsFromDisk(const std::string& filenamePrefix,
+inline int SparseGridWorker::readDSGsFromDisk(const std::string& filenamePrefixToRead,
+                                              bool addSpeciesNumberToFileName,
                                               bool alwaysReadFullDSG) {
   int numRead = 0;
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
     auto uniDsg = this->getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
+    auto filename = filenamePrefixToRead;
+    if (addSpeciesNumberToFileName) {
+      filename += "_" + std::to_string(i);
+    }
     if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
-      numRead +=
-          DistributedSparseGridIO::readSomeFiles(*dsgToUse,
-                                                 filenamePrefix);  //+ "_" + std::to_string(i)
+      numRead += DistributedSparseGridIO::readSomeFiles(*dsgToUse, filename);
     } else {
-      numRead += DistributedSparseGridIO::readOneFile(*dsgToUse,
-                                                      filenamePrefix);  //+ "_" + std::to_string(i))
+      numRead += DistributedSparseGridIO::readOneFile(*dsgToUse, filename);
     }
     if (this->getExtraUniDSGVector().size() > 0 && uniDsg->isSubspaceDataCreated()) {
       // copy partial data from extraDSG back to uniDSG
@@ -594,20 +598,23 @@ inline int SparseGridWorker::readDSGsFromDisk(const std::string& filenamePrefix,
 
 inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filenamePrefixToRead,
                                                        uint32_t maxMiBToReadPerThread,
+                                                       bool addSpeciesNumberToFileName,
                                                        bool alwaysReadFullDSG) {
   int numReduced = 0;
   for (size_t i = 0; i < this->getNumberOfGrids(); ++i) {
+    auto filename = filenamePrefixToRead;
+    if (addSpeciesNumberToFileName) {
+      filename += "_" + std::to_string(i);
+    }
     auto uniDsg = this->getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
     if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
-      numReduced += DistributedSparseGridIO::readSomeFilesAndReduce(
-          *dsgToUse, filenamePrefixToRead,
-          maxMiBToReadPerThread);  // + "_" + std::to_string(i), maxMiBToReadPerThread);
+      numReduced += DistributedSparseGridIO::readSomeFilesAndReduce(*dsgToUse, filename,
+                                                                    maxMiBToReadPerThread);
     } else {
-      numReduced += DistributedSparseGridIO::readOneFileAndReduce(
-          *dsgToUse, filenamePrefixToRead,
-          maxMiBToReadPerThread);  // + "_" + std::to_string(i), maxMiBToReadPerThread);
+      numReduced +=
+          DistributedSparseGridIO::readOneFileAndReduce(*dsgToUse, filename, maxMiBToReadPerThread);
     }
     if (this->getExtraUniDSGVector().size() > 0 && uniDsg->isSubspaceDataCreated()) {
       // copy partial data from extraDSG back to uniDSG
@@ -648,9 +655,10 @@ inline int SparseGridWorker::readReduce(const std::vector<std::string>& filename
         }
         overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
         if (overwrite) {
-          numRead += this->readDSGsFromDisk(filePartNameToRead);
+          numRead += this->readDSGsFromDisk(filePartNameToRead, false);
         } else {
-          numRead += this->readDSGsFromDiskAndReduce(filePartNameToRead, maxMiBToReadPerThread);
+          numRead +=
+              this->readDSGsFromDiskAndReduce(filePartNameToRead, maxMiBToReadPerThread, false);
         }
         assert(numRead > 0);
         overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");

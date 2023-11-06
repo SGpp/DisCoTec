@@ -1004,7 +1004,7 @@ int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix,
 
 int ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,
                                          bool alwaysReadFullDSG) {
-  return this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, alwaysReadFullDSG);
+  return this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, true, alwaysReadFullDSG);
 }
 
 } /* namespace combigrid */
