@@ -203,7 +203,7 @@ class SelalibTask : public combigrid::Task {
   /**
    * Returns the distributed full grid of the specified specie
    */
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int specie) { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t specie) { return *dfg_; }
 
   /**
    * @return double* the pointer to the distribution (in Fortran allocated memory)

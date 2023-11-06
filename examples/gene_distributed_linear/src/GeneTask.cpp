@@ -279,7 +279,7 @@ void GeneTask::getFullGrid( FullGrid<CombiDataType>& fg, RankType lroot,
 /**
  * This routine returns the local part of the fullgrid
  */
-DistributedFullGrid<complex>& GeneTask::getDistributedFullGrid(int specie){
+DistributedFullGrid<complex>& GeneTask::getDistributedFullGrid(size_t specie) override {
   return *dfgVector_[specie];
 }
 

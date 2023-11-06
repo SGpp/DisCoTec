@@ -85,7 +85,7 @@ class TaskCount : public combigrid::Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
 
   void setZero() override {
     BOOST_TEST_CHECKPOINT("TaskCount setZero");

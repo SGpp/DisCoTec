@@ -144,11 +144,12 @@ class TaskExample: public Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n) override {
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) override {
     return *dfg_;
   }
 
-  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n) const override{
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) const override{
+    assert(n == 0);
     return *dfg_;
   }
 

@@ -150,9 +150,9 @@ class TaskExample : public Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
 
-  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) const override { return *dfg_; }
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) const override { return *dfg_; }
 
   static real myfunction(std::vector<real>& coords, real t) {
     real u = std::cos(M_PI * t);

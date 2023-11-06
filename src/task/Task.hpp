@@ -90,9 +90,9 @@ class Task {
                            int n = 0) = 0;
 
   // This method returns the local part of the n-th distributedFullGrid
-  virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) = 0;
+  virtual DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) = 0;
 
-  virtual const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n) const;
+  virtual const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) const;
 
   virtual void setZero() = 0;
 

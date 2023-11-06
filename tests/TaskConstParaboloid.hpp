@@ -107,12 +107,12 @@ class TaskConstParaboloid : public combigrid::Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override {
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid getDFG");
     return *dfg_;
   }
 
-  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) const override {
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) const override {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid getDFG const");
     return *dfg_;
   }

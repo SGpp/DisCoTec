@@ -108,7 +108,7 @@ class GeneTask : public combigrid::Task {
   /**
    * Returns the distributed full grid of the specified specie
    */
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int specie);
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t specie);
 
   /*
    * Convert fg to GeneGrid and scatter over processes of pgroup. The fullgrid
