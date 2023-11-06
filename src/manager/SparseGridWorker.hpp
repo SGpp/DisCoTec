@@ -1,5 +1,7 @@
 #pragma once
 
+#include <thread>
+
 #include "combicom/CombiCom.hpp"
 #include "fullgrid/DistributedFullGrid.hpp"
 #include "hierarchization/DistributedHierarchization.hpp"
@@ -8,7 +10,6 @@
 #include "mpi/MPIUtils.hpp"
 #include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
-
 namespace combigrid {
 
 // template <typename CombiDataType, DimType NumDimensions>
@@ -53,7 +54,7 @@ class SparseGridWorker {
   inline const std::vector<std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>>&
   getExtraUniDSGVector() const;
 
-  inline int getNumberOfGrids() const;
+  inline size_t getNumberOfGrids() const;
 
   inline std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>&
   getSparseGridToUseForThirdLevel(bool thirdLevelExtraSparseGrid);
@@ -77,8 +78,9 @@ class SparseGridWorker {
                                        uint32_t maxMiBToReadPerThread,
                                        bool alwaysReadFullDSG = false);
 
-  inline int readReduce(const std::string& filenamePrefixToRead, uint32_t maxMiBToReadPerThread,
-                        bool overwrite);
+  inline int readReduce(const std::vector<std::string>& filenamePrefixesToRead,
+                        const std::vector<std::string>& startReadingTokenFileNames,
+                        uint32_t maxMiBToReadPerThread, bool overwrite);
 
   inline int reduceExtraSubspaceSizes(const std::vector<std::string>& filenamesToRead,
                                       CombinationVariant combinationVariant, bool overwrite);
@@ -89,6 +91,10 @@ class SparseGridWorker {
                                    RankType globalReduceRankThatCollects = MPI_PROC_NULL);
 
   inline void reduceSubspaceSizesBetweenGroups(CombinationVariant combinationVariant);
+
+  inline void removeReadingFiles(const std::vector<std::string>& filenamePrefixToRead,
+                                 const std::vector<std::string>& startReadingTokenFileName,
+                                 bool keepSparseGridFiles) const;
 
   inline void setExtraSparseGrid(bool initializeSizes = true);
 
@@ -101,6 +107,8 @@ class SparseGridWorker {
   inline int writeExtraSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
   inline void writeMinMaxCoefficients(const std::string& fileNamePrefix) const;
+
+  inline void writeTokenFiles(const std::string& writeCompleteTokenFileName) const;
 
   inline int writeSubspaceSizesToFile(const std::string& filenamePrefixToWrite) const;
 
@@ -126,7 +134,7 @@ class SparseGridWorker {
    * @param g the dimension index (in the case that there are multiple different full grids per
    * task)
    */
-  inline void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, int g,
+  inline void fillDFGFromDSGU(DistributedFullGrid<CombiDataType>& dfg, size_t g,
                               const std::vector<BoundaryType>& boundary,
                               const std::vector<bool>& hierarchizationDims,
                               const std::vector<BasisFunctionBasis*>& hierarchicalBases,
@@ -150,7 +158,7 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
   auto chunkSize =
       combigrid::CombiCom::getGlobalReduceChunkSize<CombiDataType>(maxMiBToSendPerThread);
 
-  for (int g = 0; g < numGrids; ++g) {
+  for (size_t g = 0; g < numGrids; ++g) {
     auto& dsg = this->getCombinedUniDSGVector()[g];
     if (!dsg->getSubspacesByCommunicator().empty()) {
       auto& chunkedSubspaces = combigrid::CombiCom::getChunkedSubspaces(
@@ -158,7 +166,7 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
       for (auto& subspaceChunk : chunkedSubspaces) {
         // allocate new subspace vector
         dsg->allocateDifferentSubspaces(std::move(subspaceChunk));
-        assert(dsg->getRawDataSize() <= chunkSize);
+        assert(dsg->getRawDataSize() <= static_cast<size_t>(chunkSize));
 #ifndef NDEBUG
         auto myRawDataSize = dsg->getRawDataSize();
         decltype(myRawDataSize) maxRawDataSize = 0;
@@ -174,8 +182,7 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
 
         // local reduce (fg -> sg, within rank)
         for (const auto& t : this->taskWorkerRef_.getTasks()) {
-          const DistributedFullGrid<CombiDataType>& dfg =
-              t->getDistributedFullGrid(static_cast<int>(g));
+          const DistributedFullGrid<CombiDataType>& dfg = t->getDistributedFullGrid(g);
           dsg->addDistributedFullGrid<false>(dfg, t->getCoefficient());
         }
         // global reduce (across process groups)
@@ -386,7 +393,7 @@ inline void SparseGridWorker::distributeCombinedSolutionToTasks() {
   // not better than the parallel loop within extractFromUniformSG
   // #pragma omp parallel for collapse(2) default(none) schedule(static)
   for (auto& taskToUpdate : this->taskWorkerRef_.getTasks()) {
-    for (int g = 0; g < this->getNumberOfGrids(); ++g) {
+    for (size_t g = 0; g < this->getNumberOfGrids(); ++g) {
       // fill dfg with hierarchical coefficients from distributed sparse grid
       taskToUpdate->getDistributedFullGrid(g).extractFromUniformSG(
           *this->getCombinedUniDSGVector()[g]);
@@ -395,7 +402,7 @@ inline void SparseGridWorker::distributeCombinedSolutionToTasks() {
 }
 
 inline void SparseGridWorker::fillDFGFromDSGU(
-    DistributedFullGrid<CombiDataType>& dfg, int g, const std::vector<BoundaryType>& boundary,
+    DistributedFullGrid<CombiDataType>& dfg, size_t g, const std::vector<BoundaryType>& boundary,
     const std::vector<bool>& hierarchizationDims,
     const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin) const {
   // fill dfg with hierarchical coefficients from distributed sparse grid
@@ -416,7 +423,7 @@ inline void SparseGridWorker::fillDFGFromDSGU(
 inline void SparseGridWorker::fillDFGFromDSGU(
     Task& t, const std::vector<bool>& hierarchizationDims,
     const std::vector<BasisFunctionBasis*>& hierarchicalBases, const LevelVector& lmin) const {
-  for (int g = 0; g < this->getNumberOfGrids(); g++) {
+  for (size_t g = 0; g < this->getNumberOfGrids(); g++) {
     assert(this->getCombinedUniDSGVector()[g] != nullptr);
     this->fillDFGFromDSGU(t.getDistributedFullGrid(g), g, t.getBoundary(), hierarchizationDims,
                           hierarchicalBases, lmin);
@@ -443,7 +450,9 @@ SparseGridWorker::getExtraUniDSGVector() const {
   return extraUniDSGVector_;
 }
 
-inline int SparseGridWorker::getNumberOfGrids() const { return this->combinedUniDSGVector_.size(); }
+inline size_t SparseGridWorker::getNumberOfGrids() const {
+  return this->combinedUniDSGVector_.size();
+}
 
 inline std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>&
 SparseGridWorker::getSparseGridToUseForThirdLevel(bool thirdLevelExtraSparseGrid) {
@@ -525,7 +534,7 @@ inline void SparseGridWorker::interpolateAndPlotOnLevel(
   OwningDistributedFullGrid<CombiDataType> dfg(static_cast<DimType>(levelToEvaluate.size()),
                                                levelToEvaluate, theMPISystem()->getLocalComm(),
                                                boundary, parallelization, false, decomposition);
-  for (IndexType g = 0; g < this->getNumberOfGrids(); ++g) {  // loop over all grids and plot them
+  for (size_t g = 0; g < this->getNumberOfGrids(); ++g) {  // loop over all grids and plot them
     this->fillDFGFromDSGU(dfg, g, boundary, hierarchizationDims, hierarchicalBases, lmin);
     // save dfg to file with MPI-IO
     if (endsWith(filename, ".vtk")) {
@@ -568,11 +577,12 @@ inline int SparseGridWorker::readDSGsFromDisk(const std::string& filenamePrefix,
     auto dsgToUse = uniDsg;
     if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
-      numRead += DistributedSparseGridIO::readSomeFiles(*dsgToUse,
-                                                        filenamePrefix + "_" + std::to_string(i));
-    } else {
       numRead +=
-          DistributedSparseGridIO::readOneFile(*dsgToUse, filenamePrefix + "_" + std::to_string(i));
+          DistributedSparseGridIO::readSomeFiles(*dsgToUse,
+                                                 filenamePrefix);  //+ "_" + std::to_string(i)
+    } else {
+      numRead += DistributedSparseGridIO::readOneFile(*dsgToUse,
+                                                      filenamePrefix);  //+ "_" + std::to_string(i))
     }
     if (this->getExtraUniDSGVector().size() > 0 && uniDsg->isSubspaceDataCreated()) {
       // copy partial data from extraDSG back to uniDSG
@@ -592,10 +602,12 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
     if (this->getExtraUniDSGVector().size() > 0 && !alwaysReadFullDSG) {
       dsgToUse = this->getExtraUniDSGVector()[i].get();
       numReduced += DistributedSparseGridIO::readSomeFilesAndReduce(
-          *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), maxMiBToReadPerThread);
+          *dsgToUse, filenamePrefixToRead,
+          maxMiBToReadPerThread);  // + "_" + std::to_string(i), maxMiBToReadPerThread);
     } else {
       numReduced += DistributedSparseGridIO::readOneFileAndReduce(
-          *dsgToUse, filenamePrefixToRead + "_" + std::to_string(i), maxMiBToReadPerThread);
+          *dsgToUse, filenamePrefixToRead,
+          maxMiBToReadPerThread);  // + "_" + std::to_string(i), maxMiBToReadPerThread);
     }
     if (this->getExtraUniDSGVector().size() > 0 && uniDsg->isSubspaceDataCreated()) {
       // copy partial data from extraDSG back to uniDSG
@@ -605,13 +617,49 @@ inline int SparseGridWorker::readDSGsFromDiskAndReduce(const std::string& filena
   return numReduced;
 }
 
-inline int SparseGridWorker::readReduce(const std::string& filenamePrefixToRead,
+inline int SparseGridWorker::readReduce(const std::vector<std::string>& filenamePrefixesToRead,
+                                        const std::vector<std::string>& startReadingTokenFileNames,
                                         uint32_t maxMiBToReadPerThread, bool overwrite) {
   int numRead = 0;
-  if (overwrite) {
-    numRead = this->readDSGsFromDisk(filenamePrefixToRead);
-  } else {
-    numRead = this->readDSGsFromDiskAndReduce(filenamePrefixToRead, maxMiBToReadPerThread);
+  assert(this->getNumberOfGrids() == 1);  // for more species, todo loop
+
+  // wait until we can start to read any of the files
+  std::set<size_t> indicesStillToReadReduce;
+  for (size_t i = 0; i < filenamePrefixesToRead.size(); ++i) {
+    indicesStillToReadReduce.insert(i);
+  }
+  auto filePart = theMPISystem()->getFilePartNumber();
+  while (!indicesStillToReadReduce.empty()) {
+    std::string filePartTokenToRead;
+    std::string filePartNameToRead;
+    for (auto it = indicesStillToReadReduce.begin(); it != indicesStillToReadReduce.end(); ++it) {
+      if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
+        filePartTokenToRead = startReadingTokenFileNames[*it] + ".part" + std::to_string(filePart);
+      } else {
+        filePartTokenToRead = startReadingTokenFileNames[*it];
+      }
+      if (combigrid::getFileExistsRootOnly(filePartTokenToRead, theMPISystem()->getOutputComm(),
+                                           theMPISystem()->getOutputGroupRank())) {
+        if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
+          filePartNameToRead =
+              filenamePrefixesToRead[*it] + "_0" + ".part" + std::to_string(filePart);
+        } else {
+          filePartNameToRead = filenamePrefixesToRead[*it] + "_0";
+        }
+        overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
+        if (overwrite) {
+          numRead += this->readDSGsFromDisk(filePartNameToRead);
+        } else {
+          numRead += this->readDSGsFromDiskAndReduce(filePartNameToRead, maxMiBToReadPerThread);
+        }
+        assert(numRead > 0);
+        overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
+        indicesStillToReadReduce.erase(it);
+        break;  // because iterators may be invalidated
+      }
+    }
+    // wait for 200ms
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
   if (this->getNumberOfGrids() != 1) {
     throw std::runtime_error("Combining more than one DSG is not implemented yet");
@@ -756,6 +804,34 @@ inline void SparseGridWorker::reduceSubspaceSizesBetweenGroups(
   }
 }
 
+void SparseGridWorker::removeReadingFiles(
+    const std::vector<std::string>& filenamePrefixesToRead,
+    const std::vector<std::string>& startReadingTokenFileNames, bool keepSparseGridFiles) const {
+  assert(filenamePrefixesToRead.size() == startReadingTokenFileNames.size());
+  OUTPUT_ROOT_EXCLUSIVE_SECTION {
+    for (size_t i = 0; i < filenamePrefixesToRead.size(); ++i) {
+      auto filePart = theMPISystem()->getFilePartNumber();
+      // remove reading token
+      auto partTokenString = startReadingTokenFileNames[i];
+      if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
+        partTokenString += ".part" + std::to_string(filePart);
+      }
+      std::filesystem::remove(partTokenString);
+      // remove sparse grid file(s)
+      if (!keepSparseGridFiles) {
+        std::filesystem::remove(filenamePrefixesToRead[i] + "_" + std::to_string(0));
+        for (const auto& entry : std::filesystem::directory_iterator(".")) {
+          if (entry.path().string().find(filenamePrefixesToRead[i] + "_" + std::to_string(0) +
+                                         ".part" + std::to_string(filePart)) != std::string::npos) {
+            assert(entry.is_regular_file());
+            std::filesystem::remove(entry.path());
+          }
+        }
+      }
+    }
+  }
+}
+
 inline void SparseGridWorker::setExtraSparseGrid(bool initializeSizes) {
   if (this->getNumberOfGrids() != 1) {
     throw std::runtime_error("this->getCombinedUniDSGVector() is empty");
@@ -778,7 +854,8 @@ inline void SparseGridWorker::setExtraSparseGrid(bool initializeSizes) {
     // create Kahan buffer now (at zero size), because summation is not needed on this sparse grid
     extraUniDSG->createKahanBuffer();
     if (initializeSizes) {
-      for (size_t i = 0; i < extraUniDSG->getNumSubspaces(); ++i) {
+      for (typename AnyDistributedSparseGrid::SubspaceIndexType i = 0;
+           i < extraUniDSG->getNumSubspaces(); ++i) {
         extraUniDSG->setDataSize(i, this->getCombinedUniDSGVector()[0]->getDataSize(i));
       }
     }
@@ -813,6 +890,7 @@ inline int SparseGridWorker::writeDSGsToDisk(const std::string& filenamePrefix,
     auto uniDsg = this->getCombinedUniDSGVector()[i].get();
     auto dsgToUse = uniDsg;
     if (this->getExtraUniDSGVector().size() > 0) {
+      assert(theMPISystem()->getOutputComm() != MPI_COMM_NULL);
       dsgToUse = this->getExtraUniDSGVector()[i].get();
       if (combinationVariant == CombinationVariant::sparseGridReduce ||
           combinationVariant == CombinationVariant::outgroupSparseGridReduce) {
@@ -841,6 +919,18 @@ inline void SparseGridWorker::writeMinMaxCoefficients(const std::string& fileNam
     DistributedSparseGridIO::writeMinMaxCoefficents(
         *(this->getCombinedUniDSGVector()[i]), fileNamePrefix, i, theMPISystem()->getLocalComm(),
         theMPISystem()->getGlobalReduceComm());
+  }
+}
+
+inline void SparseGridWorker::writeTokenFiles(const std::string& writeCompleteTokenFileName) const {
+  OUTPUT_ROOT_EXCLUSIVE_SECTION {
+    if (combigrid::theMPISystem()->getOutputComm() == MPI_COMM_NULL) {
+      // write single token
+      std::ofstream tokenFile(writeCompleteTokenFileName);
+    } else {
+      auto filePart = theMPISystem()->getFilePartNumber();
+      std::ofstream tokenFile(writeCompleteTokenFileName + ".part" + std::to_string(filePart));
+    }
   }
 }
 

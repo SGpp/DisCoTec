@@ -255,7 +255,7 @@ SignalType ProcessGroupWorker::wait() {
     case WRITE_DSGS_TO_DISK: {
       Stats::startEvent("write to disk");
       std::string filenamePrefix = receiveStringFromManagerAndBroadcastToGroup();
-      writeDSGsToDisk(filenamePrefix);
+      writeDSGsToDisk(filenamePrefix, "");
       Stats::stopEvent("write to disk");
     } break;
     case READ_DSGS_FROM_DISK: {
@@ -342,7 +342,7 @@ SignalType ProcessGroupWorker::wait() {
           interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
       // send result
       MASTER_EXCLUSIVE_SECTION {
-        MPI_Send(values.data(), values.size(),
+        MPI_Send(values.data(), static_cast<int>(values.size()),
                  abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                  theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
                  theMPISystem()->getGlobalComm());
@@ -776,36 +776,18 @@ void ProcessGroupWorker::combineThirdLevel() {
 
 int ProcessGroupWorker::combineThirdLevelFileBasedWrite(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName) {
-  assert(this->getSparseGridWorker().getNumberOfGrids() > 0);
-  assert(combiParametersSet_);
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    assert(this->getSparseGridWorker().getNumberOfGrids() > 0);
+    assert(combiParametersSet_);
 
-  // write sparse grid and corresponding token file
-  Stats::startEvent("write SG");
-  int numWritten = this->writeDSGsToDisk(filenamePrefixToWrite);
-  MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
-  Stats::stopEvent("write SG");
-  return numWritten;
-}
-
-void ProcessGroupWorker::removeReadingFiles(const std::string& filenamePrefixToRead, 
-		const std::string& startReadingTokenFileName, bool keepSparseGridFiles) const {
-  OUTPUT_GROUP_EXCLUSIVE_SECTION{
-    MASTER_EXCLUSIVE_SECTION {
-      // remove reading token
-      std::filesystem::remove(startReadingTokenFileName);
-      // remove sparse grid file(s)
-      if (!keepSparseGridFiles) {
-        std::filesystem::remove(filenamePrefixToRead + "_" + std::to_string(0));
-        for (const auto& entry : std::filesystem::directory_iterator(".")) {
-          if (entry.path().string().find(filenamePrefixToRead + "_" + std::to_string(0) + ".part") !=
-                std::string::npos) {
-            assert(entry.is_regular_file());
-            std::filesystem::remove(entry.path());
-          }
-        }
-      }
-    }
-  } else {
+    // write sparse grid and corresponding token file
+    Stats::startEvent("write SG");
+    std::cout << "Writing sparse grid to " << filenamePrefixToWrite << std::endl;
+    int numWritten = this->writeDSGsToDisk(filenamePrefixToWrite, writeCompleteTokenFileName);
+    Stats::stopEvent("write SG");
+    return numWritten;
+  }
+  else {
     throw std::runtime_error("should only be called from output group");
   }
 }
@@ -829,17 +811,17 @@ void ProcessGroupWorker::waitForTokenFile(const std::string& startReadingTokenFi
 
 int ProcessGroupWorker::readReduce(const std::vector<std::string>& filenamePrefixesToRead,
                                    const std::vector<std::string>& startReadingTokenFileNames,
-                                   bool overwrite) {
+                                   bool overwriteInMemory) {
   return getSparseGridWorker().readReduce(filenamePrefixesToRead, startReadingTokenFileNames,
                                           this->combiParameters_.getChunkSizeInMebibybtePerThread(),
-                                          overwrite);
+                                          overwriteInMemory);
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     const std::vector<std::string>& filenamePrefixesToRead,
-    const std::vector<std::string>& startReadingTokenFileNames, bool overwrite,
+    const std::vector<std::string>& startReadingTokenFileNames, bool overwriteInMemory,
     bool keepSparseGridFiles) {
-  this->readReduce(filenamePrefixesToRead, startReadingTokenFileNames, overwrite);
+  this->readReduce(filenamePrefixesToRead, startReadingTokenFileNames, overwriteInMemory);
 
   MPI_Request request = MPI_REQUEST_NULL;
   if (this->combiParameters_.getCombinationVariant() ==
@@ -857,11 +839,10 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     // update fgs
     updateFullFromCombinedSparseGrids();
   }
-  for (size_t i = 0; i < filenamePrefixesToRead.size(); ++i) {
-    // remove reading token and sparse grid file(s)
-    this->removeReadingFiles(filenamePrefixesToRead[i], startReadingTokenFileNames[i],
-                             keepSparseGridFiles);
-  }
+
+  // remove reading token and sparse grid file(s)
+  this->getSparseGridWorker().removeReadingFiles(filenamePrefixesToRead, startReadingTokenFileNames,
+                                                 keepSparseGridFiles);
 
   [[maybe_unused]] auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
@@ -869,11 +850,11 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
 
 void ProcessGroupWorker::combineReadDistributeSystemWide(
     const std::vector<std::string>& filenamePrefixesToRead,
-    const std::vector<std::string>& startReadingTokenFileNames, bool overwrite,
+    const std::vector<std::string>& startReadingTokenFileNames, bool overwriteInMemory,
     bool keepSparseGridFiles) {
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     this->combineThirdLevelFileBasedReadReduce(filenamePrefixesToRead, startReadingTokenFileNames,
-                                               overwrite, keepSparseGridFiles);
+                                               overwriteInMemory, keepSparseGridFiles);
   }
   else {
     if (combiParameters_.getCombinationVariant() == chunkedOutgroupSparseGridReduce) {
@@ -1013,9 +994,12 @@ void ProcessGroupWorker::zeroDsgsData() {
   this->getSparseGridWorker().zeroDsgsData(combiParameters_.getCombinationVariant());
 }
 
-int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix) {
-  return this->getSparseGridWorker().writeDSGsToDisk(
+int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix,
+                                        const std::string& writeCompleteTokenFileName) {
+  auto numWritten = this->getSparseGridWorker().writeDSGsToDisk(
       filenamePrefix, this->getCombiParameters().getCombinationVariant());
+  this->getSparseGridWorker().writeTokenFiles(writeCompleteTokenFileName);
+  return numWritten;
 }
 
 int ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,

@@ -5,6 +5,7 @@
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
 #include <mpi.h>
+
 #include <memory>
 #include <ostream>
 #include <vector>
@@ -18,17 +19,28 @@
 #define FIRST_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getProcessGroupNumber() == 0)
 
 // output group does output (in no-manager case)
-#define OUTPUT_GROUP_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL)
+#define OUTPUT_GROUP_EXCLUSIVE_SECTION \
+  if (combigrid::theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL)
+
+// output root: either, the split Output comm is not set (then the master of output group),
+// or the zeroth rank of each split of the output group comm
+#define OUTPUT_ROOT_EXCLUSIVE_SECTION                                       \
+  if ((combigrid::theMPISystem()->getOutputGroupComm() != MPI_COMM_NULL) && \
+      ((combigrid::theMPISystem()->getOutputComm() == MPI_COMM_NULL &&      \
+        combigrid::theMPISystem()->getOutputGroupRank() == 0) ||            \
+       (combigrid::getCommRank(combigrid::theMPISystem()->getOutputComm()) == 0)))
 
 // last group does some other (potentially concurrent) output
-#define OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION \
-  if (combigrid::theMPISystem()->getProcessGroupNumber() == combigrid::theMPISystem()->getNumGroups() - 1)
+#define OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION                \
+  if (combigrid::theMPISystem()->getProcessGroupNumber() == \
+      combigrid::theMPISystem()->getNumGroups() - 1)
 
 // middle process can do command line output
-#define MIDDLE_PROCESS_EXCLUSIVE_SECTION           \
-  if (combigrid::theMPISystem()->getWorldRank() == \
-      static_cast<RankType>((combigrid::theMPISystem()->getNumGroups() * combigrid::theMPISystem()->getNumProcs()) / 2))
-
+#define MIDDLE_PROCESS_EXCLUSIVE_SECTION                                                           \
+  if (combigrid::theMPISystem()->getWorldRank() ==                                                 \
+      static_cast<RankType>(                                                                       \
+          (combigrid::theMPISystem()->getNumGroups() * combigrid::theMPISystem()->getNumProcs()) / \
+          2))
 
 #define GLOBAL_MANAGER_EXCLUSIVE_SECTION if (combigrid::theMPISystem()->isGlobalManager())
 
@@ -159,6 +171,8 @@ class MPISystem {
   inline const CommunicatorType& getOutputGroupComm() const;
 
   inline const CommunicatorType& getOutputComm() const;
+
+  inline RankType getFilePartNumber() const;
 
   inline const std::vector<CommunicatorType>& getThirdLevelComms() const;
 
@@ -312,7 +326,7 @@ class MPISystem {
   void storeLocalComm(CommunicatorType lcomm);
 
   /* let the output "group" be distributed across the actual process groups */
-  void initOuputGroupComm(uint16_t numFileParts = 1);
+  void initOutputGroupComm(uint16_t numFileParts = 1);
 
  private:
   explicit MPISystem();
@@ -494,6 +508,18 @@ class MPISystem {
   std::vector<RankType> reusableRanks_;
 };
 
+static inline int getCommSize(const CommunicatorType& comm) {
+  int commSize;
+  MPI_Comm_size(comm, &commSize);
+  return commSize;
+}
+
+static inline int getCommRank(const CommunicatorType& comm) {
+  int commRank;
+  MPI_Comm_rank(comm, &commRank);
+  return commRank;
+}
+
 /*!\name MPI communication system setup functions */
 //@{
 inline MPISystemID theMPISystem();
@@ -548,19 +574,31 @@ inline const CommunicatorType& MPISystem::getGlobalReduceComm() const {
   return globalReduceComm_;
 }
 
-inline const CommunicatorType& MPISystem::getOutputGroupComm() const {
-  return outputGroupComm_;
-}
+inline const CommunicatorType& MPISystem::getOutputGroupComm() const { return outputGroupComm_; }
 
 inline const CommunicatorType& MPISystem::getOutputComm() const {
-  OUTPUT_GROUP_EXCLUSIVE_SECTION {
-    return outputComm_;
-  } else {
+  OUTPUT_GROUP_EXCLUSIVE_SECTION { return outputComm_; }
+  else {
     throw std::runtime_error("Called from outside output group!");
   }
 }
 
-inline const std::vector<CommunicatorType>& MPISystem::getThirdLevelComms() const{
+inline RankType MPISystem::getFilePartNumber() const {
+  int filePart = -1;
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
+      auto comm = theMPISystem()->getOutputComm();
+      auto outputGroupSize = combigrid::getCommSize(comm);
+      filePart = theMPISystem()->getOutputGroupRank() / outputGroupSize;
+    }
+  }
+  else {
+    throw std::runtime_error("Called from outside output group!");
+  }
+  return filePart;
+}
+
+inline const std::vector<CommunicatorType>& MPISystem::getThirdLevelComms() const {
   checkPreconditions();
 
   return thirdLevelComms_;
@@ -676,17 +714,6 @@ inline size_t MPISystem::getNumProcs() const {
 
 inline bool MPISystem::isInitialized() const { return initialized_; }
 
-static inline int getCommSize(const CommunicatorType& comm) {
-  int commSize;
-  MPI_Comm_size(comm, &commSize);
-  return commSize;
-}
-
-static inline int getCommRank(const CommunicatorType& comm) {
-  int commRank;
-  MPI_Comm_rank(comm, &commRank);
-  return commRank;
-}
 
 inline RankType MPISystem::getWorldSize() const {
   int worldSize = getCommSize(getWorldComm());

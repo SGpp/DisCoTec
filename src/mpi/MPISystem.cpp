@@ -139,7 +139,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs, bool withWorldManager) {
 
     initGlobalReduceCommm();
 
-    initOuputGroupComm();
+    initOutputGroupComm();
 
     if (withWorldManager) {
       /*
@@ -183,7 +183,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm, bool 
 
   initGlobalReduceCommm();
 
-  initOuputGroupComm();
+  initOutputGroupComm();
 
   if (withWorldManager) {
     initThirdLevelComms();
@@ -212,7 +212,7 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
 
     initGlobalReduceCommm();
 
-    initOuputGroupComm();
+    initOutputGroupComm();
 
     /* create global communicator which contains only the manager and the master
      * process of each process group
@@ -447,7 +447,7 @@ std::vector<int>& getDiagonalRanks(size_t nprocs, size_t ngroup) {
   return ranks;
 }
 
-void MPISystem::initOuputGroupComm(uint16_t numFileParts) {
+void MPISystem::initOutputGroupComm(uint16_t numFileParts) {
   assert(numFileParts > 0);
   if (outputComm_ != MPI_COMM_NULL && outputComm_ != outputGroupComm_) {
     MPI_Comm_free(&outputComm_);
@@ -881,7 +881,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   deleteCommFTAndCcomm(&globalReduceCommFT_, &globalReduceComm_);
   initGlobalReduceCommm();
 
-  initOuputGroupComm();
+  initOutputGroupComm();
 
   // toDo return fixed process group IDs
   std::cout << "returning \n";

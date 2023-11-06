@@ -70,7 +70,7 @@ int main(int argc, char** argv) {
     bool evalMCError = cfg.get<bool>("application.mcerror", false);
     uint16_t numberOfFileParts = cfg.get<uint16_t>("io.numberParts", 1);
 
-    theMPISystem()->initOuputGroupComm(numberOfFileParts);
+    theMPISystem()->initOutputGroupComm(numberOfFileParts);
 
     // read in third level parameters if available
     std::string thirdLevelHost, thirdLevelSSHCommand = "";

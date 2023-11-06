@@ -173,11 +173,8 @@ int writeSomeFiles(const SparseGridType& dsg, const std::string& fileName,
 }
 
 template <typename SparseGridType>
-int readSomeFiles(SparseGridType& dsg, const std::string& fileName) {
+int readSomeFiles(SparseGridType& dsg, const std::string& filePartName) {
   auto comm = theMPISystem()->getOutputComm();
-  auto outputGroupSize = getCommSize(comm);
-  auto filePart = theMPISystem()->getOutputGroupRank() / outputGroupSize;
-  std::string filePartName = fileName + ".part" + std::to_string(filePart);
 
   // get offset in file
   MPI_Offset len = dsg.getRawDataSize();
@@ -193,12 +190,9 @@ int readSomeFiles(SparseGridType& dsg, const std::string& fileName) {
 }
 
 template <typename SparseGridType>
-int readSomeFilesAndReduce(SparseGridType& dsg, const std::string& fileName,
+int readSomeFilesAndReduce(SparseGridType& dsg, const std::string& filePartName,
                            uint32_t maxMiBToReadPerThread) {
   auto comm = theMPISystem()->getOutputComm();
-  auto outputGroupSize = getCommSize(comm);
-  auto filePart = theMPISystem()->getOutputGroupRank() / outputGroupSize;
-  std::string filePartName = fileName + ".part" + std::to_string(filePart);
 
   const MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
