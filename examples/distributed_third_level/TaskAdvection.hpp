@@ -157,7 +157,7 @@ class TaskAdvection : public Task {
         }
         // iterate the lowest layer and update the values, compensating for the wrong update
         // before
-        assert(numLocalElements / dfg_->getLocalSizes()[d] == phi_ghost.size());
+        assert(static_cast<size_t>(numLocalElements) / dfg_->getLocalSizes()[d] == phi_ghost.size());
         const auto& stride = fullOffsetsInThisDimension;
         const IndexType jump = stride * dfg_->getLocalSizes()[d];
         const IndexType numberOfPolesHigherDimensions = numLocalElements / jump;

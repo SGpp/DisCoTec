@@ -104,7 +104,7 @@ class TaskAdvection : public Task {
       // swap at the end of each time step
       auto& u_dot_dphi = *phi_;
       auto const ElementVector = dfg_->getData();
-      for (unsigned int d = 0; d < this->getDim(); ++d) {
+      for (DimType d = 0; d < this->getDim(); ++d) {
         static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);

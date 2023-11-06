@@ -50,14 +50,14 @@ void FGAllreduce(FullGrid<FG_ELEMENT>& fg, MPI_Comm comm) {
 }
 
 template <typename SparseGridType>
-int sumAndCheckSubspaceSizes(const SparseGridType& dsg,
-                             const std::vector<SubspaceSizeType>& subspaceSizes) {
-  int bsize = 0;
+size_t sumAndCheckSubspaceSizes(const SparseGridType& dsg,
+                                const std::vector<SubspaceSizeType>& subspaceSizes) {
+  size_t bsize = 0;
   for (size_t i = 0; i < subspaceSizes.size(); ++i) {
     // check for implementation errors, the reduced subspace size should not be
     // different from the size of already initialized subspaces
     bool check = (subspaceSizes[i] == 0 || dsg.getDataSize(i) == 0 ||
-                  subspaceSizes[i] == int(dsg.getDataSize(i)));
+                  subspaceSizes[i] == dsg.getDataSize(i));
 
     if (!check) {
       int rank;
@@ -254,7 +254,7 @@ getReductionDatatypes(const DistributedSparseGridUniform<FG_ELEMENT>& dsg,
       arrayOfDisplacements.reserve(subspacesChunk.size());
       for (const auto& ss : subspacesChunk) {
         arrayOfBlocklengths.push_back(dsg.getDataSize(ss));
-        arrayOfDisplacements.push_back(dsg.getData(ss) - rawDataStartFirst);
+        arrayOfDisplacements.push_back(static_cast<int>(dsg.getData(ss) - rawDataStartFirst));
       }
 
       MPI_Datatype myIndexedDatatype;
@@ -534,7 +534,7 @@ void receiveSubspaceSizesWithScatter(SparseGridType& dsg, CommunicatorType comm,
                                      RankType collectorRank) {
   auto numSubspaces = static_cast<int>(dsg.getNumSubspaces());
   assert(numSubspaces > 0);
-  assert(numSubspaces == dsg.getSubspaceDataSizes().size());
+  assert(static_cast<size_t>(numSubspaces) == dsg.getSubspaceDataSizes().size());
   MPI_Datatype dtype = getMPIDatatype(abstraction::getabstractionDataType<SubspaceSizeType>());
 
   // receive updated sizes from manager

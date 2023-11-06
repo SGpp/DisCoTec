@@ -225,7 +225,7 @@ class SelalibTask : public combigrid::Task {
    */
   real getCurrentTime() const override { return currentNumTimeStepsRun_ * dt_; }
 
-  void setCurrentNumTimeStepsRun(IndexType currentNumTimeStepsRun) {
+  void setCurrentNumTimeStepsRun(size_t currentNumTimeStepsRun) {
     currentNumTimeStepsRun_ = currentNumTimeStepsRun;
   }
 
@@ -237,7 +237,8 @@ class SelalibTask : public combigrid::Task {
     changeDir(dfg_->getCommunicator(), false);
     // set selalib distribution from dfg
     assert(diagnosticsInitialized_);
-    int32_t* iPtr = &currentNumTimeStepsRun_;
+    int32_t currentNumTimeStepsAsInt = static_cast<int32>(currentNumTimeStepsRun_);
+    int32_t* iPtr = &currentNumTimeStepsAsInt;
     sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics(simPtrPtr_, iPtr);
     changeDir(dfg_->getCommunicator(), true);
   }
@@ -266,7 +267,7 @@ class SelalibTask : public combigrid::Task {
   /*
    * simulation time specific parameters
    */
-  int32_t currentNumTimeStepsRun_;  // current number of time steps already run in the simulation
+  size_t currentNumTimeStepsRun_;  // current number of time steps already run in the simulation
   real dt_;
 
   /**number of time-steps in between two combinations

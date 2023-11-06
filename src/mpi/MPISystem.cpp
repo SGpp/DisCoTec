@@ -339,7 +339,7 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
     assert(r >= 0);
     assert(r < worldSize);
   }
-  assert(ranks.size() <= worldSize);
+  assert(ranks.size() <= static_cast<size_t>(worldSize));
 #endif
 
   MPI_Group globalGroup;

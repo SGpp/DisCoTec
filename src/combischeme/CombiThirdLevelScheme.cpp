@@ -56,7 +56,7 @@ void CombiThirdLevelScheme::decomposeScheme(const std::vector<LevelVector>& full
   }
 
   // assert that all are assigned
-  assert(std::accumulate(decomposedScheme.begin(), decomposedScheme.end(), 0,
+  assert(std::accumulate(decomposedScheme.begin(), decomposedScheme.end(), static_cast<size_t>(0),
                          [](size_t a, const std::vector<LevelVector>& l) {
                            return a + l.size();
                          }) == fullScheme.size());

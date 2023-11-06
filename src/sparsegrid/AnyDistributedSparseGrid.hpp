@@ -40,6 +40,7 @@ class AnyDistributedSparseGrid {
 
   // data size of the subspace at index i
   SubspaceSizeType getDataSize(SubspaceIndexType i) const;
+  SubspaceSizeType getDataSize(size_t i) const;
 
   std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>& getIngroupSubspaces() const;
 

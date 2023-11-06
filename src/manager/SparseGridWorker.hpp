@@ -27,9 +27,9 @@ class SparseGridWorker {
                                       uint32_t maxMiBToSendPerThread,
                                       bool collectMinMaxCoefficients = false);
 
-  inline void copyFromExtraDsgToPartialDSG(int gridNumber = 0);
+  inline void copyFromExtraDsgToPartialDSG(size_t gridNumber = 0);
 
-  inline void copyFromPartialDsgToExtraDSG(int gridNumber = 0);
+  inline void copyFromPartialDsgToExtraDSG(size_t gridNumber = 0);
 
   /* free DSG memory as intermediate step */
   inline void deleteDsgsData();
@@ -60,7 +60,7 @@ class SparseGridWorker {
   getSparseGridToUseForThirdLevel(bool thirdLevelExtraSparseGrid);
 
   inline void initCombinedUniDSGVector(const LevelVector& lmin, LevelVector lmax,
-                                       const LevelVector& reduceLmaxByVector, int numGrids,
+                                       const LevelVector& reduceLmaxByVector, size_t numGrids,
                                        CombinationVariant combinationVariant,
                                        bool clearLevels = false);
 
@@ -234,7 +234,7 @@ inline void SparseGridWorker::collectReduceDistribute(CombinationVariant combina
   }
 }
 
-inline void SparseGridWorker::copyFromPartialDsgToExtraDSG(int gridNumber) {
+inline void SparseGridWorker::copyFromPartialDsgToExtraDSG(size_t gridNumber) {
   assert(gridNumber == 0);
   assert(this->getCombinedUniDSGVector().size() == 1);
   assert(this->getExtraUniDSGVector().size() == 1);
@@ -256,7 +256,7 @@ inline void SparseGridWorker::copyFromPartialDsgToExtraDSG(int gridNumber) {
   extraDSG->copyDataFrom(*dsg, subspacesToCopy);
 }
 
-inline void SparseGridWorker::copyFromExtraDsgToPartialDSG(int gridNumber) {
+inline void SparseGridWorker::copyFromExtraDsgToPartialDSG(size_t gridNumber) {
   assert(gridNumber == 0);
   assert(this->getCombinedUniDSGVector().size() == 1);
   assert(this->getExtraUniDSGVector().size() == 1);
@@ -475,7 +475,7 @@ SparseGridWorker::getSparseGridToUseForThirdLevel(bool thirdLevelExtraSparseGrid
  */
 inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, LevelVector lmax,
                                                        const LevelVector& reduceLmaxByVector,
-                                                       int numGrids,
+                                                       size_t numGrids,
                                                        CombinationVariant combinationVariant,
                                                        bool clearLevels) {
   if (this->taskWorkerRef_.getTasks().size() == 0) {
@@ -490,7 +490,7 @@ inline void SparseGridWorker::initCombinedUniDSGVector(const LevelVector& lmin, 
 
   // get all subspaces in the (optimized) combischeme, create dsgs
   combinedUniDSGVector_.reserve(static_cast<size_t>(numGrids));
-  for (int g = 0; g < numGrids; ++g) {
+  for (size_t g = 0; g < numGrids; ++g) {
     combinedUniDSGVector_.emplace_back(std::unique_ptr<DistributedSparseGridUniform<CombiDataType>>(
         new DistributedSparseGridUniform<CombiDataType>(static_cast<DimType>(lmax.size()), lmax,
                                                         lmin, theMPISystem()->getLocalComm())));
@@ -758,14 +758,14 @@ inline void SparseGridWorker::reduceLocalAndGlobal(CombinationVariant combinatio
   this->zeroDsgsData(combinationVariant);
   // local reduce (within rank)
   for (const auto& t : this->taskWorkerRef_.getTasks()) {
-    for (int g = 0; g < numGrids; ++g) {
+    for (size_t g = 0; g < numGrids; ++g) {
       const DistributedFullGrid<CombiDataType>& dfg =
           t->getDistributedFullGrid(static_cast<int>(g));
       this->getCombinedUniDSGVector()[g]->addDistributedFullGrid(dfg, t->getCoefficient());
     }
   }
   // global reduce (across process groups)
-  for (int g = 0; g < numGrids; ++g) {
+  for (size_t g = 0; g < numGrids; ++g) {
     if (combinationVariant == CombinationVariant::sparseGridReduce) {
       CombiCom::distributedGlobalSparseGridReduce(
           *this->getCombinedUniDSGVector()[g], maxMiBToSendPerThread, globalReduceRankThatCollects);

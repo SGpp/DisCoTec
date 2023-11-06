@@ -53,7 +53,7 @@ class DistributedSparseGridDataContainer {
     SubspaceSizeType offset = 0;
     for (size_t i = 0; i < subspaces_.size(); i++) {
       subspaces_[i] = subspacesData_.data() + offset;
-      if (subspacesWithData_.find(i) != subspacesWithData_.end()) {
+      if (subspacesWithData_.find(static_cast<SubspaceIndexType>(i)) != subspacesWithData_.end()) {
         offset += dsgu_.getSubspaceDataSizes()[i];
       }
     }
@@ -84,7 +84,7 @@ class DistributedSparseGridDataContainer {
     SubspaceSizeType offset = 0;
     for (size_t i = 0; i < kahanDataBegin_.size(); i++) {
       kahanDataBegin_[i] = kahanData_.data() + offset;
-      if (subspacesWithData_.find(i) != subspacesWithData_.end()) {
+      if (subspacesWithData_.find(static_cast<SubspaceIndexType>(i)) != subspacesWithData_.end()) {
         offset += dsgu_.getSubspaceDataSizes()[i];
       }
     }
@@ -213,6 +213,7 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
   // return level vector of subspace i
   inline const LevelVector& getLevelVector(SubspaceIndexType i) const;
+  inline const LevelVector& getLevelVector(size_t i) const;
 
   inline SubspaceIndexType getIndexInRange(const LevelVector& l, IndexType lowerBound) const;
 
@@ -443,6 +444,11 @@ inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVect
 }
 
 template <typename FG_ELEMENT>
+inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVector(size_t i) const {
+  return this->getLevelVector(static_cast<SubspaceIndexType>(i));
+}
+
+template <typename FG_ELEMENT>
 typename DistributedSparseGridUniform<FG_ELEMENT>::SubspaceIndexType
 DistributedSparseGridUniform<FG_ELEMENT>::getIndexInRange(const LevelVector& l,
                                                           IndexType lowerBound) const {
@@ -473,7 +479,7 @@ template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(SubspaceIndexType i) {
 #ifndef NDEBUG
   assert(isSubspaceDataCreated());
-  assert(i < this->subspacesDataContainer_.subspaces_.size());
+  assert(static_cast<size_t>(i) < this->subspacesDataContainer_.subspaces_.size());
   assert(this->subspacesDataContainer_.subspaces_[i] <=
          &(*(this->subspacesDataContainer_.subspacesData_.end())));
   // if (this->subspacesDataContainer_.subspaces_[i] ==
@@ -489,7 +495,7 @@ inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
     SubspaceIndexType i) const {
 #ifndef NDEBUG
   assert(isSubspaceDataCreated());
-  assert(i < this->subspacesDataContainer_.subspaces_.size());
+  assert(static_cast<size_t>(i) < this->subspacesDataContainer_.subspaces_.size());
   assert(this->subspacesDataContainer_.subspaces_[i] <=
          &(*(this->subspacesDataContainer_.subspacesData_.end())));
   if (this->subspacesDataContainer_.subspaces_[i] ==
@@ -617,7 +623,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::accumulateMinMaxCoefficients() {
                   this->getCurrentlyAllocatedSubspaces().cend());
 #pragma omp parallel for default(none) schedule(guided) \
     shared(currentlyAllocatedSubspaceIndices, smaller_real)
-  for (SubspaceIndexType iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size();
+  for (size_t iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size();
        ++iAllocated) {
     SubspaceIndexType i = currentlyAllocatedSubspaceIndices[iAllocated];
     if (this->getSubspaceDataSizes()[i] > 0) {

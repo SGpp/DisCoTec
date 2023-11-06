@@ -613,7 +613,7 @@ void testCombineThirdLevelWithoutManagers(
 
     for (size_t i = 0; i < systemLevels.size(); ++i) {
       // assign round-robin to process groups
-      if (i % theMPISystem()->getNumGroups() == theMPISystem()->getProcessGroupNumber()) {
+      if (static_cast<RankType>(i % theMPISystem()->getNumGroups()) == theMPISystem()->getProcessGroupNumber()) {
         // find index in full list
         auto position = std::find(systemLevels.begin(), systemLevels.end(), systemLevels[i]);
         BOOST_REQUIRE(position != systemLevels.end());

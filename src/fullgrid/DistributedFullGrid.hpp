@@ -1149,7 +1149,7 @@ std::vector<IndexType> DistributedFullGrid<FG_ELEMENT>::getFGPointsOfSubspace(
       return subspaceIndices;
     }
     get1dIndicesLocal(d, l[d], oneDIndices[d]);
-    numPointsOfSubspace *= oneDIndices[d].size();
+    numPointsOfSubspace *= static_cast<decltype(numPointsOfSubspace)>(oneDIndices[d].size());
   }
   if (numPointsOfSubspace > 0) {
     subspaceIndices.reserve(numPointsOfSubspace);

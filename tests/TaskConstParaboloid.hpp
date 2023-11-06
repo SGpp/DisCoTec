@@ -118,7 +118,7 @@ class TaskConstParaboloid : public combigrid::Task {
   }
 
   real getCurrentTime() const override {
-    return nsteps_;
+    return static_cast<real>(nsteps_);
   }
 
   void setZero() override { BOOST_CHECK(true); }

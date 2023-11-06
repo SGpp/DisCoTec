@@ -17,7 +17,7 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<size_t>& taskIDs,
-                  IndexType numberOfCombinations, IndexType numGrids = 1,
+                  size_t numberOfCombinations, IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   const std::vector<int>& parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
@@ -56,7 +56,7 @@ class CombiParameters {
   // constructor variant w/o combination scheme specified -- the workers have their partial list
   // imlpicitly as tasks vector
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
-                  std::vector<BoundaryType>& boundary, IndexType numberOfCombinations,
+                  std::vector<BoundaryType>& boundary, size_t numberOfCombinations,
                   IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   const std::vector<int>& parallelization = {0},
@@ -95,7 +95,7 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   const std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<bool>& hierarchizationDims,
-                  std::vector<size_t>& taskIDs, IndexType numberOfCombinations,
+                  std::vector<size_t>& taskIDs, size_t numberOfCombinations,
                   IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
@@ -213,11 +213,12 @@ class CombiParameters {
   inline DimType getDim() const { return dim_; }
 
   inline size_t getNumLevels() const { return levels_.size(); }
+
   /**
    * this method returns the number of grids a task contains
    * in case we have multiple grids in our simulation
    */
-  inline IndexType getNumGrids() const { return numGridsPerTask_; }
+  inline size_t getNumGrids() const { return numGridsPerTask_; }
 
   inline const std::vector<bool>& getHierarchizationDims() const { return hierarchizationDims_; }
 
@@ -264,7 +265,7 @@ class CombiParameters {
     return procs_;
   }
 
-  inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
+  inline const size_t& getNumberOfCombinations() const { return numberOfCombinations_; }
 
   inline CombinationVariant getCombinationVariant() const { return combinationVariant_; }
 
@@ -357,8 +358,8 @@ class CombiParameters {
   bool forwardDecomposition_;
 
   friend class boost::serialization::access;
-  IndexType numberOfCombinations_;  // total number of combinations
-  IndexType numGridsPerTask_;       // number of grids per task
+  size_t numberOfCombinations_;  // total number of combinations
+  size_t numGridsPerTask_;       // number of grids per task
 
   CombinationVariant combinationVariant_;
 

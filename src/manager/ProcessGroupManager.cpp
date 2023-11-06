@@ -200,9 +200,9 @@ bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& pa
   const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
   // exchange dsgus
-  IndexType numGrids = params.getNumGrids();
+  auto numGrids = params.getNumGrids();
   std::vector<CombiDataType> dsguData;
-  for (IndexType g = 0; g < numGrids; g++) {
+  for (size_t g = 0; g < numGrids; g++) {
     for (RankType p = 0; p < (RankType)theMPISystem()->getNumProcs(); p++) {
       // we assume here that all dsgus have the same size otherwise size collection must change
       size_t dsguSize = (size_t)(dsguDataSizePerWorker_[(size_t)p] / numGrids);
@@ -365,9 +365,9 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel, Combi
   const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
   // exchange dsgus
-  IndexType numGrids = params.getNumGrids();
+  auto numGrids = params.getNumGrids();
   std::vector<CombiDataType> dsguData;
-  for (IndexType g = 0; g < numGrids; g++) {
+  for (size_t g = 0; g < numGrids; g++) {
     for (RankType p = 0; p < (RankType)theMPISystem()->getNumProcs(); p++) {
       // we assume here that all dsgus have the same size otherwise size collection must change
       size_t dsguSize = (size_t)(dsguDataSizePerWorker_[(size_t)p] / numGrids);

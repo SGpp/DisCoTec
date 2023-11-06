@@ -39,6 +39,9 @@ namespace TestHelper{
       return MPI_COMM_NULL;
     }
   }
+  static inline MPI_Comm getComm(size_t nprocs) {
+    return getComm(static_cast<int>(nprocs));
+  }
 
   static inline MPI_Comm getCommSelfAsCartesian(combigrid::DimType dimensionality) {
     std::vector<int> dims(dimensionality, 1);

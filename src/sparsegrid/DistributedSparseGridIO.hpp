@@ -17,15 +17,15 @@ namespace DistributedSparseGridIO {
 template <typename T>
 void reduceVectorTowardsMe(std::vector<T>& vectorToReduce, MPI_Comm comm, MPI_Op operation) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
-  MPI_Reduce(MPI_IN_PLACE, vectorToReduce.data(), vectorToReduce.size(), dataType, operation, 0,
-             comm);
+  MPI_Reduce(MPI_IN_PLACE, vectorToReduce.data(), static_cast<int>(vectorToReduce.size()), dataType,
+             operation, 0, comm);
 }
 
 template <typename T>
 void reduceVectorTowardsThem(std::vector<T>& vectorToReduce, MPI_Comm comm, MPI_Op operation) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
-  MPI_Reduce(vectorToReduce.data(), MPI_IN_PLACE, vectorToReduce.size(), dataType, operation, 0,
-             comm);
+  MPI_Reduce(vectorToReduce.data(), MPI_IN_PLACE, static_cast<int>(vectorToReduce.size()), dataType,
+             operation, 0, comm);
 }
 
 template <typename SparseGridType>

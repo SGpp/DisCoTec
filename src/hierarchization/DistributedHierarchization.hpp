@@ -986,7 +986,8 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
     divresult = std::lldiv(nn, stride);
-    start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
+    start = static_cast<decltype(start)>(divresult.quot * jump +
+                                         divresult.rem);  // localer lin index start of pole
 
 #ifndef NDEBUG
     IndexVector localIndexVector(dfg.getDimension());
@@ -1068,7 +1069,8 @@ void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
   for (IndexType nn = 0; nn < nbrOfPoles;
        ++nn) {  // integer operations form bottleneck here -- nested loops are twice as slow
     divresult = std::lldiv(nn, stride);
-    start = divresult.quot * jump + divresult.rem;  // localer lin index start of pole
+    start = static_cast<decltype(start)>(divresult.quot * jump +
+                                         divresult.rem);  // localer lin index start of pole
 
 #ifndef NDEBUG
     IndexVector localIndexVector(dfg.getDimension());
