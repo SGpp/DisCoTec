@@ -105,7 +105,8 @@ class SelalibTask : public combigrid::Task {
       sim_bsl_vp_3d3v_cart_dd_slim_run(simPtrPtr_);
       Stats::stopEvent("BSL run");
 
-      int32_t* iPtr = &currentNumTimeStepsRun_;
+      int32_t currentNumTimeStepsAsInt = static_cast<int32_t>(currentNumTimeStepsRun_);
+      int32_t* iPtr = &currentNumTimeStepsAsInt;
       sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics(simPtrPtr_, iPtr);
       changeDir(lcomm, true);
     }
@@ -237,7 +238,7 @@ class SelalibTask : public combigrid::Task {
     changeDir(dfg_->getCommunicator(), false);
     // set selalib distribution from dfg
     assert(diagnosticsInitialized_);
-    int32_t currentNumTimeStepsAsInt = static_cast<int32>(currentNumTimeStepsRun_);
+    int32_t currentNumTimeStepsAsInt = static_cast<int32_t>(currentNumTimeStepsRun_);
     int32_t* iPtr = &currentNumTimeStepsAsInt;
     sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics(simPtrPtr_, iPtr);
     changeDir(dfg_->getCommunicator(), true);
