@@ -20,7 +20,7 @@ class TaskExample : public Task {
    */
   TaskExample(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
               LoadModel* loadModel, real dt, size_t nsteps,
-              std::vector<int> p = std::vector<int>(0),
+              const std::vector<int>& p = std::vector<int>(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
@@ -31,7 +31,7 @@ class TaskExample : public Task {
         dfg_(NULL) {}
 
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
@@ -108,8 +108,6 @@ class TaskExample : public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
 
-    int lrank = theMPISystem()->getLocalRank();
-
     auto elements = dfg_->getData();
     // TODO if your Example uses another data structure, you need to copy
     // the data from elements to that data structure
@@ -152,9 +150,9 @@ class TaskExample : public Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
 
-  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) const override { return *dfg_; }
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) const override { return *dfg_; }
 
   static real myfunction(std::vector<real>& coords, real t) {
     real u = std::cos(M_PI * t);
@@ -183,7 +181,7 @@ class TaskExample : public Task {
 
   // new variables that are set by manager. need to be added to serialize
   real dt_;
-  size_t nsteps_;
+  size_t nsteps_ = 0;
   std::vector<int> p_;
 
   // pure local variables that exist only on the worker processes

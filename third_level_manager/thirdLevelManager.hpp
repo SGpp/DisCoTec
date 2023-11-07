@@ -44,7 +44,7 @@ class ThirdLevelManager
 
     void runtimeLoop();
 
-    void writeStatistics(std::string filename = "");
+    void writeStatistics(const std::string& filename = "");
 };
 
 }

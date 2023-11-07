@@ -19,6 +19,7 @@
 #include "sparsegrid/DistributedSparseGridIO.hpp"
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "sparsegrid/SGrid.hpp"
+#include "utils/DecompositionUtils.hpp"
 #include "utils/IndexVector.hpp"
 #include "utils/LevelSetUtils.hpp"
 #include "utils/MonteCarlo.hpp"
@@ -185,7 +186,7 @@ void checkDistributedSparsegrid(LevelVector& lmin, LevelVector& lmax, std::vecto
       }
       auto reduceSuccess =
           DistributedSparseGridIO::readOneFileAndReduce(*uniDSGfromSubspaces, "test_sg_all", 1);
-      BOOST_CHECK_EQUAL(readSuccess, uniDSGfromSubspaces->getRawDataSize());
+      BOOST_CHECK_EQUAL(reduceSuccess, uniDSGfromSubspaces->getRawDataSize());
       if (readSuccess) {
         BOOST_TEST_CHECKPOINT("compare double values");
         for (size_t i = 0; i < uniDSG->getRawDataSize(); ++i) {
@@ -1037,9 +1038,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
           const auto& subspacesByComm = uniDSG->getSubspacesByCommunicator();
           std::set<typename AnyDistributedSparseGrid::SubspaceIndexType> checkedSubspaces{};
           for (const auto& subspaces : subspacesByComm) {
-            auto commSize = combigrid::getCommSize(subspaces.first);
             for (const auto& subspace : subspaces.second) {
-              auto subspaceStart = uniDSG->getData(subspace);
               for (SubspaceSizeType j = 0; j < uniDSG->getDataSize(subspace); ++j) {
                 // BOOST_CHECK_EQUAL(subspaceStart[j], ??);
               }
@@ -1082,9 +1081,7 @@ BOOST_AUTO_TEST_CASE(test_sparseGridAndSubspaceReduce) {
           // check that the data is correct
           checkedSubspaces.clear();
           for (const auto& subspaces : subspacesByComm) {
-            auto commSize = combigrid::getCommSize(subspaces.first);
             for (const auto& subspace : subspaces.second) {
-              auto subspaceStart = uniDSG->getData(subspace);
               for (SubspaceSizeType j = 0; j < uniDSG->getDataSize(subspace); ++j) {
                 // BOOST_CHECK_EQUAL(subspaceStart[j], ??);
               }

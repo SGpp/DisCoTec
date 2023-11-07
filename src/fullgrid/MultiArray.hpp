@@ -13,7 +13,7 @@ template <typename T, DimType D>
 using MultiArrayRef = boost::multi_array_ref<T, D>;
 
 /* create a multiarray ref to the local data in a distributed fullgrid */
-template <typename T, size_t D>
+template <typename T, DimType D>
 static MultiArrayRef<T, D> createMultiArrayRef(DistributedFullGrid<T>& dfg) {
   /* note that the sizes of dfg are in reverse order compared to shape */
   std::vector<size_t> shape(dfg.getLocalSizes().rbegin(), dfg.getLocalSizes().rend());
@@ -30,7 +30,7 @@ static MultiArrayRef<T, D> createMultiArrayRef(FullGrid<T>& fg) {
   assert(fg.isGridCreated());
 
   /* note that the sizes of dfg are in reverse order compared to shape */
-  std::vector<size_t> shape(fg.getSizes().rbegin(), fg.getSizes().rend());
+  IndexVector shape(fg.getSizes().rbegin(), fg.getSizes().rend());
   if (!reverseOrderingDFGPartitions) {
     assert(false && "this is not adapted to normal ordering of DFG partitions yet");
   }

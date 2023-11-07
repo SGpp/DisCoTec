@@ -14,7 +14,7 @@ bool StaticFaults::failNow(int ncombi, real t_iter, int globalRank) {
 
   std::vector<IndexType>::iterator it;
   it = std::find(iF.begin(), iF.end(), ncombi);
-  IndexType idx = std::distance(iF.begin(), it);
+  auto idx = std::distance(iF.begin(), it);
   // std::cout << "faultInfo" << iF[0] << " " << rF[0] << "\n";
   // Check if current iteration is in iterationFaults_
   while (it != iF.end()) {

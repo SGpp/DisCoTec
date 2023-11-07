@@ -33,7 +33,7 @@ class TaskAdvection : public Task {
    */
   TaskAdvection(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
                 LoadModel* loadModel, real dt, size_t nsteps,
-                std::vector<int> p = std::vector<int>(0),
+                const std::vector<int>& p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
@@ -42,13 +42,13 @@ class TaskAdvection : public Task {
         initialized_(false),
         stepsTotal_(0),
         dfg_(nullptr) {
-    for (const auto& b : boundary) {
+    for ([[maybe_unused]] const auto& b : boundary) {
       assert(b == 1);
     }
   }
 
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) override {
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) override {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
@@ -157,7 +157,7 @@ class TaskAdvection : public Task {
         }
         // iterate the lowest layer and update the values, compensating for the wrong update
         // before
-        assert(numLocalElements / dfg_->getLocalSizes()[d] == phi_ghost.size());
+        assert(static_cast<size_t>(numLocalElements) / dfg_->getLocalSizes()[d] == phi_ghost.size());
         const auto& stride = fullOffsetsInThisDimension;
         const IndexType jump = stride * dfg_->getLocalSizes()[d];
         const IndexType numberOfPolesHigherDimensions = numLocalElements / jump;
@@ -235,7 +235,7 @@ class TaskAdvection : public Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
 
   void setZero() override {
     dfg_->setZero();

@@ -31,7 +31,7 @@ class GeneTask : public combigrid::Task {
  public:
   GeneTask(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
            LoadModel* loadModel, std::string& path, real dt, real combitime, size_t nsteps,
-           real shat, real lx, int ky0_ind, std::vector<int> p = std::vector<int>(0),
+           real shat, real lx, int ky0_ind, const std::vector<int>& p = std::vector<int>(0),
            FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})),
            IndexType numSpecies = 1, bool GENE_Global = false, bool GENE_Linear = true,
            size_t checkpointFrequency = 1, size_t offsetForDiagnostics = 0);
@@ -57,20 +57,21 @@ class GeneTask : public combigrid::Task {
    */
   void changeDir(CommunicatorType lcomm);
 
-  //void init(CommunicatorType lcomm);
+  // void init(CommunicatorType lcomm);
 
   /**
    * This method initializes the task
    * lcomm is the local communicator of the process group.
    * decomposition is the spatial decomposition of the component grid
    */
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>());
+  void init(CommunicatorType lcomm,
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>());
 
   /**
    * This method returns the decomposition of the grid of the specified species
    */
-  std::vector<IndexVector> getDecomposition(int species){
-      return dfgVector_[species]->getDecomposition();
+  std::vector<IndexVector> getDecomposition(int species) {
+    return dfgVector_[species]->getDecomposition();
   }
 
   /**
@@ -108,7 +109,7 @@ class GeneTask : public combigrid::Task {
   /**
    * Returns the distributed full grid of the specified specie
    */
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int specie);
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t specie);
 
   /*
    * Convert fg to GeneGrid and scatter over processes of pgroup. The fullgrid

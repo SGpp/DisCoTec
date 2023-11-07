@@ -22,7 +22,7 @@ class TaskExample: public Task {
    */
   TaskExample(DimType dim, const LevelVector& l, const std::vector<BoundaryType>& boundary,
               real coeff, LoadModel* loadModel, real dt, size_t nsteps,
-              std::vector<int> p = std::vector<int>(0),
+              const std::vector<int>& p = std::vector<int>(0),
               FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
@@ -33,7 +33,7 @@ class TaskExample: public Task {
         combiStep_(0),
         dfg_(NULL) {}
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+  void init(CommunicatorType lcomm, const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
@@ -110,9 +110,6 @@ class TaskExample: public Task {
   void run(CommunicatorType lcomm) {
     assert(initialized_);
 
-    int globalRank = theMPISystem()->getGlobalRank();
-    int lrank = theMPISystem()->getLocalRank();
-
     /* pseudo timestepping to demonstrate the behaviour of your typical
      * time-dependent simulation problem. */
     auto elements = dfg_->getData();
@@ -147,11 +144,12 @@ class TaskExample: public Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n) override {
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) override {
     return *dfg_;
   }
 
-  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n) const override{
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n) const override{
+    assert(n == 0);
     return *dfg_;
   }
 
@@ -200,7 +198,7 @@ class TaskExample: public Task {
 
   // new variables that are set by manager. need to be added to serialize
   real dt_;
-  size_t nsteps_;
+  size_t nsteps_ = 0;
   size_t stepsTotal_;
   std::vector<int> p_;
 

@@ -166,9 +166,9 @@ int main(int argc, char** argv) {
       setCheckpointRestart(basename, levels);
     } else {
       // using a very high diagnostics interval -> write no diagnostics in the component grids
-      size_t veryHighNumber = 2147483647;  // =2^31-1
-      size_t sometimes = 100;
-      size_t always = 1;
+      [[maybe_unused]] size_t veryHighNumber = 2147483647;  // =2^31-1
+      [[maybe_unused]] size_t sometimes = 100;
+      [[maybe_unused]] size_t always = 1;
       // create necessary folders and files to run each task in a separate folder
       createTaskFolders(basename, levels, taskNumbers, p, nsteps, dt, veryHighNumber,
                         nameDiagnostics);

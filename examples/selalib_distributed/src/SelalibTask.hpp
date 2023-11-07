@@ -97,7 +97,7 @@ class SelalibTask : public combigrid::Task {
       // MASTER_EXCLUSIVE_SECTION{
       //   std::cout << "run " << *this << std::endl;
       // }
-      bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
+      // bool haveResolution = coeff_ == std::numeric_limits<combigrid::real>::max();
       Stats::startEvent("BSL run");
       if (selalibSimPointer_ == nullptr) {
         throw std::runtime_error("selalibSimPointer_ is null");
@@ -105,7 +105,8 @@ class SelalibTask : public combigrid::Task {
       sim_bsl_vp_3d3v_cart_dd_slim_run(simPtrPtr_);
       Stats::stopEvent("BSL run");
 
-      int32_t* iPtr = &currentNumTimeStepsRun_;
+      int32_t currentNumTimeStepsAsInt = static_cast<int32_t>(currentNumTimeStepsRun_);
+      int32_t* iPtr = &currentNumTimeStepsAsInt;
       sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics(simPtrPtr_, iPtr);
       changeDir(lcomm, true);
     }
@@ -134,7 +135,7 @@ class SelalibTask : public combigrid::Task {
    * decomposition is the spatial decomposition of the component grid
    */
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) {
     static_assert(!reverseOrderingDFGPartitions,
                   "BSL needs this flag to be false, "
                   "change only if the partitioning does not match between dfg and distribution");
@@ -203,7 +204,7 @@ class SelalibTask : public combigrid::Task {
   /**
    * Returns the distributed full grid of the specified specie
    */
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int specie) { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t specie) { return *dfg_; }
 
   /**
    * @return double* the pointer to the distribution (in Fortran allocated memory)
@@ -225,7 +226,7 @@ class SelalibTask : public combigrid::Task {
    */
   real getCurrentTime() const override { return currentNumTimeStepsRun_ * dt_; }
 
-  void setCurrentNumTimeStepsRun(IndexType currentNumTimeStepsRun) {
+  void setCurrentNumTimeStepsRun(size_t currentNumTimeStepsRun) {
     currentNumTimeStepsRun_ = currentNumTimeStepsRun;
   }
 
@@ -237,7 +238,8 @@ class SelalibTask : public combigrid::Task {
     changeDir(dfg_->getCommunicator(), false);
     // set selalib distribution from dfg
     assert(diagnosticsInitialized_);
-    int32_t* iPtr = &currentNumTimeStepsRun_;
+    int32_t currentNumTimeStepsAsInt = static_cast<int32_t>(currentNumTimeStepsRun_);
+    int32_t* iPtr = &currentNumTimeStepsAsInt;
     sim_bsl_vp_3d3v_cart_dd_slim_write_diagnostics(simPtrPtr_, iPtr);
     changeDir(dfg_->getCommunicator(), true);
   }
@@ -266,7 +268,7 @@ class SelalibTask : public combigrid::Task {
   /*
    * simulation time specific parameters
    */
-  int32_t currentNumTimeStepsRun_;  // current number of time steps already run in the simulation
+  size_t currentNumTimeStepsRun_;  // current number of time steps already run in the simulation
   real dt_;
 
   /**number of time-steps in between two combinations

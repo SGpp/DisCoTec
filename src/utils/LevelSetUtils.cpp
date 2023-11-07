@@ -11,8 +11,10 @@ void getDownSetRecursively(combigrid::LevelVector const& l, combigrid::LevelVect
   } else {
     // for the whole range of values in dimension d
     size_t d = fixedDimensions.size();
-// #pragma omp parallel for shared(l, fixedDimensions, downSet) firstprivate(d) default(none) \
-//     schedule(static) //leads to unordered downSet, avoid in favor of registration
+    /*
+    // #pragma omp parallel for shared(l, fixedDimensions, downSet) firstprivate(d) default(none) \
+    //     schedule(static) //leads to unordered downSet, avoid in favor of registration
+    */
     for (LevelType i = 1; i <= l[d]; ++i) {  // levels start at 1 here, in compliance with our
                                              // definition of DistributedSparseGrid
       auto moreDimensionsFixed = fixedDimensions;

@@ -200,9 +200,9 @@ bool ProcessGroupManager::pretendCombineThirdLevelForWorkers(CombiParameters& pa
   const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
   // exchange dsgus
-  IndexType numGrids = params.getNumGrids();
+  auto numGrids = params.getNumGrids();
   std::vector<CombiDataType> dsguData;
-  for (IndexType g = 0; g < numGrids; g++) {
+  for (size_t g = 0; g < numGrids; g++) {
     for (RankType p = 0; p < (RankType)theMPISystem()->getNumProcs(); p++) {
       // we assume here that all dsgus have the same size otherwise size collection must change
       size_t dsguSize = (size_t)(dsguDataSizePerWorker_[(size_t)p] / numGrids);
@@ -332,7 +332,7 @@ bool ProcessGroupManager::pretendReduceLocalAndRemoteSubspaceSizes(
     from = to;
   }
   assert(to == sendBuff.end());
-  for (const auto& dataSize : formerDsguDataSizePerWorker_) {
+  for ([[maybe_unused]] const auto& dataSize : formerDsguDataSizePerWorker_) {
     assert(dataSize > 0);
   }
 
@@ -365,9 +365,9 @@ void ProcessGroupManager::exchangeDsgus(const ThirdLevelUtils& thirdLevel, Combi
   const CommunicatorType& comm = thirdLevelComms[params.getThirdLevelPG()];
 
   // exchange dsgus
-  IndexType numGrids = params.getNumGrids();
+  auto numGrids = params.getNumGrids();
   std::vector<CombiDataType> dsguData;
-  for (IndexType g = 0; g < numGrids; g++) {
+  for (size_t g = 0; g < numGrids; g++) {
     for (RankType p = 0; p < (RankType)theMPISystem()->getNumProcs(); p++) {
       // we assume here that all dsgus have the same size otherwise size collection must change
       size_t dsguSize = (size_t)(dsguDataSizePerWorker_[(size_t)p] / numGrids);
@@ -583,7 +583,7 @@ void ProcessGroupManager::writeSparseGridMinMaxCoefficients(const std::string& f
 }
 
 void ProcessGroupManager::doDiagnostics(size_t taskID) {
-  auto status = waitStatus();
+  [[maybe_unused]] auto status = waitStatus();
   assert(status == PROCESS_GROUP_WAIT);
   for (auto task : tasks_) {
     if (task->getID() == taskID) {
@@ -659,10 +659,10 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
 
 void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                                             std::vector<CombiDataType>& values,
-                                            MPI_Request* request, std::string filenamePrefix) {
+                                            MPI_Request* request, const std::string& filenamePrefix) {
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
-  for (const auto& coord : interpolationCoordsSerial) {
+  for ([[maybe_unused]] const auto& coord : interpolationCoordsSerial) {
     assert(coord >= 0.0 && coord <= 1.0);
   }
   // if no request was passed, assume we are not waiting for a reply from that group

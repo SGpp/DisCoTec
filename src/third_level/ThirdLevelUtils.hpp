@@ -94,9 +94,9 @@ namespace combigrid {
   {
     assert(isConnected_);
     size_t rawSize = receiveSize();
-    size_t recvSize = (rawSize - 1) / sizeof(FG_ELEMENT); // - 1 due to endianness
+    [[maybe_unused]] size_t recvSize = (rawSize - 1) / sizeof(FG_ELEMENT); // - 1 due to endianness
     assert(recvSize == size && "Size mismatch receiving data size does not match expected");
-    bool success = connection_->recvallBinaryAndCorrectInPlace(data, size);
+    [[maybe_unused]] bool success = connection_->recvallBinaryAndCorrectInPlace(data, size);
     assert(success && "receiving dsgu data failed");
   }
 
@@ -106,9 +106,9 @@ namespace combigrid {
   {
     assert(isConnected_);
     size_t rawSize = receiveSize();
-    size_t recvSize = (rawSize - 1) / sizeof(FG_ELEMENT); // - 1 due to endianness
+    [[maybe_unused]] size_t recvSize = (rawSize - 1) / sizeof(FG_ELEMENT); // - 1 due to endianness
     assert(recvSize == size && "Size mismatch cannot add vectors of different size");
-    bool success = connection_->recvallBinaryAndReduceInPlace<FG_ELEMENT>(data, size,
+    [[maybe_unused]] bool success = connection_->recvallBinaryAndReduceInPlace<FG_ELEMENT>(data, size,
         [](const FG_ELEMENT& lhs, const FG_ELEMENT& rhs) -> FG_ELEMENT {return lhs + rhs;});
     assert(success && "receiving dsgu data failed");
   }

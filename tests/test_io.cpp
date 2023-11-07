@@ -86,7 +86,7 @@ void checkCompressionWithHeader(size_t numValues = 1000000) {
 
     std::string filename =
         "compression_testfile_" + std::to_string(theMPISystem()->getProcessGroupNumber());
-    auto numBytesWritten = mpiio::writeCompressedValuesConsecutive(
+    mpiio::writeCompressedValuesConsecutive(
         originalValues.data(), originalValues.size(), filename, localComm);
 
     std::vector<double> decompressedValues(originalValues.size());

@@ -163,7 +163,7 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
           assert(lmin <= lvl);
           combiSpaces_.push_back(lvl);
         } else if (c.first == "group_no") {
-          processGroupNumbers_.push_back(c.second.get_value<size_t>());
+          processGroupNumbers_.push_back(c.second.get_value<RankType>());
         } else {
           assert(false);
         }
@@ -176,10 +176,10 @@ class CombiMinMaxSchemeFromFile : public CombiMinMaxScheme {
     assert(coefficients_.size() == combiSpaces_.size());
   }
 
-  inline const std::vector<size_t>& getProcessGroupNumbers() const { return processGroupNumbers_; }
+  inline const std::vector<RankType>& getProcessGroupNumbers() const { return processGroupNumbers_; }
 
  private:
-  std::vector<size_t> processGroupNumbers_;
+  std::vector<RankType> processGroupNumbers_;
 };
 
 inline long long int getCombiDegreesOfFreedom(const LevelVector& level,
@@ -300,7 +300,7 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
   IndexType multiplier = 1;
   for (const auto& d : decomposition) {
     decompositionOffsets.push_back(multiplier);
-    multiplier *= d.size();
+    multiplier *= static_cast<IndexType>(d.size());
   }
   auto numProcsPerGroup = multiplier;
   std::vector<long long int> numDOF(numProcsPerGroup, 0);
@@ -319,8 +319,8 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
                 level_d, decomposition[d][k + 1], referenceLevel[d]);
         if (highestIndexOfSubspaceInThisDimensionInThisProcess != -1) {
           subspaceExtentsPerProcessPerDimension[d][k] =
-              highestIndexOfSubspaceInThisDimensionInThisProcess -
-              numIndicesProcessedOnPoleMinusOne;
+              static_cast<IndexType>(highestIndexOfSubspaceInThisDimensionInThisProcess -
+              numIndicesProcessedOnPoleMinusOne);
           numIndicesProcessedOnPoleMinusOne = highestIndexOfSubspaceInThisDimensionInThisProcess;
         } else {
           subspaceExtentsPerProcessPerDimension[d][k] = 0;
@@ -329,10 +329,10 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
       // the rest belongs to the last partition
       subspaceExtentsPerProcessPerDimension[d][subspaceExtentsPerProcessPerDimension[d].size() -
                                                1] =
-          powerOfTwo[level_d - 1] - numIndicesProcessedOnPoleMinusOne - 1;
+          powerOfTwo[level_d - 1] - static_cast<IndexType>(numIndicesProcessedOnPoleMinusOne) - 1;
       if (level_d == 1) {
         subspaceExtentsPerProcessPerDimension[d][subspaceExtentsPerProcessPerDimension[d].size() -
-                                                 1] = 3 - numIndicesProcessedOnPoleMinusOne - 1;
+                                                 1] = static_cast<IndexType>(3 - numIndicesProcessedOnPoleMinusOne - 1);
         assert(std::accumulate(subspaceExtentsPerProcessPerDimension[d].begin(),
                                subspaceExtentsPerProcessPerDimension[d].end(), 0) == 3);
       } else {
@@ -350,8 +350,8 @@ inline std::vector<long long int> getPartitionedNumDOFSG(
       size_t numDOFtoAdd = 1;
       // iterate the vector index entries belonging to linear index i
       auto tmp = i;
-      for (int d = dim - 1; d >= 0; --d) {
-        assert(d < subspaceExtentsPerProcessPerDimension.size());
+      for (IndexType d = dim - 1; d >= 0; --d) {
+        assert(static_cast<size_t>(d) < subspaceExtentsPerProcessPerDimension.size());
         auto decompositionIndexInDimD = tmp / decompositionOffsets[d];
         assert(decompositionIndexInDimD < subspaceExtentsPerProcessPerDimension[d].size());
         numDOFtoAdd *= subspaceExtentsPerProcessPerDimension[d][decompositionIndexInDimD];
@@ -468,7 +468,7 @@ inline size_t getAssignedLevels(const CombiMinMaxSchemeFromFile& combischeme,
     throw std::runtime_error(
         "CombiSchemeFromFile::getAssignedLevels : inconsistent scheme from file");
   }
-  const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+  [[maybe_unused]] const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
   assert(*itMin == 0);  // make sure it starts with 0
   // filter out only those tasks that belong to "our" process group
   for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {
@@ -534,7 +534,7 @@ inline size_t getLoadBalancedLevels(const CombiMinMaxScheme& combischeme,
     // find the group with the lowest load
     RankType minGroup = 0;
     long long minLoad = std::numeric_limits<long long>::max();
-    for (RankType group = 0; group < totalNumGroups; ++group) {
+    for (RankType group = 0; group < static_cast<int>(totalNumGroups); ++group) {
       if (loadAssignedToGroup[group] < minLoad) {
         minGroup = group;
         minLoad = loadAssignedToGroup[group];

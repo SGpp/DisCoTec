@@ -96,7 +96,7 @@ class ProcessGroupManager {
 
   void interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                          std::vector<CombiDataType>& values, MPI_Request* request = nullptr,
-                         std::string filenamePrefix = "");
+                         const std::string& filenamePrefix = "");
 
   void writeInterpolatedValuesPerGrid(const std::vector<real>& interpolationCoordsSerial,
                                       const std::string& filenamePrefix);

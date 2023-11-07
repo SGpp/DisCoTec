@@ -34,7 +34,7 @@ void CombiThirdLevelScheme::decomposeScheme(const std::vector<LevelVector>& full
                                             std::vector<std::vector<real>>& decomposedCoeffs,
                                             size_t numSystems,
                                             const std::vector<real>& fractionsOfScheme) {
-  auto fracSum =
+  [[maybe_unused]] auto fracSum =
       std::accumulate(fractionsOfScheme.begin(), fractionsOfScheme.end(), 0., std::plus<real>());
   assert(std::abs(fracSum - 1.) < 1e-3);
   assert(fractionsOfScheme.size() == numSystems);
@@ -56,7 +56,7 @@ void CombiThirdLevelScheme::decomposeScheme(const std::vector<LevelVector>& full
   }
 
   // assert that all are assigned
-  assert(std::accumulate(decomposedScheme.begin(), decomposedScheme.end(), 0,
+  assert(std::accumulate(decomposedScheme.begin(), decomposedScheme.end(), static_cast<size_t>(0),
                          [](size_t a, const std::vector<LevelVector>& l) {
                            return a + l.size();
                          }) == fullScheme.size());

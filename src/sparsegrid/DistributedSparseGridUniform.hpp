@@ -53,7 +53,7 @@ class DistributedSparseGridDataContainer {
     SubspaceSizeType offset = 0;
     for (size_t i = 0; i < subspaces_.size(); i++) {
       subspaces_[i] = subspacesData_.data() + offset;
-      if (subspacesWithData_.find(i) != subspacesWithData_.end()) {
+      if (subspacesWithData_.find(static_cast<SubspaceIndexType>(i)) != subspacesWithData_.end()) {
         offset += dsgu_.getSubspaceDataSizes()[i];
       }
     }
@@ -84,7 +84,7 @@ class DistributedSparseGridDataContainer {
     SubspaceSizeType offset = 0;
     for (size_t i = 0; i < kahanDataBegin_.size(); i++) {
       kahanDataBegin_[i] = kahanData_.data() + offset;
-      if (subspacesWithData_.find(i) != subspacesWithData_.end()) {
+      if (subspacesWithData_.find(static_cast<SubspaceIndexType>(i)) != subspacesWithData_.end()) {
         offset += dsgu_.getSubspaceDataSizes()[i];
       }
     }
@@ -213,6 +213,7 @@ class DistributedSparseGridUniform : public AnyDistributedSparseGrid {
 
   // return level vector of subspace i
   inline const LevelVector& getLevelVector(SubspaceIndexType i) const;
+  inline const LevelVector& getLevelVector(size_t i) const;
 
   inline SubspaceIndexType getIndexInRange(const LevelVector& l, IndexType lowerBound) const;
 
@@ -422,7 +423,7 @@ std::vector<LevelVector> DistributedSparseGridUniform<FG_ELEMENT>::createLevels(
   combigrid::createTruncatedHierarchicalLevels(nmax, lmin, created);
   // std::sort(created.begin(), created.end());
   assert(std::is_sorted(created.begin(), created.end()));
-  if (created.size() > std::numeric_limits<SubspaceIndexType>::max()) {
+  if (created.size() > static_cast<size_t>(std::numeric_limits<SubspaceIndexType>::max())) {
     throw std::runtime_error("number of subspaces exceeds the maximum value of SubspaceIndexType");
   }
   return created;
@@ -440,6 +441,11 @@ inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVect
   auto levelIterator = levels_.cbegin();
   std::advance(levelIterator, i);
   return *levelIterator;
+}
+
+template <typename FG_ELEMENT>
+inline const LevelVector& DistributedSparseGridUniform<FG_ELEMENT>::getLevelVector(size_t i) const {
+  return this->getLevelVector(static_cast<SubspaceIndexType>(i));
 }
 
 template <typename FG_ELEMENT>
@@ -473,7 +479,7 @@ template <typename FG_ELEMENT>
 inline FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(SubspaceIndexType i) {
 #ifndef NDEBUG
   assert(isSubspaceDataCreated());
-  assert(i < this->subspacesDataContainer_.subspaces_.size());
+  assert(static_cast<size_t>(i) < this->subspacesDataContainer_.subspaces_.size());
   assert(this->subspacesDataContainer_.subspaces_[i] <=
          &(*(this->subspacesDataContainer_.subspacesData_.end())));
   // if (this->subspacesDataContainer_.subspaces_[i] ==
@@ -489,7 +495,7 @@ inline const FG_ELEMENT* DistributedSparseGridUniform<FG_ELEMENT>::getData(
     SubspaceIndexType i) const {
 #ifndef NDEBUG
   assert(isSubspaceDataCreated());
-  assert(i < this->subspacesDataContainer_.subspaces_.size());
+  assert(static_cast<size_t>(i) < this->subspacesDataContainer_.subspaces_.size());
   assert(this->subspacesDataContainer_.subspaces_[i] <=
          &(*(this->subspacesDataContainer_.subspacesData_.end())));
   if (this->subspacesDataContainer_.subspaces_[i] ==
@@ -617,7 +623,7 @@ void DistributedSparseGridUniform<FG_ELEMENT>::accumulateMinMaxCoefficients() {
                   this->getCurrentlyAllocatedSubspaces().cend());
 #pragma omp parallel for default(none) schedule(guided) \
     shared(currentlyAllocatedSubspaceIndices, smaller_real)
-  for (SubspaceIndexType iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size();
+  for (size_t iAllocated = 0; iAllocated < currentlyAllocatedSubspaceIndices.size();
        ++iAllocated) {
     SubspaceIndexType i = currentlyAllocatedSubspaceIndices[iAllocated];
     if (this->getSubspaceDataSizes()[i] > 0) {
@@ -664,7 +670,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::registerDistributedFullGri
       if (subSgDataSize == 0) {
         this->setDataSize(index, numPointsOfSubspace);
       } else {
-        ASSERT(subSgDataSize == numPointsOfSubspace,
+        ASSERT(static_cast<IndexType>(subSgDataSize) == numPointsOfSubspace,
                "subSgDataSize: " << subSgDataSize
                                  << ", numPointsOfSubspace: " << numPointsOfSubspace << " , level "
                                  << level << " , rank " << this->rank_ << std::endl);
@@ -713,7 +719,7 @@ inline void DistributedSparseGridUniform<FG_ELEMENT>::addDistributedFullGrid(
         assert(sDataSize == this->getDataSize(sIndex));
         assert(sDataSize == this->getAllocatedDataSize(sIndex));
         assert(std::distance(this->getData(0), sPointer) <
-               this->subspacesDataContainer_.subspacesData_.size());
+               static_cast<long int>(this->subspacesDataContainer_.subspacesData_.size()));
         auto kDataSize = this->subspacesDataContainer_.kahanDataBegin_[sIndex + 1] - kPointer;
         assert(kDataSize == this->getDataSize(sIndex));
       }

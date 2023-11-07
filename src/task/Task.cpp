@@ -28,7 +28,7 @@ Task::Task(const LevelVector& l, const std::vector<BoundaryType>& boundary, real
 
 Task::~Task() { delete faultCriterion_; }
 
-const DistributedFullGrid<CombiDataType>& Task::getDistributedFullGrid(int n) const {
+const DistributedFullGrid<CombiDataType>& Task::getDistributedFullGrid(size_t n) const {
   throw std::runtime_error("const getDistributedFullGrid called but not implemented");
 }
 

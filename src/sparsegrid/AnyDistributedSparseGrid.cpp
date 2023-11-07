@@ -12,7 +12,7 @@ namespace combigrid {
 AnyDistributedSparseGrid::AnyDistributedSparseGrid(size_t numSubspaces, CommunicatorType comm)
     : comm_(comm), subspacesDataSizes_(numSubspaces) {
   // make sure numSubspaces fits into SubspaceIndexType
-  assert(numSubspaces <= std::numeric_limits<SubspaceIndexType>::max());
+  assert(numSubspaces <= static_cast<size_t>(std::numeric_limits<SubspaceIndexType>::max()));
   MPI_Comm_rank(comm_, &rank_);
 }
 size_t AnyDistributedSparseGrid::getAccumulatedDataSize() const {
@@ -54,6 +54,10 @@ SubspaceSizeType AnyDistributedSparseGrid::getDataSize(SubspaceIndexType i) cons
 #endif  // NDEBUG
 
   return subspacesDataSizes_[i];
+}
+
+SubspaceSizeType AnyDistributedSparseGrid::getDataSize(size_t i) const {
+  return this->getDataSize(static_cast<SubspaceIndexType>(i));
 }
 
 std::set<typename AnyDistributedSparseGrid::SubspaceIndexType>&
@@ -134,7 +138,7 @@ std::vector<UIntForGroupReductionType> getSubspaceVote(
   // allocate vector of long long
   std::vector<UIntForGroupReductionType> subspaceVote(subspacesDataSizes.size(), 0);
   // set to mySummand if we have data in this subspace
-  for (AnyDistributedSparseGrid::SubspaceIndexType i = 0; i < subspacesDataSizes.size(); ++i) {
+  for (size_t i = 0; i < subspacesDataSizes.size(); ++i) {
     if (subspacesDataSizes[i] > 0) {
       subspaceVote[i] = mySummand;
     }

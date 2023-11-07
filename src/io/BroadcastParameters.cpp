@@ -18,11 +18,9 @@ std::string getFileContentsFromRankZero(const std::string& fileName, const MPI_C
   // only one rank reads inputs and broadcasts to others
   auto mpiRank = getCommRank(comm);
   std::string contentString;
-  int contentStringSize = 0;
   if (mpiRank == 0) {
     std::ifstream ifs(fileName);
     contentString.assign((std::istreambuf_iterator<char>(ifs)), (std::istreambuf_iterator<char>()));
-    contentStringSize = contentString.size();
   }
   MPIUtils::broadcastContainer(contentString, 0, comm);
   return contentString;
@@ -57,12 +55,12 @@ std::vector<std::vector<real>> getCoordinatesFromRankZero(const std::string& h5F
   auto mpiRank = getCommRank(comm);
   if (mpiRank == 0) {
     h5io::readH5Coordinates(coordinates, h5FileName);
-    coordinateSizes[0] = coordinates.size();
+    coordinateSizes[0] = static_cast<int>(coordinates.size());
     assert(coordinateSizes[0] > 0);
-    coordinateSizes[1] = coordinates[0].size();
+    coordinateSizes[1] = static_cast<int>(coordinates[0].size());
     assert(coordinateSizes[1] > 0);
     coordinatesSerialized = combigrid::serializeInterpolationCoords(coordinates);
-    assert(coordinatesSerialized.size() == coordinateSizes[0] * coordinateSizes[1]);
+    assert(coordinatesSerialized.size() == static_cast<size_t>(coordinateSizes[0] * coordinateSizes[1]));
   }
 
   // broadcast vector sizes
@@ -70,7 +68,7 @@ std::vector<std::vector<real>> getCoordinatesFromRankZero(const std::string& h5F
   coordinatesSerialized.resize(coordinateSizes[0] * coordinateSizes[1]);
 
   // broadcast serialized vector
-  MPI_Bcast(&coordinatesSerialized[0], coordinatesSerialized.size(),
+  MPI_Bcast(&coordinatesSerialized[0], static_cast<int>(coordinatesSerialized.size()),
             abstraction::getMPIDatatype(abstraction::getabstractionDataType<real>()), 0, comm);
 
   // split vector into coordinates

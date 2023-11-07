@@ -33,7 +33,7 @@ class TaskAdvection : public Task {
    */
   TaskAdvection(const LevelVector& l, const std::vector<BoundaryType>& boundary, real coeff,
                 LoadModel* loadModel, real dt, size_t nsteps,
-                std::vector<int> p = std::vector<int>(0),
+                const std::vector<int>& p = std::vector<int>(0),
                 FaultCriterion* faultCrit = (new StaticFaults({0, IndexVector(0), IndexVector(0)})))
       : Task(l, boundary, coeff, loadModel, faultCrit),
         dt_(dt),
@@ -42,17 +42,16 @@ class TaskAdvection : public Task {
         initialized_(false),
         stepsTotal_(0),
         dfg_(nullptr) {
-    for (const auto& b : boundary) {
+    for ([[maybe_unused]] const auto& b : boundary) {
       assert(b == 1);
     }
   }
 
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) override {
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) override {
     assert(!initialized_);
     assert(dfg_ == NULL);
 
-    auto lrank = theMPISystem()->getLocalRank();
     DimType dim = this->getDim();
     const LevelVector& l = this->getLevelVector();
 
@@ -105,7 +104,7 @@ class TaskAdvection : public Task {
       // swap at the end of each time step
       auto& u_dot_dphi = *phi_;
       auto const ElementVector = dfg_->getData();
-      for (unsigned int d = 0; d < this->getDim(); ++d) {
+      for (DimType d = 0; d < this->getDim(); ++d) {
         static std::vector<int> subarrayExtents;
         std::vector<CombiDataType> phi_ghost{};
         dfg_->exchangeGhostLayerUpward(d, subarrayExtents, phi_ghost);
@@ -183,7 +182,7 @@ class TaskAdvection : public Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
 
   void setZero() override {
     dfg_->setZero();

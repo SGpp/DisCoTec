@@ -26,7 +26,7 @@ class TensorIndexer {
       localOffsets_[j] = nrElements;
       nrElements = nrElements * extents_[j];
     }
-    assert(this->size() == nrElements);
+    assert(this->size() == static_cast<size_t>(nrElements));
   }
 
   // have only move constructors for now
@@ -58,7 +58,7 @@ class TensorIndexer {
     }
     auto size = std::accumulate(this->extents_.begin(), this->extents_.end(), 1U,
                                 std::multiplies<size_t>());
-    assert(size < std::numeric_limits<IndexType>::max());
+    assert(size < static_cast<size_t>(std::numeric_limits<IndexType>::max()));
     return size;
   }
 
@@ -99,7 +99,7 @@ class Tensor : public TensorIndexer {
  public:
   Tensor() = default;
   explicit Tensor(Type* data, IndexVector&& extents)
-      : data_(data), TensorIndexer(std::move(extents)) {}
+      : TensorIndexer(std::move(extents)), data_(data) {}
 
   // have only move constructors for now
   Tensor(Tensor const&) = delete;

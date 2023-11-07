@@ -134,13 +134,13 @@ class ProcessManager {
       const std::vector<std::vector<real>>& interpolationCoords);
 
   void writeInterpolatedValuesSingleFile(const std::vector<std::vector<real>>& interpolationCoords,
-                                         std::string filenamePrefix);
+                                         const std::string& filenamePrefix);
 
   void writeInterpolatedValuesPerGrid(const std::vector<std::vector<real>>& interpolationCoords,
-                                      std::string filenamePrefix);
+                                      const std::string& filenamePrefix);
 
   void writeInterpolationCoordinates(const std::vector<std::vector<real>>& interpolationCoords,
-                                     std::string filenamePrefix) const;
+                                     const std::string& filenamePrefix) const;
 
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 
@@ -175,9 +175,9 @@ class ProcessManager {
 
   void writeCombigridsToVTKPlotFile(ProcessGroupManagerID pg);
 
-  void writeDSGsToDisk(std::string filenamePrefix);
+  void writeDSGsToDisk(const std::string& filenamePrefix);
 
-  void readDSGsFromDisk(std::string filenamePrefix);
+  void readDSGsFromDisk(const std::string& filenamePrefix);
 
  private:
   ProcessGroupManagerContainer& pgroups_;
@@ -267,7 +267,7 @@ void ProcessManager::combine() {
 
   // send signal to each group
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->combine();
+    [[maybe_unused]] bool success = pgroups_[i]->combine();
     assert(success);
   }
 
@@ -290,7 +290,7 @@ void ProcessManager::combineSystemWide() {
 
   // tell groups to combine local and global
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->combineSystemWide();
+    [[maybe_unused]] bool success = pgroups_[i]->combineSystemWide();
     assert(success);
   }
 

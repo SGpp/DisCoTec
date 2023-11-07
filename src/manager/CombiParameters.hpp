@@ -17,7 +17,7 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<size_t>& taskIDs,
-                  IndexType numberOfCombinations, IndexType numGrids = 1,
+                  size_t numberOfCombinations, IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   const std::vector<int>& parallelization = {0},
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
@@ -56,7 +56,7 @@ class CombiParameters {
   // constructor variant w/o combination scheme specified -- the workers have their partial list
   // imlpicitly as tasks vector
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
-                  std::vector<BoundaryType>& boundary, IndexType numberOfCombinations,
+                  std::vector<BoundaryType>& boundary, size_t numberOfCombinations,
                   IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   const std::vector<int>& parallelization = {0},
@@ -95,7 +95,7 @@ class CombiParameters {
   CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
                   const std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
                   std::vector<real>& coeffs, std::vector<bool>& hierarchizationDims,
-                  std::vector<size_t>& taskIDs, IndexType numberOfCombinations,
+                  std::vector<size_t>& taskIDs, size_t numberOfCombinations,
                   IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   LevelVector reduceCombinationDimsLmin = LevelVector(0),
@@ -213,11 +213,12 @@ class CombiParameters {
   inline DimType getDim() const { return dim_; }
 
   inline size_t getNumLevels() const { return levels_.size(); }
+
   /**
    * this method returns the number of grids a task contains
    * in case we have multiple grids in our simulation
    */
-  inline IndexType getNumGrids() const { return numGridsPerTask_; }
+  inline size_t getNumGrids() const { return numGridsPerTask_; }
 
   inline const std::vector<bool>& getHierarchizationDims() const { return hierarchizationDims_; }
 
@@ -264,7 +265,7 @@ class CombiParameters {
     return procs_;
   }
 
-  inline const IndexType& getNumberOfCombinations() const { return numberOfCombinations_; }
+  inline const size_t& getNumberOfCombinations() const { return numberOfCombinations_; }
 
   inline CombinationVariant getCombinationVariant() const { return combinationVariant_; }
 
@@ -313,7 +314,7 @@ class CombiParameters {
       assert(decomposition[d][0] == 0);
       auto numPoints = combigrid::getNumDofNodal(lmax_[d], boundary_[d]);
       assert(decomposition[d].back() < numPoints);
-      assert(procs_[d] == decomposition[d].size());
+      assert(static_cast<size_t>(procs_[d]) == decomposition[d].size());
     }
 #endif // not def NDEBUG
   }
@@ -357,12 +358,10 @@ class CombiParameters {
   bool forwardDecomposition_;
 
   friend class boost::serialization::access;
-  IndexType numberOfCombinations_;  // total number of combinations
-  IndexType numGridsPerTask_;       // number of grids per task
+  size_t numberOfCombinations_;  // total number of combinations
+  size_t numGridsPerTask_;       // number of grids per task
 
   CombinationVariant combinationVariant_;
-
-  uint32_t sizeForChunkedCommunicationInMebibyte_;
 
   /**
    * This level vector indicates which dimension of lmin should be decreased by how many levels
@@ -385,6 +384,7 @@ class CombiParameters {
     */
   LevelVector reduceCombinationDimsLmax_;
 
+  uint32_t sizeForChunkedCommunicationInMebibyte_;
 
   std::string thirdLevelHost_;
 
@@ -449,29 +449,6 @@ inline static void setCombiParametersHierarchicalBasesUniform(CombiParameters& c
   } else {
     throw std::invalid_argument("Hierarchical basis string not known.");
   }
-}
-
-inline static std::vector<IndexVector> getStandardDecomposition(LevelVector lref,
-                                                                std::vector<int> procsRef) {
-  assert(lref.size() == procsRef.size());
-  std::vector<IndexVector> decomposition;
-  for (DimType d = 0; d < static_cast<DimType>(lref.size()); ++d) {
-    IndexVector di;
-    if (procsRef[d] == 1) {
-      di = {0};
-    } else if (procsRef[d] == 2) {
-      di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1};
-    } else if (procsRef[d] == 3) {
-      di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1, 2 * powerOfTwo[lref[d]] / procsRef[d] + 1};
-    } else if (procsRef[d] == 4) {
-      di = {0, powerOfTwo[lref[d]] / procsRef[d] + 1, 2 * powerOfTwo[lref[d]] / procsRef[d] + 1,
-            3 * powerOfTwo[lref[d]] / procsRef[d] + 1};
-    } else {
-      throw std::runtime_error("please implement a test decomposition matching procs and lref");
-    }
-    decomposition.push_back(di);
-  }
-  return decomposition;
 }
 
 }  // namespace combigrid
