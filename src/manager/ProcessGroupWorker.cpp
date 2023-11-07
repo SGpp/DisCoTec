@@ -782,7 +782,6 @@ int ProcessGroupWorker::combineThirdLevelFileBasedWrite(
 
     // write sparse grid and corresponding token file
     Stats::startEvent("write SG");
-    std::cout << "Writing sparse grid to " << filenamePrefixToWrite << std::endl;
     int numWritten = this->writeDSGsToDisk(filenamePrefixToWrite, writeCompleteTokenFileName);
     Stats::stopEvent("write SG");
     return numWritten;

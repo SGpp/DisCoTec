@@ -639,15 +639,18 @@ inline int SparseGridWorker::readReduce(const std::vector<std::string>& filename
   while (!indicesStillToReadReduce.empty()) {
     std::string filePartTokenToRead;
     std::string filePartNameToRead;
+    bool firstTry = true;
     for (auto it = indicesStillToReadReduce.begin(); it != indicesStillToReadReduce.end(); ++it) {
       if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
         filePartTokenToRead = startReadingTokenFileNames[*it] + ".part" + std::to_string(filePart);
       } else {
         filePartTokenToRead = startReadingTokenFileNames[*it];
       }
-      std::cout << "trying to read " << filePartTokenToRead << std::endl;
+      if (firstTry) {
+        std::cout << "trying to read " << filePartTokenToRead << std::endl;
+        firstTry = false;
+      }
       if (combigrid::getFileExistsRootOnly(filePartTokenToRead, theMPISystem()->getOutputComm())) {
-        std::cout << filePartTokenToRead << " exists" << std::endl;
         if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
           filePartNameToRead =
               filenamePrefixesToRead[*it] + "_0" + ".part" + std::to_string(filePart);
