@@ -19,7 +19,7 @@
 using namespace combigrid;
 
 
-void testBoundaryZ(FullGrid<CombiDataType>& fg, std::string filePrefix ){
+void testBoundaryZ(FullGrid<CombiDataType>& fg, const std::string& filePrefix ){
   const double tol = 1e-15;
 
   MultiArrayRef6 fgData = createMultiArrayRef<CombiDataType,6>( fg );

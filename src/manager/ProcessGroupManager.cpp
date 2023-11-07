@@ -659,7 +659,7 @@ std::vector<double> ProcessGroupManager::evalErrorOnDFG(const LevelVector& leval
 
 void ProcessGroupManager::interpolateValues(const std::vector<real>& interpolationCoordsSerial,
                                             std::vector<CombiDataType>& values,
-                                            MPI_Request* request, std::string filenamePrefix) {
+                                            MPI_Request* request, const std::string& filenamePrefix) {
   assert(interpolationCoordsSerial.size() < static_cast<size_t>(std::numeric_limits<int>::max()) &&
          "needs chunking!");
   for ([[maybe_unused]] const auto& coord : interpolationCoordsSerial) {

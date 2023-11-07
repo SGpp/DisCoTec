@@ -468,7 +468,7 @@ inline size_t getAssignedLevels(const CombiMinMaxSchemeFromFile& combischeme,
     throw std::runtime_error(
         "CombiSchemeFromFile::getAssignedLevels : inconsistent scheme from file");
   }
-  const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+  [[maybe_unused]] const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
   assert(*itMin == 0);  // make sure it starts with 0
   // filter out only those tasks that belong to "our" process group
   for (size_t taskNo = 0; taskNo < pgNumbers.size(); ++taskNo) {

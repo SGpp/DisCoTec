@@ -50,7 +50,7 @@ std::vector<std::vector<real>> getRandomCoordinates(int numCoordinates, size_t d
               };
   for (auto & coord : randomCoords) {
       std::generate(begin(coord), end(coord), gen);
-      for (auto & c : coord){
+      for ([[maybe_unused]] const auto & c : coord){
         assert( c <= 1. && c >=0. );
       }
   }

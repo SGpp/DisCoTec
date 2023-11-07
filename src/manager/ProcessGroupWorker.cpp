@@ -34,7 +34,7 @@ std::string receiveStringFromManagerAndBroadcastToGroup() {
 }
 
 void sendNormsToManager(const std::vector<double> lpnorms) {
-  for (int p = 0; p < lpnorms.size(); ++p) {
+  for (size_t p = 0; p < lpnorms.size(); ++p) {
     // send from master to manager
     MASTER_EXCLUSIVE_SECTION {
       MPI_Send(&lpnorms[p], 1, MPI_DOUBLE, theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
@@ -77,7 +77,7 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
   MASTER_EXCLUSIVE_SECTION {
     MPI_Status status;
     status.MPI_ERROR = MPI_SUCCESS;
-    int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+    [[maybe_unused]] int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
                            theMPISystem()->getGlobalComm(), &status);
 #ifndef NDEBUG
     assert(result == MPI_SUCCESS);

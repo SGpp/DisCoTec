@@ -138,7 +138,7 @@ std::vector<UIntForGroupReductionType> getSubspaceVote(
   // allocate vector of long long
   std::vector<UIntForGroupReductionType> subspaceVote(subspacesDataSizes.size(), 0);
   // set to mySummand if we have data in this subspace
-  for (AnyDistributedSparseGrid::SubspaceIndexType i = 0; i < subspacesDataSizes.size(); ++i) {
+  for (size_t i = 0; i < subspacesDataSizes.size(); ++i) {
     if (subspacesDataSizes[i] > 0) {
       subspaceVote[i] = mySummand;
     }

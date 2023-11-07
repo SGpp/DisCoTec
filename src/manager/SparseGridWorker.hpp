@@ -341,7 +341,7 @@ inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendP
       else {
         // non-output ranks need to wait before they can extract
         if (roundNumber == 0) Stats::startEvent("wait 1st bcast");
-        auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+        [[maybe_unused]] auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
         if (roundNumber == 0) Stats::stopEvent("wait 1st bcast");
         assert(returnedValue == MPI_SUCCESS);
       }
@@ -352,7 +352,7 @@ inline void SparseGridWorker::distributeChunkedBroadcasts(uint32_t maxMiBToSendP
       }
       OUTPUT_GROUP_EXCLUSIVE_SECTION {
         // output ranks can wait later
-        auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+        [[maybe_unused]] auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
         assert(returnedValue == MPI_SUCCESS);
       }
       ++roundNumber;

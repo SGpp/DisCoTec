@@ -104,7 +104,7 @@ void ProcessManager::exit() {
 
   // send exit signal to each group
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->exit();
+    [[maybe_unused]] bool success = pgroups_[i]->exit();
     assert(success);
   }
 }
@@ -125,7 +125,7 @@ void ProcessManager::initDsgus() {
 
   // tell groups to init Dsgus
   for (size_t i = 0; i < pgroups_.size(); ++i) {
-    bool success = pgroups_[i]->initDsgus();
+    [[maybe_unused]] bool success = pgroups_[i]->initDsgus();
     assert(success);
   }
 
@@ -136,13 +136,13 @@ void ProcessManager::initDsgus() {
 void ProcessManager::updateCombiParameters() {
   Stats::startEvent("manager update parameters");
   {
-    bool fail = waitAllFinished();
+    [[maybe_unused]] bool fail = waitAllFinished();
     assert(!fail && "should not fail here");
   }
 
   for (auto g : pgroups_) g->updateCombiParameters(params_);
   {
-    bool fail = waitAllFinished();
+    [[maybe_unused]] bool fail = waitAllFinished();
     assert(!fail && "should not fail here");
   }
   Stats::stopEvent("manager update parameters");
@@ -411,7 +411,7 @@ void ProcessManager::waitForAllGroupsToWait() const {
 void ProcessManager::parallelEval(const LevelVector& leval, std::string& filename, size_t groupID) {
   // actually it would be enough to wait for the group which does the eval
   {
-    bool fail = waitAllFinished();
+    [[maybe_unused]] bool fail = waitAllFinished();
 
     assert(!fail && "should not fail here");
   }
@@ -422,7 +422,7 @@ void ProcessManager::parallelEval(const LevelVector& leval, std::string& filenam
   g->parallelEval(leval, filename);
 
   {
-    bool fail = waitAllFinished();
+    [[maybe_unused]] bool fail = waitAllFinished();
 
     assert(!fail && "should not fail here");
   }
@@ -494,7 +494,7 @@ std::vector<CombiDataType> ProcessManager::interpolateValues(
 }
 
 void ProcessManager::writeInterpolatedValuesPerGrid(
-    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) {
+    const std::vector<std::vector<real>>& interpolationCoords, const std::string& filenamePrefix) {
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
 
@@ -504,7 +504,7 @@ void ProcessManager::writeInterpolatedValuesPerGrid(
 }
 
 void ProcessManager::writeInterpolatedValuesSingleFile(
-    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) {
+    const std::vector<std::vector<real>>& interpolationCoords, const std::string& filenamePrefix) {
   Stats::startEvent("manager write interpolated");
   // send interpolation coords as a single array
   std::vector<real> interpolationCoordsSerial = serializeInterpolationCoords(interpolationCoords);
@@ -521,7 +521,7 @@ void ProcessManager::writeInterpolatedValuesSingleFile(
 }
 
 void ProcessManager::writeInterpolationCoordinates(
-    const std::vector<std::vector<real>>& interpolationCoords, std::string filenamePrefix) const {
+    const std::vector<std::vector<real>>& interpolationCoords, const std::string& filenamePrefix) const {
   std::string saveFilePath = filenamePrefix + "_coords.h5";
   h5io::writeValuesToH5File(interpolationCoords, saveFilePath, "manager", "coordinates");
 }

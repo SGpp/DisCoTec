@@ -42,7 +42,7 @@ class TaskAdvection : public Task {
         initialized_(false),
         stepsTotal_(0),
         dfg_(nullptr) {
-    for (const auto& b : boundary) {
+    for ([[maybe_unused]] const auto& b : boundary) {
       assert(b == 1);
     }
   }

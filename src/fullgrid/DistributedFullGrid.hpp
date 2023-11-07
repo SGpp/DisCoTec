@@ -1439,7 +1439,7 @@ void DistributedFullGrid<FG_ELEMENT>::writePlotFileVTK(const char* filename) con
              << "SCALARS quantity double 1\n"
              << "LOOKUP_TABLE default\n";
   // TODO set the right data type from combidatatype, for now double by default
-  bool rightDataType = std::is_same<CombiDataType, double>::value;
+  [[maybe_unused]] bool rightDataType = std::is_same<CombiDataType, double>::value;
   assert(rightDataType);
   auto header_string = vtk_header.str();
   auto header_size = header_string.size();
@@ -1726,7 +1726,7 @@ std::vector<FG_ELEMENT> DistributedFullGrid<FG_ELEMENT>::getCornersValues() cons
     if (this->isGlobalIndexHere(corners[cornerNo])) {
       // convert to local vector index, then to linear index
       IndexVector locAxisIndex(this->getDimension());
-      bool present = getLocalVectorIndex(corners[cornerNo], locAxisIndex);
+      [[maybe_unused]] bool present = getLocalVectorIndex(corners[cornerNo], locAxisIndex);
       assert(present);
       auto index = getLocalLinearIndex(locAxisIndex);
       values[cornerNo] = this->getData()[index];

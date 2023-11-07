@@ -90,7 +90,7 @@ void createLargeFile(const std::string& filePrefix, const std::vector<long long 
   Stats::stopEvent("uftp create file");
 }
 
-void validateExchangedData(const std::string& filePrefix, std::string tokenToWaitFor,
+void validateExchangedData(const std::string& filePrefix, const std::string& tokenToWaitFor,
                            const std::vector<long long int>& dsgPartitionSizes) {
   // generate data on heap
   std::unique_ptr<std::vector<real>> mockUpData(new std::vector<real>(dsgPartitionSizes[0]));
@@ -118,7 +118,7 @@ void validateExchangedData(const std::string& filePrefix, std::string tokenToWai
   }
 }
 
-void checkSizeOfFile(const std::string& filePrefix, std::string tokenToWaitFor,
+void checkSizeOfFile(const std::string& filePrefix, const std::string& tokenToWaitFor,
                            const std::vector<long long int>& dsgPartitionSizes) {
   Stats::startEvent("uftp wait check size");
   Stats::startEvent("uftp wait");
@@ -146,7 +146,7 @@ void checkSizeOfFile(const std::string& filePrefix, std::string tokenToWaitFor,
   Stats::stopEvent("uftp wait check size");
 }
 
-void readAndInvertDSGFromDisk(const std::string& filePrefixIn, std::string filePrefixOut,
+void readAndInvertDSGFromDisk(const std::string& filePrefixIn, const std::string& filePrefixOut,
                               std::string tokenToWaitFor,
                               const std::vector<long long int>& dsgPartitionSizes) {
   std::unique_ptr<std::vector<real>> readData(new std::vector<real>(dsgPartitionSizes[0]));
@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
       // useStaticTaskAssignment = true;
       const auto& allCoeffs = scheme->getCoeffs();
       const auto& allLevels = scheme->getCombiSpaces();
-      const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+      [[maybe_unused]] const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
       assert(*itMin == 0);  // make sure it starts with 0
       // assert(*itMax == ngroup - 1); // and goes up to the maximum group //TODO
       // filter out only those tasks that belong to "our" process group
