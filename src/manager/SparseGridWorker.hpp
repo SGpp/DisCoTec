@@ -645,14 +645,16 @@ inline int SparseGridWorker::readReduce(const std::vector<std::string>& filename
       } else {
         filePartTokenToRead = startReadingTokenFileNames[*it];
       }
-      if (combigrid::getFileExistsRootOnly(filePartTokenToRead, theMPISystem()->getOutputComm(),
-                                           theMPISystem()->getOutputGroupRank())) {
+      std::cout << "trying to read " << filePartTokenToRead << std::endl;
+      if (combigrid::getFileExistsRootOnly(filePartTokenToRead, theMPISystem()->getOutputComm())) {
+        std::cout << filePartTokenToRead << " exists" << std::endl;
         if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
           filePartNameToRead =
               filenamePrefixesToRead[*it] + "_0" + ".part" + std::to_string(filePart);
         } else {
           filePartNameToRead = filenamePrefixesToRead[*it] + "_0";
         }
+        std::cout << " read from " << filePartNameToRead << std::endl;
         overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
         if (overwrite) {
           numRead += this->readDSGsFromDisk(filePartNameToRead, false);

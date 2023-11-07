@@ -5,6 +5,8 @@
 #include <numeric>
 #include <vector>
 
+#include "mpi/MPISystem.hpp"
+
 namespace combigrid {
 void writeConcatenatedFileRootOnly(const char* data, size_t sizeOfData, const std::string& path,
                                    MPI_Comm comm, bool replaceExistingFile) {
@@ -46,10 +48,9 @@ void writeConcatenatedFileRootOnly(const char* data, size_t sizeOfData, const st
   }
 }
 
-bool getFileExistsRootOnly(const std::string& fileName, CommunicatorType comm, RankType myRank,
-                           RankType rootRank) {
+bool getFileExistsRootOnly(const std::string& fileName, CommunicatorType comm, RankType rootRank) {
   bool doesItExist = false;
-  if (myRank == rootRank) {
+  if (combigrid::getCommRank(comm) == rootRank) {
     doesItExist = std::filesystem::exists(fileName);
   }
   MPI_Bcast(&doesItExist, 1, MPI_C_BOOL, rootRank, comm);
