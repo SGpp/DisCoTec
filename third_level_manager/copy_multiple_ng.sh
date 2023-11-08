@@ -104,7 +104,7 @@ do
             receive=$((receive+1))
             {
                 starttime=`date +%s`
-                echo "$(date +%T) start copying $(basename $SOURCE_FILE_INSTANCE) from HAWK as copie $copie / $NUM_LOCAL_FILES"
+                echo "$(date +%T) start copying $(basename $SOURCE_FILE_INSTANCE) from HAWK as copie $receive / $NUM_LOCAL_FILES"
                 # copy the compressed file
                 uftp cp -n ${STREAMS} -t ${THREADS_PER_PROC} -i ${IDENTITYFILE_HLRS} -u ${TARGET_USER_HLRS} ${TARGET_URL_HLRS}:${SOURCE_FILE_INSTANCE} ${SOURCE_PATH}
                 # generate TOKEN_TRANSFER_BACKWARD
