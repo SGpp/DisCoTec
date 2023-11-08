@@ -11,16 +11,16 @@ trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
 # Paths and filenames with default values
 # (can be overwritten by environment variables or command line arguments)
-SOURCE_PATH=${SOURCE_PATH:=/p/scratch/widediscotecjsc/3-systems/measurements/3-systems_3x8}
-DSG_NUM=${DSG_NUM:=1}
+SOURCE_PATH=${SOURCE_PATH:=/p/scratch/widediscotecjsc/3-systems/measurements/3-systems_3x8/}
+DSG_NUM=${DSG_NUM:=2}
 SOURCE_FILE=${SOURCE_FILE:=${SOURCE_PATH}/dsg_${DSG_NUM}_step*_0}
 
-TARGET_PATH_NG=${TARGET_PATH_NG:=//hppfs/work/pn36xu/di39qun2/3-systems/measurements/3-systems_8x8}
+TARGET_PATH_NG=${TARGET_PATH_NG:=//hppfs/work/pn36xu/di39qun2/3-systems/measurements/3-systems_8x8/}
 TARGET_URL_NG=https://datagw03.supermuc.lrz.de:9000/rest/auth/DATAGW
 TARGET_USER_NG=${TARGET_USER_NG:=di39qun2}
 IDENTITYFILE_NG=${IDENTITYFILE_NG:=~/.uftp/id_uftp_to_lrz}
 
-TARGET_PATH_HLRS=${TARGET_PATH_HLRS:=//lustre/hpe/ws11/ws11.1/ws/ipvpolli-discotec_weak_scaling/3-systems/measurements/3-system_3x8}
+TARGET_PATH_HLRS=${TARGET_PATH_HLRS:=//lustre/hpe/ws11/ws11.1/ws/ipvpolli-discotec_weak_scaling/3-systems/measurements/3-systems_16x8/}
 TARGET_URL_HLRS=https://gridftp-fr1.hww.hlrs.de:9000/rest/auth/HLRS
 TARGET_USER_HLRS=${TARGET_USER_HLRS:=ipvpolli}
 IDENTITYFILE_HLRS=${IDENTITYFILE_HLRS:=~/.uftp/id_uftp_to_hlrs}
