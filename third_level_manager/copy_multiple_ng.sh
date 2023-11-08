@@ -99,7 +99,7 @@ do
         if (exit $cp_status); then
           # uftp rm -q -i ${IDENTITYFILE_HLRS} -u ${TARGET_USER_HLRS} $TARGET_URL_HLRS:$TOKEN_TRANSFER_BACKWARD
           SOURCE_FILE_INSTANCE=${TOKEN_TRANSFER_BACKWARD/token.txt/0}
-          if [ ! -f  ${SOURCE_PATH}/$(basname $SOURCE_FILE_INSTANCE)]; then
+          if [ ! -f  ${SOURCE_PATH}/$(basname $SOURCE_FILE_INSTANCE) ]; then
             touch ${SOURCE_PATH}/$(basname $SOURCE_FILE_INSTANCE)
             receive=$((receive+1))
             {
