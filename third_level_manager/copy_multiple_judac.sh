@@ -93,26 +93,28 @@ do
       # receive
       TOKEN_TRANSFER_BACKWARD=${TOKEN_TRANSFER_BACKWARD_WILDCARD/\*/$STEP_RECEIVE}
       TOKEN_TRANSFER_BACKWARD=${TOKEN_TRANSFER_BACKWARD}.part${part}
-      # if [ ! -f ${SOURCE_PATH}/$(basename $TOKEN_TRANSFER_BACKWARD) ]; then
+      if [ ! -f ${SOURCE_PATH}/$(basename $TOKEN_TRANSFER_BACKWARD) ]; then
         uftp cp -i ${IDENTITYFILE_HLRS} -u ${TARGET_USER_HLRS} $TARGET_URL_HLRS:$TOKEN_TRANSFER_BACKWARD /dev/null > /dev/null 2>&1
         cp_status=$?
         if (exit $cp_status); then
-          uftp rm -q -i ${IDENTITYFILE_HLRS} -u ${TARGET_USER_HLRS} $TARGET_URL_HLRS:$TOKEN_TRANSFER_BACKWARD
+          # uftp rm -q -i ${IDENTITYFILE_HLRS} -u ${TARGET_USER_HLRS} $TARGET_URL_HLRS:$TOKEN_TRANSFER_BACKWARD
           SOURCE_FILE_INSTANCE=${TOKEN_TRANSFER_BACKWARD/token.txt/0}
-          receive=$((receive+1))
-          {
-              starttime=`date +%s`
-              echo "$(date +%T) start copying $(basename $SOURCE_FILE_INSTANCE) from HAWK as copie $copie / $NUM_LOCAL_FILES"
-              # copy the compressed file
-              uftp cp -n ${STREAMS} -t ${THREADS_PER_PROC} -i ${IDENTITYFILE_HLRS} -u ${TARGET_USER_HLRS} ${TARGET_URL_HLRS}:${SOURCE_FILE_INSTANCE} ${SOURCE_PATH}
-              # generate TOKEN_TRANSFER_BACKWARD
-              touch ${SOURCE_PATH}/$(basename $TOKEN_TRANSFER_BACKWARD)
-              endtime=`date +%s`
-              echo $(date +%T) copied $(basename $SOURCE_FILE_INSTANCE) in $((endtime-starttime)) seconds from HAWK.
-          } &
-
+          if [ ! -f  ${SOURCE_PATH}/$(basname $SOURCE_FILE_INSTANCE)]; then
+            touch ${SOURCE_PATH}/$(basname $SOURCE_FILE_INSTANCE)
+            receive=$((receive+1))
+            {
+                starttime=`date +%s`
+                echo "$(date +%T) start copying $(basename $SOURCE_FILE_INSTANCE) from HAWK as copie $copie / $NUM_LOCAL_FILES"
+                # copy the compressed file
+                uftp cp -n ${STREAMS} -t ${THREADS_PER_PROC} -i ${IDENTITYFILE_HLRS} -u ${TARGET_USER_HLRS} ${TARGET_URL_HLRS}:${SOURCE_FILE_INSTANCE} ${SOURCE_PATH}
+                # generate TOKEN_TRANSFER_BACKWARD
+                touch ${SOURCE_PATH}/$(basename $TOKEN_TRANSFER_BACKWARD)
+                endtime=`date +%s`
+                echo $(date +%T) copied $(basename $SOURCE_FILE_INSTANCE) in $((endtime-starttime)) seconds from HAWK.
+            } &
+          fi
         fi
-      # fi
+      fi
     done
 
 
