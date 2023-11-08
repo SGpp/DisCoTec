@@ -636,10 +636,10 @@ inline int SparseGridWorker::readReduce(const std::vector<std::string>& filename
     indicesStillToReadReduce.insert(i);
   }
   auto filePart = theMPISystem()->getFilePartNumber();
+  bool firstTry = true;
   while (!indicesStillToReadReduce.empty()) {
     std::string filePartTokenToRead;
     std::string filePartNameToRead;
-    bool firstTry = true;
     for (auto it = indicesStillToReadReduce.begin(); it != indicesStillToReadReduce.end(); ++it) {
       if (combigrid::theMPISystem()->getOutputComm() != MPI_COMM_NULL) {
         filePartTokenToRead = startReadingTokenFileNames[*it] + ".part" + std::to_string(filePart);
