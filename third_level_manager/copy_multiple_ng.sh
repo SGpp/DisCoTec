@@ -40,7 +40,7 @@ TOKEN_STOP=uftp_transfer_stop.txt
 # Default values for the parallel file transfer
 # (can be overwritten by environment variables or command line arguments)
 
-THREADS_PER_PROC=${THREADS_PER_PROC:=8} # number of uftp threads per proc
+THREADS_PER_PROC=${THREADS_PER_PROC:=4} # number of uftp threads per proc
 STREAMS=${STREAMS:=3} # number of parallel uftp streams per thread
 STEP_SEND=0
 STEP_RECEIVE=0
