@@ -17,12 +17,27 @@
   date        = {2021}
 }
 
+@inproceedings{pollingerLeveragingComputePower2023b,
+  title = {Leveraging the {{Compute Power}} of {{Two HPC Systems}} for {{Higher-Dimensional Grid-Based Simulations}} with the {{Widely-Distributed Sparse Grid Combination Technique}}},
+  booktitle = {Proceedings of the {{International Conference}} for {{High Performance Computing}}, {{Networking}}, {{Storage}} and {{Analysis}}},
+  author = {Pollinger, Theresa and Van Craen, Alexander and Niethammer, Christoph and Breyer, Marcel and Pflüger, Dirk},
+  date = {2023-11-11},
+  series = {{{SC}} '23},
+  publisher = {{Association for Computing Machinery}},
+  location = {{New York, NY, USA}},
+  doi = {10.1145/3581784.3607036},
+  url = {https://dl.acm.org/doi/10.1145/3581784.3607036},
+  abstract = {Grid-based simulations of hot fusion plasmas are often severely limited by computational and memory resources; the grids live in four- to six-dimensional space and thus suffer the curse of dimensionality. However, high resolutions are required to fully capture the physics of interest. The sparse grid combination technique is a multi-scale method in which many anisotropically coarse resolved grids are used to approximate a fine-scale solution---and it alleviates the curse of dimensionality. This paper presents the core concepts of the widely-distributed combination technique, which allows us to use the compute power and memory of more than one HPC system for the same simulation. We apply the sparse grid combination technique to a six-dimensional advection problem serving as a proxy for plasma simulations. The full-grid solution approximated by the combination technique would contain ≈ 5 ZB if computed with conventional grid-based methods. Even the combination technique simulation operates on ≈ 1 × 1011 double-precision degrees of freedom, or 988 GB, plus the supporting sparse grid data structures. We propose a new approach to divide the compute load between the two HPC systems, requiring only 76 GB to be exchanged. Based on this, we have realized the first synchronous combination technique simulation using two HPC systems, in our case the two German Tier-0 supercomputers HAWK and SuperMUC-NG. On two systems, the simulation can be computed at an average overhead of ≈ 35 \% (108 s per combination step) for file I/O and transfer. The presented concepts apply to any pair of HPC systems if high-speed data transfer is possible.},
+  keywords = {combination technique,coupling HPC systems,higher-dimensional simulation,multi-level methods,plasma turbulence,UFTP},
+}
+
+
 @article{pollingerStableMassconservingSparse2023,
   title = {A Stable and Mass-Conserving Sparse Grid Combination Technique with Biorthogonal Hierarchical Basis Functions for Kinetic Simulations},
   author = {Pollinger, Theresa and Rentrop, Johannes and Pflüger, Dirk and Kormann, Katharina},
   date = {2023-07-07},
   journaltitle = {Journal of Computational Physics},
-  shortjournal = {JCOMP},
+	shortjournal = {JCOMP},
   pages = {112338},
   issn = {0021-9991},
   doi = {10.1016/j.jcp.2023.112338},
@@ -30,14 +45,4 @@
   abstract = {The exact numerical simulation of plasma turbulence is one of the assets and challenges in fusion research. For grid-based solvers, sufficiently fine resolutions are often unattainable due to the curse of dimensionality. The sparse grid combination technique provides the means to alleviate the curse of dimensionality for kinetic simulations. However, the hierarchical representation for the combination step with the state-of-the-art hat functions suffers from poor conservation properties and numerical instability. The present work introduces two new variants of hierarchical multiscale basis functions for use with the combination technique: the biorthogonal and full weighting bases. The new basis functions conserve the total mass and are shown to significantly increase accuracy for a finite-volume solution of constant advection. Numerical analysis of the new basis functions reveals that their higher dual regularity does not only lead to conservation, but also yields an L2-stable basis for the combination technique. Accordingly, further numerical experiments applying the combination technique to a semi-Lagrangian Vlasov–Poisson solver in six dimensions show a stabilizing effect of the biorthogonal and full weighting bases on the simulations.},
   langid = {english},
   keywords = {kinetic simulations,multi-scale functions,numerical instabilities,sparse grid combination technique,Vlasov–Poisson equations},
-}
-
-@inproceedings{pollingerLeveragingComputePower2023,
-  title = {Leveraging the Compute Power of Two {{HPC}} Systems for Higher-Dimensional Grid-Based Simulations with the Widely-Distributed Sparse Grid Combination Technique},
-  booktitle = {Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis},
-  author = {Pollinger, Theresa and Van Craen, Alexander and Niethammer, Christoph and Breyer, Marcel and Pfüger, Dirk},
-  date = {2023},
-  doi = {https://doi.org/10.1145/3581784.3607036},
-  note = {Accepted for publication},
-  eventtitle = {Supercomputing {{Conference}}}
 }
