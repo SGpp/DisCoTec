@@ -13,23 +13,16 @@ authors:
     affiliation: 1 
     corresponding: true
     orcid: 0000-0002-0186-4340
-  - name: Michael Obersteiner
-    affiliation: 2
   - name: Alexander Van Craen
     affiliation: 1 
     orcid: 0000-0002-3336-7226
-  - name: Marcel Breyer
-    affiliation: 1 
-    orcid: 0000-0003-3574-0650
   - name: Dirk Pflüger
     affiliation: 1 
     orcid: 0000-0002-4360-0212
 affiliations:
  - name: University of Stuttgart, Scientific Computing, Stuttgart, Germany
    index: 1
- - name: TU Munich, Scientific Computing in Computer Science, Munich, Germany
-   index: 2
-date: 30 October 2023
+date: 16 November 2023
 bibliography: paper.bib
 
 ---
@@ -42,7 +35,7 @@ An example of this are plasma simulations in the field of confined fusion resear
 The sparse grid combination technique addresses this problem:
 Instead of solving the problem on one grid that is very finely resolved in all dimensions,
 the problem is solved on a combination of grids which are all rather coarsely resolved --
-each of them in differently in the different dimensions.
+each of them differently in the different dimensions.
 By updating each other's information throughout the simulation, the grids still solve the problem accurately.
 
 
@@ -63,6 +56,6 @@ This feature is enabled by file transfer through tools like UFTP.
 
 # Acknowledgements
 
-We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra Hinojosa, Marcel Hurler, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal, Christoph Niethammer, Philipp Offenhäuser, and support from HLRS, LRZ, JSC, and NHR@FAU, where we would like to highlight the long-standing support by Martin Bernreuther and Martin Ohlerich.
+We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra Hinojosa, Michael Obersteiner, Marcel Hurler, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal, Marcel Breyer, Christoph Niethammer, Philipp Offenhäuser, and support from HLRS, LRZ, JSC, and NHR@FAU, where we would like to highlight the long-standing support by Martin Bernreuther and Martin Ohlerich.
 
 # References
