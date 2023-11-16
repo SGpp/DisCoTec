@@ -82,6 +82,7 @@ pipeline {
                                         spack compiler remove -a gcc@10.1.0: || true # ignore if this compiler was not found
                                         spack spec -y discotec@main -lto %${compiler} ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
                                         spack install -y discotec@main -lto %${compiler} ^${mpiimpl} #+selalib # --only dependencies # actually build discotec, such that load command will work
+                                        spack install -y lz4 %${compiler}
                                         '''
                                     }
                                 }
@@ -148,9 +149,11 @@ pipeline {
                                         sh '''
                                             . ../discotec-spack/spack/share/spack/setup-env.sh
                                             spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
+                                            spack load --first cmake %${compiler}
+                                            spack load --first lz4 %${compiler}
                                             mkdir -p build/${compiler}-${mpiimpl}-${build_type}
                                             cd build/${compiler}-${mpiimpl}-${build_type}
-                                            cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_OPENMP=1 -DDISCOTEC_USE_LTO=0 ../..
+                                            cmake -DCMAKE_BUILD_TYPE=${build_type} -DDISCOTEC_TEST=1 -DDISCOTEC_TIMING=1  -DDISCOTEC_ENABLEFT=0 -DDISCOTEC_GENE=0 -DDISCOTEC_USE_HIGHFIVE=1 -DDISCOTEC_OPENMP=1 -DDISCOTEC_USE_LTO=0 -DDISCOTEC_WITH_COMPRESSION=1 ../..
                                             make -j8
                                         '''
                                     }
@@ -169,6 +172,7 @@ pipeline {
                                     mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem                      
                                     mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=fullgrid
                                     mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=hierarchization --log_level=message
+                                    mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=io
                                     mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=loadmodel
                                     mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=reduce
                                     mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=rescheduling

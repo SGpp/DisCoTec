@@ -52,16 +52,16 @@ class ProcessGroupManager {
   bool combineThirdLevel(const ThirdLevelUtils& thirdLevel, CombiParameters& params,
                          bool isSendingFirst);
 
-  bool combineThirdLevelFileBased(std::string filenamePrefixToWrite,
-                                  std::string writeCompleteTokenFileName,
-                                  std::string filenamePrefixToRead,
-                                  std::string startReadingTokenFileName);
+  bool combineThirdLevelFileBased(const std::string& filenamePrefixToWrite,
+                                  const std::string& writeCompleteTokenFileName,
+                                  const std::string& filenamePrefixToRead,
+                                  const std::string& startReadingTokenFileName);
 
-  bool combineThirdLevelFileBasedWrite(std::string filenamePrefixToWrite,
-                                       std::string writeCompleteTokenFileName);
+  bool combineThirdLevelFileBasedWrite(const std::string& filenamePrefixToWrite,
+                                       const std::string& writeCompleteTokenFileName);
 
-  bool combineThirdLevelFileBasedReadReduce(std::string filenamePrefixToRead,
-                                            std::string startReadingTokenFileName);
+  bool combineThirdLevelFileBasedReadReduce(const std::string& filenamePrefixToRead,
+                                            const std::string& startReadingTokenFileName);
 
   bool pretendCombineThirdLevelForWorkers(CombiParameters& params);
 
@@ -82,7 +82,7 @@ class ProcessGroupManager {
 
   bool recoverCommunicators();
 
-  bool parallelEval(const LevelVector& leval, std::string& filename);
+  bool parallelEval(const LevelVector& leval, const std::string& filename);
 
   void writeSparseGridMinMaxCoefficients(const std::string& filename);
 
@@ -121,17 +121,15 @@ class ProcessGroupManager {
 
   bool hasTask(size_t taskID){
     auto foundIt = std::find_if(tasks_.begin(), tasks_.end(),
-                        [taskID](Task* t){
-                          return ((t->getID()) == taskID);
-                        });
+                                [taskID](Task* t) { return ((t->getID()) == taskID); });
     return foundIt != tasks_.end();
   }
 
   bool writeCombigridsToVTKPlotFile();
 
-  bool writeDSGsToDisk(std::string filenamePrefix);
+  bool writeDSGsToDisk(const std::string& filenamePrefix);
 
-  bool readDSGsFromDisk(std::string filenamePrefix);
+  bool readDSGsFromDisk(const std::string& filenamePrefix);
 
   void storeTaskReference(Task* t);
 

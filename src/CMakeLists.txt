@@ -19,6 +19,7 @@ set(DISCOTEC_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/LPOptimizationInterpolation.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/StaticFaults.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/fault_tolerance/WeibullFaults.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/io/FileInputOutput.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/io/H5InputOutput.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/io/BroadcastParameters.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/loadmodel/AverageOfLastNLoadModel.cpp
@@ -120,6 +121,22 @@ if (DISCOTEC_USE_LTO)
         message(FATAL "IPO is not supported: ${output}")
     endif ()
 endif ()
+
+option(DISCOTEC_WITH_COMPRESSION "Enable Compressed output with LZ4" OFF)
+if(DISCOTEC_WITH_COMPRESSION)
+    find_path(LZ4_INCLUDE_DIR NAMES "lz4.h")
+    target_include_directories(discotec PUBLIC ${LZ4_INCLUDE_DIR})
+    if(NOT EXISTS ${LZ4_INCLUDE_DIR}/lz4.h)
+        message(FATAL_ERROR "LZ4: ${LZ4_INCLUDE_DIR}/lz4.h not found")
+    endif()
+    find_library(LZ4_LIBRARIES NAMES "lz4" )
+    if(NOT EXISTS ${LZ4_LIBRARIES})
+        message(FATAL_ERROR "LZ4: ${LZ4_LIBRARIES} not found")
+    endif()
+    target_link_libraries(discotec PUBLIC ${LZ4_LIBRARIES})
+    target_compile_definitions(discotec PUBLIC DISCOTEC_USE_LZ4)
+endif()
+
 #TODO: find or fetch GENE if enabled
 
 option(DISCOTEC_OMITREADYSIGNAL "Omit ready signal" OFF)
@@ -153,22 +170,78 @@ target_include_directories(discotec PUBLIC ${GLPK_INCLUDE_DIRS})
 if (DISCOTEC_USE_HIGHFIVE)
     enable_language(C)
     find_package(HighFive REQUIRED)  # TODO: add minimum version and components
+    if (IS_DIRECTORY "${HighFive_SOURCE_DIR}")
+        set_property(DIRECTORY ${HighFive_SOURCE_DIR} PROPERTY EXCLUDE_FROM_ALL YES)
+    endif ()
     target_include_directories(discotec PRIVATE ${HighFive_INCLUDE_DIRS})
     target_link_libraries(discotec PRIVATE HighFive)
     target_compile_definitions(discotec PUBLIC DISCOTEC_USE_HIGHFIVE)
-
+    list(POP_BACK CMAKE_MESSAGE_INDENT)
 endif ()
-
 
 if (DISCOTEC_USE_VTK)
     enable_language(C)
     find_package(VTK REQUIRED) # TODO: add minimum version and components
 
     target_link_libraries(discotec PRIVATE  VTK::CommonCore VTK::CommonDataModel VTK::IOParallelXML)
-
     target_include_directories(discotec PRIVATE ${VTK_INCLUDE_DIRS})
     target_compile_definitions(discotec PRIVATE USE_VTK)
 endif ()
+
+# Compiler flags
+target_compile_options(discotec PUBLIC
+        $<$<CXX_COMPILER_ID:GNU>:-Wall -pedantic -Wextra -Wpedantic -Wconversion -Wformat=2 -Wformat-nonliteral -Wformat-security -Winit-self -Wmissing-format-attribute -Wmissing-include-dirs -Wpacked -Wredundant-decls -Wswitch-default -Wswitch-enum -Wunreachable-code -Wunused -Wno-unused-parameter -fno-omit-frame-pointer>
+        $<$<CXX_COMPILER_ID:Clang>:-Wall -Wextra -Wno-unused-parameter>
+        $<$<CXX_COMPILER_ID:Intel,IntelLLVM>:-Wall -ansi -Wno-deprecated -wd1125  -fp-speculation=safe -DDEFAULT_RES_THRESHOLD=-1.0 -DTASKS_PARALLEL_UPDOWN=4 -no-offload>)
+target_compile_options(discotec PUBLIC
+        $<$<AND:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:GNU>>: -fno-strict-aliasing -funroll-loops>
+        $<$<AND:$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>,$<CXX_COMPILER_ID:Intel,IntelLLVM>>: -fno-strict-aliasing -ip -ipo -funroll-loops -ansi-alias>
+        )
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG(-march=native COMPILER_SUPPORTS_MARCH_NATIVE)
+CHECK_CXX_COMPILER_FLAG(-sse4.2 COMPILER_SUPPORTS_SSE4_2)
+CHECK_CXX_COMPILER_FLAG(-msse3 COMPILER_SUPPORTS_SSE3)
+CHECK_CXX_COMPILER_FLAG(-mavx COMPILER_SUPPORTS_AVX)
+CHECK_CXX_COMPILER_FLAG(-mavx2 COMPILER_SUPPORTS_AVX2)
+CHECK_CXX_COMPILER_FLAG(-mfma COMPILER_SUPPORTS_FMA)
+CHECK_CXX_COMPILER_FLAG(-mfma4 COMPILER_SUPPORTS_FMA4)
+CHECK_CXX_COMPILER_FLAG(-mavx512f COMPILER_SUPPORTS_AVX512F)
+CHECK_CXX_COMPILER_FLAG(-mavx512cd COMPILER_SUPPORTS_AVX512CD)
+CHECK_CXX_COMPILER_FLAG(-xCORE-AVX2 COMPILER_SUPPORTS_XCORE_AVX2)
+CHECK_CXX_COMPILER_FLAG(-mmic COMPILER_SUPPORTS_MMIC)
+
+if(COMPILER_SUPPORTS_MARCH_NATIVE)
+    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-march=native>)
+endif()
+
+#if(COMPILER_SUPPORTS_SSE4_2)
+#    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-msse4.2>)
+#elseif(COMPILER_SUPPORTS_SSE3)
+#    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-msse3>)
+#endif()
+#if(COMPILER_SUPPORTS_AVX2)
+#    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mavx2>)
+#elseif(COMPILER_SUPPORTS_AVX)
+#    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mavx>)
+#    if(COMPILER_SUPPORTS_AVX512F)
+#        target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mavx512f>)
+#    endif()
+#    if(COMPILER_SUPPORTS_AVX512CD)
+#        target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mavx512cd>)
+#    endif()
+#endif()
+#if(COMPILER_SUPPORTS_FMA4)
+#    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mfma4>)
+#elseif(COMPILER_SUPPORTS_FMA)
+#    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mfma>)
+#endif()
+#if(COMPILER_SUPPORTS_XCORE_AVX2)
+#    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-xCORE-AVX2>)
+#endif()
+#if(COMPILER_SUPPORTS_MMIC)
+#    target_compile_options(discotec PUBLIC $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-mmic>)
+#endif()
+
 install(TARGETS discotec
         EXPORT discotecTargets
         LIBRARY DESTINATION lib

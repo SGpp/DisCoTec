@@ -20,7 +20,7 @@ find_package(MPI REQUIRED)
 find_package(Boost REQUIRED)
 
 add_executable(subspace_writer subspace_writer.cpp)
-target_include_directories(subspace_writer PRIVATE ${MPI_CXX_INCLUDE_DIRS} ../../../src)
+target_include_directories(subspace_writer PRIVATE ${MPI_CXX_INCLUDE_DIRS} ../../src)
 target_compile_features(subspace_writer PRIVATE cxx_std_17)
 target_link_libraries(subspace_writer PRIVATE MPI::MPI_CXX discotec Boost::boost)
 
