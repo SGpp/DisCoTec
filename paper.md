@@ -22,6 +22,7 @@ authors:
 affiliations:
  - name: University of Stuttgart, Scientific Computing, Stuttgart, Germany
    index: 1
+nocite: @obersteiner_spatially_2021
 date: 16 November 2023
 bibliography: paper.bib
 
@@ -43,12 +44,12 @@ By updating each other's information throughout the simulation, the grids still 
 
 `DisCoTec` is a C++ framework for the sparse grid combination technique.
 Targeted at HPC systems, it is used for parallel simulations,
-drawing on distributed-memory parallelism via MPI and shared-memory parallelism via OpenMP.
+drawing on distributed-memory parallelism via MPI [@heeneMassivelyParallelCombination2018] and shared-memory parallelism via OpenMP.
 It is designed to be used in combination with existing simulation codes,
 which can be used with `DisCoTec` in a black-box fashion.
 
 A further application includes the widely-distributed simulation of higher-dimensional problems,
-in which multiple HPC systems cooperate to solve a joint simulation.
+in which multiple HPC systems cooperate to solve a joint simulation [@pollingerLeveragingComputePower2023].
 The transfer cost is relatively low due to the multi-scale approach in the combination technique 
 -- much less than with a traditional domain-decomposition.   
 This feature is enabled by file transfer through tools like UFTP.
@@ -56,7 +57,7 @@ This feature is enabled by file transfer through tools like UFTP.
 Basically, any code that can operated on nested structured grids can employ the model order reduction 
 provided by the underlying sparse grid approach without considering any multiscale operations; this is provided by DisCoTec.
 Although already 2D applications can see significant benefits, the higher-dimensional (4- to 6-dimensional) 
-grids employed in high-fidelity plasma simulations benefit even more.
+grids employed in high-fidelity plasma simulations benefit even more [@pollingerStableMassconservingSparse2023].
 
 
 # Acknowledgements
