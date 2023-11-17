@@ -77,7 +77,7 @@ void ThirdLevelManager::init()
     std::cout << "ThirdLevelManager::init(): Params are not loaded!" << std::endl;
     exit(0);
   }
-  auto serverInitSuccess = server_.init();
+  [[maybe_unused]] auto serverInitSuccess = server_.init();
   assert(serverInitSuccess);
   if (not server_.isInitialized())
   {
@@ -292,7 +292,7 @@ size_t ThirdLevelManager::forwardData(const System& sender, const System& receiv
   return dataSize;
 }
 
-void ThirdLevelManager::writeStatistics(std::string filename)
+void ThirdLevelManager::writeStatistics(const std::string& filename)
 {
   size_t walltime = stats_.getWallTime();
   size_t numCombinations = stats_.getNumCombinations();

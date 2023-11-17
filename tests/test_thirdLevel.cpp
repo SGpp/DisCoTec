@@ -22,6 +22,7 @@
 #include "sparsegrid/DistributedSparseGridUniform.hpp"
 #include "task/Task.hpp"
 #include "utils/Config.hpp"
+#include "utils/DecompositionUtils.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
 #include "stdlib.h"
@@ -581,7 +582,7 @@ void testCombineThirdLevelWithoutManagers(
                                     true);
 
   if (testParams.nprocs > 1 && thirdLevelExtraSparseGrid) {
-    theMPISystem()->initOuputGroupComm(testParams.nprocs / 2);
+    theMPISystem()->initOutputGroupComm(testParams.nprocs / 2);
   }
   auto loadmodel = std::unique_ptr<LoadModel>(new LinearLoadModel());
   std::vector<BoundaryType> boundary(testParams.dim, testParams.boundary);
@@ -612,7 +613,7 @@ void testCombineThirdLevelWithoutManagers(
 
     for (size_t i = 0; i < systemLevels.size(); ++i) {
       // assign round-robin to process groups
-      if (i % theMPISystem()->getNumGroups() == theMPISystem()->getProcessGroupNumber()) {
+      if (static_cast<RankType>(i % theMPISystem()->getNumGroups()) == theMPISystem()->getProcessGroupNumber()) {
         // find index in full list
         auto position = std::find(systemLevels.begin(), systemLevels.end(), systemLevels[i]);
         BOOST_REQUIRE(position != systemLevels.end());
@@ -790,9 +791,7 @@ void testPretendThirdLevel(TestParams& testParams) {
   BOOST_CHECK(testParams.comm != MPI_COMM_NULL);
 
   combigrid::Stats::initialize();
-
-  size_t procsPerSys = testParams.ngroup * testParams.nprocs + 1;
-
+  // size_t procsPerSys = testParams.ngroup * testParams.nprocs + 1;
   theMPISystem()->initWorldReusable(testParams.comm, testParams.ngroup, testParams.nprocs);
 
   WORLD_MANAGER_EXCLUSIVE_SECTION {

@@ -24,7 +24,7 @@
 
 using namespace combigrid;
 
-void mockUpDSGWriteToDisk(std::string filePrefix,
+void mockUpDSGWriteToDisk(const std::string& filePrefix,
                           const std::vector<long long int>& dsgPartitionSizes) {
   for (size_t partitionIndex = 0; partitionIndex < dsgPartitionSizes.size(); ++partitionIndex) {
     std::string myFilename = filePrefix + std::to_string(partitionIndex);
@@ -42,7 +42,7 @@ void mockUpDSGWriteToDisk(std::string filePrefix,
   }
 }
 
-void writeRandomDataToDisk(std::string filePrefix,
+void writeRandomDataToDisk(const std::string& filePrefix,
                          const std::vector<long long int>& dsgPartitionSizes) {
   Stats::startEvent("uftp write");
   auto actualPartitionSizes = dsgPartitionSizes;
@@ -53,7 +53,7 @@ void writeRandomDataToDisk(std::string filePrefix,
     auto sum = std::accumulate(actualPartitionSizes.begin(), actualPartitionSizes.end(), 0);
     actualPartitionSizes.back() += (dsgPartitionSizes[0] - sum);
   }
-  auto sumDOF = std::accumulate(actualPartitionSizes.begin(), actualPartitionSizes.end(), 0);
+  // [[maybe_unused]] auto sumDOF = std::accumulate(actualPartitionSizes.begin(), actualPartitionSizes.end(), 0);
   std::string myFilename = filePrefix + std::to_string(0);
   // cf. https://stackoverflow.com/a/47742514
   {
@@ -75,7 +75,7 @@ void writeRandomDataToDisk(std::string filePrefix,
   Stats::stopEvent("uftp write");
 }
 
-void createLargeFile(std::string filePrefix, const std::vector<long long int>& dsgPartitionSizes) {
+void createLargeFile(const std::string& filePrefix, const std::vector<long long int>& dsgPartitionSizes) {
   Stats::startEvent("uftp create file");
   // cf. https://stackoverflow.com/a/47742514
   {
@@ -90,7 +90,7 @@ void createLargeFile(std::string filePrefix, const std::vector<long long int>& d
   Stats::stopEvent("uftp create file");
 }
 
-void validateExchangedData(std::string filePrefix, std::string tokenToWaitFor,
+void validateExchangedData(const std::string& filePrefix, const std::string& tokenToWaitFor,
                            const std::vector<long long int>& dsgPartitionSizes) {
   // generate data on heap
   std::unique_ptr<std::vector<real>> mockUpData(new std::vector<real>(dsgPartitionSizes[0]));
@@ -118,7 +118,7 @@ void validateExchangedData(std::string filePrefix, std::string tokenToWaitFor,
   }
 }
 
-void checkSizeOfFile(std::string filePrefix, std::string tokenToWaitFor,
+void checkSizeOfFile(const std::string& filePrefix, const std::string& tokenToWaitFor,
                            const std::vector<long long int>& dsgPartitionSizes) {
   Stats::startEvent("uftp wait check size");
   Stats::startEvent("uftp wait");
@@ -146,7 +146,7 @@ void checkSizeOfFile(std::string filePrefix, std::string tokenToWaitFor,
   Stats::stopEvent("uftp wait check size");
 }
 
-void readAndInvertDSGFromDisk(std::string filePrefixIn, std::string filePrefixOut,
+void readAndInvertDSGFromDisk(const std::string& filePrefixIn, const std::string& filePrefixOut,
                               std::string tokenToWaitFor,
                               const std::vector<long long int>& dsgPartitionSizes) {
   std::unique_ptr<std::vector<real>> readData(new std::vector<real>(dsgPartitionSizes[0]));
@@ -224,7 +224,6 @@ int main(int argc, char** argv) {
   // read in third level parameters if available
   std::string thirdLevelHost, thirdLevelSSHCommand = "";
   unsigned int systemNumber = 0, numSystems = 1;
-  unsigned short thirdLevelPort = 0;
   bool hasThirdLevel = static_cast<bool>(cfg.get_child_optional("thirdLevel"));
   std::vector<real> fractionsOfScheme;
   if (hasThirdLevel) {
@@ -232,7 +231,6 @@ int main(int argc, char** argv) {
     thirdLevelHost = cfg.get<std::string>("thirdLevel.host");
     systemNumber = cfg.get<unsigned int>("thirdLevel.systemNumber");
     numSystems = cfg.get<unsigned int>("thirdLevel.numSystems");
-    thirdLevelPort = cfg.get<unsigned short>("thirdLevel.port");
     thirdLevelSSHCommand = cfg.get<std::string>("thirdLevel.sshCommand", "");
     bool hasFractions = static_cast<bool>(cfg.get_child_optional("thirdLevel.fractionsOfScheme"));
     if (hasFractions) {
@@ -261,8 +259,7 @@ int main(int argc, char** argv) {
   std::vector<LevelVector> levels;
   std::vector<combigrid::real> coeffs;
   std::vector<size_t> taskNumbers; // only used in case of static task assignment
-  bool useStaticTaskAssignment = false;
-  long long int ctDOF = 0;
+  [[maybe_unused]] long long int ctDOF = 0;
   if (ctschemeFile == "") {
     /* generate a list of levelvectors and coefficients
      * CombiMinMaxScheme will create a classical combination scheme.
@@ -288,10 +285,10 @@ int main(int argc, char** argv) {
         new CombiMinMaxSchemeFromFile(dim, lmin, lmax, ctschemeFile));
     const auto& pgNumbers = scheme->getProcessGroupNumbers();
     if (pgNumbers.size() > 0) {
-      useStaticTaskAssignment = true;
+      // useStaticTaskAssignment = true;
       const auto& allCoeffs = scheme->getCoeffs();
       const auto& allLevels = scheme->getCombiSpaces();
-      const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
+      [[maybe_unused]] const auto [itMin, itMax] = std::minmax_element(pgNumbers.begin(), pgNumbers.end());
       assert(*itMin == 0);  // make sure it starts with 0
       // assert(*itMax == ngroup - 1); // and goes up to the maximum group //TODO
       // filter out only those tasks that belong to "our" process group

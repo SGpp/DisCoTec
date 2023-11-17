@@ -139,7 +139,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs, bool withWorldManager) {
 
     initGlobalReduceCommm();
 
-    initOuputGroupComm();
+    initOutputGroupComm();
 
     if (withWorldManager) {
       /*
@@ -183,7 +183,7 @@ void MPISystem::init(size_t ngroup, size_t nprocs, CommunicatorType lcomm, bool 
 
   initGlobalReduceCommm();
 
-  initOuputGroupComm();
+  initOutputGroupComm();
 
   if (withWorldManager) {
     initThirdLevelComms();
@@ -212,7 +212,7 @@ void MPISystem::initWorldReusable(CommunicatorType wcomm, size_t ngroup, size_t 
 
     initGlobalReduceCommm();
 
-    initOuputGroupComm();
+    initOutputGroupComm();
 
     /* create global communicator which contains only the manager and the master
      * process of each process group
@@ -291,7 +291,7 @@ void MPISystem::storeLocalComm(CommunicatorType lcomm) {
     // in principle this does not have to be 0
     masterRank_ = 0;
 
-    int localSize = getCommSize(localComm_);
+    [[maybe_unused]] int localSize = getCommSize(localComm_);
     assert(masterRank_ < localSize);
   }
 
@@ -319,7 +319,7 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
   }
   if (withWorldManager) {
     assert(managerRankWorld_ >= 0);
-    assert(managerRankWorld_ < nprocs_ * ngroup_ + 1);
+    assert(managerRankWorld_ < static_cast<RankType>(nprocs_ * ngroup_ + 1));
     ranks.push_back(managerRankWorld_);
   }
 
@@ -334,12 +334,12 @@ void MPISystem::initGlobalComm(bool withWorldManager) {
 
   int worldSize = 0;
   MPI_Group_size(worldGroup, &worldSize);
-  assert(worldSize == nprocs_ * ngroup_ + (withWorldManager ? 1 : 0));
+  assert(worldSize == static_cast<int>(nprocs_ * ngroup_ + (withWorldManager ? 1 : 0)));
   for (const auto& r : ranks) {
     assert(r >= 0);
     assert(r < worldSize);
   }
-  assert(ranks.size() <= worldSize);
+  assert(ranks.size() <= static_cast<size_t>(worldSize));
 #endif
 
   MPI_Group globalGroup;
@@ -447,7 +447,7 @@ std::vector<int>& getDiagonalRanks(size_t nprocs, size_t ngroup) {
   return ranks;
 }
 
-void MPISystem::initOuputGroupComm(uint16_t numFileParts) {
+void MPISystem::initOutputGroupComm(uint16_t numFileParts) {
   assert(numFileParts > 0);
   if (outputComm_ != MPI_COMM_NULL && outputComm_ != outputGroupComm_) {
     MPI_Comm_free(&outputComm_);
@@ -881,7 +881,7 @@ bool MPISystem::recoverCommunicators(bool groupAlive,
   deleteCommFTAndCcomm(&globalReduceCommFT_, &globalReduceComm_);
   initGlobalReduceCommm();
 
-  initOuputGroupComm();
+  initOutputGroupComm();
 
   // toDo return fixed process group IDs
   std::cout << "returning \n";

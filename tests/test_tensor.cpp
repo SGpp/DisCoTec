@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(test_iterate_lower_boundaries_6d) {
       IndexType numberOfPointsVisited = 0;
       const auto strideInThisDimension = tensor.getOffsetsVector()[d];
       const IndexType jump = strideInThisDimension * tensor.getExtentsVector()[d];
-      const IndexType numberOfPolesHigherDimensions = tensor.size() / jump;
+      const IndexType numberOfPolesHigherDimensions = static_cast<IndexType>(tensor.size()) / jump;
       IndexType tensorLowestLayerIteratedIndex = 0;
 
       BOOST_TEST_CHECKPOINT("iterate lowest layer of tensor");

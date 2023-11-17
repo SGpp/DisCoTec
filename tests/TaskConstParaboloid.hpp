@@ -59,7 +59,7 @@ class TaskConstParaboloid : public combigrid::Task {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid constructor");
   }
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) override {
+  void init(CommunicatorType lcomm, const std::vector<IndexVector>& decomposition) override {
     // parallelization
     // assert(dfg_ == nullptr);
     auto nprocs = getCommSize(lcomm);
@@ -107,18 +107,18 @@ class TaskConstParaboloid : public combigrid::Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) override {
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid getDFG");
     return *dfg_;
   }
 
-  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) const override {
+  const DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) const override {
     BOOST_TEST_CHECKPOINT("TaskConstParaboloid getDFG const");
     return *dfg_;
   }
 
   real getCurrentTime() const override {
-    return nsteps_;
+    return static_cast<real>(nsteps_);
   }
 
   void setZero() override { BOOST_CHECK(true); }

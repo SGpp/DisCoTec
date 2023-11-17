@@ -229,7 +229,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
     // check that InnerNodalBasisFunctionIntegral is correct
     double numFullInnerBasisFcns = 1.;
     for (DimType d = 0; d < dim; ++d) {
-      numFullInnerBasisFcns *= static_cast<double>(dfg.length(d) - 1);
+      numFullInnerBasisFcns *= static_cast<double>(dfg.globalNumPointsInDimension(d) - 1);
     }
     BOOST_CHECK_CLOSE(dfg.getInnerNodalBasisFunctionIntegral(), 1. / numFullInnerBasisFcns,
                       TestHelper::tolerance);
@@ -271,7 +271,7 @@ void checkDistributedFullgrid(LevelVector& levels, std::vector<int>& procs,
         --globAxisIndex[d];
         if (boundary[d] == 1 && globAxisIndex[d] < 0) {
           // wrap around
-          globAxisIndex[d] += dfg.length(d);
+          globAxisIndex[d] += dfg.globalNumPointsInDimension(d);
         }
         std::vector<double> coords(dim);
         dfg.getCoordsGlobal(dfg.getGlobalLinearIndex(globAxisIndex), coords);

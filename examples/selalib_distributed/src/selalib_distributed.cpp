@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
       std::cout << "reduceCombinationDimsLmax = " << reduceCombinationDimsLmax << std::endl;
       std::cout << "boundary = " << boundary << std::endl;
       std::cout << "hierarchization_dims = " << hierarchizationDims << std::endl;
-      auto numDOF = printCombiDegreesOfFreedom(combischeme.getCombiSpaces(), boundary);
+      [[maybe_unused]] auto numDOF = printCombiDegreesOfFreedom(combischeme.getCombiSpaces(), boundary);
       std::cout << "CombiScheme: " << std::endl;
       for (size_t i = 0; i < levels.size(); ++i) {
         std::cout << "\t" << levels[i] << " " << coeffs[i] << std::endl;
@@ -177,11 +177,10 @@ int main(int argc, char** argv) {
       setCheckpointRestart(basename, levels);
     } else {
       // using a very high diagnostics interval -> write no diagnostics in the component grids
-      size_t veryHighNumber = 2147483647; // =2^31-1
-      size_t sometimes = 100;
-      size_t always = 1;
+      [[maybe_unused]] size_t veryHighNumber = 2147483647; // =2^31-1
+      [[maybe_unused]] size_t sometimes = 100;
+      [[maybe_unused]] size_t always = 1;
       // create necessary folders and files to run each task in a separate folder
-
       std::vector<size_t> taskNumbers(levels.size());  // only necessary in case of static task assignment
       std::iota(taskNumbers.begin(), taskNumbers.end(), 0);
       createTaskFolders(basename, levels, taskNumbers, p, nsteps, dt, always, nameDiagnostics);

@@ -17,15 +17,15 @@ namespace DistributedSparseGridIO {
 template <typename T>
 void reduceVectorTowardsMe(std::vector<T>& vectorToReduce, MPI_Comm comm, MPI_Op operation) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
-  MPI_Reduce(MPI_IN_PLACE, vectorToReduce.data(), vectorToReduce.size(), dataType, operation, 0,
-             comm);
+  MPI_Reduce(MPI_IN_PLACE, vectorToReduce.data(), static_cast<int>(vectorToReduce.size()), dataType,
+             operation, 0, comm);
 }
 
 template <typename T>
 void reduceVectorTowardsThem(std::vector<T>& vectorToReduce, MPI_Comm comm, MPI_Op operation) {
   MPI_Datatype dataType = getMPIDatatype(abstraction::getabstractionDataType<T>());
-  MPI_Reduce(vectorToReduce.data(), MPI_IN_PLACE, vectorToReduce.size(), dataType, operation, 0,
-             comm);
+  MPI_Reduce(vectorToReduce.data(), MPI_IN_PLACE, static_cast<int>(vectorToReduce.size()), dataType,
+             operation, 0, comm);
 }
 
 template <typename SparseGridType>
@@ -131,18 +131,19 @@ int readOneFileAndReduce(SparseGridType& dsg, const std::string& fileName,
                          uint32_t maxMiBToReadPerThread) {
   auto comm = dsg.getCommunicator();
 
-  const int numElementsToBuffer =
-      CombiCom::getGlobalReduceChunkSize<typename SparseGridType::ElementType>(
-          maxMiBToReadPerThread);
-
   // get offset in file
   const MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
 #ifdef DISCOTEC_USE_LZ4
-  int numReduced = mpiio::readReduceCompressedValuesConsecutive<typename SparseGridType::ElementType>(
-      data, len, fileName, comm, //numElementsToBuffer,
-      std::plus<typename SparseGridType::ElementType>{});
+  int numReduced =
+      mpiio::readReduceCompressedValuesConsecutive<typename SparseGridType::ElementType>(
+          data, len, fileName, comm,  // numElementsToBuffer,
+          std::plus<typename SparseGridType::ElementType>{});
 #else
+  const int numElementsToBuffer =
+      CombiCom::getGlobalReduceChunkSize<typename SparseGridType::ElementType>(
+          maxMiBToReadPerThread);
+
   int numReduced = mpiio::readReduceValuesConsecutive<typename SparseGridType::ElementType>(
       data, len, fileName, comm, numElementsToBuffer,
       std::plus<typename SparseGridType::ElementType>{});
@@ -172,11 +173,8 @@ int writeSomeFiles(const SparseGridType& dsg, const std::string& fileName,
 }
 
 template <typename SparseGridType>
-int readSomeFiles(SparseGridType& dsg, const std::string& fileName) {
+int readSomeFiles(SparseGridType& dsg, const std::string& filePartName) {
   auto comm = theMPISystem()->getOutputComm();
-  auto outputGroupSize = getCommSize(comm);
-  auto filePart = theMPISystem()->getOutputGroupRank() / outputGroupSize;
-  std::string filePartName = fileName + ".part" + std::to_string(filePart);
 
   // get offset in file
   MPI_Offset len = dsg.getRawDataSize();
@@ -192,26 +190,22 @@ int readSomeFiles(SparseGridType& dsg, const std::string& fileName) {
 }
 
 template <typename SparseGridType>
-int readSomeFilesAndReduce(SparseGridType& dsg, const std::string& fileName,
+int readSomeFilesAndReduce(SparseGridType& dsg, const std::string& filePartName,
                            uint32_t maxMiBToReadPerThread) {
   auto comm = theMPISystem()->getOutputComm();
-  auto outputGroupSize = getCommSize(comm);
-  auto filePart = theMPISystem()->getOutputGroupRank() / outputGroupSize;
-  std::string filePartName = fileName + ".part" + std::to_string(filePart);
 
-  const int numElementsToBuffer =
-      CombiCom::getGlobalReduceChunkSize<typename SparseGridType::ElementType>(
-          maxMiBToReadPerThread);
-
-  // get offset in file
   const MPI_Offset len = dsg.getRawDataSize();
   auto data = dsg.getRawData();
 
 #ifdef DISCOTEC_USE_LZ4
-  int numReduced = mpiio::readReduceCompressedValuesConsecutive<typename SparseGridType::ElementType>(
-      data, len, filePartName, comm, //numElementsToBuffer,
-      std::plus<typename SparseGridType::ElementType>{});
+  int numReduced =
+      mpiio::readReduceCompressedValuesConsecutive<typename SparseGridType::ElementType>(
+          data, len, filePartName, comm,  // numElementsToBuffer,
+          std::plus<typename SparseGridType::ElementType>{});
 #else
+  const int numElementsToBuffer =
+      CombiCom::getGlobalReduceChunkSize<typename SparseGridType::ElementType>(
+          maxMiBToReadPerThread);
   int numReduced = mpiio::readReduceValuesConsecutive<typename SparseGridType::ElementType>(
       data, len, filePartName, comm, numElementsToBuffer,
       std::plus<typename SparseGridType::ElementType>{});
@@ -246,7 +240,7 @@ int readReduceSubspaceSizesFromFile(SparseGridType& dsg, const std::string& file
   auto comm = dsg.getCommunicator();
   MPI_Offset len = dsg.getNumSubspaces();
   if (numElementsToBuffer == 0) {
-    numElementsToBuffer = len;
+    numElementsToBuffer = static_cast<int>(len);
   }
 
   int numReduced = mpiio::readReduceValuesConsecutive<SubspaceSizeType>(
@@ -263,7 +257,7 @@ int readReduceSubspaceSizesFromFiles(SparseGridType& dsg, const std::vector<std:
   auto comm = dsg.getCommunicator();
   MPI_Offset len = dsg.getNumSubspaces();
   if (numElementsToBuffer == 0) {
-    numElementsToBuffer = len;
+    numElementsToBuffer = static_cast<int>(len);
   }
 
   int numReduced = mpiio::readMultipleReduceValuesConsecutive<SubspaceSizeType>(

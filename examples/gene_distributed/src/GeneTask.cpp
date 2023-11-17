@@ -163,7 +163,7 @@ void GeneTask::decideToKill(){ //toDo check if combiStep should be included in t
 /**
  * This routine initializes GeneTask; currently it only sets a bool value.
  */
-void GeneTask::init(CommunicatorType lcomm, std::vector<IndexVector> decomposition){
+void GeneTask::init(CommunicatorType lcomm, const std::vector<IndexVector>& decomposition){
 //  if( dfg_ == NULL ){
 //      dfg_ = new OwningDistributedFullGrid<CombiDataType>( dim_, l_, lcomm,
 //          this->getBoundary(), p_, false);
@@ -247,7 +247,7 @@ void GeneTask::getFullGrid( FullGrid<CombiDataType>& fg, RankType lroot,
 /**
  * This routine returns the local part of the fullgrid
  */
-DistributedFullGrid<complex>& GeneTask::getDistributedFullGrid(int specie){
+DistributedFullGrid<complex>& GeneTask::getDistributedFullGrid(size_t specie) override {
   return *dfgVector_[specie];
 }
 

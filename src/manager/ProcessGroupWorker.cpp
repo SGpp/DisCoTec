@@ -34,7 +34,7 @@ std::string receiveStringFromManagerAndBroadcastToGroup() {
 }
 
 void sendNormsToManager(const std::vector<double> lpnorms) {
-  for (int p = 0; p < lpnorms.size(); ++p) {
+  for (size_t p = 0; p < lpnorms.size(); ++p) {
     // send from master to manager
     MASTER_EXCLUSIVE_SECTION {
       MPI_Send(&lpnorms[p], 1, MPI_DOUBLE, theMPISystem()->getManagerRank(), TRANSFER_NORM_TAG,
@@ -77,7 +77,7 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
   MASTER_EXCLUSIVE_SECTION {
     MPI_Status status;
     status.MPI_ERROR = MPI_SUCCESS;
-    int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
+    [[maybe_unused]] int result = MPI_Probe(theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
                            theMPISystem()->getGlobalComm(), &status);
 #ifndef NDEBUG
     assert(result == MPI_SUCCESS);
@@ -110,7 +110,7 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
       std::cout << "error recv: " << errorString << std::endl;
     }
     assert(status.MPI_ERROR == MPI_SUCCESS);
-    for (const auto& coord : interpolationCoordsSerial) {
+    for ([[maybe_unused]] const auto& coord : interpolationCoordsSerial) {
       assert(coord >= 0.0 && coord <= 1.0);
     }
 #endif  // NDEBUG
@@ -121,7 +121,7 @@ std::vector<std::vector<real>> receiveAndBroadcastInterpolationCoords(DimType di
   interpolationCoordsSerial.resize(coordsSize);
   MPI_Bcast(interpolationCoordsSerial.data(), coordsSize, realType, theMPISystem()->getMasterRank(),
             theMPISystem()->getLocalComm());
-  for (const auto& coord : interpolationCoordsSerial) {
+  for ([[maybe_unused]] const auto& coord : interpolationCoordsSerial) {
     assert(coord >= 0.0 && coord <= 1.0);
   }
   // split vector into coordinates
@@ -153,7 +153,8 @@ SignalType ProcessGroupWorker::wait() {
       Stats::startEvent("run first");
       auto& currentTask = this->getTaskWorker().getLastTask();
       currentTask->run(theMPISystem()->getLocalComm());
-      Stats::Event e = Stats::stopEvent("run first");
+      // Stats::Event e = Stats::stopEvent("run first");
+      Stats::stopEvent("run first");
     } break;
     case RUN_NEXT: {
       assert(this->getTaskWorker().getTasks().size() > 0);
@@ -254,7 +255,7 @@ SignalType ProcessGroupWorker::wait() {
     case WRITE_DSGS_TO_DISK: {
       Stats::startEvent("write to disk");
       std::string filenamePrefix = receiveStringFromManagerAndBroadcastToGroup();
-      writeDSGsToDisk(filenamePrefix);
+      writeDSGsToDisk(filenamePrefix, "");
       Stats::stopEvent("write to disk");
     } break;
     case READ_DSGS_FROM_DISK: {
@@ -341,7 +342,7 @@ SignalType ProcessGroupWorker::wait() {
           interpolateValues(receiveAndBroadcastInterpolationCoords(combiParameters_.getDim()));
       // send result
       MASTER_EXCLUSIVE_SECTION {
-        MPI_Send(values.data(), values.size(),
+        MPI_Send(values.data(), static_cast<int>(values.size()),
                  abstraction::getMPIDatatype(abstraction::getabstractionDataType<CombiDataType>()),
                  theMPISystem()->getManagerRank(), TRANSFER_INTERPOLATION_TAG,
                  theMPISystem()->getGlobalComm());
@@ -720,8 +721,6 @@ void ProcessGroupWorker::combineThirdLevel() {
 
   assert(theMPISystem()->getThirdLevelComms().size() == 1 && "init thirdLevel communicator failed");
   const CommunicatorType& managerComm = theMPISystem()->getThirdLevelComms()[0];
-  const CommunicatorType& globalReduceComm = theMPISystem()->getGlobalReduceComm();
-  const RankType& globalReduceRank = theMPISystem()->getGlobalReduceRank();
   const RankType& manager = theMPISystem()->getThirdLevelManagerRank();
 
   std::vector<MPI_Request> requests;
@@ -769,7 +768,7 @@ void ProcessGroupWorker::combineThirdLevel() {
   // wait for bcasts to other pgs in globalReduceComm
   Stats::startEvent("wait for bcasts");
   for (MPI_Request& request : requests) {
-    auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+    [[maybe_unused]] auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
     assert(returnedValue == MPI_SUCCESS);
   }
   Stats::stopEvent("wait for bcasts");
@@ -777,36 +776,17 @@ void ProcessGroupWorker::combineThirdLevel() {
 
 int ProcessGroupWorker::combineThirdLevelFileBasedWrite(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName) {
-  assert(this->getSparseGridWorker().getNumberOfGrids() > 0);
-  assert(combiParametersSet_);
+  OUTPUT_GROUP_EXCLUSIVE_SECTION {
+    assert(this->getSparseGridWorker().getNumberOfGrids() > 0);
+    assert(combiParametersSet_);
 
-  // write sparse grid and corresponding token file
-  Stats::startEvent("write SG");
-  int numWritten = this->writeDSGsToDisk(filenamePrefixToWrite);
-  MASTER_EXCLUSIVE_SECTION { std::ofstream tokenFile(writeCompleteTokenFileName); }
-  Stats::stopEvent("write SG");
-  return numWritten;
-}
-
-void ProcessGroupWorker::removeReadingFiles(const std::string& filenamePrefixToRead, 
-		const std::string& startReadingTokenFileName, bool keepSparseGridFiles) const {
-  OUTPUT_GROUP_EXCLUSIVE_SECTION{
-    MASTER_EXCLUSIVE_SECTION {
-      // remove reading token
-      std::filesystem::remove(startReadingTokenFileName);
-      // remove sparse grid file(s)
-      if (!keepSparseGridFiles) {
-        std::filesystem::remove(filenamePrefixToRead + "_" + std::to_string(0));
-        for (const auto& entry : std::filesystem::directory_iterator(".")) {
-          if (entry.path().string().find(filenamePrefixToRead + "_" + std::to_string(0) + ".part") !=
-                std::string::npos) {
-            assert(entry.is_regular_file());
-            std::filesystem::remove(entry.path());
-          }
-        }
-      }
-    }
-  } else {
+    // write sparse grid and corresponding token file
+    Stats::startEvent("write SG");
+    int numWritten = this->writeDSGsToDisk(filenamePrefixToWrite, writeCompleteTokenFileName);
+    Stats::stopEvent("write SG");
+    return numWritten;
+  }
+  else {
     throw std::runtime_error("should only be called from output group");
   }
 }
@@ -828,36 +808,19 @@ void ProcessGroupWorker::waitForTokenFile(const std::string& startReadingTokenFi
   }
 }
 
-int ProcessGroupWorker::readReduce(const std::string& filenamePrefixToRead, bool overwrite) {
-  return getSparseGridWorker().readReduce(
-      filenamePrefixToRead, this->combiParameters_.getChunkSizeInMebibybtePerThread(), overwrite);
+int ProcessGroupWorker::readReduce(const std::vector<std::string>& filenamePrefixesToRead,
+                                   const std::vector<std::string>& startReadingTokenFileNames,
+                                   bool overwriteInMemory) {
+  return getSparseGridWorker().readReduce(filenamePrefixesToRead, startReadingTokenFileNames,
+                                          this->combiParameters_.getChunkSizeInMebibybtePerThread(),
+                                          overwriteInMemory);
 }
 
 void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     const std::vector<std::string>& filenamePrefixesToRead,
-    const std::vector<std::string>& startReadingTokenFileNames, bool overwrite,
+    const std::vector<std::string>& startReadingTokenFileNames, bool overwriteInMemory,
     bool keepSparseGridFiles) {
-  // wait until we can start to read any of the files
-  std::set<size_t> indicesStillToReadReduce;
-  for (size_t i = 0; i < filenamePrefixesToRead.size(); ++i) {
-    indicesStillToReadReduce.insert(i);
-  }
-  while (!indicesStillToReadReduce.empty()) {
-    for (auto it = indicesStillToReadReduce.begin(); it != indicesStillToReadReduce.end(); ++it) {
-      if (combigrid::getFileExistsRootOnly(startReadingTokenFileNames[*it],
-                                           theMPISystem()->getOutputGroupComm(),
-                                           theMPISystem()->getOutputGroupRank())) {
-        overwrite ? Stats::startEvent("read SG") : Stats::startEvent("read/reduce SG");
-        int numRead = this->readReduce(filenamePrefixesToRead[*it], overwrite);
-        assert(numRead > 0);
-        overwrite ? Stats::stopEvent("read SG") : Stats::stopEvent("read/reduce SG");
-        indicesStillToReadReduce.erase(it);
-        break;  // because iterators may be invalidated
-      }
-    }
-    // wait for 200ms
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
-  }
+  this->readReduce(filenamePrefixesToRead, startReadingTokenFileNames, overwriteInMemory);
 
   MPI_Request request = MPI_REQUEST_NULL;
   if (this->combiParameters_.getCombinationVariant() ==
@@ -875,23 +838,22 @@ void ProcessGroupWorker::combineThirdLevelFileBasedReadReduce(
     // update fgs
     updateFullFromCombinedSparseGrids();
   }
-  for (size_t i = 0; i < filenamePrefixesToRead.size(); ++i) {
-    // remove reading token and sparse grid file(s)
-    this->removeReadingFiles(filenamePrefixesToRead[i], startReadingTokenFileNames[i],
-                             keepSparseGridFiles);
-  }
 
-  auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+  // remove reading token and sparse grid file(s)
+  this->getSparseGridWorker().removeReadingFiles(filenamePrefixesToRead, startReadingTokenFileNames,
+                                                 keepSparseGridFiles);
+
+  [[maybe_unused]] auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
 }
 
 void ProcessGroupWorker::combineReadDistributeSystemWide(
     const std::vector<std::string>& filenamePrefixesToRead,
-    const std::vector<std::string>& startReadingTokenFileNames, bool overwrite,
+    const std::vector<std::string>& startReadingTokenFileNames, bool overwriteInMemory,
     bool keepSparseGridFiles) {
   OUTPUT_GROUP_EXCLUSIVE_SECTION {
     this->combineThirdLevelFileBasedReadReduce(filenamePrefixesToRead, startReadingTokenFileNames,
-                                               overwrite, keepSparseGridFiles);
+                                               overwriteInMemory, keepSparseGridFiles);
   }
   else {
     if (combiParameters_.getCombinationVariant() == chunkedOutgroupSparseGridReduce) {
@@ -968,7 +930,7 @@ int ProcessGroupWorker::reduceExtraSubspaceSizesFileBased(
     const std::string& filenamePrefixToWrite, const std::string& writeCompleteTokenFileName,
     const std::vector<std::string>& filenamePrefixesToRead,
     const std::vector<std::string>& startReadingTokenFileNames) {
-  int numSizesWritten = 0;
+  [[maybe_unused]] int numSizesWritten = 0;
   int numSizesReduced = 0;
   // we only need to write and read something if we are the I/O group
   OUTPUT_GROUP_EXCLUSIVE_SECTION { setExtraSparseGrid(true); }
@@ -1015,13 +977,12 @@ void ProcessGroupWorker::waitForThirdLevelCombiResult(bool fromOutputGroup) {
     // receive third level combi result from third level pgroup (global reduce comm)
     broadcastSender = (RankType)combiParameters_.getThirdLevelPG();
   }
-  CommunicatorType globalReduceComm = theMPISystem()->getGlobalReduceComm();
 
   Stats::startEvent("wait for bcasts");
   MPI_Request request;
   this->getSparseGridWorker().startSingleBroadcastDSGs(combiParameters_.getCombinationVariant(),
                                                        broadcastSender, &request);
-  auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
+  [[maybe_unused]] auto returnedValue = MPI_Wait(&request, MPI_STATUS_IGNORE);
   assert(returnedValue == MPI_SUCCESS);
   Stats::stopEvent("wait for bcasts");
 
@@ -1032,14 +993,17 @@ void ProcessGroupWorker::zeroDsgsData() {
   this->getSparseGridWorker().zeroDsgsData(combiParameters_.getCombinationVariant());
 }
 
-int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix) {
-  return this->getSparseGridWorker().writeDSGsToDisk(
+int ProcessGroupWorker::writeDSGsToDisk(const std::string& filenamePrefix,
+                                        const std::string& writeCompleteTokenFileName) {
+  auto numWritten = this->getSparseGridWorker().writeDSGsToDisk(
       filenamePrefix, this->getCombiParameters().getCombinationVariant());
+  this->getSparseGridWorker().writeTokenFiles(writeCompleteTokenFileName);
+  return numWritten;
 }
 
 int ProcessGroupWorker::readDSGsFromDisk(const std::string& filenamePrefix,
                                          bool alwaysReadFullDSG) {
-  return this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, alwaysReadFullDSG);
+  return this->getSparseGridWorker().readDSGsFromDisk(filenamePrefix, true, alwaysReadFullDSG);
 }
 
 } /* namespace combigrid */

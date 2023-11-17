@@ -73,7 +73,8 @@ class ProcessGroupWorker {
   void writeSparseGridMinMaxCoefficients(const std::string& fileNamePrefix) const;
 
   /** write extra SGs to disk (binary w/ MPI-IO) */
-  int writeDSGsToDisk(const std::string& filenamePrefix);
+  int writeDSGsToDisk(const std::string& filenamePrefix,
+                      const std::string& writeCompleteTokenFileName);
 
   /** read extra SGs from disk (binary w/ MPI-IO) */
   int readDSGsFromDisk(const std::string& filenamePrefix, bool alwaysReadFullDSG = false);
@@ -95,11 +96,8 @@ class ProcessGroupWorker {
 
   void waitForTokenFile(const std::string& startReadingTokenFileName) const;
 
-  void removeReadingFiles(const std::string& filenamePrefixToRead,
-                          const std::string& startReadingTokenFileName,
-                          bool keepSparseGridFiles) const;
-
-  int readReduce(const std::string& filenamePrefixToRead, bool overwrite);
+  int readReduce(const std::vector<std::string>& filenamePrefixesToRead,
+                 const std::vector<std::string>& startReadingTokenFileNames, bool overwrite);
 
   void combineThirdLevelFileBasedReadReduce(
       const std::vector<std::string>& filenamePrefixesToRead,

@@ -199,7 +199,7 @@ void checkWorkerOnly(size_t ngroup = 1, size_t nprocs = 1, BoundaryType boundary
     if (pretendThirdLevel ||
         params.getCombinationVariant() == CombinationVariant::sparseGridReduce) {
       BOOST_TEST_CHECKPOINT("write DSGS " + filename);
-      numWritten = worker.writeDSGsToDisk(filename);
+      numWritten = worker.writeDSGsToDisk(filename, "");
       BOOST_CHECK(numWritten > 0);
     }
   }

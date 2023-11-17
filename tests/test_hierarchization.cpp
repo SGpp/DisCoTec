@@ -192,7 +192,7 @@ real checkConservationOfMomentum(DistributedFullGrid<FG_ELEMENT>& dfg,
   BOOST_CHECK(std::all_of(boundary.begin(), boundary.end(), [](BoundaryType b) { return b == 2; }));
   real mcMassBefore = getMonteCarloMass(dfg, nPointsMonteCarlo);
   auto mcMomentaBefore = getMonteCarloMomenta(dfg, nPointsMonteCarlo);
-  real mcMomentumBefore = mcMomentaBefore.back();
+  // real mcMomentumBefore = mcMomentaBefore.back();
 
   BOOST_TEST_CHECKPOINT("begin hierarchization");
   auto dim = dfg.getDimension();
@@ -1428,7 +1428,7 @@ BOOST_AUTO_TEST_CASE(momentum) {
       fillDFGbyFunction(constFctn, dfg3);
       // usually, momentum will not be conserved for periodic BC, but for constant functions it
       // should work
-      auto momentum = checkConservationOfMomentum<real>(
+      [[maybe_unused]] auto momentum = checkConservationOfMomentum<real>(
           dfg3, DistributedHierarchization::hierarchizeBiorthogonalPeriodic<real>);
     }
     {

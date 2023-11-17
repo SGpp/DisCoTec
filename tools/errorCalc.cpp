@@ -58,8 +58,8 @@ int main(int argc, char** argv) {
   real tmp1 = 1.0 / l2norm1;
     real tmp2 = 1.0 / l2norm2;
   if (mode[0] == 'n') {
-    for (auto i = 0; i < data1.size(); ++i) data1[i] *= tmp1;
-    for (auto i = 0; i < data2.size(); ++i) data2[i] *= tmp2;
+    for (size_t i = 0; i < data1.size(); ++i) data1[i] *= tmp1;
+    for (size_t i = 0; i < data2.size(); ++i) data2[i] *= tmp2;
   } else if (mode[0] == 'a') {
     ;
   } else {
@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
 
   // calc l2 norm of values
   real err = 0.0;
-  for (auto i = 0; i < data1.size(); ++i) {
+  for (size_t i = 0; i < data1.size(); ++i) {
     real tmp = std::abs(data1[i] - data2[i]);
 
     if (std::abs(tmp) / std::abs(data1[i]) > 1e-12)
@@ -121,7 +121,7 @@ void readPlotFile(const char* pltFileName, std::vector<CombiDataType>& data,
   pltFile.read((char*)&dim, sizeof(int));
 
   std::vector<int> res(dim);
-  for (size_t i = 0; i < dim; ++i) pltFile.read((char*)&res[i], sizeof(int));
+  for (int i = 0; i < dim; ++i) pltFile.read((char*)&res[i], sizeof(int));
 
   resolution.assign(res.begin(), res.end());
   std::cout << "resolution " << resolution << std::endl;
@@ -147,12 +147,12 @@ void readPlotFile(const char* pltFileName, std::vector<CombiDataType>& data,
     // copy data from local checkpoint to dfg
     // note that on the last process in some dimensions dfg is larger than the
     // local checkpoint
-    for (size_t n = 0; n < shape[0]; ++n) {
-      for (size_t m = 0; m < shape[1]; ++m) {
-        for (size_t l = 0; l < shape[2]; ++l) {
-          for (size_t k = 0; k < shape[3]; ++k) {
-            for (size_t j = 0; j < shape[4]; ++j) {
-              for (size_t i = 0; i < shape[5]; ++i) {
+    for (int n = 0; n < shape[0]; ++n) {
+      for (int m = 0; m < shape[1]; ++m) {
+        for (int l = 0; l < shape[2]; ++l) {
+          for (int k = 0; k < shape[3]; ++k) {
+            for (int j = 0; j < shape[4]; ++j) {
+              for (int i = 0; i < shape[5]; ++i) {
                 data.push_back(grid[n][m][l][k][j][i]);
               }
             }
@@ -162,11 +162,11 @@ void readPlotFile(const char* pltFileName, std::vector<CombiDataType>& data,
     }
   } else if (dim == 5) {
     auto grid = createMultiArrayRef<CombiDataType, 5>(&tmp[0], shape);
-    for (size_t n = 0; n < shape[0]; ++n) {
-      for (size_t m = 0; m < shape[1]; ++m) {
-        for (size_t l = 0; l < shape[2]; ++l) {
-          for (size_t k = 0; k < shape[3]; ++k) {
-            for (size_t j = 0; j < shape[4]; ++j) {
+    for (int n = 0; n < shape[0]; ++n) {
+      for (int m = 0; m < shape[1]; ++m) {
+        for (int l = 0; l < shape[2]; ++l) {
+          for (int k = 0; k < shape[3]; ++k) {
+            for (int j = 0; j < shape[4]; ++j) {
               data.push_back(grid[n][m][l][k][j]);
             }
           }
@@ -175,10 +175,10 @@ void readPlotFile(const char* pltFileName, std::vector<CombiDataType>& data,
     }
   } else if (dim == 4) {
     auto grid = createMultiArrayRef<CombiDataType, 4>(&tmp[0], shape);
-    for (size_t n = 0; n < shape[0]; ++n) {
-      for (size_t m = 0; m < shape[1]; ++m) {
-        for (size_t l = 0; l < shape[2]; ++l) {
-          for (size_t k = 0; k < shape[3]; ++k) {
+    for (int n = 0; n < shape[0]; ++n) {
+      for (int m = 0; m < shape[1]; ++m) {
+        for (int l = 0; l < shape[2]; ++l) {
+          for (int k = 0; k < shape[3]; ++k) {
             data.push_back(grid[n][m][l][k]);
           }
         }
@@ -186,17 +186,17 @@ void readPlotFile(const char* pltFileName, std::vector<CombiDataType>& data,
     }
   } else if (dim == 3) {
     auto grid = createMultiArrayRef<CombiDataType, 3>(&tmp[0], shape);
-    for (size_t n = 0; n < shape[0]; ++n) {
-      for (size_t m = 0; m < shape[1]; ++m) {
-        for (size_t l = 0; l < shape[2]; ++l) {
+    for (int n = 0; n < shape[0]; ++n) {
+      for (int m = 0; m < shape[1]; ++m) {
+        for (int l = 0; l < shape[2]; ++l) {
           data.push_back(grid[n][m][l]);
         }
       }
     }
   } else if (dim == 2) {
     auto grid = createMultiArrayRef<CombiDataType, 2>(&tmp[0], shape);
-    for (size_t n = 0; n < shape[0]; ++n) {
-      for (size_t m = 0; m < shape[1]; ++m) {
+    for (int n = 0; n < shape[0]; ++n) {
+      for (int m = 0; m < shape[1]; ++m) {
         data.push_back(grid[n][m]);
       }
     }

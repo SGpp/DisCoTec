@@ -82,7 +82,7 @@ class MPICartesianUtils {
     assert(!partitionCoords_.empty());
     // find rank r in partitionCoords_
     auto findIt = std::find(partitionCoords_.begin(), partitionCoords_.end(), r);
-    IndexType rIndex = std::distance(partitionCoords_.begin(), findIt);
+    IndexType rIndex = static_cast<IndexType>(std::distance(partitionCoords_.begin(), findIt));
     return partitionCoordsTensor_.getVectorIndex(rIndex);
   }
 
@@ -145,7 +145,7 @@ class MPICartesianUtils {
   }
 
   inline int getCommunicatorSize() const {
-    return partitionCoords_.size();
+    return static_cast<int>(partitionCoords_.size());
   }
 
   inline RankType getCommunicatorRank() const { return rank_; }

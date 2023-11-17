@@ -65,7 +65,7 @@ class TaskAdvFDM : public combigrid::Task {
   }
 
   void init(CommunicatorType lcomm,
-            std::vector<IndexVector> decomposition = std::vector<IndexVector>()) {
+            const std::vector<IndexVector>& decomposition = std::vector<IndexVector>()) override {
     // only use one process per group
     std::vector<int> p(getDim(), 1);
 
@@ -94,8 +94,8 @@ class TaskAdvFDM : public combigrid::Task {
     // gradient of phi
     std::vector<CombiDataType> dphi(getDim());
 
-    IndexType l0 = dfg_->length(0);
-    IndexType l1 = dfg_->length(1);
+    IndexType l0 = dfg_->globalNumPointsInDimension(0);
+    IndexType l1 = dfg_->globalNumPointsInDimension(1);
     double h0 = 1.0 / (double)l0;
     double h1 = 1.0 / (double)l1;
 
@@ -139,7 +139,7 @@ class TaskAdvFDM : public combigrid::Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
 
   void setZero() {}
 
@@ -189,7 +189,7 @@ class TaskAdvFDM : public combigrid::Task {
     //real t = dt_ * nsteps_ * combiStep_;
     if (combiStep_ != 0 && faultCriterion_->failNow(combiStep_, -1.0, globalRank)){
           std::cout<<"Rank "<< globalRank <<" failed at iteration "<<combiStep_<<std::endl;
-          StatusType status=PROCESS_GROUP_FAIL;/*
+          [[maybe_unused]] StatusType status=PROCESS_GROUP_FAIL;/*
           MASTER_EXCLUSIVE_SECTION{
             simft::Sim_FT_MPI_Send( &status, 1, MPI_INT,  theMPISystem()->getManagerRank(), TRANSFER_STATUS_TAG,
                               theMPISystem()->getGlobalCommFT() );

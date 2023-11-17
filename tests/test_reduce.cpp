@@ -37,7 +37,7 @@ class TaskConst : public combigrid::Task {
     assert(l.size() == 2);
   }
 
-  void init(CommunicatorType lcomm, std::vector<IndexVector> decomposition) {
+  void init(CommunicatorType lcomm, const std::vector<IndexVector>& decomposition) {
     // parallelization
     // assert(dfg_ == nullptr);
     auto nprocs = getCommSize(lcomm);
@@ -87,7 +87,7 @@ class TaskConst : public combigrid::Task {
     dfg_->gatherFullGrid(fg, r);
   }
 
-  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(int n = 0) { return *dfg_; }
+  DistributedFullGrid<CombiDataType>& getDistributedFullGrid(size_t n = 0) override { return *dfg_; }
 
   void setZero() {}
 
