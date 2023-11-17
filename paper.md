@@ -22,7 +22,8 @@ authors:
 affiliations:
  - name: University of Stuttgart, Scientific Computing, Stuttgart, Germany
    index: 1
-nocite: @obersteiner_spatially_2021
+nocite: |
+  @obersteiner_spatially_2021
 date: 16 November 2023
 bibliography: paper.bib
 
