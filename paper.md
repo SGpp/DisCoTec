@@ -52,17 +52,21 @@ which can be used with `DisCoTec` in a black-box fashion.
 A further application includes the widely-distributed simulation of higher-dimensional problems,
 in which multiple HPC systems cooperate to solve a joint simulation [@pollingerLeveragingComputePower2023].
 The transfer cost is relatively low due to the multi-scale approach in the combination technique 
--- much less than with a traditional domain-decomposition.   
-This feature is enabled by file transfer through tools like UFTP.
+-- much less than with a traditional domain decomposition.
+The communication between different systems is enabled by file transfer. 
+The software repository contains example scripts and documentation for utilizing UFTP as an example of a transfer tool,
+but the approach is not limited to UFTP.
 
 Basically, any code that can operated on nested structured grids can employ the model order reduction 
-provided by the underlying sparse grid approach without considering any multiscale operations; this is provided by DisCoTec.
+provided by the underlying sparse grid approach without considering any multiscale operations; this part is provided by DisCoTec.
 Although already 2D applications can see significant benefits, the higher-dimensional (4- to 6-dimensional) 
 grids employed in high-fidelity plasma simulations benefit even more [@pollingerStableMassconservingSparse2023].
 
 
 # Acknowledgements
 
-We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra Hinojosa, Michael Obersteiner, Marcel Hurler, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal, Marcel Breyer, Christoph Niethammer, Philipp Offenhäuser, and support from HLRS, LRZ, JSC, and NHR@FAU, where we would like to highlight the long-standing support by Martin Bernreuther and Martin Ohlerich.
+We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra Hinojosa, Michael Obersteiner, 
+Marcel Hurler, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal, Marcel Breyer, Christoph Niethammer, Philipp Offenhäuser, 
+and support from HLRS, LRZ, JSC, and NHR@FAU, where we would like to particularly highlight the long-standing support by Martin Bernreuther and Martin Ohlerich.
 
 # References
