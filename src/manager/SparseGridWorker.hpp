@@ -790,6 +790,9 @@ inline void SparseGridWorker::reduceLocalAndGlobal(CombinationVariant combinatio
       throw std::runtime_error("Combination variant not implemented");
     }
     assert(CombiCom::sumAndCheckSubspaceSizes(*this->getCombinedUniDSGVector()[g]));
+    if (std::isnan(this->getCombinedUniDSGVector()[g]->getData(0)[0])) {
+      throw std::runtime_error("aborting due to nans in combined sparse grid");
+    }
   }
 }
 

@@ -182,7 +182,7 @@ int main(int argc, char** argv) {
       }
     }
   }
-  {
+  try {
     ProcessGroupWorker worker;
 
     // create combiparamters
@@ -262,6 +262,8 @@ int main(int argc, char** argv) {
       std::cout << worker.getLpNorms(1) << std::endl;
       std::cout << worker.getLpNorms(2) << std::endl;
     }
+  } catch (const std::runtime_error &e) {
+    std::cout << e.what() << std::endl;
   }
 
   MPI_Barrier(theMPISystem()->getWorldComm());
