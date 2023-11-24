@@ -746,7 +746,8 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
     const int step_width = powerOfTwo[ldiff];
     // update alpha / hierarchical surplus at odd indices
     auto leftParent = -0.5 * data[0];
-    for (int i = step_width; i < idxmax; i += 2 * step_width) {
+    const auto increment = 2 * step_width;
+    for (int i = idxmax - step_width; i > 0; i -= increment) {
       const auto rightParent = -0.5 * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
@@ -764,7 +765,7 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
     }
     // todo interleave with upper loop for better cache blocking
     leftParent = 0.25 * data[step_width];
-    for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
+    for (int i = 2 * step_width; i < idxmax; i += increment) {
       const auto rightParent = 0.25 * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
@@ -860,7 +861,7 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
   //         y[i]= 0.5*y[i-step_width] + y[i] + 0.5*y[i+step_width]
 
   for (auto ldiff = static_cast<LevelType>(lmax - lmin - 1); ldiff >= 0; --ldiff) {
-    int step_width = powerOfTwo[ldiff];
+    const int step_width = powerOfTwo[ldiff];
     // update f at even indices
     if (periodic) {
       data[0] =
@@ -871,14 +872,15 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
       data[idxmax] = data[idxmax] - 0.5 * data[idxmax - step_width];
     }
     auto leftParent = -0.25 * data[step_width];
-    for (int i = 2 * step_width; i < idxmax; i += 2 * step_width) {
+    const auto increment = 2 * step_width;
+    for (int i = idxmax - increment; i > 0; i -= increment) {
       const auto rightParent = -0.25 * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
     }
     // update alpha / hierarchical surplus at odd indices
     leftParent = 0.5 * data[0];
-    for (int i = step_width; i < idxmax; i += 2 * step_width) {
+    for (int i = step_width; i < idxmax; i += increment) {
       const auto rightParent = 0.5 * data[i + step_width];
       data[i] = leftParent + (rightParent + data[i]);
       leftParent = rightParent;
