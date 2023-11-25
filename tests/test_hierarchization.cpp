@@ -603,7 +603,14 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(30)) {
 
             // exchange data
             RemoteDataCollector<std::complex<double>> remoteDataHierarchization;
-            BOOST_CHECK_NO_THROW(exchangeData1d(dfg, d, remoteDataHierarchization, lmin[d]));
+            std::vector<MPI_Request> sendRequests;
+            std::vector<MPI_Request> recvRequests;
+            BOOST_CHECK_NO_THROW(exchangeData1d(dfg, d, remoteDataHierarchization, sendRequests,
+                                                recvRequests, lmin[d]));
+            MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(),
+                        MPI_STATUSES_IGNORE);
+            MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(),
+                        MPI_STATUSES_IGNORE);
             BOOST_CHECK((remoteDataHierarchization.size() == 0) || (procs[d] > 1));
             std::sort(
                 remoteDataHierarchization.begin(), remoteDataHierarchization.end(),
@@ -617,8 +624,12 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(30)) {
                                        remoteKeysHierarchization[b].end()));
 
             RemoteDataCollector<std::complex<double>> remoteDataDehierarchization;
-            BOOST_CHECK_NO_THROW(
-                exchangeData1dDehierarchization(dfg, d, remoteDataDehierarchization, lmin[d]));
+            BOOST_CHECK_NO_THROW(exchangeData1dDehierarchization(
+                dfg, d, remoteDataDehierarchization, sendRequests, recvRequests, lmin[d]));
+            MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(),
+                        MPI_STATUSES_IGNORE);
+            MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(),
+                        MPI_STATUSES_IGNORE);
             BOOST_CHECK((remoteDataDehierarchization.size() == 0) || (procs[d] > 1));
             // more data may need to be exchanged for dehierarchization, but never less
             BOOST_CHECK_GE(remoteDataDehierarchization.size(), remoteDataHierarchization.size());
@@ -634,7 +645,12 @@ BOOST_AUTO_TEST_CASE(test_exchangeData1d, *boost::unit_test::timeout(30)) {
                                        remoteKeysDehierarchization[b].end()));
 
             RemoteDataCollector<std::complex<double>> remoteDataAll;
-            BOOST_CHECK_NO_THROW(exchangeAllData1d(dfg, d, remoteDataAll));
+            BOOST_CHECK_NO_THROW(
+                exchangeAllData1d(dfg, d, remoteDataAll, sendRequests, recvRequests));
+            MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(),
+                        MPI_STATUSES_IGNORE);
+            MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(),
+                        MPI_STATUSES_IGNORE);
             BOOST_CHECK((procs[d] == 1 && remoteDataAll.size() == 0) ||
                         (procs[d] > 1 && remoteDataAll.size() > 0));
             if (procs[d] > 1) {

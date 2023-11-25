@@ -251,7 +251,9 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
  */
 template <typename FG_ELEMENT>
 static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                              RemoteDataCollector<FG_ELEMENT>& remoteData) {
+                              RemoteDataCollector<FG_ELEMENT>& remoteData,
+                              std::vector<MPI_Request>& sendRequests,
+                              std::vector<MPI_Request>& recvRequests) {
   // send every index to all neighboring ranks in dimension dim
   const auto globalIdxMax = dfg.globalNumPointsInDimension(dim);
   const IndexType idxMin = dfg.getFirstGlobal1dIndex(dim);
@@ -308,13 +310,14 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
     }
   }
   // buffer for requests
-  std::vector<MPI_Request> sendRequests(send1dIndices.size());
-  std::vector<MPI_Request> recvRequests(recv1dIndices.size());
+  if (sendRequests.size() < send1dIndices.size()) {
+    sendRequests.resize(send1dIndices.size(), MPI_REQUEST_NULL);
+  }
+  if (recvRequests.size() < recv1dIndices.size()) {
+    recvRequests.resize(recv1dIndices.size(), MPI_REQUEST_NULL);
+  }
   sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData, sendRequests,
                              recvRequests);
-
-  MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
-  MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
 }
 
 /**
@@ -327,7 +330,9 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
  */
 template <typename FG_ELEMENT>
 static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                           RemoteDataCollector<FG_ELEMENT>& remoteData, LevelType lmin = 0) {
+                           RemoteDataCollector<FG_ELEMENT>& remoteData,
+                           std::vector<MPI_Request>& sendRequests,
+                           std::vector<MPI_Request>& recvRequests, LevelType lmin = 0) {
   // create buffers for every rank
   std::map<RankType, std::set<IndexType>> recv1dIndices;
   std::map<RankType, std::set<IndexType>> send1dIndices;
@@ -414,13 +419,14 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
   }
 
   // buffer for requests
-  std::vector<MPI_Request> sendRequests(send1dIndices.size());
-  std::vector<MPI_Request> recvRequests(recv1dIndices.size());
+  if (sendRequests.size() < send1dIndices.size()) {
+    sendRequests.resize(send1dIndices.size(), MPI_REQUEST_NULL);
+  }
+  if (recvRequests.size() < recv1dIndices.size()) {
+    recvRequests.resize(recv1dIndices.size(), MPI_REQUEST_NULL);
+  }
   sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData, sendRequests,
                              recvRequests);
-
-  MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
-  MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
 }
 
 /**
@@ -434,6 +440,8 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
 template <typename FG_ELEMENT>
 static void exchangeData1dDehierarchization(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
                                             RemoteDataCollector<FG_ELEMENT>& remoteData,
+                                            std::vector<MPI_Request>& sendRequests,
+                                            std::vector<MPI_Request>& recvRequests,
                                             LevelType lmin = 0) {
   // create buffers for every rank
   std::map<RankType, std::set<IndexType>> recv1dIndices;
@@ -457,13 +465,14 @@ static void exchangeData1dDehierarchization(const DistributedFullGrid<FG_ELEMENT
   }
 
   // buffer for requests
-  std::vector<MPI_Request> sendRequests(send1dIndices.size());
-  std::vector<MPI_Request> recvRequests(recv1dIndices.size());
+  if (sendRequests.size() < send1dIndices.size()) {
+    sendRequests.resize(send1dIndices.size(), MPI_REQUEST_NULL);
+  }
+  if (recvRequests.size() < recv1dIndices.size()) {
+    recvRequests.resize(recv1dIndices.size(), MPI_REQUEST_NULL);
+  }
   sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData, sendRequests,
                              recvRequests);
-
-  MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
-  MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
 }
 
 template <typename FG_ELEMENT>
@@ -761,23 +770,22 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
 
   for (LevelType ldiff = 0; ldiff < lmax - lmin; ++ldiff) {
     const int step_width = powerOfTwo[ldiff];
+    if (step_width < idxmax) {
       const auto increment = 2 * step_width;
-      if (step_width < idxmax) {
-        const auto increment = 2 * step_width;
-        // do first update outside loop
-        FG_ELEMENT leftParent = data[step_width];
-        data[step_width] += -0.5 * (leftParent + data[increment]);
-        leftParent = data[increment];
-        for (int i = increment + step_width; i < idxmax; i += increment) {
-          // update alpha / hierarchical surplus at odd indices
-          const auto& rightParent = data[i + step_width];
-          data[i] = -0.5 * (leftParent + rightParent) + data[i];
-          // update f at even indices, here at left parent position
-          const auto& leftLeftParent = data[i - increment];
-          data[i - step_width] = 0.25 * (leftLeftParent + data[i]) + leftParent;
-          leftParent = rightParent;
-        }
+      // do first update outside loop
+      FG_ELEMENT leftParent = data[step_width];
+      data[step_width] += -0.5 * (leftParent + data[increment]);
+      leftParent = data[increment];
+      for (int i = increment + step_width; i < idxmax; i += increment) {
+        // update alpha / hierarchical surplus at odd indices
+        const auto& rightParent = data[i + step_width];
+        data[i] = -0.5 * (leftParent + rightParent) + data[i];
+        // update f at even indices, here at left parent position
+        const auto& leftLeftParent = data[i - increment];
+        data[i - step_width] = 0.25 * (leftLeftParent + data[i]) + leftParent;
+        leftParent = rightParent;
       }
+    }
     if (periodic) {
       // values at 0 and idxmax will be the same
       data[0] =
@@ -1203,12 +1211,18 @@ class DistributedHierarchization {
       if (lmin[dim] >= dfg.getLevels()[dim]) continue;
 
       RemoteDataCollector<FG_ELEMENT> remoteData;
+
+      std::vector<MPI_Request> sendRequests;
+      std::vector<MPI_Request> recvRequests;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-        exchangeData1d(dfg, dim, remoteData, lmin[dim]);
+        exchangeData1d(dfg, dim, remoteData, sendRequests, recvRequests, lmin[dim]);
       } else {
-        exchangeAllData1d(dfg, dim, remoteData);
+        exchangeAllData1d(dfg, dim, remoteData, sendRequests, recvRequests);
       }
+      MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
+      MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
+
       hierarchizeLocalData(dfg, remoteData, hierarchicalBases[dim], dim, lmin[dim]);
     }
   }
@@ -1289,12 +1303,17 @@ class DistributedHierarchization {
       if (lmin[dim] >= dfg.getLevels()[dim]) continue;
 
       RemoteDataCollector<FG_ELEMENT> remoteData;
+      std::vector<MPI_Request> sendRequests;
+      std::vector<MPI_Request> recvRequests;
       if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
           dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-        exchangeData1dDehierarchization(dfg, dim, remoteData, lmin[dim]);
+        exchangeData1dDehierarchization(dfg, dim, remoteData, sendRequests, recvRequests,
+                                        lmin[dim]);
       } else {
-        exchangeAllData1d(dfg, dim, remoteData);
+        exchangeAllData1d(dfg, dim, remoteData, sendRequests, recvRequests);
       }
+      MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
+      MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
       dehierarchizeLocalData(dfg, remoteData, hierarchicalBases[dim], dim, lmin[dim]);
     }
 #pragma omp barrier
