@@ -14,10 +14,12 @@
 #include "fullgrid/FullGrid.hpp"
 #include "hierarchization/DistributedHierarchization.hpp"
 #include "hierarchization/Hierarchization.hpp"
+#include "hierarchization/OverlappingHierarchization.hpp"
 #include "utils/MonteCarlo.hpp"
 #include "utils/Types.hpp"
 #include "test_helper.hpp"
 #include "TaskConstParaboloid.hpp"
+#include "TaskCount.hpp"
 
 /**
  * functor for test function $f(x) = \prod_{i=0}^d x_i^2$
@@ -1270,6 +1272,35 @@ BOOST_AUTO_TEST_CASE(test_p_40) {
   std::vector<int> procs = {3, 3, 1};
   std::vector<BoundaryType> boundary(3, 1);
   BOOST_CHECK_NO_THROW(checkHierarchizationParaboloid(levels, procs, boundary));
+}
+
+BOOST_AUTO_TEST_CASE(test_hierarchizeNonoverlapping) {
+  BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
+  std::vector<int> procs = {8, 1};
+  CommunicatorType comm = TestHelper::getComm(procs);
+  if (comm != MPI_COMM_NULL) {
+    BOOST_TEST_CHECKPOINT("nonoverlapping");
+    // create tasks vector
+    std::vector<std::unique_ptr<Task>> tasks;
+    for (auto& l : {LevelVector({3, 3}), LevelVector({4, 3}), LevelVector({3, 4})}) {
+      tasks.emplace_back(new TaskCount(l, {1, 1}, 1.0, nullptr));
+      auto taskDecomposition = combigrid::downsampleDecomposition({
+                                                                   {0,2, 4, 6, 8, 10, 12, 14},
+                                                                   {0}
+                                                                  },
+                                                                  {4, 4}, l, {1, 1});
+      tasks.back()->init(comm, taskDecomposition);
+    }
+    auto lminToUse = LevelVector(2, 0);
+    // attn: experimental!
+    std::vector<BasisFunctionBasis*> basisFunctions;
+    basisFunctions.push_back(new HierarchicalHatPeriodicBasisFunction());
+    basisFunctions.push_back(new FullWeightingPeriodicBasisFunction());
+    basisFunctions.push_back(new BiorthogonalPeriodicBasisFunction());
+    BOOST_TEST_CHECKPOINT("start hierarchize");
+    combigrid::hierarchizeNonoverlapping<CombiDataType>(tasks, {1, 1}, basisFunctions,
+                                                        lminToUse);
+  }
 }
 
 // these large tests only make sense when assertions are not checked (takes too long otherwise)

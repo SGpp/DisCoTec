@@ -77,6 +77,17 @@ template <typename FG_ELEMENT>
 static IndexType getFirstIndexOfLevel1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d,
                                         LevelType l);
 
+inline int tagFromDFGLevel(const LevelVector& level) {
+  // create tag from dfg level
+  int tag = 0;
+  auto multiplier = 1;
+  for (size_t i = 0; i < level.size(); ++i) {
+    tag += multiplier * level[i];
+    multiplier *= 29;
+  }
+  return tag % 32767;
+}
+
 /**
  * @brief helper function for data exchange, have only one MPI_Isend/Irecv per neighboring rank
  *
@@ -173,12 +184,11 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
         // send to rank r, use first global index as tag
         {
           int dest = static_cast<int>(r);
-          int tag = static_cast<int>(*(indices.begin()));
           size_t sendIndex;
 #pragma omp atomic capture
           sendIndex = numSend++;
-          MPI_Isend(dfg.getData(), 1, myHBlock, dest, tag, dfg.getCommunicator(),
-                    &sendRequests[sendIndex]);
+          MPI_Isend(dfg.getData(), 1, myHBlock, dest, tagFromDFGLevel(dfg.getLevels()),
+                    dfg.getCommunicator(), &sendRequests[sendIndex]);
         }
         MPI_Type_free(&myHBlock);
       }
@@ -226,12 +236,11 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
         // start recv operation, use first global index as tag
         {
           int src = static_cast<int>(r);
-          int tag = static_cast<int>(*(indices.begin()));
           size_t recvIndex;
 #pragma omp atomic capture
           recvIndex = numRecv++;
-          MPI_Irecv(static_cast<void*>(bufs[0]), 1, myHBlock, src, tag, dfg.getCommunicator(),
-                    &recvRequests[recvIndex]);
+          MPI_Irecv(static_cast<void*>(bufs[0]), 1, myHBlock, src, tagFromDFGLevel(dfg.getLevels()),
+                    dfg.getCommunicator(), &recvRequests[recvIndex]);
         }
         MPI_Type_free(&myHBlock);
       }

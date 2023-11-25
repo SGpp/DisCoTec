@@ -90,7 +90,7 @@ namespace TestHelper{
     int flag;
     MPI_Status status;
     MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, comm, &flag, &status);
-    int number_amount;
+    int number_amount = 0;
     if (flag) {
       MPI_Get_count(&status, MPI_CHAR, &number_amount);
       std::cout << getRank(MPI_COMM_WORLD) << " received " << number_amount << " bytes from "
