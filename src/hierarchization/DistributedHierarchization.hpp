@@ -873,19 +873,18 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
     }
 
     const auto increment = 2 * step_width;
-#pragma omp parallel for default(none) shared(data, idxmax, step_width, increment)
-    for (int i = idxmax - increment; i > 0; i -= increment) {
-      const auto& leftParent = data[i - step_width];
+    auto leftParent = data[step_width];
+    for (int i = 2 * step_width; i < idxmax; i += increment) {
+      // update f at even indices
       const auto& rightParent = data[i + step_width];
-      data[i] = -0.25*(leftParent + rightParent) + data[i];
+      data[i] = -0.25 * (leftParent + rightParent) + data[i];
+      // update alpha / hierarchical surplus at odd indices, here: at left parent
+      const auto& leftLeftParent = data[i - increment];
+      data[i - step_width] = 0.5 * (leftLeftParent + data[i]) + leftParent;
+      leftParent = rightParent;
     }
-    // update alpha / hierarchical surplus at odd indices
-#pragma omp parallel for default(none) shared(data, idxmax, step_width, increment)
-    for (int i = step_width; i < idxmax; i += increment) {
-      const auto& leftParent = data[i - step_width];
-      const auto rightParent = data[i + step_width];
-      data[i] = 0.5 * (leftParent + rightParent) + data[i];
-    }
+    // update last missing alpha
+    data[idxmax - step_width] += 0.5 * (data[idxmax - 2 * step_width] + data[idxmax]);
   }
 }
 
