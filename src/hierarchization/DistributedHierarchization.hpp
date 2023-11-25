@@ -971,7 +971,8 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
  */
 template <typename FG_ELEMENT>
 void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                           std::vector<RemoteDataSlice<FG_ELEMENT>>& remoteData, DimType dim) {
+                           const std::vector<RemoteDataSlice<FG_ELEMENT>>& remoteData,
+                           DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   LevelType lmax = dfg.getLevels()[dim];
@@ -1053,7 +1054,7 @@ void hierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
  */
 template <typename FG_ELEMENT>
 void dehierarchizeNoBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
-                             RemoteDataCollector<FG_ELEMENT>& remoteData, DimType dim) {
+                             const RemoteDataCollector<FG_ELEMENT>& remoteData, DimType dim) {
   assert(dfg.returnBoundaryFlags()[dim] == 0);
 
   auto lmax = dfg.getLevels()[dim];
@@ -1131,6 +1132,48 @@ class DistributedHierarchization {
  public:
   // inplace hierarchization
   template <typename FG_ELEMENT>
+  static void hierarchizeLocalData(DistributedFullGrid<FG_ELEMENT>& dfg,
+                                   const RemoteDataCollector<FG_ELEMENT>& remoteData,
+                                   BasisFunctionBasis* hierarchicalBasis, DimType dim,
+                                   LevelType lmin) {
+    if (dfg.returnBoundaryFlags()[dim] > 0) {
+      // sorry for the code duplication, could not figure out a clean way
+      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT, hierarchize_hat_boundary_kernel<FG_ELEMENT>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBasis) !=
+                 nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT, hierarchize_hat_boundary_kernel<FG_ELEMENT, true>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT,
+                                hierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT,
+                                hierarchize_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT,
+                                hierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT,
+                                hierarchize_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
+            dfg, remoteData, dim, lmin);
+      } else {
+        throw std::logic_error("Not implemented");
+      }
+    } else {
+      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBasis) == nullptr) {
+        throw std::logic_error("currently only hats supported for non-boundary grids");
+      }
+      assert(lmin == 0);
+      hierarchizeNoBoundary(dfg, remoteData, dim);
+    }
+  }
+
+  template <typename FG_ELEMENT>
   static void hierarchize(DistributedFullGrid<FG_ELEMENT>& dfg, const std::vector<bool>& dims,
                           const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                           const LevelVector& lmin) {
@@ -1149,45 +1192,7 @@ class DistributedHierarchization {
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
-
-      if (dfg.returnBoundaryFlags()[dim] > 0) {
-        // sorry for the code duplication, could not figure out a clean way
-        if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT, hierarchize_hat_boundary_kernel<FG_ELEMENT>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT, hierarchize_hat_boundary_kernel<FG_ELEMENT, true>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT,
-                                  hierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT,
-                                  hierarchize_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT,
-                                  hierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT,
-                                  hierarchize_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else {
-          throw std::logic_error("Not implemented");
-        }
-      } else {
-        if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) == nullptr) {
-          throw std::logic_error("currently only hats supported for non-boundary grids");
-        }
-        assert(lmin[dim] == 0);
-        hierarchizeNoBoundary(dfg, remoteData, dim);
-      }
-      remoteData.clear();
+      hierarchizeLocalData(dfg, remoteData, hierarchicalBases[dim], dim, lmin[dim]);
     }
   }
 
@@ -1214,6 +1219,48 @@ class DistributedHierarchization {
 
   // inplace dehierarchization
   template <typename FG_ELEMENT>
+  static void dehierarchizeLocalData(DistributedFullGrid<FG_ELEMENT>& dfg,
+                                     const RemoteDataCollector<FG_ELEMENT>& remoteData,
+                                     BasisFunctionBasis* hierarchicalBasis, DimType dim,
+                                     LevelType lmin) {
+    if (dfg.returnBoundaryFlags()[dim] > 0) {
+      // sorry for the code duplication, could not figure out a clean way
+      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT, dehierarchize_hat_boundary_kernel<FG_ELEMENT>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBasis) !=
+                 nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT, dehierarchize_hat_boundary_kernel<FG_ELEMENT, true>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT,
+                                dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT,
+                                dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT,
+                                dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
+            dfg, remoteData, dim, lmin);
+      } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBasis) != nullptr) {
+        hierarchizeWithBoundary<FG_ELEMENT,
+                                dehierarchize_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
+            dfg, remoteData, dim, lmin);
+      } else {
+        throw std::logic_error("Not implemented");
+      }
+    } else {
+      if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBasis) == nullptr) {
+        throw std::logic_error("currently only hats supported for non-boundary grids");
+      }
+      assert(lmin == 0);
+      dehierarchizeNoBoundary(dfg, remoteData, dim);
+    }
+  }
+
+  template <typename FG_ELEMENT>
   static void dehierarchize(DistributedFullGrid<FG_ELEMENT>& dfg, const std::vector<bool>& dims,
                             const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                             const LevelVector& lmin) {
@@ -1231,45 +1278,7 @@ class DistributedHierarchization {
       } else {
         exchangeAllData1d(dfg, dim, remoteData);
       }
-
-      if (dfg.returnBoundaryFlags()[dim] > 0) {
-        // sorry for the code duplication, could not figure out a clean way
-        if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT, dehierarchize_hat_boundary_kernel<FG_ELEMENT>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT, dehierarchize_hat_boundary_kernel<FG_ELEMENT, true>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<FullWeightingBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT,
-                                  dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<FullWeightingPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT,
-                                  dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, true>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<BiorthogonalBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT,
-                                  dehierarchize_full_weighting_boundary_kernel<FG_ELEMENT, false>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else if (dynamic_cast<BiorthogonalPeriodicBasisFunction*>(hierarchicalBases[dim]) !=
-                   nullptr) {
-          hierarchizeWithBoundary<FG_ELEMENT,
-                                  dehierarchize_biorthogonal_boundary_kernel<FG_ELEMENT, true>>(
-              dfg, remoteData, dim, lmin[dim]);
-        } else {
-          throw std::logic_error("Not implemented");
-        }
-      } else {
-        if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) == nullptr) {
-          throw std::logic_error("currently only hats supported for non-boundary grids");
-        }
-        assert(lmin[dim] == 0);
-        dehierarchizeNoBoundary(dfg, remoteData, dim);
-      }
-      remoteData.clear();
+      dehierarchizeLocalData(dfg, remoteData, hierarchicalBases[dim], dim, lmin[dim]);
     }
 #pragma omp barrier
   }
