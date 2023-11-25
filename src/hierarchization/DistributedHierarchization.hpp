@@ -25,9 +25,7 @@ class RemoteDataSlice {
    * \param[in] lowerBounds lower bounds of the subdomain where the remote data
    *            comes from. this is required for address calculations
    */
-  RemoteDataSlice(IndexType size, IndexType keyIndex) : index1d_(keyIndex) {
-    data_.resize(size);
-  }
+  RemoteDataSlice(IndexType size, IndexType keyIndex) : index1d_(keyIndex) { data_.resize(size); }
 
   inline const FG_ELEMENT* getData(size_t idx) const { return &data_[idx]; }
 
@@ -94,14 +92,18 @@ template <typename FG_ELEMENT>
 static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexType>>& send1dIndices,
                                        const std::map<RankType, std::set<IndexType>>& recv1dIndices,
                                        const DistributedFullGrid<FG_ELEMENT>& dfg, DimType dim,
-                                       RemoteDataCollector<FG_ELEMENT>& remoteData) {
+                                       RemoteDataCollector<FG_ELEMENT>& remoteData,
+                                       std::vector<MPI_Request>& sendRequests,
+                                       std::vector<MPI_Request>& recvRequests) {
   assert(remoteData.empty());
   // count elements of input indices
   auto numSend = send1dIndices.size();
   auto numRecv = recv1dIndices.size();
-  // buffer for requests
-  std::vector<MPI_Request> sendRequests(numSend);
-  std::vector<MPI_Request> recvRequests(numRecv);
+  assert(sendRequests.size() >= numSend);
+  assert(recvRequests.size() >= numRecv);
+  // fill sendRequests and recvRequests with MPI_REQUEST_NULL
+  std::fill(sendRequests.begin(), sendRequests.end(), MPI_REQUEST_NULL);
+  std::fill(recvRequests.begin(), recvRequests.end(), MPI_REQUEST_NULL);
 
   // create general subarray pointing to the first d-1 dimensional slice
   MPI_Datatype mysubarray;
@@ -238,11 +240,6 @@ static void sendAndReceiveIndicesBlock(const std::map<RankType, std::set<IndexTy
 
   // free after parallel region
   MPI_Type_free(&mysubarray);
-
-  assert(sendRequests.size() == numSend);
-  assert(recvRequests.size() == numRecv);
-  MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
-  MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
 }
 
 /**
@@ -310,8 +307,14 @@ static void exchangeAllData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimTyp
       }
     }
   }
+  // buffer for requests
+  std::vector<MPI_Request> sendRequests(send1dIndices.size());
+  std::vector<MPI_Request> recvRequests(recv1dIndices.size());
+  sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData, sendRequests,
+                             recvRequests);
 
-  return sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+  MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
+  MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
 }
 
 /**
@@ -410,7 +413,14 @@ static void exchangeData1d(const DistributedFullGrid<FG_ELEMENT>& dfg, DimType d
     }
   }
 
-  return sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+  // buffer for requests
+  std::vector<MPI_Request> sendRequests(send1dIndices.size());
+  std::vector<MPI_Request> recvRequests(recv1dIndices.size());
+  sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData, sendRequests,
+                             recvRequests);
+
+  MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
+  MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
 }
 
 /**
@@ -446,7 +456,14 @@ static void exchangeData1dDehierarchization(const DistributedFullGrid<FG_ELEMENT
     idx = checkPredecessors(idx, dim, dfg, recv1dIndices, lmin);
   }
 
-  return sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData);
+  // buffer for requests
+  std::vector<MPI_Request> sendRequests(send1dIndices.size());
+  std::vector<MPI_Request> recvRequests(recv1dIndices.size());
+  sendAndReceiveIndicesBlock(send1dIndices, recv1dIndices, dfg, dim, remoteData, sendRequests,
+                             recvRequests);
+
+  MPI_Waitall(static_cast<int>(sendRequests.size()), sendRequests.data(), MPI_STATUSES_IGNORE);
+  MPI_Waitall(static_cast<int>(recvRequests.size()), recvRequests.data(), MPI_STATUSES_IGNORE);
 }
 
 template <typename FG_ELEMENT>
