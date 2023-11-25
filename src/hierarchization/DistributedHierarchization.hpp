@@ -744,15 +744,23 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
 
   for (LevelType ldiff = 0; ldiff < lmax - lmin; ++ldiff) {
     const int step_width = powerOfTwo[ldiff];
-    // update alpha / hierarchical surplus at odd indices
-    const auto increment = 2 * step_width;
-#pragma omp parallel for default(none) shared(data, idxmax, step_width, increment)
-    for (int i = idxmax - step_width; i > 0; i -= increment) {
-      const auto& leftParent = data[i];
-      const auto& rightParent = data[i + step_width];
-      data[i] = -0.5 * (leftParent + rightParent) + data[i];
-    }
-    // update f at even indices
+      const auto increment = 2 * step_width;
+      if (step_width < idxmax) {
+        const auto increment = 2 * step_width;
+        // do first update outside loop
+        FG_ELEMENT leftParent = data[step_width];
+        data[step_width] += -0.5 * (leftParent + data[increment]);
+        leftParent = data[increment];
+        for (int i = increment + step_width; i < idxmax; i += increment) {
+          // update alpha / hierarchical surplus at odd indices
+          const auto& rightParent = data[i + step_width];
+          data[i] = -0.5 * (leftParent + rightParent) + data[i];
+          // update f at even indices, here at left parent position
+          const auto& leftLeftParent = data[i - increment];
+          data[i - step_width] = 0.25 * (leftLeftParent + data[i]) + leftParent;
+          leftParent = rightParent;
+        }
+      }
     if (periodic) {
       // values at 0 and idxmax will be the same
       data[0] =
@@ -762,13 +770,6 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
       // mass will build up at the boundary; corresponds to 0-neumann-condition
       data[0] = data[0] + 0.5 * data[step_width];
       data[idxmax] = data[idxmax] + 0.5 * data[idxmax - step_width];
-    }
-    // todo interleave with upper loop for better cache blocking
-#pragma omp parallel for default(none) shared(data, idxmax, step_width, increment)
-    for (int i = 2 * step_width; i < idxmax; i += increment) {
-      const auto& leftParent = data[i - step_width];
-      const auto& rightParent = data[i + step_width];
-      data[i] = 0.25 * (leftParent + rightParent) + data[i];
     }
   }
 }
@@ -872,19 +873,21 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
       data[idxmax] = data[idxmax] - 0.5 * data[idxmax - step_width];
     }
 
-    const auto increment = 2 * step_width;
-    auto leftParent = data[step_width];
-    for (int i = 2 * step_width; i < idxmax; i += increment) {
-      // update f at even indices
-      const auto& rightParent = data[i + step_width];
-      data[i] = -0.25 * (leftParent + rightParent) + data[i];
-      // update alpha / hierarchical surplus at odd indices, here: at left parent
-      const auto& leftLeftParent = data[i - increment];
-      data[i - step_width] = 0.5 * (leftLeftParent + data[i]) + leftParent;
-      leftParent = rightParent;
+    if (step_width < idxmax) {
+      const auto increment = 2 * step_width;
+      auto leftParent = data[step_width];
+      for (int i = 2 * step_width; i < idxmax; i += increment) {
+        // update f at even indices
+        const auto& rightParent = data[i + step_width];
+        data[i] = -0.25 * (leftParent + rightParent) + data[i];
+        // update alpha / hierarchical surplus at odd indices, here: at left parent
+        const auto& leftLeftParent = data[i - increment];
+        data[i - step_width] = 0.5 * (leftLeftParent + data[i]) + leftParent;
+        leftParent = rightParent;
+      }
+      // update last missing alpha
+      data[idxmax - step_width] += 0.5 * (data[idxmax - increment] + data[idxmax]);
     }
-    // update last missing alpha
-    data[idxmax - step_width] += 0.5 * (data[idxmax - 2 * step_width] + data[idxmax]);
   }
 }
 
