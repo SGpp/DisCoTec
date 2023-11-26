@@ -1298,8 +1298,13 @@ BOOST_AUTO_TEST_CASE(test_hierarchizeNonoverlapping) {
     basisFunctions.push_back(new FullWeightingPeriodicBasisFunction());
     basisFunctions.push_back(new BiorthogonalPeriodicBasisFunction());
     BOOST_TEST_CHECKPOINT("start hierarchize");
-    combigrid::hierarchizeNonoverlapping<CombiDataType>(tasks, {1, 1}, basisFunctions,
-                                                        lminToUse);
+    combigrid::hierarchizeNonoverlapping<CombiDataType>(tasks, {1, 1}, basisFunctions, lminToUse);
+    for (const auto& t : tasks) {
+      const auto& g = t->getDistributedFullGrid();
+      for (auto i = 0; i < g.getNrLocalElements(); ++i) {
+        BOOST_CHECK(!std::isnan(g.getData()[i]));
+      }
+    }
   }
 }
 

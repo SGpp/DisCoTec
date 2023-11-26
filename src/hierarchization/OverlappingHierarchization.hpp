@@ -14,23 +14,23 @@ static void hierarchizeNonoverlapping(std::vector<std::unique_ptr<Task>>& tasks,
                                       const std::vector<BasisFunctionBasis*>& hierarchicalBases,
                                       const LevelVector& lmin) {
   if (tasks.empty()) return;
-  const auto& dfg = tasks[0]->getDistributedFullGrid();
-  assert(dfg.getDimension() > 0);
-  assert(dfg.getDimension() == hierarchizationDims.size());
-  assert(lmin.size() == dfg.getDimension());
+  const auto& firstDfg = tasks[0]->getDistributedFullGrid();
+  assert(firstDfg.getDimension() > 0);
+  assert(firstDfg.getDimension() == hierarchizationDims.size());
+  assert(lmin.size() == firstDfg.getDimension());
 
   std::vector<RemoteDataCollector<FG_ELEMENT>> remoteDataPerTask(tasks.size());
 
   // get cartesian comm dimensions from mpi cartesian utils
-  const auto& cartDims = dfg.getCartesianUtils().getCartesianDimensions();
+  const auto& cartDims = firstDfg.getCartesianUtils().getCartesianDimensions();
   auto maxCartesianDim = *std::max_element(cartDims.cbegin(), cartDims.cend());
 
   std::vector<std::pair<std::vector<MPI_Request>, std::vector<MPI_Request>>> requests(
-      tasks.size(), std::make_pair(std::vector<MPI_Request>(maxCartesianDim, MPI_REQUEST_NULL),
-                                   std::vector<MPI_Request>(maxCartesianDim, MPI_REQUEST_NULL)));
+      tasks.size(), std::make_pair(std::vector<MPI_Request>(),
+                                   std::vector<MPI_Request>()));
 
   std::set<DimType> setDimensions;
-  for (DimType dim = 0; dim < dfg.getDimension(); ++dim) {
+  for (DimType dim = 0; dim < firstDfg.getDimension(); ++dim) {
     if (hierarchizationDims[dim]) {
       setDimensions.insert(dim);
     }
@@ -43,10 +43,10 @@ static void hierarchizeNonoverlapping(std::vector<std::unique_ptr<Task>>& tasks,
     auto dim = *(setDimIt);
     if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[dim]) != nullptr ||
         dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[dim]) != nullptr) {
-      exchangeData1d(dfg, dim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
+      exchangeData1d(tasks[taskIndex]->getDistributedFullGrid(), dim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
                      requests[taskIndex].second, lmin[dim]);
     } else {
-      exchangeAllData1d(dfg, dim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
+      exchangeAllData1d(tasks[taskIndex]->getDistributedFullGrid(), dim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
                         requests[taskIndex].second);
     }
   }
@@ -71,10 +71,10 @@ static void hierarchizeNonoverlapping(std::vector<std::unique_ptr<Task>>& tasks,
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[nextDim]) != nullptr ||
             dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[nextDim]) !=
                 nullptr) {
-          exchangeData1d(dfg, nextDim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
+          exchangeData1d(tasks[taskIndex]->getDistributedFullGrid(), nextDim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
                          requests[taskIndex].second, lmin[nextDim]);
         } else {
-          exchangeAllData1d(dfg, nextDim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
+          exchangeAllData1d(tasks[taskIndex]->getDistributedFullGrid(), nextDim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
                             requests[taskIndex].second);
         }
       }
