@@ -1274,7 +1274,7 @@ BOOST_AUTO_TEST_CASE(test_p_40) {
   BOOST_CHECK_NO_THROW(checkHierarchizationParaboloid(levels, procs, boundary));
 }
 
-BOOST_AUTO_TEST_CASE(test_hierarchizeNonoverlapping) {
+BOOST_AUTO_TEST_CASE(test_hierarchizeOverlapping) {
   BOOST_REQUIRE(TestHelper::checkNumMPIProcsAvailable(9));
   std::vector<int> procs = {8, 1};
   CommunicatorType comm = TestHelper::getComm(procs);
@@ -1298,7 +1298,7 @@ BOOST_AUTO_TEST_CASE(test_hierarchizeNonoverlapping) {
     basisFunctions.push_back(new FullWeightingPeriodicBasisFunction());
     basisFunctions.push_back(new BiorthogonalPeriodicBasisFunction());
     BOOST_TEST_CHECKPOINT("start hierarchize");
-    combigrid::hierarchizeNonoverlapping<CombiDataType>(tasks, {1, 1}, basisFunctions, lminToUse);
+    combigrid::hierarchizeOverlapping<CombiDataType>(tasks, {1, 1}, basisFunctions, lminToUse);
     for (const auto& t : tasks) {
       const auto& g = t->getDistributedFullGrid();
       for (auto i = 0; i < g.getNrLocalElements(); ++i) {
