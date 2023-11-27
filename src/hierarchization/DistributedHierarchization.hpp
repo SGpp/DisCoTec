@@ -935,6 +935,7 @@ void hierarchizeWithBoundary(DistributedFullGrid<FG_ELEMENT>& dfg,
                              LevelType lmin_n = 0) {
   assert(dfg.returnBoundaryFlags()[dim] > 0);
   const auto& lmax = dfg.getLevels()[dim];
+  if (lmax == lmin_n) return;
   const auto& numberOfPolesLowerDimensions = dfg.getLocalOffsets()[dim];
   const IndexType jump = numberOfPolesLowerDimensions * dfg.getLocalSizes()[dim];
   const IndexType numberOfPolesHigherDimensions = dfg.getNrLocalElements() / jump;
