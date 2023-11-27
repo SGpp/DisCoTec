@@ -55,12 +55,10 @@ static void hierarchizeOverlapping(std::vector<std::unique_ptr<Task>>& tasks,
     auto dim = *(setDimIt);
     for (size_t taskIndex = 0; taskIndex < tasks.size(); ++taskIndex) {
       // wait for requests, then hierarchize
-      Stats::startEvent("h wait");
       MPI_Waitall(static_cast<int>(requests[taskIndex].first.size()),
                   requests[taskIndex].first.data(), MPI_STATUSES_IGNORE);
       MPI_Waitall(static_cast<int>(requests[taskIndex].second.size()),
                   requests[taskIndex].second.data(), MPI_STATUSES_IGNORE);
-      Stats::stopEvent("h wait");
       auto& dfg = tasks[taskIndex]->getDistributedFullGrid();
       if (dfg.getLevels()[dim] > lmin[dim]) {
         DistributedHierarchization::hierarchizeLocalData<FG_ELEMENT>(
@@ -74,7 +72,6 @@ static void hierarchizeOverlapping(std::vector<std::unique_ptr<Task>>& tasks,
         if (dfg.getLevels()[nextDim] == lmin[nextDim]) {
           continue;
         }
-        Stats::startEvent("h transfer");
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[nextDim]) != nullptr ||
             dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[nextDim]) !=
                 nullptr) {
@@ -84,7 +81,6 @@ static void hierarchizeOverlapping(std::vector<std::unique_ptr<Task>>& tasks,
           exchangeAllData1d(dfg, nextDim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
                             requests[taskIndex].second);
         }
-        Stats::stopEvent("h transfer");
       }
     }
   }
@@ -137,12 +133,10 @@ static void dehierarchizeOverlapping(std::vector<std::unique_ptr<Task>>& tasks,
     auto dim = *(setDimIt);
     for (size_t taskIndex = 0; taskIndex < tasks.size(); ++taskIndex) {
       // wait for requests, then hierarchize
-      Stats::startEvent("d wait");
       MPI_Waitall(static_cast<int>(requests[taskIndex].first.size()),
                   requests[taskIndex].first.data(), MPI_STATUSES_IGNORE);
       MPI_Waitall(static_cast<int>(requests[taskIndex].second.size()),
                   requests[taskIndex].second.data(), MPI_STATUSES_IGNORE);
-      Stats::stopEvent("d wait");
       auto& dfg = tasks[taskIndex]->getDistributedFullGrid();
       if (dfg.getLevels()[dim] > lmin[dim]) {
         DistributedHierarchization::dehierarchizeLocalData<FG_ELEMENT>(
@@ -156,7 +150,6 @@ static void dehierarchizeOverlapping(std::vector<std::unique_ptr<Task>>& tasks,
         if (dfg.getLevels()[nextDim] == lmin[nextDim]) {
           continue;
         }
-        Stats::startEvent("d transfer");
         if (dynamic_cast<HierarchicalHatBasisFunction*>(hierarchicalBases[nextDim]) != nullptr ||
             dynamic_cast<HierarchicalHatPeriodicBasisFunction*>(hierarchicalBases[nextDim]) !=
                 nullptr) {
@@ -167,7 +160,6 @@ static void dehierarchizeOverlapping(std::vector<std::unique_ptr<Task>>& tasks,
           exchangeAllData1d(dfg, nextDim, remoteDataPerTask[taskIndex], requests[taskIndex].first,
                             requests[taskIndex].second);
         }
-        Stats::stopEvent("d transfer");
       }
     }
   }
