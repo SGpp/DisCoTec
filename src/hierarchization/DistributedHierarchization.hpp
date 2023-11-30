@@ -798,7 +798,7 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
     if (periodic) {
       // values at 0 and idxmax will be the same
       data[0] =
-          (0.5 * (data[0] + data[idxmax]) + 0.25 * data[step_width]) + 0.25* data[idxmax - step_width]);
+          (0.5 * (data[0] + data[idxmax]) + 0.25 * data[step_width]) + 0.25* data[idxmax - step_width];
       data[idxmax] = data[0];
     } else {
       // mass will build up at the boundary; corresponds to 0-neumann-condition
