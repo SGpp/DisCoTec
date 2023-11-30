@@ -782,7 +782,7 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
     if (step_width < idxmax) {
       const auto increment = 2 * step_width;
       // do first update outside loop
-      FG_ELEMENT leftParent = data[step_width];
+      FG_ELEMENT leftParent = data[0];
       data[step_width] += -0.5 * (leftParent + data[increment]);
       leftParent = data[increment];
       for (int i = increment + step_width; i < idxmax; i += increment) {
