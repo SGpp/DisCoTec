@@ -783,22 +783,22 @@ inline void hierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelType
       const auto increment = 2 * step_width;
       // do first update outside loop
       FG_ELEMENT leftParent = data[0];
-      data[step_width] += -0.5 * (leftParent + data[increment]);
+      data[step_width] = -0.5 * leftParent + (-0.5 * data[increment] + data[step_width]);
       leftParent = data[increment];
       for (int i = increment + step_width; i < idxmax; i += increment) {
         // update alpha / hierarchical surplus at odd indices
         const auto& rightParent = data[i + step_width];
-        data[i] = -0.5 * (leftParent + rightParent) + data[i];
+        data[i] = -0.5 * leftParent + (-0.5 * rightParent + data[i]);
         // update f at even indices, here at left parent position
         const auto& leftLeftParent = data[i - increment];
-        data[i - step_width] = 0.25 * (leftLeftParent + data[i]) + leftParent;
+        data[i - step_width] = 0.25 * leftLeftParent + (0.25 * data[i] + leftParent);
         leftParent = rightParent;
       }
     }
     if (periodic) {
       // values at 0 and idxmax will be the same
       data[0] =
-          0.5 * (data[0] + data[idxmax]) + 0.25 * (data[step_width] + data[idxmax - step_width]);
+          (0.5 * (data[0] + data[idxmax]) + 0.25 * data[step_width]) + 0.25* data[idxmax - step_width]);
       data[idxmax] = data[0];
     } else {
       // mass will build up at the boundary; corresponds to 0-neumann-condition
@@ -900,7 +900,7 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
     // update f at even indices
     if (periodic) {
       data[0] =
-          -0.25 * (data[step_width] + data[idxmax - step_width]) + 0.5 * (data[0] + data[idxmax]);
+          -0.25 * data[step_width] + (-0.25 * data[idxmax - step_width] + 0.5 * (data[0] + data[idxmax]));
       data[idxmax] = data[0];
     } else {
       data[0] = data[0] - 0.5 * data[step_width];
@@ -913,14 +913,14 @@ inline void dehierarchize_biorthogonal_boundary_kernel(FG_ELEMENT* data, LevelTy
       for (int i = 2 * step_width; i < idxmax; i += increment) {
         // update f at even indices
         const auto& rightParent = data[i + step_width];
-        data[i] = -0.25 * (leftParent + rightParent) + data[i];
+        data[i] = -0.25 * leftParent + (-0.25 * rightParent + data[i]);
         // update alpha / hierarchical surplus at odd indices, here: at left parent
         const auto& leftLeftParent = data[i - increment];
-        data[i - step_width] = 0.5 * (leftLeftParent + data[i]) + leftParent;
+        data[i - step_width] = 0.5 * leftLeftParent + (0.5 * data[i] + leftParent);
         leftParent = rightParent;
       }
       // update last missing alpha
-      data[idxmax - step_width] += 0.5 * (data[idxmax - increment] + data[idxmax]);
+      data[idxmax - step_width] = 0.5 * data[idxmax - increment] + (0.5 * data[idxmax] + data[idxmax - step_width]);
     }
   }
 }
