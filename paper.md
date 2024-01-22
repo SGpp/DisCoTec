@@ -79,8 +79,8 @@ each of them differently in the different dimensions.
 By updating each other's information throughout the simulation, the component grids
 still obtain an accurate solution of the overall problem. 
 This is enabled by an intermedate transformation into a multi-scale (hierarchical) basis, and application of the combination formula
-$$ f^{(\text{s})} = \sum_{\vect{l} \in \mathcal{I} } c_{\vect{l}} f_{\vect{l}} $$
-where $f^{(\text{s})}$ is the sparse grid approximation, and $f_{\vect{l}}$ are the component grid functions.
+$$ f^{(\text{s})} = \sum_{\vec{l} \in \mathcal{I} } c_{\vec{l}} f_{\vec{l}} $$
+where $f^{(\text{s})}$ is the sparse grid approximation, and $f_{\vec{l}}$ are the component grid functions.
 In summary, each of the grids will run (one or more) time steps of the simulation, 
 then exchange information with the other grids, and repeat this process until the simulation is finished.
 
