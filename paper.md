@@ -94,7 +94,7 @@ and the solver's existing parallelism can be re-used.
 In addition, the number of process groups can be increased to leverage the 
 combination technique's embarrassing parallelism in the solver time steps.
 
-![DisCoTec process groups](gfx/discotec-ranks.pdf)
+![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Each operation in `DisCoTec` requires either communication in the process group, or perpendicular to it---there is no need for global synchronization, which avoids a major scaling bottleneck. The manager rank is optional.](gfx/discotec-ranks.pdf)
 
 Using DisCoTec, kinetic simulations could be demonstrated to scale up to hundreds of thousands of cores.
 By putting a special focus on saving memory, most of the memory is available for use by the black-box solver, even at high core counts. 
@@ -111,6 +111,6 @@ but the approach is not limited to UFTP.
 
 We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra Hinojosa, Michael Obersteiner, 
 Marcel Hurler, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal, Marcel Breyer, Christoph Niethammer, Philipp Offenhäuser, 
-and support from HLRS, LRZ, JSC, and NHR@FAU, where we would like to particularly highlight the long-standing support by Martin Bernreuther and Martin Ohlerich.
+and support from HLRS, LRZ, JSC, and NHR@FAU, where we would like to highlight the long-standing support by Martin Bernreuther and Martin Ohlerich in particular.
 
 # References
