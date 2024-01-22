@@ -93,6 +93,7 @@ An important feature is the usage of process groups, where multiple MPI ranks wi
 and the solver's existing parallelism can be re-used.
 In addition, the number of process groups can be increased to leverage the 
 combination technique's embarrassing parallelism in the solver time steps.
+
 ![DisCoTec process groups](gfx/discotec-ranks.pdf)
 
 Using DisCoTec, kinetic simulations could be demonstrated to scale up to hundreds of thousands of cores.
