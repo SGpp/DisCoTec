@@ -35,7 +35,10 @@ bibliography: paper.bib
 It provides shared-memory parallelism via OpenMP and distributed-memory parallelism via MPI, 
 and is designed to be used in combination with existing simulation codes.
 
-Any code that can operated on nested structured grids can employ the model order reduction 
+A central part of the combination technique at scale is the transformation of grid functions into a multi-scale basis,
+where basis coefficents are not proportional to the function values, but to the smaller-scale deviation from larger-scale features 
+(currently, a selection of three different lifting wavelets is available).
+However, any code that can operate on nested structured grids can employ the model order reduction 
 provided by the underlying sparse grid approach, without considering any multi-scale operations; this part is provided by DisCoTec.
 Although already 2D applications can see significant benefits, the higher-dimensional (4- to 6-dimensional) 
 grids employed in high-fidelity plasma simulations benefit even more from the combination technique [@pollingerStableMassconservingSparse2023].
@@ -45,6 +48,7 @@ in which multiple HPC systems cooperate to solve a joint simulation [@pollingerL
 Thus, `DisCoTec` can leverage the compute power and main memory of multiple HPC systems.
 The transfer cost is relatively low due to the multi-scale approach in the combination technique 
 -- much less than with a traditional domain decomposition.
+
 
 # Statement of need
 
@@ -91,14 +95,14 @@ and the solver's existing parallelism can be re-used.
 In addition, the number of process groups can be increased to leverage the 
 combination technique's embarrassing parallelism in the solver time steps.
 
-![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Each operation in `DisCoTec` requires either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional.](gfx/discotec-ranks.pdf)
+![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional.](gfx/discotec-ranks.pdf)
 
 Using DisCoTec, kinetic simulations could be demonstrated to scale up to hundreds of thousands of cores.
 By putting a special focus on saving memory, most of the memory is available for use by the black-box solver, even at high core counts. 
 In addition, OpenMP parallelism can be used to further increase parallelism and decrease main memory usage.
 
 Through highly parallel I/O operations, `DisCoTec` can be used to perform simulations on multiple HPC systems simultaneously, 
-if there exists a tool for fast file transfer between the systems[@pollingerLeveragingComputePower2023].
+if there exists a tool for fast file transfer between the systems [@pollingerLeveragingComputePower2023].
 The `DisCoTec` repository contains example scripts and documentation for utilizing UFTP as an example of a transfer tool,
 but the approach is not limited to UFTP.
 
