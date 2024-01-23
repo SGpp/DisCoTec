@@ -67,7 +67,7 @@ It is designed to be used in combination with existing simulation codes,
 which can be used with `DisCoTec` in a black-box fashion.
 
 
-# Method: Sparse grid combination technique
+# Methods: Sparse grid combination technique and implementation
 
 The sparse grid combination technique (with time-stepping) is a multi-scale approach for solving higher-dimensional problems.
 Instead of solving the problem on one grid that is very finely resolved in all dimensions,
@@ -84,9 +84,6 @@ where $f^{(\text{s})}$ is the sparse grid approximation, and $f_{\vec{l}}$ are t
 In summary, each of the grids will run (one or more) time steps of the simulation, 
 then exchange information with the other grids, and repeat this process until the simulation is finished.
 
-
-# Implementation
-
 `DisCoTec` provides the necessary infrastructure for the combination technique with a black-box approach, 
 enabling massive parallelism---suitable for existing solvers that use MPI and structured grids.
 An important feature is the usage of process groups, where multiple MPI ranks will collaborate on a set of component grids, 
@@ -94,7 +91,7 @@ and the solver's existing parallelism can be re-used.
 In addition, the number of process groups can be increased to leverage the 
 combination technique's embarrassing parallelism in the solver time steps.
 
-![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Each operation in `DisCoTec` requires either communication in the process group, or perpendicular to it---there is no need for global synchronization, which avoids a major scaling bottleneck. The manager rank is optional.](gfx/discotec-ranks.pdf)
+![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Each operation in `DisCoTec` requires either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional.](gfx/discotec-ranks.pdf)
 
 Using DisCoTec, kinetic simulations could be demonstrated to scale up to hundreds of thousands of cores.
 By putting a special focus on saving memory, most of the memory is available for use by the black-box solver, even at high core counts. 
@@ -102,8 +99,7 @@ In addition, OpenMP parallelism can be used to further increase parallelism and 
 
 Through highly parallel I/O operations, `DisCoTec` can be used to perform simulations on multiple HPC systems simultaneously, 
 if there exists a tool for fast file transfer between the systems[@pollingerLeveragingComputePower2023].
-The communication between different systems is enabled by file transfer. 
-The software repository contains example scripts and documentation for utilizing UFTP as an example of a transfer tool,
+The `DisCoTec` repository contains example scripts and documentation for utilizing UFTP as an example of a transfer tool,
 but the approach is not limited to UFTP.
 
 
