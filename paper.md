@@ -31,23 +31,18 @@ bibliography: paper.bib
 
 # Summary
 
-`DisCoTec` is a C++ framework for the sparse grid combination technique, targeting massively parallel settings.
-It provides shared-memory parallelism via OpenMP and distributed-memory parallelism via MPI, 
-and is designed to be used in combination with existing simulation codes.
+`DisCoTec` is a C++ framework for the sparse grid combination technique, designed for massively parallel settings.
+It is implemented with shared-memory parallelism via OpenMP and distributed-memory parallelism via MPI, and is intended to be used in conjunction with existing simulation codes.
+For simulation codes that can handle nested structured grids, little to no adaptation work is needed to use the `DisCoTec` framework.
+`DisCoTec` demonstrates its superiority in higher-dimensional simulations, such as high-fidelity plasma simulations in 4- to 6-dimensions [@pollingerStableMassconservingSparse2023].
+And even in the 2D case, improvements are observable.
 
-A central part of the combination technique at scale is the transformation of grid functions into a multi-scale basis,
-where basis coefficents are not proportional to the function values, but to the smaller-scale deviation from larger-scale features 
-(currently, a selection of three different lifting wavelets is available).
-However, any code that can operate on nested structured grids can employ the model order reduction 
-provided by the underlying sparse grid approach, without considering any multi-scale operations; this part is provided by DisCoTec.
-Although already 2D applications can see significant benefits, the higher-dimensional (4- to 6-dimensional) 
-grids employed in high-fidelity plasma simulations benefit even more from the combination technique [@pollingerStableMassconservingSparse2023].
+A central part of the combination technique at scale is the transformation of grid coefficients into a multi-scale basis.
+`DisCoTec` provides a selection of three different lifting wavelets for this purpose: hierachical hat basis, biorthogonal, and fullweighting basis.
+In addition, any code that can operate on nested structured grids can benefit from the model order reduction provided by the underlying sparse grid approach used by `DisCoTec`, without requiring any multi-scale operations.
+An additional feature of `DisCoTec` is the possibility of widely-distributed simulations of higher-dimensional problems, where multiple HPC systems collaborate to solve a joint simulation, as demonstrated in [@pollingerLeveragingComputePower2023].
+Thus, `DisCoTec` can leverage the compute power and main memory of multiple HPC systems, with comparatively low and manageable transfer costs due to the combination technique.
 
-Further features include the widely-distributed simulation of higher-dimensional problems,
-in which multiple HPC systems cooperate to solve a joint simulation [@pollingerLeveragingComputePower2023].
-Thus, `DisCoTec` can leverage the compute power and main memory of multiple HPC systems.
-The transfer cost is relatively low due to the multi-scale approach in the combination technique 
--- much less than with a traditional domain decomposition.
 
 
 # Statement of need
