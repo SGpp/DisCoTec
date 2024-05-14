@@ -6,7 +6,6 @@
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/cac5bc0841784657b2bb75ea46e7cf01)](https://app.codacy.com/gh/SGpp/DisCoTec/dashboard)
 
 # What is DisCoTec?
----------------------------
 
 This project contains __DisCoTec__, a code for running the *dis*tributed sparse grid *co*mbination *tec*hnique with MPI parallelization. 
 While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it has become its own project.
@@ -15,28 +14,40 @@ DisCoTec is designed as a framework that can run multiple instances of a (black-
 The most basic example we use is a [mass-conserving FDM/FVM constant advection upwinding solver](/examples/distributed_advection/).
 An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distributed/).
 
+
 ## Sparse Grid Combination Technique with Time Stepping
----------------------------
-The sparse grid combination technique can be used to alleviate the curse of dimensionality encountered in high-dimensional simulations.
-Instead of using your solver on a  single structured full grid (where every dimension is finely resolved), you would use it on many different structured full grids (each of them differently resolved). 
-These grids form a sparse grid approximation, which can be obtained by a linear superposition of the individual grid functions, with the so-called combination coefficients.
 
-![schematic of a combination scheme in 2D](img/combischeme.pdf)
-In this 2D combination scheme, all combination coefficients are 1 and -1, respectively.
+The sparse grid combination technique (Griebel et al. [1992](https://ins.uni-bonn.de/media/public/publication-media/griesiam.ps.gz), Garcke [2013](https://link.springer.com/chapter/10.1007/978-3-642-31703-3_3), Harding [2016](https://link.springer.com/chapter/10.1007/978-3-319-28262-6_4)) can be used to alleviate the curse of dimensionality encountered in high-dimensional simulations.
+Instead of using your solver on a  single structured full grid (where every dimension is finely resolved), you would use it on many different structured full grids (each of them differently resolved).
+We call these coarsely-resolved grids component grids.
+Taken together, all component grids form a sparse grid approximation, which can be explicitly obtained by a linear superposition of the individual grid functions, with the so-called combination coefficients.
 
-Between time steps, the grids exchange data through a multi-scale approach, which -- assuming a certain smoothness in the solution -- allows for a good approximation of the finely-resolved function, while achieving drastic reductions in compute and memory requirements.
+![schematic of a combination scheme in 2D](gfx/combischeme-2d.pdf)
+In this two-dimensional combination scheme, all combination coefficients are 1 and -1, respectively.
+Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229)).
+
+Between time steps, the grids exchange data through a multi-scale approach, which is summarized as the "combination" step in DisCoTec.
+Assuming a certain smoothness in the solution, this allows for a good approximation of the finely-resolved function, while achieving drastic reductions in compute and memory requirements.
 
 
-## Contributing
----------------------------
-*   We welcome contributions! To find a good place to start coding, have a look at the currently open issues.
-*   Please describe issues in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
+## Parallelism in DisCoTec
+
+The DisCoTec framework can work with existing MPI parallelized solver codes operating on structured grids.
+In addition to the parallelism provided by the solver, it adds the combination technique's parallelism:
+
+![schematic of MPI ranks in DisCoTec](gfx/discotec-ranks.pdf)
+
+
+# Contributing
+
+We welcome contributions! To find a good place to start coding, have a look at the currently open issues.
+*   Please describe issues and intended changes in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
 *   Please develop new features in a new branch (typically on your own fork) and then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
 *   New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests](/tests).
 
 
 ## Installation instructions: spack
----------------------------
+
 DisCoTec can be installed via Spack, which handles all dependencies.
 If you want to develop DisCoTec code or examples, the `spack dev-build` workflow is recommended.
 
@@ -57,6 +68,7 @@ The executables are placed in the respective `example` and `test` folders.
 
 
 ## Installation instructions: CMake
+
 ---------------------------
 #### Dependencies
 ---------------------------
@@ -156,7 +168,7 @@ mpirun -n $(($NGROUP*$NPROCS)) omplace -v -nt ${OMP_NUM_THREADS} $DISCOTEC_EXECU
 Validate with very verbose output: `-vv` .
 
 ### GENE  submodules as dependencies for GENE examples
----------------------------
+
 *Warning: The CMake Integration is currently not adapted to use GENE!*
 
 There are gene versions as submodules: a linear one in the gene_mgr folder, and 
