@@ -71,7 +71,7 @@ the currently open issues.
 
 ### Installation instructions: spack
 
-DisCoTec can be installed via Spack, which handles all dependencies.
+DisCoTec can be installed via spack, which handles all dependencies.
 If you want to develop DisCoTec code or examples, the `spack dev-build` workflow
 is recommended as follows.
 
@@ -193,23 +193,26 @@ is `N`, one needs
 export OMP_NUM_THREADS=$N;export OMP_PLACES=cores;export OMP_PROC_BIND=close
 ```
 
-If OpenMP is used for compilation but should not be used for execution, `N` 
+If OpenMP is used for compilation but should not be used for execution, `N`
 should be set to 1 to avoid unintended effects.
 
 ### Intel-MPI
 
-Intel-MPI requires some [environment variables](https://software.intel.com/content/www/us/en/develop/documentation/mpi-developer-reference-linux/top/environment-variable-reference/process-pinning/environment-variables-for-process-pinning.html), in particular [for OpenMP](https://www.intel.com/content/www/us/en/docs/mpi-library/developer-guide-linux/2021-6/running-an-mpi-openmp-program.html):
+Intel-MPI requires some [environment variables](https://software.intel.com/content/www/us/en/develop/documentation/mpi-developer-reference-linux/top/environment-variable-reference/process-pinning/environment-variables-for-process-pinning.html),
+in particular [for OpenMP](https://www.intel.com/content/www/us/en/docs/mpi-library/developer-guide-linux/2021-6/running-an-mpi-openmp-program.html):
 
 ```bash
 mpiexec -n $(($NGROUP*$NPROCS)) -genv I_MPI_PIN_PROCESSOR_LIST="allcores" -genv I_MPI_PIN_DOMAIN=omp $DISCOTEC_EXECUTABLE
 ```
 
-In SLURM, it is important to set --ntasks-per-node to match the number of desired tasks ($CORES_PER_NODE/$OMP_NUM_THREADS).
-Validate with verbose output: `export I_MPI_DEBUG=4` .
+In SLURM, it is important to set --ntasks-per-node to match the number of
+desired tasks (`$CORES_PER_NODE`/`$OMP_NUM_THREADS`).
+Validate with verbose output: `export I_MPI_DEBUG=4`
 
 ### OpenMPI
 
-OpenMPI uses command line arguments, pinning may clash with SLURM settings depending on the exact call.
+OpenMPI uses command line arguments, pinning may clash with SLURM settings
+depending on the exact call.
 
 ```bash
 mpiexec.openmpi --rank-by core --map-by node:PE=${OMP_NUM_THREADS} -n $(($NGROUP*$NPROCS)) $DISCOTEC_EXECUTABLE
@@ -229,7 +232,7 @@ Validate with very verbose output: `-vv` .
 
 ## GENE submodules as dependencies for GENE examples
 
-_Warning: The CMake Integration is currently not adapted to use GENE!_
+*Warning: The CMake Integration is currently not adapted to use GENE!*
 
 There are gene versions as submodules: a linear one in the gene_mgr folder, and
 a nonlinear one in gene-non-linear. To get them, you need access to their
