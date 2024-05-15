@@ -36,7 +36,8 @@ Taken together, all component grids form a sparse grid approximation, which can
 be explicitly obtained by a linear superposition of the individual grid
 functions, with the so-called combination coefficients.
 
-![schematic of a combination scheme in 2D](gfx/combischeme-2d.pdf)
+![schematic of a combination scheme in 2D](gfx/combischeme-2d.svg)
+
 In this two-dimensional combination scheme, all combination coefficients are 1
 and -1, respectively.
 Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229)).
@@ -57,7 +58,8 @@ This is achieved through *process groups* (pgs):
 `MPI_COMM_WORLD` is subdivided into equal-sized process groups
 (and optionally, a manager rank).
 
-![schematic of MPI ranks in DisCoTec](gfx/discotec-ranks.pdf)
+![schematic of MPI ranks in DisCoTec](gfx/discotec-ranks.svg)
+
 The image describes the two ways of scaling up:
 One can either increase the size or the number of process groups.
 Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229)).
@@ -73,9 +75,11 @@ Thus, major bottlenecks arising from global communication can be avoided altoget
 
 Combining the two ways of scaling up, DisCoTec's scalability was demonstrated on
 several machines, with the experiments comprising up to 524288 cores:
+
 ![timings for advection solver step on HAWK at various
-parallelizations](gfx/times-solver-on-hawk.pdf)![timings for combination step on
-HAWK at various parallelizations](gfx/times-combination-on-hawk.pdf)
+parallelizations](gfx/times-solver-on-hawk.svg)![timings for combination step on
+HAWK at various parallelizations](gfx/times-combination-on-hawk.svg)
+
 We see the timings (in seconds) for the advection solver step and the
 combination step, respectively.
 This weak scaling experiment used four OpenMP threads per rank, and starts with
