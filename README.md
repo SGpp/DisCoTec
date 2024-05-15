@@ -8,50 +8,75 @@
 
 ## What is DisCoTec?
 
-This project contains **DisCoTec**, a code for running the *dis*tributed sparse grid *co*mbination *tec*hnique with MPI parallelization.
-While it originates from the excellent [SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a very different code, such that it has become its own project.
+This project contains **DisCoTec**, a code for running the *dis*tributed sparse
+grid *co*mbination *tec*hnique with MPI parallelization.
+While it originates from the excellent
+[SGpp project](https://github.com/SGpp/SGpp), all the parallelization makes it a
+very different code, such that it has become its own project.
 
-DisCoTec is designed as a framework that can run multiple instances of a (black-box) grid-based solver implementation.
-The most basic example we use is a [mass-conserving FDM/FVM constant advection upwinding solver](/examples/distributed_advection/).
+DisCoTec is designed as a framework that can run multiple instances of a
+(black-box) grid-based solver implementation.
+The most basic example we use is a [mass-conserving FDM/FVM constant advection
+upwinding solver](/examples/distributed_advection/).
 An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distributed/).
 
 ### Sparse Grid Combination Technique with Time Stepping
 
-The sparse grid combination technique (Griebel et al. [1992](https://ins.uni-bonn.de/media/public/publication-media/griesiam.ps.gz), Garcke [2013](https://link.springer.com/chapter/10.1007/978-3-642-31703-3_3), Harding [2016](https://link.springer.com/chapter/10.1007/978-3-319-28262-6_4)) can be used to alleviate the curse of dimensionality encountered in high-dimensional simulations.
-Instead of using your solver on a single structured full grid (where every dimension is finely resolved), you would use it on many different structured full grids (each of them differently resolved).
+The sparse grid combination technique (Griebel et al.
+[1992](https://ins.uni-bonn.de/media/public/publication-media/griesiam.ps.gz),
+Garcke [2013](https://link.springer.com/chapter/10.1007/978-3-642-31703-3_3),
+Harding [2016](https://link.springer.com/chapter/10.1007/978-3-319-28262-6_4))
+can be used to alleviate the curse of dimensionality encountered in
+high-dimensional simulations.
+Instead of using your solver on a single structured full grid (where every
+dimension is finely resolved), you would use it on many different structured
+full grids (each of them differently resolved).
 We call these coarsely-resolved grids component grids.
-Taken together, all component grids form a sparse grid approximation, which can be explicitly obtained by a linear superposition of the individual grid functions, with the so-called combination coefficients.
+Taken together, all component grids form a sparse grid approximation, which can
+be explicitly obtained by a linear superposition of the individual grid
+functions, with the so-called combination coefficients.
 
 ![schematic of a combination scheme in 2D](gfx/combischeme-2d.pdf)
-In this two-dimensional combination scheme, all combination coefficients are 1 and -1, respectively.
+In this two-dimensional combination scheme, all combination coefficients are 1
+and -1, respectively.
 Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229)).
 
-Between time steps, the grids exchange data through a multi-scale approach, which is summarized as the "combination" step in DisCoTec.
-Assuming a certain smoothness in the solution, this allows for a good approximation of the finely-resolved function, while achieving drastic reductions in compute and memory requirements.
+Between time steps, the grids exchange data through a multi-scale approach,
+which is summarized as the "combination" step in DisCoTec.
+Assuming a certain smoothness in the solution, this allows for a good
+approximation of the finely-resolved function, while achieving drastic
+reductions in compute and memory requirements.
 
 ### Parallelism in DisCoTec
 
-The DisCoTec framework can work with existing MPI parallelized solver codes operating on structured grids.
-In addition to the parallelism provided by the solver, it adds the combination technique's parallelism:
+The DisCoTec framework can work with existing MPI parallelized solver codes
+operating on structured grids.
+In addition to the parallelism provided by the solver, it adds the combination
+technique's parallelism:
 
 ![schematic of MPI ranks in DisCoTec](gfx/discotec-ranks.pdf)
 
 ## Contributing
 
-We welcome contributions! To find a good place to start coding, have a look at the currently open issues.
+We welcome contributions! To find a good place to start coding, have a look at
+the currently open issues.
 
 - Please describe issues and intended changes in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
-- Please develop new features in a new branch (typically on your own fork) and then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
-- New features will only be merged to the main branch if they are sufficiently tested: please add unit tests in [/tests](/tests).
+- Please develop new features in a new branch (typically on your own fork) and
+  then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
+- New features will only be merged to the main branch if they are sufficiently
+  tested: please add unit tests in [/tests](/tests).
 
 ## Installing
 
 ### Installation instructions: spack
 
 DisCoTec can be installed via Spack, which handles all dependencies.
-If you want to develop DisCoTec code or examples, the `spack dev-build` workflow is recommended.
+If you want to develop DisCoTec code or examples, the `spack dev-build` workflow
+is recommended as follows.
 
-Clone both `spack` and `DisCoTec` to find or build the dependencies and then compile DisCoTec:
+Clone both `spack` and `DisCoTec` to find or build the dependencies and then
+compile DisCoTec:
 
 ```bash
 git clone git@github.com:spack/spack.git  # use https if your ssh is not set up on github
@@ -65,7 +90,8 @@ cd DisCoTec
 ../spack/bin/spack dev-build -b install discotec@main
 ```
 
-This will first build all dependencies, and then build DisCoTec inside the cloned folder.
+This will first build all dependencies, and then build DisCoTec inside the
+cloned folder.
 The executables are placed in the respective `example` and `test` folders.
 
 ### Installation instructions: CMake
@@ -105,23 +131,30 @@ cmake --build build -j
 
 to build the combi_example.
 
-For building only the DisCoTec library, run cmake with the `src` folder as source folder.
+For building only the DisCoTec library, run cmake with the `src` folder as
+source folder.
 
 #### Optional CMake Options
 
 - `DISCOTEC_TEST=**ON**|OFF` - Build tests if you build the complete project.
-- `DISCOTEC_BUILD_MISSING_DEPS=**ON**|OFF`- First order dependencies that are not found are built automatically (glpk is always built).
+- `DISCOTEC_BUILD_MISSING_DEPS=**ON**|OFF`- First order dependencies that are
+  not found are built automatically (glpk is always built).
 - `DISCOTEC_TIMING=**ON**|OFF` - Enables internal timing
 - `DISCOTEC_USE_HDF5=**ON**|OFF`
-- `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive. If `DISCOTEC_USE_HIGHFIVE=ON`, `DISCOTEC_USE_HDF5` has also to be `ON`.
-- `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform decomposition of the grid.
+- `DISCOTEC_USE_HIGHFIVE=**ON**|OFF` - Enables HDF5 support via HighFive. If
+  `DISCOTEC_USE_HIGHFIVE=ON`, `DISCOTEC_USE_HDF5` has also to be `ON`.
+- `DISCOTEC_UNIFORMDECOMPOSITION=**ON **|OFF` - Enables the uniform
+  decomposition of the grid.
 - `DISCOTEC_GENE=ON|**OFF**` - Currently GEne is not supported with CMake!
 - `DISCOTEC_OPENMP=ON|**OFF**` - Enables OpenMP support.
 - `DISCOTEC_ENABLEFT=ON|**OFF**` - Enables the use of the FT library.
-- `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler supports it.
-- `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI communication. This can be used to reduce the communication overhead.
-- `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - TODO: Add description
-- `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and compiles [the matching example](/examples/selalib_distributed/)
+- `DISCOTEC_USE_LTO=**ON**|OFF` - Enables link time optimization if the compiler
+  supports it.
+- `DISCOTEC_OMITREADYSIGNAL=ON|**OFF**` - Omit the ready signal in the MPI
+  communication. This can be used to reduce the communication overhead.
+- `DISCOTEC_USENONBLOCKINGMPICOLLECTIVE=ON|**OFF**` - Flag currently unused
+- `DISCOTEC_WITH_SELALIB=ON|**OFF**` - Looks for SeLaLib dependencies and
+  compiles [the matching example](/examples/selalib_distributed/)
 
 To run the compiled tests, go to folder `tests` and run
 
@@ -133,25 +166,35 @@ where you can use all the parameters of the boost test suite.
 If timings matter, consider the pinning described in the respective section.
 Or you can run the tests with `ctest` in the build folder.
 
-## Executing DisCoTec Binaries / Rank and Thread Pinning
+## Executing DisCoTec Binaries
 
-The number and size of process groups (in MPI ranks) can be read from the `ctparam` files:
+TODO what's in ctparam
+
+## Rank and Thread Pinning
+
+The number and size of process groups (in MPI ranks) can be read from the
+`ctparam` files:
 
 ```bash
 NGROUP=$(grep ngroup ctparam | awk -F"=" '{print $2}')
 NPROCS=$(grep nprocs ctparam | awk -F"=" '{print $2}')
 ```
 
-Correct pinning is of utmost importance, especially if DisCoTec was compiled with OpenMP support.
-The desired pinning is the simplest one you can imagine: Each node and, within a node, each socket is filled consecutively with MPI rank numbers.
-If OpenMP is used, MPI pinning is strided by the number of threads. The threads should be placed close to their MPI rank.
-This means for all compilers, if the desired number of OpenMP threads per rank is `N`, one needs
+Correct pinning is of utmost importance to performance, especially if DisCoTec
+was compiled with OpenMP support.
+The desired pinning is the simplest one you can imagine: Each node and, within a
+node, each socket is filled consecutively with MPI rank numbers.
+If OpenMP is used, MPI pinning is strided by the number of threads. The threads
+should be placed close to their MPI rank.
+This means for all compilers, if the desired number of OpenMP threads per rank
+is `N`, one needs
 
 ```bash
 export OMP_NUM_THREADS=$N;export OMP_PLACES=cores;export OMP_PROC_BIND=close
 ```
 
-If OpenMP is used for compilation but should not be used for execution, `N` should be set to 1 to avoid unintended effects.
+If OpenMP is used for compilation but should not be used for execution, `N` 
+should be set to 1 to avoid unintended effects.
 
 ### Intel-MPI
 
@@ -168,7 +211,7 @@ Validate with verbose output: `export I_MPI_DEBUG=4` .
 
 OpenMPI uses command line arguments, pinning may clash with SLURM settings depending on the exact call.
 
-```
+```bash
 mpiexec.openmpi --rank-by core --map-by node:PE=${OMP_NUM_THREADS} -n $(($NGROUP*$NPROCS)) $DISCOTEC_EXECUTABLE
 ```
 
@@ -178,7 +221,7 @@ Validate with verbose output: `--report-bindings` .
 
 With mpt, one uses the `omplace` wrapper tool to set the correct pinning.
 
-```
+```bash
 mpirun -n $(($NGROUP*$NPROCS)) omplace -v -nt ${OMP_NUM_THREADS} $DISCOTEC_EXECUTABLE
 ```
 
