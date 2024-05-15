@@ -14,6 +14,17 @@ DisCoTec is designed as a framework that can run multiple instances of a (black-
 The most basic example we use is a [mass-conserving FDM/FVM constant advection upwinding solver](/examples/distributed_advection/).
 An example of a separate, coupled solver is [SeLaLib](/examples/selalib_distributed/).
 
+## Sparse Grid Combination Technique with Time Stepping
+---------------------------
+The sparse grid combination technique can be used to alleviate the curse of dimensionality encountered in high-dimensional simulations.
+Instead of using your solver on a  single structured full grid (where every dimension is finely resolved), you would use it on many different structured full grids (each of them differently resolved). 
+These grids form a sparse grid approximation, which can be obtained by a linear superposition of the individual grid functions, with the so-called combination coefficients.
+
+![schematic of a combination scheme in 2D](img/combischeme.pdf)
+In this 2D combination scheme, all combination coefficients are 1 and -1, respectively.
+
+Between time steps, the grids exchange data through a multi-scale approach, which -- assuming a certain smoothness in the solution -- allows for a good approximation of the finely-resolved function, while achieving drastic reductions in compute and memory requirements.
+
 
 ## Sparse Grid Combination Technique with Time Stepping
 
