@@ -169,7 +169,9 @@ pipeline {
                             dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
                                 sh '''
                                     . ../discotec-spack/spack/share/spack/setup-env.sh
-                                    spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
+                                    spack load --first ${mpiimpl} %${compiler}
+                                    spack load --first boost %${compiler}
+                                    spack load --first highfive %${compiler}
                                     export OMP_NUM_THREADS=4
                                     cd tests/
                                     mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=mpisystem                      
@@ -186,7 +188,9 @@ pipeline {
                                 dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
                                     sh '''
                                         . ../discotec-spack/spack/share/spack/setup-env.sh
-                                        spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
+                                        spack load --first ${mpiimpl} %${compiler}
+                                        spack load --first boost %${compiler}
+                                        spack load --first highfive %${compiler}
                                         export OMP_NUM_THREADS=4
                                         cd tests/
                                         mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=integration
@@ -206,7 +210,9 @@ pipeline {
                                         if (compiler == 'gcc' && mpiimpl == 'openmpi') { // execute third-level test only for one compiler set
                                             sh '''
                                                 . ../discotec-spack/spack/share/spack/setup-env.sh
-                                                spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
+                                                spack load --first ${mpiimpl} %${compiler}
+                                                spack load --first boost %${compiler}
+                                                spack load --first highfive %${compiler}
                                                 export OMP_NUM_THREADS=4
                                                 cd tests/                   
                                                 mpiexec.${mpiimpl} -n 9 ./test_distributedcombigrid_boost --run_test=thirdLevel/test_workers_only,test_workers_2d,test_8_workers  # file-based exchange needs to execute correctly
