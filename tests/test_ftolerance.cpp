@@ -234,7 +234,7 @@ bool checkFtolerance(bool useCombine, bool useFG, double l0err, double l2err, si
   WORLD_MANAGER_EXCLUSIVE_SECTION {
     ProcessGroupManagerContainer pgroups;
     for (size_t i = 0; i < ngroup ; ++i) {
-      int pgroupRootID(boost::numeric_cast<int>(i));
+      auto pgroupRootID = static_cast<int>(i);
       pgroups.emplace_back(std::make_shared<ProcessGroupManager>(pgroupRootID));
     }
 
