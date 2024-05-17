@@ -148,8 +148,11 @@ pipeline {
                                     dir("DisCoTec-${compiler}-${mpiimpl}-${build_type}") {
                                         sh '''
                                             . ../discotec-spack/spack/share/spack/setup-env.sh
-                                            spack load --only dependencies --first discotec@main -lto %${compiler} ^${mpiimpl} #+selalib
+                                            spack load --first ${mpiimpl} %${compiler}
                                             spack load --first cmake %${compiler}
+                                            spack load --first boost %${compiler}
+                                            spack load --first glpk %${compiler}
+                                            spack load --first highfive %${compiler}
                                             spack load --first lz4 %${compiler}
                                             mkdir -p build/${compiler}-${mpiimpl}-${build_type}
                                             cd build/${compiler}-${mpiimpl}-${build_type}
