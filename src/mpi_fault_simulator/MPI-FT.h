@@ -1,28 +1,14 @@
+#ifndef MPI_FT_H
+#define MPI_FT_H
 #include <map>
 #include <set>
 #include <vector>
 
-#ifndef MPI_FT_H
-#define MPI_FT_H
+#include <mpi.h>
+#define REAL_MPI_INCLUDE <mpi.h>
 
 // to resolve https://github.com/open-mpi/ompi/issues/5157
 #define OMPI_SKIP_MPICXX 1
-
-#ifdef SIMFTMPI
-
-#ifndef REAL_MPI_INCLUDE
-#define REAL_MPI_INCLUDE "mpi.h"
-#endif
-
-#else
-
-#ifndef REAL_MPI_INCLUDE
-#define REAL_MPI_INCLUDE "mpi.h"
-#endif
-
-#endif
-
-#include REAL_MPI_INCLUDE
 
 namespace simft {
 // how long does a process wait until it detects a simulated process failure (in p2p communication)
@@ -121,10 +107,12 @@ typedef void(Sim_FT_MPI_Comm_errhandler_function)(Sim_FT_MPI_Comm, int *, ...);
   #define SIM_FT_KEEP_ROOT 0 */
 //####################
 
-// New errors according to ULFM
+#ifndef MPI_ERR_PROC_FAILED
+// New errors according to ULFM, only define if not defined by MPI yet
 #define MPI_ERR_PROC_FAILED 54
 #define MPI_ERR_REVOKED 55
 #define MPI_ERR_PROC_FAILED_PENDING 56
+#endif // MPI_ERR_PROC_FAILED
 
 // use a custom status object, as defined in MPICH MPI.
 struct Sim_FT_MPI_Status {
