@@ -1,3 +1,12 @@
+@inproceedings{griebelCombinationTechniqueSolution1992,
+  title = {A Combination Technique for the Solution of Sparse Grid Problems},
+  booktitle = {Iterative {{Methods}} in {{Linear Algebra}}},
+  author = {Griebel, Michael and Schneider, Michael and Zenger, Christoph},
+  editor = {family=Groen, given=P., prefix=de, useprefix=false and Beauwens, R.},
+  date = {1992},
+  pages = {263--281},
+  publisher = {IMACS, Elsevier, North Holland},
+}
 
 @phdthesis{heeneMassivelyParallelCombination2018,
   type = {phdthesis},
@@ -32,7 +41,6 @@
   keywords = {combination technique,coupling HPC systems,higher-dimensional simulation,multi-level methods,plasma turbulence,UFTP},
 }
 
-
 @article{pollingerStableMassconservingSparse2023,
   title = {A Stable and Mass-Conserving Sparse Grid Combination Technique with Biorthogonal Hierarchical Basis Functions for Kinetic Simulations},
   author = {Pollinger, Theresa and Rentrop, Johannes and Pflüger, Dirk and Kormann, Katharina},
@@ -46,4 +54,33 @@
   abstract = {The exact numerical simulation of plasma turbulence is one of the assets and challenges in fusion research. For grid-based solvers, sufficiently fine resolutions are often unattainable due to the curse of dimensionality. The sparse grid combination technique provides the means to alleviate the curse of dimensionality for kinetic simulations. However, the hierarchical representation for the combination step with the state-of-the-art hat functions suffers from poor conservation properties and numerical instability. The present work introduces two new variants of hierarchical multiscale basis functions for use with the combination technique: the biorthogonal and full weighting bases. The new basis functions conserve the total mass and are shown to significantly increase accuracy for a finite-volume solution of constant advection. Numerical analysis of the new basis functions reveals that their higher dual regularity does not only lead to conservation, but also yields an L2-stable basis for the combination technique. Accordingly, further numerical experiments applying the combination technique to a semi-Lagrangian Vlasov–Poisson solver in six dimensions show a stabilizing effect of the biorthogonal and full weighting bases on the simulations.},
   langid = {english},
   keywords = {kinetic simulations,multi-scale functions,numerical instabilities,sparse grid combination technique,Vlasov–Poisson equations},
+}
+
+@phdthesis{pollingerStableMassconservingHighdimensional2024,
+  title = {Stable and Mass-Conserving High-Dimensional Simulations with the Sparse Grid Combination Technique for Full {{HPC}} Systems and Beyond},
+  author = {Pollinger, Theresa},
+  date = {2024},
+  doi = {10.18419/opus-14210},
+  url = {http://elib.uni-stuttgart.de/handle/11682/14229},
+  urldate = {2024-04-14},
+  isbn = {9781885727787},
+  langid = {english},
+  annotation = {Accepted: 2024-04-12T13:24:58Z},
+}
+
+@inproceedings{gamblinSpackPackageManager2015,
+  title = {The {{Spack}} Package Manager: Bringing Order to {{HPC}} Software Chaos},
+  shorttitle = {The {{Spack}} Package Manager},
+  author = {Gamblin, Todd and LeGendre, Matthew and Collette, Michael R. and Lee, Gregory L. and Moody, Adam and family=Supinski, given=Bronis R., prefix=de, useprefix=false and Futral, Scott},
+  date = {2015-11-01},
+  pages = {1--12},
+  publisher = {IEEE Computer Society},
+  issn = {2167-4337},
+  doi = {10.1145/2807591.2807623},
+  url = {https://www.computer.org/csdl/proceedings-article/sc/2015/2807623/12OmNBf94Xq},
+  urldate = {2024-05-23},
+  abstract = {Large HPC centers spend considerable time supporting software for thousands of users, but the complexity of HPC software is quickly outpacing the capabilities of existing software management tools. Scientific applications require specific versions of compilers, MPI, and other dependency libraries, so using a single, standard software stack is infeasible. However, managing many configurations is difficult because the configuration space is combinatorial in size. We introduce Spack, a tool used at Lawrence Livermore National Laboratory to manage this complexity. Spack provides a novel, recursive specification syntax to invoke parametric builds of packages and dependencies. It allows any number of builds to coexist on the same system, and it ensures that installed packages can find their dependencies, regardless of the environment. We show through real-world use cases that Spack supports diverse and demanding applications, bringing order to HPC software chaos.},
+  eventtitle = {{{SC15}}: {{International Conference}} for {{High-Performance Computing}}, {{Networking}}, {{Storage}} and {{Analysis}}},
+  isbn = {978-1-4503-3723-6},
+  langid = {english}
 }

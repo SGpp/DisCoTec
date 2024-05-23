@@ -31,81 +31,114 @@ bibliography: paper.bib
 
 # Summary
 
-`DisCoTec` is a C++ framework for the sparse grid combination technique, designed for massively parallel settings.
-It is implemented with shared-memory parallelism via OpenMP and distributed-memory parallelism via MPI, and is intended to be used in conjunction with existing simulation codes.
-For simulation codes that can handle nested structured grids, little to no adaptation work is needed to use the `DisCoTec` framework.
-`DisCoTec` demonstrates its superiority in higher-dimensional simulations, such as high-fidelity plasma simulations in 4- to 6-dimensions [@pollingerStableMassconservingSparse2023].
-And even in the 2D case, improvements are observable.
+`DisCoTec` is a C++ framework for the sparse grid combination technique,
+designed for massively parallel settings.
+It is implemented with shared-memory parallelism via OpenMP and
+distributed-memory parallelism via MPI, and is intended to be used in
+conjunction with existing simulation codes.
+For simulation codes that can handle nested structured grids, little to no
+adaptation work is needed for use with the `DisCoTec` framework.
+`DisCoTec` demonstrates its superiority in higher-dimensional time-dependent
+simulations, such as high-fidelity plasma simulations in 4- to 6-dimensions
+[@pollingerStableMassconservingSparse2023].
+And already in the 2D case, improvements are observable.
 
-A central part of the combination technique at scale is the transformation of grid coefficients into a multi-scale basis.
-`DisCoTec` provides a selection of three different lifting wavelets for this purpose: hierachical hat basis, biorthogonal, and fullweighting basis.
-In addition, any code that can operate on nested structured grids can benefit from the model order reduction provided by the underlying sparse grid approach used by `DisCoTec`, without requiring any multi-scale operations.
-An additional feature of `DisCoTec` is the possibility of widely-distributed simulations of higher-dimensional problems, where multiple HPC systems collaborate to solve a joint simulation, as demonstrated in [@pollingerLeveragingComputePower2023].
-Thus, `DisCoTec` can leverage the compute power and main memory of multiple HPC systems, with comparatively low and manageable transfer costs due to the combination technique.
-
-
+A central part of the combination technique at scale is the transformation of
+grid coefficients into a multi-scale basis.
+`DisCoTec` provides a selection of three different lifting wavelets for this
+purpose: hierachical hat basis, biorthogonal, and fullweighting basis.
+In addition, any code that can operate on nested structured grids can benefit
+from the model order reduction provided by the underlying sparse grid approach
+used by `DisCoTec`, without requiring any multi-scale operations.
+An additional feature of `DisCoTec` is the possibility of performing
+widely-distributed simulations of higher-dimensional problems, where multiple
+HPC systems collaborate to solve a joint simulation, as demonstrated in [@pollingerLeveragingComputePower2023].
+Thus, `DisCoTec` can leverage the compute power and main memory of multiple HPC
+systems, with comparatively low and manageable transfer costs due to the
+combination technique.
 
 # Statement of need
 
-Higher-dimensional problems (by which we typically mean more than three space 
-dimensions and one time dimension) quickly require infeasible amounts of computational resources 
-such as memory and core-h---they are haunted by the so-called curse of dimensionality.
-An example of this are high-fidelity plasma simulations in the field of confined fusion research.
-Current approaches to this problem include dimensionally-reduced models (which may not always be applicable),
-and restricting oneself to a very limited resolution.
-Multi-scale (hierarchical) methods, such as the sparse grid combination technique, 
-provide an alternative approach to addressing the curse of dimensionality.
-While some implementations of the sparse grid combination technique are available in the context of UQ,
-there is currently no implementation for parallel simulations that require distributed computing---apart from `DisCoTec`.
+Higher-dimensional problems (by which we typically mean more than three space
+dimensions and one time dimension) quickly require infeasible amounts of
+computational resources such as memory and core-h---they are haunted by the
+so-called curse of dimensionality.
+An example of this are high-fidelity plasma simulations in the field of confined
+fusion research.
+Current approaches to this problem include dimensionally-reduced models
+(which may not always be applicable), and restricting oneself to a very limited resolution.
+Multi-scale (hierarchical) methods, such as the sparse grid combination
+technique, provide an alternative approach to addressing the curse of dimensionality.
+While some implementations of the sparse grid combination technique are
+available in the context of UQ, there is currently no other implementation for
+parallel simulations that require distributed computing.
 
 `DisCoTec` is a C++ framework for the sparse grid combination technique.
 Targeted at HPC systems, it is used for parallel simulations,
-drawing on distributed-memory parallelism via MPI [@heeneMassivelyParallelCombination2018] 
-and shared-memory parallelism via OpenMP.
+drawing on distributed-memory parallelism via MPI
+[@heeneMassivelyParallelCombination2018] and shared-memory parallelism via OpenMP.
 It is designed to be used in combination with existing simulation codes,
 which can be used with `DisCoTec` in a black-box fashion.
 
 
 # Methods: Sparse grid combination technique and implementation
 
-The sparse grid combination technique (with time-stepping) is a multi-scale approach for solving higher-dimensional problems.
+The sparse grid combination technique (with time-stepping) is a multi-scale
+approach for solving higher-dimensional problems.
 Instead of solving the problem on one grid that is very finely resolved in all dimensions,
-the problem is solved on the so-called component grids which are all rather coarsely resolved --
-each of them differently in the different dimensions.
+the problem is solved on the so-called component grids which are all rather
+coarsely resolved---each of them differently in the different dimensions.
 
-![Combination scheme in two dimensions with $\vec{l}_{min} = (1,1)$ and $\vec{l}_{max} = (3,3)$, periodic boundary conditions](gfx/combi-2d-small-periodic.pdf)
+![Combination scheme in two dimensions with $\vec{l}_{min} = (2,1)$ and $\vec{l}_{max} = (5,4)$, periodic boundary conditions](gfx/combischeme-2d.pdf)
 
 By updating each other's information throughout the simulation, the component grids
-still obtain an accurate solution of the overall problem. 
-This is enabled by an intermedate transformation into a multi-scale (hierarchical) basis, and application of the combination formula
+still obtain an accurate solution of the overall problem [@griebelCombinationTechniqueSolution1992].
+This is enabled by an intermedate transformation into a multi-scale (hierarchical)
+basis, and application of the combination formula
 $$ f^{(\text{s})} = \sum_{\vec{l} \in \mathcal{I} } c_{\vec{l}} f_{\vec{l}} $$
-where $f^{(\text{s})}$ is the sparse grid approximation, and $f_{\vec{l}}$ are the component grid functions.
-In summary, each of the grids will run (one or more) time steps of the simulation, 
-then exchange information with the other grids, and repeat this process until the simulation is finished.
+where $f^{(\text{s})}$ is the sparse grid approximation, and $f_{\vec{l}}$ are
+the component grid functions.
+In summary, each of the grids will run (one or more) time steps of the simulation,
+then exchange information with the other grids, and repeat this process until
+the simulation is finished.
 
-`DisCoTec` provides the necessary infrastructure for the combination technique with a black-box approach, 
-enabling massive parallelism---suitable for existing solvers that use MPI and structured grids.
-An important feature is the usage of process groups, where multiple MPI ranks will collaborate on a set of component grids, 
-and the solver's existing parallelism can be re-used.
-In addition, the number of process groups can be increased to leverage the 
+`DisCoTec` provides the necessary infrastructure for the combination technique
+with a black-box approach, enabling massive parallelism---suitable for existing
+solvers that use MPI and structured grids.
+An important feature is the usage of process groups, where multiple MPI ranks
+will collaborate on a set of component grids, and the solver's existing
+parallelism can be re-used.
+In addition, the number of process groups can be increased to leverage the
 combination technique's embarrassing parallelism in the solver time steps.
 
 ![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional.](gfx/discotec-ranks.pdf)
 
-Using DisCoTec, kinetic simulations could be demonstrated to scale up to hundreds of thousands of cores.
-By putting a special focus on saving memory, most of the memory is available for use by the black-box solver, even at high core counts. 
-In addition, OpenMP parallelism can be used to further increase parallelism and decrease main memory usage.
+Using `DisCoTec`, kinetic simulations were demonstrated to scale up to hundreds
+of thousands of CPU cores [@pollingerStableMassconservingHighdimensional2024].
+By putting a special focus on saving memory, most of the memory is available for
+use by the black-box solver, even at high core counts.
+In addition, OpenMP parallelism can be used to further increase parallelism and
+to decrease main memory usage.
 
-Through highly parallel I/O operations, `DisCoTec` can be used to perform simulations on multiple HPC systems simultaneously, 
-if there exists a tool for fast file transfer between the systems [@pollingerLeveragingComputePower2023].
-The `DisCoTec` repository contains example scripts and documentation for utilizing UFTP as an example of a transfer tool,
-but the approach is not limited to UFTP.
+Through highly parallel I/O operations, `DisCoTec` can be used to perform
+simulations on multiple HPC systems simultaneously, if there exists a tool for
+sufficiently fast file transfer between the systems [@pollingerLeveragingComputePower2023].
+The `DisCoTec` repository contains example scripts and documentation for
+utilizing UFTP as an example of a transfer tool, but the approach is not limited
+to UFTP.
+
+`DisCoTec` provides a conveniently automated way of installing through the supplied
+[`spack` package](https://github.com/spack/spack/blob/develop/var/spack/repos/builtin/packages/discotec/package.py)
+[@gamblinSpackPackageManager2015].
 
 
 # Acknowledgements
 
-We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra Hinojosa, Michael Obersteiner, 
-Marcel Hurler, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal, Marcel Breyer, Christoph Niethammer, Philipp Offenhäuser, 
-and support from HLRS, LRZ, JSC, and NHR@FAU, where we would like to highlight the long-standing support by Martin Bernreuther and Martin Ohlerich in particular.
+We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra
+Hinojosa, Michael Obersteiner,
+Marcel Hurler, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal,
+Marcel Breyer, Christoph Niethammer, Philipp Offenhäuser,
+and support from HLRS, LRZ, JSC, and NHR@FAU, where we would like to highlight
+the long-standing support by Martin Bernreuther and Martin Ohlerich in particular.
 
 # References
