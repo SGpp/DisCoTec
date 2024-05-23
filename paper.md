@@ -89,7 +89,7 @@ Instead of solving the problem on one grid that is very finely resolved in all d
 the problem is solved on the so-called component grids which are all rather
 coarsely resolved---each of them differently in the different dimensions.
 
-![Combination scheme in two dimensions with $\vec{l}_{min} = (2,1)$ and $\vec{l}_{max} = (5,4)$, periodic boundary conditions](gfx/combischeme-2d.pdf)
+![Combination scheme in two dimensions with $\vec{l}_{min} = (2,1)$ and $\vec{l}_{max} = (5,4)$, periodic boundary conditions. Figure first published in  [@pollingerStableMassconservingHighdimensional2024].](gfx/combischeme-2d.pdf)
 
 By updating each other's information throughout the simulation, the component grids
 still obtain an accurate solution of the overall problem [@griebelCombinationTechniqueSolution1992].
@@ -111,7 +111,7 @@ parallelism can be re-used.
 In addition, the number of process groups can be increased to leverage the
 combination technique's embarrassing parallelism in the solver time steps.
 
-![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional.](gfx/discotec-ranks.pdf)
+![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional. Figure first published in  [@pollingerStableMassconservingHighdimensional2024].](gfx/discotec-ranks.pdf)
 
 Using `DisCoTec`, kinetic simulations were demonstrated to scale up to hundreds
 of thousands of CPU cores [@pollingerStableMassconservingHighdimensional2024].
