@@ -61,7 +61,7 @@ combination technique.
 
 Higher-dimensional problems (by which we typically mean more than three space
 dimensions and one time dimension) quickly require infeasible amounts of
-computational resources such as memory and core-h---they are haunted by the
+computational resources such as memory and core-hours---they are haunted by the
 so-called curse of dimensionality.
 An example of this are high-fidelity plasma simulations in the field of confined
 fusion research.
@@ -74,9 +74,9 @@ available in the context of UQ, there is currently no other implementation for
 parallel simulations that require distributed computing.
 
 `DisCoTec` is a C++ framework for the sparse grid combination technique.
-Targeted at HPC systems, it is used for parallel simulations,
-drawing on distributed-memory parallelism via MPI
-[@heeneMassivelyParallelCombination2018] and shared-memory parallelism via OpenMP.
+Targeted at HPC systems, it is used for parallel simulations [@heeneMassivelyParallelCombination2018],
+drawing on distributed-memory parallelism via MPI and shared-memory parallelism 
+via OpenMP.
 It is designed to be used in combination with existing simulation codes,
 which can be used with `DisCoTec` in a black-box fashion.
 
@@ -88,8 +88,10 @@ approach for solving higher-dimensional problems.
 Instead of solving the problem on one grid that is very finely resolved in all dimensions,
 the problem is solved on the so-called component grids which are all rather
 coarsely resolved---each of them differently in the different dimensions.
+For instance, the following schematic shows a two-dimensional combination scheme, 
+consisting of five component grids.
 
-![Combination scheme in two dimensions with $\vec{l}_{min} = (2,1)$ and $\vec{l}_{max} = (5,4)$, periodic boundary conditions. Figure first published in  [@pollingerStableMassconservingHighdimensional2024].](gfx/combischeme-2d.pdf)
+![Combination scheme in two dimensions with $\vec{l}_{min} = (2,1)$ and $\vec{l}_{max} = (5,4)$, periodic boundary conditions. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. []{label="combischeme-2d"}](gfx/combischeme-2d.pdf)
 
 By updating each other's information throughout the simulation, the component grids
 still obtain an accurate solution of the overall problem [@griebelCombinationTechniqueSolution1992].
@@ -98,20 +100,27 @@ basis, and application of the combination formula
 $$ f^{(\text{s})} = \sum_{\vec{l} \in \mathcal{I} } c_{\vec{l}} f_{\vec{l}} $$
 where $f^{(\text{s})}$ is the sparse grid approximation, and $f_{\vec{l}}$ are
 the component grid functions.
+In \autoref{combischeme-2d}, the coefficients $c_{\vec{l}}$ are $-1$ for the coarser
+component grids (red background) and $1$ for the finer component grids (orange
+background).
 In summary, each of the grids will run (one or more) time steps of the simulation,
 then exchange information with the other grids, and repeat this process until
 the simulation is finished.
 
 `DisCoTec` provides the necessary infrastructure for the combination technique
 with a black-box approach, enabling massive parallelism---suitable for existing
-solvers that use MPI and structured grids.
+distributed solvers that use structured grids.
 An important feature is the usage of process groups, where multiple MPI ranks
 will collaborate on a set of component grids, and the solver's existing
 parallelism can be re-used.
+The process groups are displayed as $pg_i$ in \autoref{discotec-ranks}.
+
+![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. []{label="discotec-ranks"}](gfx/discotec-ranks.pdf)
+
 In addition, the number of process groups can be increased to leverage the
 combination technique's embarrassing parallelism in the solver time steps.
-
-![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional. Figure first published in  [@pollingerStableMassconservingHighdimensional2024].](gfx/discotec-ranks.pdf)
+In \autoref{discotec-ranks}, this would be equivalent to adding more and more 
+process groups to the right.
 
 Using `DisCoTec`, kinetic simulations were demonstrated to scale up to hundreds
 of thousands of CPU cores [@pollingerStableMassconservingHighdimensional2024].
