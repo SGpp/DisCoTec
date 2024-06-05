@@ -91,7 +91,7 @@ coarsely resolved---each of them differently in the different dimensions.
 For instance, the following schematic shows a two-dimensional combination scheme, 
 consisting of five component grids.
 
-![Combination scheme in two dimensions with $\vec{l}_{min} = (2,1)$ and $\vec{l}_{max} = (5,4)$, periodic boundary conditions. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. []{label="combischeme-2d"}](gfx/combischeme-2d.pdf)
+![Combination scheme in two dimensions with $\vec{l}_{min} = (2,1)$ and $\vec{l}_{max} = (5,4)$, periodic boundary conditions. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. \label{fig:combischeme-2d}](gfx/combischeme-2d.pdf)
 
 By updating each other's information throughout the simulation, the component grids
 still obtain an accurate solution of the overall problem [@griebelCombinationTechniqueSolution1992].
@@ -100,7 +100,7 @@ basis, and application of the combination formula
 $$ f^{(\text{s})} = \sum_{\vec{l} \in \mathcal{I} } c_{\vec{l}} f_{\vec{l}} $$
 where $f^{(\text{s})}$ is the sparse grid approximation, and $f_{\vec{l}}$ are
 the component grid functions.
-In \autoref{combischeme-2d}, the coefficients $c_{\vec{l}}$ are $-1$ for the coarser
+In \autoref{fig:combischeme-2d}, the coefficients $c_{\vec{l}}$ are $-1$ for the coarser
 component grids (red background) and $1$ for the finer component grids (orange
 background).
 In summary, each of the grids will run (one or more) time steps of the simulation,
@@ -113,13 +113,13 @@ distributed solvers that use structured grids.
 An important feature is the usage of process groups, where multiple MPI ranks
 will collaborate on a set of component grids, and the solver's existing
 parallelism can be re-used.
-The process groups are displayed as $pg_i$ in \autoref{discotec-ranks}.
+The process groups are displayed as $pg_i$ in \autoref{fig:discotec-ranks}.
 
-![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. []{label="discotec-ranks"}](gfx/discotec-ranks.pdf)
+![`DisCoTec` process groups: Each black square denotes one MPI rank. The ranks are grouped into the so-called process groups. Distributed operations in `DisCoTec` require either communication in the process group, or perpendicular to it---there is no need for global communication or synchronization, which avoids a major scaling bottleneck. The manager rank is optional. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. \label{fig:discotec-ranks}](gfx/discotec-ranks.pdf)
 
 In addition, the number of process groups can be increased to leverage the
 combination technique's embarrassing parallelism in the solver time steps.
-In \autoref{discotec-ranks}, this would be equivalent to adding more and more 
+In \autoref{fig:discotec-ranks}, this would be equivalent to adding more and more 
 process groups to the right.
 
 Using `DisCoTec`, kinetic simulations were demonstrated to scale up to hundreds
