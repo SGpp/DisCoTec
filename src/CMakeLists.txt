@@ -79,7 +79,6 @@ set(DISCOTEC_SOURCES
 add_library(discotec ${DISCOTEC_SOURCES})
 target_compile_features(discotec PRIVATE cxx_std_17)
 target_include_directories(discotec PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_options(discotec PUBLIC -march=native)
 
 target_compile_options(discotec PUBLIC $<$<CXX_COMPILER_ID:Intel>:-fp-model=precise>)
 
@@ -135,6 +134,11 @@ if(DISCOTEC_WITH_COMPRESSION)
     endif()
     target_link_libraries(discotec PUBLIC ${LZ4_LIBRARIES})
     target_compile_definitions(discotec PUBLIC DISCOTEC_USE_LZ4)
+endif()
+
+set(DISCOTEC_COMPILE_ARCH "native" CACHE STRING "Microarchitecture to compile for (-march)")
+if(NOT ${DISCOTEC_COMPILE_ARCH} STREQUAL "")
+    target_compile_options(discotec PUBLIC -march=${DISCOTEC_COMPILE_ARCH})
 endif()
 
 #TODO: find or fetch GENE if enabled
