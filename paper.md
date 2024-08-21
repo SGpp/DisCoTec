@@ -89,7 +89,7 @@ Instead of solving the problem on one grid that is very finely resolved in all d
 the problem is solved on the so-called component grids which are all rather
 coarsely resolved---each of them differently in the different dimensions.
 For instance, the following schematic shows a two-dimensional combination scheme, 
-consisting of five component grids.
+consisting of seven component grids.
 
 ![Combination scheme in two dimensions with $\vec{l}_{min} = (2,1)$ and $\vec{l}_{max} = (5,4)$, periodic boundary conditions. Figure first published in  [@pollingerStableMassconservingHighdimensional2024]. \label{fig:combischeme-2d}](gfx/combischeme-2d.pdf)
 
