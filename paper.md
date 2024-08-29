@@ -13,6 +13,8 @@ authors:
     affiliation: 1 
     corresponding: true
     orcid: 0000-0002-0186-4340
+  - name: Marcel Hurler
+    affiliation: 1
   - name: Alexander Van Craen
     affiliation: 1 
     orcid: 0000-0002-3336-7226
