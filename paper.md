@@ -19,7 +19,7 @@ authors:
     affiliation: 1 
     orcid: 0000-0002-3336-7226
   - name: Michael Obersteiner
-  - affiliation: 2
+    affiliation: 2
   - name: Dirk Pflüger
     affiliation: 1 
     orcid: 0000-0002-4360-0212
