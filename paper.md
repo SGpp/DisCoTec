@@ -18,12 +18,16 @@ authors:
   - name: Alexander Van Craen
     affiliation: 1 
     orcid: 0000-0002-3336-7226
+  - name: Michael Obersteiner
+  - affiliation: 2
   - name: Dirk Pflüger
     affiliation: 1 
     orcid: 0000-0002-4360-0212
 affiliations:
  - name: University of Stuttgart, Scientific Computing, Stuttgart, Germany
    index: 1
+ - name: Technical University of Munich, Chair of Scientific Computing, Munich, Germany
+   index: 2
 nocite: |
   @obersteiner_spatially_2021
 date: 16 November 2023
