@@ -101,3 +101,4 @@ heaptrack.*
 docs/_*
 docs/api/
 docs/generated_docs/
+generated_docs/
