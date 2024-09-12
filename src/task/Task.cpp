@@ -121,4 +121,8 @@ void Task::broadcast(Task** t, RankType root, CommunicatorType comm) {
   }
 }
 
+void Task::getFullGrid(FullGrid<CombiDataType>& fg, RankType lroot, CommunicatorType lcomm, int n) {
+  this->getDistributedFullGrid(n).gatherFullGrid(fg, lroot);
+}
+
 } /* namespace combigrid */
