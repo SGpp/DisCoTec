@@ -13,6 +13,7 @@ Not to be confused with the `International Federated Conference on Distributed C
    :maxdepth: 1
    :caption: Contents:
    
+   simple_tutorial
    api/library_root
 
 
