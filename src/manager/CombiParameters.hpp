@@ -2,6 +2,7 @@
 #define SRC_SGPP_COMBIGRID_MANAGER_COMBIPARAMETERS_HPP_
 
 #include <boost/serialization/map.hpp>
+
 #include "hierarchization/CombiLinearBasisFunction.hpp"
 #include "mpi/MPISystem.hpp"
 #include "utils/LevelSetUtils.hpp"
@@ -14,16 +15,16 @@ class CombiParameters {
  public:
   CombiParameters() {}
 
-  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
-                  std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
-                  std::vector<real>& coeffs, std::vector<size_t>& taskIDs,
+  CombiParameters(DimType dim, const LevelVector& lmin, const LevelVector& lmax,
+                  const std::vector<BoundaryType>& boundary, const std::vector<LevelVector>& levels,
+                  const std::vector<real>& coeffs, const std::vector<size_t>& taskIDs,
                   size_t numberOfCombinations, IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   const std::vector<int>& parallelization = {0},
-                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
-                  LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  const LevelVector& reduceCombinationDimsLmin = LevelVector(0),
+                  const LevelVector& reduceCombinationDimsLmax = LevelVector(0),
                   uint32_t sizeForChunkedCommunicationInMebibyte = 64,
-                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  bool forwardDecomposition = false, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
@@ -55,15 +56,15 @@ class CombiParameters {
 
   // constructor variant w/o combination scheme specified -- the workers have their partial list
   // imlpicitly as tasks vector
-  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
-                  std::vector<BoundaryType>& boundary, size_t numberOfCombinations,
+  CombiParameters(DimType dim, const LevelVector& lmin, const LevelVector& lmax,
+                  const std::vector<BoundaryType>& boundary, size_t numberOfCombinations,
                   IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
                   const std::vector<int>& parallelization = {0},
-                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
-                  LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  const LevelVector& reduceCombinationDimsLmin = LevelVector(0),
+                  const LevelVector& reduceCombinationDimsLmax = LevelVector(0),
                   uint32_t sizeForChunkedCommunicationInMebibyte = 64,
-                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  bool forwardDecomposition = false, const std::string& thirdLevelHost = "",
                   unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
@@ -92,18 +93,17 @@ class CombiParameters {
     }
   }
 
-  CombiParameters(DimType dim, LevelVector lmin, LevelVector lmax,
-                  const std::vector<BoundaryType>& boundary, std::vector<LevelVector>& levels,
-                  std::vector<real>& coeffs, std::vector<bool>& hierarchizationDims,
-                  std::vector<size_t>& taskIDs, size_t numberOfCombinations,
+  CombiParameters(DimType dim, const LevelVector& lmin, const LevelVector& lmax,
+                  const std::vector<BoundaryType>& boundary, const std::vector<LevelVector>& levels,
+                  const std::vector<real>& coeffs, const std::vector<bool>& hierarchizationDims,
+                  const std::vector<size_t>& taskIDs, size_t numberOfCombinations,
                   IndexType numGrids = 1,
                   CombinationVariant combinationVariant = CombinationVariant::sparseGridReduce,
-                  LevelVector reduceCombinationDimsLmin = LevelVector(0),
-                  LevelVector reduceCombinationDimsLmax = LevelVector(0),
+                  const LevelVector& reduceCombinationDimsLmin = LevelVector(0),
+                  const LevelVector& reduceCombinationDimsLmax = LevelVector(0),
                   uint32_t sizeForChunkedCommunicationInMebibyte = 64,
-                  bool forwardDecomposition = !isGENE,
-                  const std::string& thirdLevelHost = "", unsigned short thirdLevelPort = 0,
-                  size_t thirdLevelPG = 0)
+                  bool forwardDecomposition = !isGENE, const std::string& thirdLevelHost = "",
+                  unsigned short thirdLevelPort = 0, size_t thirdLevelPG = 0)
       : dim_(dim),
         lmin_(lmin),
         lmax_(lmax),
@@ -167,8 +167,9 @@ class CombiParameters {
     combiDictionary_[levels_[taskID]] = coeff;
   }
 
-  inline void setLevelsCoeffs(std::vector<size_t>& taskIDs, std::vector<LevelVector>& levels,
-                              std::vector<real>& coeffs) {
+  inline void setLevelsCoeffs(const std::vector<size_t>& taskIDs,
+                              const std::vector<LevelVector>& levels,
+                              const std::vector<real>& coeffs) {
     if (taskIDs.empty() && ENABLE_FT) {
       throw std::runtime_error(
           "CombiParameters::setLevelsCoeffs: taskIDs is empty. Not sure if this should be possible "
@@ -240,7 +241,7 @@ class CombiParameters {
       if (bases[i] == nullptr) {
         assert(hierarchizationDims_[i] == false);
       }
-      hierarchicalBases_[i] =bases[i];
+      hierarchicalBases_[i] = bases[i];
       bases[i] = nullptr;
     }
   }
@@ -421,8 +422,7 @@ void CombiParameters::serialize(Archive& ar, const unsigned int version) {
   ar& thirdLevelPG_;
 }
 
-
-template<typename T>
+template <typename T>
 static void setCombiParametersHierarchicalBasesUniform(CombiParameters& combiParameters) {
   std::vector<BasisFunctionBasis*> bases;
   for (DimType d = 0; d < combiParameters.getDim(); ++d) {
