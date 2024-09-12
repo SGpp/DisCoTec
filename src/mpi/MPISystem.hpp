@@ -33,12 +33,12 @@
 // last group does some other (potentially concurrent) output
 #define OTHER_OUTPUT_GROUP_EXCLUSIVE_SECTION                \
   if (combigrid::theMPISystem()->getProcessGroupNumber() == \
-      static_cast<RankType>(combigrid::theMPISystem()->getNumGroups() - 1))
+      static_cast<combigrid::RankType>(combigrid::theMPISystem()->getNumGroups() - 1))
 
 // middle process can do command line output
 #define MIDDLE_PROCESS_EXCLUSIVE_SECTION                                                           \
   if (combigrid::theMPISystem()->getWorldRank() ==                                                 \
-      static_cast<RankType>(                                                                       \
+      static_cast<combigrid::RankType>(                                                            \
           (combigrid::theMPISystem()->getNumGroups() * combigrid::theMPISystem()->getNumProcs()) / \
           2))
 
