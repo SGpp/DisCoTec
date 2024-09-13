@@ -43,6 +43,9 @@ This ignores that some grids may take a lot longer on certain operations due to 
 The grids can also be assigned to groups through the files generated with https://github.com/SGpp/DisCoTec-combischeme-utilities .
 To achieve anisotropy-based and dynamic load balancing, DisCoTec uses `LoadModel`s.
 
+Be aware that dynamic load balancing requires a manager rank to control the reassignment of tasks.
+In some settings, this in itself can have severe resoure implications.
+
 - M. Heene, C. Kowitz, D. Pflüger. ‘Load Balancing for Massively Parallel Computations with the Sparse Grid Combination Technique.’ In: Parallel Computing: Accelerating Computational Science and Engineering (CSE). Ed. by M. Bader, A. Bode, H.-J. Bungartz, M. Gerndt, G. R. Joubert, F. Peters. Vol. 25. Advances in Parallel Computing. 2014, pp. 574–583.
 - M. Dostal. ‘Lastbalancierung durch dynamische Aufgaben-Umverteilung mit der Dünngitter-Kombinationstechnik’. Publisher: Universität Stuttgart. BSc Thesis. 2020. url: http://elib.uni-stuttgart.de/handle/11682/10956 .
 
@@ -55,6 +58,14 @@ We currently recommend to use `subspaceReduce` for small problems and `chunkedOu
 
 - P. Hupp, M. Heene, R. Jacob, D. Pflüger. ‘Global Communication Schemes for the Numerical Solution of High-dimensional PDEs’. In: Parallel Computing 52.C (Feb. 2016), pp. 78–105. url: http://dx.doi.org/10.1016/j.parco.2015.12.006 .
 - T. Pollinger. ‘Stable and mass-conserving high-dimensional simulations with the sparse grid combination technique for full HPC systems and beyond.‘ Dissertation, 2024. doi: [10.18419/opus-14210](http://elib.uni-stuttgart.de/handle/11682/14229) .
+
+### Fault Tolerance
+<!-- TODO -->
+
+Be aware that fault tolerance requires a manager rank to control the reassignment of tasks.
+
+- M. Obersteiner, A. P. Hinojosa, M. Heene, H.-J. Bungartz, D. Pflüger. ‘A Highly Scalable, Algorithm-based Fault-tolerant Solver for Gyrokinetic Plasma Simulations’. In: Proceedings of the 8th Workshop on Latest Advances in Scalable Algorithms for Large-Scale Systems. ScalA ’17. New York, NY, USA: ACM, 2017, 2:1–2:8. url: http://doi.acm.org/10.1145/3148226.3148229 .
+- M. Obersteiner. ‘A spatially adaptive and massively parallel implementation of the fault-tolerant combination technique’. Dissertation. Technische Universität München, 2021. url: https://mediatum.ub.tum.de/doc/1613369/1613369.pdf .
 
 ### Hierarchical Basis Functions / Biorthogonal Wavelets and Boundary Treatment
 <!-- TODO -->
