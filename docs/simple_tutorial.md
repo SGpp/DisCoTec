@@ -300,4 +300,4 @@ This can your starting point for playing around with the code:
 - Can you do multiple time steps per combination? Do you have to combine at all to get the required accuracy?
  
 If you need to go to a larger scale or want to further customize the combination behavior, 
-keep reading on about [advanced topics]().
+keep reading on about [advanced topics](./advanced_topics.md).

@@ -14,6 +14,7 @@ Not to be confused with the `International Federated Conference on Distributed C
    :caption: Contents:
    
    simple_tutorial
+   advanced_topics
    api/library_root
 
 
