@@ -68,12 +68,32 @@ Be aware that fault tolerance requires a manager rank to control the reassignmen
 - M. Obersteiner. ‘A spatially adaptive and massively parallel implementation of the fault-tolerant combination technique’. Dissertation. Technische Universität München, 2021. url: https://mediatum.ub.tum.de/doc/1613369/1613369.pdf .
 
 ### Hierarchical Basis Functions / Biorthogonal Wavelets and Boundary Treatment
-<!-- TODO -->
 
+DisCoTec currently implements three hierarchical basis functions resp. biorthogonal wavelets as intermediate representations: 
+1. "hierarchical hat functions" a.k.a. interpolets a.k.a. lazy wavelets
+2. "biorthogonal functions" a.k.a. CDF 3/5 wavelets
+3. "fullweighting functions" a.k.a. CDF 5/3 wavelets
+
+The last reference below shows how conservation of mass and L2 stability is only provided by the latter two.
+In practice, we have observed that using hierarchical hat functions and long combination intervals (many time steps per combination) is fine with relatively laminar simulations.
+But in the turbulent regime, it becomes a necessity to use the CDF wavelets and to combine after every solver time step.
+
+If you find yourself in need of higher orders of accuracy or conservation, you could add higher-order CDF wavelets to `DistributedHierarchization.hpp`.
+
+- A. Cohen, I. Daubechies, J.-C. Feauveau. ‘Biorthogonal bases of compactly supported wavelets’. In: Communications on Pure and Applied Mathematics 45.5 (1992), pp. 485–560. url: https://onlinelibrary.wiley.com/doi/abs/10.1002/cpa.3160450502
+- W. Sweldens. ‘The Lifting Scheme: A Construction of Second Generation Wavelets’. In: SIAM Journal on Mathematical Analysis 29.2 (Mar. 1, 1998). Publisher: Society for Industrial and Applied Mathematics, pp. 511–546. url: https://epubs.siam.org/doi/abs/10.1137/S0036141095289051
 - T. Pollinger, J. Rentrop, D. Pflüger, K. Kormann. ‘A Stable and Mass-Conserving Sparse Grid Combination Technique with Biorthogonal Hierarchical Basis Functions for Kinetic Simulations’. In: Journal of Computational Physics (July 7, 2023), p. 112338. url: https://www.sciencedirect.com/science/article/pii/S0021999123004333 .
 
 ### Timers
-<!-- TODO -->
+
+DisCoTec provides its `Stats::` module for high-precision time measurements.
+If you want to use it, put a `Stats::initialize()` to the beginning and 
+`Stats::finalize()` to the end of your application code.
+This will collect measurements for various parts of the combination automatically.
+You can add your own regions to be measured by wrapping them with calls to 
+`Stats::startEvent` and `Stats::stopEvent`.
+The timings can be written incrementally with `Stats::writePartial` or in
+a single file with `Stats::write`.
 
 ### File IO
 
@@ -96,12 +116,15 @@ The derived quantities like energy can then be [combined as a postprocessing ste
 
 
 ### Widely-Distributed Simulations 
-<!-- TODO -->
--- combination scheme input files
-discotec-combischeme-utilities
+<!-- TODO Widely-Distributed Communication Channel-->
 
--- subspace size input files 
---sparse grid output files 
+
+Running widely-distributed simulations requires that you first split up the combination scheme and save it into separate files for the different systems. The two ways of doing this are described in the reference and implemented in https://github.com/SGpp/DisCoTec-combischeme-utilities .
+
+Based on the combination scheme input files, we need to generate yet another file for DisCoTec to send and expect the right amount of data in the widely distributed combination.
+The details are described in a [separate README](https://github.com/SGpp/DisCoTec/blob/main/tools/subspace_writer/README.md).
+
+The actual conjoint sparse grid data is then written through massively parallel [MPI-IO functions](https://github.com/SGpp/DisCoTec/blob/main/src/io/MPIInputOutput.hpp), optionally [compressed](https://github.com/SGpp/DisCoTec/blob/main/src/io/MPICompression.hpp) with LZ4.
 
 - T. Pollinger, A. Van Craen, C. Niethammer, M. Breyer, D. Pflüger. ‘Leveraging the Compute Power of Two HPC Systems for Higher-Dimensional Grid-Based Simulations with the Widely-Distributed Sparse Grid Combination Technique’. In: SC ’23. Association for Computing Machinery, Nov. 11, 2023. url: https://dl.acm.org/ doi/10.1145/3581784.3607036
   
