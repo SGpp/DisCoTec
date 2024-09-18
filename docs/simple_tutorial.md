@@ -7,7 +7,7 @@ This Tutorial gives you an outline of the steps required.
 The first step is to prepare your code in a way that it can be called by DisCoTec.
 Typically, your simulation code will look similar to this (in pseudocode):
 
-```
+```python
 int num_points_x = ...
 int num_points_y = ...
 int num_points_z = ...
@@ -30,39 +30,44 @@ write_output(properties, grid)
 ```
 
 For use with DisCoTec, we assume nestable power-of-two discretizations, i.e. where your grid spacing can be $2^{-l}$ for $l \in \mathbb{N}$.
-For simplicity, in this tutorial we also assume you use periodic boundary conditions and all `num_points_` can be arbitrary powers of two.
+For simplicity, in this tutorial we also assume you use periodic boundary conditions and all `num_points_` are chosen as powers of two.
 
 You need to transform your current solver code into stateful functions, or a stateful data structure.
 Let's say you introduce a class `YourSimulation`: computations before the time loop go into its constructor 
 or an `init()` function (if your code uses MPI, this is also where a sub-communicator should be passed for `YourSimulation` to use).
 Computation in the time loop goes into its `run()` function. 
 Anything after the time loop goes into the destructor or a function `finalize()`.
-Then, the following should do the same as the previous pseudocode:
+Then, the following should do the same:
 
-```
+```diff
 int num_points_x = ...
 int num_points_y = ...
 int num_points_z = ...
 int num_points_vx = ...
 ...
 
-my_simulation = YourSimulation(num_points_x, num_points_y, num_points_z, num_points_vx, ...)
+- initial_function = ...
+- grid.initialize(initial_function, num_points_x, num_points_y, num_points_z, num_points_vx, ... )
+- helper_data_structures.initialize(...)
++ my_simulation = YourSimulation(num_points_x, num_points_y, num_points_z, num_points_vx, ...)
 float end_time = ...
 float time_step = ...
 float time_now = 0.0;
 
 while(time_now < end_time) { # time loop
-    my_simulation.run(time_step)
+-    do_timestep(grid, time_step)
++    my_simulation.run(time_step)
     time_now += time_step
 }
 
-my_simulation.finalize()
+- properties = compute_properties(grid)
+- write_output(properties, grid)
++ my_simulation.finalize()
 ```
 
-This setup assumes that we can pass the number of grid points in your high-d data structure as arguments.
-
-In addition, you will need functions that allow DisCoTec to get and set the data of your high-d data structure.
-The most portable and memory-efficient way of doing so is to provide a pointer to the beginning of a contiguous array.
+This setup assumes that we can pass the number of grid points per dimension in your high-d contiguous array as arguments.
+In addition, you will need an interface that allows DisCoTec to get and set this data.
+The most portable and memory-efficient way of doing so is to provide a pointer to the beginning of the contiguous array.
 Let's call this getter `get_tensor_pointer`.
 
 ## Make Your Simulation a DisCoTec Task and Your Grid a DisCoTec DistributedFullGrid
@@ -87,7 +92,7 @@ class YourSimulation {
 
 Now, DisCoTec comes into play. Create a new folder or project that can access both `YourSimulation` and DisCoTec.
 For the combination technique, multiple instances of `YourSimulation` will be instantiated, each at different resolutions.
-The `Task` class is the interface you will need to implement here.
+The `Task` class is the interface you will need to implement.
 With `YourSimulation`, that will be as simple as:
 
 ```cpp
@@ -106,6 +111,12 @@ class YourTask : public combigrid::Task {
   YourTask(combigrid::LevelVector& l, const std::vector<combigrid::BoundaryType>& boundary,
            combigrid::real coeff, combigrid::real dt)
       : Task(4, l, boundary, coeff, nullptr, nullptr), sim_(nullptr), dfg_(nullptr), dt_(dt) {}
+
+  virtual ~YourTask(){
+    if (sim_ != nullptr){
+      sim_->finalize();
+    }
+  }
 
   void init(combigrid::CommunicatorType lcomm,
             const std::vector<combigrid::IndexVector>& decomposition =
@@ -147,16 +158,16 @@ class YourTask : public combigrid::Task {
 };
 ```
 
-Note that this also turns your data into a `DistributedFullGrid`, but there is no copy involved.
+Note that this also turns your data into a `DistributedFullGrid`, without making a copy of the data.
 DisCoTec just assumes that you pass it a pointer to a correctly-sized contiguous array.
 The size of the whole "global" grid is $2^{l_d}$, with $l_d$ the level vector for each dimension $d$.
 Every MPI process in your simulation should then have $2^{l_d} / p_d$ grid points, where $p$ is the cartesian process vector.
 
 
-## Make Your MPI Processes ProcessGroupWorkers
+## Make Your MPI Processes Workers
 
 Now, you can use the `YourTask` class to instantiate many tasks as part of a combination scheme.
-There are many choices to make regarding the combined simulation, which is why more than half 
+There are a lot of choices to make regarding the combined simulation, which is why more than half 
 of the example code is dedicated to defining parameters and generating input data structures:
 
 ```cpp
@@ -166,7 +177,6 @@ of the example code is dedicated to defining parameters and generating input dat
 // discotec includes, you may have to use a longer path here
 #include "combischeme/CombiMinMaxScheme.hpp"
 #include "manager/CombiParameters.hpp"
-#include "manager/ProcessGroupManager.hpp"
 #include "manager/ProcessGroupWorker.hpp"
 #include "task/Task.hpp"
 #include "utils/Stats.hpp"
@@ -266,8 +276,14 @@ The remaining part of the code looks a lot like your initial time loop again:
 ```
 Instantiating a `ProcessGroupWorker` at the beginning of the scope sets up some data structures,
 in particular a `TaskWorker` and a `SparseGridWorker`.
-The `TaskWorker` deals with the task execution and other within-group operations, while the 
-`SparseGridWorker` handles the operations across groups, such as the reduction in the combination.
+Coming back to the [parallelism in DisCoTec](./parallelism.md):
+
+![schematic of MPI ranks in DisCoTec](../gfx/discotec-ranks.svg)
+
+The `TaskWorker` deals with the task execution and other within-group operations (vertical in the graphics), while the 
+`SparseGridWorker` handles the operations across groups, such as the reduction in the combination (horizontal in the graphics).
+The `ProcessGroupWorker` bundles the two and adds abstracts functions required for further control hierarchies.
+If you want to add further functionality to DisCoTec, this would be a typical extension point. Otherwise, it's just where functions are encapsulated for you to use!
 
 
 ## Combine!
