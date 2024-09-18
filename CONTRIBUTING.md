@@ -16,6 +16,13 @@ If it is a problem in the DisCoTec Spack package or CMake setup, our
 contributors may be able to solve it, otherwise they may be able to give
 pointers to common solutions.
 
+### Get DisCoTec Help
+
+If you run into any combination technique or DisCoTec programming trouble,
+please also raise an issue. We know that the [documentation](https://discotec.readthedocs.io/) 
+may be insufficient in places, but we need your feedback to know 
+where to expand!
+
 ## Solve an Issue or Contribute a Feature
 
 To find a good place to start coding, have a look at the
