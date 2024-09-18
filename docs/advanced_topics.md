@@ -76,9 +76,14 @@ DisCoTec currently implements three hierarchical basis functions resp. biorthogo
 
 The last reference below shows how conservation of mass and L2 stability is only provided by the latter two.
 In practice, we have observed that using hierarchical hat functions and long combination intervals (many time steps per combination) is fine with relatively laminar simulations.
-But in the turbulent regime, it becomes a necessity to use the CDF wavelets and to combine after every solver time step.
+But in the turbulent regime, it becomes necessary to use the CDF wavelets and to combine after every solver time step to avoid numerical instability.
 
 If you find yourself in need of higher orders of accuracy or conservation, you could add higher-order CDF wavelets to `DistributedHierarchization.hpp`.
+
+The basis functions all come in periodic and non-periodic versions, and you can use different functions for different dimensions. The non-periodic 
+version requires that boundary points are used on both "ends" of the domain (`BoundaryType 2`). 
+This has severe implications on load balancing in higher dimensions, as the points cannot be evenly distributed to $2^n$ processes any more.
+For this reason we recommend using a one-sided boundary with periodic boundary conditions.
 
 - A. Cohen, I. Daubechies, J.-C. Feauveau. ‘Biorthogonal bases of compactly supported wavelets’. In: Communications on Pure and Applied Mathematics 45.5 (1992), pp. 485–560. url: https://onlinelibrary.wiley.com/doi/abs/10.1002/cpa.3160450502
 - W. Sweldens. ‘The Lifting Scheme: A Construction of Second Generation Wavelets’. In: SIAM Journal on Mathematical Analysis 29.2 (Mar. 1, 1998). Publisher: Society for Industrial and Applied Mathematics, pp. 511–546. url: https://epubs.siam.org/doi/abs/10.1137/S0036141095289051
