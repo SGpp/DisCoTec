@@ -105,7 +105,7 @@ a single file with `Stats::write`.
 Currently, every DisCoTec application uses a custom variant of `.ini` parameter file parsing from a `ctparam` file. 
 This may be standardized in future revisions.
 
-[Interpolation coordinates](../examples/combi_workers_only/combi_example_worker_only.cpp#L141) and other input data can be read from hdf5 files.
+[Interpolation coordinates](https://github.com/SGpp/DisCoTec/blob/main/examples/combi_workers_only/combi_example_worker_only.cpp#L141) and other input data can be read from hdf5 files.
 
 The custom combination schemes generated with https://github.com/SGpp/DisCoTec-combischeme-utilities can be used with [`CombiMinMaxSchemeFromFile`](https://github.com/SGpp/DisCoTec/blob/main/examples/combi_workers_only/combi_example_worker_only.cpp#L97).
 
@@ -117,7 +117,7 @@ The subspace size input and sparse grid output files are only needed for widely-
 
 The GENE and SeLaLib examples use a separate folder for each component grid, and generate the input parameter files at the beginning of the main program.
 The task then changes the directory at initialization and for the solver update, so that outputs will be placed there.
-The derived quantities like energy can then be [combined as a postprocessing step](../examples/selalib_distributed/postprocessing/combine_selalib_diagnostics.cpp#L38).
+The derived quantities like energy can then be [combined as a postprocessing step](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/postprocessing/combine_selalib_diagnostics.cpp#L38).
 
 
 ### Widely-Distributed Simulations 

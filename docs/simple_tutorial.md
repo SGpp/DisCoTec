@@ -307,10 +307,10 @@ Found max. 7 different communicators for subspaces
 
 Depending on your use case, now you need to evaluate: are the results "good" (in your own metric)?
 You can evaluate this, for instance, by Monte-Carlo integration of the error compared to a reference 
-solution ([example here](../examples/combi_workers_only/combi_example_worker_only.cpp#L141)), 
-or by combining output files as a postprocessing step ([example here](../examples/selalib_distributed/postprocessing/combine_selalib_diagnostics.cpp#L38)).
+solution ([example here](https://github.com/SGpp/DisCoTec/blob/main/examples/combi_workers_only/combi_example_worker_only.cpp#L141)), 
+or by combining output files as a postprocessing step ([example here](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/postprocessing/combine_selalib_diagnostics.cpp#L38)).
 
-This can your starting point for playing around with the code:
+This is your starting point for playing with the combination technique:
 - How do the minimum and maximum resolution affect the results?
 - Can you see a difference when using different hierarchical basis functions?
 - Can you do multiple time steps per combination? Do you have to combine at all to get the required accuracy?
