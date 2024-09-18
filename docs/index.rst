@@ -13,6 +13,7 @@ Not to be confused with the `International Federated Conference on Distributed C
    :maxdepth: 1
    :caption: Contents:
    
+   combination_technique
    getting_started
    parallelism
    simple_tutorial
