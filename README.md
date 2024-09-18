@@ -83,17 +83,6 @@ Find a more detailed discussion in the [docs](https://discotec.readthedocs.io/en
 There are only few codes that allow weak scaling up to this problem size:
 a size that uses most of the available main memory of the entire system.
 
-## Contributing
-
-We welcome contributions! To find a good place to start coding, have a look at
-the currently open issues.
-
-- Please describe issues and intended changes in the [issue tracker](https://github.com/SGpp/DisCoTec/issues).
-- Please develop new features in a new branch (typically on your own fork) and
-  then create a [pull request](https://github.com/SGpp/DisCoTec/pulls).
-- New features will only be merged to the main branch if they are sufficiently
-  tested: please add unit tests in [/tests](/tests).
-
 ## Installing
 
 DisCoTec can be installed via spack, which handles all dependencies.
