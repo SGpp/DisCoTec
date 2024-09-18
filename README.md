@@ -64,15 +64,6 @@ The image describes the two ways of scaling up:
 One can either increase the size or the number of process groups.
 Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229)).
 
-All component grids are distributed to process groups (either statically, or
-dynamically through the manager rank).
-During the solver time step and most of the combination, MPI communication only
-happens within the process groups.
-Conversely, for the sparse grid reduction using the combination coefficients,
-MPI communication only happens between a rank and its colleagues in the other
-process groups, e.g., rank 0 in group 0 will only talk to rank 0 in all other groups.
-Thus, major bottlenecks arising from global communication can be avoided altogether.
-
 Combining the two ways of scaling up, DisCoTec's scalability was demonstrated on
 several machines, with the experiments comprising up to 524288 cores:
 
@@ -87,13 +78,7 @@ one pg of four processes in the upper left corner.
 The largest parallelization is 64 pgs of 2048 processes each.
 Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229)).
 
-This image also describes the challenges in large-scale experiments with DisCoTec:
-If the process groups become too large, the MPI communication of the multiscale
-transform starts to dominate the combination time.
-If there are too many pgs, the combination reduction will dominate the
-combination time.
-However, the times required for the solver stay relatively constant;
-they are determined by the solver's own scaling and the load balancing quality.
+Find a more detailed discussion in the [docs](https://discotec.readthedocs.io/en/latest/parallelism.html).
 
 There are only few codes that allow weak scaling up to this problem size:
 a size that uses most of the available main memory of the entire system.
@@ -136,3 +121,44 @@ The executables are placed in the respective `example` and `test` folders.
 [Here are the Docs](https://discotec.readthedocs.io/en/latest/getting_started.html#installation-with-spack) for CMake options and further Spack customization hints.
 
 
+## When to Use DisCoTec?
+
+If you are using a structured grid solver and want to increase its
+accuracy while not spending additional compute or memory resources on it,
+DisCoTec may be a viable option.
+The codes most likely in this situation are the ones that solve
+high-dimensional problems and thus suffer the curse of dimensionality,
+such as the 4-6D discretizations occurring in plasma physics or
+computational quantum chemistry.
+But if you have a "normal" 2-3D problem and find yourself
+resource constrained, DisCoTec could be for you, too!
+Use its multiscale benefits without worrying about any
+multiscale yourself 😊
+
+Why not try it [with your own solver](https://discotec.readthedocs.io/en/latest/simple_tutorial.html)?
+
+### What Numerical Advantage Can I Expect? 
+
+Depends on your problem!
+[Figure 3.6 here](http://elib.uni-stuttgart.de/handle/11682/14229)
+shows a first-order accurate 2D solver achieving
+approximately second-order accuracy with the Combination Technique considering the total number of DOF.
+(Figure omitted due to licensing, first published 
+[here](https://www.sciencedirect.com/science/article/pii/S0021999123004333).)
+
+
+## When Not to Use DisCoTec?
+
+1. If memory and/or time constraints are not your limiting factor; you can easily achieve the numerical accuracy you need with your resources.
+2. If your solver just does not fit the discretization constraints imposed by DisCoTec:
+   - a rectilinear (or mapped to rectilinear) domain
+   - structured rectilinear grids in your main data structure (=typically the unknown function), stored as a linearized array
+   - numbers of values per dimension that can be chosen as various powers of two, and where any power of two is a coarsened version of the discretization achieved with the next power of two ("nested discretization").
+   - if distributed-memory parallelism is used, it must be MPI
+   - currently, DisCoTec does not support Discontinuous Galerkin schemes, 
+     but it could be part of future versions (through Alpert multiwavelets).
+     Let us know in case you are interested!
+
+
+## Read The Full Documentation
+[here!](https://discotec.readthedocs.io/en/latest/)
