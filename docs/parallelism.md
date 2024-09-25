@@ -23,6 +23,16 @@ MPI communication only happens between a rank and its colleagues in the other
 process groups, e.g., rank 0 in group 0 will only talk to rank 0 in all other groups.
 Thus, major bottlenecks arising from global communication can be avoided altogether.
 
+In practice, the parallelization in DisCoTec is set at runtime, by calling 
+```cpp
+  size_t ngroup = 8;
+  size_t nprocs = 32;
+  bool withWorldManager = false;
+  combigrid::theMPISystem()->initWorldReusable(MPI_COMM_WORLD, ngroup, nprocs, withWorldManager);
+```
+for example. 
+If needed, the exact distribution of coordinates to ranks is set in the `CombiParameters` class.
+
 Combining the two ways of scaling up, DisCoTec's scalability was demonstrated on
 several machines, with the experiments comprising up to 524288 cores:
 

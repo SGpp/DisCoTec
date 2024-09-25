@@ -150,4 +150,8 @@ approximately second-order accuracy with the Combination Technique considering t
 
 
 ## Read The Full Documentation
-[here!](https://discotec.readthedocs.io/en/latest/)
+[DisCoTec documentation here!](https://discotec.readthedocs.io/en/latest/)
+
+[SeLaLib public source](https://github.com/selalib/selalib) and [SeLaLib documentation](https://selalib.github.io/selalib.html)
+
+For the current GENE documentation, you need to apply for access at [genecode.org](https://genecode.org/).
