@@ -60,12 +60,14 @@ We currently recommend to use `subspaceReduce` for small problems and `chunkedOu
 - T. Pollinger. ‘Stable and mass-conserving high-dimensional simulations with the sparse grid combination technique for full HPC systems and beyond.‘ Dissertation, 2024. doi: [10.18419/opus-14210](http://elib.uni-stuttgart.de/handle/11682/14229) .
 
 ### Fault Tolerance
-<!-- TODO -->
+
+DisCoTec offers fault tolerance by modifying the combination scheme to exclude failed resources. The fault tolerant mechanism is split into two steps: an error detection mechanism and the recovery process. Currently, the error detection mechanism is focused on hard faults and is based on ULFM MPI. DisCoTec offers a fault simulator that imitates hard faults. After detecting the faults, the affected grids are excluded from the combination scheme. This modified combination scheme has shown to be scalable and accurate. In case many of the grids in the combination scheme are affected, the framework sometimes recomputes very cheap grids. It is possible to implement an application-specific soft fault detection mechanism if this feature is needed (see also last reference below). The remaining recovery process stays unchanged for soft faults.
 
 Be aware that fault tolerance requires a manager rank to control the reassignment of tasks.
 
 - M. Obersteiner, A. P. Hinojosa, M. Heene, H.-J. Bungartz, D. Pflüger. ‘A Highly Scalable, Algorithm-based Fault-tolerant Solver for Gyrokinetic Plasma Simulations’. In: Proceedings of the 8th Workshop on Latest Advances in Scalable Algorithms for Large-Scale Systems. ScalA ’17. New York, NY, USA: ACM, 2017, 2:1–2:8. url: http://doi.acm.org/10.1145/3148226.3148229 .
 - M. Obersteiner. ‘A spatially adaptive and massively parallel implementation of the fault-tolerant combination technique’. Dissertation. Technische Universität München, 2021. url: https://mediatum.ub.tum.de/doc/1613369/1613369.pdf .
+- A. Parra Hinojosa, B. Harding, M. Hegland, and H.-J. Bungartz. ‘Handling silent data corruption with the sparse grid combination technique‘. In: Software for Exascale Computing-SPPEXA 2013-2015, pages 187–208. Springer, 2016.
 
 ### Hierarchical Basis Functions / Biorthogonal Wavelets and Boundary Treatment
 
