@@ -40,7 +40,8 @@ Combining the two ways of scaling up, DisCoTec's scalability was demonstrated on
 several machines, with the experiments comprising up to 524288 cores:
 
 ![timings for advection solver step on HAWK at various
-parallelizations](../gfx/times-solver-on-hawk.svg)![timings for combination step on
+parallelizations](../gfx/times-solver-on-hawk.svg)
+![timings for combination step on
 HAWK at various parallelizations](../gfx/times-combination-on-hawk.svg)
 
 We see the timings (in seconds) for the advection solver step and the

@@ -43,4 +43,5 @@ test coverage.
 
 ## Something else? Get in touch
 
-If you want to contribute in another way or collaborate with The SGpp Team, get in touch at <theresa@sparsegrids.org>.
+If you want to contribute in another way or collaborate with The SGpp Team,
+get in touch at <theresa@sparsegrids.org>.

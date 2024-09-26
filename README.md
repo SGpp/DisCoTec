@@ -92,11 +92,12 @@ Clone both `spack` and `DisCoTec` to find or build the dependencies and then
 compile DisCoTec:
 
 ```bash
-git clone git@github.com:spack/spack.git  # use https if your ssh is not set up on github
+git clone git@github.com:spack/spack.git  # use https if ssh is not set up on github
 ./spack/bin/spack external find  # find already-installed packages
 ./spack/bin/spack compiler find  # find compilers present on system
 ./spack/bin/spack info discotec@main  # shows DisCoTec's variants
-./spack/bin/spack spec discotec@main  # shows DisCoTec's dependency tree and which parts are already found
+# shows DisCoTec's dependency tree and which parts are already found
+./spack/bin/spack spec discotec@main
 
 git clone git@github.com:SGpp/DisCoTec.git
 cd DisCoTec
@@ -107,8 +108,8 @@ This will first build all dependencies, and then build DisCoTec inside the
 cloned folder.
 The executables are placed in the respective `example` and `test` folders.
 
-[Here are the Docs](https://discotec.readthedocs.io/en/latest/getting_started.html#installation-with-spack) for CMake options and further Spack customization hints.
-
+[Here are the Docs](https://discotec.readthedocs.io/en/latest/getting_started.html#installation-with-spack)
+for CMake options and further Spack customization hints.
 
 ## When to Use DisCoTec?
 
@@ -131,25 +132,29 @@ Why not try it [with your own solver](https://discotec.readthedocs.io/en/latest/
 Depends on your problem!
 [Figure 3.6 here](http://elib.uni-stuttgart.de/handle/11682/14229)
 shows a first-order accurate 2D solver achieving
-approximately second-order accuracy with the Combination Technique considering the total number of DOF.
+approximately second-order accuracy with the Combination Technique considering
+the total number of DOF.
 (Figure omitted due to licensing, first published
 [here](https://www.sciencedirect.com/science/article/pii/S0021999123004333).)
 
-
 ## When Not to Use DisCoTec?
 
-1. If memory and/or time constraints are not your limiting factor; you can easily achieve the numerical accuracy you need with your resources.
+1. If memory and/or time constraints are not your limiting factor; you can easily
+   achieve the numerical accuracy you need with your resources.
 2. If your solver just does not fit the discretization constraints imposed by DisCoTec:
    - a rectilinear (or mapped to rectilinear) domain
-   - structured rectilinear grids in your main data structure (=typically the unknown function), stored as a linearized array
-   - numbers of values per dimension that can be chosen as various powers of two, and where any power of two is a coarsened version of the discretization achieved with the next power of two ("nested discretization").
+   - structured rectilinear grids in your main data structure (=typically the
+     unknown function), stored as a linearized array
+   - numbers of values per dimension that can be chosen as various powers of two,
+     and where any power of two is a coarsened version of the discretization achieved
+     with the next power of two ("nested discretization").
    - if distributed-memory parallelism is used, it must be MPI
    - currently, DisCoTec does not support Discontinuous Galerkin schemes,
      but it could be part of future versions (through Alpert multiwavelets).
      Let us know in case you are interested!
 
-
 ## Read The Full Documentation
+
 [DisCoTec documentation here!](https://discotec.readthedocs.io/en/latest/)
 
 [SeLaLib public source](https://github.com/selalib/selalib) and [SeLaLib documentation](https://selalib.github.io/selalib.html)
