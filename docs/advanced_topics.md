@@ -134,6 +134,16 @@ The details are described in a [separate README](https://github.com/SGpp/DisCoTe
 The actual conjoint sparse grid data is then written through massively parallel [MPI-IO functions](https://github.com/SGpp/DisCoTec/blob/main/src/io/MPIInputOutput.hpp), optionally [compressed](https://github.com/SGpp/DisCoTec/blob/main/src/io/MPICompression.hpp) with LZ4.
 
 - T. Pollinger, A. Van Craen, C. Niethammer, M. Breyer, D. Pflüger. ‘Leveraging the Compute Power of Two HPC Systems for Higher-Dimensional Grid-Based Simulations with the Widely-Distributed Sparse Grid Combination Technique’. In: SC ’23. Association for Computing Machinery, Nov. 11, 2023. url: https://dl.acm.org/ doi/10.1145/3581784.3607036
+
+
+### Data transfer for Widely-Distributed Simulations
+
+As just described, communication in widely-distributed simulations consists of data exchange.
+This can be realized completely independently of DisCoTec.
+Tokens are written by each instance when the files are ready for transfer.
+As soon as these tokens are transferred, the receiving instance assumes that the data is complete and starts reading it in.
+The [DisCoTec/third_level_manager](../third_level_manager) folder contains, among others, adaptable example UFTP scripts for the transfer between JUDAC, HAWK, and SuperMUC NG and their documentation.
+
   
 ### Using Solvers Written In Other Programming Languages
 
