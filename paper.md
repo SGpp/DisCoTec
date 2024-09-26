@@ -148,15 +148,48 @@ to UFTP.
 
 # State of the field
 
-Besides `DisCoTec` there exist other frameworks that allow the usage of sparse grids and the combination technique. We will give a brief overview and outline the differences and application areas of the codes.
+Besides `DisCoTec` there exist other frameworks that allow the usage of
+sparse grids and the combination technique.
+We will give a brief overview and outline the differences and
+application areas of the codes.
 
-The C++ code [`Sg++`](https://github.com/SGpp/SGpp) allows to directly utilize sparse grids and apply them to a variety of different tasks such as interpolation, quadrature, optimization, PDEs,  regression, and classification. With the help of wrappers, the framework can be used from various other programming languages such as Python and Matlab. The code targets direct implementations within sparse grids and does not offer an implementation for the combination technique. Although offering parallelization for some of the tasks, the code mainly targets single-node computations.
+The C++ code [`SG++`](https://github.com/SGpp/SGpp) allows to directly utilize
+sparse grids and apply them to a variety of different tasks such as interpolation,
+quadrature, optimization, PDEs,  regression, and classification.
+With the help of wrappers, the framework can be used from various other programming
+languages such as Python and Matlab.
+The code targets direct implementations within sparse grids and provides a basic
+implementation of the combination technique.
+Although offering parallelization for some of the tasks, the code mainly targets
+single-node computations.
 
-The [`Sparse Grids Matlab Kit`](https://github.com/lorenzo-tamellini/sparse-grids-matlab-kit) by Piazzola and Tamellini was originally designed for teaching purposes and uncertainty quantification with the combination technique. It offers a user friendly MATLAB interface for the combination technique. In addition, dimensional adaptivity is available for nested and non-nested sequences of component grid collocation points. The code is designed for usage on a single node which limits the parallelism to shared memory. 
+The [`Sparse Grids Matlab Kit`](https://github.com/lorenzo-tamellini/sparse-grids-matlab-kit)
+by Piazzola and Tamellini was originally designed for teaching purposes and
+uncertainty quantification with the combination technique.
+It offers a user friendly MATLAB interface for the combination technique.
+In addition, dimensional adaptivity is available for nested and non-nested sequences
+of component grid collocation points.
+The code is designed for usage on a single node which limits the parallelism
+to shared memory.
 
-The [`sparseSpACE`](https://github.com/obersteiner/sparseSpACE) project offers different variants of the combination technique including a spatially adaptive combination technique. It offers implementations for various applications such as numerical integration, interpolation, uncertainty quantification, sparse grid density estimation (for classification and clustering), regression, and PDE calculations. The code is completely written in Python and is mostly sequential. The main novelty of this project is the possibility to add spatial adaptivity to the combination technique. 
+The [`sparseSpACE`](https://github.com/obersteiner/sparseSpACE) project offers
+different variants of the combination technique including a spatially adaptive
+combination technique.
+It provides implementations for various applications such as numerical integration,
+interpolation, uncertainty quantification, sparse grid density estimation (for
+classification and clustering), regression, and PDE calculations.
+The code is completely written in Python and is mostly sequential.
+The main novelty of this project is the possibility to add spatial adaptivity
+to the combination technique.
 
-This demonstrates that there exist multiple codes for sparse grids and the combination technique. However, `DisCoTec` is the only code that offers distributed parallelization with the combination technique and has demonstrated that it can scale up to full supercomputers and beyond. In addition, `DisCoTec` offers the most sophisticated approach to utilize the combination technique with time-dependent PDEs by offering frequent recombinations to ensure a better stability.
+This demonstrates that there exist multiple codes for sparse grids and the
+combination technique.
+However, `DisCoTec` is the only code that offers distributed parallelization with
+the combination technique and has demonstrated that it can scale up to full
+supercomputers and beyond.
+In addition, `DisCoTec` uses the most sophisticated approach to utilize the
+combination technique with time-dependent PDEs by employing recombinations,
+which increases the overall numerical accuracy [@pollingerStableMassconservingSparse2023].
 
 # Acknowledgements
 
