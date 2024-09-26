@@ -4,7 +4,9 @@ So you want to use your timestepped simulation with the DisCoTec framework.
 This Tutorial gives you an outline of the steps required.
 
 ## Your Code Interface: Init, Timestep, Get/Set Full Grid, Finish
-The first step is to prepare your code in a way that it can be called by DisCoTec.
+
+The first step is to prepare your code in a way that it can be called by
+DisCoTec.
 Typically, your simulation code will look similar to this (in pseudocode):
 
 ```python
@@ -14,7 +16,14 @@ int num_points_z = ...
 int num_points_vx = ...
 ...
 initial_function = ...
-grid.initialize(initial_function, num_points_x, num_points_y, num_points_z, num_points_vx, ... )
+grid.initialize(
+                initial_function,
+                num_points_x,
+                num_points_y,
+                num_points_z,
+                num_points_vx,
+                ... 
+               )
 helper_data_structures.initialize(...)
 float end_time = ...
 float time_step = ...
@@ -29,14 +38,20 @@ properties = compute_properties(grid)
 write_output(properties, grid)
 ```
 
-For use with DisCoTec, we assume nestable power-of-two discretizations, i.e. where your grid spacing can be $2^{-l}$ for $l \in \mathbb{N}$.
-For simplicity, in this tutorial we also assume you use periodic boundary conditions and all `num_points_` are chosen as powers of two.
+For use with DisCoTec, we assume nestable power-of-two discretizations, i.e.,
+where your grid spacing can be $2^{-l}$ for $l \in \mathbb{N}$.
+For simplicity, in this tutorial we also assume you use periodic boundary
+conditions and all `num_points_` are chosen as powers of two.
 
-You need to transform your current solver code into stateful functions, or a stateful data structure.
-Let's say you introduce a class `YourSimulation`: computations before the time loop go into its constructor 
-or an `init()` function (if your code uses MPI, this is also where a sub-communicator should be passed for `YourSimulation` to use).
-Computation in the time loop goes into its `run()` function. 
-Anything after the time loop goes into the destructor or a function `finalize()`.
+You need to transform your current solver code into stateful functions, or a
+stateful data structure.
+Let's say you introduce a class `YourSimulation`: computations before the time
+loop go into its constructor
+or an `init()` function (if your code uses MPI, this is also where a
+sub-communicator should be passed for `YourSimulation` to use).
+Computation in the time loop goes into its `run()` function.
+Anything after the time loop goes into the destructor or a function
+`finalize()`.
 Then, the following should do the same:
 
 ```diff
@@ -47,9 +62,22 @@ int num_points_vx = ...
 ...
 
 - initial_function = ...
-- grid.initialize(initial_function, num_points_x, num_points_y, num_points_z, num_points_vx, ... )
+- grid.initialize(
+-                 initial_function,
+-                 num_points_x,
+-                 num_points_y,
+-                 num_points_z,
+-                 num_points_vx,
+-                 ... 
+-                )
 - helper_data_structures.initialize(...)
-+ my_simulation = YourSimulation(num_points_x, num_points_y, num_points_z, num_points_vx, ...)
++ my_simulation = YourSimulation(
++                                num_points_x, 
++                                num_points_y,
++                                num_points_z,
++                                num_points_vx,
++                                ...
++                               )
 float end_time = ...
 float time_step = ...
 float time_now = 0.0;
@@ -65,14 +93,18 @@ while(time_now < end_time) { # time loop
 + my_simulation.finalize()
 ```
 
-This setup assumes that we can pass the number of grid points per dimension in your high-d contiguous array as arguments.
-In addition, you will need an interface that allows DisCoTec to get and set this data.
-The most portable and memory-efficient way of doing so is to provide a pointer to the beginning of the contiguous array.
+This setup assumes that we can pass the number of grid points per dimension in
+your high-d contiguous array as arguments.
+In addition, you will need an interface that allows DisCoTec to get and set
+this data.
+The most portable and memory-efficient way of doing so is to provide a pointer
+to the beginning of the contiguous array.
 Let's call this getter `get_tensor_pointer`.
 
 ## Make Your Simulation a DisCoTec Task and Your Grid a DisCoTec DistributedFullGrid
 
-From now on, we assume that the interface to `YourSimulation` is wrapped in a C++ header `YourSimulation.h`, roughly like this:
+From now on, we assume that the interface to `YourSimulation` is wrapped in a
+C++ header `YourSimulation.h`, roughly like this:
 
 ```cpp
 #include <vector>
@@ -90,8 +122,10 @@ class YourSimulation {
 };
 ```
 
-Now, DisCoTec comes into play. Create a new folder or project that can access both `YourSimulation` and DisCoTec.
-For the combination technique, multiple instances of `YourSimulation` will be instantiated, each at different resolutions.
+Now, DisCoTec comes into play. Create a new folder or project that can access
+both `YourSimulation` and DisCoTec.
+For the combination technique, multiple instances of `YourSimulation` will be
+instantiated, each at different resolutions.
 The `Task` class is the interface you will need to implement.
 With `YourSimulation`, that will be as simple as:
 
@@ -158,17 +192,22 @@ class YourTask : public combigrid::Task {
 };
 ```
 
-Note that this also turns your data into a `DistributedFullGrid`, without making a copy of the data.
-DisCoTec just assumes that you pass it a pointer to a correctly-sized contiguous array.
-The size of the whole "global" grid is $2^{l_d}$, with $l_d$ the level vector for each dimension $d$.
-Every MPI process in your simulation should then have $2^{l_d} / p_d$ grid points, where $p$ is the cartesian process vector.
-
+Note that this also turns your data into a `DistributedFullGrid`, without
+making a copy of the data.
+DisCoTec just assumes that you pass it a pointer to a correctly-sized
+contiguous array.
+The size of the whole "global" grid is $2^{l_d}$, with $l_d$ the level vector
+for each dimension $d$.
+Every MPI process in your simulation should then have $2^{l_d} / p_d$ grid
+points, where $p$ is the cartesian process vector.
 
 ## Make Your MPI Processes Workers
 
-Now, you can use the `YourTask` class to instantiate many tasks as part of a combination scheme.
-There are a lot of choices to make regarding the combined simulation, which is why more than half 
-of the example code is dedicated to defining parameters and generating input data structures:
+Now, you can use the `YourTask` class to instantiate many tasks as part of a
+combination scheme.
+There are a lot of choices to make regarding the combined simulation,
+which is why more than half of the example code is dedicated to defining
+parameters and generating input data structures:
 
 ```cpp
 #include <string>
@@ -211,10 +250,11 @@ int main(int argc, char** argv) {
                                                       1);  // periodic boundary in every dimension
   const combigrid::real dt = 0.01;                         // time step
   const size_t ncombi = 20;                                // number of combinations
-  const std::string basis =
-      "biorthogonal_periodic";  // hierarchical basis functions for intermediate representation
+  // hierarchical basis functions for intermediate representation
+  const std::string basis = "biorthogonal_periodic";
+  // algorithm variant for data exchange between groups
   const combigrid::CombinationVariant combinationVariant =
-      combigrid::CombinationVariant::subspaceReduce;  // variant for data exchange between groups
+      combigrid::CombinationVariant::subspaceReduce;
 
   // generate combination scheme from parameters
   std::vector<combigrid::LevelVector> levels;  // level vector for each component grid
@@ -234,8 +274,11 @@ int main(int argc, char** argv) {
     }
   }
 ```
-These parameter values shold be suitable for a very small-scale proof-of-concept.
-The last scope assigns tasks (i.e. your simulation instances) to process groups statically.
+
+These parameter values shold be suitable for a very small-scale
+proof-of-concept.
+The last scope assigns tasks (i.e. your simulation instances) to process groups
+statically.
 
 The remaining part of the code looks a lot like your initial time loop again:
 
@@ -274,21 +317,27 @@ The remaining part of the code looks a lot like your initial time loop again:
   return 0;
 }
 ```
-Instantiating a `ProcessGroupWorker` at the beginning of the scope sets up some data structures,
-in particular a `TaskWorker` and a `SparseGridWorker`.
+
+Instantiating a `ProcessGroupWorker` at the beginning of the scope sets up some
+data structures, in particular a `TaskWorker` and a `SparseGridWorker`.
 Coming back to the [parallelism in DisCoTec](./parallelism.md):
 
 ![schematic of MPI ranks in DisCoTec](../gfx/discotec-ranks.svg)
 
-The `TaskWorker` deals with the task execution and other within-group operations (vertical in the graphics), while the 
-`SparseGridWorker` handles the operations across groups, such as the reduction in the combination (horizontal in the graphics).
-The `ProcessGroupWorker` bundles the two and adds abstracts functions required for further control hierarchies.
-If you want to add further functionality to DisCoTec, this would be a typical extension point. Otherwise, it's just where functions are encapsulated for you to use!
+The `TaskWorker` deals with the task execution and other within-group
+operations (vertical in the graphics), while the `SparseGridWorker` handles the
+operations across groups, such as the reduction in the combination
+(horizontal in the graphics).
+The `ProcessGroupWorker` bundles the two and adds abstracts functions required
+for further control hierarchies.
+If you want to add further functionality to DisCoTec, this would be a typical
+extension point.
+Otherwise, it's just where functions are encapsulated for you to use!
 
+## Combine
 
-## Combine!
-
-Compile the code using your familiar build tools. MPI and DisCoTec should be the only immediate dependencies.
+Compile the code using your familiar build tools. MPI and DisCoTec should be
+the only immediate dependencies.
 
 ```sh
 $ mpiexec -n 8 ./tutorial_example 
@@ -305,15 +354,21 @@ Found max. 7 different communicators for subspaces
 [20240912T133902]  Performed 20 combinations.
 ```
 
-Depending on your use case, now you need to evaluate: are the results "good" (in your own metric)?
-You can evaluate this, for instance, by Monte-Carlo integration of the error compared to a reference 
-solution ([example here](https://github.com/SGpp/DisCoTec/blob/main/examples/combi_workers_only/combi_example_worker_only.cpp#L141)), 
-or by combining output files as a postprocessing step ([example here](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/postprocessing/combine_selalib_diagnostics.cpp#L38)).
+Depending on your use case, now you need to evaluate: are the results "good"
+(in your own metric)?
+You can evaluate this, for instance, by Monte-Carlo integration of the error
+compared to a reference solution
+([example here](https://github.com/SGpp/DisCoTec/blob/main/examples/combi_workers_only/combi_example_worker_only.cpp#L141)),
+or by combining output files as a postprocessing step
+([example here](https://github.com/SGpp/DisCoTec/blob/main/examples/selalib_distributed/postprocessing/combine_selalib_diagnostics.cpp#L38)).
 
 This is your starting point for playing with the combination technique:
+
 - How do the minimum and maximum resolution affect the results?
 - Can you see a difference when using different hierarchical basis functions?
-- Can you do multiple time steps per combination? Do you have to combine at all to get the required accuracy?
- 
-If you need to go to a larger scale or want to further customize the combination behavior, 
-keep reading on about [advanced topics](./advanced_topics.md).
+- Can you do multiple time steps per combination? Do you have to combine at all
+  to get the required accuracy?
+
+If you need to go to a larger scale or want to further customize the
+combination behavior, keep reading on about
+[advanced topics](./advanced_topics.md).

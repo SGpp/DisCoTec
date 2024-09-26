@@ -18,7 +18,8 @@ functions, with the so-called combination coefficients.
 
 In this two-dimensional combination scheme, all combination coefficients are 1
 and -1, respectively.
-Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229), adapted from Pollinger et al. [2023](https://dl.acm.org/doi/10.1145/3581784.3607036)).
+Figure originally published in (Pollinger [2024](https://elib.uni-stuttgart.de/handle/11682/14229),
+adapted from Pollinger et al. [2023](https://dl.acm.org/doi/10.1145/3581784.3607036)).
 
 Between time steps, the grids exchange data through an intermediate multi-scale
 represenation, which is summarized as the "combination" step in DisCoTec.

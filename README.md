@@ -126,13 +126,13 @@ multiscale yourself 😊
 
 Why not try it [with your own solver](https://discotec.readthedocs.io/en/latest/simple_tutorial.html)?
 
-### What Numerical Advantage Can I Expect? 
+### What Numerical Advantage Can I Expect?
 
 Depends on your problem!
 [Figure 3.6 here](http://elib.uni-stuttgart.de/handle/11682/14229)
 shows a first-order accurate 2D solver achieving
 approximately second-order accuracy with the Combination Technique considering the total number of DOF.
-(Figure omitted due to licensing, first published 
+(Figure omitted due to licensing, first published
 [here](https://www.sciencedirect.com/science/article/pii/S0021999123004333).)
 
 
@@ -144,7 +144,7 @@ approximately second-order accuracy with the Combination Technique considering t
    - structured rectilinear grids in your main data structure (=typically the unknown function), stored as a linearized array
    - numbers of values per dimension that can be chosen as various powers of two, and where any power of two is a coarsened version of the discretization achieved with the next power of two ("nested discretization").
    - if distributed-memory parallelism is used, it must be MPI
-   - currently, DisCoTec does not support Discontinuous Galerkin schemes, 
+   - currently, DisCoTec does not support Discontinuous Galerkin schemes,
      but it could be part of future versions (through Alpert multiwavelets).
      Let us know in case you are interested!
 

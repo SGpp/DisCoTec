@@ -19,8 +19,8 @@ pointers to common solutions.
 ### Get DisCoTec Help
 
 If you run into any combination technique or DisCoTec programming trouble,
-please also raise an issue. We know that the [documentation](https://discotec.readthedocs.io/) 
-may be insufficient in places, but we need your feedback to know 
+please also raise an issue. We know that the [documentation](https://discotec.readthedocs.io/)
+may be insufficient in places, but we need your feedback to know
 where to expand!
 
 ## Solve an Issue or Contribute a Feature
@@ -41,6 +41,6 @@ Please include (unit) tests in the [./tests](/tests) folder.
 Reviews will be based on function, understandability, and testability /
 test coverage.
 
-## Something else? Get in touch!
+## Something else? Get in touch
 
 If you want to contribute in another way or collaborate with The SGpp Team, get in touch at <theresa@sparsegrids.org>.

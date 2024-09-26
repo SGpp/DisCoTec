@@ -12,7 +12,7 @@ DisCoTec can be installed via spack, which handles all dependencies.
 
 If you want to use DisCoTec as a library only, follow the usual
 [Spack installation](https://spack.readthedocs.io/en/latest/features.html)
-instructions until the command `spack install discotec@main` 
+instructions until the command `spack install discotec@main`
 (or an extended version of it) succeeds.
 
 If you want to develop DisCoTec code or examples, the `spack dev-build` workflow
@@ -22,11 +22,14 @@ Clone both `spack` and `DisCoTec` to find or build the dependencies and then
 compile DisCoTec:
 
 ```bash
-git clone https://github.com/spack/spack.git  # use https if your ssh is not set up on github
+git clone https://github.com/spack/spack.git
 ./spack/bin/spack external find  # find already-installed packages
 ./spack/bin/spack compiler find  # find compilers present on system
 ./spack/bin/spack info discotec@main  # shows DisCoTec's variants
-./spack/bin/spack spec discotec@main  # shows DisCoTec's dependency tree and which parts are already found
+
+ # shows DisCoTec's dependency tree and which parts are already found
+./spack/bin/spack spec discotec@main
+# optional: configuring external packages according to Spack documentation
 
 git clone https://github.com/SGpp/DisCoTec.git
 cd DisCoTec
@@ -39,8 +42,8 @@ The executables are placed in the respective `example` and `test` folders.
 
 If you encounter problems with the Spack installation, check out
 the [Spack command documentation](https://spack.readthedocs.io/en/latest/getting_started.html),
-and see if other users had the same 
-[spack issues](https://github.com/spack/spack/issues?q=is%3Aissue) or 
+and see if other users had the same
+[spack issues](https://github.com/spack/spack/issues?q=is%3Aissue) or
 [DisCoTec issues](https://github.com/SGpp/DisCoTec/issues) before.
 
 ### ... with CMake
@@ -49,7 +52,8 @@ and see if other users had the same
 
 cmake >= (3.24.2),
 libmpich-dev (>= 3.2-6), or other MPI library
-libboost-all-dev (>= 1.60) (or the subset test, serialization, filesystem, system, program_options, date_time Boost libraries)
+libboost-all-dev (>= 1.60) (or the subset test, serialization, filesystem, system,
+program_options, date_time Boost libraries)
 
 Additional (optional) dependencies:
 
@@ -58,7 +62,7 @@ Additional (optional) dependencies:
 - HighFive
 - lz4
 - glpk (used version bundled in the DisCoTec repo)
-- vtk 
+- vtk
 
 You can also install the dependencies with Spack, and `spack load`
 them, before executing the next steps.
@@ -124,8 +128,8 @@ If timings matter, consider [pinning](#pinning-with-various-mpi-implementations)
 
 ## Run an Example
 
-DisCoTec executables are typically configured through `ctparam` files, which are parsed on
-startup.
+DisCoTec executables are typically configured through `ctparam` files, which are
+parsed on startup.
 The `ctparam` file will contain the combination technique parameters (dimension,
 minimum and maximum level) as well as parallelization parameters (number and
 size of process groups, parallelism within process groups) in `.ini` file format.
