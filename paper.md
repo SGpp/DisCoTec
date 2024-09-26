@@ -165,7 +165,7 @@ single-node computations.
 
 The [`Sparse Grids Matlab Kit`](https://github.com/lorenzo-tamellini/sparse-grids-matlab-kit)
 by Piazzola and Tamellini was originally designed for teaching purposes and
-uncertainty quantification with the combination technique.
+uncertainty quantification with the combination technique [@piazzolaSparseGridsMatlab2022].
 It offers a user friendly MATLAB interface for the combination technique.
 In addition, dimensional adaptivity is available for nested and non-nested sequences
 of component grid collocation points.
@@ -194,8 +194,7 @@ which increases the overall numerical accuracy [@pollingerStableMassconservingSp
 # Acknowledgements
 
 We acknowledge contributions from Mario Heene, Christoph Kowitz, Alfredo Parra
-Hinojosa, Michael Obersteiner,
-Marcel Hurler, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal,
+Hinojosa, Johannes Rentrop, Keerthi Gaddameedi, Marvin Dostal,
 Marcel Breyer, Christoph Niethammer, Philipp Offenhäuser,
 and support from HLRS, LRZ, JSC, and NHR@FAU, where we would like to highlight
 the long-standing support by Martin Bernreuther and Martin Ohlerich in particular.
