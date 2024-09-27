@@ -83,34 +83,6 @@ Find a more detailed discussion in the [docs](https://discotec.readthedocs.io/en
 There are only few codes that allow weak scaling up to this problem size:
 a size that uses most of the available main memory of the entire system.
 
-## Installing
-
-DisCoTec can be installed via spack, which handles all dependencies.
-We recommend the `spack dev-build` workflow:
-
-Clone both `spack` and `DisCoTec` to find or build the dependencies and then
-compile DisCoTec:
-
-```bash
-git clone git@github.com:spack/spack.git  # use https if ssh is not set up on github
-./spack/bin/spack external find  # find already-installed packages
-./spack/bin/spack compiler find  # find compilers present on system
-./spack/bin/spack info discotec@main  # shows DisCoTec's variants
-# shows DisCoTec's dependency tree and which parts are already found
-./spack/bin/spack spec discotec@main
-
-git clone git@github.com:SGpp/DisCoTec.git
-cd DisCoTec
-../spack/bin/spack dev-build -b install discotec@main
-```
-
-This will first build all dependencies, and then build DisCoTec inside the
-cloned folder.
-The executables are placed in the respective `example` and `test` folders.
-
-[Here are the Docs](https://discotec.readthedocs.io/en/latest/getting_started.html#installation-with-spack)
-for CMake options and further Spack customization hints.
-
 ## When to Use DisCoTec?
 
 If you are using a structured grid solver and want to increase its
@@ -152,6 +124,34 @@ the total number of DOF.
    - currently, DisCoTec does not support Discontinuous Galerkin schemes,
      but it could be part of future versions (through Alpert multiwavelets).
      Let us know in case you are interested!
+
+## Installing
+
+DisCoTec can be installed via spack, which handles all dependencies.
+We recommend the `spack dev-build` workflow:
+
+Clone both `spack` and `DisCoTec` to find or build the dependencies and then
+compile DisCoTec:
+
+```bash
+git clone git@github.com:spack/spack.git  # use https if ssh is not set up on github
+./spack/bin/spack external find  # find already-installed packages
+./spack/bin/spack compiler find  # find compilers present on system
+./spack/bin/spack info discotec@main  # shows DisCoTec's variants
+# shows DisCoTec's dependency tree and which parts are already found
+./spack/bin/spack spec discotec@main
+
+git clone git@github.com:SGpp/DisCoTec.git
+cd DisCoTec
+../spack/bin/spack dev-build -b install discotec@main
+```
+
+This will first build all dependencies, and then build DisCoTec inside the
+cloned folder.
+The executables are placed in the respective `example` and `test` folders.
+
+[Here are Docs](https://discotec.readthedocs.io/en/latest/getting_started.html#installation-with-spack)
+for CMake options and further Spack customization hints.
 
 ## Read The Full Documentation
 
